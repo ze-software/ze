@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	cli "github.com/ze-software/ze/internal/component/cli/client"
-	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // The helpers below call the resolution functions whose error is the YANG
@@ -57,7 +57,7 @@ func absoluteVerbPathForTest(t testing.TB, verb string, rel []string) ([]string,
 	return words, declared
 }
 
-func matchLocalForTest(t testing.TB, words, values []string) (LocalHandler, []string) {
+func matchLocalForTest(t testing.TB, words, values []string) (command.LocalHandler, []string) {
 	t.Helper()
 	handler, args, err := matchLocalHandler(words, values)
 	if err != nil {
@@ -66,9 +66,9 @@ func matchLocalForTest(t testing.TB, words, values []string) (LocalHandler, []st
 	return handler, args
 }
 
-func lookupLocalForTest(t testing.TB, words []string) (registry.LocalHandler, []string) {
+func lookupLocalForTest(t testing.TB, words []string) (command.LocalHandler, []string) {
 	t.Helper()
-	handler, args, err := registry.LookupLocal(words, cli.IsDeclaredCommand)
+	handler, args, err := command.LookupLocal(words, cli.IsDeclaredCommand)
 	if err != nil {
 		t.Fatalf("LookupLocal(%q): %v", words, err)
 	}

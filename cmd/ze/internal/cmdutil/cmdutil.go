@@ -14,36 +14,20 @@ import (
 	"github.com/ze-software/ze/cmd/ze/internal/suggest"
 	cli "github.com/ze-software/ze/internal/component/cli/client"
 	cmd "github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// LocalHandler is a function that handles a command locally (in-process),
-// without connecting to the daemon. Kept as a type alias so callers that
-// imported `cmdutil.LocalHandler` continue to compile.
-type LocalHandler = registry.LocalHandler
-
-// registerLocalCommand is a thin passthrough to the registry package.
-// cmdutil historically owned this registry but cannot own it now because
-// cmdutil imports cli (for BuildCommandTree), which would create an
-// import cycle when each subcommand package's register.go registers
-// itself. The canonical owner is the registry (leaf package, no cmd/ze
-// deps); cmdutil forwards for source-compatibility with old callers.
-func registerLocalCommand(path string, handler LocalHandler) error {
-	return registry.RegisterLocal(path, handler)
-}
-
-// matchLocalHandler is a thin adapter over registry.LookupLocal that
+// matchLocalHandler is a thin adapter over cmd.LookupLocal that
 // re-applies the values-as-trailing-args convention used by RunCommand.
 //
 // cli.IsDeclaredCommand is what lets the lookup refuse a handler registered
-// above a declared command (registry.LookupLocal, the shadow rule). The
+// above a declared command (cmd.LookupLocal, the shadow rule). The
 // registry cannot answer that itself: it is a leaf package by design and must
 // not import the CLI, so the caller that already knows both namespaces supplies
 // the answer. The error is the declaration source's (a refused YANG schema),
 // and no handler is served with it.
-func matchLocalHandler(words, values []string) (LocalHandler, []string, error) {
-	handler, args, err := registry.LookupLocal(words, cli.IsDeclaredCommand)
+func matchLocalHandler(words, values []string) (cmd.LocalHandler, []string, error) {
+	handler, args, err := cmd.LookupLocal(words, cli.IsDeclaredCommand)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -54,20 +38,14 @@ func matchLocalHandler(words, values []string) (LocalHandler, []string, error) {
 }
 
 // invokeLocalHandler runs a handler matchLocalHandler answered (route R6).
-// Every token the handler will see, the argv values included, is judged
-// against the leaves the model declares for the matched path first, and the
-// handler runs on the judged tokens only. args is matchLocalHandler's answer
+// InvokeLocal judges every token the handler will see, the argv values
+// included, against the leaves the model declares for the matched path, and
+// the handler runs on the judged value only. args is matchLocalHandler's answer
 // for words and values, so the matched path is the words its tail did not
 // take.
-func invokeLocalHandler(handler LocalHandler, words, values, args []string) int {
+func invokeLocalHandler(handler cmd.LocalHandler, words, values, args []string) int {
 	path := strings.Join(words[:len(words)-(len(args)-len(values))], " ")
-	judged, err := registry.ValidateLocalArgs(path, args)
-	if err != nil {
-		var tb textbuf.Buffer
-		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
-		return 1
-	}
-	return handler(judged)
+	return cmd.InvokeLocal(path, handler, args)
 }
 
 // Resolution is what one argv resolves to against one verb's command tree.
@@ -82,11 +60,11 @@ type Resolution struct {
 	// Local is the path a local handler is looked up under. It keeps the
 	// output-format keyword, so a handler that takes `json` as an argument
 	// still receives it, and it keeps every trailing word, because
-	// registry.LookupLocal ends the path itself (extractLocalValues).
+	// cmd.LookupLocal ends the path itself (extractLocalValues).
 	Local []string
 	// LocalValues are the values an INLINE selector was lifted out of Local
 	// into. A trailing value is not lifted: it stays in Local, where
-	// registry.LookupLocal's own longest-prefix match returns it as an argument.
+	// cmd.LookupLocal's own longest-prefix match returns it as an argument.
 	LocalValues []string
 	// Path is the absolute command the daemon dispatches on.
 	Path []string
@@ -125,14 +103,14 @@ type Resolution struct {
 // RunCommand printed a subcommand list, exited 1, and RunShow
 // (internal/plugins/host/host.go) was unreachable through `ze show host`.
 //
-// The fallback lookup is longest-prefix, matching registry.LookupLocal: a
+// The fallback lookup is longest-prefix, matching cmd.LookupLocal: a
 // fallback at `show host` also answers `show host cpu`, which is what lets an
 // operator read hardware inventory with no daemon running.
 func (r Resolution) dispatchable() bool {
 	if r.Declared {
 		return true
 	}
-	handler, _ := registry.LookupOfflineFallback(r.Path)
+	handler, _ := cmd.LookupOfflineFallback(r.Path)
 	return handler != nil
 }
 
@@ -266,7 +244,7 @@ func RunCommand(args []string, cmdName string) int {
 	// `json`, `yaml` or `table` is reachable only from here.
 	//
 	// Running first does NOT make a local handler beat a declared command: the
-	// lookup itself refuses a match that would swallow one (registry.LookupLocal,
+	// lookup itself refuses a match that would swallow one (cmd.LookupLocal,
 	// the shadow rule), so the order decides only what happens when nothing is
 	// declared below the handler's path.
 	handler, handlerArgs, err := matchLocalHandler(res.Local, res.LocalValues)
@@ -464,7 +442,7 @@ func ExtractValues(words []string, tree *cli.Command, verb string) (treeWords, v
 // extractLocalValues splits words for the LOCAL-HANDLER lookup, which is keyed
 // on a different registry and therefore ends its paths somewhere else.
 //
-// registry.LookupLocal already does a longest-prefix match over the words it is
+// cmd.LookupLocal already does a longest-prefix match over the words it is
 // handed and returns the rest as the handler's arguments, so the TRAILING split
 // is done, by the registry that owns those keys. Doing it here as well cuts the
 // path short: `ze show debug profile name default` is served by runShowProfile,

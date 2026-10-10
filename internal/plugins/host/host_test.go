@@ -4,12 +4,14 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // VALIDATES: AC-19 — `ze host show bogus` exits 1 and lists the valid
 // sections in the error message.
 func TestRunShow_RejectsUnknownSection(t *testing.T) {
-	code := RunShow([]string{"bogus"})
+	code := RunShow(commandtest.Args("bogus"))
 	if code == 0 {
 		t.Errorf("RunShow bogus exit = 0, want non-zero")
 	}
@@ -21,7 +23,7 @@ func TestRunShow_RejectsUnknownSection(t *testing.T) {
 // inventory can be assembled. On darwin the inventory is empty but
 // still exits 0.
 func TestRunShow_DefaultsToAll(t *testing.T) {
-	code := RunShow([]string{})
+	code := RunShow(commandtest.Args())
 	if code != 0 {
 		t.Errorf("RunShow [] exit = %d, want 0", code)
 	}

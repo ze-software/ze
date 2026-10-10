@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -37,7 +38,7 @@ func captureStdout(t *testing.T, fn func()) string {
 
 func TestExplainKnownDiagnostic(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run([]string{"config-parse"})
+		code := Run(commandtest.Args("config-parse"))
 		assert.Equal(t, 0, code)
 	})
 	assert.Contains(t, out, "config-parse")
@@ -46,7 +47,7 @@ func TestExplainKnownDiagnostic(t *testing.T) {
 
 func TestExplainKnownDiagnosticJSON(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run([]string{"--json", "config-parse"})
+		code := Run(commandtest.Args("--json", "config-parse"))
 		assert.Equal(t, 0, code)
 	})
 
@@ -58,16 +59,16 @@ func TestExplainKnownDiagnosticJSON(t *testing.T) {
 }
 
 func TestExplainUnknownDiagnostic(t *testing.T) {
-	code := Run([]string{"nonexistent-code"})
+	code := Run(commandtest.Args("nonexistent-code"))
 	assert.Equal(t, 1, code)
 }
 
 func TestExplainNoArgs(t *testing.T) {
-	code := Run([]string{})
+	code := Run(commandtest.Args())
 	assert.Equal(t, 1, code)
 }
 
 func TestExplainHelp(t *testing.T) {
-	code := Run([]string{"--help"})
+	code := Run(commandtest.Args("--help"))
 	assert.Equal(t, 0, code)
 }

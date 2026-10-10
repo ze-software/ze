@@ -26,7 +26,6 @@ import (
 
 	unicli "github.com/ze-software/ze/internal/component/cli"
 	cmd "github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	pingcmd "github.com/ze-software/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -300,7 +299,7 @@ func runInteractiveSession(client *cliClient) int {
 // runBGP runs the BGP CLI using the unified cli.Model.
 // runOfflineFallback serves a read-only command in-process when the daemon is
 // unreachable, if an offline fallback was registered for that command path
-// (via registry.RegisterOfflineFallback). Returns the command's exit code and
+// (via cmd.RegisterOfflineFallback). Returns the command's exit code and
 // true when it handled the command; false lets the caller emit the usual
 // "daemon unreachable" error. The fallback registry is separate from the local
 // command registry, so a fallback is reached only through this daemon-down path
@@ -310,18 +309,13 @@ func runOfflineFallback(command string) (int, bool) {
 		return 0, false
 	}
 	words := strings.Fields(command)
-	handler, fallbackArgs := registry.LookupOfflineFallback(words)
+	handler, fallbackArgs := cmd.LookupOfflineFallback(words)
 	if handler == nil {
 		return 0, false
 	}
-	// Route R7: the fallback runs on the tokens the model's leaves judged, as
+	// Route R7: the fallback runs on the value the model's leaves judged, as
 	// the daemon would have.
-	judged, err := registry.ValidateLocalArgs(strings.Join(words[:len(words)-len(fallbackArgs)], " "), fallbackArgs)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return 1, true
-	}
-	return handler(judged), true
+	return cmd.InvokeLocal(strings.Join(words[:len(words)-len(fallbackArgs)], " "), handler, fallbackArgs), true
 }
 
 func runBGP(args []string) int {

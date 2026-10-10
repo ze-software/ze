@@ -20,6 +20,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	hostinv "github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -27,7 +28,8 @@ import (
 // RunShow implements `show host [section]` as the offline fallback. Output is
 // JSON (machine-parseable, identical to the daemon RPC). Returns 0 on success,
 // 1 on argument / IO error.
-func RunShow(args []string) int {
+func RunShow(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	fs := flag.NewFlagSet("show host", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	fs.Usage = func() {

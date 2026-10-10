@@ -116,7 +116,7 @@ func AbsoluteVerbPath(verb string, rel []string) (words []string, declared bool,
 // IsDeclaredCommand reports whether a registered built-in declares this exact
 // absolute CLI path -- the path the daemon's dispatcher is keyed on.
 //
-// registry.LookupLocal asks this to refuse a local handler that would swallow a
+// command.LookupLocal asks this to refuse a local handler that would swallow a
 // declared child of its own path (see the shadow rule there). It is the same
 // fact AbsoluteVerbPath returns as `declared`, asked of an absolute path
 // directly, because the local-handler registry is keyed on absolute paths and

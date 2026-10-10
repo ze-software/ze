@@ -3,6 +3,7 @@
 package support
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	impl "github.com/ze-software/ze/internal/component/support"
 )
@@ -14,7 +15,7 @@ func init() {
 		Section:   registry.SectionSystem,
 		Subs:      "[--module M] [--exclude M] [--since T] [--reason R] [--sensitive] [--json] [--list-modules]",
 	})
-	registry.MustRegisterLocalMeta("support", impl.Run, registry.Meta{
+	command.MustRegisterLocalMeta("support", impl.Run, registry.Meta{
 		ShortHelp: "Collect logs, config, state and diagnostics into one archive.",
 		Description: "Send the archive to support when you report an issue. Modules can be selected or " +
 			"excluded, and a time window narrows what the archive holds.",

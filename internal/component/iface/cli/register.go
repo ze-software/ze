@@ -10,6 +10,8 @@ package cli
 import (
 	"slices"
 
+	"github.com/ze-software/ze/internal/component/command"
+
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -38,7 +40,8 @@ func init() {
 		Section:   registry.SectionConfiguration,
 		Subs:      subcommands(),
 	})
-	registry.MustRegisterLocal("show interface", func(args []string) int {
+	command.MustRegisterLocal("show interface", func(validated command.ValidatedArgs) int {
+		args := validated.Tokens()
 		return Run(append([]string{subcmdShow}, args...))
 	})
 }

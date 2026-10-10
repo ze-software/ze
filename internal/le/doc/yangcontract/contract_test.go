@@ -129,14 +129,16 @@ func TestLocalHandlersCoverEveryRegistrationSpelling(t *testing.T) {
 	writeDoc(t, root, filepath.Join("cmd", "ze", "thing", "register.go"),
 		"package thing\n\n"+
 			"func init() {\n"+
-			"\tregistry.MustRegisterLocal(\"show one\", nil)\n"+
-			"\tregistry.MustRegisterLocalMeta(\"show two\", nil)\n"+
-			"\tregistry.RegisterLocal(\"show three\", nil)\n"+
-			"\tregistry.RegisterLocalMeta(\"show four\", nil)\n"+
+			"\tcommand.MustRegisterLocal(\"show one\", nil)\n"+
+			"\tcommand.MustRegisterLocalMeta(\"show two\", nil)\n"+
+			"\tcommand.RegisterLocal(\"show three\", nil)\n"+
+			"\tcommand.RegisterLocalMeta(\"show four\", nil)\n"+
 			"\tcommand.MustRegisterLocalData(\"show five\", nil)\n"+
 			"\tcommand.RegisterLocalData(\"show six\", nil)\n"+
-			"\tcmdregistry.MustRegisterLocal(\"show seven\", nil)\n"+
+			"\tcommand.MustRegisterOfflineFallback(\"show ten\", nil)\n"+
+			"\tcommand.MustRegisterLocal(\"show seven\", nil)\n"+
 			"\tregistry.RegisterSomethingElse(\"show eight\", nil)\n"+
+			"\tregistry.MustRegisterLocal(\"show eleven\", nil)\n"+
 			"\tother.MustRegisterLocal(\"show nine\", nil)\n"+
 			"}\n")
 
@@ -158,11 +160,11 @@ func TestLocalHandlersReachTheOwnerPackages(t *testing.T) {
 	root := t.TempDir()
 	writeDoc(t, root, filepath.Join("cmd", "ze", "main.go"), "package main\n\nfunc main() {}\n")
 	writeDoc(t, root, filepath.Join("internal", "plugins", "explain", "register.go"),
-		"package explain\n\nfunc init() { registry.MustRegisterLocal(\"explain thing\", nil) }\n")
+		"package explain\n\nfunc init() { command.MustRegisterLocal(\"explain thing\", nil) }\n")
 	writeDoc(t, root, filepath.Join("internal", "component", "cli", "register.go"),
-		"package cli\n\nfunc init() { registry.MustRegisterLocal(\"show editor\", nil) }\n")
+		"package cli\n\nfunc init() { command.MustRegisterLocal(\"show editor\", nil) }\n")
 	writeDoc(t, root, filepath.Join("internal", "component", "elsewhere", "register.go"),
-		"package elsewhere\n\nfunc init() { registry.MustRegisterLocal(\"show elsewhere\", nil) }\n")
+		"package elsewhere\n\nfunc init() { command.MustRegisterLocal(\"show elsewhere\", nil) }\n")
 
 	got, err := collectLocalHandlers(root)
 	if err != nil {
@@ -212,7 +214,7 @@ func TestLocalHandlersRefuseATreeItCannotWalk(t *testing.T) {
 	root := t.TempDir()
 	writeDoc(t, root, filepath.Join("cmd", "ze", "main.go"), "package main\n\nfunc main() {}\n")
 	writeDoc(t, root, filepath.Join("internal", "closed", "cli", "register.go"),
-		"package cli\n\nfunc init() { registry.MustRegisterLocal(\"show hidden\", nil) }\n")
+		"package cli\n\nfunc init() { command.MustRegisterLocal(\"show hidden\", nil) }\n")
 	closed := filepath.Join(root, "internal", "closed")
 	if err := os.Chmod(closed, 0o000); err != nil {
 		t.Fatalf("close the fixture directory: %v", err)

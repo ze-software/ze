@@ -1,6 +1,8 @@
-// Package registry holds the process-wide registries for ze's command-line
-// surface: offline local handlers, top-level root commands, and owner-backed
-// root command handlers.
+// Package registry holds the process-wide registries for ze's top-level root
+// commands and owner-backed root command handlers, and the Meta every command
+// registration carries. The local handlers and offline fallbacks live in
+// package command, because their handler type takes command.ValidatedArgs and
+// this package cannot import command.
 //
 // It is a leaf package -- it imports only the standard library -- so any
 // command owner (an internal/component/* package, an internal/plugins/*
@@ -31,11 +33,7 @@ import (
 	"io"
 	"sort"
 	"sync"
-
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
-
-var errRegisterLocalEmptyPath = errors.New("registry.RegisterLocal: empty path")
 
 // Errors returned by RegisterRootHandler. Exported so callers and tests can
 // match them with errors.Is.
@@ -48,9 +46,6 @@ var (
 	// a registered handler. Duplicate ownership is a programming bug.
 	ErrRootHandlerDuplicate = errors.New("registry.RegisterRootHandler: duplicate root command")
 )
-
-// LocalHandler runs a CLI command in-process (no daemon required).
-type LocalHandler func(args []string) int
 
 // RootHandler runs an owner-backed root command in-process. It receives the
 // process RuntimeContext built by cmd/ze/main.go after global flag parsing,
@@ -144,12 +139,6 @@ func (m Meta) ResolveSubs() string {
 	return m.Subs
 }
 
-// LocalCommandEntry pairs a registered local-command path with its metadata.
-type LocalCommandEntry struct {
-	Path string
-	Meta Meta
-}
-
 // RootCommand pairs a registered root-command name with its metadata.
 type RootCommand struct {
 	Name string
@@ -157,55 +146,10 @@ type RootCommand struct {
 }
 
 var (
-	mu               sync.RWMutex
-	localHandlers    = make(map[string]LocalHandler)
-	localMeta        = make(map[string]Meta)
-	rootCommands     = make(map[string]Meta)
-	rootHandlers     = make(map[string]RootHandler)
-	offlineFallbacks = make(map[string]LocalHandler)
+	mu           sync.RWMutex
+	rootCommands = make(map[string]Meta)
+	rootHandlers = make(map[string]RootHandler)
 )
-
-// RegisterLocal registers a handler for a CLI command path (for example,
-// "show version" or "ping"). The path is the full space-separated command.
-// Called at startup before dispatch.
-func RegisterLocal(path string, handler LocalHandler) error {
-	if path == "" {
-		return errRegisterLocalEmptyPath
-	}
-	if handler == nil {
-		return fmt.Errorf("registry.RegisterLocal: nil handler for %q", path)
-	}
-	mu.Lock()
-	localHandlers[path] = handler
-	mu.Unlock()
-	return nil
-}
-
-// RegisterLocalMeta registers a handler AND its human-facing metadata.
-// Metadata is surfaced by `ze help ai`.
-func RegisterLocalMeta(path string, handler LocalHandler, meta Meta) error {
-	if err := RegisterLocal(path, handler); err != nil {
-		return err
-	}
-	mu.Lock()
-	localMeta[path] = meta
-	mu.Unlock()
-	return nil
-}
-
-// MustRegisterLocal is the panicking variant, intended for init().
-func MustRegisterLocal(path string, handler LocalHandler) {
-	if err := RegisterLocal(path, handler); err != nil {
-		panic("BUG: registry.MustRegisterLocal: " + err.Error())
-	}
-}
-
-// MustRegisterLocalMeta is the panicking variant, intended for init().
-func MustRegisterLocalMeta(path string, handler LocalHandler, meta Meta) {
-	if err := RegisterLocalMeta(path, handler, meta); err != nil {
-		panic("BUG: registry.MustRegisterLocalMeta: " + err.Error())
-	}
-}
 
 // RegisterRoot registers metadata for a top-level `ze <name>` subcommand whose
 // dispatch lives in cmd/ze/main.go. Use this only for process-global commands
@@ -259,185 +203,14 @@ func LookupRoot(name string) RootHandler {
 	return rootHandlers[name]
 }
 
-// LookupLocal finds the longest prefix of words that matches a registered
-// local handler. Returns the handler and the remaining words as args. Returns
-// nil handler if no match.
-//
-// Caller joins words with spaces to form the match key; iteration tries
-// longest first, so "show bgp decode" is preferred over "show bgp" or "show".
-//
-// THE MATCH IS REFUSED WHEN THE ARGV REACHES A DECLARED COMMAND FURTHER DOWN.
-// Longest-prefix alone gives a handler registered at a SHORT path the whole
-// subtree below it, including paths another owner declared as commands of their
-// own. `show interface` is registered locally
-// (internal/component/iface/cli/register.go) and declares seven children in
-// ze-iface-interface-cmd.yang; every one of them landed on that handler, which
-// reads its first argument as an interface NAME, so `ze show interface brief`
-// looked for an interface called "brief". A handler still keeps every trailing
-// word that names no declared command, which is how `ze show interface eth0`
-// and `ze show debug profile name default` reach theirs.
-//
-// declared answers whether an absolute path is a registered ze:command; pass
-// cli.IsDeclaredCommand. A nil declared makes every match unprovable, so none is
-// served: this is a dispatch guard, and a guard with no data must fail closed
-// rather than return the shadowing match it cannot judge (ai/rules/evidence.md).
-// For the same reason an error from declared refuses the match, and is returned
-// so the caller reports why no handler was served.
-//
-// LookupOfflineFallback keeps plain longest-prefix on purpose. A fallback is
-// consulted only after the daemon is unreachable, so covering a declared child
-// is the point rather than a collision: `show host` serves `show host cpu` with
-// no daemon running.
-func LookupLocal(words []string, declared func(path string) (bool, error)) (LocalHandler, []string, error) {
-	if declared == nil {
-		return nil, nil, nil
-	}
-	handler, matched := longestLocalPrefix(words)
-	if handler == nil {
-		return nil, nil, nil
-	}
-	// Evaluated outside the registry lock: declared is a foreign callback that
-	// reads the RPC registry, and holding one registry's lock across another's
-	// is how a lock order gets invented by accident.
-	for i := matched + 1; i <= len(words); i++ {
-		isDeclared, err := declared(textbuf.Join(words[:i], " "))
-		if err != nil {
-			return nil, nil, fmt.Errorf("local command %q: %w", textbuf.Join(words[:matched], " "), err)
-		}
-		if isDeclared {
-			return nil, nil, nil
-		}
-	}
-	return handler, append([]string(nil), words[matched:]...), nil
-}
-
-// longestLocalPrefix returns the handler registered at the longest prefix of
-// words, and how many words that prefix consumed. matched is 0 when no prefix
-// is registered, and the handler is then nil.
-func longestLocalPrefix(words []string) (LocalHandler, int) {
-	mu.RLock()
-	defer mu.RUnlock()
-	for i := len(words); i > 0; i-- {
-		if handler, ok := localHandlers[textbuf.Join(words[:i], " ")]; ok {
-			return handler, i
-		}
-	}
-	return nil, 0
-}
-
-// localArgCheck judges the arguments of a local command against the leaves its
-// YANG declares, and answers the tokens it judged. The command package installs
-// it (RegisterLocalArgCheck), because that package imports this one. Nil means
-// nothing can judge, and every local route then refuses rather than running
-// unvalidated.
-var localArgCheck func(path string, args []string) ([]string, error)
-
-// errLocalArgCheckMissing is the refusal of a process that installed no
-// argument check.
-var errLocalArgCheckMissing = errors.New("argument definitions are not loaded in this process")
-
-// RegisterLocalArgCheck installs the argument judgment every local route runs
-// before its handler: the callers of LookupLocal and LookupOfflineFallback,
-// through ValidateLocalArgs.
-// The check MUST answer only tokens it judged (command.ValidateArgs's value).
-// Called from init(); not safe for concurrent use with a handler call.
-func RegisterLocalArgCheck(check func(path string, args []string) ([]string, error)) {
-	localArgCheck = check
-}
-
-// ValidateLocalArgs judges args against the leaves the model declares for the
-// registered path and answers the judged tokens, the only ones a local handler
-// may be called with. Every caller of LookupLocal and LookupOfflineFallback
-// MUST call it with the path it matched and every token it will pass, and
-// MUST invoke the handler with what it answers. It refuses when no check is
-// installed.
-func ValidateLocalArgs(path string, args []string) ([]string, error) {
-	if localArgCheck == nil {
-		return nil, errLocalArgCheckMissing
-	}
-	return localArgCheck(path, args)
-}
-
-// RegisterOfflineFallback registers an in-process handler for a read-only
-// command path (for example "show crashes" or "show host") that is served ONLY
-// when the daemon is unreachable. Unlike RegisterLocal, a fallback is never
-// consulted while the daemon is up, so it does not shadow the daemon command:
-// the CLI tries the daemon first and calls the fallback only after a
-// connection-level failure. Intended for host-local read-only data (crash
-// files, hardware inventory) an operator must still be able to read with no
-// daemon running.
-func RegisterOfflineFallback(path string, handler LocalHandler) error {
-	if path == "" {
-		return errRegisterLocalEmptyPath
-	}
-	if handler == nil {
-		return fmt.Errorf("registry.RegisterOfflineFallback: nil handler for %q", path)
-	}
-	mu.Lock()
-	offlineFallbacks[path] = handler
-	mu.Unlock()
-	return nil
-}
-
-// MustRegisterOfflineFallback is the panicking variant, intended for init().
-// The path and handler are fixed at each call site, so a failure is a
-// programming bug; the offending call site is evident from the panic stack.
-func MustRegisterOfflineFallback(path string, handler LocalHandler) {
-	if err := RegisterOfflineFallback(path, handler); err != nil {
-		_ = err
-		panic("BUG: registry.MustRegisterOfflineFallback: empty path or nil handler")
-	}
-}
-
-// LookupOfflineFallback finds the longest prefix of words matching a registered
-// offline fallback handler, returning the handler and remaining words as args.
-// Returns a nil handler if no fallback is registered. Same longest-prefix
-// semantics as LookupLocal, but a separate registry so fallbacks are only
-// reachable through the daemon-unreachable path.
-func LookupOfflineFallback(words []string) (LocalHandler, []string) {
-	mu.RLock()
-	defer mu.RUnlock()
-	for i := len(words); i > 0; i-- {
-		path := textbuf.Join(words[:i], " ")
-		if handler, ok := offlineFallbacks[path]; ok {
-			return handler, append([]string(nil), words[i:]...)
-		}
-	}
-	return nil, nil
-}
-
-// ListLocal returns every registered local command sorted by path. Handlers
-// are not returned; only path + metadata.
-func ListLocal() []LocalCommandEntry {
-	mu.RLock()
-	defer mu.RUnlock()
-	out := make([]LocalCommandEntry, 0, len(localHandlers))
-	for path := range localHandlers {
-		out = append(out, LocalCommandEntry{Path: path, Meta: localMeta[path]})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
-	return out
-}
-
-// ResetForTest clears every registry. Only intended for use from unit tests
-// that want a clean slate between cases.
+// ResetForTest clears the root registries. Only intended for use from unit
+// tests that want a clean slate between cases. The local handlers are cleared
+// by command.ResetLocalForTest.
 func ResetForTest() {
 	mu.Lock()
-	localHandlers = make(map[string]LocalHandler)
-	localMeta = make(map[string]Meta)
 	rootCommands = make(map[string]Meta)
 	rootHandlers = make(map[string]RootHandler)
-	offlineFallbacks = make(map[string]LocalHandler)
 	mu.Unlock()
-}
-
-// HasLocal reports whether a handler is registered for the exact path. Only
-// intended for tests that need an existence check without pulling a handler.
-func HasLocal(path string) bool {
-	mu.RLock()
-	_, ok := localHandlers[path]
-	mu.RUnlock()
-	return ok
 }
 
 // ListRoot returns every registered root command sorted by name.

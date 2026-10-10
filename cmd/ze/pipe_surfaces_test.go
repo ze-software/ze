@@ -161,7 +161,7 @@ func TestVerboseHelpNamesTheGlobalOperators(t *testing.T) {
 // is inspected before its daemon RPC registration.
 func TestDualRegisteredDaemonCommandPublishesOperators(t *testing.T) {
 	ensureLocalCommandsRegistered()
-	if !registry.HasLocal("show version") {
+	if !command.HasLocal("show version") {
 		t.Fatal("show version has no local shortcut; this test no longer covers the dual-registration case")
 	}
 	if command.HasLocalData("show version") {
@@ -273,7 +273,7 @@ func TestACommandServedWithoutDataPublishesNoOperators(t *testing.T) {
 	ensureLocalCommandsRegistered()
 
 	for _, path := range []string{"show data cat", "show yang doc"} {
-		if !registry.HasLocal(path) {
+		if !command.HasLocal(path) {
 			t.Fatalf("%s is not served locally; this test no longer covers its case", path)
 		}
 		if command.HasLocalData(path) {

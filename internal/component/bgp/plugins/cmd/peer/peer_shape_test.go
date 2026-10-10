@@ -181,7 +181,7 @@ func TestPeerListRefusesResolveAndAnswersCount(t *testing.T) {
 //     and RegisterPluginShapes (internal/component/command/answer_shape.go). A
 //     path that later gains an in-core shim enters this set on its own.
 //   - `show bgp decode` and `show bgp encode`. The CLI registers those with
-//     registry.MustRegisterLocal and each prints finished text and returns an
+//     command.MustRegisterLocal and each prints finished text and returns an
 //     exit code, so neither reaches a ResponseData or an operator chain
 //     (operatorsFor in cmd/ze/help_command.go publishes nothing for them for
 //     the same reason).

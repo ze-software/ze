@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/system"
@@ -62,7 +63,8 @@ type moduleData struct {
 }
 
 // Run executes the support command.
-func Run(args []string) int {
+func Run(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	var (
 		jsonOutput  bool
 		sensitive   bool

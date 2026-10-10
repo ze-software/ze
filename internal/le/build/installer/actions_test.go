@@ -8,7 +8,7 @@ package buildinstaller
 import (
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -33,7 +33,7 @@ func TestInstallerDeclaresTwoWritingArchitectures(t *testing.T) {
 			t.Errorf("action %s reason = %q, want %q", row.Verb, row.Why, wantWhys[index])
 		}
 	}
-	if !registry.HasLocal(leroot.CommandPath(area)) {
+	if !command.HasLocal(leroot.CommandPath(area)) {
 		t.Fatalf("importing buildinstaller did not register %q", area)
 	}
 }

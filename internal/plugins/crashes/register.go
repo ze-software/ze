@@ -5,7 +5,7 @@ package crashes
 import (
 	"os"
 
-	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command"
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -26,7 +26,7 @@ func init() {
 	// since the daemon has died -- serve the same crash files in-process.
 	// Registered as an offline fallback (never a plain local) so it does not
 	// shadow the daemon command while the daemon is up.
-	registry.MustRegisterOfflineFallback("show crashes", offlineShowCrashes)
+	command.MustRegisterOfflineFallback("show crashes", offlineShowCrashes)
 
 	// Crash capture owns three runtime dependencies, so it owns three checks,
 	// three diagnostic codes, and the test that proves each one fires
@@ -84,7 +84,8 @@ func registerDoctorCheck(check diagnostic.DoctorCheck) {
 // offlineShowCrashes adapts the daemon grammar (`show crashes [latest | name
 // <file>]`) to RunShow, which takes the bare selector: `name <file>` selects one
 // report, `latest` the newest, and no argument lists all.
-func offlineShowCrashes(args []string) int {
+func offlineShowCrashes(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	if len(args) > 0 && args[0] == "name" {
 		if len(args) < 2 {
 			os.Stderr.WriteString("error: 'show crashes name' requires a filename\n") //nolint:errcheck // CLI error

@@ -58,7 +58,7 @@ const (
 // neither of these two kinds:
 //
 //   - `show bgp decode` and `show bgp encode`, offline handlers the CLI
-//     registers with registry.MustRegisterLocal. The completer still offers
+//     registers with command.MustRegisterLocal. The completer still offers
 //     pipe names for a path it can complete (TreeCompleter.Complete in
 //     internal/component/command/completer.go), so the aliases would be
 //     offered on a command that never reaches ApplyPipes.

@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // VALIDATES: RunWgKeypair (diag.go) runs `wg genkey`, pipes THAT private key
@@ -40,7 +42,7 @@ func silenceStderr(t *testing.T) {
 // attempting to exec `wg`.
 func TestRunWgKeypair_RejectsArgs(t *testing.T) {
 	silenceStderr(t)
-	if rc := RunWgKeypair([]string{"extra"}); rc != 1 {
+	if rc := RunWgKeypair(commandtest.Args("extra")); rc != 1 {
 		t.Errorf("RunWgKeypair(extra) = %d, want 1", rc)
 	}
 }
@@ -120,7 +122,7 @@ func TestRunWgKeypair_PipesGenkeyIntoPubkey(t *testing.T) {
 	installWgFixture(t)
 	silenceStderr(t)
 
-	rc, out := captureStdout(t, func() int { return RunWgKeypair(nil) })
+	rc, out := captureStdout(t, func() int { return RunWgKeypair(commandtest.Args()) })
 	if rc != 0 {
 		t.Fatalf("RunWgKeypair() = %d, want 0; stdout=%q", rc, out)
 	}
@@ -137,7 +139,7 @@ func TestRunWgKeypair_ReportsMissingWg(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	silenceStderr(t)
 
-	rc, out := captureStdout(t, func() int { return RunWgKeypair(nil) })
+	rc, out := captureStdout(t, func() int { return RunWgKeypair(commandtest.Args()) })
 	if rc != 1 {
 		t.Errorf("RunWgKeypair() with no wg = %d, want 1", rc)
 	}

@@ -40,7 +40,8 @@ func init() {
 	// them in a record would corrupt the one use the command has, and no pipe
 	// operator has anything to do with them. It keeps its plain handler, and the
 	// published page says it reaches no pipe layer, which is the truth.
-	registry.MustRegisterLocal("show data cat", func(args []string) int {
+	command.MustRegisterLocal("show data cat", func(validated command.ValidatedArgs) int {
+		args := validated.Tokens()
 		return Run(append([]string{"cat"}, args...))
 	})
 

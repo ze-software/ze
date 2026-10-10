@@ -5,10 +5,12 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // VALIDATES: AC-22 for the root fallback of zeDispatch (route R6, the second
-// site after cmdutil's verb route). The tail registry.LookupLocal leaves is
+// site after cmdutil's verb route). The tail command.LookupLocal leaves is
 // judged against the leaves the model declares for the matched path before the
 // handler runs, and a tail at the bound reaches it unchanged.
 // PREVENTS: the root fallback running its handler on a value the model refuses,
@@ -19,8 +21,8 @@ import (
 func TestInvokeRootLocalHandlerJudgesArguments(t *testing.T) {
 	var got []string
 	ran := false
-	record := func(args []string) int {
-		ran, got = true, args
+	record := func(args command.ValidatedArgs) int {
+		ran, got = true, args.Tokens()
 		return 0
 	}
 	path := []string{"show", "env", "get"}

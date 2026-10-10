@@ -19,15 +19,23 @@ func notDeclared(string) (bool, error) { return false, nil }
 // parallel tests.
 func withLocalDataArgs(t *testing.T, handler LocalDataHandler) {
 	t.Helper()
-	registry.ResetForTest()
-	ResetLocalDataForTest()
-	t.Cleanup(func() {
-		registry.ResetForTest()
-		ResetLocalDataForTest()
-	})
+	withLocalArgDefs(t)
 	if err := RegisterLocalData(localDataArgsPath, handler, registry.Meta{}, func(string, any) int { return 0 }); err != nil {
 		t.Fatalf("register local data handler: %v", err)
 	}
+}
+
+// withLocalArgDefs empties the local, offline-fallback and data registries for
+// the test and installs the definitions of localDataArgsPath, restoring both
+// afterwards. Not safe for parallel tests.
+func withLocalArgDefs(t *testing.T) {
+	t.Helper()
+	ResetLocalForTest()
+	ResetLocalDataForTest()
+	t.Cleanup(func() {
+		ResetLocalForTest()
+		ResetLocalDataForTest()
+	})
 	withArgDefSource(t, func(p string) ([]ArgDef, error) {
 		if p != localDataArgsPath {
 			return nil, nil
@@ -36,15 +44,17 @@ func withLocalDataArgs(t *testing.T, handler LocalDataHandler) {
 	})
 }
 
-// TestHandlerTypesTakeValidatedArguments is the LocalDataHandler row of the
-// handler-type proof (the StreamingHandler row lives in plugin/server).
+// TestHandlerTypesTakeValidatedArguments is the LocalDataHandler and
+// LocalHandler rows of the handler-type proof (the StreamingHandler row lives
+// in plugin/server).
 //
 // VALIDATES: a registered data handler receives exactly the value ValidateArgs
 // returned, on both routes that run it: ServeLocal (R2) and the plain local
 // handler RegisterLocalData builds (R3), the lone positional token bound to
-// its leaf included.
-// PREVENTS: a data handler that takes a token slice, which any route can hand
-// it without calling the validator.
+// its leaf included. A local handler and an offline fallback receive the value
+// InvokeLocal judged (R6, R7).
+// PREVENTS: a handler that takes a token slice, which any route can hand it
+// without calling the validator.
 // Method: register one handler, run it through each route, read what it got.
 func TestHandlerTypesTakeValidatedArguments(t *testing.T) {
 	t.Run("LocalDataHandler", func(t *testing.T) {
@@ -61,19 +71,65 @@ func TestHandlerTypesTakeValidatedArguments(t *testing.T) {
 		}
 		assertReceivedName(t, "ServeLocal", received, "abcd")
 
-		plain, args, err := registry.LookupLocal([]string{"show", "test", "local", "data", "args", "wxyz"}, notDeclared)
+		plain, args, err := LookupLocal([]string{"show", "test", "local", "data", "args", "wxyz"}, notDeclared)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if plain == nil {
 			t.Fatal("RegisterLocalData registered no plain local handler")
 		}
-		if code := plain(args); code != 0 {
+		if code := InvokeLocal(localDataArgsPath, plain, args); code != 0 {
 			t.Fatalf("plain local handler: exit %d, want 0", code)
 		}
 		assertReceivedName(t, "plain local handler", received, "wxyz")
 		if calls != 2 {
 			t.Errorf("handler ran %d times, want 2", calls)
+		}
+	})
+
+	t.Run("LocalHandler", func(t *testing.T) {
+		var received ValidatedArgs
+		calls := 0
+		withLocalArgDefs(t)
+		var handler LocalHandler = func(args ValidatedArgs) int {
+			received = args
+			calls++
+			return 0
+		}
+		if err := RegisterLocal(localDataArgsPath, handler); err != nil {
+			t.Fatal(err)
+		}
+		if err := RegisterOfflineFallback(localDataArgsPath, handler); err != nil {
+			t.Fatal(err)
+		}
+		words := []string{"show", "test", "local", "data", "args", "abcd"}
+
+		local, args, err := LookupLocal(words, notDeclared)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if local == nil {
+			t.Fatal("LookupLocal answered no handler")
+		}
+		if code := InvokeLocal(localDataArgsPath, local, args); code != 0 {
+			t.Fatalf("local handler: exit %d, want 0", code)
+		}
+		assertReceivedName(t, "local handler", received, "abcd")
+
+		fallback, args := LookupOfflineFallback(words)
+		if fallback == nil {
+			t.Fatal("LookupOfflineFallback answered no handler")
+		}
+		if code := InvokeLocal(localDataArgsPath, fallback, args); code != 0 {
+			t.Fatalf("offline fallback: exit %d, want 0", code)
+		}
+		assertReceivedName(t, "offline fallback", received, "abcd")
+
+		if code := InvokeLocal(localDataArgsPath, local, []string{"abcde"}); code != 1 {
+			t.Errorf("over-long argument: exit %d, want 1", code)
+		}
+		if calls != 2 {
+			t.Errorf("handler ran %d times, want 2 (the refused call must not reach it)", calls)
 		}
 	})
 }
@@ -101,26 +157,27 @@ func assertReceivedName(t *testing.T, route string, received ValidatedArgs, want
 // running unvalidated.
 // PREVENTS: `ze show env get` with a 129-character key reaching the handler,
 // because this route never passes through ServeLocal.
-// Method: register one handler, call the plain handler LookupLocal answers.
+// Method: register one handler, run the plain handler LookupLocal answers
+// through InvokeLocal, the judgment every `ze <verb>` route runs.
 func TestLocalDataPlainHandlerJudgesArguments(t *testing.T) {
 	calls := 0
 	withLocalDataArgs(t, func(ValidatedArgs) (any, int) {
 		calls++
 		return nil, 0
 	})
-	plain, args, err := registry.LookupLocal([]string{"show", "test", "local", "data", "args", "abcde"}, notDeclared)
+	plain, args, err := LookupLocal([]string{"show", "test", "local", "data", "args", "abcde"}, notDeclared)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if plain == nil {
 		t.Fatal("RegisterLocalData registered no plain local handler")
 	}
-	if code := plain(args); code != 1 {
+	if code := InvokeLocal(localDataArgsPath, plain, args); code != 1 {
 		t.Errorf("over-long argument: exit %d, want 1", code)
 	}
 
 	withArgDefSource(t, nil)
-	if code := plain([]string{"abcd"}); code != 1 {
+	if code := InvokeLocal(localDataArgsPath, plain, []string{"abcd"}); code != 1 {
 		t.Errorf("no definition source: exit %d, want 1", code)
 	}
 	if calls != 0 {

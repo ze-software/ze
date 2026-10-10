@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	cli "github.com/ze-software/ze/internal/component/cli/client"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
@@ -47,7 +48,7 @@ func TestRootsRegistered(t *testing.T) {
 }
 
 // TestUpdateServeLocalRegistered proves `update serve` moved from the root
-// registry to the local-handler registry: registry.LookupLocal resolves the
+// registry to the local-handler registry: command.LookupLocal resolves the
 // two-word path and returns the trailing flags unchanged, so
 // `ze update serve --listen <addr>` reaches runUpdateServe with --listen intact
 // (R-3). `update` is a YANG verb, so a root handler named `update` would be
@@ -56,7 +57,7 @@ func TestRootsRegistered(t *testing.T) {
 func TestUpdateServeLocalRegistered(t *testing.T) {
 	ensureLocalCommandsRegistered()
 
-	handler, rest, err := registry.LookupLocal([]string{"update", "serve", "--listen", ":9999"}, cli.IsDeclaredCommand)
+	handler, rest, err := command.LookupLocal([]string{"update", "serve", "--listen", ":9999"}, cli.IsDeclaredCommand)
 	if err != nil {
 		t.Fatal(err)
 	}

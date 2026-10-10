@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 )
@@ -81,7 +82,7 @@ func TestRunChecksCallsNoDoctorOwnedCheckTwice(t *testing.T) {
 func doctorCodesFor(t *testing.T, cfg string) []string {
 	t.Helper()
 	cfgPath := writeTestConfig(t, cfg)
-	out := captureStdout(t, func() { Run([]string{"--json", "config", cfgPath}) })
+	out := captureStdout(t, func() { Run(commandtest.Args("--json", "config", cfgPath)) })
 
 	var result diagnostic.DoctorResult
 	if err := json.Unmarshal([]byte(out), &result); err != nil {

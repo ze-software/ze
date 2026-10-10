@@ -731,7 +731,7 @@ func TestHelpAndTheListingAgreeAboutWhatWrites(t *testing.T) {
 	}
 
 	var registered registry.Meta
-	for _, command := range registry.ListLocal() {
+	for _, command := range command.ListLocal() {
 		if command.Path == leroot.CommandPath(area) {
 			registered = command.Meta
 		}

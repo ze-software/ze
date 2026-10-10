@@ -8,6 +8,7 @@
 package diag
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
@@ -18,7 +19,7 @@ func init() {
 		Section:   registry.SectionSystem,
 		Subs:      "wireguard keypair",
 	})
-	registry.MustRegisterLocalMeta("generate wireguard keypair", RunWgKeypair, registry.Meta{
+	command.MustRegisterLocalMeta("generate wireguard keypair", RunWgKeypair, registry.Meta{
 		ShortHelp: "Generate a WireGuard keypair with the system wg binary.",
 		Description: "The private key is written on the first line and the public key on the second. " +
 			"The wg binary must be installed on this host.",

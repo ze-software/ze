@@ -15,6 +15,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/ze-software/ze/internal/component/command"
 	debugyang "github.com/ze-software/ze/internal/component/debug/yang"
 	"github.com/ze-software/ze/internal/core/duration"
 	"github.com/ze-software/ze/internal/core/env"
@@ -61,7 +62,8 @@ func saveAndApply(storePath string, p *Profile) int {
 // runSetModule handles `set debug module <name> [level <l> | flag <f> | scope <k> <v>]`.
 // Bare `set debug module <name>` enables debug for the subsystem at the default
 // level; the optional keyword adds/sets a level, flag, or scope.
-func runSetModule(args []string) int {
+func runSetModule(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		stderrLine("usage: set debug module <name> [level <level> | flag <flag> | scope <kind> <value>]")
 		return 1
@@ -152,7 +154,8 @@ func setModuleSetting(p *Profile, module string, args []string) int {
 // runDeleteModule handles `delete debug module <name> [flag <f> | scope <k> <v>]`.
 // Bare `delete debug module <name>` disables debug for the subsystem entirely;
 // the optional keyword removes just one flag or scope.
-func runDeleteModule(args []string) int {
+func runDeleteModule(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		stderrLine("usage: delete debug module <name> [flag <flag> | scope <kind> <value>]")
 		return 1
@@ -217,7 +220,8 @@ func deleteModuleSetting(p *Profile, module string, args []string) int {
 }
 
 // runSetTimeout handles `set debug timeout <duration>`.
-func runSetTimeout(args []string) int {
+func runSetTimeout(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		stderrLine("usage: set debug timeout <duration>  (e.g. 30m, 1h, 90s, 0; seconds rounded up to minutes)")
 		return 1
@@ -253,7 +257,8 @@ func runSetTimeout(args []string) int {
 // runShowProfile handles `show debug profile` (list) and
 // `show debug profile name <name>` (inspect one). This is the stored view; the
 // live runtime view is the separate daemon `show debug` command.
-func runShowProfile(args []string) int {
+func runShowProfile(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		return cmdProfileList()
 	}
@@ -302,7 +307,8 @@ func cmdShowSaved(name, subtree string) int {
 
 // runSaveProfile handles `set debug profile name <name>`: save the current
 // default state as a named profile.
-func runSaveProfile(args []string) int {
+func runSaveProfile(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		stderrLine("usage: set debug profile name <name>")
 		return 1
@@ -322,7 +328,8 @@ func runSaveProfile(args []string) int {
 // runRestoreProfile handles `set debug active name <name>`: load a named
 // profile and apply it live. Applies without overwriting the default slot,
 // preserving the historical restore semantics.
-func runRestoreProfile(args []string) int {
+func runRestoreProfile(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		stderrLine("usage: set debug active name <name>")
 		return 1
@@ -342,7 +349,8 @@ func runRestoreProfile(args []string) int {
 }
 
 // runDeleteProfileName handles `delete debug profile name <name>`.
-func runDeleteProfileName(args []string) int {
+func runDeleteProfileName(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		stderrLine("usage: delete debug profile name <name>")
 		return 1

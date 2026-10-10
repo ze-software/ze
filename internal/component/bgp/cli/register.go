@@ -20,6 +20,7 @@ import (
 
 	// init() registers the show bgp decode/encode YANG module (ze-bgp-tools-cmd).
 	_ "github.com/ze-software/ze/internal/component/bgp/cli/yang"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -73,10 +74,12 @@ func init() {
 		Section:   registry.SectionSystem,
 		Subs:      subcommands(),
 	})
-	registry.MustRegisterLocal("show bgp decode", func(args []string) int {
+	command.MustRegisterLocal("show bgp decode", func(validated command.ValidatedArgs) int {
+		args := validated.Tokens()
 		return Run(append([]string{bgpCmdDecode}, args...))
 	})
-	registry.MustRegisterLocal("show bgp encode", func(args []string) int {
+	command.MustRegisterLocal("show bgp encode", func(validated command.ValidatedArgs) int {
+		args := validated.Tokens()
 		return Run(append([]string{bgpCmdEncode}, args...))
 	})
 }

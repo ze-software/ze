@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/host"
@@ -63,13 +64,13 @@ func writeTestConfig(t *testing.T, content string) string {
 }
 
 func TestDoctorHelp(t *testing.T) {
-	code := Run([]string{"--help"})
+	code := Run(commandtest.Args("--help"))
 	assert.Equal(t, 0, code)
 }
 
 func TestDoctorMissingConfig(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run([]string{"--json", "config", "/nonexistent/ze.conf"})
+		code := Run(commandtest.Args("--json", "config", "/nonexistent/ze.conf"))
 		assert.Equal(t, 1, code)
 	})
 
@@ -91,7 +92,7 @@ func TestDoctorMissingConfig(t *testing.T) {
 func TestDoctorValidConfigJSON(t *testing.T) {
 	cfgPath := writeTestConfig(t, minimalConfig)
 	out := captureStdout(t, func() {
-		code := Run([]string{"--json", "config", cfgPath})
+		code := Run(commandtest.Args("--json", "config", cfgPath))
 		assert.Equal(t, 0, code)
 	})
 
@@ -109,7 +110,7 @@ func TestDoctorValidConfigJSON(t *testing.T) {
 func TestDoctorValidConfigText(t *testing.T) {
 	cfgPath := writeTestConfig(t, minimalConfig)
 	out := captureStdout(t, func() {
-		code := Run([]string{"config", cfgPath})
+		code := Run(commandtest.Args("config", cfgPath))
 		assert.Equal(t, 0, code)
 	})
 	assert.True(t, strings.Contains(out, "all checks passed") || strings.Contains(out, "ready (0 errors"), "unexpected doctor output: %s", out)
@@ -118,7 +119,7 @@ func TestDoctorValidConfigText(t *testing.T) {
 func TestDoctorInvalidConfig(t *testing.T) {
 	cfgPath := writeTestConfig(t, "this is not valid config {{{")
 	out := captureStdout(t, func() {
-		code := Run([]string{"--json", "config", cfgPath})
+		code := Run(commandtest.Args("--json", "config", cfgPath))
 		assert.Equal(t, 1, code)
 	})
 
@@ -137,7 +138,7 @@ func TestDoctorInvalidConfig(t *testing.T) {
 }
 
 func TestDoctorExtraArg(t *testing.T) {
-	code := Run([]string{"config", "file1.conf", "file2.conf"})
+	code := Run(commandtest.Args("config", "file1.conf", "file2.conf"))
 	assert.Equal(t, 1, code)
 }
 

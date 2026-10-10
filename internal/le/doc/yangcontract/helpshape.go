@@ -264,7 +264,7 @@ func (r *HelpShapeReport) leaves(label string, leaves []yang.LeafMeta, judged, w
 //
 // The label is the CLI path an operator types, which is also the first argument
 // of the registration the author has to open.
-func (r *HelpShapeReport) local(entry registry.LocalCommandEntry) {
+func (r *HelpShapeReport) local(entry command.LocalCommandEntry) {
 	r.Locals++
 	if strings.TrimSpace(entry.Meta.Description) != "" {
 		r.LocalsWithHelp++
@@ -418,7 +418,7 @@ func (r *HelpShapeReport) refuse(surface, label, rule, detail, summary string) {
 // (usage.go, usageContract, takes the same shape for the same reason).
 type helpShapeInput struct {
 	Schema *yang.Resolved
-	Locals []registry.LocalCommandEntry
+	Locals []command.LocalCommandEntry
 }
 
 // helpShapeContract walks the command tree the loader holds, the RPCs beside
@@ -520,7 +520,7 @@ func collectRPCs(schema *yang.Resolved, report *HelpShapeReport) {
 // never the registration's. Judging it would ask an author to declare the same
 // summary twice, and the tree half of this gate has already judged the one the
 // catalog prints.
-func collectLocals(locals []registry.LocalCommandEntry, tree *command.Node, report *HelpShapeReport) {
+func collectLocals(locals []command.LocalCommandEntry, tree *command.Node, report *HelpShapeReport) {
 	for _, entry := range locals {
 		if command.FindNode(tree, strings.Fields(entry.Path)) != nil {
 			continue
@@ -538,13 +538,13 @@ func collectLocals(locals []registry.LocalCommandEntry, tree *command.Node, repo
 // carries, so the published catalog holds none of it. It is also the one part
 // of this population whose size depends on the linker rather than on the
 // checkout, because each le tool registers from its own package.
-func offlineLocalCommands(root string) ([]registry.LocalCommandEntry, error) {
+func offlineLocalCommands(root string) ([]command.LocalCommandEntry, error) {
 	main, err := mainPackageLocalCommands(root)
 	if err != nil {
 		return nil, err
 	}
 
-	locals := append(registry.ListLocal(), main...)
+	locals := append(command.ListLocal(), main...)
 	kept := locals[:0]
 	for _, entry := range locals {
 		if strings.HasPrefix(entry.Path, lePathPrefix) {
@@ -577,14 +577,14 @@ const lePathPrefix = "le "
 // and line. The gate cannot read what that call registers, so every count it
 // went on to print would be about a population it does not know
 // (ai/rules/evidence.md).
-func mainPackageLocalCommands(root string) ([]registry.LocalCommandEntry, error) {
+func mainPackageLocalCommands(root string) ([]command.LocalCommandEntry, error) {
 	dir := filepath.Join(root, "cmd", "ze")
 	names, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	var out []registry.LocalCommandEntry
+	var out []command.LocalCommandEntry
 	for _, name := range names {
 		if name.IsDir() || !strings.HasSuffix(name.Name(), ".go") || strings.HasSuffix(name.Name(), "_test.go") {
 			continue
@@ -603,11 +603,11 @@ func mainPackageLocalCommands(root string) ([]registry.LocalCommandEntry, error)
 	return out, nil
 }
 
-// localRegistrars names the command registry functions that publish a local
-// command, and localDataRegistrars the package command functions that publish
-// a data command, which register its plain local handler too. contract.go
-// reads the same sets for the same reason, and a name missing here is a
-// registration the gate does not see.
+// localRegistrars names the package command functions that publish a local
+// command, and localDataRegistrars those that publish a data command, which
+// register its plain local handler too. contract.go reads the same sets for
+// the same reason, and a name missing here is a registration the gate does not
+// see.
 var localRegistrars = map[string]bool{
 	"RegisterLocal":         true,
 	"MustRegisterLocal":     true,
@@ -627,24 +627,21 @@ func localRegistrar(selector *ast.SelectorExpr) bool {
 	if !ok {
 		return false
 	}
-	switch pkg.Name {
-	case pkgRegistry, pkgCmdRegistry:
-		return localRegistrars[selector.Sel.Name]
-	case pkgCommand:
-		return localDataRegistrars[selector.Sel.Name]
+	if pkg.Name != pkgCommand {
+		return false
 	}
-	return false
+	return localRegistrars[selector.Sel.Name] || localDataRegistrars[selector.Sel.Name]
 }
 
 // localCommandsInFile answers every local command the file at path registers.
-func localCommandsInFile(path string) ([]registry.LocalCommandEntry, error) {
+func localCommandsInFile(path string) ([]command.LocalCommandEntry, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	var out []registry.LocalCommandEntry
+	var out []command.LocalCommandEntry
 	var unreadable error
 	ast.Inspect(file, func(node ast.Node) bool {
 		call, ok := node.(*ast.CallExpr)
@@ -667,7 +664,7 @@ func localCommandsInFile(path string) ([]registry.LocalCommandEntry, error) {
 				Str(": registers a local command under a path this gate cannot read").String())
 			return false
 		}
-		out = append(out, registry.LocalCommandEntry{Path: cliPath, Meta: metaLiteral(call.Args)})
+		out = append(out, command.LocalCommandEntry{Path: cliPath, Meta: metaLiteral(call.Args)})
 		return true
 	})
 	if unreadable != nil {

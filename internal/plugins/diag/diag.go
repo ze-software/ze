@@ -20,6 +20,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // RunWgKeypair generates a WireGuard keypair by invoking `wg genkey`
@@ -31,7 +33,8 @@ import (
 // Usage: ze generate wireguard keypair
 //
 // Returns 1 if `wg` is not installed. No arguments accepted.
-func RunWgKeypair(args []string) int {
+func RunWgKeypair(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	fs := flag.NewFlagSet("generate wireguard keypair", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	fs.Usage = func() {

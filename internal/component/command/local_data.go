@@ -42,10 +42,10 @@ import (
 // It takes the value ValidateArgs returned, never a token slice: only a
 // successful judgment of the arguments against the leaves the command's YANG
 // declares builds one, so no route can run a data handler on tokens nobody
-// judged. Both routes that run one, ServeLocal and the plain local handler
-// RegisterLocalData builds, call the validator first.
+// judged. Both routes that run one call the validator first: ServeLocal, and
+// InvokeLocal for the plain local handler RegisterLocalData builds.
 //
-// A registry.LocalHandler prints and returns an exit code, which is why 38
+// A LocalHandler prints and returns an exit code, which is why 38
 // commands reached no pipe layer on any surface: by the time RunCommand had a
 // result there was nothing left but an int, and `ze cli -c "show env list |
 // json"` answered `unknown command` because the daemon serves no such method.
@@ -79,7 +79,7 @@ var errLocalDataEmptyPath = errors.New("command.RegisterLocalData: empty path")
 // RegisterLocalData registers a command that answers with structured data in
 // this process, so its answer reaches the pipe layer.
 //
-// It ALSO registers a plain local handler (registry.RegisterLocalMeta), built
+// It ALSO registers a plain local handler (RegisterLocalMeta), built
 // from the same data handler, so `ze <verb>` prints exactly what it printed
 // before and the two forms of one command cannot drift apart. That drift is
 // real: `ze show interface` took the local path and `ze cli -c "show
@@ -94,7 +94,7 @@ func RegisterLocalData(path string, handler LocalDataHandler, meta registry.Meta
 	if render == nil {
 		return fmt.Errorf("command.RegisterLocalData: nil renderer for %q", path)
 	}
-	if err := registry.RegisterLocalMeta(path, plainLocalData(path, handler, render), meta); err != nil {
+	if err := RegisterLocalMeta(path, plainLocalData(path, handler, render), meta); err != nil {
 		return err
 	}
 	localData.Lock()
@@ -103,19 +103,15 @@ func RegisterLocalData(path string, handler LocalDataHandler, meta registry.Meta
 	return nil
 }
 
-// plainLocalData builds the `ze <verb>` form of a data command: judge the
-// arguments, run the handler on the judged value, render its payload.
-func plainLocalData(path string, handler LocalDataHandler, render func(string, any) int) registry.LocalHandler {
-	return func(args []string) int {
-		// The arguments are judged before the handler runs, as ServeLocal
-		// judges them on the `ze cli -c` route. This route once ran the
-		// handler directly, so `ze show env get` with a 129-character key
-		// reached it although the leaf declares 1..128.
-		validated, err := ValidateModelArgs(path, args, nil)
-		if err != nil {
-			writeLocalRefusal(err)
-			return 1
-		}
+// plainLocalData builds the `ze <verb>` form of a data command: run the
+// handler on the value its route judged, render its payload.
+//
+// The arguments are judged before this runs, by InvokeLocal on every route
+// that serves a local handler, as ServeLocal judges them on the `ze cli -c`
+// route. This route once ran the handler on raw words, so `ze show env get`
+// with a 129-character key reached it although the leaf declares 1..128.
+func plainLocalData(path string, handler LocalDataHandler, render func(string, any) int) LocalHandler {
+	return func(validated ValidatedArgs) int {
 		// A nonzero code with a payload is an ANSWER the command exits
 		// nonzero on, not an error with nothing to say: `validate config`
 		// renders the diagnostics of a config it rejects and exits 1. The
@@ -239,15 +235,12 @@ type ArgDefSource func(path string) ([]ArgDef, error)
 var argDefSource ArgDefSource
 
 // RegisterArgDefSource installs the source every route outside the daemon
-// dispatcher reads argument definitions from (ValidateModelArgs), and installs
-// the same judgment in the local-handler registry, which cannot import this
-// package, for the `ze <verb>` and offline-fallback routes
-// (registry.ValidateLocalArgs). One call covers every route, so none can be
-// left unvalidated. Called from init();
+// dispatcher reads argument definitions from (ValidateModelArgs), which the
+// `ze <verb>` and offline-fallback routes reach through InvokeLocal. One call
+// covers every route, so none can be left unvalidated. Called from init();
 // not safe for concurrent use with any route.
 func RegisterArgDefSource(source ArgDefSource) {
 	argDefSource = source
-	registry.RegisterLocalArgCheck(validatedLocalTokens)
 }
 
 // validateLocalArgs judges the arguments of a local-data command.
@@ -256,17 +249,6 @@ func RegisterArgDefSource(source ArgDefSource) {
 // the registered path, so the path is the words before that tail.
 func validateLocalArgs(words, args []string) (ValidatedArgs, error) {
 	return ValidateModelArgs(strings.Join(words[:len(words)-len(args)], " "), args, nil)
-}
-
-// validatedLocalTokens is the judgment the local-handler registry runs: the
-// tokens of the value ValidateModelArgs returned, so a registry route hands its
-// handler what was judged and nothing else.
-func validatedLocalTokens(path string, args []string) ([]string, error) {
-	validated, err := ValidateModelArgs(path, args, nil)
-	if err != nil {
-		return nil, err
-	}
-	return validated.Tokens(), nil
 }
 
 // ValidateModelArgs judges args against the leaves the model declares for the

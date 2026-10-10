@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
+
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
@@ -35,7 +37,7 @@ func declaredVerbs(t *testing.T) []string {
 	for name := range tree.Children {
 		seen[name] = true
 	}
-	for _, entry := range registry.ListLocal() {
+	for _, entry := range command.ListLocal() {
 		verb, _, _ := strings.Cut(entry.Path, " ")
 		seen[verb] = true
 	}

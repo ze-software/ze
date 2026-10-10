@@ -63,7 +63,8 @@ func init() {
 	// facts already reach a machine through `ze help command --json`.
 	// Inventing a second record for them would be a second surface to keep
 	// true, so it keeps its plain handler.
-	registry.MustRegisterLocal("show yang doc", func(args []string) int {
+	command.MustRegisterLocal("show yang doc", func(validated command.ValidatedArgs) int {
+		args := validated.Tokens()
 		return Run(append([]string{subDoc}, args...))
 	})
 

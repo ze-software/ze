@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 func TestModuleRegistry_AllRegistered(t *testing.T) {
@@ -248,7 +250,7 @@ func TestJSONOutput_ManifestToStdout(t *testing.T) {
 	}
 	os.Stdout = f
 
-	code := Run([]string{"--module", "version", "--json", "--output", dir})
+	code := Run(commandtest.Args("--module", "version", "--json", "--output", dir))
 
 	os.Stdout = old
 	if err := f.Close(); err != nil {
@@ -465,7 +467,7 @@ func TestExcludeFilter_Run(t *testing.T) {
 	}
 	os.Stdout = f
 
-	code := Run([]string{"--exclude", "doctor,host,config,crashes,disk,interfaces,routes,neighbors,env,sysctl,runtime,dmesg,sockets,modules,conntrack,fds,dns,firewall", "--json", "--output", dir})
+	code := Run(commandtest.Args("--exclude", "doctor,host,config,crashes,disk,interfaces,routes,neighbors,env,sysctl,runtime,dmesg,sockets,modules,conntrack,fds,dns,firewall", "--json", "--output", dir))
 
 	os.Stdout = old
 	if err := f.Close(); err != nil {

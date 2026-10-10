@@ -81,7 +81,7 @@ func TestEveryLeToolUsesFullPathAndParityAloneHasNoShape(t *testing.T) {
 	}
 	for _, tool := range commandsAtStart {
 		path := leroot.CommandPath(tool.Name)
-		if !registry.HasLocal(path) {
+		if !command.HasLocal(path) {
 			t.Errorf("tool %q is absent at %q", tool.Name, path)
 		}
 		_, declared := command.ShapeForCommand(path)

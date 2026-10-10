@@ -3,6 +3,7 @@
 package skills
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
@@ -13,7 +14,7 @@ func init() {
 		Section:   registry.SectionSystem,
 		Subs:      "list, get <name> [--full]",
 	})
-	registry.MustRegisterLocalMeta("skills", Run, registry.Meta{
+	command.MustRegisterLocalMeta("skills", Run, registry.Meta{
 		ShortHelp: "List the agent skills this binary carries, or fetch one by name.",
 		Description: "Each skill is a Markdown document bundled with the binary, so it always matches " +
 			"the running version. One skill is fetched by name, in its short form or in full.",

@@ -8,13 +8,15 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Run executes the explain command.
-func Run(args []string) int {
+func Run(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		usage()
 		return 1

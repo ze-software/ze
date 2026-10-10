@@ -129,8 +129,8 @@ and re-running codegen is all that's needed to wire (or unwire) the plugin.
 ### The CLI command owner
 
 A package whose `init()` calls `registry.MustRegisterRootHandler`,
-`registry.RegisterRoot`, `registry.MustRegisterLocal` or any other
-`command/registry` registrar owns a command, and nothing else in the product
+`registry.RegisterRoot`, `command.MustRegisterLocal` or any other
+`command/registry` or `command` registrar owns a command, and nothing else in the product
 imports it. Without a blank import it compiles, links nowhere and registers
 nothing: `ze <command>` answers "unknown command" while the build, the lint and
 every gate stay green. `./le plugin imports check` reports such a package, and

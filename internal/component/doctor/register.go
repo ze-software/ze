@@ -3,6 +3,7 @@
 package doctor
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
@@ -14,7 +15,7 @@ func init() {
 		Section:   registry.SectionSystem,
 		Subs:      "config <file>, kernel-capabilities, --json",
 	})
-	registry.MustRegisterLocalMeta("doctor", Run, registry.Meta{
+	command.MustRegisterLocalMeta("doctor", Run, registry.Meta{
 		ShortHelp: "Check that this system is ready to run Ze.",
 		Description: "The checks cover kernel features, file descriptor limits, listening sockets and " +
 			"the dependencies Ze needs. Run it before the first start, and again after a change " +

@@ -111,13 +111,13 @@ imports it directly. `cmd/ze` keeps only no-owner / process-global commands.
 **Registration:**
 - `registry.MustRegisterRootHandler(name, handler, Meta)` -- **owner-backed** `ze <name>`: handler + metadata, dispatched by the registry. `handler` is `func(*RuntimeContext, []string) int`. Rejects empty name / nil handler / duplicate owner.
 - `registry.RegisterRoot(name, Meta)` -- **no-owner / process-global** metadata only; `cmd/ze/main.go` dispatches it (start, version, help, ...).
-- `registry.MustRegisterLocal(path, handler)` / `MustRegisterLocalMeta(...)` -- path-keyed offline shortcuts.
+- `command.MustRegisterLocal(path, handler)` / `MustRegisterLocalMeta(...)` -- path-keyed offline shortcuts, in package `command` (`internal/component/command/local.go`) because the handler takes `command.ValidatedArgs`.
 - A storage-backed shortcut opens its own store when it runs (`storage.OpenReadOnly(resolve.StoreDir(path))` for a read, `resolve.StorageFor(path)` for a write) and closes it itself: the registry holds no store (`ai/patterns/cli-command.md`, "Storage-dependent commands").
 
 **Query:**
 - `registry.LookupRoot(name)` -- owner root dispatch (used by `main.go` before the static switch).
-- `registry.LookupLocal(words)` -- longest-prefix handler lookup (used by `RunCommand` and `main.go`).
-- `registry.ListRoot()` / `ListLocal()` / `ListRootBySection()` -- used by `help ai`.
+- `command.LookupLocal(words, declared)` -- longest-prefix handler lookup (used by `RunCommand` and `main.go`), then `command.InvokeLocal(path, handler, args)` to judge and run.
+- `registry.ListRoot()` / `command.ListLocal()` / `registry.ListRootBySection()` -- used by `help ai`.
 
 **Leaf guarantee:** the registry imports only the standard library, so any owner
 (`internal/component/*`, `internal/plugins/*`, `internal/core/*`) imports it from

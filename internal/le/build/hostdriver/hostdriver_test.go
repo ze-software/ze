@@ -8,12 +8,12 @@ package buildhostdriver
 import (
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 func TestHostDriverRegistersAndRefusesAnArgument(t *testing.T) {
-	if !registry.HasLocal(leroot.CommandPath(name)) {
+	if !command.HasLocal(leroot.CommandPath(name)) {
 		t.Fatalf("importing buildhostdriver did not register %q", name)
 	}
 	payload, code := Answer([]string{"amd64"})

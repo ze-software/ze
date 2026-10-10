@@ -3,6 +3,8 @@ package cmdutil
 import (
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // VALIDATES: AC-22 for the `ze <verb>` local route (R6). Every token the
@@ -15,8 +17,8 @@ import (
 func TestInvokeLocalHandlerJudgesArguments(t *testing.T) {
 	var got []string
 	ran := false
-	record := func(args []string) int {
-		ran, got = true, args
+	record := func(args command.ValidatedArgs) int {
+		ran, got = true, args.Tokens()
 		return 0
 	}
 	words := []string{"show", "env", "get"}

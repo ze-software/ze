@@ -138,7 +138,7 @@ read different registries. Neither is derived from the other.
 Some read-only `show` commands must work with **no daemon reachable** — `show crashes`
 (you inspect a crash precisely when the daemon has died) and `show host` (hardware
 inventory before the daemon is up). Their owner registers an in-process handler with
-`registry.RegisterOfflineFallback(path, handler)`. The CLI serves the command from the
+`command.RegisterOfflineFallback(path, handler)`. The CLI serves the command from the
 daemon when it is reachable and calls the fallback **only after a connection failure**,
 so the fallback never shadows the daemon. Because `cmdutil.RunCommand` rejects commands
 absent from the CLI binary's tree before reaching the daemon path, it makes an exception
@@ -163,8 +163,8 @@ command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
 `| yaml` and `| table` be three renderings of one payload. The handler
 (`command.LocalDataHandler`) takes the `command.ValidatedArgs` the validator
 returned, never a token slice, and reads `Tokens()` or `Positional(leaf)`. The
-data-handler registry lives in package `command` rather than in the
-local-handler registry, because that registry cannot import `command` and so
+data-handler and local-handler registries live in package `command` rather than
+in `command/registry`, because that package cannot import `command` and so
 cannot name the value.
 
 The handler returns a payload AND an exit code, and the two are independent. The
@@ -1492,11 +1492,11 @@ model through `command.ValidateModelArgs`.
 |-------|-------|-------------|
 | R1 daemon dispatcher | `Dispatcher.Dispatch` | the matched command's `ArgDefs`, inline selectors pre-matched |
 | R2 in-process local data (`ze cli -c`) | `command.ServeLocal` | the model, by path |
-| R3 the plain handler `RegisterLocalData` builds | `command.plainLocalData` | the model, through `command.ValidateModelArgs` |
+| R3 the plain handler `RegisterLocalData` builds | the R6 and R7 routes that run it | the model, through `command.InvokeLocal` |
 | R4 RPC wrapper | `Server.wrapHandler` | the model, the params' selector pre-matched |
 | R5 ensure-exists steps | `wrapWithEnsureChain` | the ancestor node's `ArgDefs`, the dispatcher's selectors pre-matched |
-| R6 `ze <verb>` local handlers | `cmd/ze` dispatch, `cmdutil.matchLocalHandler` | the model, through `registry.ValidateLocalArgs` |
-| R7 offline fallback | `client.runOfflineFallback` | the model, through `registry.ValidateLocalArgs` |
+| R6 `ze <verb>` local handlers | `cmd/ze` dispatch (`invokeRootLocalHandler`, `dispatchHelp`), `cmdutil.invokeLocalHandler` | the model, through `command.InvokeLocal` |
+| R7 offline fallback | `client.runOfflineFallback` | the model, through `command.InvokeLocal` |
 | R8 streaming (`monitor ...`) | `GetStreamingHandlerForCommand` | the model, by the streaming prefix |
 | R9 plugin process and forked subsystem | `Dispatcher.routeToProcess`, `Dispatcher.dispatchSubsystem` | the model, by the plugin's command, the dispatcher's selectors pre-matched |
 
@@ -1506,20 +1506,24 @@ declares an argument is also served by a builtin, which judges first (R1);
 `test/ui/cli-argument-refused-plugin-route.ci` reaches R9 alone through a test
 plugin serving `show config cat`, which no daemon builtin serves.
 
-The local-handler registry cannot import `command`, so `RegisterArgDefSource`
-installs the judgment there too (`registry.RegisterLocalArgCheck`) for R6 and
-R7; a process that installed none refuses both.
+R6 and R7 run their handler through `command.InvokeLocal(path, handler, args)`,
+which judges the tokens with `ValidateModelArgs` and runs the handler on the
+value it returned; a process that registered no definition source refuses both.
 
-A streaming handler (`pluginserver.StreamingHandler`) and a data handler
-(`command.LocalDataHandler`) take the `command.ValidatedArgs` itself, so no route
+A streaming handler (`pluginserver.StreamingHandler`), a data handler
+(`command.LocalDataHandler`) and a local handler or offline fallback
+(`command.LocalHandler`) take the `command.ValidatedArgs` itself, so no route
 can declare or invoke one with a token slice: R8 hands a streaming handler the
-value `GetStreamingHandlerForCommand` answered, R2 and R3 hand a data handler
-the value they judged, and the handler reads `Tokens()` or `Positional(leaf)`. A
-test that calls a handler directly builds its value with `commandtest.Args`,
-which goes through `ValidateArgs`. The other handler types still take a token
-slice, and their routes pass `ValidatedArgs.Tokens()`.
+value `GetStreamingHandlerForCommand` answered, R2 hands a data handler the
+value it judged, R6 and R7 hand a local handler, and through it the plain form
+of a data handler (R3), the value `InvokeLocal` judged, and the handler reads
+`Tokens()` or `Positional(leaf)`. A test that calls a handler directly builds
+its value with `commandtest.Args`, which goes through `ValidateArgs`. The other
+handler types still take a token slice, and their routes pass
+`ValidatedArgs.Tokens()`.
 <!-- source: internal/component/command/argbind.go -- ValidatedArgs, MissingArgumentError, ValidateArgs -->
 <!-- source: internal/component/command/local_data.go -- ValidateModelArgs, RegisterArgDefSource, LocalDataHandler -->
+<!-- source: internal/component/command/local.go -- LocalHandler, InvokeLocal, LookupLocal, LookupOfflineFallback -->
 <!-- source: internal/component/command/commandtest/commandtest.go -- Args -->
 <!-- source: internal/component/command/registry/registry.go -- ValidateLocalArgs, RegisterLocalArgCheck -->
 <!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, routeToProcess, dispatchSubsystem -->
@@ -1905,7 +1909,7 @@ surfaces.
 | The published CLI reference row | `internal/le/site` `writeCommandRow`, `commandMirrorDescription` | `ShortHelp` |
 | The published per-command detail page | `internal/le/site` `equivalentZeCard`, `equivalentDetailMirror` | `ShortHelp` as the lede, `Description` as the Description body |
 | The `llms.txt` command line | `internal/le/site` `writeLLMSCommands` | `ShortHelp`, whole and with no character budget |
-| An offline local command in any of the rows above | `registry.ListLocal`, merged by `collectCommands` and by `clicatalog.Collect` | `Meta.ShortHelp` and `Meta.Description`, in place of the node's two texts |
+| An offline local command in any of the rows above | `command.ListLocal`, merged by `collectCommands` and by `clicatalog.Collect` | `Meta.ShortHelp` and `Meta.Description`, in place of the node's two texts |
 
 The machine surfaces carry the same pair. `commandMeta`
 (`cmd/ze/hub/command_meta.go`) holds both halves for the API and MCP listers.

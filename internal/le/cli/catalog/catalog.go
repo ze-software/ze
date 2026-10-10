@@ -17,7 +17,6 @@ import (
 
 	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/command/registry"
 	_ "github.com/ze-software/ze/internal/component/doctor"
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -199,7 +198,7 @@ func Collect() ([]Entry, error) {
 		entries = append(entries, builtins[index])
 		seen[builtins[index].Path] = true
 	}
-	for _, local := range registry.ListLocal() {
+	for _, local := range command.ListLocal() {
 		// leroot registers every development command under "le ". The wiki is
 		// the ze product catalog, so those process-local registrations are not
 		// part of the old ze help command inventory being replaced.
@@ -401,7 +400,10 @@ func operatorsFor(path string, declared command.Declared, wireToPaths map[string
 // plainLocalOnly reports whether path has only a plain local handler and no
 // daemon handler. wireToPaths is cli.WireToPaths, fetched once by Collect.
 func plainLocalOnly(path string, wireToPaths map[string][]string) bool {
-	if !registry.HasLocal(path) || command.HasLocalData(path) {
+	if !command.HasLocal(path) {
+		return false
+	}
+	if command.HasLocalData(path) {
 		return false
 	}
 	for _, registration := range pluginserver.AllBuiltinRPCs() {

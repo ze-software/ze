@@ -3,6 +3,8 @@ package appliance
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
+
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
@@ -27,7 +29,7 @@ func TestApplianceAllActionsRegistered(t *testing.T) {
 }
 
 func TestApplianceRegistersNoDaemonCommand(t *testing.T) {
-	for _, cmd := range registry.ListLocal() {
+	for _, cmd := range command.ListLocal() {
 		if cmd.Path == "appliance" || len(cmd.Path) > 10 && cmd.Path[:10] == "appliance " {
 			t.Errorf("appliance registered a local/daemon command: %q", cmd.Path)
 		}

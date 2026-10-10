@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // captureStderr runs fn with os.Stderr redirected and returns what it wrote.
@@ -52,7 +54,7 @@ func TestDoctorArgsRefused(t *testing.T) {
 			var code int
 			var stdout string
 			stderr := captureStderr(t, func() {
-				stdout = captureStdout(t, func() { code = Run(tt.args) })
+				stdout = captureStdout(t, func() { code = Run(commandtest.Args(tt.args...)) })
 			})
 			if code != 1 {
 				t.Fatalf("Run(%q) = %d, want 1", tt.args, code)

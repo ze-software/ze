@@ -388,8 +388,8 @@ func init() {
     })
 
     // 2. `show X` offline shortcuts dispatched by path.
-    registry.MustRegisterLocal("show <owner> <op>", func(args []string) int {
-        return Run(append([]string{"<op>"}, args...))
+    command.MustRegisterLocal("show <owner> <op>", func(args command.ValidatedArgs) int {
+        return Run(append([]string{"<op>"}, args.Tokens()...))
     })
 }
 ```
@@ -431,11 +431,11 @@ See `ai/patterns/registration.md` "Binary Personality Registration" section.
 | `registry.RegisterRoot(name, meta)` | **No-owner / process-global** `ze <name>` metadata only; dispatch stays in `cmd/ze/main.go` (start, version, help, ...) |
 | `registry.RootHandler` = `func(rctx *RuntimeContext, args []string) int` | Owner root handler signature; ignore `rctx` if no process deps needed |
 | `registry.RuntimeContext` | Process-entry deps built by `main.go` (plugin list, config override, version printer, web/MCP flags). It carries no store: a command opens the store itself (see "Storage-dependent commands") |
-| `registry.RegisterLocal` / `MustRegisterLocal` / `RegisterLocalMeta` / `MustRegisterLocalMeta` | Path-keyed local handler (`"show bgp decode"`) for offline shortcuts. The handler returns an exit code and prints for itself |
+| `command.RegisterLocal` / `MustRegisterLocal` / `RegisterLocalMeta` / `MustRegisterLocalMeta` | Path-keyed local handler (`"show bgp decode"`) for offline shortcuts, `func(args command.ValidatedArgs) int`, the arguments already judged against the YANG leaves by `command.InvokeLocal`. The handler returns an exit code and prints for itself |
 | `command.RegisterLocalData` / `MustRegisterLocalData` | Path-keyed local handler that returns DATA (`func(args command.ValidatedArgs) (any, int)`, the arguments already judged against the YANG leaves) and a renderer, normally `command.RenderLocalAnswer`. Use it whenever the command answers rows or an object, because the pipe layer then renders `\| json`, `\| yaml` and `\| table` from one payload |
-| `registry.LookupRoot(name)` / `LookupLocal(words)` | Dispatch lookups used by `main.go` |
-| `registry.ListLocal()` / `ListRoot()` / `ListRootBySection()` | Enumerate everything; used by `help ai` |
-| `registry.HasLocal` / `HasRootHandler` / `ResetForTest` | Test helpers (do not `ResetForTest` from `cmd/ze` tests -- it wipes init-registered roots; use sentinel names) |
+| `registry.LookupRoot(name)` / `command.LookupLocal(words, declared)` | Dispatch lookups used by `main.go`; a local handler runs through `command.InvokeLocal(path, handler, args)` |
+| `command.ListLocal()` / `registry.ListRoot()` / `ListRootBySection()` | Enumerate everything; used by `help ai` |
+| `command.HasLocal` / `ResetLocalForTest`, `registry.HasRootHandler` / `ResetForTest` | Test helpers (do not `ResetForTest` from `cmd/ze` tests -- it wipes init-registered roots; use sentinel names) |
 
 ### Registration shape per command class
 
@@ -528,7 +528,7 @@ automatically.
 [ ] Unknown subcommand: suggest + usage + return 1
 [ ] Owner package: register.go in internal/component/<owner>/cli (NOT cmd/ze) -- owner is cmd/ze-free
 [ ] register.go: registry.MustRegisterRootHandler(<name>, wrap(Run), Meta{...}) for `ze <name>` (registry-dispatched)
-[ ] register.go: registry.MustRegisterLocal(<path>, handler) for every `show X` shortcut
+[ ] register.go: command.MustRegisterLocal(<path>, handler) for every `show X` shortcut
 [ ] Owner init() linked: run `./le repo generate`, which writes the blank import into internal/component/plugin/all
 [ ] If storage-dependent: open the store in the command (storage.OpenReadOnly for a read, resolve.StorageFor for a write) and close it there; never from init()
 [ ] No-owner / process-global only: stays in cmd/ze with RegisterRoot + main.go switch (allowlist)

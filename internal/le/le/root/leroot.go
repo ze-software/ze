@@ -66,7 +66,7 @@ const pipeWord = "|"
 
 // Owned answers every le command name from the shared local-data registry.
 func Owned() []string {
-	commands := registry.ListLocal()
+	commands := command.ListLocal()
 	owned := make([]string, 0, len(commands))
 	for _, entry := range commands {
 		if name, ok := strings.CutPrefix(entry.Path, pathPrefix); ok {
@@ -78,7 +78,7 @@ func Owned() []string {
 
 // Owns reports whether le registered name at its canonical local-data path.
 func Owns(name string) bool {
-	return registry.HasLocal(CommandPath(name))
+	return command.HasLocal(CommandPath(name))
 }
 
 // Register wires one tool into the shared registry at `le <name>`.

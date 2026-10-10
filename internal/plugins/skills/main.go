@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -36,7 +37,8 @@ var inventory = []skill{
 }
 
 // Run executes the skills command.
-func Run(args []string) int {
+func Run(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		usage()
 		return 1

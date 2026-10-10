@@ -87,7 +87,7 @@ phase itself.
     | Exported function/method | `grep` or LSP `findReferences` for at least one caller outside its own file and test files |
     | Struct / type | Same: at least one non-test consumer |
     | HTTP handler / web route | Registered on a mux (`srv.Handle`, `mux.HandleFunc`, etc.) and reachable from `hub/main.go` or `web/server.go` |
-    | CLI command | Registered via `registry.MustRegisterLocal` or `registry.RegisterRoot` in a `register.go` with a blank import chain to `main.go` |
+    | CLI command | Registered via `command.MustRegisterLocal` or `registry.RegisterRoot` in a `register.go` with a blank import chain to `main.go` |
     | CLI command (completion) | Command appears in tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`). A command without completion is undiscoverable. See `ai/rules/cli.md` "Command Completion". |
     | Plugin | Has `register.go` with `registry.Register()`, appears in generated `all.go` (or will after `./le repo generate`) |
     | Config option / YANG leaf | YANG module registered, leaf read by runtime code (not just parsed) |
@@ -112,7 +112,7 @@ phase itself.
     | System plugin | An existing plugin of the same shape | `registry.Register()` in `register.go`, blank import in `all/all.go`, event types, send types, YANG schema |
     | BGP plugin | An existing BGP plugin of the same shape | `Registration{}` fields, hook functions, config handling |
     | Bridge command | An existing bridge command family | `parseFamilyToAFISAFI` case, `convertAnnounceFamily` regex, command parser, event translation |
-    | CLI command | An existing CLI command | `registry.MustRegisterLocal`, handler, completion, YANG entry |
+    | CLI command | An existing CLI command | `command.MustRegisterLocal`, handler, completion, YANG entry |
 
     Find the most similar existing feature. Diff its registrations, handlers, and tests against the new feature. Report anything the reference has that the new feature lacks as a BLOCKER: "missing [component] -- reference [feature] has it in [file] [symbol]."
 

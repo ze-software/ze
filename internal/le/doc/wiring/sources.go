@@ -159,8 +159,8 @@ func isCommandOwnershipSource(path string) bool {
 // commandMarkers are the spellings that make a Go file part of the command
 // surface.
 var commandMarkers = [...]string{
-	"cmdregistry.MustRegisterLocal",
-	"cmdregistry.MustRegisterLocalMeta",
+	"command.MustRegisterLocal",
+	"command.MustRegisterLocalMeta",
 	"pluginserver.RegisterRPCs",
 	"ze:command",
 }

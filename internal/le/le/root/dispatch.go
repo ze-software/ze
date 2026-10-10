@@ -31,7 +31,7 @@ func isHelpArg(word string) bool { return leaction.IsHelpArg(word) }
 // Commands answers le's commands with the metadata from the shared local
 // registry. ListLocal sorts by full path, so the stripped names remain sorted.
 func Commands() []registry.RootCommand {
-	all := registry.ListLocal()
+	all := command.ListLocal()
 	mine := make([]registry.RootCommand, 0, len(all))
 	for _, entry := range all {
 		if len(entry.Path) <= len(pathPrefix) || entry.Path[:len(pathPrefix)] != pathPrefix {

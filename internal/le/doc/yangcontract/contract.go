@@ -75,16 +75,16 @@ import (
 const cmdModuleSuffix = "-cmd"
 
 // The two identifiers the command registry package is imported under. A
-// registrar call is recognized by either, because a file that renames the
-// import registers the same command.
+// registration's Meta is recognized under either, because a file that renames
+// the import declares the same summary.
 const (
 	pkgRegistry    = "registry"
 	pkgCmdRegistry = "cmdregistry"
 )
 
-// pkgCommand is the identifier package command is imported under. A data
-// handler registers there, because its handler type takes the validated
-// arguments only that package can build.
+// pkgCommand is the identifier package command is imported under. A local
+// handler and a data handler register there, because their handler types take
+// the validated arguments only that package can build.
 const pkgCommand = "command"
 
 // skippedWireMethods are handlers that need no YANG command tree entry.
@@ -508,9 +508,8 @@ func vanished(path string) bool {
 // collectLocalHandlersFromFile records every command path registered by the
 // file at path.
 //
-// Most callers use the bare `registry` name; help_ai.go aliases it as
-// `cmdregistry` to avoid a collision with plugin/registry, so both are
-// accepted. A command that answers with DATA registers a local handler too:
+// Every registration is a call under the `command` package name
+// (localRegistrar). A command that answers with DATA registers a local handler too:
 // command.RegisterLocalData builds one from the data handler so `ze <verb>`
 // and `ze cli -c` render through one path (localRegistrar). Omitting those names reported twelve
 // YANG commands as having no handler on the day they were converted, when

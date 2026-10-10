@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	zeversion "github.com/ze-software/ze/internal/core/version"
 )
@@ -41,7 +42,8 @@ type serveManifest struct {
 //   - Signal: SIGUSR1 toggles in-memory pause state
 //
 // Intended for build/release infrastructure, not for routers in production.
-func runUpdateServe(args []string) int {
+func runUpdateServe(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	listen := ":8080"
 	for i := range len(args) - 1 {
 		if args[i] == "--listen" {

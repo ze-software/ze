@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
@@ -331,7 +332,7 @@ bgp {
 `
 	cfgPath := writeTestConfig(t, cfg)
 	out := captureStdout(t, func() {
-		code := Run([]string{"--json", "config", cfgPath})
+		code := Run(commandtest.Args("--json", "config", cfgPath))
 		assert.Equal(t, 0, code, "advisory warnings must not fail readiness")
 	})
 

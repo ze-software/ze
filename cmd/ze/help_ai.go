@@ -16,7 +16,7 @@ import (
 	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
 	"github.com/ze-software/ze/internal/component/aihelp"
 	cli "github.com/ze-software/ze/internal/component/cli/client"
-	cmdregistry "github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/family"
@@ -41,7 +41,8 @@ import (
 // Output routes through a helpfmt.RenderWriter: a write error (e.g. `ze help ai
 // | head` closing the pipe) is captured and returned as a non-zero exit code
 // instead of being silently swallowed.
-func printAIHelp(args []string) int {
+func printAIHelp(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	return renderAIHelp(os.Stdout, args)
 }
 
@@ -711,7 +712,7 @@ func hasSection(args []string, name string) bool {
 func helpUsage() {
 	// Derive help subcommands from the local command registry.
 	var subEntries []helpfmt.HelpEntry
-	for _, lc := range cmdregistry.ListLocal() {
+	for _, lc := range command.ListLocal() {
 		if !strings.HasPrefix(lc.Path, "help ") {
 			continue
 		}

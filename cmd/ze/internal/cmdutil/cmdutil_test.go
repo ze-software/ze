@@ -11,7 +11,7 @@ import (
 
 	cli "github.com/ze-software/ze/internal/component/cli/client"
 	cmd "github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -19,15 +19,15 @@ import (
 // localAtStartup is the local-handler registry as the binary's init() functions
 // left it, captured before any test runs.
 //
-// registry.ResetForTest clears EVERY registration, production ones included, and
+// cmd.ResetLocalForTest clears EVERY local registration, production ones included, and
 // nothing puts them back: the registry has no unregister and no restore. Several
 // tests here need a synthetic registration and use it to clean up, so a test that
-// reads registry.ListLocal() gets whatever the tests before it happened to leave.
+// reads cmd.ListLocal() gets whatever the tests before it happened to leave.
 // Snapshotting in TestMain makes that ordering irrelevant.
-var localAtStartup []registry.LocalCommandEntry
+var localAtStartup []cmd.LocalCommandEntry
 
 func TestMain(m *testing.M) {
-	localAtStartup = registry.ListLocal()
+	localAtStartup = cmd.ListLocal()
 	os.Exit(m.Run())
 }
 
@@ -425,7 +425,7 @@ func verbForms(t testing.TB, path string) []verbForm {
 // `show debug profile`) became unreachable and the command went to the daemon,
 // which answered `no credentials`.
 //
-// THE CASES COME FROM registry.ListLocal, A THIRD SOURCE. The repair keys on
+// THE CASES COME FROM cmd.ListLocal, A THIRD SOURCE. The repair keys on
 // cli.AbsoluteVerbPath (the RPC registry) and the sibling test above keys on
 // YANG descriptions; neither can see a local-only path, which is exactly what
 // this one broke. The local registry is populated by each plugin's register.go
@@ -439,7 +439,7 @@ func verbForms(t testing.TB, path string) []verbForm {
 // subtest registers one that does, and the live path is covered end to end by
 // test/ui/cli-verb-daemon-dispatch.ci and test/ui/debug-enable-show.ci.
 func TestRegisteredLocalCommandsStayReachable(t *testing.T) {
-	entries := registry.ListLocal()
+	entries := cmd.ListLocal()
 	if len(entries) < 10 {
 		t.Fatalf("registered local commands = %d, want >= 10: the registry is empty, so this test proves nothing", len(entries))
 	}
@@ -466,11 +466,11 @@ func TestRegisteredLocalCommandsStayReachable(t *testing.T) {
 	}
 
 	t.Run("under a declared leaf the tree does not extend", func(t *testing.T) {
-		defer registry.ResetForTest()
+		defer cmd.ResetLocalForTest()
 
 		leaf := declaredChildlessNode(t)
 		path := textbuf.Join(leaf, " ") + " profile"
-		registry.MustRegisterLocal(path, func(_ []string) int { return 0 })
+		cmd.MustRegisterLocal(path, func(cmd.ValidatedArgs) int { return 0 })
 
 		argv := append(append([]string{}, leaf...), "profile", "name", "default")
 		res, _ := resolveForTest(t, argv, leaf[0])
@@ -489,7 +489,7 @@ func TestRegisteredLocalCommandsStayReachable(t *testing.T) {
 // longest-prefix local lookup captures without being registered for them.
 //
 // THE SELECTION SOURCE IS THE AUTHORED YANG TREE, NOT THE RPC REGISTRY THE FIX
-// KEYS ON. cli.IsDeclaredCommand, which is what registry.LookupLocal asks, reads
+// KEYS ON. cli.IsDeclaredCommand, which is what cmd.LookupLocal asks, reads
 // AllCLIRPCs x cli.WireToPaths. cli.YANGCommandTree is yang.BuildCommandTree over
 // the module text: a node carries WireMethod because a `ze:command` statement is
 // written on its container, and no registration is consulted. A child this
@@ -647,7 +647,7 @@ func declaredChildlessNode(t *testing.T) []string {
 // on 2026-08-08, so a hardcoded path here would now assert about a case it no
 // longer covers.
 func TestSyntheticOfflineFallbackBeatsGroupingContainer(t *testing.T) {
-	defer registry.ResetForTest()
+	defer cmd.ResetLocalForTest()
 
 	path, res := undeclaredGroupingContainer(t)
 	joined := strings.Join(path, " ")
@@ -657,7 +657,7 @@ func TestSyntheticOfflineFallbackBeatsGroupingContainer(t *testing.T) {
 		t.Fatalf("`%s` is dispatchable with no fallback registered", joined)
 	}
 
-	registry.MustRegisterOfflineFallback(joined, func(_ []string) int { return 0 })
+	cmd.MustRegisterOfflineFallback(joined, func(cmd.ValidatedArgs) int { return 0 })
 	if !res.dispatchable() {
 		t.Errorf("`%s` is not dispatchable with an offline fallback registered: RunCommand will print its subcommands and exit 1 instead of serving it", joined)
 	}
@@ -718,10 +718,10 @@ func undeclaredGroupingContainer(t *testing.T) ([]string, Resolution) {
 // RunCommand consults matchLocalHandler BEFORE that verdict for exactly this
 // case; checking ok first would answer `unknown show command: json`.
 func TestLocalHandlerWithFormatKeywordPathStillRuns(t *testing.T) {
-	defer registry.ResetForTest()
+	defer cmd.ResetLocalForTest()
 
 	called := false
-	if err := registerLocalCommand("show json", func(_ []string) int {
+	if err := cmd.RegisterLocal("show json", func(cmd.ValidatedArgs) int {
 		called = true
 		return 7
 	}); err != nil {
@@ -794,15 +794,16 @@ func TestReadOnlyCommandUnderShowKeepsItsRoot(t *testing.T) {
 // passes endsCommand=nil, so the trailing branch never runs on the local path
 // and `--extended` stays inside res.Local (["show","version","--extended"]),
 // with res.LocalValues empty. What ends the path at the registered key is
-// registry.LookupLocal's own longest-prefix match, which returns `--extended` as
+// cmd.LookupLocal's own longest-prefix match, which returns `--extended` as
 // the handler's argument. Asserting res.Local would therefore pin the shape of
 // an intermediate that carries the flag either way, and would say nothing about
 // whether the handler ever got it.
 func TestLocalHandlerUnderVerbGetsItsFlag(t *testing.T) {
-	defer registry.ResetForTest()
+	defer cmd.ResetLocalForTest()
 
 	var got []string
-	if err := registerLocalCommand("show version", func(args []string) int {
+	if err := cmd.RegisterLocal("show version", func(validated cmd.ValidatedArgs) int {
+		args := validated.Tokens()
 		got = args
 		return 3
 	}); err != nil {
@@ -943,25 +944,25 @@ func TestSuggestFromTree(t *testing.T) {
 // PREVENTS: local handler registration silently failing.
 func TestRegisterLocalCommandAndDispatch(t *testing.T) {
 	// Clean up after test.
-	defer registry.ResetForTest()
+	defer cmd.ResetLocalForTest()
 
 	called := false
-	err := registerLocalCommand("test cmd", func(_ []string) int {
+	err := cmd.RegisterLocal("test cmd", func(cmd.ValidatedArgs) int {
 		called = true
 		return 42
 	})
 	if err != nil {
-		t.Fatalf("RegisterLocalCommand returned error: %v", err)
+		t.Fatalf("RegisterLocal returned error: %v", err)
 	}
 
-	if !registry.HasLocal("test cmd") {
+	if !cmd.HasLocal("test cmd") {
 		t.Fatal("handler not found in registry")
 	}
 	handler, _ := lookupLocalForTest(t, []string{"test", "cmd"})
 	if handler == nil {
 		t.Fatal("LookupLocal returned nil")
 	}
-	code := handler(nil)
+	code := handler(commandtest.Args())
 	if !called {
 		t.Error("handler was not called")
 	}
@@ -973,39 +974,39 @@ func TestRegisterLocalCommandAndDispatch(t *testing.T) {
 // VALIDATES: RegisterLocalCommand rejects empty path.
 // PREVENTS: empty key in localHandlers map causing silent misdispatch.
 func TestRegisterLocalCommandEmptyPath(t *testing.T) {
-	err := registerLocalCommand("", func(_ []string) int { return 0 })
+	err := cmd.RegisterLocal("", func(cmd.ValidatedArgs) int { return 0 })
 	if err == nil {
 		t.Error("expected error for empty path, got nil")
-		registry.ResetForTest() // cleanup
+		cmd.ResetLocalForTest() // cleanup
 	}
 }
 
 // VALIDATES: RegisterLocalCommand rejects nil handler.
 // PREVENTS: nil function call panic at dispatch time.
 func TestRegisterLocalCommandNilHandler(t *testing.T) {
-	err := registerLocalCommand("test nil", nil)
+	err := cmd.RegisterLocal("test nil", nil)
 	if err == nil {
 		t.Error("expected error for nil handler, got nil")
-		registry.ResetForTest() // cleanup
+		cmd.ResetLocalForTest() // cleanup
 	}
 }
 
 // VALIDATES: RegisterLocalCommand overwrites existing entry.
 // PREVENTS: stale handlers persisting after re-registration.
 func TestRegisterLocalCommandOverwrite(t *testing.T) {
-	defer registry.ResetForTest()
+	defer cmd.ResetLocalForTest()
 
 	first := false
 	second := false
 
-	if err := registerLocalCommand("overwrite", func(_ []string) int {
+	if err := cmd.RegisterLocal("overwrite", func(cmd.ValidatedArgs) int {
 		first = true
 		return 1
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := registerLocalCommand("overwrite", func(_ []string) int {
+	if err := cmd.RegisterLocal("overwrite", func(cmd.ValidatedArgs) int {
 		second = true
 		return 2
 	}); err != nil {
@@ -1016,7 +1017,7 @@ func TestRegisterLocalCommandOverwrite(t *testing.T) {
 	if handler == nil {
 		t.Fatal("LookupLocal returned nil after overwrite")
 	}
-	code := handler(nil)
+	code := handler(commandtest.Args())
 	if first {
 		t.Error("first handler was called after overwrite")
 	}
@@ -1031,15 +1032,15 @@ func TestRegisterLocalCommandOverwrite(t *testing.T) {
 // VALIDATES: matchLocalHandler finds longest prefix and passes remaining args.
 // PREVENTS: wrong prefix matching or lost arguments.
 func TestMatchLocalHandler(t *testing.T) {
-	defer registry.ResetForTest()
+	defer cmd.ResetLocalForTest()
 
 	// Register handlers for testing.
-	short := func(_ []string) int { return 1 }
-	long := func(_ []string) int { return 2 }
-	if err := registerLocalCommand("show bgp", short); err != nil {
+	short := func(cmd.ValidatedArgs) int { return 1 }
+	long := func(cmd.ValidatedArgs) int { return 2 }
+	if err := cmd.RegisterLocal("show bgp", short); err != nil {
 		t.Fatal(err)
 	}
-	if err := registerLocalCommand("show bgp decode", long); err != nil {
+	if err := cmd.RegisterLocal("show bgp decode", long); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1077,7 +1078,7 @@ func TestMatchLocalHandler(t *testing.T) {
 			if handler == nil {
 				t.Fatal("expected handler, got nil")
 			}
-			code := handler(nil)
+			code := handler(commandtest.Args())
 			if code != tt.wantCode {
 				t.Errorf("handler returned %d, want %d", code, tt.wantCode)
 			}

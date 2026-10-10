@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
+
 	"github.com/ze-software/ze/internal/component/command/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -32,18 +34,19 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-traceroute:resolve-traceroute", Handler: handleResolveTraceroute},
 	)
 
-	registry.MustRegisterLocalMeta("show traceroute", showTracerouteLocal, registry.Meta{
+	command.MustRegisterLocalMeta("show traceroute", showTracerouteLocal, registry.Meta{
 		ShortHelp: "Trace the network path to a target using the internal ICMP engine (works without the daemon)",
 		Mode:      "offline",
 	})
 
-	registry.MustRegisterLocalMeta("monitor traceroute", monitorTracerouteLocal, registry.Meta{
+	command.MustRegisterLocalMeta("monitor traceroute", monitorTracerouteLocal, registry.Meta{
 		ShortHelp: "Live streaming traceroute (works without the daemon)",
 		Mode:      "offline",
 	})
 }
 
-func showTracerouteLocal(args []string) int {
+func showTracerouteLocal(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	req, err := parseTracerouteArgs(args)
 	if err != nil {
 		var tb textbuf.Buffer
@@ -62,7 +65,8 @@ func showTracerouteLocal(args []string) int {
 	return 0
 }
 
-func monitorTracerouteLocal(args []string) int {
+func monitorTracerouteLocal(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	req, err := parseTracerouteArgs(args)
 	if err != nil {
 		var tb textbuf.Buffer

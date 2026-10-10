@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // VALIDATES: AC-22 for the offline fallback route (R7). The words after the
@@ -17,7 +17,8 @@ import (
 func TestOfflineFallbackJudgesArguments(t *testing.T) {
 	var got []string
 	ran := false
-	if err := registry.RegisterOfflineFallback("show metrics name", func(args []string) int {
+	if err := command.RegisterOfflineFallback("show metrics name", func(validated command.ValidatedArgs) int {
+		args := validated.Tokens()
 		ran, got = true, args
 		return 0
 	}); err != nil {

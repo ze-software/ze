@@ -16,6 +16,8 @@ import (
 	"os/signal"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/command"
+
 	"github.com/ze-software/ze/internal/component/command/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -28,18 +30,19 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-ping:resolve-ping", Handler: handleResolvePing},
 	)
 
-	registry.MustRegisterLocalMeta("show ping", showPingLocal, registry.Meta{
+	command.MustRegisterLocalMeta("show ping", showPingLocal, registry.Meta{
 		ShortHelp: "Ping a target using the internal ICMP engine (works without the daemon)",
 		Mode:      "offline",
 	})
 
-	registry.MustRegisterLocalMeta("monitor ping", monitorPingLocal, registry.Meta{
+	command.MustRegisterLocalMeta("monitor ping", monitorPingLocal, registry.Meta{
 		ShortHelp: "Continuous ping with live statistics (works without the daemon)",
 		Mode:      "offline",
 	})
 }
 
-func showPingLocal(args []string) int {
+func showPingLocal(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	dest, count, timeout, opts, err := parsePingArgs(args)
 	if err != nil {
 		var tb textbuf.Buffer
@@ -58,7 +61,8 @@ func showPingLocal(args []string) int {
 	return 0
 }
 
-func monitorPingLocal(args []string) int {
+func monitorPingLocal(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	mp, err := parseMonitorPingArgs(args)
 	if err != nil {
 		var tb textbuf.Buffer

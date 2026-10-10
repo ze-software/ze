@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
@@ -34,7 +35,8 @@ import (
 )
 
 // Run executes the doctor command.
-func Run(args []string) int {
+func Run(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	jsonOutput := false
 	var configPath string
 	kernelMode := false

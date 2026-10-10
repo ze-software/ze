@@ -22,7 +22,6 @@ import (
 	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
 	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/command/registry"
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -153,7 +152,7 @@ func operatorsFor(cliPath string, declared command.Declared, wireToPaths map[str
 // pathHasOnlyPlainLocalHandler answers whether no surface for the path reaches
 // the pipe layer.
 func pathHasOnlyPlainLocalHandler(cliPath string, wireToPaths map[string][]string) bool {
-	if !registry.HasLocal(cliPath) {
+	if !command.HasLocal(cliPath) {
 		return false
 	}
 	if command.HasLocalData(cliPath) {
@@ -290,7 +289,8 @@ type commandEntry struct {
 // printHelpCommand implements `ze help command [filter...] [--json] [--verbose]`.
 // Output routes through a helpfmt.RenderWriter so a broken pipe surfaces as a
 // non-zero exit; returns the exit code.
-func printHelpCommand(args []string) int {
+func printHelpCommand(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
 	return renderHelpCommand(os.Stdout, args)
 }
 
@@ -394,7 +394,7 @@ func collectCommands() ([]commandEntry, error) {
 		}
 	}
 
-	for _, lc := range registry.ListLocal() {
+	for _, lc := range command.ListLocal() {
 		if seen[lc.Path] {
 			continue
 		}

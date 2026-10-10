@@ -8,12 +8,12 @@
 package host
 
 import (
-	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 func init() {
 	// Offline fallback only: consulted solely when the daemon is unreachable,
 	// so it never shadows the daemon `show host` command. RunShow takes the
 	// section as its first arg, matching the tokens after `show host`.
-	registry.MustRegisterOfflineFallback("show host", RunShow)
+	command.MustRegisterOfflineFallback("show host", RunShow)
 }

@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	debugyang "github.com/ze-software/ze/internal/component/debug/yang"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -39,7 +40,7 @@ func TestDebugEnableModule(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetModule([]string{"test.debug.enable"})
+	code := runSetModule(commandtest.Args("test.debug.enable"))
 	if code != 0 {
 		t.Fatalf("set debug module returned %d, want 0", code)
 	}
@@ -57,10 +58,10 @@ func TestDebugEnableIdempotent(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	if code := runSetModule([]string{"test.debug.idem"}); code != 0 {
+	if code := runSetModule(commandtest.Args("test.debug.idem")); code != 0 {
 		t.Fatalf("first enable returned %d, want 0", code)
 	}
-	if code := runSetModule([]string{"test.debug.idem"}); code != 0 {
+	if code := runSetModule(commandtest.Args("test.debug.idem")); code != 0 {
 		t.Fatalf("second enable returned %d, want 0", code)
 	}
 
@@ -77,8 +78,8 @@ func TestDebugDisableModule(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	runSetModule([]string{"test.debug.disable"})
-	code := runDeleteModule([]string{"test.debug.disable"})
+	runSetModule(commandtest.Args("test.debug.disable"))
+	code := runDeleteModule(commandtest.Args("test.debug.disable"))
 	if code != 0 {
 		t.Fatalf("delete debug module returned %d, want 0", code)
 	}
@@ -95,7 +96,7 @@ func TestDebugDisableIdempotent(t *testing.T) {
 	defer cleanup()
 
 	// Deleting an already-absent module is a no-op success.
-	code := runDeleteModule([]string{"never.enabled"})
+	code := runDeleteModule(commandtest.Args("never.enabled"))
 	if code != 0 {
 		t.Errorf("delete of absent module returned %d, want 0", code)
 	}
@@ -108,7 +109,7 @@ func TestDebugSetFlag(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetModule([]string{"test.debug.flag", "flag", "update"})
+	code := runSetModule(commandtest.Args("test.debug.flag", "flag", "update"))
 	if code != 0 {
 		t.Fatalf("set flag returned %d, want 0", code)
 	}
@@ -121,8 +122,8 @@ func TestDebugDeleteFlag(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	runSetModule([]string{"test.debug.delflag", "flag", "update"})
-	code := runDeleteModule([]string{"test.debug.delflag", "flag", "update"})
+	runSetModule(commandtest.Args("test.debug.delflag", "flag", "update"))
+	code := runDeleteModule(commandtest.Args("test.debug.delflag", "flag", "update"))
 	if code != 0 {
 		t.Fatalf("delete flag returned %d, want 0", code)
 	}
@@ -135,7 +136,7 @@ func TestDebugSetDirectionScope(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetModule([]string{"test.debug.dirscope", "scope", "direction", "receive"})
+	code := runSetModule(commandtest.Args("test.debug.dirscope", "scope", "direction", "receive"))
 	if code != 0 {
 		t.Fatalf("set direction scope returned %d, want 0", code)
 	}
@@ -148,7 +149,7 @@ func TestDebugSetNeighborScope(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetModule([]string{"test.debug.scope", "scope", "neighbor", "192.0.2.1"})
+	code := runSetModule(commandtest.Args("test.debug.scope", "scope", "neighbor", "192.0.2.1"))
 	if code != 0 {
 		t.Fatalf("set neighbor scope returned %d, want 0", code)
 	}
@@ -161,9 +162,9 @@ func TestDebugShowProfileByName(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	runSetModule([]string{"test.debug.show"})
+	runSetModule(commandtest.Args("test.debug.show"))
 
-	code := runShowProfile([]string{"name", "default"})
+	code := runShowProfile(commandtest.Args("name", "default"))
 	if code != 0 {
 		t.Fatalf("show debug profile name default returned %d, want 0", code)
 	}
@@ -177,11 +178,11 @@ func TestDebugShowProfileModuleFilter(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	runSetModule([]string{"test.debug.filt.a"})
+	runSetModule(commandtest.Args("test.debug.filt.a"))
 
 	// `show debug profile name default module <prefix>` filters the subtree
 	// (preserves the historical `debug show <module>` view).
-	code := runShowProfile([]string{"name", "default", "module", "test.debug.filt"})
+	code := runShowProfile(commandtest.Args("name", "default", "module", "test.debug.filt"))
 	if code != 0 {
 		t.Fatalf("show debug profile name default module <prefix> returned %d, want 0", code)
 	}
@@ -201,7 +202,7 @@ func TestDebugShowProfileMalformedArgsRejected(t *testing.T) {
 		{"name", "default", "module", "bgp", "extra"}, // extra token after filter
 	}
 	for _, args := range cases {
-		if code := runShowProfile(args); code != 1 {
+		if code := runShowProfile(commandtest.Args(args...)); code != 1 {
 			t.Errorf("runShowProfile(%v) = %d, want 1", args, code)
 		}
 	}
@@ -214,9 +215,9 @@ func TestDebugShowProfileList(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	runSetModule([]string{"test.debug.list"})
+	runSetModule(commandtest.Args("test.debug.list"))
 
-	code := runShowProfile(nil)
+	code := runShowProfile(commandtest.Args())
 	if code != 0 {
 		t.Fatalf("show debug profile (list) returned %d, want 0", code)
 	}
@@ -229,7 +230,7 @@ func TestDebugRestore(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	runSetModule([]string{"test.debug.restore"})
+	runSetModule(commandtest.Args("test.debug.restore"))
 
 	slogutil.RestoreLevel("test.debug.restore")
 	levels := slogutil.ListLevels()
@@ -237,7 +238,7 @@ func TestDebugRestore(t *testing.T) {
 		t.Fatal("level should not be debug after RestoreLevel")
 	}
 
-	code := runRestoreProfile([]string{"default"})
+	code := runRestoreProfile(commandtest.Args("default"))
 	if code != 0 {
 		t.Fatalf("set debug active name default returned %d, want 0", code)
 	}
@@ -255,14 +256,14 @@ func TestDebugProfileSaveList(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	runSetModule([]string{"test.debug.profsave"})
+	runSetModule(commandtest.Args("test.debug.profsave"))
 
-	code := runSaveProfile([]string{"test-profile"})
+	code := runSaveProfile(commandtest.Args("test-profile"))
 	if code != 0 {
 		t.Fatalf("set debug profile name returned %d, want 0", code)
 	}
 
-	code = runShowProfile(nil)
+	code = runShowProfile(commandtest.Args())
 	if code != 0 {
 		t.Fatalf("show debug profile list returned %d, want 0", code)
 	}
@@ -275,10 +276,10 @@ func TestDebugProfileDelete(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	runSetModule([]string{"test.debug.profdel"})
-	runSaveProfile([]string{"to-delete"})
+	runSetModule(commandtest.Args("test.debug.profdel"))
+	runSaveProfile(commandtest.Args("to-delete"))
 
-	code := runDeleteProfileName([]string{"to-delete"})
+	code := runDeleteProfileName(commandtest.Args("to-delete"))
 	if code != 0 {
 		t.Fatalf("delete debug profile name returned %d, want 0", code)
 	}
@@ -291,7 +292,7 @@ func TestDebugClear(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	runSetModule([]string{"test.debug.clear"})
+	runSetModule(commandtest.Args("test.debug.clear"))
 
 	code := cmdClear()
 	if code != 0 {
@@ -310,7 +311,7 @@ func TestDebugUnregisteredSubsystemAccepted(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetModule([]string{"any.module.name"})
+	code := runSetModule(commandtest.Args("any.module.name"))
 	if code != 0 {
 		t.Errorf("unregistered subsystem returned %d, want 0 (profile stores intent)", code)
 	}
@@ -320,14 +321,14 @@ func TestDebugInvalidModuleName(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetModule([]string{"has/slash"})
+	code := runSetModule(commandtest.Args("has/slash"))
 	if code != 1 {
 		t.Errorf("module with slash returned %d, want 1", code)
 	}
 }
 
 func TestDebugSetModuleNoArgs(t *testing.T) {
-	code := runSetModule(nil)
+	code := runSetModule(commandtest.Args())
 	if code != 1 {
 		t.Errorf("set debug module with no args returned %d, want 1", code)
 	}
@@ -337,7 +338,7 @@ func TestDebugTimeoutMinutes(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"30m"})
+	code := runSetTimeout(commandtest.Args("30m"))
 	if code != 0 {
 		t.Fatalf("timeout 30m returned %d, want 0", code)
 	}
@@ -347,7 +348,7 @@ func TestDebugTimeoutHours(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"1h"})
+	code := runSetTimeout(commandtest.Args("1h"))
 	if code != 0 {
 		t.Fatalf("timeout 1h returned %d, want 0", code)
 	}
@@ -357,7 +358,7 @@ func TestDebugTimeoutSeconds(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"90s"})
+	code := runSetTimeout(commandtest.Args("90s"))
 	if code != 0 {
 		t.Fatalf("timeout 90s returned %d, want 0", code)
 	}
@@ -367,7 +368,7 @@ func TestDebugTimeoutZero(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"0"})
+	code := runSetTimeout(commandtest.Args("0"))
 	if code != 0 {
 		t.Fatalf("timeout 0 returned %d, want 0", code)
 	}
@@ -377,7 +378,7 @@ func TestDebugTimeoutLastValid(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"1440m"})
+	code := runSetTimeout(commandtest.Args("1440m"))
 	if code != 0 {
 		t.Fatalf("timeout 1440m returned %d, want 0", code)
 	}
@@ -387,7 +388,7 @@ func TestDebugTimeout24h(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"24h"})
+	code := runSetTimeout(commandtest.Args("24h"))
 	if code != 0 {
 		t.Fatalf("timeout 24h returned %d, want 0", code)
 	}
@@ -397,7 +398,7 @@ func TestDebugTimeoutAboveMax(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"1441m"})
+	code := runSetTimeout(commandtest.Args("1441m"))
 	if code != 1 {
 		t.Errorf("timeout 1441m returned %d, want 1", code)
 	}
@@ -407,7 +408,7 @@ func TestDebugTimeoutAboveMax25h(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"25h"})
+	code := runSetTimeout(commandtest.Args("25h"))
 	if code != 1 {
 		t.Errorf("timeout 25h returned %d, want 1", code)
 	}
@@ -417,7 +418,7 @@ func TestDebugTimeoutNoUnit(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"30"})
+	code := runSetTimeout(commandtest.Args("30"))
 	if code != 1 {
 		t.Errorf("timeout without unit returned %d, want 1", code)
 	}
@@ -427,7 +428,7 @@ func TestDebugTimeoutBadFormat(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"abc"})
+	code := runSetTimeout(commandtest.Args("abc"))
 	if code != 1 {
 		t.Errorf("timeout abc returned %d, want 1", code)
 	}
@@ -437,7 +438,7 @@ func TestDebugTimeoutOverflow(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetTimeout([]string{"99999999999999999999m"})
+	code := runSetTimeout(commandtest.Args("99999999999999999999m"))
 	if code != 1 {
 		t.Errorf("overflow duration returned %d, want 1", code)
 	}
@@ -457,12 +458,12 @@ func TestDebugInvalidFlagRejected(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetModule([]string{"test.debug.flagval", "flag", "nonexistent"})
+	code := runSetModule(commandtest.Args("test.debug.flagval", "flag", "nonexistent"))
 	if code != 1 {
 		t.Errorf("invalid flag returned %d, want 1", code)
 	}
 
-	code = runSetModule([]string{"test.debug.flagval", "flag", "update"})
+	code = runSetModule(commandtest.Args("test.debug.flagval", "flag", "update"))
 	if code != 0 {
 		t.Errorf("valid flag returned %d, want 0", code)
 	}
@@ -478,7 +479,7 @@ func TestDebugNoFlagsRegisteredAcceptsAny(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetModule([]string{"test.debug.noflag", "flag", "anything"})
+	code := runSetModule(commandtest.Args("test.debug.noflag", "flag", "anything"))
 	if code != 0 {
 		t.Errorf("flag with no modules should be accepted (no validation), got %d", code)
 	}
@@ -491,8 +492,8 @@ func TestDebugOverlappingModulesSpecificWins(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	runSetModule([]string{"test.debug.overlap", "level", "debug"})
-	runSetModule([]string{"test.debug.overlap.child", "level", "info"})
+	runSetModule(commandtest.Args("test.debug.overlap", "level", "debug"))
+	runSetModule(commandtest.Args("test.debug.overlap.child", "level", "info"))
 
 	levels := slogutil.ListLevels()
 	if levels["test.debug.overlap.child"] != "info" {
@@ -507,7 +508,7 @@ func TestDebugInvalidLevelRejected(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetModule([]string{"test.debug.badlevel", "level", "bogus"})
+	code := runSetModule(commandtest.Args("test.debug.badlevel", "level", "bogus"))
 	if code != 1 {
 		t.Errorf("invalid level returned %d, want 1", code)
 	}
@@ -520,7 +521,7 @@ func TestDebugSetLevel(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := runSetModule([]string{"test.debug.level", "level", "info"})
+	code := runSetModule(commandtest.Args("test.debug.level", "level", "info"))
 	if code != 0 {
 		t.Fatalf("set level returned %d, want 0", code)
 	}

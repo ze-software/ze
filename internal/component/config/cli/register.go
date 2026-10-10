@@ -33,8 +33,9 @@ func subcommands() string {
 }
 
 // storageShortcut shares argument parsing with the config root command.
-func storageShortcut(sub string) registry.LocalHandler {
-	return func(args []string) int {
+func storageShortcut(sub string) command.LocalHandler {
+	return func(validated command.ValidatedArgs) int {
+		args := validated.Tokens()
 		return Run(append([]string{sub}, args...))
 	}
 }
@@ -70,7 +71,8 @@ func init() {
 		ShortHelp: "Show what changed between the running and candidate configurations.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalMeta("show config fmt", func(args []string) int {
+	command.MustRegisterLocalMeta("show config fmt", func(validated command.ValidatedArgs) int {
+		args := validated.Tokens()
 		return Run(append([]string{"fmt"}, args...))
 	}, registry.Meta{ShortHelp: "Pretty-print the config with consistent formatting and ordering."})
 	command.MustRegisterLocalData("validate config", dataValidate, registry.Meta{
@@ -79,7 +81,8 @@ func init() {
 			"problem is reported with the diagnostic code that explains it.",
 		Mode: modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalMeta("show config graph", func(args []string) int {
+	command.MustRegisterLocalMeta("show config graph", func(validated command.ValidatedArgs) int {
+		args := validated.Tokens()
 		return Run(append([]string{"graph"}, args...))
 	}, registry.Meta{
 		ShortHelp: "Show how components and peers depend on each other, as JSON.",
@@ -109,6 +112,6 @@ func init() {
 	command.RegisterColumns([]string{"show config history"},
 		command.ColumnOrder{keyRevision, "timestamp", keyPath, "state"})
 	command.RegisterColumns([]string{"show config list"}, command.ColumnOrder{keySource, keyPath})
-	registry.MustRegisterLocalMeta("show config cat", storageShortcut("cat"),
+	command.MustRegisterLocalMeta("show config cat", storageShortcut("cat"),
 		registry.Meta{ShortHelp: "Print the full configuration text for a stored snapshot."})
 }

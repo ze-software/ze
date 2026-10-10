@@ -271,17 +271,13 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 }
 
 // invokeRootLocalHandler runs a handler the root fallback of zeDispatch
-// matched (route R6). remaining is the tail registry.LookupLocal left after the
-// registered path, so the path is the words of args before it. The tail is
-// judged against the leaves the model declares for that path, and the handler
-// runs on the judged tokens only: a refused tail exits 1 and never reaches it.
-func invokeRootLocalHandler(handler registry.LocalHandler, args, remaining []string) int {
-	judged, err := registry.ValidateLocalArgs(strings.Join(args[:len(args)-len(remaining)], " "), remaining)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return 1
-	}
-	return handler(judged)
+// matched (route R6). remaining is the tail command.LookupLocal left after the
+// registered path, so the path is the words of args before it. InvokeLocal
+// judges the tail against the leaves the model declares for that path, and the
+// handler runs on the judged value only: a refused tail exits 1 and never
+// reaches it.
+func invokeRootLocalHandler(handler command.LocalHandler, args, remaining []string) int {
+	return command.InvokeLocal(strings.Join(args[:len(args)-len(remaining)], " "), handler, remaining)
 }
 
 func zeDispatch(args []string) int {
@@ -407,9 +403,9 @@ func zeDispatch(args []string) int {
 	}
 
 	// cli.IsDeclaredCommand keeps this root fallback under the same shadow rule
-	// as the verb dispatch (registry.LookupLocal): a handler registered at a
+	// as the verb dispatch (command.LookupLocal): a handler registered at a
 	// short path must not answer a ze:command declared below it.
-	handler, remaining, err := registry.LookupLocal(args, cli.IsDeclaredCommand)
+	handler, remaining, err := command.LookupLocal(args, cli.IsDeclaredCommand)
 	if err != nil {
 		return reportDispatchError(err)
 	}
@@ -460,7 +456,8 @@ func pipeOperatorSubs() string {
 }
 
 func registerLocalCommands() {
-	registry.MustRegisterLocalMeta("show version", func(args []string) int {
+	command.MustRegisterLocalMeta("show version", func(validated command.ValidatedArgs) int {
+		args := validated.Tokens()
 		return printVersion(slices.Contains(args, "--extended"))
 	}, registry.Meta{
 		ShortHelp: "Show the running Ze version and build date",
@@ -504,13 +501,13 @@ func registerLocalCommands() {
 		Section:   registry.SectionSystem,
 		Subs:      pipeOperatorSubs(),
 	})
-	registry.MustRegisterLocalMeta("help command", printHelpCommand, registry.Meta{
+	command.MustRegisterLocalMeta("help command", printHelpCommand, registry.Meta{
 		ShortHelp: "List every command this binary carries with its summary.",
 		Description: "A filter word keeps the commands whose path holds it, and the answer renders as " +
 			"JSON for a program to read.",
 		Mode: commandModeOffline,
 	})
-	registry.MustRegisterLocalMeta("help ai", printAIHelp, registry.Meta{
+	command.MustRegisterLocalMeta("help ai", printAIHelp, registry.Meta{
 		ShortHelp: "Print the agent reference this binary builds from its own registries.",
 		Description: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
 			"for a program to read.",
@@ -521,7 +518,7 @@ func registerLocalCommands() {
 	// the local-handler registry before the YANG tree (cmdutil.go), so
 	// `update serve` lives here as a local meta -- the same mechanism `show
 	// version` uses to run a local command under a YANG verb.
-	registry.MustRegisterLocalMeta("update serve", runUpdateServe, registry.Meta{
+	command.MustRegisterLocalMeta("update serve", runUpdateServe, registry.Meta{
 		ShortHelp: "Serve this binary and its version manifest for update checks.",
 		Description: "The server answers a version manifest, the running binary and its SHA-256 digest. " +
 			"It is meant for build infrastructure rather than for a router in production.",
@@ -598,11 +595,11 @@ func yangVerbs() (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	verbs := make(map[string]bool, len(tree.Children)+len(registry.ListLocal()))
+	verbs := make(map[string]bool, len(tree.Children)+len(command.ListLocal()))
 	for name := range tree.Children {
 		verbs[name] = true
 	}
-	for _, entry := range registry.ListLocal() {
+	for _, entry := range command.ListLocal() {
 		verb, _, _ := strings.Cut(entry.Path, " ")
 		verbs[verb] = true
 	}
@@ -688,13 +685,13 @@ func dispatchHelp(args []string) int {
 			helpCommandUsage()
 			return 0
 		}
-		return printHelpCommand(args[1:])
+		return command.InvokeLocal("help command", printHelpCommand, args[1:])
 	case len(args) > 0 && args[0] == "ai":
 		// Canonical form: ze help ai [cli|api|mcp|dispatch|all] [--json].
-		return printAIHelp(args[1:])
+		return command.InvokeLocal("help ai", printAIHelp, args[1:])
 	case aiHelpRequested(args):
 		// Deprecated alias: ze help --ai [--cli|--api|...]. Still accepted.
-		return printAIHelp(args)
+		return command.InvokeLocal("help ai", printAIHelp, args)
 	case slices.Contains(args, "--help") || slices.Contains(args, "-h"):
 		helpUsage()
 		return 0

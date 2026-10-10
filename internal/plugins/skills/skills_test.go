@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -32,7 +33,7 @@ func captureStdout(t *testing.T, fn func()) string {
 
 func TestSkillsListAll(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run([]string{"list"})
+		code := Run(commandtest.Args("list"))
 		assert.Equal(t, 0, code)
 	})
 	assert.Contains(t, out, "ze")
@@ -44,7 +45,7 @@ func TestSkillsListAll(t *testing.T) {
 
 func TestSkillsListJSON(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run([]string{"list", "--json"})
+		code := Run(commandtest.Args("list", "--json"))
 		assert.Equal(t, 0, code)
 	})
 	var entries []diagnostic.SkillEntry
@@ -55,7 +56,7 @@ func TestSkillsListJSON(t *testing.T) {
 
 func TestSkillsGetCompact(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run([]string{"get", "ze"})
+		code := Run(commandtest.Args("get", "ze"))
 		assert.Equal(t, 0, code)
 	})
 	assert.Contains(t, out, "name: ze")
@@ -64,10 +65,10 @@ func TestSkillsGetCompact(t *testing.T) {
 
 func TestSkillsGetFull(t *testing.T) {
 	compact := captureStdout(t, func() {
-		Run([]string{"get", "ze"})
+		Run(commandtest.Args("get", "ze"))
 	})
 	full := captureStdout(t, func() {
-		code := Run([]string{"get", "ze", "--full"})
+		code := Run(commandtest.Args("get", "ze", "--full"))
 		assert.Equal(t, 0, code)
 	})
 	assert.Contains(t, full, "Diagnostic Loop")
@@ -76,7 +77,7 @@ func TestSkillsGetFull(t *testing.T) {
 
 func TestSkillsGetInnerSkill(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run([]string{"get", "ze-diagnostics"})
+		code := Run(commandtest.Args("get", "ze-diagnostics"))
 		assert.Equal(t, 0, code)
 	})
 	assert.Contains(t, out, "ze-diagnostics")
@@ -85,7 +86,7 @@ func TestSkillsGetInnerSkill(t *testing.T) {
 
 func TestSkillsGetJSON(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run([]string{"get", "ze", "--json"})
+		code := Run(commandtest.Args("get", "ze", "--json"))
 		assert.Equal(t, 0, code)
 	})
 	var result struct {
@@ -99,11 +100,11 @@ func TestSkillsGetJSON(t *testing.T) {
 }
 
 func TestSkillsGetUnknown(t *testing.T) {
-	code := Run([]string{"get", "nonexistent"})
+	code := Run(commandtest.Args("get", "nonexistent"))
 	assert.Equal(t, 1, code)
 }
 
 func TestSkillsNoArgs(t *testing.T) {
-	code := Run([]string{})
+	code := Run(commandtest.Args())
 	assert.Equal(t, 1, code)
 }

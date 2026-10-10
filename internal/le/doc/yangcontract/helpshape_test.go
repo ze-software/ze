@@ -175,7 +175,7 @@ func shapeLoaderOver(t *testing.T, cmdModule, apiModule, confModule string, extr
 
 // shapeInput answers the gate's input over one loader and one set of offline
 // registrations.
-func shapeInput(loader *yang.Resolved, locals []registry.LocalCommandEntry) helpShapeInput {
+func shapeInput(loader *yang.Resolved, locals []command.LocalCommandEntry) helpShapeInput {
 	return helpShapeInput{Schema: loader, Locals: locals}
 }
 
@@ -186,8 +186,8 @@ const fixtureLocal = "generate fixture keypair"
 
 // shapeLocals answers one offline local command whose summary satisfies every
 // clause of AC-3 and which carries a long help beside it.
-func shapeLocals() []registry.LocalCommandEntry {
-	return []registry.LocalCommandEntry{{
+func shapeLocals() []command.LocalCommandEntry {
+	return []command.LocalCommandEntry{{
 		Path: fixtureLocal,
 		Meta: registry.Meta{
 			ShortHelp:   "Generate a fixture keypair.",
@@ -199,8 +199,8 @@ func shapeLocals() []registry.LocalCommandEntry {
 
 // brokenLocalSummary answers the fixture local command carrying one summary to
 // be judged.
-func brokenLocalSummary(summary string) []registry.LocalCommandEntry {
-	return []registry.LocalCommandEntry{{
+func brokenLocalSummary(summary string) []command.LocalCommandEntry {
+	return []command.LocalCommandEntry{{
 		Path: fixtureLocal,
 		Meta: registry.Meta{
 			ShortHelp:   summary,
@@ -213,8 +213,8 @@ func brokenLocalSummary(summary string) []registry.LocalCommandEntry {
 // localWithNoDescription answers one offline local command carrying a summary that
 // breaks no rule and no long text at all, which is the one thing
 // missing-description refuses.
-func localWithNoDescription() []registry.LocalCommandEntry {
-	return []registry.LocalCommandEntry{{
+func localWithNoDescription() []command.LocalCommandEntry {
+	return []command.LocalCommandEntry{{
 		Path: fixtureLocal,
 		Meta: registry.Meta{ShortHelp: "Generate a fixture keypair.", Mode: "offline"},
 	}}
@@ -746,7 +746,7 @@ func TestHelpShapeGateWalksTheOfflineLocalRegistry(t *testing.T) {
 	// population built from the linked registry alone would leave part of the
 	// published catalog unread -- the same hole one layer down.
 	linked := map[string]bool{}
-	for _, entry := range registry.ListLocal() {
+	for _, entry := range command.ListLocal() {
 		linked[entry.Path] = true
 	}
 	unlinked := 0
@@ -861,7 +861,7 @@ func TestHelpShapeGateRefusesABrokenLocalSummary(t *testing.T) {
 // never the registration's, so judging the registration would refuse text no
 // surface prints.
 func TestHelpShapeGateSkipsALocalPathTheCommandTreeHolds(t *testing.T) {
-	locals := append(shapeLocals(), registry.LocalCommandEntry{
+	locals := append(shapeLocals(), command.LocalCommandEntry{
 		Path: fixturePath,
 		Meta: registry.Meta{ShortHelp: "no full stop and two sentences. At all"},
 	})
@@ -905,14 +905,14 @@ func TestHelpShapeGateReadsTheMainPackageRegistrations(t *testing.T) {
 		t.Fatalf("write the fixture tree: %v", err)
 	}
 	source := "package main\n\nfunc register() {\n" +
-		"\tregistry.MustRegisterLocalMeta(\"help fixture\", nil, registry.Meta{\n" +
+		"\tcommand.MustRegisterLocalMeta(\"help fixture\", nil, registry.Meta{\n" +
 		"\t\tShortHelp: \"Show the fixture help.\",\n" +
 		"\t\tDescription:    \"One line is written for each fixture.\",\n" +
 		"\t\tMode:        \"offline\",\n\t})\n" +
-		"\tregistry.MustRegisterLocalMeta(\"clear fixture\", nil, registry.Meta{\n" +
+		"\tcommand.MustRegisterLocalMeta(\"clear fixture\", nil, registry.Meta{\n" +
 		"\t\tShortHelp: \"Clear \" +\n\t\t\t\"the fixture.\",\n\t})\n" +
-		"\tregistry.MustRegisterLocal(\"show fixture\", nil)\n" +
-		"\tregistry.MustRegisterLocalMeta(\"watch fixture\", nil, other.Meta{\n" +
+		"\tcommand.MustRegisterLocal(\"show fixture\", nil)\n" +
+		"\tcommand.MustRegisterLocalMeta(\"watch fixture\", nil, other.Meta{\n" +
 		"\t\tShortHelp: \"Not the command registry's Meta.\",\n\t})\n}\n"
 	if err := os.WriteFile(filepath.Join(dir, "fixture.go"), []byte(source), 0o600); err != nil {
 		t.Fatalf("write the fixture file: %v", err)
@@ -959,7 +959,7 @@ func TestHelpShapeGateRefusesAnUnreadableRegistration(t *testing.T) {
 		t.Fatalf("write the fixture tree: %v", err)
 	}
 	source := "package main\n\nfunc register(path string) {\n" +
-		"\tregistry.MustRegisterLocal(path, nil)\n}\n"
+		"\tcommand.MustRegisterLocal(path, nil)\n}\n"
 	if err := os.WriteFile(filepath.Join(dir, "fixture.go"), []byte(source), 0o600); err != nil {
 		t.Fatalf("write the fixture file: %v", err)
 	}

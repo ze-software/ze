@@ -9,15 +9,14 @@ code. Update the batch log below in the same commit as each batch.
 
 ## Next action (Linux session ended 2026-10-09, tokens exhausted)
 
-Nothing is in flight and nothing is uncommitted from this work. HEAD carries
-batches 1 to 4c. In order:
+HEAD carries batches 1 to 4d (4d landed 2026-10-10 from the macOS checkout;
+check `git log --oneline -3 -- plan/handover/12-validated-construction-phase-1.md`).
+In order:
 
 1. `./le spec claim spec spec-validated-construction-and-state-types.md` (a new
    session holds no claim; the WIP cap may need `ZE_SPEC_WIP_CAP=35`, which the
    owner approved on 2026-10-09).
-2. Batch 4d (C-T2d): `LocalHandler` and its registry move into `command`, the
-   same move 4c made (batch row 4c and its note). About 38 registrations; R6/R7
-   routes; delete the `[]string` signature.
+2. Batch 4d (C-T2d): DONE (batch row 4d).
 3. Batch 4e (C-T2e): `pluginserver.Handler` with `EnsureStep` and
    `RollbackHandler`, one commit, under the owner exception below. Its row in
    `TestHandlerTypesTakeValidatedArguments` is a second subtest (the package
@@ -66,6 +65,7 @@ correctly in another session".
 | 3b | Compound-guard splits: the seven `if a \|\| b { leave }` guards in `command/argbind.go`, `command/usage.go`, `plugin/server/command.go`, `cmdutil/cmdutil.go`, one fact per guard, behavior unchanged | `93ee8363ce` "command: split compound guards into one fact per guard" | Done |
 | 4b | Step 5, C-T2b: `pluginserver.StreamingHandler` takes `command.ValidatedArgs`; 5 handlers, R8 (`service_ssh.go`, `api.go`), every test call; `[]string` signature deleted; `commands.md` updated; spec C-T2b evidence line | `eaff5d644b` "plugin: streaming handlers take validated arguments" | Done. The two RFC8907-8.3-4 hub tests changed only their handler parameter type; owner approved ("the two changes LGTM"). Owed: `./le repo compiles check` at `eaff5d644b` |
 | 4c | Step 5, C-T2c: `command.LocalDataHandler` takes `command.ValidatedArgs`; the data-handler registry moved from `command/registry` into `command` (no alias, registry copies deleted); 20 component handlers plus le's `toolHandler`; R2, R3 (`plainLocalData`), `leroot.Run` judges against no definitions; `commandtest.Args`; AST readers match the `command` qualifier; docs and spec C-T2c Decision/Evidence lines | `e4b25d9bc2` "command: local data handlers take validated arguments" | Done. No RFC-tagged unit touched. `./le repo compiles check` OK on every flavor at `e4b25d9bc2`. Lint 0 issues: command, plugins/env, config/cli, le/le/root, le/doc/yangcontract. Owed (timed out or input churn under load): scoped lint of config/yang/cli, config/schema/cli, config/storage/cli, le/verify/dispatch, le/cli/grammar, component/plugin |
+| 4d | Step 5, C-T2d: `command.LocalHandler` takes `command.ValidatedArgs`; the local-handler and offline-fallback registries moved from `command/registry` into `command` (`local.go`: `RegisterLocal*`, `LookupLocal`, `LookupOfflineFallback`, `ListLocal`, `HasLocal`, `LocalCommandEntry`, `ResetLocalForTest`), no alias; `registry.ValidateLocalArgs`, `registry.RegisterLocalArgCheck`, `command.validatedLocalTokens`, `cmdutil.LocalHandler` and `cmdutil.registerLocalCommand` deleted; every R6/R7 route (`cmdutil.invokeLocalHandler`, `invokeRootLocalHandler`, `dispatchHelp`, `client.runOfflineFallback`) runs its handler through the new `command.InvokeLocal`; 26 handlers; `yangcontract` reads local registrations under the `command` qualifier; docs and spec C-T2d Decision/Evidence lines | The commit whose subject is "command: local handlers take validated arguments" | Done. No RFC-tagged unit touched. Verified in a `git archive HEAD` export overlaid with the batch, because another session's uncommitted `internal/component/ike/engine` edits broke the shared tree's build on 2026-10-10. Green under `-race` and the feature tags in that export: command/..., cmdutil, cli/client, the 26 handler packages, config/cli, config/storage/cli, config/yang/cli, iface/cli, bgp/cli, bgp/plugins/cmd/peer, le/doc/yangcontract, le/le/root, le/cli/catalog, le/doc/wiring, appliance, le/web/vendor, le/build/hostdriver, le/build/installer, and cmd/ze apart from `TestNoShippedGuidanceNamesARemovedGODEBUG`, which needs git and is green in the tree. `go vet ./...` over the setup, host, installer, distro and appliance tag sets compiles every package in the export (the only refusals are the throwaway P-3 negatives, which exist only there). `golangci-lint` with the feature tags over the touched packages: 0 issues. `./le repo compiles check` is green but judges HEAD, not the batch. Red, not 4d's: `TestEveryStoredDigestMatchesTheTreeItRatchets` (le/ai/hooks) is red at HEAD (journal `gate-red-where-nothing-blocks-on-it.md`). Owed: `./le go lint run scope` over the same packages, refused twice because other sessions' edits changed the lint inputs during planning |
 
 C-T2a: done (`62842be4c7`, batch row 4a). The per-route reds are recorded in the spec (C-T2a evidence line).
 
