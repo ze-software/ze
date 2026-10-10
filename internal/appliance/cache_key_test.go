@@ -224,10 +224,9 @@ func TestHostSideNeverWritesTheRequest(t *testing.T) {
 				if callee, isIdent := node.Fun.(*ast.Ident); isIdent && callee.Name == "sshRun" && len(node.Args) > 2 {
 					sshCommands++
 					command, isCall := node.Args[2].(*ast.CallExpr)
-					recipe, named := ast.Expr(nil), false
+					named := false
 					if isCall {
-						recipe = command.Fun
-						ident, isIdent := recipe.(*ast.Ident)
+						ident, isIdent := command.Fun.(*ast.Ident)
 						named = isIdent && ident.Name == "guestBuildCommand"
 					}
 					if !named {
@@ -430,7 +429,8 @@ func mustKernelCacheVariant(t *testing.T, arch, profile string) string {
 
 // mustKernelCacheVariantFor is kernelCacheVariantFor for a build that names
 // no backend.
-func mustKernelCacheVariantFor(t *testing.T, target, arch string, profile kernelProfileResolution) string {
+func mustKernelCacheVariantFor(t *testing.T, target string, profile kernelProfileResolution) string {
+	arch := archAMD64
 	t.Helper()
 	variant, err := kernelCacheVariantFor(target, arch, "", profile)
 	if err != nil {

@@ -63,6 +63,9 @@ const (
 
 	dockerPlatformFlag = "--platform"
 
+	// buildVerb is the subcommand of both docker and go that builds.
+	buildVerb = "build"
+
 	// The QEMU guest's toolchain: the Alpine release whose packages build the
 	// kernel, and the packages installed into it.
 	alpineVersion = "3.21"
@@ -172,7 +175,7 @@ var targetModules = map[string]string{
 // builder image: the toolchain every Docker kernel is compiled with. runDocker
 // passes it unchanged (TestRunDockerArgvAndOwnershipRepair).
 func containerBuildArgs(req Request) []string {
-	return []string{"build", dockerPlatformFlag, dockerPlatforms[req.Arch], "-t", req.Image, "-f", filepath.Join(req.BuilderDir, "Dockerfile"), req.Root}
+	return []string{buildVerb, dockerPlatformFlag, dockerPlatforms[req.Arch], "-t", req.Image, "-f", filepath.Join(req.BuilderDir, "Dockerfile"), req.Root}
 }
 
 // guestWorkerBuild answers how the host compiles the worker the QEMU guest
@@ -182,7 +185,7 @@ func containerBuildArgs(req Request) []string {
 func guestWorkerBuild(req Request) (rel string, args, env []string) {
 	goarch := workerGOARCH(req.Arch)
 	rel = filepath.Join("tmp", backendQEMU, "bin", goarch, "ze-kernel-builder")
-	args = []string{"build", "-o", filepath.Join(req.Root, rel), "./" + DefaultBuilderDir}
+	args = []string{buildVerb, "-o", filepath.Join(req.Root, rel), "./" + DefaultBuilderDir}
 	env = []string{"GOOS=linux", "GOARCH=" + goarch, "CGO_ENABLED=0"}
 	return rel, args, env
 }

@@ -44,7 +44,7 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 			Component:    componentAppliance,
 			Dependencies: []string{dependencyExternalBinary},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{"doctor-appliance-kernel"},
+			Codes:        []string{doctorKernelCode},
 			Check:        checkKernelArtifact,
 		},
 		{
@@ -110,6 +110,9 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 	}
 }
 
+// doctorKernelCode is the code of the installer-kernel check and its reports.
+const doctorKernelCode = "doctor-appliance-kernel"
+
 func checkKernelArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	profiles, err := registeredKernelProfiles(kernelInstallerConfigDir)
 	if err == nil {
@@ -118,7 +121,7 @@ func checkKernelArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 				p, err := isoKernelCachePath(arch, profile)
 				if err != nil {
 					return []diagnostic.Diagnostic{{
-						Code:     "doctor-appliance-kernel",
+						Code:     doctorKernelCode,
 						Severity: diagnostic.SeverityWarning,
 						Message:  "cannot check the installer kernel: " + err.Error(),
 					}}
@@ -133,7 +136,7 @@ func checkKernelArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 		}
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-appliance-kernel",
+		Code:     doctorKernelCode,
 		Severity: diagnostic.SeverityWarning,
 		Message:  "installer kernel not found; run: ze appliance kernel",
 	}}

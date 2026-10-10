@@ -739,8 +739,8 @@ func TestCacheVariantIncludesTarget(t *testing.T) {
 	// PREVENTS: a runtime tree overwriting an installer Image (or vice versa) in the cache.
 	t.Chdir(filepath.Join("..", ".."))
 	resolved := kernelProfileResolution{Name: "qemu"}
-	installer := mustKernelCacheVariantFor(t, kernelTargetInstaller, archAMD64, resolved)
-	rt := mustKernelCacheVariantFor(t, kernelTargetRuntime, archAMD64, resolved)
+	installer := mustKernelCacheVariantFor(t, kernelTargetInstaller, resolved)
+	rt := mustKernelCacheVariantFor(t, kernelTargetRuntime, resolved)
 	if installer == rt {
 		t.Fatalf("installer and runtime variants collide: %q", installer)
 	}
@@ -774,12 +774,12 @@ func TestRuntimeCacheVariantIncludesEveryPatchInput(t *testing.T) {
 		Name:      runtimeKernelProfile,
 		Fragments: []string{"gokrazy/kernel/runtime.config"},
 	}
-	base := mustKernelCacheVariantFor(t, kernelTargetRuntime, archAMD64, profile)
+	base := mustKernelCacheVariantFor(t, kernelTargetRuntime, profile)
 
 	if err := os.WriteFile("gokrazy/kernel/patches/one.patch", []byte("edited patch\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	edited := mustKernelCacheVariantFor(t, kernelTargetRuntime, archAMD64, profile)
+	edited := mustKernelCacheVariantFor(t, kernelTargetRuntime, profile)
 	if edited == base {
 		t.Fatal("editing a runtime patch did not invalidate the kernel cache variant")
 	}
@@ -787,14 +787,14 @@ func TestRuntimeCacheVariantIncludesEveryPatchInput(t *testing.T) {
 	if err := os.WriteFile("gokrazy/kernel/patches/two.patch", []byte("second patch\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	added := mustKernelCacheVariantFor(t, kernelTargetRuntime, archAMD64, profile)
+	added := mustKernelCacheVariantFor(t, kernelTargetRuntime, profile)
 	if added == edited {
 		t.Fatal("adding a runtime patch did not invalidate the kernel cache variant")
 	}
 	if err := os.Remove("gokrazy/kernel/patches/two.patch"); err != nil {
 		t.Fatal(err)
 	}
-	removed := mustKernelCacheVariantFor(t, kernelTargetRuntime, archAMD64, profile)
+	removed := mustKernelCacheVariantFor(t, kernelTargetRuntime, profile)
 	if removed == added {
 		t.Fatal("removing a runtime patch did not invalidate the kernel cache variant")
 	}
