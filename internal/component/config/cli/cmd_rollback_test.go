@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
@@ -108,4 +109,34 @@ func TestCmdRollbackRestores(t *testing.T) {
 	backupData, err := store.ReadVersion(configPath, entries[0].Stamp)
 	require.NoError(t, err)
 	assert.Equal(t, currentContent, string(backupData), "pre-rollback backup should contain the overwritten config")
+}
+
+// TestCmdRollbackRefusedDuringWindow is review round 3 NOTE 6 of
+// spec-session-editor-file-mode-parity, under the owner rule of 2026-10-10:
+// every writer but the window owner's editor commands is refused while a
+// confirmed-commit window is open. `ze config rollback` runs outside the
+// daemon, so it reads the window's persisted record.
+//
+// GOAL: an offline rollback during a window writes nothing and names the
+// window's owner.
+// METHOD: the store holds a revision and the record of alice's open window;
+// cmdRollback runs as `ze config rollback 1 <file>` does.
+//
+// VALIDATES: exit error, and the config file is unchanged.
+// PREVENTS: a rollback that the window's revert later wipes.
+func TestCmdRollbackRefusedDuringWindow(t *testing.T) {
+	current := "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 99;\n\t\t}\n\t}\n}\n"
+	configPath := writeTestConfig(t, current)
+	store, err := storage.Create(filepath.Dir(configPath))
+	require.NoError(t, err)
+	require.NoError(t, store.WriteVersion(configPath, []byte("bgp {}\n"), time.Now().Add(-time.Second)))
+	record := confirm.NewStoreRecorder(store, configPath)
+	require.NoError(t, record.Save(confirm.Pending{User: "alice", Deadline: time.Now().Add(time.Minute), Rollback: []byte(current)}))
+	require.NoError(t, store.Close())
+
+	code := cmdRollback([]string{"1", configPath})
+	assert.Equal(t, exitError, code, "a rollback during the window is refused")
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, current, string(data), "a refused rollback writes nothing")
 }

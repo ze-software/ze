@@ -63,6 +63,25 @@ func (r *StoreRecorder) Clear() error {
 	return nil
 }
 
+// WriteOutsideRecorded is WriteOutside for a writer that runs outside the
+// daemon, such as `ze config rollback`, and so cannot reach its window: it
+// reads the window's persisted record for configPath instead. A record means
+// a window is open, or was left by a daemon that stopped during one and will
+// revert it at start; either way the revert would wipe the write, so it is
+// refused with OtherUserError naming the owner. A record that cannot be read
+// refuses too, because the write could not be shown safe. The check is not
+// atomic with apply: a window the daemon opens between the two is not seen.
+func WriteOutsideRecorded(store storage.Storage, configPath string, apply func() error) error {
+	pending, err := NewStoreRecorder(store, configPath).Load()
+	if err != nil {
+		return err
+	}
+	if pending != nil {
+		return &OtherUserError{Owner: pending.User, Left: time.Until(pending.Deadline)}
+	}
+	return apply()
+}
+
 // Load reads the record a stopped daemon left. It answers nil only when no
 // record exists; a record that does not decode, or names no user or deadline,
 // is an error, because reading it as "no window" would boot the unconfirmed

@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -97,7 +98,12 @@ func cmdRollbackImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	if err := ed.Rollback(backups[n-1].Path); err != nil {
+	// The running daemon's confirmed-commit window would revert this write,
+	// so it is refused while the window's record says one is open.
+	err = confirm.WriteOutsideRecorded(store, fs.Arg(1), func() error {
+		return ed.Rollback(backups[n-1].Path)
+	})
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: rollback failed: %v\n", err)
 		return exitError
 	}
