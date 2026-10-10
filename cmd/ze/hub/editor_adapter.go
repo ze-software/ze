@@ -140,6 +140,10 @@ func (a *editorAdapter) PendingChanges(sessionID string) []contract.PendingChang
 
 // newEditorFactory creates a contract.EditorFactory that produces adapted editors.
 // The optional validateFn is called on save to validate the candidate config before writing the draft.
+// Every editor it builds edits the daemon's own config, so each carries the
+// daemon's confirmed-commit window: a write outside the commit path, such as
+// `rollback <N>`, is then refused during a commit's window (Editor.Rollback,
+// confirm.WriteOutside), as it is over SSH (newSessionEditor).
 func newEditorFactory(validateFn func(candidate, path string) error) contract.EditorFactory {
 	return func(storeAny any, configPath string) (contract.Editor, error) {
 		store, ok := storeAny.(storage.Storage)
@@ -155,6 +159,7 @@ func newEditorFactory(validateFn func(candidate, path string) error) contract.Ed
 				return validateFn(candidate, configPath)
 			})
 		}
+		ed.SetConfirmWindow(daemonConfirmWindow.Load)
 		return &editorAdapter{ed: ed}, nil
 	}
 }
