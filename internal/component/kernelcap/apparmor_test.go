@@ -83,3 +83,55 @@ func TestProbeAppArmorProfileWriteDeniesFollowThePath(t *testing.T) {
 		t.Errorf("the chain covers %d positions of %q, want %d", covered, tail, len(tail))
 	}
 }
+
+// VALIDATES: D-7. The /proc/sys write chain takes a character class as one
+// position and a trailing slash as a directory grant: every name that differs
+// from the kept prefix at some position is denied, and nothing under the kept
+// directory is.
+// PREVENTS: a lab profile that grants more of /proc/sys than its keep names,
+// or one whose class position denies the very write it keeps.
+func TestProcSysWriteDeniesKeepAClassAndADirectory(t *testing.T) {
+	want := strings.Join([]string{
+		"  deny @{PROC}/sys/[^n]** w,",
+		"  deny @{PROC}/sys/n[^e]** w,",
+		"  deny @{PROC}/sys/ne[^t]** w,",
+		"  deny @{PROC}/sys/net[^/]** w,",
+		"  deny @{PROC}/sys/net/[^i]** w,",
+		"  deny @{PROC}/sys/net/i[^p]** w,",
+		"  deny @{PROC}/sys/net/ip[^v]** w,",
+		"  deny @{PROC}/sys/net/ipv[^46]** w,",
+		"  deny @{PROC}/sys/net/ipv[46][^/]** w,",
+		"  deny @{PROC}/sys/net/ipv[46]/[^c]** w,",
+		"  deny @{PROC}/sys/net/ipv[46]/c[^o]** w,",
+		"  deny @{PROC}/sys/net/ipv[46]/co[^n]** w,",
+		"  deny @{PROC}/sys/net/ipv[46]/con[^f]** w,",
+		"  deny @{PROC}/sys/net/ipv[46]/conf[^/]** w,",
+	}, "\n") + "\n"
+	if got := ProcSysWriteDenies("net/ipv[46]/conf/"); got != want {
+		t.Errorf("chain:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// VALIDATES: D-7. A profile derived from docker-default carries its name in
+// the header, the signal and the ptrace peers, the /proc/sys rules and the
+// mount rules it was given, and docker-default's other denies.
+// PREVENTS: a lab profile that silently drops one of docker-default's denies.
+func TestDockerDefaultProfileKeepsTheRest(t *testing.T) {
+	profile := DockerDefaultProfile("ze-test", "  deny @{PROC}/sys/** w,\n", "  deny mount,\n")
+	for _, want := range []string{
+		"profile ze-test flags=(attach_disconnected,mediate_deleted) {",
+		"signal (send,receive) peer=ze-test,",
+		"ptrace (trace,tracedby,read,readby) peer=ze-test,",
+		"  deny @{PROC}/sys/** w,\n",
+		"  deny mount,\n",
+		"deny @{PROC}/sysrq-trigger rwklx,",
+		"deny /sys/kernel/security/** rwklx,",
+	} {
+		if !strings.Contains(profile, want) {
+			t.Errorf("the profile lacks %q:\n%s", want, profile)
+		}
+	}
+	if strings.Contains(profile, ProbeAppArmorProfileName) {
+		t.Errorf("the profile names the probe's profile:\n%s", profile)
+	}
+}

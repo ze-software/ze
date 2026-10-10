@@ -1,9 +1,11 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: dockerkernel_apparmor.go -- the action these tests drive
 //
-// `le setup docker-kernel apparmor` loads Ze's probe profile on a Linux Docker
-// host. Its root steps never run here: the tests read the plan, the refusals
-// and the command the Docker kernel check names.
+// `le setup docker-kernel apparmor` loads any registered Ze AppArmor profile on
+// a Linux Docker host. Its root steps never run here: the tests read the plan,
+// the refusals and the commands the lab refusals name. The blank import of the
+// BGP lab registers ze-lab-vrrp, so the registry holds more than the probe's
+// profile, as it does in the le binary.
 
 package setup
 
@@ -16,18 +18,20 @@ import (
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	_ "github.com/ze-software/ze/internal/le/interoplab/bgp" // registers ze-lab-vrrp
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
-// VALIDATES: AC-19 (D-7). The command every AppArmor refusal of the Docker
-// kernel check names is this action, spelled with its own verb, keyword and
-// profile, and the action is registered.
+// VALIDATES: AC-19 (D-7). The command every lab AppArmor refusal names is this
+// action, spelled with its own verb, keyword and the profile's name, for every
+// registered profile, and the action is registered.
 // PREVENTS: a refusal naming a command that does not exist.
 func TestAppArmorLoadCommandIsThisAction(t *testing.T) {
-	want := "./le setup docker-kernel " + dockerKernelAppArmorVerb + " " + dockerKernelConfirmKeyword + " " +
-		kernelcap.ProbeAppArmorProfileName
-	if interoplab.AppArmorLoadCommand != want {
-		t.Errorf("the check names %q, the action is %q", interoplab.AppArmorLoadCommand, want)
+	for _, name := range interoplab.AppArmorProfileNames() {
+		want := "./le setup docker-kernel " + dockerKernelAppArmorVerb + " " + dockerKernelConfirmKeyword + " " + name
+		if got := interoplab.AppArmorLoadCommandFor(name); got != want {
+			t.Errorf("the refusal names %q, the action is %q", got, want)
+		}
 	}
 	if !slices.ContainsFunc(DockerKernelActions().Actions, func(action leaction.Row) bool { return action.Verb == dockerKernelAppArmorVerb }) {
 		t.Errorf("verb %q is not registered", dockerKernelAppArmorVerb)
@@ -72,53 +76,77 @@ func TestAppArmorLoadRefusesAHostThatCannotLoadIt(t *testing.T) {
 
 // VALIDATES: AC-19. The plan installs the profile into /etc/apparmor.d, so it
 // loads again at boot, then replaces the loaded copy and writes the cache; the
-// file it installs holds the profile kernelcap declares.
+// file it installs holds the text the profile registers, for every profile.
 // PREVENTS: a profile loaded for this boot only, and a second copy of the text.
 func TestAppArmorLoadSteps(t *testing.T) {
-	dir := t.TempDir()
-	staged, err := stageAppArmorProfile(dir)
-	if err != nil {
-		t.Fatalf("stage the profile: %v", err)
-	}
-	data, err := os.ReadFile(staged)
-	if err != nil {
-		t.Fatalf("read the staged profile: %v", err)
-	}
-	if string(data) != kernelcap.ProbeAppArmorProfile() {
-		t.Error("the staged profile is not kernelcap's")
-	}
-	target := filepath.Join("/etc/apparmor.d", kernelcap.ProbeAppArmorProfileName)
-	steps := appArmorLoadSteps(staged, "/usr/sbin/apparmor_parser")
-	got := make([]string, 0, len(steps))
-	for _, step := range steps {
-		if step.Why == "" {
-			t.Errorf("step %v carries no reason", step.Argv)
-		}
-		got = append(got, strings.Join(step.Argv, " "))
-	}
-	want := []string{
-		"sudo install -m 0644 " + staged + " " + target,
-		"sudo /usr/sbin/apparmor_parser -r -W " + target,
-	}
-	if !slices.Equal(got, want) {
-		t.Errorf("steps:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	for _, name := range []string{kernelcap.ProbeAppArmorProfileName, "ze-lab-vrrp"} {
+		t.Run(name, func(t *testing.T) {
+			profile, registered := interoplab.LookupAppArmorProfile(name)
+			if !registered {
+				t.Fatalf("profile %s is not registered", name)
+			}
+			dir := t.TempDir()
+			staged, err := stageAppArmorProfile(dir, profile)
+			if err != nil {
+				t.Fatalf("stage the profile: %v", err)
+			}
+			data, err := os.ReadFile(staged)
+			if err != nil {
+				t.Fatalf("read the staged profile: %v", err)
+			}
+			if string(data) != profile.Text() {
+				t.Error("the staged profile is not the registered text")
+			}
+			if !strings.Contains(string(data), "profile "+name+" ") {
+				t.Errorf("the staged text does not declare profile %s", name)
+			}
+			target := filepath.Join("/etc/apparmor.d", name)
+			steps := appArmorLoadSteps(profile, staged, "/usr/sbin/apparmor_parser")
+			got := make([]string, 0, len(steps))
+			for _, step := range steps {
+				if step.Why == "" {
+					t.Errorf("step %v carries no reason", step.Argv)
+				}
+				got = append(got, strings.Join(step.Argv, " "))
+			}
+			want := []string{
+				"sudo install -m 0644 " + staged + " " + target,
+				"sudo /usr/sbin/apparmor_parser -r -W " + target,
+			}
+			if !slices.Equal(got, want) {
+				t.Errorf("steps:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+			}
+		})
 	}
 }
 
-// VALIDATES: AC-19. Without `confirm ze-kernel-probe` nothing runs, and the
-// refusal names the command that runs it.
+// VALIDATES: AC-19. Without `confirm <profile>` naming a registered profile
+// nothing runs, and the refusal names the command that loads each registered
+// profile; every registered profile's own name is accepted and answers that
+// profile.
+// PREVENTS: a lab refusal naming `confirm ze-lab-vrrp`, which this action then
+// refuses.
 func TestAppArmorLoadNeedsConfirmation(t *testing.T) {
 	for _, value := range []string{"", "docker-default", "ze-kernel-probe-old"} {
-		err := appArmorLoadConfirmed(value)
+		_, err := appArmorLoadConfirmed(value)
 		if err == nil {
 			t.Errorf("confirm %q ran the steps", value)
 			continue
 		}
-		if !strings.Contains(err.Error(), interoplab.AppArmorLoadCommand) {
-			t.Errorf("confirm %q: the refusal does not name the command: %v", value, err)
+		for _, name := range interoplab.AppArmorProfileNames() {
+			if !strings.Contains(err.Error(), interoplab.AppArmorLoadCommandFor(name)) {
+				t.Errorf("confirm %q: the refusal does not name the command for %s: %v", value, name, err)
+			}
 		}
 	}
-	if err := appArmorLoadConfirmed(kernelcap.ProbeAppArmorProfileName); err != nil {
-		t.Errorf("the profile's own name refused: %v", err)
+	for _, name := range []string{kernelcap.ProbeAppArmorProfileName, "ze-lab-vrrp"} {
+		profile, err := appArmorLoadConfirmed(name)
+		if err != nil {
+			t.Errorf("the profile's own name %s refused: %v", name, err)
+			continue
+		}
+		if profile.Name != name {
+			t.Errorf("confirm %s answered profile %q", name, profile.Name)
+		}
 	}
 }

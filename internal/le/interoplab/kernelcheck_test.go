@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/kernelcap"
 )
 
 const kernelCheckZe = "/checkout/test/interop-ipsec/ze-linux"
@@ -348,7 +350,7 @@ func TestDockerKernelRefusesAnUnloadedProfileNamingTheFix(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unloaded profile proceeded")
 	}
-	for _, want := range []string{"AppArmor", "ze-kernel-probe", AppArmorLoadCommand} {
+	for _, want := range []string{"AppArmor", "ze-kernel-probe", AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
@@ -369,7 +371,7 @@ func TestDockerKernelDeniedRowNamesTheProfileCommand(t *testing.T) {
 	if err == nil {
 		t.Fatal("a denied row proceeded")
 	}
-	for _, want := range []string{"mpls-transit-mtu", "denied", "docker-default (enforce)", AppArmorLoadCommand} {
+	for _, want := range []string{"mpls-transit-mtu", "denied", "docker-default (enforce)", AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
@@ -444,7 +446,7 @@ func TestDockerKernelUnloadedProfileOnAnUnreadableListNamesTheFix(t *testing.T) 
 	if err == nil {
 		t.Fatal("a profile the daemon could not apply proceeded")
 	}
-	for _, want := range []string{"ze-kernel-probe", AppArmorLoadCommand, "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
+	for _, want := range []string{"ze-kernel-probe", AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName), "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}

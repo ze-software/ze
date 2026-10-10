@@ -82,10 +82,10 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 	leaction.Action{
 		Verb:   dockerKernelAppArmorVerb,
 		Writes: true,
-		Why: "Linux only: install and load Ze's AppArmor profile " + kernelcap.ProbeAppArmorProfileName +
-			", which the Docker kernel check runs its probe under on a daemon applying AppArmor (docker-default" +
-			" denies the probe's mount and /proc/sys write). Without `confirm " + kernelcap.ProbeAppArmorProfileName +
-			"` it prints the steps and runs none; every step runs through sudo and is printed first",
+		Why: "Linux only: install and load a Ze AppArmor profile, which a lab container runs under on a daemon" +
+			" applying AppArmor where docker-default denies what it does (" + kernelcap.ProbeAppArmorProfileName +
+			" for the Docker kernel check's probe). Without `confirm <profile>` naming a registered profile it" +
+			" prints every profile's steps and runs none; every step runs through sudo and is printed first",
 		Parameters: []leaction.Parameter{
 			{Keyword: dockerKernelConfirmKeyword, Value: "profile", Requirement: leaction.Optional},
 		},

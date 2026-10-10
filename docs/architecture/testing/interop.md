@@ -379,6 +379,28 @@ and the guest route is unchanged.
 
 <!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, kernelProbeArgv -->
 
+The probe is the first container to run under a Ze profile, and the same rule
+holds for every lab container: one that needs more than docker-default grants
+runs under a Ze profile that grants exactly that, never `apparmor=unconfined`.
+Each profile registers in `interoplab` (`RegisterAppArmorProfile`, from a lab's
+`register_apparmor.go`) with its name, what runs under it, what docker-default
+denies it, its text and the command to run once it is loaded. A peer names its
+profile in `PeerConfig.AppArmorProfile`. On a daemon that applies AppArmor the
+container starts with `--security-opt apparmor=<name>`; on a Linux client whose
+profile list lacks it, the lab refuses before the container starts, naming
+`./le setup docker-kernel apparmor confirm <name>`; on a daemon that applies no
+AppArmor the option is left out. The VRRP scenarios' ze (any scenario carrying
+`keepalived.conf`) runs under `ze-lab-vrrp`: VRRP writes per-device sysctls under
+`/proc/sys/net/ipv4/conf/` and `/proc/sys/net/ipv6/conf/` once it knows its
+interface, so the container keeps `systempaths=unconfined` (Docker mounts
+`/proc/sys` read-only otherwise) and the profile, docker-default with its
+`/proc/sys` write denials narrowed to `net/ipv[46]/conf/`, keeps every other
+`/proc/sys` write and every mount denied. Both registered profiles parse with
+`apparmor_parser -Q` 4.0.1 (Ubuntu 24.04).
+
+<!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing -->
+<!-- source: internal/le/interoplab/bgp/register_apparmor.go -- vrrpLabAppArmorProfile -->
+
 The check runs after the preflight, because it needs the staged ze, and before
 the first image build, so a refused host costs no build and counts no scenario.
 It refuses when:
@@ -434,10 +456,11 @@ must be an ELF executable for that architecture, or the check refuses before any
 container runs, naming the path, what it is instead (a directory, not ELF,
 another machine), and the build route. `./le setup docker-kernel apparmor` is Linux-only:
 it refuses where `/sys/module/apparmor/parameters/enabled` does not read `Y` or
-`apparmor_parser` is absent, installs `kernelcap.ProbeAppArmorProfile` as
-`/etc/apparmor.d/ze-kernel-probe` (so it loads again at boot) and loads it with
-`apparmor_parser -r -W`; without `confirm ze-kernel-probe` it prints the two
-`sudo` steps and runs none. `./le setup docker-kernel install` is the Linux
+`apparmor_parser` is absent, installs the registered profile named after
+`confirm` as `/etc/apparmor.d/<name>` (so it loads again at boot) and loads it
+with `apparmor_parser -r -W`; without `confirm` naming a registered profile it
+prints the two `sudo` steps of every registered profile, runs none, and names
+the command that loads each. `./le setup docker-kernel install` is the Linux
 route: it installs the cached runtime kernel for the host's architecture under
 `/boot` and `/lib/modules`, rebuilds the initramfs and the GRUB menu with the
 Debian tools, and saves the new entry as GRUB's default by its title. It

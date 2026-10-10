@@ -322,14 +322,16 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	// time (applyDataplaneSysctls, internal/plugins/vrrp/dataplane_linux.go),
 	// so no `--sysctl` at container start can name them. Docker blocks the
 	// write twice in an unprivileged container: it mounts /proc/sys read-only
-	// (lifted by systempaths=unconfined), and its default AppArmor profile
-	// denies writes under /proc/sys except kernel/ (lifted by
-	// apparmor=unconfined; measured 2026-09-27, the first alone answers
-	// "Permission denied"). The net.* knobs stay confined to the container's
-	// own network namespace. Without both the instance never starts.
+	// (lifted by systempaths=unconfined), and its docker-default AppArmor
+	// profile denies writes under /proc/sys except kernel/ (measured
+	// 2026-09-27, the first alone answers "Permission denied"). AppArmor is
+	// never lifted (owner decision D-7): ze runs under the VRRP lab profile,
+	// which denies every /proc/sys write but the per-device conf trees. The
+	// net.* knobs stay confined to the container's own network namespace.
+	appArmorProfile := ""
 	if regularFile(filepath.Join(scenario, "keepalived.conf")) {
-		zeArguments = append(zeArguments,
-			"--security-opt", "systempaths=unconfined", "--security-opt", "apparmor=unconfined")
+		zeArguments = append(zeArguments, "--security-opt", "systempaths=unconfined")
+		appArmorProfile = vrrpLabAppArmorProfileName
 	}
 	// A scenario carrying ze-reload.conf reloads ze mid-run, so ze must read a
 	// config file the checker can REPLACE. The mounted one is not it: every
@@ -344,7 +346,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			Str(" && exec ze start ").Str(zeRunningConfig).String()}
 	}
 	peers = append(peers, interoplab.PeerConfig{Name: "ze", Container: containerName("ze", suffix), Image: "ze", Host: 2,
-		Mounts: zeMounts, Capabilities: []string{capabilityNetAdmin}, Arguments: zeArguments,
+		Mounts: zeMounts, Capabilities: []string{capabilityNetAdmin}, Arguments: zeArguments, AppArmorProfile: appArmorProfile,
 		Environment: []interoplab.EnvironmentVariable{{Name: "SESSION_TIMEOUT", Value: strconv.Itoa(int(timeout / time.Second))}},
 		Command:     zeCommand, Ready: ready("true")})
 

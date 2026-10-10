@@ -49,12 +49,6 @@ func DockerKernelRoute(goos string) string {
 		"`./le test qemu docker-lab lab \"<le words>\"`."
 }
 
-// AppArmorLoadCommand is the command that loads Ze's probe profile on a Linux
-// Docker host (D-7). Every refusal that a missing or outdated profile explains
-// names it; `le setup docker-kernel` registers the action it names, and its test
-// compares the two.
-const AppArmorLoadCommand = "./le setup docker-kernel apparmor confirm " + kernelcap.ProbeAppArmorProfileName
-
 // dockerSecurityOptionsFormat asks the daemon which security modules it applies
 // to a container; a daemon applying AppArmor lists "name=apparmor".
 const dockerSecurityOptionsFormat = "{{json .SecurityOptions}}"
@@ -216,7 +210,7 @@ func appArmorRefusal(release, finding string) error {
 	return errors.New(refusal.Str("the Docker daemon applies AppArmor, and the kernel probe runs under Ze's profile ").
 		Str(kernelcap.ProbeAppArmorProfileName).Str(", which ").Str(finding).
 		Str(". Docker's docker-default profile denies the probe's mount and its /proc/sys write, so load Ze's: ").
-		Str(AppArmorLoadCommand).
+		Str(AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)).
 		Str("\nThe profile lets the probe answer and adds no kernel feature: every feature the daemon's kernel (").
 		Str(release).Str(") lacks, MOBIKE's xfrm migrate for example, is then named, and the route to a kernel carrying them all is: ").
 		Str(DockerKernelRoute(runtime.GOOS)).String())
@@ -301,7 +295,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	// Ze's profile, loaded or reloaded by one command (D-7).
 	if denied {
 		refusal.Str("\nA denied row is the host's security policy refusing the probe, not the kernel: load or reload Ze's AppArmor profile with ").
-			Str(AppArmorLoadCommand).Str(".")
+			Str(AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)).Str(".")
 	}
 	return errors.New(refusal.String())
 }

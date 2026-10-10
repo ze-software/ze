@@ -218,7 +218,10 @@ kernel that lacks one.
   on macOS. When the daemon applies AppArmor (Ubuntu's default), the check runs its
   probe under Ze's `ze-kernel-probe` profile, because Docker's `docker-default`
   denies what the probe does; `./le setup docker-kernel apparmor confirm
-  ze-kernel-probe` installs and loads it, one stated `sudo` step at a time.
+  ze-kernel-probe` installs and loads it, one stated `sudo` step at a time. The
+  VRRP interop scenarios run ze under `ze-lab-vrrp` the same way, loaded with
+  `./le setup docker-kernel apparmor confirm ze-lab-vrrp`; the action with no
+  `confirm` lists every profile and the steps each one runs.
 
 `docs/architecture/testing/qemu-integration.md`, "Docker labs in the Ze-kernel
 guest", is the guest path; the scheduled nightly runs the same path on amd64

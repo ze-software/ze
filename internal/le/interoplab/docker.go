@@ -148,6 +148,9 @@ type PeerConfig struct {
 	Arguments    []string              `json:"arguments,omitempty"`
 	Command      []string              `json:"command,omitempty"`
 	Ready        *ReadyProbe           `json:"ready,omitempty"`
+	// AppArmorProfile names the registered Ze profile the container runs
+	// under on a daemon that applies AppArmor; empty keeps docker-default.
+	AppArmorProfile string `json:"apparmor-profile,omitempty"`
 }
 
 // OneShotContainer is a bounded foreground container used for host preflight.
@@ -461,6 +464,13 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 			return variableErr
 		}
 		argv = append(argv, "-e", value)
+	}
+	if peer.AppArmorProfile != "" {
+		option, optionErr := d.appArmorSecurityOption(ctx, peer.AppArmorProfile)
+		if optionErr != nil {
+			return optionErr
+		}
+		argv = append(argv, option...)
 	}
 	argv = append(argv, peer.Arguments...)
 	argv = append(argv, peer.Image)
