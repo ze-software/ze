@@ -123,7 +123,7 @@ AC-18 was never assigned. The gap is kept rather than renumbered, because commit
 - [ ] `vendor/github.com/gokrazy/tools/internal/packer/{write.go,validatekernel.go,packerbuild.go}`, `vendor/github.com/gokrazy/tools/packer/gotool.go` `PackageDir` - the kernel package contract above
 - [ ] `.github/workflows/qemu-nightly.yml` - CI builds the amd64 runtime kernel with `ze-host appliance kernel --target runtime --arch amd64`, cached by `hashFiles(kernel.version, gokrazy/kernel/**, tools/kernel-builder/**)`
 
-**Question 1, how the runtime kernel is built today:** `ze appliance kernel --target runtime --arch <arch>` (Go driver `internal/appliance/kernelbuilder`) downloads the kernel.org tarball named by `kernel.version` (7.2), applies `gokrazy/kernel/patches/series`, merges `runtime.config` over `defconfig`, enforces `kernel.require` + `runtime.require` + the compiled floor, compiles in Docker (`ze-kernel-builder`, Debian bookworm) or a QEMU Alpine guest, and caches the tree in `~/.cache/ze/runtime-kernel/<version>-runtime-<arch>-runtime-<hash>-<hash>/`. It is pinned in its inputs (version string, tracked config, manifests, patches) but NOT reproducible: the tarball is unverified, the toolchain floats with Debian apt, and kbuild embeds the build timestamp, user and host. The symbol set is reproducible (enforced from the emitted config); the bytes are not.
+**Question 1, how the runtime kernel is built today:** `ze appliance kernel --target runtime --arch <arch>` (Go driver `internal/appliance/kernelbuilder`) downloads the kernel.org tarball named by `kernel.version` (7.2), applies `gokrazy/kernel/patches/series`, merges `runtime.config` over `defconfig`, enforces `kernel.require` + `runtime.require` + the compiled floor, compiles in Docker (`ze-kernel-builder`, Debian bookworm) or a QEMU Alpine guest, and caches the tree in `~/.cache/ze/runtime-kernel/<version>-runtime-<arch>-runtime-<backend>-<config-hash>-<builder-hash>/` (corrected in round 4: `kernelCacheVariantFor`, `internal/appliance/cache.go`, keys the backend since 590760235b; entries cited below from before it, such as `...-7c0d8f79-d826e25e`, carry no backend). It is pinned in its inputs (version string, tracked config, manifests, patches) but NOT reproducible: the tarball is unverified, the toolchain floats with Debian apt, and kbuild embeds the build timestamp, user and host. The symbol set is reproducible (enforced from the emitted config); the bytes are not.
 
 **Behavior to preserve:**
 - (superseded by the owner decision of 2026-10-09 in Task: `ze.gok.kernel-package` is deleted, and no route lets an image carry a kernel other than ze's own; AC-6)
@@ -559,7 +559,7 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 |-------|-------|
 | Artifact | round 1: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r1-appliance-ships-ze-kernel.md` (0 BLOCKER, 6 ISSUE, 8 NOTE); every finding fixed or recorded below; ready for independent review round 2 |
 | `./le spec review check` | not run |
-| Rounds | 2 (round 1 preceded by a partial pass the owner interrupted, whose ISSUE is row 1 below); round 2 artifact `scratch/review-r2-appliance-ships-ze-kernel.md` (0 BLOCKER, 3 ISSUE, 6 NOTE), fixes in "Round 2 fixes"; round 3 artifact `scratch/review-r3-appliance-ships-ze-kernel.md` (0 BLOCKER, 4 ISSUE, 9 NOTE) over dc501faa9f, 5ffef6eedc, 248d1ed071, 8949969c96, 9bcaef2d4e, fixes in "Round 3 fixes"; round 4 owed over 590760235b, e308e4cdb2, b3f4b0c3bb |
+| Rounds | 2 (round 1 preceded by a partial pass the owner interrupted, whose ISSUE is row 1 below); round 2 artifact `scratch/review-r2-appliance-ships-ze-kernel.md` (0 BLOCKER, 3 ISSUE, 6 NOTE), fixes in "Round 2 fixes"; round 3 artifact `scratch/review-r3-appliance-ships-ze-kernel.md` (0 BLOCKER, 4 ISSUE, 9 NOTE) over dc501faa9f, 5ffef6eedc, 248d1ed071, 8949969c96, 9bcaef2d4e, fixes in "Round 3 fixes"; round 4 over 590760235b, e308e4cdb2, b3f4b0c3bb (1 BLOCKER, 5 NOTE, findings and mutation evidence in `scratch/r4mut/`), fixes in "Round 4 fixes"; round 5 owed over 2182b2c521 |
 | Reviewer lenses used | round 1: logic+wiring (resolver to image), supply chain (digest pin, notice), cache safety |
 
 ### Round 1 fixes
@@ -640,6 +640,22 @@ Cache key final at e308e4cdb2 (last commit touching `recipe.go`, `worker.go` or 
 Scoped lint (`./internal/appliance/... ./internal/le/build/gokrazy/...`): 0 issues on darwin and linux-integration, 2026-10-10 (`scratch/r3fix/lint5.log`). `internal/appliance`, `internal/appliance/kernelbuilder` and `internal/le/build/gokrazy` pass `-race` with the gate tags (`scratch/r3fix/t4.log`).
 
 Ready for independent review round 4, over 590760235b, e308e4cdb2, b3f4b0c3bb.
+
+### Round 4 fixes
+Review over 590760235b, e308e4cdb2, b3f4b0c3bb: 1 BLOCKER, 5 NOTE. Mutation evidence `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/r4mut/` (`out_me_runcommand_argv.log`, `out_md_worker_env.log`, `out_mb_reverse_call.log` green under a build-changing mutation). No fix touches `recipe.go`, `worker.go`, `tools/kernel-builder`, `internal/core/textbuf` or `internal/core/tmplink`, so the cache key is unchanged from e308e4cdb2 and the arm64 build keyed on it stays valid.
+
+| Finding | Fixed by | What changed |
+|---------|----------|--------------|
+| BLOCKER 1 (the return-direction guard claimed more than it proves) | 2182b2c521 | Owner-thread decision (a): narrow the claim. The `TestHostSideNeverWritesTheRequest` comment and `build-artifacts.md` now say what is checked (assignment, increment, pointer into, own `Request` literal, the `sshRun` command; argv and env up to the `runCommand` and `runWorkerBuild` seams) and list four unguarded channels: arguments appended inside the real `runCommand`, env added or inherited through `os.Environ` in `runWorkerBuild`, `Request` slices changed by a call, the QEMU console bootstrap. Row in `plan/journal/stale-artifact-reused.md`. `recipe.go`'s `normalizeRequest` comment ("the only code that writes a Request field") still reads wider than the guard; it is a keyed file, left for after the arm64 build |
+| NOTE 1 (an unsupported arch sent to "build it on a host of that arch") | 2182b2c521 | `runtimeKernelReachable` refuses an arch `kernelbuilder.ArchSupported` rejects (derived from `dockerPlatforms`) before the cache is asked; the kernel, image and gokrazy refusals then offer only the host arch. `kernelbuilder.SupportedArches` names them. `TestUnsupportedArchRefusedBeforeAnyHost`, `TestSupportedArchesAreTheBuildableOnes`; red with the check disabled (`scratch/r4fix/red.log`) |
+| NOTE 2 (lookups key builder "", so a `--builder` kernel of the other backend is invisible) | 2182b2c521 | documented in `build-artifacts.md` (image build, `./le build gokrazy`, ISO, doctor) and on `runtimeKernelReachable`; behaviour unchanged |
+| NOTE 3 (no `.variant` writer since eae2825926; `installerKernelBuildMatches` / `installerKernelFallbackPath` dead outside tests) | recorded | row in `plan/journal/parameter-no-caller-ever-fills.md`; not deleted, an owner decision |
+| NOTE 4 (a canceled build during the boot wait reported as a boot timeout) | 2182b2c521 | `errBootFailed` (`qemu.go`, host-side, not in `BuildSources`) takes the context error and says the build was canceled, or ran out of its caller's time, before any stderr or exit wording. `TestCanceledBootWaitIsNotATimeout`, red with the branch disabled (`scratch/r4fix/red.log`) |
+| NOTE 5 (research cache path lacks the backend) | 2182b2c521 | Current Behavior, Question 1, names `<backend>` and says which earlier entries predate it |
+
+`go test -race` with the gate tags over `./internal/appliance/... ./internal/le/build/gokrazy/...`: all four packages ok (`scratch/r4fix/gate.log`). Owed to the main thread: scoped lint over the same packages.
+
+Ready for independent review round 5, over 2182b2c521.
 
 ## Pre-Commit Verification
 
