@@ -9,7 +9,7 @@ package cli
 import (
 	"errors"
 	"fmt"
-
+	"io/fs"
 	"strings"
 	"time"
 
@@ -61,7 +61,10 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 
 	// Read change file (sparse tree of this user's changes).
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 
 	// Apply the set to the change tree.
 	changeTarget, err := e.walkOrCreateIn(changeTree, path)
@@ -124,7 +127,10 @@ func (e *Editor) writeThroughCreate(path []string) error {
 
 	// Read change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 
 	// Create the path in the change tree (no leaf set).
 	if _, walkErr := e.walkOrCreateIn(changeTree, path); walkErr != nil {
@@ -165,7 +171,10 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 
 	// Read change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 
 	// Read committed value for Previous field.
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
@@ -236,7 +245,10 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 	proposedOp := config.StructuralOp{
 		Type:       config.StructuralOpRename,
 		User:       e.session.User,
@@ -339,7 +351,10 @@ func (e *Editor) writeThroughCopy(parentPath []string, listName, sourceKey, targ
 		NewKey:     targetKey,
 	}
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 	if err := copyPendingListEntry(changeTree, changeMeta, e.schema, parentPath, listName, sourceKey, targetKey); err != nil {
 		return err
 	}
@@ -420,7 +435,10 @@ func (e *Editor) writeThroughStructuralOp(op config.StructuralOp) error {
 	op.Time = e.session.StartTime
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 	changeOps = append(changeOps, op)
 	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
 	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
@@ -436,22 +454,25 @@ func (e *Editor) writeThroughStructuralOp(op config.StructuralOp) error {
 }
 
 // readChangeFile reads and parses a per-user change file.
-// Returns empty tree/meta/op collections if the file does not exist or is corrupt.
-func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*config.Tree, *config.MetaTree, []config.StructuralOp) {
-	data, readErr := guard.ReadFile(changePath)
-	if readErr != nil {
-		// No change file: start with empty sparse tree.
-		return config.NewTree(), config.NewMetaTree(), nil
+// A change file that does not exist holds no pending change, so it answers
+// empty collections. Any other read failure, and a file that does not parse,
+// is an error naming the file: the file holds the user's pending changes, so
+// reading it as empty would let a commit answer success with nothing applied
+// and let the next edit overwrite it. The file is left in place.
+func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*config.Tree, *config.MetaTree, []config.StructuralOp, error) {
+	data, err := guard.ReadFile(changePath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return config.NewTree(), config.NewMetaTree(), nil, nil
+	}
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("read change file %s: %w", changePath, err)
 	}
 	parser := config.NewSetParser(e.schema)
-	tree, meta, ops, parseErr := config.ParseChangeFile(string(data), parser)
-	if parseErr != nil {
-		// Corrupt change file (e.g., from a previous bug). Log and start fresh
-		// rather than blocking all future edits.
-		draftLogger.Warn("discarding corrupt change file", "path", changePath, "error", parseErr)
-		return config.NewTree(), config.NewMetaTree(), nil
+	tree, meta, ops, err := config.ParseChangeFile(string(data), parser)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("change file %s does not parse, pending changes kept in it: %w", changePath, err)
 	}
-	return tree, meta, ops
+	return tree, meta, ops, nil
 }
 
 // SaveDraft applies changes from the per-user change file to config.conf.draft.
@@ -469,7 +490,10 @@ func (e *Editor) SaveDraft() error {
 
 	// Read the change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	_, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	_, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 
 	myEntries := changeMeta.SessionEntries(e.session.ID)
 	myOps := filterStructuralOps(changeOps, e.session.ID)
@@ -479,7 +503,10 @@ func (e *Editor) SaveDraft() error {
 
 	// Read base (draft if exists, else committed).
 	draftPath := DraftPath(e.originalPath)
-	baseTree, baseMeta := e.readDraftOrConfig(guard, draftPath)
+	baseTree, baseMeta, err := e.readDraftOrConfig(guard, draftPath)
+	if err != nil {
+		return fmt.Errorf("save: %w", err)
+	}
 
 	if err := applyStructuralOps(baseTree, e.schema, myOps, true); err != nil {
 		return fmt.Errorf("save apply structural ops: %w", err)
@@ -992,21 +1019,22 @@ func pathHasPrefix(path, prefix string) bool {
 // Returns the parsed tree and metadata. Uses guard for I/O (called within locked sections).
 // If the draft exists but cannot be parsed (corrupt, outdated schema), falls back to
 // the committed config so that save is never blocked by a bad draft.
-func (e *Editor) readDraftOrConfig(guard storage.WriteGuard, draftPath string) (*config.Tree, *config.MetaTree) {
-	parser := config.NewSetParser(e.schema)
-
+func (e *Editor) readDraftOrConfig(guard storage.WriteGuard, draftPath string) (*config.Tree, *config.MetaTree, error) {
 	data, err := guard.ReadFile(draftPath)
-	if err == nil {
-		tree, meta, parseErr := parser.ParseWithMeta(string(data))
-		if parseErr == nil {
-			return tree, meta
-		}
-		// Draft exists but cannot be parsed (corrupt or schema mismatch).
-		// Fall through to committed config so save is not blocked.
+	if errors.Is(err, fs.ErrNotExist) {
+		// No draft: clone the in-memory tree and start with empty metadata.
+		return e.tree.Clone(), config.NewMetaTree(), nil
 	}
-
-	// No draft or unparseable draft: clone the in-memory tree and start with empty metadata.
-	return e.tree.Clone(), config.NewMetaTree()
+	if err != nil {
+		return nil, nil, fmt.Errorf("read draft %s: %w", draftPath, err)
+	}
+	// A draft that does not parse holds other sessions' saved changes, so
+	// replacing it with this session's tree would drop them.
+	tree, meta, err := config.NewSetParser(e.schema).ParseWithMeta(string(data))
+	if err != nil {
+		return nil, nil, fmt.Errorf("draft %s does not parse: %w", draftPath, err)
+	}
+	return tree, meta, nil
 }
 
 // readCommittedTree reads and parses config.conf under lock.
@@ -1052,7 +1080,10 @@ func (e *Editor) AdoptSession(oldSessionID string) error {
 	// Find all entries for the old session and rewrite to current session.
 	oldEntries := meta.SessionEntries(oldSessionID)
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 	oldOps := filterStructuralOps(changeOps, oldSessionID)
 	if len(oldEntries) == 0 && len(oldOps) == 0 {
 		return nil // Nothing to adopt.

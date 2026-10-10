@@ -1,35 +1,18 @@
 // Design: docs/architecture/config/syntax.md — config deactivate command
 // Detail: cmd_set.go — same one-shot pattern (flags, editor, save, notify)
-// Detail: ../../cli/model_commands_edit.go — TUI cmdDeactivate implementation we mirror
+// Detail: ../../cli/editor_activation.go — ApplyActivation, the dispatch every editor shares
 
 package cli
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 
-	"github.com/ze-software/ze/internal/component/cli"
-	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
-
-var errPathIsEmpty = errors.New("path is empty")
-
-// alreadyInRequestedState reports whether err signals that the target
-// node was already in the state we asked for. The CLI verb treats this
-// as success (idempotent, AC-8) and emits a "no change" status. The
-// editor exports sentinel errors specifically for this matching so we
-// don't have to compare error strings.
-func alreadyInRequestedState(err error) bool {
-	return errors.Is(err, cli.ErrLeafAlreadyInactive) ||
-		errors.Is(err, cli.ErrLeafNotInactive) ||
-		errors.Is(err, cli.ErrPathAlreadyInactive) ||
-		errors.Is(err, cli.ErrPathNotInactive)
-}
 
 func cmdDeactivateWithStorage(store storage.Storage, args []string) int {
 	return cmdDeactivateImpl(store, args)
@@ -112,22 +95,17 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 	defer ed.Close() //nolint:errcheck // best-effort cleanup
 
 	displayPath := textbuf.Join(path, " ")
-	if err := dispatchDeactivate(ed, path, activate); err != nil {
-		if alreadyInRequestedState(err) {
-			alreadyState := "deactivated"
-			if activate {
-				alreadyState = "active"
-			}
-			fmt.Fprintf(os.Stderr, "%s already %s; nothing to do\n", displayPath, alreadyState)
-			return exitOK
-		}
-		fmt.Fprintf(os.Stderr, "error: %s failed: %v\n", verb, err)
+	// ApplyActivation is the dispatch the SSH and web editors use, so the
+	// offline verb accepts and refuses the same paths they do.
+	status, err := ed.ApplyActivation(path, activate)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
-
-	pastTense := "Deactivated"
-	if activate {
-		pastTense = "Activated"
+	if !ed.Dirty() {
+		// The node already held the requested state: idempotent, AC-8.
+		fmt.Fprintf(os.Stderr, "%s; nothing to do\n", status)
+		return exitOK
 	}
 
 	if *dryRun {
@@ -146,64 +124,11 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 
 	printCommitWarnings(warnings)
 	noticeUnrecordedVersion(ed, configPath)
-	fmt.Fprintf(os.Stderr, "%s %s\n", pastTense, displayPath)
+	fmt.Fprintf(os.Stderr, "%s\n", status)
 
 	// Editing a stored config does not contact the daemon by default; --reload
 	// opts in. See notifyDaemonReload.
 	notifyDaemonReload(ed, *reload, configPath, *user)
 
 	return exitOK
-}
-
-// dispatchDeactivate routes the path to the appropriate Editor mutation
-// method based on the schema node at the target. The dispatch mirrors
-// the TUI Model.cmdDeactivate logic so behavior is consistent across
-// the TUI and CLI surfaces.
-func dispatchDeactivate(ed *cli.Editor, path []string, activate bool) error {
-	if len(path) == 0 {
-		return errPathIsEmpty
-	}
-
-	// Leaf-list value: `... import no-self-as` (path ends at a value
-	// that is not itself a schema child of the leaf-list).
-	if len(path) >= 2 {
-		parentPath, leafListName, isLeafList := ed.ResolveLeafListValue(path)
-		if isLeafList {
-			value := path[len(path)-1]
-			if activate {
-				return ed.ActivateLeafListValue(parentPath, leafListName, value)
-			}
-			return ed.DeactivateLeafListValue(parentPath, leafListName, value)
-		}
-	}
-
-	schemaNode := ed.LookupSchemaNode(path)
-	if schemaNode == nil {
-		return fmt.Errorf("no such path: %s", textbuf.Join(path, " "))
-	}
-
-	switch schemaNode.(type) {
-	case *config.LeafNode, *config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode:
-		parentPath := path[:len(path)-1]
-		leafName := path[len(path)-1]
-		if activate {
-			return ed.ActivateLeaf(parentPath, leafName)
-		}
-		return ed.DeactivateLeaf(parentPath, leafName)
-	case *config.ContainerNode, *config.ListNode:
-		// Container or list entry: route through DeactivatePath, which
-		// rejects non-existent paths and surfaces idempotent "already in
-		// state" via sentinel errors. Positional lists with all-leaf
-		// children (e.g. nlri, nexthop, add-path) don't support
-		// deactivation -- reject those explicitly per AC-12.
-		if listNode, ok := schemaNode.(*config.ListNode); ok && !listNode.HasStructuralChildren() {
-			return fmt.Errorf("path %q is a positional list entry; deactivate the parent container instead", textbuf.Join(path, " "))
-		}
-		if activate {
-			return ed.ActivatePath(path)
-		}
-		return ed.DeactivatePath(path)
-	default:
-		return fmt.Errorf("path %q resolves to a node type that does not support deactivation", textbuf.Join(path, " "))
-	}
 }

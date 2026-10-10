@@ -19,7 +19,10 @@ Every YANG node is deactivatable. No schema annotation is required.
 
 The one exception: positional list entries with all-leaf children
 (`nlri`, `nexthop`, `add-path`) are not individually deactivatable.
-Deactivate the parent container instead.
+Deactivate the parent container instead. `ze config deactivate`, the SSH
+editor and the web terminal refuse them with the same error, because all
+three resolve the path through one dispatch.
+<!-- source: internal/component/cli/editor_activation.go -- applyNodeActivation -->
 
 ## CLI
 

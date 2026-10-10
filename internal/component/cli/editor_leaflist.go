@@ -33,7 +33,10 @@ func (e *Editor) writeThroughSetMember(path []string, key, member string) error 
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 
 	changeTarget, err := e.walkOrCreateIn(changeTree, path)
 	if err != nil {
@@ -88,7 +91,10 @@ func (e *Editor) writeThroughDeleteMember(path []string, key, member string) err
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 
 	// Drop the member from the change tree in case this session added it
 	// earlier, and ensure the parent path exists so the serializer can
@@ -165,7 +171,10 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 	changeOps = append(changeOps, config.StructuralOp{
 		Type:       opType,
 		User:       e.session.User,

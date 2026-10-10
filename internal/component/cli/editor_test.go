@@ -3499,31 +3499,6 @@ func TestDiscardSessionNoDraft(t *testing.T) {
 	assert.False(t, ed.Dirty(), "should remain clean after discarding nothing")
 }
 
-// TestWriteThroughCorruptDraft verifies write-through discards corrupt change file and proceeds.
-//
-// VALIDATES: readChangeFile corrupt file recovery.
-// PREVENTS: Corrupt change file blocking all future edits.
-func TestWriteThroughCorruptDraft(t *testing.T) {
-	configPath := writeTestConfig(t, validBGPConfig)
-
-	store := newTestTreeStore(t, configPath)
-	ed, err := NewEditorWithStorage(store, configPath)
-	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
-
-	session := NewEditSession("thomas", "local")
-	ed.SetSession(session)
-
-	// Write a corrupt change file (invalid set format).
-	changePath := ChangePath(configPath, session.User)
-	err = store.WriteFile(changePath, []byte("this is not valid set format {{{{"), 0o600) //nolint:gosec // test file
-	require.NoError(t, err)
-
-	// Write-through set succeeds: corrupt change file is discarded and replaced.
-	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
-	require.NoError(t, err, "write-through should succeed after discarding corrupt change file")
-}
-
 // TestCommitInMemoryShowsDraftWithRemaining verifies that after commit, the committing
 // editor's in-memory tree reflects the committed state (alice's changes applied).
 // In the per-user change file model, the draft only contains the committing session's

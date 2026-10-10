@@ -42,21 +42,7 @@ func (e *Editor) ApplyActivation(fullPath []string, activate bool) (string, erro
 		return tb.Str(pastTense).Byte(' ').Str(value).Str(" in ").Str(leafListName).String(), nil
 	}
 
-	var err error
-	node := e.schema.LookupTokenPath(fullPath)
-	switch {
-	case node != nil && node.Kind() == config.NodeLeaf:
-		parentPath, leafName := fullPath[:len(fullPath)-1], fullPath[len(fullPath)-1]
-		if activate {
-			err = e.ActivateLeaf(parentPath, leafName)
-		} else {
-			err = e.DeactivateLeaf(parentPath, leafName)
-		}
-	case activate:
-		err = e.ActivatePath(fullPath)
-	default:
-		err = e.DeactivatePath(fullPath)
-	}
+	err := e.applyNodeActivation(fullPath, activate)
 	if err != nil {
 		if isAlreadyInState(err) {
 			return tb.Join(fullPath, " ").Str(" already ").Str(alreadyState).String(), nil
@@ -79,4 +65,45 @@ func isAlreadyInState(err error) bool {
 		return true
 	}
 	return errors.Is(err, ErrPathNotInactive)
+}
+
+// applyNodeActivation toggles the leaf, container or list entry fullPath
+// names. A path the schema does not know goes to DeactivatePath or
+// ActivatePath, which refuse it as "path not found". A positional list entry
+// (a list whose children are all leaves, such as capability nexthop) and the
+// freeform, flex and inline-list kinds carry no inactive marker, so they are
+// refused rather than toggled.
+func (e *Editor) applyNodeActivation(fullPath []string, activate bool) error {
+	node := e.schema.LookupTokenPath(fullPath)
+	if node == nil {
+		return e.applyPathActivation(fullPath, activate)
+	}
+	var tb textbuf.Buffer
+	switch node.Kind() {
+	case config.NodeLeaf:
+		parentPath, leafName := fullPath[:len(fullPath)-1], fullPath[len(fullPath)-1]
+		if activate {
+			return e.ActivateLeaf(parentPath, leafName)
+		}
+		return e.DeactivateLeaf(parentPath, leafName)
+	case config.NodeList:
+		listNode, ok := node.(*config.ListNode)
+		if ok && !listNode.HasStructuralChildren() {
+			return fmt.Errorf("path %q is a positional list entry; deactivate the parent container instead", tb.Join(fullPath, " ").String())
+		}
+		return e.applyPathActivation(fullPath, activate)
+	case config.NodeContainer:
+		return e.applyPathActivation(fullPath, activate)
+	case config.NodeFreeform, config.NodeFlex, config.NodeInlineList:
+		return fmt.Errorf("path %q resolves to a node type that does not support deactivation", tb.Join(fullPath, " ").String())
+	}
+	return fmt.Errorf("path %q resolves to an unknown node kind %d", tb.Join(fullPath, " ").String(), node.Kind())
+}
+
+// applyPathActivation toggles a container or list entry.
+func (e *Editor) applyPathActivation(fullPath []string, activate bool) error {
+	if activate {
+		return e.ActivatePath(fullPath)
+	}
+	return e.DeactivatePath(fullPath)
 }

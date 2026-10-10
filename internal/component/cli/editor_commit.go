@@ -5,7 +5,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"strings"
 	"time"
 
@@ -68,9 +70,12 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	// Read and parse draft (created by SaveDraft above).
 	draftPath := DraftPath(e.originalPath)
 	draftData, err := guard.ReadFile(draftPath)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		// No draft means SaveDraft had nothing to save.
 		return &CommitResult{Applied: 0}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read draft %s: %w", draftPath, err)
 	}
 	setParser := config.NewSetParser(e.schema)
 	draftTree, draftMeta, err := setParser.ParseWithMeta(string(draftData))
@@ -79,7 +84,10 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	_, _, changeOps := e.readChangeFile(guard, changePath)
+	_, _, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return nil, err
+	}
 
 	// Find my changes from the draft metadata and preserved structural ops.
 	myEntries := draftMeta.SessionEntries(e.session.ID)
@@ -258,8 +266,12 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 
 	draftPath := DraftPath(e.originalPath)
 	draftData, err := guard.ReadFile(draftPath)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
+		// No draft means SaveDraft had nothing to save.
 		return &CommitResult{Applied: 0}, "", nil
+	}
+	if err != nil {
+		return nil, "", fmt.Errorf("read draft %s: %w", draftPath, err)
 	}
 	setParser := config.NewSetParser(e.schema)
 	_, draftMeta, err := setParser.ParseWithMeta(string(draftData))
@@ -268,7 +280,10 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	_, _, changeOps := e.readChangeFile(guard, changePath)
+	_, _, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return nil, "", err
+	}
 
 	myEntries := draftMeta.SessionEntries(e.session.ID)
 	myOps := filterStructuralOps(changeOps, e.session.ID)
@@ -447,7 +462,10 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 		guard.Remove(changePath) //nolint:errcheck // Best effort
 	} else {
 		// Partial discard: remove matching entries from change file.
-		changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+		changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+		if err != nil {
+			return err
+		}
 
 		myEntries := changeMeta.SessionEntries(e.session.ID)
 		for _, se := range myEntries {
@@ -519,7 +537,10 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 
 	// Re-apply remaining changes from change file (if partial discard).
 	if pathPrefix != "" {
-		_, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+		_, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+		if err != nil {
+			return err
+		}
 		if err := applyStructuralOps(baseTree, e.schema, changeOps, true); err != nil {
 			return fmt.Errorf("discard apply structural ops: %w", err)
 		}

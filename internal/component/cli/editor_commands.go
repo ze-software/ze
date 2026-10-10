@@ -532,7 +532,10 @@ func (e *Editor) writeThroughDeleteListEntry(parentPath []string, listName, key 
 	guard.SetModifier(e.session.ID)
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 
 	op := config.StructuralOp{
 		Type:       config.StructuralOpDeleteEntry,
@@ -613,7 +616,10 @@ func (e *Editor) writeThroughDeleteNamed(parentPath []string, name string, opTyp
 	guard.SetModifier(e.session.ID)
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
 
 	op := config.StructuralOp{
 		Type:       opType,
