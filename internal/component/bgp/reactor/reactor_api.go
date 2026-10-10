@@ -553,7 +553,7 @@ func withPeerEntries(tree, source map[string]any, names []string) map[string]any
 // takes for that level (`bgp > peer > <name>`).
 const configListNamePeer = "peer"
 
-// recordPeerConfig writes one peer's own configuration into the running
+// recordCreatedPeerLocked writes one peer's own configuration into the running
 // configuration, under bgp > peer > name.
 //
 // The running configuration is what the daemon is RUNNING, so a peer an
@@ -568,18 +568,17 @@ const configListNamePeer = "peer"
 // maps on the path to the peer list are copied, and every other subtree is
 // shared with the tree that was running a moment ago, which no longer changes.
 //
-// The peer is also entered in createdPeers under the same lock, so no reload
-// can replace the tree between the entry and the mark that keeps it there.
-func (a *reactorAPIAdapter) recordPeerConfig(addr netip.Addr, name string, peerTree map[string]any) {
-	a.r.mu.Lock()
-	defer a.r.mu.Unlock()
-
-	if a.r.createdPeers == nil {
-		a.r.createdPeers = make(map[netip.Addr]string)
+// The peer is also entered in createdPeers. The caller MUST hold r.mu for
+// writing and MUST call this in the critical section that published the peer
+// (Reactor.AddDynamicPeer), so no reload sees the peer without its mark and its
+// entry, and none replaces the tree between the entry and the mark.
+func (r *Reactor) recordCreatedPeerLocked(addr netip.Addr, name string, peerTree map[string]any) {
+	if r.createdPeers == nil {
+		r.createdPeers = make(map[netip.Addr]string)
 	}
-	a.r.createdPeers[addr] = name
+	r.createdPeers[addr] = name
 
-	root, bgp, peers := copyToPeerList(a.r.configTree)
+	root, bgp, peers := copyToPeerList(r.configTree)
 	order := peerEntryOrder(bgp, peers)
 	if _, known := peers[name]; !known {
 		// Last, because the operator created it after everything the file
@@ -588,12 +587,12 @@ func (a *reactorAPIAdapter) recordPeerConfig(addr netip.Addr, name string, peerT
 	}
 	peers[name] = peerTree
 	writePeerList(bgp, peers, order)
-	a.r.configTree = root
+	r.configTree = root
 }
 
 // dropPeerConfig takes one peer's configuration out of the running
 // configuration. The configuration file keeps the peer until `update bgp
-// config` writes the running set out, for the reason recordPeerConfig states.
+// config` writes the running set out, for the reason recordCreatedPeerLocked states.
 func (a *reactorAPIAdapter) dropPeerConfig(name string) {
 	a.r.mu.Lock()
 	defer a.r.mu.Unlock()
@@ -1475,25 +1474,14 @@ func (a *reactorAPIAdapter) RemovePeer(addr netip.Addr) error {
 
 // AddDynamicPeer adds a peer from a YANG-parsed config tree.
 //
-// The tree is recorded in the running configuration, which is what `update bgp
-// config` writes out to the configuration file (recordPeerConfig above). It is
-// recorded AFTER the peer is built, so a tree the parser refuses is recorded
-// nowhere, and it carries the two leaves Reactor.AddDynamicPeer fills in
-// (the remote address, and `auto` for the local one).
+// Reactor.AddDynamicPeer also records the tree in the running configuration,
+// which is what `update bgp config` writes out to the configuration file
+// (recordCreatedPeerLocked above), in the critical section that publishes the
+// peer. It is recorded AFTER the peer is built, so a tree the parser refuses is
+// recorded nowhere, and it carries the two leaves Reactor.AddDynamicPeer fills
+// in (the remote address, and `auto` for the local one).
 func (a *reactorAPIAdapter) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
-	if err := a.r.AddDynamicPeer(addr, tree); err != nil {
-		return err
-	}
-	// The name is read back from the peer rather than derived again here, so
-	// the key in the running configuration is the one the peer carries. A miss
-	// is a peer removed between the two calls, and a peer that is gone owes the
-	// running configuration no entry.
-	name, held := a.peerConfigName(addr)
-	if !held {
-		return nil
-	}
-	a.recordPeerConfig(addr, name, tree)
-	return nil
+	return a.r.AddDynamicPeer(addr, tree)
 }
 
 // RIBInRoutes returns routes from Adj-RIB-In.

@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — `update bgp config`
 // Overview: peer.go — the BGP peer lifecycle handlers and their registration
 // Related: create.go — `create bgp peer`, which puts a peer in the running configuration
-// Related: internal/component/bgp/reactor/reactor_api.go — recordPeerConfig, which holds that peer's leaves
+// Related: internal/component/bgp/reactor/reactor_api.go — recordCreatedPeerLocked, which holds that peer's leaves
 
 package peer
 
@@ -67,7 +67,7 @@ var (
 // The running configuration is the reactor's, and it is true: the reload
 // replaces it (SetConfigTree, which carries forward the created peers the new
 // configuration does not declare), and the two runtime commands maintain
-// it as they change the peer set (recordPeerConfig and dropPeerConfig,
+// it as they change the peer set (recordCreatedPeerLocked and dropPeerConfig,
 // internal/component/bgp/reactor/reactor_api.go). So the file and the daemon
 // agree once this command returns, and a later commit of an unrelated leaf
 // reconciles against a configuration that still names every running peer.

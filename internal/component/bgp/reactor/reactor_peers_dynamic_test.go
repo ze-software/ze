@@ -402,3 +402,52 @@ func reloadRunningPeers(api *reactorAPIAdapter, candidate map[string]any) map[st
 	peers, _ := bgp["peer"].(map[string]any)
 	return peers
 }
+
+// TestReloadRightAfterThePeerIsPublishedKeepsIt holds AC-9 against the window
+// between a created peer entering the reactor and its createdPeers mark.
+//
+// GOAL: a reload that lands at any moment of `create bgp peer` keeps the peer.
+// Nothing serializes the command against a reload (the transaction lock is the
+// reload's own), so the earliest moment a reload can see the new peer is the
+// moment Reactor.AddDynamicPeer publishes it in r.peers and releases r.mu. The
+// mark and the running configuration entry MUST already be there then, because
+// the reload's snapshot (reconcilePeersJournaled) reads the peers and the marks
+// under one lock and removes a running peer that is neither declared nor marked.
+// METHOD: deterministic interleaving, no sleep. Call Reactor.AddDynamicPeer,
+// which returns exactly when the peer is published, then drive the three
+// reactor steps of a reload whose candidate does not name it, before anything
+// else of the create command runs. The adapter's AddDynamicPeer used to mark
+// the peer only after that call returned, which is the window this test stands
+// in.
+//
+// VALIDATES: after the reload the peer still runs, is still marked created,
+// and still has its entry in the running configuration.
+// PREVENTS: a reload deleting the peer an operator just created, then the
+// create command recording a mark and an entry for a peer that no longer runs,
+// which `update bgp config` would write to the file and `delete bgp peer`
+// could never clear.
+func TestReloadRightAfterThePeerIsPublishedKeepsIt(t *testing.T) {
+	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
+	api := &reactorAPIAdapter{r: r}
+
+	addr := netip.MustParseAddr("192.0.2.7")
+	require.NoError(t, r.AddDynamicPeer(addr, map[string]any{
+		"session": map[string]any{"asn": map[string]any{"remote": "65002"}},
+	}))
+
+	candidate := map[string]any{"bgp": map[string]any{}}
+	assert.NotContains(t, reloadRunningPeers(api, candidate), "peer-192.0.2.7",
+		"the reload compares against a running set without the unsaved created peer")
+	require.NoError(t, api.ApplyConfigDiff(candidate))
+	api.SetConfigTree(candidate)
+
+	_, held := r.findPeerByAddr(addr)
+	assert.True(t, held, "the reload leaves the peer running")
+	r.mu.RLock()
+	name, marked := r.createdPeers[addr]
+	r.mu.RUnlock()
+	assert.True(t, marked, "the peer is still marked created")
+	assert.Equal(t, "peer-192.0.2.7", name)
+	assert.Contains(t, runningPeerList(t, api), "peer-192.0.2.7",
+		"the running configuration still names the peer")
+}

@@ -109,6 +109,13 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	return r.addPeerLocked(settings)
+}
+
+// addPeerLocked is AddPeer for a caller that holds r.mu for writing, so it can
+// record what goes with the peer in the same critical section that publishes it
+// (Reactor.AddDynamicPeer).
+func (r *Reactor) addPeerLocked(settings *PeerSettings) error {
 	// Normalize peer Address for consistent lookup (handles IPv4-mapped IPv6)
 	// This ensures connections from 10.0.0.1 match peers configured as ::ffff:10.0.0.1
 	settings.Address = settings.Address.Unmap()
@@ -467,9 +474,10 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 //
 // The tree has the same shape as one peer's subtree in the configuration file,
 // so parsePeerFromTree reads both and a leaf added there is honored here. The
-// configuration FILE is not written: `update bgp config` does that. A reload
-// whose candidate does not declare the peer keeps it running (createdPeers,
-// reactor.go), and RemovePeer is how it leaves.
+// tree goes into the running configuration (recordCreatedPeerLocked,
+// reactor_api.go); the configuration FILE is not written: `update bgp config`
+// does that. A reload whose candidate does not declare the peer keeps it
+// running (createdPeers, reactor.go), and RemovePeer is how it leaves.
 //
 // The local AS and the router ID default to the reactor's own when the tree
 // states neither.
@@ -509,7 +517,21 @@ func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
 		settings.Port = port
 	}
 
-	return r.AddPeer(settings)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if err := r.addPeerLocked(settings); err != nil {
+		return err
+	}
+	// The mark and the running configuration entry are written in the critical
+	// section that publishes the peer. Nothing serializes this command against
+	// a reload, and a reload snapshots the peers and the marks under one lock
+	// (reconcilePeersJournaled, reactor_api.go): a peer it saw running but not
+	// marked, it would remove, while this call went on to mark and record a
+	// peer that no longer runs. The address is the one addPeerLocked
+	// normalized, which is the one the reload compares the marks against.
+	r.recordCreatedPeerLocked(settings.Address, settings.Name, tree)
+	return nil
 }
 
 // PortOverrideFromEnv answers the BGP port every peer of this daemon dials,
