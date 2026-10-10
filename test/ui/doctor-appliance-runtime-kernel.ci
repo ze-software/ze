@@ -4,6 +4,9 @@
 # read gokrazy/kernel and says so rather than pass.
 # PREVENTS: a check that only its unit test reaches, and a silent pass when the
 # kernel config cannot be read.
+# The no-builder wording (since 6aa76ad8a0 it carries the builder's own cause,
+# such as an unusable hvf or kvm) needs a host with no builder, so it is proven
+# by TestDoctorRuntimeKernelNamesTheBuilderCause, not here.
 
 tmpfs=runtime-kernel.conf:terminator=EOF_CONF
 environment {
@@ -18,3 +21,4 @@ expect=exit:code=0
 expect=stdout:contains=doctor-appliance-runtime-kernel
 expect=stdout:contains=cannot check the runtime kernel
 expect=stdout:contains=gokrazy/kernel
+expect=stdout:contains=run ze doctor from the top of the Ze source tree
