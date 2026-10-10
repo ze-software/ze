@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/interoplab/grantcheck"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -79,8 +80,17 @@ func TestRSVPTELabPeersRunWithoutPrivilege(t *testing.T) {
 			t.Fatalf("plan %s: %v", source.Name, err)
 		}
 		for _, peer := range plan.Peers {
-			if slices.Contains(peer.Arguments, "--privileged") {
-				t.Errorf("%s: peer %s runs --privileged", source.Name, peer.Name)
+			// The scripted RSVP speakers send raw RSVP and program their
+			// routes: NET_ADMIN and NET_RAW, nothing else.
+			want := grantcheck.Grants{Capabilities: []string{"NET_ADMIN", "NET_RAW"}}
+			if peer.Image == imageZe {
+				want = grantcheck.Grants{
+					Capabilities:    []string{"NET_ADMIN"},
+					SecurityOptions: grantcheck.Parse(nil, interoplab.NetSysctlWriteArguments()).SecurityOptions,
+				}
+			}
+			for _, problem := range grantcheck.Problems(grantcheck.Parse(peer.Capabilities, peer.Arguments), want) {
+				t.Errorf("%s: peer %s %s", source.Name, peer.Name, problem)
 			}
 			if peer.Image != imageZe {
 				continue

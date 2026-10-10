@@ -9,44 +9,29 @@ package testdeployment
 
 import (
 	"path/filepath"
-	"slices"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/interoplab/grantcheck"
 )
 
-// flagValues answers every value that follows flag in argv.
-func flagValues(argv []string, flag string) []string {
-	var values []string
-	for i := 0; i+1 < len(argv); i++ {
-		if argv[i] == flag {
-			values = append(values, argv[i+1])
-		}
-	}
-	return values
-}
-
 // VALIDATES: AC-6. The L2TP proof's container, where xl2tpd and pppd open PPP
-// units and ze programs L2TP, holds NET_ADMIN and --device /dev/ppp, and runs
-// no --privileged.
+// units and ze programs L2TP, holds exactly NET_ADMIN and --device /dev/ppp:
+// no --privileged and no other grant.
 // PREVENTS: the container silently regaining --privileged, or losing the PPP
 // device, whose absence looks like a protocol failure.
 func TestL2TPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 	run := fixtureL2TP(t)
 	argv := run.containerArgs("ze-l2tp-evidence-1", filepath.Join(run.Tree, "tmp", "evidence", "l2tp-peer-1"))
-	if slices.Contains(argv, "--privileged") {
-		t.Errorf("the container runs --privileged: %v", argv)
-	}
-	if !slices.Contains(flagValues(argv, "--cap-add"), "NET_ADMIN") {
-		t.Errorf("the container lacks --cap-add NET_ADMIN: %v", argv)
-	}
-	if !slices.Contains(flagValues(argv, "--device"), "/dev/ppp") {
-		t.Errorf("the container lacks --device /dev/ppp: %v", argv)
+	want := grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
+	for _, problem := range grantcheck.Problems(grantcheck.Parse(nil, argv), want) {
+		t.Errorf("the L2TP proof container %s: %v", problem, argv)
 	}
 }
 
 // VALIDATES: AC-7. The VPP proofs' container (vpp-iface-test and vpp-test),
 // where VPP locks its buffer memory and creates tap interfaces and ze programs
-// the namespace, holds NET_ADMIN, --device /dev/net/tun and
-// --device /dev/vhost-net, and runs no --privileged and no IPC_LOCK: on an
+// the namespace, holds exactly NET_ADMIN, --device /dev/net/tun and
+// --device /dev/vhost-net: no --privileged, no IPC_LOCK, no other grant. On an
 // amd64 Linux host VPP started, created its tap and answered pings through it
 // without IPC_LOCK (spec-lab-containers-least-privilege, owner decision 4).
 // PREVENTS: the container silently regaining --privileged, or losing a grant
@@ -54,18 +39,11 @@ func TestL2TPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 func TestVPPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 	run := fixtureVPPIface(t)
 	argv := run.containerArgs("ze-vpp-iface-1", filepath.Join(run.Tree, "tmp", "evidence", "vpp-iface-1"))
-	if slices.Contains(argv, "--privileged") {
-		t.Errorf("the container runs --privileged: %v", argv)
+	want := grantcheck.Grants{
+		Capabilities: []string{"NET_ADMIN"},
+		Devices:      []string{"/dev/net/tun", "/dev/vhost-net"},
 	}
-	if !slices.Contains(flagValues(argv, "--cap-add"), "NET_ADMIN") {
-		t.Errorf("the container lacks --cap-add NET_ADMIN: %v", argv)
-	}
-	if slices.Contains(flagValues(argv, "--cap-add"), "IPC_LOCK") {
-		t.Errorf("the container holds IPC_LOCK, which VPP was shown not to need: %v", argv)
-	}
-	for _, device := range []string{"/dev/net/tun", "/dev/vhost-net"} {
-		if !slices.Contains(flagValues(argv, "--device"), device) {
-			t.Errorf("the container lacks --device %s: %v", device, argv)
-		}
+	for _, problem := range grantcheck.Problems(grantcheck.Parse(nil, argv), want) {
+		t.Errorf("the VPP proof container %s: %v", problem, argv)
 	}
 }

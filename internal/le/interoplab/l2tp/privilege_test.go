@@ -11,27 +11,17 @@ package l2tp
 
 import (
 	"net/netip"
-	"slices"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/interoplab/grantcheck"
 )
 
-// argumentPairs answers every value that follows flag in arguments.
-func argumentPairs(arguments []string, flag string) []string {
-	var values []string
-	for i := 0; i+1 < len(arguments); i++ {
-		if arguments[i] == flag {
-			values = append(values, arguments[i+1])
-		}
-	}
-	return values
-}
-
 // VALIDATES: AC-3 for the peers. ze and the LAC in every scenario hold
-// NET_ADMIN and --device /dev/ppp, and neither runs --privileged nor mounts the
-// host's /lib/modules.
+// exactly NET_ADMIN and --device /dev/ppp, FRR exactly NET_ADMIN and
+// SYS_ADMIN, every other peer no grant,
+// and none runs --privileged or mounts the host's /lib/modules.
 // PREVENTS: a peer silently regaining --privileged or a module tree.
 func TestL2TPLabPeersRunWithoutPrivilege(t *testing.T) {
 	root := l2tpCheckout(t)
@@ -54,22 +44,22 @@ func TestL2TPLabPeersRunWithoutPrivilege(t *testing.T) {
 			})
 		}
 		for _, peer := range scenario.Peers {
-			if slices.Contains(peer.Arguments, "--privileged") {
-				t.Errorf("%s: peer %s runs --privileged", plan.Source.Name, peer.Name)
-			}
 			for _, mount := range peer.Mounts {
 				if mount.Source == "/lib/modules" {
 					t.Errorf("%s: peer %s mounts the host's /lib/modules", plan.Source.Name, peer.Name)
 				}
 			}
-			if peer.Name != peerZe && peer.Name != peerLAC {
-				continue
+			// ze and the LAC open PPP units; FRR holds the NET_ADMIN and
+			// SYS_ADMIN of the shared FRR peer; every other peer holds none.
+			var want grantcheck.Grants
+			switch peer.Name {
+			case peerZe, peerLAC:
+				want = grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
+			case peerFRR:
+				want = grantcheck.Grants{Capabilities: []string{"NET_ADMIN", "SYS_ADMIN"}}
 			}
-			if !slices.Contains(peer.Capabilities, "NET_ADMIN") {
-				t.Errorf("%s: peer %s lacks NET_ADMIN: %v", plan.Source.Name, peer.Name, peer.Capabilities)
-			}
-			if !slices.Contains(argumentPairs(peer.Arguments, "--device"), "/dev/ppp") {
-				t.Errorf("%s: peer %s lacks --device /dev/ppp: %v", plan.Source.Name, peer.Name, peer.Arguments)
+			for _, problem := range grantcheck.Problems(grantcheck.Parse(peer.Capabilities, peer.Arguments), want) {
+				t.Errorf("%s: peer %s %s", plan.Source.Name, peer.Name, problem)
 			}
 		}
 	}
@@ -81,14 +71,9 @@ func TestL2TPLabPeersRunWithoutPrivilege(t *testing.T) {
 // host where the lab's unprivileged peers would then fail.
 func TestL2TPPreflightRunsWithoutPrivilege(t *testing.T) {
 	container := preflightContainer("test")
-	if slices.Contains(container.Arguments, "--privileged") {
-		t.Errorf("preflight runs --privileged: %v", container.Arguments)
-	}
-	if !slices.Contains(argumentPairs(container.Arguments, "--cap-add"), "NET_ADMIN") {
-		t.Errorf("preflight lacks --cap-add NET_ADMIN: %v", container.Arguments)
-	}
-	if !slices.Contains(argumentPairs(container.Arguments, "--device"), "/dev/ppp") {
-		t.Errorf("preflight lacks --device /dev/ppp: %v", container.Arguments)
+	want := grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
+	for _, problem := range grantcheck.Problems(grantcheck.Parse(nil, container.Arguments), want) {
+		t.Errorf("the preflight container %s: %v", problem, container.Arguments)
 	}
 	for _, argument := range container.Arguments {
 		if strings.Contains(argument, "/lib/modules") {

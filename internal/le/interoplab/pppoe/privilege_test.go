@@ -14,24 +14,13 @@ package pppoe
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/interoplab/grantcheck"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
-
-// argumentPairs answers every value that follows flag in arguments.
-func argumentPairs(arguments []string, flag string) []string {
-	var values []string
-	for i := 0; i+1 < len(arguments); i++ {
-		if arguments[i] == flag {
-			values = append(values, arguments[i+1])
-		}
-	}
-	return values
-}
 
 // VALIDATES: AC-4 for the peers. Every peer of every scenario holds NET_ADMIN
 // and --device /dev/ppp, runs no --privileged, and mounts no /lib/modules.
@@ -54,19 +43,14 @@ func TestPPPoELabPeersRunWithoutPrivilege(t *testing.T) {
 			t.Fatalf("plan %s: %v", source.Name, err)
 		}
 		for _, peer := range plan.Peers {
-			if slices.Contains(peer.Arguments, "--privileged") {
-				t.Errorf("%s: peer %s runs --privileged", source.Name, peer.Name)
+			want := grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
+			for _, problem := range grantcheck.Problems(grantcheck.Parse(peer.Capabilities, peer.Arguments), want) {
+				t.Errorf("%s: peer %s %s", source.Name, peer.Name, problem)
 			}
 			for _, mount := range peer.Mounts {
 				if mount.Source == "/lib/modules" {
 					t.Errorf("%s: peer %s mounts the host's /lib/modules", source.Name, peer.Name)
 				}
-			}
-			if !slices.Contains(peer.Capabilities, "NET_ADMIN") {
-				t.Errorf("%s: peer %s lacks NET_ADMIN: %v", source.Name, peer.Name, peer.Capabilities)
-			}
-			if !slices.Contains(argumentPairs(peer.Arguments, "--device"), "/dev/ppp") {
-				t.Errorf("%s: peer %s lacks --device /dev/ppp: %v", source.Name, peer.Name, peer.Arguments)
 			}
 		}
 	}
@@ -77,14 +61,9 @@ func TestPPPoELabPeersRunWithoutPrivilege(t *testing.T) {
 // PREVENTS: the preflight passing because it loaded a module itself.
 func TestPPPoEPreflightRunsWithoutPrivilege(t *testing.T) {
 	container := preflightContainer("test")
-	if slices.Contains(container.Arguments, "--privileged") {
-		t.Errorf("preflight runs --privileged: %v", container.Arguments)
-	}
-	if !slices.Contains(argumentPairs(container.Arguments, "--cap-add"), "NET_ADMIN") {
-		t.Errorf("preflight lacks --cap-add NET_ADMIN: %v", container.Arguments)
-	}
-	if !slices.Contains(argumentPairs(container.Arguments, "--device"), "/dev/ppp") {
-		t.Errorf("preflight lacks --device /dev/ppp: %v", container.Arguments)
+	want := grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
+	for _, problem := range grantcheck.Problems(grantcheck.Parse(nil, container.Arguments), want) {
+		t.Errorf("the preflight container %s: %v", problem, container.Arguments)
 	}
 	for _, argument := range container.Arguments {
 		if strings.Contains(argument, "/lib/modules") {

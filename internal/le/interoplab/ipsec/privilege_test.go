@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/interoplab/grantcheck"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -62,6 +63,26 @@ func argumentPairs(arguments []string, flag string) []string {
 	return values
 }
 
+// ipsecPeerGrants answers the exact grant set a peer of the named scenario
+// holds: FRR the NET_ADMIN and SYS_ADMIN of the shared FRR peer; strongSwan NET_ADMIN, and /proc/sys writable only where its
+// checker writes a sysctl; the NAT box NET_ADMIN and its --sysctl settings;
+// every other peer NET_ADMIN.
+func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
+	switch peer {
+	case frrPeer:
+		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN", "SYS_ADMIN"}}
+	case swanPeer:
+		grants := grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}}
+		if peerSysctlWriters[scenario] {
+			grants.SecurityOptions = grantcheck.Parse(nil, interoplab.NetSysctlWriteArguments()).SecurityOptions
+		}
+		return grants
+	case natPeer:
+		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Sysctls: natSysctls}
+	}
+	return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}}
+}
+
 // VALIDATES: AC-1. No peer is privileged; the NAT box, strongSwan and ze hold
 // NET_ADMIN; the NAT box sets its sysctls through --sysctl and its script writes
 // none; strongSwan, where the scenario's checker cuts its reassembly marks at
@@ -73,8 +94,8 @@ func argumentPairs(arguments []string, flag string) []string {
 func TestIPsecLabPeersRunWithoutPrivilege(t *testing.T) {
 	for name, scenario := range preparedIPsecScenarios(t) {
 		for _, peer := range scenario.Peers {
-			if slices.Contains(peer.Arguments, "--privileged") {
-				t.Errorf("%s: peer %s runs --privileged", name, peer.Name)
+			for _, problem := range grantcheck.Problems(grantcheck.Parse(peer.Capabilities, peer.Arguments), ipsecPeerGrants(name, peer.Name)) {
+				t.Errorf("%s: peer %s %s", name, peer.Name, problem)
 			}
 			if peer.Name == frrPeer {
 				continue
