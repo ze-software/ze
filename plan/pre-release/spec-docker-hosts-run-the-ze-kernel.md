@@ -356,7 +356,7 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 | AC-12: MOBIKE on the Mac | not blocked on AC-8 any more (resolved above). `mobike-initiator` passed in the guest; `mobike-responder` and the full IPsec and BGP suites in the guest are owed ON THE MAC. The Mac's arm64 runtime kernel cache entry predates the D-5 Docker options, so it is rebuilt first | `./le build host-driver`, `./ze-host appliance kernel --target runtime --arch arm64`, then `./le test qemu docker-lab lab "test integration interop-ipsec" env "IPSEC_INTEROP_SCENARIO=mobike-responder"` and the full suite |
 | Owed on the Linux host, after the owner loads the profiles (`./le setup docker-kernel apparmor confirm ze-kernel-probe`, `... confirm ze-lab-net-sysctl`), installs the amd64 kernel (`./le setup docker-kernel install`, never run by an agent: HARD STOP) and reboots | AC-9 (the Docker kernel check passes on the host's own Docker); real-host proof of AC-15 (a `denied` row under docker-default, and `present` under `ze-kernel-probe`), AC-17, AC-18 and AC-19 (the AppArmor check, the refusal and the load action against a real AppArmor daemon; today unit tests and an `apparmor_parser -Q` parse only); the VRRP lab under `ze-lab-net-sysctl` | owner runs the three steps on the Linux host, then an agent runs `./le setup docker-kernel check` and the VRRP lab |
 | AC-10, A-5, AC-13: the nightly | 8bd1742581 is on origin/main, but the last nightly (run 38043229048) built 1d0e7a0228, which predates it; no run has booted the guest under KVM on `ubuntu-latest`; a cold cache builds the amd64 kernel in each of the four jobs | the next scheduled or `workflow_dispatch` run of `evidence-nightly.yml` on a commit carrying 8bd1742581 |
-| AC-14: a Docker daemon starts on the appliance kernel | AC-8 or AC-10 | the first guest boot of either |
+| AC-14: a Docker daemon starts on the appliance kernel | not blocked (corrected in review round 4, NOTE 1): proven under HVF on the Mac. `docker-lab-nolab-5.log` (same scratch) shows "Runtime kernel confirmed in the guest: 7.2.9", "Starting Docker Daemon ... [ ok ]" and `verdict pass`, and the Docker kernel check that followed read the daemon's kernel as `7.2.9-ze` | nothing on the Mac; the amd64 boot is AC-10's nightly run |
 
 ## Review Gate
 
@@ -434,6 +434,24 @@ Round 3 verdict (independent reviewer, 2026-10-10): 0 BLOCKER, 2 ISSUE, 7 NOTE o
 Scope for the reviewer: round 3's fixes, `c563df412a`, `d78a6aed92`, `c28bb84e96` and the spec-record commit after them.
 
 Owed elsewhere, not reviewable here: on the Linux host after the owner's profile load, amd64 kernel install and reboot, AC-9 and the real-host proof of AC-15, AC-17, AC-18, AC-19 and the VRRP lab; on the GitHub nightly, AC-10 and AC-13; on the Mac, AC-12 `mobike-responder` and the full suites in the guest. Gates owed: `./le go lint run`, `./le test unit all`, `./le cli grammar`.
+
+Round 4 verdict (independent reviewer, 2026-10-10): 0 BLOCKER, 3 ISSUE, 4 NOTE.
+
+| # | Severity | Finding | Resolution |
+|---|----------|---------|------------|
+| 1 | ISSUE | scoped lint: godot on the `unconfinedSELinuxTypes` comment in `policy_linux.go`; goconst `"linux"` x3 in `testqemu` (`dockerlab.go`, `guestle.go`, `mobike.go`) | `acdd48c266` (godot), `49697ff613` (`guestOS`, one constant in `hugepages.go`). Scoped lint over kernelcap, interoplab, interoplab/l2tp, setup, test/deployment, test/qemu, build: one finding left, goconst `lo0` in `internal/le/setup/system.go` (another session's) |
+| 2 | ISSUE | `spc_t` read as a confining SELinux label, though container-selinux's `container.te` declares `unconfined_domain_noaudit(spc_t)` | `acdd48c266`: `spc_t` joins `unconfinedSELinuxTypes`, quote and source (container-selinux commit `464dd1655e`) above it; the row moves to `TestClassifyLabelUnconfinedSELinuxDomain`. Red before the fix in a linux/arm64 test binary under alpine: `classifyLabel("system_u:system_r:spc_t:s0") = SELinux context ..., want no confining policy` (`scratch/kernelcap-r4-red.txt`), green after (`kernelcap-r4-green.txt`); doctor page updated |
+| 3 | ISSUE | on darwin the route rebuilt the command from `os.Args` alone, so a run a selector variable chose reran the whole suite | `49697ff613`: every suite declares its selector to `ReadEnvironment` (L2TP now too), and `DockerKernelRoute(goos, lab, environment)` appends `env 'NAME=value'`, or falls back to the check-only command when an assignment cannot be carried; `TestDockerKernelRouteNamesEachPlatformsNextStep`, `TestSelectorEnvironmentCarriesTheDeclaredSelectors`, `TestDockerKernelRefusalNamesTheExactRouteCommand` |
+| 4 | NOTE 1 | AC-14 Blocked row still "blocked on AC-8 or AC-10" | this spec-record commit: proven under HVF by `docker-lab-nolab-5.log` |
+| 5 | NOTE 2 | a refusal inside the QEMU guest prescribed `./le setup docker-kernel install` and a reboot | `49697ff613`: the guest exports `ZE_DOCKER_LAB_GUEST=1` before its check, and the route there names `gokrazy/kernel/runtime.config`, `runtime.require` and the host's cache rebuild; `TestDockerKernelRouteInsideTheDockerLabGuest`, `TestDockerLabCommandChecksTheKernelBeforeTheLab` |
+| 6 | NOTE 3 | an edge case, to be journalled | OPEN: the finding's text did not reach the fixing agent, so no row was written |
+| 7 | NOTE 4 | untracked `proof.json` under `internal/le/interoplab/bgp/tmp/session/` | already journalled 2026-10-09 in `test-artifacts-land-in-the-repository-root.md`; that row now records the 2026-10-10 recurrence (18 files). The files are left in place |
+
+### Round 5: ready for review round 5 (2026-10-10)
+
+Scope for the reviewer: round 4's fixes, `acdd48c266`, `49697ff613` and the spec-record commit after them.
+
+Owed elsewhere, not reviewable here: as round 4, plus NOTE 3's journal row. Gates owed: `./le go lint run`, `./le test unit all`, `./le cli grammar`.
 
 ## Checklist
 
