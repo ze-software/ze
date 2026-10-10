@@ -1520,6 +1520,28 @@
       "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-2.9-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy",
+      "unit-sha": "af360a22099aee1f",
+      "claim-sha": "04c01cc2b5f4d676",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/ts_narrow.go::intersectPair",
+      "producer-sha": "8e605331c65f3f78",
+      "break": "body of intersectPair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.9-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy",
+      "unit-sha": "af360a22099aee1f",
+      "claim-sha": "1736776ed07f7673",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/ts_narrow.go::intersectNet",
+      "producer-sha": "13199e1d4ccf7da8",
+      "break": "body of intersectNet replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-3.1-12",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection",

@@ -489,6 +489,94 @@ func TestRekeyedChildInheritsModeAndSelectors(t *testing.T) {
 	}
 }
 
+// TestResponderNarrowsBothSelectorsToPolicy drives RFC 7296 Section 2.9's narrowing
+// through narrowChildSelectors, the entry point both responder producers call, and
+// reads the result back from the response the responder would send.
+//
+// VALIDATES: a proposal wider than policy on BOTH TSi and TSr is narrowed on both
+// sides to exactly the policy prefixes, and the IKE_AUTH response carries those
+// narrowed selectors.
+// PREVENTS: a responder that narrows only one side, echoes the wider proposal, or
+// answers with its policy when the proposal is already inside it, which would widen
+// what the initiator asked for.
+func TestResponderNarrowsBothSelectorsToPolicy(t *testing.T) {
+	policyPeer := ipsec.SiteToSitePeer{
+		Name: "p",
+		TrafficSelectors: []ipsec.TrafficSelectorPolicy{{
+			Number:       "1",
+			LocalPrefix:  mustNet(t, "10.20.0.0/16"),
+			LocalPort:    ipsec.AnyPort(),
+			RemotePrefix: mustNet(t, "10.10.0.0/16"),
+			RemotePort:   ipsec.AnyPort(),
+		}},
+	}
+
+	// RFC requirement: RFC7296-2.9-1 positive -- "When the responder chooses a subset
+	// of the traffic proposed by the initiator, it narrows the Traffic Selectors to
+	// some subset of the initiator's proposal (provided the set does not become the
+	// null set)" (RFC 7296 Section 2.9, rfc/full/rfc7296.txt:2393-2395). The initiator
+	// proposes 10.0.0.0/8 on both sides. The responder's policy is 10.10.0.0/16 for
+	// the initiator's side (TSi) and 10.20.0.0/16 for its own (TSr), a strict subset
+	// of the proposal on each side, so both selectors MUST come back narrowed to it.
+	sa := &SA{PeerCfg: policyPeer, IsInitiator: false}
+	sa.ESPGroup = testESPGroup()
+	sa.ChildProposalNum = 1
+	if err := narrowChildSelectors(sa,
+		tsPayload(t, wire.PayloadTypeTSi, "10.0.0.0/8"),
+		tsPayload(t, wire.PayloadTypeTSr, "10.0.0.0/8"),
+		nil); err != nil {
+		t.Fatalf("a proposal that contains the policy was refused (%v); the responder must narrow it", err)
+	}
+	if got := sa.NegotiatedTSi.String(); got != "10.10.0.0/16" {
+		t.Errorf("negotiated TSi = %s, want 10.10.0.0/16 narrowed from the proposed 10.0.0.0/8", got)
+	}
+	if got := sa.NegotiatedTSr.String(); got != "10.20.0.0/16" {
+		t.Errorf("negotiated TSr = %s, want 10.20.0.0/16 narrowed from the proposed 10.0.0.0/8", got)
+	}
+	_, _, respTSi, respTSr, err := buildChildSAResponsePayloads(sa)
+	if err != nil {
+		t.Fatalf("buildChildSAResponsePayloads: %v", err)
+	}
+	assertOneSelector(t, "response TSi", respTSi, "10.10.0.0/16")
+	assertOneSelector(t, "response TSr", respTSr, "10.20.0.0/16")
+
+	// RFC requirement: RFC7296-2.9-1 negative -- the result is a subset of the
+	// INITIATOR'S PROPOSAL, not the policy itself. A proposal already inside policy on
+	// both sides comes back unchanged; answering with the policy prefixes would widen it.
+	inside := &SA{PeerCfg: policyPeer, IsInitiator: false}
+	if err := narrowChildSelectors(inside,
+		tsPayload(t, wire.PayloadTypeTSi, "10.10.1.0/24"),
+		tsPayload(t, wire.PayloadTypeTSr, "10.20.2.0/24"),
+		nil); err != nil {
+		t.Fatalf("a proposal inside policy was refused: %v", err)
+	}
+	if got := inside.NegotiatedTSi.String(); got != "10.10.1.0/24" {
+		t.Errorf("negotiated TSi = %s, want the proposed 10.10.1.0/24; anything wider widens the proposal", got)
+	}
+	if got := inside.NegotiatedTSr.String(); got != "10.20.2.0/24" {
+		t.Errorf("negotiated TSr = %s, want the proposed 10.20.2.0/24; anything wider widens the proposal", got)
+	}
+}
+
+// assertOneSelector requires a TS payload carrying exactly one selector that spans
+// the whole of want, with every port.
+func assertOneSelector(t *testing.T, what string, payload *wire.PayloadTS, want string) {
+	t.Helper()
+	if payload == nil {
+		t.Fatalf("%s: no TS payload", what)
+	}
+	if len(payload.TrafficSelectors) != 1 {
+		t.Fatalf("%s carried %d selectors, want 1", what, len(payload.TrafficSelectors))
+	}
+	got := payload.TrafficSelectors[0]
+	wantSel := wireSel(t, want, 0, 65535, 0)
+	if !bytesEqual(got.StartAddress, wantSel.StartAddress) || !bytesEqual(got.EndAddress, wantSel.EndAddress) {
+		t.Errorf("%s = %v-%v, want %s (%v-%v)", what,
+			net.IP(got.StartAddress), net.IP(got.EndAddress), want,
+			net.IP(wantSel.StartAddress), net.IP(wantSel.EndAddress))
+	}
+}
+
 func bytesEqual(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
