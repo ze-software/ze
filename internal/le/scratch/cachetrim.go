@@ -94,6 +94,10 @@ func trimCaches(ctx context.Context, targets []cleanTarget, refused map[string]s
 	}
 	budgets := []BudgetTrim{}
 	for index, target := range targets {
+		if target.holdsKernel {
+			rows[index].Skipped = target.skipped
+			continue
+		}
 		if target.budget == notTrimmed {
 			rows[index].Skipped = machineCacheSkip
 			continue
@@ -125,7 +129,7 @@ func trimCaches(ctx context.Context, targets []cleanTarget, refused map[string]s
 // refuseGroup refuses every store of a group whose budget did not parse.
 func refuseGroup(targets []cleanTarget, group budgetGroup, reason string, rows []StoreTrim) {
 	for index, target := range targets {
-		if target.budget == group {
+		if target.budget == group && !target.holdsKernel {
 			rows[index].Refused = reason
 		}
 	}
@@ -149,7 +153,9 @@ func collectGroup(ctx context.Context, targets []cleanTarget, group budgetGroup,
 	seen := map[string]string{}
 	var entries []cacheEntry
 	for index, target := range targets {
-		if target.budget != group {
+		// A store holding a kernel cache is never walked, even when another
+		// store of its group is what brought the trim here.
+		if target.budget != group || target.holdsKernel {
 			continue
 		}
 		if reason, ok := refused[target.name]; ok {

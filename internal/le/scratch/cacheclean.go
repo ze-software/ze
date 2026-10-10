@@ -48,6 +48,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
@@ -205,14 +206,16 @@ const (
 )
 
 // cleanTarget is one cache: how a person reads it in the report, where it
-// lives, its kind, the budget the store trim holds it to, and why this run
-// skips it when it does.
+// lives, its kind, the budget the store trim holds it to, why this run skips
+// it when it does, and whether it lies within or holds a kernel cache, which
+// neither cache-clean nor the store trim may touch.
 type cleanTarget struct {
-	name    string
-	path    string
-	kind    cacheKind
-	budget  budgetGroup
-	skipped string
+	name        string
+	path        string
+	kind        cacheKind
+	budget      budgetGroup
+	skipped     string
+	holdsKernel bool
 }
 
 // emptier answers what emptying this target takes, derived from its kind.
@@ -254,7 +257,29 @@ func cleanTargets(root, ambient, perUser string) []cleanTarget {
 	if ambient == checkout {
 		targets[2].skipped = "the machine default is the checkout cache, which this run already emptied"
 	}
+	// A built kernel takes about thirty minutes to rebuild, on a host of its
+	// own arch, so no clean or trim reaches into a kernel cache, or empties a
+	// directory that holds one, whatever path a target resolved to.
+	for index := range targets {
+		for _, namespace := range appliance.KernelCacheNamespaces() {
+			if pathWithin(targets[index].path, namespace) || pathWithin(namespace, targets[index].path) {
+				targets[index].holdsKernel = true
+				targets[index].skipped = "it holds the kernel cache " + namespace +
+					", and a built kernel takes about thirty minutes to rebuild on a host of its own arch"
+				break
+			}
+		}
+	}
 	return targets
+}
+
+// pathWithin reports whether path is dir or below it.
+func pathWithin(path, dir string) bool {
+	rel, err := filepath.Rel(dir, path)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
 // sameDirectory answers whether two paths resolve to one directory. A path

@@ -70,7 +70,8 @@ func resolveCacheDir() string {
 // A cold kernel build takes about thirty minutes, and each arch is built on its
 // own host, so no cleanup or disk-full recovery may remove them; the only thing
 // that removes an entry is evictKeepN, after a newer build of the same arch.
-// internal/le/scratch tests that no clean or trim target reaches into them.
+// cleanTargets in internal/le/scratch skips any clean or trim target that lies
+// within one of them or holds one, so the clean and the trim read this list.
 func KernelCacheNamespaces() []string {
 	root := resolveCacheDir()
 	return []string{filepath.Join(root, kernelCacheDir), filepath.Join(root, runtimeKernelCacheDir)}

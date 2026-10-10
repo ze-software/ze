@@ -368,9 +368,14 @@ Linux host, and neither host can rebuild the other's. The only thing that
 removes an entry is the eviction after a newer build, which keeps the two newest
 entries of each architecture and never the entry the current tree resolves to
 (`evictKeepN`, `internal/appliance/cache.go`).
-`TestCleanTargetsNeverReachTheKernelCache` (`internal/le/scratch`) fails when a
-clean or trim target reaches into either directory.
+The clean and the trim both take their targets from one list, and that list
+skips any target that lies within a kernel cache or holds one, whatever path it
+resolved to, so a `cache-clean` row for such a target reads as a skip that names
+the kernel cache. `TestCleanTargetsNeverReachTheKernelCache` and
+`TestCleanTargetsSkipATargetHoldingTheKernelCache` (`internal/le/scratch`) fail
+when a clean or trim target reaches into either directory.
 <!-- source: internal/appliance/cache.go -- KernelCacheNamespaces, evictKeepN -->
+<!-- source: internal/le/scratch/cacheclean.go -- cleanTargets, pathWithin -->
 
 `stat -f` is NOT the command to reach for, and the 2026-09-12 and 2026-09-13
 rows in the class file are both that mistake. On macOS `stat -f` takes a FORMAT
