@@ -632,8 +632,32 @@ ACs not evidenced through their named entry point:
 `./le test editor` with a fresh build (2026-10-10): 173/175, the two reds are
 `load-file-absolute-merge.et` and `load-blocked.et`, both owner items above.
 
+At 4700624c8a (2026-10-10): `./le test web` with a fresh build 103/103;
+scoped lint of `internal/component/web` and `internal/component/cli` 0
+issues in every flavour. `test/web/interface-mac-override.wb` flakes about
+1 in 6 under load at HEAD, predates this spec and is journaled in
+`plan/journal/late-write-lands-on-the-successor.md`.
+
 Owed gates (not run by an implementing agent): `./le test unit all` (race),
 `./le verify worktree`, the review gate.
+
+## Review Gate
+
+Status: ready for independent review (2026-10-10). Not yet run; the
+implementing agents did not review their own work.
+
+Commit range: `b5274c4fa8^..4700624c8a`. Main is shared, so the range
+interleaves other sessions' commits. This spec's commits in it are, in
+order: b5274c4fa8, 440ef0753a, 3db9915bf0, 811a3b6582, 482bdc3986,
+e5a70cb7e7, d2c8103327, 80203e9082, 2dc4dd3ae8, 5cb9c86f06, 0863b5fe42,
+e9cd0def79, 0d6fe64cd1, 9e142fbcae, da04760ffc, 2b0522811b, eeaa9864bd,
+e9eb530301, b2be26dfae, 6de8153c35, 86cf02e4a1, 012d69b946, d3cc55e51a,
+082d50f2d7, c734b3fb85, fd7ef25dec, 2baa46a608, 1015875240, 4b084247cf,
+89888cabde, 59251a1115, 63db26b565, 75cb1137b0, 1b88cda23a, 08937d79f0,
+4700624c8a. Spec-only commits: e76a9fc073, 7bba23f511, 6e5d2d3d5b,
+61e263b338.
+
+Each round writes its scope here before it runs (`ai/rules/planning.md`).
 
 ## Known Limitations
 - The web terminal has no `load` verb at all (absent, not refused); not this class. Copy, deactivate and activate reach it through the shared `Editor` and are covered (AC-11). It gains the commit subcommands, `commit confirmed` included, and the `force` modifier (AC-29).
