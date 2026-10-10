@@ -487,7 +487,11 @@ const (
 // dot-imported registrar called unqualified was missed, so its owner linked
 // nowhere. A same-named function of an unrelated package, and the registry
 // package's own plumbing calling a registrar on another package's behalf, were
-// each taken for a command owner and blank-imported for no init().
+// each taken for a command owner and blank-imported for no init(). It also
+// pins that the qualifier decides, not the selector name alone: a file that
+// imports a registrar package and calls a same-named function of another
+// package, or calls a registrar on the declaring package that does not declare
+// it, registers nothing.
 func TestCommandOwnerIsFoundByResolution(t *testing.T) {
 	root := fixture(t)
 	write(t, root, "internal/component/firewall/cli/register.go",
@@ -501,6 +505,17 @@ func TestCommandOwnerIsFoundByResolution(t *testing.T) {
 			"// registry.RegisterRoot(\"x\") in a comment registers nothing.\n"+
 			"var s = \"registry.RegisterRoot(\"\n\n"+
 			"func init() {\n\tregistry.RegisterRoot(\"thing\")\n}\n")
+	// Imports command/registry, but the RegisterRoot it calls is other's.
+	write(t, root, "internal/component/decoy/cli/register.go",
+		"package cli\n\nimport (\n\t\""+registryImport+"\"\n\t\""+module+"/internal/component/other\"\n)\n\n"+
+			"var _ registry.Meta\n\n"+
+			"func init() {\n\tother.RegisterRoot(\"decoy\")\n}\n")
+	// Imports both declaring packages, and calls RegisterRoot on command,
+	// which declares no such registrar: RegisterRoot lives in command/registry.
+	write(t, root, "internal/component/mixup/cli/register.go",
+		"package cli\n\nimport (\n\t\""+commandImport+"\"\n\t\""+registryImport+"\"\n)\n\n"+
+			"var _ registry.Meta\n\n"+
+			"func init() {\n\tcommand.RegisterRoot(\"mixup\")\n}\n")
 	write(t, root, "internal/component/command/local_data.go",
 		"package command\n\nfunc RegisterLocalData(path string) error {\n\treturn RegisterLocalMeta(path)\n}\n")
 
