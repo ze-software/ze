@@ -194,6 +194,33 @@ The target and its checked feature population are documented in
 - **grub** has no first-party Homebrew formula. ISO builds require Linux or
   a container (colima/docker). The setup action skips grub on macOS.
 
+### Docker labs
+
+A Docker lab runs Ze in containers, so the kernel it tests is the Docker host's,
+and that kernel has to carry every feature Ze enrolls. A lab is never judged on a
+kernel that lacks one.
+
+- **macOS:** the labs run inside the Alpine QEMU guest booted on Ze's own arm64
+  runtime kernel under HVF, never in colima or Docker Desktop, whose Linux VMs
+  lack features Ze enrolls. Build the kernel cache entry once with
+  `./ze appliance kernel --target runtime --arch arm64`, then run a lab as
+  `./le test qemu docker-lab lab "test integration interop-ipsec"`. With no
+  `lab` the action stops after the guest's Docker kernel check.
+- **Linux:** the labs run on the host's own Docker, on a kernel that carries
+  every registered feature. `./le setup docker-kernel check ze <linux-ze>` asks
+  the Docker daemon in hand and names each missing feature.
+  `./le setup docker-kernel install` puts Ze's cached runtime kernel under
+  `/boot` and makes it GRUB's default, one stated `sudo` step at a time. It
+  needs `GRUB_DEFAULT=saved` in `/etc/default/grub`, never reboots, and refuses
+  on macOS.
+
+`docs/architecture/testing/qemu-integration.md`, "Docker labs in the Ze-kernel
+guest", is the guest path; the scheduled nightly runs the same path on amd64
+under KVM (`docs/architecture/testing/ci-workflows.md`).
+
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel -->
+<!-- source: internal/le/setup/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
+
 <!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 
