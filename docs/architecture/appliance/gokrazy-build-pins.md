@@ -244,6 +244,16 @@ cache written before the flag existed needs a one-time
 
 An image build alone is not a boot proof.
 
+The first two proofs boot amd64 with an `e1000` NIC and arm64 with
+`virtio-net-pci` on the `virt` machine. The arm64 runtime kernel builds the
+e1000 driver as a module and gokrazy loads no modules, so an arm64 guest given
+an e1000 boots and never answers SSH. arm64 also needs UEFI firmware, named by
+`ze.vpp.hp.aarch64.bios` (env `ze_vpp_hp_aarch64_bios`); on a Mac it is Homebrew's
+`share/qemu/edk2-aarch64-code.fd`, and the default is the Linux path `/usr/share/qemu/edk2-aarch64-code.fd`.
+
+<!-- source: internal/le/test/qemu/boot.go -- Hugepages.qemuArgs -->
+<!-- source: internal/le/test/qemu/hugepages.go -- BiosKey, DefaultBios -->
+
 ## Root-module pseudo-version pins
 
 Some root `go.mod` direct dependencies are pinned to pseudo-versions

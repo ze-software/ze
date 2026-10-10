@@ -68,6 +68,29 @@ func TestTheArm64MachineCarriesItsFirmwareAndMachineType(t *testing.T) {
 	}
 }
 
+// VALIDATES: an arm64 VM is given a virtio-net NIC, the one
+// gokrazy/kernel/runtime.require makes built in, and not the e1000.
+// PREVENTS: an arm64 appliance that boots, starts ze and never answers SSH:
+// the arm64 runtime kernel builds the e1000 driver as a module, and gokrazy
+// loads no modules, so the forwarded port connects to a guest with no NIC.
+func TestTheArm64MachineGetsTheNICItsKernelBuildsIn(t *testing.T) {
+	run := fixtureHugepages(t)
+	run.Arch = ArchARM64
+	run.Bios = filepath.Join(t.TempDir(), "edk2.fd")
+	report, err := run.plan()
+	if err != nil {
+		t.Fatalf("plan the run: %v", err)
+	}
+
+	line := strings.Join(run.qemuArgs("/work/ze.img", 34122, report), " ")
+	if want := "-nic user,model=virtio-net-pci,hostfwd=tcp::34122-:22"; !strings.Contains(line, want) {
+		t.Errorf("the arm64 VM argv does not carry %q:\n%s", want, line)
+	}
+	if strings.Contains(line, "e1000") {
+		t.Errorf("the arm64 VM was given an e1000, whose driver its kernel builds as a module:\n%s", line)
+	}
+}
+
 // VALIDATES: firmware that is absent, or that is a directory rather than a file,
 // is not usable.
 // PREVENTS: an arm64 run started against a path that cannot be read as firmware,

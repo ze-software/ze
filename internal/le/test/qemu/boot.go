@@ -156,11 +156,17 @@ func (h *Hugepages) qemuArgs(image string, port int, report HugepagesReport) []s
 	var tb textbuf.Buffer
 	machine := tb.Str("accel=").Str(report.Accelerator).String()
 
+	// The arm64 runtime kernel builds the e1000 driver as a module, and gokrazy
+	// loads no modules, so an arm64 guest given an e1000 has no NIC and never
+	// answers SSH. virtio-net is the NIC gokrazy/kernel/runtime.require makes
+	// built in.
+	model := "e1000"
 	argv := make([]string, 0, 20)
 	if h.Arch == ArchARM64 {
 		tb.Reset()
 		machine = tb.Str("virt,highmem=off,accel=").Str(report.Accelerator).String()
 		argv = append(argv, "-cpu", "max", "-bios", h.Bios)
+		model = "virtio-net-pci"
 	}
 
 	tb.Reset()
@@ -168,7 +174,7 @@ func (h *Hugepages) qemuArgs(image string, port int, report HugepagesReport) []s
 	tb.Reset()
 	drive := tb.Str("file=").Str(image).Str(",format=raw").String()
 	tb.Reset()
-	nic := tb.Str("user,model=e1000,hostfwd=tcp::").Int(int64(port)).Str("-:22").String()
+	nic := tb.Str("user,model=").Str(model).Str(",hostfwd=tcp::").Int(int64(port)).Str("-:22").String()
 
 	return append(argv,
 		"-machine", machine,
