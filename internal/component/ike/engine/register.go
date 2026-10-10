@@ -828,7 +828,7 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 		log.Debug("ike: responder busy, dropping concurrent IKE_SA_INIT", "peer", ps.peerName)
 		return true
 	}
-	sa, err := newResponderSA(ps.peerName, ps.peerCfg, ps.ikeGroup, ps.espGroup, iSPI)
+	sa, err := newResponderSA(ps.peerName, ps.peerCfg, ps.ikeGroup, ps.getESPGroup(), iSPI)
 	if err == nil {
 		// The peering's EAP-TLS resumption state, so the ticket keys this
 		// authenticator issues under outlive the SA (eapTLSServerConfig).

@@ -136,6 +136,7 @@ the goroutine setting SA state.
 
 <!-- source: internal/component/ike/engine/fsm.go -- reconnectDelay -->
 <!-- source: internal/component/ike/engine/reconcile.go -- peerConfigChanged -->
+<!-- source: internal/component/ike/engine/reconcile.go -- adoptESPGroup -->
 
 **A reload restarts a peer whose configuration differs in ANY member, and
 leaves every other peer alone.** `peerConfigChanged` compares three whole values
@@ -143,13 +144,26 @@ rather than a list of member names: the peer (`ipsec.SiteToSitePeer.Equal`) and
 the two RESOLVED crypto groups (`ipsec.IKEGroup.Equal`, `ipsec.ESPGroup.Equal`).
 
 The groups are there because a peer holds their NAMES and none of the crypto.
-`startPeerSession` copies the resolved groups onto the `PeerSession` and nothing
-refreshes them, so an operator rotating a cipher edits no peer block at all: the
+`startPeerSession` copies the resolved groups onto the `PeerSession`, and only the
+childless esp-group case below refreshes one in place, so an operator rotating a cipher edits no peer block at all: the
 peer half compares equal, and the tunnel would keep negotiating the algorithm
 that was replaced. `reconcilePeers` resolves both groups against the new config
 before it asks, and a group that is gone resolves to the zero value, which stops
 the peer. That is the same answer a fresh daemon gives: the start loop refuses a
 peer whose groups do not resolve.
+
+One edit keeps the IKE SA. When only the esp-group differs and it resolves,
+`reconcilePeers` hands it to the owner loop (`retargetESPGroup`, over the
+`espReloads` channel), and `adoptESPGroup` decides there: a session with no
+installed Child SA, no CREATE_CHILD_SA creation of ours in flight and no
+parallel responder handshake pending takes the group as its own and stays up,
+so the next Child SA is negotiated from it. Any of the three refuses, and so
+does a loop that is not running or does not answer within `espReloadWait`; the
+peer then restarts as above. The decision is on the owner loop because only it
+knows whether a creation from the old group is in flight. The other half of
+that decision is RFC 4301 Section 4.4.2: an installed Child SA runs ESP under
+the old policy, so it restarts; a childless IKE SA carries none
+(owner decision, 2026-10-10).
 
 Two more properties follow, and both are load-bearing.
 

@@ -24,6 +24,10 @@ type PeerSession struct {
 	peerName string
 	peerCfg  ipsec.SiteToSitePeer
 	ikeGroup ipsec.IKEGroup // retained so the responder can negotiate on inbound
+	// espGroup is the esp-group the next Child SA is negotiated from. Guarded by mu:
+	// read it through getESPGroup. startPeerSession writes it, and adoptESPGroup
+	// replaces it on the owner loop when a reload changes only the esp-group of a
+	// session whose IKE SA holds no Child SA (reconcilePeers).
 	espGroup ipsec.ESPGroup
 	sa       *SA
 
@@ -198,6 +202,86 @@ type PeerSession struct {
 	// the loop to take the request, so one request is with the loop at a time, and the
 	// loop answers on the reply channel each request carries.
 	probeRequests chan probeRequest
+
+	// espReloads carries a reload's new esp-group to the owner loop (maintainSA), which
+	// alone knows whether a Child SA is being created from the old one. Unbuffered, like
+	// probeRequests: retargetESPGroup hands it over only to a loop that is there to take
+	// it, and the loop answers on the reply channel the request carries.
+	espReloads chan espReload
+}
+
+// espReload is a reload's esp-group on its way to the owner loop, with the channel the
+// loop answers on: true when the session adopted the group, false when it MUST restart.
+// reply is buffered 1, so the loop never blocks on the answer.
+type espReload struct {
+	group ipsec.ESPGroup
+	reply chan bool
+}
+
+// espReloadWait bounds how long a reload waits for an owner loop to take its esp-group.
+// The loop takes it between two events, so the wait runs out only when the loop ended
+// after retargetESPGroup saw it, and the reload then restarts the session as before.
+const espReloadWait = 2 * time.Second
+
+// getESPGroup returns the esp-group the next Child SA is negotiated from. Safe for
+// concurrent use.
+func (ps *PeerSession) getESPGroup() ipsec.ESPGroup {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	return ps.espGroup
+}
+
+// retargetESPGroup asks the owner loop to negotiate the session's next Child SA from
+// group. It reports true when the loop adopted it, and false when the session MUST be
+// restarted instead: no owner loop runs, or the loop refused. Called by reconcilePeers
+// only for a reload that changed the esp-group and nothing else.
+func (ps *PeerSession) retargetESPGroup(group ipsec.ESPGroup) bool {
+	if ps.ownedSA.Load() == nil {
+		return false
+	}
+	reload := espReload{group: group, reply: make(chan bool, 1)}
+	wait := time.NewTimer(espReloadWait)
+	defer wait.Stop()
+	select {
+	case ps.espReloads <- reload:
+	case <-ps.done:
+		return false
+	case <-wait.C:
+		return false
+	}
+	return <-reload.reply
+}
+
+// adoptESPGroup answers a reload's esp-group on the owner loop. The session adopts it
+// only while no Child SA exists or is being made from the old group: an installed Child
+// SA runs ESP the new policy may refuse (RFC 4301 Section 4.4.2), our own creation in
+// flight offered the old proposals, and a parallel responder handshake negotiated its
+// Child SA from them. Each of those refuses, and reconcilePeers restarts the session.
+//
+// The owner decision of 2026-10-10 keeps the IKE SA on that edit: a childless IKE SA
+// carries no ESP, so the new esp-group applies when the Child SA is created.
+func (ps *PeerSession) adoptESPGroup(reload espReload, log *slog.Logger) {
+	if ps.getChildSA() != nil {
+		reload.reply <- false
+		return
+	}
+	if ps.getPendingSA() != nil {
+		reload.reply <- false
+		return
+	}
+	if ps.pendingRekey != nil && ps.pendingRekey.kind == rekeyCreate {
+		reload.reply <- false
+		return
+	}
+	ps.mu.Lock()
+	ps.espGroup = reload.group
+	ps.mu.Unlock()
+	// An INVALID_KE_PAYLOAD answer named a group for the old proposals; the next attempt
+	// starts from the group the new esp-group picks.
+	ps.childCreateRefusal = rekeyRefusalRecord{}
+	log.Info("child-sa: esp-group reloaded on a childless IKE SA, kept the IKE SA",
+		"peer", ps.peerName, "esp-group", reload.group.Name)
+	reload.reply <- true
 }
 
 // setSA / getSA guard the ps.sa pointer for the responder handoff: the shared
@@ -362,7 +446,7 @@ func (ps *PeerSession) Info() PeerInfo {
 		RemoteAddress: ps.peerCfg.RemoteAddress,
 		LocalAddress:  ps.peerCfg.LocalAddress,
 		AuthMode:      ps.peerCfg.Auth.Mode.String(),
-		Lifetime:      ps.espGroup.Lifetime,
+		Lifetime:      ps.getESPGroup().Lifetime,
 		RekeyCount:    rekeys,
 	}
 	if child != nil {
@@ -464,6 +548,12 @@ func reconcilePeers(
 		ps   *PeerSession
 	}
 	var removing []toStop
+	type toRetarget struct {
+		name  string
+		ps    *PeerSession
+		group ipsec.ESPGroup
+	}
+	var retargeting []toRetarget
 
 	peersMu.RLock()
 	for name, ps := range active {
@@ -483,11 +573,28 @@ func reconcilePeers(
 		// same answer a fresh daemon gives it: the start loop below refuses to start a
 		// peer whose groups do not resolve, so a reloaded daemon that kept it running
 		// would disagree with a restarted one about the same file.
-		if peerConfigChanged(ps, newPeer, newCfg.IKEGroups[newPeer.IKEGroup], newCfg.ESPGroups[newPeer.ESPGroup]) {
-			removing = append(removing, toStop{name, ps})
+		newIKE := newCfg.IKEGroups[newPeer.IKEGroup]
+		newESP, espResolved := newCfg.ESPGroups[newPeer.ESPGroup]
+		if !peerConfigChanged(ps, newPeer, newIKE, newESP) {
+			continue
 		}
+		// Only the esp-group changed, and it resolves: the owner loop may keep a
+		// childless IKE SA and take the group for its next Child SA (adoptESPGroup).
+		if espResolved && ps.peerCfg.Equal(newPeer) && ps.ikeGroup.Equal(newIKE) {
+			retargeting = append(retargeting, toRetarget{name, ps, newESP})
+			continue
+		}
+		removing = append(removing, toStop{name, ps})
 	}
 	peersMu.RUnlock()
+
+	// Outside the lock: retargetESPGroup waits for the owner loop.
+	for _, r := range retargeting {
+		if r.ps.retargetESPGroup(r.group) {
+			continue
+		}
+		removing = append(removing, toStop{r.name, r.ps})
+	}
 
 	for _, r := range removing {
 		stopPeerSession(r.name, r.ps, active, table, dp, bus, log)
@@ -577,7 +684,9 @@ func stopPeerSession(
 // replaced.
 //
 // The conservative answer is a restart: reconcilePeers stops the session and starts a
-// fresh one, and startPeerSession is the only writer of ps.peerCfg. Every later reader
+// fresh one, and startPeerSession is the only writer of ps.peerCfg. The one exception is
+// an edit of the esp-group alone on a session whose IKE SA holds no Child SA: the owner
+// loop adopts the group (adoptESPGroup) and the IKE SA stays up. Every later reader
 // takes the config from that field, directly or through the copy sa.PeerCfg holds
 // (initiator.go, responder.go), so the restart is what carries an edit to the wire.
 //
@@ -589,7 +698,7 @@ func stopPeerSession(
 func peerConfigChanged(ps *PeerSession, newPeer ipsec.SiteToSitePeer, newIKE ipsec.IKEGroup, newESP ipsec.ESPGroup) bool {
 	return !ps.peerCfg.Equal(newPeer) ||
 		!ps.ikeGroup.Equal(newIKE) ||
-		!ps.espGroup.Equal(newESP)
+		!ps.getESPGroup().Equal(newESP)
 }
 
 func startPeerSession(
@@ -619,6 +728,7 @@ func startPeerSession(
 		supersede:  make(chan struct{}, 1),
 		// Unbuffered on purpose: see the field.
 		probeRequests: make(chan probeRequest),
+		espReloads:    make(chan espReload),
 	}
 	go ps.run(peer, ikeGroup, table, tr, bus, log)
 	return ps

@@ -130,7 +130,7 @@ func (ps *PeerSession) runInitiator(
 	bus ze.EventBus,
 	log *slog.Logger,
 ) error {
-	sa, err := newInitiatorSA(ps.peerName, peer, ikeGroup, ps.espGroup)
+	sa, err := newInitiatorSA(ps.peerName, peer, ikeGroup, ps.getESPGroup())
 	if err != nil {
 		return fmt.Errorf("ike: create SA: %w", err)
 	}

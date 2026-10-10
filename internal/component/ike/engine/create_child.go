@@ -474,7 +474,8 @@ func (ps *PeerSession) serviceChildCreate(sa *SA, tr *transport.UDPTransport, no
 	if !sa.reserveRequestWindow() {
 		return
 	}
-	group, err := childRekeyDHGroup(sa, ps.espGroup)
+	espGroup := ps.getESPGroup()
+	group, err := childRekeyDHGroup(sa, espGroup)
 	if err == nil && group != dhGroupNone {
 		// RFC 7296 Section 1.3: after INVALID_KE_PAYLOAD "the initiator will probably
 		// retry the exchange with a Diffie-Hellman proposal and KEi in the group that the
@@ -486,7 +487,7 @@ func (ps *PeerSession) serviceChildCreate(sa *SA, tr *transport.UDPTransport, no
 	var msg []byte
 	var pending *pendingRekey
 	if err == nil {
-		msg, pending, err = initiateChildCreate(sa, ps.espGroup, group)
+		msg, pending, err = initiateChildCreate(sa, espGroup, group)
 	}
 	if err != nil {
 		sa.releaseRequestWindow()

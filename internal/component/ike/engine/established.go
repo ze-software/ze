@@ -136,7 +136,7 @@ func (ps *PeerSession) runEstablished(
 		}
 		emitChildUp(bus, ps.peerName, child, log)
 		emitRouteAdd(bus, child.TSRemote, log)
-		childLT = newLifetimeState(ps.espGroup.Lifetime)
+		childLT = newLifetimeState(ps.getESPGroup().Lifetime)
 	}
 
 	// RFC 9190 Section 5.4: "EAP-TLS peer implementations MUST also support
@@ -298,6 +298,11 @@ func (ps *PeerSession) maintainSA(
 			// sa.SKKeys and takes a message id from sa.NextMsgID, state this loop
 			// owns alone (probe.go).
 			ps.answerProbeRequest(sa, tr, request, log)
+		case reload := <-ps.espReloads:
+			// A reload changed only this peer's esp-group. It is answered HERE because
+			// only this loop knows whether a Child SA is being created from the old
+			// group (pendingRekey), so the check and the adoption are one step.
+			ps.adoptESPGroup(reload, log)
 		case refusal := <-probeRefusals(sa, tr):
 			// The kernel queued an EMSGSIZE for a datagram this SA's socket sent
 			// with Don't Fragment. Only a path probe sends one, and a router's
@@ -367,12 +372,12 @@ func (ps *PeerSession) maintainSA(
 			// and is announced as a Child SA coming up, not as a rekey.
 			if out.createdChild != nil {
 				ps.childCreate.stop()
-				childLT = newLifetimeState(ps.espGroup.Lifetime)
+				childLT = newLifetimeState(ps.getESPGroup().Lifetime)
 				emitChildUp(bus, ps.peerName, out.createdChild, log)
 				emitRouteAdd(bus, out.createdChild.TSRemote, log)
 			}
 			if out.newChild != nil {
-				childLT = newLifetimeState(ps.espGroup.Lifetime)
+				childLT = newLifetimeState(ps.getESPGroup().Lifetime)
 				ps.incRekeyCount()
 				emitChildRekey(bus, ps.peerName, out.newChild, log)
 				emitRouteAdd(bus, out.newChild.TSRemote, log)

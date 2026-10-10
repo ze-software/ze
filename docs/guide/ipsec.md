@@ -89,6 +89,13 @@ Rotating a cipher is the case worth naming, because it edits no peer block at al
 holds the NAME of its groups and none of the crypto, so `ike-group IKE-1 { proposal 1 {
 encryption ...` restarts every peer that names `IKE-1` and no other.
 
+One edit does not restart the tunnel. When a peer's IKE SA is up with no Child SA, because
+the two sides could not agree on ESP when it was established, a commit that changes only that
+peer's `esp-group` keeps the IKE SA. Nothing is carrying traffic yet, so nothing runs under
+the old settings; the new `esp-group` applies when the Child SA is created on that IKE SA,
+with no reconnect. Change the `ike-group` or the `peer` block in the same commit, or make the
+edit while a Child SA exists, and the peer restarts as above.
+
 A commit that leaves a peer's block and its two groups unchanged does not touch that peer,
 whatever else in the configuration moved. Adding a second peer, editing a firewall rule or
 changing a log level leaves a running tunnel carrying traffic.

@@ -394,6 +394,9 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds this work from the `a
 | Q-5 | The peer deletes the live Child SA: keep today's teardown and re-establish, or keep the IKE SA childless and recreate? | Keep today's behavior in this spec |
 | Q-6 | Does a Ze RESPONDER also initiate creation on a childless SA? | No: only the IKE SA initiator retries, which avoids creation collisions between two Ze peers; the responder serves the peer's requests |
 | Q-7 | Bucket | `plan/immediate/`: an operator facing strongSwan meets it as a tunnel that never comes up |
+| Q-8 | A reload that changes only the esp-group of a session whose IKE SA holds no Child SA | Keep the IKE SA; the new esp-group applies when the Child SA is created. An ike-group or peer edit, or a session holding a Child SA, restarts as before |
+
+→ Decision (owner, 2026-10-10, Q-8 option A): an esp-group-only reload on a childless IKE SA keeps the IKE SA, and the new esp-group applies at creation (`adoptESPGroup` on the owner loop). Every other edit, and a session with a Child SA, our creation in flight, or a pending parallel handshake, restarts as before.
 
 → Decision (owner, 2026-10-10): the instruction to implement approves Q-1 to Q-7 as recommended above. Q-1: `deleteChildlessIKESA` and `errChildSARefused` are deleted, no knob. Q-2: 30 s, doubling, capped at 300 s, reset on success; TEMPORARY_FAILURE waits 60 s; NO_ADDITIONAL_SAS re-establishes. Q-3: no SAr2 and no notify is childless; the RFC7296-2.5-13 and RFC7296-1.2-2 tests stay unedited. Q-4: NO_ADDITIONAL_SAS. Q-5: today's teardown and re-establish. Q-6: only the IKE initiator retries creation. Q-7: `plan/immediate/`.
 

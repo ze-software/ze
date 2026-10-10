@@ -625,7 +625,7 @@ func (ps *PeerSession) handleNewChildRequest(sa *SA, msg *wire.Message, inner []
 	}
 	// RFC 7296 Section 1.3.1: "A Child SA may be created by sending a CREATE_CHILD_SA
 	// request." The IKE SA holds none, so this request creates its one Child SA.
-	resp, child, err := respondNewChild(sa, inner, ps.espGroup, msg.Header.MessageID, dp, log)
+	resp, child, err := respondNewChild(sa, inner, ps.getESPGroup(), msg.Header.MessageID, dp, log)
 	if err != nil {
 		// RFC 7296 Section 2.21.3 MUST: "After the IKE SA is authenticated, all requests
 		// having errors MUST result in a response notifying the other end of the error."
