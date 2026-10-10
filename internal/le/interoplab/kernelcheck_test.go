@@ -317,6 +317,14 @@ func TestDockerKernelRouteNamesEachPlatformsNextStep(t *testing.T) {
 		{"darwin", nil, nil, "./le test qemu docker-lab"},
 		{"darwin", nil, selected, "./le test qemu docker-lab"},
 		{"darwin", []string{"perf", "run", "name", "two words"}, nil, "./le test qemu docker-lab"},
+		// Review round 5, R5-N3: the guest splits its lab and env values with
+		// strings.Fields, which breaks on every unicode.IsSpace rune, so a word
+		// holding any of them falls back to the check alone.
+		{"darwin", []string{"perf", "run", "a\rb"}, nil, "./le test qemu docker-lab"},
+		{"darwin", []string{"perf", "run", "a\vb"}, nil, "./le test qemu docker-lab"},
+		{"darwin", []string{"perf", "run", "a\fb"}, nil, "./le test qemu docker-lab"},
+		{"darwin", []string{"perf", "run", "a b"}, nil, "./le test qemu docker-lab"},
+		{"darwin", lab, []string{"IPSEC_INTEROP_SCENARIO=a b"}, "./le test qemu docker-lab"},
 	} {
 		route := DockerKernelRoute(tc.goos, tc.lab, tc.environment)
 		requireCommandOnItsOwnLine(t, errors.New(route), tc.command)

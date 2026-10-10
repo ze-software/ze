@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -88,8 +89,9 @@ var inDockerLabGuest = func() bool { return os.Getenv(DockerLabGuestVariable) ==
 
 // quotedGuestWords answers words as one single-quoted shell word for the
 // guest's `lab` or `env` keyword, and false when there are none or a word is
-// empty or holds white space or a quote: the guest splits the value on white
-// space, so such a word would not arrive as typed.
+// empty or holds white space or a quote: the guest splits the value with
+// strings.Fields (testqemu dockerlab.go), which breaks on every unicode.IsSpace
+// rune, so such a word would not arrive as typed.
 func quotedGuestWords(words []string) (string, bool) {
 	if len(words) == 0 {
 		return "", false
@@ -98,7 +100,10 @@ func quotedGuestWords(words []string) (string, bool) {
 		if word == "" {
 			return "", false
 		}
-		if strings.ContainsAny(word, " \t\n'\"") {
+		if strings.IndexFunc(word, unicode.IsSpace) >= 0 {
+			return "", false
+		}
+		if strings.ContainsAny(word, "'\"") {
 			return "", false
 		}
 	}
