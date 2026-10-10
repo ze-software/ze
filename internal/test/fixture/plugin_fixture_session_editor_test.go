@@ -86,3 +86,39 @@ func TestSessionEditorPendingAfter(t *testing.T) {
 		t.Fatal("absent needle reported found")
 	}
 }
+
+// TestSessionEditorUser holds the driver's argument contract: three arguments
+// drive the editor as admin, a trailing `user <name>` drives it as that user,
+// and any other shape is refused, so a second SSH user (AC-6) is a script
+// argument rather than a second driver. The method is a table of argument
+// lists, each answered with its user or refused.
+func TestSessionEditorUser(t *testing.T) {
+	cases := []struct {
+		args    []string
+		user    string
+		refused bool
+	}{
+		{args: []string{"2222", "c.conf", "s.script"}, user: "admin"},
+		{args: []string{"2222", "c.conf", "s.script", "user", "bob"}, user: "bob"},
+		{args: []string{"2222", "c.conf"}, refused: true},
+		{args: []string{"2222", "c.conf", "s.script", "user"}, refused: true},
+		{args: []string{"2222", "c.conf", "s.script", "name", "bob"}, refused: true},
+		{args: []string{"2222", "c.conf", "s.script", "user", ""}, refused: true},
+	}
+	for _, tc := range cases {
+		user, err := sessionEditorUser(tc.args)
+		if tc.refused {
+			if err == nil {
+				t.Errorf("%q: answered %q, want refused", tc.args, user)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%q: %v", tc.args, err)
+			continue
+		}
+		if user != tc.user {
+			t.Errorf("%q: user %q, want %q", tc.args, user, tc.user)
+		}
+	}
+}

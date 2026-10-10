@@ -336,9 +336,10 @@ markers so the source peer cannot start before the intended observer releases it
 
 ### Driving the SSH session editor from a script
 
-`le test fixture plugin/session-editor <ssh-port> <config> <script>` runs
-`ze init` against the daemon's SSH server as `admin` with password `testpass`,
-opens `ze config edit <config>` over a PTY, and runs the script, so a `.ci`
+`le test fixture plugin/session-editor <ssh-port> <config> <script> [user <name>]`
+runs `ze init` against the daemon's SSH server as `admin`, or as the user a
+trailing `user <name>` names, with password `testpass` and a client directory
+of that user's own, opens `ze config edit <config>` over a PTY, and runs the script, so a `.ci`
 states both its typing and its assertions on the running daemon. The script is
 usually a `tmpfs=` block. One step per line, a verb then its text; blank lines
 and `#` lines are skipped:
@@ -360,7 +361,10 @@ before it arrives as its differing tail alone, so its full text never appears.
 Put a command with a different status between two such lines, as
 `session-editor-deactivate-activate.ci` does with `show | changes`. A failing step names its number and carries the editor transcript.
 The driver types `quit` after the last step and fails when the editor exits
-non-zero; after a `kill` it types nothing, because the client is gone. The `test/plugin/session-editor-*.ci` files use it.
+non-zero; after a `kill` it types nothing, because the client is gone. With
+changes still pending, `quit` asks for confirmation and the editor never exits,
+so a script that leaves its changes pending ends with `kill`, as both users in
+`session-editor-load-conflict.ci` do. The `test/plugin/session-editor-*.ci` files use it.
 
 <!-- source: internal/test/fixture/plugin_fixture_session_editor.go -- sessionEditorDriver, parseSessionEditorScript, sessionEditorRun -->
 

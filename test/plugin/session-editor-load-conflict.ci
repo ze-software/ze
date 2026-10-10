@@ -1,0 +1,77 @@
+# Test: a value loaded over another user's pending set is a LIVE conflict at commit
+# VALIDATES: spec-session-editor-file-mode-parity AC-6 -- over SSH against a
+#            running daemon, user bob sets router-id and drops the SSH
+#            connection with the change pending; user admin then loads a file holding a
+#            different router-id with `load file absolute merge` and commits.
+#            The commit reports the LIVE conflict naming bob, as it does for a
+#            `set`, and neither value reaches the configuration
+# PREVENTS: a load that writes its leaves past another session's pending
+#           change, so the commit silently overwrites what bob is editing
+option=timeout:value=90s
+
+tmpfs=session-editor-load-conflict.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+        user bob {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-load-conflict-add.conf:terminator=EOF_ADD
+bgp {
+    router-id 5.6.7.8
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_ADD
+
+tmpfs=session-editor-load-conflict-bob.script:terminator=EOF_BOB
+send set bgp router-id 9.9.9.9
+send show | changes
+wait 1 pending change
+kill
+EOF_BOB
+
+tmpfs=session-editor-load-conflict-admin.script:terminator=EOF_ADMIN
+send load file absolute merge session-editor-load-conflict-add.conf
+wait Configuration merged from
+send commit
+wait LIVE
+wait bob
+kill
+EOF_ADMIN
+
+cmd=foreground:seq=1:exec=ze start session-editor-load-conflict.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-load-conflict.conf session-editor-load-conflict-bob.script user bob:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 session-editor-load-conflict.conf session-editor-load-conflict-admin.script user admin:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-load-conflict.conf:contains=router-id 1.2.3.4
+expect=file:path=session-editor-load-conflict.conf:not-contains=5.6.7.8
+expect=file:path=session-editor-load-conflict.conf:not-contains=9.9.9.9

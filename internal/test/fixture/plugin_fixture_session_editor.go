@@ -174,10 +174,11 @@ func sessionEditorPendingAfter(buf []byte, needle string) ([]byte, bool) {
 // sessionEditorDriver drives `ze config edit <config>` over SSH against the
 // running daemon through the steps of a script file, so each .ci of the session
 // editor spec states its typing and its assertions on the running daemon in the
-// .ci itself. Arguments: <ssh-port> <config> <script>.
+// .ci itself. Arguments: <ssh-port> <config> <script> [user <name>].
 func sessionEditorDriver(ctx context.Context, args []string) error {
-	if len(args) != 3 {
-		return errors.New("usage: session-editor <ssh-port> <config> <script>")
+	user, err := sessionEditorUser(args)
+	if err != nil {
+		return err
 	}
 	content, err := os.ReadFile(args[2])
 	if err != nil {
@@ -187,7 +188,7 @@ func sessionEditorDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", args[2], err)
 	}
-	env, err := sessionEditorClientEnv(ctx, args[0])
+	env, err := sessionEditorClientEnv(ctx, args[0], user)
 	if err != nil {
 		return err
 	}
@@ -198,10 +199,35 @@ func sessionEditorDriver(ctx context.Context, args []string) error {
 	return nil
 }
 
-// sessionEditorClientEnv writes the client's SSH credentials with `ze init`
-// and waits until the daemon answers over them.
-func sessionEditorClientEnv(ctx context.Context, port string) ([]string, error) {
-	clientDir, err := filepath.Abs("client-db")
+// sessionEditorUser answers the SSH user the driver logs in as: admin for the
+// three positional arguments, or the name a trailing `user <name>` gives, so a
+// .ci can drive a second user (a LIVE conflict needs two). Any other shape is
+// refused with the usage line.
+func sessionEditorUser(args []string) (string, error) {
+	const usage = "usage: session-editor <ssh-port> <config> <script> [user <name>]"
+	if len(args) == 3 {
+		return "admin", nil
+	}
+	if len(args) != 5 {
+		return "", errors.New(usage)
+	}
+	if args[3] != "user" {
+		return "", errors.New(usage)
+	}
+	if args[4] == "" {
+		return "", errors.New(usage)
+	}
+	if filepath.Base(args[4]) != args[4] {
+		return "", fmt.Errorf("session-editor: user %q is not a plain name", args[4])
+	}
+	return args[4], nil
+}
+
+// sessionEditorClientEnv writes user's SSH credentials with `ze init` into a
+// client directory of its own, so two users in one .ci stay apart, and waits
+// until the daemon answers over them.
+func sessionEditorClientEnv(ctx context.Context, port, user string) ([]string, error) {
+	clientDir, err := filepath.Abs("client-db-" + user)
 	if err != nil {
 		return nil, err
 	}
@@ -213,11 +239,11 @@ func sessionEditorClientEnv(ctx context.Context, port string) ([]string, error) 
 		"ZE_SSH_PASSWORD=testpass",
 		"ZE_SSH_HOST=127.0.0.1",
 		"ZE_SSH_PORT="+port,
-		"ZE_SSH_USERNAME=admin",
+		"ZE_SSH_USERNAME="+user,
 		"NO_COLOR=1",
 		"TERM=xterm",
 	)
-	initInput := "admin\ntestpass\n127.0.0.1\n" + port + "\n\n"
+	initInput := user + "\ntestpass\n127.0.0.1\n" + port + "\n\n"
 	if _, err := runCommandProcess04(ctx, env, strings.NewReader(initInput), "init"); err != nil {
 		return nil, err
 	}
