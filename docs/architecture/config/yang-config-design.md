@@ -212,7 +212,7 @@ rather than checked against a guessed span.
 <!-- source: cmd/ze/hub/command_meta.go -- commandMetaSource -->
 <!-- source: internal/component/cli/client/main.go -- loadYANGState, buildYANGState -->
 <!-- source: internal/component/cli/client/verb_tree.go -- IsDeclaredCommand -->
-<!-- source: internal/component/command/registry/registry.go -- LookupLocal -->
+<!-- source: internal/component/command/local.go -- LookupLocal -->
 <!-- source: cmd/ze/hub/session_factory.go -- buildCommandTree -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- buildEditorCommandTree -->
 <!-- source: internal/component/aihelp/aihelp.go -- CLISubcommands, Build -->

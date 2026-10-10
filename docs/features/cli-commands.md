@@ -26,7 +26,7 @@ command below it. `show interface` is registered at two words and takes an
 interface name, so `brief`, `scan`, `type`, `errors`, `rate`, and the two
 `name <name> ...` forms all go to the daemon rather than being read as interface
 names.
-<!-- source: internal/component/command/registry/registry.go -- LookupLocal prefix refusal -->
+<!-- source: internal/component/command/local.go -- LookupLocal prefix refusal -->
 
 ### Peer selectors on a destructive command
 

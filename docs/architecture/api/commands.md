@@ -131,7 +131,7 @@ handler with the family.
 The client-side lookup carries the same rule, and the two are separate because they
 read different registries. Neither is derived from the other.
 <!-- source: internal/component/plugin/server/command.go -- matchBuiltinTokens, longerCommandPath, isCommandPath -->
-<!-- source: internal/component/command/registry/registry.go -- LookupLocal -->
+<!-- source: internal/component/command/local.go -- LookupLocal -->
 
 ### Offline fallback (read-only commands without a daemon)
 
@@ -191,11 +191,13 @@ The handler runs on the value `ValidateArgs` returned, never on the raw words.
 
 `ze <verb>` does not pass through `ServeLocal`: it runs the plain local handler
 that `command.RegisterLocalData` builds from the same data handler and registers
-in the local-handler registry. That handler runs the same judgment first
-(`command.ValidateModelArgs`) and hands the data handler the value it got, so
-`ze show env get <key>` and `ze cli -c "show env get <key>"` refuse the same
-values with the same message.
+in the local-handler registry. The judgment happens before that handler runs:
+`command.InvokeLocal`, which every `ze <verb>` route calls with the path it
+matched, runs `command.ValidateModelArgs` and hands the plain handler the value
+it got, which passes it to the data handler, so `ze show env get <key>` and
+`ze cli -c "show env get <key>"` refuse the same values with the same message.
 <!-- source: internal/component/command/local_data.go -- RegisterLocalData, plainLocalData, ValidateModelArgs -->
+<!-- source: internal/component/command/local.go -- InvokeLocal -->
 
 An `le` tool registers through the same call (`leroot.Register`), and `le`'s
 own dispatcher (`leroot.Run`) is a route too: an `le` tool declares no
@@ -1938,7 +1940,8 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/aihelp/aihelp.go -- RPC, Build -->
 <!-- source: internal/core/helpfmt/helpfmt.go -- Page, (*Page).WriteTo -->
 <!-- source: cmd/ze/help_command.go -- commandEntry, printCommandTable, printCommandVerbose -->
-<!-- source: internal/component/command/registry/registry.go -- Meta, ListLocal -->
+<!-- source: internal/component/command/registry/registry.go -- Meta -->
+<!-- source: internal/component/command/local.go -- ListLocal -->
 <!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
 <!-- source: internal/plugins/completion/words.go -- writeCompletionRecord -->
 <!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox, (Model).warningText -->

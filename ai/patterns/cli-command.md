@@ -350,8 +350,9 @@ and the pipe layer renders it.
 ## Command Registration (BLOCKING)
 
 The owner package owns a `register.go` whose `init()` registers its root
-command + any `show X` offline shortcuts with the importable command registry
-`internal/component/command/registry`. The registry **dispatches** owner-backed
+command with the importable command registry
+`internal/component/command/registry`, and any `show X` offline shortcuts with
+`internal/component/command`. The registry **dispatches** owner-backed
 roots, so the owner can live anywhere under `internal/` without `cmd/ze`
 importing it directly. **Do not** add a dispatch case to `cmd/ze/main.go`'s
 static switch for an owner-backed command, and do not register from `main.go`.
@@ -366,7 +367,10 @@ dispatch-time dependencies (storage, plugin list, process flags) flow through
 `RuntimeContext`, whose heavy types are exposed as function values so the
 package stays leaf-like.
 
-All callers import `internal/component/command/registry` directly.
+All callers import `internal/component/command/registry` directly. The local
+handlers (`command.MustRegisterLocal` and its siblings) live one level up, in
+`internal/component/command`, because they judge their arguments against the
+YANG model before the handler runs (`command.InvokeLocal`).
 
 ### Per-owner `register.go` template
 
@@ -374,7 +378,10 @@ All callers import `internal/component/command/registry` directly.
 // internal/component/<owner>/cli/register.go
 package cli
 
-import "github.com/ze-software/ze/internal/component/command/registry"
+import (
+    "github.com/ze-software/ze/internal/component/command"
+    "github.com/ze-software/ze/internal/component/command/registry"
+)
 
 func init() {
     // 1. Root command: handler + metadata. The registry dispatches it.
@@ -394,9 +401,11 @@ func init() {
 }
 ```
 
-The owner package needs its `init()` linked into the binary: until the Phase 7
-generated command-provider aggregator lands, add a blank import to
-`cmd/ze/main.go` (`_ "github.com/ze-software/ze/internal/component/<owner>/cli"`).
+The owner package needs its `init()` linked into the binary. Run
+`./le plugin imports write`: it finds every package that calls a `command` or
+`command/registry` registrar and blank-imports it from the generated
+`internal/component/plugin/all/all.go`, and `./le plugin imports check` reports
+an owner nothing reaches (`docs/architecture/command-ownership.md`).
 
 ### Commands with subcommands: `subdispatch.Dispatcher`
 
