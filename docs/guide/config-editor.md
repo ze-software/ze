@@ -147,7 +147,10 @@ only once the answer of the one before it is on screen, so answers appear in
 the same order: `commit abort` typed straight after `commit confirmed` always
 ends with the abort's answer. While a command is in flight, the status line's
 two-second look at a confirmed-commit window waits, so a session's own accept
-or abort is never reported as another session's.
+or abort is never reported as another session's. When the session ends with
+commands still queued, because the SSH client went away or the operator left,
+those commands are dropped unrun: a command that no operator will ever see the
+answer of does not change the draft.
 <!-- source: internal/component/cli/model_commands.go -- dispatchQueue -->
 <!-- source: internal/component/cli/model.go -- handleDraftPoll -->
 

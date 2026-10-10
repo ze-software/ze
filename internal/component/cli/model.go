@@ -1055,10 +1055,12 @@ func (m *Model) SetTranscript(tw *TranscriptWriter) {
 	m.commandExecutor = WrapExecutorWithTranscript(m.commandExecutor, tw)
 }
 
-// Close releases the transcript the session held open. The SSH server calls
+// Close releases what the session held: every command still queued for its
+// turn (see dispatchQueue.end), and the transcript file. The SSH server calls
 // it once the session's program returns (internal/component/ssh/ssh.go,
-// sessionCloseMiddleware). A model without a transcript closes nothing.
+// sessionCloseMiddleware). A model without a transcript closes no file.
 func (m Model) Close() error {
+	m.dispatch.end()
 	return m.transcript.Close()
 }
 

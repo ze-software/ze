@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
@@ -136,4 +137,58 @@ func TestDispatchQueueRunsInReservationOrder(t *testing.T) {
 	wg.Wait()
 
 	assert.Equal(t, []int{0, 1, 2, 3}, ran, "turns must run in reservation order")
+}
+
+// TestQueuedTurnsReleasedWhenSessionCloses covers the queued-turn leak.
+//
+// VALIDATES: when the session's program ends with a result never applied,
+// Close releases every command still queued behind it, and the released
+// commands never touch the editor.
+// PREVENTS: one goroutine per queued command blocked forever on its turn,
+// each holding the Model and the Editor, for every SSH session that ends
+// (client killed, exit) while a pasted block is in flight.
+// METHOD: two commands entered before either answers; the first runs and its
+// result is never handed to Update, as when the program has already ended.
+// The second runs on its own goroutine and must return once Close is called.
+func TestQueuedTurnsReleasedWhenSessionCloses(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600))
+
+	ed, err := NewLooseFileEditor(nil, configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	model.textInput.SetValue("set bgp router-id 9.9.9.9")
+	n1, cmd1 := model.handleEnter()
+	m1, ok := n1.(Model)
+	require.True(t, ok)
+	require.NotNil(t, cmd1)
+	m1.textInput.SetValue("set bgp router-id 7.7.7.7")
+	_, cmd2 := m1.handleEnter()
+	require.NotNil(t, cmd2)
+
+	// The first result is never applied: the program ended before Update saw it.
+	_ = cmd1()
+
+	queued := make(chan tea.Msg, 1)
+	go func() { queued <- cmd2() }()
+
+	require.NoError(t, m1.Close())
+
+	select {
+	case msg := <-queued:
+		assert.Nil(t, msg, "a command released by Close answers nothing")
+	case <-time.After(5 * time.Second):
+		t.Fatal("the queued command is still blocked on its turn after Close")
+	}
+	routerID, found := ed.Tree().GetContainer("bgp").Get("router-id")
+	require.True(t, found)
+	assert.Equal(t, "9.9.9.9", routerID,
+		"the released command must not run against the closed session's editor")
 }

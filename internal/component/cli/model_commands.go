@@ -56,10 +56,19 @@ var (
 // first, and the earlier result then overwrote the later one: `commit abort`
 // typed after `commit confirmed` left the confirmed commit's status and an
 // open window watch on screen over a closed window.
+//
+// A turn that ends in Update needs a stop path for the Update that never
+// comes. When the program ends (the SSH client is killed, the operator exits)
+// with a result undelivered, that turn never ends, and every command queued
+// behind it would block on its turn forever, holding the Model and the Editor.
+// end releases them: the session's owner calls it through Model.Close once the
+// program has returned.
 type dispatchQueue struct {
 	mu      sync.Mutex
 	prev    chan struct{} // closed when the turn before the next one ends
 	pending int           // turns reserved and not yet ended
+	ended   chan struct{} // closed by end: the session is over
+	endOnce sync.Once
 }
 
 // newDispatchQueue returns an empty queue whose first reserved turn starts
@@ -67,7 +76,30 @@ type dispatchQueue struct {
 func newDispatchQueue() *dispatchQueue {
 	first := make(chan struct{})
 	close(first)
-	return &dispatchQueue{prev: first}
+	return &dispatchQueue{prev: first, ended: make(chan struct{})}
+}
+
+// end releases every turn still waiting, because the session that would end
+// them is over. Safe for concurrent use, and safe to call more than once.
+func (q *dispatchQueue) end() {
+	q.endOnce.Do(func() { close(q.ended) })
+}
+
+// await blocks until the turn before this one ends or the session ends. It
+// reports whether the turn may run: false means the session is over and the
+// command MUST NOT touch the editor. The session's end wins over a turn that
+// became ready at the same moment, so no command runs after Close.
+func (q *dispatchQueue) await(wait <-chan struct{}) bool {
+	select {
+	case <-wait:
+	case <-q.ended:
+	}
+	select {
+	case <-q.ended:
+		return false
+	default:
+		return true
+	}
 }
 
 // reserve claims the next turn. It returns the channel that closes when the
@@ -111,7 +143,10 @@ func (q *dispatchQueue) busy() bool {
 func (m Model) executeCommand(input string) tea.Cmd {
 	wait, done := m.dispatch.reserve()
 	return func() tea.Msg {
-		<-wait
+		if !m.dispatch.await(wait) {
+			done()
+			return nil
+		}
 		result, err := m.dispatchCommand(input)
 		return commandResultMsg{result: result, err: err, turnDone: done}
 	}
