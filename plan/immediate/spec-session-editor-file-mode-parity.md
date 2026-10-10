@@ -605,7 +605,7 @@ Remaining.
 | AC-29 | evidenced | 0d6fe64cd1, c734b3fb85, 63db26b565, 75cb1137b0 | `commit-grammar.et` (file mode); web `cli-commit-grammar.wb` (real daemon), `cli-copy-rename-existing.wb`, and the AC-12 web tests above | `.wb` red with the hub's `SetConfirmWindow` removed; `commit-grammar.et` red (step 6) before 0d6fe64cd1; AC-12 and AC-30 web reds in their rows |
 | AC-30 | evidenced | 0d6fe64cd1, 89888cabde, 75cb1137b0 | SSH `session-editor-copy-rename-existing.ci`; web `cli-copy-rename-existing.wb`; `TestCopyRenameRefuseExistingDestination` (session and file mode); file mode `commit-grammar.et` | SSH `.ci` red at step 4 and web `.wb` red at line 62, each with `errListEntryExists` returning nil |
 | AC-31 | withdrawn | - | - | - |
-| AC-32 | evidenced (SSH); web owner | da04760ffc, 2b0522811b | `session-editor-commit-force-conflict.ci`, `TestCommitForceOverridesConflict`, `TestWebTerminalCommitForceOverridesConflict` | .ci and unit red with `discardOverridden` returning nil. A web user whose change is discarded gets no notice (Remaining) |
+| AC-32 | evidenced (SSH and web: the web discard notice landed in 3e9fd40da9, `TestWindowNoticesPushedOverSSE`; the "no notice" sentence below is the pre-fix record) | da04760ffc, 2b0522811b | `session-editor-commit-force-conflict.ci`, `TestCommitForceOverridesConflict`, `TestWebTerminalCommitForceOverridesConflict` | .ci and unit red with `discardOverridden` returning nil. A web user whose change is discarded gets no notice (Remaining) |
 
 ## Goal Validation
 
@@ -651,9 +651,127 @@ in every flavour once `broadcastEvent`'s unused result went (unparam on
 Owed gates (not run by an implementing agent): `./le test unit all` (race),
 `./le verify worktree`, the review gate.
 
+## Implementation Summary
+
+### What Was Implemented
+- The six session-mode refusals are gone (grep for the six sentinel names over `*.go`: 0 hits). `load` is one tree-based path for both modes (`mergeConfigs`, `mergeAtContext`, `replaceAtContext`: 0 hits). Copy and deactivate/activate are structural ops in the change file. The commit grammar (`now`, `confirmed <seconds>`, `accept`, `abort`, `verify`, the `force` modifier) runs in SSH, file mode and the web terminal. The confirm window is daemon-owned in `internal/component/config/confirm`, survives a dropped session, and reverts at boot.
+
+### Bugs Found/Fixed
+- Review rounds 1 to 4 found 1 BLOCKER and 13 ISSUEs, each fixed by the commits named in the Review Gate below, each with a test observed red first.
+
+### Documentation Updates
+- `docs/guide/config-editor.md`, `docs/guide/web-interface.md`, `docs/architecture/hub-architecture.md`, `docs/functional-tests.md` (commits in Documentation Verified). `./le doc check verify` 2026-10-10 at closure: 19 problems, all in the YANG command inventory and rule points, none in a page this spec edited.
+
+### Deviations from Plan
+- `test/editor/session/load-blocked.et` and `checkLiveConflicts` deleted, `load merge` takes the loaded value: owner decisions recorded in Key Design Decisions.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: tree merge gives the old text merge's result for every load test | the old text merge kept the existing leaf; `load-file-absolute-merge.et` asserted that | the `.et` went red | owner decision: loaded value wins; `.et` corrected |
+| approach | A-3 first form re-read the change file per leaf (1000 peers ~49s) | one batched read and write is needed | `TestSessionLoadLargeInputBatched` | batched stage |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| the six refused verbs work in session mode | Done | Implementation Status table | per-AC commits and tests |
+| one commit grammar in every editor | Done | `internal/component/cli/contract/commit.go` | AC-25 to AC-29 |
+| daemon-owned confirm window | Done | `internal/component/config/confirm/confirm.go` | AC-13 to AC-19, AC-23, AC-24 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 to AC-30, AC-32 | Done | Implementation Status table, one row per AC | AC-31 withdrawn by the owner |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 24 `test/plugin/session-editor-*.ci`, 3 web `.wb`, `commit-grammar.et`, `copy-deactivate.et` | Done | `test/plugin/`, `test/web/`, `test/editor/` | red proofs in Implementation Status |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/config/confirm/` | Done | `confirm.go`, `store.go` |
+
+### Audit Summary
+- **Total items:** 31 ACs (AC-31 withdrawn)
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (Deviations)
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC evidenced | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/session-editor-*.ci` | yes | `ls test/plugin/session-editor-*.ci \| wc -l` = 24 (2026-10-10) |
+| `test/web/cli-session-copy-deactivate.wb`, `cli-commit-grammar.wb`, `cli-copy-rename-existing.wb`, `test/editor/lifecycle/commit-grammar.et`, `test/editor/session/copy-deactivate.et`, `internal/component/config/confirm/confirm.go`, `store.go` | yes | `ls` 2026-10-10 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-11 | refusals gone, ops write through | sentinel grep 0 hits; `TestChangeFileDeactivateOpsRoundTrip`, `TestSessionCopyWritesThrough`, `TestSessionDeactivateActivateLeafAndPath`, `TestFileModeLoadTreeMergeMatchesPrevious` exist (git grep 2026-10-10) |
+| AC-12 to AC-32 | grammar, window, force | `TestConfirmWindowWorkerRevertsAtDeadline`, `TestRecoverConfirmWindow`, `TestCommitForceOverridesConflict`, `TestWebTerminalCommitForceOverridesConflict`, `TestCmdRollbackLeftOpenWindowNamesStart` exist; round 5 ran config/confirm and config/cli `-race` ok |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| every Wiring Test row | the files named there | present (ls above); run green at e395308952: `./le test bgp plugin -pattern session-editor` 24/24, `./le test web` 103/103, `./le test editor` 174/174 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestChangeFileDeactivateOpsRoundTrip` (`internal/component/config/change_file_test.go`) |
+| A-2 | broken | Mistake Log row 1; owner decision, `.et` corrected |
+| A-3 | confirmed | `TestSessionLoadLargeInputBatched` |
+| A-4 | confirmed | Key Design Decisions, confirm worker home |
+| A-5 | confirmed | `session-editor-commit-confirmed-timeout.ci` asserts the running daemon's values through `ze cli -c show bgp` |
+| A-6 | confirmed | `Editor.Rollback` writes the file directly; now refused during a window (`TestSessionRollbackRefusedDuringWindow`); the revert uses the confirm worker, not `Editor.Rollback` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| guide, web guide, hub architecture, functional tests | `git log b5274c4fa8^..HEAD` touches each (config-editor.md last cef825da9d) | yes; no `confirm abort`, `commit force` or "Use file mode for these" left in `docs/` (git grep 0) |
+| features, comparison, yang-config-design | No: `git grep -i 'commit confirm\|session mode\|file mode'` in `docs/comparison.md` and `yang-config-design.md` 0 hits; no `features/*.md` records session-mode limits | yes |
+
 ## Review Gate
 
-Status: ready for round 5 (2026-10-10). Round 4 (findings ISSUE 1, NOTEs 2
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/session-editor-file-mode-parity-5620b26f-603e-4d57-826d-6ef92b7fcd64.md` |
+| `./le spec review check` | clean: `review_gate: OK (clean, hashes match)` 2026-10-10 |
+| Rounds | 5; round 5 final: 0 BLOCKER, 0 ISSUE |
+| Reviewer lenses used | independent agents per round: logic and wiring, window concurrency, user-facing errors, docs against source |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R1-1 | BLOCKER | web GUI commit bypassed the confirm window | `web/handler_config_commit.go` | f24e13e0ab, 08f414e79a |
+| R1-2 | ISSUE | failed deadline revert left a zombie window | `confirm.Window.run` | e331710552 |
+| R1-3 | ISSUE | window applied before persisting its record | `confirm.Window.open` | e331710552 |
+| R1-4 | ISSUE | queued command goroutines blocked after the SSH program ended | `model_commands.go` | c692784281 |
+| R1-5 | ISSUE | force missed a change held in the shared draft | `editor_commit_force.go` | 2ebfddc99d |
+| R1-6 | ISSUE | SSH opened a window on an empty commit, web did not | `runCommitSession` | e7d916be5d |
+| R1-7 | ISSUE | grammar words restated outside `contract/commit.go` | cli, web | 365edbbf79 |
+| R2-1 | ISSUE | web own accept/abort reported as closed elsewhere | `web/editor_commit_window.go` | e427e63d04 |
+| R2-2 | ISSUE | rollback and managed pushes landed inside a window | `editor.go`, `cmd/ze/hub/managed.go` | 00755d0565 |
+| R2-3 | ISSUE | failed discard after a forced commit only logged | `cleanupCommittedSession` | 8bb7e0f216 |
+| R2-4 | ISSUE | discard notice reached only one session of the user | `editor_commit_force.go` | 5d55e4985d |
+| R3-1 | ISSUE | web `rollback <N>` wrote inside a window | `cmd/ze/hub/editor_adapter.go` | 4bfdf70880 |
+| R3-2 | ISSUE | discard notice pruned before a closed web page saw it | `writeDiscardNotice` | 15f9fce33f |
+| R4-1 | ISSUE | offline `ze config rollback` refusal unactionable | `confirm/store.go` | cef825da9d |
+
+Round 5 history: ready for round 5 (2026-10-10). Round 4 (findings ISSUE 1, NOTEs 2
 to 5, no action owed on the NOTEs) has its fix commit: cef825da9d (ISSUE 1,
 offline `ze config rollback` beside a window a stopped daemon left refuses
 with `confirm.StoppedWindowError`, naming `ze start <file>`; the
