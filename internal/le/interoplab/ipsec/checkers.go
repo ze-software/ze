@@ -31,6 +31,8 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"child-rekey":                          checkChildRekey,
 	"child-rekey-narrowing":                checkChildRekeyNarrowing,
 	"child-rekey-refused-keeps-the-sa":     checkChildRekeyRefusedKeepsTheSA,
+	"childless-ike-sa-ze-initiator":        checkChildlessIKESAZeInitiator,
+	"childless-ike-sa-ze-responder":        checkChildlessIKESAZeResponder,
 	"clear-reestablish":                    checkClearReestablish,
 	"cookie-challenge":                     checkCookieChallenge,
 	"dataplane-readback":                   checkDataplaneReadback,
@@ -2416,4 +2418,165 @@ func (l *scenarioLab) waitZeIKEEstablished(ctx context.Context) error {
 		return true, nil
 	}, func(established bool) bool { return established })
 	return err
+}
+
+// swanIKESAIdentity reads the unique id strongSwan gives the `ze` IKE SA in
+// `swanctl --list-sas` ("ze: #3, ESTABLISHED, ..."). A new IKE_SA_INIT gets a new
+// id, so an equal id before and after proves the same IKE SA carried both.
+var swanIKESAIdentity = regexp.MustCompile(`ze: #(\d+), ESTABLISHED`)
+
+// swanCreateChildWithKE is strongSwan's own trace of a CREATE_CHILD_SA request for
+// a NEW Child SA with PFS: no N(REKEY_SA) before SA, and a KE payload.
+var swanCreateChildWithKE = regexp.MustCompile(`generating CREATE_CHILD_SA request \d+ \[ SA No KE TSi TSr \]`)
+
+func (l *scenarioLab) swanIKESAID(ctx context.Context) (string, error) {
+	output, err := l.listSAs(ctx)
+	if err != nil {
+		return "", err
+	}
+	match := swanIKESAIdentity.FindStringSubmatch(output)
+	if match == nil {
+		return "", fmt.Errorf("strongSwan lists no ESTABLISHED IKE SA ze: %s", output)
+	}
+	return match[1], nil
+}
+
+// checkChildlessIKESAZeResponder proves AC-13 of
+// spec-ike-create-child-sa-on-established-ike-sa against strongSwan as initiator.
+//
+// strongSwan initiates `refused`, whose ESP proposal (aes128gcm16) Ze's esp-group
+// does not hold. Ze authenticates the IKE SA and answers the Child SA with
+// NO_PROPOSAL_CHOSEN, and strongSwan keeps the IKE SA (child_create.c
+// handle_child_sa_failure). The checker then initiates `wanted`, which strongSwan
+// sends on the SAME IKE SA as a CREATE_CHILD_SA request with KE (PFS, modp2048),
+// and Ze creates the Child SA: both kernels hold ESP state and traffic passes.
+//
+// RFC 7296 Section 2.21.2: "If the failure is related to creating the IKE SA (for
+// example, an AUTHENTICATION_FAILED Notify error message is returned), the IKE SA
+// is not created. However, if the failure is related to creating the Child SA,
+// the IKE SA is created and the Child SA is not created." RFC 7296 Section 1.3.1
+// is the exchange `wanted` arrives in.
+func checkChildlessIKESAZeResponder(ctx context.Context, lab *scenarioLab) error {
+	lab.execQuiet(ctx, swanPeer, cmdSwanctl, "--initiate", "--child", "refused")
+	if err := lab.waitSA(ctx, lab.timeout); err != nil {
+		return fmt.Errorf("strongSwan holds no IKE SA after Ze refused its first Child SA: %w", err)
+	}
+	if err := lab.waitLog(ctx, swanPeer, "NO_PROPOSAL_CHOSEN", lab.timeout); err != nil {
+		return fmt.Errorf("strongSwan never read Ze's refusal of the `refused` Child SA: %w", err)
+	}
+	before, err := lab.swanIKESAID(ctx)
+	if err != nil {
+		return err
+	}
+	spis, err := lab.espSPIs(ctx, zePeer)
+	if err != nil {
+		return err
+	}
+	if len(spis) != 0 {
+		return fmt.Errorf("ze installed ESP state %v for a Child SA it refused", spis)
+	}
+	lab.execQuiet(ctx, swanPeer, cmdSwanctl, "--initiate", "--child", "wanted")
+	if err := lab.waitChild(ctx, "wanted"); err != nil {
+		return fmt.Errorf("ze never created the `wanted` Child SA on the childless IKE SA: %w", err)
+	}
+	after, err := lab.swanIKESAID(ctx)
+	if err != nil {
+		return err
+	}
+	if after != before {
+		return fmt.Errorf("the `wanted` Child SA came up on IKE SA #%s, not on the childless #%s: a new IKE_SA_INIT, not CREATE_CHILD_SA", after, before)
+	}
+	swanLogs, err := lab.logs(ctx, swanPeer)
+	if err != nil {
+		return err
+	}
+	if !swanCreateChildWithKE.MatchString(swanLogs) {
+		return errors.New("strongSwan never sent a CREATE_CHILD_SA request with KE for a new Child SA")
+	}
+	if strings.Contains(swanLogs, "deleting IKE_SA ze[") {
+		return errors.New("strongSwan deleted the IKE SA during the scenario")
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return err
+	}
+	return lab.verifyTunnelTraffic(ctx, "no ESP traffic through the Child SA Ze created on the childless IKE SA")
+}
+
+// childlessCreateWait bounds the wait for Ze's scheduled CREATE_CHILD_SA after the
+// fix loads. Ze retries 30 s after the IKE SA came up and then doubles the wait,
+// so the attempt after the first refusal comes about 60 s later.
+const childlessCreateWait = 150 * time.Second
+
+// checkChildlessIKESAZeInitiator proves AC-14 of
+// spec-ike-create-child-sa-on-established-ike-sa against strongSwan as responder.
+//
+// strongSwan's child proposal (aes128gcm16) is one Ze does not offer, so strongSwan
+// authenticates the IKE SA and refuses the Child SA in IKE_AUTH. Ze keeps the IKE
+// SA, and its first scheduled creation is refused too. The checker then loads a
+// child proposal Ze offers. strongSwan's vici merge_config takes the "updated
+// vici connection" branch when only the children differ: replace_children swaps
+// the child configs inside the peer_cfg the existing IKE SA references, and
+// clear_start_action touches only children whose start_action is start, which
+// this one is not. So the IKE SA stays, and Ze's next scheduled CREATE_CHILD_SA
+// (with KE, PFS on) installs the Child SA on the SAME IKE SA.
+//
+// RFC 7296 Section 2.21.2: "However, if the failure is related to creating the
+// Child SA, the IKE SA is created and the Child SA is not created."
+func checkChildlessIKESAZeInitiator(ctx context.Context, lab *scenarioLab) error {
+	if err := lab.waitSA(ctx, lab.timeout); err != nil {
+		return fmt.Errorf("strongSwan holds no IKE SA after refusing Ze's first Child SA: %w", err)
+	}
+	if err := lab.waitLog(ctx, zePeer, "peer authenticated and refused the Child SA, keeping the IKE SA", lab.timeout); err != nil {
+		return fmt.Errorf("ze did not keep the IKE SA strongSwan refused a Child SA on: %w", err)
+	}
+	before, err := lab.swanIKESAID(ctx)
+	if err != nil {
+		return err
+	}
+	if err := lab.waitLog(ctx, zePeer, "child-sa: creation refused, keeping the IKE SA", 60*time.Second); err != nil {
+		return fmt.Errorf("ze never retried the refused Child SA with CREATE_CHILD_SA: %w", err)
+	}
+	fixConfig := "connections {\n    ze {\n        children {\n            ze-child {\n                esp_proposals = aes256gcm16-modp2048\n            }\n        }\n    }\n}\n"
+	var tb textbuf.Buffer
+	command := tb.Str("cat > /etc/swanctl/conf.d/zz-fix.conf <<'EOF'\n").Str(fixConfig).Str("EOF").String()
+	if _, err := lab.exec(ctx, swanPeer, "sh", "-c", command); err != nil {
+		return err
+	}
+	loaded, err := lab.query(ctx, swanPeer, cmdSwanctl, "--load-conns")
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(loaded, "loaded connection 'ze'") {
+		return fmt.Errorf("strongSwan did not load the fixed connection: %s", loaded)
+	}
+	if err := lab.waitLog(ctx, zePeer, "child-sa: created via CREATE_CHILD_SA", childlessCreateWait); err != nil {
+		return fmt.Errorf("ze never created the Child SA after strongSwan accepted its proposal: %w", err)
+	}
+	if err := lab.waitChild(ctx, "ze-child"); err != nil {
+		return err
+	}
+	after, err := lab.swanIKESAID(ctx)
+	if err != nil {
+		return err
+	}
+	if after != before {
+		return fmt.Errorf("the Child SA came up on IKE SA #%s, not on the childless #%s", after, before)
+	}
+	swanLogs, err := lab.logs(ctx, swanPeer)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(swanLogs, "deleting IKE_SA ze[") {
+		return errors.New("strongSwan deleted the IKE SA during the scenario")
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return err
+	}
+	return lab.verifyTunnelTraffic(ctx, "no ESP traffic through the Child SA Ze created on the childless IKE SA")
 }
