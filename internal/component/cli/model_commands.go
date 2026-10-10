@@ -10,12 +10,12 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -25,8 +25,7 @@ import (
 const emptyConfiguration = "(empty configuration)"
 
 var (
-	errCommitConfirmedNotYetSupportedIn         = errors.New("commit confirmed not yet supported in session mode (use 'commit')")
-	errUsageCommitforceConfirmedSeconds         = errors.New("usage: commit [force] confirmed <seconds>")
+	errCommitConfirmedNotYetSupportedIn         = errors.New("commit confirmed not yet supported in session mode (use 'commit now')")
 	errWhoRequiresAnActiveEditingSession        = errors.New("who requires an active editing session")
 	errDisconnectRequiresAnActiveEditingSession = errors.New("disconnect requires an active editing session")
 	errUsageEditPath                            = errors.New("usage: edit <path>")
@@ -142,44 +141,11 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return m.cmdOption(args)
 
 	case cmdCommit:
-		// Parse force flag: "commit force", "commit force confirmed <N>"
-		force := len(args) >= 1 && args[0] == "force"
-		commitArgs := args
-		if force {
-			commitArgs = args[1:] // strip "force" for further parsing
+		req, err := contract.ParseCommit(args)
+		if err != nil {
+			return commandResult{}, err
 		}
-
-		// "commit [force] confirmed <N>" -- commit with auto-rollback
-		if len(commitArgs) >= 1 && commitArgs[0] == cmdConfirmed {
-			if m.editor.HasSession() {
-				return commandResult{}, errCommitConfirmedNotYetSupportedIn
-			}
-			if len(commitArgs) < 2 {
-				return commandResult{}, errUsageCommitforceConfirmedSeconds
-			}
-			seconds, err := strconv.Atoi(commitArgs[1])
-			if err != nil {
-				return commandResult{}, fmt.Errorf("invalid seconds: %s", commitArgs[1])
-			}
-			return m.cmdCommitConfirmed(seconds, force)
-		}
-
-		// "commit force" -- skip warnings
-		if force {
-			return m.cmdCommitForce()
-		}
-
-		// Session-aware commit: use CommitSession when a session is active.
-		if m.editor.HasSession() {
-			return m.cmdCommitSession()
-		}
-		return m.cmdCommit()
-
-	case cmdConfirm:
-		if len(args) >= 1 && args[0] == cmdAbort {
-			return m.cmdAbort()
-		}
-		return m.cmdConfirm()
+		return m.cmdCommitRequest(req)
 
 	case cmdDiscard:
 		// Session-aware discard: requires path or cmdAll when session is active.

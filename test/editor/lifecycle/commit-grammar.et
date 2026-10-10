@@ -1,0 +1,158 @@
+# Test: file mode takes the commit subcommands and the force modifier
+# VALIDATES: spec-session-editor-file-mode-parity AC-29 (file mode) -- AC-12,
+#            AC-13, AC-16, AC-20, AC-25 to AC-28 and AC-30 give the result and the
+#            message the SSH editor gives
+# PREVENTS: file mode keeping plain `commit`, `commit force` and `confirm` after
+#           the session editors moved to the subcommands
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  peer peer1 {
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  		local {
+  			ip auto
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=120s
+
+# AC-27: the old forms and an unknown subcommand are refused
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=dirty:true
+
+input=type:text=commit
+input=enter
+expect=error:contains=commit now
+
+input=type:text=commit bogus
+input=enter
+expect=error:contains=commit verify
+
+input=type:text=commit force
+input=enter
+expect=error:contains=modifier
+
+input=type:text=confirm
+input=enter
+expect=error:contains=unknown
+
+input=type:text=confirm abort
+input=enter
+expect=error:contains=unknown
+
+# AC-20: the time is required and bounded
+input=type:text=commit confirmed
+input=enter
+expect=error:contains=seconds
+
+input=type:text=commit confirmed 0
+input=enter
+expect=error:contains=at least 1
+
+input=type:text=commit confirmed 3601
+input=enter
+expect=error:contains=at most 3600
+
+input=type:text=commit confirmed abc
+input=enter
+expect=error:contains=invalid
+
+# AC-25: accept and abort with no window
+input=type:text=commit accept
+input=enter
+expect=error:contains=no confirmed commit is pending
+
+input=type:text=commit abort
+input=enter
+expect=error:contains=no confirmed commit is pending
+
+# AC-28: force has nothing to override on accept, abort and verify;
+# outside commit it is an ordinary word
+input=type:text=commit accept force
+input=enter
+expect=error:contains=force
+
+input=type:text=commit abort force
+input=enter
+expect=error:contains=force
+
+input=type:text=commit verify force
+input=enter
+expect=error:contains=force
+
+input=type:text=set bgp peer peer1 description force
+input=enter
+expect=error:none
+
+# AC-26: verify applies nothing
+input=type:text=commit verify
+input=enter
+expect=status:contains=valid
+expect=dirty:true
+
+# AC-13: a window, then accept
+input=type:text=commit confirmed 60
+input=enter
+expect=status:contains=commit accept
+
+input=type:text=commit now
+input=enter
+expect=error:contains=commit accept
+
+input=type:text=commit accept
+input=enter
+expect=status:contains=accepted
+expect=error:none
+
+# AC-16: a window, then abort
+input=type:text=set bgp router-id 9.9.9.9
+input=enter
+expect=dirty:true
+
+input=type:text=commit confirmed 60
+input=enter
+expect=status:contains=commit accept
+
+input=type:text=commit abort
+input=enter
+expect=status:contains=rolled back
+expect=error:none
+
+# AC-30: copy and rename never overwrite
+input=type:text=copy bgp peer peer1 to peer1
+input=enter
+expect=error:contains=delete it first
+
+input=type:text=rename bgp peer peer1 to peer1
+input=enter
+expect=error:contains=delete it first
+
+# AC-12 positive half: commit now on a valid candidate applies
+input=type:text=set bgp router-id 7.7.7.7
+input=enter
+expect=dirty:true
+
+input=type:text=commit now force
+input=enter
+expect=error:none
+expect=dirty:false
+

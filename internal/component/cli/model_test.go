@@ -1081,7 +1081,7 @@ func TestExitAfterCommit(t *testing.T) {
 	assert.True(t, ed.Dirty(), "should be dirty after set")
 
 	// Commit — should save and clear dirty
-	_, err = model.dispatchCommand("commit")
+	_, err = model.dispatchCommand("commit now")
 	require.NoError(t, err)
 	assert.False(t, ed.Dirty(), "should NOT be dirty after commit")
 
@@ -1176,7 +1176,7 @@ func TestEditCommandsUnavailableWithoutEditor(t *testing.T) {
 		"set bgp router-id 1.2.3.4",
 		"delete bgp",
 		"show",
-		"commit",
+		"commit now",
 		"discard",
 		"rollback 1",
 		"load file absolute replace test.conf",

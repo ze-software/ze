@@ -702,6 +702,13 @@ func (t *Tree) RemoveListEntry(listName, key string) *Tree {
 	return entry
 }
 
+// errListEntryExists refuses a rename or copy onto a list entry that exists.
+// No keyword overwrites it, so the refusal names the only way through
+// (spec-session-editor-file-mode-parity AC-30).
+func errListEntryExists(key, listName string) error {
+	return fmt.Errorf("%s already exists in %s: delete it first", key, listName)
+}
+
 // RenameListEntry changes the key of a list entry, preserving its subtree and position.
 // Returns an error if the old key does not exist or the new key already exists.
 func (t *Tree) RenameListEntry(listName, oldKey, newKey string) error {
@@ -717,7 +724,7 @@ func (t *Tree) RenameListEntry(listName, oldKey, newKey string) error {
 		return fmt.Errorf("%s not found in %s", oldKey, listName)
 	}
 	if _, exists := list[newKey]; exists {
-		return fmt.Errorf("%s already exists in %s", newKey, listName)
+		return errListEntryExists(newKey, listName)
 	}
 
 	// Move entry to new key
@@ -752,7 +759,7 @@ func (t *Tree) CopyListEntry(listName, srcKey, dstKey string) error {
 	}
 	if _, exists := list[dstKey]; exists {
 		t.mu.Unlock()
-		return fmt.Errorf("%s already exists in %s", dstKey, listName)
+		return errListEntryExists(dstKey, listName)
 	}
 
 	// Release t.mu before entry.Clone() to avoid holding t.mu while
@@ -774,7 +781,7 @@ func (t *Tree) CopyListEntry(listName, srcKey, dstKey string) error {
 		return fmt.Errorf("%s removed from %s during clone", srcKey, listName)
 	}
 	if _, exists := list[dstKey]; exists {
-		return fmt.Errorf("%s already exists in %s", dstKey, listName)
+		return errListEntryExists(dstKey, listName)
 	}
 	list[dstKey] = cloned
 	order := t.listOrder[listName]

@@ -1069,12 +1069,13 @@ func (m Model) renderHelpOverlay(base string) string {
   option all / none    Enable/disable all columns
   option errors hints  Toggle inline diagnostic hints
   option errors hide   Hide error annotations
-  commit               Save changes with backup
-  commit force         Save despite warnings (errors still block)
-  commit confirmed <N> Save with auto-revert after N seconds
-  commit force confirmed <N> Force + auto-revert
-  confirm              Make pending commit permanent
-  confirm abort        Cancel pending commit and roll back
+  commit now           Apply changes (warnings and conflicts block)
+  commit now force     Apply despite warnings and conflicts (errors still block)
+  commit confirmed <N> Apply, auto-revert unless accepted within N seconds
+  commit confirmed <N> force  Force + auto-revert
+  commit accept        Keep a pending confirmed commit
+  commit abort         Revert a pending confirmed commit now
+  commit verify        Validate the candidate, apply nothing
   discard              Revert all changes
   rollback <N>         Restore backup N
   exit                 Return to operational mode

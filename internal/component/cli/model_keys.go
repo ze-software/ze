@@ -197,7 +197,7 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		if m.hasEditor() && m.hasPendingChanges() {
 			m.confirmQuit = true
-			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or type y to force quit."
+			m.statusMessage = "Pending changes. Use 'commit now', 'discard all', or type y to force quit."
 			return m, nil
 		}
 		m.confirmQuit = true
@@ -523,7 +523,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		if m.mode == ModeConfig && input == cmdExit {
 			if m.hasPendingChanges() {
 				m.textInput.SetValue("")
-				m.statusMessage = "Pending changes. Use 'commit', 'discard all', or type y to force exit."
+				m.statusMessage = "Pending changes. Use 'commit now', 'discard all', or type y to force exit."
 				m.confirmQuit = true
 				m.confirmExitConfig = true
 				return m, nil
@@ -535,7 +535,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		}
 		if m.hasPendingChanges() {
 			m.textInput.SetValue("")
-			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or type y to force quit."
+			m.statusMessage = "Pending changes. Use 'commit now', 'discard all', or type y to force quit."
 			m.confirmQuit = true
 			return m, nil
 		}

@@ -1912,7 +1912,7 @@ func TestCmdCommitSessionReload(t *testing.T) {
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
-	result, err := model.cmdCommitSession()
+	result, err := model.cmdCommitSession(false)
 	require.NoError(t, err)
 
 	assert.True(t, notified, "reload notifier should be called")
@@ -1956,7 +1956,7 @@ func TestCmdCommitSessionDeleteContainerClearsDirty(t *testing.T) {
 	require.NoError(t, readErr)
 	assert.Contains(t, string(changeData), "delete-container bgp peer peer1 timer")
 
-	result, err := model.cmdCommitSession()
+	result, err := model.cmdCommitSession(false)
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "change(s) applied")
 	assert.False(t, ed.Dirty(), "status=%q working=%q original=%q", result.statusMessage, ed.WorkingContent(), ed.OriginalContent())
@@ -1989,7 +1989,7 @@ func TestCmdCommitSessionReloadFails(t *testing.T) {
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
-	result, err := model.cmdCommitSession()
+	result, err := model.cmdCommitSession(false)
 	require.NoError(t, err, "session commit failure is reported as command status")
 
 	data, readErr := store.ReadFile(configPath)
@@ -2030,7 +2030,7 @@ func TestCmdCommitSessionRejectsExistingCandidate(t *testing.T) {
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
-	_, err = model.cmdCommitSession()
+	_, err = model.cmdCommitSession(false)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, storage.ErrCandidateExists))
 
@@ -2071,7 +2071,7 @@ func TestCmdCommitSessionValidatesSetFormat(t *testing.T) {
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
-	result, err := model.cmdCommitSession()
+	result, err := model.cmdCommitSession(false)
 	require.NoError(t, err)
 
 	assert.Contains(t, result.statusMessage, "change(s) applied",

@@ -6,6 +6,7 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -197,7 +199,7 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 		return result
 	case verbExit:
 		if mgr.ChangeCount(username) > 0 {
-			result.output = "Pending changes. Use 'commit' or 'discard' before exit."
+			result.output = "Pending changes. Use 'commit now' or 'discard' before exit."
 			return result
 		}
 		result.mode = terminalModeOperational
@@ -406,7 +408,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 	case verbDelete:
 		return nil, executeTerminalDelete(mgr, username, contextPath, cmd.Args)
 	case verbCommit:
-		return nil, executeTerminalCommit(mgr, username)
+		return nil, executeTerminalCommit(mgr, username, cmd.Args)
 	case verbDiscard:
 		if err := mgr.Discard(username); err != nil {
 			var tb textbuf.Buffer
@@ -549,7 +551,8 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
   deactivate <path>    Mark a node inactive
   activate <path>      Re-activate a node
   compare              Show diff vs original
-  commit               Save changes
+  commit now           Apply changes
+  commit accept|abort  Keep or revert a pending confirmed commit
   discard              Revert all changes
   save                 Save draft
   history              List backups
@@ -876,8 +879,45 @@ func executeTerminalDelete(mgr *EditorManager, username string, contextPath, arg
 	return tb.Reset().Str("deleted ").Str(args[0]).String()
 }
 
+// errWebCommitConfirmedNotYetSupported and errWebCommitVerifyNotYetSupported
+// refuse, by name, the two subcommands the web editor cannot run yet: it holds
+// no confirm window and no validator. accept and abort answer truthfully, since
+// a web session can never have opened a window.
+var (
+	errWebCommitConfirmedNotYetSupported = errors.New("commit confirmed is not yet supported in the web editor (use 'commit now')")
+	errWebCommitVerifyNotYetSupported    = errors.New("commit verify is not yet supported in the web editor")
+	errWebNoConfirmedCommitPending       = errors.New("no confirmed commit is pending")
+)
+
+// webCommitRequest parses the arguments after `commit` with the grammar every
+// editor shares, and refuses what the web editor cannot run. Only `commit now`
+// returns no error.
+func webCommitRequest(args []string) error {
+	req, err := contract.ParseCommit(args)
+	if err != nil {
+		return err
+	}
+	switch req.Action {
+	case contract.CommitNow:
+		return nil
+	case contract.CommitConfirmed:
+		return errWebCommitConfirmedNotYetSupported
+	case contract.CommitAccept, contract.CommitAbort:
+		return errWebNoConfirmedCommitPending
+	case contract.CommitVerify:
+		return errWebCommitVerifyNotYetSupported
+	case contract.CommitActionUnspecified:
+		panic("BUG: commit request carries no action")
+	}
+	panic("BUG: unknown commit action")
+}
+
 // executeTerminalCommit handles the commit command in terminal mode.
-func executeTerminalCommit(mgr *EditorManager, username string) string {
+func executeTerminalCommit(mgr *EditorManager, username string, args []string) string {
+	if err := webCommitRequest(args); err != nil {
+		var tb textbuf.Buffer
+		return tb.Str("error: ").Err(err).String()
+	}
 	result, err := mgr.Commit(username)
 	if err != nil {
 		var tb textbuf.Buffer

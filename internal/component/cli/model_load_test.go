@@ -45,7 +45,7 @@ func TestModelCommitConfirmStartsTimer(t *testing.T) {
 	model.applyResult(result)
 
 	// Should have status message about confirm
-	assert.Contains(t, result.statusMessage, "confirm", "status should mention confirm")
+	assert.Contains(t, result.statusMessage, "commit accept", "status should name the command that keeps the commit")
 
 	// Timer should be active
 	assert.True(t, model.ConfirmTimerActive(), "confirm timer should be active")

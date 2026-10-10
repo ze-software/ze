@@ -298,13 +298,13 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	case verbUp:
 		handleCLIUp(w, contextPath, schema, renderer, mgr, username)
 	case verbCommit:
-		handleCLICommit(w, r, renderer, mgr, username)
+		handleCLICommit(w, r, renderer, mgr, username, cmd.Args)
 	case verbDiscard:
 		handleCLIDiscard(w, r, renderer, mgr, username)
 	case verbWho:
 		handleCLIWho(w, renderer, mgr)
 	case verbHelp:
-		writeCLINotification(w, renderer, "commands: edit, set, delete, show, top, up, commit, discard, who, help", "info")
+		writeCLINotification(w, renderer, "commands: edit, set, delete, show, top, up, commit now, discard, who, help", "info")
 	}
 }
 
@@ -479,7 +479,11 @@ func handleCLIUp(w http.ResponseWriter, contextPath []string, schema *config.Sch
 }
 
 // handleCLICommit processes the "commit" verb.
-func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string) {
+func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, args []string) {
+	if err := webCommitRequest(args); err != nil {
+		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")
+		return
+	}
 	result, err := mgr.Commit(username)
 	if err != nil {
 		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")

@@ -6,7 +6,6 @@
 package config
 
 import (
-	"fmt"
 	"maps"
 	"slices"
 	"sync"
@@ -287,7 +286,7 @@ func (mt *MetaTree) RenameListEntry(listName, oldKey, newKey string) error {
 		return nil
 	}
 	if _, exists := listContainer.lists[newKey]; exists {
-		return fmt.Errorf("%s already exists in %s", newKey, listName)
+		return errListEntryExists(newKey, listName)
 	}
 	listContainer.lists[newKey] = entry
 	delete(listContainer.lists, oldKey)
@@ -320,7 +319,7 @@ func (mt *MetaTree) CopyListEntry(listName, sourceKey, targetKey string) error {
 		return nil
 	}
 	if _, exists := listContainer.lists[targetKey]; exists {
-		return fmt.Errorf("%s already exists in %s", targetKey, listName)
+		return errListEntryExists(targetKey, listName)
 	}
 	target := source.Clone()
 	target.clearPrevious()

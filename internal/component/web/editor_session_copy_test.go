@@ -82,7 +82,7 @@ func TestWebTerminalSetTakesATokenPath(t *testing.T) {
 	require.True(t, ok, "the leaf lands at its full path")
 	assert.Equal(t, "10.0.0.9", routerID)
 
-	_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbCommit})
+	_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbCommit, Args: []string{"now"}})
 	require.Equal(t, terminalOutputCommitSuccessful, output)
 
 	_, output = executeTerminalNav(schema, nil, mgr, "alice", nil,

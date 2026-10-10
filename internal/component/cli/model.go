@@ -257,9 +257,6 @@ const (
 	cmdCompare    = "compare"
 	cmdEdit       = "edit"
 	cmdCommit     = command.VerbCommit
-	cmdConfirm    = "confirm"
-	cmdConfirmed  = "confirmed"
-	cmdAbort      = "abort"
 	cmdDiscard    = "discard"
 	cmdHistory    = "history"
 	cmdRollback   = "rollback"
@@ -540,7 +537,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.hasEditor() {
 				if m.editor.HasPendingEdit() {
 					if err := m.editor.LoadPendingEdit(); err == nil {
-						m.statusMessage = "Restored snapshot from previous session. Use 'commit' to apply or 'discard' to revert."
+						m.statusMessage = "Restored snapshot from previous session. Use 'commit now' to apply or 'discard' to revert."
 						m.runValidation()
 					}
 				}

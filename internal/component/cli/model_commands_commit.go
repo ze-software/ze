@@ -11,14 +11,15 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (
-	errUsageRollbackNumber          = errors.New("usage: rollback <number>")
-	errCommitForceNotYetSupportedIn = errors.New("commit force not yet supported in session mode (use 'commit')")
-	errDiscardRequiresPathOrAllIn   = errors.New("discard requires path or 'all' in session mode")
+	errUsageRollbackNumber        = errors.New("usage: rollback <number>")
+	errCommitWindowPending        = errors.New("a confirmed commit is pending: use 'commit accept' to keep it, 'commit abort' to revert it, or 'commit confirmed <seconds> force' to add changes and reset the countdown")
+	errDiscardRequiresPathOrAllIn = errors.New("discard requires path or 'all' in session mode")
 )
 
 func (m *Model) cmdHistory() (commandResult, error) {
@@ -135,6 +136,54 @@ func (m *Model) cmdSave() (commandResult, error) {
 	return commandResult{statusMessage: "Configuration saved (snapshot)"}, nil
 }
 
+// cmdCommitRequest runs one parsed commit subcommand. A pending confirm window
+// refuses `commit now` and a plain nested `commit confirmed`, because a commit
+// inside the window would be reverted with it (AC-18, AC-23).
+func (m *Model) cmdCommitRequest(req contract.CommitRequest) (commandResult, error) {
+	switch req.Action {
+	case contract.CommitNow:
+		if m.confirmTimerActive {
+			return commandResult{}, errCommitWindowPending
+		}
+		if m.editor.HasSession() {
+			return m.cmdCommitSession(req.Force)
+		}
+		if req.Force {
+			return m.cmdCommitForce()
+		}
+		return m.cmdCommit()
+	case contract.CommitConfirmed:
+		if m.editor.HasSession() {
+			return commandResult{}, errCommitConfirmedNotYetSupportedIn
+		}
+		if m.confirmTimerActive {
+			return commandResult{}, errCommitWindowPending
+		}
+		return m.cmdCommitConfirmed(req.Seconds, req.Force)
+	case contract.CommitAccept:
+		return m.cmdConfirm()
+	case contract.CommitAbort:
+		return m.cmdAbort()
+	case contract.CommitVerify:
+		return m.cmdCommitVerify()
+	case contract.CommitActionUnspecified:
+		panic("BUG: commit request carries no action")
+	}
+	panic("BUG: unknown commit action")
+}
+
+// cmdCommitVerify runs the validation `commit now` runs and applies nothing:
+// the candidate, its pending changes and any window stay as they are (AC-26).
+func (m *Model) cmdCommitVerify() (commandResult, error) {
+	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
+	if len(result.Errors) == 0 && len(result.Warnings) == 0 {
+		return commandResult{statusMessage: "commit verify: the candidate is valid; nothing was applied"}, nil
+	}
+	var b textbuf.Buffer
+	b.Str("commit verify: ").Int(int64(len(result.Errors))).Str(" error(s), ").Int(int64(len(result.Warnings))).Str(" warning(s), type 'errors' for details; nothing was applied")
+	return commandResult{statusMessage: b.String(), configView: m.configViewAtPath(m.contextPath)}, nil
+}
+
 // cmdCommit saves changes with validation check.
 // If a ReloadNotifier is set, stages a transactional candidate and asks the daemon to reload.
 // Reload failure fails the commit and leaves the editor dirty.
@@ -171,12 +220,6 @@ func (m *Model) tryReload() string {
 // cmdCommitForce saves changes, skipping warnings but still blocking on errors.
 // Used when the operator explicitly overrides warnings (e.g., dangling profile references).
 func (m *Model) cmdCommitForce() (commandResult, error) {
-	// Session mode uses CommitSession which has its own validation path.
-	// Force-skip of warnings is not yet supported there.
-	if m.editor.HasSession() {
-		return commandResult{}, errCommitForceNotYetSupportedIn
-	}
-
 	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
 	if len(result.Errors) > 0 {
 		return commandResult{
@@ -186,7 +229,7 @@ func (m *Model) cmdCommitForce() (commandResult, error) {
 	}
 
 	if len(result.Warnings) > 0 {
-		m.statusMessage = textbuf.StrIntStr("commit force: skipping ", int64(len(result.Warnings)), " warning(s)")
+		m.statusMessage = textbuf.StrIntStr("commit now force: skipping ", int64(len(result.Warnings)), " warning(s)")
 	}
 
 	return m.commitSaveAndReload()
@@ -266,7 +309,8 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 
 // cmdCommitSession commits only the current session's changes with conflict detection.
 // Validates the resulting config before committing (same check as non-session commit).
-func (m *Model) cmdCommitSession() (commandResult, error) {
+// With force, warnings do not block and the status counts them; errors always block.
+func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
 	detail := m.editor.Diff()
 	// Validate the current config before attempting commit.
 	// Session mode uses set/delete commands that validate per-field, but
@@ -274,12 +318,17 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
 	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
 	issues = append(issues, result.Errors...)
-	issues = append(issues, result.Warnings...)
+	if !force {
+		issues = append(issues, result.Warnings...)
+	}
 	if len(issues) > 0 {
 		return commandResult{
 			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(issues)), " issue(s), type 'errors' for details"),
 			configView:    m.configViewAtPath(m.contextPath),
 		}, nil
+	}
+	if force && len(result.Warnings) > 0 {
+		m.statusMessage = textbuf.StrIntStr("commit now force: skipping ", int64(len(result.Warnings)), " warning(s)")
 	}
 
 	var (

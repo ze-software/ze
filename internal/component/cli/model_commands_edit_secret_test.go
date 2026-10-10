@@ -121,7 +121,7 @@ func TestCommitConflictNeverEchoesASecret(t *testing.T) {
 	mine := editSessionModel(t, store, configPath, "alice", typedCLISecret)
 	_ = editSessionModel(t, store, configPath, "bob", "bob-"+typedCLISecretTail)
 
-	result, err := mine.dispatchCommand("commit")
+	result, err := mine.dispatchCommand("commit now")
 	require.NoError(t, err)
 
 	require.Contains(t, result.output, "LIVE",

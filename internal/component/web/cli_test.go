@@ -588,7 +588,7 @@ func TestTerminalModeCommitAuditRecord(t *testing.T) {
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "10.0.0.2"))
 	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, recorder)
 
-	resp := runTerminalCommand(t, handler, "commit")
+	resp := runTerminalCommand(t, handler, "commit now")
 	require.Equal(t, "commit successful", resp.Output)
 
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
@@ -1022,6 +1022,43 @@ func TestCLIBarDelete(t *testing.T) {
 
 // VALIDATES: AC-9 (commit command applies changes).
 // PREVENTS: Commit command returns error for valid session with changes.
+// TestTerminalModeCommitGrammar proves the web terminal parses the commit
+// grammar every editor shares and refuses the old forms.
+//
+// VALIDATES: spec-session-editor-file-mode-parity AC-27, AC-28, AC-29 (web):
+// `commit` alone names the subcommands, `commit force` is refused as a
+// modifier, `force` on accept is refused, `confirm` is unknown, and only
+// `commit now` applies; no refusal records a commit in the audit trail.
+// PREVENTS: the web terminal committing on any text that starts with `commit`.
+func TestTerminalModeCommitGrammar(t *testing.T) {
+	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "10.0.0.2"))
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, recorder)
+
+	refused := map[string]string{
+		"commit":              "commit now",
+		"commit bogus":        "commit verify",
+		"commit force":        "modifier",
+		"commit accept force": "takes no force",
+		"commit accept":       "no confirmed commit is pending",
+		"commit abort":        "no confirmed commit is pending",
+		"confirm":             "unknown",
+	}
+	for input, want := range refused {
+		resp := runTerminalCommand(t, handler, input)
+		assert.Contains(t, resp.Output, want, input)
+		assert.NotEqual(t, "commit successful", resp.Output, input)
+	}
+	assert.Equal(t, 1, mgr.ChangeCount("testuser"), "a refused commit applied the change")
+	assert.Empty(t, recorder.Query(audit.Filter{Action: audit.ActionConfigCommit}), "a refused commit was audited")
+
+	resp := runTerminalCommand(t, handler, "commit now")
+	require.Equal(t, "commit successful", resp.Output)
+	assert.Equal(t, 0, mgr.ChangeCount("testuser"))
+}
+
 func TestCLIBarCommit(t *testing.T) {
 	mgr, renderer := setupCLITest(t)
 	schema, _ := buildTestSchemaAndTree()
@@ -1033,7 +1070,7 @@ func TestCLIBarCommit(t *testing.T) {
 	require.NoError(t, err, "precondition: set value before commit")
 
 	body := url.Values{
-		"command": {"commit"},
+		"command": {"commit now"},
 		"path":    {"bgp"},
 	}
 

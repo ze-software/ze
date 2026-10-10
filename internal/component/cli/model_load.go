@@ -14,6 +14,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -23,8 +24,8 @@ var (
 	errTimeoutMustBeAtMost3600         = errors.New("timeout must be at most 3600 seconds (1 hour)")
 	errCommitSucceededButNoBackupFound = errors.New("commit succeeded but no backup found for rollback")
 	errCommitConfirmedNeedsHistory     = fmt.Errorf("commit confirmed needs config history to roll back: %w; run ze init", storage.ErrNoStore)
-	errNoPendingCommitToConfirm        = errors.New("no pending commit to confirm")
-	errNoPendingCommitToAbort          = errors.New("no pending commit to abort")
+	errNoPendingCommitToConfirm        = errors.New("no confirmed commit is pending, so there is nothing to accept")
+	errNoPendingCommitToAbort          = errors.New("no confirmed commit is pending, so there is nothing to abort")
 	errNoCommandBeforePipe             = errors.New("no command before pipe")
 )
 
@@ -37,8 +38,8 @@ var (
 //
 // Flow:
 //   commit confirmed <N> → backup .conf, write .live.conf, overwrite .conf, start timer
-//   confirm              → delete .live.conf (already permanent in .conf)
-//   timeout/abort        → rollback .conf from backup, delete .live.conf, reload daemon
+//   commit accept        → delete .live.conf (already permanent in .conf)
+//   timeout/commit abort → rollback .conf from backup, delete .live.conf, reload daemon
 
 // cmdCommitConfirmed commits with auto-rollback if not confirmed within timeout.
 // Writes the trial config to .live.conf for audit, then overwrites .conf so the
@@ -48,10 +49,10 @@ var (
 // When force is true, warnings are skipped but errors still block.
 func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, error) {
 	// Boundary validation: 1-3600 seconds
-	if seconds < 1 {
+	if seconds < contract.CommitConfirmedSecondsMin {
 		return commandResult{}, errTimeoutMustBeAtLeast1
 	}
-	if seconds > 3600 {
+	if seconds > contract.CommitConfirmedSecondsMax {
 		return commandResult{}, errTimeoutMustBeAtMost3600
 	}
 
@@ -140,7 +141,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	return commandResult{
 		statusMessage: func() string {
 			var tb textbuf.Buffer
-			tb.Str("Committed").Str(reloadWarning).Str(". Confirm within ").Int(int64(seconds)).Str("s or auto-revert. Use 'confirm' or 'confirm abort'.")
+			tb.Str("Committed").Str(reloadWarning).Str(". Confirm within ").Int(int64(seconds)).Str("s or auto-revert. Use 'commit accept' or 'commit abort'.")
 			appendCommitWarnings(&tb, warnings)
 			return tb.String()
 		}(),
@@ -164,7 +165,7 @@ func (m *Model) cmdConfirm() (commandResult, error) {
 	m.editor.deleteLive()
 	m.searchCache = "" // tree finalized, invalidate cached set-view
 
-	msg := "Configuration confirmed and saved permanently."
+	msg := "Commit accepted: the confirmed configuration is saved permanently."
 	if m.editor.HasReloadNotifier() {
 		msg += m.tryReload()
 	}
@@ -240,7 +241,7 @@ func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
 	}
 
 	// Update countdown display
-	m.statusMessage = textbuf.StrIntStr("Confirm within ", int64(m.confirmSecondsLeft), "s or auto-revert. Use 'confirm' or 'confirm abort'.")
+	m.statusMessage = textbuf.StrIntStr("Confirm within ", int64(m.confirmSecondsLeft), "s or auto-revert. Use 'commit accept' or 'commit abort'.")
 	return m, tea.Tick(time.Second, func(_ time.Time) tea.Msg {
 		return confirmCountdownMsg{}
 	})

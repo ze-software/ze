@@ -26,13 +26,13 @@ import (
 func TestPastedBlockDispatchesWithoutRacingTheEditor(t *testing.T) {
 	pairs := [][2]string{
 		{"set bgp router-id 9.9.9.9", "set bgp session asn local 65100"},
-		{"set bgp router-id 9.9.9.9", "commit"},
-		{"commit", "set bgp router-id 9.9.9.9"},
-		{"commit", "commit"},
-		{"commit", "discard"},
-		{"discard", "commit"},
+		{"set bgp router-id 9.9.9.9", "commit now"},
+		{"commit now", "set bgp router-id 9.9.9.9"},
+		{"commit now", "commit now"},
+		{"commit now", "discard"},
+		{"discard", "commit now"},
 		{"set bgp router-id 9.9.9.9", "discard"},
-		{"rollback 1", "commit"},
+		{"rollback 1", "commit now"},
 	}
 	for _, pair := range pairs {
 		t.Run(pair[0]+"|"+pair[1], func(t *testing.T) {
@@ -87,7 +87,7 @@ func TestPastedBlockDispatchesWithoutRacingTheEditor(t *testing.T) {
 
 			// "set" then "commit" is the block an operator actually pastes: the
 			// committed file must carry the edit that was entered before it.
-			if pair[0] == "set bgp router-id 9.9.9.9" && pair[1] == "commit" {
+			if pair[0] == "set bgp router-id 9.9.9.9" && pair[1] == "commit now" {
 				onDisk, readErr := os.ReadFile(configPath)
 				require.NoError(t, readErr)
 				assert.Contains(t, string(onDisk), "9.9.9.9",

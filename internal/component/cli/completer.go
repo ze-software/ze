@@ -191,7 +191,7 @@ var commands = []Completion{
 	{Text: cmdEdit, ShortHelp: "Enter a subsection context", Type: completionCommand},
 	{Text: cmdShow, ShortHelp: "Display configuration", Type: completionCommand},
 	{Text: cmdOption, ShortHelp: "Display settings (columns, errors)", Type: completionCommand},
-	{Text: cmdCommit, ShortHelp: "Apply config (must be valid)", Type: completionCommand},
+	{Text: cmdCommit, ShortHelp: "Apply, verify, accept or abort the candidate", Type: completionCommand},
 	{Text: cmdSave, ShortHelp: "Snapshot work-in-progress", Type: completionCommand},
 	{Text: cmdDiscard, ShortHelp: "Revert all changes", Type: completionCommand},
 	{Text: cmdTop, ShortHelp: "Return to root context", Type: completionCommand},
@@ -266,6 +266,8 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 		return c.completeOptionPath(tokens[1:], contextPath, endsWithSpace)
 	case cmdDiscard:
 		return c.completeDiscardPath(tokens[1:], contextPath, endsWithSpace)
+	case cmdCommit:
+		return completeCommit(tokens[1:], endsWithSpace)
 	default: // No subcommand completions for other commands
 		return nil
 	}
@@ -612,6 +614,49 @@ func (c *Completer) completeDiscardPath(tokens, contextPath []string, endsWithSp
 		return results
 	}
 	return c.completeSetPath(tokens, contextPath, endsWithSpace)
+}
+
+// completeCommit completes the commit grammar from contract.CommitSubcommands:
+// a subcommand first, then `force` once the subcommand and its seconds are
+// complete, for the subcommands force may follow.
+func completeCommit(tokens []string, endsWithSpace bool) []Completion {
+	subs := contract.CommitSubcommands()
+	if len(tokens) == 0 || (len(tokens) == 1 && !endsWithSpace) {
+		prefix := ""
+		if len(tokens) == 1 {
+			prefix = tokens[0]
+		}
+		all := make([]Completion, 0, len(subs))
+		for _, sub := range subs {
+			all = append(all, Completion{Text: sub.Keyword, ShortHelp: sub.Help, Type: completionKeyword})
+		}
+		return filterCompletions(all, prefix)
+	}
+	idx := slices.IndexFunc(subs, func(s contract.CommitSubcommand) bool { return s.Keyword == tokens[0] })
+	if idx < 0 {
+		return nil
+	}
+	sub := subs[idx]
+	if !sub.Forceable {
+		return nil
+	}
+	// The tokens a complete subcommand holds: its keyword, and its seconds.
+	complete := 1
+	if sub.TakesSeconds {
+		complete = 2
+	}
+	var prefix string
+	switch {
+	case len(tokens) == complete && endsWithSpace:
+		prefix = ""
+	case len(tokens) == complete+1 && !endsWithSpace:
+		prefix = tokens[complete]
+	default:
+		return nil
+	}
+	return filterCompletions([]Completion{
+		{Text: contract.CommitForce, ShortHelp: "Override validation warnings and conflicts", Type: completionKeyword},
+	}, prefix)
 }
 
 // listKeyCompletions returns completions for list keys.
