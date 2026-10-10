@@ -138,7 +138,7 @@ read different registries. Neither is derived from the other.
 Some read-only `show` commands must work with **no daemon reachable** — `show crashes`
 (you inspect a crash precisely when the daemon has died) and `show host` (hardware
 inventory before the daemon is up). Their owner registers an in-process handler with
-`command.RegisterOfflineFallback(path, handler)`. The CLI serves the command from the
+`command.MustRegisterOfflineFallback(path, handler)` from its `init()`. The CLI serves the command from the
 daemon when it is reachable and calls the fallback **only after a connection failure**,
 so the fallback never shadows the daemon. Because `cmdutil.RunCommand` rejects commands
 absent from the CLI binary's tree before reaching the daemon path, it makes an exception
@@ -150,7 +150,7 @@ identity to one call on each side: both build their rows from
 the answer cannot vary with the health of the box being diagnosed.
 <!-- source: internal/core/crashlog/list.go -- CrashListFields, the one row builder -->
 <!-- source: internal/plugins/crashes/readiness.go -- Readiness, the one readiness answer -->
-<!-- source: internal/component/command/registry/registry.go -- RegisterOfflineFallback, LookupOfflineFallback -->
+<!-- source: internal/component/command/local.go -- RegisterOfflineFallback, MustRegisterOfflineFallback, LookupOfflineFallback -->
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
 

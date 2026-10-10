@@ -561,7 +561,7 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 <!-- terminal-demo: host-inventory -->
 
 <!-- source: internal/plugins/host-cmd/cmd/show_host.go -- online `show host *` RPCs -->
-<!-- source: internal/plugins/host/host.go -- RunShow offline fallback (command.RegisterOfflineFallback) -->
+<!-- source: internal/plugins/host/host.go -- RunShow offline fallback (command.MustRegisterOfflineFallback in register.go) -->
 <!-- source: internal/component/host/inventory.go -- Inventory struct and types -->
 
 Online (daemon) and offline (fallback) paths share the same detection library, so
@@ -1790,7 +1790,7 @@ Three `ze doctor` checks report the same facts with stable diagnostic codes:
 <!-- source: internal/plugins/crashes/register.go -- their registration -->
 
 <!-- source: internal/plugins/crashes/cmd/register.go -- online show crashes RPC -->
-<!-- source: internal/plugins/crashes/register.go -- offline fallback (command.RegisterOfflineFallback) -->
+<!-- source: internal/plugins/crashes/register.go -- offline fallback (command.MustRegisterOfflineFallback) -->
 
 <!-- source: internal/plugins/crashes/cmd/show.go -- show crashes command -->
 <!-- source: internal/plugins/crashes/crashes.go -- crash storage commands -->
