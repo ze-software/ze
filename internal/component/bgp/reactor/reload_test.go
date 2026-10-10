@@ -827,6 +827,42 @@ func TestTreeRouteReadsTheBGPBlockOfTheConfigTree(t *testing.T) {
 	require.Error(t, adapter.VerifyConfig(invalid), "the verify reads the peers of the bgp block")
 }
 
+// TestTreeWithNoBGPBlockConfiguresNoPeer holds the absent-block answer of
+// configBGPBlock (reactor_api.go) and what the tree route does with it.
+//
+// GOAL: a whole configuration tree with no bgp block is a tree that
+// configures no BGP, so VerifyConfig accepts it and ApplyConfigDiff stops
+// every configured session; a bgp block that is not a container is refused.
+// METHOD: call configBGPBlock on a root with no bgp key and on one whose bgp
+// value is a string; then, on a reactor running one configured peer with no
+// config path and no reload function, verify and apply a root with no bgp key.
+// VALIDATES: the absent block answers nil with no error, the non-container
+// answers an error, the verify passes and the apply leaves no peer.
+// PREVENTS: an absent block refused as an error (a reload that drops BGP
+// fails), or read as anything but "no peer" (stale sessions survive it).
+func TestTreeWithNoBGPBlockConfiguresNoPeer(t *testing.T) {
+	block, err := configBGPBlock(map[string]any{"interface": map[string]any{}})
+	require.NoError(t, err, "a tree with no bgp block is not an error")
+	assert.Nil(t, block, "a tree with no bgp block answers no bgp block")
+
+	_, err = configBGPBlock(map[string]any{configRootNameBGP: "not-a-container"})
+	require.Error(t, err, "a bgp block that is not a container is refused")
+
+	r := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
+	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
+	settings.Connection = ConnectionPassive
+	require.NoError(t, r.AddPeer(settings))
+	require.NoError(t, r.Start())
+	defer r.Stop()
+	require.Len(t, r.Peers(), 1)
+	adapter := &reactorAPIAdapter{r: r}
+
+	noBGP := map[string]any{"interface": map[string]any{}}
+	require.NoError(t, adapter.VerifyConfig(noBGP), "a tree with no bgp block verifies")
+	require.NoError(t, adapter.ApplyConfigDiff(noBGP), "a tree with no bgp block applies")
+	assert.Empty(t, r.Peers(), "a tree with no bgp block runs no peer")
+}
+
 // configRoot answers the configuration tree that holds bgp as its bgp block,
 // the shape a reload hands VerifyConfig and ApplyConfigDiff.
 func configRoot(bgp map[string]any) map[string]any {
