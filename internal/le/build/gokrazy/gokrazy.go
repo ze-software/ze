@@ -156,8 +156,8 @@ func imageArch() string {
 const name = "build gokrazy"
 
 // Run runs gok with args and answers the exit code. It sets GOMODCACHE,
-// CGO_ENABLED, GOFLAGS and GOPROXY in this process's environment for the Go
-// subprocesses gok spawns, so the caller MUST be a process that runs one gok
+// CGO_ENABLED, GOFLAGS, GOPROXY and GOTOOLCHAIN in this process's environment
+// for the Go subprocesses gok spawns, so the caller MUST be a process that runs one gok
 // command and exits, as le does.
 func Run(args []string) int {
 	modcache := os.Getenv("GOMODCACHE")
@@ -171,39 +171,16 @@ func Run(args []string) int {
 	if err := os.MkdirAll(modcache, 0o750); err != nil {
 		return fail(err)
 	}
-	if err := os.Setenv("GOMODCACHE", modcache); err != nil {
-		return fail(fmt.Errorf("setenv: %w", err))
-	}
 	// gok spawns Go build and list subprocesses. Keep their target binaries
-	// CGO-free and their checked-in module cache user-writable.
-	// Mirrors appliance.runGokBuild, which runs gok in-process with the same settings.
+	// CGO-free, as appliance.runGokBuild does for the in-process build.
 	if err := os.Setenv("CGO_ENABLED", "0"); err != nil {
 		return fail(fmt.Errorf("setenv: %w", err))
 	}
 
-	if goflags := os.Getenv("GOFLAGS"); !strings.Contains(goflags, "-modcacherw") {
-		var tb textbuf.Buffer
-		if goflags != "" {
-			tb.Str(goflags).Byte(' ')
-		}
-		tb.Str("-modcacherw")
-		if err := os.Setenv("GOFLAGS", tb.String()); err != nil {
-			return fail(fmt.Errorf("setenv: %w", err))
-		}
-	}
-
-	// Resolve the module graph strictly from the checked-in modcache. gok reads
-	// the ambient GOPROXY (vendor/.../packer/gotool.go getIncomplete) and does NOT
-	// force offline, so a module missing from the builddir/modcache would silently
-	// resolve over the network to a NEWER version than the pins choose -- the exact
-	// ship-a-different-kernel failure the prepared instance exists to prevent. off
-	// turns that into a loud "module lookup disabled" error, enforcing the offline
-	// build contract (internal/appliance/cmd_build.go header). Explicit GOPROXY wins, so
-	// ./le setup install (a separate target that needs the network) is unaffected.
-	if os.Getenv("GOPROXY") == "" {
-		if err := os.Setenv("GOPROXY", "off"); err != nil {
-			return fail(fmt.Errorf("setenv: %w", err))
-		}
+	// GOMODCACHE, GOFLAGS, GOPROXY and GOTOOLCHAIN: the reasons are on
+	// appliance.SetGokGoEnv, shared with the in-process build.
+	if err := appliance.SetGokGoEnv(modcache); err != nil {
+		return fail(err)
 	}
 
 	if env.IsEnabled("ze.gok.debug") {

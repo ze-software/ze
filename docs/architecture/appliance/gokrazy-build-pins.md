@@ -99,6 +99,17 @@ modules resolve through `gokrazy/modcache/`, with `GOMODCACHE` set by
 `buildgokrazy.Run` (`internal/le/build/gokrazy/gokrazy.go`). Ze's prepared build module binds its dependencies to the
 canonical root vendor tree as described below.
 
+Both gok entry points, `ze appliance build` and `./le build gokrazy`, set the
+go environment through one function, `appliance.SetGokGoEnv`: `GOMODCACHE` is
+`gokrazy/modcache/`, `GOFLAGS` gains `-modcacherw`, `GOPROXY` is `off` unless
+set explicitly, and `GOTOOLCHAIN` is `local`. The image builds with the go on
+PATH. le pins `GOTOOLCHAIN` to go.mod's version for its linter, and a host go
+of another version would then fetch the pinned toolchain from a module cache
+that does not hold it with the proxy off: every go command answers
+"toolchain not available", and gok reports the failed `go list` as
+`go get ze.invalid/kernel`. A host go older than go.mod's `go` directive is
+refused by go itself, naming both versions; upgrade the host go.
+
 `gokrazy/modcache/.gitignore` ignores everything except the gokrazy init source
 (`github.com/gokrazy/gokrazy@*/**`). That committed source carries upstream's
 own `go.mod`, and GitHub's dependency graph scans every `go.mod` in the
@@ -109,7 +120,7 @@ selection takes the maximum. A Dependabot alert on a `go.mod` under
 `gokrazy/modcache/` is therefore almost always a stale vendored upstream
 manifest rather than the real dependency graph.
 
-<!-- source: internal/le/build/gokrazy/gokrazy.go -- Run: GOMODCACHE and the -modcacherw GOFLAGS append -->
+<!-- source: internal/appliance/cmd_build.go -- SetGokGoEnv: GOMODCACHE, -modcacherw, GOPROXY=off, GOTOOLCHAIN=local -->
 <!-- source: gokrazy/modcache/.gitignore -- the init-source whitelist -->
 
 ### Binding the appliance to vendored product sources
@@ -197,9 +208,10 @@ Two kinds of growth are expected, and one is a defect.
 Expected: superseded versions after a pin bump, which the bump runbook removes,
 and the breadth of `go mod download all`, which is the whole module graph
 including test-only dependencies and their fixtures (`pierrec/lz4` is 75 MB of
-`testdata/`, `klauspost/compress` 46 MB). A second Go toolchain also lands here,
-`golang.org/toolchain@...` at roughly 310 MB with its zip, whenever a builddir
-`go` directive is newer than the host toolchain and `GOTOOLCHAIN=auto`.
+`testdata/`, `klauspost/compress` 46 MB). A `golang.org/toolchain@...` entry
+(roughly 310 MB with its zip) is from before the build ran `GOTOOLCHAIN=local`,
+or from a hand-run go command with `GOTOOLCHAIN=auto`; the image build never
+writes one now.
 
 A defect, because each one means a build resolved over the network instead of
 through the pins:
@@ -225,9 +237,8 @@ bridge manifests omit upstream-only test dependencies from Ze's graph.
 Go's default cache permissions leave directories `r-x`, which makes git unable
 to delete or overwrite modcache files on a later checkout or rebase. Anything
 that downloads into `gokrazy/modcache/` carries `-modcacherw`
-(`GOFLAGS=-modcacherw`). `ze appliance build` sets it through `ensureModcacheRW`
-(`internal/appliance/cmd_build.go`) and `./le build gokrazy` sets it in
-`buildgokrazy.Run` (`internal/le/build/gokrazy/gokrazy.go`). Keep the flag when running `go mod download` by hand. A
+(`GOFLAGS=-modcacherw`). `ze appliance build` and `./le build gokrazy` both
+set it through `SetGokGoEnv` (`internal/appliance/cmd_build.go`). Keep the flag when running `go mod download` by hand. A
 cache written before the flag existed needs a one-time
 `chmod -R u+w gokrazy/modcache`.
 

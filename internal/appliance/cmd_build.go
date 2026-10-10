@@ -273,6 +273,44 @@ func ensureModcacheRW() error {
 	return os.Setenv("GOFLAGS", tb.String())
 }
 
+// SetGokGoEnv sets, in this process's environment, what the go build and list
+// subprocesses gok spawns inherit. The caller MUST be a process that runs one
+// gok build, because the settings outlive the call. Both gok entry points use
+// it: runGokInProcess here and buildgokrazy.Run (internal/le/build/gokrazy).
+//
+//   - GOMODCACHE is the checked-in gokrazy/modcache at modcache.
+//   - GOFLAGS gains -modcacherw (ensureModcacheRW).
+//   - GOPROXY is off unless set explicitly. gok reads the ambient GOPROXY and
+//     does not force offline, so a module missing from the builddir/modcache
+//     would silently resolve to a NEWER version than the pins choose. off makes
+//     that a loud failure instead. ze-gokrazy-deps-download is a separate,
+//     network-using target, so an explicit GOPROXY wins.
+//   - GOTOOLCHAIN is local. le pins GOTOOLCHAIN to go.mod's version for its
+//     linter (internal/le/go/toolchain), and a host go of any other version
+//     then switches by fetching the pinned toolchain from GOMODCACHE. The
+//     checked-in modcache holds no host toolchain and GOPROXY is off, so every
+//     go command answers "toolchain not available", and gok reports its failed
+//     `go list` as "go get ze.invalid/kernel". The image builds with the host
+//     go; a host go older than go.mod's go directive is refused by go itself,
+//     naming both versions.
+func SetGokGoEnv(modcache string) error {
+	if err := os.Setenv("GOMODCACHE", modcache); err != nil {
+		return fmt.Errorf("set GOMODCACHE: %w", err)
+	}
+	if err := ensureModcacheRW(); err != nil {
+		return fmt.Errorf("set GOFLAGS: %w", err)
+	}
+	if os.Getenv("GOPROXY") == "" {
+		if err := os.Setenv("GOPROXY", "off"); err != nil {
+			return fmt.Errorf("set GOPROXY: %w", err)
+		}
+	}
+	if err := os.Setenv("GOTOOLCHAIN", "local"); err != nil {
+		return fmt.Errorf("set GOTOOLCHAIN: %w", err)
+	}
+	return nil
+}
+
 // runGokInProcess runs the gokrazy builder (gok) embedded in-process rather
 // than shelling out to a separate gok binary. gok still spawns its own
 // `go build`/`go list` subprocesses for the target packages. runGokBuild sets
@@ -291,21 +329,8 @@ func runGokInProcess(args []string) error {
 	if _, statErr := os.Stat(modcache); statErr != nil {
 		return fmt.Errorf("gokrazy module cache not found at %s; run from the ze source tree root: %w", modcache, statErr)
 	}
-	if setErr := os.Setenv("GOMODCACHE", modcache); setErr != nil {
-		return fmt.Errorf("set GOMODCACHE: %w", setErr)
-	}
-	if setErr := ensureModcacheRW(); setErr != nil {
-		return fmt.Errorf("set GOFLAGS: %w", setErr)
-	}
-	// Resolve strictly from the checked-in modcache. gok reads the ambient GOPROXY
-	// and does not force offline, so a module missing from the builddir/modcache
-	// would silently resolve to a NEWER version than the pins choose. off makes
-	// that a loud failure instead. Explicit GOPROXY wins (ze-gokrazy-deps-download is a
-	// separate, network-using target). Mirrors buildgokrazy.Run (internal/le/build/gokrazy).
-	if os.Getenv("GOPROXY") == "" {
-		if setErr := os.Setenv("GOPROXY", "off"); setErr != nil {
-			return fmt.Errorf("set GOPROXY: %w", setErr)
-		}
+	if setErr := SetGokGoEnv(modcache); setErr != nil {
+		return setErr
 	}
 
 	// gok does not return its error: packer.Main prints "ERROR:" to os.Stderr

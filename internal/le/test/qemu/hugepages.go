@@ -604,14 +604,16 @@ func findImage(dir string) (string, error) {
 	return found[0], nil
 }
 
-// The three markers in a build's output that name an unpopulated module cache.
+// The markers in a build's output that name an unpopulated module cache.
 //
 // `ze appliance build` uses the repository-local gokrazy/modcache and sets
-// GOPROXY=off (internal/appliance/cmd_build.go, ensureModcache). If the download
-// has never run, the cache lacks the kernel module and pinned Go toolchain.
-// gok then reports "toolchain not available". That message incorrectly suggests
-// a broken Go installation.
-var modcacheMarkers = []string{"toolchain not available", "incomplete packages", "GOPROXY=off"}
+// GOPROXY=off (internal/appliance/cmd_build.go, SetGokGoEnv). If the download
+// has never run, the cache lacks a module the build needs, and gok reports it
+// as an incomplete package. "toolchain not available" is not a marker: the
+// build runs GOTOOLCHAIN=local, so that message no longer means the cache is
+// empty, and naming `./le setup install` for it sent the 2026-10-10 arm64 run
+// to the wrong fix.
+var modcacheMarkers = []string{"incomplete packages", "GOPROXY=off"}
 
 // buildHint names the one-time setup step when a build's output shows it is
 // missing. It does NOT skip: the prerequisite is one documented command away,
