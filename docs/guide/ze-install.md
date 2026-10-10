@@ -797,9 +797,11 @@ start, the error says so and shows QEMU's own message; install or repair QEMU,
 then check that `qemu-system-<arch> -accel help` lists `hvf` or `kvm`. That
 listing shows what QEMU was built with, not what this host can use, so the
 build also checks the host: on Linux, `/dev/kvm` must open for your user
-(`sudo usermod -aG kvm $USER`, then log in again); on macOS,
-`sysctl kern.hv_support` must print `1`. `ze doctor` reports the same
-condition.
+(when the refusal is a permission error, `sudo usermod -aG kvm $USER`, then
+log in again; any other error points at the kernel log); on macOS,
+`sysctl kern.hv_support` must print `1`. Each of these questions is bounded at
+fifteen seconds, so a hung QEMU or Docker daemon is reported, not waited on.
+`ze doctor` reports the same condition.
 
 <!-- source: internal/appliance/kernelbuilder/driver.go -- validateRequest, hostGOARCH -->
 <!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators -->

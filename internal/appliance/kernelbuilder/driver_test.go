@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/tmplink"
 )
@@ -713,5 +714,91 @@ func TestBootFailureCarriesQEMUStderr(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "failed to initialize kvm: Permission denied") {
 		t.Errorf("error does not carry QEMU's stderr: %v", err)
+	}
+}
+
+// TestBootFailureReadsStderrQEMUWritesAsItDies verifies that the reason a QEMU
+// writes as it exits reaches the refusal even when it closes its console first:
+// stderr is read only after Wait, which is when exec has copied all of it.
+//
+// VALIDATES: round-2 ISSUE 1, the stderr tail is read after the process ends.
+// PREVENTS: "wrote nothing to stderr" for a QEMU that said exactly why it died.
+func TestBootFailureReadsStderrQEMUWritesAsItDies(t *testing.T) {
+	fakeQEMU(t, "exec 1>&-\nsleep 0.3\necho 'qemu-system-x86_64: Could not access KVM kernel module' >&2\nexit 1\n")
+	req := Request{Root: t.TempDir(), Arch: "amd64", OutputDir: "out", Stderr: os.Stderr}
+	err := runQEMUBuild(context.Background(), req, "alpine.iso", "worker", "kvm")
+	if err == nil {
+		t.Fatal("a QEMU that exited at once was reported as a build")
+	}
+	if !strings.Contains(err.Error(), "Could not access KVM kernel module") {
+		t.Errorf("error lost what QEMU wrote as it died: %v", err)
+	}
+}
+
+// TestBootFailureWithSilentQEMUNamesTheCommand verifies that a QEMU which says
+// nothing is refused with the exact QEMU command line on its own line.
+//
+// VALIDATES: round-2 ISSUE 3, the refusal carries a command, not "run again".
+func TestBootFailureWithSilentQEMUNamesTheCommand(t *testing.T) {
+	fakeQEMU(t, "exec 1>&-\nexit 0\n")
+	req := Request{Root: t.TempDir(), Arch: "amd64", OutputDir: "out", Stderr: os.Stderr}
+	err := runQEMUBuild(context.Background(), req, "alpine.iso", "worker", "kvm")
+	if err == nil {
+		t.Fatal("a QEMU that exited at once was reported as a build")
+	}
+	lines := strings.Split(err.Error(), "\n")
+	last := lines[len(lines)-1]
+	if len(lines) < 2 || !strings.HasPrefix(last, "qemu-system-x86_64 ") || !strings.Contains(last, "'-accel' 'kvm'") || !strings.Contains(last, "'alpine.iso'") {
+		t.Errorf("refusal does not end with the QEMU command on its own line:\n%v", err)
+	}
+	if strings.Contains(err.Error(), "run the build again") {
+		t.Errorf("refusal still says to run the build again:\n%v", err)
+	}
+}
+
+// TestProbeKVMGivesTheGroupFixOnlyForPermission verifies the kvm-group fix is
+// offered for a permission refusal and not for another open failure.
+//
+// VALIDATES: round-2 NOTE 4.
+func TestProbeKVMGivesTheGroupFixOnlyForPermission(t *testing.T) {
+	old := kvmDevice
+	t.Cleanup(func() { kvmDevice = old })
+
+	kvmDevice = t.TempDir() // a directory: opening it read-write fails, not for permission
+	err := probeKVM(context.Background())
+	if err == nil || strings.Contains(err.Error(), "usermod") || !strings.Contains(err.Error(), "dmesg") {
+		t.Errorf("non-permission failure: want the kernel log fix and no usermod, got %v", err)
+	}
+
+	if os.Geteuid() == 0 {
+		t.Skip("root opens a mode 000 file, so the permission case cannot be played")
+	}
+	kvmDevice = filepath.Join(t.TempDir(), "kvm")
+	if err := os.WriteFile(kvmDevice, nil, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	err = probeKVM(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "usermod -aG kvm") {
+		t.Errorf("permission failure: want the kvm group fix, got %v", err)
+	}
+}
+
+// TestHardwareAcceleratorBoundsAHungQEMU verifies `-accel help` is bounded, so
+// ze doctor and a build report a hung QEMU instead of hanging on it.
+//
+// VALIDATES: round-2 NOTE 3.
+func TestHardwareAcceleratorBoundsAHungQEMU(t *testing.T) {
+	fakeQEMU(t, "exec sleep 30\n")
+	old := hostProbeTimeout
+	t.Cleanup(func() { hostProbeTimeout = old })
+	hostProbeTimeout = 200 * time.Millisecond
+
+	start := time.Now()
+	_, err := hardwareAccelerator(context.Background(), "qemu-system-x86_64")
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("hardwareAccelerator waited %s on a hung QEMU", elapsed)
+	}
+	if err == nil || !strings.Contains(err.Error(), "did not answer within") || !strings.Contains(err.Error(), "\nqemu-system-x86_64 -accel help") {
+		t.Errorf("a hung QEMU is not named as such, with the command on its own line: %v", err)
 	}
 }

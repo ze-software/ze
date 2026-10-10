@@ -102,7 +102,12 @@ func dockerStoreHostPath(home, goos string, exists func(string) bool, daemonRoot
 // `--data-root` or daemon.json set. It goes through runCommandOutput so a test
 // fakes the daemon instead of reading the dev box's.
 func dockerRootDir(ctx context.Context, req Request) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, hostProbeTimeout)
+	defer cancel()
 	out, err := runCommandOutput(ctx, req, backendDocker, "info", "--format", "{{.DockerRootDir}}")
+	if ctx.Err() != nil {
+		return "", fmt.Errorf("docker info did not answer within %s, so the daemon is hung or unreachable", hostProbeTimeout)
+	}
 	if err != nil {
 		return "", fmt.Errorf("docker info: %w", err)
 	}

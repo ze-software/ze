@@ -34,8 +34,13 @@ ones the host can use, and a distro QEMU on Linux always lists `kvm`, so a
 listed accelerator counts only when its probe passes: `/dev/kvm` opens
 read-write for `kvm`, and `sysctl -n kern.hv_support` prints `1` for `hvf`.
 The check runs when the builder is chosen, before the Alpine ISO download, and
-`ze doctor` asks the same question. A QEMU that still exits before the guest
-boots is reported with what it wrote to stderr. An arm64 kernel is built on the Mac and an amd64 kernel on the
+`ze doctor` asks the same question. The probes and `docker info` are bounded
+by `hostProbeTimeout`. A permission error on `/dev/kvm` gets the kvm-group fix;
+any other open error points at the kernel log. A QEMU that still exits before
+the guest boots is reported with what it wrote to stderr, read after the
+process has ended so the last line is not lost; a QEMU that says nothing is
+reported with its exact command line, to run by hand. A failure after login
+(SSH never answers, the build fails) carries QEMU's stderr when it wrote any. An arm64 kernel is built on the Mac and an amd64 kernel on the
 Linux host.
 
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build, validateRequest -->

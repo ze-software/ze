@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -30,7 +31,16 @@ const (
 	bootstrapTimeout  = 180 * time.Second
 	sshTimeout        = 60 * time.Second
 	bootstrapAttempts = 5
+	// qemuExitGrace is how long a QEMU that failed the build gets to exit on
+	// its own, so its last stderr line is read, before it is killed.
+	qemuExitGrace = 5 * time.Second
 )
+
+// hostProbeTimeout bounds each question the host is asked before a build
+// (`-accel help`, the accelerator probe, `docker info`): ze doctor asks them
+// too, and a hung daemon must not hang the report. A variable so a test can
+// play a hung QEMU without waiting for it.
+var hostProbeTimeout = 15 * time.Second
 
 var alpineReleaseBaseURL = "https://dl-cdn.alpinelinux.org/alpine"
 
@@ -255,9 +265,26 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		return fmt.Errorf("start QEMU: %w", err)
 	}
 	console := newConsole(stdout)
-	defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
+	exited := false
+	defer func() {
+		if !exited {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+		}
+	}()
+	// stopQEMU answers what QEMU wrote to stderr, which is complete only once
+	// Wait returns: exec copies it from its own goroutine, so a read before
+	// Wait can miss the reason a dying QEMU just wrote. A QEMU on its way out
+	// gets qemuExitGrace to finish; one that stalled is killed.
+	stopQEMU := func() string {
+		kill := time.AfterFunc(qemuExitGrace, func() { _ = cmd.Process.Kill() })
+		_ = cmd.Wait()
+		kill.Stop()
+		exited = true
+		return qemuStderr.String()
+	}
 	if !console.expect(ctx, "login:", bootTimeout) {
-		return errBootFailed(qemuBinary(req.Arch), qemuStderr.String())
+		return errBootFailed(qemuBinary(req.Arch), args, stopQEMU())
 	}
 	if !sleepContext(ctx, time.Second) {
 		return ctx.Err()
@@ -289,7 +316,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		}
 	}
 	if !ready {
-		return errors.New("VM bootstrap failed: SSH not reachable")
+		return fmt.Errorf("the build VM booted, but SSH into it never answered after %d attempts%s", bootstrapAttempts, qemuSaid(stopQEMU()))
 	}
 	fmt.Fprintln(req.Stderr, "  VM ready, installing build dependencies...") //nolint:errcheck // progress output
 	fullCommand := guestBuildCommand(req, workerRel, shares)
@@ -307,7 +334,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 	buildCtx, cancel := context.WithTimeout(ctx, buildTimeout)
 	defer cancel()
 	if err := sshRun(buildCtx, port, fullCommand, req); err != nil {
-		return fmt.Errorf("kernel build failed: %w", err)
+		return fmt.Errorf("kernel build failed: %w%s", err, qemuSaid(stopQEMU()))
 	}
 	fmt.Fprintln(req.Stderr, ">>> kernel build complete") //nolint:errcheck // progress output
 	return nil
@@ -346,6 +373,8 @@ func qemuArgs(req Request, iso, accel string, port, memory int, ccache, build st
 // where none passes is refused naming the probe's reason and fix, before the
 // ISO download and the VM boot, which would otherwise end in a boot timeout.
 func hardwareAccelerator(ctx context.Context, binary string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, hostProbeTimeout)
+	defer cancel()
 	accels, err := availableAccelerators(ctx, binary)
 	if err != nil {
 		return "", err
@@ -393,7 +422,10 @@ func probeKVM(context.Context) error {
 	if errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%s does not exist (%w), so QEMU would exit at once; enable virtualization (VT-x or AMD-V) in the firmware and load the KVM module, then check that %s exists:\nsudo modprobe kvm_intel   # or kvm_amd", kvmDevice, err, kvmDevice)
 	}
-	return fmt.Errorf("%s cannot be opened (%w), so QEMU would exit at once; add your user to the kvm group, then log in again:\nsudo usermod -aG kvm $USER", kvmDevice, err)
+	if errors.Is(err, fs.ErrPermission) {
+		return fmt.Errorf("%s cannot be opened (%w), so QEMU would exit at once; add your user to the kvm group, then log in again:\nsudo usermod -aG kvm $USER", kvmDevice, err)
+	}
+	return fmt.Errorf("%s cannot be opened (%w), so QEMU would exit at once; another hypervisor (VirtualBox, VMware) may hold the virtualization extensions, or the KVM module failed to load; read why in the kernel log:\nsudo dmesg | grep -i kvm", kvmDevice, err)
 }
 
 // probeHVF asks macOS whether Hypervisor.framework can run a VM:
@@ -412,11 +444,20 @@ func probeHVF(ctx context.Context) error {
 // errBootFailed reports a build VM that never reached its login prompt, with
 // what QEMU wrote to stderr: a QEMU that exits at once (an accelerator it
 // cannot open, a bad option) says why there, and the console says nothing.
-func errBootFailed(binary, stderr string) error {
+func errBootFailed(binary string, args []string, stderr string) error {
 	if stderr == "" {
-		return fmt.Errorf("the build VM did not reach its login prompt within %s, and %s wrote nothing to stderr; run the build again, and if it repeats, check that %s starts a VM on this host", bootTimeout, binary, binary)
+		return fmt.Errorf("the build VM did not reach its login prompt within %s, and %s wrote nothing to stderr, so QEMU ran but the Alpine guest never booted to a prompt; run the same QEMU command by hand and watch the console:\n%s %s", bootTimeout, binary, binary, shellJoin(args))
 	}
 	return fmt.Errorf("the build VM did not reach its login prompt: %s stopped or stalled, and wrote:\n%s", binary, stderr)
+}
+
+// qemuSaid answers what QEMU wrote to stderr, set apart for an error that
+// already names its own cause, or nothing when QEMU wrote nothing.
+func qemuSaid(stderr string) string {
+	if stderr == "" {
+		return ""
+	}
+	return "; QEMU wrote:\n" + stderr
 }
 
 // stderrTail keeps the last stderrTailMax bytes written to it. exec copies a
@@ -450,6 +491,9 @@ func (tail *stderrTail) String() string {
 func availableAccelerators(ctx context.Context, binary string) (map[string]bool, error) {
 	result := make(map[string]bool)
 	output, err := exec.CommandContext(ctx, binary, "-accel", "help").Output()
+	if err != nil && ctx.Err() != nil {
+		return nil, fmt.Errorf("%s -accel help did not answer within %s, so QEMU cannot say which accelerators it has and the kernel build cannot start; run it by hand to see where it stops:\n%s -accel help", binary, hostProbeTimeout, binary)
+	}
 	if err != nil {
 		detail := ""
 		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
