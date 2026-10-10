@@ -128,7 +128,7 @@ func TestDockerKernelReleaseNeedsTheZeSuffix(t *testing.T) {
 			t.Errorf("%s: release %q accepted", name, entry.release)
 			continue
 		}
-		for _, want := range []string{"CONFIG_LOCALVERSION", "gokrazy/kernel/runtime.config", "./ze appliance kernel --target runtime"} {
+		for _, want := range []string{"CONFIG_LOCALVERSION", "gokrazy/kernel/runtime.config", "\n  ./le build host-driver\n  ./ze-host appliance kernel --target runtime"} {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("%s: refusal does not name %q: %v", name, want, err)
 			}

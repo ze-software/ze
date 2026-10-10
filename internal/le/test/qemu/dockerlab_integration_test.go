@@ -27,7 +27,7 @@ import (
 // Skips when the host has no QEMU for the guest's architecture, which is also
 // how it behaves inside a guest, or when the kernel cache holds no runtime
 // kernel for it: on 2026-10-10 the Mac's arm64 entries predate the D-5 Docker
-// options, so `./ze appliance kernel --target runtime --arch arm64` is owed
+// options, so `./le build host-driver` then `./ze-host appliance kernel --target runtime --arch arm64` is owed
 // before this test can boot.
 func TestDockerLabGuestBootsZeKernel(t *testing.T) {
 	system := qemuSystemAMD64

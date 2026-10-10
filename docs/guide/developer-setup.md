@@ -203,7 +203,9 @@ kernel that lacks one.
 - **macOS:** the labs run inside the Alpine QEMU guest booted on Ze's own arm64
   runtime kernel under HVF, never in colima or Docker Desktop, whose Linux VMs
   lack features Ze enrolls. Build the kernel cache entry once with
-  `./ze appliance kernel --target runtime --arch arm64`, then run a lab as
+  `./le build host-driver` and then
+  `./ze-host appliance kernel --target runtime --arch arm64` (the `./ze`
+  wrapper builds without `appliance`), then run a lab as
   `./le test qemu docker-lab lab "test integration interop-ipsec"`. With no
   `lab` the action stops after the guest's Docker kernel check.
 - **Linux:** the labs run on the host's own Docker, on a kernel that carries

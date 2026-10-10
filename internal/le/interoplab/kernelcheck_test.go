@@ -95,7 +95,7 @@ func TestDockerKernelRefusesNamingEveryMissingFeature(t *testing.T) {
 	if err == nil {
 		t.Fatal("a kernel lacking features was accepted")
 	}
-	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "invalid argument", "fake-later-enrolment", "CONFIG_FAKE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
+	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "invalid argument", "fake-later-enrolment", "CONFIG_FAKE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords())} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not name %q: %v", want, err)
 		}
@@ -221,7 +221,7 @@ func TestSuiteRefusesDockerHostMissingAKernelFeature(t *testing.T) {
 	if !staged {
 		t.Error("the kernel check ran without the Preflight that stages ze")
 	}
-	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
+	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords())} {
 		if !strings.Contains(report.SetupError, want) {
 			t.Errorf("setup error does not name %q: %s", want, report.SetupError)
 		}
@@ -285,23 +285,74 @@ func TestStagedZePathIsTheZeOutput(t *testing.T) {
 
 // VALIDATES: AC-3 under D-6, the refusal names the next step the reader's
 // platform takes: the install action on Linux, the Ze-kernel QEMU guest on
-// macOS, where that install refuses.
-// PREVENTS: a Mac developer sent to an action that cannot run there.
+// macOS, where that install refuses. Review round 3, ISSUE 2: each command
+// stands on a line of its own and is the exact command, never a template: on
+// macOS it reruns the refused lab's own le words inside the guest.
+// PREVENTS: a Mac developer sent to an action that cannot run there, and a
+// route the reader must edit (`"<le words>"`) before it runs.
 func TestDockerKernelRouteNamesEachPlatformsNextStep(t *testing.T) {
-	for goos, wants := range map[string][]string{
-		"linux":  {"./le setup docker-kernel install", "reboot"},
-		"darwin": {"./le test qemu docker-lab"},
+	lab := []string{"test", "integration", "interop", "ipsec"}
+	for _, tc := range []struct {
+		goos    string
+		lab     []string
+		command string
+	}{
+		{"linux", lab, "./le setup docker-kernel install"},
+		{"darwin", lab, "./le test qemu docker-lab lab 'test integration interop ipsec'"},
+		{"darwin", nil, "./le test qemu docker-lab"},
+		{"darwin", []string{"perf", "run", "name", "two words"}, "./le test qemu docker-lab"},
 	} {
-		route := DockerKernelRoute(goos)
-		for _, want := range wants {
-			if !strings.Contains(route, want) {
-				t.Errorf("%s route %q does not name %q", goos, route, want)
-			}
+		route := DockerKernelRoute(tc.goos, tc.lab)
+		requireCommandOnItsOwnLine(t, errors.New(route), tc.command)
+		if strings.Contains(route, "<") {
+			t.Errorf("%s route %q holds a template, not a command", tc.goos, route)
 		}
 	}
-	if strings.Contains(DockerKernelRoute("darwin"), "docker-kernel install") {
-		t.Errorf("the darwin route names the Linux-only install: %s", DockerKernelRoute("darwin"))
+	if strings.Contains(DockerKernelRoute("darwin", lab), "docker-kernel install") {
+		t.Errorf("the darwin route names the Linux-only install: %s", DockerKernelRoute("darwin", lab))
 	}
+}
+
+// VALIDATES: review round 3, ISSUE 2. The le words the route reruns are this
+// process's own command line, for `le` and for `ze le`, and none for a
+// process that is not le.
+// PREVENTS: a route naming a test binary's flags as a lab.
+func TestInvokedLeWordsReadTheCommandLine(t *testing.T) {
+	original := os.Args
+	t.Cleanup(func() { os.Args = original })
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"/repo/bin/le", "test", "perf"}, "test perf"},
+		{[]string{"ze", "le", "test", "perf"}, "test perf"},
+		{[]string{"/build/interoplab.test", "-test.run", "X"}, ""},
+	} {
+		os.Args = tc.args
+		if got := strings.Join(invokedLeWords(), " "); got != tc.want {
+			t.Errorf("invokedLeWords() under %v = %q, want %q", tc.args, got, tc.want)
+		}
+	}
+}
+
+// VALIDATES: review round 3, ISSUE 2, on the refusal itself: a kernel lacking
+// a feature names the platform's route command on a line of its own, and on
+// macOS that command reruns the refused lab.
+func TestDockerKernelRefusalNamesTheExactRouteCommand(t *testing.T) {
+	original := leWords
+	t.Cleanup(func() { leWords = original })
+	leWords = func() []string { return []string{"test", "integration", "interop", "ipsec"} }
+	answer := `{"ready": false, "capabilities": [
+ {"subsystem": "ipsec-mobike", "kernel": "CONFIG_XFRM_MIGRATE", "state": "absent", "reason": "invalid argument"}]}`
+	err := checkDockerKernel(context.Background(), newDocker(scriptedKernel(answer, 1, nil)), kernelCheckZe)
+	if err == nil {
+		t.Fatal("a kernel lacking a feature proceeded")
+	}
+	command := "./le setup docker-kernel install"
+	if runtime.GOOS != "linux" {
+		command = "./le test qemu docker-lab lab 'test integration interop ipsec'"
+	}
+	requireCommandOnItsOwnLine(t, err, command)
 }
 
 // appArmorKernel scripts a daemon that applies AppArmor and a probe answering
@@ -381,19 +432,46 @@ func TestDockerKernelRefusesAnUnloadedProfileNamingTheFix(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-17. A denied row refuses as any missing feature does, its
-// reason in the text, plus the command that loads Ze's profile.
+// VALIDATES: AC-17. On a daemon applying AppArmor, a denied row refuses as any
+// missing feature does, its reason in the text, plus the command that loads
+// Ze's profile.
 // PREVENTS: a policy denial read as a kernel fault, and a refusal with no fix.
 func TestDockerKernelDeniedRowNamesTheProfileCommand(t *testing.T) {
 	answer := `{"ready": false, "capabilities": [
  {"subsystem": "mpls-transit-mtu", "kernel": "CONFIG_MPLS_IP_MTU", "state": "denied",
   "reason": "make the probe's mounts private: permission denied; AppArmor profile docker-default (enforce) refused it"}]}`
-	err := checkDockerKernel(context.Background(), newDocker(scriptedKernel(answer, 1, nil)), kernelCheckZe)
+	runner := appArmorKernel(t, answer, kernelcap.ProbeAppArmorProfileName+" (enforce)\n", true)
+	err := checkDockerKernel(context.Background(), newDocker(runner), kernelCheckZe)
 	if err == nil {
 		t.Fatal("a denied row proceeded")
 	}
 	requireCommandOnItsOwnLine(t, err, AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName))
 	for _, want := range []string{"mpls-transit-mtu", "denied", "docker-default (enforce)"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not name %q: %v", want, err)
+		}
+	}
+}
+
+// VALIDATES: review round 3, ISSUE 1. On a daemon applying no AppArmor (an
+// SELinux host), a denied row names the grant the row's own policy owes and
+// the command that shows the SELinux denial, and never the AppArmor load
+// action, which refuses on such a host.
+// PREVENTS: an operator sent to load an AppArmor profile on a host without
+// AppArmor.
+func TestDockerKernelDeniedRowWithoutAppArmorNamesThePolicyGrant(t *testing.T) {
+	answer := `{"ready": false, "capabilities": [
+ {"subsystem": "mpls-transit-mtu", "kernel": "CONFIG_MPLS_IP_MTU", "state": "denied",
+  "reason": "make the probe's mounts private: permission denied; SELinux context system_u:system_r:container_t:s0:c1,c2 refused it; the probe needs a mount of /proc/sys in a private mount namespace, which this host's policy must grant"}]}`
+	err := checkDockerKernel(context.Background(), newDocker(scriptedKernel(answer, 1, nil)), kernelCheckZe)
+	if err == nil {
+		t.Fatal("a denied row proceeded")
+	}
+	if strings.Contains(err.Error(), AppArmorLoadCommandPrefix) {
+		t.Errorf("a daemon without AppArmor was told to load an AppArmor profile: %v", err)
+	}
+	requireCommandOnItsOwnLine(t, err, seLinuxDenialsCommand)
+	for _, want := range []string{"mpls-transit-mtu", "container_t", "applies no AppArmor", "must grant"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
@@ -469,7 +547,7 @@ func TestDockerKernelUnloadedProfileOnAnUnreadableListNamesTheFix(t *testing.T) 
 		t.Fatal("a profile the daemon could not apply proceeded")
 	}
 	requireCommandOnItsOwnLine(t, err, AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName))
-	for _, want := range []string{"ze-kernel-probe", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
+	for _, want := range []string{"ze-kernel-probe", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords())} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
@@ -490,7 +568,7 @@ func TestDockerKernelUnloadedProfileNamesTheKernelRoute(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unloaded profile proceeded")
 	}
-	for _, want := range []string{"6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
+	for _, want := range []string{"6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords())} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
@@ -533,4 +611,31 @@ func requireCommandOnItsOwnLine(t *testing.T, err error, command string) {
 		}
 	}
 	t.Errorf("the refusal does not carry %q on a line of its own: %v", command, err)
+}
+
+// VALIDATES: review round 3, NOTE 4. A missing staged ze names, on a line of
+// its own, the exact command that stages it: the run's own le words, with
+// NO_BUILD unset when the run skipped its build, and as they were otherwise
+// (perf stages without NO_BUILD). A word the shell would split is quoted.
+// PREVENTS: an inline "run the same command again without NO_BUILD=1" that
+// does not fit a run that never set it.
+func TestStagedZeMissingNamesTheCommandThatStagesIt(t *testing.T) {
+	original := leWords
+	t.Cleanup(func() { leWords = original })
+	leWords = func() []string { return []string{"perf", "run", "note", "two words"} }
+	for _, tc := range []struct {
+		noBuild string
+		command string
+	}{
+		{"1", "env -u NO_BUILD ./le perf run note 'two words'"},
+		{"", "./le perf run note 'two words'"},
+	} {
+		lookup := func(name string) (string, bool) {
+			if name == "NO_BUILD" && tc.noBuild != "" {
+				return tc.noBuild, true
+			}
+			return "", false
+		}
+		requireCommandOnItsOwnLine(t, errors.New(stageZeAgain(lookup)), tc.command)
+	}
 }

@@ -15,6 +15,17 @@ import (
 
 const name = "build host-driver"
 
+// RuntimeKernelBuild answers the commands, one per line and in order, that
+// build Ze's runtime kernel for arch from this checkout: ze-host first, because
+// `appliance` is a ze_setup command and the ./ze wrapper builds without it
+// ("unknown command: appliance"), then its kernel build. Every le refusal that
+// sends an operator to build the runtime kernel prints this, so the command is
+// declared once.
+func RuntimeKernelBuild(arch string) string {
+	return "  ./le " + name + "\n  ./" + buildcompile.HostBinary +
+		" appliance kernel --target runtime --arch " + arch
+}
+
 // Answer is the `le build host-driver` command. There is one host and one
 // output path, so there is nothing to type after the name.
 func Answer(args []string) (any, int) {

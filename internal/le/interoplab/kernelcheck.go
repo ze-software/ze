@@ -36,17 +36,67 @@ const (
 )
 
 // DockerKernelRoute answers the next step a refusal names for a reader on goos
-// (owner D-6). On Linux the labs run on the host's Docker, so the step is a
-// kernel with the feature or Ze's own (D-5) through the install action, which
-// never reboots. Elsewhere the labs run inside the Alpine QEMU guest booted on
-// Ze's runtime kernel, and the Linux-only install would refuse.
-func DockerKernelRoute(goos string) string {
+// (owner D-6), its command on a line of its own (user-facing-errors.md). On
+// Linux the labs run on the host's Docker, so the step is a kernel with the
+// feature or Ze's own (D-5) through the install action, which never reboots.
+// Elsewhere the labs run inside the Alpine QEMU guest booted on Ze's runtime
+// kernel, and the Linux-only install would refuse: the command reruns lab, the
+// le words of the run that was refused, inside that guest. With no lab, or one
+// the guest's `lab` keyword cannot carry intact, the command boots the guest
+// and runs its kernel check only, which is still a command the reader can run
+// as printed.
+func DockerKernelRoute(goos string, lab []string) string {
 	if goos == "linux" {
-		return "Run Docker on a kernel with every feature, or install Ze's kernel with " +
-			"`./le setup docker-kernel install` and reboot."
+		return "Run Docker on a kernel with every feature, or install Ze's kernel and reboot." +
+			" The install prints its steps and runs none until you confirm the release:\n" +
+			"  ./le setup docker-kernel install"
 	}
-	return "On " + goos + ", run the lab inside the Ze-kernel QEMU guest: " +
-		"`./le test qemu docker-lab lab \"<le words>\"`."
+	if quoted, ok := quotedLabWords(lab); ok {
+		return "On " + goos + " the labs run inside the Ze-kernel QEMU guest. Run the same lab there with:\n" +
+			"  ./le test qemu docker-lab lab " + quoted
+	}
+	return "On " + goos + " the labs run inside the Ze-kernel QEMU guest. Boot it and check its kernel with:\n" +
+		"  ./le test qemu docker-lab"
+}
+
+// quotedLabWords answers lab as one single-quoted shell word for the guest's
+// `lab` keyword, and false when there is no lab or a word is empty or holds
+// white space or a quote: the guest splits the value on white space, so such
+// a word would not arrive as typed.
+func quotedLabWords(lab []string) (string, bool) {
+	if len(lab) == 0 {
+		return "", false
+	}
+	for _, word := range lab {
+		if word == "" {
+			return "", false
+		}
+		if strings.ContainsAny(word, " \t\n'\"") {
+			return "", false
+		}
+	}
+	return "'" + strings.Join(lab, " ") + "'", true
+}
+
+// leWords answers the le words of the command line this process runs, the
+// words `./le <words>` repeats, and nil when this process is not le (a unit
+// test binary). A var so a unit test names a command line.
+var leWords = invokedLeWords
+
+// invokedLeWords reads the words from os.Args: after the program for `le`
+// (bin/le, which ./le execs), after `le` for `ze le`.
+func invokedLeWords() []string {
+	if len(os.Args) == 0 {
+		return nil
+	}
+	name := strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+	if name == "le" {
+		return os.Args[1:]
+	}
+	if name == "ze" && len(os.Args) > 1 && os.Args[1] == "le" {
+		return os.Args[2:]
+	}
+	return nil
 }
 
 // dockerSecurityOptionsFormat asks the daemon which security modules it applies
@@ -212,8 +262,8 @@ func appArmorRefusal(release, finding string) error {
 		Str(". Docker's docker-default profile denies the probe's mount and its /proc/sys write. Load Ze's profile with:\n  ").
 		Str(AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)).
 		Str("\nThe profile lets the probe answer and adds no kernel feature: every feature the daemon's kernel (").
-		Str(release).Str(") lacks, MOBIKE's xfrm migrate for example, is then named, and the route to a kernel carrying them all is: ").
-		Str(DockerKernelRoute(runtime.GOOS)).String())
+		Str(release).Str(") lacks, MOBIKE's xfrm migrate for example, is then named.\n").
+		Str(DockerKernelRoute(runtime.GOOS, leWords())).String())
 }
 
 // checkDockerKernel runs the probe and returns nil only when the answer holds at
@@ -269,12 +319,14 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	var missing textbuf.Buffer
 	count := 0
 	denied := false
+	deniedBySELinux := false
 	for _, row := range answer.Capabilities {
 		if row.State == "present" {
 			continue
 		}
 		if row.State == "denied" {
 			denied = true
+			deniedBySELinux = deniedBySELinux || strings.Contains(row.Reason, "SELinux")
 		}
 		missing.Str("\n  ").Str(row.Subsystem).Str(" (").Str(row.Kernel).Str("): ").Str(row.State)
 		if row.Reason != "" {
@@ -296,14 +348,33 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	refusal.Str("the Docker daemon's kernel ").Str(release).Str(" lacks ").Str(strconv.Itoa(count)).
 		Str(" kernel feature(s) Ze needs (`").Str(strings.Join(kernelProbeCommand, " ")).Str("` answered):").
 		Str(missing.String()).
-		Byte('\n').Str(DockerKernelRoute(runtime.GOOS))
-	// A denied row is the host's security policy, not the kernel: the fix is
-	// Ze's profile, loaded or reloaded by one command (D-7).
+		Byte('\n').Str(DockerKernelRoute(runtime.GOOS, leWords()))
 	if denied {
-		refusal.Str("\nA denied row is the host's security policy refusing the probe, not the kernel. Load or reload Ze's AppArmor profile with:\n  ").
-			Str(AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName))
+		refusal.Str("\nA denied row is the host's security policy refusing the probe, not the kernel.").
+			Str(deniedFix(appArmor, deniedBySELinux))
 	}
 	return errors.New(refusal.String())
+}
+
+// seLinuxDenialsCommand lists the SELinux denials the audit log recorded
+// recently, which name the access the host's policy refused.
+const seLinuxDenialsCommand = "sudo ausearch -m avc -ts recent"
+
+// deniedFix answers the fix a denied row's refusal names. Under AppArmor it is
+// Ze's profile, loaded or reloaded by one command (D-7). Ze ships no policy for
+// another module, so a daemon without AppArmor is told which grant the row's
+// policy owes, and under SELinux given the command that shows the denial.
+func deniedFix(appArmor, seLinux bool) string {
+	if appArmor {
+		return " Load or reload Ze's AppArmor profile with:\n  " +
+			AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)
+	}
+	fix := " This Docker daemon applies no AppArmor, so Ze's AppArmor profile cannot help:" +
+		" the policy the row names must grant the probe what the row says it needs."
+	if seLinux {
+		fix += " Read the SELinux denials with:\n  " + seLinuxDenialsCommand
+	}
+	return fix
 }
 
 // dockerKernelRelease reads the daemon's kernel release for the refusal. It is
@@ -334,8 +405,8 @@ func stagedZeMissing(zePath string) error {
 	problem.Str("the Docker kernel check cannot run: the linux ze it probes with is not at ").Str(zePath)
 	if err != nil {
 		return errors.New(problem.Str(" (").Err(err).
-			Str(").\nThe check mounts that file into the probe container, so without it nothing is checked.").
-			Str("\nBuild it: run the same command again without NO_BUILD=1.").String())
+			Str(").\nThe check mounts that file into the probe container, so without it nothing is checked.\n").
+			Str(stageZeAgain(os.LookupEnv)).String())
 	}
 	if !info.Mode().IsRegular() {
 		return errors.New(problem.Str(": that path is a directory, not the binary").
@@ -345,4 +416,41 @@ func stagedZeMissing(zePath string) error {
 			Str("  sudo rm -r ").Str(zePath).String())
 	}
 	return nil
+}
+
+// stageZeAgain answers the step that stages the missing ze: the same le
+// command run with its build, on a line of its own. A run under NO_BUILD=1
+// skipped the build that stages it, so the command unsets it; any other run
+// (perf stages before it checks) is run again so its build stages the file.
+// lookup reads the environment, a parameter so a unit test names it.
+func stageZeAgain(lookup func(string) (string, bool)) string {
+	noBuild, _ := lookup("NO_BUILD")
+	words := leWords()
+	if noBuild == "1" {
+		if len(words) == 0 {
+			return "This run skipped its build (NO_BUILD=1). Run the same ./le command again without NO_BUILD=1."
+		}
+		return "This run skipped its build (NO_BUILD=1), which stages it. Run the same command with its build:\n" +
+			"  env -u NO_BUILD ./le " + shellJoin(words)
+	}
+	if len(words) == 0 {
+		return "No build staged it there. Run the same ./le command again so its build stages it."
+	}
+	return "No build staged it there. Run the same command again so its build stages it:\n" +
+		"  ./le " + shellJoin(words)
+}
+
+// shellJoin joins words into one shell command line, single-quoting a word
+// that holds white space, a quote or another character the shell reads, so the
+// printed command runs as the words were given.
+func shellJoin(words []string) string {
+	quoted := make([]string, 0, len(words))
+	for _, word := range words {
+		if word != "" && !strings.ContainsAny(word, " \t\n'\"\\$`;&|<>()*?[]{}~#!") {
+			quoted = append(quoted, word)
+			continue
+		}
+		quoted = append(quoted, "'"+strings.ReplaceAll(word, "'", `'\''`)+"'")
+	}
+	return strings.Join(quoted, " ")
 }

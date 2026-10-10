@@ -24,7 +24,11 @@ import (
 
 const (
 	hostAction = "host"
-	hostTags   = "ze_core ze_setup"
+	// HostTags is ze-host's tag set: ze_setup carries `ze appliance`, which the
+	// repository's ./ze wrapper (ze_core, ze_distro) does not.
+	HostTags = "ze_core ze_setup"
+	// HostBinary is the file `le build host-driver` writes at the checkout root.
+	HostBinary = "ze-host"
 
 	installerTags = "ze_installer"
 )
@@ -94,12 +98,12 @@ func runWithRoot(
 }
 
 func hostPlan(root string, toolchain gotoolchain.Toolchain) buildPlan {
-	output := filepath.Join(root, "ze-host")
+	output := filepath.Join(root, HostBinary)
 	return buildPlan{
 		action: hostAction,
 		command: []string{
 			"go", "build",
-			"-tags", hostTags,
+			"-tags", HostTags,
 			"-ldflags", toolchain.LDFlags(),
 			"-o", output,
 			"./cmd/ze",

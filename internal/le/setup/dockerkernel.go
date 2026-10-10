@@ -30,6 +30,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	buildhostdriver "github.com/ze-software/ze/internal/le/build/hostdriver"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -73,7 +74,7 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 			" and /lib/modules, rebuild the initramfs and the GRUB menu, and make it GRUB's saved" +
 			" default by title. Without `confirm <release>` it prints the steps and runs none; every step" +
 			" runs through sudo and is printed first; it never reboots. " +
-			interoplab.DockerKernelRoute("darwin"),
+			"Elsewhere the labs run inside the Ze-kernel QEMU guest: ./le test qemu docker-lab",
 		Parameters: []leaction.Parameter{
 			{Keyword: dockerKernelConfirmKeyword, Value: "release", Requirement: leaction.Optional},
 		},
@@ -312,12 +313,12 @@ func dockerKernelInstallPlatform(goos string) error {
 	}
 	var tb textbuf.Buffer
 	return errors.New(tb.Str("`le setup docker-kernel install` changes a Linux Docker host's boot kernel and runs on Linux only. ").
-		Str(interoplab.DockerKernelRoute(goos)).String())
+		Str(interoplab.DockerKernelRoute(goos, nil)).String())
 }
 
 // runtimeKernelRebuild is what every refusal of a cache entry tells the
-// operator to run.
-const runtimeKernelRebuild = "./ze appliance kernel --target runtime --arch " + runtime.GOARCH
+// operator to run, one command per line (buildhostdriver.RuntimeKernelBuild).
+var runtimeKernelRebuild = buildhostdriver.RuntimeKernelBuild(runtime.GOARCH)
 
 // cachedKernelRelease answers the release a runtime-kernel cache entry holds:
 // the one directory under lib/modules, which every installed path is named for.
@@ -346,13 +347,13 @@ func cachedKernelRelease(cache string) (string, error) {
 		var tb textbuf.Buffer
 		return "", errors.New(tb.Str("the runtime kernel in ").Str(cache).Str(" is release ").Str(release).
 			Str(": ").Err(err).Str("; installed under a bare release it would replace another kernel of that name.").
-			Str(" gokrazy/kernel/runtime.config declares the suffix; rebuild with: ").Str(runtimeKernelRebuild).String())
+			Str(" gokrazy/kernel/runtime.config declares the suffix. Rebuild it with:\n").Str(runtimeKernelRebuild).String())
 	}
 	if !strings.HasSuffix(release, suffix) {
 		var tb textbuf.Buffer
 		return "", errors.New(tb.Str("the runtime kernel in ").Str(cache).Str(" is release ").Str(release).
 			Str(", which does not end with its CONFIG_LOCALVERSION ").Str(suffix).
-			Str(" (gokrazy/kernel/runtime.config); rebuild with: ").Str(runtimeKernelRebuild).String())
+			Str(" (gokrazy/kernel/runtime.config). Rebuild it with:\n").Str(runtimeKernelRebuild).String())
 	}
 	return release, nil
 }

@@ -12,12 +12,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	buildhostdriver "github.com/ze-software/ze/internal/le/build/hostdriver"
 	"github.com/ze-software/ze/internal/le/gaterun"
 )
 
@@ -355,9 +357,10 @@ func probeVRRPKernel(ctx context.Context, names vrrpNames) error {
 				"kernel lacks %s: `%s` failed in a private namespace. This lab needs %s in the running kernel. "+
 					"It already boots ze's runtime kernel, so a module package is not the answer and there is "+
 					"nothing to load: add %s to gokrazy/kernel/runtime.config and to "+
-					"gokrazy/kernel/runtime.require, then run `./ze appliance kernel --target runtime --arch <arch>`. "+
-					"The require entry makes a later build fail rather than silently ship without the symbol",
-				probe.feature, strings.Join(probe.argv, " "), probe.symbol, probe.symbol)
+					"gokrazy/kernel/runtime.require (the require entry makes a later build fail rather than "+
+					"silently ship without the symbol), then rebuild the kernel with:\n%s",
+				probe.feature, strings.Join(probe.argv, " "), probe.symbol, probe.symbol,
+				buildhostdriver.RuntimeKernelBuild(runtime.GOARCH))
 		}
 	}
 	release, _ := os.ReadFile("/proc/sys/kernel/osrelease")

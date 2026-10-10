@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	buildhostdriver "github.com/ze-software/ze/internal/le/build/hostdriver"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
@@ -117,7 +118,7 @@ func dockerLabKernel(cache, goarch string) (string, error) {
 		var tb textbuf.Buffer
 		return "", errors.New(tb.Str("the Docker lab guest boots Ze's ").Str(goarch).
 			Str(" runtime kernel from its cache entry, and ").Str(kernel).Str(" is not there (").Err(err).
-			Str("); build it with: ./ze appliance kernel --target runtime --arch ").Str(goarch).String())
+			Str(").\nBuild it with:\n").Str(buildhostdriver.RuntimeKernelBuild(goarch)).String())
 	}
 	return kernel, nil
 }

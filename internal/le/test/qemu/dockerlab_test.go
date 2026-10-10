@@ -102,7 +102,7 @@ func TestDockerLabKernelComesFromTheCacheEntry(t *testing.T) {
 	if _, err := dockerLabKernel(cache, "arm64"); err == nil {
 		t.Fatal("an empty cache entry answered a kernel")
 	} else {
-		for _, want := range []string{filepath.Join(cache, "vmlinuz"), "ze appliance kernel --target runtime --arch arm64"} {
+		for _, want := range []string{filepath.Join(cache, "vmlinuz"), "\n  ./le build host-driver\n  ./ze-host appliance kernel --target runtime --arch arm64"} {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("refusal does not name %q: %v", want, err)
 			}

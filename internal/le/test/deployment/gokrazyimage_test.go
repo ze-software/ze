@@ -20,7 +20,7 @@ import (
 func TestColdCacheErrorNamesTheEntryAndTheRemedy(t *testing.T) {
 	absent := filepath.Join(t.TempDir(), "7.2.9-runtime-amd64")
 	err := coldCacheError(absent, ArchAMD64, []string{"no vmlinuz at " + absent})
-	for _, want := range []string{absent, "no vmlinuz at", "build it once with: ./ze appliance kernel --target runtime --arch amd64"} {
+	for _, want := range []string{absent, "no vmlinuz at", "Build it once", "\n  ./le build host-driver\n  ./ze-host appliance kernel --target runtime --arch amd64"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("absent-entry refusal lacks %q:\n%v", want, err)
 		}
@@ -31,7 +31,7 @@ func TestColdCacheErrorNamesTheEntryAndTheRemedy(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = coldCacheError(present, ArchARM64, []string{"no PPPoL2TP"})
-	if !strings.Contains(err.Error(), "the cache entry exists but is unusable; remove it") {
+	if !strings.Contains(err.Error(), "The cache entry exists but is unusable. Remove it:\n  rm -r "+present+"\n") {
 		t.Errorf("unusable-entry refusal does not say to remove it:\n%v", err)
 	}
 	if !strings.Contains(err.Error(), "--arch arm64") {

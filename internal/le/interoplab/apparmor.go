@@ -106,8 +106,9 @@ func (d *Docker) appArmorSecurityOption(ctx context.Context, name string) ([]str
 
 // labAppArmorProfileMissing answers the refusal for a Linux host whose kernel
 // lists its loaded profiles and lacks profile, or nil. An unreadable list is
-// no answer either way, so the container runs and a daemon that cannot apply
-// the profile refuses it through Docker's own error, which names it.
+// no answer either way (apparmorfs refuses it to a reader without policy-view
+// privilege, such as a non-root user), so the container runs, and a daemon
+// that cannot apply the profile refuses through labAppArmorUnapplied instead.
 func labAppArmorProfileMissing(profile AppArmorProfile) error {
 	profiles, readable := appArmorProfiles()
 	if !readable {
@@ -116,9 +117,31 @@ func labAppArmorProfileMissing(profile AppArmorProfile) error {
 	if appArmorProfileLoaded(profiles, profile.Name) {
 		return nil
 	}
+	return labAppArmorRefusal(profile, appArmorProfilesPath+" does not list")
+}
+
+// labAppArmorUnapplied answers the refusal for a `docker run` under profile
+// that failed because the daemon could not apply the profile, or nil for any
+// other outcome. It is the half of the check labAppArmorProfileMissing cannot
+// make when the profile list is unreadable, as appArmorProfileUnapplied is for
+// the kernel probe.
+func labAppArmorUnapplied(profile AppArmorProfile, runErr error) error {
+	var failed *commandError
+	if !errors.As(runErr, &failed) {
+		return nil
+	}
+	if !appArmorProfileUnapplied(failed.ExitCode, failed.Stderr) {
+		return nil
+	}
+	return labAppArmorRefusal(profile, "the daemon could not apply ("+failed.Stderr+")")
+}
+
+// labAppArmorRefusal names what runs under profile, what showed the profile is
+// not in force, what docker-default denies it, and the command that loads it.
+func labAppArmorRefusal(profile AppArmorProfile, finding string) error {
 	var refusal textbuf.Buffer
 	return errors.New(refusal.Str("the Docker daemon applies AppArmor, and ").Str(profile.Runs).
-		Str(" runs under Ze's profile ").Str(profile.Name).Str(", which ").Str(appArmorProfilesPath).
-		Str(" does not list. Docker's docker-default profile denies ").Str(profile.Needs).
+		Str(" runs under Ze's profile ").Str(profile.Name).Str(", which ").Str(finding).
+		Str(". Docker's docker-default profile denies ").Str(profile.Needs).
 		Str(". Load Ze's profile with:\n  ").Str(AppArmorLoadCommandFor(profile.Name)).String())
 }

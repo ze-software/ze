@@ -111,6 +111,40 @@ func TestRunContainerRefusesAnUnloadedProfile(t *testing.T) {
 	}
 }
 
+// VALIDATES: review round 3, NOTE 5. A daemon applying AppArmor whose host
+// profile list is unreadable (a non-root user) runs the container, and when
+// runc cannot apply the profile the refusal names the profile and the command
+// that loads it, on a line of its own.
+// PREVENTS: runc's raw error as the only answer for a lab container under an
+// unloaded Ze profile, the half the kernel probe already maps.
+func TestRunContainerMapsAnUnappliedProfileToItsLoadCommand(t *testing.T) {
+	registerTestLabProfile(t)
+	original := appArmorProfiles
+	t.Cleanup(func() { appArmorProfiles = original })
+	appArmorProfiles = func() (string, bool) { return "", false }
+	stderr := "docker: Error response from daemon: failed to create task: unable to apply apparmor profile: " +
+		"apparmor failed to apply profile: write /proc/self/attr/apparmor/exec: no such file or directory"
+	runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+		if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
+			return processResult{Stdout: withAppArmor}, nil
+		}
+		if slices.Contains(command.Arguments, "run") {
+			return processResult{ExitCode: 127, Stderr: stderr}, nil
+		}
+		return processResult{}, nil
+	}}
+	err := newDocker(runner).runContainer(t.Context(), labNetwork(), labPeer())
+	if err == nil {
+		t.Fatal("a container whose profile the daemon could not apply was reported started")
+	}
+	requireCommandOnItsOwnLine(t, err, AppArmorLoadCommandFor(testLabProfile))
+	for _, want := range []string{testLabProfile, "the test lab's router", "unable to apply apparmor profile"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal lacks %q: %v", want, err)
+		}
+	}
+}
+
 // VALIDATES: D-7. A peer naming a profile no lab registered is refused.
 func TestRunContainerRefusesAnUnregisteredProfile(t *testing.T) {
 	runner := labDaemon(t, withAppArmor, "")

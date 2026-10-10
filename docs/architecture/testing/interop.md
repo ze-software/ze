@@ -467,9 +467,11 @@ no ze, stages nothing and does not check.
 Every route refuses a staged ze path that holds no file, or holds a directory,
 naming the path, before any docker command runs. Docker answers a bind mount of
 a missing path by creating a root-owned directory there, which a later staging
-then cannot replace.
+then cannot replace. A missing file names, on a line of its own, the run's own
+le words again: `env -u NO_BUILD ./le <words>` when the run skipped its build,
+`./le <words>` otherwise (perf stages without `NO_BUILD`).
 <!-- source: internal/le/perf/bench.go -- Bench.Run, runsZe, stageZe, stagedZe -->
-<!-- source: internal/le/interoplab/kernelcheck.go -- checkDockerKernel, stagedZeMissing -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- checkDockerKernel, stagedZeMissing, stageZeAgain -->
 
 `./le verify evidence release-candidate` runs the whole verify gate, Ze's
 functional tests included, inside a container on the daemon's kernel. After the

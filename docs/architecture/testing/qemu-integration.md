@@ -396,7 +396,10 @@ The action asks the host ze for the runtime-kernel cache entry of the guest's
 architecture (`ze appliance kernel --target runtime --arch <arch>
 --print-cache-dir`, the same answer the gokrazy proofs read), boots that entry's
 `vmlinuz`, and refuses before booting when the entry holds none, naming the
-build that writes it. It demands HVF or KVM, because a lab under TCG measures
+build that writes it on lines of their own: `./le build host-driver`, then
+`./ze-host appliance kernel --target runtime --arch <arch>`
+(`buildhostdriver.RuntimeKernelBuild`, the one declaration every le refusal
+prints; the `./ze` wrapper builds without `appliance`). It demands HVF or KVM, because a lab under TCG measures
 the emulator. The guest installs Alpine's `docker` package, starts dockerd
 through OpenRC, waits at most 60 seconds for `docker info`, runs
 `le setup docker-kernel check` probing with a linux `ze` the host cross-builds

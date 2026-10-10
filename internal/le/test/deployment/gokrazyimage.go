@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	buildcompile "github.com/ze-software/ze/internal/le/build/compile"
+	buildhostdriver "github.com/ze-software/ze/internal/le/build/hostdriver"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
@@ -363,8 +364,8 @@ func RuntimeKernelCacheDir(tree, arch string, progress io.Writer) (string, error
 	}
 	if last == "" {
 		return "", errors.New("could not resolve the runtime kernel cache dir: " +
-			"ze-host appliance kernel --print-cache-dir produced no output; try: " +
-			"./ze appliance kernel --target runtime --arch " + arch)
+			"ze-host appliance kernel --print-cache-dir produced no output. Build the kernel with:\n" +
+			buildhostdriver.RuntimeKernelBuild(arch))
 	}
 	return last, nil
 }
@@ -376,9 +377,10 @@ func RuntimeKernelCacheDir(tree, arch string, progress io.Writer) (string, error
 // identifies the cache's owner because this proof usually runs under sudo, and
 // sudo resets HOME.
 func coldCacheError(cache, arch string, problems []string) error {
-	remedy := "build it once with: ./ze appliance kernel --target runtime --arch "
+	remedy := "Build it once (about 30 minutes, on a host of that arch, with Docker or QEMU), then re-run this proof:\n"
 	if isDir(cache) {
-		remedy = "the cache entry exists but is unusable; remove it, then rebuild it with: ./ze appliance kernel --target runtime --arch "
+		remedy = "The cache entry exists but is unusable. Remove it:\n  rm -r " + cache +
+			"\nThen rebuild it (about 30 minutes, on a host of that arch, with Docker or QEMU) and re-run this proof:\n"
 	}
 
 	var tb textbuf.Buffer
@@ -386,7 +388,7 @@ func coldCacheError(cache, arch string, problems []string) error {
 		Str(" would crash-loop on ze's fail-closed module probe), but the").
 		Str(" durable cache at ").Str(cache).Str(" cannot provide it:\n  ").
 		Str(strings.Join(problems, "\n  ")).Byte('\n').
-		Str(remedy).Str(arch).Str(" (about 30 minutes, on a host of that arch, with Docker or QEMU), then re-run this proof.\n").
+		Str(remedy).Str(buildhostdriver.RuntimeKernelBuild(arch)).Byte('\n').
 		Str("note: this proof usually runs under sudo, and sudo commonly resets HOME, so the").
 		Str(" cache read here is root's; a kernel built as your own user lives in YOUR cache")
 	return errors.New(tb.String())

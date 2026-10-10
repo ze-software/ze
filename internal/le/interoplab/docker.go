@@ -465,17 +465,34 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 		}
 		argv = append(argv, "-e", value)
 	}
+	confined := false
 	if peer.AppArmorProfile != "" {
 		option, optionErr := d.appArmorSecurityOption(ctx, peer.AppArmorProfile)
 		if optionErr != nil {
 			return optionErr
 		}
 		argv = append(argv, option...)
+		confined = len(option) > 0
 	}
 	argv = append(argv, peer.Arguments...)
 	argv = append(argv, peer.Image)
 	argv = append(argv, peer.Command...)
 	_, err = d.command(ctx, dockerRunTimeout, argv...)
+	if err == nil {
+		return nil
+	}
+	if !confined {
+		return err
+	}
+	// The profile list was unreadable or the daemon's kernel differs from
+	// this one, so the run itself is where an unloaded profile shows.
+	profile, registered := LookupAppArmorProfile(peer.AppArmorProfile)
+	if !registered {
+		return err
+	}
+	if unapplied := labAppArmorUnapplied(profile, err); unapplied != nil {
+		return unapplied
+	}
 	return err
 }
 
