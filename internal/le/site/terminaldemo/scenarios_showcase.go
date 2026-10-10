@@ -97,7 +97,14 @@ func showcaseLabFixtures() []labFixture {
 			},
 			ready: []labReadiness{
 				{kind: readinessListen, target: "172.29.0.2:179"},
+				// bfdd's _display_peers_brief (bfdd/bfdd_vty.c, FRR 10.3 and
+				// 10.5) prints "Session count: %lu" on every call, with zero
+				// sessions too: this says bfdd answers its vty, not that a
+				// BFD session exists.
 				frrAnswer("bfdd", "show bfd peers brief", "Session count"),
+				// ospfd's show_ip_ospf_common (ospfd/ospf_vty.c) prints
+				// " OSPF Routing Process, Router ID: %pI4", so this says ospfd
+				// runs the instance frr.conf declares with its static router-id.
 				frrAnswer("ospfd", "show ip ospf", "Router ID: "+showcaseFRRRouterID),
 			},
 		},
