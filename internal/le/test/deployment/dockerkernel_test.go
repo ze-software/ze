@@ -25,6 +25,7 @@ const kernelLackingDocker = `#!/bin/sh
 echo "$*" >> "$DOCKER_RECORD"
 case "$*" in
 *KernelVersion*) echo 6.8.0-117-generic ;;
+*SecurityOptions*) echo '["name=seccomp,profile=builtin","name=cgroupns"]' ;;
 *ze-l2tp-preflight*) printf 'DEV_PPP=ok\nL2TP_PPP=ok\nIP_L2TP=ok\n' ;;
 *ze-pppoe-preflight*) printf 'DEV_PPP=ok\nPPPOE=ok\n' ;;
 *kernel-capabilities*)

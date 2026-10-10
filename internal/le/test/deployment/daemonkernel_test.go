@@ -14,6 +14,7 @@ const proofDocker = `#!/bin/sh
 echo "$*" >> "$DOCKER_RECORD"
 case "$*" in
 *KernelVersion*) echo 6.8.0-117-generic ;;
+*SecurityOptions*) echo '["name=seccomp,profile=builtin","name=cgroupns"]' ;;
 *kernel-capabilities*)
   echo '{"ready": false, "capabilities": [{"subsystem": "ipsec-mobike", "kernel": "CONFIG_XFRM_MIGRATE", "state": "absent", "reason": "XFRM_MSG_MIGRATE_STATE: invalid argument"}]}'
   exit 1 ;;
@@ -138,6 +139,7 @@ const proofDockerNoImage = `#!/bin/sh
 echo "$*" >> "$DOCKER_RECORD"
 case "$*" in
 *KernelVersion*) echo 6.8.0-117-generic ;;
+*SecurityOptions*) echo '["name=seccomp,profile=builtin","name=cgroupns"]' ;;
 *kernel-capabilities*)
   echo '{"ready": false, "capabilities": [{"subsystem": "ipsec-mobike", "kernel": "CONFIG_XFRM_MIGRATE", "state": "absent", "reason": "XFRM_MSG_MIGRATE_STATE: invalid argument"}]}'
   exit 1 ;;
