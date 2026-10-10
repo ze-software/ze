@@ -45,6 +45,22 @@ build_le() {
 		export GOTOOLCHAIN
 	fi
 
+	# Refuse before `go build` rather than let sh answer `go: not found`: the
+	# usual cause is a non-interactive shell that never read the profile adding
+	# Go to PATH. gotoolchain.New gives the same refusal once bin/le exists, and
+	# internal/le/go/toolchain/gotoolchain_missing_test.go runs this script.
+	if ! command -v go >/dev/null 2>&1; then
+		echo "le: building le needs the Go toolchain and finds no \`go\` program on PATH ($PATH)." >&2
+		if [ -n "$toolchain" ]; then
+			echo "le: this checkout builds with $toolchain, the version go.mod pins; any Go 1.21 or newer downloads it on first use." >&2
+		else
+			echo "le: go.mod pins no toolchain, so the Go on PATH builds as it is." >&2
+		fi
+		echo "le: install Go from https://go.dev/dl/ or your package manager, then put its bin directory on PATH, for example: export PATH=\$PATH:/usr/local/go/bin" >&2
+		echo "le: a non-interactive shell such as \`ssh host command\` does not read ~/.bashrc, so set PATH in ~/.profile or on the command line." >&2
+		return 1
+	fi
+
 	mkdir -p "$(dirname "$out")" || return 1
 	(cd "$root" && go build -tags "$tags" -o "$out" ./cmd/ze)
 }

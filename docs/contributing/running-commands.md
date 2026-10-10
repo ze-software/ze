@@ -83,7 +83,14 @@ target. Concurrent builders need no lock or retry. The final filename stays
 and leaves any published target unchanged. Preparation failures, including a
 missing or empty feature manifest, stop before the compiler runs.
 
+A missing `go` stops it too. The script refuses before `go build`, and once
+`bin/le` exists `gotoolchain.New` refuses before any le action starts a Go
+command. Both name the PATH searched, the version go.mod pins, and how to put
+Go on PATH. The usual cause is a non-interactive shell, such as `ssh host
+command`, that never read the profile adding Go to PATH.
+
 <!-- source: le -- build_le, update_le -->
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- New, goMissing -->
 
 A named build does not stay forever. The hourly store trim (see "When the disk
 is full") removes `bin/le-<name>/` once its `le` and the directory itself are

@@ -52,6 +52,7 @@ package gotoolchain
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -177,6 +178,13 @@ func New(root string) (Toolchain, error) {
 		return Toolchain{}, err
 	}
 
+	// Every caller is about to start a Go command, so a missing go is refused
+	// here, once, rather than surfacing as exit 127 from whichever command runs
+	// first.
+	if _, err := exec.LookPath(goProgram); err != nil {
+		return Toolchain{}, goMissing(pin)
+	}
+
 	now := time.Now()
 	return Toolchain{
 		Root:         root,
@@ -236,6 +244,35 @@ func goToolchainPin(root string) (string, error) {
 		return "", nil
 	}
 	return "go" + version, nil
+}
+
+// goProgram is the program every argv this package builds starts with.
+const goProgram = "go"
+
+// goMissing answers the refusal New gives when no go is on PATH. It names the
+// PATH it searched, the version go.mod pins, and the two fixes, because the
+// usual cause is a non-interactive shell that never read the profile adding Go
+// to PATH, and the exec error alone says none of that.
+func goMissing(pin string) error {
+	var tb textbuf.Buffer
+	tb.Str("le needs the Go toolchain and finds no `go` program on PATH (")
+	path := os.Getenv("PATH")
+	if path == "" {
+		tb.Str("PATH is empty")
+	} else {
+		tb.Str(path)
+	}
+	tb.Str("). ")
+	if pin == "" {
+		tb.Str("go.mod pins no toolchain, so the Go on PATH builds as it is. ")
+	} else {
+		tb.Str("This checkout builds with ").Str(pin).
+			Str(", the version go.mod pins, and any Go 1.21 or newer on PATH downloads it on first use. ")
+	}
+	tb.Str("Install Go with `./le setup tools` or from https://go.dev/dl/, then put its bin directory on PATH," +
+		" for example `export PATH=$PATH:/usr/local/go/bin`. A non-interactive shell such as `ssh host command`" +
+		" does not read ~/.bashrc, so set PATH in ~/.profile or on the command line")
+	return errors.New(tb.String())
 }
 
 // CoresPerJob answers how many cores one heavy job is allowed, which is the
