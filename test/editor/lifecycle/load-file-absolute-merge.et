@@ -1,8 +1,8 @@
 # Test: Load file absolute merge - merges at root
-# VALIDATES: Load merge preserves existing values
+# VALIDATES: Load merge keeps existing values the loaded file does not name
 # VALIDATES: Load merge adds new content
-# VALIDATES: Existing values not overwritten
-# PREVENTS: Merge overwriting all content
+# VALIDATES: A leaf both name takes the loaded value (owner decision 2026-10-10)
+# PREVENTS: Merge overwriting all content, or dropping the loaded value
 
 tmpfs=original.conf:terminator=EOF_ORIG
 bgp {
@@ -44,16 +44,16 @@ expect=content:contains=65000
 input=type:text=load file absolute merge merge.conf
 input=enter
 
-# Original values should be preserved (1.2.3.4, not overwritten by 5.6.7.8)
-expect=content:contains=1.2.3.4
+# A value the loaded file does not name is kept
 expect=content:contains=65000
 
 # Merged content should be added
 expect=content:contains=peer peer1
 expect=content:contains=remote 65001
 
-# Merge file's router-id should NOT overwrite original
-expect=content:not-contains=5.6.7.8
+# The loaded router-id wins over the existing one
+expect=content:contains=5.6.7.8
+expect=content:not-contains=1.2.3.4
 
 expect=dirty:true
 expect=error:none

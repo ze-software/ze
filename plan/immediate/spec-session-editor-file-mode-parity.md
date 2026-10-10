@@ -560,6 +560,7 @@ Surfaces that type the old grammar (from `grep -rlE 'text=(commit|confirm)\b|Typ
 | A nested `commit confirmed` reverts to the state before the FIRST unconfirmed commit | revert only the latest commit to the state the first commit produced | nothing unconfirmed survives a revert; matches the owner's "revert target stays the state before the first unconfirmed commit" |
 | A window belongs to the user who started it: any new SSH session of that user is its owner, as a reconnection; sessions of other users are refused (AC-17) | only the SSH session that ran `commit confirmed` owns it, so a dropped client leaves the operator waiting for the deadline | Owner decision 2026-10-10: "the new session should behave like a reconnection" |
 | Confirm worker home (A-4): package `internal/component/config/confirm`, one `Window` per daemon and config, one long-lived goroutine reading a request channel and owning the deadline timer; built in `runYANGConfig` right after `reloadAfterCommit` (the reload a revert calls) and published to session editors beside `sessionReloadHolder`; stopped before `commitReloads` closes. Editors see it through an interface in `internal/component/cli/contract`, so `cli` and `web` never import the worker. The pending record is a store key written by `storage` beside the `pointer.go` keys. Boot recovery (AC-19) runs beside `clearStaleCandidateOnBoot`, BEFORE `ReadConfigSource`, so the reverted config is the one that boots | the CLI `Model` tick (dies with the SSH channel); `cmd/ze/hub` itself (no unit test without a daemon, and `web` could not reach it); `config/transaction` (the plugin verify/apply protocol, not an operator window) | engineering choice inside the owner's "daemon owns the window" decision: the hub alone holds the store, the config path and the reload together, and a component package keeps the worker unit-testable with a fake reload (recorded 2026-10-10) |
+| `load merge`: a leaf both the loaded file and the working config name takes the loaded value | the old text merge, which kept the existing leaf | Owner decision 2026-10-10: "loaded value wins" (Junos merge); `test/editor/lifecycle/load-file-absolute-merge.et` corrected to assert it |
 | Seconds, 1 to 3600, kept | switch to minutes like Junos/VyOS | the unit is the existing contract; changing it is scope the owner did not ask for |
 
 ## Implementation Status (2026-10-10)
@@ -576,7 +577,7 @@ Remaining.
 | AC-3, AC-4 | evidenced | d2c8103327 | `session-editor-load-replace.ci`, `TestSessionLoadReplaceEmitsDeletes` | same draft red |
 | AC-5 | evidenced | d2c8103327, 0863b5fe42, 2dc4dd3ae8 | `session-editor-load-refused.ci`, `TestSessionLoadRefusesBadInputAtomically`, `TestUnknownKeyNamesClosestValidKey` | .ci red under mutation; `TestUnknownKeyNamesClosestValidKey` observed red (5 subtests) before 0863b5fe42 |
 | AC-6 | evidenced | e9cd0def79 | `session-editor-load-conflict.ci` | red with `Editor.detectConflicts` returning nil |
-| AC-7 | owner | d2c8103327, 2dc4dd3ae8 | `TestFileModeLoadTreeMergeMatchesPrevious` (absolute replace, relative), `TestFileModeLoadAbsoluteMergeNestedBlocks` | `test/editor/lifecycle/load-file-absolute-merge.et` RED since d2c8103327: it asserts the old text merge kept the existing leaf, the tree load makes the loaded leaf win |
+| AC-7 | evidenced | d2c8103327, 2dc4dd3ae8 | `TestFileModeLoadTreeMergeMatchesPrevious` (absolute replace, relative), `TestFileModeLoadAbsoluteMergeNestedBlocks`, `test/editor/lifecycle/load-file-absolute-merge.et` | the `.et` asserted the old text merge's kept-existing leaf; corrected to loaded-wins by the owner decision of 2026-10-10 (Key Design Decisions), and green: `./le test editor -pattern load-file-absolute-merge` 1/1 |
 | AC-8 | evidenced | b5274c4fa8, 440ef0753a | `session-editor-copy.ci`, `TestSessionCopyWritesThrough`, `TestSessionCopyCarriesPendingSourceEdits` | .ci red with `CopyListEntry`'s session branch mutated back to a refusal |
 | AC-9, AC-10 | evidenced | b5274c4fa8, 440ef0753a | `session-editor-deactivate-activate.ci`, `TestSessionDeactivateActivateLeafAndPath` | .ci red with the `DeactivatePath` session branch mutated back to a refusal |
 | AC-11 | evidenced | 482bdc3986 | `test/web/cli-session-copy-deactivate.wb` | red at line 49 ("path not found") before 482bdc3986 |
@@ -618,7 +619,6 @@ Owner decisions pending:
 | Item | Question |
 |------|----------|
 | `test/editor/session/load-blocked.et` | it asserts the session-mode load refusal d2c8103327 removed, so it is RED; deleting it needs the owner's approval (`load-session.et` replaces it) |
-| `test/editor/lifecycle/load-file-absolute-merge.et` (load merge semantics, AC-7) | the old text merge kept the existing leaf over the loaded one; the tree load makes the loaded leaf win (AC-1, Junos merge). Correct the `.et` to loaded-wins, or change the semantics |
 | `checkLiveConflicts` deletion | a dead duplicate of `Editor.detectConflicts` with no production caller (`plan/journal/production-function-only-tests-call.md`); deleting it removes its two `editor_test.go` tests, which needs the owner's approval |
 | web notice of a forced-commit discard | a web user whose change a forced commit discards gets no notice and keeps a stale tree until its editor is rebuilt (the web has no draft poll) |
 | web terminal countdown and status line | the web terminal has no status line, so it shows neither the countdown nor how a window it did not close ended |
@@ -628,7 +628,7 @@ ACs not evidenced through their named entry point:
 
 | AC | What is missing |
 |----|-----------------|
-| AC-7 | blocked on the load merge owner decision above |
+| (none) | |
 
 `./le test editor` with a fresh build (2026-10-10): 173/175, the two reds are
 `load-file-absolute-merge.et` and `load-blocked.et`, both owner items above.

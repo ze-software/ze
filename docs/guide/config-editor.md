@@ -291,8 +291,9 @@ parsed against the schema first: at the root it may be hierarchical or `set`
 lines, and a `relative` load takes a hierarchical body checked against the
 children of your current context, so a key that node does not hold is refused
 by name. A `merge` then applies each leaf, leaf-list member, list entry and
-inactive marker the input carries that the configuration does not already hold;
-a `replace` also deletes what the node holds and the input omits, scoped to the
+inactive marker the input carries that the configuration does not already hold,
+and a leaf both name takes the loaded value while every leaf the input omits is
+kept; a `replace` also deletes what the node holds and the input omits, scoped to the
 context for a `relative` load. In session mode each applied difference is one
 tracked change, the same entry a typed `set` or `delete` records, so a leaf
 equal to its current value records nothing and `show | changes` lists exactly
