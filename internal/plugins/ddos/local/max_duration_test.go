@@ -685,7 +685,7 @@ func TestLocalEngineStopRemovesTheDrop(t *testing.T) {
 	stopResponder(r)
 
 	if removals() != 1 {
-		t.Errorf("the plugin stopped with its drop rule still in the kernel: no config is delivered for a parent-block removal, so the config boundary never runs and nothing that survives this engine can remove the rule (removals %d)", removals())
+		t.Errorf("the plugin stopped with its drop rule still in the kernel: a stop that delivers no config never reaches the config boundary, so nothing that survives this engine can remove the rule (removals %d)", removals())
 	}
 	if active, _ := r.status(); active {
 		t.Error("the responder still reports a live mitigation after the engine stopped")

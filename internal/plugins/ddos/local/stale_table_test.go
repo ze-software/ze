@@ -204,14 +204,16 @@ func TestStaleDropRuleSweepLeavesNoClaimBehindOnAFailedReconcile(t *testing.T) {
 }
 
 // startSweepEngine runs the production engine over the SDK transport. The caller
-// MUST complete its handshake; cleanup closes the transport and joins the engine.
-func startSweepEngine(t *testing.T, run func(net.Conn) int) *rpc.MuxConn {
+// MUST complete its handshake. The returned stop closes the transport and joins
+// the engine, so a test can observe what the engine's exit path did; cleanup
+// calls it too, and only the first call acts.
+func startSweepEngine(t *testing.T, run func(net.Conn) int) (*rpc.MuxConn, func()) {
 	t.Helper()
 	pluginEnd, engineEnd := net.Pipe()
 	mux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
 	exited := make(chan int, 1)
 	go func() { exited <- run(pluginEnd) }()
-	t.Cleanup(func() {
+	stop := sync.OnceFunc(func() {
 		_ = mux.Close()
 		_ = engineEnd.Close()
 		_ = pluginEnd.Close()
@@ -221,7 +223,8 @@ func startSweepEngine(t *testing.T, run func(net.Conn) int) *rpc.MuxConn {
 			t.Error("plugin engine did not exit after its transport closed")
 		}
 	})
-	return mux
+	t.Cleanup(stop)
+	return mux, stop
 }
 
 func sweepRequest(t *testing.T, ctx context.Context, mux *rpc.MuxConn, method string) {
@@ -272,7 +275,7 @@ func configureSweepEngine(t *testing.T, ctx context.Context, mux *rpc.MuxConn, s
 func TestLocalStartupSweepsTheConfiguredBackend(t *testing.T) {
 	b, name := newSweepBackend(t)
 	b.plant(firewall.Table{Name: "ze_ddos-local", Family: firewall.FamilyIP})
-	mux, ctx, bus := configureSweepStartup(t, b, name, nil)
+	mux, ctx, bus, _ := configureSweepStartup(t, b, name, nil)
 	requireSwept(t, b)
 	if _, err := ddosevent.Detected.Emit(bus, &ddosevent.AttackDetected{
 		Target: floodVictim(), Direction: ddosevent.DirectionLocal,
@@ -305,7 +308,7 @@ func TestLocalStartupCleanupFailureStillHandlesDetection(t *testing.T) {
 	for _, stage := range []int{1, 2} {
 		t.Run(fmt.Sprintf("stage-%d", stage), func(t *testing.T) {
 			b, name := newSweepBackend(t)
-			_, _, bus := configureSweepStartup(t, b, name, func() {
+			_, _, bus, _ := configureSweepStartup(t, b, name, func() {
 				b.failReconcile(stage, errors.New("cleanup unavailable"))
 			})
 			if _, err := ddosevent.Detected.Emit(bus, &ddosevent.AttackDetected{
@@ -327,7 +330,9 @@ func TestLocalStartupCleanupFailureStillHandlesDetection(t *testing.T) {
 // configureSweepStartup starts both engines before the firewall handshake, then
 // delivers config in dependency order. The transport cleanup MUST join both
 // engines before the shared backend and bus are restored.
-func configureSweepStartup(t *testing.T, b *sweepBackend, name string, beforeLocal func()) (*rpc.MuxConn, context.Context, ze.EventBus) {
+//
+// The fourth answer stops the local engine and joins it; see startSweepEngine.
+func configureSweepStartup(t *testing.T, b *sweepBackend, name string, beforeLocal func()) (*rpc.MuxConn, context.Context, ze.EventBus, func()) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -343,8 +348,8 @@ func configureSweepStartup(t *testing.T, b *sweepBackend, name string, beforeLoc
 	if fw == nil {
 		t.Fatal("firewall dependency is not registered")
 	}
-	firewallMux := startSweepEngine(t, fw.RunEngine)
-	localMux := startSweepEngine(t, runEngine)
+	firewallMux, _ := startSweepEngine(t, fw.RunEngine)
+	localMux, stopLocal := startSweepEngine(t, runEngine)
 	// Receiving this declaration proves runEngine reached the SDK. No sleep or
 	// recorded helper order stands in for the pre-configuration boundary.
 	sweepRequest(t, ctx, localMux, "ze-plugin-engine:declare-registration")
@@ -359,7 +364,49 @@ func configureSweepStartup(t *testing.T, b *sweepBackend, name string, beforeLoc
 	}
 	configureSweepEngine(t, ctx, localMux, []rpc.ConfigSection{{Root: configRoot,
 		Data: `{"ddos":{"local":{"response-level":"enforce","max-mitigation-duration":"3600"}}}`}})
-	return localMux, ctx, bus
+	return localMux, ctx, bus, stopLocal
+}
+
+// TestLocalEngineExitRemovesTheDrop proves the production engine's own exit
+// path withdraws a live drop rule.
+//
+// VALIDATES: runEngine's deferred stopResponder runs when the engine's
+// transport closes, and the backend then holds no ze_ddos-local rule.
+// PREVENTS: an engine that exits with its drop rule still in the kernel. A stop
+// that delivers no config never reaches the config-boundary withdrawal, so the
+// defer is the only path left; TestLocalEngineStopRemovesTheDrop calls
+// stopResponder directly and would stay green with the defer gone.
+//
+// Method: start the firewall and local engines over the SDK transport, install
+// a rule through a detection event, close the local engine's transport, join
+// the engine, then read the backend's tables.
+func TestLocalEngineExitRemovesTheDrop(t *testing.T) {
+	b, name := newSweepBackend(t)
+	_, _, bus, stopLocal := configureSweepStartup(t, b, name, nil)
+	if _, err := ddosevent.Detected.Emit(bus, &ddosevent.AttackDetected{
+		Target: floodVictim(), Direction: ddosevent.DirectionLocal,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := b.ListTables()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(before) != 1 || before[0].Name != "ze_ddos-local" || len(before[0].Chains) == 0 {
+		t.Fatalf("setup: detection must install a live drop rule, tables %+v", before)
+	}
+
+	stopLocal()
+
+	after, err := b.ListTables()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range after {
+		if table.Name == "ze_ddos-local" && len(table.Chains) > 0 {
+			t.Fatalf("the engine exited with its drop rule still in the backend: %+v", table)
+		}
+	}
 }
 
 // captureLog routes the package logger into a buffer for one test, and restores
