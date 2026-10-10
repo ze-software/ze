@@ -12,9 +12,9 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Review state (2026-10-10): round-1 findings fixed (b99e74e99c, ff75ef7668, e5fa0e63a1
-and this spec's closure sections); READY FOR REVIEW ROUND 2. Interop re-run owed after
-the arm64 kernel rebuild: ff75ef7668 changed the initiator checker's KE assertion, so
-the green logs below predate it. BLOCKER 1 of round 1 is approved by the owner on 2026-10-11 (Review Gate).
+and this spec's closure sections); READY FOR REVIEW ROUND 2. Interop re-run done
+2026-10-11 on the rebuilt arm64 kernel (7.2.9): both childless scenarios PASS with the
+ff75ef7668 KE checker, code at 8887f00ac2 (`*-rerun.log`, Goal Validation). BLOCKER 1 of round 1 is approved by the owner on 2026-10-11 (Review Gate).
 
 ## Task
 
@@ -283,8 +283,8 @@ The red column names how each test's red was observed, recorded in the per-spec 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `childless-ike-sa-ze-responder` | `test/interop-ipsec/scenarios/childless-ike-sa-ze-responder/` | strongSwan initiator with two children, `start_action = none`: `refused` (an ESP proposal Ze refuses), then `wanted` (with a PFS group); the checker initiates `refused`, then `wanted` | AC-1, AC-7, AC-8, AC-13: Ze authenticates while refusing the child, keeps the IKE SA, and creates the second child from a KE-bearing request; ping through `wanted` | GREEN 2026-10-10: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/responder-green5-clone.log` (PASS, docker-lab VM, clone at 100a2bb8f7 plus the checkers of 2c813c4d58, byte-identical). RED: `.../scratch/interop/responder-red-clone.log`, `if true` at the top of `handleNewChildRequest` (inbound.go, NO_PROPOSAL_CHOSEN to every new-child request, the pre-spec behavior): "ze never created the `wanted` Child SA on the childless IKE SA" |
-| `childless-ike-sa-ze-initiator` | `test/interop-ipsec/scenarios/childless-ike-sa-ze-initiator/` | strongSwan responder whose child ESP proposal Ze does not offer; the checker asserts the IKE SA stays ESTABLISHED with no CHILD_SA past one retry, then rewrites the conn to match and runs `swanctl --load-conns` | AC-2, AC-4, AC-5, AC-14: no Delete, then Ze's creation (PFS on) installs the child; ping | GREEN 2026-10-10: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/initiator-green3-clone.log` (PASS, docker-lab VM, clone at 2c813c4d58). RED: `.../scratch/interop/initiator-red-clone.log`, `if true { return }` at the top of `serviceChildCreate` (create_child.go, Ze never schedules the creation): "ze never retried the refused Child SA with CREATE_CHILD_SA". `swanctl --load-conns` keeps the IKE SA (A-2) |
+| `childless-ike-sa-ze-responder` | `test/interop-ipsec/scenarios/childless-ike-sa-ze-responder/` | strongSwan initiator with two children, `start_action = none`: `refused` (an ESP proposal Ze refuses), then `wanted` (with a PFS group); the checker initiates `refused`, then `wanted` | AC-1, AC-7, AC-8, AC-13: Ze authenticates while refusing the child, keeps the IKE SA, and creates the second child from a KE-bearing request; ping through `wanted` | GREEN 2026-10-11 (re-run, current checker): `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/responder-rerun.log` (PASS, docker-lab VM, shared tree at 8887f00ac2, arm64 runtime kernel 7.2.9). Earlier GREEN 2026-10-10: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/responder-green5-clone.log` (PASS, docker-lab VM, clone at 100a2bb8f7 plus the checkers of 2c813c4d58, byte-identical). RED: `.../scratch/interop/responder-red-clone.log`, `if true` at the top of `handleNewChildRequest` (inbound.go, NO_PROPOSAL_CHOSEN to every new-child request, the pre-spec behavior): "ze never created the `wanted` Child SA on the childless IKE SA" |
+| `childless-ike-sa-ze-initiator` | `test/interop-ipsec/scenarios/childless-ike-sa-ze-initiator/` | strongSwan responder whose child ESP proposal Ze does not offer; the checker asserts the IKE SA stays ESTABLISHED with no CHILD_SA past one retry, then rewrites the conn to match and runs `swanctl --load-conns` | AC-2, AC-4, AC-5, AC-14: no Delete, then Ze's creation (PFS on) installs the child; ping | GREEN 2026-10-11 (re-run with the ff75ef7668 KE assertion): `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/initiator-rerun.log` (PASS, docker-lab VM, shared tree at 8887f00ac2, arm64 runtime kernel 7.2.9). Earlier GREEN 2026-10-10: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/initiator-green3-clone.log` (PASS, docker-lab VM, clone at 2c813c4d58). RED: `.../scratch/interop/initiator-red-clone.log`, `if true { return }` at the top of `serviceChildCreate` (create_child.go, Ze never schedules the creation): "ze never retried the refused Child SA with CREATE_CHILD_SA". `swanctl --load-conns` keeps the IKE SA (A-2) |
 
 Both run only on a Docker host that passes the Ze kernel check (the QEMU docker-lab route). Each is proven discriminating per `ai/rules/interop-and-goal-validation.md`: revert the change, rebuild the ze image, observe red, restore, observe green, record the red.
 
@@ -550,7 +550,7 @@ section.
 | AC-11 | Done | `TestCreateChildWaitsForIKERekey` | |
 | AC-12 | Done | `TestCreateChildCollisionDeletesNewPair` | |
 | AC-13 | Done | interop `childless-ike-sa-ze-responder` green and red | |
-| AC-14 | Done, re-run owed | interop `childless-ike-sa-ze-initiator` green and red | ff75ef7668 added the KE assertion after the green run; re-run after the arm64 kernel rebuild |
+| AC-14 | Done | interop `childless-ike-sa-ze-initiator` green and red | ff75ef7668 added the KE assertion after the first green; re-run green 2026-10-11 (`initiator-rerun.log`) |
 | AC-15 | Done | `TestPeerDeleteOfTheLiveChildEndsTheOwnerLoop` | |
 
 ### Tests from TDD Plan
@@ -558,7 +558,7 @@ section.
 |------|--------|----------|-------|
 | Unit tests | Done | TDD Unit Tests table above | Two planned names folded, recorded there |
 | `ipsec-childless-ike-sa-recovers` | Done | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` | |
-| `childless-ike-sa-ze-responder`, `childless-ike-sa-ze-initiator` | Done, initiator re-run owed | `test/interop-ipsec/scenarios/` | |
+| `childless-ike-sa-ze-responder`, `childless-ike-sa-ze-initiator` | Done | `test/interop-ipsec/scenarios/` | both re-run green 2026-10-11 (`*-rerun.log`) |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -572,7 +572,7 @@ section.
 
 ### Audit Summary
 - **Total items:** 15 AC, 5 Task requirements
-- **Done:** all, AC-14's interop re-run owed after the arm64 kernel rebuild
+- **Done:** all; AC-13 and AC-14 interop re-run green 2026-10-11 on the rebuilt arm64 kernel
 - **Partial:** none
 - **Skipped:** none
 - **Changed:** test file names and the creation code's home (Deviations)
@@ -581,8 +581,8 @@ section.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| Ze as responder keeps the IKE SA when only the IKE_AUTH Child SA fails, and creates the Child SA the peer asks for later | interop | `childless-ike-sa-ze-responder` GREEN `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/responder-green5-clone.log`; RED with the creation arm reverted, `.../scratch/interop/responder-red-clone.log` ("ze never created the `wanted` Child SA on the childless IKE SA") |
-| Ze as initiator does not fail authentication on a refused child, keeps the IKE SA, and creates the Child SA later | interop + unit | `childless-ike-sa-ze-initiator` GREEN `.../scratch/interop/initiator-green3-clone.log`; RED with `serviceChildCreate` disabled, `.../scratch/interop/initiator-red-clone.log` ("ze never retried the refused Child SA with CREATE_CHILD_SA"); `TestInitiatorCycleKeepsChildlessIKESA`. Re-run owed after the arm64 kernel rebuild (ff75ef7668 checker change) |
+| Ze as responder keeps the IKE SA when only the IKE_AUTH Child SA fails, and creates the Child SA the peer asks for later | interop | `childless-ike-sa-ze-responder` GREEN on the current checker, 2026-10-11: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/responder-rerun.log` (shared tree at 8887f00ac2, arm64 runtime kernel 7.2.9); earlier GREEN `.../scratch/interop/responder-green5-clone.log`; RED with the creation arm reverted, `.../scratch/interop/responder-red-clone.log` ("ze never created the `wanted` Child SA on the childless IKE SA") |
+| Ze as initiator does not fail authentication on a refused child, keeps the IKE SA, and creates the Child SA later | interop + unit | `childless-ike-sa-ze-initiator` GREEN with the ff75ef7668 KE assertion, 2026-10-11: `.../scratch/interop/initiator-rerun.log` (shared tree at 8887f00ac2, arm64 runtime kernel 7.2.9); earlier GREEN `.../scratch/interop/initiator-green3-clone.log`; RED with `serviceChildCreate` disabled, `.../scratch/interop/initiator-red-clone.log` ("ze never retried the refused Child SA with CREATE_CHILD_SA"); `TestInitiatorCycleKeepsChildlessIKESA` |
 | A childless IKE SA stays useful: DPD, rekey, Delete, show | unit + functional | `childless_lifecycle_test.go` (DPD, hard lifetime, peer Delete), `TestIcyChildlessInitiatorStaysInMaintainSA` (IKE rekey keeps creation scheduled), `TestChildlessSAMaintenance` (readers); `.ci` CHILDLESS marker from `show vpn ipsec sa \| json` |
 | An operator recovers a childless tunnel by fixing the esp-group, without a restart | functional | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` GREEN `.../scratch/ccs-r1-ci-green.log`; REDs: NEVER-CREATED (3d069a957e) and RECONNECTED (`.../scratch/ccs-r2-ci-reconnected-red.log`, NOTE 5) |
 
@@ -612,7 +612,7 @@ section.
 | 6 | ISSUE | Refusal log lines named no next step | `fsm.go`, `responder.go`, `create_child.go`, `inbound.go` | b99e74e99c (slog `fix` and `retry-after` attributes, messages unchanged so needles match) |
 | 7 | ISSUE | Goal Validation missing, A-4 to A-6 unvalidated, TDD and Functional Status empty | this spec | this spec commit |
 | N3 | NOTE | `espResolved=false` branch of `retargetESPGroup` untested | `reload_child_schedule_test.go` | b99e74e99c |
-| N4 | NOTE | AC-14 checker did not assert KE | `internal/le/interoplab/ipsec/checkers.go` | ff75ef7668 (interop re-run owed) |
+| N4 | NOTE | AC-14 checker did not assert KE | `internal/le/interoplab/ipsec/checkers.go` | ff75ef7668 (interop re-run green 2026-10-11, `initiator-rerun.log`) |
 | N8 | NOTE | Reload did not reset a backed-off creation wait; AC-2 unit did not assert no Delete and `sa-up`; spec test names drifted | `create_child.go`, `childless_initiator_cycle_test.go`, this spec | b99e74e99c, this spec commit |
 
 ### Round 2 findings fixed
@@ -656,7 +656,7 @@ NOTE 1 (RFC7296-2.7-1 and RFC3948-3.1.2-1 SHIFTED by checkers.go) goes to an ind
 |-------|-------|----------------|
 | AC-1 to AC-12, AC-15 | Unit tests named in the Acceptance Criteria audit pass | `./le job run label ccsr2-engine command go test -race -count=1 -tags "<gates>" ./internal/component/ike/engine/`: `ok ... 55.148s` on HEAD 2026-10-10 |
 | AC-2 | `deleteChildlessIKESA` and `errChildSARefused` no longer exist | `grep -rn` over `internal/`: one hit, a comment in `childless_initiator_cycle_test.go` naming the deleted function |
-| AC-13, AC-14 | interop | logs named in Goal Validation; AC-14 re-run owed |
+| AC-13, AC-14 | interop | logs named in Goal Validation; both re-run green 2026-10-11 |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
