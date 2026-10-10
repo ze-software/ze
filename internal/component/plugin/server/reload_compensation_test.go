@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
+	"net/netip"
 	"sync/atomic"
 	"testing"
 
@@ -180,4 +182,58 @@ func TestFailedReloadCompensationRetainsRetry(t *testing.T) {
 			require.NoError(t, <-runDone)
 		})
 	}
+}
+
+// createdPeersReactor is a reactor holding one peer created at runtime, which
+// every applied tree takes over, the way a candidate declaring it does.
+type createdPeersReactor struct {
+	removalRecoveryReactor
+	created map[netip.Addr]string
+}
+
+func (r *createdPeersReactor) CreatedPeers() map[netip.Addr]string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return maps.Clone(r.created)
+}
+
+func (r *createdPeersReactor) SetConfigTree(tree map[string]any) {
+	r.removalRecoveryReactor.SetConfigTree(tree)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.created = nil
+}
+
+func (r *createdPeersReactor) RestoreCreatedPeers(created map[netip.Addr]string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.created = maps.Clone(created)
+}
+
+// TestRejectedReloadMarksTheCreatedPeersAgain holds AC-9 of
+// spec-yang-rpc-declarations-with-no-handler across a rejected reload.
+//
+// GOAL: a reload the hub rejects after the reactor applied it gives back the
+// created peers it took over, so the next reload whose candidate does not
+// declare them keeps them.
+// METHOD: a reactor with one created peer that the applied tree takes over;
+// reload under a deferred acceptance, then reject it.
+// VALIDATES: the reload took the peer over, and the compensation handed the
+// marks the reactor held before the reload back to RestoreCreatedPeers.
+// PREVENTS: a created peer left configured by a commit that never took effect.
+func TestRejectedReloadMarksTheCreatedPeersAgain(t *testing.T) {
+	s, _ := newLifecycleStartupServer(t)
+	created := map[netip.Addr]string{netip.MustParseAddr("192.0.2.7"): "peer-192.0.2.7"}
+	reactor := &createdPeersReactor{created: maps.Clone(created)}
+	reactor.tree = map[string]any{"revision": 1}
+	s.reactor = reactor
+
+	ctx, finish := s.DeferReloadAcceptance(t.Context())
+	defer finish(false)
+	require.NoError(t, s.ReloadConfig(ctx, map[string]any{"revision": 2}))
+	require.Empty(t, reactor.CreatedPeers(), "the applied tree took the created peer over")
+
+	finish(false)
+	require.Equal(t, map[string]any{"revision": 1}, reactor.GetConfigTree())
+	require.Equal(t, created, reactor.CreatedPeers(), "the rejected reload marks the created peer again")
 }

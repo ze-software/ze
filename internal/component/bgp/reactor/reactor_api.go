@@ -501,6 +501,40 @@ func (a *reactorAPIAdapter) ReloadRunning(candidate map[string]any) map[string]a
 	return root
 }
 
+// CreatedPeers answers a copy of createdPeers (reactor.go).
+func (a *reactorAPIAdapter) CreatedPeers() map[netip.Addr]string {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	return maps.Clone(a.r.createdPeers)
+}
+
+// RestoreCreatedPeers marks again the created peers a compensated reload took
+// over (restoreReload, ../../plugin/server/reload_compensation.go).
+//
+// A peer is marked only while it still runs at its address under the name it
+// was recorded under. One `delete bgp peer` removed, or a configured peer of
+// another name now at that address, is not the peer the mark named, and a mark
+// on it would keep a configured peer out of the next reload's removals.
+func (a *reactorAPIAdapter) RestoreCreatedPeers(created map[netip.Addr]string) {
+	a.r.mu.Lock()
+	defer a.r.mu.Unlock()
+
+	for addr, name := range created {
+		peer, running := a.r.findPeerByAddr(addr)
+		if !running {
+			continue
+		}
+		if peer.Settings().Name != name {
+			continue
+		}
+		if a.r.createdPeers == nil {
+			a.r.createdPeers = make(map[netip.Addr]string)
+		}
+		a.r.createdPeers[addr] = name
+	}
+}
+
 // peerListDeclares answers whether a peer list declares the peer created at
 // addr: an entry under its name, or an entry of any name whose remote address
 // is addr.

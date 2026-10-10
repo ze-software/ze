@@ -212,6 +212,23 @@ func (c *Coordinator) ReloadRunning(candidate map[string]any) map[string]any {
 	return c.configTree
 }
 
+// CreatedPeers answers the reactor's created peers. With no reactor attached
+// nothing can have created one, so there are none.
+func (c *Coordinator) CreatedPeers() map[netip.Addr]string {
+	if r := c.getReactor(); r != nil {
+		return r.CreatedPeers()
+	}
+	return nil
+}
+
+// RestoreCreatedPeers hands the created peers a compensation restores to the
+// reactor. With no reactor attached there is no peer to mark.
+func (c *Coordinator) RestoreCreatedPeers(created map[netip.Addr]string) {
+	if r := c.getReactor(); r != nil {
+		r.RestoreCreatedPeers(created)
+	}
+}
+
 // SetConfigTree replaces the running config tree after a successful reload. It
 // writes the reactor's tree where one is attached, for the reason above.
 func (c *Coordinator) SetConfigTree(tree map[string]any) {

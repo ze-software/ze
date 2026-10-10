@@ -45,23 +45,7 @@ import (
 // that makes the peer unremovable by configuration, or a reload refused because
 // the created entry is not where the decomposer looks for it.
 func TestCandidateDeclaringACreatedPeersAddressUnderAnotherName(t *testing.T) {
-	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
-	// The file the daemon runs: the globals, and no peer yet. A reload reads
-	// the file through the config loader, which names each peer after its
-	// list key (PeersFromTree), and the candidate is what the file holds.
-	file := map[string]any{"bgp": takeoverGlobals()}
-	r.configTree = file
-	r.config.ConfigPath = "ze.conf"
-	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
-		bgp, _ := file["bgp"].(map[string]any)
-		peers, err := PeersFromTree(bgp)
-		if err != nil {
-			return nil, Globals{}, err
-		}
-		globals, err := GlobalsFromTree(bgp)
-		return peers, globals, err
-	})
-	api := &reactorAPIAdapter{r: r}
+	r, api, file := newTakeoverReactor(t)
 
 	addr := netip.MustParseAddr("192.0.2.7")
 	require.NoError(t, api.AddDynamicPeer(addr, map[string]any{
@@ -79,7 +63,7 @@ func TestCandidateDeclaringACreatedPeersAddressUnderAnotherName(t *testing.T) {
 	declaringBGP["peer"] = map[string]any{"edge": edge}
 	declaring := map[string]any{"bgp": declaringBGP}
 
-	file = declaring
+	*file = declaring
 	ops := reloadThroughOperations(t, api, declaring)
 	require.Len(t, ops, 2, "the takeover is one removal and one creation: %v", ops)
 	assert.Equal(t, configop.RemovePeer, ops[0].Type)
@@ -98,8 +82,8 @@ func TestCandidateDeclaringACreatedPeersAddressUnderAnotherName(t *testing.T) {
 	assert.Contains(t, peers, "edge", "the running configuration holds the operator's entry")
 	assert.NotContains(t, peers, "peer-192.0.2.7", "and not the created one")
 
-	file = map[string]any{"bgp": takeoverGlobals()}
-	ops = reloadThroughOperations(t, api, file)
+	*file = map[string]any{"bgp": takeoverGlobals()}
+	ops = reloadThroughOperations(t, api, *file)
 	require.Len(t, ops, 1, "dropping the declaration is one removal: %v", ops)
 	assert.Equal(t, configop.RemovePeer, ops[0].Type)
 	assert.Equal(t, "edge", ops[0].Params.Peer)
@@ -110,6 +94,31 @@ func TestCandidateDeclaringACreatedPeersAddressUnderAnotherName(t *testing.T) {
 	assert.Empty(t, running, "a candidate that drops the taken-over peer removes it")
 	bgp, _ := api.GetConfigTree()["bgp"].(map[string]any)
 	assert.NotContains(t, bgp, "peer", "and its entry leaves the running configuration")
+}
+
+// newTakeoverReactor answers a reactor running a file that declares no peer,
+// whose reloads read that file through the config loader the way the daemon's
+// do, and the file itself for the test to replace before each reload.
+func newTakeoverReactor(t *testing.T) (*Reactor, *reactorAPIAdapter, *map[string]any) {
+	t.Helper()
+	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
+	// The file the daemon runs: the globals, and no peer yet. A reload reads
+	// the file through the config loader, which names each peer after its
+	// list key (PeersFromTree), and the candidate is what the file holds.
+	file := map[string]any{"bgp": takeoverGlobals()}
+	r.configTree = file
+	r.config.ConfigPath = "ze.conf"
+	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
+		bgp, _ := file["bgp"].(map[string]any)
+		peers, err := PeersFromTree(bgp)
+		if err != nil {
+			return nil, Globals{}, err
+		}
+		globals, err := GlobalsFromTree(bgp)
+		return peers, globals, err
+	})
+	api := &reactorAPIAdapter{r: r}
+	return r, api, &file
 }
 
 // takeoverGlobals answers the bgp block of the file the test daemon runs,
@@ -173,4 +182,64 @@ func (r *Reactor) peersAt(addr netip.Addr) []string {
 		}
 	}
 	return names
+}
+
+// TestCompensatedTakeoverMarksTheCreatedPeerAgain holds AC-9 across a reload
+// the hub rejects after the reactor applied it (reload_compensation.go,
+// ../../plugin/server).
+//
+// GOAL: a commit that declares a created peer, then is rejected and undone,
+// leaves the peer as it was before the commit: created, unsaved, and kept by
+// the next reload whose candidate does not declare it. SetConfigTree drops the
+// mark of a peer the new tree declares, and setting the old tree back does not
+// put the mark back, because the old tree holds the created entry too.
+// METHOD: create a peer and capture CreatedPeers, as the compensation does
+// when it records the tree it would restore. Reload a candidate that declares
+// the peer by name (`update bgp config`, then a commit), then undo it the way
+// restoreReload does with the file back as it was: RestoreCreatedPeers,
+// ApplyConfigDiff and SetConfigTree of the recorded tree, RestoreCreatedPeers
+// again. Then reload the file, which does not declare it.
+//
+// VALIDATES: the takeover drops the mark; the restore puts it back; the next
+// reload plans nothing for the peer and leaves it running and in the running
+// configuration; an address no peer runs at is not marked by a restore.
+// PREVENTS: a created peer silently turned configured by a commit that never
+// took effect, which the next unrelated commit then deletes.
+func TestCompensatedTakeoverMarksTheCreatedPeerAgain(t *testing.T) {
+	r, api, file := newTakeoverReactor(t)
+
+	addr := netip.MustParseAddr("192.0.2.7")
+	require.NoError(t, api.AddDynamicPeer(addr, map[string]any{
+		"session": map[string]any{"asn": map[string]any{"remote": "65002"}},
+	}))
+	created := api.CreatedPeers()
+	require.Equal(t, map[netip.Addr]string{addr: "peer-192.0.2.7"}, created)
+
+	declaringBGP := takeoverGlobals()
+	declaringBGP["peer"] = map[string]any{"peer-192.0.2.7": runningPeerList(t, api)["peer-192.0.2.7"]}
+	declaringBGP["router-id"] = "10.0.0.2"
+	declaring := map[string]any{"bgp": declaringBGP}
+	before := api.ReloadRunning(declaring)
+	*file = declaring
+	reloadThroughOperations(t, api, declaring)
+	require.Empty(t, api.CreatedPeers(), "the commit declaring the peer takes it over")
+
+	*file = map[string]any{"bgp": takeoverGlobals()}
+	api.RestoreCreatedPeers(created)
+	require.NoError(t, api.ApplyConfigDiff(before))
+	_, held := r.findPeerByAddr(addr)
+	require.True(t, held, "the reconcile against the restored file keeps the peer marked again")
+	api.SetConfigTree(before)
+	api.RestoreCreatedPeers(created)
+	assert.Equal(t, created, api.CreatedPeers(), "undoing the commit marks the peer created again")
+
+	ops := reloadThroughOperations(t, api, *file)
+	assert.Empty(t, ops, "the next reload plans nothing for the created peer")
+	_, held = r.findPeerByAddr(addr)
+	assert.True(t, held, "and leaves it running")
+	assert.Contains(t, runningPeerList(t, api), "peer-192.0.2.7", "and in the running configuration")
+
+	api.RestoreCreatedPeers(map[netip.Addr]string{netip.MustParseAddr("198.51.100.1"): "peer-198.51.100.1"})
+	assert.NotContains(t, api.CreatedPeers(), netip.MustParseAddr("198.51.100.1"),
+		"a restore marks no address no peer runs at")
 }

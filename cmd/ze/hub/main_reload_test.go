@@ -85,6 +85,12 @@ func (r *reloadTestReactor) GetConfigTree() map[string]any { return r.tree }
 
 // ReloadRunning answers the running config: the double keeps no runtime state across a reload.
 func (r *reloadTestReactor) ReloadRunning(map[string]any) map[string]any { return r.tree }
+
+// CreatedPeers answers none: the mock creates no peer at runtime.
+func (r *reloadTestReactor) CreatedPeers() map[netip.Addr]string { return nil }
+
+// RestoreCreatedPeers marks nothing: the mock creates no peer at runtime.
+func (r *reloadTestReactor) RestoreCreatedPeers(map[netip.Addr]string) {}
 func (r *reloadTestReactor) SetConfigTree(tree map[string]any) {
 	r.setTree = tree
 	r.tree = tree

@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"iter"
+	"net/netip"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -47,6 +48,21 @@ type ReactorConfigurator interface {
 	// across a reload that candidate does not declare, which SetConfigTree
 	// carries forward. It does not change the running config.
 	ReloadRunning(candidate map[string]any) map[string]any
+
+	// CreatedPeers answers that runtime state: the peers created at runtime
+	// that no configuration declares yet, by address, with the name each is
+	// recorded under. The map is the caller's. A reload's compensation keeps
+	// it with the tree it would restore, because SetConfigTree drops the peers
+	// the new tree declares and setting the old tree back does not undo that.
+	CreatedPeers() map[netip.Addr]string
+
+	// RestoreCreatedPeers marks again the created peers a compensated reload
+	// took over. It MUST be called before ApplyConfigDiff of the restored tree,
+	// whose reconcile reads the configuration file and removes a running peer
+	// the file lacks unless it is marked, and again after SetConfigTree of that
+	// tree, which drops the mark of every peer the tree declares. A peer no
+	// longer running at its address under its recorded name is not marked.
+	RestoreCreatedPeers(created map[netip.Addr]string)
 }
 
 // ReactorStartupCoordinator handles plugin startup protocol signaling.

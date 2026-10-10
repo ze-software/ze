@@ -63,6 +63,12 @@ func (m *mockReactor) GetConfigTree() map[string]any { return nil }
 // ReloadRunning answers the running config: the mock keeps no runtime state across a reload.
 func (m *mockReactor) ReloadRunning(map[string]any) map[string]any { return m.GetConfigTree() }
 
+// CreatedPeers answers none: the mock creates no peer at runtime.
+func (m *mockReactor) CreatedPeers() map[netip.Addr]string { return nil }
+
+// RestoreCreatedPeers marks nothing: the mock creates no peer at runtime.
+func (m *mockReactor) RestoreCreatedPeers(map[netip.Addr]string) {}
+
 func (m *mockReactor) SetConfigTree(_ map[string]any)                               {}
 func (m *mockReactor) SignalAPIReady()                                              {}
 func (m *mockReactor) AddAPIProcessCount(_ int)                                     {}

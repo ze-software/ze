@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/netip"
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -16,7 +17,11 @@ import (
 // Keep the first tree and last applied tree of a whole reload. The hub may
 // already have reversed its candidate before it rejects the outer scope.
 type reloadCompensation struct {
-	before          map[string]any
+	before map[string]any
+	// created is the reactor's created peers when before was recorded. A
+	// reload whose tree declares one takes it over, and restoring before does
+	// not mark it again (RestoreCreatedPeers, plugin.ReactorConfigurator).
+	created         map[netip.Addr]string
 	after           map[string]any
 	affected        map[string]affectedPlugin
 	attempted       bool
@@ -46,7 +51,11 @@ func recordReloadCompensation(ctx context.Context, before, after map[string]any,
 	pending.mu.Lock()
 	defer pending.mu.Unlock()
 	if pending.compensation == nil {
-		pending.compensation = &reloadCompensation{before: before, affected: make(map[string]affectedPlugin)}
+		pending.compensation = &reloadCompensation{
+			before:   before,
+			created:  pending.server.reactor.CreatedPeers(),
+			affected: make(map[string]affectedPlugin),
+		}
 	}
 	undo := pending.compensation
 	undo.after = after
@@ -132,6 +141,7 @@ func (s *Server) reloadScopePendingBehind(scope *reloadAcceptance) bool {
 func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensation) error {
 	diff := config.DiffMaps(undo.after, undo.before)
 	if len(diff.Added) == 0 && len(diff.Removed) == 0 && len(diff.Changed) == 0 {
+		s.reactor.RestoreCreatedPeers(undo.created)
 		return nil
 	}
 	if undo.restored == nil {
@@ -172,6 +182,9 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 		undo.restored, _ = restoreCtx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
 	}
 	if !undo.reactorRestored {
+		// Before the reconcile, which removes a running peer the file lacks
+		// unless it is marked created.
+		s.reactor.RestoreCreatedPeers(undo.created)
 		if err := s.reactor.ApplyConfigDiff(undo.before); err != nil {
 			return err
 		}
@@ -184,6 +197,8 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 		}
 	}
 	s.reactor.SetConfigTree(undo.before)
+	// And after SetConfigTree, which drops every created peer the tree declares.
+	s.reactor.RestoreCreatedPeers(undo.created)
 	undo.restored.mu.Lock()
 	s.txLock.configTransactions = undo.restored.transactions
 	undo.restored.mu.Unlock()

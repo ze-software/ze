@@ -568,6 +568,13 @@ predecessor's ownership; an already-rejected predecessor then unwinds too.
 Failed compensation remains actionable. A subsequent reload retries it before
 checking for a diff, and completed participant or reactor phases are not
 replayed. The prior tree is published only after compensation succeeds.
+Compensation also gives back the peers `create bgp peer` built that the rejected
+tree took over by declaring them. The reactor's created-peer marks are recorded
+with the prior tree, and the restore marks those peers again before the reactor
+reconciles against the prior configuration and again after it sets the prior tree,
+so the next reload whose candidate does not declare them keeps them.
+<!-- source: internal/component/plugin/server/reload_compensation.go -- restoreReload -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- RestoreCreatedPeers -->
 
 A late callback completion waits for the outer scope to finish, then uses the same
 transaction exclusion to reconcile against the current committed tree. A removed,
