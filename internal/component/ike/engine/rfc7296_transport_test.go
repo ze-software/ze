@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"net"
 	"testing"
 
@@ -424,14 +425,16 @@ func TestEAPResponderNarrowsToo(t *testing.T) {
 	}
 	ps := &PeerSession{peerName: "p"}
 
-	// A disjoint proposal kills the SA on the EAP path too.
+	// A disjoint proposal is refused on the EAP path too. The refusal is kept for the
+	// final IKE_AUTH to answer beside AUTH (RFC 7296 Section 2.21.2), so the test reads
+	// the kept refusal: this SA holds no keys and dies later for that reason alone.
 	bad := &SA{PeerName: "p", PeerCfg: policyPeer}
 	ps.startResponderEAP(bad, 1, nil,
 		tsPayload(t, wire.PayloadTypeTSi, "192.168.0.0/16"),
 		tsPayload(t, wire.PayloadTypeTSr, "192.168.1.0/24"),
 		nil, nil, slogutil.DiscardLogger())
-	if bad.State != StateDead {
-		t.Errorf("EAP responder state = %v after an unacceptable proposal, want dead; the EAP path does not narrow", bad.State)
+	if !errors.Is(bad.eapChildRefusal, errTSUnacceptable) {
+		t.Errorf("EAP refusal = %v after an unacceptable proposal, want errTSUnacceptable; the EAP path does not narrow", bad.eapChildRefusal)
 	}
 	if bad.NegotiatedPairs != nil {
 		t.Error("the EAP path stashed selectors it should have refused")

@@ -226,3 +226,95 @@ func TestResponderKeepsIKESAWhenChildRefused(t *testing.T) {
 			ini.State, ini.IKEAuthChildless)
 	}
 }
+
+// TestResponderEAPKeepsIKESAWhenChildRefused is AC-1 on the final EAP IKE_AUTH.
+//
+// Goal: an EAP peer whose Child SA Ze refuses keeps its IKE SA, as a PSK or X.509 peer
+// does (RFC 7296 Section 2.21.2). The refusal is found on the first IKE_AUTH, before the
+// initiator has authenticated, so it is kept and answered on the final one. Method: a
+// real in-process EAP-MSCHAPv2 handshake between two Ze SAs whose ESP groups share no
+// proposal. The responder MUST establish with no Child SA, its final IKE_AUTH response
+// MUST carry AUTH and NO_PROPOSAL_CHOSEN and no SA or TS payload, and the initiator MUST
+// establish childless.
+//
+// MUTATION: set sa.State = StateDead in place of `sa.eapChildRefusal = err` after
+// selectResponderESP in startResponderEAP (responder_eap.go) and this test goes red: the
+// handshake dies before EAP runs.
+func TestResponderEAPKeepsIKESAWhenChildRefused(t *testing.T) {
+	quiet := slogutil.DiscardLogger()
+	ikeGroup := testIKEGroup()
+	iniESP := testESPGroup()
+	respESP := testESPGroup()
+	respESP.Proposals[0].Encryption = ipsec.EncryptionAES128
+	autLoadPKI(t)
+	iniPeer, respPeer := autPeers(ipsec.AuthConfig{
+		Mode:          ipsec.AuthEAPMSCHAPv2,
+		PSK:           "eap-pass",
+		Certificate:   autCertName,
+		CACertificate: autCAName,
+	})
+
+	table := NewSATable()
+	ini, err := newInitiatorSA("ze", iniPeer, ikeGroup, iniESP)
+	if err != nil {
+		t.Fatalf("newInitiatorSA: %v", err)
+	}
+	table.Insert(ini)
+	saInitReq := buildSAInitRequest(ini, ikeGroup)
+	ini.InitiatorSAInitMsg = saInitReq
+	ini.State = StateSAInitSent
+	resp, err := newResponderSA("ze", respPeer, ikeGroup, respESP, ini.InitiatorSPI)
+	if err != nil {
+		t.Fatalf("newResponderSA: %v", err)
+	}
+	ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: ikeGroup, espGroup: respESP}
+	ps.setSA(resp)
+	setActivePeers(map[string]*PeerSession{"ze": ps})
+	t.Cleanup(func() { setActivePeers(nil) })
+	handleSAInitRequest(resp, parseMsg(t, saInitReq), saInitReq, nil, nil, quiet)
+	handleSAInitResponse(ini, parseMsg(t, resp.LastSentMsg), resp.LastSentMsg, table, nil, nil, quiet)
+
+	// The bound is generous: MS-CHAPv2 takes five IKE_AUTH round trips.
+	cur := ini.LastSentMsg
+	toResponder := true
+	for range 24 {
+		if toResponder {
+			handleInbound(resp, transport.Packet{Data: cur}, table, nil, quiet)
+			cur = resp.LastSentMsg
+		} else {
+			handleInbound(ini, transport.Packet{Data: cur}, table, nil, quiet)
+			cur = ini.LastSentMsg
+		}
+		toResponder = !toResponder
+		if resp.State == StateDead || ini.State == StateDead {
+			t.Fatalf("the EAP handshake died (ini=%v resp=%v); a refused Child SA cost the IKE SA", ini.State, resp.State)
+		}
+		if ini.State == StateEstablished && resp.State == StateEstablished {
+			break
+		}
+	}
+	if resp.State != StateEstablished || ini.State != StateEstablished {
+		t.Fatalf("the EAP handshake did not establish (ini=%v resp=%v)", ini.State, resp.State)
+	}
+	if ps.getChildSA() != nil {
+		t.Error("the responder installed a Child SA it refused")
+	}
+	if !ini.IKEAuthChildless {
+		t.Error("the initiator established with a Child SA the responder refused")
+	}
+
+	refused := false
+	for _, pe := range lcyDecrypt(t, ini, resp.LastSentMsg) {
+		switch p := pe.Payload.(type) {
+		case *wire.PayloadSA, *wire.PayloadTS:
+			t.Errorf("the final EAP IKE_AUTH response carries payload type %d", p.Type())
+		case *wire.PayloadNotify:
+			if p.NotifyMsgType == wire.NotifyNoProposalChosen {
+				refused = true
+			}
+		}
+	}
+	if !refused {
+		t.Error("the final EAP IKE_AUTH response carries no NO_PROPOSAL_CHOSEN")
+	}
+}

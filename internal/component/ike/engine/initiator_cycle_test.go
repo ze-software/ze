@@ -327,3 +327,101 @@ func TestIcyRekeyRepointsTheSessionAtTheNewSA(t *testing.T) {
 	close(ps.stopCh)
 	<-done
 }
+
+// TestIcyChildlessInitiatorStaysInMaintainSA runs the whole initiator cycle against a
+// far end that refuses the IKE_AUTH Child SA.
+//
+// Goal: RFC 7296 Section 2.21.2 keeps the IKE SA when only the Child SA failed, so the
+// initiator's owner loop MUST adopt the childless SA and keep it, not delete it and
+// back off. Method: the far end's ESP group shares no proposal with the initiator's.
+// The owner loop MUST adopt an established SA marked IKEAuthChildless, MUST hold no
+// Child SA, MUST still be running after adopting it, MUST swap to the successor of a
+// peer IKE SA rekey and keep running, and MUST end cleanly when stopped.
+//
+// MUTATION: return an error from runInitiator when sa.IKEAuthChildless is set, before
+// runEstablished (fsm.go), and this test goes red: the owner loop never adopts the SA.
+func TestIcyChildlessInitiatorStaysInMaintainSA(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ikeGroup := testIKEGroup()
+	iniESP := testESPGroup()
+	respESP := testESPGroup()
+	respESP.Proposals[0].Encryption = ipsec.EncryptionAES128
+	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "childless-cycle-psk")
+	iniPeer.LocalAddress, iniPeer.RemoteAddress = "127.0.0.1", "127.0.0.1"
+	respPeer.LocalAddress, respPeer.RemoteAddress = "127.0.0.1", "127.0.0.1"
+
+	ps := &PeerSession{
+		peerName:  "ze",
+		peerCfg:   iniPeer,
+		ikeGroup:  ikeGroup,
+		espGroup:  iniESP,
+		stopCh:    make(chan struct{}),
+		inbound:   make(chan transport.Packet, inboundQueueDepth),
+		supersede: make(chan struct{}, 1),
+	}
+	respPS := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: ikeGroup, espGroup: respESP}
+	table := NewSATable()
+	far := &icyFarEnd{}
+
+	old := afterFunc
+	t.Cleanup(func() { afterFunc = old })
+	afterFunc = func(_ time.Duration) <-chan time.Time {
+		if cur := ps.getSA(); cur != nil {
+			far.advance(cur, respPS, table, log)
+		}
+		ch := make(chan time.Time, 1)
+		ch <- time.Now()
+		return ch
+	}
+
+	var cycleErr error
+	done := make(chan struct{})
+	go func() {
+		cycleErr = ps.runInitiator(iniPeer, ikeGroup, table, nil, nil, log)
+		close(done)
+	}()
+
+	icyWaitFor(t, "the owner loop adopting the childless SA", func() bool {
+		return ps.ownedSA.Load() != nil
+	})
+	select {
+	case <-done:
+		t.Fatalf("the initiator cycle ended (%v) after adopting a childless SA, want it maintained", cycleErr)
+	default:
+	}
+	owned := ps.ownedSA.Load()
+
+	// AC-10: a peer IKE SA rekey of the childless SA swaps it, and the replacement is
+	// still maintained without a Child SA.
+	farEnd, err := far.get()
+	if err != nil {
+		t.Fatalf("the driven handshake failed: %v", err)
+	}
+	ps.inbound <- transport.Packet{Data: icyPeerIKERekey(t, farEnd, ikeGroup, 0)}
+	ps.inbound <- transport.Packet{Data: lcyRequest(t, farEnd, 1, rteIKEDeleteChain())}
+	icyWaitFor(t, "the owner loop swapping the childless SA to its rekeyed successor", func() bool {
+		return ps.ownedSA.Load() != owned
+	})
+	select {
+	case <-done:
+		t.Fatalf("the initiator cycle ended (%v) after rekeying a childless SA, want it maintained", cycleErr)
+	default:
+	}
+
+	// The owner loop writes these fields, and it is still running: read them only
+	// after it stops.
+	close(ps.stopCh)
+	<-done
+	if cycleErr != nil {
+		t.Errorf("the initiator cycle ended with %v, want a clean stop", cycleErr)
+	}
+	if !owned.IKEAuthChildless {
+		t.Error("the adopted SA is not marked childless, so the far end's refusal never reached it")
+	}
+	if child := ps.getChildSA(); child != nil {
+		t.Errorf("the session holds a Child SA (outbound SPI %#08x) the far end refused", child.OutboundSPI)
+	}
+	if _, err := far.get(); err != nil {
+		t.Fatalf("the driven handshake failed: %v", err)
+	}
+}
