@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-10 | spec-session-editor-file-mode-parity | `cmd/ze/hub` unit tests (`go test -race`, ze_core plus feature-gate tags) | Review round 4 saw the package FAIL once and pass on a rerun (206s); the failing output was cut by a `tail`, so no test was named. Five later runs with `-count=1 -v`, full output kept, all passed (129s to 212s, no DATA RACE, no FAIL line). Slowest: `TestBuildTag_Gate11_SymbolMatrix` subtests near 29s each, `TestBuildTag_Gate12_AbsentBinaryDropsSymbols` 22s | Open: not reproduced in 5 runs; the next red needs its full `-v` output kept so the test is named |

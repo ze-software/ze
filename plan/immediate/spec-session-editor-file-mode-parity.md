@@ -653,7 +653,16 @@ Owed gates (not run by an implementing agent): `./le test unit all` (race),
 
 ## Review Gate
 
-Status: ready for round 4 (2026-10-10). Round 3 (findings ISSUE 1 and 2,
+Status: ready for round 5 (2026-10-10). Round 4 (findings ISSUE 1, NOTEs 2
+to 5, no action owed on the NOTEs) has its fix commit: cef825da9d (ISSUE 1,
+offline `ze config rollback` beside a window a stopped daemon left refuses
+with `confirm.StoppedWindowError`, naming `ze start <file>`; the
+`WriteOutsideRecorded` comment no longer claims a daemon can open a window
+between check and apply). The one `cmd/ze/hub` red round 4 saw did not
+reproduce in five `-race -count=1 -v` runs; it is journaled in
+`plan/journal/package-red-not-reproduced.md`. Round 5 reviews cef825da9d.
+
+Round 4 scope, kept for reference: ready for round 4 (2026-10-10). Round 3 (findings ISSUE 1 and 2,
 NOTEs 3 to 6) has its fix commits, in order: 4bfdf70880 (ISSUE 1, every web
 editor carries the daemon window, so a web `rollback <N>` is refused during
 one), 3e79ef7d3e (NOTE 6, owner rule of 2026-10-10: offline `ze config
