@@ -184,11 +184,24 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 	// that ends in a NOTIFICATION, with no condition on it. A bare TCP close is
 	// the only end a peer can ever retain across, so it is the only one a
 	// restart can use. See infra_setup.go, where the pair is built.
-	sshSrv.SetShutdownFunc(func() { r.Stop() })
-	sshSrv.SetRestartFunc(stopForRestart)
+	//
+	// Each one then signals the plugin server, as `request shutdown` and
+	// `request reboot` do (handleDaemonShutdown, handleDaemonReboot): the
+	// daemon's waitLoop blocks on Server.Wait, and a stopped reactor alone
+	// does not end it, so the daemon stayed up after telling the client
+	// "stopping daemon".
+	sshSrv.SetShutdownFunc(func() {
+		r.Stop()
+		apiServer.SignalShutdownRequested()
+	})
+	sshSrv.SetRestartFunc(func() {
+		stopForRestart()
+		apiServer.SignalShutdownRequested()
+	})
 	sshSrv.SetRebootFunc(func() {
 		rebootRequested.Store(true)
 		stopForRestart()
+		apiServer.SignalShutdownRequested()
 	})
 	rl := apiServer.Reactor()
 	sshSrv.SetLoginWarnings(func() []contract.LoginWarning {

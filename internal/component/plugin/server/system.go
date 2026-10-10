@@ -157,14 +157,14 @@ func handleDaemonShutdown(ctx *CommandContext, _ []string) (*plugin.Response, er
 		return shutdownInitiated(func() {
 			r.Stop()
 			if ctx.Server != nil {
-				ctx.Server.signalShutdownRequested()
+				ctx.Server.SignalShutdownRequested()
 			}
 		}), nil
 	}
 	if ctx.Server != nil && ctx.Server.shutdownFunc != nil {
 		return shutdownInitiated(func() {
 			ctx.Server.shutdownFunc()
-			ctx.Server.signalShutdownRequested()
+			ctx.Server.SignalShutdownRequested()
 		}), nil
 	}
 	return &plugin.Response{
@@ -206,7 +206,7 @@ func handleDaemonReboot(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	}
 	resp.OnTransportComplete(func() {
 		ctx.Server.rebootFunc()
-		ctx.Server.signalShutdownRequested()
+		ctx.Server.SignalShutdownRequested()
 	})
 	return resp, nil
 }
@@ -238,14 +238,14 @@ func handleDaemonQuit(ctx *CommandContext, _ []string) (*plugin.Response, error)
 		return quitInitiated(func() {
 			r.Stop()
 			if ctx.Server != nil {
-				ctx.Server.signalShutdownRequested()
+				ctx.Server.SignalShutdownRequested()
 			}
 		}), nil
 	}
 	if ctx.Server != nil && ctx.Server.shutdownFunc != nil {
 		return quitInitiated(func() {
 			ctx.Server.shutdownFunc()
-			ctx.Server.signalShutdownRequested()
+			ctx.Server.SignalShutdownRequested()
 		}), nil
 	}
 	return &plugin.Response{

@@ -173,7 +173,7 @@ func (s *Server) stopDaemonOnStartupFailure(proc *process.Process, cause error) 
 // stopDaemonForPlugin asks the daemon to stop, and says which plugin asked for
 // it. It takes the route `request shutdown` takes for a daemon with no BGP
 // reactor (handleDaemonShutdown, system.go): shutdownFunc injects the SIGTERM
-// the daemon's own teardown reads, and signalShutdownRequested releases
+// the daemon's own teardown reads, and SignalShutdownRequested releases
 // Server.Wait, which is what waitForServerDone (cmd/ze/hub/main.go) blocks on.
 //
 // Both are called because they end different waits, and a daemon wires both. A
@@ -184,5 +184,5 @@ func (s *Server) stopDaemonForPlugin(name, reason string) {
 	if s.shutdownFunc != nil {
 		s.shutdownFunc()
 	}
-	s.signalShutdownRequested()
+	s.SignalShutdownRequested()
 }

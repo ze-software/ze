@@ -637,7 +637,15 @@ func (s *Server) replyContext() context.Context {
 	return context.WithoutCancel(s.ctx)
 }
 
-func (s *Server) signalShutdownRequested() {
+// SignalShutdownRequested ends Wait for an accepted daemon stop. The caller
+// MUST already have started the stop it owns (the reactor's, or the daemon's
+// signal-based teardown): this only tells the daemon's wait loop to proceed to
+// the ordered shutdown. The command handlers in system.go call it, and so does
+// every transport that accepts a lifecycle command outside the dispatcher (the
+// SSH exec `stop`, `restart` and `reboot`, cmd/ze/hub/service_ssh.go). A stop
+// that skips it leaves the daemon running after it reported success. Safe for
+// concurrent use; calls after the first do nothing.
+func (s *Server) SignalShutdownRequested() {
 	s.shutdownRequestedOnce.Do(func() {
 		if s.shutdownRequested != nil {
 			close(s.shutdownRequested)
