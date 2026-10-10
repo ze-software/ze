@@ -82,6 +82,9 @@ func (r *reloadTestReactor) AddDynamicPeer(netip.Addr, map[string]any) error {
 	return nil
 }
 func (r *reloadTestReactor) GetConfigTree() map[string]any { return r.tree }
+
+// ReloadRunning answers the running config: the double keeps no runtime state across a reload.
+func (r *reloadTestReactor) ReloadRunning(map[string]any) map[string]any { return r.tree }
 func (r *reloadTestReactor) SetConfigTree(tree map[string]any) {
 	r.setTree = tree
 	r.tree = tree
