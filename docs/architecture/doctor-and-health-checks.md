@@ -114,6 +114,23 @@ as it was. It also needs `CAP_SYS_ADMIN`, and a mount namespace in which
 `/proc/sys` is writable; the method is
 `docs/architecture/mpls/mpls-kernel.md`, "On a kernel without the patch".
 
+A security policy confining ze can refuse those steps. Docker's
+`docker-default` AppArmor profile does both: `deny mount,` refuses the private
+mount namespace, and `deny @{PROC}/sys/[^k]** w,` refuses the label-space
+write. A step that fails with `EACCES` while `/proc/self/attr/apparmor/current`
+(or `/proc/self/attr/current`) names a label other than `unconfined` reads
+`denied`, not `unknown`: its reason names the label, the step and the grant.
+`EPERM`, a missing capability, stays `unknown`, and so does `EACCES` with no
+confining label. Ze ships the grant as the AppArmor profile `ze-kernel-probe`
+(`kernelcap.ProbeAppArmorProfile`): docker-default with `deny mount,` replaced
+by exactly the three mounts the probe makes and the `/proc/sys` write deny
+replaced by a chain that leaves only `/proc/sys/net/mpls/platform_labels`
+writable. On a Docker host `./le setup docker-kernel apparmor` loads it
+(`docs/architecture/testing/interop.md`, "The Docker host kernel check").
+
+<!-- source: internal/component/kernelcap/policy_linux.go -- stepFailed, readConfiningPolicy -->
+<!-- source: internal/component/kernelcap/apparmor.go -- ProbeAppArmorProfile -->
+
 This is the `ze doctor` tier of the table above, not a fourth one. The verdict is
 produced at read time, in the reader's own process, and it keeps no memory of a
 start. It cannot move into the setup registry, whose records are written before
@@ -128,7 +145,7 @@ Docker labs must answer it with every row present
 reaches it as `ze doctor [--json] kernel-capabilities`, which takes no config
 file, prints the rows (as `{"ready":...,"capabilities":[...]}` under `--json`)
 and exits 0 only when at least one capability is enrolled and every row is
-`present`. An `unknown` row is not a pass, and neither is an empty enrolment:
+`present`. An `unknown` or `denied` row is not a pass, and neither is an empty enrolment:
 the owners enroll on Linux only, so off Linux the mode answers not ready.
 
 <!-- source: internal/component/kernelcap/kernelcap.go -- ProbeAll, Row -->
@@ -138,7 +155,7 @@ the owners enroll on Linux only, so off Linux the mode answers not ready.
 the capability on all four surfaces. A second registration would be a second
 declaration of the same fact.
 
-### Three states, and the third one is why this is safe
+### Four states, and the third one is why this is safe
 
 | Probe answer | Diagnostic | What the daemon does |
 |--------------|-----------|----------------------|
@@ -146,6 +163,7 @@ declaration of the same fact.
 | Absent | `SeverityError`, the subsystem's absent code | refuses, exit 1 |
 | Absent, capability declares `Degrades` | `SeverityWarning`, the subsystem's absent code, naming what is lost | starts |
 | Cannot determine | `SeverityWarning`, the subsystem's unknown code | starts |
+| Denied by the host's security policy | `SeverityWarning`, `doctor-kernel-capability-denied`, naming the policy and the grant | starts |
 
 A capability whose absence only weakens its subsystem says so in `Degrades`,
 the text the warning carries. `mpls-transit-mtu` is one: a stock kernel refuses
@@ -196,7 +214,7 @@ Tests have one, and a shipped ze cannot read it. The private variable
 `ze.test.kernelcap.force` is registered and read only in a build carrying the
 `zetest` tag, which is the functional-test daemon and never a shipped binary;
 any other build ignores it whatever the environment holds and runs every probe.
-It takes `<subsystem>=<present|absent|unknown>` entries, comma-separated, and
+It takes `<subsystem>=<present|absent|unknown|denied>` entries, comma-separated, and
 every reader of the enrolment (doctor, the start and reload gates, validate,
 `ProbeAll`) takes the forced answer for a subsystem it names instead of running
 that probe. Every forced answer says so: the row's reason and the diagnostic

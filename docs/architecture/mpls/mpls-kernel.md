@@ -173,9 +173,12 @@ in a mount namespace of its own (Docker mounts it read-only), and asks. Both
 namespaces die with the thread, so the caller's label space is never changed.
 This needs `CAP_SYS_ADMIN` as well as `CAP_NET_ADMIN`, which is why the
 forwarding owner, running without `CAP_SYS_ADMIN`, asks in its own namespace
-instead. A container whose AppArmor profile denies `mount` (Docker's
-`docker-default`) cannot make the copy, and the row reads "cannot determine"
-with that reason.
+instead. A container under Docker's `docker-default` AppArmor profile, which
+denies `mount` and writes under `/proc/sys/net`, cannot make the copy or size
+the label space, and the row reads `denied`, naming the profile and the grant
+(`docs/architecture/doctor-and-health-checks.md`). Ze's `ze-kernel-probe`
+profile grants exactly those steps, and the Docker kernel check runs its probe
+under it.
 
 A push metric is also a hazard on a stock kernel. A forwarded IPv4 packet on a
 push route is bounded by `ip_dst_mtu_maybe_forward`: `RTAX_MTU` minus the

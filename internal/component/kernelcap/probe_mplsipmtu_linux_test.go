@@ -13,6 +13,7 @@ package kernelcap
 import (
 	"errors"
 	"io/fs"
+	"strings"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -164,6 +165,58 @@ func TestMPLSIPMTUThrowawayNamespaceSizesTheLabelSpace(t *testing.T) {
 			}
 			if len(*sent) != 0 {
 				t.Errorf("the probe sent %d requests after a failed step", len(*sent))
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-15 (D-7). A remount or a label-space write refused with EACCES
+// while a security policy confines the process reads denied, naming the policy,
+// the step and Ze's profile; EACCES with no confining label, and EPERM (a
+// missing capability), stay unknown.
+// Method: the remount, the write and the confining label are faked.
+// PREVENTS: Docker's docker-default profile (deny mount, deny writes under
+// /proc/sys/net) read as a bare unknown that names no policy and no fix, and a
+// missing capability blamed on a policy.
+func TestMPLSIPMTUPolicyDenialIsDenied(t *testing.T) {
+	const confined = "AppArmor profile docker-default (enforce)"
+	for name, tc := range map[string]struct {
+		remountErr, writeErr error
+		policy               string
+		state                State
+	}{
+		"mount denied under a profile":  {unix.EACCES, nil, confined, StateDenied},
+		"write denied under a profile":  {nil, unix.EACCES, confined, StateDenied},
+		"mount EACCES while unconfined": {unix.EACCES, nil, "", StateUnknown},
+		"mount EPERM under a profile":   {unix.EPERM, nil, confined, StateUnknown},
+	} {
+		t.Run(name, func(t *testing.T) {
+			withMPLSIPMTUProbe(t, "0\n", nil, unix.ENOENT, unix.ENOENT)
+			originalWrite, originalRemount, originalPolicy := writeFile, mplsProbeWritableSysctl, confiningPolicy
+			t.Cleanup(func() {
+				writeFile, mplsProbeWritableSysctl, confiningPolicy = originalWrite, originalRemount, originalPolicy
+			})
+			writeFile = func(string, []byte, fs.FileMode) error { return tc.writeErr }
+			mplsProbeWritableSysctl = func() error { return tc.remountErr }
+			confiningPolicy = func() string { return tc.policy }
+
+			result := askMPLSIPMTUInThrowawayNamespace()
+			if result.State != tc.state {
+				t.Fatalf("got %v (%v), want %v", result.State, result.Reason, tc.state)
+			}
+			if result.Reason == nil {
+				t.Fatal("the verdict carries no reason")
+			}
+			if tc.state != StateDenied {
+				return
+			}
+			for _, want := range []string{confined, ProbeAppArmorProfileName, "permission denied"} {
+				if !strings.Contains(result.Reason.Error(), want) {
+					t.Errorf("the reason does not name %q: %v", want, result.Reason)
+				}
+			}
+			if !errors.Is(result.Reason, unix.EACCES) {
+				t.Errorf("the reason does not wrap EACCES: %v", result.Reason)
 			}
 		})
 	}

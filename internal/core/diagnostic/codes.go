@@ -68,6 +68,7 @@ const (
 	CodeDoctorMPLSUnavailable                      = "doctor-mpls-unavailable"
 	CodeDoctorMPLSUnknown                          = "doctor-mpls-unknown"
 	CodeDoctorKernelCapabilityForced               = "doctor-kernel-capability-forced"
+	CodeDoctorKernelCapabilityDenied               = "doctor-kernel-capability-denied"
 	CodeDoctorMPLSTransitMTUUnenforced             = "doctor-mpls-transit-mtu-unenforced"
 	CodeDoctorMPLSTransitMTUUnknown                = "doctor-mpls-transit-mtu-unknown"
 	CodeDoctorModuleMissing                        = "doctor-module-missing"
@@ -540,6 +541,12 @@ var builtinCodes = []CodeMeta{
 		Title:       "Kernel capability answer forced by a test",
 		Description: "A kernel capability probe did not run: its answer was forced through ze.test.kernelcap.force, which only a zetest build (the functional-test daemon) reads. Every forced answer says so, a forced present included, so a verdict injected by a test is never read as the host's kernel. This code carries a forced PRESENT, at WARNING severity, and does not refuse a start; a forced absent or unknown reports the capability's own code with the variable named in its message. A shipped ze never reads the variable, so seeing this code from a shipped binary is a build defect. Remedy: unset ze.test.kernelcap.force, or run the build you meant to test.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-kernel-capability-forced"},
+	},
+	{
+		Code:        CodeDoctorKernelCapabilityDenied,
+		Title:       "Kernel capability probe denied by the host's security policy",
+		Description: "A kernel capability probe could not ask the kernel because a security policy confining ze (an AppArmor profile such as Docker's docker-default, or an SELinux label) refused a step it needs: the probe's mount of /proc/sys in a private mount namespace, or its write to /proc/sys/net/mpls/platform_labels. The answer is neither present nor absent, and the message names the policy, the denied step and the grant. It is a WARNING and does not refuse a start, as for a probe that could not ask, but `ze doctor --json kernel-capabilities` reports the row denied and exits 1, and the Docker kernel check refuses it. Remedy: grant the probe those steps; Ze's AppArmor profile ze-kernel-probe grants exactly them, and on a Docker host `./le setup docker-kernel apparmor` loads it.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-kernel-capability-denied"},
 	},
 	{
 		Code:         CodeDoctorMPLSUnknown,

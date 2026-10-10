@@ -417,3 +417,39 @@ func assertForcedPresentDiagnostic(t *testing.T, diags []diagnostic.Diagnostic) 
 	}
 	t.Errorf("a forced present produced no %s diagnostic: %+v", diagnostic.CodeDoctorKernelCapabilityForced, diags)
 }
+
+// VALIDATES: AC-15 and AC-16 (D-7). A probe the host's security policy denied
+// is its own answer: doctor reports it under doctor-kernel-capability-denied at
+// WARNING, naming the policy and the grant from the probe's reason, and the
+// start is not refused, as for a probe that could not ask; the all-capabilities
+// row spells it denied.
+// PREVENTS: an AppArmor profile that blocks the probe read as "the kernel lacks
+// the feature", or as a bare unknown that names no policy and no fix.
+func TestDeniedCapabilityNamesThePolicyAndStarts(t *testing.T) {
+	reason := errors.New("make the probe's mounts private: permission denied, by the AppArmor profile docker-default (enforce)")
+	withEnrolment(t, capabilityFor("alpha", StateDenied, reason))
+
+	diags := Evaluate(config.NewTree())
+	if len(diags) != 1 {
+		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
+	}
+	if diags[0].Code != diagnostic.CodeDoctorKernelCapabilityDenied {
+		t.Errorf("code is %q, want %q", diags[0].Code, diagnostic.CodeDoctorKernelCapabilityDenied)
+	}
+	if diags[0].Severity != diagnostic.SeverityWarning {
+		t.Errorf("severity is %q, want warning", diags[0].Severity)
+	}
+	for _, want := range []string{"alpha", "CONFIG_ALPHA", "security policy", "docker-default (enforce)"} {
+		if !strings.Contains(diags[0].Message, want) {
+			t.Errorf("the diagnostic does not name %q: %s", want, diags[0].Message)
+		}
+	}
+	if err := Refuse(config.NewTree()); err != nil {
+		t.Errorf("a denied probe refused a start: %v", err)
+	}
+
+	rows := ProbeAll()
+	if len(rows) != 1 || rows[0].State != "denied" || !strings.Contains(rows[0].Reason, "docker-default") {
+		t.Errorf("ProbeAll answered %+v, want one denied row carrying the reason", rows)
+	}
+}

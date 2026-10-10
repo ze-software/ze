@@ -52,6 +52,12 @@ const (
 	// StateUnknown means the probe could not reach its evidence, so neither
 	// presence nor absence was established.
 	StateUnknown
+	// StateDenied means a security policy confining this process (an
+	// AppArmor profile, an SELinux label) refused a step the probe needs, so
+	// the kernel was never asked. It is told apart from StateUnknown because
+	// the fix is the host's policy, not the kernel and not ze's privileges,
+	// and the Reason names that policy and the grant.
+	StateDenied
 )
 
 // String names the state for a log line or a test failure.
@@ -63,6 +69,8 @@ func (s State) String() string {
 		return "absent"
 	case StateUnknown:
 		return "unknown"
+	case StateDenied:
+		return "denied"
 	case StateUnspecified:
 		return "unspecified"
 	default:
@@ -345,6 +353,9 @@ func evaluateOne(capability *Capability, tree *config.Tree) (diagnostic.Diagnost
 	if reason == nil {
 		reason = errProbeNoVerdict
 	}
+	if result.State == StateDenied {
+		return deniedDiagnostic(capability, reason), true
+	}
 	text.Str(": cannot determine whether the kernel holds ").Str(capability.Kernel).
 		Str(", which ").Str(capability.ConfigLeaf).Str(" requires: ").Err(reason).
 		Str("; ze starts")
@@ -360,6 +371,27 @@ func evaluateOne(capability *Capability, tree *config.Tree) (diagnostic.Diagnost
 		Severity: diagnostic.SeverityWarning,
 		Message:  text.String(),
 	}, true
+}
+
+// deniedDiagnostic is the answer for a probe the host's security policy
+// refused (D-7). The kernel was never asked, so it is a WARNING and ze starts,
+// as for a probe that could not ask; it carries its own code because the fix is
+// the host's policy, which reason names with the grant the probe needs.
+func deniedDiagnostic(capability *Capability, reason error) diagnostic.Diagnostic {
+	var text textbuf.Buffer
+	text.Str(capability.Subsystem).Str(": cannot ask whether the kernel holds ").Str(capability.Kernel).
+		Str(", which ").Str(capability.ConfigLeaf).Str(" requires: the host's security policy denied the probe: ").
+		Err(reason).Str("; ze starts")
+	if capability.Degrades == "" {
+		text.Str(", and the subsystem may not work")
+	} else {
+		text.Str(", and without it ").Str(capability.Degrades)
+	}
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorKernelCapabilityDenied,
+		Severity: diagnostic.SeverityWarning,
+		Message:  text.String(),
+	}
 }
 
 // forcedPresent is the answer for a present capability: nothing when a probe

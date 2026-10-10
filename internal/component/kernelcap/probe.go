@@ -95,7 +95,7 @@ func forcedAnswers() string {
 }
 
 // ForceAnswersForTest forces probe answers from Go, in the variable's
-// <subsystem>=<present|absent|unknown>[,...] grammar, and returns the function
+// <subsystem>=<present|absent|unknown|denied>[,...] grammar, and returns the function
 // that restores the previous list. It exists for unit tests in other packages,
 // whose test binary is not a zetest build and so never reads the variable. No
 // operator input reaches it. The caller MUST call the returned function, usually
@@ -107,7 +107,7 @@ func ForceAnswersForTest(value string) (restore func()) {
 }
 
 // forcedFor returns the answer value forces on subsystem, and true when it
-// forces one. An entry whose state is not one of the three spellings is treated
+// forces one. An entry whose state is not one of the four spellings is treated
 // as no override rather than as an answer: a typo in a test variable must not
 // decide whether a daemon starts. The variable is read on the control plane
 // only (doctor, start, reload, validate), so it is parsed at each read.
@@ -136,6 +136,8 @@ func forcedState(state string) (Result, bool) {
 		return Result{State: StateAbsent, Reason: errForced}, true
 	case "unknown":
 		return Result{State: StateUnknown, Reason: errForced}, true
+	case "denied":
+		return Result{State: StateDenied, Reason: errForced}, true
 	default:
 		return Result{}, false
 	}

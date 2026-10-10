@@ -173,14 +173,16 @@ func MPLSIPMTUInThisNamespace() Result {
 // per namespace with register_net_sysctl_sz), so the write sizes the throwaway
 // namespace only. Docker mounts /proc/sys read-only inside a container that is
 // not privileged, so the probe first makes a writable copy of that mount in a
-// mount namespace of its own; the container's mount stays read-only.
+// mount namespace of its own; the container's mount stays read-only. A step a
+// security policy refuses answers denied, naming the policy (stepFailed): Docker's
+// docker-default AppArmor profile refuses both, and ProbeAppArmorProfile grants them.
 func askMPLSIPMTUInThrowawayNamespace() Result {
 	if err := mplsProbeWritableSysctl(); err != nil {
-		return Result{State: StateUnknown, Reason: fmt.Errorf("make /proc/sys writable in the probe namespace: %w", err)}
+		return stepFailed(fmt.Errorf("make /proc/sys writable in the probe namespace: %w", err))
 	}
 	labelSpace := strconv.AppendUint(nil, mplsProbeLabel+1, 10)
 	if err := writeFile(MPLSPlatformLabelsPath(), labelSpace, 0o644); err != nil {
-		return Result{State: StateUnknown, Reason: fmt.Errorf("size the MPLS label space in the probe namespace: %w", err)}
+		return stepFailed(fmt.Errorf("size the MPLS label space in the probe namespace: %w", err))
 	}
 	return MPLSIPMTUInThisNamespace()
 }

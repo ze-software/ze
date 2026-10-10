@@ -231,7 +231,7 @@ func askTransitMTU() kernelcap.State {
 			"by the outgoing device instead of fragmented or answered with ICMP",
 			"kernel", "CONFIG_MPLS_IP_MTU", "reason", result.Reason)
 		return kernelcap.StateAbsent
-	case kernelcap.StateUnknown, kernelcap.StateUnspecified:
+	case kernelcap.StateUnknown, kernelcap.StateDenied, kernelcap.StateUnspecified:
 		logger().Warn("fib-kernel: cannot determine whether the kernel enforces an MPLS transit path MTU; "+
 			"transit routes install without it",
 			"kernel", "CONFIG_MPLS_IP_MTU", "reason", result.Reason)
