@@ -380,6 +380,38 @@ func TestForcedAnswerReplacesTheNamedProbe(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-16 through the force. A forced denied reaches both readers as
+// denied: the all-capabilities row (ProbeAll, which `ze doctor
+// kernel-capabilities` prints) and the configuration diagnostic (Evaluate,
+// which `ze doctor config` prints), and each names the forcing variable.
+// METHOD: force alpha denied through the Go seam with a probe that fails the
+// test if consulted, then read both.
+// PREVENTS: the two doctor entry points disagreeing on one forced answer, so a
+// functional test that forces denied proves one path and not the other.
+// MUTATION: drop the "denied" arm of forcedState and both reads go red.
+func TestForcedDeniedReachesBothReaders(t *testing.T) {
+	forced := capabilityFor("alpha", StatePresent, nil)
+	forced.Probe = refusingProbe(t, "alpha")
+	withEnrolment(t, forced)
+	withForcedAnswers(t, "alpha=denied")
+
+	rows := ProbeAll()
+	if len(rows) != 1 || rows[0].State != "denied" || !strings.Contains(rows[0].Reason, forceEnv) {
+		t.Errorf("ProbeAll answered %+v, want one denied row naming %s", rows, forceEnv)
+	}
+
+	diags := Evaluate(config.NewTree())
+	if len(diags) != 1 {
+		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
+	}
+	if diags[0].Code != diagnostic.CodeDoctorKernelCapabilityDenied {
+		t.Errorf("code is %q, want %q", diags[0].Code, diagnostic.CodeDoctorKernelCapabilityDenied)
+	}
+	if !strings.Contains(diags[0].Message, forceEnv) {
+		t.Errorf("the diagnostic does not name %s: %s", forceEnv, diags[0].Message)
+	}
+}
+
 // VALIDATES: the variable names several subsystems at once, and a misspelt
 // state or an entry with no state leaves the real probe in charge.
 // PREVENTS: a typo in a test variable deciding whether a daemon starts.

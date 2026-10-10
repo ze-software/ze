@@ -20,6 +20,7 @@ func TestKernelCapabilitiesAnswer(t *testing.T) {
 	present := kernelcap.Row{Subsystem: "alpha", Kernel: "CONFIG_ALPHA", State: "present"}
 	absent := kernelcap.Row{Subsystem: "bravo", Kernel: "CONFIG_BRAVO", State: "absent", Reason: "no such family"}
 	unknown := kernelcap.Row{Subsystem: "charlie", Kernel: "CONFIG_CHARLIE", State: "unknown", Reason: "EPERM"}
+	denied := kernelcap.Row{Subsystem: "delta", Kernel: "CONFIG_DELTA", State: "denied", Reason: "AppArmor profile docker-default (enforce)"}
 
 	for _, tc := range []struct {
 		name  string
@@ -29,6 +30,8 @@ func TestKernelCapabilitiesAnswer(t *testing.T) {
 		{"all present", []kernelcap.Row{present}, true},
 		{"one absent", []kernelcap.Row{present, absent}, false},
 		{"one unknown", []kernelcap.Row{present, unknown}, false},
+		// AC-16: a probe the host's policy denied is not a pass for a Docker host.
+		{"one denied", []kernelcap.Row{present, denied}, false},
 		{"nothing enrolled", nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

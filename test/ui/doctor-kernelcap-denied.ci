@@ -1,0 +1,33 @@
+# Test: ze doctor reports a probe the host's security policy denied as its own answer
+# Spec: plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md AC-15, AC-16
+# VALIDATES: a denied l2tp-ppp probe reaches the operator from both entry points.
+# With a config, `ze doctor --json` carries doctor-kernel-capability-denied, a
+# WARNING (exit 0), and not the subsystem's unknown or unavailable code. The
+# all-capabilities mode spells the row "denied" and exits 1, because a denied
+# row is not a pass for a Docker host.
+# PREVENTS: an AppArmor profile that blocks a probe read as "the kernel lacks
+# the feature", or as a bare unknown naming no policy.
+#
+# The answer is FORCED (ze.test.kernelcap.force) so the denied branch is reached
+# on any host; the real policy path (EACCES under docker-default) is
+# TestMPLSIPMTUPolicyDenialIsDenied, and was observed live on colima 2026-10-10.
+option=needs-linux
+
+option=env:var=ze.test.kernelcap.force:value=l2tp-ppp=denied,l2tp=present
+
+tmpfs=l2tp.conf:terminator=EOF_CONF
+l2tp {
+    enabled true
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json config l2tp.conf:exit=0
+expect=stdout:contains=doctor-kernel-capability-denied
+expect=stdout:contains=CONFIG_PPPOL2TP
+expect=stdout:contains=security policy
+reject=stdout:contains=doctor-l2tp-ppp-unknown
+reject=stdout:contains=doctor-l2tp-ppp-unavailable
+
+cmd=foreground:seq=2:exec=ze doctor --json kernel-capabilities:exit=1
+expect=stdout:contains="state": "denied"
+expect=stdout:contains="ready": false
