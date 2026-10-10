@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - (the interop proof runs on a Docker host that passes the Ze kernel check, the QEMU docker-lab route of `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md`) |
-| Phase | 1/5 |
+| Phase | 3/5 |
 | Handoff | - |
 | Updated | 2026-10-10 |
 

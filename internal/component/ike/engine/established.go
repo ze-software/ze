@@ -356,6 +356,13 @@ func (ps *PeerSession) maintainSA(
 				ikeLT = newLifetimeState(ikeGroup.Lifetime)
 				ps.incRekeyCount()
 			}
+			// A Child SA created on a childless IKE SA starts its lifetime at install,
+			// and is announced as a Child SA coming up, not as a rekey.
+			if out.createdChild != nil {
+				childLT = newLifetimeState(ps.espGroup.Lifetime)
+				emitChildUp(bus, ps.peerName, out.createdChild, log)
+				emitRouteAdd(bus, out.createdChild.TSRemote, log)
+			}
 			if out.newChild != nil {
 				childLT = newLifetimeState(ps.espGroup.Lifetime)
 				ps.incRekeyCount()

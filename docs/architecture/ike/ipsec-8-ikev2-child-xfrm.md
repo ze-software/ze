@@ -387,14 +387,31 @@ order (`handleCreateChildSAOwned`):
 | The request carries | It is | Ze answers |
 |---------------------|-------|------------|
 | a REKEY_SA notify | a Child SA rekey (RFC 7296 Section 1.3.3) | `respondChildRekey` |
-| TSi or TSr, no REKEY_SA | a new Child SA (Section 1.3.1), with or without KEi | `handleNewChildRequest`: NO_ADDITIONAL_SAS while the session holds its one Child SA (Section 1.3), NO_PROPOSAL_CHOSEN otherwise |
+| TSi or TSr, no REKEY_SA | a new Child SA (Section 1.3.1), with or without KEi | `handleNewChildRequest`: NO_ADDITIONAL_SAS while the session holds its one Child SA (Section 1.3); on a childless IKE SA, `respondNewChild` creates it |
 | KEi and no TS | an IKE SA rekey (Section 1.3.2, `{SA, Ni, KEi}`) | `respondIKERekey` |
 | none of these | neither | NO_PROPOSAL_CHOSEN (Section 2.21.3) |
 
 The TS payloads, never the KE payload, separate a new Child SA from an IKE SA
 rekey, because a new Child SA with PFS carries KEi too.
 
+On a childless IKE SA, in either IKE role, `respondNewChild` (`create_child.go`)
+answers the request with `{SA, Nr, [KEr,] [N(USE_TRANSPORT_MODE),] TSi, TSr}`.
+It reads the session's configured esp-group, never `sa.ESPGroup`, which holds
+whatever IKE_AUTH left when its Child SA was refused. The esp-group's `pfs` leaf
+decides whether KEi is required, as on the rekey path: a KEi in another group
+draws INVALID_KE_PAYLOAD naming the IKE SA's group. The selectors are narrowed
+with no floor, because the creation replaces no SA. The Child SA is keyed from
+this exchange's Ni and Nr, plus the D-H secret when KEi was sent (Section 2.17),
+with Ze as the responder of the exchange, whatever its IKE SA role. It is built
+by `newChildSA`, the builder `createFirstChildSA` uses for the IKE_AUTH Child SA,
+and installed before the answer is sent. The owner loop then starts its lifetime
+and emits `child-up` and the route add, not a rekey event. A refusal answers the
+error notify `notifyForRefusal` names and leaves the IKE SA up and childless
+(Section 1.3.1, "A failed attempt to create a Child SA SHOULD NOT tear down the
+IKE SA").
+
 <!-- source: internal/component/ike/engine/inbound.go -- inbound message classification, handleNewChildRequest, hasTSPayload -->
+<!-- source: internal/component/ike/engine/create_child.go -- respondNewChild, newChildSA, parseNewChildRequest -->
 <!-- source: internal/component/ike/engine/delete.go -- Child SA teardown over INFORMATIONAL -->
 <!-- source: internal/component/ike/engine/bypass.go -- IKE control-plane bypass policies -->
 

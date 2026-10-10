@@ -298,37 +298,12 @@ func createFirstChildSA(
 	}
 	outSPI := sa.ChildOutboundSPI
 
-	srcIP := net.ParseIP(localAddr)
-	dstIP := net.ParseIP(remoteAddr)
-	// RFC 4555 Section 3.3 takes tunnel endpoints from the IKE SA. The selectors
-	// remain the authenticated policy's negotiated set across every later move.
-	if sa.mobike.enabled {
-		if sa.mobike.local != nil {
-			srcIP = append(net.IP(nil), sa.mobike.local.IP...)
-		}
-		if remote := sa.remoteUDPAddr(); remote != nil {
-			dstIP = append(net.IP(nil), remote.IP...)
-		}
-	}
-	if srcIP == nil || dstIP == nil {
-		keys.Clear()
-		return nil, fmt.Errorf("child-sa: invalid addresses local=%q remote=%q", localAddr, remoteAddr)
-	}
-
-	tsLocal := ipToFullNet(srcIP)
-	tsRemote := ipToFullNet(dstIP)
 	// RFC 7296 Section 2.9: TSi is the initiator's selector, TSr the responder's.
 	// Our local selector is therefore TSi when we are the initiator and TSr when we
 	// are the responder (initiator path unchanged: local=TSi, remote=TSr).
 	negLocal, negRemote := sa.NegotiatedTSi, sa.NegotiatedTSr
 	if !sa.IsInitiator {
 		negLocal, negRemote = sa.NegotiatedTSr, sa.NegotiatedTSi
-	}
-	if negLocal != nil {
-		tsLocal = negLocal
-	}
-	if negRemote != nil {
-		tsRemote = negRemote
 	}
 
 	// RFC 7296 Section 1.3.1: "Except when using this option to negotiate transport
@@ -339,39 +314,26 @@ func createFirstChildSA(
 		mode = modeTransport
 	}
 
-	child := &ChildSA{
-		InboundSPI:  inSPI,
-		OutboundSPI: outSPI,
-		LocalAddr:   srcIP,
-		RemoteAddr:  dstIP,
-		IfID:        ifID,
-		TSLocal:     tsLocal,
-		TSRemote:    tsRemote,
-		Owner:       sa.PeerName,
-		// RFC 4301 Section 4.4.1: the operator orders the SPD entries, and these are two
-		// of them.
-		PolicyPriority: sa.PeerCfg.PolicyPriority,
-		Selectors:      sa.NegotiatedPairs,
+	child, err := newChildSA(sa, localAddr, remoteAddr, &childSpec{
+		inSPI:    inSPI,
+		outSPI:   outSPI,
+		keys:     keys,
+		espGroup: espGroup,
+		ifID:     ifID,
+		tsLocal:  negLocal,
+		tsRemote: negRemote,
 		// sa.NegotiatedPairs is in the TSi/TSr orientation of the exchange that produced
 		// it, and the first Child SA's selectors come from IKE_AUTH. This node's IKE_AUTH
 		// role IS sa.IsInitiator, so that is the orientation, exactly as it is for the
 		// TSLocal/TSRemote swap above.
-		SelectorsLocalIsTSi: sa.IsInitiator,
-		Mode:                mode,
-		Keys:                keys,
-		ESPGroup:            espGroup,
-		ReqID:               defaultReqID,
-		NATDetected:         sa.NATDetected,
-		UDPEncap:            sa.NATDetected || sa.localPort == transport.NATTPort,
-		LocalIsInitiator:    sa.IsInitiator,
-	}
-	if sa.mobike.enabled {
-		if local := sa.mobike.local; local != nil {
-			child.udpLocalPort = uint16(local.Port)
-		}
-		if remote := sa.remoteUDPAddr(); remote != nil {
-			child.udpRemotePort = uint16(remote.Port)
-		}
+		selectors:           sa.NegotiatedPairs,
+		selectorsLocalIsTSi: sa.IsInitiator,
+		mode:                mode,
+		localIsInitiator:    sa.IsInitiator,
+	})
+	if err != nil {
+		keys.Clear()
+		return nil, err
 	}
 
 	if dp == nil {

@@ -682,29 +682,12 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		return nil, nil, fmt.Errorf("child rekey request: %w", crypto.ErrNoProposalChosen)
 	}
 
-	// RFC 7296 Section 3.4: "If the selected proposal uses a different Diffie-Hellman
-	// group (other than NONE), the message MUST be rejected with a Notify payload of type
-	// INVALID_KE_PAYLOAD." The initiator guesses the group before it learns which
-	// proposal this node selects, so the answer names the group it must use and the
-	// exchange is not keyed. RFC 7296 Section 3.10.1 gives the payload two octets of data.
-	// respondIKERekey answers an IKE SA rekey the same way.
-	if group != dhGroupNone && (reqKE == nil || reqKE.DHGroup != uint16(group)) {
-		got := wire.DHGroupNone
-		if reqKE != nil {
-			got = reqKE.DHGroup
-		}
-		log.Info("ike: peer child rekey KE group mismatch", "peer", sa.PeerName,
-			"want", uint16(group), "got", got)
-		notify := &wire.PayloadNotify{
-			NotifyMsgType:    wire.NotifyInvalidKEPayload,
-			NotificationData: []byte{byte(uint16(group) >> 8), byte(group)},
-		}
-		resp, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: notify}},
-			msgID, wire.ExchangeCreateChildSA, initiatorFlag(sa)|wire.FlagResponse)
-		if err != nil {
-			return nil, nil, err
-		}
-		return resp, nil, nil
+	// The initiator guesses the group before it learns which proposal this node
+	// selects, so a KEi in another group is answered with the group it must use and the
+	// exchange is not keyed (invalidKEAnswer, create_child.go). respondIKERekey answers
+	// an IKE SA rekey the same way.
+	if resp, mismatched, err := invalidKEAnswer(sa, group, reqKE, msgID, log); mismatched {
+		return resp, nil, err
 	}
 
 	// RFC 7296 Section 2.9.2 MUST NOT: "The responder MUST NOT narrow down the Traffic
@@ -745,36 +728,11 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		return nil, nil, fmt.Errorf("child rekey request: %w", err)
 	}
 
-	// RFC 7296 Section 2.17, the two KEYMAT forms. Without a group the peer is the
-	// initiator here and the seed is "Ni | Nr". With one, this node completes the
-	// exchange from the peer's KEi and the seed gains "g^ir (new)" in front, which is the
-	// fresh secret Perfect Forward Secrecy rests on. ourPub is the KEr the response
-	// carries, taken before the private half is cleared.
-	var keys *crypto.ChildSAKeys
-	var ourPub []byte
-	if group == dhGroupNone {
-		keys, err = crypto.DeriveChildSAKeys(sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
-			ni, nr, respEnc, respInteg)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		dh, err := crypto.NewDHExchange(group)
-		if err != nil {
-			return nil, nil, err
-		}
-		ourPub = append([]byte(nil), dh.PublicKey...)
-		sharedSecret, err := dh.SharedSecret(reqKE.KeyExchangeData)
-		dh.Clear()
-		if err != nil {
-			return nil, nil, err
-		}
-		keys, err = crypto.DeriveChildSAKeysPFS(sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
-			sharedSecret, ni, nr, respEnc, respInteg)
-		clear(sharedSecret)
-		if err != nil {
-			return nil, nil, err
-		}
+	// The peer initiated this rekey, so this node keys it as the responder of the
+	// exchange (RFC 7296 Section 2.17, responderChildKeys in create_child.go).
+	keys, ourPub, err := responderChildKeys(sa, group, reqKE, ni, nr, respEnc, respInteg)
+	if err != nil {
+		return nil, nil, err
 	}
 	// RFC 7296 Section 2.9: "TS payloads specify the selection criteria for packets that
 	// will be forwarded over the newly set up SA." The answer is therefore a statement
