@@ -57,6 +57,10 @@ type Editor struct {
 	showColumns       map[string]bool                      // In-memory show column preferences (sticky per session)
 	diffGutter        bool                                 // Whether diff gutter (+/-) markers are shown (default true)
 	draftSaved        bool                                 // True when changes have been persisted to draft (reset on new edits)
+	// loadStage is non-nil only while a session load runs: every write-through
+	// step then reads and writes the change file through it, in memory, under
+	// the one lock the load holds, and the load writes the file once at the end.
+	loadStage *loadStage
 	stdoutSink        io.Writer                            // Non-nil for a stdin-sourced ("-") editor: Save emits here instead of writing a file
 	// now supplies the wall clock for version stamps. A field rather than a
 	// direct time.Now() call so a test can pin it: the same-millisecond backup

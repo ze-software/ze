@@ -1,0 +1,70 @@
+# Test: load in session mode records per-leaf changes, all or nothing
+# VALIDATES: load file absolute merge in a session records one change per
+#   changed leaf and none for a leaf equal to the session value; a load the
+#   schema refuses changes nothing
+# PREVENTS: load bypassing write-through, recording unchanged leaves, or
+#   writing half of a refused load
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}
+EOF_CONF
+
+tmpfs=extra.conf:terminator=EOF_CONF
+bgp {
+  router-id 5.6.7.8;
+  peer peer1 {
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}
+EOF_CONF
+
+tmpfs=bad.conf:terminator=EOF_CONF
+bgp {
+  router-id 9.9.9.9;
+  nosuch 1;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Merge: router-id changes, peer1's remote asn is unchanged
+input=type:text=load file absolute merge extra.conf
+input=enter
+expect=status:contains=Configuration merged from extra.conf
+expect=error:none
+
+input=type:text=show | changes
+input=enter
+expect=status:contains=1 pending change
+expect=viewport:contains=router-id
+expect=error:none
+
+# Refused: the unknown key fails the load before anything is written
+input=type:text=load file absolute merge bad.conf
+input=enter
+expect=error:contains=nosuch
+
+input=type:text=show | changes
+input=enter
+expect=status:contains=1 pending change
+expect=viewport:not-contains=9.9.9.9

@@ -20,7 +20,7 @@ import (
 // is recorded: member operations are idempotent and skip stale-conflict
 // detection.
 func (e *Editor) writeThroughSetMember(path []string, key, member string) error {
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
@@ -74,7 +74,7 @@ func (e *Editor) writeThroughSetMember(path []string, key, member string) error 
 // one leaf-list member. Records a delete intent (Member set, Value empty) in
 // the per-user change file and removes the member from both trees.
 func (e *Editor) writeThroughDeleteMember(path []string, key, member string) error {
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
@@ -136,7 +136,7 @@ func (e *Editor) writeThroughDeleteMember(path []string, key, member string) err
 // preserve the exact position/toggle through SaveDraft and both commit
 // paths, where plain add-member metadata entries would degrade to append.
 func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpType, leafListName, member, position, ref string) error {
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}

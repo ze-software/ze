@@ -1,0 +1,75 @@
+# Test: an SSH session editor pastes a merge at its context path on a running daemon
+# VALIDATES: spec-session-editor-file-mode-parity AC-2 -- `load terminal relative
+#            merge` at `bgp peer peer1`, a pasted block ended by Ctrl-D, roots its
+#            change under the context, changes nothing outside it, and commits
+# PREVENTS: the paste-mode end bypassing write-through in session mode
+option=timeout:value=60s
+
+tmpfs=session-editor-load-terminal-relative.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-load-terminal-relative.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send edit bgp peer peer1
+send load terminal relative merge
+wait Paste mode
+send timer {
+send receive-hold-time 150
+send }
+key ctrl-d
+wait Configuration merged
+send show | changes
+wait 1 pending change
+send commit
+wait Session committed:
+has 1.2.3.4
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-load-terminal-relative.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-load-terminal-relative.conf session-editor-load-terminal-relative.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-load-terminal-relative.conf:contains=receive-hold-time 150
+expect=file:path=session-editor-load-terminal-relative.conf:contains=1.2.3.4

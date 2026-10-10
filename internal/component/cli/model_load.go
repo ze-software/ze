@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
+// Related: editor_load.go — the one load path both modes take (ParseLoad, LoadMerge, LoadReplace)
 
 package cli
 
@@ -24,8 +25,6 @@ var (
 	errCommitConfirmedNeedsHistory     = fmt.Errorf("commit confirmed needs config history to roll back: %w; run ze init", storage.ErrNoStore)
 	errNoPendingCommitToConfirm        = errors.New("no pending commit to confirm")
 	errNoPendingCommitToAbort          = errors.New("no pending commit to abort")
-	errUsageLoadFile                   = errors.New("usage: load <file>")
-	errUsageLoadMergeFile              = errors.New("usage: load merge <file>")
 	errNoCommandBeforePipe             = errors.New("no command before pipe")
 )
 
@@ -247,60 +246,6 @@ func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
 	})
 }
 
-// cmdLoad loads configuration from a file, replacing current content.
-func (m *Model) cmdLoad(args []string) (commandResult, error) {
-	if len(args) < 1 {
-		return commandResult{}, errUsageLoadFile
-	}
-
-	loadPath := m.resolveConfigPath(args[0])
-
-	data, err := readFile(loadPath)
-	if err != nil {
-		return commandResult{}, fmt.Errorf("cannot read %s: %w", args[0], err)
-	}
-
-	m.editor.setWorkingContent(string(data))
-	m.editor.MarkDirty()
-
-	var tb textbuf.Buffer
-	return commandResult{
-		statusMessage: tb.Str("Configuration loaded from ").Str(args[0]).String(),
-		configView:    m.configViewAtPath(m.contextPath),
-		revalidate:    true,
-	}, nil
-}
-
-// cmdLoadMerge loads configuration from a file and merges with current content.
-func (m *Model) cmdLoadMerge(args []string) (commandResult, error) {
-	if len(args) < 1 {
-		return commandResult{}, errUsageLoadMergeFile
-	}
-
-	loadPath := m.resolveConfigPath(args[0])
-
-	data, err := readFile(loadPath)
-	if err != nil {
-		return commandResult{}, fmt.Errorf("cannot read %s: %w", args[0], err)
-	}
-
-	// Merge needs full content (not subtree)
-	currentContent := m.editor.WorkingContent()
-	mergeContent := string(data)
-
-	merged := mergeConfigs(currentContent, mergeContent)
-
-	m.editor.setWorkingContent(merged)
-	m.editor.MarkDirty()
-
-	var tb textbuf.Buffer
-	return commandResult{
-		statusMessage: tb.Str("Configuration merged from ").Str(args[0]).String(),
-		configView:    m.configViewAtPath(m.contextPath),
-		revalidate:    true,
-	}, nil
-}
-
 // resolveConfigPath resolves a path relative to the config file directory.
 func (m *Model) resolveConfigPath(path string) string {
 	if isAbsPath(path) {
@@ -359,10 +304,6 @@ func parseLoadArgs(args []string) (source, location, action, path string, err er
 // cmdLoadNew handles the redesigned load command syntax.
 // Syntax: load <source> <location> <action> [file].
 func (m *Model) cmdLoadNew(args []string) (commandResult, error) {
-	if m.editor.HasSession() {
-		return commandResult{}, errLoadNotSupportedInSessionMode
-	}
-
 	source, location, action, path, err := parseLoadArgs(args)
 	if err != nil {
 		return commandResult{}, err
@@ -385,220 +326,43 @@ func (m *Model) cmdLoadNew(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("cannot read %s: %w", path, err)
 	}
 
-	if location == loadLocationAbsolute {
-		return m.applyLoadAbsolute(action, string(data), path)
-	}
-	return m.applyLoadRelative(action, string(data), path)
+	return m.applyLoad(location, action, string(data), path)
 }
 
-// applyLoadAbsolute applies loaded content at root level.
-func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, error) {
-	var tb textbuf.Buffer
+// applyLoad parses content, read from a file or pasted, and merges or
+// replaces it at the root (absolute) or at the current context (relative)
+// through the editor's one load path, in file and session mode alike. source
+// names the input in the status line.
+func (m *Model) applyLoad(location, action, content, source string) (commandResult, error) {
+	var context []string
+	if location == loadLocationRelative {
+		context = m.contextPath
+	}
+	loaded, err := m.editor.ParseLoad(content, context)
+	if err != nil {
+		return commandResult{}, err
+	}
+	verb := "merged"
 	if action == loadActionReplace {
-		m.editor.setWorkingContent(content)
-		m.editor.MarkDirty()
-		return commandResult{
-			statusMessage: tb.Str("Configuration loaded from ").Str(path).String(),
-			configView:    m.configViewAtPath(m.contextPath),
-			revalidate:    true,
-		}, nil
+		verb = "loaded"
+		err = m.editor.LoadReplace(context, loaded)
+	} else {
+		err = m.editor.LoadMerge(context, loaded)
+	}
+	if err != nil {
+		return commandResult{}, err
 	}
 
-	// action == "merge"
-	currentContent := m.editor.WorkingContent()
-	merged := mergeConfigs(currentContent, content)
-	m.editor.setWorkingContent(merged)
-	m.editor.MarkDirty()
+	var tb textbuf.Buffer
+	tb.Str("Configuration ").Str(verb).Str(" from ").Str(source)
+	if len(context) > 0 {
+		tb.Str(" at ").Join(context, " ")
+	}
 	return commandResult{
-		statusMessage: tb.Reset().Str("Configuration merged from ").Str(path).String(),
+		statusMessage: tb.String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
-}
-
-// applyLoadRelative applies loaded content at current context position.
-func (m *Model) applyLoadRelative(action, content, path string) (commandResult, error) {
-	if len(m.contextPath) == 0 {
-		// At root level, relative == absolute
-		return m.applyLoadAbsolute(action, content, path)
-	}
-
-	// Apply at context position
-	currentContent := m.editor.WorkingContent()
-	var newContent string
-
-	if action == loadActionReplace {
-		newContent = replaceAtContext(currentContent, m.contextPath, content)
-	} else {
-		newContent = mergeAtContext(currentContent, m.contextPath, content)
-	}
-
-	m.editor.setWorkingContent(newContent)
-	m.editor.MarkDirty()
-
-	verb := "loaded"
-	if action == loadActionMerge {
-		verb = "merged"
-	}
-
-	var tb textbuf.Buffer
-	return commandResult{
-		statusMessage: tb.Str("Configuration ").Str(verb).Str(" from ").Str(path).Str(" at ").Join(m.contextPath, " ").String(),
-		configView:    m.configViewAtPath(m.contextPath),
-		revalidate:    true,
-	}, nil
-}
-
-// blockHeaderMatches reports whether a block-opening line names the block a
-// context path points at. targetPattern is built from the last two path
-// elements, and a ze:flatten container writes its own name in front of its
-// child ("attach process alpha {"), so the pattern is the TAIL of that header
-// rather than the whole of it.
-func blockHeaderMatches(blockPart, targetPattern string) bool {
-	if blockPart == targetPattern {
-		return true
-	}
-	var tb textbuf.Buffer
-	return strings.HasSuffix(blockPart, tb.Byte(' ').Str(targetPattern).String())
-}
-
-// replaceAtContext replaces the content at the given context path with new content.
-func replaceAtContext(fullConfig string, contextPath []string, newContent string) string {
-	if len(contextPath) == 0 {
-		return fullConfig // nothing to replace
-	}
-
-	var result textbuf.Buffer
-
-	// Build the pattern to match (e.g., "peer 1.1.1.1" or just "bgp")
-	var targetPattern string
-	if len(contextPath) == 1 {
-		targetPattern = contextPath[0]
-	} else {
-		var tb textbuf.Buffer
-		targetPattern = tb.Str(contextPath[len(contextPath)-2]).Byte(' ').Str(contextPath[len(contextPath)-1]).String()
-	}
-
-	inTarget := false
-	targetDepth := 0
-	currentDepth := 0
-
-	for line := range strings.SplitSeq(fullConfig, "\n") {
-		trimmed := strings.TrimSpace(line)
-		openBraces := strings.Count(trimmed, "{")
-		closeBraces := strings.Count(trimmed, "}")
-
-		if inTarget {
-			// Inside target - skip old content until closing brace
-			newDepth := currentDepth + openBraces - closeBraces
-			if newDepth < targetDepth {
-				// Found closing brace - write it
-				result.Str(line).Byte('\n')
-				inTarget = false
-			}
-			// Skip old content lines
-		} else {
-			// Looking for target block
-			if strings.Contains(trimmed, "{") {
-				blockPart := strings.TrimSuffix(trimmed, "{")
-				blockPart = strings.TrimSpace(blockPart)
-
-				if blockHeaderMatches(blockPart, targetPattern) {
-					// Found target - write opening line and new content
-					result.Str(line).Byte('\n')
-					inTarget = true
-					targetDepth = currentDepth + openBraces
-
-					// Write indented new content
-					indent := strings.Repeat("  ", targetDepth)
-					for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
-						result.Str(indent).Str(newLine).Byte('\n')
-					}
-					currentDepth += openBraces - closeBraces
-					continue
-				}
-			}
-			result.Str(line).Byte('\n')
-		}
-
-		currentDepth += openBraces - closeBraces
-	}
-
-	return strings.TrimSuffix(result.String(), "\n")
-}
-
-// mergeAtContext merges new content into the block at the given context path.
-func mergeAtContext(fullConfig string, contextPath []string, newContent string) string {
-	if len(contextPath) == 0 {
-		return fullConfig // nothing to merge into
-	}
-
-	var result textbuf.Buffer
-
-	// Build the pattern to match (e.g., "peer 1.1.1.1" or just "bgp")
-	var targetPattern string
-	if len(contextPath) == 1 {
-		targetPattern = contextPath[0]
-	} else {
-		var tb textbuf.Buffer
-		targetPattern = tb.Str(contextPath[len(contextPath)-2]).Byte(' ').Str(contextPath[len(contextPath)-1]).String()
-	}
-
-	inTarget := false
-	targetDepth := 0
-	currentDepth := 0
-	contentInserted := false
-
-	for line := range strings.SplitSeq(fullConfig, "\n") {
-		trimmed := strings.TrimSpace(line)
-		openBraces := strings.Count(trimmed, "{")
-		closeBraces := strings.Count(trimmed, "}")
-
-		if inTarget {
-			newDepth := currentDepth + openBraces - closeBraces
-			if newDepth < targetDepth && !contentInserted {
-				// Insert merged content before closing brace
-				indent := strings.Repeat("  ", targetDepth)
-				for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
-					result.Str(indent).Str(newLine).Byte('\n')
-				}
-				contentInserted = true
-				inTarget = false
-			}
-			result.Str(line).Byte('\n')
-		} else {
-			if strings.Contains(trimmed, "{") {
-				blockPart := strings.TrimSuffix(trimmed, "{")
-				blockPart = strings.TrimSpace(blockPart)
-
-				if blockHeaderMatches(blockPart, targetPattern) {
-					inTarget = true
-					targetDepth = currentDepth + openBraces
-				}
-			} else if !contentInserted {
-				var tb textbuf.Buffer
-				targetWithSpace := tb.Str(targetPattern).Byte(' ').String()
-				if inlineContent, ok := strings.CutPrefix(trimmed, targetWithSpace); ok {
-					leadingIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-					childIndent := tb.Reset().Str(leadingIndent).Byte('\t').String()
-					result.Str(leadingIndent).Str(targetPattern).Str(" {\n")
-					result.Str(childIndent).Str(inlineContent).Byte('\n')
-					for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
-						result.Str(childIndent).Str(newLine).Byte('\n')
-					}
-					result.Str(leadingIndent).Str("}\n")
-					contentInserted = true
-					currentDepth += openBraces - closeBraces
-					continue
-				}
-			}
-			result.Str(line).Byte('\n')
-		}
-
-		currentDepth += openBraces - closeBraces
-	}
-
-	return strings.TrimSuffix(result.String(), "\n")
 }
 
 // cmdShowPipe executes show with pipe filters.
@@ -785,138 +549,6 @@ func ApplyPipeFilter(content string, filter PipeFilter) (string, error) {
 	}
 
 	return "", fmt.Errorf("unknown pipe filter: %s", filter.Type)
-}
-
-// mergeConfigs merges two configuration strings.
-// Simple strategy: use current as base, add non-duplicate blocks/keys from merge.
-// Existing keys in current are preserved (merge file's duplicates are skipped).
-func mergeConfigs(current, merge string) string {
-	currentLines := strings.Split(current, "\n")
-	mergeLines := strings.Split(merge, "\n")
-
-	// Extract existing keys from current config at depth 1 (inside main block)
-	existingKeys := make(map[string]bool)
-	depth := 0
-	for _, line := range currentLines {
-		trimmed := strings.TrimSpace(line)
-		openBraces := strings.Count(trimmed, "{")
-		closeBraces := strings.Count(trimmed, "}")
-
-		// At depth 1, extract keys
-		if depth == 1 && trimmed != "" && trimmed != "}" {
-			key := extractConfigKey(trimmed)
-			if key != "" {
-				existingKeys[key] = true
-			}
-		}
-
-		depth += openBraces - closeBraces
-	}
-
-	// Find the closing brace of the main block in current and insert merge content before it
-	result := make([]string, 0, len(currentLines)+len(mergeLines))
-	depth = 0
-	inserted := false
-	mergeDepth := 0
-	skipUntilClose := false
-
-	for i, line := range currentLines {
-		trimmed := strings.TrimSpace(line)
-		depth += strings.Count(trimmed, "{")
-		depth -= strings.Count(trimmed, "}")
-
-		// If we're about to close the main block and haven't inserted yet
-		if depth == 0 && strings.Contains(trimmed, "}") && !inserted {
-			// Insert merge content, skipping duplicates
-			for _, mergeLine := range mergeLines {
-				mergeTrimmed := strings.TrimSpace(mergeLine)
-
-				// Track depth in merge content
-				mergeOpenBraces := strings.Count(mergeTrimmed, "{")
-				mergeCloseBraces := strings.Count(mergeTrimmed, "}")
-
-				// Skip top-level block markers
-				if mergeTrimmed == "" || mergeTrimmed == "bgp {" || mergeTrimmed == "}" {
-					mergeDepth += mergeOpenBraces - mergeCloseBraces
-					continue
-				}
-
-				// If we're skipping a duplicate block, continue until it closes
-				if skipUntilClose {
-					mergeDepth += mergeOpenBraces - mergeCloseBraces
-					if mergeDepth <= 1 {
-						skipUntilClose = false
-					}
-					continue
-				}
-
-				// At depth 1 in merge, check if key already exists
-				if mergeDepth == 1 {
-					key := extractConfigKey(mergeTrimmed)
-					if key != "" && existingKeys[key] {
-						// Skip this key/block - it already exists in current
-						if mergeOpenBraces > 0 {
-							skipUntilClose = true
-						}
-						mergeDepth += mergeOpenBraces - mergeCloseBraces
-						continue
-					}
-				}
-
-				mergeDepth += mergeOpenBraces - mergeCloseBraces
-				result = append(result, mergeLine)
-			}
-			inserted = true
-		}
-
-		result = append(result, currentLines[i])
-	}
-
-	return textbuf.Join(result, "\n")
-}
-
-// extractConfigKey extracts the key from a config line.
-// For "router-id 1.2.3.4;" returns "router-id".
-// For "peer 1.1.1.1 {" returns "peer 1.1.1.1".
-// For "attach process alpha {" returns "attach process alpha".
-// For "local-as 65000;" returns "local-as".
-func extractConfigKey(line string) string {
-	line = strings.TrimSpace(line)
-	isBlock := strings.HasSuffix(line, "{")
-	line = strings.TrimSuffix(line, "{")
-	line = strings.TrimSuffix(line, ";")
-	line = strings.TrimSpace(line)
-
-	// Split into words
-	parts := strings.Fields(line)
-	if len(parts) == 0 {
-		return ""
-	}
-
-	// For leaf values like "router-id 1.2.3.4", the key is "router-id"
-	// For blocks like "peer 1.1.1.1", the key is "peer 1.1.1.1"
-	// Heuristic: if there are 2 parts and first is a known block keyword, use both
-	// Known block keywords that take a key value
-	blockKeywords := map[string]bool{
-		"peer": true, "template": true, "plugin": true, "process": true, "group": true,
-	}
-	// A ze:flatten container writes its own name in front of the block keyword:
-	// "attach process alpha {". The key is then all three words. Keying on
-	// "attach" alone gives every process a peer attaches the SAME key, and a
-	// load merge then treats the second one as a duplicate and drops it.
-	if isBlock && len(parts) >= 3 && !blockKeywords[parts[0]] && blockKeywords[parts[1]] {
-		var tb textbuf.Buffer
-		return tb.Str(parts[0]).Byte(' ').Str(parts[1]).Byte(' ').Str(parts[2]).String()
-	}
-	if len(parts) >= 2 {
-		if blockKeywords[parts[0]] {
-			var tb textbuf.Buffer
-			return tb.Str(parts[0]).Byte(' ').Str(parts[1]).String()
-		}
-	}
-
-	// Default: just use the first word as the key
-	return parts[0]
 }
 
 // findPipeIndex returns the index of "|" in tokens, or -1 if not found.

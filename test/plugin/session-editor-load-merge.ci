@@ -1,0 +1,90 @@
+# Test: an SSH session editor merges a file into a running daemon's config
+# VALIDATES: spec-session-editor-file-mode-parity AC-1 -- over SSH against a
+#            running daemon, `load file absolute merge` records one set change per
+#            added or changed leaf (an unchanged leaf records none), and the
+#            commit applies them to the running daemon
+# PREVENTS: the session editor refusing load ("load not supported in session
+#           mode"), and a load that reaches the editor but never the daemon
+option=timeout:value=60s
+
+tmpfs=session-editor-load-merge.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-load-merge-add.conf:terminator=EOF_ADD
+bgp {
+    router-id 5.6.7.8
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        timer {
+            receive-hold-time 120
+        }
+        session {
+            router-id 1.2.3.5
+        }
+    }
+}
+EOF_ADD
+
+tmpfs=session-editor-load-merge.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send load file absolute merge session-editor-load-merge-add.conf
+wait Configuration merged from
+send show | changes
+wait 3 pending changes
+send commit
+wait Session committed:
+has 5.6.7.8
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-load-merge.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-load-merge.conf session-editor-load-merge.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-load-merge.conf:contains=receive-hold-time 120
+expect=file:path=session-editor-load-merge.conf:contains=1.2.3.5

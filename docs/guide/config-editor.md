@@ -208,13 +208,11 @@ edit must be reconciled before a competing daemon commit can succeed. Bare
 
 Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:
 
-<!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode -->
 <!-- source: internal/component/cli/model_commands.go -- errCommitConfirmedNotYetSupportedIn -->
 <!-- source: internal/component/cli/model_commands_commit.go -- errCommitForceNotYetSupportedIn -->
 
 | Blocked command | Reason |
 |-----------------|--------|
-| `load` | Replaces tree without generating per-leaf change entries |
 | `commit confirmed` | Needs session-aware rollback |
 | `commit force` | Needs session-aware rollback |
 
@@ -232,7 +230,28 @@ session mode too. Each records one structural op in your change file
 exists is refused, so delete it first.
 <!-- source: internal/component/cli/editor_draft.go -- writeThroughCopy, writeThroughToggle, writeThroughStructuralOp, applyToggleOp -->
 
-Use file mode (`ze config edit -f`) for these operations.
+`load` works in session mode and in file mode through one path. The input,
+from a file or pasted after `load terminal ...` and ended with Ctrl-D, is
+parsed against the schema first: at the root it may be hierarchical or `set`
+lines, and a `relative` load takes a hierarchical body checked against the
+children of your current context, so a key that node does not hold is refused
+by name. A `merge` then applies each leaf, leaf-list member, list entry and
+inactive marker the input carries that the configuration does not already hold;
+a `replace` also deletes what the node holds and the input omits, scoped to the
+context for a `relative` load. In session mode each applied difference is one
+tracked change, the same entry a typed `set` or `delete` records, so a leaf
+equal to its current value records nothing and `show | changes` lists exactly
+what the load changed.
+
+A load is all or nothing. A parse error, a refused entry, or a failed write of
+the change file leaves the candidate exactly as it was, and the error says
+`load refused, candidate unchanged`. In session mode the load holds the change
+file's lock for its whole run and writes the file once, at the end.
+<!-- source: internal/component/cli/model_load.go -- cmdLoadNew, applyLoad -->
+<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace, load, loadStage -->
+<!-- source: internal/component/config/parser.go -- ParseAt -->
+
+Use file mode (`ze config edit -f`) for the blocked operations above.
 
 | Feature | File mode | Session mode | Backup mode |
 |---------|-----------|--------------|-------------|

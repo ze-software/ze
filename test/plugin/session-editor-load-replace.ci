@@ -1,0 +1,164 @@
+# Test: an SSH session editor replaces the config, and then one context, on a running daemon
+# VALIDATES: spec-session-editor-file-mode-parity AC-3, AC-4 -- `load file absolute
+#            replace` with a file that omits a leaf and a list entry records a
+#            delete for each and the commit leaves the running config equal to the
+#            file; `load terminal relative replace` at `bgp peer peer1` replaces
+#            only that subtree and leaves its siblings alone
+# PREVENTS: a replace that records no deletes, so the omitted structure survives
+#           the commit, and a relative replace that reaches outside its context
+option=timeout:value=60s
+
+tmpfs=session-editor-load-replace.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+        timer {
+            receive-hold-time 90
+        }
+    }
+    peer peer2 {
+        connection {
+            remote {
+                ip 127.0.0.3
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-load-replace-new.conf:terminator=EOF_NEW
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+        timer {
+            receive-hold-time 90
+        }
+    }
+}
+EOF_NEW
+
+tmpfs=session-editor-load-replace.script:terminator=EOF_SCRIPT
+cli show bgp peer list
+has peer2
+send load file absolute replace session-editor-load-replace-new.conf
+wait Configuration loaded from
+send show | changes
+wait 2 pending changes
+send commit
+wait Session committed:
+lacks peer2
+has peer1
+send edit bgp peer peer1
+send load terminal relative replace
+wait Paste mode
+send connection {
+send remote {
+send ip 127.0.0.2
+send }
+send local {
+send ip 127.0.0.1
+send }
+send }
+send session {
+send asn {
+send remote 65001
+send }
+send }
+key ctrl-d
+wait Configuration loaded
+send show | changes
+wait 1 pending change
+send commit
+wait Session committed:
+cli show bgp
+has 1.2.3.4
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-load-replace.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-load-replace.conf session-editor-load-replace.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-load-replace.conf:not-contains=receive-hold-time
+expect=file:path=session-editor-load-replace.conf:not-contains=peer2
+expect=file:path=session-editor-load-replace.conf:contains=1.2.3.4

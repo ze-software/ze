@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 const twoAttachedProcessesConfig = `plugin {
@@ -85,54 +87,27 @@ func TestLoadEditCommitKeepsBothAttachedProcesses(t *testing.T) {
 	assert.Contains(t, committed, "9.9.9.9", "the edit must reach the committed file")
 }
 
-// TestExtractConfigKeyKeysFlattenedBlock pins the producing function R-13 names.
-// A ze:flatten container writes its own name in front of the block keyword, and
-// a key built from the first word alone is the same for every attachment.
-//
-// VALIDATES: R-13's mitigation, at the function that builds the key.
-// PREVENTS: a load merge treating a peer's second attachment as a duplicate.
-func TestExtractConfigKeyKeysFlattenedBlock(t *testing.T) {
-	cases := []struct {
-		line string
-		want string
-	}{
-		{"attach process alpha {", "attach process alpha"},
-		{"\tattach process beta {", "attach process beta"},
-		{"peer 1.1.1.1 {", "peer 1.1.1.1"},
-		{"process alpha {", "process alpha"},
-		{"router-id 1.2.3.4;", "router-id"},
-		{"local ip 1.2.3.4;", "local"},
-	}
-	for _, c := range cases {
-		assert.Equal(t, c.want, extractConfigKey(c.line), "line %q", c.line)
-	}
-
-	// The keys of two attachments on one peer must differ, or a merge drops one.
-	first := extractConfigKey("attach process alpha {")
-	second := extractConfigKey("attach process beta {")
-	assert.NotEqual(t, first, second, "two attachments must not share a key")
-}
-
-// TestMergeConfigsKeepsEveryAttachedProcess covers the merge path that reads
-// the key: a fragment naming two attachments must not lose one to duplicate
-// detection.
+// TestMergeConfigsKeepsEveryAttachedProcess covers the load merge of a peer
+// whose ze:flatten attach list gains two entries: a fragment naming two
+// attachments must not lose one, nor drop the one the peer already holds.
 func TestMergeConfigsKeepsEveryAttachedProcess(t *testing.T) {
-	current := `peer peer1 {
+	ed, _, _ := newLoadSessionEditor(t, validBGPConfig)
+	ed.SetSession(nil)
+	require.NoError(t, ed.LoadMerge(nil, parseLoadInput(t, ed, `bgp { peer peer1 {
 	attach process alpha {
 		receive [ state ]
 	}
-}
-`
-	merge := `peer peer1 {
+} }`)))
+	merge := `bgp { peer peer1 {
 	attach process beta {
 		send [ update ]
 	}
 	attach process gamma {
 		receive [ update ]
 	}
-}
-`
-	out := mergeConfigs(current, merge)
+} }`
+	require.NoError(t, ed.LoadMerge(nil, parseLoadInput(t, ed, merge)))
+	out := config.Serialize(ed.tree, ed.schema)
 	for _, want := range []string{"attach process alpha", "attach process beta", "attach process gamma"} {
 		assert.Equal(t, 1, strings.Count(out, want), "%s survives exactly once in:\n%s", want, out)
 	}

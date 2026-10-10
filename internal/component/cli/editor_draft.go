@@ -46,7 +46,7 @@ type CommitResult = contract.CommitResult
 // Writes to the per-user change file (not shared draft). The change file
 // contains only changed entries (sparse tree), not a full config dump.
 func (e *Editor) writeThroughSet(path []string, key, value string) error {
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
@@ -113,7 +113,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 // writeThroughCreate implements the write-through protocol for creating empty list entries.
 // It ensures the path exists in both the change file and in-memory tree without setting any leaf.
 func (e *Editor) writeThroughCreate(path []string) error {
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
@@ -156,7 +156,7 @@ func (e *Editor) writeThroughCreate(path []string) error {
 // writeThroughDelete implements the write-through protocol for delete commands.
 // Writes to the per-user change file (not shared draft).
 func (e *Editor) writeThroughDelete(path []string, key string) error {
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
@@ -219,7 +219,7 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 // writeThroughRename records a structural rename in the per-user change file
 // and immediately rebases any pending subtree edits onto the new key.
 func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKey string) error {
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
@@ -333,7 +333,7 @@ func (e *Editor) writeThroughCopy(parentPath []string, listName, sourceKey, targ
 		return err
 	}
 
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
@@ -423,7 +423,7 @@ func (e *Editor) writeThroughPathToggle(opType config.StructuralOpType, path []s
 // in-memory tree through the same applyStructuralOps that SaveDraft and the
 // commit use, so what the operator sees is what the commit will apply.
 func (e *Editor) writeThroughStructuralOp(op config.StructuralOp) error {
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}

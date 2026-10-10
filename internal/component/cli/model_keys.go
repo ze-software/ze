@@ -685,16 +685,7 @@ func (m Model) finishPasteMode() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Apply content based on location and action
-	var result commandResult
-	var err error
-
-	if m.pasteModeLocation == loadLocationAbsolute {
-		result, err = m.applyLoadAbsolute(m.pasteModeAction, content, "terminal")
-	} else {
-		result, err = m.applyLoadRelative(m.pasteModeAction, content, "terminal")
-	}
-
+	result, err := m.applyLoad(m.pasteModeLocation, m.pasteModeAction, content, "terminal")
 	if err != nil {
 		m.err = err
 		return m, nil

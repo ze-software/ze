@@ -253,7 +253,7 @@ func TestModelLoadFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load the file
-	result, err := model.cmdLoad([]string{loadPath})
+	result, err := model.cmdLoadNew([]string{"file", "absolute", "replace", loadPath})
 	require.NoError(t, err)
 
 	// Content should be replaced
@@ -307,7 +307,7 @@ func TestModelLoadMerge(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load merge
-	result, err := model.cmdLoadMerge([]string{mergePath})
+	result, err := model.cmdLoadNew([]string{"file", "absolute", "merge", mergePath})
 	require.NoError(t, err)
 
 	// Original content should be preserved
@@ -341,7 +341,7 @@ func TestModelLoadNotFound(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load nonexistent file
-	_, err = model.cmdLoad([]string{"/nonexistent/file.conf"})
+	_, err = model.cmdLoadNew([]string{"file", "absolute", "replace", "/nonexistent/file.conf"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot read", "error should mention cannot read")
 }
@@ -372,7 +372,7 @@ func TestModelLoadRelativePath(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load with relative path (relative to config file)
-	_, err = model.cmdLoad([]string{"load.conf"})
+	_, err = model.cmdLoadNew([]string{"file", "absolute", "replace", "load.conf"})
 	require.NoError(t, err)
 
 	assert.Contains(t, ed.WorkingContent(), "9.9.9.9", "content should be loaded")
@@ -906,7 +906,7 @@ peer peer1 {
 
 // TestLoadFileRelativeMergeSingleContext verifies relative merge works with single-element context.
 //
-// VALIDATES: Single-element contextPath (e.g., ["bgp"]) doesn't panic in mergeAtContext.
+// VALIDATES: Single-element contextPath (e.g., ["bgp"]) doesn't panic in a relative merge.
 // PREVENTS: Index out of bounds when contextPath has only 1 element.
 func TestLoadFileRelativeMergeSingleContext(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -918,7 +918,11 @@ func TestLoadFileRelativeMergeSingleContext(t *testing.T) {
 }`
 	// Content to merge into the bgp block
 	mergeContent := `session { asn { local 65000; } }
-description "merged content"`
+peer peer9 { connection { remote { ip 9.9.9.9; } } }`
+	// A key the bgp node does not hold; the text merge this test once drove
+	// pasted it in silently, and the schema parse refuses it by name.
+	unknownPath := filepath.Join(tmpDir, "unknown.conf")
+	require.NoError(t, os.WriteFile(unknownPath, []byte(`description "merged content"`), 0o600))
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -940,7 +944,7 @@ description "merged content"`
 	// Verify we have single-element context
 	assert.Equal(t, []string{"bgp"}, model.ContextPath(), "should have single-element context")
 
-	// Load relative merge - exercises mergeAtContext with single-element path
+	// Load relative merge - exercises the context lookup with a single-element path
 	result, err := model.dispatchCommand("load file relative merge " + mergePath)
 	require.NoError(t, err, "should not panic with single-element context")
 
@@ -949,7 +953,11 @@ description "merged content"`
 
 	// Verify NEW content merged
 	assert.Contains(t, ed.WorkingContent(), "session", "merged session present")
-	assert.Contains(t, ed.WorkingContent(), "merged content", "merged description present")
+	assert.Contains(t, ed.WorkingContent(), "peer9", "merged peer present")
+
+	_, err = model.dispatchCommand("load file relative merge " + unknownPath)
+	require.Error(t, err, "a key the context does not hold is refused")
+	assert.Contains(t, err.Error(), "unknown keyword: description")
 
 	// Verify STRUCTURE: merged content is INSIDE the bgp block (before final brace)
 	content := ed.WorkingContent()

@@ -25,7 +25,6 @@ var (
 	errSaveNotAllowedWithActiveSession = errors.New("Save() not allowed with active session; use CommitSession()")
 	errNoSessionSet                    = errors.New("no session set")
 	errSessionEntryHasNoPath           = errors.New("commit apply: session entry has no path")
-	errLoadNotSupportedInSessionMode   = errors.New("load not supported in session mode")
 )
 
 // saveEditState saves the current working content to the .edit file.
@@ -58,22 +57,6 @@ func (e *Editor) deleteEditFileGuard(guard storage.WriteGuard) {
 	var tb textbuf.Buffer
 	editPath := tb.Str(e.originalPath).Str(".edit").String()
 	guard.Remove(editPath) //nolint:errcheck // Best effort; ignore error if it doesn't exist
-}
-
-// setWorkingContent sets the working content and parses it into the tree.
-// If parsing fails, falls back to raw text mode (treeValid = false).
-func (e *Editor) setWorkingContent(content string) {
-	e.workingContent = content
-	if e.schema != nil {
-		parser := config.NewParser(e.schema)
-		tree, err := parser.Parse(content)
-		if err == nil {
-			e.tree = tree
-			e.treeValid = true
-		} else {
-			e.treeValid = false
-		}
-	}
 }
 
 // walkOrCreate navigates the tree, creating containers along the way.
@@ -524,7 +507,7 @@ func (e *Editor) DeleteListEntry(path []string, listName, key string) error {
 // writeThroughDeleteListEntry records a list-entry deletion as a structural op
 // in the per-user change file and removes the entry from the in-memory tree.
 func (e *Editor) writeThroughDeleteListEntry(parentPath []string, listName, key string) error {
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
@@ -608,7 +591,7 @@ func (e *Editor) DeleteList(path []string, name string) error {
 // as a structural op in the per-user change file and removes the child from
 // the in-memory tree.
 func (e *Editor) writeThroughDeleteNamed(parentPath []string, name string, opType config.StructuralOpType, remove func(*config.Tree, string)) error {
-	guard, err := e.store.AcquireLock(e.originalPath)
+	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}

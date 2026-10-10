@@ -9,7 +9,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/config/secret"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -48,8 +50,34 @@ func (p *Parser) warn(line int, format string, args ...any) {
 	p.warnings = append(p.warnings, b.Reset().Str("line ").Int(int64(line)).Str(": ").Str(msg).String())
 }
 
+// ParseAt parses input as the body of the node contextPath names, so a
+// fragment loaded at an editor context ("load terminal relative" at bgp peer
+// peer1) is checked against that node's children. The answer is rooted AT the
+// context. An empty contextPath is Parse.
+func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
+	if len(contextPath) == 0 {
+		return p.Parse(input)
+	}
+	if p.schema.LookupTokenPath(contextPath) == nil {
+		var b textbuf.Buffer
+		return nil, errors.New(b.Str("unknown context path: ").Join(contextPath, " ").String())
+	}
+	p.tok = newTokenizer(input)
+	p.warnings = nil
+	context := slices.Clip(slices.Clone(contextPath))
+	return p.parseBody("unknown keyword", func(name string) Node {
+		return p.schema.LookupTokenPath(append(context, name))
+	})
+}
+
 // parseRoot parses the top level of the config.
 func (p *Parser) parseRoot() (*Tree, error) {
+	return p.parseBody("unknown top-level keyword", p.schema.Get)
+}
+
+// parseBody parses statements until EOF, resolving each keyword through
+// lookup: the schema root for a whole file, a context node for ParseAt.
+func (p *Parser) parseBody(unknown string, lookup func(name string) Node) (*Tree, error) {
 	tree := NewTree()
 
 	for {
@@ -80,9 +108,9 @@ func (p *Parser) parseRoot() (*Tree, error) {
 			p.tok.next()
 		}
 
-		node := p.schema.Get(name)
+		node := lookup(name)
 		if node == nil {
-			return nil, p.errorf(tok, "unknown top-level keyword: %s", name)
+			return nil, p.errorf(tok, "%s: %s", unknown, name)
 		}
 
 		if markInactive {
