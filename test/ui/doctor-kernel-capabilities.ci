@@ -1,0 +1,31 @@
+# Test: ze doctor kernel-capabilities --json answers for every enrolled capability
+# Spec: plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md AC-1
+# VALIDATES: the mode probes every enrolment with the configuration ignored (no
+# config is given, yet the l2tp and pppoe rows are there), answers one JSON row
+# per capability with subsystem, CONFIG_ symbol, state and reason, and exits 1
+# when any row is not present. A config path beside the keyword is refused.
+# PREVENTS: a Docker-host check that reads a kernel as ready when a feature Ze
+# can use is missing, because the configuration in hand did not ask for it.
+#
+# l2tp is FORCED absent so the not-ready answer is reached on a healthy host; the
+# enrolments are Linux-only, so off Linux the build enrolls nothing.
+option=needs-linux
+
+option=env:var=ze.test.kernelcap.force:value=l2tp=absent,pppoe=present
+
+cmd=foreground:seq=1:exec=ze doctor --json kernel-capabilities
+expect=exit:code=1
+expect=stdout:contains="ready": false
+expect=stdout:contains="subsystem": "l2tp"
+expect=stdout:contains="kernel": "CONFIG_L2TP"
+expect=stdout:contains="state": "absent"
+expect=stdout:contains=ze.test.kernelcap.force
+expect=stdout:contains="subsystem": "pppoe"
+expect=stdout:contains="subsystem": "ipsec"
+
+tmpfs=empty.conf:terminator=EOF_CONF
+EOF_CONF
+
+cmd=foreground:seq=2:exec=ze doctor kernel-capabilities empty.conf
+expect=exit:code=1
+expect=stderr:contains=kernel-capabilities takes no config file

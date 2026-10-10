@@ -13,7 +13,14 @@ Add `--json` for machine-readable output with stable diagnostic codes.
 ze doctor
 ze doctor --json
 ze doctor --json /path/to/config.conf
+ze doctor --json kernel-capabilities
 ```
+
+`ze doctor kernel-capabilities` asks a different question: it probes every
+kernel feature Ze enrolls, whatever the configuration uses, prints one row per
+feature (subsystem, `CONFIG_` symbol, state, reason) and exits 0 only when every
+row is `present`. It is how a host is checked before it runs Ze's Docker labs.
+<!-- source: internal/component/doctor/kernel_capabilities.go -- writeKernelCapabilities -->
 
 Each check produces a diagnostic with a code (e.g., `doctor-config-reference`),
 severity (`error` or `warning`), and message. Use `ze explain <code>` for

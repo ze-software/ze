@@ -114,9 +114,15 @@ feature, whatever the configuration uses. It probes each enrolment with `InUse`
 ignored and returns one `Row` per subsystem (subsystem, kernel symbol, state,
 reason), and a probe that gave no verdict reads `unknown`. A host that runs Ze's
 Docker labs must answer it with every row present
-(`plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md`).
+(`plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md`). The operator
+reaches it as `ze doctor [--json] kernel-capabilities`, which takes no config
+file, prints the rows (as `{"ready":...,"capabilities":[...]}` under `--json`)
+and exits 0 only when at least one capability is enrolled and every row is
+`present`. An `unknown` row is not a pass, and neither is an empty enrolment:
+the owners enroll on Linux only, so off Linux the mode answers not ready.
 
 <!-- source: internal/component/kernelcap/kernelcap.go -- ProbeAll, Row -->
+<!-- source: internal/component/doctor/kernel_capabilities.go -- writeKernelCapabilities -->
 
 `MustRegister` registers the doctor check too, so one call from the owner puts
 the capability on all four surfaces. A second registration would be a second

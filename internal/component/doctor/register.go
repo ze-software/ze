@@ -12,7 +12,7 @@ func init() {
 		ShortHelp: "Check if this box is ready to run Ze",
 		Mode:      "offline",
 		Section:   registry.SectionSystem,
-		Subs:      "[--json] [<config-file>]",
+		Subs:      "[--json] [kernel-capabilities | <config-file>]",
 	})
 	registry.MustRegisterLocalMeta("doctor", Run, registry.Meta{
 		ShortHelp: "Check that this system is ready to run Ze.",

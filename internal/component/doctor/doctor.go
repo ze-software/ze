@@ -36,11 +36,14 @@ import (
 func Run(args []string) int {
 	jsonOutput := false
 	var configPath string
+	kernelMode := false
 
 	for _, arg := range args {
 		switch arg {
 		case "--json":
 			jsonOutput = true
+		case kernelCapabilitiesKeyword:
+			kernelMode = true
 		case "help", "-h", "--help":
 			usage()
 			return 0
@@ -52,6 +55,19 @@ func Run(args []string) int {
 			}
 			configPath = arg
 		}
+	}
+
+	// The kernel-capabilities mode asks about the kernel, not a configuration,
+	// so a config path beside it is a contradiction rather than ignored input.
+	if kernelMode {
+		if configPath != "" {
+			var msg textbuf.Buffer
+			msg.Str("error: ").Str(kernelCapabilitiesKeyword).Str(" takes no config file: ").Str(configPath).Byte('\n')
+			os.Stderr.WriteString(msg.String()) //nolint:errcheck // the exit code below carries the failure; a stderr write error has no other channel
+			usage()
+			return 1
+		}
+		return runKernelCapabilities(jsonOutput)
 	}
 
 	diags := runChecks(configPath)
@@ -238,16 +254,21 @@ func usage() {
 	p := helpfmt.Page{
 		Command:   "ze doctor",
 		ShortHelp: "Check system readiness for running Ze",
-		Usage:     []string{"ze doctor [--json] [<config-file>]"},
+		Usage: []string{
+			"ze doctor [--json] [<config-file>]",
+			"ze doctor [--json] kernel-capabilities",
+		},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--json", Desc: "Output structured JSON diagnostics"},
+				{Name: "kernel-capabilities", Desc: "Probe every kernel feature Ze enrolls, whatever the configuration uses; exit 0 only when all are present"},
 			}},
 		},
 		Examples: []string{
 			"ze doctor",
 			"ze doctor --json",
 			"ze doctor --json /etc/ze/ze.conf",
+			"ze doctor --json kernel-capabilities",
 		},
 	}
 	p.WriteErr()
