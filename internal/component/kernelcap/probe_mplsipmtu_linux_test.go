@@ -179,15 +179,15 @@ func TestMPLSIPMTUThrowawayNamespaceSizesTheLabelSpace(t *testing.T) {
 // /proc/sys/net) read as a bare unknown that names no policy and no fix, and a
 // missing capability blamed on a policy.
 func TestMPLSIPMTUPolicyDenialIsDenied(t *testing.T) {
-	const confined = "AppArmor profile docker-default (enforce)"
+	confined := confinement{module: securityModuleAppArmor, label: "docker-default (enforce)"}
 	for name, tc := range map[string]struct {
 		remountErr, writeErr error
-		policy               string
+		policy               confinement
 		state                State
 	}{
 		"mount denied under a profile":  {unix.EACCES, nil, confined, StateDenied},
 		"write denied under a profile":  {nil, unix.EACCES, confined, StateDenied},
-		"mount EACCES while unconfined": {unix.EACCES, nil, "", StateUnknown},
+		"mount EACCES while unconfined": {unix.EACCES, nil, confinement{}, StateUnknown},
 		"mount EPERM under a profile":   {unix.EPERM, nil, confined, StateUnknown},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -198,7 +198,7 @@ func TestMPLSIPMTUPolicyDenialIsDenied(t *testing.T) {
 			})
 			writeFile = func(string, []byte, fs.FileMode) error { return tc.writeErr }
 			mplsProbeWritableSysctl = func() error { return tc.remountErr }
-			confiningPolicy = func() string { return tc.policy }
+			confiningPolicy = func() confinement { return tc.policy }
 
 			result := askMPLSIPMTUInThrowawayNamespace()
 			if result.State != tc.state {
@@ -210,7 +210,7 @@ func TestMPLSIPMTUPolicyDenialIsDenied(t *testing.T) {
 			if tc.state != StateDenied {
 				return
 			}
-			for _, want := range []string{confined, ProbeAppArmorProfileName, "permission denied"} {
+			for _, want := range []string{"AppArmor profile docker-default (enforce)", ProbeAppArmorProfileName, "permission denied"} {
 				if !strings.Contains(result.Reason.Error(), want) {
 					t.Errorf("the reason does not name %q: %v", want, result.Reason)
 				}
@@ -219,5 +219,50 @@ func TestMPLSIPMTUPolicyDenialIsDenied(t *testing.T) {
 				t.Errorf("the reason does not wrap EACCES: %v", result.Reason)
 			}
 		})
+	}
+}
+
+// VALIDATES: review round 2, note 4. An EACCES under SELinux reads denied and
+// names the SELinux context, and never names Ze's AppArmor profile as the
+// grant, because no AppArmor policy is in play.
+// PREVENTS: an operator on an SELinux host sent to load an AppArmor profile.
+func TestMPLSIPMTUSELinuxDenialNamesSELinux(t *testing.T) {
+	withMPLSIPMTUProbe(t, "0\n", nil, unix.ENOENT, unix.ENOENT)
+	originalWrite, originalRemount, originalPolicy := writeFile, mplsProbeWritableSysctl, confiningPolicy
+	t.Cleanup(func() {
+		writeFile, mplsProbeWritableSysctl, confiningPolicy = originalWrite, originalRemount, originalPolicy
+	})
+	writeFile = func(string, []byte, fs.FileMode) error { return unix.EACCES }
+	mplsProbeWritableSysctl = func() error { return nil }
+	context := "system_u:system_r:container_t:s0:c1,c2"
+	confiningPolicy = func() confinement { return classifyLabel(context) }
+
+	result := askMPLSIPMTUInThrowawayNamespace()
+	if result.State != StateDenied {
+		t.Fatalf("got %v (%v), want denied", result.State, result.Reason)
+	}
+	reason := result.Reason.Error()
+	if !strings.Contains(reason, "SELinux context "+context) {
+		t.Errorf("the reason does not name the SELinux context: %v", reason)
+	}
+	if strings.Contains(reason, ProbeAppArmorProfileName) {
+		t.Errorf("the reason names the AppArmor profile on an SELinux host: %v", reason)
+	}
+}
+
+// VALIDATES: the LSM-neutral label is attributed to the module whose shape it
+// has: AppArmor's `name (mode)`, SELinux's `user:role:type:level`, and any
+// other label to no named module.
+func TestClassifyLabel(t *testing.T) {
+	for label, want := range map[string]securityModule{
+		"docker-default (enforce)":                  securityModuleAppArmor,
+		"ze-kernel-probe (complain)":                securityModuleAppArmor,
+		"system_u:system_r:container_t:s0:c1,c2":    securityModuleSELinux,
+		"unconfined_u:unconfined_r:unconfined_t:s0": securityModuleSELinux,
+		"_": securityModuleOther,
+	} {
+		if got := classifyLabel(label); got.module != want || got.label != label {
+			t.Errorf("classifyLabel(%q) = %+v, want module %v", label, got, want)
+		}
 	}
 }

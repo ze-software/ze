@@ -21,23 +21,69 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// confiningPolicy names the security policy confining this process, or answers
-// empty when none does. A var so a unit test names one.
+// securityModule is the Linux security module a confining label belongs to.
+type securityModule uint8
+
+const (
+	securityModuleUnspecified securityModule = iota
+	securityModuleAppArmor
+	securityModuleSELinux
+	// securityModuleOther is a label whose module the probe cannot name.
+	securityModuleOther
+)
+
+// confinement is the security policy confining this process. The zero value
+// means no policy is known to confine it.
+type confinement struct {
+	module securityModule
+	label  string
+}
+
+// String names the confinement for an operator: the module and its label.
+func (c confinement) String() string {
+	switch c.module {
+	case securityModuleAppArmor:
+		return "AppArmor profile " + c.label
+	case securityModuleSELinux:
+		return "SELinux context " + c.label
+	case securityModuleOther:
+		return "security label " + c.label
+	case securityModuleUnspecified:
+		return "no confining policy"
+	}
+	panic("BUG: a confinement with an unnamed securityModule")
+}
+
+// confiningPolicy answers the security policy confining this process, or the
+// zero confinement when none does. A var so a unit test names one.
 var confiningPolicy = readConfiningPolicy
 
 // readConfiningPolicy reads the AppArmor label (/proc/self/attr/apparmor/current,
 // Linux 5.8 and later), then the LSM-neutral one (/proc/self/attr/current, which
 // carries an SELinux context or an older kernel's AppArmor label). An unreadable
-// file, an empty label and AppArmor's `unconfined` all answer empty: no policy is
-// known to confine ze, so an EACCES is not blamed on one.
-func readConfiningPolicy() string {
+// file, an empty label and AppArmor's `unconfined` all answer the zero value: no
+// policy is known to confine ze, so an EACCES is not blamed on one.
+func readConfiningPolicy() confinement {
 	if label := readLabel(ProcPath("self", "attr", "apparmor", "current")); label != "" {
-		return "AppArmor profile " + label
+		return confinement{module: securityModuleAppArmor, label: label}
 	}
 	if label := readLabel(ProcPath("self", "attr", "current")); label != "" {
-		return "security label " + label
+		return classifyLabel(label)
 	}
-	return ""
+	return confinement{}
+}
+
+// classifyLabel attributes an LSM-neutral label to the module whose shape it
+// has. AppArmor writes `name (mode)`; SELinux writes a context of at least
+// three colon-separated fields, `user:role:type[:level]`.
+func classifyLabel(label string) confinement {
+	if strings.HasSuffix(label, ")") && strings.Contains(label, " (") {
+		return confinement{module: securityModuleAppArmor, label: label}
+	}
+	if strings.Count(label, ":") >= 2 {
+		return confinement{module: securityModuleSELinux, label: label}
+	}
+	return confinement{module: securityModuleOther, label: label}
 }
 
 // readLabel answers one attr file's label, empty when it is unreadable, empty,
@@ -57,15 +103,22 @@ func readLabel(path string) string {
 
 // stepFailed answers the result for a probe step that failed with err: denied
 // when the kernel refused it with EACCES and a policy confines this process,
-// unknown otherwise. A denied reason names the policy and the profile that
-// grants the probe its steps, and wraps err.
+// unknown otherwise. A denied reason names the policy, and under AppArmor the
+// profile that grants the probe its steps, and wraps err.
 func stepFailed(err error) Result {
 	if !errors.Is(err, unix.EACCES) {
 		return Result{State: StateUnknown, Reason: err}
 	}
 	policy := confiningPolicy()
-	if policy == "" {
+	if policy.module == securityModuleUnspecified {
 		return Result{State: StateUnknown, Reason: err}
+	}
+	if policy.module != securityModuleAppArmor {
+		// Ze ships an AppArmor profile only, so a refusal under another module
+		// names the steps to grant in that module's policy, not Ze's profile.
+		return Result{State: StateDenied, Reason: fmt.Errorf("%w; %s refused it; the probe needs a mount of /proc/sys in a private mount namespace"+
+			" and the write to %s, which this host's policy must grant",
+			err, policy, MPLSPlatformLabelsPath())}
 	}
 	return Result{State: StateDenied, Reason: fmt.Errorf("%w; %s refused it; the probe needs a mount of /proc/sys in a private mount namespace"+
 		" and the write to %s, which Ze's AppArmor profile %s grants",

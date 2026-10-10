@@ -119,16 +119,20 @@ A security policy confining ze can refuse those steps. Docker's
 mount namespace, and `deny @{PROC}/sys/[^k]** w,` refuses the label-space
 write. A step that fails with `EACCES` while `/proc/self/attr/apparmor/current`
 (or `/proc/self/attr/current`) names a label other than `unconfined` reads
-`denied`, not `unknown`: its reason names the label, the step and the grant.
-`EPERM`, a missing capability, stays `unknown`, and so does `EACCES` with no
-confining label. Ze ships the grant as the AppArmor profile `ze-kernel-probe`
+`denied`, not `unknown`: its reason names the module and the label, the step
+and the grant. The module is AppArmor for the AppArmor file and for a
+`name (mode)` label, SELinux for a `user:role:type` context, and unnamed
+otherwise. `EPERM`, a missing capability, stays `unknown`, and so does `EACCES`
+with no confining label. Ze ships the grant for AppArmor only, so under any
+other module the reason names the steps the host's policy must grant and no
+Ze profile. The AppArmor grant is the profile `ze-kernel-probe`
 (`kernelcap.ProbeAppArmorProfile`): docker-default with `deny mount,` replaced
 by exactly the three mounts the probe makes and the `/proc/sys` write deny
 replaced by a chain that leaves only `/proc/sys/net/mpls/platform_labels`
 writable. On a Docker host `./le setup docker-kernel apparmor` loads it
 (`docs/architecture/testing/interop.md`, "The Docker host kernel check").
 
-<!-- source: internal/component/kernelcap/policy_linux.go -- stepFailed, readConfiningPolicy -->
+<!-- source: internal/component/kernelcap/policy_linux.go -- stepFailed, readConfiningPolicy, classifyLabel -->
 <!-- source: internal/component/kernelcap/apparmor.go -- ProbeAppArmorProfile -->
 
 This is the `ze doctor` tier of the table above, not a fourth one. The verdict is
