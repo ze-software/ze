@@ -44,7 +44,7 @@ func TestPPPoELabPeersRunWithoutPrivilege(t *testing.T) {
 		}
 		for _, peer := range plan.Peers {
 			want := grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
-			for _, problem := range grantcheck.Problems(grantcheck.Parse(peer.Capabilities, peer.Arguments), want) {
+			for _, problem := range grantcheck.Problems(grantcheck.ParsePeer(peer, grantcheck.StagedRoots(t)...), want) {
 				t.Errorf("%s: peer %s %s", source.Name, peer.Name, problem)
 			}
 			for _, mount := range peer.Mounts {

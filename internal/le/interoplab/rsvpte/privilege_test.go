@@ -213,9 +213,10 @@ func TestRSVPTELabPeersRunWithoutPrivilege(t *testing.T) {
 				want = grantcheck.Grants{
 					Capabilities:    []string{"NET_ADMIN"},
 					SecurityOptions: grantcheck.Parse(nil, interoplab.NetSysctlWriteArguments()).SecurityOptions,
+					AppArmorProfile: interoplab.NetSysctlAppArmorProfileName,
 				}
 			}
-			for _, problem := range grantcheck.Problems(grantcheck.Parse(peer.Capabilities, peer.Arguments), want) {
+			for _, problem := range grantcheck.Problems(grantcheck.ParsePeer(peer, grantcheck.StagedRoots(t)...), want) {
 				t.Errorf("%s: peer %s %s", source.Name, peer.Name, problem)
 			}
 			if peer.Image != imageZe {
@@ -241,16 +242,17 @@ func TestRSVPTELabPeersRunWithoutPrivilege(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-5 for the preflight. The probe runs with no grant, mounts no
-// module tree and loads no module; a host without MPLS routing is refused with
+// VALIDATES: AC-5 for the preflight. The probe runs with no grant of any kind
+// (grantcheck's exact empty set), mounts no module tree and loads no module; a host without MPLS routing is refused with
 // the host command that loads it on a line of its own.
 // PREVENTS: the preflight passing because it loaded mpls_router itself.
 func TestRSVPTEPreflightRunsWithoutPrivilege(t *testing.T) {
 	container := mplsPreflightContainer("test")
-	for _, argument := range container.Arguments {
-		if argument == "--privileged" || argument == "--cap-add" || strings.Contains(argument, "/lib/modules") {
-			t.Errorf("preflight holds a grant or the module tree: %v", container.Arguments)
-		}
+	// Every privilege-bearing option counts, not only --privileged and
+	// --cap-add: a volume (the module tree), seccomp=unconfined, a host
+	// namespace or the host network each fail the exact empty set.
+	for _, problem := range grantcheck.Problems(grantcheck.Parse(nil, container.Arguments), grantcheck.Grants{}) {
+		t.Errorf("preflight %s: %v", problem, container.Arguments)
 	}
 	script := strings.Join(container.Command, " ")
 	for _, banned := range []string{"modprobe", "kmod"} {

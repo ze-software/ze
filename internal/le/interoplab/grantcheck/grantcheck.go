@@ -9,10 +9,16 @@
 package grantcheck
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"testing"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // Grants is every privilege-bearing option of one container, each list
@@ -31,7 +37,21 @@ type Grants struct {
 	// HostNamespaces are the --pid, --ipc, --uts, --userns and --cgroupns
 	// values, each written as flag=value.
 	HostNamespaces []string
-	// Privileged is set by --privileged.
+	// Networks are the --network and --net values. A lab peer's own network
+	// is chosen by the lab outside its arguments, so any value here (host
+	// above all) is a grant.
+	Networks []string
+	// DeviceCgroupRules are the --device-cgroup-rule values: each lets the
+	// container open device nodes no --device names.
+	DeviceCgroupRules []string
+	// Mounts are the -v, --volume and --mount values, plus every mount of a
+	// lab peer that is writable or whose source lies outside the directories
+	// the lab stages its files in (ParsePeer).
+	Mounts []string
+	// AppArmorProfile is the registered Ze profile a lab peer runs under
+	// (interoplab.PeerConfig.AppArmorProfile); empty is docker-default.
+	AppArmorProfile string
+	// Privileged is set by --privileged in any spelling Docker reads as true.
 	Privileged bool
 }
 
@@ -47,6 +67,80 @@ var valueFlags = map[string]func(*Grants, string){
 	"--uts":          func(g *Grants, v string) { g.HostNamespaces = append(g.HostNamespaces, "--uts="+v) },
 	"--userns":       func(g *Grants, v string) { g.HostNamespaces = append(g.HostNamespaces, "--userns="+v) },
 	"--cgroupns":     func(g *Grants, v string) { g.HostNamespaces = append(g.HostNamespaces, "--cgroupns="+v) },
+	"--network":      func(g *Grants, v string) { g.Networks = append(g.Networks, v) },
+	"--net":          func(g *Grants, v string) { g.Networks = append(g.Networks, v) },
+	"--device-cgroup-rule": func(g *Grants, v string) {
+		g.DeviceCgroupRules = append(g.DeviceCgroupRules, v)
+	},
+	"-v":       func(g *Grants, v string) { g.Mounts = append(g.Mounts, v) },
+	"--volume": func(g *Grants, v string) { g.Mounts = append(g.Mounts, v) },
+	"--mount":  func(g *Grants, v string) { g.Mounts = append(g.Mounts, v) },
+}
+
+// ParsePeer answers the grants of one lab peer: its argv and declared
+// capabilities (Parse), its AppArmor profile, and each of its mounts that
+// is a grant. A read-only mount whose source lies strictly inside one of
+// stagedRoots is the lab handing the daemon its own config file and is not
+// a grant; a writable mount, or one from anywhere else (/, the Docker
+// socket, /lib/modules), is recorded as source:target[:ro].
+func ParsePeer(peer interoplab.PeerConfig, stagedRoots ...string) Grants {
+	g := Parse(peer.Capabilities, peer.Arguments)
+	g.AppArmorProfile = peer.AppArmorProfile
+	for _, mount := range peer.Mounts {
+		if mount.ReadOnly && stagedInside(mount.Source, stagedRoots) {
+			continue
+		}
+		value := mount.Source + ":" + mount.Target
+		if mount.ReadOnly {
+			value += ":ro"
+		}
+		g.Mounts = append(g.Mounts, value)
+	}
+	slices.Sort(g.Mounts)
+	return g
+}
+
+// StagedRoots answers the directories a lab stages its peers' files in: the
+// checkout (test/interop-*, tmp/ rendered configs) and the system temporary
+// directory. It is the stagedRoots a privilege test passes to ParsePeer.
+func StagedRoots(tb testing.TB) []string {
+	tb.Helper()
+	root, err := lepath.Root()
+	if err != nil {
+		tb.Fatalf("resolve the checkout the lab stages files in: %v", err)
+	}
+	return []string{root, os.TempDir()}
+}
+
+// stagedInside answers whether source lies strictly below one of roots. The
+// root itself is not inside it, so mounting the whole checkout is a grant.
+func stagedInside(source string, roots []string) bool {
+	clean := filepath.Clean(source)
+	for _, root := range roots {
+		relative, err := filepath.Rel(filepath.Clean(root), clean)
+		if err != nil {
+			continue
+		}
+		if relative == "." {
+			continue
+		}
+		if relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// privilegedValue answers whether a --privileged=<value> spelling grants
+// privilege. Docker reads the value as a boolean; a value it would refuse is
+// reported as privileged, so a typo never hides the flag.
+func privilegedValue(value string) bool {
+	granted, err := strconv.ParseBool(value)
+	if err != nil {
+		return true
+	}
+	return granted
 }
 
 // Parse answers the grants in argv, plus capabilities a lab peer declares
@@ -56,11 +150,13 @@ func Parse(capabilities, argv []string) Grants {
 	g := Grants{Capabilities: slices.Clone(capabilities)}
 	for i := 0; i < len(argv); i++ {
 		argument := argv[i]
-		if argument == "--privileged" || argument == "--privileged=true" {
-			g.Privileged = true
+		flag, value, joined := strings.Cut(argument, "=")
+		if flag == "--privileged" {
+			if !joined || privilegedValue(value) {
+				g.Privileged = true
+			}
 			continue
 		}
-		flag, value, joined := strings.Cut(argument, "=")
 		add, ok := valueFlags[flag]
 		if !ok {
 			continue
@@ -74,7 +170,7 @@ func Parse(capabilities, argv []string) Grants {
 			add(&g, argv[i])
 		}
 	}
-	for _, list := range []*[]string{&g.Capabilities, &g.Devices, &g.SecurityOptions, &g.Sysctls, &g.HostNamespaces} {
+	for _, list := range []*[]string{&g.Capabilities, &g.Devices, &g.SecurityOptions, &g.Sysctls, &g.HostNamespaces, &g.Networks, &g.DeviceCgroupRules, &g.Mounts} {
 		slices.Sort(*list)
 	}
 	return g
@@ -99,6 +195,12 @@ func Problems(got, want Grants) []string {
 	compare("security options", got.SecurityOptions, want.SecurityOptions)
 	compare("sysctls", got.Sysctls, want.Sysctls)
 	compare("host namespaces", got.HostNamespaces, want.HostNamespaces)
+	compare("networks", got.Networks, want.Networks)
+	compare("device cgroup rules", got.DeviceCgroupRules, want.DeviceCgroupRules)
+	compare("mounts", got.Mounts, want.Mounts)
+	if got.AppArmorProfile != want.AppArmorProfile {
+		problems = append(problems, "AppArmor profile = \""+got.AppArmorProfile+"\", want \""+want.AppArmorProfile+"\"")
+	}
 	if got.Privileged != want.Privileged {
 		if got.Privileged {
 			problems = append(problems, "runs --privileged")

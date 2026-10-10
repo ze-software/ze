@@ -20,55 +20,59 @@ import (
 
 type scenarioChecker func(context.Context, *scenarioLab) error
 
-// peerSysctlWriters names the scenarios whose checker writes strongSwan's
-// sysctls while the scenario runs (dropFragmentsAtPeer). Only their strongSwan
-// gets /proc/sys writable, under the generic lab profile.
-var peerSysctlWriters = map[string]bool{
-	"ike-padded-probe-strongswan": true,
+// scenarioCheck is one scenario's typed checker and what it does to the lab
+// beyond reading it.
+type scenarioCheck struct {
+	run scenarioChecker
+	// writesPeerSysctl marks a checker that writes strongSwan's sysctls while
+	// the scenario runs (dropFragmentsAtPeer). Only that scenario's strongSwan
+	// gets /proc/sys writable, under the generic net sysctl profile; every
+	// other strongSwan keeps Docker's read-only /proc/sys.
+	writesPeerSysctl bool
 }
 
-var scenarioCheckers = map[string]scenarioChecker{
-	"child-rekey":                          checkChildRekey,
-	"child-rekey-narrowing":                checkChildRekeyNarrowing,
-	"child-rekey-refused-keeps-the-sa":     checkChildRekeyRefusedKeepsTheSA,
-	"childless-ike-sa-ze-initiator":        checkChildlessIKESAZeInitiator,
-	"childless-ike-sa-ze-responder":        checkChildlessIKESAZeResponder,
-	"clear-reestablish":                    checkClearReestablish,
-	"cookie-challenge":                     checkCookieChallenge,
-	"dataplane-readback":                   checkDataplaneReadback,
-	"delete-while-window-held":             checkDeleteWhileWindowHeld,
-	"eap-mschapv2":                         checkEAPMSCHAPv2,
-	"eap-nak-method-negotiation":           checkEAPNakMethodNegotiation,
-	"eap-tls":                              checkEAPTLS,
-	"eap-tls13":                            checkEAPTLS13,
-	"esn-both-offered":                     checkESNBothOffered,
-	"esn-extended-only-refused":            checkESNExtendedOnlyRefused,
-	"esp-form-change":                      checkESPFormChange,
-	"ike-aes-ccm16":                        checkIKEAESCCM16,
-	"ike-padded-probe-strongswan":          checkIKEPaddedProbeStrongSwan,
-	"ike-rekey-retries-in-the-named-group": checkIKERekeyRetriesInTheNamedGroup,
-	"initiator-rekey-answer-narrows":       checkInitiatorRekeyAnswerNarrows,
-	"invalid-ke-retry":                     checkInvalidKERetry,
-	"ipsec-bgp-redistribute-frr":           checkIPsecBGPRedistributeFRR,
-	"mobike-initiator":                     checkMOBIKEInitiator,
-	"mobike-responder":                     checkMOBIKEResponder,
-	"mtu-nat-installed-endpoint":           checkMTUNATInstalledEndpoint,
-	"mtu-negotiated-transform":             checkMTUNegotiatedTransform,
-	"mtu-tunnel-sizing-strongswan":         checkMTUTunnelSizingStrongSwan,
-	"natt-transport-inner-checksum":        checkNATTTransportInnerChecksum,
-	"natt-tunnel-inner-checksum":           checkNATTTunnelInnerChecksum,
-	"peer-reload-narrowing":                checkPeerReloadNarrowing,
-	"psk-site-to-site":                     checkPSKSiteToSite,
-	"real-nat-transport-ze-initiator":      checkRealNATTransportZeInitiator,
-	"real-nat-transport-ze-responder":      checkRealNATTransportZeResponder,
-	"real-nat-tunnel-control":              checkRealNATTunnelControl,
-	"responder-accepts-reinit":             checkResponderAcceptsReinit,
-	"responder-eap-mschapv2":               checkResponderEAPMSCHAPv2,
-	"responder-eap-tls13":                  checkResponderEAPTLS13,
-	"responder-eap-tls13-revoked-client":   checkResponderEAPTLS13RevokedClient,
-	"responder-ike-rekey":                  checkResponderIKERekey,
-	"responder-psk":                        checkResponderPSK,
-	"responder-raises-child-rekey":         checkResponderRaisesChildRekey,
+var scenarioCheckers = map[string]scenarioCheck{
+	"child-rekey":                          {run: checkChildRekey},
+	"child-rekey-narrowing":                {run: checkChildRekeyNarrowing},
+	"child-rekey-refused-keeps-the-sa":     {run: checkChildRekeyRefusedKeepsTheSA},
+	"childless-ike-sa-ze-initiator":        {run: checkChildlessIKESAZeInitiator},
+	"childless-ike-sa-ze-responder":        {run: checkChildlessIKESAZeResponder},
+	"clear-reestablish":                    {run: checkClearReestablish},
+	"cookie-challenge":                     {run: checkCookieChallenge},
+	"dataplane-readback":                   {run: checkDataplaneReadback},
+	"delete-while-window-held":             {run: checkDeleteWhileWindowHeld},
+	"eap-mschapv2":                         {run: checkEAPMSCHAPv2},
+	"eap-nak-method-negotiation":           {run: checkEAPNakMethodNegotiation},
+	"eap-tls":                              {run: checkEAPTLS},
+	"eap-tls13":                            {run: checkEAPTLS13},
+	"esn-both-offered":                     {run: checkESNBothOffered},
+	"esn-extended-only-refused":            {run: checkESNExtendedOnlyRefused},
+	"esp-form-change":                      {run: checkESPFormChange},
+	"ike-aes-ccm16":                        {run: checkIKEAESCCM16},
+	"ike-padded-probe-strongswan":          {run: checkIKEPaddedProbeStrongSwan, writesPeerSysctl: true},
+	"ike-rekey-retries-in-the-named-group": {run: checkIKERekeyRetriesInTheNamedGroup},
+	"initiator-rekey-answer-narrows":       {run: checkInitiatorRekeyAnswerNarrows},
+	"invalid-ke-retry":                     {run: checkInvalidKERetry},
+	"ipsec-bgp-redistribute-frr":           {run: checkIPsecBGPRedistributeFRR},
+	"mobike-initiator":                     {run: checkMOBIKEInitiator},
+	"mobike-responder":                     {run: checkMOBIKEResponder},
+	"mtu-nat-installed-endpoint":           {run: checkMTUNATInstalledEndpoint},
+	"mtu-negotiated-transform":             {run: checkMTUNegotiatedTransform},
+	"mtu-tunnel-sizing-strongswan":         {run: checkMTUTunnelSizingStrongSwan},
+	"natt-transport-inner-checksum":        {run: checkNATTTransportInnerChecksum},
+	"natt-tunnel-inner-checksum":           {run: checkNATTTunnelInnerChecksum},
+	"peer-reload-narrowing":                {run: checkPeerReloadNarrowing},
+	"psk-site-to-site":                     {run: checkPSKSiteToSite},
+	"real-nat-transport-ze-initiator":      {run: checkRealNATTransportZeInitiator},
+	"real-nat-transport-ze-responder":      {run: checkRealNATTransportZeResponder},
+	"real-nat-tunnel-control":              {run: checkRealNATTunnelControl},
+	"responder-accepts-reinit":             {run: checkResponderAcceptsReinit},
+	"responder-eap-mschapv2":               {run: checkResponderEAPMSCHAPv2},
+	"responder-eap-tls13":                  {run: checkResponderEAPTLS13},
+	"responder-eap-tls13-revoked-client":   {run: checkResponderEAPTLS13RevokedClient},
+	"responder-ike-rekey":                  {run: checkResponderIKERekey},
+	"responder-psk":                        {run: checkResponderPSK},
+	"responder-raises-child-rekey":         {run: checkResponderRaisesChildRekey},
 }
 
 // ScenarioNames returns every typed checker name in lexical selection order.

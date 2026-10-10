@@ -272,7 +272,8 @@ func TestEAPTLSNegativeHandshakeIsProvenAndFailClosed(t *testing.T) {
 // PREVENTS: an exchange that never reached EAP passing on an empty kernel, and a
 // checker crediting ze with a Nak strongSwan never decoded.
 func TestEAPNakCheckerRequiresStrongSwanToParseTheNak(t *testing.T) {
-	checker, ok := scenarioCheckers["eap-nak-method-negotiation"]
+	entry, ok := scenarioCheckers["eap-nak-method-negotiation"]
+	checker := entry.run
 	if !ok {
 		t.Fatal("native integration registry does not execute eap-nak-method-negotiation")
 	}
@@ -303,7 +304,8 @@ func TestEAPNakCheckerRequiresStrongSwanToParseTheNak(t *testing.T) {
 // protected-success acceptance, missing-indication refusal, and both XFRM states.
 // PREVENTS: an established IKE SA or a bare EAP-Success standing in for RFC 9190 Section 2.5.
 func TestResponderEAPTLS13CheckerDiscriminatesProtectedSuccess(t *testing.T) {
-	checker, ok := scenarioCheckers["responder-eap-tls13"]
+	entry, ok := scenarioCheckers["responder-eap-tls13"]
+	checker := entry.run
 	if !ok {
 		t.Fatal("native integration registry does not execute responder-eap-tls13")
 	}
@@ -925,7 +927,8 @@ func TestESPFormChangeClaimsThreeDirections(t *testing.T) {
 			t.Fatal("esp-form-change claims Ze's inbound kernel SA, which that scenario refuses by design")
 		}
 	}
-	checker, ok := scenarioCheckers["esp-form-change"]
+	entry, ok := scenarioCheckers["esp-form-change"]
+	checker := entry.run
 	if !ok {
 		t.Fatal("native integration registry does not execute esp-form-change")
 	}

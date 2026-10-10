@@ -152,7 +152,7 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 	needNAT := false
 	for _, source := range sources {
 		state := &scenarioState{}
-		checker := scenarioCheckers[source.Name]
+		checker := scenarioCheckers[source.Name].run
 		source.Checker = func(ctx context.Context, checkContext *interoplab.CheckContext) error {
 			return checker(ctx, newScenarioLab(checkContext, environment.SessionTimeout, state))
 		}
@@ -299,7 +299,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		// Docker's defaults.
 		var swanArguments []string
 		swanProfile := ""
-		if peerSysctlWriters[source.Name] {
+		if scenarioCheckers[source.Name].writesPeerSysctl {
 			swanArguments = interoplab.NetSysctlWriteArguments()
 			swanProfile = interoplab.NetSysctlAppArmorProfileName
 		}

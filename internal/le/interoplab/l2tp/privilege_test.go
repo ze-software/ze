@@ -59,7 +59,7 @@ func TestL2TPLabPeersRunWithoutPrivilege(t *testing.T) {
 			case peerFRR:
 				want = grantcheck.Grants{Capabilities: []string{"NET_ADMIN", "SYS_ADMIN"}}
 			}
-			for _, problem := range grantcheck.Problems(grantcheck.Parse(peer.Capabilities, peer.Arguments), want) {
+			for _, problem := range grantcheck.Problems(grantcheck.ParsePeer(peer, grantcheck.StagedRoots(t)...), want) {
 				t.Errorf("%s: peer %s %s", plan.Source.Name, peer.Name, problem)
 			}
 		}

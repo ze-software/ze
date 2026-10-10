@@ -412,9 +412,12 @@ namespace-wide `net/ipv4/conf/all/rp_filter` and
 `TestVRRPWritesOnlyLabGrantedSysctls` records every write it makes and checks
 the profile grants each. In the IPsec lab the NAT box, strongSwan and ze hold
 `NET_ADMIN`; the NAT box sets its three sysctls through `--sysctl`; strongSwan
-runs under `ze-lab-net-sysctl` only in a scenario named in `peerSysctlWriters`
-(`internal/le/interoplab/ipsec/checkers.go`), whose checker cuts its reassembly
-marks at run time. In the L2TP lab ze and the xl2tpd LAC hold `NET_ADMIN` and
+runs under `ze-lab-net-sysctl` only in a scenario whose `scenarioCheckers`
+entry sets `writesPeerSysctl` (`internal/le/interoplab/ipsec/checkers.go`),
+because its checker cuts strongSwan's reassembly marks at run time;
+`TestOnlyCheckersThatWritePeerSysctlsAreFlagged` reads the source and refuses
+a checker that reaches `dropFragmentsAtPeer` without the flag, or the flag
+without the write. In the L2TP lab ze and the xl2tpd LAC hold `NET_ADMIN` and
 `--device /dev/ppp`, and the preflight probes with the same grants and loads no
 module, so it passes only where the peers can run. The PPPoE lab grants ze,
 accel-ppp and the pppd client the same two, its preflight probes the same way,

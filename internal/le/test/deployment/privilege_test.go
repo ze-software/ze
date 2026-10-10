@@ -21,8 +21,15 @@ import (
 // device, whose absence looks like a protocol failure.
 func TestL2TPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 	run := fixtureL2TP(t)
-	argv := run.containerArgs("ze-l2tp-evidence-1", filepath.Join(run.Tree, "tmp", "evidence", "l2tp-peer-1"))
-	want := grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
+	evidence := filepath.Join(run.Tree, "tmp", "evidence", "l2tp-peer-1")
+	argv := run.containerArgs("ze-l2tp-evidence-1", evidence)
+	// The checkout the proof builds in and its evidence directory are the
+	// only host paths it sees, both writable because the proof writes there.
+	want := grantcheck.Grants{
+		Capabilities: []string{"NET_ADMIN"},
+		Devices:      []string{"/dev/ppp"},
+		Mounts:       []string{run.Tree + ":/src", evidence + ":/run/l2tp"},
+	}
 	for _, problem := range grantcheck.Problems(grantcheck.Parse(nil, argv), want) {
 		t.Errorf("the L2TP proof container %s: %v", problem, argv)
 	}
@@ -38,10 +45,12 @@ func TestL2TPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 // VPP needs, whose absence looks like a ze defect.
 func TestVPPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 	run := fixtureVPPIface(t)
-	argv := run.containerArgs("ze-vpp-iface-1", filepath.Join(run.Tree, "tmp", "evidence", "vpp-iface-1"))
+	evidence := filepath.Join(run.Tree, "tmp", "evidence", "vpp-iface-1")
+	argv := run.containerArgs("ze-vpp-iface-1", evidence)
 	want := grantcheck.Grants{
 		Capabilities: []string{"NET_ADMIN"},
 		Devices:      []string{"/dev/net/tun", "/dev/vhost-net"},
+		Mounts:       []string{run.Tree + ":/src", evidence + ":/run/vpp"},
 	}
 	for _, problem := range grantcheck.Problems(grantcheck.Parse(nil, argv), want) {
 		t.Errorf("the VPP proof container %s: %v", problem, argv)
