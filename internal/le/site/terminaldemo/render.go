@@ -270,6 +270,12 @@ func (e *Engine) runValidation(manifest Manifest, demo Demo) error {
 	})
 }
 
+// containerCommand answers the docker argv one demo step runs in.
+//
+// The container holds NET_ADMIN, NET_RAW and SYS_ADMIN and keeps Docker's
+// default seccomp profile, which admits mount, unshare and setns once
+// SYS_ADMIN is granted. Only a demo whose manifest says privileged runs
+// --privileged.
 func (e *Engine) containerCommand(renderer Renderer, privileged bool, entries ...string) []string {
 	uid := strconv.Itoa(os.Getuid())
 	gid := strconv.Itoa(os.Getgid())
@@ -293,7 +299,6 @@ func (e *Engine) containerCommand(renderer Renderer, privileged bool, entries ..
 		dockerCapAddToken, "NET_ADMIN",
 		dockerCapAddToken, "NET_RAW",
 		dockerCapAddToken, "SYS_ADMIN",
-		"--security-opt", "seccomp=unconfined",
 		dockerEnvironmentToken, uidEnv,
 		dockerEnvironmentToken, gidEnv,
 		dockerEnvironmentToken, "ZE_DEMO_LOCK_HELD=1",

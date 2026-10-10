@@ -302,6 +302,13 @@ func TestRenderAllRunsValidationAndPublishesExactArtifacts(t *testing.T) {
 	assertSubsequence(t, validation, []string{"docker", "run", "--rm", "--platform", "linux/amd64", "--network", "none"})
 	assertSubsequence(t, validation, []string{"--env", "ZE_DEMO_LOCK_HELD=1"})
 	assertSubsequence(t, validation, []string{"fixture-renderer:3", "/src/tmp/terminal-demos/bin/ze-demo", "validate", "term"})
+	// spec-lab-containers-least-privilege AC-10: Docker's default seccomp
+	// profile admits mount, unshare and setns once SYS_ADMIN is granted, so a
+	// demo container keeps the profile and holds the three capabilities.
+	assertSubsequence(t, validation, []string{"--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW", "--cap-add", "SYS_ADMIN"})
+	if slices.Contains(validation, "seccomp=unconfined") {
+		t.Errorf("validation runs with seccomp=unconfined: %v", validation)
+	}
 	if containsPrefix(validation, "ZE_DEMO_RELEASE=") {
 		t.Errorf("validation received render release env: %v", validation)
 	}
