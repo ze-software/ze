@@ -175,13 +175,17 @@ the key holds, then edits each `BuildSources` file and checks it moves.
 The return direction is checked only for those syntactic writes and those
 seams. These host-side channels reach the build with no guard, and a change
 through any of them builds different bytes under an unchanged key (each shown
-by a mutation that left every guard green, review round 4, 2026-10-10):
+by a mutation that left every guard green, review rounds 4 and 5, 2026-10-10
+and 2026-10-11). The table lists what those mutations found; it is not a bound
+on what the guard misses:
 
 | Unguarded channel | Where |
 |-------------------|-------|
 | Arguments the real `runCommand` appends to the `docker` argv | `kernelbuilder/driver.go` |
 | Environment `runWorkerBuild` adds, or inherits from the host through `os.Environ` (`GOFLAGS`, `GOEXPERIMENT`, `GOAMD64`), when it compiles the worker | `kernelbuilder/qemu.go` |
-| A `Request` slice changed through a call rather than an assignment (`slices.Reverse` or `slices.Sort` on `req.Fragments`, `copy` into it) | any host-side file |
+| A `Request` slice changed through an alias or a call rather than an assignment to the field (`f := req.Fragments; f[0], f[1] = f[1], f[0]` in `runDocker`, `slices.Reverse` or `slices.Sort` on `req.Fragments`, `copy` into it) | any host-side file |
+| The host-computed arguments passed to `guestBuildCommand` (`workerRel`, `shares`, or a `req` rewritten at the call): the `sshRun` check matches the callee's name only | `kernelbuilder/qemu.go` |
+| The body of `sshRun`, which can rewrite or extend the command it is given before `ssh` runs it | `kernelbuilder/qemu.go` |
 | The bootstrap commands sent over the QEMU serial console before `sshRun` (network setup, `resolv.conf`, `apk add openssh`) | `kernelbuilder/qemu.go` |
 
 `plan/journal/stale-artifact-reused.md` records them. Until a guard covers

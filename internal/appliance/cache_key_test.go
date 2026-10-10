@@ -156,12 +156,20 @@ func loadKernelBuilder(t *testing.T) *packages.Package {
 // seams, and no further.
 //
 // Known gaps, each a host-side edit that changes the build under an unchanged
-// key with every guard green (round-4 review mutations, 2026-10-10):
+// key with every guard green (round-4 and round-5 review mutations,
+// 2026-10-10 and 2026-10-11). The list is what those mutations found, not a
+// bound on what the guard misses:
 //   - arguments appended inside the real runCommand (driver.go);
 //   - environment added inside runWorkerBuild (qemu.go), or inherited from the
 //     host through os.Environ there (GOFLAGS, GOEXPERIMENT, GOAMD64);
-//   - a Request slice changed through a call rather than an assignment
-//     (slices.Reverse or slices.Sort on req.Fragments, copy into it);
+//   - a Request slice changed through an alias or a call rather than an
+//     assignment to the field (f := req.Fragments; f[0], f[1] = f[1], f[0] in
+//     runDocker; slices.Reverse or slices.Sort on req.Fragments; copy into it);
+//   - the host-computed arguments passed to guestBuildCommand (qemu.go): the
+//     sshRun check matches the callee's name only, so a changed workerRel,
+//     shares or a req rewritten at the call is not seen;
+//   - the body of sshRun (qemu.go), which can rewrite or extend the command it
+//     was given before ssh runs it;
 //   - the bootstrap commands sent over the QEMU serial console before sshRun
 //     (apk add openssh, the network setup, resolv.conf).
 //
