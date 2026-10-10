@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-10",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -7,7 +7,7 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3948-2.1-1": {
-      "note": "Every path that sets an SPI Ze puts in an ESP header is covered both ways. Own SPI: TestRFC3948GeneratedESPSPIIsNeverZero (five scripted zero draws discarded, sixth returned after exactly 6 reads). Peer SPI Ze sends on: initiator IKE_AUTH (TestRFC3948OutboundESPSPIIsNeverZero, SAr2 SPI 0 not established, no ESP state), responder SAi2 (TestResponderRefusesPeerSPIZero / TestResponderUsesPeerSPI), rekey request (TestChildRekeyRequestRefusesPeerSPIZero / UsesPeerSPI) and rekey response (TestChildRekeyResponseRefusesPeerSPIZero / UsesPeerSPI): SPI 0 refused with no Child SA and no ESP state, 0x0a0b0c0d installed as the outbound SPI. Records revert the producers (whole-body, reach); discrimination judged from the exact assertions.",
+      "note": "Re-judged 2026-10-10 against RFC 3948 S2.1 \"The SPI field in the ESP header MUST NOT be a zero value.\" after e2e724cf57 changed TestResponderRefusesPeerSPIZero. Its negative no longer asserts the IKE SA stays down (RFC 7296 S2.21.2 lets it stay up childless); it asserts no first Child SA on the session, an IKE_AUTH response sent, no SA payload in it and a NO_PROPOSAL_CHOSEN refusal. That is still the SPI obligation: the only route to an ESP header carrying the peer's 0 is a Child SA built on it, and the SAi2 edit is the only difference from TestResponderUsesPeerSPI, which pins outbound SPI 0x0a0b0c0d. Removing both refusals (selectAuthChildSA's ChildOutboundSPI==0 and createFirstChildSA's) creates the Child SA and reddens it. Unchanged units: own SPI TestRFC3948GeneratedESPSPIIsNeverZero (five scripted zero draws discarded), initiator SAr2 TestRFC3948OutboundESPSPIIsNeverZero (no establish, no ESP state), rekey request and response refuse 0 with no Child SA and no ESP state and install 0x0a0b0c0d. Records revert the producers (whole-body, reach); discrimination judged from the exact assertions. Caveat: TestGenerateESPSPI (random draws) cannot fail on its own and is redundant.",
       "requirement_sha": "96eb64607ceba544",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "02ddf9e8a20bddfb",
@@ -16,12 +16,12 @@
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero#2": "90be745644c57513",
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero": "90be745644c57513",
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero#2": "90be745644c57513",
-        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero": "a9f7e73ec596693c",
-        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI": "a9f7e73ec596693c",
-        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero": "a9f7e73ec596693c",
-        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseUsesPeerSPI": "a9f7e73ec596693c",
-        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderRefusesPeerSPIZero": "a9f7e73ec596693c",
-        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderUsesPeerSPI": "a9f7e73ec596693c"
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero": "7b5435c4a4fb1730",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI": "7b5435c4a4fb1730",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero": "7b5435c4a4fb1730",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseUsesPeerSPI": "7b5435c4a4fb1730",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderRefusesPeerSPIZero": "7b5435c4a4fb1730",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderUsesPeerSPI": "7b5435c4a4fb1730"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "44bf9768b4b90de3",
@@ -34,7 +34,7 @@
         "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI": "ee1d91c0b6de37a1",
         "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero": "dd1f54d682f2ceb0",
         "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseUsesPeerSPI": "f300456c48620028",
-        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderRefusesPeerSPIZero": "d512cc825c3a173a",
+        "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderRefusesPeerSPIZero": "dcf91727a6ebbb52",
         "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderUsesPeerSPI": "7261b7ebe366493c"
       },
       "verdict": "enforced"

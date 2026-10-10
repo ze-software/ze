@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-05",
+  "audited": "2026-10-10",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -311,13 +311,17 @@
       "verdict": "enforced"
     },
     "RFC7296-2.21.2-2": {
-      "note": "initiator establishes despite piggybacked error notify; AUTHENTICATION_FAILED still kills the SA",
+      "note": "Re-judged 2026-10-10 against RFC 7296 S2.21.2 \"a responder may include all the payloads associated with authentication (IDr, CERT, and AUTH) while sending error notifications for the piggybacked exchanges (FAILED_CP_REQUIRED, NO_PROPOSAL_CHOSEN, and so on), and the initiator MUST NOT fail the authentication because of this.\" New unit TestInitiatorKeepsChildlessIKESA takes a real PSK IKE_AUTH response, removes SAr2/TSi/TSr and adds NO_PROPOSAL_CHOSEN with IDr and AUTH untouched: handleAuthResponse must reach StateEstablished, mark the SA childless, log the refusal and send nothing (no Delete). Its negative control flips one AUTH octet in the same response and requires StateDead, so the outcome is decided by AUTH, not by the notify. TestErrInitiatorSurvivesPiggybackedErrorNotify (unchanged) drives NO_PROPOSAL_CHOSEN, FAILED_CP_REQUIRED and TS_UNACCEPTABLE to established and AUTHENTICATION_FAILED to dead. An initiator that failed on the notify or on the missing SAr2 goes red in both. The negatives are controls, since a MUST NOT on the receiver has no violating input.",
       "requirement_sha": "5e30f24d597070ad",
       "tests": {
-        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify": "4e9aa4949328a3c4",
-        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify#2": "4e9aa4949328a3c4"
+        "internal/component/ike/engine/rfc7296_auth_child_refusal_test.go::TestInitiatorKeepsChildlessIKESA": "ba89e59d4398901b",
+        "internal/component/ike/engine/rfc7296_auth_child_refusal_test.go::TestInitiatorKeepsChildlessIKESA#2": "ba89e59d4398901b",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify": "415b6ac964372bdc",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify#2": "415b6ac964372bdc"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_auth_child_refusal_test.go::TestInitiatorKeepsChildlessIKESA": "771a973e044281fa",
+        "internal/component/ike/engine/rfc7296_auth_child_refusal_test.go::TestInitiatorKeepsChildlessIKESA#2": "771a973e044281fa",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify": "653c8bc742fd22c7",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify#2": "653c8bc742fd22c7"
       },
@@ -712,13 +716,13 @@
       "verdict": "enforced"
     },
     "RFC7296-2.9-1": {
-      "note": "narrowChildSelectors answers a disjoint proposal with TS_UNACCEPTABLE and records no pairs, and accepts an overlapping one narrowed (TestTSUnacceptableIsSentWhenNothingIsAcceptable); the rekey initiator installs an answer inside its proposal and refuses a wider one (TestChildRekeyInitiatorInstallsTheAnsweredSelectors). The two TS-presence units formerly tagged here moved to RFC7296-1.3.3-3 and 1.3.3-4.",
+      "note": "Re-judged 2026-10-10 against RFC 7296 S2.9 \"When the responder chooses a subset of the traffic proposed by the initiator, it narrows the Traffic Selectors to some subset of the initiator's proposal (provided the set does not become the null set).\" The responder-side unit TestTSUnacceptableIsSentWhenNothingIsAcceptable proves the null-set clause (a disjoint proposal draws TS_UNACCEPTABLE and records no pairs) and that an in-policy proposal is accepted with TSi 10.1.0.0/16. It never presents a proposal wider than policy, so no case has the answer differ from the proposal and the narrowing itself is unobserved, and it never asserts NegotiatedTSr: an intersectPair that answered the policy's 10.0.0.0/8 on the TSr half, wider than the proposed 10.2.0.0/16, leaves it green. TestChildRekeyInitiatorInstallsTheAnsweredSelectors is Ze as INITIATOR refusing a wider answer (errTSWidened) and installing the answered pair: a defence against a non-conforming responder, not proof that Ze as responder narrows. Upgrade path: a responder case with a proposal wider than policy on both halves, asserting the exact narrowed TSi and TSr.",
       "requirement_sha": "c05dbf88d2b667b3",
       "tests": {
         "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "0b7e3c55d84c210a",
         "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "0b7e3c55d84c210a",
-        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "24cf973ee458ee3d",
-        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "24cf973ee458ee3d"
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "8d645eb67848cdd7",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "8d645eb67848cdd7"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "9ca0c928a277a969",
@@ -726,7 +730,7 @@
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "799b2ff1ee595ed2",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "799b2ff1ee595ed2"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.1-11": {
       "note": "V bit clear on every built message; set V bit on receipt changes nothing",
