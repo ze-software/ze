@@ -400,6 +400,8 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds this work from the `a
 ## Design Insights
 
 - The KE-based classifier in `handleCreateChildSAOwned` misreads a PFS new-child request as an IKE SA rekey. Today it only bites a request Ze refuses anyway; this spec makes it reachable, so it is fixed here as AC-8.
+- A peer SPI of 0 in IKE_AUTH SAi2: RFC 7296 leaves the notify open. Section 3.10.1 lets NO_PROPOSAL_CHOSEN answer "any case where the offered proposals (including but not limited to SA payload values, USE_TRANSPORT_MODE notify, IPCOMP_SUPPORTED notify) are not acceptable for the responder", and INVALID_SYNTAX answer a message where "some type, length, or value was out of range". Section 2.21.2 names INVALID_SYNTAX among "the only ones to cause the IKE SA to be deleted or not created", so INVALID_SYNTAX would undo the childless IKE SA. Ze keeps NO_PROPOSAL_CHOSEN; nothing changed. The CREATE_CHILD_SA rekey path answers SPI 0 with INVALID_SYNTAX (`errMalformedRequest`), which Section 3.10.1 also permits.
+→ Decision (owner, 2026-10-10, option A): `TestResponderRefusesPeerSPIZero` asserts no Child SA and a NO_PROPOSAL_CHOSEN refusal with no SA payload; the clause that the IKE SA must not establish is dropped, because RFC 4303 Section 2.1 and RFC 3948 Section 2.1 constrain the ESP SPI, not the IKE SA.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

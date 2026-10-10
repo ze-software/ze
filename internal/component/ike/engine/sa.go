@@ -357,12 +357,17 @@ type SA struct {
 	// Negotiated Child SA parameters from IKE_AUTH piggybacked exchange.
 	ChildInboundSPI  uint32 // our ESP SPI included in SAi2
 	ChildOutboundSPI uint32 // responder's ESP SPI from AUTH response SA
-	// ChildRefusal is the error notify an authenticated IKE_AUTH response carried in
-	// place of SAr2, or 0 when the responder accepted the Child SA. handleAuthResponse
-	// (fsm.go) records it and runInitiator acts on it (deleteChildlessIKESA, delete.go).
-	ChildRefusal  uint16
-	NegotiatedTSi *net.IPNet // narrowed initiator TS from AUTH response
-	NegotiatedTSr *net.IPNet // narrowed responder TS from AUTH response
+	// IKEAuthChildless is true when an authenticated IKE_AUTH response carried no SAr2,
+	// so the IKE SA established with no Child SA (RFC 7296 Section 2.21.2).
+	// handleAuthResponse (fsm.go) sets it and runEstablished (established.go) reads it
+	// in place of building the first Child SA.
+	IKEAuthChildless bool
+	// eapChildRefusal is why the Child SA offered on an EAP responder's first IKE_AUTH
+	// cannot be built. The initiator has not authenticated at that point, so the final
+	// IKE_AUTH answers it (selectAuthChildSA, responder.go). Nil when nothing refused.
+	eapChildRefusal error
+	NegotiatedTSi   *net.IPNet // narrowed initiator TS from AUTH response
+	NegotiatedTSr   *net.IPNet // narrowed responder TS from AUTH response
 
 	// NegotiatedPairs is the full narrowed selector set, in TSi/TSr orientation.
 	//

@@ -178,27 +178,43 @@ func TestInitiatorUsesPeerSPI(t *testing.T) {
 //
 // Goal: SAi2's SPI is what the responder sends on. Method: the initiator's real
 // IKE_AUTH request is decrypted, its SAi2 SPI set to 0, and encrypted again with the
-// initiator's keys. handleAuthRequest MUST NOT establish the IKE SA and MUST NOT
-// install a first Child SA.
+// initiator's keys. handleAuthRequest MUST NOT install a first Child SA, and its
+// IKE_AUTH response MUST refuse the Child SA with NO_PROPOSAL_CHOSEN and carry no SA
+// payload. The IKE SA itself is not judged here: RFC 4303 and RFC 3948 constrain the
+// ESP SPI, and RFC 7296 Section 2.21.2 lets the IKE SA stay up without a Child SA.
 //
-// MUTATION: record `outSPI ^ 1` in place of the SAi2 SPI in buildAuthResponse
+// MUTATION: record `outSPI ^ 1` in place of the SAi2 SPI in selectAuthChildSA
 // (responder.go), so a peer 0 becomes 1 and passes both refusals, and this test goes
-// red. Deleting one refusal alone leaves it green: buildAuthResponse and
+// red. Deleting one refusal alone leaves it green: selectAuthChildSA and
 // createFirstChildSA each refuse the 0.
 //
-// RFC requirement: RFC4303-2.1-1 negative -- an IKE_AUTH request whose SAi2 ESP SPI is 0 leaves the responder's IKE SA not established, and the session holds no first Child SA.
-// RFC requirement: RFC3948-2.1-1 negative -- the responder refuses an SAi2 ESP SPI of 0, the SPI its outbound ESP header would carry: its IKE SA is not established and no first Child SA exists.
+// RFC requirement: RFC4303-2.1-1 negative -- an IKE_AUTH request whose SAi2 ESP SPI is 0 leaves the responder's session with no first Child SA, and the IKE_AUTH response carries NO_PROPOSAL_CHOSEN and no SA payload.
+// RFC requirement: RFC3948-2.1-1 negative -- the responder refuses an SAi2 ESP SPI of 0, the SPI its outbound ESP header would carry: no first Child SA exists, and the IKE_AUTH response carries NO_PROPOSAL_CHOSEN and no SA payload.
 func TestResponderRefusesPeerSPIZero(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := peerSPIPreAuth(t)
 	request := reencrypt(t, ini, resp, ini.LastSentMsg, 0)
 
 	ps.handleAuthRequest(resp, parseMsg(t, request), request, nil, nil, log)
-	if resp.State == StateEstablished {
-		t.Fatal("the responder established an IKE SA whose SAi2 carries the reserved ESP SPI 0")
-	}
 	if child := ps.getChildSA(); child != nil {
 		t.Fatalf("the responder installed a Child SA with outbound SPI %#08x", child.OutboundSPI)
+	}
+	if len(resp.LastSentMsg) == 0 {
+		t.Fatal("the responder sent no IKE_AUTH response, so the Child SA refusal never reached the peer")
+	}
+	refused := false
+	for _, pe := range mbDecrypt(t, ini, resp.LastSentMsg) {
+		switch p := pe.Payload.(type) {
+		case *wire.PayloadSA:
+			t.Error("the IKE_AUTH response carries an SA payload for a Child SA on SPI 0")
+		case *wire.PayloadNotify:
+			if p.NotifyMsgType == wire.NotifyNoProposalChosen {
+				refused = true
+			}
+		}
+	}
+	if !refused {
+		t.Error("the IKE_AUTH response carries no NO_PROPOSAL_CHOSEN refusing the Child SA")
 	}
 }
 

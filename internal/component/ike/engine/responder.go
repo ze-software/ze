@@ -674,12 +674,10 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 
 	resp, child, err := ps.buildAuthResponse(sa, msg.Header.MessageID, remoteSAi2, tsi, tsr, false, log)
 	if err != nil {
-		// verifyRemoteAuth already passed, so the initiator authenticated.
-		// This refusal is about the piggybacked Child SA.
-		// RFC 7296 Section 2.21.2 answers it with an error notification, not silence.
-		// Ze still tears the IKE SA down.
-		// Section 2.21.2 gives a MAY to keep it alive with no Child SA.
-		// That needs a responder that can establish an IKE SA with no Child SA.
+		// verifyRemoteAuth already passed, so the initiator authenticated, but no
+		// response could be built at all: a refused piggybacked Child SA is not an
+		// error here (buildChildlessAuthResponse). RFC 7296 Section 2.21.2 answers it
+		// with an error notification, not silence, and the IKE SA ends.
 		log.Warn("ike: build IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
 		ps.respondAuthError(sa, msg.Header.MessageID, notifyForRefusal(err), tr, remote, log)
 		sa.State = StateDead
@@ -949,81 +947,124 @@ func espDHAcceptable(offered []uint16, dh espDHMatch) bool {
 	return slices.Contains(offered, uint16(dhGroupNone))
 }
 
-// buildAuthResponse negotiates and installs the first Child SA and builds the
-// SK-encrypted IKE_AUTH response (IDr, [CERT], AUTH, SAr2, TSi, TSr). When fromEAP
+// buildAuthResponse builds the SK-encrypted IKE_AUTH response of an initiator whose
+// AUTH verified, and installs the first Child SA when one can be built. When fromEAP
 // is true the AUTH is derived from the EAP MSK, otherwise from the configured
 // credential. RFC 7296 Section 1.2, Section 2.17.
+//
+// The authentication half (IDr, [CERT], AUTH) is built first, the Child SA half
+// second. A Child SA that cannot be built does not fail the exchange: the response
+// carries the authentication half and the error notify, and the returned Child SA
+// is nil (buildChildlessAuthResponse). The error return is reserved for a response
+// that could not be built at all, and the caller MUST then end the IKE SA.
 func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.PayloadTS, fromEAP bool, log *slog.Logger) ([]byte, *ChildSA, error) {
-	// SAi2/TS come in the first IKE_AUTH. For a direct (PSK/X.509) exchange they are
-	// passed here; for EAP they were parsed and stored on the SA during the first
-	// IKE_AUTH (startResponderEAP), so the final call passes nil and reuses them.
-	if remoteSAi2 != nil {
-		outSPI, err := espSPIFromSA(remoteSAi2)
-		if err != nil {
-			return nil, nil, err
-		}
-		sa.ChildOutboundSPI = outSPI
-	}
-	if sa.ChildOutboundSPI == 0 {
-		return nil, nil, errors.New("ike auth: no initiator ESP SPI (missing SAi2)")
-	}
-
-	// RFC 7296 Section 2.9: narrow the initiator's proposal to a subset the operator's
-	// policy allows, and record the RESULT. The echoed TS payloads and the installed
-	// Child SA both read that one result, so the wire and the dataplane cannot disagree.
-	//
-	// Before this call the responder recorded the proposal verbatim for the dataplane
-	// while answering with a full wildcard from anyChildTSPayloads, so a peer proposing
-	// anything narrower than 0.0.0.0/0 was told one thing and given another.
-	if tsi != nil && tsr != nil {
-		if err := narrowChildSelectors(sa, tsi, tsr, nil); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	// Select exactly one ESP proposal (narrows sa.ESPGroup); no-op on the EAP final
-	// (already narrowed on the first IKE_AUTH). RFC 7296 Section 2.7.
-	if err := selectResponderESP(sa, remoteSAi2); err != nil {
-		return nil, nil, err
-	}
-
-	// The IKE_AUTH response is a RESPONSE, so SAr2 names one proposal and carries
-	// the number the initiator put on it (RFC 7296 Sections 3.3, 3.3.1).
-	espSPI, saPayload, respTSi, respTSr, err := buildChildSAResponsePayloads(sa)
-	if err != nil {
-		return nil, nil, err
-	}
-	sa.ChildInboundSPI = espSPI
-
-	dp := dataplane.Get()
-	ifID, err := resolveIfID(&sa.PeerCfg)
+	authInner, err := buildAuthIdentityPayloads(sa, fromEAP)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	childInner, ifID, err := selectAuthChildSA(sa, remoteSAi2, tsi, tsr, fromEAP)
+	if err != nil {
+		return buildChildlessAuthResponse(sa, msgID, authInner, err, log)
+	}
+
+	inner := slices.Concat(authInner, childInner, mobikeAuthOffer(sa))
+	resp, err := buildEncryptedMessageEx(sa, inner, msgID, wire.ExchangeIKEAuth, wire.FlagResponse)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ike auth: build response: %w", err)
+	}
+	// Finish every fallible response encoding step before changing shared policy
+	// templates. A parallel handshake may follow a MOBIKE move; preserving an old
+	// selector on rollback would not restore its migrated tunnel endpoints.
+	// The response already names ChildInboundSPI, which the constructor reuses.
+	child, err := createFirstChildSA(sa, sa.ESPGroup, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, ifID, dataplane.Get(), log)
+	if err != nil {
+		// The response above promised a Child SA the dataplane refused, so it is
+		// replaced by the childless answer before anything was sent.
+		return buildChildlessAuthResponse(sa, msgID, authInner, err, log)
+	}
+	return resp, child, nil
+}
+
+// buildAuthIdentityPayloads builds the authentication half of the responder's
+// IKE_AUTH response: IDr, CERT when the peer authenticates with X.509, and AUTH.
+func buildAuthIdentityPayloads(sa *SA, fromEAP bool) ([]wire.PayloadEntry, error) {
 	var authPayload *wire.PayloadAUTH
+	var err error
 	if fromEAP {
 		authPayload, err = computeEAPAuth(sa)
 	} else {
 		authPayload, err = computeLocalAuth(sa)
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	inner := make([]wire.PayloadEntry, 0, 6)
+	inner := make([]wire.PayloadEntry, 0, 4)
 	inner = append(inner, wire.PayloadEntry{Payload: buildIDPayload(sa, false)})
 	if sa.PeerCfg.Auth.Mode == ipsec.AuthX509 {
 		certPayloads, cErr := buildCertPayloads(sa)
 		if cErr != nil {
-			return nil, nil, cErr
+			return nil, cErr
 		}
 		inner = append(inner, certPayloads...)
 	}
-	inner = append(inner,
-		wire.PayloadEntry{Payload: authPayload},
-		wire.PayloadEntry{Payload: saPayload},
-	)
+	return append(inner, wire.PayloadEntry{Payload: authPayload}), nil
+}
+
+// selectAuthChildSA negotiates the Child SA piggybacked on IKE_AUTH and returns the
+// Child SA half of the response (SAr2, [USE_TRANSPORT_MODE], TSi, TSr) and the XFRM
+// interface id the Child SA installs on. An error means no Child SA can be built and
+// names the refusal (notifyForRefusal).
+func selectAuthChildSA(sa *SA, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.PayloadTS, fromEAP bool) ([]wire.PayloadEntry, uint32, error) {
+	// The EAP path selected the Child SA on the first IKE_AUTH, before the initiator
+	// had authenticated, and kept a refusal for this final IKE_AUTH to answer.
+	if fromEAP && sa.eapChildRefusal != nil {
+		return nil, 0, sa.eapChildRefusal
+	}
+	// SAi2/TS come in the first IKE_AUTH. For a direct (PSK/X.509) exchange they are
+	// passed here; for EAP they were parsed and stored on the SA during the first
+	// IKE_AUTH (startResponderEAP), so the final call passes nil and reuses them.
+	if remoteSAi2 != nil {
+		outSPI, err := espSPIFromSA(remoteSAi2)
+		if err != nil {
+			return nil, 0, err
+		}
+		sa.ChildOutboundSPI = outSPI
+	}
+	if sa.ChildOutboundSPI == 0 {
+		return nil, 0, errors.New("ike auth: no initiator ESP SPI (missing SAi2)")
+	}
+
+	// RFC 7296 Section 2.9: narrow the initiator's proposal to a subset the operator's
+	// policy allows, and record the RESULT. The echoed TS payloads and the installed
+	// Child SA both read that one result, so the wire and the dataplane cannot disagree.
+	if tsi != nil && tsr != nil {
+		if err := narrowChildSelectors(sa, tsi, tsr, nil); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	// Select exactly one ESP proposal (narrows sa.ESPGroup); no-op on the EAP final
+	// (already narrowed on the first IKE_AUTH). RFC 7296 Section 2.7.
+	if err := selectResponderESP(sa, remoteSAi2); err != nil {
+		return nil, 0, err
+	}
+
+	// The IKE_AUTH response is a RESPONSE, so SAr2 names one proposal and carries
+	// the number the initiator put on it (RFC 7296 Sections 3.3, 3.3.1).
+	espSPI, saPayload, respTSi, respTSr, err := buildChildSAResponsePayloads(sa)
+	if err != nil {
+		return nil, 0, err
+	}
+	sa.ChildInboundSPI = espSPI
+
+	ifID, err := resolveIfID(&sa.PeerCfg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	inner := make([]wire.PayloadEntry, 0, 4)
+	inner = append(inner, wire.PayloadEntry{Payload: saPayload})
 	// RFC 7296 Section 1.3.1 MUST: "If the request is accepted, the response MUST also
 	// include a notification of type USE_TRANSPORT_MODE." It is absent when the request
 	// was declined, and the peer then reads a tunnel-mode Child SA, which is the outcome
@@ -1035,21 +1076,30 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 		wire.PayloadEntry{Payload: respTSi},
 		wire.PayloadEntry{Payload: respTSr},
 	)
-	inner = append(inner, mobikeAuthOffer(sa)...)
+	return inner, ifID, nil
+}
 
+// buildChildlessAuthResponse builds the IKE_AUTH response of an initiator that
+// authenticated while its piggybacked Child SA was refused, and keeps the IKE SA:
+// the caller establishes it with no Child SA. The returned Child SA is always nil.
+//
+// RFC 7296 Section 2.21.2: "a responder may include all the payloads associated with
+// authentication (IDr, CERT, and AUTH) while sending error notifications for the
+// piggybacked exchanges (FAILED_CP_REQUIRED, NO_PROPOSAL_CHOSEN, and so on)".
+// RFC 7296 Section 1.3.1: "A failed attempt to create a Child SA SHOULD NOT tear down
+// the IKE SA: there is no reason to lose the work done to set up the IKE SA."
+func buildChildlessAuthResponse(sa *SA, msgID uint32, authInner []wire.PayloadEntry, childErr error, log *slog.Logger) ([]byte, *ChildSA, error) {
+	notifyType := notifyForRefusal(childErr)
+	log.Warn("ike: refused the IKE_AUTH Child SA, keeping the IKE SA", "peer", sa.PeerName,
+		"notify", wire.NotifyTypeName(notifyType), "error", childErr)
+	refusal := wire.PayloadEntry{Payload: &wire.PayloadNotify{NotifyMsgType: notifyType}}
+	inner := slices.Concat(authInner, []wire.PayloadEntry{refusal}, mobikeAuthOffer(sa))
 	resp, err := buildEncryptedMessageEx(sa, inner, msgID, wire.ExchangeIKEAuth, wire.FlagResponse)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ike auth: build response: %w", err)
+		return nil, nil, fmt.Errorf("ike auth: build childless response: %w", err)
 	}
-	// Finish every fallible response encoding step before changing shared policy
-	// templates. A parallel handshake may follow a MOBIKE move; preserving an old
-	// selector on rollback would not restore its migrated tunnel endpoints.
-	// The response already names ChildInboundSPI, which the constructor reuses.
-	child, err := createFirstChildSA(sa, sa.ESPGroup, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, ifID, dp, log)
-	if err != nil {
-		return nil, nil, err
-	}
-	return resp, child, nil
+	countErrorNotifySent(notifyType, true)
+	return resp, nil, nil
 }
 
 // finishResponderEstablish caches and sends the IKE_AUTH response, adopts the installed

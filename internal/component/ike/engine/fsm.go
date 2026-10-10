@@ -53,10 +53,6 @@ var (
 	// returning nil there left the tunnel down until the next config apply. Returning an
 	// error takes the reconnect path the RFC 7296 Section 4 fallback already uses.
 	errSADeletedByPeer = errors.New("ike: peer deleted the IKE SA")
-	// errChildSARefused ends an initiator cycle whose IKE_AUTH authenticated the responder
-	// while it refused the Child SA (deleteChildlessIKESA, delete.go). Non-nil, so
-	// PeerSession.run takes the reconnect path.
-	errChildSARefused = errors.New("ike: peer refused the Child SA")
 )
 
 const (
@@ -243,14 +239,6 @@ func (ps *PeerSession) runInitiator(
 			return errStopped
 		case <-afterFunc(timeout):
 		}
-	}
-
-	// The IKE SA authenticated, but the responder refused its Child SA. Ze cannot create a
-	// Child SA later, so the SA is deleted here, BEFORE the counters below are cleared and
-	// before sa-up: the cycle carried no tunnel, so it counts as a failed connect and the
-	// reconnect backs off as for any other.
-	if sa.ChildRefusal != 0 {
-		return ps.deleteChildlessIKESA(sa, tr, log)
 	}
 
 	// The handshake succeeded, so whatever it cost to get here is spent. reconnectDelay
@@ -909,19 +897,25 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		return
 	}
 
-	// The AUTH verified, so the response is an authentication success even when the
-	// responder refused the Child SA it piggybacks, and the SA establishes below. The
-	// refusal is recognized by its error notify standing where SAr2 should be, and only
-	// RECORDED here: runInitiator deletes the IKE SA once the handshake loop sees it
-	// established (deleteChildlessIKESA, delete.go). An EAP round carries no SAr2 by
-	// design, so it is judged only on a response without an EAP payload.
+	// The AUTH verified, so the response is an authentication success even when it
+	// carries no Child SA, and the SA establishes below with none. runEstablished then
+	// keeps it and creates the Child SA later with CREATE_CHILD_SA. An EAP round carries
+	// no SAr2 by design, so it is judged only on a response without an EAP payload. A
+	// response with neither SAr2 nor an error notify is read the same way.
 	//
 	// RFC 7296 Section 2.21.2: "If authentication has succeeded in the IKE_AUTH exchange,
 	// the IKE SA is established; however, establishing the Child SA or requesting
-	// configuration information may still fail."
+	// configuration information may still fail. This failure does not automatically
+	// cause the IKE SA to be deleted." And: "the initiator MUST NOT fail the
+	// authentication because of this."
 	if eapPayload == nil && childOffer == nil {
+		sa.IKEAuthChildless = true
 		if refusal := firstErrorNotify(innerPayloads); refusal != nil {
-			sa.ChildRefusal = refusal.NotifyMsgType
+			log.Warn("ike: peer authenticated and refused the Child SA, keeping the IKE SA",
+				"peer", sa.PeerName, "notify", wire.NotifyTypeName(refusal.NotifyMsgType))
+		} else {
+			log.Warn("ike: peer authenticated and answered with no Child SA, keeping the IKE SA",
+				"peer", sa.PeerName)
 		}
 	}
 

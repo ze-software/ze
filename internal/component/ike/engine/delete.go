@@ -207,38 +207,6 @@ func sendIKESATeardown(sa *SA, tr *transport.UDPTransport, notifyType uint16, lo
 	sendRaw(sa, tr, msg, log)
 }
 
-// deleteChildlessIKESA ends an IKE SA whose IKE_AUTH response authenticated the responder
-// but refused the Child SA (SA.ChildRefusal), and names the refusal the peer gave. It
-// returns errChildSARefused, which runInitiator (fsm.go) MUST return so the cycle ends.
-//
-// The response is not an authentication failure, and the SA did establish. RFC 7296
-// Section 2.21.2: "the initiator MUST NOT fail the authentication because of this." So the
-// log line says the peer authenticated, and names the error notify it sent for the Child
-// SA (NO_PROPOSAL_CHOSEN, TS_UNACCEPTABLE, FAILED_CP_REQUIRED, ...).
-//
-// Before this existed, runEstablished went on to initiatorFirstChildSA (child.go), which
-// refused with "no peer ESP SPI recorded". The cycle ended with no Delete sent, so the
-// peer kept an IKE SA until its DPD found ze gone, and the log blamed a missing SPI for
-// the peer's refusal.
-func (ps *PeerSession) deleteChildlessIKESA(sa *SA, tr *transport.UDPTransport, log *slog.Logger) error {
-	log.Warn("ike: peer authenticated but refused the Child SA, deleting the IKE SA",
-		"peer", ps.peerName, "notify", wire.NotifyTypeName(sa.ChildRefusal))
-
-	// RFC 7296 Section 2.21.2: "The initiator MAY, of course, for reasons of policy later
-	// delete such an IKE SA." Ze cannot create a Child SA after IKE_AUTH yet, so an IKE SA
-	// without one carries no traffic, and deleting it is the policy.
-	// RFC 7296 Section 1.4.1: "To delete an SA, an INFORMATIONAL exchange with one or more
-	// Delete payloads is sent listing the SPIs (as they would be expected in the headers of
-	// inbound packets) of the SAs to be deleted."
-	//
-	// sendDeleteIKE, not sendIKESATeardown: handleAuthResponse advanced NextMsgID on
-	// establishment, so the next id is already free, and the peer broke nothing, so no
-	// error notify of ze's own rides along. No owner loop runs on this SA, so the Delete
-	// is sent once and its answer is not awaited.
-	ps.sendDeleteIKE(sa, tr, log)
-	return errChildSARefused
-}
-
 // recordOwnDelete notes that this node has an unanswered Delete request outstanding for
 // a Child SA pair. RFC 7296 Section 1.4.1's crossing case turns on exactly that fact.
 func (ps *PeerSession) recordOwnDelete(child *ChildSA) {

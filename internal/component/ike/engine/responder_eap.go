@@ -173,20 +173,24 @@ func (ps *PeerSession) startResponderEAP(sa *SA, msgID uint32, remoteSAi2 *wire.
 	// narrows through the same entry point as buildAuthResponse, so an EAP peer gets the
 	// same policy a PSK or X.509 peer gets. Skipping it here would leave EAP answering
 	// with the old wildcard while the direct path narrowed.
+	//
+	// A refusal here is kept, not acted on: the initiator has not authenticated yet,
+	// and the final IKE_AUTH answers it beside AUTH and keeps the IKE SA
+	// (selectAuthChildSA, buildChildlessAuthResponse). RFC 7296 Section 2.21.2.
 	if tsi != nil && tsr != nil {
 		if err := narrowChildSelectors(sa, tsi, tsr, nil); err != nil {
 			log.Warn("ike: no acceptable traffic selector from initiator", "peer", sa.PeerName, "error", err)
-			sa.State = StateDead
-			return
+			sa.eapChildRefusal = err
 		}
 	}
 
 	// Negotiate the ESP proposal now (narrows sa.ESPGroup); the final IKE_AUTH after
 	// EAP success reuses the narrowed group to build SAr2 and install the Child SA.
-	if err := selectResponderESP(sa, remoteSAi2); err != nil {
-		log.Warn("ike: no acceptable ESP proposal from initiator", "peer", sa.PeerName, "error", err)
-		sa.State = StateDead
-		return
+	if sa.eapChildRefusal == nil {
+		if err := selectResponderESP(sa, remoteSAi2); err != nil {
+			log.Warn("ike: no acceptable ESP proposal from initiator", "peer", sa.PeerName, "error", err)
+			sa.eapChildRefusal = err
+		}
 	}
 
 	config, err := eapMethodConfig(sa)

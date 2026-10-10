@@ -27,11 +27,19 @@ auto-detection.** Linux against VPP is a deployment decision.
 **The outbound SPI of a Child SA is always the peer's number, never Ze's.**
 It comes from SAr2, SAi2, or the SA payload of a CREATE_CHILD_SA. RFC 4303
 Section 2.1 reserves SPI 0, so each of those four parsers refuses a peer SPI of
-0, and `createFirstChildSA` refuses an SA that holds no peer SPI. An earlier
+0, and `createFirstChildSA` refuses an SA that holds no peer SPI. A responder
+refusing an SAi2 SPI of 0 refuses only the Child SA: its IKE_AUTH response
+carries NO_PROPOSAL_CHOSEN in place of SAr2, and the IKE SA stays up childless
+(RFC 7296 Section 2.21.2). RFC 7296 Section 3.10.1 lets either NO_PROPOSAL_CHOSEN
+("SA payload values ... are not acceptable") or INVALID_SYNTAX ("some type,
+length, or value was out of range") report it, and Section 2.21.2 makes
+INVALID_SYNTAX delete the IKE SA, so IKE_AUTH answers the first. An earlier
 version drew a random SPI in its place, which keyed an outbound SA the peer
 never allocated.
 
 <!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse -->
+<!-- source: internal/component/ike/engine/responder.go -- selectAuthChildSA -->
+<!-- source: internal/component/ike/engine/responder.go -- buildChildlessAuthResponse -->
 <!-- source: internal/component/ike/engine/rekey.go -- applyChildRekeyResponse, respondChildRekey -->
 
 **One 1-second ticker drives dead peer detection and lifetimes, not a timer per

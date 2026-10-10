@@ -41,6 +41,19 @@ before installing the Child. An encoding failure therefore leaves an existing
 Child's states and policy templates unchanged, including a tuple already moved
 by MOBIKE. The response's negotiated inbound SPI is reused by the installation.
 
+A Child SA that cannot be built after the initiator's AUTH verified (no
+acceptable ESP proposal, TS_UNACCEPTABLE, a missing or zero SAi2 SPI, a refused
+install) does not end the IKE SA (RFC 7296 Sections 2.21.2 and 1.3.1).
+`buildChildlessAuthResponse` answers IDr, CERT when X.509, AUTH and the error
+notify, and `finishResponderEstablish` establishes the IKE SA with a nil Child
+SA; a parallel re-initiation then stages a nil `pendingChild`, and the promotion
+in `resolvePendingAfterOwnerLoop` leaves the session childless. The EAP path
+defers a refusal found on its first IKE_AUTH to the final one.
+
+<!-- source: internal/component/ike/engine/responder.go -- buildAuthResponse, buildChildlessAuthResponse, finishResponderEstablish -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- startResponderEAP -->
+<!-- source: internal/component/ike/engine/fsm.go -- resolvePendingAfterOwnerLoop -->
+
 A parallel authenticated handshake installs its Child before publishing
 `pendingChild`. Those operations share `childLifecycleMu` with established-owner
 dataplane changes, cleanup and promotion. The lifecycle lock is acquired before

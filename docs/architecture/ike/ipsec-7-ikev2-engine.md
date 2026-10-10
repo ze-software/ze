@@ -356,19 +356,22 @@ threshold rather than the path (`plan/immediate/spec-ike-fragmentation-rfc7383.m
   and for the TCP/UDP checksum fixup.
 - RFC 7296 Section 2.21.2 lets a responder authenticate in IKE_AUTH while it
   refuses the piggybacked Child SA, sending an error notify such as
-  `NO_PROPOSAL_CHOSEN` where SAr2 would be. The initiator does not fail the
-  authentication: `handleAuthResponse` establishes the IKE SA and records the
-  notify in `SA.ChildRefusal`. Ze cannot create a Child SA after IKE_AUTH, so
-  `runInitiator` then deletes the IKE SA with an INFORMATIONAL Delete, which the
-  same section permits "for reasons of policy". The log names the peer's notify,
-  no `sa-up` is emitted, and the cycle ends with `errChildSARefused`, so the
-  reconnect backs off as for a failed connect. A response with neither SAr2 nor an
-  error notify is not recognized as a refusal and still fails later in
-  `initiatorFirstChildSA`.
+  `NO_PROPOSAL_CHOSEN` where SAr2 would be, and makes the IKE SA established.
+  Ze keeps it in both roles. As initiator, `handleAuthResponse` establishes the
+  IKE SA, logs the peer's notify, and sets `SA.IKEAuthChildless`; a response
+  with neither SAr2 nor an error notify is read the same way. `runInitiator`
+  emits `sa-up` and sends no Delete, and `runEstablished` enters `maintainSA`
+  with no Child SA, no `child-up`, no route and no Child lifetime. As responder,
+  `buildAuthResponse` builds IDr, CERT when X.509, and AUTH first; when the Child
+  SA half fails (`selectAuthChildSA`, or the dataplane install),
+  `buildChildlessAuthResponse` answers that half with the error notify and the
+  IKE SA establishes with no Child SA. The EAP responder keeps a refusal found on
+  its first IKE_AUTH (`SA.eapChildRefusal`) for the final IKE_AUTH to answer.
 
-<!-- source: internal/component/ike/engine/sa.go -- NATDetected, BehindNAT, PeerBehindNAT, OriginalTSiAddr, OriginalTSrAddr -->
-<!-- source: internal/component/ike/engine/delete.go -- deleteChildlessIKESA -->
-<!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse, runInitiator, errChildSARefused -->
+<!-- source: internal/component/ike/engine/sa.go -- NATDetected, BehindNAT, PeerBehindNAT, OriginalTSiAddr, OriginalTSrAddr, IKEAuthChildless, eapChildRefusal -->
+<!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse, runInitiator -->
+<!-- source: internal/component/ike/engine/responder.go -- buildAuthResponse, selectAuthChildSA, buildChildlessAuthResponse -->
+<!-- source: internal/component/ike/engine/established.go -- runEstablished -->
 <!-- source: internal/component/ike/engine/ts_nat_substitute.go -- substituteResponderSelectors, substituteInitiatorSelectors -->
 
 <!-- source: internal/component/ike/engine/cookie.go -- cookie generation and validation -->

@@ -2,7 +2,6 @@ package engine
 
 import (
 	"bytes"
-	"errors"
 	"log/slog"
 	"strings"
 	"testing"
@@ -13,21 +12,32 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
+// crfRefusal says how crfAuthRefusingChild rewrites the Child SA half of the response.
+type crfRefusal uint8
+
+const (
+	crfRefusalUnspecified crfRefusal = iota
+	// crfRefusalNotify puts NO_PROPOSAL_CHOSEN where SAr2, TSi and TSr stood.
+	crfRefusalNotify
+	// crfRefusalSilent drops SAr2, TSi and TSr and puts nothing in their place.
+	crfRefusalSilent
+	// crfRefusalBadAUTH is crfRefusalNotify with one AUTH octet flipped.
+	crfRefusalBadAUTH
+)
+
 // crfAuthRefusingChild runs a real PSK handshake whose IKE_AUTH response authenticates
-// the responder and refuses the piggybacked Child SA, and hands that response to the
-// initiator. It returns the initiator SA and session, the responder SA and session, and
-// the two ends of the loopback link: ze sends from myTr, and peerTr receives.
+// the responder and carries no Child SA, and hands that response to the initiator. It
+// returns the initiator SA, the responder SA, and the two ends of the loopback link:
+// ze sends from myTr, and peerTr receives.
 //
 // The refusal is the shape RFC 7296 Section 2.21.2 describes: "a responder may include
 // all the payloads associated with authentication (IDr, CERT, and AUTH) while sending
 // error notifications for the piggybacked exchanges (FAILED_CP_REQUIRED,
 // NO_PROPOSAL_CHOSEN, and so on)". strongSwan's responder answers that way
-// (child_create.c). Ze's own responder answers a refused Child SA differently, so the
-// test takes its real, authenticated response and rewrites only the Child SA half:
-// SAr2, TSi and TSr leave, NO_PROPOSAL_CHOSEN arrives. IDr and AUTH are untouched, and
-// AUTH covers neither the Child SA payloads nor the notify (Section 2.15), so the
-// response still verifies.
-func crfAuthRefusingChild(t *testing.T) (ini *SA, iniPS *PeerSession, resp *SA, ps *PeerSession, peerTr, myTr *transport.UDPTransport) {
+// (child_create.c). The test takes ze's real, authenticated response and rewrites only
+// the Child SA half. IDr and AUTH are untouched, and AUTH covers neither the Child SA
+// payloads nor the notify (Section 2.15), so the response still verifies.
+func crfAuthRefusingChild(t *testing.T, refusal crfRefusal, log *slog.Logger) (ini, resp *SA, peerTr, myTr *transport.UDPTransport) {
 	t.Helper()
 	quiet := slogutil.DiscardLogger()
 	peerTr, myTr = rtxPeerLink(t)
@@ -35,7 +45,7 @@ func crfAuthRefusingChild(t *testing.T) (ini *SA, iniPS *PeerSession, resp *SA, 
 	ikeGroup := testIKEGroup()
 	espGroup := testESPGroup()
 	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "child-refusal-psk")
-	// rtxPeerLink points remoteUDPAddr at peerTr, so a Delete has somewhere to land.
+	// rtxPeerLink points remoteUDPAddr at peerTr, so anything sent has somewhere to land.
 	iniPeer.LocalAddress, iniPeer.RemoteAddress = "127.0.0.1", "127.0.0.1"
 	respPeer.LocalAddress, respPeer.RemoteAddress = "127.0.0.1", "127.0.0.1"
 
@@ -57,108 +67,162 @@ func crfAuthRefusingChild(t *testing.T) (ini *SA, iniPS *PeerSession, resp *SA, 
 	handleSAInitResponse(ini, parseMsg(t, resp.LastSentMsg), resp.LastSentMsg, table, nil, nil, quiet)
 
 	authMsgID := parseMsg(t, ini.LastSentMsg).Header.MessageID
-	ps = &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: ikeGroup, espGroup: espGroup}
+	ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: ikeGroup, espGroup: espGroup}
 	ps.handleAuthRequest(resp, parseMsg(t, ini.LastSentMsg), ini.LastSentMsg, nil, nil, quiet)
 	if resp.State != StateEstablished {
 		t.Fatalf("the responder did not establish (state %v), so there is no response to rewrite", resp.State)
 	}
 
 	accepted := lcyDecrypt(t, ini, resp.LastSentMsg)
-	refused := make([]wire.PayloadEntry, 0, len(accepted)+1)
+	rewritten := make([]wire.PayloadEntry, 0, len(accepted)+1)
 	for i := range accepted {
-		switch accepted[i].Payload.(type) {
+		switch p := accepted[i].Payload.(type) {
 		case *wire.PayloadSA, *wire.PayloadTS:
 			continue
+		case *wire.PayloadAUTH:
+			if refusal == crfRefusalBadAUTH {
+				bad := &wire.PayloadAUTH{AuthMethod: p.AuthMethod, AuthData: bytes.Clone(p.AuthData)}
+				bad.AuthData[0] ^= 0xff
+				rewritten = append(rewritten, wire.PayloadEntry{Payload: bad})
+				continue
+			}
 		}
-		refused = append(refused, accepted[i])
+		rewritten = append(rewritten, accepted[i])
 	}
-	refused = append(refused, wire.PayloadEntry{Payload: &wire.PayloadNotify{
-		NotifyMsgType: wire.NotifyNoProposalChosen,
-	}})
-	refusal, err := buildEncryptedMessageEx(resp, refused, authMsgID, wire.ExchangeIKEAuth, wire.FlagResponse)
+	if refusal != crfRefusalSilent {
+		rewritten = append(rewritten, wire.PayloadEntry{Payload: &wire.PayloadNotify{
+			NotifyMsgType: wire.NotifyNoProposalChosen,
+		}})
+	}
+	answer, err := buildEncryptedMessageEx(resp, rewritten, authMsgID, wire.ExchangeIKEAuth, wire.FlagResponse)
 	if err != nil {
-		t.Fatalf("building the refusing IKE_AUTH response: %v", err)
+		t.Fatalf("building the rewritten IKE_AUTH response: %v", err)
 	}
 
-	handleAuthResponse(ini, parseMsg(t, refusal), refusal, table, myTr, quiet)
-	iniPS = &PeerSession{peerName: "ze", peerCfg: iniPeer, ikeGroup: ikeGroup, espGroup: espGroup}
-	return ini, iniPS, resp, ps, peerTr, myTr
+	handleAuthResponse(ini, parseMsg(t, answer), answer, table, myTr, log)
+	return ini, resp, peerTr, myTr
 }
 
-// VALIDATES: an initiator whose IKE_AUTH response authenticates the responder but refuses
-// the Child SA keeps the authentication (the SA establishes), then deletes the IKE SA ON
-// THE WIRE, names the refusal in its log, and the peer that receives the Delete removes its
-// own IKE SA.
+// VALIDATES: AC-2. An initiator whose IKE_AUTH response authenticates the responder and
+// refuses the Child SA keeps the authentication and the IKE SA: the SA establishes, it is
+// marked childless for runEstablished, nothing is sent (no Delete), and the log names the
+// refusal. The negative: the same response with a corrupted AUTH fails, so the outcome
+// is decided by AUTH and not by the notify.
 //
-// PREVENTS: the defect strongSwan interop exposed. handleAuthResponse verified AUTH and set
-// StateEstablished, then initiatorFirstChildSA failed with "no peer ESP SPI recorded". The
-// cycle ended with no Delete sent, so the peer kept an IKE SA nobody would use until its
-// DPD found the node gone, and the log named a missing SPI instead of the peer's refusal.
-//
-// RFC 7296 Section 2.21.2 makes the response an authentication SUCCESS ("the initiator
-// MUST NOT fail the authentication because of this") and lets the initiator delete the
-// SA by policy ("The initiator MAY, of course, for reasons of policy later delete such an
-// IKE SA"). Ze cannot yet create a Child SA after IKE_AUTH, so an IKE SA without one
-// carries nothing, and deleting it with a Delete payload is the policy. runInitiator
-// (fsm.go) calls deleteChildlessIKESA when the handshake loop ends on such an SA.
-func TestAuthChildRefusalDeletesTheIKESA(t *testing.T) {
-	ini, iniPS, resp, ps, peerTr, myTr := crfAuthRefusingChild(t)
-
-	if ini.State != StateEstablished {
-		t.Fatalf("the initiator left the authenticated SA in state %v, want StateEstablished; "+
-			"RFC 7296 Section 2.21.2 forbids failing the authentication", ini.State)
-	}
-	if ini.ChildRefusal != wire.NotifyNoProposalChosen {
-		t.Fatalf("the initiator recorded Child SA refusal %d, want NO_PROPOSAL_CHOSEN (%d)",
-			ini.ChildRefusal, wire.NotifyNoProposalChosen)
-	}
-
+// RFC 7296 Section 2.21.2: "the initiator MUST NOT fail the authentication because of
+// this." The f0006faaa2 delete-and-back-off this replaces is gone (owner decision Q-1).
+func TestInitiatorKeepsChildlessIKESA(t *testing.T) {
 	var buf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	err := iniPS.deleteChildlessIKESA(ini, myTr, log)
-	if !errors.Is(err, errChildSARefused) {
-		t.Errorf("deleteChildlessIKESA returned %v, want errChildSARefused; a nil return "+
-			"ends the session for good instead of reconnecting", err)
+	ini, _, peerTr, myTr := crfAuthRefusingChild(t, crfRefusalNotify, log)
+
+	if ini.State != StateEstablished {
+		t.Fatalf("the initiator left the authenticated SA in state %v, want StateEstablished", ini.State)
+	}
+	if !ini.IKEAuthChildless {
+		t.Error("the SA is not marked childless, so runEstablished would build a Child SA from no SAr2")
 	}
 	if logged := buf.String(); !strings.Contains(logged, "NO_PROPOSAL_CHOSEN") {
 		t.Errorf("the initiator log does not name the peer's refusal (NO_PROPOSAL_CHOSEN):\n%s", logged)
 	}
+	rtxExpectSilence(t, peerTr, myTr, ini.remoteUDPAddr(), "after a childless IKE_AUTH response")
 
-	sent := rtxRecv(t, peerTr)
-	if sent == nil {
-		t.Fatal("the initiator sent nothing; the peer keeps an IKE SA ze has abandoned")
-	}
-	hdr := parseMsg(t, sent).Header
-	if hdr.ExchangeType != wire.ExchangeInformational {
-		t.Errorf("the Delete went in exchange type %d, want INFORMATIONAL (%d)",
-			hdr.ExchangeType, wire.ExchangeInformational)
-	}
-	inner := lcyDecrypt(t, resp, sent)
-	dels := lcyDeletes(inner)
-	if len(dels) != 1 {
-		t.Fatalf("the INFORMATIONAL carries %d Delete payloads, want exactly 1", len(dels))
-	}
-	if dels[0].ProtocolID != wire.ProtocolIKE {
-		t.Errorf("the Delete names protocol %d, want IKE (%d)", dels[0].ProtocolID, wire.ProtocolIKE)
-	}
-
-	// The peer side: its own owner-loop handler processes the Delete and ends its SA. A
-	// Delete under a Message ID the peer has already answered would be replayed from its
-	// cache instead, so this also proves the id is a fresh one.
-	ps.handleOwnedInbound(resp, transport.Packet{Data: sent}, nil, nil, slogutil.DiscardLogger())
-	if resp.State != StateDead {
-		t.Errorf("the peer processed the Delete and kept its IKE SA in state %v, want StateDead",
-			resp.State)
+	bad, _, _, _ := crfAuthRefusingChild(t, crfRefusalBadAUTH, slogutil.DiscardLogger())
+	if bad.State != StateDead {
+		t.Errorf("a corrupted AUTH beside the refusal left the SA in state %v, want StateDead", bad.State)
 	}
 }
 
-// VALIDATES: an IKE_AUTH response that ACCEPTS the Child SA records no refusal, so
-// runInitiator never deletes a working IKE SA. This is the discriminator for the test
-// above: the refusal is read from the response, not assumed of every SA.
-func TestAuthChildAcceptedRecordsNoRefusal(t *testing.T) {
+// VALIDATES: AC-3. An authenticated IKE_AUTH response with neither SAr2 nor an error
+// notify establishes a childless IKE SA, as a refusal does, instead of failing later on
+// "no peer ESP SPI recorded" with no Delete sent (owner decision Q-3).
+func TestInitiatorNoSAr2NoNotifyIsChildless(t *testing.T) {
+	var buf bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	ini, _, _, _ := crfAuthRefusingChild(t, crfRefusalSilent, log)
+	if ini.State != StateEstablished {
+		t.Fatalf("state %v, want StateEstablished", ini.State)
+	}
+	if !ini.IKEAuthChildless {
+		t.Error("a response with no SAr2 and no notify is not marked childless")
+	}
+	if logged := buf.String(); !strings.Contains(logged, "no Child SA") {
+		t.Errorf("the log does not say the response carried no Child SA:\n%s", logged)
+	}
+}
+
+// VALIDATES: an IKE_AUTH response that ACCEPTS the Child SA is not childless, so
+// runEstablished builds the Child SA. The discriminator for the two tests above.
+func TestAuthChildAcceptedIsNotChildless(t *testing.T) {
 	ini, _, _ := establishPSK(t)
-	if ini.ChildRefusal != 0 {
-		t.Errorf("an accepted Child SA recorded refusal %d; runInitiator would delete a "+
-			"working IKE SA", ini.ChildRefusal)
+	if ini.IKEAuthChildless {
+		t.Error("an accepted Child SA marked the SA childless")
+	}
+}
+
+// VALIDATES: AC-1 on the PSK path. A responder whose initiator authenticates but whose
+// ESP proposal it refuses answers IDr, AUTH and NO_PROPOSAL_CHOSEN, in that order, with
+// no SAr2, TSi or TSr; establishes the IKE SA; installs no Child SA. The initiator then
+// establishes a childless IKE SA from that answer.
+//
+// RFC 7296 Section 2.21.2: "a responder may include all the payloads associated with
+// authentication (IDr, CERT, and AUTH) while sending error notifications for the
+// piggybacked exchanges". Before, ze answered the notify ALONE and killed the SA.
+func TestResponderKeepsIKESAWhenChildRefused(t *testing.T) {
+	quiet := slogutil.DiscardLogger()
+	ikeGroup := testIKEGroup()
+	iniESP := testESPGroup()
+	respESP := testESPGroup()
+	respESP.Proposals[0].Encryption = ipsec.EncryptionAES128
+	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "child-refused-psk")
+
+	table := NewSATable()
+	ini, err := newInitiatorSA("ze", iniPeer, ikeGroup, iniESP)
+	if err != nil {
+		t.Fatalf("newInitiatorSA: %v", err)
+	}
+	table.Insert(ini)
+	saInitReq := buildSAInitRequest(ini, ikeGroup)
+	ini.InitiatorSAInitMsg = saInitReq
+	ini.State = StateSAInitSent
+	resp, err := newResponderSA("ze", respPeer, ikeGroup, respESP, ini.InitiatorSPI)
+	if err != nil {
+		t.Fatalf("newResponderSA: %v", err)
+	}
+	handleSAInitRequest(resp, parseMsg(t, saInitReq), saInitReq, nil, nil, quiet)
+	handleSAInitResponse(ini, parseMsg(t, resp.LastSentMsg), resp.LastSentMsg, table, nil, nil, quiet)
+
+	ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: ikeGroup, espGroup: respESP}
+	ps.handleAuthRequest(resp, parseMsg(t, ini.LastSentMsg), ini.LastSentMsg, nil, nil, quiet)
+	if resp.State != StateEstablished {
+		t.Fatalf("the responder left the authenticated SA in state %v, want StateEstablished", resp.State)
+	}
+	if ps.getChildSA() != nil {
+		t.Error("the responder installed a Child SA it refused")
+	}
+
+	inner := lcyDecrypt(t, ini, resp.LastSentMsg)
+	var order []uint8
+	for i := range inner {
+		switch p := inner[i].Payload.(type) {
+		case *wire.PayloadSA, *wire.PayloadTS:
+			t.Errorf("the childless response carries payload type %d", p.Type())
+		case *wire.PayloadNotify:
+			if p.NotifyMsgType != wire.NotifyNoProposalChosen {
+				t.Errorf("the response carries notify %s, want NO_PROPOSAL_CHOSEN",
+					wire.NotifyTypeName(p.NotifyMsgType))
+			}
+		}
+		order = append(order, inner[i].Payload.Type())
+	}
+	want := []uint8{wire.PayloadTypeIDr, wire.PayloadTypeAUTH, wire.PayloadTypeNotify}
+	if !bytes.Equal(order, want) {
+		t.Errorf("payload order %v, want IDr, AUTH, N %v", order, want)
+	}
+
+	handleAuthResponse(ini, parseMsg(t, resp.LastSentMsg), resp.LastSentMsg, table, nil, quiet)
+	if ini.State != StateEstablished || !ini.IKEAuthChildless {
+		t.Errorf("the initiator reached state %v childless=%v, want an established childless SA",
+			ini.State, ini.IKEAuthChildless)
 	}
 }

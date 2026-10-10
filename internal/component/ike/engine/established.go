@@ -93,8 +93,13 @@ func (ps *PeerSession) runEstablished(
 		return err
 	}
 
+	// The IKE SA is kept whether or not IKE_AUTH built its Child SA. RFC 7296 Section
+	// 2.21.2: "This failure does not automatically cause the IKE SA to be deleted."
 	var child *ChildSA
-	if sa.IsInitiator {
+	switch {
+	case sa.IsInitiator && sa.IKEAuthChildless:
+		log.Info("ike: IKE SA established with no Child SA", "peer", ps.peerName)
+	case sa.IsInitiator:
 		var err error
 		child, err = initiatorFirstChildSA(sa, peer, ifID, dp, log)
 		if err != nil {
@@ -102,24 +107,30 @@ func (ps *PeerSession) runEstablished(
 			return err
 		}
 		ps.setChildSA(child)
-	} else {
+	default:
 		// Responder: the first Child SA was already negotiated and installed during
 		// handleAuthRequest (it had to answer with SAr2/TSr), so adopt it here rather
-		// than creating a second one (spec-ipsec-14 R-6).
+		// than creating a second one (spec-ipsec-14 R-6). Nil when IKE_AUTH refused it
+		// (buildChildlessAuthResponse, responder.go).
 		child = ps.getChildSA()
 		if child == nil {
-			log.Warn("ike: responder established without a child SA", "peer", ps.peerName)
-			return errInvalidMessage
+			log.Info("ike: IKE SA established with no Child SA", "peer", ps.peerName)
 		}
 	}
 
-	if child.TSRemote != nil {
-		log.Debug("ike: tunnel route", "peer", ps.peerName, "ts_remote", child.TSRemote.String(), "bus_set", bus != nil)
-	} else {
-		log.Debug("ike: tunnel route nil tsRemote", "peer", ps.peerName)
+	// The Child SA lifetime starts when a Child SA is installed, never at IKE
+	// establishment, so a childless SA carries none until one exists.
+	var childLT *lifetimeState
+	if child != nil {
+		if child.TSRemote != nil {
+			log.Debug("ike: tunnel route", "peer", ps.peerName, "ts_remote", child.TSRemote.String(), "bus_set", bus != nil)
+		} else {
+			log.Debug("ike: tunnel route nil tsRemote", "peer", ps.peerName)
+		}
+		emitChildUp(bus, ps.peerName, child, log)
+		emitRouteAdd(bus, child.TSRemote, log)
+		childLT = newLifetimeState(ps.espGroup.Lifetime)
 	}
-	emitChildUp(bus, ps.peerName, child, log)
-	emitRouteAdd(bus, child.TSRemote, log)
 
 	// RFC 9190 Section 5.4: "EAP-TLS peer implementations MUST also support
 	// checking for certificate revocation after authentication completes and
@@ -149,7 +160,6 @@ func (ps *PeerSession) runEstablished(
 	}
 
 	dpd := newDPDState(ikeGroup.DPD)
-	childLT := newLifetimeState(ps.espGroup.Lifetime)
 	ikeLT := newLifetimeState(ikeGroup.Lifetime)
 
 	return ps.maintainSA(sa, dpd, childLT, ikeLT, ikeGroup, table, dp, tr, bus, log)
