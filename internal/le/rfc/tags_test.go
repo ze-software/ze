@@ -236,6 +236,25 @@ func TestOnlyAScheduledWorkflowGrantsANightlyTier(t *testing.T) {
 	}
 }
 
+// VALIDATES: a scheduled workflow that runs an interop lab through `./le test
+// qemu docker-lab lab "<le words>"` credits that lab's action, read from the
+// live registry the le binary links (registry_test.go).
+// PREVENTS: moving the Docker labs into the Ze-kernel guest (owner D-6) from
+// dropping every interop tree to unrun, which refuses each of its RFC tags.
+func TestALabRunInsideTheDockerLabGuestIsScheduled(t *testing.T) {
+	sources := map[string]string{
+		"nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n" +
+			"      - run: ./le test qemu docker-lab lab \"test integration interop-ipsec\"\n",
+	}
+	got := scheduledActionsFrom(sources)
+	if got["test integration/interop-ipsec"] != "nightly.yml" {
+		t.Errorf("the lab inside docker-lab is not credited: %v", got)
+	}
+	if got["test qemu/docker-lab"] != "nightly.yml" {
+		t.Errorf("the docker-lab action itself is not credited: %v", got)
+	}
+}
+
 func TestTheFirstScheduledWorkflowNamingAnActionIsTheOneRecorded(t *testing.T) {
 	// First wins in sorted workflow order, so filesystem listing order cannot
 	// change which scheduled pipeline the ledger names.
@@ -268,12 +287,34 @@ func TestNativeActionsInWorkflowCommands(t *testing.T) {
 		{"a quoted scalar", "- \"./le arch tier check\"\n", []string{"arch tier/check"}},
 		{"arguments do not change identity", "run: ./le verify current mode full\n", []string{"verify/current"}},
 		{"no native action", "run: echo a\n", nil},
+		{
+			"a lab run through a wrapper is run",
+			"run: ./le test qemu docker-lab lab \"test integration interop\" timeout 3600\n",
+			[]string{"test qemu/docker-lab", "test integration/interop"},
+		},
+		{
+			"a wrapper with no lab runs only itself",
+			"run: ./le test qemu docker-lab timeout 600\n",
+			[]string{"test qemu/docker-lab"},
+		},
+		{
+			"a value that is not le words is not a command",
+			"run: ./le test qemu run command \"le test integration interop\"\n",
+			[]string{"test qemu/run"},
+		},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			got := nativeActionsIn(one.src, func(name string) bool {
-				return name == "doc check" || name == "test integration" || name == "arch tier"
-			})
+			registered := func(name string) bool {
+				return name == "doc check" || name == "test integration" || name == "arch tier" || name == "test qemu"
+			}
+			nested := func(command, verb string) (string, bool) {
+				if command == "test qemu" && verb == "docker-lab" {
+					return "lab", true
+				}
+				return "", false
+			}
+			got := nativeActionsIn(one.src, registered, nested)
 			if !slices.Equal(got, one.want) {
 				t.Fatalf("NativeActionsIn(%q) = %v, want %v", one.src, got, one.want)
 			}

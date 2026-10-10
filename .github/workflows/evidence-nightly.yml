@@ -68,10 +68,22 @@ jobs:
         if: ${{ !cancelled() }}
         run: sudo -E env "PATH=$PATH" ./le test integration as112
 
+  # The Docker labs below run Ze in containers, so the kernel they test is the
+  # Docker host's, and Ze enrolls features the hosted runner's kernel lacks
+  # (XFRM_MSG_MIGRATE_STATE among them). Each therefore boots the Alpine QEMU
+  # guest on Ze's own amd64 runtime kernel under KVM and runs the lab there,
+  # through `./le test qemu docker-lab`: the path the Mac shares under HVF
+  # (owner D-6). The guest runs `./le setup docker-kernel check` before the lab,
+  # so a kernel that lacks a feature fails in seconds and names it. The kernel
+  # cache entry is the one qemu-nightly.yml builds and saves, under the same key.
+  # The last step asks the hosted runner's own kernel too, as information: when
+  # GitHub moves ubuntu-latest to a kernel that passes, the log shows it.
+  #
   # BGP interoperability against FRR, BIRD, and GoBGP. Its own advisory job
   # keeps a container-lab failure distinct from kernel integration evidence.
   interop:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -80,13 +92,50 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - name: BGP interoperability
-        run: ./le test integration interop
+      - name: Install QEMU dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git qemu-system-x86 qemu-utils openssh-client curl
+      - name: Grant KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules || true
+          sudo udevadm trigger --name-match=kvm || true
+          ls -l /dev/kvm
+      - name: Restore the runtime kernel cache
+        id: kernel-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ze
+          key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: Materialize the native runtime kernel
+        run: |
+          ./le build host-driver
+          ./ze-host appliance kernel --target runtime --arch amd64
+      - name: Save the runtime kernel cache
+        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ze
+          key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: BGP interoperability in the Ze-kernel guest
+        env:
+          ZE_QEMU_MEMORY: "12288"
+          ZE_QEMU_CPUS: "3"
+          ZE_QEMU_BOOT_TIMEOUT: "300"
+        run: ./le test qemu docker-lab lab "test integration interop" timeout 5400s
+      - name: The hosted runner's own Docker kernel, for information
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/le
 
   # The strongSwan lab programs XFRM state in privileged containers. It remains
   # scheduled and advisory, never part of a merge gate.
   ipsec-interop:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -95,8 +144,44 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - name: IKEv2/IPsec interoperability
-        run: ./le test integration interop-ipsec
+      - name: Install QEMU dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git qemu-system-x86 qemu-utils openssh-client curl
+      - name: Grant KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules || true
+          sudo udevadm trigger --name-match=kvm || true
+          ls -l /dev/kvm
+      - name: Restore the runtime kernel cache
+        id: kernel-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ze
+          key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: Materialize the native runtime kernel
+        run: |
+          ./le build host-driver
+          ./ze-host appliance kernel --target runtime --arch amd64
+      - name: Save the runtime kernel cache
+        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ze
+          key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: IKEv2/IPsec interoperability in the Ze-kernel guest
+        env:
+          ZE_QEMU_MEMORY: "12288"
+          ZE_QEMU_CPUS: "3"
+          ZE_QEMU_BOOT_TIMEOUT: "300"
+        run: ./le test qemu docker-lab lab "test integration interop-ipsec" timeout 5400s
+      - name: The hosted runner's own Docker kernel, for information
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/le
 
   # Ze's admin login against a real FreeRADIUS server. Every other RADIUS proof
   # ze holds runs against a mock ze wrote, and a mock built beside ze's own
@@ -121,8 +206,9 @@ jobs:
         run: ./le test integration interop-radius
 
   # The L2TP lab builds a PPP/NCP path between peer-isolated containers. It needs
-  # PPPoL2TP in the runner's kernel, so it is scheduled and advisory like the
-  # strongSwan lab above, never part of a merge gate.
+  # PPPoL2TP in the Docker host's kernel, which the Ze-kernel guest carries. It
+  # is scheduled and advisory like the strongSwan lab above, never part of a
+  # merge gate.
   #
   # Scheduling it is what its RFC evidence depends on. interopCarriers
   # (internal/le/rfc/carriers.go) DERIVES an interop tree's tier from whether a
@@ -132,6 +218,7 @@ jobs:
   # these lines, not by anything about the tests.
   l2tp-interop:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -140,14 +227,51 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - name: L2TP PPP/NCP interoperability
-        run: ./le test deployment docker-l2tp-ppp-test
+      - name: Install QEMU dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git qemu-system-x86 qemu-utils openssh-client curl
+      - name: Grant KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules || true
+          sudo udevadm trigger --name-match=kvm || true
+          ls -l /dev/kvm
+      - name: Restore the runtime kernel cache
+        id: kernel-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ze
+          key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: Materialize the native runtime kernel
+        run: |
+          ./le build host-driver
+          ./ze-host appliance kernel --target runtime --arch amd64
+      - name: Save the runtime kernel cache
+        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ze
+          key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: L2TP PPP/NCP interoperability in the Ze-kernel guest
+        env:
+          ZE_QEMU_MEMORY: "12288"
+          ZE_QEMU_CPUS: "3"
+          ZE_QEMU_BOOT_TIMEOUT: "300"
+        run: ./le test qemu docker-lab lab "test deployment docker-l2tp-ppp-test" timeout 5400s
+      - name: The hosted runner's own Docker kernel, for information
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/le
 
   # Ze's PPPoE client against a real accel-ppp access concentrator. Same tiering
   # reason as the L2TP lab above, and the same advisory posture: it needs PPPoE
-  # support in the runner's kernel.
+  # support in the Docker host's kernel, which the Ze-kernel guest carries.
   pppoe-interop:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -156,5 +280,41 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - name: PPPoE client against accel-ppp
-        run: ./le test deployment docker-pppoe-accel-test
+      - name: Install QEMU dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git qemu-system-x86 qemu-utils openssh-client curl
+      - name: Grant KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules || true
+          sudo udevadm trigger --name-match=kvm || true
+          ls -l /dev/kvm
+      - name: Restore the runtime kernel cache
+        id: kernel-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ze
+          key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: Materialize the native runtime kernel
+        run: |
+          ./le build host-driver
+          ./ze-host appliance kernel --target runtime --arch amd64
+      - name: Save the runtime kernel cache
+        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ze
+          key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: PPPoE client against accel-ppp in the Ze-kernel guest
+        env:
+          ZE_QEMU_MEMORY: "12288"
+          ZE_QEMU_CPUS: "3"
+          ZE_QEMU_BOOT_TIMEOUT: "300"
+        run: ./le test qemu docker-lab lab "test deployment docker-pppoe-accel-test" timeout 5400s
+      - name: The hosted runner's own Docker kernel, for information
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/le

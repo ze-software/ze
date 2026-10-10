@@ -19,6 +19,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/build/hostdriver"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	_ "github.com/ze-software/ze/internal/le/perf"
+	_ "github.com/ze-software/ze/internal/le/setup"
 	_ "github.com/ze-software/ze/internal/le/test/deployment"
 	_ "github.com/ze-software/ze/internal/le/test/fuzz"
 	_ "github.com/ze-software/ze/internal/le/test/integration"
@@ -199,22 +200,61 @@ var nativeActionPattern = regexp.MustCompile(
 // read as the verb `deps` of the command `verify`, which exists and does
 // something else. A two-word command with nothing after it, as
 // `le build host-driver` is, is its own identity and carries no slash.
+//
+// An action whose keyword carries another le command line, as `test qemu
+// docker-lab lab "<words>"` does (leaction.ValueLeWords), runs that command
+// too, so the nested command is answered after the wrapper.
 func nativeActionsIn(source string) []string {
-	matches := nativeActionPattern.FindAllStringSubmatch(source, -1)
+	matches := nativeActionPattern.FindAllStringSubmatchIndex(source, -1)
 	actions := make([]string, 0, len(matches))
 	for _, match := range matches {
-		first, second, third := match[3], match[4], match[6]
+		first, second := source[match[6]:match[7]], source[match[8]:match[9]]
+		third := ""
+		if match[12] >= 0 {
+			third = source[match[12]:match[13]]
+		}
 		if leroot.LookupCommand(first+" "+second) != nil {
 			if third == "" {
 				actions = append(actions, first+" "+second)
 				continue
 			}
 			actions = append(actions, first+" "+second+"/"+third)
+			actions = append(actions, nestedLeActions(first+" "+second, third, lineAfter(source, match[1]))...)
 			continue
 		}
 		actions = append(actions, first+"/"+second)
+		actions = append(actions, nestedLeActions(first, second, lineAfter(source, match[1]))...)
 	}
 	return actions
+}
+
+// lineAfter answers the rest of the line that holds offset.
+func lineAfter(source string, offset int) string {
+	rest := source[offset:]
+	if end := strings.IndexByte(rest, '\n'); end >= 0 {
+		return rest[:end]
+	}
+	return rest
+}
+
+// nestedLeActions answers the actions of the le command line that command's
+// verb carries in the rest of its line, read from the keyword its action table
+// declares, and nothing when it declares none.
+func nestedLeActions(command, verb, rest string) []string {
+	list, declared := leroot.ActionsOf(command)
+	if !declared {
+		return nil
+	}
+	keyword, nests := list.NestedLeKeyword(verb)
+	if !nests {
+		return nil
+	}
+	pattern := regexp.MustCompile(`(^|[[:space:]])` + regexp.QuoteMeta(keyword) + `[[:space:]]+["']([^"']*)["']`)
+	value := pattern.FindStringSubmatch(rest)
+	if value == nil {
+		return nil
+	}
+	return nativeActionsIn("le " + value[2])
 }
 
 func nativeActions(t *testing.T, name string) []string {
@@ -467,6 +507,8 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 		"test integration/iface", "test integration/fib", "test integration/firewall",
 		"test integration/traffic", "test integration/gtsm", "test integration/as112",
 		"test integration/interop", "test integration/interop-ipsec", "test integration/interop-radius",
+		"test deployment/docker-l2tp-ppp-test", "test deployment/docker-pppoe-accel-test",
+		"test qemu/docker-lab", "setup docker-kernel/check",
 	}
 	actions := nativeActions(t, name)
 	for _, action := range want {
@@ -474,8 +516,42 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 			t.Errorf("%s lacks native action %q; found %v", name, action, actions)
 		}
 	}
-	if slices.ContainsFunc(actions, func(action string) bool { return strings.HasPrefix(action, "test qemu/") }) {
-		t.Errorf("%s must leave VM evidence to qemu-nightly.yml: %v", name, actions)
+	// The Docker labs run in the Ze-kernel guest (owner D-6); every other VM
+	// proof stays in qemu-nightly.yml.
+	if slices.ContainsFunc(actions, func(action string) bool {
+		return strings.HasPrefix(action, "test qemu/") && action != "test qemu/docker-lab"
+	}) {
+		t.Errorf("%s must leave VM evidence other than the Docker labs to qemu-nightly.yml: %v", name, actions)
+	}
+	dockerLabs := map[string]string{
+		"interop":       "test integration interop",
+		"ipsec-interop": "test integration interop-ipsec",
+		"l2tp-interop":  "test deployment docker-l2tp-ppp-test",
+		"pppoe-interop": "test deployment docker-pppoe-accel-test",
+	}
+	for _, job := range jobBlocks(t, name) {
+		lab, isLab := dockerLabs[job.name]
+		if !isLab {
+			if strings.Contains(job.body, "docker-lab") {
+				t.Errorf("%s job %q runs in the Ze-kernel guest but is not one of the Docker labs", name, job.name)
+			}
+			continue
+		}
+		delete(dockerLabs, job.name)
+		for _, required := range []string{
+			`./le test qemu docker-lab lab "` + lab + `"`,
+			"actions/cache/restore@v6", "actions/cache/save@v6",
+			"./le build host-driver",
+			"./ze-host appliance kernel --target runtime --arch amd64",
+			"./le setup docker-kernel check ze tmp/qemu/linux-amd64/le",
+		} {
+			if !strings.Contains(job.body, required) {
+				t.Errorf("%s job %q runs its Docker lab without %q", name, job.name, required)
+			}
+		}
+	}
+	for job := range dockerLabs {
+		t.Errorf("%s has no %q job running its Docker lab in the Ze-kernel guest", name, job)
 	}
 	for _, job := range jobBlocks(t, name) {
 		if job.name == "integration" && !strings.Contains(job.body, `sudo -E env "PATH=$PATH"`) {

@@ -421,6 +421,33 @@ func (l List) TrailingWordIsValue(args []string) bool {
 	return false
 }
 
+// ValueLeWords is the Value of a parameter whose value is the words of another
+// le command line, which the action runs as `le <words>`, as `test qemu
+// docker-lab lab "<words>"` runs a Docker lab inside a guest. It is declared
+// here, beside the grammar, so a reader of workflow text asks the registry which
+// keyword nests a command (NestedLeKeyword) rather than holding a copy of the
+// wrapper's name: a scheduled workflow that runs a lab through a wrapper still
+// runs that lab (internal/le/rfc, carriers.go).
+const ValueLeWords = "le-words"
+
+// NestedLeKeyword answers the keyword of verb's parameter whose value is another
+// le command line (ValueLeWords), and false when the verb declares none or this
+// listing does not hold the verb.
+func (l List) NestedLeKeyword(verb string) (string, bool) {
+	for _, row := range l.Actions {
+		if row.Verb != verb {
+			continue
+		}
+		for _, parameter := range row.Parameters {
+			if parameter.Value == ValueLeWords {
+				return parameter.Keyword, true
+			}
+		}
+		return "", false
+	}
+	return "", false
+}
+
 // parameterForm renders one keyword in the form that says what the reader owes:
 // `keyword <value>` for a keyword the action requires, the same in brackets for
 // one it does not, and a trailing ellipsis for one that may be given again.

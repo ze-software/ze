@@ -615,6 +615,18 @@ func stripYAMLComments(src string) string {
 // invocation parse as its one-word fallback.
 func registeredCommand(name string) bool { return leroot.LookupCommand(name) != nil }
 
+// workflowNestedLe answers the keyword of a registered action whose value is
+// another le command line (leaction.ValueLeWords), so `./le test qemu docker-lab
+// lab "test integration interop"` credits the lab it runs as well as itself.
+// The registry answers it, so a new wrapper is read without an edit here.
+func workflowNestedLe(command, verb string) (string, bool) {
+	list, declared := leroot.ActionsOf(command)
+	if !declared {
+		return "", false
+	}
+	return list.NestedLeKeyword(verb)
+}
+
 // workflowCommand reports whether a whole name is a command a scheduled
 // workflow can credit: a registered le command, or the command of a declared
 // interop tree.
@@ -651,8 +663,10 @@ func interopTreeCommand(tree interopTree) string {
 // nativeActionsIn answers every `./le <area> <verb>` action a workflow invokes.
 //
 // It models command lines, not a shell. Chains are split, but substitutions,
-// backticks, and subshells are not parsed.
-func nativeActionsIn(src string, registered func(string) bool) []string {
+// backticks, and subshells are not parsed. An action whose keyword carries
+// another le command line (nested answers which) runs that command too, so it
+// is credited beside the wrapper.
+func nativeActionsIn(src string, registered func(string) bool, nested func(command, verb string) (string, bool)) []string {
 	var out []string
 	for line := range strings.SplitSeq(src, "\n") {
 		cmd := strings.TrimSpace(line)
@@ -663,13 +677,16 @@ func nativeActionsIn(src string, registered func(string) bool) []string {
 			cmd = strings.ReplaceAll(cmd, sep, "\x00")
 		}
 		for frag := range strings.SplitSeq(cmd, "\x00") {
-			out = append(out, actionsInCommand(strings.Fields(frag), registered)...)
+			out = append(out, actionsInCommand(strings.Fields(frag), registered, nested)...)
 		}
 	}
 	return out
 }
 
-func actionsInCommand(fields []string, registered func(string) bool) []string {
+// actionsInCommand answers the action one command line invokes, then the action
+// of any le command line it carries. The recursion is bounded by the line: each
+// level reads a strict suffix of the words the level above it held.
+func actionsInCommand(fields []string, registered func(string) bool, nested func(command, verb string) (string, bool)) []string {
 	if len(fields) > 0 && fields[0] == "-" {
 		fields = fields[1:]
 	}
@@ -691,14 +708,58 @@ func actionsInCommand(fields []string, registered func(string) bool) []string {
 	// read the first as the `check` verb of a `doc` command that does not
 	// exist, and the second correctly, which is the worst kind of wrong.
 	var tb textbuf.Buffer
+	command, verbAt := fields[1], 2
 	twoWord := tb.Str(fields[1]).Byte(' ').Str(fields[2]).String()
 	if len(fields) > 3 && registered(twoWord) {
-		tb.Reset()
-		return []string{tb.Str(twoWord).Byte('/').Str(fields[3]).String()}
+		command, verbAt = twoWord, 3
 	}
-
 	tb.Reset()
-	return []string{tb.Str(fields[1]).Byte('/').Str(fields[2]).String()}
+	out := []string{tb.Str(command).Byte('/').Str(fields[verbAt]).String()}
+
+	keyword, nests := nested(command, fields[verbAt])
+	if !nests {
+		return out
+	}
+	words := nestedLeWords(fields[verbAt+1:], keyword)
+	if len(words) == 0 {
+		return out
+	}
+	inner := append([]string{"./le"}, words...)
+	return append(out, actionsInCommand(inner, registered, nested)...)
+}
+
+// nestedLeWords answers the words of the value keyword introduces among an
+// action's arguments: the quoted span after the keyword, without its quotes. A
+// closing quote the line trim already removed ends the span at the line's end.
+// No keyword, or none followed by a value, answers nil.
+func nestedLeWords(args []string, keyword string) []string {
+	at := slices.Index(args, keyword)
+	if at < 0 {
+		return nil
+	}
+	if at+1 >= len(args) {
+		return nil
+	}
+	value := args[at+1:]
+	quote := value[0][:1]
+	if quote != `"` && quote != "'" {
+		return value[:1]
+	}
+	words := make([]string, 0, len(value))
+	for i, word := range value {
+		if i == 0 {
+			word = word[1:]
+		}
+		closed := strings.HasSuffix(word, quote)
+		word = strings.TrimSuffix(word, quote)
+		if word != "" {
+			words = append(words, word)
+		}
+		if closed {
+			break
+		}
+	}
+	return words
 }
 
 // topLevelBlock answers the indented body of a top-level `key:` line, and false
@@ -760,7 +821,7 @@ func scheduledActionsFrom(sources map[string]string) map[string]string {
 		if !isScheduled(src) {
 			continue
 		}
-		for _, action := range nativeActionsIn(src, workflowCommand) {
+		for _, action := range nativeActionsIn(src, workflowCommand, workflowNestedLe) {
 			if _, seen := out[action]; !seen {
 				out[action] = name
 			}

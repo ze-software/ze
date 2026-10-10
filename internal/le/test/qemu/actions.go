@@ -148,7 +148,7 @@ var actions = leaction.New(area,
 			" kernel check, then `le <lab>`. With no lab it stops after the check." +
 			" Refuses when the kernel cache holds no runtime kernel for the guest's architecture",
 		Parameters: []leaction.Parameter{
-			{Keyword: keywordLab, Value: "le-words", Requirement: leaction.Optional},
+			{Keyword: keywordLab, Value: leaction.ValueLeWords, Requirement: leaction.Optional},
 			{Keyword: keywordTimeout, Value: valueDuration, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runDockerLabHere,

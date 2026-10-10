@@ -947,3 +947,31 @@ func TestForwardingActionHandsItsWordsOverVerbatim(t *testing.T) {
 		AnswerWords: func([]string) (any, int) { return nil, 0 },
 	})
 }
+
+// VALIDATES: a listing names the keyword whose value is another le command line
+// only for the verb that declares one, so a workflow reader can credit the
+// nested command from the registry rather than from a copy of the verb's name.
+// PREVENTS: a wrapper action hiding the lab it runs from the RFC evidence tier,
+// and the opposite error of reading an ordinary value as a command.
+func TestNestedLeKeywordIsReadFromTheDeclaredParameter(t *testing.T) {
+	answer := func(Arguments) (any, int) { return nil, 0 }
+	list := New("test vm",
+		Action{Verb: "lab", Why: "run a lab in the guest", AnswerArgs: answer, Parameters: []Parameter{
+			{Keyword: "timeout", Value: "duration", Requirement: Optional},
+			{Keyword: "run", Value: ValueLeWords, Requirement: Optional},
+		}},
+		Action{Verb: "boot", Why: "boot the guest", AnswerArgs: answer, Parameters: []Parameter{
+			{Keyword: "command", Value: "command", Requirement: Optional},
+		}},
+	).Actions()
+
+	if keyword, ok := list.NestedLeKeyword("lab"); !ok || keyword != "run" {
+		t.Errorf("NestedLeKeyword(lab) = %q, %v; want run, true", keyword, ok)
+	}
+	if keyword, ok := list.NestedLeKeyword("boot"); ok {
+		t.Errorf("NestedLeKeyword(boot) = %q, true; a shell command is not le words", keyword)
+	}
+	if keyword, ok := list.NestedLeKeyword("absent"); ok {
+		t.Errorf("NestedLeKeyword(absent) = %q, true; a verb the listing does not hold nests nothing", keyword)
+	}
+}
