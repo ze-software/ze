@@ -175,7 +175,8 @@ and the IKE IPsec dataplane backend.
 
 External L2TP peer evidence is separate from the in-tree L2TP fixture suite:
 `./le test deployment l2tp-test` starts Ze and a real `xl2tpd` LAC in a
-privileged Docker container, then proves the control tunnel and incoming-call
+Docker container that holds `NET_ADMIN` and `/dev/ppp` and never runs
+`--privileged`, then proves the control tunnel and incoming-call
 session are established. Full PPP/NCP/kernel dataplane peer evidence is a
 separate Linux-only target: `./le test deployment l2tp-ppp-test` creates Ze and
 LAC network namespaces joined by a veth underlay, then requires `xl2tpd`,

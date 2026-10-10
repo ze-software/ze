@@ -231,7 +231,8 @@ func setting(key, fallback string) string {
 
 // containerArgs answers the container the peer and the daemon both run in.
 //
-// It is privileged because xl2tpd opens a PPP device, and it holds the checkout
+// It holds NET_ADMIN and the host's /dev/ppp, never --privileged, because
+// xl2tpd's pppd opens a PPP unit and configures it, and it holds the checkout
 // at /src and the run's scratch directory at /run/l2tp, which is where both
 // daemons read their configuration from.
 func (l *L2TP) containerArgs(name, work string) []string {
@@ -241,7 +242,9 @@ func (l *L2TP) containerArgs(name, work string) []string {
 	scratch := tb.Str(work).Str(":/run/l2tp").String()
 
 	return []string{
-		"run", "--rm", dockerDetach, "--privileged",
+		"run", "--rm", dockerDetach,
+		"--cap-add", "NET_ADMIN",
+		"--device", "/dev/ppp",
 		"--platform", l.Platform,
 		"--name", name,
 		"-v", src,

@@ -86,16 +86,17 @@ func TestAManifestWithNoGateStopsTheBuild(t *testing.T) {
 }
 
 // VALIDATES: the container mounts the checkout at /src and the scratch
-// directory at /run/l2tp, and runs privileged on the named platform.
-// PREVENTS: a rewrite that drops --privileged, which the peer needs to open a
-// PPP device, and whose absence looks like a protocol failure.
+// directory at /run/l2tp, and runs with NET_ADMIN and the PPP device on the
+// named platform.
+// PREVENTS: a rewrite that drops the PPP device, which the peer needs to open a
+// PPP unit, and whose absence looks like a protocol failure.
 func TestTheContainerMountsTheTreeAndTheScratch(t *testing.T) {
 	run := fixtureL2TP(t)
 	work := filepath.Join(run.Tree, "tmp", "evidence", "l2tp-peer-1")
 
 	line := strings.Join(run.containerArgs("ze-l2tp-evidence-1", work), " ")
 	for _, want := range []string{
-		"run --rm --detach --privileged",
+		"run --rm --detach --cap-add NET_ADMIN --device /dev/ppp",
 		"--platform linux/amd64",
 		"--name ze-l2tp-evidence-1",
 		"-v " + run.Tree + ":/src",

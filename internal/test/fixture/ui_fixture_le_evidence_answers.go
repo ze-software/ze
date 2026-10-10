@@ -270,12 +270,15 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 		len(calls), strings.Join(calls, "\n"))
 	peerStarted := false
 	privileged := false
+	granted := false
 	for _, call := range calls {
 		peerStarted = peerStarted || strings.Contains(call, "xl2tpd -D")
 		privileged = privileged || strings.Contains(call, "--privileged")
+		granted = granted || strings.Contains(call, "--cap-add NET_ADMIN --device /dev/ppp")
 	}
 	uiLeEvidenceAnswersRequire(peerStarted, "the proof never started the peer:\n%s", strings.Join(calls, "\n"))
-	uiLeEvidenceAnswersRequire(privileged, "the container is not privileged:\n%s", strings.Join(calls, "\n"))
+	uiLeEvidenceAnswersRequire(!privileged, "the container runs --privileged:\n%s", strings.Join(calls, "\n"))
+	uiLeEvidenceAnswersRequire(granted, "the container lacks NET_ADMIN and /dev/ppp:\n%s", strings.Join(calls, "\n"))
 
 	// Both machine-touching proofs reject the kernel-probe escape before making
 	// any namespace, lab, image, or container change.
