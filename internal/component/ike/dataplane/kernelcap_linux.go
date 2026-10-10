@@ -1,11 +1,11 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- the kernel capability tier
-// Related: register_kernelcap_linux.go -- the init() that enrols what this file builds
+// Related: register_kernelcap_linux.go -- the init() that enrolls what this file builds
 // Related: xfrm_linux.go -- the algorithm tables the cipher enrolment is derived from
 // Related: xfrm_migrate_linux.go -- the MOBIKE migration probe
 // Related: internal/component/kernelcap -- the enrolment these capabilities join
 //
 // The XFRM backend needs more of the kernel than the XFRM netlink socket the
-// engine enrols: ESP for each address family, every transform its algorithm
+// engine enrolls: ESP for each address family, every transform its algorithm
 // tables can name, and XFRM_MSG_MIGRATE_STATE for MOBIKE. Each is a capability
 // here, so ze doctor reports a missing one and a Docker host that lacks one is
 // refused before a lab spends minutes failing on it.
@@ -86,13 +86,15 @@ const (
 	xfrmRoleIntegrity
 )
 
-// xfrmKernelCapabilities returns every capability the XFRM backend enrols: the
+// xfrmKernelCapabilities returns every capability the XFRM backend enrolls: the
 // MOBIKE migration message, ESP for each family, and one per kernel transform
 // the algorithm tables name. The transforms are DERIVED from those tables, so a
 // cipher the backend learns to install is required of the host with no edit here.
 func xfrmKernelCapabilities() []kernelcap.Capability {
-	capabilities := []kernelcap.Capability{
-		{
+	transforms := xfrmTransformCapabilities()
+	capabilities := make([]kernelcap.Capability, 0, 3+len(transforms))
+	capabilities = append(capabilities,
+		kernelcap.Capability{
 			Subsystem:   "ipsec-mobike",
 			Component:   kernelcapComponent,
 			Kernel:      "CONFIG_XFRM_MIGRATE",
@@ -106,8 +108,8 @@ func xfrmKernelCapabilities() []kernelcap.Capability {
 		},
 		xfrmESPCapability("ipsec-esp-ipv4", "CONFIG_INET_ESP", "an IPv4 Child SA fails to install", xfrmProbeSource4, xfrmProbeTarget4),
 		xfrmESPCapability("ipsec-esp-ipv6", "CONFIG_INET6_ESP", "an IPv6 Child SA fails to install", xfrmProbeSource6, xfrmProbeTarget6),
-	}
-	return append(capabilities, xfrmTransformCapabilities()...)
+	)
+	return append(capabilities, transforms...)
 }
 
 func xfrmESPCapability(subsystem, kernel, degrades string, source, target net.IP) kernelcap.Capability {
@@ -127,7 +129,7 @@ func xfrmESPCapability(subsystem, kernel, degrades string, source, target net.IP
 	}
 }
 
-// xfrmTransformCapabilities walks the three algorithm tables and enrols each
+// xfrmTransformCapabilities walks the three algorithm tables and enrolls each
 // distinct kernel transform once, naming every algorithm word that maps to it.
 func xfrmTransformCapabilities() []kernelcap.Capability {
 	words := make(map[string][]string)
