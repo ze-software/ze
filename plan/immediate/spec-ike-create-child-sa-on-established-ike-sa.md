@@ -14,7 +14,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Review state (2026-10-10): round-1 findings fixed (b99e74e99c, ff75ef7668, e5fa0e63a1
 and this spec's closure sections); READY FOR REVIEW ROUND 2. Interop re-run owed after
 the arm64 kernel rebuild: ff75ef7668 changed the initiator checker's KE assertion, so
-the green logs below predate it. BLOCKER 1 of round 1 waits on the owner (Review Gate).
+the green logs below predate it. BLOCKER 1 of round 1 is approved by the owner on 2026-10-11 (Review Gate).
 
 ## Task
 
@@ -604,7 +604,7 @@ section.
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| 1 | BLOCKER | Commit audit WEAKENED with no RFC-approved trailer: `rfc7296_transport_test.go` `TestEAPResponderNarrowsToo` (2d98a75602, StateDead assertion became `errors.Is(bad.eapChildRefusal, errTSUnacceptable)`, follows from Q-1) and `rfc7296_auth_child_refusal_test.go` (0f732c91b5, enum const only, lint) | `internal/component/ike/engine/` | PENDING OWNER APPROVAL: `./le rfc approve unit ...` with the owner's words; the main thread asks him |
+| 1 | BLOCKER | Commit audit WEAKENED with no RFC-approved trailer: `rfc7296_transport_test.go` `TestEAPResponderNarrowsToo` (2d98a75602, StateDead assertion became `errors.Is(bad.eapChildRefusal, errTSUnacceptable)`, follows from Q-1) and `rfc7296_auth_child_refusal_test.go` (0f732c91b5, enum const only, lint) | `internal/component/ike/engine/` | APPROVED by the owner, 2026-10-11: "I approve the two IKE test edits". Both commits have landed without a trailer and recorded no owner-approval debt row, so this row is the record: `./le rfc approve unit` only feeds the trailer of a commit that changes the unit, and `./le commit audit base origin/main` still lists both files, because it judges each commit's own diff and reads no approval |
 | 2 | ISSUE | `serviceChildCreate` cited Section 2.8 for a Section 1.3.2 sentence | `create_child.go` | b99e74e99c |
 | 3 | ISSUE | Paraphrased RFC quotes where a verbatim quote is owed; the USE_TRANSPORT_MODE quote sat far from its statement | `create_child.go`, `reconcile.go` | b99e74e99c |
 | 4 | ISSUE | AC-4 and RFC7296-1.3.1-1/-2 untested on the initiator creation path | `rfc7296_create_child_transport_test.go` | b99e74e99c, e5fa0e63a1 |

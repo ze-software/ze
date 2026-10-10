@@ -350,6 +350,8 @@ What remains owed before closure:
 
 -> Constraint: the commit gate and `./le commit audit base origin/main` judge each commit, not the net diff. 61e717df0c needed `rfc-change-ok` (removing a line HEAD carried is a change to a tagged unit), and the audit still lists the four files once for each of 2e16e9e966, 11e3964084 and 61e717df0c. The verification-debt rows for 2e16e9e966 and 11e3964084, and the new one for 61e717df0c, in `plan/verification-debt/d1987d95.md` stay open until the owner answers them (`./le commit debt-discharge ... kind owner`, or `./le rfc approve unit` for each unit); the decision above is the evidence that answer rests on.
 
+-> Decision (owner, 2026-10-11): RESOLVED. Thomas answered the OPEN OWNER QUESTIONS for the four RFC-tagged `.ci` files with "clear" (his words: "I approve the two IKE test edits, ok clear"). The three owner-approval rows (lines 12, 13 and 14 of `plan/verification-debt/d1987d95.md`, covering 2e16e9e966, 11e3964084 and 61e717df0c) are discharged with kind `owner` in `plan/verification-debt/discharged/d1987d95.md`, quoting him. `./le commit audit base origin/main` still lists the four files for each of those commits, because the audit judges every commit's own diff and reads no approval record; the discharge is what answers the debt rows.
+
 ### Round 3 (2026-10-10, independent reviewer): fixes
 
 1 BLOCKER, 2 ISSUE, 7 NOTE, over df2c52ac24 to 4753797b5e. The review text was handed to the fixing agent by the main thread and is not kept in a file, so each row names the finding by what its fix commit records.

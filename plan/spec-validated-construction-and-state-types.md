@@ -860,7 +860,7 @@ Each step is one commit, or the chunks it names; the tree builds after each. Res
 
 ## Review Gate
 
-Status: Phase 1 review is clean (round 3: 0 BLOCKER, 0 ISSUE, 3 NOTE, every NOTE resolved below), pending the owner's answer on I5. Phase 1 does not close until the owner confirms the 180df07922 approvals or names the fix.
+Status: Phase 1 review is clean (round 3: 0 BLOCKER, 0 ISSUE, 3 NOTE, every NOTE resolved below), and I5 is resolved: the owner confirmed the 180df07922 approvals on 2026-10-11 ("ok").
 
 Round 1 was interrupted before a verdict and was not recorded as one; its two ISSUEs were fixed in f94ba71170 and c3869088df. Round 2 covered Phase 1 (`9cbd3485ca..c3869088df`), and its fixes landed in `80595e68aa..8943e3e071`. Round 3 re-judged them, ISSUE 1 (the pluginimports resolver change) and NOTE 1 (the ruleguard rule) in particular, over the SHAs in its row.
 
@@ -876,7 +876,7 @@ Round 1 was interrupted before a verdict and was not recorded as one; its two IS
 | I2 | ISSUE | Docs anchored `LookupLocal`/`ListLocal` at `command/registry`, said `plainLocalData` judged first, and the CLI pattern imported only `registry`; `docs/features.md` named `registry.RegisterOfflineFallback` | `docs/architecture/api/commands.md`, `docs/architecture/config/yang-config-design.md`, `docs/features/cli-commands.md`, `ai/patterns/cli-command.md`, `docs/features.md` | 576e88dc63; `docs/features.md` is derived and untracked, re-rendered from `features/host-inventory.md` |
 | I3 | ISSUE | The register-yang comment moved onto the `command` import | `internal/component/bfd/cmd/bfd.go`, `internal/component/l2tp/pppoe/cmd/pppoe.go` | 7babbfa406 |
 | I4 | ISSUE | `Dispatch` comment said validation is skipped for a node with no ArgDefs | `internal/component/plugin/server/command.go` | 8f52f9b540 |
-| I5 | ISSUE | RFC-approved trailers on two yang RFC 7950 tests quote "you have work to do" as the approval; the edits are mechanical | 180df07922 | Owner question pending: confirm the approval or name the fix |
+| I5 | ISSUE | RFC-approved trailers on two yang RFC 7950 tests quote "you have work to do" as the approval; the edits are mechanical | 180df07922 | RESOLVED, 2026-10-11: the owner confirmed the two approvals with "ok" (his words: "I approve the two IKE test edits, ok clear"). The 180df07922 trailers stand as the approval record; no owner-approval debt row was opened for them, so none is discharged |
 | N1 | NOTE | `ValidateArgs(tokens, nil, nil)` and `InvokeLocal` with a caller-chosen path yield an unjudged value; T2 residual named only the zero literal | `internal/component/command/argbind.go`, `local.go` | Partly. 8943e3e071 (ruleguard `commandtestInTestsOnly`) covers only `commandtest.Args` and `commandtest.Must` outside a test file. The two bypasses the finding names, `ValidateArgs` with nil definitions and `InvokeLocal` with a caller-chosen path, have no check: daa9b78412 records them in the T2 residual as review-only |
 | N2 | NOTE | A-9 false as written: the dummy create declares a mandatory `name` | `ze-iface-cmd.yang`, `plugin/server/ensure.go` | A-9 and the R5 row record that R5 judges it from `ctx.Selectors`; behavior unchanged |
 | N3 | NOTE | f94ba71170 rejudge notes for RFC8907-3.7-2 and 10.5.1-1 cite commits that did not touch those units | `rfc/audit/` | No change: the auditor's notes stand and the verdicts hold |
