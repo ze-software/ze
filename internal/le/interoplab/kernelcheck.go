@@ -227,6 +227,12 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	if zePath == "" {
 		return errors.New("the Docker kernel check needs the staged ze to probe with, and this suite names none (Suite.StagedZe)")
 	}
+	// The probe bind-mounts zePath, and Docker answers a missing source by
+	// creating a root-owned directory there, which a later staging then cannot
+	// replace. So the file is checked before any docker command runs.
+	if missing := stagedZeMissing(zePath); missing != nil {
+		return missing
+	}
 
 	appArmor, err := dockerAppArmor(ctx, docker)
 	if err != nil {
@@ -317,4 +323,26 @@ func dockerKernelRelease(ctx context.Context, docker *Docker) string {
 		return "release unread"
 	}
 	return release
+}
+
+// stagedZeMissing answers the refusal for a staged ze path that holds no
+// regular file, or nil. A run that skipped its build (NO_BUILD=1) on a checkout
+// that never staged one is the usual cause, so the fix is that build.
+func stagedZeMissing(zePath string) error {
+	info, err := os.Stat(zePath)
+	var problem textbuf.Buffer
+	problem.Str("the Docker kernel check cannot run: the linux ze it probes with is not at ").Str(zePath)
+	if err != nil {
+		return errors.New(problem.Str(" (").Err(err).
+			Str(").\nThe check mounts that file into the probe container, so without it nothing is checked.").
+			Str("\nBuild it: run the same command again without NO_BUILD=1.").String())
+	}
+	if !info.Mode().IsRegular() {
+		return errors.New(problem.Str(": that path is a directory, not the binary").
+			Str(" (Docker creates one when it mounts a path that does not exist).").
+			Str("\nThe check mounts that file into the probe container, so without it nothing is checked.").
+			Str("\nRemove the directory, then run the same command again without NO_BUILD=1:\n").
+			Str("  sudo rm -r ").Str(zePath).String())
+	}
+	return nil
 }

@@ -116,8 +116,9 @@ The included test runner benchmarks all eight supported implementations in Docke
 | OpenBGPD | openbgpd-interop (built) | `test/perf/configs/openbgpd.conf` | allow from/to any |
 
 The Ze DUT runs on the Docker daemon's kernel, so a run that tests it first
-checks that kernel with `test/interop/ze-linux`, the ze the image carries, and
-refuses one that lacks any feature Ze enrolls, naming each. The check and its
+builds `test/interop/ze-linux`, the ze the image carries, for the daemon's
+architecture, then checks that kernel with it and refuses one that lacks any
+feature Ze enrolls, naming each. The check and its
 routes are in `docs/architecture/testing/interop.md`, "The Docker host kernel
 check".
 

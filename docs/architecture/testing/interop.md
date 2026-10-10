@@ -455,11 +455,18 @@ both make the same check, through one shared preflight, with the demo binary
 renderer image is inspected or any container starts.
 
 `./le perf run` and `./le perf evidence-record` run the ze DUT in a container,
-so a run that tests the ze DUT (every DUT, or `ze` named) makes the same check
-with the ze the DUT image carries, `test/interop/ze-linux`, before the
-benchmark starts. A build alone, or a run of other DUTs only, starts no ze and
-does not check.
-<!-- source: internal/le/perf/bench.go -- Bench.Run, runsZe, stagedZeRel -->
+so a run that tests the ze DUT (every DUT, or `ze` named) first cross-compiles
+the ze the DUT image carries, `test/interop/ze-linux` (the path the BGP lab
+declares, through the BGP lab's own staging), then makes the same check with it
+before the benchmark starts. A build alone, or a run of other DUTs only, starts
+no ze, stages nothing and does not check.
+
+Every route refuses a staged ze path that holds no file, or holds a directory,
+naming the path, before any docker command runs. Docker answers a bind mount of
+a missing path by creating a root-owned directory there, which a later staging
+then cannot replace.
+<!-- source: internal/le/perf/bench.go -- Bench.Run, runsZe, stageZe, stagedZe -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- checkDockerKernel, stagedZeMissing -->
 
 `./le verify evidence release-candidate` runs the whole verify gate, Ze's
 functional tests included, inside a container on the daemon's kernel. After the

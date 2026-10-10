@@ -19,6 +19,8 @@ import (
 	"testing"
 
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/interoplab/bgp"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	"github.com/ze-software/ze/internal/test/perfrunner"
 )
@@ -44,6 +46,18 @@ type recorder struct {
 	// ze each check probed with.
 	kernelErr error
 	kernelZe  []string
+	// stageErr is what staging the ze DUT's binary answers; staged records
+	// the checkout each staging built into, and stagedAtKernel how many
+	// stagings had run when each kernel check started.
+	stageErr       error
+	staged         []string
+	stagedAtKernel []int
+}
+
+// stage is the seam that builds the ze DUT's linux binary.
+func (r *recorder) stage(root string) error {
+	r.staged = append(r.staged, root)
+	return r.stageErr
 }
 
 // stepActions names each recorded step, for a failure message that does not
@@ -60,6 +74,7 @@ func stepActions(steps []step) []string {
 func (r *recorder) kernel(zePath string) error {
 	r.steps = append(r.steps, step{Action: "kernel", Argv: []string{zePath}})
 	r.kernelZe = append(r.kernelZe, zePath)
+	r.stagedAtKernel = append(r.stagedAtKernel, len(r.staged))
 	return r.kernelErr
 }
 
@@ -98,6 +113,7 @@ func fixtureBench(t *testing.T) (*Bench, *recorder) {
 		Command:   rec.command,
 		Measure:   rec.measure,
 		Kernel:    rec.kernel,
+		Stage:     rec.stage,
 	}
 	return bench, rec
 }
@@ -466,4 +482,61 @@ func TestRunChecksTheDockerKernelBeforeTheZeDUT(t *testing.T) {
 			}
 		}
 	})
+}
+
+// VALIDATES: review round 2, finding 3. A run that starts the ze DUT builds the
+// linux ze the DUT image carries before the kernel check probes with it, at the
+// path the BGP lab declares for that binary, and a failed build stops the run
+// before the check and the measurement. A run that starts no ze builds nothing.
+// PREVENTS: the kernel check probing test/interop/ze-linux on a checkout where
+// nothing produced it, so Docker bind-mounts a missing path and creates a
+// root-owned directory in its place.
+func TestRunStagesTheZeTheKernelCheckProbes(t *testing.T) {
+	bench, rec := fixtureBench(t)
+	if _, code := bench.Run(bothSteps(), []string{"ze"}); code != 0 {
+		t.Fatalf("run exit %d", code)
+	}
+	if len(rec.staged) != 1 || rec.staged[0] != bench.Root {
+		t.Fatalf("staged = %v, want one build into %s", rec.staged, bench.Root)
+	}
+	if len(rec.stagedAtKernel) != 1 || rec.stagedAtKernel[0] != 1 {
+		t.Errorf("the kernel check ran after %v stagings, want after the one", rec.stagedAtKernel)
+	}
+	want := interoplab.StagedZePath(bench.Root, bgp.LabBinaries())
+	if want == "" || len(rec.kernelZe) != 1 || rec.kernelZe[0] != want {
+		t.Errorf("kernel checks = %v, want one with the staged %q", rec.kernelZe, want)
+	}
+
+	for _, tc := range []struct {
+		name  string
+		steps perfrunner.Steps
+		duts  []string
+	}{
+		{"build alone", perfrunner.Steps{Build: true}, []string{"ze"}},
+		{"no ze", bothSteps(), []string{"bird"}},
+	} {
+		bench, rec := fixtureBench(t)
+		bench.Run(tc.steps, tc.duts)
+		if len(rec.staged) != 0 {
+			t.Errorf("%s: staged %v for a run that starts no ze", tc.name, rec.staged)
+		}
+	}
+
+	bench, rec = fixtureBench(t)
+	rec.stageErr = errors.New("cross-compiling ze for linux/arm64 failed")
+	report, code := bench.Run(bothSteps(), []string{"ze"})
+	if code == 0 {
+		t.Fatal("a failed staging answered exit 0")
+	}
+	if !strings.Contains(report.Error, "cross-compiling ze") {
+		t.Errorf("report error %q does not carry the staging failure", report.Error)
+	}
+	if len(rec.kernelZe) != 0 {
+		t.Errorf("the kernel check ran after the staging failed: %v", rec.kernelZe)
+	}
+	for _, done := range rec.steps {
+		if done.Action == "measure" {
+			t.Error("the DUTs were measured after the staging failed")
+		}
+	}
 }

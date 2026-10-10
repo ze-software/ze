@@ -3,6 +3,8 @@ package interoplab
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -11,7 +13,25 @@ import (
 	"github.com/ze-software/ze/internal/component/kernelcap"
 )
 
-const kernelCheckZe = "/checkout/test/interop-ipsec/ze-linux"
+// kernelCheckZe is a staged ze stand-in: a regular file, because the check
+// refuses a path that holds none. TestMain writes it.
+var kernelCheckZe string
+
+// TestMain writes the staged ze stand-in every kernel check test probes with,
+// and removes it after the run.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "interoplab-kernelcheck")
+	if err != nil {
+		panic("BUG: no temporary directory for the staged ze stand-in: " + err.Error())
+	}
+	kernelCheckZe = filepath.Join(dir, "ze-linux")
+	if err := os.WriteFile(kernelCheckZe, []byte("stand-in"), 0o600); err != nil {
+		panic("BUG: write the staged ze stand-in: " + err.Error())
+	}
+	code := m.Run()
+	_ = os.RemoveAll(dir) //nolint:errcheck // a leftover temporary directory changes no verdict
+	os.Exit(code)
+}
 
 // scriptedKernel scripts the daemon: `docker info` answers the kernel release and
 // the probe container answers stdout with exit.
@@ -471,5 +491,30 @@ func TestDockerKernelUnloadedProfileNamesTheKernelRoute(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
+	}
+}
+
+// VALIDATES: review round 2, finding 3. A staged ze path that holds no file, or
+// holds a directory, refuses naming the path, before any docker command runs.
+// PREVENTS: a probe that bind-mounts a missing path, which makes the daemon
+// create a root-owned directory there, and a refusal that names no cause.
+func TestDockerKernelRefusesAMissingStagedZe(t *testing.T) {
+	for name, path := range map[string]string{
+		"missing":   filepath.Join(t.TempDir(), "ze-linux"),
+		"directory": t.TempDir(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			runner := scriptedKernel(allPresent, 0, nil)
+			err := checkDockerKernel(context.Background(), newDocker(runner), path)
+			if err == nil {
+				t.Fatal("the check proceeded with no staged ze")
+			}
+			if !strings.Contains(err.Error(), path) {
+				t.Errorf("the refusal does not name %s: %v", path, err)
+			}
+			if len(runner.commands) != 0 {
+				t.Errorf("docker ran before the refusal: %v", runner.commands)
+			}
+		})
 	}
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/interoplab/bgp"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/linuxle"
@@ -163,6 +164,10 @@ type measureStep func(run suite) int
 // probing with the linux ze at zePath.
 type kernelStep func(zePath string) error
 
+// stageStep builds the linux ze the ze DUT image carries into the checkout at
+// root, for the Docker daemon's architecture.
+type stageStep func(root string) error
+
 // Bench is one benchmark chain over a checkout. The two process seams are
 // fields so a package test pins what each verb runs without Docker, a compiler,
 // or minutes of machine time. Self is the le running this command, which
@@ -175,6 +180,7 @@ type Bench struct {
 	Command   commandStep
 	Measure   measureStep
 	Kernel    kernelStep
+	Stage     stageStep
 }
 
 // newBench answers a chain over the checkout this command was run in.
@@ -203,17 +209,15 @@ func newBench() (*Bench, error) {
 		Command:   streamCommand,
 		Measure:   measureDUTs,
 		Kernel:    dockerKernel,
+		Stage:     stageZe,
 	}, nil
 }
 
-// stagedZeRel is the linux ze the ze DUT image carries: test/interop/Dockerfile.ze
-// copies this path to /usr/local/bin/ze, so it is the binary the kernel check
-// probes with.
-const stagedZeRel = "test/interop/ze-linux"
-
-// stagedZe answers the ze DUT's binary in this checkout.
+// stagedZe answers the ze DUT's binary in this checkout: the ze the BGP lab
+// stages, which test/interop/Dockerfile.ze copies into the DUT image, so it is
+// the binary the kernel check probes with.
 func (b *Bench) stagedZe() string {
-	return filepath.Join(b.Root, filepath.FromSlash(stagedZeRel))
+	return interoplab.StagedZePath(b.Root, bgp.LabBinaries())
 }
 
 // runsZe answers whether a run of duts starts the ze DUT. An empty list selects
@@ -236,6 +240,21 @@ func dockerKernel(zePath string) error {
 	defer cancel()
 
 	return interoplab.DockerKernel(zePath)(ctx, interoplab.NewDocker())
+}
+
+// stageZeTimeout bounds staging the ze DUT's binary: the daemon architecture
+// query and one cross-compile of ze, whose own bound is five minutes.
+const stageZeTimeout = 10 * time.Minute
+
+// stageZe is the production stageStep: the cross-compile the BGP lab's own
+// preflight runs (interoplab.StageBinaries over bgp.LabBinaries), so the ze the
+// kernel check probes with and the DUT image carries is built from this
+// checkout rather than left from an earlier run, or missing.
+func stageZe(root string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), stageZeTimeout)
+	defer cancel()
+
+	return interoplab.StageBinaries(root, false, bgp.LabBinaries()...)(ctx, interoplab.NewDocker())
 }
 
 // streamCommand runs one command with the child on this terminal.
@@ -292,6 +311,9 @@ func (b *Bench) Run(steps perfrunner.Steps, duts []string) (RunReport, int) {
 	// D-4: a wrong kernel "should not be possible - fail"). A build alone, or a
 	// run of other DUTs only, starts no ze.
 	if steps.Test && runsZe(duts) {
+		if err := b.Stage(b.Root); err != nil {
+			return fail(runVerb, 1, err)
+		}
 		if err := b.Kernel(b.stagedZe()); err != nil {
 			return fail(runVerb, 1, err)
 		}
