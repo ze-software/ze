@@ -145,16 +145,31 @@ func loadKernelBuilder(t *testing.T) *packages.Package {
 	return pkgs[0]
 }
 
-// TestHostSideNeverWritesTheRequest proves the other direction of the key: a
-// host-side kernelbuilder file never decides what the build receives. The
-// Request is written only by normalizeRequest (recipe.go), and the backends
-// run only the recipe's argv (TestRunDockerArgvAndOwnershipRepair,
-// TestBuildGuestWorkerTakesTheRecipe, and the sshRun check below), so a
-// host-side edit cannot change a kernel's bytes and keep the key.
+// TestHostSideNeverWritesTheRequest checks part of the other direction of the
+// key, that a host-side kernelbuilder file does not decide what the build
+// receives. It refuses, in a host-side file, an assignment or increment whose
+// target is a Request or a Request field (a pointer-receiver method body
+// included), a pointer taken into one, a Request built of its own, and an
+// sshRun whose command is not guestBuildCommand(...) itself.
+// TestRunDockerArgvAndOwnershipRepair and TestBuildGuestWorkerTakesTheRecipe
+// check the argv and environment up to the runCommand and runWorkerBuild
+// seams, and no further.
 //
-// VALIDATES: round-3 ISSUE 1, the guard is two-way.
-// PREVENTS: a host-side rewrite of the request (a default, a cleaned path, a
-// modules value) changing the build under an unchanged key.
+// Known gaps, each a host-side edit that changes the build under an unchanged
+// key with every guard green (round-4 review mutations, 2026-10-10):
+//   - arguments appended inside the real runCommand (driver.go);
+//   - environment added inside runWorkerBuild (qemu.go), or inherited from the
+//     host through os.Environ there (GOFLAGS, GOEXPERIMENT, GOAMD64);
+//   - a Request slice changed through a call rather than an assignment
+//     (slices.Reverse or slices.Sort on req.Fragments, copy into it);
+//   - the bootstrap commands sent over the QEMU serial console before sshRun
+//     (apk add openssh, the network setup, resolv.conf).
+//
+// plan/journal/stale-artifact-reused.md records them.
+//
+// VALIDATES: round-3 ISSUE 1, for the syntactic writes named above.
+// PREVENTS: a host-side assignment to the request (a default, a cleaned path,
+// a modules value) changing the build under an unchanged key.
 func TestHostSideNeverWritesTheRequest(t *testing.T) {
 	t.Chdir(filepath.Join("..", ".."))
 	pkg := loadKernelBuilder(t)

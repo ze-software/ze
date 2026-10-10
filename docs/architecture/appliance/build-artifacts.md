@@ -69,7 +69,11 @@ on its own line. `./le build gokrazy` asks the same question before it
 resolves the kernel (`GokrazyRuntimeKernelReachable`), and its refusal ends
 with `GOARCH=<host> ./le build gokrazy <args>`, with each argument quoted for
 the shell. A bare `ze appliance kernel --target runtime` for that
-architecture ends with the kernel command to run on a host of it. The host's
+architecture ends with the kernel command to run on a host of it. An
+architecture Ze builds no kernel for at all (`kernelbuilder.ArchSupported`,
+the arches the Docker backend names a platform for) is refused before the
+cache is asked, and each of these refusals then offers only the host's own
+architecture, never a host of the unsupported one. The host's
 architecture is declared once, `kernelbuilder.HostArch`, and the arch check
 (`kernelbuilder.CheckArch`) runs before the installer firmware is fetched. A cold cache that cannot build on this
 host, for example with no network for the kernel.org tarball, fails with the
@@ -158,14 +162,31 @@ The guard runs both ways. `TestKernelCacheKeyCoversEveryBuildInput` type-checks
 the package and refuses a `BuildSources` file that uses anything a host-side
 file declares (a function, variable, constant, type, method or field), an
 `init` outside them, and a hashed file whose Ze import is not hashed.
-`TestHostSideNeverWritesTheRequest` refuses a host-side file that writes a
-`Request` field, takes a pointer into one, builds a `Request` of its own, or
-sends the QEMU guest anything but `guestBuildCommand(...)` itself.
+`TestHostSideNeverWritesTheRequest` refuses a host-side file that assigns to
+or increments a `Request` or a `Request` field (a pointer-receiver method's body
+included), takes a pointer into one, builds a `Request` of its own, or passes
+`sshRun` a guest command that is not `guestBuildCommand(...)` itself.
 `TestRunDockerArgvAndOwnershipRepair` and `TestBuildGuestWorkerTakesTheRecipe`
-check that the Docker and worker builds run the recipe's argv and environment
-unchanged. `TestKernelCacheKeyIgnoresHostSideEdits` edits each host-side file
-and checks the key holds, then edits each `BuildSources` file and checks it
-moves.
+check the Docker and worker builds' argv and environment as they reach the
+`runCommand` and `runWorkerBuild` seams, and no further.
+`TestKernelCacheKeyIgnoresHostSideEdits` edits each host-side file and checks
+the key holds, then edits each `BuildSources` file and checks it moves.
+
+The return direction is checked only for those syntactic writes and those
+seams. These host-side channels reach the build with no guard, and a change
+through any of them builds different bytes under an unchanged key (each shown
+by a mutation that left every guard green, review round 4, 2026-10-10):
+
+| Unguarded channel | Where |
+|-------------------|-------|
+| Arguments the real `runCommand` appends to the `docker` argv | `kernelbuilder/driver.go` |
+| Environment `runWorkerBuild` adds, or inherits from the host through `os.Environ` (`GOFLAGS`, `GOEXPERIMENT`, `GOAMD64`), when it compiles the worker | `kernelbuilder/qemu.go` |
+| A `Request` slice changed through a call rather than an assignment (`slices.Reverse` or `slices.Sort` on `req.Fragments`, `copy` into it) | any host-side file |
+| The bootstrap commands sent over the QEMU serial console before `sshRun` (network setup, `resolv.conf`, `apk add openssh`) | `kernelbuilder/qemu.go` |
+
+`plan/journal/stale-artifact-reused.md` records them. Until a guard covers
+them, an edit to one of these channels owes a removal of the cache entry by
+hand (`--print-cache-dir`, below).
 
 A key that cannot be computed (a patch directory, a config fragment or a
 builder source that cannot be read) is refused with its fix, never replaced by
@@ -180,6 +201,15 @@ toolchain floats under one key:
 | The packages `apt-get install` takes in the image, and `apk add` in the QEMU guest | No versions pinned: gcc, binutils and the rest move with the distribution |
 | The Alpine ISO | Its SHA-256 is fetched beside it (`fetchPublishedChecksum`), not pinned in the tree |
 | The `hardware-kms` installer profile's i915 firmware blobs | Fetched once by `ensureFirmware` with no digest pinned: a different blob under the same name keeps the cached installer kernel |
+
+The backend in the key is the one the lookup names. A build takes
+`--builder`, but the image build, `./le build gokrazy`, the ISO and the
+`ze doctor` check look the runtime kernel up with no builder, which keys the
+backend a build here would choose (`PreferredBackend`). A kernel built with the
+other `--builder`, for example `--builder qemu` on a host with Docker
+installed, sits under its own key and is not served to them: the image build
+compiles the preferred backend's kernel instead, the ISO finds no installer
+kernel in the cache, and the doctor check does not count it as cached.
 
 `plan/journal/stale-artifact-reused.md` records each row. To rebuild against
 the current upstream, remove the cache entry that

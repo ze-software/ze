@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 )
@@ -32,13 +33,37 @@ func CheckArch(arch string) error {
 	if arch == archAArch64 {
 		arch = archARM64
 	}
-	if _, ok := dockerPlatforms[arch]; !ok {
+	if !ArchSupported(arch) {
 		return fmt.Errorf("unsupported ARCH=%s (expected amd64, x86_64, or arm64); name this host's arch:\nze appliance kernel --arch %s", arch, hostGOARCH)
 	}
 	if want := workerGOARCH(arch); want != hostGOARCH {
 		return fmt.Errorf("kernel for %s cannot be built here: the host is %s, and Ze builds every kernel on a host of its own arch, with no CPU emulation; build it on an %s host, or build this host's kernel:\nze appliance kernel --arch %s", want, hostGOARCH, want, hostGOARCH)
 	}
 	return nil
+}
+
+// ArchSupported answers whether Ze builds a kernel for arch on some host: the
+// arches the Docker backend names a platform for, aarch64 read as arm64.
+func ArchSupported(arch string) bool {
+	if arch == archAArch64 {
+		arch = archARM64
+	}
+	_, ok := dockerPlatforms[arch]
+	return ok
+}
+
+// SupportedArches answers the kernel arches Ze builds, by their Go names and
+// sorted, each built on a host of its own arch: what a refusal of an
+// unsupported arch offers instead.
+func SupportedArches() []string {
+	var arches []string
+	for arch := range dockerPlatforms {
+		if goarch := workerGOARCH(arch); !slices.Contains(arches, goarch) {
+			arches = append(arches, goarch)
+		}
+	}
+	slices.Sort(arches)
+	return arches
 }
 
 // HostArch answers the kernel arch of the machine running Ze: the one arch a

@@ -290,7 +290,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 	}
 	if !console.expect(ctx, "login:", bootTimeout) {
 		said := stopQEMU()
-		return errBootFailed(qemuBinary(req.Arch), args, said, cmd.ProcessState)
+		return errBootFailed(ctx.Err(), qemuBinary(req.Arch), args, said, cmd.ProcessState)
 	}
 	if !sleepContext(ctx, time.Second) {
 		return ctx.Err()
@@ -451,7 +451,16 @@ func probeHVF(ctx context.Context) error {
 // cannot open, a bad option) says why there, and the console says nothing.
 // state is QEMU's state once stopped: a QEMU that exited on its own (rather
 // than being killed after bootTimeout) is reported as an exit, not a timeout.
-func errBootFailed(binary string, args []string, stderr string, state *os.ProcessState) error {
+// ctxErr is the build context's error once the wait ended: a build canceled or
+// out of time stopped the wait itself, so it is reported as that, never as a
+// guest that failed to boot.
+func errBootFailed(ctxErr error, binary string, args []string, stderr string, state *os.ProcessState) error {
+	if errors.Is(ctxErr, context.Canceled) {
+		return fmt.Errorf("the build VM was stopped before its login prompt: the kernel build was canceled (%w)", ctxErr)
+	}
+	if ctxErr != nil {
+		return fmt.Errorf("the build VM was stopped before its login prompt: the kernel build ran out of the time its caller gave it (%w)", ctxErr)
+	}
 	if stderr != "" {
 		return fmt.Errorf("the build VM did not reach its login prompt: %s stopped or stalled, and wrote:\n%s", binary, stderr)
 	}

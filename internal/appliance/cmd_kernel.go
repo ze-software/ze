@@ -455,22 +455,34 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 
 // foreignArchKernelError refuses a runtime kernel this host cannot build: the
 // cache holds no entry for arch, and Ze builds every kernel on a host of its own
-// arch (AC-13). Error answers the fix for a bare kernel request; forInstance
-// answers it for an image build, naming the instance file and the build command.
+// arch (AC-13). unsupported marks an arch Ze builds no kernel for on any host,
+// whose fix can only be this host's arch. Error answers the fix for a bare
+// kernel request; forInstance answers it for an image build, naming the
+// instance file and the build command.
 type foreignArchKernelError struct {
 	version, arch, cachedDir string
+	unsupported              bool
 }
 
 func (e *foreignArchKernelError) refusal(fix string) string {
 	var tb textbuf.Buffer
-	return tb.Str("runtime kernel ").Str(e.version).Str(" for ").Str(e.arch).
-		Str(" is not in the cache at ").Str(e.cachedDir).
+	tb.Str("runtime kernel ").Str(e.version).Str(" for ").Str(e.arch)
+	if e.unsupported {
+		return tb.Str(" cannot be built on any host: Ze builds kernels for ").
+			Str(strings.Join(kernelbuilder.SupportedArches(), " and ")).
+			Str(" only, each on a host of its own arch; ").Str(fix).String()
+	}
+	return tb.Str(" is not in the cache at ").Str(e.cachedDir).
 		Str(", and this ").Str(kernelbuilder.HostArch()).
 		Str(" host cannot build it: Ze builds every kernel on a host of its own arch, with no CPU emulation; ").
 		Str(fix).String()
 }
 
 func (e *foreignArchKernelError) Error() string {
+	if e.unsupported {
+		host := kernelbuilder.HostArch()
+		return e.refusal("build this host's arch, " + host + ", instead:\nze appliance kernel --target runtime --arch " + host)
+	}
 	return e.refusal("run this on an " + e.arch + " host, which builds it into that host's cache:\nze appliance kernel --target runtime --arch " + e.arch)
 }
 
@@ -480,6 +492,10 @@ func (e *foreignArchKernelError) Error() string {
 // of this host's arch here; both end in the same command.
 func (e *foreignArchKernelError) forInstance(dir, name string) error {
 	host := kernelbuilder.HostArch()
+	if e.unsupported {
+		return errors.New(e.refusal("set \"image\": {\"arch\": \"" + host + "\"} in " + ConfigPath(dir, name) +
+			" to build an " + host + " image here; then run:\nze appliance --dir " + shellArg(dir) + " build " + shellArg(name)))
+	}
 	return errors.New(e.refusal("build the image on an " + e.arch + " host, or set \"image\": {\"arch\": \"" + host +
 		"\"} in " + ConfigPath(dir, name) + " to build an " + host + " image here; then run:\nze appliance --dir " + shellArg(dir) + " build " + shellArg(name)))
 }
@@ -492,6 +508,10 @@ func (e *foreignArchKernelError) forGokrazy(args []string) error {
 	quoted := make([]string, len(args))
 	for index, arg := range args {
 		quoted[index] = shellArg(arg)
+	}
+	if e.unsupported {
+		return errors.New(e.refusal("GOARCH=" + e.arch + " asks for an " + e.arch + " image; build an " + host +
+			" image here:\nGOARCH=" + host + " ./le build gokrazy " + strings.Join(quoted, " ")))
 	}
 	return errors.New(e.refusal("GOARCH=" + e.arch + " asks for an " + e.arch + " image: build it on an " + e.arch +
 		" host, or build an " + host + " image here:\nGOARCH=" + host + " ./le build gokrazy " + strings.Join(quoted, " ")))
@@ -508,8 +528,17 @@ func shellArg(value string) string {
 
 // runtimeKernelReachable answers the refusal an image build of arch would meet
 // at the runtime kernel, before anything long starts: nil when this host can
-// build arch, or when the cache already holds its kernel.
+// build arch, or when the cache already holds its kernel. An arch Ze builds no
+// kernel for is refused first, so the fix never sends the operator to a host
+// that cannot build it either.
+//
+// The cache is asked under builder "", the backend a build here would choose,
+// so a kernel built with the other --builder is not seen
+// (docs/architecture/appliance/build-artifacts.md).
 func runtimeKernelReachable(arch string) error {
+	if !kernelbuilder.ArchSupported(arch) {
+		return &foreignArchKernelError{version: defaultKernelVersion, arch: arch, unsupported: true}
+	}
 	if arch == kernelbuilder.HostArch() {
 		return nil
 	}
