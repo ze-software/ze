@@ -577,6 +577,68 @@ func TestCommitForceOverridesConflict(t *testing.T) {
 		assert.NotContains(t, again, "discarded", "the notice is shown once")
 	})
 
+	// Review round 1, I5: alice's conflicting change already sits in the
+	// shared draft (she ran `save`), not in her change file. The forced commit
+	// must take it out of the draft too, or the notice is false, her
+	// `show | changes` still lists it, and her next commit re-applies it.
+	t.Run("live in shared draft", func(t *testing.T) {
+		configPath := writeTestConfig(t, validBGPConfig)
+		store := newTestTreeStore(t, configPath)
+
+		alice, err := NewEditorWithStorage(store, configPath)
+		require.NoError(t, err)
+		defer alice.Close() //nolint:errcheck,gosec // test cleanup
+		aliceSession := NewEditSession("alice", "ssh")
+		alice.SetSession(aliceSession)
+		require.NoError(t, alice.SetValue([]string{"bgp"}, "router-id", "10.0.0.1"))
+		require.NoError(t, alice.SetValue(holdTime, "receive-hold-time", "180"))
+		require.NoError(t, alice.SaveDraft())
+
+		bob, err := NewEditorWithStorage(store, configPath)
+		require.NoError(t, err)
+		defer bob.Close() //nolint:errcheck,gosec // test cleanup
+		bob.SetSession(NewEditSession("bob", "ssh"))
+		// A daemon session editor opens on the shared draft (hub newSessionEditor).
+		require.True(t, bob.LoadDraft())
+		require.NoError(t, bob.SetValue([]string{"bgp"}, "router-id", "10.0.0.2"))
+
+		refused, err := bob.CommitSession()
+		require.NoError(t, err)
+		require.Len(t, refused.Conflicts, 1, "the draft entry conflicts LIVE")
+
+		alice.checkDraftChanged()
+
+		forced, err := bob.CommitSessionForce()
+		require.NoError(t, err)
+		require.Empty(t, forced.Conflicts)
+
+		draft, err := store.ReadFile(DraftPath(configPath))
+		require.NoError(t, err)
+		assert.NotContains(t, string(draft), "10.0.0.1", "the overridden entry is gone from the shared draft")
+		assert.Contains(t, string(draft), "receive-hold-time 180", "alice's other saved change is untouched")
+
+		changed, notice := alice.checkDraftChanged()
+		assert.True(t, changed)
+		assert.Contains(t, notice, "bgp router-id")
+		assert.Contains(t, notice, "discarded by bob's forced commit")
+
+		var alicePaths []string
+		for _, change := range alice.PendingChanges(aliceSession.ID) {
+			alicePaths = append(alicePaths, change.Path)
+		}
+		assert.NotContains(t, alicePaths, "bgp router-id", "show | changes no longer lists the discarded change")
+		assert.Contains(t, alicePaths, "bgp peer peer1 timer receive-hold-time")
+		assert.Equal(t, "10.0.0.2", getValueAtPath(alice.tree, alice.schema, []string{"bgp", "router-id"}))
+
+		// Her next commit carries her surviving change and not the discarded one.
+		_, err = alice.CommitSession()
+		require.NoError(t, err)
+		committed, err := store.ReadFile(configPath)
+		require.NoError(t, err)
+		assert.Contains(t, string(committed), "router-id 10.0.0.2", "the forced value survives alice's commit")
+		assert.Contains(t, string(committed), "receive-hold-time 180")
+	})
+
 	t.Run("stale", func(t *testing.T) {
 		configPath := writeTestConfig(t, validBGPConfig)
 		store := newTestTreeStore(t, configPath)

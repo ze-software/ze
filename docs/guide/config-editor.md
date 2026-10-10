@@ -83,7 +83,8 @@ In the SSH editor and the web terminal, `commit now` is refused when your
 change conflicts with another user's pending change (LIVE) or with a value
 committed since you made it (STALE). `commit now force` applies your change
 anyway. Each other user's pending change that it overrides is removed from that
-user's change file, and nothing else of theirs is touched. Their SSH editor
+user's change file, or from the shared draft when they already ran `save`, and
+nothing else of theirs is touched. Their next commit does not bring it back. Their SSH editor
 reports "Your change at <path> was discarded by <you>'s forced commit" once, at
 its next check for changes by other sessions (every two seconds, or when they
 next connect); from then on it shows the committed value in place of theirs,
