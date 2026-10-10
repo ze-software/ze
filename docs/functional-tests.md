@@ -169,7 +169,9 @@ Docker because the local runner needs a Linux system service; Docker-specific
 targets say so in the target name.
 
 Real VPP daemon evidence is separate from the stub-backed VPP functional suite:
-`./le test deployment vpp-test` starts VPP in a privileged Docker container and
+`./le test deployment vpp-test` starts VPP in a Docker container that holds
+`NET_ADMIN`, `IPC_LOCK`, `/dev/net/tun` and `/dev/vhost-net`, never
+`--privileged`, and
 proves `fib-vpp` add and withdraw against VPP's real FIB, traffic policers,
 and the IKE IPsec dataplane backend.
 

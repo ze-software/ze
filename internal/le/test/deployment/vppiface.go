@@ -149,10 +149,14 @@ func newVPPIface(tree string) *vppIface {
 
 // containerArgs answers the container VPP and the daemon both run in.
 //
-// It is privileged because VPP claims hugepages and creates devices, and it
-// holds the checkout at /src and the run's scratch directory at /run/vpp. The
-// entry point is replaced by a sleep so the image's own VPP is not started
-// before its configuration has been written.
+// It holds NET_ADMIN, IPC_LOCK and the host's /dev/net/tun and /dev/vhost-net,
+// never --privileged: VPP locks its buffer memory, and its tap interfaces (the
+// LCP pair) open a TUN device and a vhost-net backend, and ze programs the
+// container's own network namespace. VPP needs no hugepages: with none
+// reserved its buffer pool sits on default pages. It holds the checkout at /src and the
+// run's scratch directory at /run/vpp. The entry point is replaced by a sleep
+// so the image's own VPP is not started before its configuration has been
+// written.
 func (v *vppIface) containerArgs(name, work string) []string {
 	var tb textbuf.Buffer
 	src := tb.Str(v.Tree).Str(":/src").String()
@@ -160,7 +164,11 @@ func (v *vppIface) containerArgs(name, work string) []string {
 	scratch := tb.Str(work).Byte(':').Str(vppMount).String()
 
 	return []string{
-		"run", "--rm", dockerDetach, "--privileged",
+		"run", "--rm", dockerDetach,
+		dockerCapAdd, "NET_ADMIN",
+		dockerCapAdd, "IPC_LOCK",
+		dockerDevice, "/dev/net/tun",
+		dockerDevice, "/dev/vhost-net",
 		"--platform", v.Platform,
 		"--name", name,
 		"-v", src,

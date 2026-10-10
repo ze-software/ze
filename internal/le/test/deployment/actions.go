@@ -29,7 +29,7 @@ const area = "test deployment"
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "l2tp-test", Why: "the L2TP control session against an external peer." +
-		" Needs Docker and a privileged container",
+		" Needs Docker and the host's /dev/ppp",
 		Answer: runL2TPHere},
 	leaction.Action{Verb: "l2tp-ppp-test", Why: "the full L2TP PPP/NCP path on the host: LCP, IPCP, a kernel PPP" +
 		" interface at each end, a dataplane ping and a clean teardown." +
@@ -44,10 +44,10 @@ var actions = leaction.New(area,
 		" xl2tpd, pppd and PPPoL2TP kernel support",
 		Answer: runGokrazyL2TPHere},
 	leaction.Action{Verb: "vpp-iface-test", Why: "the VPP interface features against a real daemon: tunnels, mirror," +
-		" wireguard, LCP. Needs Docker and a privileged container",
+		" wireguard, LCP. Needs Docker and the host's /dev/net/tun and /dev/vhost-net",
 		Answer: runVPPIfaceHere},
-	leaction.Action{Verb: "vpp-test", Why: "ze driving a real VPP daemon, not a fake channel. Needs Docker and a" +
-		" privileged container",
+	leaction.Action{Verb: "vpp-test", Why: "ze driving a real VPP daemon, not a fake channel. Needs Docker and the" +
+		" host's /dev/net/tun and /dev/vhost-net",
 		Answer: runVPPHere},
 	leaction.Action{
 		Verb:       l2tpPPPoXDiagnosticName,

@@ -214,7 +214,8 @@ Run the focused service-route proof through native admission:
   -run '^TestVPPSRv6ServiceRoute$' -v
 ```
 
-This test reuses the deployment VPP image, privileged container, build recipes,
+This test reuses the deployment VPP image, its container (`NET_ADMIN`,
+`IPC_LOCK`, `/dev/net/tun` and `/dev/vhost-net`, never `--privileged`), build recipes,
 sockets, and staged Ze configuration. It does not replace the legacy
 `./le test deployment vpp-test` population. Docker, Go, a VPP image with the
 SRv6 API and AF_PACKET plugin, and a Docker kernel with veth support are required.

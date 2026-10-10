@@ -1,5 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- the deployment proofs' containers
 // Related: l2tp.go -- L2TP.containerArgs
+// Related: vppiface.go -- vppIface.containerArgs
 //
 // No deployment proof container runs privileged
 // (spec-lab-containers-least-privilege, AC-6): it holds what its daemons need.
@@ -39,5 +40,29 @@ func TestL2TPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 	}
 	if !slices.Contains(flagValues(argv, "--device"), "/dev/ppp") {
 		t.Errorf("the container lacks --device /dev/ppp: %v", argv)
+	}
+}
+
+// VALIDATES: AC-7. The VPP proofs' container (vpp-iface-test and vpp-test),
+// where VPP locks its buffer memory and creates tap interfaces and ze programs
+// the namespace, holds NET_ADMIN, IPC_LOCK, --device /dev/net/tun and
+// --device /dev/vhost-net, and runs no --privileged.
+// PREVENTS: the container silently regaining --privileged, or losing a grant
+// VPP needs, whose absence looks like a ze defect.
+func TestVPPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
+	run := fixtureVPPIface(t)
+	argv := run.containerArgs("ze-vpp-iface-1", filepath.Join(run.Tree, "tmp", "evidence", "vpp-iface-1"))
+	if slices.Contains(argv, "--privileged") {
+		t.Errorf("the container runs --privileged: %v", argv)
+	}
+	for _, capability := range []string{"NET_ADMIN", "IPC_LOCK"} {
+		if !slices.Contains(flagValues(argv, "--cap-add"), capability) {
+			t.Errorf("the container lacks --cap-add %s: %v", capability, argv)
+		}
+	}
+	for _, device := range []string{"/dev/net/tun", "/dev/vhost-net"} {
+		if !slices.Contains(flagValues(argv, "--device"), device) {
+			t.Errorf("the container lacks --device %s: %v", device, argv)
+		}
 	}
 }

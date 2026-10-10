@@ -92,6 +92,8 @@ const (
 	dockerExec   = "exec"
 	dockerEnv    = "--env"
 	dockerDetach = "--detach"
+	dockerCapAdd = "--cap-add"
+	dockerDevice = "--device"
 )
 
 // The daemon lines that decide the verdict. They are the collector's needles,
@@ -243,8 +245,8 @@ func (l *L2TP) containerArgs(name, work string) []string {
 
 	return []string{
 		"run", "--rm", dockerDetach,
-		"--cap-add", "NET_ADMIN",
-		"--device", "/dev/ppp",
+		dockerCapAdd, "NET_ADMIN",
+		dockerDevice, "/dev/ppp",
 		"--platform", l.Platform,
 		"--name", name,
 		"-v", src,

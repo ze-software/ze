@@ -93,17 +93,17 @@ func TestOnlyTheGatedScenarioEnablesLCP(t *testing.T) {
 }
 
 // VALIDATES: the container mounts the checkout at /src and the scratch directory
-// at /run/vpp, runs privileged on the named platform, and does not start the
-// image's own entry point.
-// PREVENTS: a rewrite that drops --privileged, which VPP needs to claim memory
-// and create devices, and whose absence looks like a ze defect.
+// at /run/vpp, runs with its grants on the named platform, and does not start
+// the image's own entry point.
+// PREVENTS: a rewrite that drops the TUN device, which VPP needs to create tap
+// interfaces, and whose absence looks like a ze defect.
 func TestTheVPPContainerMountsTheTreeAndTheScratch(t *testing.T) {
 	run := fixtureVPPIface(t)
 	work := filepath.Join(run.Tree, "tmp", "evidence", "vpp-iface-1")
 	line := strings.Join(run.containerArgs("ze-vpp-iface-1", work), " ")
 
 	for _, want := range []string{
-		"--privileged", "--platform linux/amd64", "--entrypoint sleep",
+		"--device /dev/net/tun", "--platform linux/amd64", "--entrypoint sleep",
 		run.Tree + ":/src", work + ":/run/vpp", VPPImage,
 	} {
 		if !strings.Contains(line, want) {
