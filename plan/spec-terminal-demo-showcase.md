@@ -413,7 +413,10 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 | `traffic-usage-added-live` | `test/reload/traffic-usage-added-live.ci` | AC-2 (traffic usage, control plane): `traffic { usage { ... } }` on `lo` load-merged over SSH and committed with `commit now` into a running daemon started with no `traffic` root; `show log recent component traffic.usage` lacks the attach line before and holds it after (attached, or attach failed for `lo` on a host that forbids unprivileged BPF). Red before d789fb00d2 (no section reached the plugin, 45 s) and red with `commit now` removed (52.1 s, the line never appears). Linux only (skip-os darwin) | pass (Linux host, 11.9 s, 2026-10-10) |
 | `vrrp-added-live` | `test/reload/vrrp-added-live.ci` | AC-2 and A-2 (VRRP tracking, control plane): a VRRP group with interface tracking load-merged over SSH under `interface ethernet zeptrk0 unit 0 ipv4` and committed with `commit now` into a running daemon whose config holds `interface` and no `vrrp` block; `show vrrp \| yaml` lacks the group before and shows `uplink` master at `effective-priority: 200` after. Red before bebb94bb48 (the load refused the bracket leaf-list) and red with `commit now` removed (51.8 s, `show vrrp` stays `vrrp: []`). Needs Linux with CAP_NET_ADMIN; a user and network namespace (`unshare -rn`, lo up) is enough | pass (Linux host, 17.7 s, 2026-10-10) |
 | `TestLoadMergeBracketLeafList` | `internal/component/cli/editor_load_test.go` | the load path under AC-2: a merge unions a bracket leaf-list's members, a replace takes the loaded ones, a replace omitting it deletes it. Red before bebb94bb48 with the exact refusal text | pass |
-| `ddos-parent-config-removed` (changed) | `test/plugin/ddos-parent-config-removed.ci` | Not this spec's AC: d789fb00d2, a defect fix this spec found, changed what it exercises. Deleting the whole `ddos` block now delivers ddos-local the empty body before the stop, so the config boundary withdraws and the exit path finds nothing to remove. The test now expects the "section was removed" withdrawal and rejects the exit-path line, so it pins d789fb00d2 at the operator gesture. The exit path alone has no operator gesture left (a daemon stop also flushes every ze table through the firewall engine), so `TestLocalEngineStopRemovesTheDrop` stays its proof and no sibling `.ci` can discriminate it | OWED: QEMU guest run (needs-linux net-admin,bpf), not run while a kernel rebuild is pending |
+| `ddos-parent-config-removed` (changed) | `test/plugin/ddos-parent-config-removed.ci` | Not this spec's AC: d789fb00d2, a defect fix this spec found, changed what it exercises. Deleting the whole `ddos` block now delivers ddos-local the empty body before the stop, so the config boundary withdraws and the exit path finds nothing to remove. The test now expects the "section was removed" withdrawal and rejects the exit-path line, so it pins d789fb00d2 at the operator gesture. The exit path alone has no operator gesture left (a daemon stop also flushes every ze table through the firewall engine), so `TestLocalEngineExitRemovesTheDrop` (below) is its proof and no sibling `.ci` can discriminate it | OWED: QEMU guest run (needs-linux net-admin,bpf), not run while a kernel rebuild is pending. The new expectations have never run (independent review, 2026-10-10, ISSUE 5); not weakened |
+| `TestLocalEngineExitRemovesTheDrop` | `internal/plugins/ddos/local/stale_table_test.go` | The exit path d789fb00d2 left without an operator gesture: the firewall and ddos-local engines run over the SDK transport, a detection installs a drop, the local engine's transport closes, and the backend then holds no `ze_ddos-local` rule. `TestLocalEngineStopRemovesTheDrop` calls `stopResponder` directly and stays green with runEngine's defer gone; this one goes red (-overlay mutant, the rule left in the backend) | pass (40aa9dd299) |
+| `TestLoadMergeBracketTwiceBeforeCommit`, `TestLoadBracketSetFormat` | `internal/component/cli/editor_load_test.go` | The load path under AC-2, after the review BLOCKER: two merges of a bracket leaf-list with no commit between keep every member (session and file mode), with the member store, ToMap, the scalar and the serializer agreeing; a set-format merge unions like a hierarchical one, and a set-format replace with the unchanged list records nothing. Both union against held members. Red with -overlay when Tree.Set's mirror branch and the editor's SetSlice routing are off; the set-format test also with the set parser back on Set | pass (ec97c976a8) |
+| `TestBuildDiffSectionsFilesAChangedAncestorUnderItsDeclaredRoot` | `internal/component/plugin/server/reload_test.go` | The Changed arm of d789fb00d2's declared-root pass: an ancestor whose value changed gives the nested root an add, a removal or a change by which side holds it. Red with -overlay when the both-sides arm files an add | pass |
 | one `.ci` per further topic found not to enable on a live commit | `test/reload/<topic>-added-live.ci` | AC-2: named when the Work Plan step 1 probe finds the defect; none exists yet because none is proven | |
 | topic and showcase validators | `./le site terminal-demo` validate mode, Linux renderer container | AC-2, AC-3, AC-4, AC-11: the recording's claims hold against the live lab | |
 
@@ -570,6 +573,24 @@ the light of decision 4: they guard against wrong output on screen, nothing more
   product never had: no existing demo commits a topic into a running daemon. The
   first producer read under it found a fail-open (IRR, AC-1). Expect the probes to
   find more; each is fixed here under owner decision 5.
+- Independent review of d789fb00d2, 9359214ff3, bebb94bb48, 0196d02016 and
+  bf2982ad36 (2026-10-10), recorded here. d789fb00d2's ancestor match in
+  `rootHasChanges` and the declared-root pass in `buildDiffSections` reach every
+  plugin with a nested config root, so two more plugins are newly affected
+  beyond those its commit message names: `traffic/control`
+  (`configRootTraffic`, `internal/component/traffic/register.go`) and `fib/p4`
+  (`internal/plugins/fib/p4/register.go`). Each now receives a section when its
+  ancestor block is added or removed whole. Record only, no defect: a `*`
+  wildcard root in `expandWildcardRoots` would hand both `traffic` and
+  `traffic/usage` (no production plugin declares one); the `inOld && inNew` arm
+  of the declared-root pass is unreachable from `config.DiffMaps` today (it now
+  has a unit test); an ordered bracket merge takes the loaded members as given
+  (documented in the guide); freeform inline lists
+  (`internal/component/config/parser_freeform.go`) are still refused by `load`.
+- The same review found the BLOCKER fixed in ec97c976a8: the config tree held a
+  bracket leaf-list in two stores and the editor's write paths updated one, so
+  two load merges with no commit between lost a member. The members are now
+  authoritative and `Tree.Set` keeps the scalar mirror and the members in step.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
