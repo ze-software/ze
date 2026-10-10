@@ -1,0 +1,121 @@
+# Test: traffic usage ADDED over SSH to a running daemon reaches its monitor
+# Initial config: a daemon with one iBGP peer and no `traffic` root, so the
+#                 traffic-usage plugin is not loaded.
+# Live change:    an SSH session editor load-merges `traffic usage` on the
+#                 loopback interface, and commits with `commit now`.
+# Expected:       `show log recent component traffic.usage` holds no attach
+#                 line before the commit and holds one after it, polled so the
+#                 daemon stays up until the monitor has run.
+#                 The traffic-usage monitor reconciles the committed interface
+#                 and tries to attach its eBPF program to it: the log carries
+#                 "traffic-usage: attached" (privileged host) or
+#                 "traffic-usage: attach failed" (unprivileged host), each
+#                 naming interface=lo. Either line is written only by the
+#                 reconcile step, for an interface in the committed config that
+#                 is present and up.
+#
+# VALIDATES: spec-terminal-demo-showcase AC-2 (traffic usage topic) -- the
+#            topic's configuration committed through the SSH editor, the path
+#            the recording types, reaches the plugin's monitor on a daemon
+#            started without it.
+# PREVENTS: a topic recording whose commit reports success while the monitor
+#           never sees the interface. It was red on exactly that until
+#           rootHasChanges (internal/component/plugin/server/reload.go)
+#           matched the added `traffic` key as an ancestor of the plugin's
+#           root `traffic/usage`. tcp_connections=1 also proves adding
+#           traffic usage leaves the BGP session alone.
+#
+# This proves the control plane only. Loading the eBPF program needs CAP_BPF in
+# the initial user namespace, which an unprivileged host never has
+# (kernel.unprivileged_bpf_disabled), so the counters themselves are the
+# showcase lab's job in its privileged renderer container (spec A-6).
+#
+# PLATFORM: skipped on darwin, as ospf-added-live.ci is: the interface
+# dependency has no default backend there.
+option=skip-os:value=darwin
+option=timeout:value=60s
+option=env:var=ze.log.traffic.usage:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=traffic-usage-added-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=traffic-usage-topic.conf:terminator=EOF_TOPIC
+traffic {
+    usage {
+        enabled true
+        interfaces {
+            interface lo {
+                track-ip true
+                max-entries 256
+            }
+        }
+        interval 250
+    }
+}
+EOF_TOPIC
+
+tmpfs=traffic-usage-added-live.script:terminator=EOF_SCRIPT
+cli show log recent component traffic.usage
+lacks traffic-usage: att
+send load file absolute merge traffic-usage-topic.conf
+wait Configuration merged from
+send commit now
+wait Session committed:
+has traffic-usage: att
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start traffic-usage-added-live.conf:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 traffic-usage-added-live.conf traffic-usage-added-live.script:timeout=60s
+expect=exit:code=0
+expect=stderr:pattern=traffic-usage: (attached|attach failed).*interface=lo
+reject=stderr:pattern=traffic-usage: interface not found
