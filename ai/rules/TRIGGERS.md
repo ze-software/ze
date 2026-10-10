@@ -42,4 +42,5 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/stale-comments.md` | blocking, always-on | when changing code behavior |
 | `ai/rules/terminal-demos.md` | blocking | writing, changing, or recording a terminal demo or video |
 | `ai/rules/testing.md` | blocking | writing, changing, or deleting any test, and before writing implementation code for new behavior |
+| `ai/rules/user-facing-errors.md` | blocking | adding or changing any message a user or an operator can see: an error, a refusal, a warning, a log line, a web UI notice, a `ze doctor` report... |
 | `ai/rules/writing.md` | blocking | writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product... |

@@ -1,0 +1,13 @@
+# User-Facing Errors
+
+**When:** adding or changing any message a user or an operator can see: an error, a refusal, a warning, a log line, a web UI notice, a `ze doctor` report, an `./le` diagnostic, or an API or gNMI error answer
+**Severity:** blocking
+**Related:** cli, writing, repo-maintenance
+
+## Directives
+
+- **Every error a user or an operator can see MUST say what went wrong in their terms, why it matters, and the exact next step or command that fixes it.** This binds every user interface Ze has, not the CLI alone: the CLI, the web UI, `ze doctor`, the logs, the `./le` tooling, and the API and gNMI error answers. The message MUST name what the reader typed, configured or installed, and MUST NOT name only the library or the call that failed. A bare exit code, an errno, a Go error chain, or a string internal to a tool (`exited 127`, `exec: "go": executable file not found in $PATH`) MUST NOT be the whole message: it MAY follow the explanation as evidence, never replace it.
+
+- **When Ze or its tooling cannot act because of the host (a missing program, an absent kernel feature, a security policy that refuses it), the error MUST name that condition and its fix, and MUST refuse before the work starts whenever the condition can be checked first, rather than fail halfway with the symptom.** `ze doctor` is where a host condition the daemon depends on is diagnosed and reported, so the operator can find it before the failure and confirm the fix after it; the check a new runtime dependency owes is in `ai/rules/repo-maintenance.md`. Where tooling can make the operator do the right thing (a setup action, a preflight check, a refusal that prints the command), that tooling SHOULD exist rather than a page the operator has to find.
+
+- **A user-visible message MUST be easy to read and to scan: the problem first, then why it matters, then the command that fixes it on a line of its own, in plain English with no jargon.** The Simplified Technical English rule in `ai/rules/writing.md` applies to every such message, because its readers include non-native English speakers and people under pressure on a broken host. Color MAY highlight the important parts, the problem and the command to run, and SHOULD be used sparingly, in the roles `docs/architecture/cli/color-system.md` defines. Color MUST NOT carry meaning alone, so the words say the same thing with it off, and it MUST be off wherever `slogutil.UseColor` (`internal/core/slogutil/color.go`) turns it off: `NO_COLOR`, `TERM=dumb`, and any writer that is not a terminal, which covers a log written to a file. JSON output MUST NOT carry color codes.

@@ -40,4 +40,5 @@ full before acting on a topic it covers.
 | Stale Comments | when changing code behavior | blocking | `ai/rules/stale-comments.md` |
 | Terminal Demos | writing, changing, or recording a terminal demo or video | blocking | `ai/rules/terminal-demos.md` |
 | Testing | writing, changing, or deleting any test, and before writing implementation code for new behavior | blocking | `ai/rules/testing.md` |
+| User-Facing Errors | adding or changing any message a user or an operator can see: an error, a refusal, a warning, a log line, a web UI notice, a `ze doctor` report, an `./le` diagnostic, or an API or gNMI error answer | blocking | `ai/rules/user-facing-errors.md` |
 | Writing | writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison | blocking | `ai/rules/writing.md` |

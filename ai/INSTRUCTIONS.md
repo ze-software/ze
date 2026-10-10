@@ -64,6 +64,11 @@ you have broken one, stop and tell the user.
 - Grep `plan/journal/` first, because other sessions meet the same defect.
 - Full rule: `ai/rules/completion.md`, `ai/rules/rule-precedence.md`.
 
+## Every message a user sees names the problem, why, and the fix
+- On every interface (CLI, web, `ze doctor`, logs, `./le`, API and gNMI), an
+  error says what is wrong in plain words, why, and the exact command that fixes it.
+- Full rule: `ai/rules/user-facing-errors.md`.
+
 ## STANDING REQUEST: delegate to subagents
 
 **Thomas requests subagent delegation as the default in this repository.** Treat

@@ -19,6 +19,13 @@ load: the same color always means the same thing, regardless of surface.
 5. **Graceful degradation.** 256-color is the design target. 16-color terminals
    get the base ANSI mapping automatically (lipgloss handles this). Monochrome
    terminals get bold/dim only.
+6. **Color is off where nobody sees it.** `NO_COLOR` turns it off, then
+   `TERM=dumb`, then `ze.log.color`, and otherwise it is on only when the writer
+   is a terminal, so a log written to a file carries none. JSON output never
+   carries color codes, and color never carries meaning alone: the words say
+   the same thing without it (`ai/rules/user-facing-errors.md`).
+
+<!-- source: internal/core/slogutil/color.go -- UseColor -->
 
 ## Semantic Color Roles
 
