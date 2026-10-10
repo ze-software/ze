@@ -342,11 +342,13 @@ and the operator deletes the destination first (AC-30).
 | `session-editor-copy` | `test/plugin/session-editor-copy.ci` | AC-8 | |
 | `session-editor-deactivate-activate` | `test/plugin/session-editor-deactivate-activate.ci` | AC-9, AC-10 | |
 | `cli-session-copy-deactivate` | `test/web/cli-session-copy-deactivate.wb` | AC-11 | |
-| `session-editor-commit-force` | `test/plugin/session-editor-commit-force.ci` | AC-12 | |
+| `session-editor-commit-force` | `test/plugin/session-editor-commit-force.ci` | AC-12 | PASS, promoted in 4b084247cf; red at step 7 with `appendIssueSummary` a no-op |
 | `session-editor-commit-force-conflict` | `test/plugin/session-editor-commit-force-conflict.ci` | AC-32 | |
-| `session-editor-commit-verify` | `test/plugin/session-editor-commit-verify.ci` | AC-26 | |
-| `session-editor-commit-grammar` | `test/plugin/session-editor-commit-grammar.ci` | AC-25, AC-27, AC-28 | |
-| `session-editor-copy-rename-existing` | `test/plugin/session-editor-copy-rename-existing.ci` | AC-30 | |
+| `session-editor-commit-verify` | `test/plugin/session-editor-commit-verify.ci` | AC-26 | PASS, promoted in 4b084247cf; red at step 12 with `appendIssueSummary` a no-op |
+| `session-editor-commit-grammar` | `test/plugin/session-editor-commit-grammar.ci` | AC-25, AC-27, AC-28 | PASS, 89888cabde; red at step 7 with `ParseCommit` taking bare `commit` as `commit now` |
+| `session-editor-commit-completion` | `test/plugin/session-editor-commit-completion.ci` | AC-27 completion clause: Tab after `commit` offers the five subcommands | PASS 2026-10-10 (2.6s), 1b88cda23a; red at step 6 with `completeCommit` returning nil |
+| `session-editor-copy-rename-existing` | `test/plugin/session-editor-copy-rename-existing.ci` | AC-30 | PASS, 89888cabde; red at step 4 with `errListEntryExists` returning nil |
+| `cli-copy-rename-existing` (web terminal) | `test/web/cli-copy-rename-existing.wb` | AC-30 for the web terminal (AC-29) | PASS 2026-10-10 (17.9s), 75cb1137b0; red at line 62 with `errListEntryExists` returning nil |
 | `session-editor-commit-confirmed-accept` | `test/plugin/session-editor-commit-confirmed-accept.ci` | AC-13 | |
 | `session-editor-commit-confirmed-accept-keeps-candidate` | `test/plugin/session-editor-commit-confirmed-accept-keeps-candidate.ci` | AC-24 | |
 | `session-editor-commit-confirmed-timeout` | `test/plugin/session-editor-commit-confirmed-timeout.ci` | AC-14 | |
@@ -578,7 +580,7 @@ Remaining.
 | AC-8 | evidenced | b5274c4fa8, 440ef0753a | `session-editor-copy.ci`, `TestSessionCopyWritesThrough`, `TestSessionCopyCarriesPendingSourceEdits` | .ci red with `CopyListEntry`'s session branch mutated back to a refusal |
 | AC-9, AC-10 | evidenced | b5274c4fa8, 440ef0753a | `session-editor-deactivate-activate.ci`, `TestSessionDeactivateActivateLeafAndPath` | .ci red with the `DeactivatePath` session branch mutated back to a refusal |
 | AC-11 | evidenced | 482bdc3986 | `test/web/cli-session-copy-deactivate.wb` | red at line 49 ("path not found") before 482bdc3986 |
-| AC-12 | partial | 0d6fe64cd1 | file mode: `commit-grammar.et`; Model: `TestCommitGrammar` | SSH `.ci` `test/draft/plugin/session-editor-commit-force.ci` is still a draft and RED (2026-10-10: step 6, wait for "commit now force", output deadline expired); no SSH evidence |
+| AC-12 | evidenced | 0d6fe64cd1, 4b084247cf, 63db26b565 | SSH `session-editor-commit-force.ci`; `model_commit_refusal_test.go` (3 tests); file mode `commit-grammar.et`; web `TestWebTerminalCommitRefusesWarnings`, `TestCLIBarCommitRefusalIsAnError` | `.ci` red at step 7 with `appendIssueSummary` a no-op; the refusal tests red before 4b084247cf and with `forcedCommand` mutated; web terminal test red ("commit successful") and CLI bar test red (303 redirect) before 63db26b565. The SSH drafts' earlier red was the draft's own error (deleting `session asn remote` is a warning, not an error) plus the product defect 4b084247cf fixed |
 | AC-13 | evidenced | e9eb530301 | `session-editor-commit-confirmed-accept.ci` | 9/9 confirm `.ci` red with `Editor.daemonWindow` returning nil (record above) |
 | AC-14 | evidenced | e9eb530301 | `session-editor-commit-confirmed-timeout.ci`, `TestConfirmWindowWorkerRevertsAtDeadline` | same 9/9 record |
 | AC-15 | evidenced | e9eb530301, b2be26dfae | `session-editor-commit-confirmed-disconnect.ci` | same 9/9 record |
@@ -591,11 +593,11 @@ Remaining.
 | AC-22 | evidenced (docs) | 6de8153c35, c734b3fb85, fd7ef25dec | `docs/guide/config-editor.md` Commit Confirmed, `docs/architecture/hub-architecture.md`, `docs/guide/web-interface.md` | not a test; read against the AC text |
 | AC-23 | evidenced | e9eb530301, fd7ef25dec | SSH `session-editor-commit-confirmed-nested.ci`, `TestConfirmWindowNestedRevertsToFirst`, `TestSessionCommitConfirmedForceNests`; file mode `TestFileModeNestedCommitConfirmedForce`, `TestFileModeNestedCountdownKeepsOneTicker` | .ci in the 9/9 record; both file-mode tests observed red before fd7ef25dec (nested force refused with ErrPending; a second `tea.Tick`) |
 | AC-24 | evidenced | e9eb530301 | `session-editor-commit-confirmed-accept-keeps-candidate.ci`, `TestConfirmWindowAcceptKeepsCandidateEdits` | same 9/9 record |
-| AC-25 | partial | 0d6fe64cd1, eeaa9864bd | `TestConfirmWindowAcceptAbortOutsideWindow`, file mode `commit-grammar.et`, web `cli-commit-grammar.wb` | no SSH `.ci`: `session-editor-commit-grammar.ci` was never written |
-| AC-26 | partial | 0d6fe64cd1, c734b3fb85 | file mode `commit-grammar.et`; web `TestWebTerminalCommitVerifyReportsInvalid`, `cli-commit-grammar.wb`; another user's verify during a window in `session-editor-commit-confirmed-other-user.ci` | `TestWebTerminalCommitVerifyReportsInvalid` red with `VerifySession` returning nil. SSH `.ci` `test/draft/plugin/session-editor-commit-verify.ci` is still a draft and RED (2026-10-10: step 12, wait for "remote", output deadline expired) |
-| AC-27, AC-28 | partial | 0d6fe64cd1, 9e142fbcae | `TestCommitGrammar`, `TestCommitCompletion`, file mode `commit-grammar.et`, web `cli-commit-grammar.wb` | no SSH `.ci` (`session-editor-commit-grammar.ci` never written) |
-| AC-29 | evidenced | 0d6fe64cd1, c734b3fb85 | `commit-grammar.et` (file mode), `cli-commit-grammar.wb` (web, real daemon) | `.wb` red with the hub's `SetConfirmWindow` removed; `commit-grammar.et` red (step 6) before 0d6fe64cd1 |
-| AC-30 | partial | 0d6fe64cd1 | `TestCopyRenameRefuseExistingDestination` (session and file mode), `commit-grammar.et` | no SSH `.ci` (`session-editor-copy-rename-existing.ci` never written); the web terminal case is not in `cli-commit-grammar.wb` |
+| AC-25 | evidenced | 0d6fe64cd1, eeaa9864bd, 89888cabde | SSH `session-editor-commit-grammar.ci`, `TestConfirmWindowAcceptAbortOutsideWindow`, file mode `commit-grammar.et`, web `cli-commit-grammar.wb` | `.ci` red at step 7 with `ParseCommit` taking bare `commit` as `commit now` |
+| AC-26 | evidenced | 0d6fe64cd1, c734b3fb85, 4b084247cf | SSH `session-editor-commit-verify.ci`; file mode `commit-grammar.et`; web `TestWebTerminalCommitVerifyReportsInvalid`, `cli-commit-grammar.wb`; another user's verify during a window in `session-editor-commit-confirmed-other-user.ci` | `.ci` red at step 12 with `appendIssueSummary` a no-op; `TestWebTerminalCommitVerifyReportsInvalid` red with `VerifySession` returning nil |
+| AC-27, AC-28 | evidenced | 0d6fe64cd1, 9e142fbcae, 89888cabde, 1b88cda23a | SSH `session-editor-commit-grammar.ci` and `session-editor-commit-completion.ci` (Tab offers the five subcommands); `TestCommitGrammar`, `TestCommitCompletion` (also proves `confirm` is never offered); file mode `commit-grammar.et`; web `cli-commit-grammar.wb` | grammar `.ci` red at step 7 (bare `commit` parsed as `commit now`); completion `.ci` red at step 6 with `completeCommit` returning nil |
+| AC-29 | evidenced | 0d6fe64cd1, c734b3fb85, 63db26b565, 75cb1137b0 | `commit-grammar.et` (file mode); web `cli-commit-grammar.wb` (real daemon), `cli-copy-rename-existing.wb`, and the AC-12 web tests above | `.wb` red with the hub's `SetConfirmWindow` removed; `commit-grammar.et` red (step 6) before 0d6fe64cd1; AC-12 and AC-30 web reds in their rows |
+| AC-30 | evidenced | 0d6fe64cd1, 89888cabde, 75cb1137b0 | SSH `session-editor-copy-rename-existing.ci`; web `cli-copy-rename-existing.wb`; `TestCopyRenameRefuseExistingDestination` (session and file mode); file mode `commit-grammar.et` | SSH `.ci` red at step 4 and web `.wb` red at line 62, each with `errListEntryExists` returning nil |
 | AC-31 | withdrawn | - | - | - |
 | AC-32 | evidenced (SSH); web owner | da04760ffc, 2b0522811b | `session-editor-commit-force-conflict.ci`, `TestCommitForceOverridesConflict`, `TestWebTerminalCommitForceOverridesConflict` | .ci and unit red with `discardOverridden` returning nil. A web user whose change is discarded gets no notice (Remaining) |
 
@@ -605,9 +607,9 @@ Remaining.
 |------------------|---------------|-------------------|
 | `load` works in session mode against the running daemon, as tracked change entries, and `commit now` applies it | functional | `session-editor-load-merge.ci`, `-load-replace.ci`, `-load-terminal-relative.ci` assert the running daemon's state through `ze cli -c show bgp`; `-load-conflict.ci` proves conflict detection sees a loaded leaf |
 | `copy`, `deactivate`, `activate` work in session mode as tracked entries | functional | `session-editor-copy.ci`, `session-editor-deactivate-activate.ci` (SSH), `cli-session-copy-deactivate.wb` (web) |
-| `commit force` works in session mode | functional | SSH: NOT evidenced (`session-editor-commit-force.ci` draft red). Force over a conflict: `session-editor-commit-force-conflict.ci` |
+| `commit force` works in session mode | functional | SSH: `session-editor-commit-force.ci` (warnings refuse `commit now`, which names `commit now force`; the forced commit reaches the running daemon). Force over a conflict: `session-editor-commit-force-conflict.ci`. Web: `TestWebTerminalCommitRefusesWarnings`, `TestCLIBarCommitRefusalIsAnError` |
 | `commit confirmed` auto-reverts even when the SSH session is gone | functional | `session-editor-commit-confirmed-disconnect.ci` (client killed, daemon reverts), `-timeout.ci`, `-restart.ci` (daemon stopped mid-window boots the pre-commit config) |
-| one commit grammar in every editor | functional | `commit-grammar.et` (file mode), `cli-commit-grammar.wb` (web), SSH through the confirm `.ci` set; SSH grammar refusals (AC-25, AC-27, AC-28) not in a `.ci` |
+| one commit grammar in every editor | functional | `commit-grammar.et` (file mode), `cli-commit-grammar.wb` (web), SSH `session-editor-commit-grammar.ci` (refusals, AC-25, AC-27, AC-28), `session-editor-commit-completion.ci` (Tab) and the confirm `.ci` set |
 
 ## Remaining
 
@@ -625,11 +627,10 @@ ACs not evidenced through their named entry point:
 
 | AC | What is missing |
 |----|-----------------|
-| AC-12 | SSH `.ci` `session-editor-commit-force.ci`: draft, RED at step 6, not diagnosed |
-| AC-26 | SSH `.ci` `session-editor-commit-verify.ci`: draft, RED at step 12, not diagnosed |
-| AC-25, AC-27, AC-28 | SSH `.ci` `session-editor-commit-grammar.ci`: not written |
-| AC-30 | SSH `.ci` `session-editor-copy-rename-existing.ci`: not written; web terminal case not covered |
 | AC-7 | blocked on the load merge owner decision above |
+
+`./le test editor` with a fresh build (2026-10-10): 173/175, the two reds are
+`load-file-absolute-merge.et` and `load-blocked.et`, both owner items above.
 
 Owed gates (not run by an implementing agent): `./le test unit all` (race),
 `./le verify worktree`, the review gate.
