@@ -97,6 +97,10 @@ func writeInstallerKernelRegistry(t *testing.T) {
 		filepath.Join(configDir, "hardware.require"): "CONFIG_EFI\nCONFIG_EFI_STUB\nCONFIG_FB_EFI\nCONFIG_FRAMEBUFFER_CONSOLE\nCONFIG_E1000E\nCONFIG_IGB\nCONFIG_IGC\nCONFIG_R8169\nCONFIG_SATA_AHCI\nCONFIG_BLK_DEV_NVME\nCONFIG_BLK_DEV_LOOP\nCONFIG_VFAT_FS\nCONFIG_EXFAT_FS\n",
 		filepath.Join(builderDir, "main.go"):         "package main\n",
 		filepath.Join(nativeDir, "driver.go"):        "package kernelbuilder\n",
+		"go.mod":                                     "module github.com/ze-software/ze\n",
+	}
+	for _, name := range kernelbuilder.BuildSources {
+		files[filepath.Join(nativeDir, name)] = "package kernelbuilder\n"
 	}
 	for path, content := range files {
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -617,8 +621,20 @@ func TestKernelBuilderSourceInvalidatesCache(t *testing.T) {
 	t.Chdir(dir)
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	writeInstallerKernelRegistry(t)
+	pkg := filepath.Join(dir, "internal", "appliance", "kernelbuilder")
+	if err := os.MkdirAll(pkg, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/ze-software/ze\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range append([]string{"driver.go"}, kernelbuilder.BuildSources...) {
+		if err := os.WriteFile(filepath.Join(pkg, name), []byte("package kernelbuilder\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 
-	source := filepath.Join(dir, "internal", "appliance", "kernelbuilder", "driver.go")
+	source := filepath.Join(pkg, "worker.go")
 	if err := os.WriteFile(source, []byte("package kernelbuilder\nconst revision = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -628,15 +644,27 @@ func TestKernelBuilderSourceInvalidatesCache(t *testing.T) {
 	}
 	variant2 := kernelCacheVariant(archAMD64, defaultKernelProfile)
 	if variant1 == variant2 {
-		t.Fatal("native builder source change did not change cache variant")
+		t.Fatal("a change to the worker the build runs did not change cache variant")
 	}
 
-	added := filepath.Join(dir, "internal", "appliance", "kernelbuilder", "qemu.go")
-	if err := os.WriteFile(added, []byte("package kernelbuilder\n"), 0o644); err != nil {
+	added := filepath.Join(dir, kernelBuilderDir, "common", "added.config")
+	if err := os.MkdirAll(filepath.Dir(added), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if variant3 := kernelCacheVariant(archAMD64, defaultKernelProfile); variant3 == variant2 {
-		t.Fatal("a source added to the native builder did not change cache variant")
+	if err := os.WriteFile(added, []byte("CONFIG_X=y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	variant3 := kernelCacheVariant(archAMD64, defaultKernelProfile)
+	if variant3 == variant2 {
+		t.Fatal("a file added under tools/kernel-builder did not change cache variant")
+	}
+
+	// A host-side file probes and words refusals: an edit there keeps the key.
+	if err := os.WriteFile(filepath.Join(pkg, "driver.go"), []byte("package kernelbuilder\nconst message = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if variant4 := kernelCacheVariant(archAMD64, defaultKernelProfile); variant4 != variant3 {
+		t.Fatal("an edit to the host-side driver.go changed cache variant")
 	}
 }
 
@@ -720,10 +748,12 @@ func TestRuntimeCacheVariantIncludesEveryPatchInput(t *testing.T) {
 	t.Chdir(t.TempDir())
 	for path, body := range map[string]string{
 		"tools/kernel-builder/main.go":               "package main\n",
-		"internal/appliance/kernelbuilder/driver.go": "package kernelbuilder\n",
-		"gokrazy/kernel/runtime.config":              "CONFIG_NET=y\n",
-		"gokrazy/kernel/patches/series":              "one.patch\n",
-		"gokrazy/kernel/patches/one.patch":           "first patch\n",
+		"internal/appliance/kernelbuilder/recipe.go": "package kernelbuilder\n",
+		"internal/appliance/kernelbuilder/worker.go": "package kernelbuilder\n",
+		"go.mod":                           "module github.com/ze-software/ze\n",
+		"gokrazy/kernel/runtime.config":    "CONFIG_NET=y\n",
+		"gokrazy/kernel/patches/series":    "one.patch\n",
+		"gokrazy/kernel/patches/one.patch": "first patch\n",
 	} {
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			t.Fatal(err)

@@ -23,8 +23,6 @@ import (
 )
 
 const (
-	alpineVersion     = "3.21"
-	alpineMinor       = "3"
 	vmMemoryMin       = 9216
 	vmMemoryMax       = 12288
 	bootTimeout       = 120 * time.Second
@@ -32,7 +30,6 @@ const (
 	bootstrapTimeout  = 180 * time.Second
 	sshTimeout        = 60 * time.Second
 	bootstrapAttempts = 5
-	buildPackages     = "build-base bc bison flex elfutils-dev openssl-dev linux-headers perl wget xz diffutils findutils cpio patch kmod zstd"
 )
 
 var alpineReleaseBaseURL = "https://dl-cdn.alpinelinux.org/alpine"
@@ -295,21 +292,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		return errors.New("VM bootstrap failed: SSH not reachable")
 	}
 	fmt.Fprintln(req.Stderr, "  VM ready, installing build dependencies...") //nolint:errcheck // progress output
-	setup, guestOutput := guestSetup(req, shares)
-	workerArgs := []string{"/workspace/" + workerRel, "--version", req.Version, "--arch", req.Arch, "--profile", req.Profile, "--src-dir", "/workspace/" + filepath.ToSlash(req.SourceDir), "--out-dir", guestOutput, "--modules", req.Modules}
-	for _, fragment := range req.Fragments {
-		workerArgs = append(workerArgs, "--fragment", "/workspace/"+filepath.ToSlash(fragment))
-	}
-	if req.PatchesDir != "" {
-		workerArgs = append(workerArgs, "--patches-dir", "/workspace/"+filepath.ToSlash(req.PatchesDir))
-	}
-	if req.FirmwareDir != "" {
-		workerArgs = append(workerArgs, "--firmware-dir", "/firmware")
-	}
-	if req.Jobs != "" {
-		workerArgs = append(workerArgs, "--jobs", req.Jobs)
-	}
-	fullCommand := "sh -c " + shellQuote(setup+" && CCACHE_DIR=/ccache CCACHE_MAXSIZE=5G PATH=/usr/lib/ccache/bin:$PATH "+shellJoin(workerArgs))
+	fullCommand := guestBuildCommand(req, workerRel, shares)
 	tarball := filepath.Join(build, kernelTarballName(req.Version))
 	if regularFile(tarball) {
 		fmt.Fprintf(req.Stderr, "  %s cached on host\n", filepath.Base(tarball)) //nolint:errcheck // progress output
@@ -328,29 +311,6 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 	}
 	fmt.Fprintln(req.Stderr, ">>> kernel build complete") //nolint:errcheck // progress output
 	return nil
-}
-
-// guestSetup answers the shell line the guest runs before the worker, and the
-// guest path the worker writes its output to. shares are the checkout tmp
-// directories that live outside the tree (internal/core/tmplink).
-func guestSetup(req Request, shares []tmplink.Share) (string, string) {
-	setup := fmt.Sprintf("set -e && printf 'https://dl-cdn.alpinelinux.org/alpine/v%s/main\\nhttps://dl-cdn.alpinelinux.org/alpine/v%s/community\\n' > /etc/apk/repositories && apk update && apk add --no-cache %s ccache && mkdir -p /workspace && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 workspace /workspace && mkdir -p /ccache && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 ccache /ccache && mkdir -p /build && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 builddir /build", alpineVersion, alpineVersion, buildPackages)
-	guestOutput := "/workspace/" + filepath.ToSlash(req.OutputDir)
-	if filepath.IsAbs(req.OutputDir) {
-		setup += " && mkdir -p /output && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 output /output"
-		guestOutput = "/output"
-	}
-	if req.FirmwareDir != "" {
-		setup += " && mkdir -p /firmware && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576,ro firmware /firmware"
-	}
-	// The worker binary and the runtime output both sit under /workspace/tmp,
-	// so a relocated tmp child is mounted at its own absolute path before the
-	// worker follows the symlink the 9p mount hands it.
-	var mounts strings.Builder
-	for _, share := range shares {
-		mounts.WriteString(" && mkdir -p " + shellQuote(share.Guest) + " && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 " + share.Tag + " " + shellQuote(share.Guest))
-	}
-	return setup + mounts.String(), guestOutput
 }
 
 // qemuArgs builds the QEMU command line. accel is the hardware accelerator
@@ -599,14 +559,6 @@ func sshRun(ctx context.Context, port int, command string, req Request) error {
 	cmd := exec.CommandContext(ctx, "ssh", args...) //nolint:gosec // fixed "ssh" binary, options and loopback port built here
 	cmd.Stdout, cmd.Stderr = req.Stdout, req.Stderr
 	return cmd.Run()
-}
-func shellQuote(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
-func shellJoin(args []string) string {
-	quoted := make([]string, len(args))
-	for index, arg := range args {
-		quoted[index] = shellQuote(arg)
-	}
-	return strings.Join(quoted, " ")
 }
 func sendConsole(writer io.Writer, command string) error {
 	_, err := io.WriteString(writer, command+"\n")

@@ -7,6 +7,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io"
 	"net/http"
 	"os"
@@ -16,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -90,41 +93,104 @@ func kernelTreeCachePath(version, variant string) string {
 	return filepath.Join(resolveCacheDir(), runtimeKernelCacheDir, tb.Str(version).Byte('-').Str(variant).String())
 }
 
-// kernelBuilderSources lists every production source file used by the native
-// builder. The list is discovered and sorted so adding or editing a backend
-// invalidates cached kernels without maintaining another filename registry.
-// Every non-test file in kernelbuilder is hashed, with no exclusion, so code
-// that never runs during a build lives outside that package: the GPLv2 notice
-// and the provenance reader in internal/appliance/instance, the doctor query
-// in doctor_checks.go. An edit there changes no kernel and keeps the cache.
+// kernelBuilderSources lists the files that decide a built kernel's bytes, and
+// only those: every file under tools/kernel-builder (the container definition,
+// the worker's main and the shared config fragments), the kernelbuilder files
+// named by kernelbuilder.BuildSources (the worker and what the host hands it),
+// and every non-test Go file of each Ze package those Go files import, followed
+// transitively. The config fragments, manifests and patches a profile resolves
+// are hashed beside it (kernelCacheVariantFor), and the version is in the path.
+//
+// The host-side kernelbuilder files, which probe, measure and word refusals,
+// are left out, so an edit there keeps every cached kernel: a cold rebuild is
+// thirty minutes per arch. A change to what the build produces belongs in a
+// BuildSources file, and TestKernelCacheKeyCoversEveryBuildInput refuses a
+// BuildSources file that reaches a declaration outside them.
 func kernelBuilderSources() (paths []string, ok bool) {
-	roots := []string{
-		kernelBuilderDir,
-		filepath.Join("internal", "appliance", "kernelbuilder"),
-	}
-	for _, root := range roots {
-		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if entry.IsDir() {
-				if root == kernelBuilderDir && path != root {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if strings.HasSuffix(path, "_test.go") {
-				return nil
-			}
+	err := filepath.WalkDir(kernelBuilderDir, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !entry.IsDir() && !strings.HasSuffix(path, "_test.go") {
 			paths = append(paths, path)
-			return nil
-		})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, false
+	}
+	builderPkg := filepath.Join("internal", "appliance", "kernelbuilder")
+	for _, name := range kernelbuilder.BuildSources {
+		paths = append(paths, filepath.Join(builderPkg, name))
+	}
+	imported, ok := zeImportClosure(paths, builderPkg)
+	if !ok {
+		return nil, false
+	}
+	paths = append(paths, imported...)
+	slices.Sort(paths)
+	return slices.Compact(paths), len(paths) > 0
+}
+
+// zeImportClosure answers every non-test Go file of each Ze package the Go
+// files in seeds import, transitively. skipPkg is the kernelbuilder package,
+// whose build files are named by BuildSources rather than taken whole.
+func zeImportClosure(seeds []string, skipPkg string) ([]string, bool) {
+	module, ok := zeModulePath()
+	if !ok {
+		return nil, false
+	}
+	var files []string
+	seen := map[string]bool{skipPkg: true}
+	queue := slices.Clone(seeds)
+	fset := token.NewFileSet()
+	for len(queue) > 0 {
+		path := queue[0]
+		queue = queue[1:]
+		if !strings.HasSuffix(path, ".go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
 		if err != nil {
 			return nil, false
 		}
+		for _, spec := range file.Imports {
+			importPath := strings.Trim(spec.Path.Value, `"`)
+			rel, inModule := strings.CutPrefix(importPath, module+"/")
+			dir := filepath.FromSlash(rel)
+			if !inModule || seen[dir] {
+				continue
+			}
+			seen[dir] = true
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				return nil, false
+			}
+			for _, entry := range entries {
+				name := entry.Name()
+				if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+					continue
+				}
+				files = append(files, filepath.Join(dir, name))
+				queue = append(queue, filepath.Join(dir, name))
+			}
+		}
 	}
-	slices.Sort(paths)
-	return paths, len(paths) > 0
+	return files, true
+}
+
+// zeModulePath answers the module path go.mod declares.
+func zeModulePath() (string, bool) {
+	data, err := os.ReadFile("go.mod")
+	if err != nil {
+		return "", false
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		if module, found := strings.CutPrefix(strings.TrimSpace(line), "module "); found {
+			return strings.TrimSpace(module), true
+		}
+	}
+	return "", false
 }
 
 func cacheFileHashPaths(paths []string) (string, bool) {

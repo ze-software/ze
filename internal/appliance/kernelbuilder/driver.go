@@ -12,42 +12,14 @@ import (
 	"runtime"
 	"strings"
 	"time"
-
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
-	defaultBuilderDir = "tools/kernel-builder"
-	defaultCommonDir  = "tools/kernel-builder/common"
-	defaultImage      = "ze-kernel-builder"
-	ProvenanceName    = "kernel.version"
-
-	// The provenance record's keys for its source: what writeProvenance writes
-	// and what the image assembly (internal/appliance/instance) reads back for
-	// the GPLv2 notice. Declared once, here, beside the writer.
-	ProvenanceKeyVersion      = "version"
-	ProvenanceKeySourceURL    = "source-url"
-	ProvenanceKeySourceSHA256 = "source-sha256"
-	ownershipRepairTimeout    = 2 * time.Minute
-
-	archAMD64   = "amd64"
-	archX8664   = "x86_64"
-	archARM64   = "arm64"
-	archAArch64 = "aarch64"
+	ownershipRepairTimeout = 2 * time.Minute
 
 	backendDocker = "docker"
 	backendQEMU   = "qemu"
-	modulesYes    = "yes"
-	modulesNo     = "no"
-
-	dockerPlatformFlag = "--platform"
 )
-
-var dockerPlatforms = map[string]string{
-	archAMD64: "linux/amd64",
-	archX8664: "linux/amd64",
-	archARM64: "linux/arm64",
-}
 
 // hostGOARCH is the arch of the machine running the build. Every kernel is
 // built on a host of its own arch, so a request for another arch is refused
@@ -113,31 +85,7 @@ func validateRequest(req *Request) error {
 		return fmt.Errorf("resolve repository root: %w", err)
 	}
 	req.Root = root
-	if req.BuilderDir == "" {
-		req.BuilderDir = defaultBuilderDir
-	}
-	if req.CommonDir == "" {
-		req.CommonDir = defaultCommonDir
-	}
-	if req.Image == "" {
-		req.Image = defaultImage
-	}
-	if req.Target == "" {
-		if req.Modules == modulesYes {
-			req.Target = "runtime"
-		} else {
-			req.Target = "installer"
-		}
-	}
-	if req.Stdout == nil {
-		req.Stdout = os.Stdout
-	}
-	if req.Stderr == nil {
-		req.Stderr = os.Stderr
-	}
-	if req.Arch == archAArch64 {
-		req.Arch = archARM64
-	}
+	normalizeRequest(req)
 	if err := validateVersion(req.Version); err != nil {
 		return err
 	}
@@ -226,13 +174,6 @@ func validateOutputPath(value *string) error {
 	return nil
 }
 
-func hostOutputPath(req Request) string {
-	if filepath.IsAbs(req.OutputDir) {
-		return req.OutputDir
-	}
-	return filepath.Join(req.Root, req.OutputDir)
-}
-
 // SelectBuilder answers the backend a kernel build for arch uses: requested
 // when it is named, else Docker, else QEMU with Go. QEMU counts only when it can
 // run under a hardware accelerator on this host (hardwareAccelerator), so a host
@@ -298,38 +239,9 @@ func runDocker(ctx context.Context, req Request) error {
 	if err := runCommand(ctx, req, backendDocker, buildArgs...); err != nil {
 		return fmt.Errorf("build kernel builder image: %w", err)
 	}
-	args := []string{
-		"run", "--rm", dockerPlatformFlag, platform,
-		"-e", "KERNEL_VERSION=" + req.Version,
-		"-v", filepath.Join(req.Root, req.SourceDir) + ":/src:ro",
-		"-v", filepath.Join(req.Root, req.CommonDir) + ":/builder/common:ro",
-		"-v", hostOutputPath(req) + ":/out",
-		"-v", "ze-kernel-build:/tmp/kbuild",
-		"-v", "ze-kernel-work:/build",
-	}
-	if req.FirmwareDir != "" {
-		args = append(args, "-v", req.FirmwareDir+":/firmware:ro")
-	}
-	args = append(args, req.Image, "ze-kernel-builder", "--version", req.Version, "--arch", req.Arch, "--profile", req.Profile, "--modules", req.Modules, "--out-dir", "/out")
-	if req.Jobs != "" {
-		args = append(args, "--jobs", req.Jobs)
-	}
-	if req.PatchesDir != "" {
-		rel, err := filepath.Rel(req.SourceDir, req.PatchesDir)
-		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			return fmt.Errorf("patches directory %s must be under source directory %s", req.PatchesDir, req.SourceDir)
-		}
-		args = append(args, "--patches-dir", filepath.ToSlash(filepath.Join(containerSrcDir, rel)))
-	}
-	if req.FirmwareDir != "" {
-		args = append(args, "--firmware-dir", "/firmware")
-	}
-	for _, fragment := range req.Fragments {
-		mapped, err := containerFragmentPath(req, fragment)
-		if err != nil {
-			return err
-		}
-		args = append(args, "--fragment", mapped)
+	args, err := containerRunArgs(req)
+	if err != nil {
+		return err
 	}
 	buildErr := runCommand(ctx, req, backendDocker, args...)
 	repairCtx, cancelRepair := context.WithTimeout(context.WithoutCancel(ctx), ownershipRepairTimeout)
@@ -351,24 +263,6 @@ func runDocker(ctx context.Context, req Request) error {
 		return repairErr
 	}
 	return nil
-}
-
-// The mount points the kernel build container sees. A path handed to the
-// container is one of these joined with a path relative to its host directory.
-const (
-	containerSrcDir    = "/src"
-	containerCommonDir = "/builder/common"
-)
-
-func containerFragmentPath(req Request, fragment string) (string, error) {
-	fragment = filepath.Clean(fragment)
-	if rel, err := filepath.Rel(req.CommonDir, fragment); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return filepath.ToSlash(filepath.Join(containerCommonDir, rel)), nil
-	}
-	if rel, err := filepath.Rel(req.SourceDir, fragment); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return filepath.ToSlash(filepath.Join(containerSrcDir, rel)), nil
-	}
-	return "", fmt.Errorf("fragment %s is outside source directory %s and common directory %s", fragment, req.SourceDir, req.CommonDir)
 }
 
 func repairOwnership(ctx context.Context, req Request, platform string) error {
@@ -402,42 +296,4 @@ var runCommandOutput = func(ctx context.Context, req Request, name string, args 
 		return nil, err
 	}
 	return out, nil
-}
-
-// writeProvenance records what was built, and the source it was built from: the
-// tarball URL downloadKernelSource fetches and the tracked SHA-256
-// verifyKernelSource checked. Both derive from req.Version through the same
-// declarations the worker uses, so the record cannot name a source the build
-// did not verify. A version with no tracked digest gets no record, because the
-// worker refuses to build it and an empty digest would read as verified.
-func writeProvenance(outputDir string, req Request, backend string) error {
-	digest, tracked := SourceDigest(req.Version)
-	if !tracked {
-		return fmt.Errorf("write kernel provenance: linux %s has no tracked SHA-256 (kernelSourceSHA256), so its source is not one the build verified", req.Version)
-	}
-	path := hostOutputPath(Request{Root: req.Root, OutputDir: outputDir})
-	if err := os.MkdirAll(path, 0o750); err != nil {
-		return fmt.Errorf("create provenance directory: %w", err)
-	}
-	var tb textbuf.Buffer
-	data := tb.Str(ProvenanceKeyVersion).Byte('=').Str(req.Version).
-		Str("\ntarget=").Str(req.Target).
-		Str("\nprofile=").Str(req.Profile).
-		Str("\narch=").Str(req.Arch).
-		Str("\nmodules=").Str(req.Modules).
-		Str("\nbuilder=").Str(backend).
-		Byte('\n').Str(ProvenanceKeySourceURL).Byte('=').Str(kernelTarballURL(req.Version)).
-		Byte('\n').Str(ProvenanceKeySourceSHA256).Byte('=').Str(digest).
-		Str("\n").Bytes()
-	if err := os.WriteFile(filepath.Join(path, ProvenanceName), data, 0o600); err != nil {
-		return fmt.Errorf("write kernel provenance: %w", err)
-	}
-	return nil
-}
-
-func workerGOARCH(arch string) string {
-	if arch == archARM64 {
-		return archARM64
-	}
-	return archAMD64
 }

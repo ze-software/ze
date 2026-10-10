@@ -2,13 +2,9 @@ package appliance
 
 import (
 	"errors"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strings"
 	"testing"
 
@@ -299,57 +295,5 @@ func TestDoctorRuntimeKernelNamesTheBuilderCause(t *testing.T) {
 	}
 	if strings.Contains(diags[0].Message, "QEMU with Go is not installed") {
 		t.Errorf("message says QEMU is missing on a host whose accelerator is the cause:\n%s", diags[0].Message)
-	}
-}
-
-// TestKernelBuilderSourcesHoldOnlyBuildCode verifies the builder source hash
-// that keys every cached kernel covers every non-test kernelbuilder file, with
-// no exclusion, and that none of those files declares code that runs outside a
-// build: the image-time notice and provenance reader, or a doctor-only query.
-//
-// VALIDATES: round-1 ISSUE 4, the hash covers what a build runs and nothing else.
-// PREVENTS: an edit to the GPLv2 notice wording, or to a doctor query, forcing a
-// cold rebuild of each arch's kernel; and a filename exclusion that hides a
-// build-time file from the hash.
-func TestKernelBuilderSourcesHoldOnlyBuildCode(t *testing.T) {
-	t.Chdir(filepath.Join("..", ".."))
-	paths, ok := kernelBuilderSources()
-	if !ok {
-		t.Fatal("no kernel builder sources found from the repository root")
-	}
-	hashed := make(map[string]bool, len(paths))
-	for _, path := range paths {
-		hashed[path] = true
-	}
-	pkg := filepath.Join("internal", "appliance", "kernelbuilder")
-	entries, err := os.ReadDir(pkg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		if !hashed[filepath.Join(pkg, name)] {
-			t.Errorf("the builder source hash leaves out %s", filepath.Join(pkg, name))
-		}
-	}
-	notBuildTime := []string{"LinuxNotice", "ReadProvenance", "readProvenance", "UsableBuilder"}
-	fset := token.NewFileSet()
-	for _, path := range paths {
-		if !strings.HasSuffix(path, ".go") {
-			continue
-		}
-		file, parseErr := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
-		if parseErr != nil {
-			t.Fatal(parseErr)
-		}
-		for _, decl := range file.Decls {
-			fn, isFunc := decl.(*ast.FuncDecl)
-			if isFunc && slices.Contains(notBuildTime, fn.Name.Name) {
-				t.Errorf("%s declares %s, which no kernel build runs, inside the hashed builder sources", path, fn.Name.Name)
-			}
-		}
 	}
 }

@@ -80,18 +80,38 @@ entry and the `ze appliance kernel --target runtime --arch <arch>` command to
 run once the builder can run. Run outside the Ze source tree,
 where the kernel config cannot be read, the check warns rather than pass.
 
-The kernel cache variant hashes every non-test file in `kernelbuilder`, with no
-exclusion, so an edit there makes each cached kernel stale and costs a cold
-rebuild per arch. Code that never runs during a build therefore lives outside
-that package: the doctor query in `doctor_checks.go`, and the provenance reader
-and GPLv2 notice in `internal/appliance/instance`. Editing either keeps the
-cache.
+The kernel cache variant hashes the inputs that decide a kernel's bytes, and
+nothing else. A cold rebuild costs about thirty minutes per arch, so an edit
+that changes no kernel must keep the cache. The key covers:
+
+| Input | Why it decides the bytes |
+|-------|--------------------------|
+| The kernel version | It names the cache entry; the tarball's SHA-256 pin sits in `kernelbuilder/worker.go` |
+| The profile's config fragments, `.require` manifests, and the target's patch series | They are the config and the source the kernel is built from |
+| Every file under `tools/kernel-builder` | The container definition (toolchain and packages), the worker's `main`, and the shared fragments |
+| The `kernelbuilder` files named in `kernelbuilder.BuildSources` | `worker.go` is the build. `recipe.go` holds what the host hands it: the `docker run` argv, the QEMU guest's Alpine release, packages and command line, the request defaults, and the provenance record |
+| Every Ze package those Go files import, followed transitively | The worker and the recipe run that code |
+
+The other `kernelbuilder` files are host-side: they select a backend, probe the
+accelerator, measure free space, and word refusals. An edit there keeps every
+cached kernel. The rule follows: code that changes what the build produces goes
+in a `BuildSources` file, never in a host-side one.
+`TestKernelCacheKeyCoversEveryBuildInput` refuses a `BuildSources` file that
+reaches a function, variable or constant declared in a host-side file, an
+`init` outside them, and a hashed file whose Ze import is not hashed.
+`TestKernelCacheKeyIgnoresHostSideEdits` edits each host-side file and checks
+the key holds, then edits each `BuildSources` file and checks it moves.
+
+One input is not in the key: the `hardware-kms` installer profile's i915
+firmware blobs, fetched once into the cache by `ensureFirmware` with no digest
+pinned. A different blob under the same name keeps the cached installer kernel.
 
 <!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 <!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel -->
 <!-- source: internal/appliance/doctor_checks.go -- checkRuntimeKernel -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- SelectBuilder -->
 <!-- source: internal/appliance/cache.go -- kernelBuilderSources -->
+<!-- source: internal/appliance/kernelbuilder/recipe.go -- BuildSources -->
 
 ## Related
 
