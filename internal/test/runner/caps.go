@@ -4,9 +4,12 @@
 package runner
 
 import (
+	"errors"
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // goosLinux is runtime.GOOS on Linux. Named so the several capability/netns
@@ -95,6 +98,44 @@ var capsRequired = map[string][]int{
 	capsNetRaw:   {capNetRaw},
 	capsBPF:      {capBPF},
 	capsSysTime:  {capSysTime},
+}
+
+// capDockerName is the name `docker run --cap-add` takes for each capability
+// bit above, the kernel's CAP_ name with its prefix dropped. It is a second
+// spelling of the bit constants, so TestEveryCapsBitHasADockerName compares the
+// two and CapsDockerNames refuses a bit it cannot name.
+var capDockerName = map[int]string{
+	capNetBindService: "NET_BIND_SERVICE",
+	capNetAdmin:       "NET_ADMIN",
+	capNetRaw:         "NET_RAW",
+	capSysResource:    "SYS_RESOURCE",
+	capSysTime:        "SYS_TIME",
+	capBPF:            "BPF",
+}
+
+// CapsDockerNames answers, sorted and once each, the `docker run --cap-add`
+// name of every capability a `caps=` token requires. A container that holds
+// these can run every capability-gated `.ci` test, which is what the
+// release-candidate evidence container needs (spec-lab-containers-least-privilege,
+// site 6), so its grant list follows this table rather than a hand list.
+// A bit with no Docker name is an error naming the bit, never a shorter list.
+func CapsDockerNames() ([]string, error) {
+	names := make([]string, 0, len(capDockerName))
+	for _, bits := range capsRequired {
+		for _, bit := range bits {
+			name, ok := capDockerName[bit]
+			if !ok {
+				var tb textbuf.Buffer
+				return nil, errors.New(tb.Str("capability bit ").Int(int64(bit)).
+					Str(" has no Docker name: add it to capDockerName in internal/test/runner/caps.go").String())
+			}
+			if !slices.Contains(names, name) {
+				names = append(names, name)
+			}
+		}
+	}
+	slices.Sort(names)
+	return names, nil
 }
 
 // capsAccepted lists the accepted tokens for an error message, derived from the

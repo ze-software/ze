@@ -5,8 +5,11 @@ package verifyevidence
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // recorder is a Runner whose two outside effects are captured rather than made:
@@ -100,11 +103,29 @@ func TestACleanTreeStartsOneContainer(t *testing.T) {
 	argv := rec.started[0]
 	line := strings.Join(argv, " ")
 	for _, want := range []string{
-		"run --rm", "--privileged", "--platform linux/amd64",
+		"run --rm", "--platform linux/amd64",
 		"-v " + checkout + ":/host:ro", "golang:1.27", "bash -lc",
 	} {
 		if !strings.Contains(line, want) {
 			t.Errorf("the docker argv does not carry %q:\n%s", want, line)
+		}
+	}
+	// spec-lab-containers-least-privilege, site 6: the container holds the
+	// capabilities the caps= vocabulary names, derived from the runner's own
+	// table, and never --privileged.
+	if slices.Contains(argv, "--privileged") {
+		t.Errorf("the container runs --privileged:\n%s", line)
+	}
+	granted, err := runner.CapsDockerNames()
+	if err != nil {
+		t.Fatalf("the caps= vocabulary has no Docker names: %v", err)
+	}
+	if len(granted) == 0 {
+		t.Fatal("the caps= vocabulary derived no capability")
+	}
+	for _, name := range granted {
+		if !strings.Contains(line, "--cap-add "+name) {
+			t.Errorf("the docker argv lacks --cap-add %s:\n%s", name, line)
 		}
 	}
 	if argv[len(argv)-1] != ContainerScript {

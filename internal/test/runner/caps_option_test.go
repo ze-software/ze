@@ -212,3 +212,42 @@ func TestCapsNetBindGateBothPolarities(t *testing.T) {
 		t.Fatalf("caps=net-bind skipped WITH the capability present: %q -- the DNS stub tests would never run, even under QEMU", present.SkipReason)
 	}
 }
+
+// TestEveryCapsBitHasADockerName pins the Docker spelling of each caps= bit.
+//
+// VALIDATES: every bit capsRequired names has an entry in capDockerName, and
+// CapsDockerNames answers each such name once, sorted, with no name for a bit
+// no token requires.
+// PREVENTS: a new caps= token whose bit has no Docker name, which would leave
+// the release-candidate evidence container (internal/le/verify/evidence)
+// without the capability its test needs, and that test skipping or failing
+// there for a reason that is about the grant list, not about ze.
+func TestEveryCapsBitHasADockerName(t *testing.T) {
+	var want []string
+	for _, bits := range capsRequired {
+		for _, bit := range bits {
+			name, ok := capDockerName[bit]
+			if !ok {
+				t.Errorf("capability bit %d has no Docker name in capDockerName", bit)
+				continue
+			}
+			if !slices.Contains(want, name) {
+				want = append(want, name)
+			}
+		}
+	}
+	slices.Sort(want)
+
+	got, err := CapsDockerNames()
+	if err != nil {
+		t.Fatalf("CapsDockerNames: %v", err)
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("CapsDockerNames() = %v, want %v", got, want)
+	}
+	for _, name := range []string{"BPF", "NET_ADMIN", "NET_BIND_SERVICE", "NET_RAW", "SYS_TIME"} {
+		if !slices.Contains(got, name) {
+			t.Errorf("CapsDockerNames() = %v lacks %s", got, name)
+		}
+	}
+}

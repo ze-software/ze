@@ -215,7 +215,7 @@ Run the focused service-route proof through native admission:
 ```
 
 This test reuses the deployment VPP image, its container (`NET_ADMIN`,
-`IPC_LOCK`, `/dev/net/tun` and `/dev/vhost-net`, never `--privileged`), build recipes,
+`/dev/net/tun` and `/dev/vhost-net`, never `--privileged`), build recipes,
 sockets, and staged Ze configuration. It does not replace the legacy
 `./le test deployment vpp-test` population. Docker, Go, a VPP image with the
 SRv6 API and AF_PACKET plugin, and a Docker kernel with veth support are required.
@@ -389,8 +389,10 @@ denies it, its text and the command to run once it is loaded. A peer names its
 profile in `PeerConfig.AppArmorProfile`. On a daemon that applies AppArmor the
 container starts with `--security-opt apparmor=<name>`; on a Linux client whose
 profile list lacks it, the lab refuses before the container starts, naming
-`./le setup docker-kernel apparmor confirm <name>`; on a daemon that applies no
-AppArmor the option is left out. `ze-kernel-probe` parses with `apparmor_parser -Q`
+`./le setup docker-kernel apparmor confirm <name>`; where that list is
+unreadable the container runs, and when runc answers "unable to apply apparmor
+profile" the lab refuses naming the same command (`labAppArmorUnapplied`); on a
+daemon that applies no AppArmor the option is left out. `ze-kernel-probe` parses with `apparmor_parser -Q`
 4.0.1 (Ubuntu 24.04).
 
 A lab peer runs with no more than its daemon needs, never `--privileged`
@@ -418,7 +420,7 @@ module, so it passes only where the peers can run. The PPPoE lab grants ze,
 accel-ppp and the pppd client the same two, its preflight probes the same way,
 and no PPPoE image installs `kmod` or runs `modprobe`.
 
-<!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing -->
+<!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing, labAppArmorUnapplied -->
 <!-- source: internal/le/interoplab/apparmor_netsysctl.go -- NetSysctlAppArmorProfileName, NetSysctlGranted -->
 <!-- source: internal/plugins/vrrp/dataplane_linux.go -- applyDataplaneSysctls -->
 
@@ -428,7 +430,7 @@ It refuses when:
 
 | Answer | Refusal names |
 |--------|---------------|
-| a row is `absent`, `unknown` or `denied` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6): on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot, elsewhere the lab inside the Ze-kernel QEMU guest, `./le test qemu docker-lab`; a `denied` row adds `./le setup docker-kernel apparmor confirm ze-kernel-probe` |
+| a row is `absent`, `unknown` or `denied` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6), its command on a line of its own: on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot; elsewhere the refused run's own le words inside the Ze-kernel QEMU guest, `./le test qemu docker-lab lab '<the words>'` printed with the words filled in, or `./le test qemu docker-lab` (boot and check only) when the process is not le or a word holds white space or a quote. Scenario selector variables are not carried: add `env` as "Docker labs in the Ze-kernel guest" shows. A `denied` row adds, on a daemon applying AppArmor, `./le setup docker-kernel apparmor confirm ze-kernel-probe`; on any other daemon it says the policy the row names must grant the probe its steps, and under SELinux names `sudo ausearch -m avc -ts recent` to read the denial |
 | the container fails, or prints no JSON | the command it ran, its exit code, stdout and stderr |
 | the answer holds no row | the command it ran |
 | every row is `present` but the probe exits non-zero or answers `ready` false | the command it ran, its exit code and the `ready` it read: the producer's verdict and its rows disagree, so the answer is unread, never a pass |
@@ -473,8 +475,14 @@ then cannot replace.
 functional tests included, inside a container on the daemon's kernel. After the
 clean-tree check and before the container starts, it cross-compiles a linux ze
 for the daemon's architecture into `tmp/verify-evidence/ze-linux`, which git
-ignores so the tree stays clean, and makes the same check with it.
-<!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, dockerKernel, kernelZeRel -->
+ignores so the tree stays clean, and makes the same check with it. The
+container never runs `--privileged`: it holds one `--cap-add` for each
+capability the `option=needs-linux:caps=` vocabulary names, read from the
+runner's own table (`runner.CapsDockerNames`), and keeps Docker's default
+seccomp and AppArmor profiles. A capability added to that vocabulary reaches
+the container with no other edit.
+<!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, Runner.dockerArgs, dockerKernel, kernelZeRel -->
+<!-- source: internal/test/runner/caps.go -- capsRequired, capDockerName, CapsDockerNames -->
 
 `./le setup docker-kernel check` asks the daemon in hand the same question. With
 no `ze` it cross-builds `tmp/qemu/linux-<arch>/ze` for the daemon's architecture

@@ -36,6 +36,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // ImageKey and PlatformKey are the dot-notation spellings of
@@ -243,7 +244,11 @@ func (r *Runner) Run() (Report, error) {
 		return report, err
 	}
 
-	report.Code = r.Start(r.dockerArgs()...)
+	args, err := r.dockerArgs()
+	if err != nil {
+		return report, err
+	}
+	report.Code = r.Start(args...)
 	report.Passed = report.Code == 0
 	return report, nil
 }
@@ -251,13 +256,29 @@ func (r *Runner) Run() (Report, error) {
 // dockerArgs answers the invocation, in the order the shell script wrote it.
 // The order is preserved because it is what a reader compares against the
 // script for as long as both exist.
-func (r *Runner) dockerArgs() []string {
+//
+// The container never runs --privileged (spec-lab-containers-least-privilege,
+// site 6). The gate inside it runs every test in the tree, and a test that
+// needs a capability declares it as `option=needs-linux:caps=`, so the
+// container holds the union of that vocabulary, read from the runner's own
+// table (runner.CapsDockerNames), and Docker's default seccomp and AppArmor
+// profiles stay on. A capability added to the vocabulary reaches this list
+// with no edit here.
+func (r *Runner) dockerArgs() ([]string, error) {
+	capabilities, err := runner.CapsDockerNames()
+	if err != nil {
+		return nil, err
+	}
+
 	var tb textbuf.Buffer
 	mount := tb.Str(r.Tree).Str(":/host:ro").String()
 
-	return []string{
-		"run", "--rm",
-		"--privileged",
+	args := make([]string, 0, 2+2*len(capabilities)+12)
+	args = append(args, "run", "--rm")
+	for _, capability := range capabilities {
+		args = append(args, "--cap-add", capability)
+	}
+	return append(args,
 		"--platform", r.Platform,
 		"-v", mount,
 		// The three named volumes are caches. They survive between runs, which
@@ -269,7 +290,7 @@ func (r *Runner) dockerArgs() []string {
 		"-v", "ze-apt-cache:/var/cache/apt",
 		r.Image,
 		"bash", "-lc", ContainerScript,
-	}
+	), nil
 }
 
 // statusLines answers one entry per line git wrote, with the trailing newline
