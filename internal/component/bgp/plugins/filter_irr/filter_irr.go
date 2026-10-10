@@ -20,7 +20,10 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-var errFilterIrrInvalidBgpConfigJson = errors.New("filter-irr: invalid bgp config JSON")
+var (
+	errFilterIrrInvalidBgpConfigJson = errors.New("filter-irr: invalid bgp config JSON")
+	errFilterIrrApplyUnverified      = errors.New("filter-irr: config apply requires a verified candidate")
+)
 
 const (
 	// perASNRefreshTimeout bounds a single ASN's IRR resolution on the periodic
@@ -137,19 +140,14 @@ func runFilterIRR(conn net.Conn) int {
 		stopCh: make(chan struct{}),
 	}
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-			if !ok {
-				return errFilterIrrInvalidBgpConfigJson
-			}
-			plug.handleConfigure(bgpCfg)
-		}
-		return nil
-	})
+	// A plugin holding OnConfigure alone answers every config-apply OK and
+	// changes nothing, so a live IRR edit was accepted and ignored. The reload
+	// pair is what makes a commit reach the filter (config_tx.go).
+	tx := &irrConfigTx{plug: plug}
+	p.OnConfigure(tx.configure)
+	p.OnConfigVerify(tx.verify)
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return tx.apply() })
+	p.OnConfigRollback(func(_ string) error { return tx.rollback() })
 
 	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 		return plug.handleFilterUpdate(in), nil
@@ -192,6 +190,28 @@ func runFilterIRR(conn net.Conn) int {
 	return 0
 }
 
+// bgpSubtreeFromSections returns the bgp subtree a configure or verify
+// delivery carries, nil when it carries none, and an error when the subtree is
+// not valid JSON.
+func bgpSubtreeFromSections(sections []sdk.ConfigSection) (map[string]any, error) {
+	var bgpCfg map[string]any
+	for _, section := range sections {
+		if section.Root != configRootBGP {
+			continue
+		}
+		parsed, ok := configjson.ParseBGPSubtree(section.Data)
+		if !ok {
+			return nil, errFilterIrrInvalidBgpConfigJson
+		}
+		bgpCfg = parsed
+	}
+	return bgpCfg, nil
+}
+
+// handleConfigure makes bgpCfg the filter's config, at boot and on every
+// applied or rolled-back reload. The new per-ASN state is published under
+// plug.mu in one swap, so a concurrent filter UPDATE reads the old state or
+// the new one, never a mix.
 func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	cfg := parseIRRConfig(bgpCfg)
 
@@ -242,6 +262,13 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	for asn, newSt := range newByASN {
 		oldSt, ok := plug.byASN[asn]
 		if !ok {
+			continue
+		}
+		// A list resolved for another AS-SET answers a question the operator
+		// no longer asks. Carrying it over would filter against the old set,
+		// with firstDone already signaled, until the next refresh: the edit
+		// would be accepted and not enforced.
+		if newSt.asSet != "" && newSt.asSet != oldSt.asSet {
 			continue
 		}
 		newSt.list = oldSt.list

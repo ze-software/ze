@@ -124,6 +124,15 @@ session {
 }
 ```
 
+## Changing IRR settings on a running router
+
+A commit that changes a peer's `as-set`, the IRR `server`, or a peer's
+`import [ bgp-filter-irr:<asn> ]` takes effect on the running filter. A changed
+as-set does not inherit the list of the old one: the next UPDATE from that peer
+waits a few seconds for the new set to resolve, then is filtered against it.
+<!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- irrConfigTx.apply -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleConfigure -->
+
 ## Verify before carrying traffic
 
 After committing the configuration and establishing the BGP session, check the generated list:

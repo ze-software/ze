@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling \| docs |
 | Depends | `plan/immediate/spec-session-editor-file-mode-parity.md` (session-mode load merge and commit confirmed, former AC-13/AC-14); `plan/immediate/spec-appliance-kernel-vpn-modules.md` (owner order: that spec first. The 2026-10-09 probe shows the render host already carries esp4 and xfrm_interface, so the dependency is the product's, not the recording's: see Probe Results) |
-| Phase | - |
+| Phase | 1/7 |
 | Handoff | - |
-| Updated | 2026-10-09 |
+| Updated | 2026-10-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -114,7 +114,7 @@ commands (`ze-debug`), `show capture` (`ze-diag`), `show config history` (editor
 | D-2 | `commit confirmed` is blocked in session mode ("Needs session-aware rollback", `docs/guide/config-editor.md`; `errCommitConfirmedNotYetSupportedIn`) | `model_commands.go` | the commit-confirmed topic cannot run over SSH until `plan/immediate/spec-session-editor-file-mode-parity.md` lands (former AC-14); this resolves A-3 as broken |
 | D-3 | Not yet verified: whether OSPF exposes why a neighbour's Hello was rejected (interval, area, mask mismatch) in a show command or counter | no handler named for it among the `ze-ospf` commands; to be read at the producer when the tape is written | if absent, beat 5 for OSPF shows only the timers side by side: a finding, not invented |
 | D-4 | Not yet verified: whether IKE shows the failure reason of a refused negotiation (NO_PROPOSAL_CHOSEN) in `show vpn ipsec peer` or `monitor vpn ipsec` | handlers exist; the content is unread | same treatment as D-3 |
-| D-5 | IRR live edits are not applied (AC-1) | `filter_irr.go` | the IRR beat-5 fix cannot be shown until AC-1 |
+| D-5 | IRR live edits were not applied (AC-1). Fixed 2026-10-10: `irrConfigTx` (`filter_irr/config_tx.go`) adds the verify/apply/rollback pair, and a changed as-set no longer inherits the old set's list (`handleConfigure`, `loadFromStore`) | `filter_irr.go`; `test/reload/bgp-filter-irr-added-live.ci`, `bgp-filter-irr-first-add-live.ci` | none now |
 
 `ze config import` (the command catalogue's `load merge` equivalent) stores a file as a
 new version in the store; no path from it to a running daemon's reload was read, and it
@@ -299,8 +299,8 @@ below are kept as asked.
      Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Adding `plugin internal bgp-filter-irr` plus the IRR policy in ONE live commit starts the filter with its config (Stage 2 delivery to a new process) | the existing `irr-filter` tape declares the plugin explicitly; reload path for a newly declared plugin not read | the first-add IRR topic also fails, and AC-1's fix must cover the start path as well as edits | Work Plan step 1 probe; then AC-1's `.ci` | unvalidated |
-| A-2 | The `vrrp` plugin is running when the base config holds `interface` but no `vrrp` block, so a live VRRP commit reaches its `OnConfigApply` | `ConfigRoots` is `interface` (`internal/plugins/vrrp/groups.go`), which the base config carries | the VRRP topic commit is accepted and does nothing: a defect fixed under AC-2 | Work Plan step 1 probe | unvalidated |
+| A-1 | Adding `plugin internal bgp-filter-irr` plus the IRR policy in ONE live commit starts the filter with its config (Stage 2 delivery to a new process) | the existing `irr-filter` tape declares the plugin explicitly; reload path for a newly declared plugin not read | the first-add IRR topic also fails, and AC-1's fix must cover the start path as well as edits | Work Plan step 1 probe; then AC-1's `.ci` | confirmed (2026-10-10), with a correction: no `plugin` line is needed. `getConfigPathPlugins` (`startup_autoload.go`) starts every plugin whose ConfigRoots is present at boot, so `bgp-filter-irr` runs in any base lab with a `bgp` block, and a first IRR block is a `bgp` edit reaching `irrConfigTx.apply`. `test/reload/bgp-filter-irr-first-add-live.ci` is red with the apply handler removed and green with it |
+| A-2 | The `vrrp` plugin is running when the base config holds `interface` but no `vrrp` block, so a live VRRP commit reaches its `OnConfigApply` | `ConfigRoots` is `interface` (`internal/plugins/vrrp/groups.go`), which the base config carries | the VRRP topic commit is accepted and does nothing: a defect fixed under AC-2 | Work Plan step 1 probe | confirmed at the producer (2026-10-10): `getConfigPathPlugins` starts `vrrp` at boot whenever `interface` is present, and `internal/plugins/vrrp/register.go` registers `OnConfigVerify` and `OnConfigApply` ("OnConfigure does not fire on reload; OnConfigApply is the commit step"). The runtime proof needs VRRP raw sockets on Linux, so it is the VRRP topic validator's absence-then-proof check (AC-2), run in the renderer container |
 | A-3 | `commit confirmed <n>` and its automatic rollback behave in the SSH editor as in the file editor | the `commit-confirmed` demo proves the file editor only | the safety-net topic needs a fix or a different editor path; the owner decision rules out the latter | Work Plan step 1 probe | unvalidated |
 | A-4 | Two Ze daemons can run in one container (the shown one, and the hidden IKE far end in its own netns) with separate `ZE_CONFIG_DIR`, SSH port and instance name | `demoInstance` is the container hostname `ze`; the scenario code runs one daemon per demo | the IPsec topic needs a second container or a different instance naming | Work Plan step 2, lab bring-up | unvalidated |
 | A-5 | A 7-minute super fits the time budget with every topic typed live at 125 ms per character | storyboard length; typing speed is one value per tape | the super runs long (R-8) | measure the super's typed characters at step 3 | unvalidated |

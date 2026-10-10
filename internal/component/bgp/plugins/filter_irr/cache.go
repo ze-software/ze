@@ -20,6 +20,11 @@ func (plug *irrPlugin) loadFromStore() {
 		if entry == nil {
 			continue
 		}
+		// The cache is keyed by ASN. An entry resolved for another AS-SET than
+		// the configured one is not a fallback for it.
+		if st.asSet != "" && entry.ASSet != st.asSet {
+			continue
+		}
 		pl := entry.PrefixList()
 		entries := prefixListFromIRR(pl)
 		if len(entries) == 0 {

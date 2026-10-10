@@ -36,9 +36,25 @@ auto-injected.** The reactor has no dynamic filter injection API, and
 **`refresh-interval` is `uint32`.** The YANG range is 60 to 86400, which exceeds
 the `uint16` maximum of 65535.
 
-**Each configure cycle gets its own `refreshStop` channel.** `OnConfigure` fires
-on every config commit, and without a stop channel per cycle the refresh
-goroutines accumulate.
+**A commit reaches the filter through the reload pair, not through
+`OnConfigure`.** `OnConfigure` fires once, at boot. A live commit is delivered
+to `OnConfigVerify`, which holds the candidate, then to `OnConfigApply`, which
+makes it the filter's config through the same `handleConfigure` the boot path
+uses; `OnConfigRollback` puts the replaced config back. An apply with no
+verified candidate is an error. With `OnConfigure` alone the SDK answered every
+apply OK and called nothing, so a changed as-set was accepted and ignored.
+`test/reload/bgp-filter-irr-added-live.ci` proves the edit is enforced.
+<!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- irrConfigTx -->
+
+**A changed as-set starts from no list.** `handleConfigure` carries a resolved
+list over a reconfigure only while the ASN's as-set is the same, and
+`loadFromStore` skips a cached entry resolved for another as-set. The first
+UPDATE after the edit waits, bounded, for the new set's resolution rather than
+being judged against the old one.
+
+**Each configure cycle gets its own `refreshStop` channel.** `handleConfigure`
+runs at boot and on every applied or rolled-back reload, and without a stop
+channel per cycle the refresh goroutines accumulate.
 
 Removing the `filter_irr/` directory removes every IRR filter feature. The
 plugin self-containment test proves it.
