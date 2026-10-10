@@ -426,6 +426,13 @@ func (s *Server) RestartFunc() RestartFunc {
 	return s.restartFunc
 }
 
+// RebootFunc returns the reboot callback, or nil if not set.
+func (s *Server) RebootFunc() RebootFunc {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.rebootFunc
+}
+
 // LoginWarningsFunc returns the login warnings function, or nil if not set.
 func (s *Server) LoginWarningsFunc() LoginWarningsFunc {
 	s.mu.Lock()
