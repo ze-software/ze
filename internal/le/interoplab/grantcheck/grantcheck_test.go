@@ -155,7 +155,7 @@ func TestParsePeerResolvesSymlinksAndRefusesSockets(t *testing.T) {
 		t.Fatal(err)
 	}
 	socket := filepath.Join(root, "s")
-	listener, err := net.Listen("unix", socket)
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", socket)
 	if err != nil {
 		t.Fatal(err)
 	}
