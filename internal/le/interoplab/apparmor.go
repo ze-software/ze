@@ -120,5 +120,5 @@ func labAppArmorProfileMissing(profile AppArmorProfile) error {
 	return errors.New(refusal.Str("the Docker daemon applies AppArmor, and ").Str(profile.Runs).
 		Str(" runs under Ze's profile ").Str(profile.Name).Str(", which ").Str(appArmorProfilesPath).
 		Str(" does not list. Docker's docker-default profile denies ").Str(profile.Needs).
-		Str(", so load Ze's: ").Str(AppArmorLoadCommandFor(profile.Name)).String())
+		Str(". Load Ze's profile with:\n  ").Str(AppArmorLoadCommandFor(profile.Name)).String())
 }

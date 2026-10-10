@@ -177,8 +177,8 @@ func stageAppArmorProfile(dir string, profile interoplab.AppArmorProfile) (strin
 func appArmorLoadSteps(profile interoplab.AppArmorProfile, staged, parser string) []installStep {
 	target := filepath.Join(appArmorProfileDir, profile.Name)
 	return []installStep{
-		{Why: "install Ze's profile " + profile.Name + " where AppArmor loads it at boot", Argv: []string{"sudo", "install", "-m", "0644", staged, target}},
-		{Why: "load it now, replacing an earlier copy, and write its cache", Argv: []string{"sudo", parser, "-r", "-W", target}},
+		{Why: "install Ze's profile " + profile.Name + " where AppArmor loads it at boot", Argv: []string{sudoBin, installBinary, "-m", "0644", staged, target}},
+		{Why: "load it now, replacing an earlier copy, and write its cache", Argv: []string{sudoBin, parser, "-r", "-W", target}},
 	}
 }
 

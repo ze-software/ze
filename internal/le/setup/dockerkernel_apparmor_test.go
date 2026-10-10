@@ -99,7 +99,7 @@ func TestAppArmorLoadSteps(t *testing.T) {
 			if !strings.Contains(string(data), "profile "+name+" ") {
 				t.Errorf("the staged text does not declare profile %s", name)
 			}
-			target := filepath.Join("/etc/apparmor.d", name)
+			target := filepath.Join(appArmorProfileDir, name)
 			steps := appArmorLoadSteps(profile, staged, "/usr/sbin/apparmor_parser")
 			got := make([]string, 0, len(steps))
 			for _, step := range steps {

@@ -174,18 +174,29 @@ func dockerKernelProbeZe(named, goarch string, build func(goarch string) (string
 	return absolute, nil
 }
 
+// GOARCH names this package spells in more than one file; every other
+// elfMachines key appears once.
+const (
+	goarchAMD64 = "amd64"
+	goarchARM64 = "arm64"
+)
+
+// installBinary is coreutils install(1), which places each boot file with its
+// mode in one step. It is not the `install` verb of this action.
+const installBinary = "install"
+
 // elfMachines maps the GOARCH a Docker daemon reports to the ELF machine a Go
 // build for it carries. An architecture missing here is refused by name, never
 // passed unchecked.
 var elfMachines = map[string]elf.Machine{
-	"386":     elf.EM_386,
-	"amd64":   elf.EM_X86_64,
-	"arm":     elf.EM_ARM,
-	"arm64":   elf.EM_AARCH64,
-	"loong64": elf.EM_LOONGARCH,
-	"ppc64le": elf.EM_PPC64,
-	"riscv64": elf.EM_RISCV,
-	"s390x":   elf.EM_S390,
+	"386":       elf.EM_386,
+	goarchAMD64: elf.EM_X86_64,
+	"arm":       elf.EM_ARM,
+	goarchARM64: elf.EM_AARCH64,
+	"loong64":   elf.EM_LOONGARCH,
+	"ppc64le":   elf.EM_PPC64,
+	"riscv64":   elf.EM_RISCV,
+	"s390x":     elf.EM_S390,
 }
 
 // linuxExecutableFor answers why path is not an ELF executable for goarch, or
@@ -371,8 +382,8 @@ func installConfirmed(args leaction.Arguments, release string) error {
 		return nil
 	}
 	var tb textbuf.Buffer
-	return errors.New(tb.Str("the steps above, then saving its GRUB menu entry as the default, run as root and none ran;" +
-		" to run them, confirm the release: ./le setup docker-kernel install ").
+	return errors.New(tb.Str("the steps above, then saving its GRUB menu entry as the default, run as root and none ran." +
+		" To run them, confirm the release:\n  ./le setup docker-kernel install ").
 		Str(dockerKernelConfirmKeyword).Byte(' ').Str(release).String())
 }
 
@@ -393,18 +404,18 @@ func printInstallPlan(steps []installStep) error {
 // (cachedKernelRelease), so it reaches only what an earlier install wrote.
 func dockerKernelInstallSteps(cache, release string) []installStep {
 	return []installStep{
-		{Why: "install the kernel image", Argv: []string{"sudo", "install", "-m", "0644",
+		{Why: "install the kernel image", Argv: []string{sudoBin, installBinary, "-m", "0644",
 			filepath.Join(cache, "vmlinuz"), "/boot/vmlinuz-" + release}},
-		{Why: "install its config, which update-initramfs reads", Argv: []string{"sudo", "install", "-m", "0644",
+		{Why: "install its config, which update-initramfs reads", Argv: []string{sudoBin, installBinary, "-m", "0644",
 			filepath.Join(cache, "config"), "/boot/config-" + release}},
 		{Why: "remove the modules an earlier install of this release left, so the copy replaces them rather than nesting inside them",
-			Argv: []string{"sudo", "rm", "-rf", "/lib/modules/" + release}},
-		{Why: "install its modules", Argv: []string{"sudo", "cp", "-a",
+			Argv: []string{sudoBin, "rm", "-rf", "/lib/modules/" + release}},
+		{Why: "install its modules", Argv: []string{sudoBin, "cp", "-a",
 			filepath.Join(cache, "lib", "modules", release), "/lib/modules/" + release}},
 		{Why: "remove the initramfs an earlier install of this release built, which update-initramfs -c does not replace",
-			Argv: []string{"sudo", "rm", "-f", "/boot/initrd.img-" + release}},
-		{Why: "build its initramfs", Argv: []string{"sudo", "update-initramfs", "-c", "-k", release}},
-		{Why: "add it to the GRUB menu", Argv: []string{"sudo", "update-grub"}},
+			Argv: []string{sudoBin, "rm", "-f", "/boot/initrd.img-" + release}},
+		{Why: "build its initramfs", Argv: []string{sudoBin, "update-initramfs", "-c", "-k", release}},
+		{Why: "add it to the GRUB menu", Argv: []string{sudoBin, "update-grub"}},
 	}
 }
 
@@ -448,7 +459,7 @@ func grubDefaultStep(grubCfg, release string) (installStep, error) {
 		if submenu != "" {
 			title = submenu + ">" + title
 		}
-		return installStep{Why: "make it GRUB's saved default", Argv: []string{"sudo", "grub-set-default", title}}, nil
+		return installStep{Why: "make it GRUB's saved default", Argv: []string{sudoBin, "grub-set-default", title}}, nil
 	}
 	return installStep{}, errors.New(grubConfigPath + " has no menu entry ending `Linux " + release + "`")
 }

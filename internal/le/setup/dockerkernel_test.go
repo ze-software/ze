@@ -171,8 +171,8 @@ func TestDockerKernelInstallNeedsConfirmation(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 			continue
 		}
-		if !strings.Contains(err.Error(), "./le setup docker-kernel install confirm 7.2.9-ze") {
-			t.Errorf("%s: refusal does not name the confirming command: %v", name, err)
+		if !slices.Contains(strings.Split(err.Error(), "\n"), "  ./le setup docker-kernel install confirm 7.2.9-ze") {
+			t.Errorf("%s: refusal does not carry the confirming command on a line of its own: %v", name, err)
 		}
 	}
 	if err := installConfirmed(leaction.Arguments{dockerKernelConfirmKeyword: {release}}, release); err != nil {

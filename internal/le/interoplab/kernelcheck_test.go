@@ -306,7 +306,7 @@ func TestDockerKernelRouteNamesEachPlatformsNextStep(t *testing.T) {
 
 // appArmorKernel scripts a daemon that applies AppArmor and a probe answering
 // stdout, and fakes the local profile list.
-func appArmorKernel(t *testing.T, stdout string, profiles string, readable bool) *recordingRunner {
+func appArmorKernel(t *testing.T, stdout, profiles string, readable bool) *recordingRunner {
 	t.Helper()
 	original := appArmorProfiles
 	t.Cleanup(func() { appArmorProfiles = original })
@@ -370,7 +370,8 @@ func TestDockerKernelRefusesAnUnloadedProfileNamingTheFix(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unloaded profile proceeded")
 	}
-	for _, want := range []string{"AppArmor", "ze-kernel-probe", AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)} {
+	requireCommandOnItsOwnLine(t, err, AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName))
+	for _, want := range []string{"AppArmor", "ze-kernel-probe"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
@@ -391,7 +392,8 @@ func TestDockerKernelDeniedRowNamesTheProfileCommand(t *testing.T) {
 	if err == nil {
 		t.Fatal("a denied row proceeded")
 	}
-	for _, want := range []string{"mpls-transit-mtu", "denied", "docker-default (enforce)", AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)} {
+	requireCommandOnItsOwnLine(t, err, AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName))
+	for _, want := range []string{"mpls-transit-mtu", "denied", "docker-default (enforce)"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
@@ -466,7 +468,8 @@ func TestDockerKernelUnloadedProfileOnAnUnreadableListNamesTheFix(t *testing.T) 
 	if err == nil {
 		t.Fatal("a profile the daemon could not apply proceeded")
 	}
-	for _, want := range []string{"ze-kernel-probe", AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName), "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
+	requireCommandOnItsOwnLine(t, err, AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName))
+	for _, want := range []string{"ze-kernel-probe", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
@@ -517,4 +520,17 @@ func TestDockerKernelRefusesAMissingStagedZe(t *testing.T) {
 			}
 		})
 	}
+}
+
+// requireCommandOnItsOwnLine fails unless the refusal carries command as a
+// line of its own, so an operator can copy it without editing a sentence
+// (user-facing-errors.md: the fix command on a line of its own).
+func requireCommandOnItsOwnLine(t *testing.T, err error, command string) {
+	t.Helper()
+	for line := range strings.SplitSeq(err.Error(), "\n") {
+		if strings.TrimSpace(line) == command {
+			return
+		}
+	}
+	t.Errorf("the refusal does not carry %q on a line of its own: %v", command, err)
 }

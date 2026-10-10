@@ -100,7 +100,8 @@ func TestRunContainerRefusesAnUnloadedProfile(t *testing.T) {
 	if err == nil {
 		t.Fatal("a container started under a profile the host has not loaded")
 	}
-	for _, want := range []string{testLabProfile, "the test lab's router", AppArmorLoadCommandFor(testLabProfile)} {
+	requireCommandOnItsOwnLine(t, err, AppArmorLoadCommandFor(testLabProfile))
+	for _, want := range []string{testLabProfile, "the test lab's router"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal lacks %q: %v", want, err)
 		}
