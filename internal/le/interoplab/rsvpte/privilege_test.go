@@ -24,7 +24,9 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-// setupSysctlKeys answers every key a setup script writes with `sysctl -w`.
+// setupSysctlKeys answers every key a setup script writes, and fails the test
+// on a line that writes /proc/sys in a form scriptSysctlWrites cannot read,
+// because a write it cannot name is a write the profile check never sees.
 func setupSysctlKeys(t *testing.T, path string) []string {
 	t.Helper()
 	file, err := os.Open(path) // #nosec G304 -- a repository-owned scenario script.
@@ -37,24 +39,148 @@ func setupSysctlKeys(t *testing.T, path string) []string {
 		}
 	}()
 
-	var keys []string
+	var lines []string
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) < 2 || fields[0] != "sysctl" || fields[1] != "-w" {
-			continue
-		}
-		for _, assignment := range fields[2:] {
-			key, _, found := strings.Cut(assignment, "=")
-			if found {
-				keys = append(keys, key)
-			}
-		}
+		lines = append(lines, scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
 		t.Fatal(err)
 	}
+	keys, unrecognised := scriptSysctlWrites(lines)
+	for _, line := range unrecognised {
+		t.Errorf("%s writes a sysctl in a form the privilege test cannot read: %q; "+
+			"write it as `sysctl -w key=value` or `echo value > /proc/sys/<key path>`", path, line)
+	}
 	return keys
+}
+
+// scriptSysctlWrites answers the keys, spelled as sysctl spells them, that
+// lines write with `sysctl -w key=value ...` or `echo value > /proc/sys/...`,
+// and every other line that writes a sysctl: `sysctl` loading a file or given
+// an assignment without -w, a -w argument that is no assignment, and a
+// redirect, tee or dd into /proc/sys. A line that only reads is neither.
+func scriptSysctlWrites(lines []string) (keys, unrecognised []string) {
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		if fields[0] == "sysctl" {
+			lineKeys, recognised := sysctlCommandKeys(fields[1:])
+			if !recognised {
+				unrecognised = append(unrecognised, line)
+			}
+			keys = append(keys, lineKeys...)
+			continue
+		}
+		if !strings.Contains(line, procSysRoot) {
+			continue
+		}
+		if key, recognised := echoProcSysKey(fields); recognised {
+			keys = append(keys, key)
+			continue
+		}
+		if procSysWritten(line) {
+			unrecognised = append(unrecognised, line)
+		}
+	}
+	return keys, unrecognised
+}
+
+const procSysRoot = "/proc/sys/"
+
+// sysctlCommandKeys answers the keys of `sysctl -w a=1 b=2`, and whether the
+// arguments are that form or a read. A read answers no key and true.
+func sysctlCommandKeys(arguments []string) (keys []string, recognised bool) {
+	if len(arguments) > 0 && arguments[0] == "-w" {
+		for _, assignment := range arguments[1:] {
+			key, _, found := strings.Cut(assignment, "=")
+			if !found {
+				return nil, false
+			}
+			keys = append(keys, key)
+		}
+		return keys, len(keys) > 0
+	}
+	for _, argument := range arguments {
+		if strings.Contains(argument, "=") {
+			return nil, false
+		}
+		if argument == "-p" || argument == "--load" || argument == "--system" {
+			return nil, false
+		}
+	}
+	return nil, true
+}
+
+// echoProcSysKey answers the key `echo value > /proc/sys/a/b` writes (a.b),
+// with the redirect spelled `> path` or `>path`.
+func echoProcSysKey(fields []string) (string, bool) {
+	if fields[0] != "echo" {
+		return "", false
+	}
+	for index, field := range fields {
+		target, redirect := strings.CutPrefix(field, ">")
+		if !redirect {
+			continue
+		}
+		if target == "" && index+1 < len(fields) {
+			target = fields[index+1]
+		}
+		path, under := strings.CutPrefix(target, procSysRoot)
+		if !under {
+			return "", false
+		}
+		return strings.ReplaceAll(path, "/", "."), path != ""
+	}
+	return "", false
+}
+
+// procSysWritten reports whether a line that names /proc/sys writes there:
+// through a redirect, tee or dd.
+func procSysWritten(line string) bool {
+	for _, writer := range []string{">", "tee ", "dd "} {
+		if strings.Contains(line, writer) {
+			return true
+		}
+	}
+	return false
+}
+
+// VALIDATES: NOTE 13 of spec-lab-containers-least-privilege review round 1.
+// The two write forms are read into keys, and every other form that writes a
+// sysctl is refused rather than skipped.
+// PREVENTS: a setup script writing a sysctl the profile denies through a form
+// the privilege test does not parse, and the test staying green.
+func TestScriptSysctlWritesRefusesFormsItCannotRead(t *testing.T) {
+	for _, tc := range []struct {
+		line         string
+		key          string
+		unrecognised bool
+	}{
+		{line: "sysctl -w net.mpls.platform_labels=1048575 net.ipv4.ip_forward=1", key: "net.mpls.platform_labels net.ipv4.ip_forward"},
+		{line: "echo 1 > /proc/sys/net/ipv4/ip_forward", key: "net.ipv4.ip_forward"},
+		{line: "echo 1 >/proc/sys/kernel/panic", key: "kernel.panic"},
+		{line: "cat /proc/sys/net/mpls/platform_labels"},
+		{line: "sysctl net.ipv4.ip_forward"},
+		{line: "echo MPLS=$(test -f /proc/sys/net/mpls/platform_labels && echo ok || echo missing)"},
+		{line: "sysctl net.ipv4.ip_forward=1", unrecognised: true},
+		{line: "sysctl -p /etc/sysctl.d/lab.conf", unrecognised: true},
+		{line: "sysctl -w net.ipv4.ip_forward", unrecognised: true},
+		{line: "printf 1 | tee /proc/sys/kernel/panic", unrecognised: true},
+		{line: "echo 1 | dd of=/proc/sys/kernel/panic", unrecognised: true},
+		{line: "printf 1 > /proc/sys/kernel/panic", unrecognised: true},
+		{line: "echo 1 > /run/x; echo 2 > /proc/sys/kernel/panic", unrecognised: true},
+	} {
+		keys, unrecognised := scriptSysctlWrites([]string{tc.line})
+		if got := strings.Join(keys, " "); got != tc.key {
+			t.Errorf("%q: keys %q, want %q", tc.line, got, tc.key)
+		}
+		if got := len(unrecognised) == 1; got != tc.unrecognised {
+			t.Errorf("%q: unrecognised = %v, want %v", tc.line, got, tc.unrecognised)
+		}
+	}
 }
 
 // VALIDATES: AC-5 for the peers. No peer of any scenario runs --privileged; a
