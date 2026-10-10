@@ -2433,13 +2433,18 @@ var swanIKESAIdentity = regexp.MustCompile(`ze: #(\d+), ESTABLISHED`)
 // sent, with the payload list it carried.
 var swanCreateChildRequest = regexp.MustCompile(`generating CREATE_CHILD_SA request \d+ \[ ([^\]]*)\]`)
 
-// swanSentNewChildWithKE answers whether strongSwan sent a CREATE_CHILD_SA request
+// swanParsedChildRequest is strongSwan's trace of a CREATE_CHILD_SA request it
+// received, with the payload list it read. charon logs it at its default level 1.
+var swanParsedChildRequest = regexp.MustCompile(`parsed CREATE_CHILD_SA request \d+ \[ ([^\]]*)\]`)
+
+// swanNewChildWithKE answers whether a strongSwan trace (trace is
+// swanCreateChildRequest or swanParsedChildRequest) shows a CREATE_CHILD_SA request
 // for a NEW Child SA with PFS: SA, nonce, KE and both traffic selectors, and no
 // N(REKEY_SA). The payload list is read as a set, because strongSwan may add
 // notifies around it. It also answers every request line it read, for the error.
-func swanSentNewChildWithKE(logs string) (bool, []string) {
+func swanNewChildWithKE(logs string, trace *regexp.Regexp) (bool, []string) {
 	var seen []string
-	for _, match := range swanCreateChildRequest.FindAllStringSubmatch(logs, -1) {
+	for _, match := range trace.FindAllStringSubmatch(logs, -1) {
 		seen = append(seen, match[0])
 		payloads := strings.Fields(match[1])
 		if slices.Contains(payloads, "N(REKEY_SA)") {
@@ -2522,7 +2527,7 @@ func checkChildlessIKESAZeResponder(ctx context.Context, lab *scenarioLab) error
 	if err != nil {
 		return err
 	}
-	if sent, requests := swanSentNewChildWithKE(swanLogs); !sent {
+	if sent, requests := swanNewChildWithKE(swanLogs, swanCreateChildRequest); !sent {
 		return fmt.Errorf("strongSwan never sent a CREATE_CHILD_SA request with KE for a new Child SA; its CREATE_CHILD_SA requests: %q", requests)
 	}
 	if strings.Contains(swanLogs, "deleting IKE_SA ze[") {
@@ -2603,6 +2608,13 @@ func checkChildlessIKESAZeInitiator(ctx context.Context, lab *scenarioLab) error
 	}
 	if strings.Contains(swanLogs, "deleting IKE_SA ze[") {
 		return errors.New("strongSwan deleted the IKE SA during the scenario")
+	}
+	// Ze's esp-group runs pfs. RFC 7296 Section 1.3.1: "The initiator sends SA offer(s)
+	// in the SA payload, a nonce in the Ni payload, optionally a Diffie-Hellman value in
+	// the KEi payload, and the proposed Traffic Selectors for the proposed Child SA in the
+	// TSi and TSr payloads."
+	if received, requests := swanNewChildWithKE(swanLogs, swanParsedChildRequest); !received {
+		return fmt.Errorf("strongSwan never received a CREATE_CHILD_SA request with KE for a new Child SA from Ze; its CREATE_CHILD_SA requests: %q", requests)
 	}
 	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
 		return err
