@@ -26,6 +26,7 @@ package verifyevidence
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -153,8 +154,10 @@ type Runner struct {
 	// Ask runs one git query about the tree and answers its standard output.
 	Ask func(args ...string) (string, error)
 	// Start runs docker to completion, with the container's output going to
-	// the operator's terminal, and answers its exit status.
-	Start func(args ...string) int
+	// the operator's terminal, and answers its exit status and the last bytes
+	// docker wrote to stderr, which is where Docker's own refusal to start
+	// the container lands.
+	Start func(args ...string) (int, string)
 	// Kernel refuses a Docker daemon whose kernel lacks a feature Ze enrolls.
 	Kernel func() error
 }
@@ -248,9 +251,48 @@ func (r *Runner) Run() (Report, error) {
 	if err != nil {
 		return report, err
 	}
-	report.Code = r.Start(args...)
+	code, stderrTail := r.Start(args...)
+	report.Code = code
 	report.Passed = report.Code == 0
+	if report.Passed {
+		return report, nil
+	}
+	if refusal := deviceRefusal(code, stderrTail); refusal != nil {
+		return report, refusal
+	}
 	return report, nil
+}
+
+// deviceRefusal answers the operator's fix when Docker refused to start the
+// container because the Docker host lacks a device node the container is
+// given (dockerArgs, runner.ContainerDevicePaths), and nil for any other
+// failure. Docker answers that case only with "error gathering device
+// information" and the path; the gate never ran, so an exit code alone would
+// read as a failed gate and name nothing to do.
+func deviceRefusal(code int, stderrTail string) error {
+	for line := range strings.SplitSeq(stderrTail, "\n") {
+		if !strings.Contains(line, "error gathering device information") {
+			continue
+		}
+		for _, path := range runner.ContainerDevicePaths() {
+			if !strings.Contains(line, path) {
+				continue
+			}
+			module, known := runner.DeviceHostModule(path)
+			if !known {
+				continue
+			}
+			var tb textbuf.Buffer
+			tb.Str("the release-candidate container did not start (docker exit ").Int(int64(code)).Str("): ").
+				Str(strings.TrimSpace(line)).Byte('\n').
+				Str("The Docker host has no ").Str(path).
+				Str(", and the evidence container never loads kernel modules.\n").
+				Str("Load it on the Docker host, then run the gate again:\n").
+				Str("  sudo modprobe ").Str(module)
+			return errors.New(tb.String())
+		}
+	}
+	return nil
 }
 
 // dockerArgs answers the invocation, in the order the shell script wrote it.
@@ -347,7 +389,7 @@ func askGit(tree string) func(args ...string) (string, error) {
 // The run is unbounded in time, deliberately. The gate it starts takes between
 // 25 and 53 minutes on this hardware, the container adds a toolchain install to
 // that, and a bound short enough to catch a hang would kill a normal run.
-func startDocker(args ...string) int {
+func startDocker(args ...string) (int, string) {
 	// Background rather than a deadline: the gate this starts takes between 25
 	// and 53 minutes on this hardware, the container adds a toolchain install
 	// to that, and a bound short enough to catch a hang would kill a normal
@@ -358,15 +400,39 @@ func startDocker(args ...string) int {
 	// stderr so that `le verify evidence release-candidate-check | json` still
 	// answers one JSON document on stdout.
 	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
+	tail := &tailBuffer{limit: stderrTailOctets}
+	cmd.Stderr = io.MultiWriter(os.Stderr, tail)
 
 	if err := cmd.Run(); err != nil {
 		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
-			return exit.ExitCode()
+			return exit.ExitCode(), string(tail.data)
 		}
 		var tb textbuf.Buffer
 		tb.Str("error: docker run: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
-		return 1
+		return 1, string(tail.data)
 	}
-	return 0
+	return 0, string(tail.data)
+}
+
+// stderrTailOctets bounds what startDocker keeps of docker's stderr. Docker's
+// refusal to start a container is one line written just before it exits, so
+// the last few kilobytes always hold it, and a 50-minute gate's output is
+// never held whole.
+const stderrTailOctets = 4096
+
+// tailBuffer keeps the last limit octets written to it. Not safe for
+// concurrent use: exec copies one stream into it from one goroutine.
+type tailBuffer struct {
+	data  []byte
+	limit int
+}
+
+// Write keeps p's last octets within the limit and always reports p whole, so
+// the writer copying docker's stderr never stops.
+func (b *tailBuffer) Write(p []byte) (int, error) {
+	b.data = append(b.data, p...)
+	if excess := len(b.data) - b.limit; excess > 0 {
+		b.data = append(b.data[:0], b.data[excess:]...)
+	}
+	return len(p), nil
 }

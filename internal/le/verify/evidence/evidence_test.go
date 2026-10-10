@@ -5,9 +5,10 @@ package verifyevidence
 import (
 	"encoding/json"
 	"errors"
-	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/interoplab/grantcheck"
 )
 
 // recorder is a Runner whose two outside effects are captured rather than made:
@@ -19,6 +20,8 @@ type recorder struct {
 	status  string
 	fail    error
 	code    int
+	// stderr is what docker wrote to stderr before it exited.
+	stderr string
 	// kernelErr is what the Docker kernel check answers; kernelChecks counts
 	// the checks made.
 	kernelErr    error
@@ -44,9 +47,9 @@ func (rec *recorder) runner() *Runner {
 			rec.asked = append(rec.asked, args)
 			return rec.status, rec.fail
 		},
-		Start: func(args ...string) int {
+		Start: func(args ...string) (int, string) {
 			rec.started = append(rec.started, args)
-			return rec.code
+			return rec.code, rec.stderr
 		},
 		Kernel: func() error {
 			rec.kernelChecks++
@@ -110,31 +113,23 @@ func TestACleanTreeStartsOneContainer(t *testing.T) {
 	}
 	// spec-lab-containers-least-privilege, site 6: the container holds
 	// exactly the capabilities and devices the caps= and devices= vocabularies
-	// name, never SYS_TIME, never --privileged and never a relaxed security
-	// profile. The want lists are written out here, independent of the
-	// runner's tables, so a stray grant fails this test.
-	var capAdds, devices []string
-	for i := 0; i+1 < len(argv); i++ {
-		switch argv[i] {
-		case "--cap-add":
-			capAdds = append(capAdds, argv[i+1])
-		case "--device":
-			devices = append(devices, argv[i+1])
-		case "--privileged", "--security-opt", "--cap-drop", "--userns", "--pid", "--ipc":
-			t.Errorf("the docker argv carries %s:\n%s", argv[i], line)
-		}
+	// name, never SYS_TIME, never --privileged, never a relaxed security
+	// profile, a host namespace, the host network or a device cgroup rule,
+	// and mounts only the checkout read-only and the three cache volumes.
+	// grantcheck reads both flag spellings. The want lists are written out
+	// here, independent of the runner's tables, so a stray grant fails.
+	want := grantcheck.Grants{
+		Capabilities: []string{"BPF", "NET_ADMIN", "NET_BIND_SERVICE", "NET_RAW"},
+		Devices:      []string{"/dev/ppp"},
+		Mounts: []string{
+			checkout + ":/host:ro",
+			"ze-apt-cache:/var/cache/apt",
+			"ze-gobuild-cache:/root/.cache/go-build",
+			"ze-gomod-cache:/go/pkg/mod",
+		},
 	}
-	if want := []string{"BPF", "NET_ADMIN", "NET_BIND_SERVICE", "NET_RAW"}; !slices.Equal(capAdds, want) {
-		t.Fatalf("the container is granted %v, want exactly %v", capAdds, want)
-	}
-	if slices.Contains(capAdds, "SYS_TIME") {
-		t.Errorf("the container may set the Docker host's clock:\n%s", line)
-	}
-	if want := []string{"/dev/ppp"}; !slices.Equal(devices, want) {
-		t.Fatalf("the container is given devices %v, want exactly %v", devices, want)
-	}
-	if slices.Contains(argv, "--privileged") {
-		t.Errorf("the container runs --privileged:\n%s", line)
+	for _, problem := range grantcheck.Problems(grantcheck.Parse(nil, argv), want) {
+		t.Errorf("the release-candidate container %s:\n%s", problem, line)
 	}
 	if argv[len(argv)-1] != ContainerScript {
 		t.Error("the last argument is not the container script")
@@ -273,5 +268,51 @@ func TestTheReportIsStructuredData(t *testing.T) {
 		if strings.ContainsAny(key, "_ ") || strings.ToLower(key) != key {
 			t.Errorf("the key %q is not kebab-case", key)
 		}
+	}
+}
+
+// VALIDATES: when Docker refuses to start the container because the Docker
+// host has no device node the container is given, the run answers an error
+// that names the node and the host command that creates it, on a line of its
+// own; any other docker failure stays the report's exit code.
+// PREVENTS: a host without /dev/ppp reported as a failed gate with exit 125
+// and nothing to do (spec-lab-containers-least-privilege, review round 2).
+func TestAHostWithoutAContainerDeviceNamesTheModule(t *testing.T) {
+	rec := &recorder{code: 125, stderr: "docker: Error response from daemon: error gathering device " +
+		"information while adding custom device \"/dev/ppp\": no such file or directory.\n" +
+		"Run 'docker run --help' for more information\n"}
+	report, err := rec.runner().Run()
+	if err == nil {
+		t.Fatal("a host without /dev/ppp answered no error")
+	}
+	if !strings.HasSuffix(err.Error(), "\n  sudo modprobe ppp_generic") {
+		t.Errorf("refusal %q does not end with the host command on a line of its own", err)
+	}
+	if !strings.Contains(err.Error(), "has no /dev/ppp") {
+		t.Errorf("refusal %q does not name the missing node", err)
+	}
+	if report.Code != 125 || report.Passed {
+		t.Errorf("report = %+v, want the docker exit 125 and not passed", report)
+	}
+
+	rec = &recorder{code: 125, stderr: "docker: Error response from daemon: pull access denied\n"}
+	if _, err := rec.runner().Run(); err != nil {
+		t.Errorf("an unrelated docker failure answered an error: %v", err)
+	}
+}
+
+// VALIDATES: tailBuffer keeps exactly the last limit octets across writes and
+// always reports every octet written.
+// PREVENTS: Docker's one-line refusal falling out of the kept tail, or a short
+// write stopping the copy of docker's stderr.
+func TestTailBufferKeepsTheLastOctets(t *testing.T) {
+	tail := &tailBuffer{limit: 8}
+	for _, chunk := range []string{"0123", "456789", "abcdefghijkl", "XY"} {
+		if n, err := tail.Write([]byte(chunk)); n != len(chunk) || err != nil {
+			t.Fatalf("Write(%q) = %d, %v", chunk, n, err)
+		}
+	}
+	if got := string(tail.data); got != "ghijklXY" {
+		t.Errorf("tail = %q, want %q", got, "ghijklXY")
 	}
 }

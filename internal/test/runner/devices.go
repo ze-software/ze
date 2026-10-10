@@ -28,9 +28,18 @@ const (
 	devicesPPP = "ppp"
 )
 
-// devicesRequired maps each accepted token to its device node.
-var devicesRequired = map[string]string{
-	devicesPPP: "/dev/ppp",
+// requiredDevice is one device a devices= token names: its node, and the
+// kernel module whose loading on the Docker host creates that node. A
+// container never loads a module, so the module is what a refusal tells the
+// operator to load.
+type requiredDevice struct {
+	path   string
+	module string
+}
+
+// devicesRequired maps each accepted token to its device.
+var devicesRequired = map[string]requiredDevice{
+	devicesPPP: {path: "/dev/ppp", module: "ppp_generic"},
 }
 
 // ContainerDevicePaths answers, sorted, the node of every device a devices=
@@ -40,11 +49,22 @@ var devicesRequired = map[string]string{
 // its --device list follows this table rather than a hand list.
 func ContainerDevicePaths() []string {
 	paths := make([]string, 0, len(devicesRequired))
-	for _, path := range devicesRequired {
-		paths = append(paths, path)
+	for _, device := range devicesRequired {
+		paths = append(paths, device.path)
 	}
 	slices.Sort(paths)
 	return paths
+}
+
+// DeviceHostModule answers the kernel module that creates the device node at
+// path on the Docker host, and false for a path no devices= token names.
+func DeviceHostModule(path string) (string, bool) {
+	for _, device := range devicesRequired {
+		if device.path == path {
+			return device.module, true
+		}
+	}
+	return "", false
 }
 
 // devicesAccepted lists the accepted tokens for an error message, derived from
