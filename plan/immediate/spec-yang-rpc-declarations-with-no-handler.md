@@ -247,7 +247,7 @@ deleting duplicate declarations.
 - [ ] `internal/component/bgp/plugins/cmd/peer/create.go` - `handleBgpPeerCreate` parses the keywords and calls `AddDynamicPeer`
 - [ ] `internal/component/bgp/plugins/cmd/peer/peer.go` - `handleBgpPeerDelete` calls `RemovePeer`; `RPCRegistration` publishes the wire methods
 - [ ] `internal/component/bgp/plugins/cmd/peer/save.go` - `handleBgpPeerSave` refuses arguments and saves the running peer set through `registry.RuntimeConfigCommit`
-- [ ] `internal/component/bgp/reactor/reactor_api.go` - `recordPeerConfig`, `dropPeerConfig`, `peerConfigNameFor`, `ReloadRunning`, `withPeerEntries`
+- [ ] `internal/component/bgp/reactor/reactor_api.go` - `recordCreatedPeerLocked`, `dropPeerConfig`, `peerConfigNameFor`, `ReloadRunning`, `withPeerEntries`
 - [ ] `internal/component/bgp/reactor/reactor_peers.go` - `AddDynamicPeer`, `doRemovePeer`
 - [ ] `internal/component/plugin/server/reload.go` - `reloadConfig` diffs the candidate against `ReloadRunning`
 - [ ] `internal/component/plugin/server/delivery_graph.go` - `DiscardRuntimeSubscriptions`
@@ -276,7 +276,7 @@ deleting duplicate declarations.
 3. Wire method construction in `RegisterRPCs` (`internal/component/plugin/server/schema.go`).
 4. Publication in `cmdMethods` (`internal/component/config/schema/cli/main.go`) and in `Build` (`internal/component/aihelp/aihelp.go`).
 5. Dispatch through the handler registry: `handleBgpPeerCreate`, `handleBgpPeerDelete`, `handleBgpPeerSave`.
-6. Reactor: `AddDynamicPeer` records the peer's tree (`recordPeerConfig`); `RemovePeer` drops it (`dropPeerConfig`) and publishes the down event; a reload compares the candidate against `ReloadRunning`, and `SetConfigTree` carries undeclared created peers forward (`withPeerEntries`).
+6. Reactor: `AddDynamicPeer` records the peer's tree and its created mark in the critical section that publishes it (`recordCreatedPeerLocked`); `RemovePeer` drops it (`dropPeerConfig`) and publishes the down event; a reload compares the candidate against `ReloadRunning`, and `SetConfigTree` carries undeclared created peers forward (`withPeerEntries`).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -316,7 +316,7 @@ deleting duplicate declarations.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A candidate declares a created peer's address under another name | decompose plans a remove and an add for one address | Unverified edge; see Known Limitations |
+| R-1 | A candidate declares a created peer's address under another name | decompose plans a remove and an add for one address | Tested: `TestCandidateDeclaringACreatedPeersAddressUnderAnotherName` (6a858747df) |
 | R-2 | A plugin's runtime subscription is discarded by the commit AC-9 runs | the WITHDRAW event never reaches the plugin | fixture 13 subscribes inside `lifecycleDeleteWithdraws`, after the commit |
 
 ## Blast Radius
@@ -387,6 +387,10 @@ deleting duplicate declarations.
 |------|------|-----------|--------|
 | `TestUnrelatedReloadKeepsACreatedPeer` | `internal/component/bgp/reactor/reactor_peers_dynamic_test.go` | a candidate without the created peer plans no removal and carries it forward (AC-9) | red with the reconcile skip disabled, green after (4ddd3c3914) |
 | `TestCandidateNamingACreatedPeerTakesItOver` | `internal/component/bgp/reactor/reactor_peers_dynamic_test.go` | a candidate that declares the created peer owns it | red with the reconcile skip disabled, green after (4ddd3c3914) |
+| `TestReloadRightAfterThePeerIsPublishedKeepsIt` | `internal/component/bgp/reactor/reactor_peers_dynamic_test.go` | a reload landing the moment the created peer is published keeps it, marked, with its entry (AC-9, review ISSUE-1: the mark was set after r.mu was released) | red before (peer removed, unmarked, no entry), green after under -race (57dd115cc2) |
+| `TestCandidateDeclaringACreatedPeersAddressUnderAnotherName` | `internal/component/bgp/reactor/reactor_peers_takeover_test.go` | R-1 end to end through the reactor: ReloadRunning, the registered bgp decomposer, applyConfigOperation destroy then create, ApplyConfigDiff, SetConfigTree; one peer named `edge` at the address, no mark, then removed by the next candidate (review ISSUE-2) | red with the address match of peerListDeclares disabled, and with SetConfigTree keeping the mark; green (6a858747df) |
+| `TestCompensatedTakeoverMarksTheCreatedPeerAgain` | `internal/component/bgp/reactor/reactor_peers_takeover_test.go` | a takeover undone by compensation re-marks the peer, and the next reload keeps it (AC-9, review NOTE-2) | red with RestoreCreatedPeers a no-op, green (557e2efad6) |
+| `TestRejectedReloadMarksTheCreatedPeersAgain` | `internal/component/plugin/server/reload_compensation_test.go` | a rejected reload hands the prior created-peer marks back to the reactor (review NOTE-2) | red with the restore calls removed, green (557e2efad6) |
 | `TestRemovedPeerStaysInTheIndexUntilItsDownEvent` | `internal/component/bgp/reactor/delivery_graph_test.go` | the down event of a removed peer reaches the processes it fed (AC-6) | red with the old publish order restored, green after (dcfdebb6ba) |
 | `TestPeerSaveRefusesASelector` | `internal/component/bgp/plugins/cmd/peer/save_test.go` | the refusal names the whole running peer set (AC-13) | red before, green after (650f778d2d) |
 | `TestAnOrphanLocalHandlerFailsTheVerdict` | `internal/le/doc/yangcontract/contract_test.go` | AC-16 | green (949091e15a) |
@@ -624,7 +628,7 @@ from this checkout (`le test exabgp api --pattern api-peer-lifecycle`, exabgp==5
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| The reload compares the candidate against a running tree without the undeclared created peers (`ReloadRunning`) | A new origin marker on every peer; making the decomposer skip created peers | The reactor already holds each created peer's tree (`recordPeerConfig`), so leaving those entries out of the comparison needs no new state, and the diff and decomposer stay unaware of the distinction |
+| The reload compares the candidate against a running tree without the undeclared created peers (`ReloadRunning`) | A new origin marker on every peer; making the decomposer skip created peers | The reactor already holds each created peer's tree (`recordCreatedPeerLocked`), so leaving those entries out of the comparison needs no new state, and the diff and decomposer stay unaware of the distinction |
 | `update bgp config` takes no selector | A selector form | After a delete the peer is gone, so a selector would select nothing and answer "0 saved" for a delete, a typo and a peer that never existed alike |
 | The down event is published before the peer leaves the delivery index | Publishing after removal | After removal the graph has no edge to the processes the peer fed, so the RIB never heard the peer went down and sent no WITHDRAW |
 | A fresh daemon on the file proves AC-7, AC-10 and AC-11 | A SIGHUP reload of the file | The ACs say "a daemon started on that file"; a reload reuses runtime state a start does not have |
@@ -633,7 +637,8 @@ from this checkout (`le test exabgp api --pattern api-peer-lifecycle`, exabgp==5
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      is not a limitation: write it as its own spec, in the bucket that item
      belongs to, and name that spec here (ai/rules/planning.md). -->
-- Implemented but unverified: a candidate that declares a created peer's ADDRESS under a different peer NAME. No AC names this case and no test exercises it; review decides whether it needs a test here.
+- A candidate that declares a created peer's ADDRESS under a different peer NAME is now tested through every reactor step of the reload (`TestCandidateDeclaringACreatedPeersAddressUnderAnotherName`, review round 1 ISSUE-2); the session bounces once, as on a config rename. Unverified at the daemon: no `.ci` drives it.
+- `recordCreatedPeerLocked` overwrites a configured peer an operator keyed `peer-<addr>` at another address (review NOTE-3, predates the spec, outside AC-9's goal): journalled in `plan/journal/two-owners-share-one-name.md` (2026-10-10). An add-peer operation built from the embedded config carries no Name: journalled in `plan/journal/zero-value-as-valid-answer.md` (2026-10-10).
 - `recoveryRoutes` reads `ribOut[Destination]`, so a destination not attached to `bgp-rib` gets no WITHDRAW when a source goes down. Not specific to peer delete (every source-down), journalled in `plan/journal/silent-fall-through.md` (2026-10-10); AC-6 holds where the destination attaches `bgp-rib`, which the test configures.
 
 ## Goal Validation (BLOCKING)
