@@ -73,3 +73,4 @@ EOF_SCRIPT
 cmd=foreground:seq=1:exec=ze start session-editor-commit-completion.conf:timeout=60s
 cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-completion.conf session-editor-commit-completion.script:timeout=60s
 expect=exit:code=0
+expect=file:path=session-editor-commit-completion.conf:contains=router-id 1.2.3.4

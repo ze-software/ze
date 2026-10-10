@@ -93,3 +93,5 @@ EOF_SCRIPT
 cmd=foreground:seq=1:exec=ze start session-editor-commit-grammar.conf:timeout=60s
 cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-grammar.conf session-editor-commit-grammar.script:timeout=60s
 expect=exit:code=0
+expect=file:path=session-editor-commit-grammar.conf:contains=router-id 5.6.7.8
+expect=file:path=session-editor-commit-grammar.conf:contains=description force
