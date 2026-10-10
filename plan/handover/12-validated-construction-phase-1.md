@@ -151,3 +151,5 @@ The owner approved ("yes") the batch 4e changes to these 7 RFC-tagged test units
 - internal/component/tacacs TestRFC8907TrustedDispatchIdentitiesReachWire
 
 Before committing 4e, the next session MUST: read a complete `-race` run over the 89 changed packages (the 2026-10-10 run never finished: `scratch/race4e.log`); record each approval with `./le rfc approve unit <package>.<TestName> reason "owner 2026-10-10: approved 4e call-site changes; no assertion change"`; confirm the commit tool names exactly these units and no others (if it names any other tagged unit, stop and ask the owner). The export is `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/exp4e`; `tmp/` does not leave this Mac, so 4e must be finished here.
+
+Race run result (finished after the note above, `scratch/race4e.log`): 69 packages ok, 2 FAIL: `internal/component/web` (`TestWebTemplPortFidelity`) and `internal/plugins/ospf` (`TestRFC5187InterfaceIDPreservedAcrossRestart`). Not yet known whether 4e causes them: run both at HEAD (without 4e) first; if they fail there too, they are not 4e's (journal them); if only with 4e, fix 4e before committing.
