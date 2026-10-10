@@ -7,14 +7,16 @@
 | Depends | - (the interop proof runs on a Docker host that passes the Ze kernel check, the QEMU docker-lab route of `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md`) |
 | Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-10-10 |
+| Updated | 2026-10-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Review state (2026-10-10): round-1 findings fixed (b99e74e99c, ff75ef7668, e5fa0e63a1
-and this spec's closure sections); READY FOR REVIEW ROUND 2. Interop re-run done
+Review state (2026-10-11): review loop closed after five rounds; round 5's one ISSUE
+was a stale RFC5216-2.4-4 discrimination record, re-observed in 68d7a1fcc7. Interop re-run
 2026-10-11 on the rebuilt arm64 kernel (7.2.9): both childless scenarios PASS with the
-ff75ef7668 KE checker, code at 8887f00ac2 (`*-rerun.log`, Goal Validation). BLOCKER 1 of round 1 is approved by the owner on 2026-10-11 (Review Gate).
+ff75ef7668 KE checker (`*-rerun.log`, Goal Validation, recorded in 001b35e13b). BLOCKER 1
+of round 1 is approved by the owner on 2026-10-11 (7689a86b74). Closure gates are under
+Pre-Commit Verification.
 
 ## Task
 
@@ -499,7 +501,7 @@ section.
 - Initiator creation (AC-4, AC-5, AC-6, AC-11, AC-12, Q-2): `serviceChildCreate` on the owner tick, `initiateChildCreate`, `applyChildCreateResponse`, `finishChildCreate`, schedule 30 s doubling to 300 s. 52910baca4.
 - Reload (Q-8 option A): an esp-group-only reload keeps a childless IKE SA (`retargetESPGroup`, `adoptESPGroup`). f4d62a62f7.
 - Proof: `.ci` 3d069a957e; interop scenarios 369d9fbb72, 2c813c4d58, ff75ef7668; RFC tags and records 7adea0a4b7, e5fa0e63a1.
-- Review round 1 fixes: b99e74e99c, ff75ef7668.
+- Review fixes: round 1 b99e74e99c, ff75ef7668; round 2 fbd9399f33; round 3 bedf48bfba; round 4 07e74bfd6d, 5e66c1648e; round 5 68d7a1fcc7.
 
 ### Bugs Found/Fixed
 - An IKE_AUTH response with neither SAr2 nor an error notify established and then failed "no peer ESP SPI recorded" with no Delete (`plan/journal/silent-fall-through.md`, 2026-10-10). Fixed by the childless establish; covered by `TestInitiatorNoSAr2NoNotifyIsChildless`.
@@ -508,7 +510,8 @@ section.
 
 ### Documentation Updates
 - `docs/architecture/ike/ipsec-7-ikev2-engine.md` (e2e724cf57, f4d62a62f7), `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (e8d7fc3fcd, e2e724cf57, d20f52052c, 52910baca4), `docs/architecture/ike/ipsec-14-responder.md` (e2e724cf57), `docs/architecture/ike/ipsec-10-cli-diag.md` (b99e74e99c, review ISSUE 4), `docs/guide/ipsec.md` "Which edits restart a tunnel" (f4d62a62f7), `features/ikev2-engine.md` and `rfc/short/rfc7296.md` (7adea0a4b7). `docs/features/rfc-status.md` carries the Section 2.21.2 childless IKE SA sentence.
-- `./le doc check verify` and `./le spec citation anchors spec plan/immediate/spec-ike-create-child-sa-on-established-ike-sa.md`: owed to the main thread after round 2 (citation anchors exited 0 at round 1, review NOTE 7).
+- Closure gates, 2026-10-11 at 001b35e13b: `./le spec citation anchors spec <this spec>` exit 0 (its note names six pages that mention the changed code without being named; this spec makes none of them wrong). `./le doc check verify` exit 1 on nine source-anchor claims, none under IKE: anchors naming `compilePatterns` (`docs/architecture/api/commands.md`), `Request.Root` (`kernel-profiles.md`), `guestSetup` (`qemu-integration.md`), `positionalDef` (`docs/features/cli-commands.md`), `checkInlineNextHop` (`command-reference.md`), `ForcedCommand`, `confirmImportReplace` and `importOne` (`config-editor.md`), `reconcileSentSourceLocked` (`graceful-restart.md`). Each names a symbol in a file other sessions are changing; every other section of the check passes.
+- `test/ipsec/ipsec-childless-ike-sa-recovers.ci` cited this spec by path. Its header now names `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` and `docs/guide/ipsec.md` "Which edits restart a tunnel", and the spec by bare stem.
 
 ### Deviations from Plan
 - Test files: the planned `childless_test.go` was never created; the AC-1 to AC-3 tests live in `rfc7296_auth_child_refusal_test.go`, `TestChildlessSAMaintenance` in `childless_readers_test.go`. `TestCreateChildCarriesKEiWhenPFS` is the `pfs` subtest of `TestChildlessInitiatorCreatesChildSA`; `TestNewChildWhileChildHeldAnswersNoAdditionalSAs` is folded into `TestNewChildWithKEIsNotAnIKERekey`. The TDD table records the real names.
@@ -596,9 +599,9 @@ section.
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded: round 1 was not CLEAN |
-| `./le spec review check` | not run |
-| Rounds | 1 complete (1 BLOCKER, 6 ISSUE, 8 NOTE); round 2 ISSUE 1 fixed by fbd9399f33; round 3 ISSUE 1 and NOTE 3 fixed by bedf48bfba; round 4 ISSUE 1 fixed by 07e74bfd6d and 5e66c1648e; round 5 (0 BLOCKER, 1 ISSUE, 2 NOTE) ISSUE 1 fixed by the commit that records round 5 |
+| Artifact | `tmp/review/ike-create-child-sa-on-established-ike-sa-5620b26f-603e-4d57-826d-6ef92b7fcd64.md`, verdict clean, 29 code files hash-pinned, 2026-10-11 |
+| `./le spec review check` | `review_gate: OK (29 code files, clean, hashes match ...)` |
+| Rounds | 5. Round 1: 1 BLOCKER, 6 ISSUE, 8 NOTE. Round 2 ISSUE 1 fixed by fbd9399f33; round 3 ISSUE 1 and NOTE 3 by bedf48bfba; round 4 ISSUE 1 by 07e74bfd6d and 5e66c1648e. Round 5 (0 BLOCKER, 1 ISSUE, 2 NOTE): ISSUE 1 was a record defect, a stale discrimination record with no product change, fixed by 68d7a1fcc7, so round 5 is the last round |
 | Reviewer lenses used | round 1: independent reviewer over the diff, RFC text, commit audit, interop evidence (`tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r1-ike-ccs.md`) |
 
 ### Findings fixed
@@ -634,7 +637,7 @@ section.
 ### Round 5 findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| 1 | ISSUE | 5e66c1648e changed `createFirstChildSA`, the producer of both RFC5216-2.4-4 revert records (positive `TestRFC5216DataCipherComesFromTheESPProposal`, negative `TestRFC5216TLSSessionDoesNotChooseTheDataCipher`, producer-sha d28e68aba86679ab), so `./le rfc check` refused both as producer-changed, and round 4's "names no IKE record" was false | `rfc/discrimination/rfc5216.json` | the commit that records round 5: both re-observed red with `./le rfc discriminate-record` (route revert, producer `child.go::createFirstChildSA`, no reseal), producer-sha now 89258c09df6131f9; `./le rfc check` then names no record whose unit or producer is under `internal/component/ike` |
+| 1 | ISSUE | 5e66c1648e changed `createFirstChildSA`, the producer of both RFC5216-2.4-4 revert records (positive `TestRFC5216DataCipherComesFromTheESPProposal`, negative `TestRFC5216TLSSessionDoesNotChooseTheDataCipher`, producer-sha d28e68aba86679ab), so `./le rfc check` refused both as producer-changed, and round 4's "names no IKE record" was false | `rfc/discrimination/rfc5216.json` | 68d7a1fcc7: both re-observed red with `./le rfc discriminate-record` (route revert, producer `child.go::createFirstChildSA`, no reseal), producer-sha now 89258c09df6131f9; `./le rfc check` then names no record whose unit or producer is under `internal/component/ike` |
 
 Round 5 NOTE 2: `GenerateNonce` and `generateESPSPI` in `respondNewChild`, and "no IKE keys" and "no peer ESP SPI recorded" in `createFirstChildSA`, still fall to the generic `childRefusedFixResponder` fix. Rare, recorded, no change.
 
@@ -654,7 +657,8 @@ NOTE 1 (RFC7296-2.7-1 and RFC3948-3.1.2-1 SHIFTED by checkers.go) goes to an ind
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 to AC-12, AC-15 | Unit tests named in the Acceptance Criteria audit pass | `./le job run label ccsr2-engine command go test -race -count=1 -tags "<gates>" ./internal/component/ike/engine/`: `ok ... 55.148s` on HEAD 2026-10-10 |
+| AC-1 to AC-12, AC-15 | Unit tests named in the Acceptance Criteria audit pass | `./le job run label ccs-close-unit command go test -race -count=1 -tags "ze_core <every ze_ gate in feature-gates.txt>" ./internal/component/ike/... ./internal/le/interoplab/ipsec/...` on 001b35e13b, 2026-10-11: all nine packages `ok` (engine 77.4s), exit 0, `scratch/ccs-close-unit.log` |
+| all | scoped lint | `./le go lint run scope "./internal/component/ike/... ./internal/le/interoplab/ipsec/..."` 2026-10-11: three attempts refused "lint inputs changed during planning" (other sessions editing), the fourth ran: default pass 0 issues; GOOS=linux passes 6 issues, all in `internal/component/ike/dataplane/kernelcap_linux.go` and `register_kernelcap_linux.go` (misspell `enrols`, prealloc), committed by ecfa32e1fd, a file this spec never touched |
 | AC-2 | `deleteChildlessIKESA` and `errChildSARefused` no longer exist | `grep -rn` over `internal/`: one hit, a comment in `childless_initiator_cycle_test.go` naming the deleted function |
 | AC-13, AC-14 | interop | logs named in Goal Validation; both re-run green 2026-10-11 |
 
@@ -677,6 +681,6 @@ NOTE 1 (RFC7296-2.7-1 and RFC3948-3.1.2-1 SHIFTED by checkers.go) goes to an ind
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| Doc checklist rows 1, 9, 12 | files and commits under Documentation Updates | yes, by commit; round-2 reviewer re-reads them against source |
+| Doc checklist rows 1, 9, 12 | files and commits under Documentation Updates | yes, by commit; review rounds 2 to 5 read them against source |
 | Row 6 (user guide) | `docs/guide/ipsec.md` lines 92-97 describe the childless esp-group reload | yes |
-| Row 16 (source anchors) | `./le spec citation anchors` exit 0 at round 1 (NOTE 7) | re-run owed after round 2 |
+| Row 16 (source anchors) | `./le spec citation anchors` exit 0 on 2026-10-11; the source-anchor section of `./le doc check verify` names nine claims, none under IKE (Documentation Updates) | yes |
