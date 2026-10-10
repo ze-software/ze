@@ -303,8 +303,8 @@ func deviceRefusal(code int, stderrTail string) error {
 // The container never runs --privileged (spec-lab-containers-least-privilege,
 // site 6). The gate inside it runs every test in the tree, and a test that
 // needs a capability or a device declares it as `option=needs-linux:caps=`
-// or `devices=`, so the container holds the union of both vocabularies, read
-// from the runner's own tables (runner.ContainerCapsDockerNames,
+// or `option=opens-device:name=`, so the container holds the union of both
+// vocabularies, read from the runner's own tables (runner.ContainerCapsDockerNames,
 // runner.ContainerDevicePaths), and Docker's default seccomp and AppArmor
 // profiles stay on. A token added to either vocabulary reaches this list with
 // no edit here. SYS_TIME is the one capability left out on purpose: a test

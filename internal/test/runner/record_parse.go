@@ -426,6 +426,16 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// that hang into an honest skip that names the QEMU runner, where the
 		// test does have the capability and therefore really runs.
 		r.NeedsLinux = true
+		// An unknown key is refused on every host, like an unknown token: a
+		// misspelt key (device=ppp) read as absent leaves the author with no
+		// feedback and the declaration silently missing.
+		if err := checkKeys("option=needs-linux", kv, "caps"); err != nil {
+			return err
+		}
+		if raw, present := kv["caps"]; present && strings.TrimSpace(raw) == "" {
+			return fmt.Errorf("option=needs-linux: caps= is empty; name each capability the test needs "+
+				"(supported: %s), e.g. option=needs-linux:caps=net-admin, or drop caps=", capsAccepted())
+		}
 
 		// Validate the declared capability BEFORE the GOOS early-return. A typo
 		// is a property of the .ci file, not of the host, so it must be rejected
@@ -448,19 +458,6 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 				caps = append(caps, c)
 			}
 		}
-		// devices= names the device nodes the test opens (devices.go). It is
-		// validated here for the same reason as caps=, and recorded rather
-		// than gated: see devicesRequired for why an absent node never skips.
-		if raw := kv["devices"]; raw != "" {
-			for d := range strings.SplitSeq(raw, ",") {
-				d = strings.TrimSpace(d)
-				if _, ok := devicesRequired[d]; !ok {
-					return fmt.Errorf("option=needs-linux: unknown devices %q (supported: %s)", d, devicesAccepted())
-				}
-				r.Devices = append(r.Devices, d)
-			}
-		}
-
 		if runtime.GOOS != goosLinux {
 			var tb textbuf.Buffer
 			r.SkipReason = tb.Str("needs-linux (run via ./le test qemu all-tests; current GOOS=").Str(runtime.GOOS).Byte(')').String()
@@ -471,6 +468,28 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
 				Str(" (capability absent; run via ./le test qemu all-tests)").String()
 			return nil
+		}
+
+	case "opens-device":
+		// Declares the device nodes the test opens on Linux (devices.go). It
+		// gates nothing and is independent of needs-linux, because an L2TP
+		// test that runs on every host still opens /dev/ppp when it runs on
+		// Linux with NET_ADMIN; see devicesRequired for why an absent node
+		// never skips. Keys and tokens are validated on every host.
+		if err := checkKeys("option=opens-device", kv, "name"); err != nil {
+			return err
+		}
+		raw := strings.TrimSpace(kv["name"])
+		if raw == "" {
+			return fmt.Errorf("option=opens-device: name= is missing or empty; name each device the test opens "+
+				"(supported: %s), e.g. option=opens-device:name=ppp", devicesAccepted())
+		}
+		for d := range strings.SplitSeq(raw, ",") {
+			d = strings.TrimSpace(d)
+			if _, ok := devicesRequired[d]; !ok {
+				return fmt.Errorf("option=opens-device: unknown device %q (supported: %s)", d, devicesAccepted())
+			}
+			r.Devices = append(r.Devices, d)
 		}
 
 	case "needs-path":

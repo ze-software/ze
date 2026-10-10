@@ -9,6 +9,7 @@
 # and kernel PPPoL2TP. This test owns the config surface: it runs the same
 # OnConfigVerify path the daemon runs at boot, offline, with no kernel needed.
 
+option=opens-device:name=ppp
 stdin=config:terminator=EOF_CONF
 l2tp {
     enabled true;

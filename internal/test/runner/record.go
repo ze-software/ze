@@ -275,10 +275,12 @@ type Record struct {
 	// run ONLY these tests and skip everything else.
 	NeedsLinux bool
 
-	// Devices are the devices= tokens of option=needs-linux, the device nodes
-	// the test opens (devices.go). Populated at parse time; no gate reads them
-	// on the host, and a container that runs every test is granted the whole
-	// vocabulary through ContainerDevicePaths.
+	// Devices are the name= tokens of option=opens-device, the device nodes
+	// the test opens on Linux (devices.go). Populated at parse time; nothing
+	// reads them beyond the parser's validation and the declaration checks:
+	// no gate skips on them, and the release-candidate container is granted
+	// the whole vocabulary through ContainerDevicePaths, not the union of
+	// the declared sets.
 	Devices []string
 
 	// NetnsLinks are interfaces the runner provisions inside this test's per-test

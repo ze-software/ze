@@ -261,32 +261,47 @@ func TestEveryCapsBitHasADockerName(t *testing.T) {
 	}
 }
 
-// TestNeedsLinuxDevicesAreValidatedAndRecorded drives the devices= key.
+// TestOpensDeviceIsValidatedAndRecorded drives option=opens-device.
 //
-// VALIDATES: option=needs-linux:devices=ppp records the token, does not skip a
-// Linux host on its own, an unknown token is refused on every host naming the
-// accepted ones, and ContainerDevicePaths answers /dev/ppp for it.
-// PREVENTS: a typo leaving a test's device need undeclared, and the evidence
-// container losing /dev/ppp, which is what made test/l2tp/radius-acct-wire.ci
-// unrunnable there once --privileged went.
-func TestNeedsLinuxDevicesAreValidatedAndRecorded(t *testing.T) {
+// VALIDATES: option=opens-device:name=ppp records the token and skips no host
+// (it is independent of needs-linux); an unknown token, an unknown key (the
+// misspelt device=), an empty or missing name= and an unknown needs-linux key
+// are each refused on every host with the accepted spelling; and
+// ContainerDevicePaths answers /dev/ppp.
+// PREVENTS: a typo leaving a test's device need undeclared or silently
+// ignored, and the evidence container losing /dev/ppp, which is what made
+// test/l2tp/radius-acct-wire.ci unrunnable there once --privileged went.
+func TestOpensDeviceIsValidatedAndRecorded(t *testing.T) {
 	withCaps(t, true)
 
-	r := parseNeedsLinux(t, "option=needs-linux:caps=net-admin:devices=ppp")
+	r := parseNeedsLinux(t, "option=opens-device:name=ppp")
 	if !slices.Equal(r.Devices, []string{"ppp"}) {
 		t.Errorf("Devices = %v, want [ppp]", r.Devices)
 	}
-	if runtime.GOOS == goosLinux && r.SkipReason != "" {
-		t.Errorf("a declared device skipped a Linux host: %q", r.SkipReason)
+	if r.SkipReason != "" || r.NeedsLinux {
+		t.Errorf("a declared device gated the test: NeedsLinux=%v skip=%q", r.NeedsLinux, r.SkipReason)
 	}
 
-	et := &EncodingTests{}
-	err := et.parseLine(newRecord("bad-device"), "test/l2tp/fake.ci", "option=needs-linux:devices=pp")
-	if err == nil {
-		t.Fatal("devices=pp was accepted")
-	}
-	if !strings.Contains(err.Error(), "supported: ppp") {
-		t.Errorf("the refusal does not name the accepted tokens: %v", err)
+	for line, want := range map[string]string{
+		"option=opens-device:name=pp":                    "supported: ppp",
+		"option=opens-device:name=ppp,":                  "unknown device \"\"",
+		"option=opens-device:name=":                      "e.g. option=opens-device:name=ppp",
+		"option=opens-device":                            "e.g. option=opens-device:name=ppp",
+		"option=opens-device:device=ppp":                 "unknown key",
+		"option=needs-linux:device=ppp":                  "unknown key",
+		"option=needs-linux:caps=net-admin:devices=ppp":  "unknown key",
+		"option=needs-linux:caps=":                       "caps= is empty",
+		"option=needs-linux:caps=net-admin:cpas=net-raw": "unknown key",
+	} {
+		et := &EncodingTests{}
+		err := et.parseLine(newRecord("bad-device"), "test/l2tp/fake.ci", line)
+		if err == nil {
+			t.Errorf("%s was accepted", line)
+			continue
+		}
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("%s refused as %q, want it to say %q", line, err, want)
+		}
 	}
 
 	if got := ContainerDevicePaths(); !slices.Equal(got, []string{"/dev/ppp"}) {
@@ -294,38 +309,50 @@ func TestNeedsLinuxDevicesAreValidatedAndRecorded(t *testing.T) {
 	}
 }
 
-// TestPPPSessionTestsDeclareDevPPP reads the real .ci files that reach
-// ppp.DevPPPSetup and checks each one declares devices=ppp.
+// TestPPPSessionTestsDeclareDevPPP reads every real .ci file under test/l2tp
+// and test/pppoe and checks that each one ze runs with its kernel dataplane
+// on declares option=opens-device:name=ppp. The set is derived from the tree,
+// not listed: an L2TP or PPPoE test that does not set
+// ze.l2tp.disable-kernel-dataplane can reach pppSetupReal -> ppp.DevPPPSetup
+// on Linux with NET_ADMIN (internal/component/l2tp/kernel_linux.go).
 //
-// VALIDATES: the L2TP tests that complete a kernel session and the PPPoE tests
-// whose PADR is admitted (the PADS follows DevPPPSetup) declare the device.
-// PREVENTS: the declaration being dropped from a test that opens /dev/ppp.
+// VALIDATES: every such test declares the device, and the walk found tests.
+// PREVENTS: the declaration being dropped from, or never added to, a test that
+// opens /dev/ppp.
 func TestPPPSessionTestsDeclareDevPPP(t *testing.T) {
-	for _, path := range []string{
-		"test/l2tp/radius-acct-wire.ci",
-		"test/l2tp/session-stopccn-cascade.ci",
-		"test/pppoe/pppoe-basic.ci",
-		"test/pppoe/pppoe-padr-flood.ci",
-		"test/pppoe/pppoe-per-mac-cap.ci",
-		"test/pppoe/pppoe-service-name.ci",
-		"test/pppoe/pppoe-vlan.ci",
-	} {
-		data, err := os.ReadFile(filepath.Join("..", "..", "..", path))
+	root := filepath.Join("..", "..", "..")
+	var paths []string
+	for _, suite := range []string{"l2tp", "pppoe"} {
+		matches, err := filepath.Glob(filepath.Join(root, "test", suite, "*.ci"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, matches...)
+	}
+	checked := 0
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)
 		}
+		if strings.Contains(string(data), "disable-kernel-dataplane") {
+			continue
+		}
+		checked++
 		declared := false
 		for line := range strings.SplitSeq(string(data), "\n") {
-			if !strings.HasPrefix(line, "option=needs-linux") {
+			if !strings.HasPrefix(line, "option=opens-device") {
 				continue
 			}
-			withCaps(t, true)
 			if slices.Contains(parseNeedsLinux(t, line).Devices, devicesPPP) {
 				declared = true
 			}
 		}
 		if !declared {
-			t.Errorf("%s opens /dev/ppp but does not declare option=needs-linux:...:devices=ppp", path)
+			t.Errorf("%s can open /dev/ppp but does not declare option=opens-device:name=ppp", path)
 		}
+	}
+	if checked == 0 {
+		t.Fatal("no L2TP or PPPoE test runs with its kernel dataplane on; the walk read the wrong tree")
 	}
 }

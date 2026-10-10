@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Values `option=needs-linux:devices=` accepts, as a comma-separated list, and
+// Values `option=opens-device:name=` accepts, as a comma-separated list, and
 // the device node each one names.
 //
 //   - ppp: /dev/ppp, the PPP channel and unit device. ppp.DevPPPSetup
@@ -21,9 +21,11 @@ import (
 // The declaration does not skip a test on a host where the node is absent: the
 // daemon's own modprobe at L2TP start can create /dev/ppp on a host /dev, so an
 // absence at parse time is no proof the test cannot run, and a gate that
-// over-skips deletes coverage. Two readers consume it: the parser, which
-// refuses a token outside this table on every host, and the container grant
-// list, ContainerDevicePaths.
+// over-skips deletes coverage. The table has two readers: the parser, which
+// refuses a token outside it on every host, and the container grant list,
+// ContainerDevicePaths, which grants every node in it whichever tests declare
+// one. A test's declaration is checked (TestPPPSessionTestsDeclareDevPPP) but
+// decides no grant.
 const (
 	devicesPPP = "ppp"
 )
@@ -42,8 +44,8 @@ var devicesRequired = map[string]requiredDevice{
 	devicesPPP: {path: "/dev/ppp", module: "ppp_generic"},
 }
 
-// ContainerDevicePaths answers, sorted, the node of every device a devices=
-// token names. A container given these with `docker run --device` can run
+// ContainerDevicePaths answers, sorted, the node of every device an
+// option=opens-device name= token can name. A container given these with `docker run --device` can run
 // every `.ci` test that declares a device, which is what the release-candidate
 // evidence container needs (spec-lab-containers-least-privilege, site 6), so
 // its --device list follows this table rather than a hand list.

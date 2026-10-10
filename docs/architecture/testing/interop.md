@@ -483,7 +483,7 @@ for the daemon's architecture into `tmp/verify-evidence/ze-linux`, which git
 ignores so the tree stays clean, and makes the same check with it. The
 container never runs `--privileged`: it holds one `--cap-add` for each
 capability the `option=needs-linux:caps=` vocabulary names and one `--device`
-for each node the `devices=` vocabulary names, read from the runner's own
+for each node the `option=opens-device` vocabulary names, read from the runner's own
 tables (`runner.ContainerCapsDockerNames`, `runner.ContainerDevicePaths`), and
 keeps Docker's default seccomp and AppArmor profiles. A token added to either
 vocabulary reaches the container with no other edit. `sys-time` is left out:

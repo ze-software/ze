@@ -41,6 +41,7 @@ environment {
 }
 EOF_CONF
 
+option=opens-device:name=ppp
 option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.log.l2tp.auth.radius:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true

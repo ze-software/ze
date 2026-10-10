@@ -97,7 +97,8 @@ environment {
 }
 EOF_CONF
 
-option=needs-linux:caps=net-admin:devices=ppp
+option=opens-device:name=ppp
+option=needs-linux:caps=net-admin
 option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.log.l2tp.auth.radius:value=debug
 option=env:var=TEST_SECRET:value=s3cr3t
