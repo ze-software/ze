@@ -1370,8 +1370,8 @@ module ze-ipsec-conf {
 
                     container vti {
                         description "The interface itself is declared under interfaces xfrm, where the if-id
-                            leaf carries the identifier a bound security association must match. Ze joins
-                            the two nowhere, so every Child SA is installed with if_id 0.";
+                            leaf carries the identifier a bound security association must match. Ze reads
+                            that if-id through the name under bind and installs this peer's Child SAs with it.";
                         ze:help "Virtual Tunnel Interface binding.";
 
                         leaf bind {
@@ -1379,8 +1379,9 @@ module ze-ipsec-conf {
                             description "Route-based IPsec encrypts the traffic the routing table forwards
                                 into the named XFRM interface. Commit refuses a name beside mode
                                 transport, because an XFRM interface carries tunnel-mode encapsulation.
-                                No code maps the name to the if-id of that interface today. The Child
-                                SA is installed with if_id 0, and the binding carries no traffic.";
+                                Ze installs the Child SA with the if-id of the named interface. A name
+                                that is not an XFRM interface, or one whose if-id is 0, refuses the Child
+                                SA, so the tunnel stays down rather than coming up unbound.";
                             ze:help "VTI interface name to bind this peer's traffic to.";
                         }
                     }

@@ -425,6 +425,8 @@ const (
 // carries its own next step, so finishChildCreate tells them apart.
 var (
 	errChildTransportDeclined = errors.New("child creation response: the peer declined the required transport mode")
+	errChildBinding           = errors.New("child creation response: resolving the peer's vti binding")
+	errChildAddress           = errors.New("child creation response: reading the tunnel addresses")
 	errChildInstall           = errors.New("child creation response: installing the Child SA")
 )
 
@@ -435,10 +437,19 @@ const (
 		"mode unacceptable, so ze deleted the pair; no traffic is protected until a Child SA exists, " +
 		"and ze asks again after retry-after; set mode transport for this connection on the peer, or " +
 		"clear transport-required on this peer here, then reload the configuration: ze signal reload"
-	childResponseFixInstall = "the peer accepted the Child SA and this node could not install it, so ze " +
+	childResponseFixBinding = "the peer accepted the Child SA and this node could not bind it, so ze " +
 		"deleted the pair; no traffic is protected until a Child SA exists, and ze asks again after " +
-		"retry-after; the error names what the kernel refused: make the esp-group algorithms ones " +
-		"this kernel supports and the peer's if-id valid, then reload the configuration: ze signal reload"
+		"retry-after; vti bind on this peer must name an interface declared under interfaces xfrm " +
+		"whose if-id is not 0: correct the name or declare that interface with an if-id, then " +
+		"reload the configuration: ze signal reload"
+	childResponseFixAddress = "the peer accepted the Child SA and this node has no tunnel endpoints " +
+		"for it, so ze deleted the pair; no traffic is protected until a Child SA exists, and ze " +
+		"asks again after retry-after; set local-address and remote-address on this peer to IP " +
+		"addresses, then reload the configuration: ze signal reload"
+	childResponseFixInstall = "the peer accepted the Child SA and the kernel refused to install it, so " +
+		"ze deleted the pair; no traffic is protected until a Child SA exists, and ze asks again " +
+		"after retry-after; the error names what the kernel refused: make the esp-group algorithms " +
+		"ones this kernel supports, then reload the configuration: ze signal reload"
 	childResponseFixAnswer = "the peer's answer is malformed or outside what ze offered, so ze deleted " +
 		"the pair; no traffic is protected until a Child SA exists, and ze asks again after " +
 		"retry-after; make the esp-group proposals and traffic selectors match the peer's, then " +
@@ -456,6 +467,10 @@ func childResponseRefusedFix(err error) string {
 	switch {
 	case errors.Is(err, errChildTransportDeclined):
 		return childResponseFixTransport
+	case errors.Is(err, errChildBinding):
+		return childResponseFixBinding
+	case errors.Is(err, errChildAddress):
+		return childResponseFixAddress
 	case errors.Is(err, errChildInstall):
 		return childResponseFixInstall
 	default:
@@ -803,7 +818,7 @@ func applyChildCreateResponse(sa *SA, pending *pendingRekey, inner []wire.Payloa
 	ifID, err := resolveIfID(&sa.PeerCfg)
 	if err != nil {
 		keys.Clear()
-		return nil, fmt.Errorf("%w: %w", errChildInstall, err)
+		return nil, fmt.Errorf("%w: %w", errChildBinding, err)
 	}
 	mode := modeTunnel
 	if sa.UseTransportMode {
@@ -827,7 +842,7 @@ func applyChildCreateResponse(sa *SA, pending *pendingRekey, inner []wire.Payloa
 	})
 	if err != nil {
 		keys.Clear()
-		return nil, fmt.Errorf("%w: %w", errChildInstall, err)
+		return nil, fmt.Errorf("%w: %w", errChildAddress, err)
 	}
 	if err := installChildTolerant(child, prop, dp, log); err != nil {
 		keys.Clear()

@@ -138,3 +138,60 @@ func TestChildCreateRequestFailureNamesFix(t *testing.T) {
 	}
 	cfxExpectLine(t, logged, "child-sa: creation request failed", childRequestFailedFix)
 }
+
+// VALIDATES: a creation response refused because the peer's vti bind names no usable
+// XFRM interface names the binding fix, not a kernel refusal.
+//
+// Goal: the operator is sent to the leaf he configured. Method: after the request is
+// sent, the peer's vti bind names an interface that is not an XFRM interface, so
+// resolveIfID fails; the peer answers through its real respondNewChild, and the
+// refused-response line MUST carry the binding fix and a retry-after.
+//
+// PREVENTS: a bad vti bind reported as something the kernel refused.
+func TestChildCreateBadVTIBindNamesFix(t *testing.T) {
+	previous := xfrmIfIDOf
+	xfrmIfIDOf = func(name string) (uint32, error) {
+		return 0, errors.New("test: " + name + " is not an XFRM interface")
+	}
+	t.Cleanup(func() { xfrmIfIDOf = previous })
+	r := createRig(t, ipsec.PFSDisable)
+	r.ps.serviceChildCreate(r.sa, r.myTr, time.Now(), slogutil.DiscardLogger())
+	if r.ps.pendingRekey == nil {
+		t.Fatal("a due creation sent no creation request")
+	}
+	r.sa.PeerCfg.VTIBind = "eth0"
+	var peerChild *ChildSA
+	log, logged := cfxLogger()
+	r.createLog = log
+	r.relayCreate(t, r.peerAnswersCreate(t, &peerChild))
+	if r.ps.getChildSA() != nil {
+		t.Fatal("a creation whose vti binding failed holds a Child SA")
+	}
+	cfxExpectLine(t, logged, "child-sa: creation response refused", childResponseFixBinding)
+}
+
+// VALIDATES: a creation response refused because this node's tunnel address is not an
+// IP address names the address fix.
+//
+// Goal: the operator is sent to local-address and remote-address. Method: after the
+// request is sent, the peer's local-address is not an IP address, so newChildSA fails;
+// the peer answers through its real respondNewChild, and the refused-response line MUST
+// carry the address fix and a retry-after.
+//
+// PREVENTS: an invalid address reported as something the kernel refused.
+func TestChildCreateBadAddressNamesFix(t *testing.T) {
+	r := createRig(t, ipsec.PFSDisable)
+	r.ps.serviceChildCreate(r.sa, r.myTr, time.Now(), slogutil.DiscardLogger())
+	if r.ps.pendingRekey == nil {
+		t.Fatal("a due creation sent no creation request")
+	}
+	r.sa.PeerCfg.LocalAddress = "not-an-address"
+	var peerChild *ChildSA
+	log, logged := cfxLogger()
+	r.createLog = log
+	r.relayCreate(t, r.peerAnswersCreate(t, &peerChild))
+	if r.ps.getChildSA() != nil {
+		t.Fatal("a creation whose tunnel address is invalid holds a Child SA")
+	}
+	cfxExpectLine(t, logged, "child-sa: creation response refused", childResponseFixAddress)
+}
