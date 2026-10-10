@@ -2,6 +2,7 @@
 package kernelbuilder
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -286,7 +287,8 @@ func runDocker(ctx context.Context, req Request) error {
 	// that starts on a nearly full host does not fail cleanly: it fills the
 	// sparse disk backing the container runtime, and the error that surfaces
 	// names a content blob rather than the disk (plan/journal/full-disk-false-red.md).
-	if err := checkKernelBuildSpace(req, pathExists); err != nil {
+	store, err := checkKernelBuildSpace(ctx, req, pathExists)
+	if err != nil {
 		return err
 	}
 	if err := os.MkdirAll(hostOutputPath(req), 0o750); err != nil {
@@ -336,9 +338,8 @@ func runDocker(ctx context.Context, req Request) error {
 	// Pass or fail. A failed build leaves the largest tree behind, so the run
 	// that most needs the space returned is the one that did not finish. The
 	// context is the detached one, so a canceled build still discards.
-	home, homeErr := os.UserHomeDir()
-	if homeErr == nil {
-		reclaimBuildSpace(repairCtx, req, dockerStoreHostPath(home, pathExists))
+	if store.vmDisk {
+		reclaimBuildSpace(repairCtx, req, store.path)
 	}
 	if buildErr != nil {
 		if repairErr != nil {
@@ -384,6 +385,23 @@ var runCommand = func(ctx context.Context, req Request, name string, args ...str
 	cmd.Stdout = req.Stdout
 	cmd.Stderr = req.Stderr
 	return cmd.Run()
+}
+
+// runCommandOutput runs a command for its answer rather than its progress: it
+// returns stdout, and folds stderr into the error so a refusal says why.
+var runCommandOutput = func(ctx context.Context, req Request, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // argv is constructed from validated tokens
+	cmd.Dir = req.Root
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return nil, fmt.Errorf("%w: %s", err, msg)
+		}
+		return nil, err
+	}
+	return out, nil
 }
 
 // writeProvenance records what was built, and the source it was built from: the
