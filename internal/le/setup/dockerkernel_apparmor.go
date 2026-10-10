@@ -96,7 +96,7 @@ func runDockerKernelAppArmor(args leaction.Arguments) (any, int) {
 	return map[string]string{
 		"profile": kernelcap.ProbeAppArmorProfileName,
 		"file":    filepath.Join(appArmorProfileDir, kernelcap.ProbeAppArmorProfileName),
-		"next":    "./le setup docker-kernel check ze <linux ze>",
+		"next":    "./le setup docker-kernel check",
 	}, 0
 }
 
@@ -131,7 +131,7 @@ func appArmorHostReady(enabled, parser string) error {
 	if strings.TrimSpace(enabled) != "Y" {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("AppArmor is not enabled in this kernel (").Str(appArmorEnabledPath).
-			Str(" does not read Y), so Docker applies no AppArmor profile and the probe needs none: run ./le setup docker-kernel check ze <linux ze>").String())
+			Str(" does not read Y), so Docker applies no AppArmor profile and the probe needs none: run ./le setup docker-kernel check").String())
 	}
 	if parser == "" {
 		return errors.New("AppArmor is enabled but apparmor_parser is not installed (Debian and Ubuntu: the apparmor package), so no profile can be loaded")

@@ -414,7 +414,7 @@ under (the check does not see them). `env` without a `lab` is refused:
 stops after the check, which is what `TestDockerLabGuestBootsZeKernel` (build
 tag `integration`, host only) runs to prove the guest boots, Docker starts and
 the kernel passes.
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel, buildDockerLabZe, dockerLabEnvironment, dockerLabCommand -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel, BuildLinuxZe, dockerLabEnvironment, dockerLabCommand -->
 <!-- source: internal/le/test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir -->
 
 ## Appliance first-boot storage import

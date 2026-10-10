@@ -91,7 +91,7 @@ func runDockerLabHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	if err := buildDockerLabZe(root, goarch); err != nil {
+	if _, err := BuildLinuxZe(root, goarch); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
@@ -125,28 +125,32 @@ func dockerLabKernel(cache, goarch string) (string, error) {
 // GuestZeRel answers where the host writes the linux ze the Docker kernel check
 // probes with, relative to the checkout the guest mounts at GuestWorkspace,
 // beside the guest le. The nightly's informational check on the runner's own
-// Docker probes with the same file.
+// Docker probes with the same file, and so does `le setup docker-kernel check`
+// on a Linux host when it is given no ze.
 func GuestZeRel(goarch string) string {
 	return filepath.Join("tmp", "qemu", "linux-"+goarch, "ze")
 }
 
-// buildDockerLabZe cross-builds the linux ze for goarch at GuestZeRel(goarch),
-// through job admission, with the daemon's feature tags. The check runs
+// BuildLinuxZe cross-builds the linux ze for goarch at GuestZeRel(goarch),
+// through job admission, with the daemon's feature tags, and answers its
+// absolute path. It is the one producer of the ze the Docker kernel check
+// probes with: docker-lab builds it for the guest, and `le setup docker-kernel
+// check` builds it for the daemon in hand. The check runs
 // `ze doctor kernel-capabilities` in a container, and the guest le cannot stand
 // in: started under the name ze, a ze_le build answers "unknown command:
 // doctor" (first HVF boot, 2026-10-10).
-func buildDockerLabZe(root, goarch string) error {
+func BuildLinuxZe(root, goarch string) (string, error) {
 	toolchain, err := gotoolchain.New(root)
 	if err != nil {
-		return err
+		return "", err
 	}
 	tags, err := repofeaturetags.DaemonBuildTags(root, repofeaturetags.DaemonBase)
 	if err != nil {
-		return err
+		return "", err
 	}
 	admission, err := job.NewIn(root)
 	if err != nil {
-		return err
+		return "", err
 	}
 	admission.Out = os.Stderr
 
@@ -155,9 +159,9 @@ func buildDockerLabZe(root, goarch string) error {
 		linuxle.Overrides(goarch)...)
 	argv := []string{"go", "build", tagsFlag, tags, "-o", output, zeMainPackage}
 	if _, code := admission.Run("qemu-build-ze", argv, root, environment); code != 0 {
-		return fmt.Errorf("build the guest ze for linux/%s exited %d", goarch, code)
+		return "", fmt.Errorf("build the linux ze for linux/%s exited %d", goarch, code)
 	}
-	return nil
+	return output, nil
 }
 
 // dockerLabEnvironment answers the NAME=value assignments of the `env` value,

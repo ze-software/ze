@@ -426,8 +426,13 @@ for the daemon's architecture into `tmp/verify-evidence/ze-linux`, which git
 ignores so the tree stays clean, and makes the same check with it.
 <!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, dockerKernel, kernelZeRel -->
 
-`./le setup docker-kernel check ze <linux ze>` asks the daemon in hand the same
-question with any linux `ze`. `./le setup docker-kernel apparmor` is Linux-only:
+`./le setup docker-kernel check` asks the daemon in hand the same question. With
+no `ze` it cross-builds `tmp/qemu/linux-<arch>/ze` for the daemon's architecture
+(`docker version`'s server arch) through `BuildLinuxZe`, the producer
+`./le test qemu docker-lab` uses; `ze <path>` names another. Either way the file
+must be an ELF executable for that architecture, or the check refuses before any
+container runs, naming the path, what it is instead (a directory, not ELF,
+another machine), and the build route. `./le setup docker-kernel apparmor` is Linux-only:
 it refuses where `/sys/module/apparmor/parameters/enabled` does not read `Y` or
 `apparmor_parser` is absent, installs `kernelcap.ProbeAppArmorProfile` as
 `/etc/apparmor.d/ze-kernel-probe` (so it loads again at boot) and loads it with
@@ -446,7 +451,8 @@ reinstall replaces: it removes `/lib/modules/<release>` and
 the new modules inside the old tree. It prints each `sudo` step before it runs
 it, and never reboots. Off Linux it refuses and names the guest
 route, `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).
-<!-- source: internal/le/setup/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
+<!-- source: internal/le/setup/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- BuildLinuxZe, GuestZeRel -->
 <!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute -->
 
 To ask a host by hand, stage ze with any lab once and run the command above.

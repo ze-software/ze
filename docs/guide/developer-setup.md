@@ -207,8 +207,11 @@ kernel that lacks one.
   `./le test qemu docker-lab lab "test integration interop-ipsec"`. With no
   `lab` the action stops after the guest's Docker kernel check.
 - **Linux:** the labs run on the host's own Docker, on a kernel that carries
-  every registered feature. `./le setup docker-kernel check ze <linux-ze>` asks
-  the Docker daemon in hand and names each missing feature.
+  every registered feature. `./le setup docker-kernel check` asks the
+  Docker daemon in hand and names each missing feature. It cross-builds the
+  linux `ze` it probes with for the daemon's architecture
+  (`tmp/qemu/linux-<arch>/ze`); `ze <path>` names another, which must be a
+  linux executable for that architecture.
   `./le setup docker-kernel install` puts Ze's cached runtime kernel under
   `/boot` and makes it GRUB's default, one stated `sudo` step at a time. It
   needs `GRUB_DEFAULT=saved` in `/etc/default/grub`, never reboots, and refuses

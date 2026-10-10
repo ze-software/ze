@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: register.go -- registers this area beside `setup`
 // Related: ../interoplab/kernelcheck.go -- DockerKernel, the check `check` runs
-// Related: ../test/qemu/dockerlab.go -- the macOS route, which runs `check` in the guest
+// Related: ../test/qemu/dockerlab.go -- the macOS route, which runs `check` in the guest, and BuildLinuxZe, the ze `check` probes with
 // Related: ../test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir, the kernel `install` places
 //
 // dockerkernel.go is `le setup docker-kernel`: the Docker daemon's kernel must
@@ -19,6 +19,7 @@ package setup
 
 import (
 	"context"
+	"debug/elf"
 	"errors"
 	"os"
 	"os/exec"
@@ -33,6 +34,7 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testdeployment "github.com/ze-software/ze/internal/le/test/deployment"
+	testqemu "github.com/ze-software/ze/internal/le/test/qemu"
 )
 
 // dockerKernelArea is the name this area is typed as.
@@ -57,9 +59,10 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 	leaction.Action{
 		Verb: dockerKernelCheckVerb,
 		Why: "ask the Docker daemon in hand whether its kernel carries every feature Ze enrolls," +
-			" probing with the linux ze at `ze`; exits 1 naming each missing feature",
+			" probing with the linux ze at `ze`, or without `ze` with the one it cross-builds for the" +
+			" daemon's architecture at tmp/qemu/linux-<arch>/ze; exits 1 naming each missing feature",
 		Parameters: []leaction.Parameter{
-			{Keyword: dockerKernelZeKeyword, Value: "linux-ze-path", Requirement: leaction.Required},
+			{Keyword: dockerKernelZeKeyword, Value: "linux-ze-path", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runDockerKernelCheck,
 	},
@@ -100,9 +103,11 @@ func DockerKernelSubs() string { return dockerKernelActions.Subs() }
 func DockerKernelAnswer(args []string) (any, int) { return dockerKernelActions.Answer(args) }
 
 // runDockerKernelCheck runs the one Docker kernel check every Docker run that
-// runs Ze makes, against the daemon this process reaches.
+// runs Ze makes, against the daemon this process reaches, probing with a linux
+// ze for that daemon's architecture.
 func runDockerKernelCheck(args leaction.Arguments) (any, int) {
-	ze, err := filepath.Abs(args.One(dockerKernelZeKeyword))
+	docker := interoplab.NewDocker()
+	ze, err := dockerKernelCheckZe(docker, args.One(dockerKernelZeKeyword))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -111,11 +116,107 @@ func runDockerKernelCheck(args leaction.Arguments) (any, int) {
 	ctx, cancel := context.WithTimeout(context.Background(), dockerKernelCheckTimeout)
 	defer cancel()
 
-	if err := interoplab.DockerKernel(ze)(ctx, interoplab.NewDocker()); err != nil {
+	if err := interoplab.DockerKernel(ze)(ctx, docker); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
 	return map[string]string{"verdict": "pass", "ze": ze}, 0
+}
+
+// dockerKernelCheckZe asks the daemon its architecture, then answers the ze to
+// mount. The build runs outside the check's own bound, because a cold
+// cross-compile can outlast it.
+func dockerKernelCheckZe(docker *interoplab.Docker, named string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dockerKernelCheckTimeout)
+	defer cancel()
+
+	goarch, err := docker.ServerArchitecture(ctx)
+	if err != nil {
+		return "", err
+	}
+	return dockerKernelProbeZe(named, goarch, buildLinuxZe)
+}
+
+// buildLinuxZe is the producer docker-lab uses, bound to this checkout.
+func buildLinuxZe(goarch string) (string, error) {
+	root, err := lepath.Root()
+	if err != nil {
+		return "", err
+	}
+	return testqemu.BuildLinuxZe(root, goarch)
+}
+
+// dockerKernelProbeZe answers the ze the probe container mounts: named when the
+// operator gave one, else what build writes for goarch. Either way the file must
+// be a linux executable for goarch, because the container runs it on the
+// daemon's kernel and anything else answers only exit 127 or "exec format
+// error" (owner's Linux run, 2026-10-10: the checkout itself was mounted).
+func dockerKernelProbeZe(named, goarch string, build func(goarch string) (string, error)) (string, error) {
+	ze := named
+	if ze == "" {
+		built, err := build(goarch)
+		if err != nil {
+			return "", err
+		}
+		ze = built
+	}
+	absolute, err := filepath.Abs(ze)
+	if err != nil {
+		return "", err
+	}
+	if err := linuxExecutableFor(absolute, goarch); err != nil {
+		var refusal textbuf.Buffer
+		return "", errors.New(refusal.Str("the Docker kernel check mounts ").Str(absolute).
+			Str(" as the ze it probes with, and ").Err(err).
+			Str("; omit `ze` and the check builds ").Str(testqemu.GuestZeRel(goarch)).
+			Str(" for the daemon's ").Str(goarch).String())
+	}
+	return absolute, nil
+}
+
+// elfMachines maps the GOARCH a Docker daemon reports to the ELF machine a Go
+// build for it carries. An architecture missing here is refused by name, never
+// passed unchecked.
+var elfMachines = map[string]elf.Machine{
+	"386":     elf.EM_386,
+	"amd64":   elf.EM_X86_64,
+	"arm":     elf.EM_ARM,
+	"arm64":   elf.EM_AARCH64,
+	"loong64": elf.EM_LOONGARCH,
+	"ppc64le": elf.EM_PPC64,
+	"riscv64": elf.EM_RISCV,
+	"s390x":   elf.EM_S390,
+}
+
+// linuxExecutableFor answers why path is not an ELF executable for goarch, or
+// nil when it is one.
+func linuxExecutableFor(path, goarch string) error {
+	want, known := elfMachines[goarch]
+	if !known {
+		var unknown textbuf.Buffer
+		return errors.New(unknown.Str("the daemon's architecture ").Str(goarch).
+			Str(" has no ELF machine this check knows").String())
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return errors.New("it is a directory, not a program")
+	}
+	file, err := elf.Open(path)
+	if err != nil {
+		var unread textbuf.Buffer
+		return errors.New(unread.Str("it is not an ELF executable (").Err(err).Str(")").String())
+	}
+	defer file.Close() //nolint:errcheck // read-only; nothing to flush
+
+	if file.Machine == want {
+		return nil
+	}
+	var other textbuf.Buffer
+	return errors.New(other.Str("it is built for ").Str(file.Machine.String()).Str(", not the daemon's ").
+		Str(goarch).Str(" (").Str(want.String()).Str(")").String())
 }
 
 // installStep is one root step of the install, with the reason printed before
@@ -188,7 +289,7 @@ func runDockerKernelInstall(args leaction.Arguments) (any, int) {
 	}
 	return map[string]string{
 		"release": release,
-		"next":    "reboot when ready, then: ./le setup docker-kernel check ze <linux ze>",
+		"next":    "reboot when ready, then: ./le setup docker-kernel check",
 	}, 0
 }
 
