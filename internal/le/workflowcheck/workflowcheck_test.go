@@ -548,7 +548,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 			"actions/cache/restore@v6", "actions/cache/save@v6",
 			"./le build host-driver",
 			"./ze-host appliance kernel --target runtime --arch amd64",
-			"./le setup docker-kernel check ze tmp/qemu/linux-amd64/le",
+			"./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze",
 		} {
 			if !strings.Contains(job.body, required) {
 				t.Errorf("%s job %q runs its Docker lab without %q", name, job.name, required)

@@ -129,7 +129,7 @@ jobs:
       - name: The hosted runner's own Docker kernel, for information
         if: ${{ !cancelled() }}
         continue-on-error: true
-        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/le
+        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
 
   # The strongSwan lab programs XFRM state in privileged containers. It remains
   # scheduled and advisory, never part of a merge gate.
@@ -181,7 +181,7 @@ jobs:
       - name: The hosted runner's own Docker kernel, for information
         if: ${{ !cancelled() }}
         continue-on-error: true
-        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/le
+        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
 
   # Ze's admin login against a real FreeRADIUS server. Every other RADIUS proof
   # ze holds runs against a mock ze wrote, and a mock built beside ze's own
@@ -242,7 +242,7 @@ jobs:
       - name: The hosted runner's own Docker kernel, for information
         if: ${{ !cancelled() }}
         continue-on-error: true
-        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/le
+        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
 
   # The L2TP lab builds a PPP/NCP path between peer-isolated containers. It needs
   # PPPoL2TP in the Docker host's kernel, which the Ze-kernel guest carries. It
@@ -303,7 +303,7 @@ jobs:
       - name: The hosted runner's own Docker kernel, for information
         if: ${{ !cancelled() }}
         continue-on-error: true
-        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/le
+        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
 
   # Ze's PPPoE client against a real accel-ppp access concentrator. Same tiering
   # reason as the L2TP lab above, and the same advisory posture: it needs PPPoE
@@ -356,4 +356,4 @@ jobs:
       - name: The hosted runner's own Docker kernel, for information
         if: ${{ !cancelled() }}
         continue-on-error: true
-        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/le
+        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze

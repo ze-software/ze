@@ -399,12 +399,22 @@ architecture (`ze appliance kernel --target runtime --arch <arch>
 build that writes it. It demands HVF or KVM, because a lab under TCG measures
 the emulator. The guest installs Alpine's `docker` package, starts dockerd
 through OpenRC, waits at most 60 seconds for `docker info`, runs
-`le setup docker-kernel check` with the guest le as the `ze` it probes with,
-and only then runs `le <lab>`. A failed step stops the line. With no `lab` it
+`le setup docker-kernel check` probing with a linux `ze` the host cross-builds
+beside the guest le (`tmp/qemu/linux-<arch>/ze`, daemon feature tags), and only
+then runs `le <lab>`. The guest le cannot be that `ze`: a `ze_le` build started
+under the name `ze` answers "unknown command: doctor".
+
+The host's environment does not reach the guest, so a suite's one-scenario
+selector travels as `env`, a list of `NAME=value` assignments the lab alone runs
+under (the check does not see them). `env` without a `lab` is refused:
+
+```text
+./le test qemu docker-lab lab "test integration interop-ipsec" env "IPSEC_INTEROP_SCENARIO=mobike-initiator"
+``` A failed step stops the line. With no `lab` it
 stops after the check, which is what `TestDockerLabGuestBootsZeKernel` (build
 tag `integration`, host only) runs to prove the guest boots, Docker starts and
 the kernel passes.
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel, dockerLabCommand -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel, buildDockerLabZe, dockerLabEnvironment, dockerLabCommand -->
 <!-- source: internal/le/test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir -->
 
 ## Appliance first-boot storage import
