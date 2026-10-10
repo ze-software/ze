@@ -13,8 +13,12 @@
 #            the feature on a daemon started without it.
 # PREVENTS: a commit that reports success while routes already received stay
 #           unvalidated, which the RPKI topic recording would show as wrong output.
-#           tcp_connections=1 also proves the commit does not reset the session:
-#           a second connection would leave the peer's routes gone.
+#           tcp_connections=1 also proves this commit does not reset the
+#           session, and it holds only because the base config already binds
+#           the peer with `attach process bgp-rpki`: the commit adds no
+#           binding. Adding an operator attach live does restart the peer
+#           (docs/architecture/core-design.md section 18a,
+#           TestOperatorBindingChangeStillRestarts).
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER
