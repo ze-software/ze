@@ -38,9 +38,14 @@ The check runs when the builder is chosen, before the Alpine ISO download, and
 by `hostProbeTimeout`. A permission error on `/dev/kvm` gets the kvm-group fix;
 any other open error points at the kernel log. A QEMU that still exits before
 the guest boots is reported with what it wrote to stderr, read after the
-process has ended so the last line is not lost; a QEMU that says nothing is
-reported with its exact command line, to run by hand. A failure after login
-(SSH never answers, the build fails) carries QEMU's stderr when it wrote any. An arm64 kernel is built on the Mac and an amd64 kernel on the
+process has ended so the last line is not lost. A QEMU that says nothing is
+reported as an exit with its status when it exited on its own, or as a guest
+that never reached its login prompt within `bootTimeout` when it kept running,
+and either way with its exact command line, to run by hand. A failure after
+login (SSH never answers, the build fails) carries QEMU's stderr when it wrote
+any; SSH that never answers ends with the QEMU command that boots the same VM,
+to log in on its console and run `sshd -d`. A probe stopped because the build
+was canceled says so, rather than reporting a hung QEMU or Docker daemon. An arm64 kernel is built on the Mac and an amd64 kernel on the
 Linux host.
 
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build, validateRequest -->

@@ -5,6 +5,7 @@
 package buildgokrazy
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -48,6 +49,9 @@ func fakeRuntimeKernel(t *testing.T) *[]string {
 		return tree, nil
 	}
 	t.Cleanup(func() { runtimeKernelTreeFn = old })
+	oldReachable := runtimeKernelReachableFn
+	runtimeKernelReachableFn = func(string, []string) error { return nil }
+	t.Cleanup(func() { runtimeKernelReachableFn = oldReachable })
 	return asked
 }
 
@@ -425,5 +429,34 @@ func TestBuildGokrazyWithoutParentDirIsUntouched(t *testing.T) {
 		if got[i] != args[i] {
 			t.Errorf("arg[%d] = %q, want %q", i, got[i], args[i])
 		}
+	}
+}
+
+// TestForeignArchRefusedBeforeTheKernel proves prepareArgs asks whether the
+// runtime kernel is reachable for the image arch before it resolves the
+// kernel, and hands the refusal back unchanged.
+//
+// VALIDATES: round-3 ISSUE 3.
+func TestForeignArchRefusedBeforeTheKernel(t *testing.T) {
+	fakeRuntimeKernel(t)
+	oldTree := runtimeKernelTreeFn
+	runtimeKernelTreeFn = func(arch string) (string, error) {
+		t.Fatalf("the %s kernel was resolved after the reachability refusal", arch)
+		return "", nil
+	}
+	t.Cleanup(func() { runtimeKernelTreeFn = oldTree })
+	refusal := errors.New("refused with its fix")
+	var askedArgs []string
+	runtimeKernelReachableFn = func(_ string, args []string) error {
+		askedArgs = args
+		return refusal
+	}
+	args := []string{"--parent_dir", t.TempDir(), "-i", "ze", "overwrite"}
+	_, _, err := prepareArgs(args)
+	if !errors.Is(err, refusal) {
+		t.Fatalf("prepareArgs = %v, want the reachability refusal", err)
+	}
+	if strings.Join(askedArgs, " ") != strings.Join(args, " ") {
+		t.Errorf("the check was asked about %v, want the command's args %v", askedArgs, args)
 	}
 }

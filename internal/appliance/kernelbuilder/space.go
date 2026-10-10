@@ -105,8 +105,11 @@ func dockerRootDir(ctx context.Context, req Request) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, hostProbeTimeout)
 	defer cancel()
 	out, err := runCommandOutput(ctx, req, backendDocker, "info", "--format", "{{.DockerRootDir}}")
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return "", fmt.Errorf("docker info stopped: the kernel build was canceled (%w)", ctx.Err())
+	}
 	if ctx.Err() != nil {
-		return "", fmt.Errorf("docker info did not answer within %s, so the daemon is hung or unreachable", hostProbeTimeout)
+		return "", fmt.Errorf("docker info did not answer within %s, so the daemon is hung or unreachable; check it answers:\ndocker info", hostProbeTimeout)
 	}
 	if err != nil {
 		return "", fmt.Errorf("docker info: %w", err)

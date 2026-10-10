@@ -481,7 +481,29 @@ func (e *foreignArchKernelError) Error() string {
 func (e *foreignArchKernelError) forInstance(dir, name string) error {
 	host := kernelbuilder.HostArch()
 	return errors.New(e.refusal("build the image on an " + e.arch + " host, or set \"image\": {\"arch\": \"" + host +
-		"\"} in " + ConfigPath(dir, name) + " to build an " + host + " image here; then run:\nze appliance --dir " + dir + " build " + name))
+		"\"} in " + ConfigPath(dir, name) + " to build an " + host + " image here; then run:\nze appliance --dir " + shellArg(dir) + " build " + shellArg(name)))
+}
+
+// forGokrazy answers the refusal for `./le build gokrazy` run with args, whose
+// GOARCH asked for e.arch. The kernel cannot be built here, so the moves that
+// work are building on an e.arch host, or building this host's arch here.
+func (e *foreignArchKernelError) forGokrazy(args []string) error {
+	host := kernelbuilder.HostArch()
+	quoted := make([]string, len(args))
+	for index, arg := range args {
+		quoted[index] = shellArg(arg)
+	}
+	return errors.New(e.refusal("GOARCH=" + e.arch + " asks for an " + e.arch + " image: build it on an " + e.arch +
+		" host, or build an " + host + " image here:\nGOARCH=" + host + " ./le build gokrazy " + strings.Join(quoted, " ")))
+}
+
+// shellArg answers value as one shell word: unchanged when it holds only
+// characters no shell treats specially, else single-quoted.
+func shellArg(value string) string {
+	if value != "" && strings.Trim(value, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/._-=:,+@") == "" {
+		return value
+	}
+	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
 }
 
 // runtimeKernelReachable answers the refusal an image build of arch would meet

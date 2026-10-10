@@ -29,6 +29,10 @@ var _ = env.MustRegister(env.EnvEntry{Key: "ze.gok.debug", Type: "bool", Descrip
 // unit tests resolve a fixture tree instead of building a kernel.
 var runtimeKernelTreeFn = appliance.RuntimeKernelTree
 
+// runtimeKernelReachableFn is appliance.GokrazyRuntimeKernelReachable, a
+// variable so a test can play a host whose cache holds the kernel.
+var runtimeKernelReachableFn = appliance.GokrazyRuntimeKernelReachable
+
 const (
 	// parentDirFlag is the gok flag naming the directory that contains one
 	// subdirectory per instance (vendor/github.com/gokrazy/internal/instanceflag).
@@ -119,6 +123,11 @@ func prepareArgs(args []string) ([]string, func(), error) {
 		// The image boots ze's runtime kernel and no other, so the kernel is
 		// resolved for the arch gok builds the image for.
 		arch := imageArch()
+		// A GOARCH this host cannot build a kernel for, with a cold cache, is
+		// refused here with a fix for this command, before the kernel resolver.
+		if err := runtimeKernelReachableFn(arch, args); err != nil {
+			return nil, noop, err
+		}
 		tree, err := runtimeKernelTreeFn(arch)
 		if err != nil {
 			return nil, noop, fmt.Errorf("resolve the %s runtime kernel: %w", arch, err)

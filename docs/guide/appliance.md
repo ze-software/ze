@@ -123,6 +123,8 @@ On a host of the other architecture both commands are refused before anything
 starts. To build an image for another architecture, build it on a host of that
 architecture, or set `image.arch` to the host's in the appliance's config file;
 the refusal names that file and ends with the build command to run.
+`./le build gokrazy` with `GOARCH` naming another architecture is refused the
+same way, and ends with the same command run with `GOARCH` set to the host's.
 This is the kernel every appliance image boots, and no other kernel can reach
 an image. `ze appliance build` and `./le build gokrazy` resolve it for the
 image's architecture themselves: from the cache when an entry is there, else by

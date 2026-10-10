@@ -6,6 +6,8 @@
 
 package appliance
 
+import "errors"
+
 // RuntimeKernelTree resolves ze's runtime kernel for arch and answers its
 // arch-keyed cache directory: the cache entry when one is present, else a native
 // build (Docker or QEMU, on a host of that arch) whose output is checked against
@@ -14,6 +16,19 @@ package appliance
 // resolver call is rewriting.
 func RuntimeKernelTree(arch string) (string, error) {
 	return resolveKernel(defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
+}
+
+// GokrazyRuntimeKernelReachable answers the refusal `./le build gokrazy` with
+// args meets at the runtime kernel for arch, before anything long starts: nil
+// when this host can build arch or the cache holds its kernel, else a refusal
+// whose fix is a `./le build gokrazy` command, not a kernel build for another
+// host's cache.
+func GokrazyRuntimeKernelReachable(arch string, args []string) error {
+	err := runtimeKernelReachable(arch)
+	if foreign, ok := errors.AsType[*foreignArchKernelError](err); ok {
+		return foreign.forGokrazy(args)
+	}
+	return err
 }
 
 // runtimeKernelTreeFn is RuntimeKernelTree, as a package var so unit tests of

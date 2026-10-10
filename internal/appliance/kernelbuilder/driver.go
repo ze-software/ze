@@ -33,10 +33,10 @@ func CheckArch(arch string) error {
 		arch = archARM64
 	}
 	if _, ok := dockerPlatforms[arch]; !ok {
-		return fmt.Errorf("unsupported ARCH=%s (expected amd64, x86_64, or arm64)", arch)
+		return fmt.Errorf("unsupported ARCH=%s (expected amd64, x86_64, or arm64); name this host's arch:\nze appliance kernel --arch %s", arch, hostGOARCH)
 	}
 	if want := workerGOARCH(arch); want != hostGOARCH {
-		return fmt.Errorf("kernel for %s cannot be built here: the host is %s, and Ze builds every kernel on a host of its own arch, with no CPU emulation; build it on an %s host", want, hostGOARCH, want)
+		return fmt.Errorf("kernel for %s cannot be built here: the host is %s, and Ze builds every kernel on a host of its own arch, with no CPU emulation; build it on an %s host, or build this host's kernel:\nze appliance kernel --arch %s", want, hostGOARCH, want, hostGOARCH)
 	}
 	return nil
 }

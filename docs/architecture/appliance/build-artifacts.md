@@ -65,7 +65,10 @@ before it writes anything (`runtimeKernelReachable`): the error names the cache
 path, the two moves that work, building the image on a host of that
 architecture or setting `image.arch` to the host's in the appliance's own
 config file, and ends with the `ze appliance --dir <dir> build <name>` command
-on its own line. A bare `ze appliance kernel --target runtime` for that
+on its own line. `./le build gokrazy` asks the same question before it
+resolves the kernel (`GokrazyRuntimeKernelReachable`), and its refusal ends
+with `GOARCH=<host> ./le build gokrazy <args>`, with each argument quoted for
+the shell. A bare `ze appliance kernel --target runtime` for that
 architecture ends with the kernel command to run on a host of it. The host's
 architecture is declared once, `kernelbuilder.HostArch`, and the arch check
 (`kernelbuilder.CheckArch`) runs before the installer firmware is fetched. A cold cache that cannot build on this
@@ -91,7 +94,10 @@ host whose `go` cannot compile the image: no `go` on `PATH`, or one older than
 the `go` directive in `go.mod`. It asks `CheckGoToolchain`, the question
 `ze appliance build` asks before it starts, so a host with Docker and an old
 `go` is told before a build rather than after its kernel. Outside the Ze source
-tree it cannot read `go.mod`, and says to run from the top of the tree.
+tree it cannot read `go.mod`, and says to run from the top of the tree. A
+`go.mod` that belongs to another module is refused the same way: its `go`
+directive says nothing about the `go` Ze needs. Ze's module path is read from
+the appliance package's own import path, never from the file being judged.
 
 <!-- source: internal/appliance/doctor_checks.go -- checkGoToolchain -->
 <!-- source: internal/appliance/gokpreflight.go -- CheckGoToolchain -->

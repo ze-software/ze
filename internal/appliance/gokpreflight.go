@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -79,10 +80,26 @@ func goDirective(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parse %s: %w", path, err)
 	}
+	// The go.mod in the working directory may belong to another module; its
+	// go directive says nothing about the go Ze needs.
+	if module := zeModule(); file.Module == nil || file.Module.Mod.Path != module {
+		found := "no module line"
+		if file.Module != nil {
+			found = "module " + file.Module.Mod.Path
+		}
+		return "", fmt.Errorf("%s is not the Ze source tree's go.mod: it holds %s, not module %s\n"+
+			"change to the root of the ze checkout, then run the build again", path, found, module)
+	}
 	if file.Go == nil {
 		return "", fmt.Errorf("%s has no go directive, so the go version the image build needs is unknown", path)
 	}
 	return file.Go.Version, nil
+}
+
+// zeModule answers Ze's module path, read from this package's own import
+// path, so it cannot disagree with the binary that asks.
+func zeModule() string {
+	return strings.TrimSuffix(reflect.TypeFor[SSHConfig]().PkgPath(), "/internal/appliance")
 }
 
 // hostGoVersion answers `go env GOVERSION` for goBin, as go1.N.P. It runs with

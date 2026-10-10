@@ -289,7 +289,8 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		return qemuStderr.String()
 	}
 	if !console.expect(ctx, "login:", bootTimeout) {
-		return errBootFailed(qemuBinary(req.Arch), args, stopQEMU())
+		said := stopQEMU()
+		return errBootFailed(qemuBinary(req.Arch), args, said, cmd.ProcessState)
 	}
 	if !sleepContext(ctx, time.Second) {
 		return ctx.Err()
@@ -321,7 +322,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		}
 	}
 	if !ready {
-		return fmt.Errorf("the build VM booted, but SSH into it never answered after %d attempts%s", bootstrapAttempts, qemuSaid(stopQEMU()))
+		return errSSHNeverAnswered(qemuBinary(req.Arch), args, stopQEMU())
 	}
 	fmt.Fprintln(req.Stderr, "  VM ready, installing build dependencies...") //nolint:errcheck // progress output
 	tarball := filepath.Join(build, kernelTarballName(req.Version))
@@ -448,11 +449,25 @@ func probeHVF(ctx context.Context) error {
 // errBootFailed reports a build VM that never reached its login prompt, with
 // what QEMU wrote to stderr: a QEMU that exits at once (an accelerator it
 // cannot open, a bad option) says why there, and the console says nothing.
-func errBootFailed(binary string, args []string, stderr string) error {
-	if stderr == "" {
-		return fmt.Errorf("the build VM did not reach its login prompt within %s, and %s wrote nothing to stderr, so QEMU ran but the Alpine guest never booted to a prompt; run the same QEMU command by hand and watch the console:\n%s %s", bootTimeout, binary, binary, shellJoin(args))
+// state is QEMU's state once stopped: a QEMU that exited on its own (rather
+// than being killed after bootTimeout) is reported as an exit, not a timeout.
+func errBootFailed(binary string, args []string, stderr string, state *os.ProcessState) error {
+	if stderr != "" {
+		return fmt.Errorf("the build VM did not reach its login prompt: %s stopped or stalled, and wrote:\n%s", binary, stderr)
 	}
-	return fmt.Errorf("the build VM did not reach its login prompt: %s stopped or stalled, and wrote:\n%s", binary, stderr)
+	if state != nil && state.Exited() {
+		return fmt.Errorf("%s exited (%s) before the build VM reached its login prompt, and wrote nothing to stderr; run the same QEMU command by hand to see why it stops:\n%s %s", binary, state, binary, shellJoin(args))
+	}
+	return fmt.Errorf("the build VM did not reach its login prompt within %s, and %s wrote nothing to stderr, so QEMU ran but the Alpine guest never booted to a prompt; run the same QEMU command by hand and watch the console:\n%s %s", bootTimeout, binary, binary, shellJoin(args))
+}
+
+// errSSHNeverAnswered reports a build VM that reached its login prompt but
+// whose sshd never answered, with what QEMU wrote and the command that boots
+// the same VM, so the operator can log in on its console and see why.
+func errSSHNeverAnswered(binary string, args []string, stderr string) error {
+	return fmt.Errorf("the build VM booted, but SSH into it never answered after %d attempts%s\n"+
+		"run the same QEMU command by hand, log in as root on its console, and run /usr/sbin/sshd -d to see why sshd does not start:\n%s %s",
+		bootstrapAttempts, qemuSaid(stderr), binary, shellJoin(args))
 }
 
 // qemuSaid answers what QEMU wrote to stderr, set apart for an error that
@@ -495,6 +510,9 @@ func (tail *stderrTail) String() string {
 func availableAccelerators(ctx context.Context, binary string) (map[string]bool, error) {
 	result := make(map[string]bool)
 	output, err := exec.CommandContext(ctx, binary, "-accel", "help").Output()
+	if err != nil && errors.Is(ctx.Err(), context.Canceled) {
+		return nil, fmt.Errorf("%s -accel help stopped: the kernel build was canceled (%w)", binary, ctx.Err())
+	}
 	if err != nil && ctx.Err() != nil {
 		return nil, fmt.Errorf("%s -accel help did not answer within %s, so QEMU cannot say which accelerators it has and the kernel build cannot start; run it by hand to see where it stops:\n%s -accel help", binary, hostProbeTimeout, binary)
 	}
