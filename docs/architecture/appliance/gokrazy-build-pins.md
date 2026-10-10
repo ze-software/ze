@@ -107,8 +107,13 @@ PATH. le pins `GOTOOLCHAIN` to go.mod's version for its linter, and a host go
 of another version would then fetch the pinned toolchain from a module cache
 that does not hold it with the proxy off: every go command answers
 "toolchain not available", and gok reports the failed `go list` as
-`go get ze.invalid/kernel`. A host go older than go.mod's `go` directive is
-refused by go itself, naming both versions; upgrade the host go.
+`go get ze.invalid/kernel`. A host go older than go.mod's `go` directive
+cannot switch up, so `ze appliance build` and `./le build gokrazy` refuse it
+before anything long starts (the runtime kernel resolves first, and a cold
+cache builds for about 30 minutes), naming both versions and where to install
+a newer go. `ze appliance build` also refuses, at the same point, a run from
+outside the ze source tree root, where `gokrazy/modcache` is absent.
+<!-- source: internal/appliance/gokpreflight.go -- checkGokHost, CheckGoToolchain -->
 
 `gokrazy/modcache/.gitignore` ignores everything except the gokrazy init source
 (`github.com/gokrazy/gokrazy@*/**`). That committed source carries upstream's

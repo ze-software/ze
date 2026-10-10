@@ -164,6 +164,18 @@ func buildOne(name string) int {
 		return exitError
 	}
 
+	// The host go and the offline module cache are checked before anything
+	// long starts: the runtime kernel resolves inside runGokBuild, and a cold
+	// cache builds for about 30 minutes before gok first runs go.
+	root, err := os.Getwd()
+	if err == nil {
+		err = checkGokHost(root)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err) //nolint:errcheck // CLI output
+		return exitError
+	}
+
 	var passphrase []byte
 	if isEncrypted(dir, name) {
 		var resolveErr error
@@ -291,8 +303,9 @@ func ensureModcacheRW() error {
 //     checked-in modcache holds no host toolchain and GOPROXY is off, so every
 //     go command answers "toolchain not available", and gok reports its failed
 //     `go list` as "go get ze.invalid/kernel". The image builds with the host
-//     go; a host go older than go.mod's go directive is refused by go itself,
-//     naming both versions.
+//     go, so a host go older than go.mod's go directive cannot switch up:
+//     CheckGoToolchain refuses it before the build starts, naming both
+//     versions and where to install a newer go.
 func SetGokGoEnv(modcache string) error {
 	if err := os.Setenv("GOMODCACHE", modcache); err != nil {
 		return fmt.Errorf("set GOMODCACHE: %w", err)

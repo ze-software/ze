@@ -187,6 +187,16 @@ func Run(args []string) int {
 		debug("GOMODCACHE=", modcache)
 	}
 
+	// The host go is checked before prepareArgs resolves the runtime kernel,
+	// which builds for about 30 minutes on a cold cache before gok runs go.
+	wd, err := os.Getwd()
+	if err != nil {
+		return fail(err)
+	}
+	if err := appliance.CheckGoToolchain(filepath.Join(wd, "go.mod")); err != nil {
+		return fail(err)
+	}
+
 	// Build from a prepared copy of the instance under project tmp/, so an image
 	// build never runs from, or writes to, the tracked gokrazy dir.
 	//
