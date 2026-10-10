@@ -10,6 +10,7 @@ package testdeployment
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -60,7 +61,10 @@ func TestDockerDeploymentRefusesMissingKernelFeature(t *testing.T) {
 			if !ok {
 				t.Fatalf("%s answered %T, want interoplab.SuiteReport", verb, answer)
 			}
-			for _, want := range []string{"l2tp-ppp", "CONFIG_PPPOL2TP", "6.8.0-117-generic", "./le setup docker-kernel install"} {
+			// The route is per host OS: the install action on Linux, the
+			// Ze-kernel QEMU guest elsewhere (interoplab.DockerKernelRoute).
+			route := interoplab.DockerKernelRoute(runtime.GOOS)
+			for _, want := range []string{"l2tp-ppp", "CONFIG_PPPOL2TP", "6.8.0-117-generic", route} {
 				if !strings.Contains(report.SetupError, want) {
 					t.Errorf("setup error does not name %q: %s", want, report.SetupError)
 				}
