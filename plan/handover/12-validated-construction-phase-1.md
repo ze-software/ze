@@ -20,7 +20,14 @@ In order:
 3. Batch 4e (C-T2e): `pluginserver.Handler` with `EnsureStep` and
    `RollbackHandler`, one commit, under the owner exception below. Its row in
    `TestHandlerTypesTakeValidatedArguments` is a second subtest (the package
-   declares the name once).
+   declares the name once). State on 2026-10-10: applied, vetted on every
+   flavor and probed in a `git archive` export on the macOS checkout, NOT in
+   the tree and NOT committed. It stopped for the owner's time limit and for
+   owner approval of the RFC-tagged units it changes (7 candidates). Export,
+   rewriter, logs and the exact remaining steps: the "C-T2e" section of the
+   session state file `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/state/`.
+   That directory exists only on the macOS machine. On another machine, redo
+   the batch with the recipe recorded there.
 4. Scoped lint owed from 4c: config/yang/cli, config/schema/cli,
    config/storage/cli, le/verify/dispatch, le/cli/grammar, component/plugin
    (`./le go lint run scope ./<pkg>/...`).
@@ -130,3 +137,17 @@ RFC-tagged-test approval is NOT covered: it is still asked per unit.
 - Changing an RFC-tagged test needs `./le rfc approve unit <unit> reason "<owner's words>"` before `./le commit create`.
 - Never run `./le rfc reseal`: it rewrites every RFC's audit file, not only the one in hand.
 - Lint one package: `./le go lint run scope ./<pkg>/...`. A bare path to a feature-gated package (`internal/component/web`) fails with "go list for lint flavor host returned code 0 with no output", because the host flavor's tags exclude it.
+
+## Owner approval for batch 4e RFC-tagged tests (2026-10-10)
+
+The owner approved ("yes") the batch 4e changes to these 7 RFC-tagged test units, after the parent session read each diff: the handler argument type changes from `[]string` to `command.ValidatedArgs` (read back with `.Tokens()`), one local renamed `command` to `commandName` (import clash), one empty-arguments `nil` to `commandtest.Args()`. No assertion changes.
+
+- cmd/ze/hub TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap
+- internal/component/bgp/plugins/cmd/peer TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell
+- internal/component/plugin/server TestRFC8907AccountingRedactsConfigSecretWithoutChangingExecution
+- internal/component/plugin/server TestDispatcherAccountingWithoutUsername
+- internal/component/plugin/server TestDispatcherAccountsRefusedCommands
+- internal/component/tacacs TestRFC8907OversizedCommandAccountingStillReachesWire
+- internal/component/tacacs TestRFC8907TrustedDispatchIdentitiesReachWire
+
+Before committing 4e, the next session MUST: read a complete `-race` run over the 89 changed packages (the 2026-10-10 run never finished: `scratch/race4e.log`); record each approval with `./le rfc approve unit <package>.<TestName> reason "owner 2026-10-10: approved 4e call-site changes; no assertion change"`; confirm the commit tool names exactly these units and no others (if it names any other tagged unit, stop and ask the owner). The export is `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/exp4e`; `tmp/` does not leave this Mac, so 4e must be finished here.
