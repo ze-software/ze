@@ -136,6 +136,9 @@ func (m *Model) cmdSave() (commandResult, error) {
 	return commandResult{statusMessage: "Configuration saved (snapshot)"}, nil
 }
 
+// commitNowForce is `commit now force`, spelled by the grammar.
+var commitNowForce = contract.ForcedCommand(contract.CommitRequest{Action: contract.CommitNow, Force: true})
+
 // cmdCommitRequest runs one parsed commit subcommand. A pending confirm window
 // refuses `commit now` and a plain nested `commit confirmed`, because a commit
 // inside the window would be reverted with it (AC-18, AC-23); the owner's
@@ -278,7 +281,7 @@ func (m *Model) cmdCommit() (commandResult, error) {
 	// Validate inline - don't rely on m.validationErrors which may be stale
 	// (m is captured by value in the tea.Cmd closure)
 	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
-	if refusal, blocked := m.commitValidationRefusal(result, false, "commit now force"); blocked {
+	if refusal, blocked := m.commitValidationRefusal(result, false, commitNowForce); blocked {
 		return refusal, nil
 	}
 
@@ -300,7 +303,7 @@ func (m *Model) tryReload() string {
 // Used when the operator explicitly overrides warnings (e.g., dangling profile references).
 func (m *Model) cmdCommitForce() (commandResult, error) {
 	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
-	if refusal, blocked := m.commitValidationRefusal(result, true, "commit now force"); blocked {
+	if refusal, blocked := m.commitValidationRefusal(result, true, commitNowForce); blocked {
 		return refusal, nil
 	}
 
@@ -308,7 +311,7 @@ func (m *Model) cmdCommitForce() (commandResult, error) {
 	if err != nil {
 		return committed, err
 	}
-	committed.statusMessage = WithSkippedWarnings("commit now force", len(result.Warnings), committed.statusMessage)
+	committed.statusMessage = WithSkippedWarnings(commitNowForce, len(result.Warnings), committed.statusMessage)
 	return committed, nil
 }
 
@@ -411,7 +414,7 @@ func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
 // with nothing pending, which answers contract.NothingToCommit. req is the
 // subcommand typed, which names the forced form a validation refusal offers.
 func (m *Model) runCommitSession(req contract.CommitRequest) (commandResult, bool, error) {
-	force, forced := req.Force, ForcedCommand(req)
+	force, forced := req.Force, contract.ForcedCommand(req)
 	detail := m.editor.Diff()
 	// Validate the current config before attempting commit.
 	// Session mode uses set/delete commands that validate per-field, but

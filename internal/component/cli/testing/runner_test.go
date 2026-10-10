@@ -175,7 +175,7 @@ input=enter
 expect=dirty:true
 expect=error:none
 
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=dirty:false
 expect=error:none

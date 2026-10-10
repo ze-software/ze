@@ -16,8 +16,6 @@ import (
 
 // The answers a web commit subcommand gives when it changed something.
 const (
-	webCommitAccepted = "Commit accepted: the confirmed configuration is saved permanently."
-	webCommitAborted  = "Changes rolled back to previous configuration."
 	webCommitVerified = "commit verify: the candidate is valid; nothing was applied"
 )
 
@@ -64,7 +62,7 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (
 		return m.verifyCommit(username)
 	}
 	commit := cli.WindowCommit{Window: m.daemonWindow(), User: username, Store: m.store, ConfigPath: m.configPath}
-	forced := cli.ForcedCommand(req)
+	forced := contract.ForcedCommand(req)
 	var refusal string
 	var skipped int
 	check := func(ed contract.Editor) error {
@@ -143,16 +141,16 @@ func (m *EditorManager) appliedAnswer(username string, req contract.CommitReques
 		return webCommitAnswer{message: terminalOutputCommitSuccessful}
 	case contract.CommitConfirmed:
 		var tb textbuf.Buffer
-		return webCommitAnswer{message: tb.Str(terminalOutputCommitSuccessful).Str(". Confirm within ").
-			Int(int64(req.Seconds)).Str("s or auto-revert. Use 'commit accept' or 'commit abort'.").String()}
+		return webCommitAnswer{message: tb.Str(terminalOutputCommitSuccessful).Str(". ").
+			Str(contract.ConfirmWithin(int64(req.Seconds))).String()}
 	case contract.CommitAccept:
-		return webCommitAnswer{message: webCommitAccepted}
+		return webCommitAnswer{message: contract.CommitAccepted}
 	case contract.CommitAbort:
 		if err := m.refreshCommittedView(username); err != nil {
 			var tb textbuf.Buffer
-			return webCommitAnswer{message: tb.Str(webCommitAborted).Str(" (view not refreshed: ").Err(err).Byte(')').String()}
+			return webCommitAnswer{message: tb.Str(contract.CommitAborted).Str(" (view not refreshed: ").Err(err).Byte(')').String()}
 		}
-		return webCommitAnswer{message: webCommitAborted}
+		return webCommitAnswer{message: contract.CommitAborted}
 	case contract.CommitVerify, contract.CommitActionUnspecified:
 		panic("BUG: commit verify and an empty action never reach the window")
 	}

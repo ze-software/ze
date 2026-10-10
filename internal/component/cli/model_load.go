@@ -77,7 +77,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 			var b textbuf.Buffer
 			b.Str("cannot commit: ").Str(formatValidationErrors(issues))
 			if len(result.Errors) == 0 {
-				b.Str("\n'").Str(ForcedCommand(contract.CommitRequest{Action: contract.CommitConfirmed, Seconds: seconds})).
+				b.Str("\n'").Str(contract.ForcedCommand(contract.CommitRequest{Action: contract.CommitConfirmed, Seconds: seconds})).
 					Str("' commits over the warnings")
 			}
 			return commandResult{}, errors.New(b.String())
@@ -147,7 +147,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	return commandResult{
 		statusMessage: func() string {
 			var tb textbuf.Buffer
-			tb.Str("Committed").Str(reloadWarning).Str(". Confirm within ").Int(int64(seconds)).Str("s or auto-revert. Use 'commit accept' or 'commit abort'.")
+			tb.Str("Committed").Str(reloadWarning).Str(". ").Str(contract.ConfirmWithin(int64(seconds)))
 			appendCommitWarnings(&tb, warnings)
 			return tb.String()
 		}(),
@@ -171,7 +171,7 @@ func (m *Model) cmdConfirm() (commandResult, error) {
 	m.editor.deleteLive()
 	m.searchCache = "" // tree finalized, invalidate cached set-view
 
-	msg := "Commit accepted: the confirmed configuration is saved permanently."
+	msg := contract.CommitAccepted
 	if m.editor.HasReloadNotifier() {
 		msg += m.tryReload()
 	}
@@ -212,7 +212,7 @@ func (m *Model) rollbackConfirmed() (commandResult, error) {
 	m.editor.deleteLive()
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
-	msg := "Changes rolled back to previous configuration."
+	msg := contract.CommitAborted
 	if m.editor.HasReloadNotifier() {
 		msg += m.tryReload()
 	}
@@ -242,12 +242,12 @@ func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
 			m.err = err
 		}
 		m.applyResult(result)
-		m.statusMessage = "Timeout: configuration automatically rolled back."
+		m.statusMessage = contract.CommitTimedOut
 		return m, nil
 	}
 
 	// Update countdown display
-	m.statusMessage = textbuf.StrIntStr("Confirm within ", int64(m.confirmSecondsLeft), "s or auto-revert. Use 'commit accept' or 'commit abort'.")
+	m.statusMessage = contract.ConfirmWithin(int64(m.confirmSecondsLeft))
 	return m, tea.Tick(time.Second, func(_ time.Time) tea.Msg {
 		return confirmCountdownMsg{}
 	})

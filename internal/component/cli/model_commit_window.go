@@ -74,14 +74,14 @@ func (m *Model) cmdCommitWindowRequest(window *confirm.Window, req contract.Comm
 			return commandResult{}, err
 		}
 		return commandResult{
-			statusMessage: "Commit accepted: the confirmed configuration is saved permanently.",
+			statusMessage: contract.CommitAccepted,
 			windowWatch:   &windowWatch{},
 		}, nil
 	case contract.CommitAbort:
 		if err := commit.Run(req, nil); err != nil {
 			return commandResult{}, err
 		}
-		result := m.windowReverted("Changes rolled back to previous configuration.")
+		result := m.windowReverted(contract.CommitAborted)
 		result.windowWatch = &windowWatch{}
 		return result, nil
 	case contract.CommitVerify:
@@ -101,8 +101,7 @@ func (m *Model) cmdCommitConfirmedWindow(commit WindowCommit, req contract.Commi
 	}
 	result.windowWatch = watchedWindow(commit.Window)
 	var tb textbuf.Buffer
-	result.statusMessage = tb.Str(result.statusMessage).Str(". Confirm within ").Int(int64(req.Seconds)).
-		Str("s or auto-revert. Use 'commit accept' or 'commit abort'.").String()
+	result.statusMessage = tb.Str(result.statusMessage).Str(". ").Str(contract.ConfirmWithin(int64(req.Seconds))).String()
 	return result, nil
 }
 
@@ -183,17 +182,7 @@ func (m *Model) pollDaemonWindow() (string, bool) {
 		return "", false
 	}
 	if timeouts > watched.timeouts {
-		return m.windowReverted("Timeout: configuration automatically rolled back.").statusMessage, true
+		return m.windowReverted(contract.CommitTimedOut).statusMessage, true
 	}
 	return m.windowReverted("The confirmed commit window was closed by another session.").statusMessage, true
-}
-
-// ForcedCommand is the command that commits req over validation warnings: the
-// form a refusal names, so `commit confirmed` never points at `commit now`.
-func ForcedCommand(req contract.CommitRequest) string {
-	if req.Action == contract.CommitConfirmed {
-		var b textbuf.Buffer
-		return b.Str("commit confirmed ").Int(int64(req.Seconds)).Str(" force").String()
-	}
-	return "commit now force"
 }
