@@ -327,7 +327,7 @@ func (l *L2TP) Run() (L2TPReport, error) {
 	if err := ensureImage(l.Image, l.Progress); err != nil {
 		return report, err
 	}
-	if err := buildDaemon(l.Tree, l.Goarch, l.Progress); err != nil {
+	if err := buildCheckedDaemon(l.Tree, l.Goarch, func() error { return buildDaemon(l.Tree, l.Goarch, l.Progress) }); err != nil {
 		return report, err
 	}
 

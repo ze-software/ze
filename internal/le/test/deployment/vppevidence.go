@@ -72,7 +72,7 @@ func (v *VPP) Run() (VPPReport, error) {
 	if err := ensureImage(v.Image, v.Progress); err != nil {
 		return report, err
 	}
-	if err := v.buildBinaries(); err != nil {
+	if err := buildCheckedDaemon(v.Tree, v.Goarch, v.buildBinaries); err != nil {
 		return report, err
 	}
 

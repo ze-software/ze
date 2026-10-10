@@ -198,7 +198,7 @@ proof. Diagnostic collection has a cancellation-independent fifteen-second bound
 | Requirement | Used By | Notes |
 |-------------|---------|-------|
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
-| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs | Checked before any image build; see "The Docker host kernel check" |
+| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs | Checked before any image build or container start; see "The Docker host kernel check" |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
@@ -374,6 +374,13 @@ L2TP and PPPoE suites, so they reach the same check. A suite with no kernel
 module of its own, such as the FreeRADIUS admin-login suite, is checked too:
 the owner's rule is about the host, not about the scenario.
 
+The `l2tp-test`, `vpp-test` and `vpp-iface-test` deployment proofs run no suite.
+Each cross-compiles its own daemon to `tmp/evidence/bin/ze-linux-<arch>`, and
+`buildCheckedDaemon` runs the same check with that binary right after the build
+and before the proof's first container, so a refused host starts nothing. With
+`NO_BUILD=1` the proof skips the build and probes with the daemon already at
+that path, and refuses by name when there is none.
+
 To ask a host by hand, stage ze with any lab once and run the command above.
 `TestDockerKernelCheckOnThisHost` (build tag `integration`) does that against
 the daemon this machine uses: it stages ze, starts the probe container and
@@ -387,6 +394,7 @@ nothing else, and judges the verdict against the rows it read. On colima's
 ```
 <!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernel, checkDockerKernel, StagedZePath -->
 <!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.StagedZe -->
+<!-- source: internal/le/test/deployment/daemonkernel.go -- buildCheckedDaemon -->
 
 Each local image build also creates a unique, run-owned tag. This keeps its
 image ID available when another build replaces the shared cache tag.

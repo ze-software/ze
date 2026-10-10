@@ -262,7 +262,7 @@ func (v *vppIface) Run() (VPPIfaceReport, error) {
 	if err := ensureImage(v.Image, v.Progress); err != nil {
 		return report, err
 	}
-	if err := buildDaemon(v.Tree, v.Goarch, v.Progress); err != nil {
+	if err := buildCheckedDaemon(v.Tree, v.Goarch, func() error { return buildDaemon(v.Tree, v.Goarch, v.Progress) }); err != nil {
 		return report, err
 	}
 
