@@ -7,12 +7,41 @@ package buildgokrazy
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/appliance/instance"
 	"github.com/ze-software/ze/internal/core/env"
 )
+
+// fakeRuntimeKernel makes runtimeKernelTreeFn answer a fixture runtime kernel
+// tree, and answers the arches it was asked for.
+func fakeRuntimeKernel(t *testing.T) *[]string {
+	t.Helper()
+	asked := &[]string{}
+	old := runtimeKernelTreeFn
+	runtimeKernelTreeFn = func(arch string) (string, error) {
+		*asked = append(*asked, arch)
+		tree := filepath.Join(t.TempDir(), "runtime-"+arch)
+		if err := os.MkdirAll(filepath.Join(tree, "lib", "modules", "7.2.9-ze"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		offset, magic := 0x202, "HdrS"
+		if arch == "arm64" {
+			offset, magic = 0x38, "ARMd"
+		}
+		image := make([]byte, 0x400)
+		copy(image[offset:], magic)
+		if err := os.WriteFile(filepath.Join(tree, "vmlinuz"), image, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return tree, nil
+	}
+	t.Cleanup(func() { runtimeKernelTreeFn = old })
+	return asked
+}
 
 // writeInstanceFixture lays out a checked-in gokrazy tree
 // (<root>/gokrazy/ze/{config.json,builddir/...}) and returns the root and the
@@ -31,7 +60,13 @@ func writeInstanceFixture(t *testing.T) (root, parent string) {
 		}
 	}
 	write(filepath.Join(mod, "go.mod"), "module gokrazy/build/github.com/ze-software/ze\n\ngo 1.26\n")
+	kernelMod := filepath.Join(parent, "ze", "builddir", filepath.FromSlash(instance.KernelModule))
+	if err := os.MkdirAll(kernelMod, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write(filepath.Join(kernelMod, "go.mod"), "module gokrazy/build/ze\n\ngo 1.26\n\nrequire "+instance.KernelModule+" v0.0.0\n")
 	write(filepath.Join(parent, "ze", "config.json"), `{"Hostname":"ze"}`)
+	fakeRuntimeKernel(t)
 	return root, parent
 }
 
@@ -181,6 +216,7 @@ func TestBuildGokrazyIdentifiesTheSubcommandNotAnyToken(t *testing.T) {
 // VALIDATES: fail-closed guard (ai/rules/evidence.md).
 // PREVENTS: a preparation failure degrading into an unpinned network build.
 func TestBuildGokrazyFailsClosedOnUnpreparableParentDir(t *testing.T) {
+	fakeRuntimeKernel(t)
 	missing := filepath.Join(t.TempDir(), "nonexistent")
 	args := []string{"--parent_dir", missing, "-i", "ze", "overwrite"}
 
@@ -193,86 +229,68 @@ func TestBuildGokrazyFailsClosedOnUnpreparableParentDir(t *testing.T) {
 	}
 }
 
-// TestBuildGokrazyPassesKernelPackage verifies the out-of-tree kernel selected by
-// `./ze appliance build KERNEL_PKG=...` reaches the prepared instance, and that
-// leaving it unset builds the pinned kernel.
+// TestRunResolvesRuntimeKernelByDefault verifies `le build gokrazy` resolves
+// ze's runtime kernel for the image's GOARCH and the prepared copy's kernel
+// module points at the package assembled from it, while the tracked module is
+// untouched.
 //
-// This is the wiring proof for AC-7/AC-8 at the entry point an operator actually
-// uses. It replaces `./ze appliance kernel --target runtime` writing a replace into the tracked
-// gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod, which dirtied the working
-// tree and persisted until ze-kernel-clean was remembered.
+// VALIDATES: the `./le build gokrazy` wiring row: same resolver, then Prepare.
+// PREVENTS: an image whose kernel gok resolves on its own.
+func TestRunResolvesRuntimeKernelByDefault(t *testing.T) {
+	_, parent := writeInstanceFixture(t)
+	asked := fakeRuntimeKernel(t)
+	t.Setenv("GOARCH", "arm64")
+
+	got, cleanup, err := prepareArgs([]string{"--parent_dir", parent, "-i", "ze", "overwrite"})
+	if err != nil {
+		t.Fatalf("prepareArgs: %v", err)
+	}
+	defer cleanup()
+
+	if len(*asked) != 1 || (*asked)[0] != "arm64" {
+		t.Fatalf("runtime kernel resolved for %v, want exactly [arm64] from GOARCH", *asked)
+	}
+	kernelMod := filepath.FromSlash(instance.KernelModule)
+	data, err := os.ReadFile(filepath.Join(got[1], "ze", "builddir", kernelMod, "go.mod"))
+	if err != nil {
+		t.Fatalf("read prepared kernel go.mod: %v", err)
+	}
+	if !strings.Contains(string(data), "=> "+filepath.Join(got[1], "kernel")) {
+		t.Errorf("the prepared kernel module does not point at the assembled package:\n%s", data)
+	}
+	srcData, err := os.ReadFile(filepath.Join(parent, "ze", "builddir", kernelMod, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(srcData), "replace") {
+		t.Errorf("the tracked kernel go.mod was modified by a build:\n%s", srcData)
+	}
+}
+
+// TestRunHasNoKernelOverride verifies no setting selects another kernel package:
+// ze.gok.kernel-package is not registered, and setting it in the environment
+// changes nothing about the kernel the build resolves.
 //
-// VALIDATES: AC-7 and AC-8 end to end through `le build gokrazy`.
-// PREVENTS: the kernel selection silently falling back to the pin, handing an
-// operator a pinned-kernel image while they believe they are testing their own.
-func TestBuildGokrazyPassesKernelPackage(t *testing.T) {
-	kernelModDir := func(parent string) string {
-		return filepath.Join(parent, "ze", "builddir", "github.com", "rtr7", "kernel")
+// VALIDATES: AC-6 as the owner rewrote it (2026-10-09): ze's own kernel only.
+// PREVENTS: a route that lets an image carry a different kernel.
+func TestRunHasNoKernelOverride(t *testing.T) {
+	const knob = "ze.gok.kernel-package"
+	if env.IsRegistered(knob) {
+		t.Fatalf("%s is registered; an image must carry ze's runtime kernel and no other", knob)
 	}
-	writeKernelMod := func(t *testing.T, parent string) {
-		t.Helper()
-		dir := kernelModDir(parent)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		const mod = "module gokrazy/build/ze\n\ngo 1.26.2\n\nrequire github.com/rtr7/kernel v0.0.0-20260403073601-5a996da3a37b // indirect\n"
-		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(mod), 0o644); err != nil {
-			t.Fatal(err)
-		}
+	_, parent := writeInstanceFixture(t)
+	asked := fakeRuntimeKernel(t)
+	t.Setenv(knob, t.TempDir())
+	t.Setenv("GOARCH", "amd64")
+
+	_, cleanup, err := prepareArgs([]string{"--parent_dir", parent, "-i", "ze", "overwrite"})
+	if err != nil {
+		t.Fatalf("prepareArgs: %v", err)
 	}
-
-	t.Run("selected package reaches the prepared copy", func(t *testing.T) {
-		_, parent := writeInstanceFixture(t)
-		writeKernelMod(t, parent)
-		pkg := t.TempDir()
-		t.Setenv("ze.gok.kernel-package", pkg)
-		env.ResetCache()
-		t.Cleanup(env.ResetCache)
-
-		got, cleanup, err := prepareArgs([]string{"--parent_dir", parent, "-i", "ze", "overwrite"})
-		if err != nil {
-			t.Fatalf("prepareArgs: %v", err)
-		}
-		defer cleanup()
-
-		data, err := os.ReadFile(filepath.Join(kernelModDir(got[1]), "go.mod"))
-		if err != nil {
-			t.Fatalf("read prepared kernel go.mod: %v", err)
-		}
-		if !strings.Contains(string(data), pkg) {
-			t.Errorf("the selected kernel package %q did not reach the build:\n%s", pkg, data)
-		}
-		// And the tracked module is untouched.
-		srcData, err := os.ReadFile(filepath.Join(kernelModDir(parent), "go.mod"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if strings.Contains(string(srcData), pkg) {
-			t.Errorf("the tracked kernel go.mod was modified by a build:\n%s", srcData)
-		}
-	})
-
-	t.Run("unset builds the pin", func(t *testing.T) {
-		_, parent := writeInstanceFixture(t)
-		writeKernelMod(t, parent)
-		t.Setenv("ze.gok.kernel-package", "")
-		env.ResetCache()
-		t.Cleanup(env.ResetCache)
-
-		got, cleanup, err := prepareArgs([]string{"--parent_dir", parent, "-i", "ze", "overwrite"})
-		if err != nil {
-			t.Fatalf("prepareArgs: %v", err)
-		}
-		defer cleanup()
-
-		data, err := os.ReadFile(filepath.Join(kernelModDir(got[1]), "go.mod"))
-		if err != nil {
-			t.Fatalf("read prepared kernel go.mod: %v", err)
-		}
-		if strings.Contains(string(data), "replace github.com/rtr7/kernel") {
-			t.Errorf("a kernel replace appeared though none was requested:\n%s", data)
-		}
-	})
+	defer cleanup()
+	if len(*asked) != 1 {
+		t.Errorf("runtime kernel resolved %d times with %s set, want once", len(*asked), knob)
+	}
 }
 
 // repoRoot walks up to the module root (the directory holding gokrazy/ze). It
@@ -341,19 +359,14 @@ func TestBuildGokrazyLeavesTrackedTreeClean(t *testing.T) {
 	tracked := filepath.Join(root, "gokrazy", "ze")
 	parent := filepath.Join(root, "gokrazy")
 
+	fakeRuntimeKernel(t)
+	t.Setenv("GOARCH", runtime.GOARCH)
 	for _, tc := range []struct {
-		name       string
-		kernelPkg  string
-		wantInCopy bool
+		name string
 	}{
-		{name: "pinned kernel"},
-		{name: "out-of-tree kernel", kernelPkg: t.TempDir(), wantInCopy: true},
+		{name: "runtime kernel"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("ze.gok.kernel-package", tc.kernelPkg)
-			env.ResetCache()
-			t.Cleanup(env.ResetCache)
-
 			before := snapshotTracked(t, tracked)
 
 			got, cleanup, err := prepareArgs([]string{"--parent_dir", parent, "-i", "ze", "overwrite"})
@@ -362,15 +375,9 @@ func TestBuildGokrazyLeavesTrackedTreeClean(t *testing.T) {
 			}
 			prepared := got[1]
 
-			// When a kernel package was selected it must be in the COPY.
-			if tc.wantInCopy {
-				data, readErr := os.ReadFile(filepath.Join(prepared, "ze", "builddir", "github.com", "rtr7", "kernel", "go.mod"))
-				if readErr != nil {
-					t.Fatalf("read prepared kernel go.mod: %v", readErr)
-				}
-				if !strings.Contains(string(data), tc.kernelPkg) {
-					t.Errorf("the selected kernel package did not reach the prepared copy:\n%s", data)
-				}
+			// The kernel package is assembled in the COPY.
+			if _, statErr := os.Stat(filepath.Join(prepared, "kernel", "vmlinuz")); statErr != nil {
+				t.Errorf("the prepared copy carries no kernel package: %v", statErr)
 			}
 
 			cleanup()

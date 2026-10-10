@@ -176,7 +176,7 @@ func runKernel(args []string) int {
 	targetFlag := fs.String("target", defaultKernelTarget, "Kernel target: installer (default) or runtime")
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
 	printCacheDirFlag := fs.Bool("print-cache-dir", false, "Print the durable cache path for this kernel (key = target+arch+config) and exit, without downloading or building.")
-	evictCacheFlag := fs.Bool("evict-cache", false, "Bound this kernel's cache namespace to the keep-N most recent entries and exit. Evicts, does not build.")
+	evictCacheFlag := fs.Bool("evict-cache", false, "Bound this kernel's cache namespace to the keep-N most recent entries of each architecture, keeping the current entry, and exit. Evicts, does not build.")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -416,7 +416,11 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 	}
 
 	if err := buildKernelArtifact(version, arch, profile, builder, td); err != nil {
-		return "", err
+		// A cold cache with no network fails here, at the source download, so the
+		// error names the entry that was missing and the command that fills it.
+		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and building it failed: %w\n"+
+			"build it once, with network access, on a %s host: ze appliance kernel --target runtime --arch %s",
+			version, arch, cachedDir, err, arch, arch)
 	}
 
 	builtKernel := filepath.Join(td.outputDir, td.artifact)

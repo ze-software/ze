@@ -13,8 +13,8 @@ A derived parent that omits the builddir therefore has no module pins at all:
 `gok` synthesizes an empty module and resolves every package by fetching it. The
 result is an image built from whatever upstream happened to hold that day.
 
-That happened. `github.com/rtr7/kernel` has been pinned since the appliance
-landed, and the module cache still held two later kernel versions, each fetched
+That happened. The appliance's upstream kernel module was pinned from the day
+the appliance landed, and the module cache still held two later kernel versions, each fetched
 one to two minutes before a build. Hugepage appliance images from those days
 shipped an unpinned Linux kernel.
 
@@ -153,7 +153,7 @@ not receive these appliance replacements and remain outside this binding.
 
 ### The eight builddir modules
 
-`gokrazy/ze/builddir/` holds eight modules. Seven are tracked locks whose
+`gokrazy/ze/builddir/` holds eight modules. Six are tracked locks whose
 `go.sum` shows a diff on a bump:
 
 ```text
@@ -163,8 +163,18 @@ github.com/gokrazy/gokrazy/cmd/heartbeat
 github.com/gokrazy/gokrazy/cmd/ntp
 github.com/gokrazy/gokrazy/cmd/randomd
 github.com/gokrazy/serial-busybox
-github.com/rtr7/kernel
 ```
+
+The seventh, `ze.invalid/kernel`, requires ze's runtime kernel and has no
+`go.sum`. Its path sits under `.invalid` (RFC 2606), so it never resolves on its
+own: preparation assembles the kernel package from the resolved runtime kernel
+cache entry and adds `replace ze.invalid/kernel => <prepared>/kernel` to its
+private copy, and refuses to prepare an instance without a resolved kernel.
+`./le setup install` skips it, because there is nothing to download.
+
+<!-- source: internal/appliance/instance/kernelpkg.go -- KernelModule, assembleKernelPackage -->
+<!-- source: internal/appliance/instance/prepare.go -- Prepare, replaceKernel -->
+<!-- source: internal/le/setup/install.go -- downloadApplianceDeps -->
 
 The eighth, `github.com/ze-software/ze`, has a tracked `replace ze => <repo root>`.
 Preparation adds the vendor module bindings only to its private copy. Its
@@ -197,7 +207,7 @@ through the pins:
 | What you find | What it means |
 |---------------|---------------|
 | `github.com/ze-software/ze@v0.0.0-<date>-<hash>` | Ze was fetched from the proxy. The builddir replaces Ze with the working tree, so a build that reached the proxy for Ze did not read the builddir and compiled a PUSHED commit rather than your tree |
-| A version of a builddir-pinned module that is not the pinned one | `gok` fell back to `go get` and took whatever upstream had. For `github.com/rtr7/kernel` that is the appliance's KERNEL |
+| A version of a builddir-pinned module that is not the pinned one | `gok` fell back to `go get` and took whatever upstream had. For a module the image runs, that is code nobody reviewed |
 
 Timestamps under `cache/download/*/@v/` reconstruct which build fetched what, to
 the minute. A reappearance is a regression in whatever new path prepares an
@@ -255,9 +265,17 @@ re-adding a row.
 
 ## GPLv2 source offer for the shipped kernel
 
-The appliance image ships a GPLv2 Linux kernel, `github.com/rtr7/kernel`
-(`gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod`, pinned as an indirect
-pseudo-version). Distributing a GPLv2 binary obliges the distributor to make the
-corresponding source available, typically through a written offer accompanying
-the image. No source-offer compliance sign-off is recorded today. That is a
-licensing decision, not an engineering one.
+The appliance image ships a GPLv2 Linux kernel: ze's runtime kernel, built from
+the kernel.org tarball whose version `internal/appliance/kernel.version` names and
+whose SHA-256 the builder verifies before extraction (`kernelSourceSHA256`), with
+the patch series in `gokrazy/kernel/patches/` and the configuration in
+`gokrazy/kernel/runtime.config`. Distributing a GPLv2 binary obliges the
+distributor to make the corresponding source available.
+
+The owner decided on 2026-10-09 how Ze complies: each image carries a notice that
+it contains Linux under GPLv2, naming the exact kernel.org version, the tarball
+URL and its SHA-256, derived from the same declaration the build uses; the
+configuration, patches and build scripts are in the public Ze repository, and the
+kernel source is not re-published.
+
+<!-- source: internal/appliance/kernelbuilder/worker.go -- kernelSourceSHA256, verifyKernelSource -->

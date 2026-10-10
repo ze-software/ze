@@ -2,6 +2,8 @@ package instance
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,7 +45,7 @@ func repoRoot(t *testing.T) string {
 //
 // VALIDATES: AC-3 -- the prepared instance holds all eight builddir modules.
 // PREVENTS: a copy that silently drops modules, which would send gok to the
-// network for whatever it could not find (the 2026-07-18 rtr7/kernel defect).
+// network for whatever it could not find (the 2026-07-18 kernel module defect).
 func TestPrepareRealInstanceCarriesEveryModule(t *testing.T) {
 	root := repoRoot(t)
 	if root == "" {
@@ -76,7 +78,7 @@ func TestPrepareRealInstanceCarriesEveryModule(t *testing.T) {
 		t.Fatalf("no go.mod under %s; the fixture assumption is wrong", srcBuildDir)
 	}
 
-	prepared, cleanup, err := Prepare(filepath.Join(root, "gokrazy"), Options{})
+	prepared, cleanup, err := Prepare(filepath.Join(root, "gokrazy"), testOptions(t))
 	if err != nil {
 		t.Fatalf("Prepare the real instance: %v", err)
 	}
@@ -222,7 +224,7 @@ func TestPreparedModulesResolveIdenticallyToTracked(t *testing.T) {
 		t.Fatalf("walk checked-in builddir: %v", err)
 	}
 
-	prepared, cleanup, err := Prepare(filepath.Join(root, "gokrazy"), Options{})
+	prepared, cleanup, err := Prepare(filepath.Join(root, "gokrazy"), testOptions(t))
 	if err != nil {
 		t.Fatalf("Prepare the real instance: %v", err)
 	}
@@ -297,7 +299,7 @@ func TestPrepareRealInstanceLeavesTrackedTreeClean(t *testing.T) {
 		t.Fatalf("snapshot before: %v", err)
 	}
 
-	prepared, cleanup, err := Prepare(filepath.Join(root, "gokrazy"), Options{ExtraKernelArgs: []string{"hugepages=512"}})
+	prepared, cleanup, err := Prepare(filepath.Join(root, "gokrazy"), testOptions(t, "hugepages=512"))
 	if err != nil {
 		t.Fatalf("Prepare the real instance: %v", err)
 	}
@@ -357,4 +359,52 @@ func formatInt(n int64) string {
 		n /= 10
 	}
 	return string(buf[i:])
+}
+
+// TestNoRtr7KernelReference verifies the tree carries no route to the rtr7
+// kernel: no file outside plan/ (the specs and records describing the removal)
+// names its module, its builddir
+// module is gone, and the instance's KernelPackage is ze's kernel module.
+//
+// VALIDATES: AC-4 -- ze's own kernel is the only kernel an image can carry.
+// PREVENTS: a doc, default or skeleton that selects rtr7 again.
+func TestNoRtr7KernelReference(t *testing.T) {
+	root := repoRoot(t)
+	if root == "" {
+		t.Skip("checked-in gokrazy instance not found; not a full checkout")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		t.Skip("not a git checkout, so the tracked file set is unknown")
+	}
+
+	rtr7 := "github.com/rtr7/" + "kernel" // split so this file does not match itself
+	grep := exec.CommandContext(context.Background(), "git", "grep", "-l", "-F", rtr7, "--",
+		".", ":!plan", ":!vendor", ":!gokrazy/modcache")
+	grep.Dir = root
+	out, err := grep.Output()
+	var exit *exec.ExitError
+	switch {
+	case err == nil:
+		t.Errorf("files still name %s:\n%s", rtr7, out)
+	case errors.As(err, &exit) && exit.ExitCode() == 1:
+		// git grep exits 1 when nothing matches.
+	default:
+		t.Fatalf("git grep: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(root, "gokrazy", Name, buildDirName, "github.com", "rtr7")); !os.IsNotExist(err) {
+		t.Errorf("the rtr7 builddir module is still present: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "gokrazy", Name, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct{ KernelPackage string }
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("parse instance config: %v", err)
+	}
+	if cfg.KernelPackage != KernelModule {
+		t.Errorf("config.json KernelPackage = %q, want %q", cfg.KernelPackage, KernelModule)
+	}
 }

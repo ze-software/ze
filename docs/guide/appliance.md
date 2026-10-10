@@ -103,9 +103,8 @@ are not pinned in a manifest.
 Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance runtime
 kernel: `CONFIG_PPP`, `CONFIG_PPPOL2TP`, `CONFIG_L2TP`, and
 `CONFIG_L2TP_V3`. The shared runtime proof kernel also keeps `CONFIG_PPPOE`
-built in for PPPoE evidence. The pinned upstream gokrazy kernel is not assumed
-to provide these options.
-Build the repo-local runtime kernel when these capabilities are required:
+built in for PPPoE evidence. The appliance image boots this kernel, so every
+image carries these options. To fill the cache before a build:
 
 ```bash
 ze appliance kernel --target runtime --arch amd64
@@ -116,13 +115,14 @@ Select the QEMU builder or arm64 explicitly when needed:
 ```bash
 ze appliance kernel --target runtime --arch arm64 --builder qemu
 ```
-These commands build the kernel artifact; they do not select it for
-`ze appliance build`, which retains the pinned upstream kernel. A custom kernel
-package is selected explicitly through `ze.gok.kernel-package` when using
-`./le build gokrazy` with a repository-local `--parent_dir`. The deployment
-proof below resolves and supplies its package through that explicit route.
+This is the kernel every appliance image boots, and no other kernel can reach
+an image. `ze appliance build` and `./le build gokrazy` resolve it for the
+image's architecture themselves: from the cache when an entry is there, else by
+building it, so these commands only fill the cache ahead of a build. A cold
+cache makes the first image build about 30 minutes longer, and it needs network
+access to kernel.org and Docker or QEMU on a host of the image's architecture.
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
-<!-- source: internal/le/test/deployment/gokrazyimage.go -- buildGokrazyImage -->
+<!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 
 `ze appliance kernel` calls the Go driver in
 `internal/appliance/kernelbuilder`. The driver reads
@@ -147,9 +147,9 @@ appliance config is left unchanged. It disables IPv6CP in that proof image
 because the current static L2TP pool is IPv4-only. Set
 `ZE_GOKRAZY_SKIP_BUILD=1` to run against an existing `tmp/gokrazy/ze.img` that
 was already built with the L2TP proof template, the proof runtime environment,
-and an L2TP-capable kernel: skip-build bypasses the proof's own kernel
-resolution, and an image on the pinned rtr7 kernel (which has no l2tp support)
-crash-loops at first boot instead of serving.
+and an L2TP-capable kernel: skip-build bypasses the proof's check of the
+runtime kernel cache, and an image whose kernel lacks PPPoL2TP crash-loops at
+first boot instead of serving.
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
 <!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
 <!-- source: internal/le/test/deployment/actions.go -- Answer -->
@@ -360,8 +360,8 @@ gokrazy/
       github.com/ze-software/ze/
         go.mod            # ze dependency pins + relative replace directive
         go.sum
-      github.com/rtr7/kernel/
-        go.mod, go.sum    # linux kernel version pin
+      ze.invalid/kernel/
+        go.mod            # requires ze's runtime kernel, replaced per build
       github.com/gokrazy/gokrazy/
         go.mod, go.sum    # gokrazy init system version pin
         cmd/dhcp/         # DHCP client
@@ -394,14 +394,16 @@ builds in one checkout use separate prepared instances.
 <!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
 <!-- source: internal/appliance/instance/prepare.go -- Prepare -->
 
-Kernel selection is explicit, not inferred from a previous kernel build.
-`ze appliance build` keeps the pinned `github.com/rtr7/kernel`.
-For a custom kernel package, `./le build gokrazy` reads
-`ze.gok.kernel-package` and passes it to instance preparation. Only that
-explicit replacement is written into the prepared copy; it does not change
-the checked-in pin or later builds that omit the setting.
+The image boots ze's own runtime kernel and no other. `config.json` names
+`ze.invalid/kernel` as its `KernelPackage`, a path under a reserved domain that
+never resolves on its own. Each build resolves the runtime kernel for the image's
+architecture (the cache entry, else a native build), assembles a gokrazy kernel
+package from that cache entry inside the prepared copy, and replaces the kernel
+module's require to point at it. Preparation with no resolved kernel is refused,
+so `gok` never fetches a kernel. No setting selects another kernel package.
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
-<!-- source: internal/appliance/instance/prepare.go -- replaceKernel -->
+<!-- source: internal/appliance/instance/prepare.go -- Prepare, replaceKernel -->
+<!-- source: internal/appliance/instance/kernelpkg.go -- assembleKernelPackage, KernelModule -->
 
 
 ## Build-host command

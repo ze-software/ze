@@ -111,8 +111,9 @@ func crashDumpKernelArgs(img ImageConfig) ([]string, error) {
 // resolveBuildParentDir returns the gokrazy parent dir to build from and a
 // cleanup func (always non-nil, safe to defer). The returned dir is always a
 // prepared copy under the project tmp/ carrying the checked-in builddir, with
-// any hugepage kernel arguments patched into its ze/config.json; the checked-in
-// gokrazy dir is never built from and never written to.
+// any hugepage kernel arguments patched into its ze/config.json, and with ze's
+// runtime kernel for cfg.Image.Arch assembled as its kernel package; the
+// checked-in gokrazy dir is never built from and never written to.
 func resolveBuildParentDir(cfg *applianceConfig) (string, func(), error) {
 	noop := func() {}
 	parentDir, err := filepath.Abs("gokrazy")
@@ -133,7 +134,17 @@ func resolveBuildParentDir(cfg *applianceConfig) (string, func(), error) {
 		return "", noop, fmt.Errorf("prepare crash reservation kernel args: %w", err)
 	}
 	extraArgs = append(extraArgs, crashArgs...)
-	prepared, cleanup, err := instance.Prepare(parentDir, instance.Options{ExtraKernelArgs: extraArgs})
+	// The image boots ze's runtime kernel and no other: the cache entry for the
+	// image's arch, else a native build on this host.
+	tree, err := runtimeKernelTreeFn(cfg.Image.Arch)
+	if err != nil {
+		return "", noop, fmt.Errorf("resolve the %s runtime kernel: %w", cfg.Image.Arch, err)
+	}
+	prepared, cleanup, err := instance.Prepare(parentDir, instance.Options{
+		ExtraKernelArgs: extraArgs,
+		KernelTree:      tree,
+		Arch:            cfg.Image.Arch,
+	})
 	if err != nil {
 		return "", noop, fmt.Errorf("prepare gokrazy instance: %w", err)
 	}

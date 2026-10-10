@@ -253,6 +253,7 @@ func TestBuildNoGokBinaryCheck(t *testing.T) {
 
 	cfg := &applianceConfig{}
 	cfg.Identity.Name = "test-app"
+	cfg.Image.Arch = archARM64
 	cfg.Image.SizeBytes = 1073741824
 	if err := saveConfig(ConfigPath(dir, "test-app"), cfg); err != nil {
 		t.Fatal(err)

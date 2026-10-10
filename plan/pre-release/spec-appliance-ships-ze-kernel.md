@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-09 |
+| Updated | 2026-10-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -55,6 +55,9 @@ AC-15 depends on this spec.
 -> Decision (owner): "ignore n100 atm". N100 (amd64) is a supported BUILD target; booting on N100 hardware is owner-deferred until the owner runs real hardware again. A-3's hardware half is therefore not evidence this spec owes; its QEMU half stands.
 -> Related: `plan/immediate/spec-appliance-kernel-vpn-modules.md` is a separate spec by owner decision; its AC-6/AC-7 (default-image claim) depend on this one.
 -> Implemented (2026-10-10, owner order to land the bump first): AC-19 and the worker half of AC-8/AC-9. `kernel.version` reads 7.2.9; `kernelSourceSHA256` (`internal/appliance/kernelbuilder/worker.go`) holds `b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba`, which `sha256sum` of the downloaded `linux-7.2.9.tar.xz` matched; `verifyKernelSource` refuses any other digest before extraction (`TestDownloadKernelSourceVerifiesDigest`), and `TestKernelVersionHasDigestPin` sits in `internal/appliance/cmd_kernel_test.go`. The series now applies with `patch --fuzz=0`: on 7.2.9, 0001 hunk 3 needed fuzz and 0002 failed two hunks (`ip6_route.h` gained an `IP6_MAX_MTU` clamp at `out:`; `ip_do_fragment` gained upstream the same `mtu < hlen + 8` guard 0002 carried, so that hunk is dropped). Both patches were regenerated against pristine 7.2.9 and apply with no fuzz and no offset. The GPLv2 notice (AC-17) and the bump runbook edit remain this spec's.
+
+-> Implemented (2026-10-10, phases 1, 2 and 4 code half): rtr7 and `ze.gok.kernel-package` deleted; `gokrazy/ze/config.json` names `ze.invalid/kernel`; `ze appliance build` (`resolveBuildParentDir`) and `./le build gokrazy` (`prepareArgs`) resolve `appliance.RuntimeKernelTree(arch)` and `instance.Prepare` assembles the package from that cache entry inside the prepared parent and replaces the module. AC-4, AC-5, AC-6 (rewritten), AC-7, AC-10 carry unit tests; AC-1/2/3/11 still owe the boot proofs; AC-13, AC-17, the doctor check and the provenance digest are not started.
+-> Decision (implementation): the kernel module path is `ze.invalid/kernel`: RFC 2606 reserves `.invalid`, so a prepared instance whose replace went missing fails `go list` instead of fetching (R-3). The assembler lives in `internal/appliance/instance/kernelpkg.go`, not `internal/appliance/kernelpkg.go`, because `Prepare` assembles inside the prepared parent (R-6) and `instance` cannot import `appliance`; it writes the go.mod and Go file itself, so no tracked `gokrazy/kernel/package/` skeleton exists. `TestNoRtr7KernelReference` excludes all of `plan/` (specs describe the removal), `vendor/` and `gokrazy/modcache/`. `./le setup install` skips the kernel module, which has nothing to download.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
@@ -205,7 +208,7 @@ AC-15 depends on this spec.
 | AC-3 | appliance seed adds `set fib kernel` and `set ldp`, booted under QEMU | ze starts and answers `show ldp neighbor | json` over its CLI (kernel-capability-gate AC-15, `./le test qemu mpls-boot-test`) |
 | AC-4 | the tree after the change | no file outside `plan/learned/` and `plan/journal/` names `github.com/rtr7/kernel`; `gokrazy/ze/builddir/github.com/rtr7/kernel/` is gone; `gokrazy/ze/config.json` names the ze kernel module |
 | AC-5 | `Prepare` called with no resolved kernel package | refuses with an error naming the kernel package; never falls back to a network-resolved module |
-| AC-6 | `ze.gok.kernel-package=<dir>` given to `./le build gokrazy` | that directory replaces the default, and the build does not resolve or build the runtime kernel |
+| AC-6 | (rewritten to the owner decision of 2026-10-09) `ze.gok.kernel-package` set in the environment of `./le build gokrazy` | the setting is not registered and changes nothing: the build resolves ze's runtime kernel as always (`TestRunHasNoKernelOverride`) |
 | AC-7 | cached runtime kernel present for the arch | `ze appliance build` builds no kernel and starts no container or VM |
 | AC-8 | kernel tarball whose SHA-256 differs from the tracked pin | the worker refuses before extraction, naming expected and actual digests |
 | AC-9 | `kernel.version` changed without its SHA-256 pin changing | a unit test fails naming both files |

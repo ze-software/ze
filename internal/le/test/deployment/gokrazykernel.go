@@ -219,18 +219,3 @@ func hasMagicAt(path string, offset int64, magic string) bool {
 	}
 	return string(buf) == magic
 }
-
-// kernelPackageError answers the refusal for a package that cannot carry the
-// proof. It names every reason and the command that rebuilds the package.
-//
-// The message contains the rebuild command because it is the operator's next
-// action. The command is not obvious because the kernel is built in a container
-// and takes about thirty minutes on a cache miss.
-func kernelPackageError(context, arch string, problems []string) error {
-	var tb textbuf.Buffer
-	tb.Str("unusable kernel package (").Str(context).Str("):\n  ").
-		Str(strings.Join(problems, "\n  ")).
-		Str("\nrebuild it with: ./ze appliance kernel --target runtime --arch ").Str(arch).
-		Str(" (about 30 minutes on a cache miss, needs Docker)")
-	return errors.New(tb.String())
-}

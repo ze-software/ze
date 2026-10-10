@@ -542,15 +542,15 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-kernel-build",
-		Reason: "absorbed: assembleKernelPackage (internal/le/test/deployment/gokrazyimage.go) copies the pinned modcache, the vmlinuz, the modules and the DTBs into the out-of-tree package, so the shell assembly has no separate identity",
+		Reason: "absorbed: assembleKernelPackage (internal/appliance/instance/kernelpkg.go) writes the go.mod and Go file and copies the vmlinuz, the modules and the DTBs into the kernel package every image build assembles, so the shell assembly has no separate identity",
 	},
 	{
 		Target: "ze-kernel-vmlinuz-stage",
-		Reason: "absorbed: resolveKernelPackage (internal/le/test/deployment/gokrazyimage.go) materializes the runtime kernel from the durable cache that `ze appliance kernel --target runtime --print-cache-dir` names",
+		Reason: "absorbed: RuntimeKernelTree (internal/appliance/runtimekernel.go) resolves the runtime kernel from the durable cache that `ze appliance kernel --target runtime --print-cache-dir` names, and every image build assembles its kernel package from that entry",
 	},
 	{
 		Target: "ze-kernel-clean",
-		Reason: "the subject is gone: the recipe ran `make -C gokrazy/kernel clean` and undid a go.mod replace. That directory holds no Makefile, and a build names its kernel package per run through ze.gok.kernel-package",
+		Reason: "the subject is gone: the recipe ran `make -C gokrazy/kernel clean` and undid a go.mod replace. That directory holds no Makefile, and every build assembles its kernel package per run inside the prepared instance",
 	},
 	{
 		Target: "ze-mutation-test",

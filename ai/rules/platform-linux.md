@@ -100,7 +100,7 @@ that skips it is invisible rather than red.
 **You MUST NOT try to convert to `go mod vendor`: `gok` cannot consume it. You MUST NOT hand-edit modcache go.sum hashes.**
 
 1. **Find a fixed upstream version.** You MUST fetch the candidate `.mod` from the proxy (`https://proxy.golang.org/github.com/gokrazy/gokrazy/@v/<version>.mod` or `@latest`) and confirm it `require`s the fixed dependency version. Only then bump.
-2. **You MUST bump the version string in the 7 builddir modules** under `gokrazy/ze/builddir/`: the `require` in `gokrazy` + `cmd/{dhcp,ntp,heartbeat,randomd}`, and the `replace` RHS in `serial-busybox` + `rtr7/kernel`. <!-- doc-links: ignore (cmd/{dhcp,ntp,heartbeat,randomd} are gokrazy submodules under gokrazy/ze/builddir/github.com/gokrazy/gokrazy/, not top-level cmd/) -->
+2. **You MUST bump the version string in the 6 builddir modules** under `gokrazy/ze/builddir/`: the `require` in `gokrazy` + `cmd/{dhcp,ntp,heartbeat,randomd}`, and the `replace` RHS in `serial-busybox`. The `ze.invalid/kernel` module pins nothing: it requires ze's runtime kernel, which each build assembles. <!-- doc-links: ignore (cmd/{dhcp,ntp,heartbeat,randomd} are gokrazy submodules under gokrazy/ze/builddir/github.com/gokrazy/gokrazy/, not top-level cmd/) -->
 3. **You MUST remove any now-false workaround pin/comment** (e.g. an explicit `x/net` pin added because "upstream pins the old version"). Verify it is safe: `go list -m <dep>` in each builddir MUST still resolve `>=` the fixed version via the new upstream `require`.
 4. **You MUST regenerate the go.sums cleanly.** Delete the affected builddir `go.sum` files (filesystem removal, never `git rm`), then run `go mod download all` in each affected builddir. The sums regenerate from the new build list and prune the old version string. You MUST NOT hand-edit hashes.
 5. **Re-vendor and prune.** The module download extracts the new version under `gokrazy/modcache/github.com/gokrazy/gokrazy@<new>/`. Remove the old `@<old>` directory. Confirm the working tree holds only the expected old-file deletions and new source.
@@ -119,7 +119,7 @@ that skips it is invisible rather than red.
 
 **Cadence:** you MUST review the builddir pins **once per release cycle, and at minimum quarterly**, whichever comes first. Each review:
 
-1. For the vendored gokrazy init and `rtr7/kernel`, you MUST fetch the latest upstream `.mod` from the proxy, as in step 1 of the bump runbook, and note whether a newer commit carries security-relevant fixes.
+1. For the vendored gokrazy init, you MUST fetch the latest upstream `.mod` from the proxy, as in step 1 of the bump runbook, and note whether a newer commit carries security-relevant fixes. For ze's runtime kernel, you MUST read kernel.org's latest stable release; a bump changes `internal/appliance/kernel.version` and its `kernelSourceSHA256` entry (`internal/appliance/kernelbuilder/worker.go`, copied from kernel.org's `sha256sums.asc`) together, and the patch series MUST apply with no fuzz.
 2. If a fix applies, you MUST run the bump runbook. If not, you MUST record the review date so the next reviewer knows the pins were checked, not forgotten.
 3. You MUST re-confirm that the GPLv2 source-offer sign-off is still current.
 

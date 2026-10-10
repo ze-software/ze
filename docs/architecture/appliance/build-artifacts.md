@@ -50,6 +50,21 @@ no expiry. The kernel cache variant folds in registry-derived hashes so a
 profile, config, manifest, or builder change invalidates a stale kernel; a
 plain download has no such signal.
 
+## The runtime kernel the appliance image boots
+
+The runtime target has two tiers, not three: its cache entry, else a native
+build on a host of the target's architecture. It has no download tier.
+`ze appliance build` and `./le build gokrazy` resolve it for the image's
+architecture through the same resolver as `ze appliance kernel --target
+runtime`, so a warm cache starts no container or VM and a cold one builds and
+caches the kernel first. A cold cache that cannot build, for example with no
+network for the kernel.org tarball, fails with the cache path and the command
+that fills it. The image's kernel package is assembled from the cache entry,
+never from `tmp/kernel/build`, which every resolver call rewrites.
+
+<!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
+<!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel -->
+
 ## Related
 
 - `kernel-profiles.md` for what goes into a kernel build

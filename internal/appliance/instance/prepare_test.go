@@ -143,6 +143,11 @@ func writePreparedParentFixture(t *testing.T, origConfig []byte) (root, srcParen
 	write(filepath.Join(zeMod, "go.mod"), []byte(zeModRelative))
 	write(filepath.Join(zeMod, "go.sum"), []byte("codeberg.org/example v0.0.0 h1:deadbeef=\n"))
 	write(filepath.Join(gokMod, "go.mod"), []byte(gokrazyMod))
+	kernelMod := filepath.Join(srcParent, "ze", "builddir", filepath.FromSlash(KernelModule))
+	if err := os.MkdirAll(kernelMod, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write(filepath.Join(kernelMod, "go.mod"), []byte(trackedKernelMod))
 	write(filepath.Join(srcParent, "ze", "config.json"), origConfig)
 	write(filepath.Join(srcParent, "ze", "ze.conf"), []byte("seed"))
 	write(filepath.Join(root, "vendor", "modules.txt"), []byte("# example.com/patched v1.2.3\n## explicit; go 1.26\nexample.com/patched\n"))
@@ -157,14 +162,14 @@ func writePreparedParentFixture(t *testing.T, origConfig []byte) (root, srcParen
 //
 // VALIDATES: AC-3, AC-4 -- a prepared build resolves the checked-in pins.
 // PREVENTS: gok silently falling back to `go get` and building unpinned
-// upstream versions, which happened on 2026-07-18 and 2026-07-20 for
-// github.com/rtr7/kernel.
+// upstream versions, which happened on 2026-07-18 and 2026-07-20 for the
+// kernel module then pinned.
 func TestPrepare(t *testing.T) {
 	origConfig := []byte(`{"Hostname":"ze","KernelExtraArgs":["loglevel=8"]}`)
 	root, srcParent := writePreparedParentFixture(t, origConfig)
 	srcInstance := filepath.Join(srcParent, "ze")
 
-	parent, cleanup, err := Prepare(srcParent, Options{ExtraKernelArgs: []string{"hugepages=512"}})
+	parent, cleanup, err := Prepare(srcParent, testOptions(t, "hugepages=512"))
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
 	}
@@ -273,146 +278,14 @@ func TestPrepare(t *testing.T) {
 	}
 }
 
-// kernelMod is the shape of the checked-in rtr7/kernel builddir module: it pins
-// the kernel by version and carries a module-to-module version replace.
-const kernelMod = `module gokrazy/build/ze
+// trackedKernelMod is the shape of the checked-in kernel builddir module: it
+// requires KernelModule, which only a prepared instance's replace can resolve.
+const trackedKernelMod = `module gokrazy/build/ze
 
 go 1.26.2
 
-require github.com/rtr7/kernel v0.0.0-20260403073601-5a996da3a37b // indirect
-
-replace github.com/gokrazy/gokrazy v0.0.0-20200501080617-f3445e01a904 => github.com/gokrazy/gokrazy v0.0.0-20260703061218-a4a45a20149d
+require ze.invalid/kernel v0.0.0
 `
-
-// writeKernelModule adds a checked-in rtr7/kernel builddir module to a fixture
-// parent, so kernel-package injection has the module it must rewrite.
-func writeKernelModule(t *testing.T, srcParent string) string {
-	t.Helper()
-	dir := filepath.Join(srcParent, "ze", "builddir", "github.com", "rtr7", "kernel")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(kernelMod), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return dir
-}
-
-// TestPrepareInjectsKernelReplace verifies an out-of-tree kernel package is
-// injected into the PREPARED copy only, as an absolute path, leaving the tracked
-// module byte-identical.
-//
-// This replaces `./ze appliance kernel --target runtime` editing gokrazy/ze/builddir/github.com/rtr7/
-// kernel/go.mod in place, which made a build step write to a tracked file and
-// left the tree dirty until ze-kernel-clean was run.
-//
-// VALIDATES: AC-7 -- the replace reaches the prepared copy, no tracked file
-// changes.
-// PREVENTS: a build mutating tracked state, and a stale custom-kernel replace
-// surviving into an unrelated build or commit.
-func TestPrepareInjectsKernelReplace(t *testing.T) {
-	_, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze"}`))
-	srcKernelDir := writeKernelModule(t, srcParent)
-	pkg := filepath.Join(t.TempDir(), "kernelpkg")
-	if err := os.MkdirAll(pkg, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	prepared, cleanup, err := Prepare(srcParent, Options{KernelPackage: pkg})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
-	defer cleanup()
-
-	preparedKernel := filepath.Join(prepared, "ze", "builddir", "github.com", "rtr7", "kernel", GoModName)
-	data, err := os.ReadFile(preparedKernel)
-	if err != nil {
-		t.Fatalf("read prepared kernel go.mod: %v", err)
-	}
-	f, err := modfile.Parse(preparedKernel, data, nil)
-	if err != nil {
-		t.Fatalf("parse prepared kernel go.mod: %v", err)
-	}
-
-	var got string
-	for _, r := range f.Replace {
-		if r.Old.Path == KernelModule {
-			got = r.New.Path
-		}
-	}
-	if got == "" {
-		t.Fatalf("no replace for %s in the prepared module:\n%s", KernelModule, data)
-	}
-	if !filepath.IsAbs(got) {
-		t.Errorf("kernel replace %q is not absolute; it would resolve against the prepared depth", got)
-	}
-	if got != pkg {
-		t.Errorf("kernel replace = %q, want %q", got, pkg)
-	}
-
-	// The pre-existing version replace must survive alongside the new one.
-	if len(f.Replace) != 2 {
-		t.Errorf("prepared kernel go.mod has %d replaces, want 2 (the existing version replace plus the kernel package):\n%s", len(f.Replace), data)
-	}
-
-	// The tracked module is untouched.
-	srcData, err := os.ReadFile(filepath.Join(srcKernelDir, GoModName))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(srcData) != kernelMod {
-		t.Errorf("the tracked kernel go.mod was modified by a build:\n%s", srcData)
-	}
-}
-
-// TestPrepareNoKernelPackageUsesPin verifies that with no kernel package the
-// prepared module keeps the pinned kernel and gains no replace, so a build
-// cannot inherit a custom kernel from leftover state.
-//
-// VALIDATES: AC-8.
-// PREVENTS: the old failure mode where a custom kernel persisted in the tracked
-// go.mod until the operator remembered ze-kernel-clean.
-func TestPrepareNoKernelPackageUsesPin(t *testing.T) {
-	_, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze"}`))
-	writeKernelModule(t, srcParent)
-
-	prepared, cleanup, err := Prepare(srcParent, Options{})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
-	defer cleanup()
-
-	preparedKernel := filepath.Join(prepared, "ze", "builddir", "github.com", "rtr7", "kernel", GoModName)
-	data, err := os.ReadFile(preparedKernel)
-	if err != nil {
-		t.Fatalf("read prepared kernel go.mod: %v", err)
-	}
-	if string(data) != kernelMod {
-		t.Errorf("the kernel module was rewritten though no kernel package was given:\n%s", data)
-	}
-}
-
-// TestPrepareRejectsMissingKernelPackage verifies a kernel package path that does
-// not exist is an error, not a silently ignored request that would hand the
-// operator a pinned-kernel image while they believe they are testing their own.
-//
-// VALIDATES: fail-closed on an explicit parameter.
-func TestPrepareRejectsMissingKernelPackage(t *testing.T) {
-	_, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze"}`))
-	writeKernelModule(t, srcParent)
-	missing := filepath.Join(t.TempDir(), "nope")
-
-	_, cleanup, err := Prepare(srcParent, Options{KernelPackage: missing})
-	if cleanup != nil {
-		cleanup()
-	}
-	if err == nil {
-		t.Fatal("Prepare accepted a kernel package that does not exist")
-	}
-	if !strings.Contains(err.Error(), missing) {
-		t.Errorf("error does not name the missing path: %v", err)
-	}
-}
 
 // TestReapStalePreparedDirs verifies that a prepared dir left behind by a build
 // that died without cleanup (gok's pack.Main os.Exit skips both the deferred and
@@ -450,7 +323,7 @@ func TestReapStalePreparedDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, cleanup, err := Prepare(srcParent, Options{})
+	_, cleanup, err := Prepare(srcParent, testOptions(t))
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
 	}
@@ -475,12 +348,12 @@ func TestReapStalePreparedDirs(t *testing.T) {
 func TestPrepareIsolatesConcurrentBuilds(t *testing.T) {
 	_, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze"}`))
 
-	first, cleanupFirst, err := Prepare(srcParent, Options{ExtraKernelArgs: []string{"hugepages=4"}})
+	first, cleanupFirst, err := Prepare(srcParent, testOptions(t, "hugepages=4"))
 	if err != nil {
 		t.Fatalf("first Prepare: %v", err)
 	}
 	defer cleanupFirst()
-	second, cleanupSecond, err := Prepare(srcParent, Options{ExtraKernelArgs: []string{"hugepages=4"}})
+	second, cleanupSecond, err := Prepare(srcParent, testOptions(t, "hugepages=4"))
 	if err != nil {
 		t.Fatalf("second Prepare: %v", err)
 	}
@@ -509,7 +382,7 @@ func TestPrepareFailsClosedWithoutBuildDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, cleanup, err := Prepare(srcParent, Options{})
+	_, cleanup, err := Prepare(srcParent, testOptions(t))
 	if cleanup != nil {
 		cleanup()
 	}
@@ -545,7 +418,7 @@ func TestPrepareAcceptsSymlinkedBuildDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	prepared, cleanup, err := Prepare(linkParent, Options{})
+	prepared, cleanup, err := Prepare(linkParent, testOptions(t))
 	if err != nil {
 		t.Fatalf("Prepare rejected a symlinked builddir: %v", err)
 	}
@@ -596,7 +469,7 @@ func TestCopyBuildDirFailsClosedWithoutModules(t *testing.T) {
 }
 
 // TestAbsolutizeReplacesLeavesVersionReplaces verifies a module-to-module version
-// replace (serial-busybox, rtr7/kernel) is not touched, and the file is returned
+// replace (serial-busybox) is not touched, and the file is returned
 // unchanged when there is nothing to rewrite.
 func TestAbsolutizeReplacesLeavesVersionReplaces(t *testing.T) {
 	const versionReplace = `module gokrazy/build/ze
@@ -635,7 +508,7 @@ func TestPrepareBindsCanonicalVendorSources(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	parent, cleanup, err := Prepare(srcParent, Options{})
+	parent, cleanup, err := Prepare(srcParent, testOptions(t))
 	if err != nil {
 		t.Fatal(err)
 	}

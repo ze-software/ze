@@ -104,6 +104,10 @@ release check accepts the suffixed release.
 
 ## Decisions
 
+- The runtime profile's kernel is the only kernel an appliance image boots. The
+  image build resolves it through the same path as `ze appliance kernel
+  --target runtime`, so it passes the same `enforceKernelRequirements` check;
+  there is no second check and no other kernel to check.
 - The registry is open. Adding a profile is adding two files, not editing a
   list.
 - Cache variants fold in registry-derived hashes, so a profile, config,

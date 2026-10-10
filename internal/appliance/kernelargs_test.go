@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/appliance/instance"
 )
 
 // coverage MOVED, not dropped. TestDerivedInstanceConfigPreservesFields,
@@ -164,6 +167,12 @@ func writeGokrazyFixture(t *testing.T) (root string) {
 		}
 	}
 	write(filepath.Join(mod, "go.mod"), "module gokrazy/build/github.com/ze-software/ze\n\ngo 1.26\n")
+	kernelMod := filepath.Join(root, "gokrazy", "ze", "builddir", filepath.FromSlash(instance.KernelModule))
+	if err := os.MkdirAll(kernelMod, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write(filepath.Join(kernelMod, "go.mod"), "module gokrazy/build/ze\n\ngo 1.26\n\nrequire "+instance.KernelModule+" v0.0.0\n")
+	setTestRuntimeKernelTree(t)
 	write(filepath.Join(root, "gokrazy", "ze", "config.json"), `{"Hostname":"ze"}`)
 	t.Chdir(root)
 	return root
@@ -182,8 +191,8 @@ func TestResolveBuildParentDirAlwaysPrepares(t *testing.T) {
 		name string
 		cfg  *applianceConfig
 	}{
-		{"no hugepages", &applianceConfig{}},
-		{"hugepages", &applianceConfig{Image: ImageConfig{Hugepages: &Hugepages{Size: "1gb", PageSize: "2mb"}}}},
+		{"no hugepages", &applianceConfig{Image: ImageConfig{Arch: runtime.GOARCH}}},
+		{"hugepages", &applianceConfig{Image: ImageConfig{Arch: runtime.GOARCH, Hugepages: &Hugepages{Size: "1gb", PageSize: "2mb"}}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := writeGokrazyFixture(t)
@@ -226,7 +235,7 @@ func TestResolveBuildParentDirAlwaysPrepares(t *testing.T) {
 func TestResolveBuildParentDirPatchesOnlyWhenRequested(t *testing.T) {
 	writeGokrazyFixture(t)
 
-	parent, cleanup, err := resolveBuildParentDir(&applianceConfig{})
+	parent, cleanup, err := resolveBuildParentDir(&applianceConfig{Image: ImageConfig{Arch: runtime.GOARCH}})
 	if err != nil {
 		t.Fatalf("resolveBuildParentDir: %v", err)
 	}

@@ -20,13 +20,13 @@ var (
 // accepting a glob so a version-pinned artifact can be named precisely.
 //
 // Precision matters here because the gate fails OPEN when it is coarse: naming
-// the directory `gokrazy/modcache/github.com/rtr7` was satisfied by the
-// unrelated `rtr7/dhcp4@...` entries that live beside the kernel module, so a
-// checkout without the kernel passed the gate and died on the same missing
-// vmlinuz the gate exists to prevent (ai/rules/evidence.md). A glob
-// lets the test name the FILE it actually reads --
-// `gokrazy/modcache/github.com/rtr7/kernel@*/vmlinuz` -- without hardcoding the
-// pinned version string, which would then need updating on every dep bump.
+// an organisation's directory under gokrazy/modcache was once satisfied by an
+// unrelated module of the same organisation that lived beside the one the test
+// read, so a checkout without that module passed the gate and died on the same
+// missing file the gate exists to prevent (ai/rules/evidence.md). A glob lets
+// the test name the FILE it actually reads -- `<module>@*/<file>` -- without
+// hardcoding the pinned version string, which would then need updating on every
+// dep bump.
 func needsPathSatisfied(root, value string) bool {
 	full := filepath.Join(root, value)
 	if !strings.ContainsAny(value, "*?[") {

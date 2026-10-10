@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/appliance/instance"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
@@ -651,9 +652,12 @@ func TestVendoringWithoutGoIsAFailureRatherThanASkip(t *testing.T) {
 	}
 }
 
+// TestVendoringDownloadsEveryApplianceModule verifies setup downloads the
+// module graph of every builddir module except ze's kernel module, which each
+// image build assembles and replaces in, so nothing of it can be downloaded.
 func TestVendoringDownloadsEveryApplianceModule(t *testing.T) {
 	root := t.TempDir()
-	for _, module := range []string{"github.com/gokrazy/gokrazy", "github.com/rtr7/kernel"} {
+	for _, module := range []string{"github.com/gokrazy/gokrazy", "github.com/gokrazy/serial-busybox", instance.KernelModule} {
 		path := filepath.Join(root, "gokrazy", "ze", "builddir", filepath.FromSlash(module), "go.mod")
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			t.Fatal(err)
@@ -670,6 +674,7 @@ func TestVendoringDownloadsEveryApplianceModule(t *testing.T) {
 	if !slices.Equal(got, []string{
 		"go mod tidy", "go mod vendor", "go mod download all", "go mod download all",
 	}) {
+		// Two downloads for three modules: the kernel module is skipped.
 		t.Fatalf("commands = %v", got)
 	}
 }

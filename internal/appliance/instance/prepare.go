@@ -41,10 +41,6 @@ const (
 	// builddir agree with the copier on what a module looks like.
 	GoModName = "go.mod"
 
-	// KernelModule is the module supplying the appliance kernel. An out-of-tree
-	// kernel is selected by replacing it in the prepared copy.
-	KernelModule = "github.com/rtr7/kernel"
-
 	// preparedPrefix names the per-build prepared instance dirs under project
 	// tmp/, so a later run can recognize and reap the ones a dead build left.
 	preparedPrefix = "appliance-build-"
@@ -57,21 +53,20 @@ const (
 	preparedStaleAge = 2 * time.Hour
 )
 
-// Options controls how an instance is prepared. The zero value prepares a
-// faithful copy: the pinned kernel, and no extra kernel arguments.
+// Options controls how an instance is prepared.
 type Options struct {
 	// ExtraKernelArgs are appended to the instance's KernelExtraArgs.
 	ExtraKernelArgs []string
 
-	// KernelPackage, when set, is a filesystem path to an out-of-tree kernel
-	// package that replaces KernelModule in the prepared copy only.
-	//
-	// Deliberately an explicit parameter rather than a probe for a well-known
-	// directory: a probe would silently give every later build a custom kernel
-	// for as long as that directory existed, which is the trap the previous
-	// tracked-go.mod approach fell into (it needed `native kernel builds` to
-	// undo, and nothing enforced that).
-	KernelPackage string
+	// KernelTree is the resolved runtime kernel tree the image boots: the
+	// arch-keyed cache entry the runtime kernel resolver answered. Prepare
+	// assembles the kernel package from it inside the prepared instance.
+	// Required: ze's own kernel is the only kernel an image carries, so there is
+	// no default to fall back to.
+	KernelTree string
+
+	// Arch is the image's GOARCH. The kernel in KernelTree MUST be built for it.
+	Arch string
 }
 
 // deriveConfigJSON reads a gokrazy instance config.json and returns a copy with
@@ -109,7 +104,9 @@ func deriveConfigJSON(src []byte, extraArgs []string) ([]byte, error) {
 // <instance>/config.json is patched with extraArgs (pass nil for none). Sibling
 // entries of the source instance dir are symlinked in; builddir is COPIED, with
 // its filesystem-path replace directives rewritten to absolute paths so they
-// still resolve from the new depth. Returns the prepared parent dir and a
+// still resolve from the new depth. The kernel package is assembled from
+// opts.KernelTree into the prepared parent, and the builddir module requiring
+// KernelModule is replaced to point at it. Returns the prepared parent dir and a
 // cleanup func; the checked-in source dir is never modified.
 //
 // The caller MUST call cleanup when the build is done. cleanup is nil only when
@@ -120,7 +117,7 @@ func deriveConfigJSON(src []byte, extraArgs []string) ([]byte, error) {
 // module and resolves every package over the network with `go get`
 // (vendor/github.com/gokrazy/tools/packer/gotool.go getPkg/getIncomplete),
 // discarding the pins in gokrazy/ze/builddir/*/go.mod. That is not theoretical:
-// derived builds on 2026-07-18 and 2026-07-20 pulled github.com/rtr7/kernel at
+// derived builds on 2026-07-18 and 2026-07-20 pulled the then-pinned kernel module at
 // two versions NEWER than the pinned one into gokrazy/modcache, and re-fetched
 // ze itself from the proxy at a fresh pseudo-version each build.
 func Prepare(srcParent string, opts Options) (string, func(), error) {
@@ -134,17 +131,14 @@ func Prepare(srcParent string, opts Options) (string, func(), error) {
 		return "", nil, err
 	}
 
-	// Resolve the kernel package before anything is created, so a typo fails
-	// before a build starts rather than after it has silently used the pin.
-	kernelPkg := ""
-	if opts.KernelPackage != "" {
-		kernelPkg, err = filepath.Abs(opts.KernelPackage)
-		if err != nil {
-			return "", nil, fmt.Errorf("resolve kernel package %s: %w", opts.KernelPackage, err)
-		}
-		if _, statErr := os.Stat(kernelPkg); statErr != nil {
-			return "", nil, fmt.Errorf("kernel package %s: %w", kernelPkg, statErr)
-		}
+	// The kernel is checked before anything is created. An image with no kernel
+	// package would leave gok resolving KernelModule itself, so the refusal
+	// comes first and names what is missing.
+	if opts.KernelTree == "" {
+		return "", nil, fmt.Errorf("no kernel package: the appliance image boots ze's runtime kernel, and no resolved %s tree was given to assemble it from", KernelModule)
+	}
+	if err := checkKernelArch(filepath.Join(opts.KernelTree, vmlinuzName), opts.Arch); err != nil {
+		return "", nil, fmt.Errorf("kernel package: %w", err)
 	}
 
 	// Project tmp/, never the system temp dir (ai/rules/testing.md). srcParent is
@@ -216,22 +210,24 @@ func Prepare(srcParent string, opts Options) (string, func(), error) {
 		return "", nil, fmt.Errorf("write patched instance config: %w", err)
 	}
 
-	if kernelPkg != "" {
-		if err := replaceKernel(filepath.Join(tmpInstance, buildDirName), kernelPkg); err != nil {
-			cleanup()
-			return "", nil, err
-		}
+	kernelPkg := filepath.Join(tmpParent, kernelPackageDir)
+	if err := assembleKernelPackage(opts.KernelTree, kernelPkg, opts.Arch); err != nil {
+		cleanup()
+		return "", nil, err
+	}
+	if err := replaceKernel(filepath.Join(tmpInstance, buildDirName), kernelPkg); err != nil {
+		cleanup()
+		return "", nil, err
 	}
 	return tmpParent, cleanup, nil
 }
 
-// replaceKernel points KernelModule at an out-of-tree kernel package inside the
-// PREPARED builddir. The tracked module is never touched, so a custom-kernel
-// build leaves the working tree clean and cannot leak into a later build.
+// replaceKernel points KernelModule at the assembled kernel package inside the
+// PREPARED builddir. The tracked module is never touched, so a build leaves the
+// working tree clean and cannot leak into a later build.
 //
-// Fails closed: if the module that pins the kernel is not found, the request is
-// an error rather than a build that quietly uses the pinned kernel while the
-// operator believes they are testing their own.
+// Fails closed: if the module that requires the kernel is not found, the build
+// is refused, because gok would otherwise resolve KernelModule on its own.
 func replaceKernel(buildDir, pkg string) error {
 	modPath := filepath.Join(buildDir, filepath.FromSlash(KernelModule), GoModName)
 	data, err := os.ReadFile(modPath) //nolint:gosec // path derived from the prepared builddir

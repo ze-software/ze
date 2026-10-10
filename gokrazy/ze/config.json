@@ -35,7 +35,7 @@
     },
     "SerialConsole": "ttyS0,115200",
     "KernelExtraArgs": ["loglevel=8", "printk.devkmsg=on"],
-    "KernelPackage": "github.com/rtr7/kernel",
+    "KernelPackage": "ze.invalid/kernel",
     "FirmwarePackage": "",
     "EEPROMPackage": ""
 }

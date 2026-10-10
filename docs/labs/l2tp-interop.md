@@ -153,11 +153,11 @@ The gokrazy appliance proof reuses the native LAC shape but puts Ze behind the
 same gokrazy/QEMU image used for appliance deployment. The appliance attaches
 to a host bridge by TAP (user-mode slirp cannot deliver the LAC's inbound UDP
 1701), so the LAC namespace still exercises a real host PPPoL2TP kernel path
-while the appliance kernel provides Ze's LNS-side PPPoL2TP support. The proof
-resolves that kernel itself because the pinned rtr7 kernel has no L2TP support.
-It validates an operator-supplied kernel package or materialises the runtime
-kernel from the durable cache and fails before boot when neither can carry
-PPPoL2TP.
+while the appliance kernel provides Ze's LNS-side PPPoL2TP support. The image
+build resolves ze's runtime kernel, the only kernel an appliance image carries.
+Before it starts, the proof checks the runtime kernel cache entry for its
+architecture and refuses, before boot, an entry that is absent or cannot carry
+PPPoL2TP, naming the command that rebuilds it.
 <!-- source: internal/le/test/deployment/actions.go -- Answer -->
 
 ## Design Pattern

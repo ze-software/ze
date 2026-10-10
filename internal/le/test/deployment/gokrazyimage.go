@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -56,7 +55,6 @@ const imageBuildTimeout = 30 * time.Minute
 // code reads them from the OS environment rather than register them as Ze
 // settings because they select local evidence artifacts.
 const (
-	KernelPkgEnv        = "KERNEL_PKG"
 	GokrazyImageEnv     = "ZE_GOKRAZY_IMAGE"
 	GokrazySkipBuildEnv = "ZE_GOKRAZY_SKIP_BUILD"
 )
@@ -85,8 +83,10 @@ func gokrazyImage(tree, work, template, arch string, progress io.Writer) (string
 	if err != nil {
 		return "", err
 	}
-	kernel, err := resolveKernelPackage(tree, work, arch, progress)
-	if err != nil {
+	// The build resolves ze's runtime kernel itself. This proof checks the cache
+	// entry first because it needs PPPoL2TP, and a cold cache is refused with the
+	// command that fills it rather than started as a 30-minute build here.
+	if err := checkRuntimeKernelCache(tree, arch, progress); err != nil {
 		return "", err
 	}
 
@@ -101,7 +101,7 @@ func gokrazyImage(tree, work, template, arch string, progress io.Writer) (string
 	if err != nil {
 		return "", err
 	}
-	if err := buildGokrazyImage(ctx, tree, parent, arch, image, kernel, progress); err != nil {
+	if err := buildGokrazyImage(ctx, tree, parent, arch, image, progress); err != nil {
 		return "", err
 	}
 	if err := appliance.InjectDatabase(image, database); err != nil {
@@ -151,7 +151,7 @@ func prepareProofDatabase(
 
 func buildGokrazyImage(
 	ctx context.Context,
-	tree, parent, arch, image, kernel string,
+	tree, parent, arch, image string,
 	progress io.Writer,
 ) error {
 	toolchain, err := gotoolchain.New(tree)
@@ -159,9 +159,9 @@ func buildGokrazyImage(
 		return err
 	}
 	// gok runs in a child le, `le build gokrazy`, rather than in this process:
-	// the child's environment targets the appliance architecture and carries the
-	// kernel package, and gok's packer calls os.Exit on a failed build, which
-	// would end this proof without its report.
+	// the child's environment targets the appliance architecture, for which it
+	// resolves ze's runtime kernel, and gok's packer calls os.Exit on a failed
+	// build, which would end this proof without its report.
 	self, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("locate le for build gokrazy: %w", err)
@@ -171,9 +171,9 @@ func buildGokrazyImage(
 		"--parent_dir", parent, "-i", "ze", "overwrite",
 		"--full", image, "--target_storage_bytes", "2147483648")
 	run.Dir = tree
-	run.Env = append(toolchain.Environment(gotoolchain.EnvOptions{
+	run.Env = toolchain.Environment(gotoolchain.EnvOptions{
 		GOOS: "linux", GOARCH: arch,
-	}), "ze.gok.kernel-package="+kernel)
+	})
 	run.Env = append(run.Env, gokrazyBuildUser()...)
 	run.Stdout, run.Stderr = progress, progress
 	if err := run.Run(); err != nil {
@@ -311,61 +311,27 @@ func environmentHasKey(entries []any, key string) bool {
 	return false
 }
 
-// resolveKernelPackage answers a per-run copy of a kernel package that can
-// carry this proof.
-//
-// The function tries three routes in order. It validates an operator's own
-// package for architecture and PPPoL2TP but NOT for version because the operator
-// chose to name it. It reuses a package that a previous build already staged if
-// the package is valid for the pinned version. Otherwise, it materializes the
-// runtime kernel from the durable cache. If the cache cannot provide the kernel,
-// the function reports the command that fixes it rather than produce an image
-// that can only crash-loop.
-func resolveKernelPackage(tree, work, arch string, progress io.Writer) (string, error) {
-	if named := os.Getenv(KernelPkgEnv); named != "" {
-		pkg := named
-		if !filepath.IsAbs(pkg) {
-			pkg = filepath.Join(tree, pkg)
-		}
-		if err := assertKernelPackage(pkg, arch, "from KERNEL_PKG", ""); err != nil {
-			return "", err
-		}
-		return copyKernelPackage(pkg, work, arch)
-	}
-
+// checkRuntimeKernelCache refuses a runtime kernel cache entry that cannot
+// carry this proof: absent, built for another arch, without PPPoL2TP, or not the
+// pinned version. The image build reads the same entry, so a refusal here names
+// the build's own kernel before the build starts.
+func checkRuntimeKernelCache(tree, arch string, progress io.Writer) error {
 	pinned, err := pinnedKernelVersion(tree)
 	if err != nil {
-		return "", err
+		return err
 	}
-	staged := filepath.Join(tree, "tmp", "kernel", "pkg")
-	problems, err := kernelPackageProblems(staged, arch, pinned)
-	if err != nil {
-		return "", err
-	}
-	if len(problems) == 0 {
-		return copyKernelPackage(staged, work, arch)
-	}
-
 	cache, err := RuntimeKernelCacheDir(tree, arch, progress)
 	if err != nil {
-		return "", err
+		return err
 	}
-	cacheProblems, err := kernelPackageProblems(cache, arch, pinned)
+	problems, err := kernelPackageProblems(cache, arch, pinned)
 	if err != nil {
-		return "", err
+		return err
 	}
-	if len(cacheProblems) > 0 {
-		return "", coldCacheError(cache, arch, cacheProblems)
+	if len(problems) > 0 {
+		return coldCacheError(cache, arch, problems)
 	}
-
-	writeProgress(progress, "assembling the runtime kernel package from the validated durable cache...")
-	if err := assembleKernelPackage(tree, cache, staged); err != nil {
-		return "", err
-	}
-	if err := assertKernelPackage(staged, arch, "assembled by native Go", pinned); err != nil {
-		return "", err
-	}
-	return copyKernelPackage(staged, work, arch)
+	return nil
 }
 
 // RuntimeKernelCacheDir asks the host ze where the runtime kernel for this architecture
@@ -416,219 +382,14 @@ func coldCacheError(cache, arch string, problems []string) error {
 	}
 
 	var tb textbuf.Buffer
-	tb.Str("this proof needs the runtime kernel (PPPoL2TP built in; the pinned kernel has none").
-		Str(" and the appliance would crash-loop on ze's fail-closed module probe), but the").
+	tb.Str("this proof needs ze's runtime kernel with PPPoL2TP (without it the appliance").
+		Str(" would crash-loop on ze's fail-closed module probe), but the").
 		Str(" durable cache at ").Str(cache).Str(" cannot provide it:\n  ").
 		Str(strings.Join(problems, "\n  ")).Byte('\n').
-		Str(remedy).Str(arch).Str(" (about 30 minutes, needs docker), then re-run this proof.\n").
+		Str(remedy).Str(arch).Str(" (about 30 minutes, on a host of that arch, with Docker or QEMU), then re-run this proof.\n").
 		Str("note: this proof usually runs under sudo, and sudo commonly resets HOME, so the").
 		Str(" cache read here is root's; a kernel built as your own user lives in YOUR cache")
 	return errors.New(tb.String())
-}
-
-const kernelModulePath = "github.com/rtr7/kernel"
-
-func assembleKernelPackage(tree, runtimeTree, destination string) error {
-	version, err := kernelModuleVersion(tree)
-	if err != nil {
-		return err
-	}
-	module := filepath.Join(tree, "gokrazy", "modcache", "github.com", "rtr7", "kernel@"+version)
-	if !isDir(module) {
-		return fmt.Errorf("pinned kernel module %s is absent; run `./le setup install` to populate gokrazy/modcache", module)
-	}
-	if err := os.RemoveAll(destination); err != nil {
-		return err
-	}
-	if err := copyTree(module, destination); err != nil {
-		return err
-	}
-	if err := makeTreeWritable(destination); err != nil {
-		return err
-	}
-	if err := copyPath(filepath.Join(runtimeTree, "vmlinuz"), filepath.Join(destination, "vmlinuz")); err != nil {
-		return err
-	}
-	modules := filepath.Join(destination, "lib", "modules")
-	if err := os.RemoveAll(modules); err != nil {
-		return err
-	}
-	if err := copyTree(filepath.Join(runtimeTree, "lib", "modules"), modules); err != nil {
-		return err
-	}
-	for _, pattern := range []string{"*.dtb"} {
-		old, _ := filepath.Glob(filepath.Join(destination, pattern))
-		for _, path := range old {
-			if err := os.Remove(path); err != nil {
-				return err
-			}
-		}
-		found, _ := filepath.Glob(filepath.Join(runtimeTree, pattern))
-		for _, path := range found {
-			if err := copyPath(path, filepath.Join(destination, filepath.Base(path))); err != nil {
-				return err
-			}
-		}
-	}
-	runtimeOverlays := filepath.Join(runtimeTree, "overlays")
-	if isDir(runtimeOverlays) {
-		overlays := filepath.Join(destination, "overlays")
-		if err := os.RemoveAll(overlays); err != nil {
-			return err
-		}
-		if err := copyTree(runtimeOverlays, overlays); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func kernelModuleVersion(tree string) (string, error) {
-	repository, err := os.OpenRoot(tree)
-	if err != nil {
-		return "", err
-	}
-	body, readErr := repository.ReadFile(filepath.Join("gokrazy", "ze", "builddir",
-		"github.com", "rtr7", "kernel", "go.mod"))
-	if err := errors.Join(readErr, repository.Close()); err != nil {
-		return "", err
-	}
-	for line := range strings.SplitSeq(string(body), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) >= 3 && fields[0] == "require" && fields[1] == kernelModulePath {
-			return fields[2], nil
-		}
-	}
-	return "", errors.New("pinned github.com/rtr7/kernel version is absent from the builddir module")
-}
-
-func makeTreeWritable(path string) error {
-	root, err := os.OpenRoot(path)
-	if err != nil {
-		return err
-	}
-	walkErr := fs.WalkDir(root.FS(), ".", func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return nil
-		}
-		mode := info.Mode().Perm() | 0o600
-		if entry.IsDir() {
-			mode |= 0o100
-		}
-		file, err := root.Open(filepath.FromSlash(path)) //nolint:gosec // G122: os.Root IS the root-scoped API this check asks for
-		if err != nil {
-			return err
-		}
-		return errors.Join(file.Chmod(mode), file.Close()) //nolint:gosec // G122: the handle came from os.Root, which is the root-scoped API this check asks for
-	})
-	return errors.Join(walkErr, root.Close())
-}
-
-func copyPath(source, destination string) error {
-	info, err := os.Stat(source)
-	if err != nil {
-		return err
-	}
-	return copyFile(source, destination, info.Mode())
-}
-
-// assertKernelPackage answers an error naming every reason pkg cannot carry the
-// proof, or nil.
-func assertKernelPackage(pkg, arch, context, wantVersion string) error {
-	problems, err := kernelPackageProblems(pkg, arch, wantVersion)
-	if err != nil {
-		return err
-	}
-	if len(problems) == 0 {
-		return nil
-	}
-	return kernelPackageError(context, arch, problems)
-}
-
-// copyKernelPackage copies a package into this run's own directory and
-// validates the COPY.
-//
-// A concurrent kernel build rewrites the shared staged path. The rewrite starts
-// when the build removes the path. This build reads the package minutes after
-// the validation. The per-run copy prevents a race between those actions.
-func copyKernelPackage(src, work, arch string) (string, error) {
-	dst := filepath.Join(work, "kernel-pkg")
-	if err := os.RemoveAll(dst); err != nil {
-		return "", err
-	}
-	if err := copyTree(src, dst); err != nil {
-		return "", err
-	}
-
-	var tb textbuf.Buffer
-	if err := assertKernelPackage(dst, arch, tb.Str("per-run copy of ").Str(src).String(), ""); err != nil {
-		return "", err
-	}
-	return dst, nil
-}
-
-// copyTree copies a directory, keeping symlinks as symlinks.
-//
-// A kernel package's module tree carries a `build` link into an absent source
-// tree. The copy keeps that link as a symlink. Following the link would fail or
-// copy a kernel source tree.
-func copyTree(src, dst string) error {
-	return filepath.WalkDir(src, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(dst, rel)
-
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		switch {
-		case entry.IsDir():
-			return os.MkdirAll(target, 0o750)
-		case info.Mode()&os.ModeSymlink != 0:
-			link, err := os.Readlink(path)
-			if err != nil {
-				return err
-			}
-			return os.Symlink(link, target) //nolint:gosec // G122: the source is a kernel package this run validated, and the destination is under this run's own directory
-		default:
-			return copyFile(path, target, info.Mode())
-		}
-	})
-}
-
-// copyFile copies one file, keeping its mode.
-func copyFile(src, dst string, mode os.FileMode) error {
-	from, err := os.Open(src) //nolint:gosec // a path inside the package this command was pointed at
-	if err != nil {
-		return err
-	}
-	defer from.Close() //nolint:errcheck // a read-only file
-
-	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
-		return err
-	}
-	to, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode) //nolint:gosec // a path under this run's own directory
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(to, from); err != nil {
-		to.Close() //nolint:errcheck // the copy already failed
-		return err
-	}
-	return to.Close()
 }
 
 // isRegularFile reports whether path is a file rather than a directory or

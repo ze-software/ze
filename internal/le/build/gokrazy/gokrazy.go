@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/gokrazy/tools/gok"
 
+	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/appliance/instance"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -22,11 +24,10 @@ import (
 
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.gok.debug", Type: "bool", Description: "Print `le build gokrazy` debug output (resolved GOMODCACHE path and arguments)"})
 
-// The out-of-tree kernel is selected per build, never by leftover state. It is
-// an env var rather than a YANG leaf because it is a developer knob for testing
-// a locally built kernel, not something an operator sets on an appliance
-// (ai/rules/config.md). `./ze appliance kernel --target runtime` prints the exact command.
-var _ = env.MustRegister(env.EnvEntry{Key: "ze.gok.kernel-package", Type: "string", Description: "Path to an out-of-tree kernel package to build the appliance image against (default: the pinned github.com/rtr7/kernel)"})
+// runtimeKernelTreeFn resolves ze's runtime kernel for a GOARCH: the cache entry
+// when one is present, else a native build that is then cached. A package var so
+// unit tests resolve a fixture tree instead of building a kernel.
+var runtimeKernelTreeFn = appliance.RuntimeKernelTree
 
 const (
 	// parentDirFlag is the gok flag naming the directory that contains one
@@ -115,7 +116,14 @@ func prepareArgs(args []string) ([]string, func(), error) {
 		if err != nil {
 			return nil, noop, fmt.Errorf("resolve %s %s: %w", parentDirFlag, src, err)
 		}
-		prepared, cleanup, err := instance.Prepare(abs, instance.Options{KernelPackage: env.Get("ze.gok.kernel-package")})
+		// The image boots ze's runtime kernel and no other, so the kernel is
+		// resolved for the arch gok builds the image for.
+		arch := imageArch()
+		tree, err := runtimeKernelTreeFn(arch)
+		if err != nil {
+			return nil, noop, fmt.Errorf("resolve the %s runtime kernel: %w", arch, err)
+		}
+		prepared, cleanup, err := instance.Prepare(abs, instance.Options{KernelTree: tree, Arch: arch})
 		if err != nil {
 			return nil, noop, fmt.Errorf("prepare gokrazy instance from %s: %w", abs, err)
 		}
@@ -132,6 +140,16 @@ func prepareArgs(args []string) ([]string, func(), error) {
 	}
 
 	return args, noop, nil
+}
+
+// imageArch answers the GOARCH gok builds the image for: the GOARCH in this
+// process's environment, which `ze appliance build` and the deployment proof
+// set, else the host's, which is also what the Go tool gok runs would target.
+func imageArch() string {
+	if arch := os.Getenv("GOARCH"); arch != "" {
+		return arch
+	}
+	return runtime.GOARCH
 }
 
 // name is the command as a developer types it after `le`.
@@ -158,7 +176,7 @@ func Run(args []string) int {
 	}
 	// gok spawns Go build and list subprocesses. Keep their target binaries
 	// CGO-free and their checked-in module cache user-writable.
-	// Mirrors appliance.runGokBuild (not imported: too heavy here).
+	// Mirrors appliance.runGokBuild, which runs gok in-process with the same settings.
 	if err := os.Setenv("CGO_ENABLED", "0"); err != nil {
 		return fail(fmt.Errorf("setenv: %w", err))
 	}

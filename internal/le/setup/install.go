@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ze-software/ze/internal/appliance/instance"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -284,7 +285,14 @@ func (s *Setup) downloadApplianceDeps(report *Report) bool {
 	}
 	cache := filepath.Join(s.Root, "gokrazy", "modcache")
 	environment := applianceDownloadEnvironment(cache)
+	// The kernel module requires ze's runtime kernel, which each image build
+	// assembles and replaces in; nothing of it exists to download, and its path
+	// is reserved so a download could only fail.
+	kernel := filepath.Join(root, filepath.FromSlash(instance.KernelModule))
 	for _, module := range modules {
+		if module == kernel {
+			continue
+		}
 		argv := []string{toolGo, goModSubcommand, "download", "all"}
 		report.Note("  " + module + ": go mod download all")
 		result := s.Shell.Run(Cmd{Argv: argv, Dir: module, Env: environment})
