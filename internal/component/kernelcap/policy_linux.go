@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -75,16 +76,34 @@ func readConfiningPolicy() confinement {
 
 // classifyLabel attributes an LSM-neutral label to the module whose shape it
 // has. AppArmor writes `name (mode)`; SELinux writes a context of at least
-// three colon-separated fields, `user:role:type[:level]`.
+// three colon-separated fields, `user:role:type[:level]`. An SELinux context
+// whose type is an unconfined domain answers the zero value, as AppArmor's
+// `unconfined` does: the policy grants that domain almost all access, so an
+// EACCES under it is not blamed on SELinux (unconfinedSELinuxTypes).
 func classifyLabel(label string) confinement {
 	if strings.HasSuffix(label, ")") && strings.Contains(label, " (") {
 		return confinement{module: securityModuleAppArmor, label: label}
 	}
-	if strings.Count(label, ":") >= 2 {
-		return confinement{module: securityModuleSELinux, label: label}
+	fields := strings.SplitN(label, ":", 4)
+	if len(fields) < 3 {
+		return confinement{module: securityModuleOther, label: label}
 	}
-	return confinement{module: securityModuleOther, label: label}
+	if slices.Contains(unconfinedSELinuxTypes[:], fields[2]) {
+		return confinement{}
+	}
+	return confinement{module: securityModuleSELinux, label: label}
 }
+
+// unconfinedSELinuxTypes are the targeted policy's unconfined domains, the
+// third field of a context. Red Hat's SELinux guide (RHEL 7, "Unconfined
+// Processes"): "Unconfined processes run in unconfined domains, for example,
+// unconfined services executed by init end up running in the
+// unconfined_service_t domain, unconfined services executed by kernel end up
+// running in the kernel_t domain, and unconfined services executed by
+// unconfined Linux users end up running in the unconfined_t domain. For
+// unconfined processes, SELinux policy rules are applied, but policy rules
+// exist that allow processes running in unconfined domains almost all access."
+var unconfinedSELinuxTypes = [...]string{"unconfined_t", "unconfined_service_t", "kernel_t"}
 
 // readLabel answers one attr file's label, empty when it is unreadable, empty,
 // or unconfined. The kernel ends the label with a newline, and with a NUL on

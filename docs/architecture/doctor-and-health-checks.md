@@ -122,7 +122,11 @@ write. A step that fails with `EACCES` while `/proc/self/attr/apparmor/current`
 `denied`, not `unknown`: its reason names the module and the label, the step
 and the grant. The module is AppArmor for the AppArmor file and for a
 `name (mode)` label, SELinux for a `user:role:type` context, and unnamed
-otherwise. `EPERM`, a missing capability, stays `unknown`, and so does `EACCES`
+otherwise. An SELinux context whose type is one of the targeted policy's
+unconfined domains (`unconfined_t`, `unconfined_service_t`, `kernel_t`) is no
+confining label: Red Hat's SELinux guide says the policy allows those domains
+"almost all access", so an `EACCES` under one is not blamed on SELinux.
+`EPERM`, a missing capability, stays `unknown`, and so does `EACCES`
 with no confining label. Ze ships the grant for AppArmor only, so under any
 other module the reason names the steps the host's policy must grant and no
 Ze profile. The AppArmor grant is the profile `ze-kernel-probe`
@@ -218,7 +222,9 @@ Tests have one, and a shipped ze cannot read it. The private variable
 `ze.test.kernelcap.force` is registered and read only in a build carrying the
 `zetest` tag, which is the functional-test daemon and never a shipped binary;
 any other build ignores it whatever the environment holds and runs every probe.
-It takes `<subsystem>=<present|absent|unknown|denied>` entries, comma-separated, and
+It takes `<subsystem>=<state>` entries, comma-separated, where a state is spelled as
+the doctor row prints it and any state but unspecified can be forced
+(`forcedStates`; the variable's description lists them), and
 every reader of the enrolment (doctor, the start and reload gates, validate,
 `ProbeAll`) takes the forced answer for a subsystem it names instead of running
 that probe. Every forced answer says so: the row's reason and the diagnostic
@@ -230,7 +236,7 @@ functional test reaches the absent and cannot-determine rows on a healthy host:
 `test/ui/doctor-ipsec-xfrm.ci` and `test/plugin/kernel-capability-*.ci`. A unit
 test in another package, whose test binary is not a `zetest` build, forces
 through `kernelcap.ForceAnswersForTest`, a Go call no operator input reaches.
-<!-- source: internal/component/kernelcap/probe.go -- probe, forcedFor, forcedSpellings, ForceAnswersForTest -->
+<!-- source: internal/component/kernelcap/probe.go -- probe, forcedFor, forcedStates, ForceAnswersForTest -->
 <!-- source: internal/component/kernelcap/probe_force_zetest.go -- forcedAnswersFromEnv -->
 <!-- source: internal/component/kernelcap/probe_force_shipped.go -- forcedAnswersFromEnv -->
 <!-- source: internal/component/kernelcap/kernelcap.go -- forcedPresent -->

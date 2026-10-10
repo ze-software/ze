@@ -250,19 +250,59 @@ func TestMPLSIPMTUSELinuxDenialNamesSELinux(t *testing.T) {
 	}
 }
 
+// VALIDATES: review round 3, NOTE 6, at the probe: an EACCES under an
+// unconfined SELinux domain stays unknown, because no policy is known to have
+// refused it.
+// PREVENTS: a denied row blaming SELinux for a refusal its policy grants.
+func TestMPLSIPMTUUnconfinedSELinuxEACCESIsUnknown(t *testing.T) {
+	withMPLSIPMTUProbe(t, "0\n", nil, unix.ENOENT, unix.ENOENT)
+	originalWrite, originalRemount, originalPolicy := writeFile, mplsProbeWritableSysctl, confiningPolicy
+	t.Cleanup(func() {
+		writeFile, mplsProbeWritableSysctl, confiningPolicy = originalWrite, originalRemount, originalPolicy
+	})
+	writeFile = func(string, []byte, fs.FileMode) error { return unix.EACCES }
+	mplsProbeWritableSysctl = func() error { return nil }
+	confiningPolicy = func() confinement { return classifyLabel("unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023") }
+
+	result := askMPLSIPMTUInThrowawayNamespace()
+	if result.State != StateUnknown {
+		t.Fatalf("got %v (%v), want unknown", result.State, result.Reason)
+	}
+	if strings.Contains(result.Reason.Error(), "SELinux") {
+		t.Errorf("the reason blames SELinux under an unconfined domain: %v", result.Reason)
+	}
+}
+
 // VALIDATES: the LSM-neutral label is attributed to the module whose shape it
 // has: AppArmor's `name (mode)`, SELinux's `user:role:type:level`, and any
 // other label to no named module.
 func TestClassifyLabel(t *testing.T) {
 	for label, want := range map[string]securityModule{
-		"docker-default (enforce)":                  securityModuleAppArmor,
-		"ze-kernel-probe (complain)":                securityModuleAppArmor,
-		"system_u:system_r:container_t:s0:c1,c2":    securityModuleSELinux,
-		"unconfined_u:unconfined_r:unconfined_t:s0": securityModuleSELinux,
-		"_": securityModuleOther,
+		"docker-default (enforce)":               securityModuleAppArmor,
+		"ze-kernel-probe (complain)":             securityModuleAppArmor,
+		"system_u:system_r:container_t:s0:c1,c2": securityModuleSELinux,
+		"system_u:system_r:spc_t:s0":             securityModuleSELinux,
+		"_":                                      securityModuleOther,
 	} {
 		if got := classifyLabel(label); got.module != want || got.label != label {
 			t.Errorf("classifyLabel(%q) = %+v, want module %v", label, got, want)
+		}
+	}
+}
+
+// VALIDATES: review round 3, NOTE 6. A context in one of the targeted
+// policy's unconfined domains confines nothing, as AppArmor's `unconfined`
+// does, so it classifies as the zero confinement.
+// PREVENTS: an EACCES under unconfined_t blamed on SELinux, sending the
+// operator to a policy that grants that domain almost all access.
+func TestClassifyLabelUnconfinedSELinuxDomain(t *testing.T) {
+	for _, label := range []string{
+		"unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",
+		"system_u:system_r:unconfined_service_t:s0",
+		"system_u:system_r:kernel_t:s0",
+	} {
+		if got := classifyLabel(label); got != (confinement{}) {
+			t.Errorf("classifyLabel(%q) = %+v, want no confining policy", label, got)
 		}
 	}
 }
