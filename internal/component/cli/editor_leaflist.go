@@ -28,12 +28,12 @@ func (e *Editor) writeThroughSetMember(path []string, key, member string) error 
 	guard.SetModifier(e.session.ID)
 
 	// Validate the path against the schema before mutating anything.
-	if _, walkErr := e.walkOrCreateIn(e.tree.Clone(), path); walkErr != nil {
+	if _, walkErr := e.walkOrCreateIn(e.probeTree(), path); walkErr != nil {
 		return fmt.Errorf("write-through set path: %w", walkErr)
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -54,9 +54,8 @@ func (e *Editor) writeThroughSetMember(path []string, key, member string) error 
 	changeMetaTarget := walkOrCreateMeta(changeMeta, e.schema, path)
 	changeMetaTarget.SetEntry(key, entry)
 
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	// Update in-memory tree directly (base + own changes).
@@ -91,7 +90,7 @@ func (e *Editor) writeThroughDeleteMember(path []string, key, member string) err
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -115,9 +114,8 @@ func (e *Editor) writeThroughDeleteMember(path []string, key, member string) err
 	changeMetaTarget := walkOrCreateMeta(changeMeta, e.schema, path)
 	changeMetaTarget.SetEntry(key, entry)
 
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	// Update in-memory tree.
@@ -171,7 +169,7 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -187,9 +185,8 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 		Position:   position,
 	})
 
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	e.dirty.Store(true)

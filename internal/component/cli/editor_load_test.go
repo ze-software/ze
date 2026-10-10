@@ -285,7 +285,7 @@ func TestLoadRefusedMidwayLeavesCandidateUnchanged(t *testing.T) {
 }
 
 // TestLoadWriteFailureLeavesCandidateUnchanged verifies that an I/O failure
-// part-way through a session load leaves the candidate as it was: the write
+// in a session load leaves the candidate as it was: the change-file write
 // carrying the second edit (the remote ip) fails, and neither the first edit
 // nor the second reaches the change file or the tree.
 func TestLoadWriteFailureLeavesCandidateUnchanged(t *testing.T) {
@@ -304,49 +304,67 @@ func TestLoadWriteFailureLeavesCandidateUnchanged(t *testing.T) {
 	assert.Equal(t, before, captureLoadState(t, ed, configPath, session))
 }
 
-// countingWriteStore counts the locked writes of one name.
-type countingWriteStore struct {
+// countingIOStore counts the locked reads and writes of the change file and
+// the locked reads of the committed config file.
+type countingIOStore struct {
 	storage.Storage
-	name   string
-	writes int
+	change       string
+	config       string
+	changeReads  int
+	changeWrites int
+	configReads  int
 }
 
-func (s *countingWriteStore) AcquireLock(path string) (storage.WriteGuard, error) {
+func (s *countingIOStore) AcquireLock(path string) (storage.WriteGuard, error) {
 	guard, err := s.Storage.AcquireLock(path)
 	if err != nil {
 		return nil, err
 	}
-	return &countingWriteGuard{WriteGuard: guard, store: s}, nil
+	return &countingIOGuard{WriteGuard: guard, store: s}, nil
 }
 
-type countingWriteGuard struct {
+type countingIOGuard struct {
 	storage.WriteGuard
-	store *countingWriteStore
+	store *countingIOStore
 }
 
-func (g *countingWriteGuard) WriteFile(name string, data []byte, mode fs.FileMode) error {
-	if name == g.store.name {
-		g.store.writes++
+func (g *countingIOGuard) ReadFile(name string) ([]byte, error) {
+	switch name {
+	case g.store.change:
+		g.store.changeReads++
+	case g.store.config:
+		g.store.configReads++
+	}
+	return g.WriteGuard.ReadFile(name)
+}
+
+func (g *countingIOGuard) WriteFile(name string, data []byte, mode fs.FileMode) error {
+	if name == g.store.change {
+		g.store.changeWrites++
 	}
 	return g.WriteGuard.WriteFile(name, data, mode)
 }
 
-// TestSessionLoadLargeInputOneWrite verifies the write half of A-3: a session
-// load of 100 new peers, 400 leaves, records every leaf as its own change
-// entry and writes the change file exactly once, under the one lock the load
-// holds. The time half is logged, not asserted: each step still re-reads and
-// re-serializes the staged change file, so the cost grows with the square of
-// the load (1000 peers took about 50s when this was written).
-func TestSessionLoadLargeInputOneWrite(t *testing.T) {
+// TestSessionLoadLargeInputBatched verifies A-3 without a clock: a session
+// load of 1250 new peers, the 5000 leaves A-3 names, records every leaf as
+// its own change entry, yet reads the change file and the committed config at most once and
+// writes the change file exactly once. A load that re-read either file for
+// each leaf did work that grew with the square of the input (1000 peers took
+// about 50s). The time is logged for the record, never asserted.
+func TestSessionLoadLargeInputBatched(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 	session := NewEditSession("thomas", "ssh")
-	store := &countingWriteStore{Storage: newTestTreeStore(t, configPath), name: ChangePath(configPath, session.User)}
+	store := &countingIOStore{
+		Storage: newTestTreeStore(t, configPath),
+		change:  ChangePath(configPath, session.User),
+		config:  configPath,
+	}
 	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // Best effort cleanup
 	ed.SetSession(session)
 
-	const peers = 100
+	const peers = 1250
 	var input strings.Builder
 	input.WriteString("bgp {\n")
 	for i := range peers {
@@ -355,11 +373,15 @@ func TestSessionLoadLargeInputOneWrite(t *testing.T) {
 		input.WriteString("peer big" + strconv.Itoa(i) + " { connection { remote { ip 10." + third + "." + octet + ".1; } local { ip 10." + third + "." + octet + ".2; } } session { asn { remote 65001; } } timer { receive-hold-time 90; } }\n")
 	}
 	input.WriteString("}\n")
+	loaded := parseLoadInput(t, ed, input.String())
+	store.changeReads, store.changeWrites, store.configReads = 0, 0, 0
 
 	start := time.Now()
-	require.NoError(t, ed.LoadMerge(nil, parseLoadInput(t, ed, input.String())))
+	require.NoError(t, ed.LoadMerge(nil, loaded))
 	t.Logf("load of %d peers took %s", peers, time.Since(start))
 
-	assert.Equal(t, 1, store.writes, "the change file is written once per load")
+	assert.LessOrEqual(t, store.changeReads, 1, "the change file is read at most once per load")
+	assert.Equal(t, 1, store.changeWrites, "the change file is written once per load")
+	assert.LessOrEqual(t, store.configReads, 1, "the committed config is read at most once per load")
 	assert.Len(t, ed.PendingChanges(session.ID), peers*4, "one change entry per loaded leaf")
 }

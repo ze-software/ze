@@ -55,13 +55,13 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 
 	// Validate the path against the schema before mutating anything.
 	// Use a temporary tree to check walkOrCreateIn succeeds.
-	if _, walkErr := e.walkOrCreateIn(e.tree.Clone(), path); walkErr != nil {
+	if _, walkErr := e.walkOrCreateIn(e.probeTree(), path); walkErr != nil {
 		return fmt.Errorf("write-through set path: %w", walkErr)
 	}
 
 	// Read change file (sparse tree of this user's changes).
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -94,9 +94,8 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	changeMetaTarget.SetEntry(key, entry)
 
 	// Serialize and write change file.
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	// Update in-memory tree directly (base + own changes).
@@ -121,13 +120,13 @@ func (e *Editor) writeThroughCreate(path []string) error {
 	guard.SetModifier(e.session.ID)
 
 	// Validate the path against the schema.
-	if _, walkErr := e.walkOrCreateIn(e.tree.Clone(), path); walkErr != nil {
+	if _, walkErr := e.walkOrCreateIn(e.probeTree(), path); walkErr != nil {
 		return fmt.Errorf("write-through create path: %w", walkErr)
 	}
 
 	// Read change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -138,9 +137,8 @@ func (e *Editor) writeThroughCreate(path []string) error {
 	}
 
 	// Serialize and write change file.
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	// Update in-memory tree.
@@ -171,7 +169,7 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 
 	// Read change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -201,9 +199,8 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	changeMetaTarget.SetEntry(key, entry)
 
 	// Serialize and write change file.
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	// Update in-memory tree.
@@ -245,7 +242,7 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -285,9 +282,8 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 	changeOps = append(changeOps, proposedOp)
 	changeOps = config.CoalesceRenameOps(changeOps)
 
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	var target *config.Tree
@@ -351,7 +347,7 @@ func (e *Editor) writeThroughCopy(parentPath []string, listName, sourceKey, targ
 		NewKey:     targetKey,
 	}
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -359,9 +355,8 @@ func (e *Editor) writeThroughCopy(parentPath []string, listName, sourceKey, targ
 		return err
 	}
 	changeOps = append(changeOps, op)
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	if err := applyStructuralOps(e.tree, e.schema, []config.StructuralOp{op}, false); err != nil {
@@ -435,14 +430,13 @@ func (e *Editor) writeThroughStructuralOp(op config.StructuralOp) error {
 	op.Time = e.session.StartTime
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
 	changeOps = append(changeOps, op)
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	if err := applyStructuralOps(e.tree, e.schema, []config.StructuralOp{op}, false); err != nil {
@@ -450,6 +444,30 @@ func (e *Editor) writeThroughStructuralOp(op config.StructuralOp) error {
 	}
 	e.dirty.Store(true)
 	e.draftSaved = false
+	return nil
+}
+
+// openChangeFile answers the session's change file, parsed. During a load it
+// answers the load's staged copy, read and parsed once; the step edits it in
+// place and records it with writeChangeFile.
+func (e *Editor) openChangeFile(guard storage.WriteGuard, changePath string) (*config.Tree, *config.MetaTree, []config.StructuralOp, error) {
+	if e.loadStage != nil {
+		return e.loadStage.changeFile(e, changePath)
+	}
+	return e.readChangeFile(guard, changePath)
+}
+
+// writeChangeFile serializes and writes the change file a write-through step
+// edited. During a load it records the edit in the stage instead, and the load
+// writes the file once (loadStage.flush).
+func (e *Editor) writeChangeFile(guard storage.WriteGuard, changePath string, tree *config.Tree, meta *config.MetaTree, ops []config.StructuralOp) error {
+	if e.loadStage != nil {
+		return e.loadStage.record(changePath, tree, meta, ops)
+	}
+	output := config.SerializeChangeFile(tree, meta, ops, e.schema)
+	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
+		return fmt.Errorf("write-through write: %w", err)
+	}
 	return nil
 }
 
@@ -1039,8 +1057,19 @@ func (e *Editor) readDraftOrConfig(guard storage.WriteGuard, draftPath string) (
 
 // readCommittedTree reads and parses config.conf under lock.
 // Re-reads each time to capture external commits between write-through calls.
+// A load holds the lock for all its steps, so no commit lands between them,
+// and it reads the file once (loadStage.committedTree).
 // Returns nil if the file cannot be read or parsed.
 func (e *Editor) readCommittedTree(guard storage.WriteGuard) *config.Tree {
+	if e.loadStage != nil {
+		return e.loadStage.committedTree(e)
+	}
+	return e.readCommittedTreeFrom(guard)
+}
+
+// readCommittedTreeFrom reads and parses the committed config through guard,
+// answering nil when it does not read or parse.
+func (e *Editor) readCommittedTreeFrom(guard storage.WriteGuard) *config.Tree {
 	data, err := guard.ReadFile(e.originalPath)
 	if err != nil {
 		return nil

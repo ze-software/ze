@@ -208,7 +208,7 @@ and the operator deletes the destination first (AC-30).
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The set-format change file can carry inactive markers for leaves and paths | `serialize_set.go` and `parser_list.go` handle `IsInactive`/`IsLeafInactive`; `PendingChangeDeactivate` exists | new tokens need parser work beyond the op list | round-trip unit test of the new ops through `SerializeChangeFile`/`ParseChangeFile` | unvalidated |
 | A-2 | Tree-level merge gives the same result file-mode text merge gave for every existing load test | `mergeConfigs` merges top-level keys; tree merge is a superset | a file-mode load test changes result | run every existing `test/editor/**/load*.et` and `model_load` unit test unchanged | unvalidated |
-| A-3 | A loaded subtree of a few thousand leaves writes through in one lock hold within the editor's command latency | write-through is one serialize + one write | large paste stalls the session | unit test with a 5000-leaf load, timed | unvalidated |
+| A-3 | A loaded subtree of a few thousand leaves writes through in one lock hold within the editor's command latency | write-through is one serialize + one write | large paste stalls the session | unit test with a 5000-leaf load, timed | confirmed 2026-10-10 after a fix: the first form re-read and re-parsed the change file and the committed config per leaf (1000 peers ~49s); the batched stage reads each once and writes once, `TestSessionLoadLargeInputBatched` counts it (1250 peers, 5000 leaves: 42ms) |
 | A-4 | The daemon can host one confirm worker per config name, started with the daemon | the daemon owns the store and the reload: `runYANGConfig` (`cmd/ze/hub/main.go`) builds `reloadAfterCommit` and publishes it to SSH session editors through `sessionReloadHolder`; `newSessionEditor` (`cmd/ze/hub/session_editor.go`) and the attached console take it; boot clears a stale candidate in `clearStaleCandidateOnBoot` before `runYANGConfig` | needs a new component home | read 2026-10-10 (Phase 1): home chosen, see Key Design Decisions "Confirm worker home" | confirmed |
 | A-5 | A reloaded rollback revision restores the running daemon's behavior (not only the file) | transactional commit path promotes a candidate and reloads | revert changes the file but not the daemon | `.ci` asserts daemon state, not only the file | unvalidated |
 | A-6 | `rollback <N>` in session mode writes the config file directly without the candidate/reload path | `Editor.Rollback` writes `originalPath`; `cmdRollback` does not reload | the confirm revert cannot reuse `Editor.Rollback` | read and test at Phase 4; the revert uses the candidate path regardless | unvalidated |
@@ -307,7 +307,7 @@ and the operator deletes the destination first (AC-30).
 | `TestSessionLoadMergeEmitsPerLeafEntries` | `internal/component/cli/model_load_session_test.go` | AC-1, R-6 | |
 | `TestSessionLoadReplaceEmitsDeletes` | same | AC-3, AC-4 | |
 | `TestSessionLoadRefusesBadInputAtomically` | same | AC-5, R-4 | |
-| `TestSessionLoadLargeInputOneWrite` | same | A-3 | |
+| `TestSessionLoadLargeInputBatched` | `internal/component/cli/editor_load_test.go` | A-3 | |
 | `TestFileModeLoadTreeMergeMatchesPrevious` | `internal/component/cli/model_load_test.go` | AC-7, A-2 | |
 | `TestSessionCopyWritesThrough` | `internal/component/cli/editor_draft_test.go` | AC-8, R-7 | |
 | `TestSessionDeactivateActivateLeafAndPath` | same | AC-9, AC-10 | |

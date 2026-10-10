@@ -515,7 +515,7 @@ func (e *Editor) writeThroughDeleteListEntry(parentPath []string, listName, key 
 	guard.SetModifier(e.session.ID)
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -541,9 +541,8 @@ func (e *Editor) writeThroughDeleteListEntry(parentPath []string, listName, key 
 		changeTarget.RemoveListEntry(listName, key)
 	}
 
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	var target *config.Tree
@@ -599,7 +598,7 @@ func (e *Editor) writeThroughDeleteNamed(parentPath []string, name string, opTyp
 	guard.SetModifier(e.session.ID)
 
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -624,9 +623,8 @@ func (e *Editor) writeThroughDeleteNamed(parentPath []string, name string, opTyp
 		remove(changeTarget, name)
 	}
 
-	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
-	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-		return fmt.Errorf("write-through write: %w", err)
+	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return err
 	}
 
 	var target *config.Tree

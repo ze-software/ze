@@ -246,9 +246,13 @@ what the load changed.
 A load is all or nothing. A parse error, a refused entry, or a failed write of
 the change file leaves the candidate exactly as it was, and the error says
 `load refused, candidate unchanged`. In session mode the load holds the change
-file's lock for its whole run and writes the file once, at the end.
+file's lock for its whole run, reads the change file and the committed
+configuration once, applies every difference in memory, and writes the change
+file once, at the end, so its cost grows with the size of the input rather than
+with its square.
 <!-- source: internal/component/cli/model_load.go -- cmdLoadNew, applyLoad -->
 <!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace, load, loadStage -->
+<!-- source: internal/component/cli/editor_draft.go -- openChangeFile, writeChangeFile, readCommittedTree -->
 <!-- source: internal/component/config/parser.go -- ParseAt -->
 
 Use file mode (`ze config edit -f`) for the blocked operations above.

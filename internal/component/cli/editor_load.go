@@ -87,9 +87,11 @@ func (e *Editor) load(contextPath []string, loaded *config.Tree, replace bool) e
 }
 
 // loadStaged runs loadApply. In a session it holds the write-through lock for
-// the whole load and routes every step through a loadStage, then writes the
-// one change file the steps produced. Nothing reaches the disk before that
-// single write, so a failure before it leaves the change file untouched.
+// the whole load and routes every step through a loadStage, which reads and
+// parses the change file and the committed config once, lets every step edit
+// that one parsed copy, then serializes and writes the change file once.
+// Nothing reaches the disk before that single write, so a failure before it
+// leaves the change file untouched.
 func (e *Editor) loadStaged(contextPath []string, loaded *config.Tree, replace bool) error {
 	if e.session == nil {
 		return e.loadApply(contextPath, loaded, replace)
@@ -101,14 +103,14 @@ func (e *Editor) loadStaged(contextPath []string, loaded *config.Tree, replace b
 	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 	guard.SetModifier(e.session.ID)
 
-	stage := &loadStage{guard: guard}
+	stage := &loadStage{guard: guard, changePath: ChangePath(e.originalPath, e.session.User)}
 	e.loadStage = stage
 	err = e.loadApply(contextPath, loaded, replace)
 	e.loadStage = nil
 	if err != nil {
 		return err
 	}
-	return stage.flush()
+	return stage.flush(e.schema)
 }
 
 // loadApply checks the context against the schema before the first edit, so
@@ -331,59 +333,110 @@ func (e *Editor) draftLock() (storage.WriteGuard, error) {
 	return e.store.AcquireLock(e.originalPath)
 }
 
-// errLoadStage refuses a guard operation a write-through step never makes, so
-// a step that starts making one fails the load rather than reaching the disk
-// behind the stage.
+// probeTree answers a tree a write-through step may create a path in to prove
+// the path valid. Outside a load that is a clone, so a refused path leaves the
+// tree as it was. Inside a load it is the tree itself: a refused step fails
+// the whole load, which restores its snapshot, and a clone per step would make
+// the load's cost grow with the square of its size.
+func (e *Editor) probeTree() *config.Tree {
+	if e.loadStage != nil {
+		return e.tree
+	}
+	return e.tree.Clone()
+}
+
+// errLoadStage refuses a guard operation a write-through step never makes
+// while a load is staged, so a step that starts making one fails the load
+// rather than reaching the disk behind the stage.
 var errLoadStage = errors.New("not available while a load is staged")
 
 // loadStage is the WriteGuard every write-through step of a session load
-// uses. It holds the load's real guard, serves the change file from memory
-// once a step has written it, and keeps that write until flush. A load writes
-// one change file, so a write to a second name is refused: the single flush
-// is then the load's only disk write.
+// uses. It holds the load's real guard and the session's change file, read and
+// parsed on first use; every step edits that parsed copy in place
+// (Editor.openChangeFile, Editor.writeChangeFile), and flush serializes and
+// writes it once. It also reads the committed config once for every step's
+// Previous value. A direct write through the guard is refused, so the flush is
+// the load's only disk write.
 // Not safe for concurrent use: one load owns it.
 type loadStage struct {
-	guard storage.WriteGuard
-	name  string
-	data  []byte
-	mode  fs.FileMode
+	guard      storage.WriteGuard
+	changePath string
+
+	// opened is set once tree, meta and ops hold the parsed change file.
+	opened bool
+	tree   *config.Tree
+	meta   *config.MetaTree
+	ops    []config.StructuralOp
+	// written is set once a step recorded an edit, so flush has a file to write.
+	written bool
+
+	// committedRead is set once committed holds readCommittedTree's answer,
+	// which may be nil: a committed config that does not read has no Previous.
+	committedRead bool
+	committed     *config.Tree
 }
 
 var _ storage.WriteGuard = (*loadStage)(nil)
 
-// flush writes the staged change file, if any step wrote one.
-func (s *loadStage) flush() error {
-	if s.name == "" {
+// changeFile answers the staged change file, reading and parsing it on the
+// first call. A change path other than the session's own is refused: a load
+// edits one change file.
+func (s *loadStage) changeFile(e *Editor, changePath string) (*config.Tree, *config.MetaTree, []config.StructuralOp, error) {
+	if changePath != s.changePath {
+		return nil, nil, nil, fmt.Errorf("change file %s: %w", changePath, errLoadStage)
+	}
+	if !s.opened {
+		tree, meta, ops, err := e.readChangeFile(s.guard, changePath)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		s.tree, s.meta, s.ops, s.opened = tree, meta, ops, true
+	}
+	return s.tree, s.meta, s.ops, nil
+}
+
+// record keeps a step's edited change file until flush.
+func (s *loadStage) record(changePath string, tree *config.Tree, meta *config.MetaTree, ops []config.StructuralOp) error {
+	if changePath != s.changePath {
+		return fmt.Errorf("change file %s: %w", changePath, errLoadStage)
+	}
+	s.tree, s.meta, s.ops, s.written = tree, meta, ops, true
+	return nil
+}
+
+// committedTree answers the committed config, read once per load.
+func (s *loadStage) committedTree(e *Editor) *config.Tree {
+	if !s.committedRead {
+		s.committed, s.committedRead = e.readCommittedTreeFrom(s.guard), true
+	}
+	return s.committed
+}
+
+// flush serializes and writes the staged change file, if any step edited it.
+func (s *loadStage) flush(schema *config.Schema) error {
+	if !s.written {
 		return nil
 	}
-	if err := s.guard.WriteFile(s.name, s.data, s.mode); err != nil {
+	output := config.SerializeChangeFile(s.tree, s.meta, s.ops, schema)
+	if err := s.guard.WriteFile(s.changePath, []byte(output), 0o600); err != nil {
 		return fmt.Errorf("write-through write: %w", err)
 	}
 	return nil
 }
 
-// ReadFile answers the staged bytes for the staged name.
+// ReadFile reads through the real guard: the change file and the committed
+// config are served parsed by changeFile and committedTree, never as bytes.
 func (s *loadStage) ReadFile(name string) ([]byte, error) {
-	if s.name != "" && name == s.name {
-		return slices.Clone(s.data), nil
-	}
 	return s.guard.ReadFile(name)
 }
 
-// WriteFile stages data in memory; see loadStage.
-func (s *loadStage) WriteFile(name string, data []byte, mode fs.FileMode) error {
-	if s.name != "" && name != s.name {
-		return fmt.Errorf("write %s: %w", name, errLoadStage)
-	}
-	s.name, s.data, s.mode = name, slices.Clone(data), mode
-	return nil
+// WriteFile is refused; see errLoadStage.
+func (s *loadStage) WriteFile(name string, _ []byte, _ fs.FileMode) error {
+	return fmt.Errorf("write %s: %w", name, errLoadStage)
 }
 
-// Has answers true for the staged name.
+// Has answers through the real guard.
 func (s *loadStage) Has(name string) bool {
-	if s.name != "" && name == s.name {
-		return true
-	}
 	return s.guard.Has(name)
 }
 
