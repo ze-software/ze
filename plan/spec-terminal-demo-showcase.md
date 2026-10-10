@@ -340,7 +340,7 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le site terminal-demo` validate mode, any manifest id | → | scenario registry lookup replacing `runScenario` and `demoValidators` | `TestEveryManifestDemoHasARegisteredScenario` |
-| `ze-demo run showcase-lab start` from a topic tape | → | shared lab runner (FRR multi-daemon, RTR, IRR, keepalived, far-end Ze) | `TestShowcaseLabStartsEveryFixture` (runtime, Linux, under the renderer container) |
+| `ze-demo run showcase-lab start` from a topic tape | → | shared lab runner (FRR multi-daemon, RTR, IRR, keepalived, far-end Ze) | `validateShowcaseLab` (runtime, Linux, `ze-demo validate showcase-lab` under the renderer container), with `TestShowcaseLabFixturesReportReadyOnOutput` and `TestShowcaseLabFilesMatchItsFixtures` checking the declaration without root |
 | A topic fragment sourced by its topic tape and by the showcase tape | → | `parseTape` / `tapeLines` + `sourceDigest` / `definitionDigest` | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase`, `TestSourceDigestFollowsSourcedTapes` |
 | SSH editor `commit` adding IRR config to a running daemon | → | `bgp-filter-irr` verify/apply handlers | `test/reload/bgp-filter-irr-added-live.ci` |
 | SSH editor `commit` adding each topic's config to a daemon started without it | → | each topic's plugin apply path | each topic validator: `validateTopicRPKI`, `validateTopicIRR`, `validateTopicBFD`, `validateTopicOSPF`, `validateTopicIPsec`, `validateTopicVRRPTracking`, `validateTopicTrafficUsage`, `validateTopicCommitConfirmed` |
@@ -494,7 +494,8 @@ the light of decision 4: they guard against wrong output on screen, nothing more
    - Files: `filter_irr.go` (AC-1), plus whatever the probes name
    - Verify: `test/reload/bgp-filter-irr-added-live.ci` red without the apply handler, green with it
 3. **Phase: Shared lab** -- `showcase-lab` runner, FRR multi-daemon, far-end Ze, fixtures under `demos/terminal/showcase-lab/`
-   - Tests: `TestShowcaseLabStartsEveryFixture`
+   - Tests: `validateShowcaseLab` (runtime), `TestShowcaseLabFixturesReportReadyOnOutput`, `TestShowcaseLabFilesMatchItsFixtures`
+   - Progress 2026-10-10: the runner, the base config and the fixtures for the BGP, RPKI, IRR, BFD and OSPF topics are in (`scenarios_showcase.go`: FRR bgpd+bfdd+ospfd in netns `showcase-frr` on `frr0` 172.29.0.0/24, RTR cache, IRR server, transit peer, customer peer on `announce`; `startFRRPair` replaced by `startFRR` over a daemon list). Unit tests green, red observed with a readiness kind removed. NOT yet: the keepalived peer and tracked uplink (VRRP), the far-end Ze and the host behind each end (IPsec), the traffic namespace (traffic usage), each added once its topic's live-commit probe is green; and a live run of `validateShowcaseLab` in the renderer container (no render on the Mac; the Linux host has no renderer image). The base config pre-binds no topic plugin: D-6 decides whether it binds `bgp-rpki`
    - Verify: each fixture reports ready on output, never on a sleep
 4. **Phase: Topics** -- per topic: `configure.tape`, `show.tape`, topic tape, check function, validator, manifest entry, cards; delete the replaced demo in the same change (AC-12)
    - Tests: `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase`, `TestTapeWaitsAreNotSatisfiedByTheTypedCommand`, the topic validator

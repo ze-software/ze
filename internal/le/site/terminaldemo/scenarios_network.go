@@ -50,12 +50,19 @@ func netnsCLI(prefix, id, commandText string) (string, error) {
 // frrRunDir is the runtime directory the FRR daemons share.
 const frrRunDir = "/run/frr"
 
-func startFRRPair(namespace, protocol, state string, environ []string) ([]int, error) {
+// startFRR starts zebra and then each FRR protocol daemon in daemons inside
+// namespace, every one reading the integrated frrConfigFile. zebra is ready
+// when it has created zserv.api, which the protocol daemons connect to, so the
+// protocol daemons start only after that file exists. The answer lists the
+// pids, zebra first.
+func startFRR(namespace string, daemons []string, state string, environ []string) ([]int, error) {
 	if _, err := runCommand("install", []string{"-d", "-o", frrUser, "-g", frrUser, "-m", "775", frrRunDir}, commandOptions{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"zserv.api", "zebra.pid", protocol + ".pid"} {
-		_ = os.Remove(filepath.Join(frrRunDir, name))
+	_ = os.Remove(filepath.Join(frrRunDir, "zserv.api"))
+	_ = os.Remove(filepath.Join(frrRunDir, "zebra.pid"))
+	for _, daemon := range daemons {
+		_ = os.Remove(filepath.Join(frrRunDir, daemon+".pid"))
 	}
 	zebraPID, err := startCommand("ip", []string{ipNetns, commandExec, namespace, "/usr/lib/frr/zebra", "-f", frrConfigFile, "-i", "/run/frr/zebra.pid"}, environ, filepath.Join(state, "zebra.log"))
 	if err != nil {
@@ -70,11 +77,20 @@ func startFRRPair(namespace, protocol, state string, environ []string) ([]int, e
 	if _, err := os.Stat("/run/frr/zserv.api"); err != nil {
 		return nil, fmt.Errorf("FRR zebra did not create zserv.api: %w", err)
 	}
-	protocolPID, err := startCommand("ip", []string{ipNetns, commandExec, namespace, "/usr/lib/frr/" + protocol, "-f", frrConfigFile, "-i", "/run/frr/" + protocol + ".pid"}, environ, filepath.Join(state, protocol+".log"))
-	if err != nil {
-		return nil, err
+	pids := make([]int, 0, 1+len(daemons))
+	pids = append(pids, zebraPID)
+	for _, daemon := range daemons {
+		pid, err := startCommand("ip", []string{ipNetns, commandExec, namespace, "/usr/lib/frr/" + daemon, "-f", frrConfigFile, "-i", "/run/frr/" + daemon + ".pid"}, environ, filepath.Join(state, daemon+".log"))
+		if err != nil {
+			// A daemon already gone needs no stop, so ESRCH is not a failure here.
+			for _, started := range pids {
+				_ = syscall.Kill(started, syscall.SIGTERM)
+			}
+			return nil, err
+		}
+		pids = append(pids, pid)
 	}
-	return []int{zebraPID, protocolPID}, nil
+	return pids, nil
 }
 
 func runBFD(action string, args []string, output io.Writer) error {
@@ -107,7 +123,7 @@ func runBFD(action string, args []string, output io.Writer) error {
 			return err
 		}
 		environ := scenarioEnv(id, demoPassword)
-		frrPIDs, err := startFRRPair(lab+"-peer", "bfdd", state, environ)
+		frrPIDs, err := startFRR(lab+"-peer", []string{"bfdd"}, state, environ)
 		if err != nil {
 			return err
 		}
@@ -278,7 +294,7 @@ func runOSPF(action string, args []string, output io.Writer) error {
 			return err
 		}
 		environ := scenarioEnv(id, demoPassword)
-		frrPIDs, err := startFRRPair(lab+"-peer", "ospfd", state, environ)
+		frrPIDs, err := startFRR(lab+"-peer", []string{"ospfd"}, state, environ)
 		if err != nil {
 			return err
 		}

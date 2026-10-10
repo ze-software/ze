@@ -59,6 +59,17 @@ manifest demo with no scenario, fails the package's unit test.
 <!-- source: internal/le/site/terminaldemo/register_scenarios.go -- init -->
 <!-- source: internal/le/site/terminaldemo/registry_test.go -- TestEveryManifestDemoHasARegisteredScenario -->
 
+The topic recordings share one lab, the `showcase-lab` scenario. It starts one
+Ze in the container's root network namespace with the base config in
+`demos/terminal/showcase-lab/ze.conf`, which configures no topic, beside the
+fixtures the topics need: an FRR namespace running bgpd, bfdd and ospfd under
+one zebra, an RTR cache, an IRR server and a transit BGP peer. Its `announce`
+action connects the customer peer the IRR topic filters. Each fixture declares
+how the lab observes that it is ready (a port that accepts, or a command whose
+answer carries a text), and the lab waits on that observation, never on a sleep.
+<!-- source: internal/le/site/terminaldemo/scenarios_showcase.go -- showcaseLabFixtures -->
+<!-- source: internal/le/site/terminaldemo/validate_showcase.go -- validateShowcaseLab -->
+
 A demo's container holds `NET_ADMIN`, `NET_RAW` and `SYS_ADMIN` under Docker's
 default seccomp and AppArmor profiles. A demo that needs more sets
 `"privileged": true` and MUST state why in `"privileged-reason"`: what it does
