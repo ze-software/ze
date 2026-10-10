@@ -357,6 +357,39 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 | AC-10, A-5, AC-13: the nightly | the workflow is committed locally (8bd1742581) and not pushed; no run has booted the guest under KVM on `ubuntu-latest`; a cold cache builds the amd64 kernel in each of the four jobs | owner push, then the first scheduled or `workflow_dispatch` run |
 | AC-14: a Docker daemon starts on the appliance kernel | AC-8 or AC-10 | the first guest boot of either |
 
+## Review Gate
+
+### Round 2: ready for review round 2 (2026-10-10)
+
+Round 1's fixes start at `c4bd4708ed`. Commits since then, for an independent reviewer over the actual diff:
+
+| Commit | Subject |
+|--------|---------|
+| `c4bd4708ed` | kernelcap: the forced answer is a zetest-only switch that always says so |
+| `1f9ed323c3` | deployment: the kernel refusal test expects the route for its own OS |
+| `3ac4057f32` | nightly: radius-interop runs in the Ze-kernel guest like every lab |
+| `765430a9cf` | terminal-demo: validate mode checks the Docker kernel like a render |
+| `1f56b6efd3` | perf: a run that tests the ze DUT checks the Docker kernel first |
+| `c48964b4c2` | verify evidence: release-candidate checks the Docker kernel first |
+| `0f85ddc0c8` | setup docker-kernel: install replaces Ze's own release, after confirm |
+| `c060535622` | interoplab: the Docker kernel check honours the probe's exit and ready |
+| `3f284a82b2` | deployment: daemon proofs check the kernel before pulling their image |
+| `569ba6785e` | ike: state why EINVAL from the MOBIKE probe is absence |
+| `ecfa32e1fd` | ike: enrol MOBIKE migration, ESP and every XFRM transform in kernelcap |
+| `5e3bc193b0` | spec: correct 8bd1742581's claim of a weakening row |
+| `f9f024eb42` | qemu: docker-lab probes with a real linux ze, and takes env |
+| `83fdff68b1` | plan: first HVF Docker lab guest boot, check refuses mpls-transit-mtu |
+| `7d209a5d9e` | kernelcap: mpls-transit-mtu asks from a throwaway namespace |
+| `0d9bbe2890` | plan: Docker kernel check passes in the guest, mobike-initiator green |
+| `dcc4216fd7` | kernelcap: a probe the host's security policy refuses reads denied |
+| `1e1d012115` | le: Docker kernel check probes under Ze's AppArmor profile |
+| `99ceb35b77` | interoplab: an unapplied AppArmor profile refuses naming its fix |
+| `65d32b7906` | setup: docker-kernel check probes with a linux ze for the daemon |
+| `a1636c2223` | interoplab: the VRRP lab's ze runs under ze-lab-vrrp, never unconfined |
+| `ba7af683c6` | kernelcap, doctor: a forced denied reaches both doctor modes |
+
+Gates at hand-off: `./le cli grammar` fails on five R1 rows (`explain`, `generate wireguard keypair`, `skills`, `support`, `validate config`), none a verb this spec added (`plan/journal/gate-fires-outside-its-population.md`, 2026-10-10). Scoped lint (kernelcap, doctor, interoplab, interoplab/bgp, setup) produced no verdict twice: "lint inputs changed during planning", other sessions editing the tree. Owed: that scoped lint when edits stop, `./le go lint run`, `./le test unit all`, and the owner's scope answer on the six `--privileged`/`seccomp=unconfined` rows (D-7 verdict table).
+
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)
