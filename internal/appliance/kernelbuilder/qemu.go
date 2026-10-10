@@ -309,6 +309,12 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		}
 		fmt.Fprintf(req.Stderr, "  bootstrapping VM, attempt %d...\n", attempt) //nolint:errcheck // progress output
 		if !console.expect(ctx, "SSHD_READY", bootstrapTimeout) {
+			// A wait the build's own context ended is the build stopping, not
+			// an sshd that never started: retrying cannot help, and
+			// errSSHNeverAnswered would send the operator to debug sshd.
+			if ctx.Err() != nil {
+				return errBuildStopped(ctx.Err(), "while it set up SSH", qemuBinary(req.Arch), args)
+			}
 			continue
 		}
 		fmt.Fprintln(req.Stderr, "  waiting for SSH...") //nolint:errcheck // progress output
@@ -318,7 +324,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		}
 		fmt.Fprintln(req.Stderr, "  SSH not up; retrying...") //nolint:errcheck // progress output
 		if !sleepContext(ctx, 2*time.Second) {
-			return ctx.Err()
+			return errBuildStopped(ctx.Err(), "while it set up SSH", qemuBinary(req.Arch), args)
 		}
 	}
 	if !ready {
@@ -453,13 +459,10 @@ func probeHVF(ctx context.Context) error {
 // than being killed after bootTimeout) is reported as an exit, not a timeout.
 // ctxErr is the build context's error once the wait ended: a build canceled or
 // out of time stopped the wait itself, so it is reported as that, never as a
-// guest that failed to boot.
+// guest that failed to boot (errBuildStopped).
 func errBootFailed(ctxErr error, binary string, args []string, stderr string, state *os.ProcessState) error {
-	if errors.Is(ctxErr, context.Canceled) {
-		return fmt.Errorf("the build VM was stopped before its login prompt: the kernel build was canceled (%w)", ctxErr)
-	}
 	if ctxErr != nil {
-		return fmt.Errorf("the build VM was stopped before its login prompt: the kernel build ran out of the time its caller gave it (%w)", ctxErr)
+		return errBuildStopped(ctxErr, "before its login prompt", binary, args)
 	}
 	if stderr != "" {
 		return fmt.Errorf("the build VM did not reach its login prompt: %s stopped or stalled, and wrote:\n%s", binary, stderr)
@@ -468,6 +471,21 @@ func errBootFailed(ctxErr error, binary string, args []string, stderr string, st
 		return fmt.Errorf("%s exited (%s) before the build VM reached its login prompt, and wrote nothing to stderr; run the same QEMU command by hand to see why it stops:\n%s %s", binary, state, binary, shellJoin(args))
 	}
 	return fmt.Errorf("the build VM did not reach its login prompt within %s, and %s wrote nothing to stderr, so QEMU ran but the Alpine guest never booted to a prompt; run the same QEMU command by hand and watch the console:\n%s %s", bootTimeout, binary, binary, shellJoin(args))
+}
+
+// errBuildStopped reports a build VM wait that ended because the build's own
+// context did, at stage (before its login prompt, while it set up SSH). A
+// canceled build is reported as canceled, never as a guest that failed. A build
+// out of the time its caller gave it ends with the QEMU command that boots the
+// same VM: a VM still in an early stage by then is stuck, and its console shows
+// where.
+func errBuildStopped(ctxErr error, stage, binary string, args []string) error {
+	if errors.Is(ctxErr, context.Canceled) {
+		return fmt.Errorf("the build VM was stopped %s: the kernel build was canceled (%w)", stage, ctxErr)
+	}
+	return fmt.Errorf("the build VM was stopped %s: the kernel build ran out of the time its caller gave it (%w), "+
+		"so the VM is stuck there; run the same QEMU command by hand and watch the console to see where:\n%s %s",
+		stage, ctxErr, binary, shellJoin(args))
 }
 
 // errSSHNeverAnswered reports a build VM that reached its login prompt but

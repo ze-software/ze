@@ -814,3 +814,19 @@ func TestHardwareAcceleratorBoundsAHungQEMU(t *testing.T) {
 		t.Errorf("a hung QEMU is not named as such, with the command on its own line: %v", err)
 	}
 }
+
+// TestSupportedArchesAreTheBuildableOnes proves the arch list a refusal offers
+// is derived from the backend's platforms: the Go names, once each.
+//
+// VALIDATES: round-4 NOTE 1.
+func TestSupportedArchesAreTheBuildableOnes(t *testing.T) {
+	if got := strings.Join(SupportedArches(), ","); got != "amd64,arm64" {
+		t.Errorf("SupportedArches() = %s, want amd64,arm64", got)
+	}
+	cases := map[string]bool{"amd64": true, "x86_64": true, "arm64": true, "aarch64": true, "riscv64": false, "": false}
+	for arch, want := range cases {
+		if got := ArchSupported(arch); got != want {
+			t.Errorf("ArchSupported(%q) = %v, want %v", arch, got, want)
+		}
+	}
+}
