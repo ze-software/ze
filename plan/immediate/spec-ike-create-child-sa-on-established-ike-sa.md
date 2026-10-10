@@ -264,8 +264,8 @@ The red column names how each test's red was observed, recorded in the per-spec 
 | `TestCreateChildCollisionDeletesNewPair` | `create_child_test.go` | AC-12 | PASS; red by mutation (52910baca4) |
 | `TestCreateChildRetrySchedule` | `create_child_test.go` | Q-2 schedule, reset on success | PASS; red by mutation (52910baca4) |
 | `TestReloadKeepsChildlessSessionForESPGroupChange`, `TestReloadRestartsSessionOutsideTheChildlessESPChange` | `reconcile_childless_test.go` | Q-8 option A: an esp-group reload keeps a childless IKE SA, and every other edit restarts | PASS; red before code and by `-overlay` mutation (f4d62a62f7) |
-| `TestChildlessInitiatorCreatesTransportChildSA` | `create_child_transport_test.go` | AC-4 under `mode transport`: USE_TRANSPORT_MODE in the creation request (review ISSUE 3) | PASS; red under scratch overlay (b99e74e99c, `scratch/ccs-r1-overlay/red.log`) |
-| `TestChildlessInitiatorDeletesDeclinedTransportChildSA` | `create_child_transport_test.go` | RFC7296-1.3.1-2: a transport-required creation answered tunnel-mode is deleted (review ISSUE 3) | PASS; tagged, discrimination record e5fa0e63a1 |
+| `TestChildlessInitiatorCreatesTransportChildSA` | `rfc7296_create_child_transport_test.go` | AC-4 under `mode transport`: USE_TRANSPORT_MODE in the creation request (review ISSUE 3) | PASS; red under scratch overlay (b99e74e99c, `scratch/ccs-r1-overlay/red.log`) |
+| `TestChildlessInitiatorDeletesDeclinedTransportChildSA` | `rfc7296_create_child_transport_test.go` | RFC7296-1.3.1-2: a transport-required creation answered tunnel-mode is deleted (review ISSUE 3) | PASS; tagged, discrimination record e5fa0e63a1 |
 | `TestReloadOfMissingESPGroupRestartsChildlessSession`, `TestESPGroupReloadRestartsTheCreationSchedule` | `reload_child_schedule_test.go` | review NOTE 3 (`espResolved=false` branch) and NOTE 8 (a reload resets a backed-off creation wait) | PASS; red under scratch overlay (b99e74e99c) |
 | `TestInitiatorCycleKeepsChildlessIKESA` | `childless_initiator_cycle_test.go` | AC-2 through the cycle: `sa-up`, no Delete, the loop keeps running with no Child SA (review NOTE 8) | PASS; red under scratch overlay (b99e74e99c) |
 
@@ -278,7 +278,7 @@ The red column names how each test's red was observed, recorded in the per-spec 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-childless-ike-sa-recovers` | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` | two ze instances; the responder's esp-group shares nothing with the initiator's; `sa-up` fires, `show vpn ipsec sa` shows the peer with no Child SA and no reconnect; the responder's esp-group is reloaded to match; `child-up` fires on the initiator from a CREATE_CHILD_SA creation | GREEN on b99e74e99c: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/ccs-r1-ci-green.log` (`./le --name ccsr test ipsec ipsec-childless-ike-sa-recovers`, its own freshly built le, PASS 34.1 s, exit=0). RED (3d069a957e, scratch clone): `if false && r.ps.retargetESPGroup` in reconcilePeers fails at NEVER-CREATED after 97.8 s. The designed RECONNECTED red (review NOTE 5): see the Review Gate |
+| `ipsec-childless-ike-sa-recovers` | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` | two ze instances; the responder's esp-group shares nothing with the initiator's; `sa-up` fires, `show vpn ipsec sa` shows the peer with no Child SA and no reconnect; the responder's esp-group is reloaded to match; `child-up` fires on the initiator from a CREATE_CHILD_SA creation | GREEN on b99e74e99c: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/ccs-r1-ci-green.log` (`./le --name ccsr test ipsec ipsec-childless-ike-sa-recovers`, its own freshly built le, PASS 34.1 s, exit=0). RED (3d069a957e, scratch clone): `if false && r.ps.retargetESPGroup` in reconcilePeers fails at NEVER-CREATED after 97.8 s. RED, the designed RECONNECTED branch (review NOTE 5, 2026-10-10, scratch clone at 56361ae2ec): the owner-loop esp-group reload arm (`established.go`) followed `adoptESPGroup` with `sendDeleteIKE` and `return errTimeout`, so the reload ended the IKE SA and the initiator re-established; the fixture failed "RECONNECTED: the IKE SA changed from 2035b5dcffd36480 to 435b1c6800d5e4ec", exit=1 (`tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/ccs-r2-ci-reconnected-red.log`, break in `ccs-r2-ci-reconnected-red.patch`). Clone restored and clean |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -521,7 +521,7 @@ section.
 |------|---------------|----------------------|----------------|--------|
 | approach | Phase 4 tests were reddened by mutations applied in the shared tree | Other sessions build the same tree; a mutation must go through `go test -overlay` or a scratch clone | Coordinator note after 52910baca4 | Every later red used `-overlay` or `scratch/ccs-clone` |
 | assumption | The interop lab's `ZE_LOG_LEVEL=debug` was taken to make Ze log at INFO | No logger consults `ze.log.level`; Ze ran at WARN and the INFO creation line never appeared | The initiator scenario failed with strongSwan's side complete (`initiator-debug-clone.log`) | Scenario `ze-env` sets `ZE_LOG_IKE=info`; journal row |
-| approach | The `.ci` forced red took the NEVER-CREATED branch, not the designed RECONNECTED one | A reload that restarts the peer is the regression the SPI identity check exists for | Review round 1 NOTE 5 | RECONNECTED red forced in a scratch clone (Review Gate) |
+| approach | The `.ci` forced red took the NEVER-CREATED branch, not the designed RECONNECTED one | A reload that restarts the peer is the regression the SPI identity check exists for | Review round 1 NOTE 5 | RECONNECTED red forced in a scratch clone (Functional Tests) |
 
 ## Implementation Audit
 
@@ -584,7 +584,7 @@ section.
 | Ze as responder keeps the IKE SA when only the IKE_AUTH Child SA fails, and creates the Child SA the peer asks for later | interop | `childless-ike-sa-ze-responder` GREEN `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/responder-green5-clone.log`; RED with the creation arm reverted, `.../scratch/interop/responder-red-clone.log` ("ze never created the `wanted` Child SA on the childless IKE SA") |
 | Ze as initiator does not fail authentication on a refused child, keeps the IKE SA, and creates the Child SA later | interop + unit | `childless-ike-sa-ze-initiator` GREEN `.../scratch/interop/initiator-green3-clone.log`; RED with `serviceChildCreate` disabled, `.../scratch/interop/initiator-red-clone.log` ("ze never retried the refused Child SA with CREATE_CHILD_SA"); `TestInitiatorCycleKeepsChildlessIKESA`. Re-run owed after the arm64 kernel rebuild (ff75ef7668 checker change) |
 | A childless IKE SA stays useful: DPD, rekey, Delete, show | unit + functional | `childless_lifecycle_test.go` (DPD, hard lifetime, peer Delete), `TestIcyChildlessInitiatorStaysInMaintainSA` (IKE rekey keeps creation scheduled), `TestChildlessSAMaintenance` (readers); `.ci` CHILDLESS marker from `show vpn ipsec sa \| json` |
-| An operator recovers a childless tunnel by fixing the esp-group, without a restart | functional | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` GREEN `.../scratch/ccs-r1-ci-green.log`; REDs: NEVER-CREATED (3d069a957e) and RECONNECTED (Review Gate, NOTE 5) |
+| An operator recovers a childless tunnel by fixing the esp-group, without a restart | functional | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` GREEN `.../scratch/ccs-r1-ci-green.log`; REDs: NEVER-CREATED (3d069a957e) and RECONNECTED (`.../scratch/ccs-r2-ci-reconnected-red.log`, NOTE 5) |
 
 ## Work Not Done
 
@@ -607,7 +607,7 @@ section.
 | 1 | BLOCKER | Commit audit WEAKENED with no RFC-approved trailer: `rfc7296_transport_test.go` `TestEAPResponderNarrowsToo` (2d98a75602, StateDead assertion became `errors.Is(bad.eapChildRefusal, errTSUnacceptable)`, follows from Q-1) and `rfc7296_auth_child_refusal_test.go` (0f732c91b5, enum const only, lint) | `internal/component/ike/engine/` | PENDING OWNER APPROVAL: `./le rfc approve unit ...` with the owner's words; the main thread asks him |
 | 2 | ISSUE | `serviceChildCreate` cited Section 2.8 for a Section 1.3.2 sentence | `create_child.go` | b99e74e99c |
 | 3 | ISSUE | Paraphrased RFC quotes where a verbatim quote is owed; the USE_TRANSPORT_MODE quote sat far from its statement | `create_child.go`, `reconcile.go` | b99e74e99c |
-| 4 | ISSUE | AC-4 and RFC7296-1.3.1-1/-2 untested on the initiator creation path | `create_child_transport_test.go` | b99e74e99c, e5fa0e63a1 |
+| 4 | ISSUE | AC-4 and RFC7296-1.3.1-1/-2 untested on the initiator creation path | `rfc7296_create_child_transport_test.go` | b99e74e99c, e5fa0e63a1 |
 | 5 | ISSUE | `ipsec-10-cli-diag.md` did not say what a childless peer shows | `docs/architecture/ike/ipsec-10-cli-diag.md` | b99e74e99c |
 | 6 | ISSUE | Refusal log lines named no next step | `fsm.go`, `responder.go`, `create_child.go`, `inbound.go` | b99e74e99c (slog `fix` and `retry-after` attributes, messages unchanged so needles match) |
 | 7 | ISSUE | Goal Validation missing, A-4 to A-6 unvalidated, TDD and Functional Status empty | this spec | this spec commit |
@@ -615,7 +615,7 @@ section.
 | N4 | NOTE | AC-14 checker did not assert KE | `internal/le/interoplab/ipsec/checkers.go` | ff75ef7668 (interop re-run owed) |
 | N8 | NOTE | Reload did not reset a backed-off creation wait; AC-2 unit did not assert no Delete and `sa-up`; spec test names drifted | `create_child.go`, `childless_initiator_cycle_test.go`, this spec | b99e74e99c, this spec commit |
 
-NOTE 1 (RFC7296-2.7-1 and RFC3948-3.1.2-1 SHIFTED by checkers.go) goes to an independent RFC re-judge. NOTE 2 and NOTE 7 need nothing. NOTE 6 belongs to another session's privilege work. NOTE 5 is answered under Functional Tests and the RECONNECTED red recorded below.
+NOTE 1 (RFC7296-2.7-1 and RFC3948-3.1.2-1 SHIFTED by checkers.go) goes to an independent RFC re-judge. NOTE 2 and NOTE 7 need nothing. NOTE 6 belongs to another session's privilege work. NOTE 5 is answered: the RECONNECTED red is recorded under Functional Tests.
 
 ## Pre-Commit Verification
 
