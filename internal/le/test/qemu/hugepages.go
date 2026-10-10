@@ -154,7 +154,8 @@ var (
 	keepEntry = stringSetting(KeepKey, "",
 		"set to 1 to keep the hugepage proof's work directory for inspection")
 	biosEntry = stringSetting(BiosKey, DefaultBios,
-		"where the aarch64 UEFI firmware the hugepage proof boots arm64 images with lives")
+		"where the aarch64 UEFI firmware the hugepage proof boots arm64 images with lives"+
+			" (unset: Homebrew's share/qemu/edk2-aarch64-code.fd when present, else the Linux path)")
 )
 
 // pageTokens maps a configured page size onto the token a Linux kernel command
@@ -200,11 +201,22 @@ func newHugepages(tree string) *Hugepages {
 		Memory:      settingOr(memoryEntry.Key, DefaultMemory),
 		SSHPass:     settingOr(sshPassEntry.Key, DefaultSSHPass),
 		SSHPort:     portSetting(sshPortEntry.Key),
-		Bios:        settingOr(biosEntry.Key, DefaultBios),
+		Bios:        settingOr(biosEntry.Key, hostArm64BIOS(productionRunOps())),
 		Keep:        env.Get(keepEntry.Key) == "1",
 		Deadline:    AnswerDeadline,
 		Progress:    os.Stderr,
 	}
+}
+
+// hostArm64BIOS answers the aarch64 UEFI firmware this host holds, found the
+// way `le test qemu run` finds it (arm64BIOS: Homebrew's prefixes, then the
+// Linux path), so an arm64 proof on a Mac needs no BiosKey. With none found it
+// answers DefaultBios, and the arm64 proof then skips naming that path.
+func hostArm64BIOS(ops runOps) string {
+	if bios, err := (&Run{ops: ops}).arm64BIOS(); err == nil {
+		return bios
+	}
+	return DefaultBios
 }
 
 // settingOr answers the operator's value for key. If the operator named
