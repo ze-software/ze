@@ -196,6 +196,20 @@ func Enrolled() []string {
 	return names
 }
 
+// KernelSymbols returns the build symbol of every enrolled capability, sorted
+// and without repeats. It is what a test compares with the kernel profile's
+// require manifest, so Ze's own kernel provides everything Ze enrolls.
+func KernelSymbols() []string {
+	capabilities.Lock()
+	defer capabilities.Unlock()
+	symbols := make([]string, 0, len(capabilities.entries))
+	for i := range capabilities.entries {
+		symbols = append(symbols, capabilities.entries[i].Kernel)
+	}
+	slices.Sort(symbols)
+	return slices.Compact(symbols)
+}
+
 // Evaluate returns the diagnostics every enrolled subsystem produces for tree.
 //
 // An absent capability is a SeverityError, which ze doctor already exits 1 on

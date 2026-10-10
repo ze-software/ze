@@ -8,8 +8,12 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
+// backendName is the name this backend registers under, which the iface
+// backend leaf selects.
+const backendName = "netlink"
+
 func init() {
-	if err := iface.RegisterBackend("netlink", newNetlinkBackend); err != nil {
+	if err := iface.RegisterBackend(backendName, newNetlinkBackend); err != nil {
 		fmt.Fprintf(os.Stderr, "iface-netlink: backend registration failed: %v\n", err)
 		os.Exit(1)
 	}

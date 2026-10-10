@@ -75,7 +75,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{"kernel"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorModuleMissing, diagnostic.CodeDoctorL2TPModule, diagnostic.CodeDoctorPPPoEModule},
+	Codes:        []string{diagnostic.CodeDoctorModuleMissing},
 	Check:        doctorCheckKernelModules,
 }, {
 	Name:         "kernel-modules",
@@ -84,7 +84,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{"kernel"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorModuleMissing, diagnostic.CodeDoctorL2TPModule, diagnostic.CodeDoctorPPPoEModule},
+	Codes:        []string{diagnostic.CodeDoctorModuleMissing},
 	Check:        doctorCheckKernelModules,
 }, {
 	Name:         "disk-space",

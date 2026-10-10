@@ -78,6 +78,32 @@ it looks for the SA to replace, and the update names a reserved SPI (RFC 4303
 Section 2.1) between documentation addresses, so `ESRCH` proves every piece
 exists while nothing was installed.
 
+<!-- source: internal/component/l2tp/kernelcap_linux.go -- l2tpKernelCapabilities -->
+<!-- source: internal/component/l2tp/pppoe/kernelcap_linux.go -- pppoeKernelCapability -->
+<!-- source: internal/plugins/iface/netlink/kernelcap_linux.go -- ifaceKernelCapabilities -->
+<!-- source: internal/component/kernelcap/probe_family_linux.go -- GenericNetlinkFamily, PPPoXProtocol -->
+
+The tunnel and access subsystems enroll the pieces they cannot work without, so
+none carries `Degrades` and each refuses a start when its configuration is in
+use. They replace the `/proc/modules` lookups the doctor once made for L2TP and
+PPPoE, which read "not loaded" for a built-in module and for one the kernel
+loads on demand:
+
+| Subsystem | Kernel symbol | In use when | Probe |
+|-----------|---------------|-------------|-------|
+| `l2tp` | `CONFIG_L2TP` | an `l2tp` block whose `enabled` is not false | generic netlink `CTRL_CMD_GETFAMILY` for `l2tp`: `ENOENT` is no family after the controller's module request |
+| `l2tp-ppp` | `CONFIG_PPPOL2TP` | the same | open and close an `AF_PPPOX` `PX_PROTO_OL2TP` socket: `EAFNOSUPPORT` or `EPROTONOSUPPORT` is absent |
+| `pppoe` | `CONFIG_PPPOE` | `pppoe { enabled true }` | the same socket with `PX_PROTO_OE` |
+| `wireguard` | `CONFIG_WIREGUARD` | a `wireguard` interface under the netlink backend | generic netlink family `wireguard` |
+| `xfrm-interface` | `CONFIG_XFRM_INTERFACE` | an `xfrm` interface under the netlink backend | `RTM_NEWLINK` with `NLM_F_CREATE` for kind `xfrm` and interface id 0, inside a throwaway network namespace: `EINVAL` is `xfrmi_newlink` refusing id 0 after the kind resolved, `EOPNOTSUPP` is "Unknown device type" |
+
+None of these needs a privilege except the xfrm interface probe. rtnetlink
+answers `ENODEV` to a request without `NLM_F_CREATE` before it looks at the
+kind, so only a create request reaches the answer, and a kernel older than the
+id-0 check (Linux 6.0) would create the link. The throwaway namespace keeps
+that link where nothing sees it, and creating the namespace needs
+`CAP_SYS_ADMIN`; without it the row reads unknown and says why.
+
 This is the `ze doctor` tier of the table above, not a fourth one. The verdict is
 produced at read time, in the reader's own process, and it keeps no memory of a
 start. It cannot move into the setup registry, whose records are written before

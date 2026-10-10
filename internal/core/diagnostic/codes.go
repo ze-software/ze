@@ -48,7 +48,10 @@ const (
 	CodeDoctorDiskSpace                            = "doctor-disk-space"
 	CodeDoctorIfaceSelectorAmbiguous               = "doctor-iface-selector-ambiguous"
 	CodeDoctorIfaceSelectorUnmatched               = "doctor-iface-selector-unmatched"
-	CodeDoctorL2TPModule                           = "doctor-l2tp-module"
+	CodeDoctorL2TPUnavailable                      = "doctor-l2tp-unavailable"
+	CodeDoctorL2TPUnknown                          = "doctor-l2tp-unknown"
+	CodeDoctorL2TPPPPUnavailable                   = "doctor-l2tp-ppp-unavailable"
+	CodeDoctorL2TPPPPUnknown                       = "doctor-l2tp-ppp-unknown"
 	CodeDoctorIPsecCertURL                         = "doctor-ipsec-cert-url"
 	CodeDoctorIPsecCertURLDenied                   = "doctor-ipsec-cert-url-denied"
 	CodeDoctorIPsecCookieThreshold                 = "doctor-ipsec-cookie-threshold"
@@ -67,7 +70,12 @@ const (
 	CodeDoctorMPLSTransitMTUUnenforced             = "doctor-mpls-transit-mtu-unenforced"
 	CodeDoctorMPLSTransitMTUUnknown                = "doctor-mpls-transit-mtu-unknown"
 	CodeDoctorModuleMissing                        = "doctor-module-missing"
-	CodeDoctorPPPoEModule                          = "doctor-pppoe-module"
+	CodeDoctorPPPoEUnavailable                     = "doctor-pppoe-unavailable"
+	CodeDoctorPPPoEUnknown                         = "doctor-pppoe-unknown"
+	CodeDoctorWireGuardUnavailable                 = "doctor-wireguard-unavailable"
+	CodeDoctorWireGuardUnknown                     = "doctor-wireguard-unknown"
+	CodeDoctorXFRMInterfaceUnavailable             = "doctor-xfrm-interface-unavailable"
+	CodeDoctorXFRMInterfaceUnknown                 = "doctor-xfrm-interface-unknown"
 	CodeDoctorPKICARootExpiry                      = "doctor-pki-ca-root-expiry"
 	CodeDoctorPKICARootMissing                     = "doctor-pki-ca-root-missing"
 	CodeDoctorPKICert                              = "doctor-pki-cert"
@@ -704,16 +712,94 @@ var builtinCodes = []CodeMeta{
 	// (internal/plugins/isis/codes.go init() via diagnostic.Register), so
 	// deleting the IS-IS component removes them (ai/rules/plugins.md).
 	{
-		Code:        CodeDoctorL2TPModule,
-		Title:       "L2TP kernel module not loaded",
-		Description: "The L2TP subsystem is configured but neither l2tp_ppp nor pppol2tp is loaded.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-l2tp-module"},
+		Code:  CodeDoctorL2TPUnavailable,
+		Title: "L2TP control netlink unavailable",
+		Description: "The configuration uses the l2tp subsystem and the kernel does not provide the l2tp generic netlink family (CONFIG_L2TP). " +
+			"The probe asks the generic netlink controller for the family, which loads l2tp_netlink on a modular kernel and changes nothing. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
+			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_L2TP, such as Ze's own runtime kernel.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-l2tp-unavailable"},
+		RelatedCodes: []string{CodeDoctorL2TPUnknown},
 	},
 	{
-		Code:        CodeDoctorPPPoEModule,
-		Title:       "PPPoE kernel module not loaded",
-		Description: "The PPPoE subsystem is configured but the pppoe kernel module is not loaded.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-pppoe-module"},
+		Code:  CodeDoctorL2TPUnknown,
+		Title: "L2TP control netlink support could not be determined",
+		Description: "The configuration uses the l2tp subsystem and the probe for the l2tp generic netlink family (CONFIG_L2TP) gave no verdict, " +
+			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
+			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-l2tp-unknown"},
+		RelatedCodes: []string{CodeDoctorL2TPUnavailable},
+	},
+	{
+		Code:  CodeDoctorL2TPPPPUnavailable,
+		Title: "L2TP PPP session socket unavailable",
+		Description: "The configuration uses the l2tp subsystem and the kernel does not provide the PPPoL2TP socket (CONFIG_PPPOL2TP). " +
+			"The probe opens and closes an AF_PPPOX PX_PROTO_OL2TP socket, which loads l2tp_ppp on a modular kernel and changes nothing. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
+			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_PPPOL2TP, such as Ze's own runtime kernel.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-l2tp-ppp-unavailable"},
+		RelatedCodes: []string{CodeDoctorL2TPPPPUnknown},
+	},
+	{
+		Code:  CodeDoctorL2TPPPPUnknown,
+		Title: "L2TP PPP session socket support could not be determined",
+		Description: "The configuration uses the l2tp subsystem and the probe for the PPPoL2TP socket (CONFIG_PPPOL2TP) gave no verdict, " +
+			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
+			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-l2tp-ppp-unknown"},
+		RelatedCodes: []string{CodeDoctorL2TPPPPUnavailable},
+	},
+	{
+		Code:  CodeDoctorPPPoEUnavailable,
+		Title: "PPPoE session socket unavailable",
+		Description: "The configuration uses the pppoe subsystem and the kernel does not provide the PPPoE socket (CONFIG_PPPOE). " +
+			"The probe opens and closes an AF_PPPOX PX_PROTO_OE socket, which loads pppoe on a modular kernel and changes nothing. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
+			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_PPPOE, such as Ze's own runtime kernel.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-pppoe-unavailable"},
+		RelatedCodes: []string{CodeDoctorPPPoEUnknown},
+	},
+	{
+		Code:  CodeDoctorPPPoEUnknown,
+		Title: "PPPoE session socket support could not be determined",
+		Description: "The configuration uses the pppoe subsystem and the probe for the PPPoE socket (CONFIG_PPPOE) gave no verdict, " +
+			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
+			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-pppoe-unknown"},
+		RelatedCodes: []string{CodeDoctorPPPoEUnavailable},
+	},
+	{
+		Code:  CodeDoctorWireGuardUnavailable,
+		Title: "WireGuard unavailable",
+		Description: "The configuration uses a wireguard interface and the kernel does not provide the wireguard generic netlink family (CONFIG_WIREGUARD). " +
+			"The probe asks the generic netlink controller for the family, which loads wireguard on a modular kernel and changes nothing. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
+			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_WIREGUARD, such as Ze's own runtime kernel.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-wireguard-unavailable"},
+		RelatedCodes: []string{CodeDoctorWireGuardUnknown},
+	},
+	{
+		Code:  CodeDoctorWireGuardUnknown,
+		Title: "WireGuard support could not be determined",
+		Description: "The configuration uses a wireguard interface and the probe for the wireguard generic netlink family (CONFIG_WIREGUARD) gave no verdict, " +
+			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
+			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-wireguard-unknown"},
+		RelatedCodes: []string{CodeDoctorWireGuardUnavailable},
+	},
+	{
+		Code:  CodeDoctorXFRMInterfaceUnavailable,
+		Title: "XFRM interface unavailable",
+		Description: "The configuration uses an xfrm interface and the kernel does not provide the xfrm link kind (CONFIG_XFRM_INTERFACE). " +
+			"The probe asks for an xfrm link with interface id 0 inside a throwaway network namespace, which the kernel refuses after finding the link kind; it needs CAP_SYS_ADMIN to create that namespace. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
+			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_XFRM_INTERFACE, such as Ze's own runtime kernel.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-xfrm-interface-unavailable"},
+		RelatedCodes: []string{CodeDoctorXFRMInterfaceUnknown},
+	},
+	{
+		Code:  CodeDoctorXFRMInterfaceUnknown,
+		Title: "XFRM interface support could not be determined",
+		Description: "The configuration uses an xfrm interface and the probe for the xfrm link kind (CONFIG_XFRM_INTERFACE) gave no verdict, " +
+			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
+			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-xfrm-interface-unknown"},
+		RelatedCodes: []string{CodeDoctorXFRMInterfaceUnavailable},
 	},
 	{
 		Code:        "doctor-firewall-nftables",

@@ -18,32 +18,23 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-func TestCheckKernelModules_L2TP(t *testing.T) {
-	// VALIDATES: AC-1 L2TP config without l2tp_ppp/pppol2tp returns doctor-l2tp-module.
-	// PREVENTS: L2TP kernel module readiness being hidden behind generic module diagnostics.
+func TestCheckKernelModulesLeavesL2TPAndPPPoEToKernelcap(t *testing.T) {
+	// VALIDATES: L2TP and PPPoE readiness is answered by their enrolled kernel
+	// capabilities (internal/component/l2tp, internal/component/l2tp/pppoe), not
+	// by the module list, so a kernel that builds them in is not reported.
+	// PREVENTS: a second, disagreeing answer beside the kernelcap rows: the
+	// module list read "not loaded" for a built-in or not-yet-loaded module.
 	oldModules := loadedKernelModules
 	loadedKernelModules = func() map[string]bool { return map[string]bool{} }
 	t.Cleanup(func() { loadedKernelModules = oldModules })
 
 	tree := config.NewTree()
 	tree.GetOrCreateContainer("l2tp")
+	tree.GetOrCreateContainer("pppoe").Set("enabled", "true")
 
-	diags := checkKernelModules(tree)
-	requireDiag(t, diags, "doctor-l2tp-module", diagnostic.SeverityError)
-}
-
-func TestCheckKernelModules_PPPoE(t *testing.T) {
-	// VALIDATES: AC-2 PPPoE config without pppoe returns doctor-pppoe-module.
-	// PREVENTS: PPPoE kernel module readiness being hidden behind generic module diagnostics.
-	oldModules := loadedKernelModules
-	loadedKernelModules = func() map[string]bool { return map[string]bool{} }
-	t.Cleanup(func() { loadedKernelModules = oldModules })
-
-	tree := config.NewTree()
-	tree.GetOrCreateContainer("pppoe")
-
-	diags := checkKernelModules(tree)
-	requireDiag(t, diags, "doctor-pppoe-module", diagnostic.SeverityError)
+	for i, d := range checkKernelModules(tree) {
+		t.Errorf("diagnostic %d: the module check still answers for L2TP or PPPoE: %s %s", i, d.Code, d.Message)
+	}
 }
 
 // ipsecConfigTree builds a config tree carrying an EMPTY vpn { ipsec { } }.
@@ -112,20 +103,6 @@ func TestKernelModulesLeavesXFRMToTheCapability(t *testing.T) {
 				t.Errorf("diagnostic %d still reports XFRM from the module check: %s", i, d.Message)
 			}
 		}
-	}
-}
-
-func TestCheckKernelModules_L2TPOneAccepted(t *testing.T) {
-	oldModules := loadedKernelModules
-	loadedKernelModules = func() map[string]bool { return map[string]bool{"pppol2tp": true} }
-	t.Cleanup(func() { loadedKernelModules = oldModules })
-
-	tree := config.NewTree()
-	tree.GetOrCreateContainer("l2tp")
-
-	diags := checkKernelModules(tree)
-	for i := range diags {
-		assert.NotEqual(t, "doctor-l2tp-module", diags[i].Code)
 	}
 }
 

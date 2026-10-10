@@ -68,8 +68,6 @@ var readFilePath = os.ReadFile
 func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 	var required []string
 	hasIPsec := false
-	l2tpRequired := false
-	pppoeRequired := false
 
 	if tree != nil {
 		ifaceBlock := tree.GetContainer("interface")
@@ -80,14 +78,6 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 			}
 		}
 
-		if l2tp := tree.GetContainer("l2tp"); configEnabled(l2tp, true) {
-			l2tpRequired = true
-		}
-
-		if pppoe := tree.GetContainer("pppoe"); configEnabled(pppoe, true) {
-			pppoeRequired = true
-		}
-
 		// One predicate, three readers: this check, the capability gate and
 		// extractIPsecListeners (owner decision 6, 2026-08-14). An empty
 		// `vpn { ipsec { } }` installs no Security Association, so it warns
@@ -95,7 +85,7 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 		hasIPsec = kernelcap.IPsecInUse(tree)
 	}
 
-	if len(required) == 0 && !l2tpRequired && !pppoeRequired && !hasIPsec {
+	if len(required) == 0 && !hasIPsec {
 		return nil
 	}
 
@@ -112,24 +102,10 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 		}
 	}
 
-	if l2tpRequired && !loaded["l2tp_ppp"] && !loaded["pppol2tp"] {
-		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorL2TPModule,
-			Severity: diagnostic.SeverityError,
-			Message:  "L2TP kernel module not loaded: l2tp_ppp or pppol2tp",
-		})
-	}
-
-	if pppoeRequired && !loaded["pppoe"] {
-		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorPPPoEModule,
-			Severity: diagnostic.SeverityError,
-			Message:  "PPPoE kernel module not loaded: pppoe",
-		})
-	}
-
-	// The XFRM dataplane is NOT asked about here. It is an enrolled kernel
-	// capability (internal/component/kernelcap), so one probe answers for
+	// L2TP, PPPoE and the XFRM dataplane are NOT asked about here. They are
+	// enrolled kernel capabilities (internal/component/kernelcap, enrolled by
+	// internal/component/l2tp, internal/component/l2tp/pppoe and the IKE
+	// packages), so one probe answers for
 	// ze doctor, for the daemon's startup refusal and for `ze config validate`,
 	// and the three cannot disagree. A module list could not answer it at all:
 	// an appliance kernel builds XFRM in, so xfrm_user appears in no module row.

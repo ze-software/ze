@@ -763,8 +763,11 @@ func TestDoctorCoverageCodesRegistered(t *testing.T) {
 	// VALIDATES: AC-17 every new doctor coverage diagnostic code is registered for ze explain.
 	// PREVENTS: ze doctor emitting codes that ze explain cannot describe.
 	for _, code := range []string{
-		"doctor-l2tp-module",
-		"doctor-pppoe-module",
+		"doctor-l2tp-unavailable",
+		"doctor-l2tp-ppp-unavailable",
+		"doctor-pppoe-unavailable",
+		"doctor-wireguard-unavailable",
+		"doctor-xfrm-interface-unavailable",
 		"doctor-firewall-nftables",
 		"doctor-dhcp-iface",
 		"doctor-bgp-listen",
@@ -997,8 +1000,11 @@ var doctorDependencyCovered = map[string]string{
 	"writable/dns-resolv":   "doctor-write-destination",
 	"writable/archive-file": "doctor-write-destination",
 	"writable/self-update":  "doctor-write-destination",
-	"module/l2tp":           "doctor-l2tp-module",
-	"module/pppoe":          "doctor-pppoe-module",
+	"netlink/l2tp":          "doctor-l2tp-unavailable",
+	"socket/l2tp-ppp":       "doctor-l2tp-ppp-unavailable",
+	"socket/pppoe":          "doctor-pppoe-unavailable",
+	"netlink/wireguard":     "doctor-wireguard-unavailable",
+	"netlink/xfrm-iface":    "doctor-xfrm-interface-unavailable",
 	"module/ipsec":          "doctor-module-missing",
 	"procfs/mpls":           "doctor-mpls-unavailable",
 	"netlink/xfrm":          "doctor-ipsec-xfrm-unavailable",
@@ -1265,7 +1271,7 @@ func TestDoctorDependencyInventory(t *testing.T) {
 		}
 	}
 
-	const expectedTotal = 63
+	const expectedTotal = 66
 	total := len(doctorDependencyCovered) + len(doctorDependencyExcluded)
 	assert.Equal(t, expectedTotal, total,
 		"dependency inventory changed; update covered or excluded map (got %d)", total)
