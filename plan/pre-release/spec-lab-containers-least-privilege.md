@@ -191,7 +191,7 @@ Goals.
 
 -> Decision (implementation, 2026-10-10, owner decision 4 settled): `IPC_LOCK` is dropped from `vppIface.containerArgs`. On `ssh claude` (amd64, Ubuntu, kernel 6.8, Docker AppArmor `docker-default`), `ligato/vpp-base:latest` (VPP v26.06-release) ran `VPPStartupConfig` under `--cap-add NET_ADMIN --device /dev/net/tun --device /dev/vhost-net`, once with `--cap-add IPC_LOCK` (containers `lcp-vpp-ipclock-with`, CapEff `a80475fb`) and once without (`lcp-vpp-ipclock-without`, CapEff `a80435fb`). Both answered `show version`, held the `default-numa-0` pool of 5978 buffers on default pages, created `tap0` (host side `vpptap0`), and `ping -c 3 10.99.0.1` from the host side to VPP's `tap0` address answered 3 of 3 (rtt 0.19-0.58 ms with, 0.32-0.76 ms without). Both containers were removed. ze in that container takes its `memlock` lock softly (`internal/plugins/memlock`), so the missing grant costs ze nothing but the lock. `TestVPPDeploymentContainerRunsWithoutPrivilege` now refuses `IPC_LOCK`.
 -> Decision (implementation, 2026-10-10, owner decision 2 implemented): the evidence container's grants were `runner.CapsDockerNames()` (`internal/test/runner/caps.go`, derived from `capsRequired` through `capDockerName`): `BPF`, `NET_ADMIN`, `NET_BIND_SERVICE`, `NET_RAW`, `SYS_TIME`, superseded in review round 1 by the decision below; `--privileged` is gone and Docker's default seccomp and AppArmor stay on. Proof run on `ssh claude` in `golang:1.27` (the evidence image), with exactly those grants (container `lcp-caps-granted`, CapEff `80aa0435fb`, Seccomp 2, `docker-default (enforce)`): a netlink dummy link add and delete, a raw ICMP socket, a bind of UDP 127.0.0.1:53 and a `BPF_MAP_CREATE` all succeeded. Control without the grants (`lcp-caps-default`): the link add and the map create were refused `operation not permitted`; with `NET_RAW` also dropped the raw socket was refused too. The bind of port 53 succeeded even with `NET_BIND_SERVICE` dropped, because Docker sets `net.ipv4.ip_unprivileged_port_start=0` in a container's namespace, so that grant is held but not discriminated there. `SYS_TIME` was NOT exercised, and will not be: `settimeofday` in a container sets the host's clock. It was held because the `caps=` vocabulary declares it (`capsRequired`); the bit was present in CapEff.
--> Decision (review round 1, 2026-10-10, owner-delegated through the main thread): `SYS_TIME` is left out. `ContainerCapsDockerNames` (renamed from `CapsDockerNames`) skips the `capsAltersHost` tokens (`sys-time`), because a grant that lets a test set the host's clock is not one an evidence run may take. The evidence container holds `BPF`, `NET_ADMIN`, `NET_BIND_SERVICE`, `NET_RAW` and `--device /dev/ppp` (from the new `devices=` vocabulary), and `test/plugin/storage-ntp-restart.ci` (`caps=` with `sys-time`) skips there by its `caps=` gate (2e16e9e966).
+-> Decision (review round 1, 2026-10-10, owner-delegated through the main thread): `SYS_TIME` is left out. `ContainerCapsDockerNames` (renamed from `CapsDockerNames`) skips the `capsAltersHost` tokens (`sys-time`), because a grant that lets a test set the host's clock is not one an evidence run may take. The evidence container holds `BPF`, `NET_ADMIN`, `NET_BIND_SERVICE`, `NET_RAW` and `--device /dev/ppp` (from the device vocabulary, first `devices=` on `option=needs-linux`, now its own `option=opens-device:name=<token>` since 11e3964084), and `test/plugin/storage-ntp-restart.ci` (`caps=` with `sys-time`) skips there by its `caps=` gate (2e16e9e966).
 -> Decision (implementation, 2026-10-10, `NET_BIND_SERVICE` discriminated): on `ssh claude`, `golang:1.27`, every run under `--sysctl net.ipv4.ip_unprivileged_port_start=1024`, a `perl` `bind` of UDP 127.0.0.1:53: with the evidence grants (`lcp-nbs-granted`, CapEff `80aa0435fb`) it succeeded; with `BPF NET_ADMIN NET_RAW SYS_TIME` and `--cap-drop NET_BIND_SERVICE` (`lcp-nbs-dropped`, CapEff `80aa0431fb`) it was refused `Permission denied`; the same container without the sysctl (`ip_unprivileged_port_start=0`, Docker's namespace default) bound it. So the grant is necessary on a host or namespace that keeps the kernel's default of 1024, and redundant under Docker's default namespace value. Note for the reviewer: `NET_BIND_SERVICE` is also in Docker's default capability set, and `--cap-add` beside `--cap-drop` of one capability keeps it (`lcp-nbs-dropped` with both flags still held bit 10), so removing only the `--cap-add NET_BIND_SERVICE` from the evidence argv changes nothing; the evidence argv states the need, Docker's default would supply it anyway. All `lcp-nbs-*` containers ran with `--rm`. NOT run: `./le verify current mode full` inside the container (hours, outside this budget), so a test outside the `caps=` vocabulary that needed more than these grants (for example `SYS_ADMIN` for a namespace) is not ruled out; the main thread owes `./le verify evidence release-candidate` on a Linux host with `ze-kernel-probe` loaded.
 
 -> Decision (implementation, 2026-10-10): site 5 covers both VPP proofs, because `vpp-test` (`newVPP`) and `TestVPPSRv6ServiceRoute` start the container through the same `vppIface.containerArgs`. Site 7's `seccomp=unconfined` is removed (`containerCommand`, `TestRenderAllRunsValidationAndPublishesExactArtifacts` red before, green after); no demo was rendered, so the render run is owed.
@@ -230,18 +230,22 @@ N-A as new scenarios: no protocol behavior changes; the existing scenarios are t
 - `internal/le/interoplab/rsvpte/rsvpte.go` - grants, preflight
 - `internal/le/test/deployment/l2tp.go`, `vppiface.go` - grants
 - `internal/le/site/terminaldemo/render.go`, `types.go`, `manifest.go`, `demos/terminal/manifest.json` - seccomp, `privileged-reason`, `net-sysctl`; `internal/le/interoplab/apparmor_netsysctl.go` - `NetSysctlSecurityArguments`
-- `internal/test/runner/caps.go`, `record.go`, `record_parse.go`, `internal/le/verify/evidence/evidence.go` - `ContainerCapsDockerNames`, the `devices=` option token, the evidence `--device` list
-- `test/l2tp/radius-acct-wire.ci`, `test/l2tp/session-stopccn-cascade.ci`, `test/pppoe/pppoe-basic.ci`, `pppoe-padr-flood.ci`, `pppoe-per-mac-cap.ci`, `pppoe-service-name.ci`, `pppoe-vlan.ci` - `devices=ppp` on the option line
+- `internal/test/runner/caps.go`, `record.go`, `record_parse.go`, `record_parse_vocabulary.go`, `internal/le/verify/evidence/evidence.go` - `ContainerCapsDockerNames`, the `option=opens-device:name=<token>` option (it replaced round 1's `needs-linux:devices=`; `needs-linux` and `opens-device` refuse unknown keys, empty values and unknown tokens), the evidence `--device` list, and `deviceRefusal` naming `sudo modprobe <module>` when the Docker host lacks the node
+- `test/l2tp/*.ci`, `test/pppoe/*.ci` - `option=opens-device:name=ppp` on the 34 files that set no `ze.l2tp.disable-kernel-dataplane` (11e3964084); `TestPPPSessionTestsDeclareDevPPP` derives that set from the tree
 - `test/interop-l2tp/Dockerfile.lac`, `Dockerfile.ze` - drop `kmod`
-- `docs/architecture/testing/ci-format.md` (`devices=`), `docs/contributing/gh-pages.md` (`privileged-reason`, `net-sysctl`)
+- `docs/architecture/testing/ci-format.md` (`opens-device`), `docs/contributing/gh-pages.md` (`privileged-reason`, `net-sysctl`, the AppArmor load refusal)
+- `internal/le/site/terminaldemo/render.go` - a `net-sysctl` demo tees its stderr into `internal/le/le/tail` and maps runc's AppArmor failure (`interoplab.NetSysctlUnapplied`) to the load-command refusal
+- `internal/le/interoplab/ipsec/checkers.go`, `helpers.go`, `ipsec.go` - `scenarioCheck{run, writesPeerSysctl}` on `scenarioCheckers`, `peerSysctlWriters` deleted
+- `internal/le/interoplab/bgp/prepare.go`, `l2tp/l2tp.go`, `ipsec/ipsec.go` - the FRR `SYS_ADMIN` grant quotes FRR's capability list
 - `internal/test/fixture/ui_fixture_le_evidence_answers.go`, `ui_fixture_le_evidence_vpp_answers.go` - assert the grants, not `--privileged`
 - `docs/architecture/testing/interop.md` - the profile table; `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md` D-7 table rows
 
 ## Files to Create
 - `internal/le/interoplab/apparmor_netsysctl.go`, `internal/le/interoplab/register_apparmor_netsysctl.go` - the generic `ze-lab-net-sysctl` profile and its registration
 - the `privilege_test.go` files above
-- `internal/test/runner/devices.go` - the `devices=` vocabulary (`devicesRequired`, `ContainerDevicePaths`)
-- `internal/le/interoplab/grantcheck/grantcheck.go` - `Parse`, `Problems`: every lab privilege test pins the exact grant set
+- `internal/test/runner/devices.go` - the `opens-device` vocabulary (`devicesRequired` {path, module}, `ContainerDevicePaths`, `DeviceHostModule`)
+- `internal/le/interoplab/grantcheck/grantcheck.go` - `Parse`, `ParsePeer`, `StagedRoots`, `Problems`: every lab privilege test pins the exact grant set, including network, device cgroup rules, volumes and mounts, `--privileged=<bool>`, a peer's AppArmor profile and every mount that is writable or from outside the staged files
+- `internal/le/le/tail/tail.go` - the bounded stderr tail shared by the evidence runner and the terminal-demo renderer
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -313,9 +317,57 @@ One container site per commit, test first:
 
 ## Review Gate
 
-### Round 1 (2026-10-10, independent reviewer): fixes, and ready for round 2
+### Status: ready for round 3
 
-The implementing session MUST NOT review its own work: round 2 is owed to an independent reviewer, with at least two lenses, over the whole diff below, the round-1 fix commits included. Write each round's scope here before it runs.
+The implementing session MUST NOT review its own work: round 3 is owed to an independent reviewer, with at least two lenses, over the round-2 fix commits in the commit range below (df2c52ac24 onward), with the whole diff in reach. Write each round's scope here before it runs.
+
+OPEN OWNER QUESTIONS: four RFC-tagged `.ci` files changed only on their option lines and were committed under `rfc-change-ok`, which recorded verification-debt rows 12 and 13 in `plan/verification-debt/d1987d95.md`. No assertion, expectation or `RFC requirement:` claim changed in any of them. The owner's approval of each is owed (`./le rfc approve unit ...`):
+
+| File | Option-line change | Commits |
+|------|--------------------|---------|
+| `test/l2tp/radius-acct-wire.ci` | gains `option=opens-device:name=ppp`; its `needs-linux` line is back to `caps=net-admin` | 2e16e9e966 (`:devices=ppp`), 11e3964084 (moved to `opens-device`) |
+| `test/l2tp/rfc2661-emitted-control-shape.ci` | gains `option=opens-device:name=ppp` | 11e3964084 |
+| `test/l2tp/rfc2661-sccrq-mandatory-avp.ci` | gains `option=opens-device:name=ppp` | 11e3964084 |
+| `test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci` | gains `option=opens-device:name=ppp` | 11e3964084 |
+
+### Round 2 (2026-10-10, independent reviewer): fixes
+
+0 BLOCKER, 5 ISSUE, 6 NOTE, over 2e16e9e966 to e655be2e5c.
+
+| Finding | Fix |
+|---------|-----|
+| ISSUE 1: `grantcheck` missed `--network`/`--net`, `--device-cgroup-rule`, `-v`/`--volume`/`--mount`, `--privileged=1`, a peer's AppArmor profile and its mounts | df2c52ac24: `Parse` reads them all, `ParsePeer(peer, StagedRoots(t)...)` adds the profile and every mount that is writable or from outside the staged files; the six lab tests use `ParsePeer`; the deployment tests pin their two writable mounts |
+| ISSUE 2: the evidence run reported only Docker's exit code when the host lacks `/dev/ppp` | 481cc1e6b6: `startDocker` keeps a bounded stderr tail; `deviceRefusal` maps "error gathering device information" for a `ContainerDevicePaths` node to `sudo modprobe <module>` (`runner.DeviceHostModule`); `TestAHostWithoutAContainerDeviceNamesTheModule` |
+| ISSUE 3: a `net-sysctl` demo whose AppArmor profile runc cannot apply failed with an exit code and no load command; the profile's Runs text named only lab peers | dd0958b5de: `runDemoContainer` tees the demo's stderr into `internal/le/le/tail` (the evidence runner's private buffer moved there) and maps runc's failure through `interoplab.NetSysctlUnapplied` to the load-command refusal; Runs reads "a container (a lab peer or a terminal demo)"; red observed with the mapping disabled |
+| ISSUE 4: `ci-format.md` said `devices=` grants the node; the declared set missed the L2TP tests that reach `ppp.DevPPPSetup`; the checked set was a hand list | 11e3964084: `option=opens-device:name=ppp` is its own option and gates nothing (as a `needs-linux` key it would have skipped the cross-platform L2TP tests on macOS); 34 `test/l2tp` and `test/pppoe` files without `ze.l2tp.disable-kernel-dataplane` declare it; `TestPPPSessionTestsDeclareDevPPP` derives the set from the tree; `ci-format.md` corrected |
+| ISSUE 5: `TestRSVPTEPreflightRunsWithoutPrivilege` checked three flags | df2c52ac24: `grantcheck.Problems` against the empty grant set |
+| NOTE 6: the `capDockerName` comment called every name a grant | 8e40ece7f9 (comment only: `SYS_TIME` is named and granted to no container) |
+| NOTE 7: `spec-docker-hosts-run-the-ze-kernel.md` line 39 named `runner.CapsDockerNames` | 8e40ece7f9: names `ContainerCapsDockerNames` (SYS_TIME left out) and `ContainerDevicePaths` |
+| NOTE 8: FRR peers hold `SYS_ADMIN` with no recorded need | 8e40ece7f9: the grant is needed. FRR's `zebra/main.c` and `bgpd/bgp_main.c` list `ZCAP_SYS_ADMIN` in `_caps_p`, and `lib/privs.c` `zprivs_caps_init` exits ("privs_init: initial cap_set_proc failed") when it cannot raise it; a comment above each grant in `ipsec/ipsec.go`, `l2tp/l2tp.go`, `bgp/prepare.go` quotes this |
+| NOTE 9: an unknown option key, an empty `devices=` and a misspelt token were accepted | 11e3964084: `needs-linux` and `opens-device` refuse unknown keys, empty `caps=`/`name=` and unknown tokens (`TestOpensDeviceIsValidatedAndRecorded`) |
+| NOTE 10: the evidence argv test matched only the split spelling and missed `--network`, `--device-cgroup-rule` | 481cc1e6b6: `TestACleanTreeStartsOneContainer` uses `grantcheck` and pins the four mounts |
+| NOTE 11: `rib-fib` on a daemon without AppArmor: `systempaths=unconfined` with `SYS_ADMIN` unmasks `/proc/sysrq-trigger` and `/proc/kcore` | recorded, not changed: narrower than the `--privileged` it replaced, covered by R-3 (any daemon applying no AppArmor), and the demo container runs `--network none` |
+
+Discrimination of the round-2 tests that were committed without an observed red (2026-10-10). Each mutant is a mutated copy of the producer in session scratch, compiled in with `go test -overlay`; the shared tree was never changed. Every mutant turned the named test red, on the named case:
+
+| Mutant (producer change) | Test | Red on |
+|--------------------------|------|--------|
+| `valueFlags` without `--network`, `--net` | `TestProblemsCatchEveryExtraGrant` | host network, joined net |
+| `valueFlags` without `--device-cgroup-rule` | same | device cgroup rule |
+| `valueFlags` without `-v`, `--volume`, `--mount` | same | docker socket, volume root, mount |
+| `Parse` ignores the value of `--privileged=<v>` | same | privileged=1, privileged typo |
+| `privilegedValue` reads an unparseable value as false | same | privileged typo |
+| `ParsePeer` drops `AppArmorProfile` | same | apparmor profile |
+| `ParsePeer` skips a staged mount whether or not it is read-only | same | writable mount |
+| `ParsePeer` skips every read-only mount | same | outside the lab, whole lab root, escapes the root |
+| `stagedInside` counts the root itself as inside | same | whole lab root |
+| `stagedInside` counts `..` paths as inside | same | outside the lab, escapes the root |
+| `Run` never calls `deviceRefusal` | `TestAHostWithoutAContainerDeviceNamesTheModule` | "a host without /dev/ppp answered no error" |
+| `deviceRefusal` skips the paths with a known module | same | same |
+
+Not discriminated by a unit test: `startDocker` capturing docker's stderr into the tail runs the real `docker` binary, so only `tail.TestBufferKeepsTheLastOctets` covers the buffer; the path is exercised by `./le verify evidence release-candidate` on a host without `/dev/ppp` (AC-10 row, owed).
+
+### Round 1 (2026-10-10, independent reviewer): fixes
 
 | Finding | Fix |
 |---------|-----|
@@ -324,7 +376,7 @@ The implementing session MUST NOT review its own work: round 2 is owed to an ind
 | ISSUE 3: the lab privilege tests checked grants by presence, not the exact set | 5195967a99: `internal/le/interoplab/grantcheck` (`Parse`, `Problems`); all six lab tests and the PPPoE and L2TP preflight tests pin the exact set (FRR peers `NET_ADMIN`+`SYS_ADMIN`, scripted RSVP speakers `NET_ADMIN`+`NET_RAW`, pinned as found) |
 | ISSUE 4: the PPPoE preflight refusal named no host fix for a missing `/dev/ppp` | 6948695bdc: names `sudo modprobe ppp_generic` (`TestPPPoEPreflightWithoutDevPPPNamesTheHostFix`) |
 | ISSUE 5: the spec named `l2tp-ppp-test` for the containerised L2TP proof | this commit: `l2tp-test` throughout; AC-6 names the action |
-| ISSUE 6: `peerSysctlWriters` is a second list beside `scenarioCheckers` | OWED: `internal/le/interoplab/ipsec/checkers.go` holds another session's uncommitted IKE childless hunks (new `swanSentNewChildWithKE`, a changed `NO_PROP` log match), which change behaviour against HEAD, so this spec cannot carry them. Design: the checker entry carries `writesPeerSysctl`; delete `peerSysctlWriters`; update `ipsec.go` (the `peerSysctlWriters[source.Name]` read), the `helpers.go` message and `privilege_test.go` `ipsecPeerGrants`; add a test. Lands once that file is committed |
+| ISSUE 6: `peerSysctlWriters` is a second list beside `scenarioCheckers` | df2c52ac24, as designed: the `scenarioCheckers` entry is `scenarioCheck{run, writesPeerSysctl}`, `peerSysctlWriters` is deleted, `ipsec.go`, the `helpers.go` message and `ipsecPeerGrants` read the flag; `TestOnlyCheckersThatWritePeerSysctlsAreFlagged` parses the package and follows calls to `dropFragmentsAtPeer`, red observed with the flag removed from `ike-padded-probe-strongswan` |
 | NOTE 7, NOTE 12 | 2e16e9e966: `SYS_RESOURCE` dropped from `capDockerName`; `TestEveryCapsBitHasADockerName` reads an independent literal table; the evidence test pins caps `[BPF NET_ADMIN NET_BIND_SERVICE NET_RAW]`, devices `[/dev/ppp]`, and refuses `--privileged`, `--security-opt`, `--cap-drop`, `--userns`, `--pid`, `--ipc` |
 | NOTE 8: rsvpte MPLS sysctls could move to `--sysctl` | recorded in Verdicts site 4, not changed (unproven without a lab run) |
 | NOTE 9: `rib-fib` ran `--privileged` for a `/proc/sys/net` write | 4d6aec8f8d: `"net-sysctl": true`, `systempaths=unconfined` under `ze-lab-net-sysctl` (`TestANetSysctlDemoRunsWithoutPrivilege`, red with the grant ignored) |
@@ -332,7 +384,6 @@ The implementing session MUST NOT review its own work: round 2 is owed to an ind
 | NOTE 13: `setupSysctlKeys` skipped any write form but `sysctl -w` | 6fd229e38a: reads `echo value > /proc/sys/...` too and refuses every other write form (`TestScriptSysctlWritesRefusesFormsItCannotRead`) |
 | (spec) R-3 understated the risk | this commit: any daemon applying no AppArmor, and `kernel.*`, `vm.*`, `fs.*` |
 
-OPEN OWNER QUESTION: `test/l2tp/radius-acct-wire.ci` is RFC-tagged. 2e16e9e966 changed only its option line (`option=needs-linux:caps=net-admin` gained `:devices=ppp`) and was committed with `rfc-change-ok`, which recorded a verification-debt row in `plan/verification-debt/d1987d95.md`. The owner's approval of that change is owed (`./le rfc approve unit ...`); no assertion changed.
 
 Commit range, this spec's commits only, oldest first (other sessions' commits interleave, so review these by SHA, never `cd27eb4339..HEAD`):
 
@@ -358,7 +409,14 @@ Commit range, this spec's commits only, oldest first (other sessions' commits in
 | 6948695bdc | interoplab: PPP refusals name the host fix; L2TP images drop kmod | round 1 ISSUE 4, NOTE 10, NOTE 11 |
 | 4d6aec8f8d | terminaldemo: rib-fib writes /proc/sys/net without --privileged | round 1 NOTE 9 |
 | 6fd229e38a | interoplab rsvpte: privilege test refuses sysctl writes it cannot read | round 1 NOTE 13 |
-| (this commit) | plan: review round 1 fixes recorded, ready for round 2 | round 1 ISSUE 5, NOTE 8, the SYS_TIME and R-3 corrections |
+| 94d1165931 | (US spelling from the scoped lint over 6fd229e38a) | round 1 NOTE 13 |
+| e655be2e5c | plan: review round 1 fixes recorded, ready for round 2 | round 1 ISSUE 5, NOTE 8, the SYS_TIME and R-3 corrections |
+| df2c52ac24 | interoplab: grantcheck reads every escalation; IPsec flag on its checker | round 2 ISSUE 1, ISSUE 5, round 1 ISSUE 6 |
+| 481cc1e6b6 | verify evidence: a host without /dev/ppp names sudo modprobe ppp_generic | round 2 ISSUE 2, NOTE 10 |
+| dd0958b5de | terminaldemo: a net-sysctl demo the daemon cannot confine names the load | round 2 ISSUE 3 |
+| 11e3964084 | test runner: option=opens-device, derived from the tree, refuses typos | round 2 ISSUE 4, NOTE 9 |
+| 8e40ece7f9 | interoplab: FRR's SYS_ADMIN grant quotes the FRR source asking for it | round 2 NOTE 6, NOTE 7, NOTE 8 |
+| (this commit) | plan: review round 2 fixes recorded, ready for round 3 | round 2 NOTE 11, the round-2 discrimination evidence |
 
 Unit evidence: `go test -race` with the gate tags over `internal/le/interoplab`, `.../ipsec`, `.../l2tp`, `.../pppoe`, `.../rsvpte`, `internal/le/site/terminaldemo`, `internal/le/verify/evidence`, `internal/test/runner`, `internal/le/test/deployment`: all `ok` at 244f78b1f5 (2026-10-10).
 
