@@ -77,3 +77,22 @@ func negatedElse(m dsl.Matcher) {
 		Where(!m["x"].Text.Matches(`^nil$`) && !m["y"].Text.Matches(`^nil$`)).
 		Report(`negated condition with an else -- swap the branches and test $x == $y`)
 }
+
+// commandtestInTestsOnly keeps internal/component/command/commandtest out of
+// product code.
+//
+// commandtest.Args builds a command.ValidatedArgs by calling
+// command.ValidateArgs with no definitions, so whatever tokens it is given come
+// back as a validated value the model never judged. That is what a test needs
+// to call a handler directly, and it is a bypass of the argument judgment
+// anywhere else: a route that called it would hand a handler raw tokens wearing
+// the validated type (plan/spec-validated-construction-and-state-types.md, T2).
+// commandtest.Must panics on a definition error, which product code reports
+// instead. The package itself is exempt, since it defines both.
+func commandtestInTestsOnly(m dsl.Matcher) {
+	m.Import(`github.com/ze-software/ze/internal/component/command/commandtest`)
+	m.Match(`commandtest.Args($*_)`, `commandtest.Must($*_)`).
+		Where(!m.File().Name.Matches(`_test\.go$`) &&
+			!m.File().PkgPath.Matches(`/internal/component/command/commandtest$`)).
+		Report(`commandtest builds a validated value the model never judged -- call it from a _test.go file only; product code judges arguments through command.ValidateArgs`)
+}

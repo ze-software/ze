@@ -552,6 +552,7 @@ A finding from these tools names the rule, so the rule is not restated above.
 | Pass a large struct by pointer | gocritic `hugeParam` (288 bytes), `rangeValCopy` (160 bytes) | A value parameter or range copy above the size |
 | `slices.Sort` | ruleguard `modernSort` | `sort.Strings`, `sort.Ints`, `sort.Float64s`, which compare through `sort.Interface` |
 | `crashlog.Exec` | ruleguard `crashlogExec` | An `execve` past the crash-capture flush |
+| `commandtest` in tests only | ruleguard `commandtestInTestsOnly` | `commandtest.Args` or `commandtest.Must` outside a `_test.go` file: a validated value the model never judged |
 | A comment is a sentence | `godot` | A declaration comment with no full stop |
 | US spelling | `misspell` | UK spellings |
 | Modern Go | `modernize`, `intrange` | A pre-generics or pre-range-over-int idiom |

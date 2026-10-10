@@ -1527,13 +1527,17 @@ judged, and the handler reads `Tokens()` or `Positional(leaf)`. A handler that
 passes part of its tokens on (the `update` command hands the words after the
 encoding to that encoding's parser) passes a token slice to a helper that is
 not a handler type. A test that calls a handler directly builds its value with
-`commandtest.Args`, which goes through `ValidateArgs`.
+`commandtest.Args`, which goes through `ValidateArgs` with no definitions, so
+the tokens it is given come back unjudged. Product code calling it would be a
+bypass, and the ruleguard rule `commandtestInTestsOnly` refuses a call to
+`commandtest.Args` or `commandtest.Must` outside a `_test.go` file.
 <!-- source: internal/component/plugin/server/command.go -- Handler -->
 <!-- source: internal/component/plugin/server/ensure.go -- EnsureStep, wrapWithEnsureChain -->
 <!-- source: internal/component/command/argbind.go -- ValidatedArgs, MissingArgumentError, ValidateArgs -->
 <!-- source: internal/component/command/local_data.go -- ValidateModelArgs, RegisterArgDefSource, LocalDataHandler -->
 <!-- source: internal/component/command/local.go -- LocalHandler, InvokeLocal, LookupLocal, LookupOfflineFallback -->
 <!-- source: internal/component/command/commandtest/commandtest.go -- Args -->
+<!-- source: .golangci/ruleguard/modern.go -- commandtestInTestsOnly -->
 <!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, routeToProcess, dispatchSubsystem -->
 <!-- source: internal/component/plugin/server/server.go -- wrapHandler -->
 <!-- source: internal/component/plugin/server/ensure.go -- wrapWithEnsureChain -->
