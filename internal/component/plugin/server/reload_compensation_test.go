@@ -237,3 +237,51 @@ func TestRejectedReloadMarksTheCreatedPeersAgain(t *testing.T) {
 	require.Equal(t, map[string]any{"revision": 1}, reactor.GetConfigTree())
 	require.Equal(t, created, reactor.CreatedPeers(), "the rejected reload marks the created peer again")
 }
+
+// lockOrderReactor reports a CreatedPeers call made while the reload scope's
+// own lock is held.
+type lockOrderReactor struct {
+	createdPeersReactor
+	t       *testing.T
+	pending *reloadAcceptance
+	calls   atomic.Int64
+}
+
+func (r *lockOrderReactor) CreatedPeers() map[netip.Addr]string {
+	r.calls.Add(1)
+	if r.pending != nil {
+		if r.pending.mu.TryLock() {
+			r.pending.mu.Unlock()
+		} else {
+			r.t.Error("CreatedPeers called with the reload scope's lock held")
+		}
+	}
+	return r.createdPeersReactor.CreatedPeers()
+}
+
+// TestReloadCompensationReadsCreatedPeersOutsideTheScopeLock holds the lock
+// order of recordReloadCompensation.
+//
+// GOAL: the reload scope's lock is never held while the reactor's lock is
+// taken, so no path can order the two the other way and deadlock.
+// METHOD: a reactor whose CreatedPeers tries the reload scope's lock; reload
+// under a deferred acceptance, which records the compensation.
+// VALIDATES: the compensation read the created peers, and the scope's lock was
+// free when it did.
+// PREVENTS: a pending.mu -> reactor lock order that a later reactor path
+// taking the scope lock under its own would turn into a deadlock.
+func TestReloadCompensationReadsCreatedPeersOutsideTheScopeLock(t *testing.T) {
+	s, _ := newLifecycleStartupServer(t)
+	reactor := &lockOrderReactor{t: t}
+	reactor.created = map[netip.Addr]string{netip.MustParseAddr("192.0.2.7"): "peer-192.0.2.7"}
+	reactor.tree = map[string]any{"revision": 1}
+	s.reactor = reactor
+
+	ctx, finish := s.DeferReloadAcceptance(t.Context())
+	defer finish(false)
+	pending, ok := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+	require.True(t, ok, "the deferred acceptance carries its reload scope")
+	reactor.pending = pending
+	require.NoError(t, s.ReloadConfig(ctx, map[string]any{"revision": 2}))
+	require.NotZero(t, reactor.calls.Load(), "the compensation read the created peers")
+}

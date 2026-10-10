@@ -48,12 +48,15 @@ func recordReloadCompensation(ctx context.Context, before, after map[string]any,
 		return
 	}
 	pending.server.claimReloadOwnership(pending)
+	// Lock order: the reactor's lock is never taken under pending.mu, so the
+	// snapshot is read before pending.mu. Only the first record keeps it.
+	created := pending.server.reactor.CreatedPeers()
 	pending.mu.Lock()
 	defer pending.mu.Unlock()
 	if pending.compensation == nil {
 		pending.compensation = &reloadCompensation{
 			before:   before,
-			created:  pending.server.reactor.CreatedPeers(),
+			created:  created,
 			affected: make(map[string]affectedPlugin),
 		}
 	}
