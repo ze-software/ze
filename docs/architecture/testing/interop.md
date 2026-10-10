@@ -411,7 +411,9 @@ runs under `ze-lab-net-sysctl` only in a scenario named in `peerSysctlWriters`
 (`internal/le/interoplab/ipsec/checkers.go`), whose checker cuts its reassembly
 marks at run time. In the L2TP lab ze and the xl2tpd LAC hold `NET_ADMIN` and
 `--device /dev/ppp`, and the preflight probes with the same grants and loads no
-module, so it passes only where the peers can run.
+module, so it passes only where the peers can run. The PPPoE lab grants ze,
+accel-ppp and the pppd client the same two, its preflight probes the same way,
+and no PPPoE image installs `kmod` or runs `modprobe`.
 
 <!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing -->
 <!-- source: internal/le/interoplab/bgp/register_apparmor.go -- vrrpLabAppArmorProfile -->

@@ -7,9 +7,13 @@ implementations. Ze acts as a client against
 
 ## Overview
 
-Each scenario runs privileged containers on an isolated bridge because PPPoE
-uses Ethernet discovery and session frames (EtherTypes 0x8863 and 0x8864). The
-host kernel must provide `/dev/ppp` and the `pppoe` pppox module.
+Each scenario runs its containers on an isolated bridge because PPPoE uses
+Ethernet discovery and session frames (EtherTypes 0x8863 and 0x8864). No
+container runs privileged: Ze, accel-ppp and the pppd client each hold
+`NET_ADMIN` and the host's `/dev/ppp` device, and the discovery sockets use the
+`NET_RAW` Docker grants by default. The host kernel must provide `/dev/ppp` and
+the `pppoe` pppox module, built in or loaded by the host: no container loads a
+kernel module.
 
 The client scenario requires PADI/PADO/PADR/PADS discovery, LCP, CHAP-MD5,
 IPCP, one kernel `pppN` interface, traffic to the access concentrator, the
@@ -52,7 +56,15 @@ entrypoint command. There are no separate runner or entrypoint scripts.
 ## Prerequisites
 
 The native preflight probes `/dev/ppp` and the `pppoe` module from a temporary
-privileged container. It exits non-zero when either is absent, and setting
+container that holds the peers' grants and nothing more. It exits non-zero when
+either is absent, names what is missing, and prints the host command that loads
+it:
+
+```
+sudo modprobe -a ppp_generic pppoe
+```
+
+Ze's kernel builds both in, so `./le test qemu docker-lab` needs neither. Setting
 `ZE_PPPOE_SKIP_KERNEL_PROBE` or `ze.pppoe.skip-kernel-probe` causes an immediate
 refusal.
 

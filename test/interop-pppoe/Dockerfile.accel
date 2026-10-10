@@ -2,13 +2,14 @@
 #
 # accel-ppp is packaged in Alpine community (accel-ppp 1.13.x), the same build
 # the QEMU evidence test installs via `apk add accel-ppp`. PPPoE uses the
-# in-tree kernel `pppoe` (pppox) module from the shared host kernel, which the
-# entrypoint modprobes; no kernel driver is built here.
+# in-tree kernel `pppoe` (pppox) support of the shared host kernel, which the
+# host provides: a lab container never loads a module. No kernel driver is
+# built here.
 
 FROM alpine:3.21
 
 # accel-ppp: accel-pppd + accel-cmd; ppp: /dev/ppp support; iproute2/iputils:
-# diagnostics; kmod: modprobe pppoe/ppp_generic at start.
-RUN apk add --no-cache accel-ppp ppp iproute2 iputils kmod
+# diagnostics.
+RUN apk add --no-cache accel-ppp ppp iproute2 iputils
 
-ENTRYPOINT ["sh", "-c", "modprobe ppp_generic 2>/dev/null || true; modprobe pppoe 2>/dev/null || true; mkdir -p /var/run /var/log /etc/accel-ppp; exec accel-pppd -c /etc/accel-ppp.conf -p /var/run/accel-ppp.pid"]
+ENTRYPOINT ["sh", "-c", "mkdir -p /var/run /var/log /etc/accel-ppp; exec accel-pppd -c /etc/accel-ppp.conf -p /var/run/accel-ppp.pid"]

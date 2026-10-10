@@ -175,9 +175,9 @@ func TestPreflightRefusesUnmeasuredOrMissingKernelState(t *testing.T) {
 		output string
 		want   string
 	}{
-		{"empty", "", "/dev/ppp (PPP character device), pppoe (PPPoE pppox kernel module)"},
-		{"device only", "DEV_PPP=ok\nPPPOE=missing\n", "pppoe (PPPoE pppox kernel module)"},
-		{"module only", "DEV_PPP=missing\nPPPOE=ok\n", "/dev/ppp (PPP character device)"},
+		{"empty", "", "/dev/ppp (the PPP device, module ppp_generic), PPPoE sockets (module pppoe)"},
+		{"device only", "DEV_PPP=ok\nPPPOE=missing\n", "it lacks PPPoE sockets (module pppoe)."},
+		{"module only", "DEV_PPP=missing\nPPPOE=ok\n", "it lacks /dev/ppp (the PPP device, module ppp_generic)."},
 		{"both", "DEV_PPP=ok\nPPPOE=ok\n", ""},
 	}
 	for _, test := range tests {
@@ -436,7 +436,7 @@ func TestScenarioPlansPreserveImagesConfigsAndArguments(t *testing.T) {
 		t.Fatalf("accel readiness argv = %v", got)
 	}
 	if got := clientPeers[1].Arguments; !reflect.DeepEqual(got, []string{
-		"--privileged", "-e", "ze.log.interface=debug",
+		"--device", "/dev/ppp", "-e", "ze.log.interface=debug",
 	}) {
 		t.Fatalf("Ze-client docker arguments = %v", got)
 	}
@@ -460,7 +460,7 @@ func TestScenarioPlansPreserveImagesConfigsAndArguments(t *testing.T) {
 		t.Fatalf("Ze-AC peer order = %q then %q", acPeers[0].Image, acPeers[1].Image)
 	}
 	wantACArguments := []string{
-		"--privileged",
+		"--device", "/dev/ppp",
 		"-e", "ze.log.pppoe=debug",
 		"-e", "ze.log.l2tp=debug",
 	}

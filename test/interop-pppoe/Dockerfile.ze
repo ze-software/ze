@@ -1,5 +1,6 @@
 # Ze PPPoE-client image for the accel-ppp interop lab.
-# Privileged container shares the host kernel for PPPoE (pppox) and /dev/ppp.
+# The container holds NET_ADMIN and the host's /dev/ppp, and shares the host
+# kernel's PPPoE (pppox) support, which the host provides.
 #
 # It expects a pre-built linux binary at test/interop-pppoe/ze-linux, which
 # `./le test integration interop-pppoe` cross-compiles before it builds this image
@@ -17,11 +18,11 @@
 
 FROM alpine:3.21
 
-# iproute2: ip link/addr; ppp: /dev/ppp device support; kmod: modprobe;
+# iproute2: ip link/addr; ppp: /dev/ppp device support;
 # iputils: ping for the dataplane check; curl: the ze-ac scenarios read Ze's own
 # session table over its REST API, which refuses any non-loopback listener (no
 # TLS transport), so the request has to originate inside this container.
-RUN apk add --no-cache tini iproute2 kmod ppp iputils curl
+RUN apk add --no-cache tini iproute2 ppp iputils curl
 
 COPY test/interop-pppoe/ze-linux /usr/local/bin/ze
 

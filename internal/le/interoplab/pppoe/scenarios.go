@@ -50,24 +50,16 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 	zeMounts := []interoplab.Mount{
 		{Source: zeConfig, Target: zeConfigPath, ReadOnly: true},
 	}
-	if directoryExists(modulesPath) {
-		modules := interoplab.Mount{
-			Source:   modulesPath,
-			Target:   modulesPath,
-			ReadOnly: true,
-		}
-		accelMounts = append(accelMounts, modules)
-		zeMounts = append(zeMounts, modules)
-	}
 
 	return []interoplab.PeerConfig{
 		{
-			Name:      accelImageName,
-			Container: containers.accel,
-			Image:     accelImageName,
-			Host:      accelHost,
-			Mounts:    accelMounts,
-			Arguments: []string{privilegedArgument},
+			Name:         accelImageName,
+			Container:    containers.accel,
+			Image:        accelImageName,
+			Host:         accelHost,
+			Mounts:       accelMounts,
+			Capabilities: []string{netAdminCapability},
+			Arguments:    pppDeviceArguments(),
 			Ready: &interoplab.ReadyProbe{
 				Command:  []string{"accel-cmd", commandShow, "stat"},
 				Timeout:  60 * time.Second,
@@ -75,13 +67,14 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 			},
 		},
 		{
-			Name:      zeImageName,
-			Container: containers.ze,
-			Image:     zeImageName,
-			Host:      zeHost,
-			Mounts:    zeMounts,
+			Name:         zeImageName,
+			Container:    containers.ze,
+			Image:        zeImageName,
+			Host:         zeHost,
+			Mounts:       zeMounts,
+			Capabilities: []string{netAdminCapability},
 			Arguments: []string{
-				privilegedArgument,
+				"--device", pppDevice,
 				"-e",
 				"ze.log.interface=debug",
 			},
@@ -102,26 +95,17 @@ func prepareZeAccessConcentrator(
 	zeMounts := []interoplab.Mount{
 		{Source: zeConfig, Target: zeConfigPath, ReadOnly: true},
 	}
-	clientMounts := make([]interoplab.Mount, 0, 1)
-	if directoryExists(modulesPath) {
-		modules := interoplab.Mount{
-			Source:   modulesPath,
-			Target:   modulesPath,
-			ReadOnly: true,
-		}
-		zeMounts = append(zeMounts, modules)
-		clientMounts = append(clientMounts, modules)
-	}
 
 	return []interoplab.PeerConfig{
 		{
-			Name:      zeImageName,
-			Container: containers.ze,
-			Image:     zeImageName,
-			Host:      zeHost,
-			Mounts:    zeMounts,
+			Name:         zeImageName,
+			Container:    containers.ze,
+			Image:        zeImageName,
+			Host:         zeHost,
+			Mounts:       zeMounts,
+			Capabilities: []string{netAdminCapability},
 			Arguments: []string{
-				privilegedArgument,
+				"--device", pppDevice,
 				"-e",
 				"ze.log.pppoe=debug",
 				"-e",
@@ -130,12 +114,12 @@ func prepareZeAccessConcentrator(
 			Command: []string{"start", zeConfigPath},
 		},
 		{
-			Name:      clientImageName,
-			Container: containers.client,
-			Image:     clientImageName,
-			Host:      clientHost,
-			Mounts:    clientMounts,
-			Arguments: []string{privilegedArgument},
+			Name:         clientImageName,
+			Container:    containers.client,
+			Image:        clientImageName,
+			Host:         clientHost,
+			Capabilities: []string{netAdminCapability},
+			Arguments:    pppDeviceArguments(),
 		},
 	}, nil
 }

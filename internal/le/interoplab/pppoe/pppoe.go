@@ -41,12 +41,24 @@ const (
 	accelHost  = 3
 	clientHost = 4
 
-	commandShow        = "show"
-	commandPkill       = "pkill"
-	modulesPath        = "/lib/modules"
-	privilegedArgument = "--privileged"
-	zeConfigPath       = "/etc/ze/ze.conf"
+	commandShow  = "show"
+	commandPkill = "pkill"
+	zeConfigPath = "/etc/ze/ze.conf"
+
+	// netAdminCapability and pppDevice are what a PPPoE daemon needs beyond
+	// Docker's default grants: NET_ADMIN for PPPIOCNEWUNIT and its addresses
+	// and routes, and the /dev/ppp character device for its PPP units. The
+	// discovery sockets need NET_RAW, which Docker grants by default. The
+	// modules are the host's: a lab container never loads one
+	// (spec-lab-containers-least-privilege, D-7).
+	netAdminCapability = "NET_ADMIN"
+	pppDevice          = "/dev/ppp"
 )
+
+// pppDeviceArguments hands a container the host's PPP character device.
+func pppDeviceArguments() []string {
+	return []string{"--device", pppDevice}
+}
 
 // Options carries the native scenario selector and image-build controls.
 type Options struct {
@@ -209,27 +221,7 @@ func preflight(suffix string) interoplab.PreflightCheck {
 			}
 		}
 
-		var tb textbuf.Buffer
-		containerName := tb.Str("ze-pppoe-preflight-").Str(suffix).String()
-		arguments := []string{privilegedArgument, "--name", containerName}
-		if directoryExists(modulesPath) {
-			mount := tb.Reset().Str(modulesPath).Byte(':').Str(modulesPath).Str(":ro").String()
-			arguments = append(arguments, "-v", mount)
-		}
-		result, err := docker.RunOneShot(ctx, interoplab.OneShotContainer{
-			Image:     "alpine:3.21",
-			Arguments: arguments,
-			Command: []string{
-				"sh",
-				"-c",
-				"apk add --no-cache -q kmod > /dev/null 2>&1 && " +
-					"modprobe ppp_generic 2>/dev/null; " +
-					"modprobe pppoe 2>/dev/null; " +
-					"echo DEV_PPP=$(test -c /dev/ppp && echo ok || echo missing); " +
-					"echo PPPOE=$(test -d /sys/module/pppoe -o -f /proc/net/pppoe && echo ok || echo missing)",
-			},
-			Timeout: 120 * time.Second,
-		})
+		result, err := docker.RunOneShot(ctx, preflightContainer(suffix))
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return errors.New("preflight probe container timed out")
@@ -245,6 +237,26 @@ func preflight(suffix string) interoplab.PreflightCheck {
 	}
 }
 
+// preflightContainer probes the host kernel with the grants the lab's peers
+// hold and nothing more, so it passes only where they can run: it loads no
+// module, because a module it loaded would hide the host's missing setup.
+func preflightContainer(suffix string) interoplab.OneShotContainer {
+	var tb textbuf.Buffer
+	containerName := tb.Str("ze-pppoe-preflight-").Str(suffix).String()
+	arguments := append([]string{"--cap-add", netAdminCapability, "--name", containerName}, pppDeviceArguments()...)
+	return interoplab.OneShotContainer{
+		Image:     "alpine:3.21",
+		Arguments: arguments,
+		Command: []string{
+			"sh",
+			"-c",
+			"echo DEV_PPP=$(test -c /dev/ppp && echo ok || echo missing); " +
+				"echo PPPOE=$(test -d /sys/module/pppoe -o -f /proc/net/pppoe && echo ok || echo missing)",
+		},
+		Timeout: 120 * time.Second,
+	}
+}
+
 func validatePreflightOutput(output string) error {
 	checks := make(map[string]string, 2)
 	for line := range strings.SplitSeq(output, "\n") {
@@ -255,13 +267,16 @@ func validatePreflightOutput(output string) error {
 	}
 	missing := make([]string, 0, 2)
 	if checks["DEV_PPP"] != "ok" {
-		missing = append(missing, "/dev/ppp (PPP character device)")
+		missing = append(missing, "/dev/ppp (the PPP device, module ppp_generic)")
 	}
 	if checks["PPPOE"] != "ok" {
-		missing = append(missing, "pppoe (PPPoE pppox kernel module)")
+		missing = append(missing, "PPPoE sockets (module pppoe)")
 	}
 	if len(missing) != 0 {
-		return fmt.Errorf("host kernel missing PPPoE requirements: %s", strings.Join(missing, ", "))
+		return fmt.Errorf("the host kernel cannot run the PPPoE lab: it lacks %s.\n"+
+			"Lab containers never load kernel modules, so the host must provide them.\n"+
+			"Load them on the Docker host, then run the lab again:\n"+
+			"  sudo modprobe -a ppp_generic pppoe\n", strings.Join(missing, ", "))
 	}
 	return nil
 }
@@ -297,9 +312,4 @@ func scenarioPlan(
 		Peers:      peers,
 		Containers: []string{containers.ze, containers.accel, containers.client},
 	}, nil
-}
-
-func directoryExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.IsDir()
 }
