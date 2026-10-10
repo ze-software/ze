@@ -57,12 +57,16 @@ type ReactorConfigurator interface {
 	CreatedPeers() map[netip.Addr]string
 
 	// RestoreCreatedPeers marks again the created peers a compensated reload
-	// took over. It MUST be called before ApplyConfigDiff of the restored tree,
-	// whose reconcile reads the configuration file and removes a running peer
-	// the file lacks unless it is marked, and again after SetConfigTree of that
-	// tree, which drops the mark of every peer the tree declares. A peer no
-	// longer running at its address under its recorded name is not marked.
-	RestoreCreatedPeers(created map[netip.Addr]string)
+	// took over, and rebuilds from before, the tree the compensation restores,
+	// a created peer the reload removed. It MUST be called before
+	// ApplyConfigDiff of the restored tree, whose reconcile reads the
+	// configuration file and removes a running peer the file lacks unless it is
+	// marked, and again after SetConfigTree of that tree, which drops the mark
+	// of every peer the tree declares. A peer of another name running at a
+	// recorded address is neither marked nor replaced; the reconcile removes it,
+	// and the second call rebuilds the created peer at the freed address. An
+	// error is a created peer that could not be rebuilt.
+	RestoreCreatedPeers(before map[string]any, created map[netip.Addr]string) error
 }
 
 // ReactorStartupCoordinator handles plugin startup protocol signaling.

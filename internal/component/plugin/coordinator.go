@@ -222,11 +222,12 @@ func (c *Coordinator) CreatedPeers() map[netip.Addr]string {
 }
 
 // RestoreCreatedPeers hands the created peers a compensation restores to the
-// reactor. With no reactor attached there is no peer to mark.
-func (c *Coordinator) RestoreCreatedPeers(created map[netip.Addr]string) {
+// reactor. With no reactor attached there is no peer to mark or rebuild.
+func (c *Coordinator) RestoreCreatedPeers(before map[string]any, created map[netip.Addr]string) error {
 	if r := c.getReactor(); r != nil {
-		r.RestoreCreatedPeers(created)
+		return r.RestoreCreatedPeers(before, created)
 	}
+	return nil
 }
 
 // SetConfigTree replaces the running config tree after a successful reload. It

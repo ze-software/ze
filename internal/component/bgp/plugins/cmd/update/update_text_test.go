@@ -1268,8 +1268,11 @@ func (m *mockReactorBatch) ReloadRunning(map[string]any) map[string]any { return
 // CreatedPeers answers none: the mock creates no peer at runtime.
 func (m *mockReactorBatch) CreatedPeers() map[netip.Addr]string { return nil }
 
-// RestoreCreatedPeers marks nothing: the mock creates no peer at runtime.
-func (m *mockReactorBatch) RestoreCreatedPeers(map[netip.Addr]string) {}
+// RestoreCreatedPeers marks and rebuilds nothing: the mock creates no peer at
+// runtime.
+func (m *mockReactorBatch) RestoreCreatedPeers(map[string]any, map[netip.Addr]string) error {
+	return nil
+}
 
 func (m *mockReactorBatch) SetConfigTree(_ map[string]any) {}
 func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64, _ string, _ plugin.Sender) error {

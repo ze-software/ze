@@ -510,16 +510,47 @@ func (a *reactorAPIAdapter) CreatedPeers() map[netip.Addr]string {
 }
 
 // RestoreCreatedPeers marks again the created peers a compensated reload took
-// over (restoreReload, ../../plugin/server/reload_compensation.go).
+// over, and rebuilds the ones it removed (restoreReload,
+// ../../plugin/server/reload_compensation.go). before is the tree the
+// compensation restores, and created the marks held when it was recorded.
 //
-// A peer is marked only while it still runs at its address under the name it
-// was recorded under. One `delete bgp peer` removed, or a configured peer of
-// another name now at that address, is not the peer the mark named, and a mark
-// on it would keep a configured peer out of the next reload's removals.
-func (a *reactorAPIAdapter) RestoreCreatedPeers(created map[netip.Addr]string) {
+// A peer still running at its address under the name it was recorded under is
+// marked. A configured peer of another name at that address is not the peer
+// the mark named: it is left alone, and a mark on it would keep a configured
+// peer out of the next reload's removals. A takeover under another name is
+// undone in two calls: the reconcile of the restored tree removes the
+// operator's peer, and the call after SetConfigTree finds the address free.
+//
+// A recorded peer no longer running at a free address is rebuilt from its
+// entry in before, through the builder `create bgp peer` uses
+// (createdPeerSettings, reactor_peers.go), then published, recorded and marked
+// in one critical section as AddDynamicPeer does. The reconcile cannot rebuild
+// it: a file-configured daemon reloads the file, and a created peer is never
+// in the file. A recorded peer before holds no entry for was not taken over
+// by the reload (ReloadRunning leaves out every created peer the candidate does
+// not declare), so `delete bgp peer` removed it, and it stays removed.
+//
+// The settings are built before r.mu is taken, because the builder reads the
+// defaults under it; the address is checked again under the lock, so a peer
+// that reached it in between is kept and the rebuilt one discarded.
+func (a *reactorAPIAdapter) RestoreCreatedPeers(before map[string]any, created map[netip.Addr]string) error {
+	rebuilt, err := a.createdPeersToRebuild(before, created)
+	if err != nil {
+		return err
+	}
+
 	a.r.mu.Lock()
 	defer a.r.mu.Unlock()
 
+	for _, peer := range rebuilt {
+		if _, taken := a.r.findPeerByAddr(peer.settings.Address); taken {
+			continue
+		}
+		if err := a.r.addPeerLocked(peer.settings); err != nil {
+			return fmt.Errorf("restore created peer %s: %w", peer.settings.Name, err)
+		}
+		a.r.recordCreatedPeerLocked(peer.settings.Address, peer.settings.Name, peer.entry)
+	}
 	for addr, name := range created {
 		peer, running := a.r.findPeerByAddr(addr)
 		if !running {
@@ -533,6 +564,51 @@ func (a *reactorAPIAdapter) RestoreCreatedPeers(created map[netip.Addr]string) {
 		}
 		a.r.createdPeers[addr] = name
 	}
+	return nil
+}
+
+// restoredPeer is one created peer RestoreCreatedPeers rebuilds: its settings,
+// and the entry of the restored tree they were built from.
+type restoredPeer struct {
+	settings *PeerSettings
+	entry    map[string]any
+}
+
+// createdPeersToRebuild answers the recorded created peers no peer runs at the
+// address of, which before holds an entry for, built from that entry. The
+// caller MUST NOT hold r.mu.
+func (a *reactorAPIAdapter) createdPeersToRebuild(before map[string]any, created map[netip.Addr]string) ([]restoredPeer, error) {
+	var missing map[netip.Addr]string
+	a.r.mu.RLock()
+	for addr, name := range created {
+		if _, running := a.r.findPeerByAddr(addr); running {
+			continue
+		}
+		if missing == nil {
+			missing = make(map[netip.Addr]string)
+		}
+		missing[addr] = name
+	}
+	a.r.mu.RUnlock()
+	if len(missing) == 0 {
+		return nil, nil
+	}
+
+	bgp, _ := before[configRootNameBGP].(map[string]any)
+	peers, _ := bgp[configListNamePeer].(map[string]any)
+	var rebuilt []restoredPeer
+	for addr, name := range missing {
+		entry, recorded := peers[name].(map[string]any)
+		if !recorded {
+			continue
+		}
+		settings, err := a.r.createdPeerSettings(addr, entry)
+		if err != nil {
+			return nil, fmt.Errorf("restore created peer %s: %w", name, err)
+		}
+		rebuilt = append(rebuilt, restoredPeer{settings: settings, entry: entry})
+	}
+	return rebuilt, nil
 }
 
 // peerListDeclares answers whether a peer list declares the peer created at

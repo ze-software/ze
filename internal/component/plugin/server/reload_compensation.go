@@ -20,7 +20,8 @@ type reloadCompensation struct {
 	before map[string]any
 	// created is the reactor's created peers when before was recorded. A
 	// reload whose tree declares one takes it over, and restoring before does
-	// not mark it again (RestoreCreatedPeers, plugin.ReactorConfigurator).
+	// not mark it again, nor rebuild one it renamed (RestoreCreatedPeers,
+	// plugin.ReactorConfigurator).
 	created         map[netip.Addr]string
 	after           map[string]any
 	affected        map[string]affectedPlugin
@@ -144,8 +145,7 @@ func (s *Server) reloadScopePendingBehind(scope *reloadAcceptance) bool {
 func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensation) error {
 	diff := config.DiffMaps(undo.after, undo.before)
 	if len(diff.Added) == 0 && len(diff.Removed) == 0 && len(diff.Changed) == 0 {
-		s.reactor.RestoreCreatedPeers(undo.created)
-		return nil
+		return s.reactor.RestoreCreatedPeers(undo.before, undo.created)
 	}
 	if undo.restored == nil {
 		restoreCtx, accept := s.DeferReloadAcceptance(s.Context())
@@ -187,7 +187,9 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 	if !undo.reactorRestored {
 		// Before the reconcile, which removes a running peer the file lacks
 		// unless it is marked created.
-		s.reactor.RestoreCreatedPeers(undo.created)
+		if err := s.reactor.RestoreCreatedPeers(undo.before, undo.created); err != nil {
+			return err
+		}
 		if err := s.reactor.ApplyConfigDiff(undo.before); err != nil {
 			return err
 		}
@@ -201,7 +203,11 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 	}
 	s.reactor.SetConfigTree(undo.before)
 	// And after SetConfigTree, which drops every created peer the tree declares.
-	s.reactor.RestoreCreatedPeers(undo.created)
+	// A created peer the reconcile freed the address of, because the reload
+	// had declared that address under another name, is rebuilt here.
+	if err := s.reactor.RestoreCreatedPeers(undo.before, undo.created); err != nil {
+		return err
+	}
 	undo.restored.mu.Lock()
 	s.txLock.configTransactions = undo.restored.transactions
 	undo.restored.mu.Unlock()

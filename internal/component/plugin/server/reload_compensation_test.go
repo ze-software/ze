@@ -188,7 +188,8 @@ func TestFailedReloadCompensationRetainsRetry(t *testing.T) {
 // every applied tree takes over, the way a candidate declaring it does.
 type createdPeersReactor struct {
 	removalRecoveryReactor
-	created map[netip.Addr]string
+	created      map[netip.Addr]string
+	restoredFrom map[string]any
 }
 
 func (r *createdPeersReactor) CreatedPeers() map[netip.Addr]string {
@@ -204,10 +205,12 @@ func (r *createdPeersReactor) SetConfigTree(tree map[string]any) {
 	r.created = nil
 }
 
-func (r *createdPeersReactor) RestoreCreatedPeers(created map[netip.Addr]string) {
+func (r *createdPeersReactor) RestoreCreatedPeers(before map[string]any, created map[netip.Addr]string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.created = maps.Clone(created)
+	r.restoredFrom = before
+	return nil
 }
 
 // TestRejectedReloadMarksTheCreatedPeersAgain holds AC-9 of
@@ -219,7 +222,8 @@ func (r *createdPeersReactor) RestoreCreatedPeers(created map[netip.Addr]string)
 // METHOD: a reactor with one created peer that the applied tree takes over;
 // reload under a deferred acceptance, then reject it.
 // VALIDATES: the reload took the peer over, and the compensation handed the
-// marks the reactor held before the reload back to RestoreCreatedPeers.
+// marks the reactor held before the reload back to RestoreCreatedPeers, with
+// the tree it restores to rebuild them from.
 // PREVENTS: a created peer left configured by a commit that never took effect.
 func TestRejectedReloadMarksTheCreatedPeersAgain(t *testing.T) {
 	s, _ := newLifecycleStartupServer(t)
@@ -236,6 +240,11 @@ func TestRejectedReloadMarksTheCreatedPeersAgain(t *testing.T) {
 	finish(false)
 	require.Equal(t, map[string]any{"revision": 1}, reactor.GetConfigTree())
 	require.Equal(t, created, reactor.CreatedPeers(), "the rejected reload marks the created peer again")
+	reactor.mu.Lock()
+	restoredFrom := reactor.restoredFrom
+	reactor.mu.Unlock()
+	require.Equal(t, map[string]any{"revision": 1}, restoredFrom,
+		"the created peers are restored from the tree the compensation restores")
 }
 
 // lockOrderReactor reports a CreatedPeers call made while the reload scope's

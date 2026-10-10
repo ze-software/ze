@@ -89,8 +89,11 @@ func (r *reloadTestReactor) ReloadRunning(map[string]any) map[string]any { retur
 // CreatedPeers answers none: the mock creates no peer at runtime.
 func (r *reloadTestReactor) CreatedPeers() map[netip.Addr]string { return nil }
 
-// RestoreCreatedPeers marks nothing: the mock creates no peer at runtime.
-func (r *reloadTestReactor) RestoreCreatedPeers(map[netip.Addr]string) {}
+// RestoreCreatedPeers marks and rebuilds nothing: the mock creates no peer at
+// runtime.
+func (r *reloadTestReactor) RestoreCreatedPeers(map[string]any, map[netip.Addr]string) error {
+	return nil
+}
 func (r *reloadTestReactor) SetConfigTree(tree map[string]any) {
 	r.setTree = tree
 	r.tree = tree

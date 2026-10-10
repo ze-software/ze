@@ -572,7 +572,13 @@ Compensation also gives back the peers `create bgp peer` built that the rejected
 tree took over by declaring them. The reactor's created-peer marks are recorded
 with the prior tree, and the restore marks those peers again before the reactor
 reconciles against the prior configuration and again after it sets the prior tree,
-so the next reload whose candidate does not declare them keeps them.
+so the next reload whose candidate does not declare them keeps them. A rejected
+tree that declared a created peer's address under another name took the peer
+over by replacing it: the reconcile removes the operator's peer, which the prior
+file does not declare, and the second restore rebuilds the created peer from its
+entry in the prior tree, through the builder `create bgp peer` uses, and marks
+it. The reconcile cannot rebuild it, because it reads the configuration file and
+a created peer is never in the file.
 <!-- source: internal/component/plugin/server/reload_compensation.go -- restoreReload -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- RestoreCreatedPeers -->
 

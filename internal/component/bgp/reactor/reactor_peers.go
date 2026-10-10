@@ -497,24 +497,9 @@ func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
 		local["ip"] = valAuto
 	}
 
-	globals := r.globals()
-	settings, err := parsePeerFromTree(addr.String(), tree, globals.LocalAS, globals.RouterID)
+	settings, err := r.createdPeerSettings(addr, tree)
 	if err != nil {
-		return fmt.Errorf("dynamic peer %s: %w", addr, err)
-	}
-	// The peer carries the name the running configuration declares it under,
-	// and the one `update bgp config` writes it to the file under, so a reload
-	// operation that names that entry finds this peer (runningPeerSettings,
-	// operation.go) and a file that later declares it compares equal by name.
-	settings.Name = peerConfigNameFor(addr)
-
-	// The test port override reaches a peer built HERE as well as one built by
-	// the config loader, which applies it in applyPortOverride
-	// (internal/component/bgp/config/peers.go). A peer is a peer whichever
-	// route created it, and a runtime-created one that dialed 179 while every
-	// configured peer dialed the harness port would reach no test server.
-	if port, override := PortOverrideFromEnv(); override {
-		settings.Port = port
+		return err
 	}
 
 	r.mu.Lock()
@@ -532,6 +517,37 @@ func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
 	// normalized, which is the one the reload compares the marks against.
 	r.recordCreatedPeerLocked(settings.Address, settings.Name, tree)
 	return nil
+}
+
+// createdPeerSettings answers the settings of the peer `create bgp peer`
+// builds at addr from tree, a peer subtree whose two required connection
+// leaves are already filled in. tree is not written to.
+//
+// AddDynamicPeer builds a created peer through it, and RestoreCreatedPeers
+// (reactor_api.go) rebuilds one through it from the entry the running
+// configuration recorded, so a restored peer is the peer that was created.
+// The caller MUST NOT hold r.mu: the defaults are read under it.
+func (r *Reactor) createdPeerSettings(addr netip.Addr, tree map[string]any) (*PeerSettings, error) {
+	globals := r.globals()
+	settings, err := parsePeerFromTree(addr.String(), tree, globals.LocalAS, globals.RouterID)
+	if err != nil {
+		return nil, fmt.Errorf("dynamic peer %s: %w", addr, err)
+	}
+	// The peer carries the name the running configuration declares it under,
+	// and the one `update bgp config` writes it to the file under, so a reload
+	// operation that names that entry finds this peer (runningPeerSettings,
+	// operation.go) and a file that later declares it compares equal by name.
+	settings.Name = peerConfigNameFor(addr)
+
+	// The test port override reaches a peer built HERE as well as one built by
+	// the config loader, which applies it in applyPortOverride
+	// (internal/component/bgp/config/peers.go). A peer is a peer whichever
+	// route created it, and a runtime-created one that dialed 179 while every
+	// configured peer dialed the harness port would reach no test server.
+	if port, override := PortOverrideFromEnv(); override {
+		settings.Port = port
+	}
+	return settings, nil
 }
 
 // PortOverrideFromEnv answers the BGP port every peer of this daemon dials,
