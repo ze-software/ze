@@ -94,15 +94,13 @@ func (b *EventBroker) Unsubscribe(c *sseClient) {
 	}
 }
 
-// broadcastEvent sends an event to a single client. Returns true if the event
-// was enqueued, false if the client buffer was full (event dropped by design;
-// SSE clients that fall behind lose events rather than blocking the broker).
-func broadcastEvent(c *sseClient, ev sseEvent) bool {
+// broadcastEvent sends an event to a single client. A client whose buffer is
+// full loses the event (dropped by design: SSE clients that fall behind lose
+// events rather than blocking the broker), and no caller acts on the drop.
+func broadcastEvent(c *sseClient, ev sseEvent) {
 	select {
 	case c.ch <- ev:
-		return true
 	default: // Non-blocking send: drop event for slow client (by design).
-		return false
 	}
 }
 
