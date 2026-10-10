@@ -53,11 +53,13 @@ const (
 	// (spec-lab-containers-least-privilege, D-7).
 	netAdminCapability = "NET_ADMIN"
 	pppDevice          = "/dev/ppp"
+	// deviceFlag is docker run's flag that hands a host device to a container.
+	deviceFlag = "--device"
 )
 
 // pppDeviceArguments hands a container the host's PPP character device.
 func pppDeviceArguments() []string {
-	return []string{"--device", pppDevice}
+	return []string{deviceFlag, pppDevice}
 }
 
 // Options carries the native scenario selector and image-build controls.
@@ -276,7 +278,7 @@ func validatePreflightOutput(output string) error {
 		return fmt.Errorf("the host kernel cannot run the PPPoE lab: it lacks %s.\n"+
 			"Lab containers never load kernel modules, so the host must provide them.\n"+
 			"Load them on the Docker host, then run the lab again:\n"+
-			"  sudo modprobe -a ppp_generic pppoe\n", strings.Join(missing, ", "))
+			"  sudo modprobe -a ppp_generic pppoe", strings.Join(missing, ", "))
 	}
 	return nil
 }

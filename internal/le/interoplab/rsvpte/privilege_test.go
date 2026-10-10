@@ -126,7 +126,7 @@ func TestRSVPTEPreflightRunsWithoutPrivilege(t *testing.T) {
 		t.Errorf("a host with MPLS routing refused: %v", err)
 	}
 	err := mplsPreflightRefusal("MPLS=missing\n")
-	if err == nil || !strings.Contains(err.Error(), "\n  sudo modprobe -a mpls_router mpls_iptunnel\n") {
+	if err == nil || !strings.HasSuffix(err.Error(), "\n  sudo modprobe -a mpls_router mpls_iptunnel") {
 		t.Errorf("refusal %v does not print the host command on a line of its own", err)
 	}
 }

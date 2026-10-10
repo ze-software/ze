@@ -303,5 +303,5 @@ func mplsPreflightRefusal(stdout string) error {
 		"(modules mpls_router and mpls_iptunnel; the probe answered %q).\n"+
 		"Lab containers never load kernel modules, so the host must provide them.\n"+
 		"Load them on the Docker host, then run the lab again:\n"+
-		"  sudo modprobe -a mpls_router mpls_iptunnel\n", strings.TrimSpace(stdout))
+		"  sudo modprobe -a mpls_router mpls_iptunnel", strings.TrimSpace(stdout))
 }

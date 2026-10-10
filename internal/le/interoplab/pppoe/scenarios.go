@@ -74,7 +74,7 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 			Mounts:       zeMounts,
 			Capabilities: []string{netAdminCapability},
 			Arguments: []string{
-				"--device", pppDevice,
+				deviceFlag, pppDevice,
 				"-e",
 				"ze.log.interface=debug",
 			},
@@ -105,7 +105,7 @@ func prepareZeAccessConcentrator(
 			Mounts:       zeMounts,
 			Capabilities: []string{netAdminCapability},
 			Arguments: []string{
-				"--device", pppDevice,
+				deviceFlag, pppDevice,
 				"-e",
 				"ze.log.pppoe=debug",
 				"-e",

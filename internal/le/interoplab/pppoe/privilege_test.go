@@ -98,7 +98,7 @@ func TestPPPoEPreflightRunsWithoutPrivilege(t *testing.T) {
 		}
 	}
 	err := validatePreflightOutput("DEV_PPP=missing\nPPPOE=missing\n")
-	if err == nil || !strings.Contains(err.Error(), "\n  sudo modprobe -a ppp_generic pppoe\n") {
+	if err == nil || !strings.HasSuffix(err.Error(), "\n  sudo modprobe -a ppp_generic pppoe") {
 		t.Errorf("refusal %v does not print the host command on a line of its own", err)
 	}
 }
