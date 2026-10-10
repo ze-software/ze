@@ -100,7 +100,7 @@ func TestInstallNativeKernelFixtures(t *testing.T) {
 		t.Fatal(err)
 	}
 	provenance := filepath.Join(t.TempDir(), "provenance")
-	if err := kernelVersionProvenanceFixture(ctx, []string{repo, provenance, "7.1.1"}); err != nil {
+	if err := kernelVersionProvenanceFixture(ctx, []string{repo, provenance, versionKernelPinned}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(provenance, "kernel.version")); err != nil {

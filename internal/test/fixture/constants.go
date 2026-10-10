@@ -253,6 +253,7 @@ const (
 	nftVerdictAccept             = "accept" // The nftables verdict.
 	nftVerdictDrop               = "drop"
 	programQEMUAArch64           = "qemu-system-aarch64"
+	programQEMUX8664             = "qemu-system-x86_64"
 	programSSH                   = "ssh"
 	programQEMU                  = "qemu" // The emulator program a fake records.
 	xfrmWordSource               = "src"  // The ip xfrm output column.

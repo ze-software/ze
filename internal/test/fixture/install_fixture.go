@@ -681,12 +681,31 @@ func isoCheckImage(_ context.Context, args []string) error {
 	return errors.Join(readErr, decompressed.Close(), file.Close(), expectBytes("decompressed image", data, []byte("image-bytes\n")))
 }
 
+// hostKernelArch answers the host's kernel arch and its QEMU program. Every
+// kernel builds on a host of its own arch (AC-13), so a fixture that drives a
+// build asks for this arch; a fixed arch is refused on the other host.
+func hostKernelArch() (arch, qemuProgram string) {
+	if runtime.GOARCH == archAMD64 {
+		return archAMD64, programQEMUX8664
+	}
+	return archARM64, programQEMUAArch64
+}
+
 func kernelAutoBuilderFixture(ctx context.Context, _ []string) error {
 	root, req, cleanup, err := syntheticBuildRequest()
 	if err != nil {
 		return err
 	}
 	defer cleanup()
+
+	// Every kernel builds on a host of its own arch (AC-13), so the selection
+	// is exercised for the host's arch, and the other arch is the refusal.
+	native, qemuProgram := hostKernelArch()
+	foreign := archAMD64
+	if native == archAMD64 {
+		foreign = archARM64
+	}
+	req.Arch = native
 
 	bin := filepath.Join(root, "bin")
 	if err := os.MkdirAll(bin, 0o750); err != nil {
@@ -696,7 +715,7 @@ func kernelAutoBuilderFixture(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{builderDocker, programQEMUAArch64, "go"} {
+	for _, name := range []string{builderDocker, qemuProgram, "go"} {
 		if err := os.Symlink(noop, filepath.Join(bin, name)); err != nil {
 			return err
 		}
@@ -708,32 +727,34 @@ func kernelAutoBuilderFixture(ctx context.Context, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("docker-first selection: %w", err)
 	}
-	if !strings.Contains(out, "builder=docker") {
-		return fmt.Errorf("auto selection did not prefer docker: %s", out)
+	if !strings.Contains(out, "builder=docker") || !strings.Contains(out, "arch="+native) {
+		return fmt.Errorf("auto selection did not prefer docker for %s: %s", native, out)
 	}
-	req.Arch = archAMD64
-	req.OutputDir = "out-docker-amd64"
-	out, err = runBuildCapture(ctx, &req)
-	if err != nil {
-		return fmt.Errorf("amd64 docker selection: %w", err)
-	}
-	if !strings.Contains(out, "arch=amd64") || !strings.Contains(out, "builder=docker") {
-		return fmt.Errorf("amd64 mapping output = %q", out)
-	}
-	req.Arch = archARM64
 
+	req.Arch = foreign
+	req.OutputDir = "out-docker-" + foreign
+	_, err = runBuildCapture(ctx, &req)
+	if err == nil || !strings.Contains(err.Error(), "kernel for "+foreign+" cannot be built here") {
+		return fmt.Errorf("a %s kernel on a %s host was not refused: %s", foreign, native, fmt.Sprint(err))
+	}
+	req.Arch = native
+
+	// With docker gone, auto selection takes QEMU, and since 6aa76ad8a0 the
+	// selection itself asks QEMU for its accelerators (`-accel help`). A
+	// canceled context stops that first QEMU run, so the error names QEMU's
+	// accelerator listing: the no-QEMU branch below names neither.
 	if err := os.Remove(filepath.Join(bin, "docker")); err != nil {
 		return err
 	}
 	req.OutputDir = "out-qemu"
 	canceled, cancel := context.WithCancel(ctx)
 	cancel()
-	out, err = runBuildCapture(canceled, &req)
-	if err == nil || !errors.Is(err, context.Canceled) || !strings.Contains(out, "builder=qemu") {
-		return fmt.Errorf("auto selection did not enter and cancel qemu: output=%q error=%s", out, fmt.Sprint(err))
+	_, err = runBuildCapture(canceled, &req)
+	if err == nil || !errors.Is(err, context.Canceled) || !strings.Contains(err.Error(), qemuProgram+" -accel help") {
+		return fmt.Errorf("auto selection did not enter and cancel qemu: error=%s", fmt.Sprint(err))
 	}
 
-	if err := os.Remove(filepath.Join(bin, "qemu-system-aarch64")); err != nil {
+	if err := os.Remove(filepath.Join(bin, qemuProgram)); err != nil {
 		return err
 	}
 	if err := os.Remove(filepath.Join(bin, "go")); err != nil {
@@ -777,7 +798,8 @@ func kernelQEMUFixture(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{programQEMUAArch64, "go"} {
+	arch, qemuProgram := hostKernelArch()
+	for _, name := range []string{qemuProgram, "go"} {
 		if err := os.Symlink(noop, filepath.Join(bin, name)); err != nil {
 			return err
 		}
@@ -798,14 +820,17 @@ func kernelQEMUFixture(ctx context.Context, args []string) error {
 	canceled, cancel := context.WithCancel(ctx)
 	cancel()
 	req := kernelbuilder.Request{
-		Root: root, Version: versionKernelPinned, Arch: archARM64, Profile: "hardware", Builder: builderQEMU,
+		Root: root, Version: versionKernelPinned, Arch: arch, Profile: "hardware", Builder: builderQEMU,
 		Target: targetInstaller, SourceDir: pathInstallerKernel, OutputDir: relOut,
 		BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon,
 		Modules: "no", Fragments: fragments,
 	}
-	progress, err := runBuildCapture(canceled, &req)
-	if err == nil || !errors.Is(err, context.Canceled) || !strings.Contains(progress, "builder=qemu") {
-		return fmt.Errorf("native QEMU backend was not selected and canceled: output=%q error=%s", progress, fmt.Sprint(err))
+	// Since 6aa76ad8a0 selecting the QEMU backend asks QEMU for its
+	// accelerators (`-accel help`), so the canceled context stops that first
+	// QEMU run, and the error names it.
+	_, err = runBuildCapture(canceled, &req)
+	if err == nil || !errors.Is(err, context.Canceled) || !strings.Contains(err.Error(), qemuProgram+" -accel help") {
+		return fmt.Errorf("native QEMU backend was not selected and canceled: error=%s", fmt.Sprint(err))
 	}
 	return nil
 }
@@ -885,7 +910,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 		return errors.New("kernel-build-output-ownership requires REPOSITORY OUTPUT")
 	}
 	return buildKernel(ctx, kernelbuilder.Request{
-		Root: args[0], Version: versionKernelPinned, Arch: archAMD64, Profile: targetRuntime, Builder: builderDocker,
+		Root: args[0], Version: versionKernelPinned, Arch: runtime.GOARCH, Profile: targetRuntime, Builder: builderDocker,
 		Target: targetRuntime, SourceDir: pathGokrazyKernel, OutputDir: args[1],
 		BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon,
 		Modules: valueYes, PatchesDir: "gokrazy/kernel/patches",
@@ -1016,7 +1041,7 @@ func kernelVersionProvenanceFixture(ctx context.Context, args []string) error {
 		return errors.New("kernel-version-provenance requires REPOSITORY OUTPUT VERSION")
 	}
 	return buildKernel(ctx, kernelbuilder.Request{
-		Root: args[0], Version: args[2], Arch: archAMD64, Profile: profileQEMU, Builder: builderDocker,
+		Root: args[0], Version: args[2], Arch: runtime.GOARCH, Profile: profileQEMU, Builder: builderDocker,
 		Target: targetInstaller, SourceDir: pathInstallerKernel, OutputDir: args[1],
 		BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon,
 		Modules: "no",
