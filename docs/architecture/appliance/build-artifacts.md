@@ -72,10 +72,17 @@ the cache entry and the `ze appliance kernel --target runtime --arch <arch>`
 command to run once Docker or QEMU is installed. Run outside the Ze source tree,
 where the kernel config cannot be read, the check warns rather than pass.
 
+The builder query the check calls, `kernelbuilder.UsableBuilder`, lives in its
+own file, `kernelbuilder/doctor.go`, and that file is the one builder source the
+kernel cache variant does not hash. Every other builder source is hashed, so an
+edit to it makes each cached kernel stale and costs a cold rebuild per arch;
+nothing in the doctor's file runs during a build, so editing it must not.
+
 <!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 <!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel -->
 <!-- source: internal/appliance/doctor_checks.go -- checkRuntimeKernel -->
-<!-- source: internal/appliance/kernelbuilder/driver.go -- UsableBuilder -->
+<!-- source: internal/appliance/kernelbuilder/doctor.go -- UsableBuilder, DoctorSourceName -->
+<!-- source: internal/appliance/cache.go -- kernelBuilderSources -->
 
 ## Related
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -269,5 +270,36 @@ func TestDoctorRuntimeKernelOutsideSourceTree(t *testing.T) {
 	}
 	if !strings.Contains(diags[0].Message, runtimeKernelConfigDir) {
 		t.Errorf("message does not name %s:\n%s", runtimeKernelConfigDir, diags[0].Message)
+	}
+}
+
+// TestKernelBuilderSourcesSkipTheDoctorQuery verifies the builder source hash
+// that keys every cached kernel leaves out the file the doctor check calls,
+// and still covers the driver that selects the backend.
+//
+// VALIDATES: an edit to the doctor's builder query keeps every cached kernel.
+// PREVENTS: a doctor-only change forcing a cold rebuild of each arch's kernel.
+func TestKernelBuilderSourcesSkipTheDoctorQuery(t *testing.T) {
+	t.Chdir(filepath.Join("..", ".."))
+	paths, ok := kernelBuilderSources()
+	if !ok {
+		t.Fatal("no kernel builder sources found from the repository root")
+	}
+	doctor := filepath.Join("internal", "appliance", "kernelbuilder", kernelbuilder.DoctorSourceName)
+	if _, err := os.Stat(doctor); err != nil {
+		t.Fatalf("the doctor query file is not where the hash looks: %v", err)
+	}
+	driver := filepath.Join("internal", "appliance", "kernelbuilder", "driver.go")
+	hasDriver := false
+	for _, path := range paths {
+		if path == doctor {
+			t.Errorf("the builder source hash includes %s", doctor)
+		}
+		if path == driver {
+			hasDriver = true
+		}
+	}
+	if !hasDriver {
+		t.Errorf("the builder source hash misses %s", driver)
 	}
 }

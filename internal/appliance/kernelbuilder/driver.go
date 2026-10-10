@@ -225,13 +225,6 @@ func hostOutputPath(req Request) string {
 	return filepath.Join(req.Root, req.OutputDir)
 }
 
-// UsableBuilder answers the backend a kernel build for arch would use when no
-// backend is named (Docker first, then QEMU with Go), or an error when this
-// host has neither. It runs nothing: `ze doctor` asks it before any build.
-func UsableBuilder(arch string) (string, error) {
-	return selectBuilder("", arch)
-}
-
 func selectBuilder(requested, arch string) (string, error) {
 	hasDocker := commandAvailable(backendDocker)
 	qemu := qemuBinary(arch)
