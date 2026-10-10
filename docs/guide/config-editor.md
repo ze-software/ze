@@ -289,11 +289,14 @@ from its store"; `commit now` still works there. The web editor of
 leaf-list member rather than a leaf or a path. A deactivated member stays in
 its leaf-list, bracket ones such as `address [ ... ]` included: the file writes
 the whole list and then one `inactive: address <member>` statement for it
-(`inactive <path> <member>` in `set` form), so a save, a commit and a reload all
-keep it deactivated. Setting a bracket leaf-list whole keeps a deactivated
-member the new list does not name, still deactivated; delete the member to
-remove it.
-<!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue, storeLeaf -->
+(`nop <path> <member>` in `set` form, as for any leaf-list), so a save, a
+commit and a reload all keep it deactivated. You can deactivate a member your
+session has just added: `commit now` applies that deactivation after the `set`
+that adds the member. Setting a bracket leaf-list whole keeps a deactivated
+member the new list does not name, still deactivated; `delete address <member>`
+removes that one member, deactivated or not, and leaves the rest of the list.
+<!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue, storeLeaf, DeleteByPath -->
+<!-- source: internal/component/cli/editor_draft.go -- applyStructuralOpsAroundEntries, memberOpWaitsForEntries -->
 <!-- source: internal/component/config/serialize.go -- serializeBracketLeafList -->
 <!-- source: internal/component/config/tree.go -- SetLeafListMembers -->
 <!-- source: internal/component/cli/editor_leaflist.go -- writeThroughMemberOp -->

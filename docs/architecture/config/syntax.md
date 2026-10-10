@@ -214,9 +214,15 @@ bgp {
 A single deactivated **leaf-list member** keeps its bare value in the
 leaf line and is declared inactive by a follow-up `inactive: <leaf>
 <member>` statement (above: `no-self-as` stays listed, marked
-inactive). The member statement only has this meaning when the value is
-already an active member of the leaf-list; otherwise `inactive: <leaf>
-<values...>` keeps its whole-leaf meaning. The internal
+inactive). Both kinds of leaf-list write it this way: a plain one
+(`name-server 8.8.8.8 1.1.1.1;`) and a bracket one (`address [ ... ];`).
+For a plain leaf-list the member statement only has this meaning when the
+value is already an active member; otherwise `inactive: <leaf>
+<values...>` keeps its whole-leaf meaning. For a bracket leaf-list,
+`inactive: <leaf> [ ... ];` is the whole leaf, and `inactive: <leaf>
+<member>;` MUST name a member the list line already holds: any other
+member is refused with an error that says to write it in the list first.
+The internal
 `inactive:<member>` token never appears in serialized output -- it
 would fail per-item type validation (e.g. `ip-address`) on reparse.
 
@@ -236,20 +242,36 @@ path form, and the parser takes their spelling from `command.Verbs` rather than
 writing the words again, so renaming a verb renames the file keyword with it.
 `nop` and `inactive` belong to this format alone and the verb registry holds
 neither.
-<!-- source: internal/component/config/setparser.go -- cmdNop, cmdSet, cmdDelete, parseNop -->
+<!-- source: internal/component/config/setparser.go -- cmdNop, cmdSet, cmdDelete, parseNop, nopBracketMember, bracketMembers, isMemberLeafList -->
+<!-- source: internal/component/config/serialize_set.go -- writeInactiveMemberLines -->
 <!-- source: internal/component/command/verbs.go -- VerbSet, VerbDelete -->
 
 ```
 nop bgp router-id 10.0.0.1
 ```
 
-For leaf-lists with per-member deactivation, each member gets its own
-line: active members use `set`, deactivated members use `nop`:
+For leaf-lists with per-member deactivation, a deactivated member is
+written `nop <path> <member>`, for both kinds of leaf-list. A plain
+leaf-list gives each member its own line: active members use `set`,
+deactivated members use `nop`:
 
 ```
 set system name-server 8.8.8.8
 nop system name-server 1.1.1.1
 ```
+
+A bracket leaf-list sets the whole list on one line, every member listed,
+and follows it with one `nop <path> <member>` line per deactivated member.
+A `nop` line that names a list, or a value that is not yet a member,
+deactivates the whole leaf instead:
+
+```
+set interface ethernet eth0 unit 0 ipv4 address [ 192.0.2.1/24 192.0.2.3/30 ]
+nop interface ethernet eth0 unit 0 ipv4 address 192.0.2.3/30
+```
+
+`delete <path> <member>` removes that one member, of a plain or a bracket
+leaf-list alike; `delete <path>` removes the whole leaf.
 
 Container deactivation uses a structural `nop <container-path>` line
 before its children. Children retain their own `set`/`nop` state:
@@ -261,8 +283,13 @@ set bgp neighbor 192.0.2.1 peer-as 65001
 ```
 
 **Backward compatibility:** the `inactive <path>` keyword from older
-configs is still accepted by the parser. On save, `inactive` lines
-are migrated to the `nop` form automatically.
+configs is still accepted by the parser, and so is `inactive <path>
+<member>` after a bracket leaf-list's list line, the spelling an older
+release wrote for a deactivated bracket member. On save, `inactive` lines
+are migrated to the `nop` form automatically. An older draft could also
+spell a bracket list as one quoted value (`address "192.0.2.1/24
+192.0.2.3/30"`): when that value fails as one member but each of its words
+is a valid member, the parser reads the words as the members.
 
 Coexists with per-feature `disable` semantics (e.g. a peer's
 `admin-state disable` leaf), which are protocol-aware and operationally
