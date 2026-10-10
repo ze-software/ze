@@ -57,7 +57,8 @@ func (d *Docker) NetSysctlSecurityArguments(ctx context.Context) ([]string, erro
 // NetSysctlUnapplied answers the refusal, naming the load command, for a
 // container run under NetSysctlSecurityArguments that exited with exitCode
 // because the daemon could not apply the profile (runc's "unable to apply
-// apparmor profile" in stderr), and nil for any other outcome. A caller that
+// apparmor profile" in stderr), quoting that stderr line alone, and nil for
+// any other outcome. A caller that
 // runs the container outside Docker.runContainer, such as the terminal demo
 // renderer, reads it from the tail of the run's stderr: when the host's
 // profile list is unreadable, NetSysctlSecurityArguments cannot refuse first.
@@ -69,7 +70,21 @@ func NetSysctlUnapplied(exitCode int, stderr string) error {
 	if !registered {
 		return nil
 	}
-	return labAppArmorRefusal(profile, "the daemon could not apply ("+strings.TrimSpace(stderr)+")")
+	return labAppArmorRefusal(profile, "the daemon could not apply ("+appArmorUnappliedLine(stderr)+")")
+}
+
+// appArmorUnappliedLine answers the one stderr line that carries runc's
+// failure, trimmed. The stderr of a demo run is a tail of everything the
+// container printed, and the refusal quotes the cause, not the build log
+// before it. appArmorProfileUnapplied has already found the line, so the
+// whole trimmed stderr is answered only if no single line holds it.
+func appArmorUnappliedLine(stderr string) string {
+	for line := range strings.SplitSeq(stderr, "\n") {
+		if strings.Contains(strings.ToLower(line), runcAppArmorUnapplied) {
+			return strings.TrimSpace(line)
+		}
+	}
+	return strings.TrimSpace(stderr)
 }
 
 // NetSysctlGranted reports whether the profile admits a write of key, spelled

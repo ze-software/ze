@@ -107,3 +107,34 @@ func TestNetSysctlSecurityArgumentsFollowTheDaemon(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: round-3 review NOTE 6. NetSysctlUnapplied quotes only the
+// stderr line that carries runc's failure, and answers nil for a clean exit
+// or a failure that is not the profile.
+// PREVENTS: the refusal quoting a whole stderr tail of build output before
+// the one line that says why the container did not start.
+func TestNetSysctlUnappliedQuotesOnlyTheRuncLine(t *testing.T) {
+	cause := "docker: Error response from daemon: failed to create task: runc create failed: " +
+		"unable to apply apparmor profile: apparmor failed to apply profile: write " +
+		"/proc/self/attr/apparmor/exec: no such file or directory: unknown."
+	stderr := "Step 1/9 : FROM debian\n go: downloading golang.org/x/sys\n" + cause + "\nRun 'docker run --help' for more information\n"
+	err := NetSysctlUnapplied(125, stderr)
+	if err == nil {
+		t.Fatal("runc's AppArmor failure answered no refusal")
+	}
+	message := err.Error()
+	if !strings.Contains(message, "("+cause+")") {
+		t.Errorf("the refusal does not quote runc's line alone:\n%s", message)
+	}
+	for _, noise := range []string{"Step 1/9", "downloading", "docker run --help"} {
+		if strings.Contains(message, noise) {
+			t.Errorf("the refusal quotes %q from the rest of stderr:\n%s", noise, message)
+		}
+	}
+	if err := NetSysctlUnapplied(0, stderr); err != nil {
+		t.Errorf("a clean exit answered %v", err)
+	}
+	if err := NetSysctlUnapplied(1, "exit status 1\n"); err != nil {
+		t.Errorf("a failure that is not the profile answered %v", err)
+	}
+}
