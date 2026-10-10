@@ -7,8 +7,8 @@ package appliance
 import (
 	"context"
 	_ "embed" // for go:embed kernel.version
-	"flag"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
