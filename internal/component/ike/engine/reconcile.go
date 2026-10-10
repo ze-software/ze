@@ -254,9 +254,14 @@ func (ps *PeerSession) retargetESPGroup(group ipsec.ESPGroup) bool {
 
 // adoptESPGroup answers a reload's esp-group on the owner loop. The session adopts it
 // only while no Child SA exists or is being made from the old group: an installed Child
-// SA runs ESP the new policy may refuse (RFC 4301 Section 4.4.2), our own creation in
+// SA runs ESP the new policy may refuse, our own creation in
 // flight offered the old proposals, and a parallel responder handshake negotiated its
 // Child SA from them. Each of those refuses, and reconcilePeers restarts the session.
+//
+// RFC 4301 Section 4.4.2: "Since this document does not mandate that the SAD be
+// selectively cleared when the SPD is changed, SAD entries can remain when the SPD
+// entries that created them are changed or deleted." Ze does not keep such an entry: a
+// Child SA negotiated from the old esp-group is replaced by a restart.
 //
 // The owner decision of 2026-10-10 keeps the IKE SA on that edit: a childless IKE SA
 // carries no ESP, so the new esp-group applies when the Child SA is created.
@@ -277,8 +282,10 @@ func (ps *PeerSession) adoptESPGroup(reload espReload, log *slog.Logger) {
 	ps.espGroup = reload.group
 	ps.mu.Unlock()
 	// An INVALID_KE_PAYLOAD answer named a group for the old proposals; the next attempt
-	// starts from the group the new esp-group picks.
+	// starts from the group the new esp-group picks, and from the first wait, not the
+	// one the refusals of the old proposals doubled.
 	ps.childCreateRefusal = rekeyRefusalRecord{}
+	ps.childCreate.restart(time.Now())
 	log.Info("child-sa: esp-group reloaded on a childless IKE SA, kept the IKE SA",
 		"peer", ps.peerName, "esp-group", reload.group.Name)
 	reload.reply <- true

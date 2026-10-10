@@ -167,6 +167,9 @@ reject=stdout:pattern=RECONNECTED
 reject=stdout:pattern=CHILD-BEFORE-RELOAD
 # The initiator kept the IKE SA its peer refused a Child SA on (fsm.go handleAuthResponse).
 expect=stderr:contains=peer authenticated and refused the Child SA, keeping the IKE SA
+# Both refusal lines name the next step (fsm.go and responder.go, childRefusedFix*).
+expect=stderr:contains=ze asks the peer again after retry-after
+expect=stderr:contains=the peer may ask again with CREATE_CHILD_SA
 # The reload kept the childless IKE SA (reconcile.go adoptESPGroup).
 expect=stderr:contains=esp-group reloaded on a childless IKE SA, kept the IKE SA
 # The Child SA came from CREATE_CHILD_SA (create_child.go applyChildCreateResponse).

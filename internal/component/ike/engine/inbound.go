@@ -631,7 +631,8 @@ func (ps *PeerSession) handleNewChildRequest(sa *SA, msg *wire.Message, inner []
 		// having errors MUST result in a response notifying the other end of the error."
 		// RFC 7296 Section 1.3.1: "A failed attempt to create a Child SA SHOULD NOT tear
 		// down the IKE SA", so the IKE SA stays up, childless.
-		log.Warn("ike: refused a peer request for a new Child SA", "peer", ps.peerName, "error", err)
+		log.Warn("ike: refused a peer request for a new Child SA", "peer", ps.peerName, "error", err,
+			"fix", childRefusedFixResponder)
 		ps.respondError(sa, msg.Header.MessageID, wire.ExchangeCreateChildSA,
 			notifyForRefusal(err), nil, tr, log)
 		return ownedOutcome{}

@@ -47,7 +47,19 @@ The snapshot also carries `ChildRemoteAddr` and `ChildLocalAddr` (the installed
 endpoints, as `netip.Addr`), `ChildMode` and `ChildUDPEncap`: with the transform,
 those are the facts that size an ESP packet.
 
+**A childless peer reads as an IKE SA with no `child-sa` key.** RFC 7296 Section
+2.21.2 keeps the IKE SA when the peer refuses the Child SA, so a session can hold
+an established IKE SA and no Child SA until a CREATE_CHILD_SA creates one. For
+such a session `Info()` sets `HasChild` to false and leaves every `Child*`, `TS*`
+and `ESP*` field at its zero value; only `PeerName`, the configured addresses,
+`AuthMode`, the esp-group `Lifetime` and `RekeyCount` are set. `show vpn ipsec sa`
+then lists the IKE SA with `state` `established` and every IKE field, and omits the
+`child-sa` object, rather than printing zero SPIs that would read as an installed
+pair. The absent key is the operator's signal that the IKE SA is up and protects
+no traffic; the log line that names the refusal says how to fix it.
+
 <!-- source: internal/component/ike/engine/reconcile.go -- PeerInfo, Info, Stop, StopGraceful -->
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap -->
 
 **`show vpn ipsec sa` reports WHICH side of a NAT each end is on.** The payload
 carries `nat-detected` beside `behind-nat` and `peer-behind-nat`, because RFC

@@ -912,10 +912,11 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		sa.IKEAuthChildless = true
 		if refusal := firstErrorNotify(innerPayloads); refusal != nil {
 			log.Warn("ike: peer authenticated and refused the Child SA, keeping the IKE SA",
-				"peer", sa.PeerName, "notify", wire.NotifyTypeName(refusal.NotifyMsgType))
+				"peer", sa.PeerName, "notify", wire.NotifyTypeName(refusal.NotifyMsgType),
+				"retry-after", childCreateFirst, "fix", childRefusedFixInitiator)
 		} else {
 			log.Warn("ike: peer authenticated and answered with no Child SA, keeping the IKE SA",
-				"peer", sa.PeerName)
+				"peer", sa.PeerName, "retry-after", childCreateFirst, "fix", childRefusedFixInitiator)
 		}
 	}
 

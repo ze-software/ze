@@ -43,8 +43,10 @@ type childSpec struct {
 // newChildSA builds the Child SA one exchange negotiated, taking the tunnel endpoints,
 // owner, policy rank and NAT encapsulation from the IKE SA. It installs nothing.
 //
-// RFC 4555 Section 3.3 takes tunnel endpoints from the IKE SA, so a MOBIKE SA's current
-// path wins over the configured addresses.
+// RFC 4555 Section 3.3: "When an IPsec SA is created, the tunnel header IP addresses
+// (and port, if doing UDP encapsulation) are taken from the IKE_SA, not the IP header of
+// the IKEv2 message requesting the IPsec SA." A MOBIKE SA's current path therefore wins
+// over the configured addresses.
 func newChildSA(sa *SA, localAddr, remoteAddr string, spec *childSpec) (*ChildSA, error) {
 	srcIP := net.ParseIP(localAddr)
 	dstIP := net.ParseIP(remoteAddr)
@@ -189,8 +191,9 @@ func selectNewChildESP(offer *wire.PayloadSA, espGroup ipsec.ESPGroup, group cry
 		if !ok {
 			continue
 		}
-		// RFC 7296 Section 3.3 numbers the first proposal of an offer one, so a
-		// proposal numbered zero is malformed and is not answered.
+		// RFC 7296 Section 3.3.1: "When a proposal is made, the first proposal in an
+		// SA payload MUST be 1, and subsequent proposals MUST be one more than the
+		// previous proposal". A proposal numbered zero is malformed and is not answered.
 		if accepted.Number == 0 {
 			break
 		}
@@ -316,6 +319,9 @@ func respondNewChild(sa *SA, inner []wire.PayloadEntry, espGroup ipsec.ESPGroup,
 			Payload: &wire.PayloadKE{DHGroup: uint16(group), KeyExchangeData: ourPub},
 		})
 	}
+	// RFC 7296 Section 1.3.1: "If the request is accepted, the response MUST also include
+	// a notification of type USE_TRANSPORT_MODE." sa.UseTransportMode is the acceptance
+	// decideResponderTransportMode recorded above.
 	if sa.UseTransportMode {
 		out = append(out, wire.PayloadEntry{Payload: transportModeNotify()})
 	}
@@ -403,6 +409,18 @@ const (
 	childCreateMax   = 300 * time.Second
 )
 
+// The next step a refused Child SA log line names for the operator: the problem, why it
+// matters, and the command that fixes it. The IKE SA stays up and protects no traffic, and
+// only the IKE SA initiator retries, so the two ends of the refusal say different things.
+const (
+	childRefusedFixInitiator = "no traffic is protected until a Child SA exists, and ze asks the peer " +
+		"again after retry-after, waiting longer after each refusal; make the esp-group proposals and " +
+		"traffic selectors match the peer's, then reload the configuration: ze signal reload"
+	childRefusedFixResponder = "no traffic is protected until a Child SA exists, and the peer may ask " +
+		"again with CREATE_CHILD_SA; make the esp-group proposals and traffic selectors match the " +
+		"peer's, then reload the configuration: ze signal reload"
+)
+
 // childCreateSchedule paces the Child SA creation a childless IKE SA initiator retries.
 // Its zero value schedules nothing, which is the state of an IKE SA responder (only the
 // initiator retries) and of a session that holds a Child SA. Owned by the maintainSA loop,
@@ -441,6 +459,16 @@ func (s *childCreateSchedule) refused(now time.Time) {
 	s.next = now.Add(s.wait)
 }
 
+// restart starts the schedule over from now, as start does, when it is active. A reload
+// that changed the esp-group may have removed the cause of every refusal so far, so the
+// wait those refusals doubled no longer applies.
+func (s *childCreateSchedule) restart(now time.Time) {
+	if !s.active {
+		return
+	}
+	s.start(now)
+}
+
 // holdFor schedules the next attempt d from now and leaves the wait unchanged.
 func (s *childCreateSchedule) holdFor(now time.Time, d time.Duration) {
 	if !s.active {
@@ -460,7 +488,7 @@ func (ps *PeerSession) serviceChildCreate(sa *SA, tr *transport.UDPTransport, no
 		ps.childCreate.stop()
 		return
 	}
-	// RFC 7296 Section 2.8: "Once a peer receives a request to rekey an IKE SA or sends a
+	// RFC 7296 Section 1.3.2: "Once a peer receives a request to rekey an IKE SA or sends a
 	// request to rekey an IKE SA, it SHOULD NOT start any new CREATE_CHILD_SA exchanges
 	// on the IKE SA that is being rekeyed." Our IKE SA rekey holds pendingRekey, and a
 	// peer IKE SA rekey holds pendingIKESwap until its Delete swaps the loop over.
@@ -470,7 +498,8 @@ func (ps *PeerSession) serviceChildCreate(sa *SA, tr *transport.UDPTransport, no
 	if ps.pendingIKESwap != nil {
 		return
 	}
-	// RFC 7296 Section 2.3: one request at a time; a held window defers to a later tick.
+	// RFC 7296 Section 2.3: "An IKE endpoint MUST NOT exceed the peer's stated window
+	// size for transmitted IKE requests." A held window defers to a later tick.
 	if !sa.reserveRequestWindow() {
 		return
 	}
@@ -631,7 +660,7 @@ func (ps *PeerSession) finishChildCreate(sa *SA, p *pendingRekey, inner []wire.P
 		// down the IKE SA". The IKE SA is kept and the schedule decides the next attempt.
 		ps.childCreate.refused(now)
 		log.Warn("child-sa: creation refused, keeping the IKE SA", "peer", ps.peerName,
-			"error", err, "retry-after", ps.childCreate.wait)
+			"error", err, "retry-after", ps.childCreate.wait, "fix", childRefusedFixInitiator)
 	default:
 		// The peer accepted and installed its half, and this node refused the answer.
 		// Its half is deleted so the peer holds no Child SA this node does not.
