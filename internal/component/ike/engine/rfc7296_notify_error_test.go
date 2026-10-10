@@ -116,7 +116,8 @@ func TestErrRefusedChildRekeyIsAnswered(t *testing.T) {
 	})
 }
 
-// VALIDATES: a request for a NEW Child SA, which ze does not create, is answered.
+// VALIDATES: a CREATE_CHILD_SA request ze cannot act on (no REKEY_SA, no traffic
+// selectors, no IKE rekey proposal) is answered, not dropped.
 // RFC requirement: RFC7296-2.21.3-1 positive -- a CREATE_CHILD_SA that is neither a
 // Child rekey nor an IKE rekey was logged and dropped. It now draws NO_PROPOSAL_CHOSEN,
 // which RFC 7296 Section 3.10.1 blesses as the "generic Child SA error when Child SA
