@@ -47,8 +47,8 @@ func setupSysctlKeys(t *testing.T, path string) []string {
 	if err := scanner.Err(); err != nil {
 		t.Fatal(err)
 	}
-	keys, unrecognised := scriptSysctlWrites(lines)
-	for _, line := range unrecognised {
+	keys, unrecognized := scriptSysctlWrites(lines)
+	for _, line := range unrecognized {
 		t.Errorf("%s writes a sysctl in a form the privilege test cannot read: %q; "+
 			"write it as `sysctl -w key=value` or `echo value > /proc/sys/<key path>`", path, line)
 	}
@@ -60,16 +60,16 @@ func setupSysctlKeys(t *testing.T, path string) []string {
 // and every other line that writes a sysctl: `sysctl` loading a file or given
 // an assignment without -w, a -w argument that is no assignment, and a
 // redirect, tee or dd into /proc/sys. A line that only reads is neither.
-func scriptSysctlWrites(lines []string) (keys, unrecognised []string) {
+func scriptSysctlWrites(lines []string) (keys, unrecognized []string) {
 	for _, line := range lines {
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			continue
 		}
 		if fields[0] == "sysctl" {
-			lineKeys, recognised := sysctlCommandKeys(fields[1:])
-			if !recognised {
-				unrecognised = append(unrecognised, line)
+			lineKeys, recognized := sysctlCommandKeys(fields[1:])
+			if !recognized {
+				unrecognized = append(unrecognized, line)
 			}
 			keys = append(keys, lineKeys...)
 			continue
@@ -77,22 +77,22 @@ func scriptSysctlWrites(lines []string) (keys, unrecognised []string) {
 		if !strings.Contains(line, procSysRoot) {
 			continue
 		}
-		if key, recognised := echoProcSysKey(fields); recognised {
+		if key, recognized := echoProcSysKey(fields); recognized {
 			keys = append(keys, key)
 			continue
 		}
 		if procSysWritten(line) {
-			unrecognised = append(unrecognised, line)
+			unrecognized = append(unrecognized, line)
 		}
 	}
-	return keys, unrecognised
+	return keys, unrecognized
 }
 
 const procSysRoot = "/proc/sys/"
 
 // sysctlCommandKeys answers the keys of `sysctl -w a=1 b=2`, and whether the
 // arguments are that form or a read. A read answers no key and true.
-func sysctlCommandKeys(arguments []string) (keys []string, recognised bool) {
+func sysctlCommandKeys(arguments []string) (keys []string, recognized bool) {
 	if len(arguments) > 0 && arguments[0] == "-w" {
 		for _, assignment := range arguments[1:] {
 			key, _, found := strings.Cut(assignment, "=")
@@ -157,7 +157,7 @@ func TestScriptSysctlWritesRefusesFormsItCannotRead(t *testing.T) {
 	for _, tc := range []struct {
 		line         string
 		key          string
-		unrecognised bool
+		unrecognized bool
 	}{
 		{line: "sysctl -w net.mpls.platform_labels=1048575 net.ipv4.ip_forward=1", key: "net.mpls.platform_labels net.ipv4.ip_forward"},
 		{line: "echo 1 > /proc/sys/net/ipv4/ip_forward", key: "net.ipv4.ip_forward"},
@@ -165,20 +165,20 @@ func TestScriptSysctlWritesRefusesFormsItCannotRead(t *testing.T) {
 		{line: "cat /proc/sys/net/mpls/platform_labels"},
 		{line: "sysctl net.ipv4.ip_forward"},
 		{line: "echo MPLS=$(test -f /proc/sys/net/mpls/platform_labels && echo ok || echo missing)"},
-		{line: "sysctl net.ipv4.ip_forward=1", unrecognised: true},
-		{line: "sysctl -p /etc/sysctl.d/lab.conf", unrecognised: true},
-		{line: "sysctl -w net.ipv4.ip_forward", unrecognised: true},
-		{line: "printf 1 | tee /proc/sys/kernel/panic", unrecognised: true},
-		{line: "echo 1 | dd of=/proc/sys/kernel/panic", unrecognised: true},
-		{line: "printf 1 > /proc/sys/kernel/panic", unrecognised: true},
-		{line: "echo 1 > /run/x; echo 2 > /proc/sys/kernel/panic", unrecognised: true},
+		{line: "sysctl net.ipv4.ip_forward=1", unrecognized: true},
+		{line: "sysctl -p /etc/sysctl.d/lab.conf", unrecognized: true},
+		{line: "sysctl -w net.ipv4.ip_forward", unrecognized: true},
+		{line: "printf 1 | tee /proc/sys/kernel/panic", unrecognized: true},
+		{line: "echo 1 | dd of=/proc/sys/kernel/panic", unrecognized: true},
+		{line: "printf 1 > /proc/sys/kernel/panic", unrecognized: true},
+		{line: "echo 1 > /run/x; echo 2 > /proc/sys/kernel/panic", unrecognized: true},
 	} {
-		keys, unrecognised := scriptSysctlWrites([]string{tc.line})
+		keys, unrecognized := scriptSysctlWrites([]string{tc.line})
 		if got := strings.Join(keys, " "); got != tc.key {
 			t.Errorf("%q: keys %q, want %q", tc.line, got, tc.key)
 		}
-		if got := len(unrecognised) == 1; got != tc.unrecognised {
-			t.Errorf("%q: unrecognised = %v, want %v", tc.line, got, tc.unrecognised)
+		if got := len(unrecognized) == 1; got != tc.unrecognized {
+			t.Errorf("%q: unrecognized = %v, want %v", tc.line, got, tc.unrecognized)
 		}
 	}
 }
