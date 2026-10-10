@@ -1,0 +1,163 @@
+# Test: an IPsec peer ADDED over SSH to a running daemon with no `vpn` root
+#       brings its tunnel up
+# Initial config: the initiator daemon has no `vpn` root. A responder daemon on
+#                 127.0.0.2 waits with its side of the tunnel.
+# Live change:    an SSH session editor load-merges the IKE group, the ESP group
+#                 and the site-to-site peer, and commits with `commit now`.
+# Expected:       `show vpn ipsec sa` reports the negotiated child SA (aes-cbc,
+#                 sha256), so the commit started the IKE engine and the peer.
+#
+# VALIDATES: spec-terminal-demo-showcase AC-2 (IPsec topic) -- the topic's
+#            configuration committed through the SSH editor, the path the
+#            recording types, brings a tunnel up on a daemon started without it.
+# PREVENTS: a topic recording whose commit reports success while no IKE session
+#           starts. `ipsec-peer-reload-applies-selectors.ci` proves an EDITED
+#           peer is applied; nothing proved a first-time `vpn` root.
+#
+# Both daemons run the noop dataplane (unprivileged XFRM install is EPERM-fatal
+# by design), so this proves the control plane: the commit reaches the engine
+# and IKE negotiates. The kernel SA is the showcase lab's job, as root.
+#
+# The responder launches through `env` so its binary is not `ze`: the runner
+# turns only a `ze -` command's stdin into a config FILE in the test's work
+# directory, and two daemons opening that directory's store collide ("store is
+# owned by another process", measured 2026-10-10). Through `env` its config is
+# piped and it opens no store.
+option=skip-os:value=darwin
+option=env:var=ze_test_ike_port:value=$PORT2
+option=env:var=ze_test_ike_dataplane:value=noop
+option=timeout:value=90s
+
+stdin=responder:terminator=EOF_RESPONDER
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+tmpfs=ipsec-added-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT3;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.3
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=ipsec-topic.conf:terminator=EOF_TOPIC
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer responder {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_TOPIC
+
+tmpfs=ipsec-added-live.script:terminator=EOF_SCRIPT
+send load file absolute merge ipsec-topic.conf
+wait Configuration merged from
+send commit now
+wait Session committed:
+cli show vpn ipsec sa | json
+has aes-cbc
+has sha256
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=responder
+cmd=foreground:seq=2:exec=ze start ipsec-added-live.conf:timeout=80s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT3 ipsec-added-live.conf ipsec-added-live.script:timeout=80s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
