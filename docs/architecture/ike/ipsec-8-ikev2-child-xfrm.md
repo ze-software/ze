@@ -373,7 +373,20 @@ skip is not migration evidence: these checks need the migration-capable kernel.
 an established SA. The negotiation itself is driven by the owner loop, described
 in `docs/architecture/ike/ipsec-13-rekey-wire.md`.
 
-<!-- source: internal/component/ike/engine/inbound.go -- inbound message classification -->
+A CREATE_CHILD_SA request from the peer is classified by its payloads, in this
+order (`handleCreateChildSAOwned`):
+
+| The request carries | It is | Ze answers |
+|---------------------|-------|------------|
+| a REKEY_SA notify | a Child SA rekey (RFC 7296 Section 1.3.3) | `respondChildRekey` |
+| TSi or TSr, no REKEY_SA | a new Child SA (Section 1.3.1), with or without KEi | `handleNewChildRequest`: NO_ADDITIONAL_SAS while the session holds its one Child SA (Section 1.3), NO_PROPOSAL_CHOSEN otherwise |
+| KEi and no TS | an IKE SA rekey (Section 1.3.2, `{SA, Ni, KEi}`) | `respondIKERekey` |
+| none of these | neither | NO_PROPOSAL_CHOSEN (Section 2.21.3) |
+
+The TS payloads, never the KE payload, separate a new Child SA from an IKE SA
+rekey, because a new Child SA with PFS carries KEi too.
+
+<!-- source: internal/component/ike/engine/inbound.go -- inbound message classification, handleNewChildRequest, hasTSPayload -->
 <!-- source: internal/component/ike/engine/delete.go -- Child SA teardown over INFORMATIONAL -->
 <!-- source: internal/component/ike/engine/bypass.go -- IKE control-plane bypass policies -->
 

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - (the interop proof runs on a Docker host that passes the Ze kernel check, the QEMU docker-lab route of `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md`) |
-| Phase | - |
+| Phase | 1/5 |
 | Handoff | - |
 | Updated | 2026-10-10 |
 
@@ -394,6 +394,8 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds this work from the `a
 | Q-5 | The peer deletes the live Child SA: keep today's teardown and re-establish, or keep the IKE SA childless and recreate? | Keep today's behavior in this spec |
 | Q-6 | Does a Ze RESPONDER also initiate creation on a childless SA? | No: only the IKE SA initiator retries, which avoids creation collisions between two Ze peers; the responder serves the peer's requests |
 | Q-7 | Bucket | `plan/immediate/`: an operator facing strongSwan meets it as a tunnel that never comes up |
+
+→ Decision (owner, 2026-10-10): the instruction to implement approves Q-1 to Q-7 as recommended above. Q-1: `deleteChildlessIKESA` and `errChildSARefused` are deleted, no knob. Q-2: 30 s, doubling, capped at 300 s, reset on success; TEMPORARY_FAILURE waits 60 s; NO_ADDITIONAL_SAS re-establishes. Q-3: no SAr2 and no notify is childless; the RFC7296-2.5-13 and RFC7296-1.2-2 tests stay unedited. Q-4: NO_ADDITIONAL_SAS. Q-5: today's teardown and re-establish. Q-6: only the IKE initiator retries creation. Q-7: `plan/immediate/`.
 
 ## Design Insights
 

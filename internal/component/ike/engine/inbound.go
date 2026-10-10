@@ -530,6 +530,13 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 			"old-in", old.InboundSPI, "new-in", newChild.InboundSPI)
 		return ownedOutcome{newChild: newChild}
 	}
+	// The TS payloads tell a new Child SA from an IKE SA rekey, never the KE payload,
+	// because a new Child SA with PFS carries KEi too.
+	// RFC 7296 Section 1.3.1: a new Child SA request is "HDR, SK {SA, Ni, [KEi,] TSi, TSr}".
+	// RFC 7296 Section 1.3.2: an IKE SA rekey request is "HDR, SK {SA, Ni, KEi}".
+	if hasTSPayload(inner) {
+		return ps.handleNewChildRequest(sa, msg, tr, log)
+	}
 	// A CREATE_CHILD_SA request with SA+KE and no TS/REKEY_SA is a peer-initiated
 	// IKE SA rekey (RFC 7296 Section 1.3.3). Respond with the new IKE SA keys; the
 	// owner loop swaps to the new SA when the peer's Delete of the old one arrives
@@ -579,14 +586,49 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		log.Info("ike: responded to peer IKE SA rekey", "peer", ps.peerName)
 		return ownedOutcome{}
 	}
-	// A CREATE_CHILD_SA that is neither a Child rekey nor an IKE rekey asks for a NEW
-	// Child SA, which Ze does not create. RFC 7296 Section 2.21.3 MUST still answer it.
+	// A CREATE_CHILD_SA with no REKEY_SA, no TS and no KE is neither a Child SA
+	// request nor an IKE SA rekey. RFC 7296 Section 2.21.3 MUST still answer it.
+	// RFC 7296 Section 3.10.1 blesses NO_PROPOSAL_CHOSEN as the "generic Child SA error
+	// when Child SA cannot be created for some other reason".
+	log.Info("ike: refusing a CREATE_CHILD_SA request that is neither a Child SA nor an IKE SA rekey",
+		"peer", ps.peerName)
+	ps.respondError(sa, msg.Header.MessageID, wire.ExchangeCreateChildSA,
+		wire.NotifyNoProposalChosen, nil, tr, log)
+	return ownedOutcome{}
+}
+
+// handleNewChildRequest answers a peer CREATE_CHILD_SA request for a new Child SA.
+// Ze holds one Child SA per IKE SA (PeerSession.childSA). RFC 7296 Section 2.21.3
+// MUST answer every errored request on an authenticated SA. MUST run on the owner
+// loop, like handleCreateChildSAOwned.
+func (ps *PeerSession) handleNewChildRequest(sa *SA, msg *wire.Message, tr *transport.UDPTransport,
+	log *slog.Logger,
+) ownedOutcome {
+	if ps.getChildSA() != nil {
+		// RFC 7296 Section 1.3: "The responder sends a NO_ADDITIONAL_SAS notification to
+		// indicate that a CREATE_CHILD_SA request is unacceptable because the responder is
+		// unwilling to accept any more Child SAs on this IKE SA."
+		log.Info("ike: refusing a peer request for a second Child SA", "peer", ps.peerName)
+		ps.respondError(sa, msg.Header.MessageID, wire.ExchangeCreateChildSA,
+			wire.NotifyNoAdditionalSAs, nil, tr, log)
+		return ownedOutcome{}
+	}
 	// RFC 7296 Section 3.10.1 blesses NO_PROPOSAL_CHOSEN as the "generic Child SA error
 	// when Child SA cannot be created for some other reason".
 	log.Info("ike: refusing a peer request for a new Child SA", "peer", ps.peerName)
 	ps.respondError(sa, msg.Header.MessageID, wire.ExchangeCreateChildSA,
 		wire.NotifyNoProposalChosen, nil, tr, log)
 	return ownedOutcome{}
+}
+
+// hasTSPayload reports whether the payload chain carries a TSi or TSr payload.
+func hasTSPayload(inner []wire.PayloadEntry) bool {
+	for i := range inner {
+		if _, ok := inner[i].Payload.(*wire.PayloadTS); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // nonceFromPayloads returns the Nonce payload data, or nil if absent.
