@@ -364,7 +364,11 @@ func (r *refusedRig) relayCreate(t *testing.T, respond func(req []wire.PayloadEn
 	}
 	r.sa.answerAuthenticatedResponse(msgID)
 	respMsg := &wire.Message{Header: wire.Header{MessageID: msgID}}
-	out := r.ps.handleCreateChildSAOwned(r.sa, respMsg, inner, true, r.myTr, r.dp, slogutil.DiscardLogger())
+	log := r.createLog
+	if log == nil {
+		log = slogutil.DiscardLogger()
+	}
+	out := r.ps.handleCreateChildSAOwned(r.sa, respMsg, inner, true, r.myTr, r.dp, log)
 	return req, out
 }
 

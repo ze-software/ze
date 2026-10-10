@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +34,8 @@ type refusedRig struct {
 	dp     *rkyDP
 	peerTr *transport.UDPTransport
 	myTr   *transport.UDPTransport
+	// createLog is the logger relayCreate hands the response handler; nil discards.
+	createLog *slog.Logger
 }
 
 func newRefusedRig(t *testing.T) *refusedRig {

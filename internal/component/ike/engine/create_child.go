@@ -421,6 +421,48 @@ const (
 		"peer's, then reload the configuration: ze signal reload"
 )
 
+// The causes for which this node refuses a creation response the peer accepted. Each
+// carries its own next step, so finishChildCreate tells them apart.
+var (
+	errChildTransportDeclined = errors.New("child creation response: the peer declined the required transport mode")
+	errChildInstall           = errors.New("child creation response: installing the Child SA")
+)
+
+// The next step a refused creation response names, one per cause childResponseRefusedFix
+// tells apart, and the next step a creation request this node could not build names.
+const (
+	childResponseFixTransport = "the peer answered in tunnel mode and transport-required makes tunnel " +
+		"mode unacceptable, so ze deleted the pair; no traffic is protected until a Child SA exists, " +
+		"and ze asks again after retry-after; set mode transport for this connection on the peer, or " +
+		"clear transport-required on this peer here, then reload the configuration: ze signal reload"
+	childResponseFixInstall = "the peer accepted the Child SA and this node could not install it, so ze " +
+		"deleted the pair; no traffic is protected until a Child SA exists, and ze asks again after " +
+		"retry-after; the error names what the kernel refused: make the esp-group algorithms ones " +
+		"this kernel supports and the peer's if-id valid, then reload the configuration: ze signal reload"
+	childResponseFixAnswer = "the peer's answer is malformed or outside what ze offered, so ze deleted " +
+		"the pair; no traffic is protected until a Child SA exists, and ze asks again after " +
+		"retry-after; make the esp-group proposals and traffic selectors match the peer's, then " +
+		"reload the configuration: ze signal reload; if they already match, the peer's IKE " +
+		"implementation sent a defective answer and its own logs name why"
+	childRequestFailedFix = "ze could not build the CREATE_CHILD_SA request, so no traffic is protected " +
+		"until a Child SA exists, and ze tries again after retry-after; the error names the cause: an " +
+		"esp-group with no proposal, or pfs enabled on an IKE SA that negotiated no Diffie-Hellman " +
+		"group, is fixed in the configuration, then reload it: ze signal reload"
+)
+
+// childResponseRefusedFix is the next step for a creation response this node refused,
+// derived from the cause err carries.
+func childResponseRefusedFix(err error) string {
+	switch {
+	case errors.Is(err, errChildTransportDeclined):
+		return childResponseFixTransport
+	case errors.Is(err, errChildInstall):
+		return childResponseFixInstall
+	default:
+		return childResponseFixAnswer
+	}
+}
+
 // childCreateSchedule paces the Child SA creation a childless IKE SA initiator retries.
 // Its zero value schedules nothing, which is the state of an IKE SA responder (only the
 // initiator retries) and of a session that holds a Child SA. Owned by the maintainSA loop,
@@ -521,7 +563,8 @@ func (ps *PeerSession) serviceChildCreate(sa *SA, tr *transport.UDPTransport, no
 	if err != nil {
 		sa.releaseRequestWindow()
 		ps.childCreate.refused(now)
-		log.Warn("child-sa: creation request failed", "peer", ps.peerName, "error", err)
+		log.Warn("child-sa: creation request failed", "peer", ps.peerName, "error", err,
+			"retry-after", ps.childCreate.wait, "fix", childRequestFailedFix)
 		return
 	}
 	sendRaw(sa, tr, msg, log)
@@ -667,7 +710,7 @@ func (ps *PeerSession) finishChildCreate(sa *SA, p *pendingRekey, inner []wire.P
 		ps.sendDeleteESP(sa, tr, p.newInboundSPI, log)
 		ps.childCreate.refused(now)
 		log.Warn("child-sa: creation response refused, deleting the pair", "peer", ps.peerName,
-			"error", err, "retry-after", ps.childCreate.wait)
+			"error", err, "retry-after", ps.childCreate.wait, "fix", childResponseRefusedFix(err))
 	}
 	return ownedOutcome{}
 }
@@ -734,7 +777,7 @@ func applyChildCreateResponse(sa *SA, pending *pendingRekey, inner []wire.Payloa
 	// RFC 7296 Section 1.3.1: "If this is unacceptable to the initiator, the initiator
 	// MUST delete the SA." recordInitiatorTransportMode answers whether it is.
 	if recordInitiatorTransportMode(sa, transportAccepted) {
-		return nil, errors.New("child creation response: the peer declined the required transport mode")
+		return nil, errChildTransportDeclined
 	}
 	// RFC 7296 Section 2.9: the answer's TS payloads are the narrowed scope this node
 	// installs. A creation replaces no SA, so there is no floor.
@@ -760,7 +803,7 @@ func applyChildCreateResponse(sa *SA, pending *pendingRekey, inner []wire.Payloa
 	ifID, err := resolveIfID(&sa.PeerCfg)
 	if err != nil {
 		keys.Clear()
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errChildInstall, err)
 	}
 	mode := modeTunnel
 	if sa.UseTransportMode {
@@ -784,11 +827,11 @@ func applyChildCreateResponse(sa *SA, pending *pendingRekey, inner []wire.Payloa
 	})
 	if err != nil {
 		keys.Clear()
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errChildInstall, err)
 	}
 	if err := installChildTolerant(child, prop, dp, log); err != nil {
 		keys.Clear()
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errChildInstall, err)
 	}
 	return child, nil
 }
