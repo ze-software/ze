@@ -60,7 +60,7 @@ func TestScenario_BGPPeerCreateAndCommit(t *testing.T) {
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
 	commitHandler.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusSeeOther, rec.Code, "commit should succeed")
+	assert.Equal(t, http.StatusSeeOther, rec.Code, "commit should succeed: %s", rec.Body.String())
 	assert.Equal(t, 0, mgr.ChangeCount("alice"), "no pending changes after commit")
 }
 
@@ -108,10 +108,14 @@ func TestScenario_InterfaceCreateWithUnit(t *testing.T) {
 	count := mgr.ChangeCount("alice")
 	assert.Greater(t, count, 0, "should have pending changes")
 
+	// The commit runs the SSH editor's validation, which refuses a config
+	// naming no backend where the platform has no default (darwin).
+	require.NoError(t, mgr.SetValue("alice", []string{"interface"}, "backend", "netlink"))
+
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
 	commitHandler.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusSeeOther, rec.Code, "commit should succeed")
+	assert.Equal(t, http.StatusSeeOther, rec.Code, "commit should succeed: %s", rec.Body.String())
 }
 
 func TestScenario_FirewallChainAndMatchLeaves(t *testing.T) {
@@ -158,6 +162,8 @@ func TestScenario_FirewallChainAndMatchLeaves(t *testing.T) {
 
 	setLeaf("firewall/table/filter/chain/input/term/allow-bgp/from/", "protocol", "tcp")
 	setLeaf("firewall/table/filter/chain/input/term/allow-bgp/from/", "destination-port", "179")
+	// A term carries at least one action, or the commit validation refuses it.
+	require.NoError(t, mgr.SetValue("alice", []string{"firewall", "table", "filter", "chain", "input", "term", "allow-bgp", "then"}, "accept", "true"))
 
 	code = addEntry("firewall/table/filter/chain/input/term/", url.Values{"name": {"allow-ssh"}})
 	assert.Equal(t, http.StatusOK, code, "add ssh term")
@@ -171,10 +177,14 @@ func TestScenario_FirewallChainAndMatchLeaves(t *testing.T) {
 	count := mgr.ChangeCount("alice")
 	assert.Greater(t, count, 10, "should have many pending changes")
 
+	// The commit runs the SSH editor's validation, which refuses a config
+	// naming no backend where the platform has no default (darwin).
+	require.NoError(t, mgr.SetValue("alice", []string{"firewall"}, "backend", "nft"))
+
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
 	commitHandler.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusSeeOther, rec.Code, "commit should succeed")
+	assert.Equal(t, http.StatusSeeOther, rec.Code, "commit should succeed: %s", rec.Body.String())
 	assert.Equal(t, 0, mgr.ChangeCount("alice"), "no pending changes after commit")
 }
 
@@ -223,10 +233,14 @@ func TestScenario_NATChainWithSourceLeaf(t *testing.T) {
 	setLeaf("firewall/table/nat/chain/postrouting/term/snat-customer/from/", "source-address", "172.16.0.0/12")
 	setLeaf("firewall/table/nat/chain/postrouting/term/snat-customer/then/snat/", "to", "198.51.100.2")
 
+	// The commit runs the SSH editor's validation, which refuses a config
+	// naming no backend where the platform has no default (darwin).
+	require.NoError(t, mgr.SetValue("alice", []string{"firewall"}, "backend", "nft"))
+
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
 	commitHandler.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusSeeOther, rec.Code, "commit should succeed")
+	assert.Equal(t, http.StatusSeeOther, rec.Code, "commit should succeed: %s", rec.Body.String())
 	assert.Equal(t, 0, mgr.ChangeCount("alice"), "no pending changes after commit")
 }
 
@@ -296,13 +310,19 @@ func TestScenario_FullRouterSetup(t *testing.T) {
 	add("firewall/table/filter/chain/input/term/", url.Values{"name": {"allow-bgp"}})
 	set("firewall/table/filter/chain/input/term/allow-bgp/from/", "protocol", "tcp")
 	set("firewall/table/filter/chain/input/term/allow-bgp/from/", "destination-port", "179")
+	require.NoError(t, mgr.SetValue("alice", []string{"firewall", "table", "filter", "chain", "input", "term", "allow-bgp", "then"}, "accept", "true"))
 
 	count := mgr.ChangeCount("alice")
 	assert.Greater(t, count, 15, "full router setup should produce many changes (got %d)", count)
 
+	// The commit runs the SSH editor's validation, which refuses a config
+	// naming no backend where the platform has no default (darwin).
+	require.NoError(t, mgr.SetValue("alice", []string{"interface"}, "backend", "netlink"))
+	require.NoError(t, mgr.SetValue("alice", []string{"firewall"}, "backend", "nft"))
+
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
 	commitHandler.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusSeeOther, rec.Code, "full router commit should succeed")
+	assert.Equal(t, http.StatusSeeOther, rec.Code, "full router commit should succeed: %s", rec.Body.String())
 	assert.Equal(t, 0, mgr.ChangeCount("alice"), "no pending changes after commit")
 }

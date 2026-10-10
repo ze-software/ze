@@ -222,12 +222,6 @@ func (m *EditorManager) RenameListEntry(username string, parentPath []string, li
 	return us.editor.RenameListEntry(parentPath, listName, oldKey, newKey)
 }
 
-// Commit applies the user's pending changes to the configuration file.
-// Returns a CommitResult describing conflicts or the number of applied changes.
-func (m *EditorManager) Commit(username string) (*contract.CommitResult, error) {
-	return m.commit(username, false, nil)
-}
-
 // commit is Commit, and with force a LIVE or STALE conflict applies instead
 // of refusing: the editor discards the other users' overridden changes and
 // leaves them a notice (cli.Editor.CommitSessionForce, AC-32). check, when

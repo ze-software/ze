@@ -903,9 +903,9 @@ func TestAddPeerFormFields(t *testing.T) {
 
 	// The created peer must commit cleanly: the name-leaf bug made commit fail
 	// validation with "unknown field in peer: name".
-	result, commitErr := mgr.Commit("alice")
+	result, commitErr := commitNow(mgr, "alice")
 	require.NoError(t, commitErr, "UI-created peer must pass commit validation")
-	assert.Empty(t, result.Conflicts)
+	assert.Empty(t, result.conflicts)
 }
 
 // TestHandleConfigRename verifies that POST /config/rename/<entry>/ renames a

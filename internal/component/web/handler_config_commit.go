@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -114,8 +115,12 @@ type commitModalData struct {
 	ChangeCount int
 }
 
-// handleCommitPost applies pending changes and redirects or re-renders on conflict.
-// On successful commit (no conflicts), broadcasts a config-change SSE event.
+// handleCommitPost runs `commit now` for the "Review & Commit" button through
+// EditorManager.runCommit, the path the web terminal and the SSH editor take,
+// so the daemon's confirmed-commit window and the commit validation apply to
+// it (AC-18, AC-29). A refused commit, a conflict or nothing to commit
+// re-renders the open modal with the reason; a commit that applied closes it
+// and broadcasts a config-change SSE event.
 //
 // It takes the authorizer to answer the commit bar it writes back. The caller
 // has already authorized this request for the same command canEdit reads, so
@@ -123,53 +128,26 @@ type commitModalData struct {
 // assuming it keeps the answer correct if those two commands ever differ.
 func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string, broker *EventBroker, authorizer aaa.Authorizer, recorder audit.Recorder) {
 	detail, _ := mgr.Diff(username)
-	result, err := mgr.Commit(username)
+	answer, err := mgr.runCommit(username, contract.CommitRequest{Action: contract.CommitNow})
 	if err != nil {
-		// htmx drops non-2xx bodies, so a bare http.Error leaves the modal open
-		// with no feedback (F3). For HX requests, re-render the open modal with
-		// the failure text; non-HX clients still receive a 500 with the message.
-		var tb textbuf.Buffer
-		if r.Header.Get("HX-Request") == htmxRequestTrue {
-			modal, renderErr := renderer.RenderDiffModalOpen(
-				tb.Str("Commit failed:\n").Err(err).String(), mgr.ChangeCount(username))
-			if renderErr != nil {
-				http.Error(w, "render error", http.StatusInternalServerError)
-
-				return
-			}
-
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-			if _, writeErr := w.Write([]byte(modal)); writeErr != nil {
-				return
-			}
-			return
-		}
-		http.Error(w, tb.Str("commit: ").Err(err).String(), http.StatusInternalServerError)
+		writeCommitFailure(w, r, mgr, renderer, username, err.Error())
+		return
+	}
+	if answer.refusal != "" {
+		writeCommitFailure(w, r, mgr, renderer, username, answer.refusal)
 		return
 	}
 
-	if len(result.Conflicts) > 0 {
+	if len(answer.conflicts) > 0 {
 		var msg textbuf.Buffer
 		msg.Str("Commit conflicts:\n")
 
-		for _, c := range result.Conflicts {
+		for _, c := range answer.conflicts {
 			msg.Str("  ").Str(c.Path).Str(": want ").Quoted(c.MyValue).Str(", other (").Str(c.OtherUser).Str(") has ").Quoted(c.OtherValue).Byte('\n')
 		}
 
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
-			modal, renderErr := renderer.RenderDiffModalOpen(msg.String(), mgr.ChangeCount(username))
-			if renderErr != nil {
-				http.Error(w, "render error", http.StatusInternalServerError)
-
-				return
-			}
-
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-			if _, writeErr := w.Write([]byte(modal)); writeErr != nil {
-				return
-			}
+			writeCommitModal(w, renderer, msg.String(), mgr.ChangeCount(username))
 			return
 		}
 
@@ -183,6 +161,16 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 			http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)
 		}
 
+		return
+	}
+
+	if !answer.applied {
+		// Nothing pending: the modal says so and nothing is broadcast.
+		if r.Header.Get("HX-Request") == htmxRequestTrue {
+			writeCommitModal(w, renderer, answer.message, mgr.ChangeCount(username))
+			return
+		}
+		htmxRedirect(w, r, "/")
 		return
 	}
 
@@ -212,6 +200,32 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 	}
 
 	htmxRedirect(w, r, "/")
+}
+
+// writeCommitFailure answers a commit that failed or was refused. htmx drops
+// non-2xx bodies, so a bare http.Error leaves the modal open with no feedback
+// (F3): an HX request gets the open modal with the failure text, and any other
+// client a 500 with the message.
+func writeCommitFailure(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username, failure string) {
+	var tb textbuf.Buffer
+	if r.Header.Get("HX-Request") == htmxRequestTrue {
+		writeCommitModal(w, renderer, tb.Str("Commit failed:\n").Str(failure).String(), mgr.ChangeCount(username))
+		return
+	}
+	http.Error(w, tb.Str("commit: ").Str(failure).String(), http.StatusInternalServerError)
+}
+
+// writeCommitModal re-renders the open review modal with text.
+func writeCommitModal(w http.ResponseWriter, renderer *Renderer, text string, changes int) {
+	modal, renderErr := renderer.RenderDiffModalOpen(text, changes)
+	if renderErr != nil {
+		http.Error(w, "render error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if _, writeErr := w.Write([]byte(modal)); writeErr != nil {
+		return
+	}
 }
 
 // handleConfigDiscard returns a POST handler for /config/discard/.

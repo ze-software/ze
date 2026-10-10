@@ -110,11 +110,11 @@ func checkWebSessionCopyAfterCommit(t *testing.T, base string) {
 	require.NoError(t, mgr.SetValue("alice", append(peer, "connection", "remote"), "ip", "10.0.0.1"))
 	require.NoError(t, mgr.SetValue("alice", append(peer, "connection", "local"), "ip", "auto"))
 	require.NoError(t, mgr.SetValue("alice", append(peer, "session", "asn"), "remote", "65001"))
-	result, err := mgr.Commit("alice")
+	result, err := commitNow(mgr, "alice")
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.Empty(t, result.Conflicts)
-	require.Positive(t, result.Applied)
+	require.Empty(t, result.refusal)
+	require.Empty(t, result.conflicts)
+	require.True(t, result.applied)
 
 	require.NoError(t, mgr.CopyListEntry("alice", []string{"bgp"}, "peer", "wbsrc", "wbdst"))
 

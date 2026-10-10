@@ -70,13 +70,13 @@ func TestWebConcurrentEditStress(t *testing.T) {
 					commitErrs.Add(1)
 					return
 				}
-				res, err := mgr.Commit(user)
+				res, err := commitNow(mgr, user)
 				if err != nil {
 					t.Errorf("user %s Commit: %v", user, err)
 					commitErrs.Add(1)
 					return
 				}
-				if res != nil && len(res.Conflicts) > 0 {
+				if len(res.conflicts) > 0 {
 					conflicts.Add(1)
 				}
 			}(i)

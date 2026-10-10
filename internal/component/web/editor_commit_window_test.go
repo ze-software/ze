@@ -2,6 +2,9 @@ package web
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -197,4 +200,48 @@ func TestWebTerminalCommitNothingPending(t *testing.T) {
 		webCommit(schema, mgr, "alice", "confirmed", "60"))
 	_, open := window.Status()
 	assert.False(t, open, "nothing pending opens no window")
+}
+
+// TestWebReviewCommitObeysDaemonWindow is review round 1 B1: the web
+// "Review & Commit" button (POST /config/commit/) commits through the daemon
+// window like every other editor, so it is refused while a window is open.
+// PREVENTS: a commit the window's revert silently wipes at its deadline or at
+// the owner's abort.
+// METHOD: alice opens a window from the terminal; bob and alice then POST the
+// review form; neither commit may reach the committed config, and each keeps
+// its pending change.
+func TestWebReviewCommitObeysDaemonWindow(t *testing.T) {
+	mgr, schema, _ := newWindowEditorManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	commitHandler := handleConfigCommit(mgr, renderer)
+
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.2"))
+	assert.Contains(t, webCommit(schema, mgr, "alice", "confirmed", "60"), "commit accept")
+
+	require.NoError(t, mgr.SetValue("bob", []string{"bgp", "session", "asn"}, "local", "65001"))
+	rec := httptest.NewRecorder()
+	commitHandler.ServeHTTP(rec, postConfigRequest(t, "/config/commit/", url.Values{}, "bob"))
+	assert.NotEqual(t, http.StatusSeeOther, rec.Code, "another user's review commit is refused")
+	assert.Contains(t, rec.Body.String(), "a confirmed commit by alice")
+	requireCommitted(t, mgr, "", "65001")
+	assert.Positive(t, mgr.ChangeCount("bob"), "the refused change stays pending")
+
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp", "session", "asn"}, "local", "65000"))
+	rec = httptest.NewRecorder()
+	commitHandler.ServeHTTP(rec, postConfigRequest(t, "/config/commit/", url.Values{}, "alice"))
+	assert.NotEqual(t, http.StatusSeeOther, rec.Code, "the owner's review commit is refused too (AC-18 a)")
+	assert.Contains(t, rec.Body.String(), "commit accept")
+	requireCommitted(t, mgr, "", "65000")
+}
+
+// commitNow presses "Review & Commit" for user: the runCommit call
+// handleCommitPost makes. A validation refusal comes back as an error, the way
+// the handler shows it.
+func commitNow(mgr *EditorManager, user string) (webCommitAnswer, error) {
+	answer, err := mgr.runCommit(user, contract.CommitRequest{Action: contract.CommitNow})
+	if err == nil && answer.refusal != "" {
+		return answer, errors.New(answer.refusal)
+	}
+	return answer, err
 }

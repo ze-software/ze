@@ -107,7 +107,7 @@ func newCommitTestManager(t *testing.T) (*EditorManager, string) {
 // TestWebCommitBlocksWhenThePeerPipelineRefuses drives the web commit entry
 // point over a config the BGP peer pipeline refuses.
 //
-// VALIDATES: EditorManager.Commit returns the refusal as an error, which all
+// VALIDATES: the web commit (runCommit) refuses, which all
 // three web commit surfaces render (handleCommitPost, handleCLICommit,
 // executeTerminalCommit), and config.conf is untouched.
 // PREVENTS: the web writing a config the daemon refuses and reporting the
@@ -117,7 +117,7 @@ func TestWebCommitBlocksWhenThePeerPipelineRefuses(t *testing.T) {
 	mgr, configPath := newCommitTestManager(t)
 
 	require.NoError(t, mgr.SetValue("bob", []string{"bgp", "session", "asn"}, "local", "65001"))
-	_, err := mgr.Commit("bob")
+	_, err := commitNow(mgr, "bob")
 	require.Error(t, err, "the refused config must not reach .conf")
 	assert.Contains(t, err.Error(), "peer1", "the operator is told which peer")
 
@@ -149,7 +149,7 @@ func TestWebCommitValidatesTheTreeItStagesNotTheDraft(t *testing.T) {
 	// Bob commits his own unrelated change. The committed file still carries
 	// router-id 1.2.3.4, so the tree Bob stages is one the pipeline refuses.
 	require.NoError(t, mgr.SetValue("bob", []string{"bgp", "session", "asn"}, "local", "65001"))
-	_, err := mgr.Commit("bob")
+	_, err := commitNow(mgr, "bob")
 	require.Error(t, err, "the staged tree is refused, so the commit is refused")
 	assert.Contains(t, err.Error(), "1.2.3.4", "the refusal names the tree that was staged")
 
@@ -183,7 +183,7 @@ func TestWebCommitCandidateValidatesTheTreeItStages(t *testing.T) {
 	require.NoError(t, mgr.SaveDraft("alice"))
 
 	require.NoError(t, mgr.SetValue("bob", []string{"bgp", "session", "asn"}, "local", "65001"))
-	_, err := mgr.Commit("bob")
+	_, err := commitNow(mgr, "bob")
 	require.Error(t, err, "the staged candidate is refused")
 	assert.Contains(t, err.Error(), "1.2.3.4", "the refusal names the tree that was staged")
 	assert.False(t, reloaded, "the commit must not reach the daemon")
@@ -208,10 +208,10 @@ func TestWebCommitPassesWhenThePeerPipelineAccepts(t *testing.T) {
 
 	mgr, configPath := newCommitTestManager(t)
 	require.NoError(t, mgr.SetValue("bob", []string{"bgp", "session", "asn"}, "local", "65001"))
-	result, err := mgr.Commit("bob")
+	result, err := commitNow(mgr, "bob")
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Empty(t, result.Conflicts)
+	require.True(t, result.applied, "the accepted config is committed")
+	assert.Empty(t, result.conflicts)
 	assert.True(t, asked, "the web commit consults the peer pipeline")
 
 	data, readErr := mgr.store.ReadFile(configPath)

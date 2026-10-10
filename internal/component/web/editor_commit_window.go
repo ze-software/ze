@@ -51,6 +51,7 @@ type webCommitAnswer struct {
 	conflicts []contract.Conflict
 	refusal   string
 	message   string
+	applied   bool // the subcommand changed the config or the window
 }
 
 // runCommit runs one parsed commit subcommand for username. Every subcommand
@@ -103,6 +104,7 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (
 		return webCommitAnswer{}, err
 	}
 	answer := m.appliedAnswer(username, req)
+	answer.applied = true
 	answer.message = cli.WithSkippedWarnings(forced, skipped, answer.message)
 	return answer, nil
 }
