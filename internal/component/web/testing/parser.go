@@ -82,6 +82,10 @@ const (
 	// the looking glass dispatches in process, so a daemon with no BGP still
 	// answers an empty peer list rather than an error.
 	WBServerLGNoEngine WBServer = "lg-no-engine"
+	// WBServerDaemon is the web UI served by a running daemon (`ze start
+	// <config> --web`) rather than by `--web-only`. Only a daemon owns the
+	// confirmed-commit window, so a test of `commit confirmed` drives this.
+	WBServerDaemon WBServer = "daemon"
 )
 
 // WBEnvVar is one environment variable the harness sets on the server process,
@@ -107,7 +111,7 @@ type WBTestCase struct {
 	Viewport   WBViewport   // from option=viewport:width=..:height=..
 	Locale     string       // from option=locale:lang=.. (sets Accept-Language)
 	Auth       []WBAuthUser // from option=auth:.. (repeatable); non-empty => server needs auth
-	Server     WBServer     // from option=server:kind=web|lg|lg-no-engine|chaos; empty means web
+	Server     WBServer     // from option=server:kind=web|lg|lg-no-engine|chaos|daemon; empty means web
 	Env        []WBEnvVar   // from option=env:var=..:value=.. (repeatable)
 	Comments   []string
 }
@@ -247,13 +251,13 @@ func parseWBOption(tc *WBTestCase, rest string, line int) error {
 		// which is a pass that proves nothing.
 		kind := WBServer(kv["kind"])
 		switch kind {
-		case WBServerWeb, WBServerLG, WBServerLGNoEngine, WBServerChaos:
+		case WBServerWeb, WBServerLG, WBServerLGNoEngine, WBServerChaos, WBServerDaemon:
 			tc.Server = kind
 
 			return nil
 		default:
 			// The set is open: the server kind comes directly from a .wb file.
-			return fmt.Errorf("line %d: server kind %q is not one of web, lg, lg-no-engine, chaos", line, kv["kind"])
+			return fmt.Errorf("line %d: server kind %q is not one of web, lg, lg-no-engine, chaos, daemon", line, kv["kind"])
 		}
 	case "env":
 		// option=env:var=ze.web.ui:value=finder (repeatable) reaches the

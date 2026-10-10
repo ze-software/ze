@@ -396,6 +396,9 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	if commitHook != nil {
 		// Install before serving so early commits cannot bypass daemon reload.
 		editorMgr.SetCommitHook(commitHook)
+		// The web commits through the daemon's confirmed-commit window, the
+		// one the SSH session editors use (cli.WindowCommit).
+		editorMgr.SetConfirmWindow(daemonConfirmWindow.Load)
 		editorMgr.SetConfigSource(func() ([]byte, error) {
 			return storage.ReadConfigSource(store, configPath)
 		}, func(expected, content []byte) error {

@@ -129,6 +129,16 @@ An explicit-file daemon keeps that file authoritative: publication checks for ex
 Configuration downloads read the daemon's selected source, including external edits to an explicit file. Uploads use the same daemon-owned publication callback and report conflict or reload failures without replacing the committed configuration. Standalone managers stage uploads as candidates and promote them only after acceptance.
 <!-- source: internal/component/web/editor.go -- SetConfigSource, committedConfig, applyCommittedContent -->
 
+The terminal and the CLI bar parse `commit` with the grammar every editor
+shares (`contract.ParseCommit`). `commit now`, `commit confirmed`,
+`commit accept` and `commit abort` run through `cli.WindowCommit`, the code the
+SSH session editor runs, against the daemon's confirmed-commit window that the
+hub hands the manager (`SetConfirmWindow`). `commit verify` validates the
+user's view and applies nothing. With no daemon window (`--web-only`),
+`commit now` applies directly and the window subcommands are refused.
+<!-- source: internal/component/web/editor_commit_window.go -- SetConfirmWindow, runCommit, verifyCommit -->
+<!-- source: cmd/ze/hub/service_web.go -- SetConfirmWindow -->
+
 ## YANG Schema Integration
 
 The YANG schema drives the entire UI. No hardcoded field lists.

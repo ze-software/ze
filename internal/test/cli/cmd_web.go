@@ -283,6 +283,9 @@ func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBi
 	case webtesting.WBServerWeb:
 		scheme = schemeHTTPS
 		srv, err = zeTestStartWebServer(ctx, bins.ze, listenAddr, !tc.RequiresAuth(), tc.Auth, tc.Env)
+	case webtesting.WBServerDaemon:
+		scheme = schemeHTTPS
+		srv, err = zeTestStartDaemonWebServer(ctx, bins.ze, listenAddr, tc.Env)
 	default:
 		panic("BUG: unknown normalized web test server")
 	}
@@ -597,6 +600,70 @@ func zeTestReadyTimeout() time.Duration {
 	}
 
 	return ready
+}
+
+// daemonWebConfigTemplate is the config the daemon kind runs: one BGP peer
+// that never connects, so the editor has a running config to commit over.
+const daemonWebConfigTemplate = `bgp {
+	router-id 1.2.3.4
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
+	}
+}
+`
+
+// zeTestStartDaemonWebServer starts the web UI on a running daemon: `ze start
+// <config> --web <port> --insecure-web`. Unlike --web-only, the daemon owns
+// the confirmed-commit window, so a web `commit confirmed` opens one.
+func zeTestStartDaemonWebServer(ctx context.Context, zeBin, listenAddr string, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
+	_, portStr, _ := net.SplitHostPort(listenAddr)
+	tempDir, tempErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-web-daemon-test-*")
+	if tempErr != nil {
+		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
+	}
+	if err := zeTestSeedWebUsers(tempDir, true, nil); err != nil {
+		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on seed failure
+		return nil, fmt.Errorf("seed web users: %w", err)
+	}
+	configPath := filepath.Join(tempDir, "web-daemon.conf")
+	if err := os.WriteFile(configPath, []byte(daemonWebConfigTemplate), 0o600); err != nil {
+		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on write failure
+		return nil, fmt.Errorf("write daemon config: %w", err)
+	}
+	cmd := exec.CommandContext(ctx, zeBin, "start", configPath, "--web", portStr, "--insecure-web") //nolint:gosec // test binary path
+	var tb textbuf.Buffer
+	cmd.Env = zeTestEnv(envVars, tb.Str("ze.config.dir=").Str(tempDir).String())
+
+	if err := cmd.Start(); err != nil {
+		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on start failure
+		return nil, err
+	}
+
+	if err := zeTestProbeReady(ctx, schemeHTTPS, listenAddr, "/", zeTestReadyTimeout()); err != nil {
+		zeTestKillCmd(cmd)
+		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on probe failure
+		return nil, fmt.Errorf("daemon not ready: %w", err)
+	}
+
+	return &zeTestWebServer{cmd: cmd, tempDir: tempDir}, nil
 }
 
 func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecure bool, authUsers []webtesting.WBAuthUser, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {

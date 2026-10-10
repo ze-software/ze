@@ -6,7 +6,6 @@ package web
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -879,64 +878,43 @@ func executeTerminalDelete(mgr *EditorManager, username string, contextPath, arg
 	return tb.Reset().Str("deleted ").Str(args[0]).String()
 }
 
-// errWebCommitConfirmedNotYetSupported and errWebCommitVerifyNotYetSupported
-// refuse, by name, the two subcommands the web editor cannot run yet: it holds
-// no confirm window and no validator. accept and abort answer truthfully, since
-// a web session can never have opened a window.
-var (
-	errWebCommitConfirmedNotYetSupported = errors.New("commit confirmed is not yet supported in the web editor (use 'commit now')")
-	errWebCommitVerifyNotYetSupported    = errors.New("commit verify is not yet supported in the web editor")
-	errWebNoConfirmedCommitPending       = errors.New("no confirmed commit is pending")
-)
-
 // webCommitRequest parses the arguments after `commit` with the grammar every
-// editor shares, and refuses what the web editor cannot run. Only `commit now`
-// and `commit now force` return no error; the answer says whether to force.
-func webCommitRequest(args []string) (force bool, err error) {
-	req, err := contract.ParseCommit(args)
-	if err != nil {
-		return false, err
-	}
-	switch req.Action {
-	case contract.CommitNow:
-		return req.Force, nil
-	case contract.CommitConfirmed:
-		return false, errWebCommitConfirmedNotYetSupported
-	case contract.CommitAccept, contract.CommitAbort:
-		return false, errWebNoConfirmedCommitPending
-	case contract.CommitVerify:
-		return false, errWebCommitVerifyNotYetSupported
-	case contract.CommitActionUnspecified:
-		panic("BUG: commit request carries no action")
-	}
-	panic("BUG: unknown commit action")
+// editor shares.
+func webCommitRequest(args []string) (contract.CommitRequest, error) {
+	return contract.ParseCommit(args)
 }
 
 // executeTerminalCommit handles the commit command in terminal mode.
 func executeTerminalCommit(mgr *EditorManager, username string, args []string) string {
-	force, err := webCommitRequest(args)
+	answer, err := runWebCommit(mgr, username, args)
 	if err != nil {
 		var tb textbuf.Buffer
 		return tb.Str("error: ").Err(err).String()
 	}
-	result, err := mgr.commit(username, force)
+	if len(answer.conflicts) > 0 {
+		return formatCommitConflicts("commit conflicts:\n", answer.conflicts)
+	}
+	return answer.message
+}
+
+// runWebCommit parses and runs one commit subcommand for the terminal and the
+// CLI bar alike.
+func runWebCommit(mgr *EditorManager, username string, args []string) (webCommitAnswer, error) {
+	req, err := webCommitRequest(args)
 	if err != nil {
-		var tb textbuf.Buffer
-		return tb.Str("error: ").Err(err).String()
+		return webCommitAnswer{}, err
 	}
+	return mgr.runCommit(username, req)
+}
 
-	if len(result.Conflicts) > 0 {
-		var msg textbuf.Buffer
-		msg.Str("commit conflicts:\n")
-
-		for _, c := range result.Conflicts {
-			msg.Str("  ").Str(c.Path).Str(": want ").Quoted(c.MyValue).Str(", other (").Str(c.OtherUser).Str(") has ").Quoted(c.OtherValue).Byte('\n')
-		}
-
-		return msg.String()
+// formatCommitConflicts renders the conflicts that refused a commit.
+func formatCommitConflicts(heading string, conflicts []contract.Conflict) string {
+	var msg textbuf.Buffer
+	msg.Str(heading)
+	for _, c := range conflicts {
+		msg.Str("  ").Str(c.Path).Str(": want ").Quoted(c.MyValue).Str(", other (").Str(c.OtherUser).Str(") has ").Quoted(c.OtherValue).Byte('\n')
 	}
-
-	return terminalOutputCommitSuccessful
+	return msg.String()
 }
 
 // HandleCLIModeToggle returns a POST handler for /cli/mode that toggles

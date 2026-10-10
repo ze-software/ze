@@ -375,6 +375,19 @@ func TestServerKindDefaultsToWeb(t *testing.T) {
 	}
 }
 
+// TestParseServerDaemonKind verifies option=server:kind=daemon selects the web
+// UI served by a running daemon, the one kind whose commits reach the
+// daemon's confirmed-commit window.
+func TestParseServerDaemonKind(t *testing.T) {
+	tc, err := ParseWBFile("option=server:kind=daemon\naction=open:path=/cli\n")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if tc.ServerKind() != WBServerDaemon {
+		t.Errorf("server = %q, want daemon", tc.ServerKind())
+	}
+}
+
 // TestParseServerRejectsUnknownKind verifies an unknown kind fails PARSING.
 //
 // Failing closed is the whole point: the alternative is starting the default

@@ -195,7 +195,7 @@ Unknown directives or kinds fail parsing immediately.
 | `option=viewport:width=<n>:height=<n>` | Resize the viewport before the first navigation |
 | `option=locale:lang=<tag>` | Set `Accept-Language` for the session |
 | `option=auth:user=<u>:password=<p>:role=<r>` | Repeatable. Seeds the user and starts the server with authentication instead of `--insecure-web` |
-| `option=server:kind=web\|lg\|lg-no-engine\|chaos` | Which server the harness starts. Default `web`. An unknown kind fails parsing, because starting the default one and asserting against it is a pass that proves nothing |
+| `option=server:kind=web\|lg\|lg-no-engine\|chaos\|daemon` | Which server the harness starts. Default `web`. An unknown kind fails parsing, because starting the default one and asserting against it is a pass that proves nothing |
 | `option=env:var=<name>:value=<v>` | Repeatable. Sets one environment variable on the SERVER process |
 
 <!-- source: internal/component/web/testing/parser.go -- parseWBOption: timeout, skip, viewport, locale, auth, server, env -->
@@ -210,11 +210,17 @@ of them has to start that one.
 | `lg` | `le test peer --mode sink`, then `ze -` with a looking-glass listener and one peer dialling that sink | `http` | 2 |
 | `lg-no-engine` | `le test lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
 | `chaos` | `le chaos run --in-process --web :<port>` | `http` | 1 |
+| `daemon` | `ze start <config> --web <port> --insecure-web`, the web UI on a running daemon with one BGP peer that never connects | `https` | 1 |
 
 The looking glass gets a peer because its pages read `show bgp`: without
 one, every assertion would run against an empty table. `le chaos run` is a second
 compile of `cmd/ze` under different tags, so it is built only when a selected
 test asks for it, beside the `ze` binary the run is using.
+
+`daemon` exists because only a running daemon owns the confirmed-commit
+window: under `--web-only` a web `commit confirmed` is refused, so a test of
+the window drives the web UI the daemon serves.
+<!-- source: internal/test/cli/cmd_web.go -- zeTestStartDaemonWebServer -->
 
 `lg-no-engine` exists because no configuration reaches the engine-unavailable
 state: the looking glass dispatches in process, so a daemon with no BGP still

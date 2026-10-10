@@ -480,28 +480,27 @@ func handleCLIUp(w http.ResponseWriter, contextPath []string, schema *config.Sch
 
 // handleCLICommit processes the "commit" verb.
 func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, args []string) {
-	force, err := webCommitRequest(args)
+	req, err := webCommitRequest(args)
 	if err != nil {
 		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")
 		return
 	}
-	result, err := mgr.commit(username, force)
+	answer, err := mgr.runCommit(username, req)
 	if err != nil {
 		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")
 		return
 	}
-
-	if len(result.Conflicts) > 0 {
-		var msg textbuf.Buffer
-		msg.Str("Commit conflicts:\n")
-
-		for _, c := range result.Conflicts {
-			msg.Str("  ").Str(c.Path).Str(": want ").Quoted(c.MyValue).Str(", other (").Str(c.OtherUser).Str(") has ").Quoted(c.OtherValue).Byte('\n')
-		}
-
-		writeCLINotification(w, renderer, msg.String(), "error")
-
+	if len(answer.conflicts) > 0 {
+		writeCLINotification(w, renderer, formatCommitConflicts("Commit conflicts:\n", answer.conflicts), "error")
 		return
+	}
+	// A commit that opened or closed a window, or only verified, tells the
+	// operator what to do next; a plain commit or an abort reloads the page.
+	switch req.Action {
+	case contract.CommitConfirmed, contract.CommitAccept, contract.CommitVerify:
+		writeCLINotification(w, renderer, answer.message, "info")
+		return
+	case contract.CommitNow, contract.CommitAbort, contract.CommitActionUnspecified:
 	}
 
 	htmxRedirect(w, r, configEditPath)

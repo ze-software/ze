@@ -1,5 +1,6 @@
 // Design: docs/guide/config-editor.md -- Commit Confirmed: the daemon owns the window
 // Overview: model_commands_commit.go -- cmdCommitRequest, the commit dispatcher
+// Related: commit_window.go -- WindowCommit, the path the web editor shares
 // Related: ../config/confirm/confirm.go -- the daemon's window worker
 
 package cli
@@ -10,19 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config/confirm"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
-)
-
-var (
-	// errCommitConfirmedNeedsDaemon refuses a session `commit confirmed` with
-	// no daemon window to own the countdown: a session editor of a config the
-	// daemon does not run, or a daemon that does not run it from its store.
-	errCommitConfirmedNeedsDaemon = errors.New("commit confirmed needs a daemon that runs this configuration from its store")
-	// errCommitNotApplied tells the window a session commit did not happen
-	// (validation, a conflict or the reload refused it), so no window opens
-	// and the commit's own status is shown.
-	errCommitNotApplied = errors.New("commit not applied")
 )
 
 // windowWatch is what a session editor remembers of the daemon window it last
@@ -51,10 +40,10 @@ func (e *Editor) daemonWindow() *confirm.Window {
 	return e.confirmWindow()
 }
 
-// refreshCommittedView rebuilds the session view over the committed config,
+// RefreshCommittedView rebuilds the session view over the committed config,
 // after the daemon's window reverted it: the user's pending changes replay
 // over the restored config.
-func (e *Editor) refreshCommittedView() error {
+func (e *Editor) RefreshCommittedView() error {
 	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
 		return err
@@ -64,21 +53,25 @@ func (e *Editor) refreshCommittedView() error {
 	return e.reloadSessionView(guard)
 }
 
+// windowCommit is this session's commit through the daemon's window.
+func (m *Model) windowCommit(window *confirm.Window) WindowCommit {
+	return WindowCommit{Window: window, User: m.editor.session.User, Store: m.editor.store, ConfigPath: m.editor.originalPath}
+}
+
 // cmdCommitWindowRequest runs a session commit subcommand against the daemon's
-// window, which decides who may commit while a window is open (AC-17, AC-18).
-// The commit itself runs on the window's worker, so it never interleaves with
-// a revert.
+// window through WindowCommit, the path the web editor shares; the window
+// decides who may commit while it is open (AC-17, AC-18).
 func (m *Model) cmdCommitWindowRequest(window *confirm.Window, req contract.CommitRequest) (commandResult, error) {
-	user := m.editor.session.User
+	commit := m.windowCommit(window)
 	switch req.Action {
 	case contract.CommitNow:
 		var result commandResult
-		err := window.Now(user, confirm.Commit{Apply: m.applySessionCommit(req.Force, &result)})
+		err := commit.Run(req, m.applySessionCommit(req.Force, &result))
 		return windowCommitAnswer(result, err)
 	case contract.CommitConfirmed:
-		return m.cmdCommitConfirmedWindow(window, user, req)
+		return m.cmdCommitConfirmedWindow(commit, req)
 	case contract.CommitAccept:
-		if err := window.Accept(user); err != nil {
+		if err := commit.Run(req, nil); err != nil {
 			return commandResult{}, err
 		}
 		return commandResult{
@@ -86,7 +79,7 @@ func (m *Model) cmdCommitWindowRequest(window *confirm.Window, req contract.Comm
 			windowWatch:   &windowWatch{},
 		}, nil
 	case contract.CommitAbort:
-		if err := window.Abort(user); err != nil {
+		if err := commit.Run(req, nil); err != nil {
 			return commandResult{}, err
 		}
 		result := m.windowReverted("Changes rolled back to previous configuration.")
@@ -102,21 +95,12 @@ func (m *Model) cmdCommitWindowRequest(window *confirm.Window, req contract.Comm
 
 // cmdCommitConfirmedWindow runs `commit confirmed <seconds> [force]`: the
 // window snapshots the running config, applies the commit, and counts down.
-func (m *Model) cmdCommitConfirmedWindow(window *confirm.Window, user string, req contract.CommitRequest) (commandResult, error) {
-	// AC-21: the window's revert restores a config version, so a store with
-	// no history refuses before anything is written.
-	if !m.editor.HasHistory() {
-		return commandResult{}, errCommitConfirmedNeedsHistory
-	}
+func (m *Model) cmdCommitConfirmedWindow(commit WindowCommit, req contract.CommitRequest) (commandResult, error) {
 	var result commandResult
-	err := window.Confirmed(user, time.Duration(req.Seconds)*time.Second, req.Force, confirm.Commit{
-		Snapshot: func() ([]byte, error) { return storage.ReadActiveConfig(m.editor.store, m.editor.originalPath) },
-		Apply:    m.applySessionCommit(req.Force, &result),
-	})
-	if err != nil {
+	if err := commit.Run(req, m.applySessionCommit(req.Force, &result)); err != nil {
 		return windowCommitAnswer(result, err)
 	}
-	result.windowWatch = watchedWindow(window)
+	result.windowWatch = watchedWindow(commit.Window)
 	var tb textbuf.Buffer
 	result.statusMessage = tb.Str(result.statusMessage).Str(". Confirm within ").Int(int64(req.Seconds)).
 		Str("s or auto-revert. Use 'commit accept' or 'commit abort'.").String()
@@ -124,7 +108,7 @@ func (m *Model) cmdCommitConfirmedWindow(window *confirm.Window, user string, re
 }
 
 // applySessionCommit is the Apply a window runs: the session commit, its
-// status kept in result, and errCommitNotApplied when it did not happen.
+// status kept in result, and ErrCommitNotApplied when it did not happen.
 func (m *Model) applySessionCommit(force bool, result *commandResult) func() error {
 	return func() error {
 		answer, committed, err := m.runCommitSession(force)
@@ -133,7 +117,7 @@ func (m *Model) applySessionCommit(force bool, result *commandResult) func() err
 			return err
 		}
 		if !committed {
-			return errCommitNotApplied
+			return ErrCommitNotApplied
 		}
 		return nil
 	}
@@ -142,7 +126,7 @@ func (m *Model) applySessionCommit(force bool, result *commandResult) func() err
 // windowCommitAnswer turns a window's answer into the command's: a commit the
 // session refused shows its own status, any other error is the answer.
 func windowCommitAnswer(result commandResult, err error) (commandResult, error) {
-	if errors.Is(err, errCommitNotApplied) {
+	if errors.Is(err, ErrCommitNotApplied) {
 		return result, nil
 	}
 	if err != nil {
@@ -164,7 +148,7 @@ func watchedWindow(window *confirm.Window) *windowWatch {
 // windowReverted rebuilds the view over the restored config and reports msg.
 func (m *Model) windowReverted(msg string) commandResult {
 	m.searchCache = ""
-	if err := m.editor.refreshCommittedView(); err != nil {
+	if err := m.editor.RefreshCommittedView(); err != nil {
 		var tb textbuf.Buffer
 		msg = tb.Str(msg).Str(" (view not refreshed: ").Err(err).Byte(')').String()
 	}

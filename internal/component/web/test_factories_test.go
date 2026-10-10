@@ -118,6 +118,8 @@ func (a *testEditorAdapter) CommitSessionCandidateForce(stamp time.Time) (*contr
 	return a.ed.CommitSessionCandidateForce(stamp)
 }
 func (a *testEditorAdapter) MarkCommittedContent(content string) { a.ed.MarkCommittedContent(content) }
+func (a *testEditorAdapter) VerifySession() error                { return a.ed.VerifySession() }
+func (a *testEditorAdapter) RefreshCommittedView() error         { return a.ed.RefreshCommittedView() }
 func (a *testEditorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
 }

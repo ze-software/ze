@@ -59,6 +59,8 @@ func (a *editorAdapter) CommitSessionCandidateForce(stamp time.Time) (*contract.
 	return a.ed.CommitSessionCandidateForce(stamp)
 }
 func (a *editorAdapter) MarkCommittedContent(content string) { a.ed.MarkCommittedContent(content) }
+func (a *editorAdapter) VerifySession() error                { return a.ed.VerifySession() }
+func (a *editorAdapter) RefreshCommittedView() error         { return a.ed.RefreshCommittedView() }
 func (a *editorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
 }

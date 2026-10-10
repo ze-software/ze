@@ -163,6 +163,12 @@ type Editor interface {
 	CommitSessionForce() (*CommitResult, error)
 	CommitSessionCandidateForce(stamp time.Time) (*CommitResult, string, error)
 	MarkCommittedContent(content string)
+	// VerifySession validates the session's view and writes nothing: the
+	// web editor's `commit verify`.
+	VerifySession() error
+	// RefreshCommittedView rebuilds the session's view over the committed
+	// config, after the daemon's confirmed-commit window reverted it.
+	RefreshCommittedView() error
 	Discard() error
 	DiscardSessionPath(path []string) error
 	DisconnectSession(sessionID string) error

@@ -238,8 +238,9 @@ In a session editor, `commit confirmed <seconds>` runs through the daemon's
 confirmed-commit window (see [Commit Confirmed](#commit-confirmed)). A session
 editor of a configuration the daemon does not run has no such window, and
 refuses it with "commit confirmed needs a daemon that runs this configuration
-from its store"; `commit now` still works there.
-<!-- source: internal/component/cli/model_commit_window.go -- errCommitConfirmedNeedsDaemon, daemonWindow -->
+from its store"; `commit now` still works there. The web editor of
+`ze start --web-only` has no daemon and answers the same way.
+<!-- source: internal/component/cli/commit_window.go -- errCommitConfirmedNeedsDaemon, WindowCommit.Run -->
 
 `insert` is supported in session mode: `InsertLeafListValue` routes through
 `writeThroughMemberOp`, and so do `deactivate` and `activate` when they name a
@@ -343,8 +344,10 @@ from configuration mode behind `run `, and the keys are in the
 
 The seconds parameter accepts values from 1 to 3600 (one hour).
 
-In an SSH session editor of the daemon's own configuration, the daemon owns the
-window, not your session. Closing or losing the session leaves the countdown
+In an SSH session editor or the web terminal of the daemon's own
+configuration, the daemon owns the window, not your session. Both editors
+commit through the same window code, so the rules below hold for a web user
+too. Closing or losing the session leaves the countdown
 running, and the revert still happens at the deadline. The window belongs to
 the user who opened it: from any session as that user, `commit accept` and
 `commit abort` answer it, and the status line shows "Confirm within <N>s or
@@ -354,7 +357,9 @@ status line shows "A confirmed commit by <user> is pending:
 <N>s left." A session that saw the window open reports how it closed: a
 timeout says "Timeout: configuration automatically rolled back", and an accept
 or abort from another of your sessions says the window "was closed by another
-session". Inside your own window, `commit confirmed <seconds> force` applies
+session". The web terminal shows each command's answer but has no status
+line, so it shows neither the countdown nor how a window it did not close
+ended. Inside your own window, `commit confirmed <seconds> force` applies
 your new changes and restarts the countdown at `<seconds>`; the revert still
 restores the configuration from before the first commit.
 
@@ -363,7 +368,9 @@ open, the next start reverts it before the configuration is read, so the
 daemon boots the configuration from before the unconfirmed commit.
 <!-- source: internal/component/config/confirm/confirm.go -- Window, Confirmed, RecoverOnStart -->
 <!-- source: internal/component/config/confirm/store.go -- StoreRecorder -->
+<!-- source: internal/component/cli/commit_window.go -- WindowCommit.Run -->
 <!-- source: internal/component/cli/model_commit_window.go -- cmdCommitWindowRequest, pollDaemonWindow -->
+<!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
 <!-- source: cmd/ze/hub/confirm_window.go -- startConfirmWindow, recoverConfirmWindow -->
 
 The revert restores the rollback revision the commit records, so `commit

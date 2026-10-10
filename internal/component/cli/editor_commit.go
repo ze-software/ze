@@ -20,7 +20,6 @@ import (
 // CommitSession commits the current session's changes to config.conf.
 // First saves (change file → draft), then applies draft to config.conf.
 // Returns a CommitResult with conflicts (if any) or the number of applied changes.
-//
 func (e *Editor) CommitSession() (*CommitResult, error) {
 	return e.commitSession(false)
 }
@@ -436,6 +435,30 @@ func (e *Editor) validateStagedTree(tree *config.Tree) error {
 		return fmt.Errorf("validation: %w", err)
 	}
 	return nil
+}
+
+var (
+	// errVerifyNoValidator refuses VerifySession on an editor given no
+	// validator: answering "valid" without checking would be a false answer.
+	errVerifyNoValidator = errors.New("commit verify: this editor holds no validator")
+	// errVerifyNoTree refuses VerifySession when the working config did not
+	// parse, so there is no tree to validate.
+	errVerifyNoTree = errors.New("commit verify: the working configuration did not parse")
+)
+
+// VerifySession runs the injected validator over the session's view, which is
+// the committed config with this session's changes replayed, the tree a
+// commit stages while no other commit lands in between, and writes nothing
+// (AC-26). The web editor answers `commit verify` with it; the SSH editor
+// validates through Model.validator instead (cmdCommitVerify).
+func (e *Editor) VerifySession() error {
+	if e.preCommitValidate == nil {
+		return errVerifyNoValidator
+	}
+	if !e.treeValid {
+		return errVerifyNoTree
+	}
+	return e.validateStagedTree(e.tree)
 }
 
 func (e *Editor) cleanupCommittedSession() {

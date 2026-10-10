@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -45,6 +46,7 @@ type EditorManager struct {
 	commitHook         func() error
 	readSource         func() ([]byte, error)
 	commitSource       func(expected, content []byte) error
+	confirmWindow      func() *confirm.Window // The daemon's window; SetConfirmWindow.
 }
 
 // NewEditorManager creates an EditorManager for the given storage backend and config path.

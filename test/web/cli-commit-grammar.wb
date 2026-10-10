@@ -1,0 +1,80 @@
+# Test: the web terminal takes the commit subcommands and the force modifier
+# VALIDATES: spec-session-editor-file-mode-parity AC-29 (web terminal) -- `commit`
+#            alone is refused naming the subcommands; `commit now` applies;
+#            `commit verify` validates and applies nothing; `commit confirmed 60`
+#            opens a window and `commit accept` closes it; `commit abort` with no
+#            window is refused; `force` on `commit accept` is refused; `confirm`
+#            is an unknown command
+# PREVENTS: the web terminal keeping the old grammar (`commit`, `confirm`)
+#           after the SSH and file-mode editors moved
+#
+# The web UI runs on a daemon (option=server:kind=daemon): only a daemon owns
+# the confirmed-commit window, the one the SSH session editor commits through.
+#
+# No step sleeps: each command waits for its own request (action=wait) and each
+# outcome is a positive expectation, which polls.
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+expect=element:id=terminal-input
+
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze#
+
+action=fill:id=terminal-input:value=set bgp router-id 10.0.0.9
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=commit
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit now
+
+action=fill:id=terminal-input:value=commit verify
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=valid
+
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=fill:id=terminal-input:value=set bgp router-id 10.0.0.10
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=commit confirmed 60
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit accept
+
+action=fill:id=terminal-input:value=commit accept force
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=force
+
+action=fill:id=terminal-input:value=commit accept
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=accepted
+
+action=fill:id=terminal-input:value=commit abort
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=no confirmed commit is pending
+
+action=fill:id=terminal-input:value=commit force
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=modifier
+
+action=fill:id=terminal-input:value=confirm
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=unknown
+
