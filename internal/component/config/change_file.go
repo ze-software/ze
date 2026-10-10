@@ -31,6 +31,16 @@ const (
 	ChangeFileActivateMemberToken = "activate-member"
 	// ChangeFileDeleteListToken identifies a whole-list delete structural op line.
 	ChangeFileDeleteListToken = "delete-list"
+	// ChangeFileCopyEntryToken identifies a list-entry copy structural op line.
+	ChangeFileCopyEntryToken = "copy-entry"
+	// ChangeFileDeactivateLeafToken identifies a leaf deactivation op line.
+	ChangeFileDeactivateLeafToken = "deactivate-leaf"
+	// ChangeFileActivateLeafToken identifies a leaf activation op line.
+	ChangeFileActivateLeafToken = "activate-leaf"
+	// ChangeFileDeactivatePathToken identifies a container or list-entry deactivation op line.
+	ChangeFileDeactivatePathToken = "deactivate-path"
+	// ChangeFileActivatePathToken identifies a container or list-entry activation op line.
+	ChangeFileActivatePathToken = "activate-path"
 )
 
 // StructuralOpType identifies the kind of structural op stored in a change file.
@@ -54,6 +64,19 @@ const (
 	StructuralOpActivateMember StructuralOpType = ChangeFileActivateMemberToken
 	// StructuralOpDeleteList removes an entire list (all entries).
 	StructuralOpDeleteList StructuralOpType = ChangeFileDeleteListToken
+	// StructuralOpCopyEntry clones a keyed list entry under a new key. One op,
+	// not synthetic set entries, so the operator's intent stays one change.
+	StructuralOpCopyEntry StructuralOpType = ChangeFileCopyEntryToken
+	// StructuralOpDeactivateLeaf marks a leaf inactive; ListName is the leaf.
+	StructuralOpDeactivateLeaf StructuralOpType = ChangeFileDeactivateLeafToken
+	// StructuralOpActivateLeaf clears a leaf's inactive marker; ListName is the leaf.
+	StructuralOpActivateLeaf StructuralOpType = ChangeFileActivateLeafToken
+	// StructuralOpDeactivatePath marks the container or list entry at
+	// ParentPath plus ListName inactive.
+	StructuralOpDeactivatePath StructuralOpType = ChangeFileDeactivatePathToken
+	// StructuralOpActivatePath clears the inactive marker of the container or
+	// list entry at ParentPath plus ListName.
+	StructuralOpActivatePath StructuralOpType = ChangeFileActivatePathToken
 )
 
 // PendingChangeKind identifies the operator-visible type of a pending change.
@@ -66,10 +89,11 @@ const (
 	PendingChangeRename     PendingChangeKind = "rename"
 	PendingChangeDeactivate PendingChangeKind = "deactivate"
 	PendingChangeActivate   PendingChangeKind = "activate"
+	PendingChangeCopy       PendingChangeKind = "copy"
 )
 
 // PendingChange is the unified pending-change view used by session diff/count code.
-// Leaf changes use Path/Previous/Value. Renames use OldPath/NewPath.
+// Leaf changes use Path/Previous/Value. Renames and copies use OldPath/NewPath.
 // Member is set for leaf-list member operations (add when Value non-empty,
 // remove when Value empty); members of the same leaf-list are independent
 // changes, not contested values.
@@ -85,8 +109,9 @@ type PendingChange struct {
 }
 
 // StructuralOp records a structural change in a per-user change file.
-// Field use by type: rename uses ListName/OldKey/NewKey; delete-entry and
-// delete-container use ListName/OldKey; the leaf-list member ops use
+// Field use by type: rename and copy-entry use ListName/OldKey/NewKey;
+// delete-entry and delete-container use ListName/OldKey; the leaf and path
+// toggles use ListName as the last path element; the leaf-list member ops use
 // ListName (leaf name) and NewKey (member), with insert-member also using
 // Position and OldKey (the before/after reference member).
 type StructuralOp struct {
@@ -113,8 +138,20 @@ func (op StructuralOp) isMemberOp() bool {
 	switch op.Type {
 	case StructuralOpInsertMember, StructuralOpDeactivateMember, StructuralOpActivateMember:
 		return true
-	case StructuralOpRename, StructuralOpDeleteEntry, StructuralOpDeleteContainer, StructuralOpDeleteList:
+	case StructuralOpRename, StructuralOpDeleteEntry, StructuralOpDeleteContainer, StructuralOpDeleteList,
+		StructuralOpCopyEntry, StructuralOpDeactivateLeaf, StructuralOpActivateLeaf,
+		StructuralOpDeactivatePath, StructuralOpActivatePath:
 		return false
+	}
+	return false
+}
+
+// isToggleOp reports whether the op deactivates or activates one leaf or path.
+func (op StructuralOp) isToggleOp() bool {
+	//exhaustive:ignore // Only classifies the leaf and path toggles for path construction.
+	switch op.Type {
+	case StructuralOpDeactivateLeaf, StructuralOpActivateLeaf, StructuralOpDeactivatePath, StructuralOpActivatePath:
+		return true
 	}
 	return false
 }
@@ -122,6 +159,9 @@ func (op StructuralOp) isMemberOp() bool {
 // SourcePath returns the full YANG path to the original list entry.
 func (op StructuralOp) SourcePath() string {
 	if op.Type == StructuralOpDeleteContainer || op.Type == StructuralOpDeleteList {
+		return joinChangePath(op.ParentPath, op.ListName)
+	}
+	if op.isToggleOp() {
 		return joinChangePath(op.ParentPath, op.ListName)
 	}
 	if op.isMemberOp() {
@@ -133,6 +173,9 @@ func (op StructuralOp) SourcePath() string {
 // DestinationPath returns the full YANG path to the renamed list entry.
 func (op StructuralOp) DestinationPath() string {
 	if op.Type == StructuralOpDeleteEntry || op.Type == StructuralOpDeleteContainer || op.Type == StructuralOpDeleteList {
+		return op.SourcePath()
+	}
+	if op.isToggleOp() {
 		return op.SourcePath()
 	}
 	return joinChangePath(op.ParentPath, op.ListName, op.NewKey)
@@ -172,6 +215,26 @@ func (op StructuralOp) PendingChange() PendingChange {
 			Value:     op.NewKey,
 			Member:    op.NewKey,
 		}
+	case StructuralOpCopyEntry:
+		return PendingChange{
+			SessionID: op.SessionKey(),
+			Kind:      PendingChangeCopy,
+			Path:      op.DestinationPath(),
+			OldPath:   op.SourcePath(),
+			NewPath:   op.DestinationPath(),
+		}
+	case StructuralOpDeactivateLeaf, StructuralOpDeactivatePath:
+		return PendingChange{
+			SessionID: op.SessionKey(),
+			Kind:      PendingChangeDeactivate,
+			Path:      op.SourcePath(),
+		}
+	case StructuralOpActivateLeaf, StructuralOpActivatePath:
+		return PendingChange{
+			SessionID: op.SessionKey(),
+			Kind:      PendingChangeActivate,
+			Path:      op.SourcePath(),
+		}
 	case "", StructuralOpRename:
 	default:
 		panic("BUG: invalid structural operation")
@@ -188,7 +251,7 @@ func (op StructuralOp) PendingChange() PendingChange {
 // ConflictPaths returns the paths that should participate in overlap checks.
 func (pc PendingChange) ConflictPaths() []string {
 	switch pc.Kind {
-	case PendingChangeRename:
+	case PendingChangeRename, PendingChangeCopy:
 		return []string{pc.OldPath, pc.NewPath}
 	case "", PendingChangeSet, PendingChangeDelete, PendingChangeDeactivate, PendingChangeActivate:
 	default:
@@ -218,7 +281,14 @@ func (pc PendingChange) Summary(schema *Schema) string {
 		return tb.String()
 	case PendingChangeRename:
 		return tb.Str("rename ").Str(pc.OldPath).Str(" to ").Str(pc.NewPath).String()
-	case "", PendingChangeSet, PendingChangeDeactivate, PendingChangeActivate:
+	case PendingChangeCopy:
+		return tb.Str("copy ").Str(pc.OldPath).Str(" to ").Str(pc.NewPath).String()
+	case PendingChangeDeactivate, PendingChangeActivate:
+		if pc.Member == "" {
+			// A leaf or path toggle carries no value: the path is the change.
+			return tb.Str(string(pc.Kind)).Byte(' ').Str(pc.Path).String()
+		}
+	case "", PendingChangeSet:
 	default:
 		panic("BUG: invalid pending change kind")
 	}
@@ -295,7 +365,59 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	materializeMetaPaths(tree, meta)
 	return tree, meta, ops, nil
+}
+
+// materializeMetaPaths creates in the sparse change tree every container and
+// list entry that leads to a metadata entry. A delete line removes a value and
+// creates no node, while the serializer reaches metadata only by walking the
+// tree, so without these nodes the next write-through would drop every pending
+// delete under a path no pending set shares. The empty nodes serialize to
+// nothing, as the ones writeThroughDelete creates at the first write do.
+//
+// A metadata branch that holds no entry creates no node. The recursion is bounded by the YANG schema
+// depth the trees mirror.
+func materializeMetaPaths(tree *Tree, meta *MetaTree) {
+	for name, child := range meta.Containers() {
+		if lists := child.Lists(); len(lists) > 0 {
+			for key, entryMeta := range lists {
+				if !metaHoldsEntry(entryMeta) {
+					continue
+				}
+				entry := tree.GetList(name)[key]
+				if entry == nil {
+					entry = NewTree()
+					tree.AddListEntry(name, key, entry)
+				}
+				materializeMetaPaths(entry, entryMeta)
+			}
+			continue
+		}
+		if !metaHoldsEntry(child) {
+			continue
+		}
+		materializeMetaPaths(tree.GetOrCreateContainer(name), child)
+	}
+}
+
+// metaHoldsEntry reports whether meta holds an entry at or below it. The
+// recursion is bounded by the YANG schema depth the tree mirrors.
+func metaHoldsEntry(meta *MetaTree) bool {
+	if len(meta.Entries()) > 0 {
+		return true
+	}
+	for _, child := range meta.Containers() {
+		if metaHoldsEntry(child) {
+			return true
+		}
+	}
+	for _, child := range meta.Lists() {
+		if metaHoldsEntry(child) {
+			return true
+		}
+	}
+	return false
 }
 
 // SerializeChangeFile renders tree, meta, and structural ops into a per-user
@@ -352,16 +474,20 @@ func CoalesceRenameOps(ops []StructuralOp) []StructuralOp {
 	return filtered
 }
 
-func parseRenameLine(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp, error) {
+// parseKeyMoveLine parses a rename or copy-entry line, the two ops that take
+// one keyed list entry to a new key.
+// Form: <token> <parent-path> <list-name> <old-key> to <new-key>.
+func parseKeyMoveLine(lineNum int, entry MetaEntry, cmdLine string, opType StructuralOpType) (StructuralOp, error) {
+	token := string(opType)
 	tokens := strings.Fields(cmdLine)
 	if len(tokens) < 5 {
-		return StructuralOp{}, fmt.Errorf("line %d: rename requires <parent-path> <list-name> <old-key> to <new-key>", lineNum)
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires <parent-path> <list-name> <old-key> to <new-key>", lineNum, token)
 	}
-	if tokens[0] != ChangeFileRenameToken {
-		return StructuralOp{}, fmt.Errorf("line %d: not a rename line", lineNum)
+	if tokens[0] != token {
+		return StructuralOp{}, fmt.Errorf("line %d: not a %s line", lineNum, token)
 	}
 	if entry.User == "" {
-		return StructuralOp{}, fmt.Errorf("line %d: rename requires #user metadata", lineNum)
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires #user metadata", lineNum, token)
 	}
 
 	toIdx := -1
@@ -372,10 +498,10 @@ func parseRenameLine(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp
 		}
 	}
 	if toIdx == -1 || toIdx != len(tokens)-2 {
-		return StructuralOp{}, fmt.Errorf("line %d: rename must end with 'to <new-key>'", lineNum)
+		return StructuralOp{}, fmt.Errorf("line %d: %s must end with 'to <new-key>'", lineNum, token)
 	}
 	if toIdx < 3 {
-		return StructuralOp{}, fmt.Errorf("line %d: rename requires list-name and old-key", lineNum)
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires list-name and old-key", lineNum, token)
 	}
 
 	oldKey := tokens[toIdx-1]
@@ -383,11 +509,11 @@ func parseRenameLine(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp
 	newKey := tokens[toIdx+1]
 	parentPath := textbuf.Join(tokens[1:toIdx-2], " ")
 	if newKey == "" {
-		return StructuralOp{}, fmt.Errorf("line %d: rename requires a new key", lineNum)
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires a new key", lineNum, token)
 	}
 
 	return StructuralOp{
-		Type:       StructuralOpRename,
+		Type:       opType,
 		User:       entry.User,
 		Source:     entry.Source,
 		Time:       entry.Time,
@@ -398,10 +524,16 @@ func parseRenameLine(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp
 	}, nil
 }
 
-func formatRenameLine(op StructuralOp) string {
+// formatKeyMoveLine serializes a rename or copy-entry op. The zero Type is a
+// rename, as it always was for change files written before the type existed.
+func formatKeyMoveLine(op StructuralOp) string {
 	var b textbuf.Buffer
 	writeMetaPrefix(&b, MetaEntry{User: op.User, Source: op.Source, Time: op.Time})
-	b.Str(ChangeFileRenameToken)
+	if op.Type == StructuralOpCopyEntry {
+		b.Str(ChangeFileCopyEntryToken)
+	} else {
+		b.Str(ChangeFileRenameToken)
+	}
 	b.Byte(' ')
 	if op.ParentPath != "" {
 		b.Str(op.ParentPath)
@@ -417,6 +549,42 @@ func formatRenameLine(op StructuralOp) string {
 	return b.String()
 }
 
+// parseToggleLine parses a leaf or path deactivate/activate op line.
+// Form: <token> <parent-path...> <name>, where name is the leaf for the leaf
+// toggles and the last path element for the path toggles.
+func parseToggleLine(lineNum int, entry MetaEntry, cmdLine string, opType StructuralOpType) (StructuralOp, error) {
+	tokens := strings.Fields(cmdLine)
+	if len(tokens) < 2 {
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires a path", lineNum, opType)
+	}
+	if entry.User == "" {
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires #user metadata", lineNum, opType)
+	}
+	return StructuralOp{
+		Type:       opType,
+		User:       entry.User,
+		Source:     entry.Source,
+		Time:       entry.Time,
+		ParentPath: textbuf.Join(tokens[1:len(tokens)-1], " "),
+		ListName:   tokens[len(tokens)-1],
+	}, nil
+}
+
+// formatToggleLine serializes a leaf or path deactivate/activate op. The op
+// type is its own change-file token.
+func formatToggleLine(op StructuralOp) string {
+	var b textbuf.Buffer
+	writeMetaPrefix(&b, MetaEntry{User: op.User, Source: op.Source, Time: op.Time})
+	b.Str(string(op.Type))
+	b.Byte(' ')
+	if op.ParentPath != "" {
+		b.Str(op.ParentPath)
+		b.Byte(' ')
+	}
+	b.Str(op.ListName)
+	return b.String()
+}
+
 // parseStructuralOp dispatches structural op parsing by the first token.
 // Returns (op, nil, true) on success, (_, err, true) on parse error,
 // or (_, nil, false) if the line is not a structural op.
@@ -427,7 +595,7 @@ func parseStructuralOp(lineNum int, entry MetaEntry, cmdLine string) (Structural
 	}
 	switch token {
 	case ChangeFileRenameToken:
-		op, err := parseRenameLine(lineNum, entry, cmdLine)
+		op, err := parseKeyMoveLine(lineNum, entry, cmdLine, StructuralOpRename)
 		return op, err, true
 	case ChangeFileDeleteEntryToken:
 		op, err := parseDeleteEntryLine(lineNum, entry, cmdLine)
@@ -447,6 +615,21 @@ func parseStructuralOp(lineNum int, entry MetaEntry, cmdLine string) (Structural
 	case ChangeFileActivateMemberToken:
 		op, err := parseMemberToggleLine(lineNum, entry, cmdLine, StructuralOpActivateMember)
 		return op, err, true
+	case ChangeFileCopyEntryToken:
+		op, err := parseKeyMoveLine(lineNum, entry, cmdLine, StructuralOpCopyEntry)
+		return op, err, true
+	case ChangeFileDeactivateLeafToken:
+		op, err := parseToggleLine(lineNum, entry, cmdLine, StructuralOpDeactivateLeaf)
+		return op, err, true
+	case ChangeFileActivateLeafToken:
+		op, err := parseToggleLine(lineNum, entry, cmdLine, StructuralOpActivateLeaf)
+		return op, err, true
+	case ChangeFileDeactivatePathToken:
+		op, err := parseToggleLine(lineNum, entry, cmdLine, StructuralOpDeactivatePath)
+		return op, err, true
+	case ChangeFileActivatePathToken:
+		op, err := parseToggleLine(lineNum, entry, cmdLine, StructuralOpActivatePath)
+		return op, err, true
 	}
 	return StructuralOp{}, nil, false
 }
@@ -464,8 +647,10 @@ func formatStructuralLine(op StructuralOp) string {
 		return formatInsertMemberLine(op)
 	case StructuralOpDeactivateMember, StructuralOpActivateMember:
 		return formatMemberToggleLine(op)
-	case "", StructuralOpRename:
-		return formatRenameLine(op)
+	case StructuralOpDeactivateLeaf, StructuralOpActivateLeaf, StructuralOpDeactivatePath, StructuralOpActivatePath:
+		return formatToggleLine(op)
+	case "", StructuralOpRename, StructuralOpCopyEntry:
+		return formatKeyMoveLine(op)
 	default:
 		panic("BUG: invalid structural operation")
 	}

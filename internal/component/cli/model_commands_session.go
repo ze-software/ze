@@ -67,10 +67,14 @@ func formatChangeEntry(b *textbuf.Buffer, change config.PendingChange) {
 		b.Str("  (was: ").Str(change.Previous).Str(")\n")
 	case config.PendingChangeRename:
 		b.Str("  ~ rename ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
+	case config.PendingChangeCopy:
+		b.Str("  + copy ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
 	case config.PendingChangeDeactivate:
-		b.Str("  ~ deactivate ").Str(change.Path).Byte(' ').Str(change.Member).Byte('\n')
+		b.Str("  ~ deactivate ").Str(change.Path)
+		writeChangeMember(b, change.Member)
 	case config.PendingChangeActivate:
-		b.Str("  ~ activate ").Str(change.Path).Byte(' ').Str(change.Member).Byte('\n')
+		b.Str("  ~ activate ").Str(change.Path)
+		writeChangeMember(b, change.Member)
 	case "", config.PendingChangeSet:
 		marker := byte('+')
 		annotation := "(new)"
@@ -83,6 +87,15 @@ func formatChangeEntry(b *textbuf.Buffer, change config.PendingChange) {
 	default:
 		panic("BUG: invalid pending change kind")
 	}
+}
+
+// writeChangeMember ends a toggle line: a leaf-list member toggle names the
+// member, a leaf or path toggle has none.
+func writeChangeMember(b *textbuf.Buffer, member string) {
+	if member != "" {
+		b.Byte(' ').Str(member)
+	}
+	b.Byte('\n')
 }
 
 // cmdShowChangesAll displays pending changes summary grouped by session.

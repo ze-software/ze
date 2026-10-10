@@ -156,7 +156,9 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 		if err := target.ActivateMultiValue(leafListName, member); err != nil {
 			return err
 		}
-	case "", config.StructuralOpRename, config.StructuralOpDeleteEntry, config.StructuralOpDeleteContainer, config.StructuralOpDeleteList:
+	case "", config.StructuralOpRename, config.StructuralOpDeleteEntry, config.StructuralOpDeleteContainer, config.StructuralOpDeleteList,
+		config.StructuralOpCopyEntry, config.StructuralOpDeactivateLeaf, config.StructuralOpActivateLeaf,
+		config.StructuralOpDeactivatePath, config.StructuralOpActivatePath:
 		return fmt.Errorf("unsupported member op %q", opType)
 	default:
 		panic("BUG: invalid structural member operation")

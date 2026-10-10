@@ -303,6 +303,138 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 	return nil
 }
 
+// writeThroughCopy records a list-entry copy as one copy-entry structural op
+// in the per-user change file and copies the entry in the in-memory tree. The
+// copy is proved on a clone first, so a missing source or an existing
+// destination refuses before anything is written.
+//
+// The commit applies the copy-entry op to the committed source before this
+// session's leaf edits, so the copy would miss any pending edit of the source.
+// The change file therefore carries the source's pending edits under the
+// destination too, as writeThroughRename rebases them onto the new key.
+func (e *Editor) writeThroughCopy(parentPath []string, listName, sourceKey, targetKey string) error {
+	probe := walkPath(e.tree.Clone(), e.schema, parentPath)
+	if probe == nil {
+		return errPathNotFound
+	}
+	if err := probe.CopyListEntry(listName, sourceKey, targetKey); err != nil {
+		return err
+	}
+
+	guard, err := e.store.AcquireLock(e.originalPath)
+	if err != nil {
+		return fmt.Errorf("write-through lock: %w", err)
+	}
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
+	guard.SetModifier(e.session.ID)
+
+	op := config.StructuralOp{
+		Type:       config.StructuralOpCopyEntry,
+		User:       e.session.User,
+		Source:     e.session.Origin,
+		Time:       e.session.StartTime,
+		ParentPath: textbuf.Join(parentPath, " "),
+		ListName:   listName,
+		OldKey:     sourceKey,
+		NewKey:     targetKey,
+	}
+	changePath := ChangePath(e.originalPath, e.session.User)
+	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	if err := copyPendingListEntry(changeTree, changeMeta, e.schema, parentPath, listName, sourceKey, targetKey); err != nil {
+		return err
+	}
+	changeOps = append(changeOps, op)
+	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
+	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
+		return fmt.Errorf("write-through write: %w", err)
+	}
+
+	if err := applyStructuralOps(e.tree, e.schema, []config.StructuralOp{op}, false); err != nil {
+		return fmt.Errorf("write-through apply: %w", err)
+	}
+	if metaParent := walkMetaReadOnly(e.meta, e.schema, parentPath); metaParent != nil {
+		if err := metaParent.CopyListEntry(listName, sourceKey, targetKey); err != nil {
+			return err
+		}
+	}
+	e.dirty.Store(true)
+	e.draftSaved = false
+	return nil
+}
+
+// copyPendingListEntry copies the pending edits a change file holds for a
+// list entry, its sparse subtree and its metadata, to the copy's key. A source
+// with no pending edit has nothing to copy.
+func copyPendingListEntry(tree *config.Tree, meta *config.MetaTree, schema *config.Schema, parentPath []string, listName, sourceKey, targetKey string) error {
+	parent := tree
+	if len(parentPath) > 0 {
+		parent = walkPath(tree, schema, parentPath)
+	}
+	if parent != nil && parent.GetList(listName)[sourceKey] != nil {
+		if err := parent.CopyListEntry(listName, sourceKey, targetKey); err != nil {
+			return err
+		}
+	}
+	metaParent := walkMetaReadOnly(meta, schema, parentPath)
+	if metaParent == nil {
+		return nil
+	}
+	return metaParent.CopyListEntry(listName, sourceKey, targetKey)
+}
+
+// writeThroughToggle records a leaf or path deactivate/activate as one
+// structural op. The caller MUST have checked the current state (path found,
+// not already in the asked state), so the sentinel errors stay the caller's.
+func (e *Editor) writeThroughToggle(opType config.StructuralOpType, parentPath []string, name string) error {
+	return e.writeThroughStructuralOp(config.StructuralOp{
+		Type:       opType,
+		ParentPath: textbuf.Join(parentPath, " "),
+		ListName:   name,
+	})
+}
+
+// writeThroughPathToggle records a container or list-entry deactivate or
+// activate. The root is not a node an operator can toggle, so an empty path
+// is refused rather than indexed.
+func (e *Editor) writeThroughPathToggle(opType config.StructuralOpType, path []string) error {
+	if len(path) == 0 {
+		return fmt.Errorf("%w: the root cannot be deactivated or activated", ErrPathNotFound)
+	}
+	return e.writeThroughToggle(opType, path[:len(path)-1], path[len(path)-1])
+}
+
+// writeThroughStructuralOp stamps op with the session identity, appends it to
+// the per-user change file under the store lock, and then applies it to the
+// in-memory tree through the same applyStructuralOps that SaveDraft and the
+// commit use, so what the operator sees is what the commit will apply.
+func (e *Editor) writeThroughStructuralOp(op config.StructuralOp) error {
+	guard, err := e.store.AcquireLock(e.originalPath)
+	if err != nil {
+		return fmt.Errorf("write-through lock: %w", err)
+	}
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
+	guard.SetModifier(e.session.ID)
+
+	op.User = e.session.User
+	op.Source = e.session.Origin
+	op.Time = e.session.StartTime
+
+	changePath := ChangePath(e.originalPath, e.session.User)
+	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	changeOps = append(changeOps, op)
+	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
+	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
+		return fmt.Errorf("write-through write: %w", err)
+	}
+
+	if err := applyStructuralOps(e.tree, e.schema, []config.StructuralOp{op}, false); err != nil {
+		return fmt.Errorf("write-through apply: %w", err)
+	}
+	e.dirty.Store(true)
+	e.draftSaved = false
+	return nil
+}
+
 // readChangeFile reads and parses a per-user change file.
 // Returns empty tree/meta/op collections if the file does not exist or is corrupt.
 func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*config.Tree, *config.MetaTree, []config.StructuralOp) {
@@ -467,12 +599,73 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 			if err := applyMemberOp(tree, schema, ops[i], allowAlreadyApplied); err != nil {
 				return err
 			}
+		case config.StructuralOpCopyEntry:
+			target := walkPath(tree, schema, parentPath)
+			if target == nil {
+				return fmt.Errorf("path not found: %s", ops[i].ParentPath)
+			}
+			if err := target.CopyListEntry(ops[i].ListName, ops[i].OldKey, ops[i].NewKey); err != nil {
+				if allowAlreadyApplied && copyAlreadyApplied(target, ops[i].ListName, ops[i].OldKey, ops[i].NewKey) {
+					continue
+				}
+				return err
+			}
+		case config.StructuralOpDeactivateLeaf, config.StructuralOpActivateLeaf,
+			config.StructuralOpDeactivatePath, config.StructuralOpActivatePath:
+			if err := applyToggleOp(tree, schema, ops[i], allowAlreadyApplied); err != nil {
+				return err
+			}
 		case "":
 			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
 		default:
 			panic("BUG: invalid structural operation")
 		}
 	}
+	return nil
+}
+
+// copyAlreadyApplied reports whether a replayed copy finds both entries in
+// place, which is what a draft replay over its own earlier save looks like.
+func copyAlreadyApplied(target *config.Tree, listName, sourceKey, targetKey string) bool {
+	entries := target.GetList(listName)
+	if entries == nil {
+		return false
+	}
+	if entries[sourceKey] == nil {
+		return false
+	}
+	return entries[targetKey] != nil
+}
+
+// applyToggleOp applies one leaf or path deactivate/activate op. The desired
+// state already reached is success, as for the member toggles: a draft replay
+// or a second session asking for the same state changes nothing. A path that
+// no longer resolves is an error at commit and skipped on replay.
+func applyToggleOp(tree *config.Tree, schema *config.Schema, op config.StructuralOp, allowAlreadyApplied bool) error {
+	parentPath := strings.Fields(op.ParentPath)
+	if op.Type == config.StructuralOpDeactivateLeaf || op.Type == config.StructuralOpActivateLeaf {
+		target := walkPath(tree, schema, parentPath)
+		if target == nil {
+			if allowAlreadyApplied {
+				return nil
+			}
+			return fmt.Errorf("%w: %s", ErrPathNotFound, op.ParentPath)
+		}
+		if op.Type == config.StructuralOpDeactivateLeaf {
+			target.SetLeafInactive(op.ListName, true)
+		} else {
+			target.ClearLeafInactive(op.ListName)
+		}
+		return nil
+	}
+	target := walkPath(tree, schema, append(parentPath, op.ListName))
+	if target == nil {
+		if allowAlreadyApplied {
+			return nil
+		}
+		return fmt.Errorf("%w: %s", ErrPathNotFound, op.SourcePath())
+	}
+	target.SetInactive(op.Type == config.StructuralOpDeactivatePath)
 	return nil
 }
 
@@ -530,7 +723,9 @@ func applyMemberOp(tree *config.Tree, schema *config.Schema, op config.Structura
 			return fmt.Errorf("%q not found in %s", op.NewKey, op.ListName)
 		}
 		return target.ActivateMultiValue(op.ListName, op.NewKey)
-	case "", config.StructuralOpRename, config.StructuralOpDeleteEntry, config.StructuralOpDeleteContainer, config.StructuralOpDeleteList:
+	case "", config.StructuralOpRename, config.StructuralOpDeleteEntry, config.StructuralOpDeleteContainer, config.StructuralOpDeleteList,
+		config.StructuralOpCopyEntry, config.StructuralOpDeactivateLeaf, config.StructuralOpActivateLeaf,
+		config.StructuralOpDeactivatePath, config.StructuralOpActivatePath:
 		return nil
 	default:
 		panic("BUG: invalid structural member operation")
@@ -567,9 +762,16 @@ func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops 
 				continue
 			}
 			target.DeleteMetaContainer(ops[i].ListName)
-		case config.StructuralOpInsertMember, config.StructuralOpDeactivateMember, config.StructuralOpActivateMember:
-			// Member ops reorder or toggle values inside one leaf; the
-			// metadata tree structure is unaffected.
+		case config.StructuralOpInsertMember, config.StructuralOpDeactivateMember, config.StructuralOpActivateMember,
+			config.StructuralOpDeactivateLeaf, config.StructuralOpActivateLeaf,
+			config.StructuralOpDeactivatePath, config.StructuralOpActivatePath:
+			// Member ops reorder or toggle values inside one leaf, and the
+			// leaf and path toggles set a marker; the metadata tree
+			// structure is unaffected.
+			continue
+		case config.StructuralOpCopyEntry:
+			// The copied entry carries no session metadata of its own: the
+			// copy op is the one attributed change.
 			continue
 		case "":
 			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
@@ -666,7 +868,7 @@ func (e *Editor) detectConflicts() []Conflict {
 }
 
 func pendingChangesConflict(a, b config.PendingChange) bool {
-	if a.Kind != config.PendingChangeRename && b.Kind != config.PendingChangeRename {
+	if !isEntryMove(a.Kind) && !isEntryMove(b.Kind) {
 		if a.Path != b.Path {
 			return false
 		}
@@ -682,7 +884,9 @@ func pendingChangesConflict(a, b config.PendingChange) bool {
 			// the entire leaf-list) on the same path always conflicts.
 			return true
 		}
-		return a.Value != b.Value
+		// A different kind on one path conflicts even with equal values:
+		// deactivate and activate of one leaf both carry no value.
+		return a.Kind != b.Kind || a.Value != b.Value
 	}
 	for _, aPath := range a.ConflictPaths() {
 		for _, bPath := range b.ConflictPaths() {
@@ -758,10 +962,16 @@ func conflictPath(a, b config.PendingChange) string {
 // reaches this operator's terminal through OtherValue, and the schema is what
 // keeps a credential out of both.
 func pendingConflictValue(schema *config.Schema, change config.PendingChange) string {
-	if change.Kind == config.PendingChangeRename {
+	if isEntryMove(change.Kind) {
 		return change.Summary(schema)
 	}
 	return config.DisplayValueAtPath(schema, strings.Fields(change.Path), change.Value)
+}
+
+// isEntryMove reports whether a pending change takes a list entry from one
+// path to another (rename, copy), so it conflicts by path overlap on both.
+func isEntryMove(kind config.PendingChangeKind) bool {
+	return kind == config.PendingChangeRename || kind == config.PendingChangeCopy
 }
 
 func pathOverlaps(a, b string) bool {

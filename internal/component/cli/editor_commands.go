@@ -14,20 +14,17 @@ import (
 )
 
 var (
-	errTreeOrSchemaNotAvailable            = errors.New("tree or schema not available")
-	errPathNotFound                        = errors.New("path not found")
-	errEmptyPath                           = errors.New("empty path")
-	errSchemaNotAvailable                  = errors.New("schema not available")
-	errCopyNotSupportedInSessionMode       = errors.New("copy not supported in session mode")
-	errDeactivateNotSupportedInSessionMode = errors.New("deactivate not supported in session mode")
-	errActivateNotSupportedInSessionMode   = errors.New("activate not supported in session mode")
-	errPathTooShortForListEntry            = errors.New("path too short for list entry")
-	errCannotRenameAnonymousListEntry      = errors.New("cannot rename anonymous list entry")
-	errPathDoesNotEndAtA                   = errors.New("path does not end at a list entry")
-	errRenameTargetMustBeTheLast           = errors.New("rename target must be the last element in the path")
-	errSaveNotAllowedWithActiveSession     = errors.New("Save() not allowed with active session; use CommitSession()")
-	errNoSessionSet                        = errors.New("no session set")
-	errLoadNotSupportedInSessionMode       = errors.New("load not supported in session mode")
+	errTreeOrSchemaNotAvailable        = errors.New("tree or schema not available")
+	errPathNotFound                    = errors.New("path not found")
+	errEmptyPath                       = errors.New("empty path")
+	errSchemaNotAvailable              = errors.New("schema not available")
+	errPathTooShortForListEntry        = errors.New("path too short for list entry")
+	errCannotRenameAnonymousListEntry  = errors.New("cannot rename anonymous list entry")
+	errPathDoesNotEndAtA               = errors.New("path does not end at a list entry")
+	errRenameTargetMustBeTheLast       = errors.New("rename target must be the last element in the path")
+	errSaveNotAllowedWithActiveSession = errors.New("Save() not allowed with active session; use CommitSession()")
+	errNoSessionSet                    = errors.New("no session set")
+	errLoadNotSupportedInSessionMode   = errors.New("load not supported in session mode")
 )
 
 // saveEditState saves the current working content to the .edit file.
@@ -683,11 +680,14 @@ func (e *Editor) RenameListEntry(parentPath []string, listName, oldKey, newKey s
 }
 
 // CopyListEntry clones a list entry under a new key at the given path.
-// The parentPath navigates to the tree containing the list.
-// MetaTree is not updated because copy is blocked in session mode (meta is session-only).
+// The parentPath navigates to the tree containing the list. A destination that
+// exists is refused in both modes: copy never overwrites.
+// In session mode the copy is one copy-entry structural op in the per-user
+// change file, applied before leaf edits, and the in-memory tree takes the
+// copy at once.
 func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	if e.session != nil {
-		return errCopyNotSupportedInSessionMode
+		return e.writeThroughCopy(parentPath, listName, srcKey, dstKey)
 	}
 	var target *config.Tree
 	if len(parentPath) == 0 {
@@ -793,9 +793,6 @@ var (
 // Returns ErrLeafAlreadyInactive (wrapped) when the leaf is already
 // marked, so callers can use errors.Is for idempotent flows.
 func (e *Editor) DeactivateLeaf(parentPath []string, leafName string) error {
-	if e.session != nil {
-		return errDeactivateNotSupportedInSessionMode
-	}
 	target := e.tree
 	if len(parentPath) > 0 {
 		target = e.WalkPath(parentPath)
@@ -806,6 +803,9 @@ func (e *Editor) DeactivateLeaf(parentPath []string, leafName string) error {
 	if target.IsLeafInactive(leafName) {
 		return fmt.Errorf("%w: %q", ErrLeafAlreadyInactive, leafName)
 	}
+	if e.session != nil {
+		return e.writeThroughToggle(config.StructuralOpDeactivateLeaf, parentPath, leafName)
+	}
 	target.SetLeafInactive(leafName, true)
 	e.dirty.Store(true)
 	return nil
@@ -814,9 +814,6 @@ func (e *Editor) DeactivateLeaf(parentPath []string, leafName string) error {
 // ActivateLeaf clears the inactive marker on a leaf at parentPath.
 // Returns ErrLeafNotInactive (wrapped) when the leaf is already active.
 func (e *Editor) ActivateLeaf(parentPath []string, leafName string) error {
-	if e.session != nil {
-		return errActivateNotSupportedInSessionMode
-	}
 	target := e.tree
 	if len(parentPath) > 0 {
 		target = e.WalkPath(parentPath)
@@ -826,6 +823,9 @@ func (e *Editor) ActivateLeaf(parentPath []string, leafName string) error {
 	}
 	if !target.IsLeafInactive(leafName) {
 		return fmt.Errorf("%w: %q", ErrLeafNotInactive, leafName)
+	}
+	if e.session != nil {
+		return e.writeThroughToggle(config.StructuralOpActivateLeaf, parentPath, leafName)
 	}
 	target.ClearLeafInactive(leafName)
 	e.dirty.Store(true)
@@ -841,15 +841,15 @@ func (e *Editor) ActivateLeaf(parentPath []string, leafName string) error {
 // and ErrPathAlreadyInactive (wrapped) when the inactive flag is
 // already set, so callers can use errors.Is for idempotent flows.
 func (e *Editor) DeactivatePath(path []string) error {
-	if e.session != nil {
-		return errDeactivateNotSupportedInSessionMode
-	}
 	target := e.WalkPath(path)
 	if target == nil {
 		return fmt.Errorf("%w: %s", ErrPathNotFound, textbuf.Join(path, " "))
 	}
 	if target.IsInactive() {
 		return fmt.Errorf("%w: %s", ErrPathAlreadyInactive, textbuf.Join(path, " "))
+	}
+	if e.session != nil {
+		return e.writeThroughPathToggle(config.StructuralOpDeactivatePath, path)
 	}
 	target.SetInactive(true)
 	e.dirty.Store(true)
@@ -862,15 +862,15 @@ func (e *Editor) DeactivatePath(path []string) error {
 // Returns ErrPathNotFound or ErrPathNotInactive (wrapped) for the
 // idempotent / mistyped-path cases.
 func (e *Editor) ActivatePath(path []string) error {
-	if e.session != nil {
-		return errActivateNotSupportedInSessionMode
-	}
 	target := e.WalkPath(path)
 	if target == nil {
 		return fmt.Errorf("%w: %s", ErrPathNotFound, textbuf.Join(path, " "))
 	}
 	if !target.IsInactive() {
 		return fmt.Errorf("%w: %s", ErrPathNotInactive, textbuf.Join(path, " "))
+	}
+	if e.session != nil {
+		return e.writeThroughPathToggle(config.StructuralOpActivatePath, path)
 	}
 	target.SetInactive(false)
 	e.dirty.Store(true)

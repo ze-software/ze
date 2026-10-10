@@ -358,6 +358,9 @@ func (m *EditorManager) Diff(username string) (string, error) {
 		case contract.PendingChangeRename:
 			b.Str("~ rename ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
 			continue
+		case contract.PendingChangeCopy:
+			b.Str("+ copy ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
+			continue
 		case contract.PendingChangeDelete:
 			b.Str("- ").Str(change.Path).Byte(' ')
 			if change.Member == "" {
@@ -409,7 +412,11 @@ func (m *EditorManager) maskChangeValue(path, value string) string {
 // writeMemberDiffLine writes a "<verb> <path> <member>" diff line for a
 // leaf-list member deactivation or activation.
 func writeMemberDiffLine(b *textbuf.Buffer, verb string, change contract.PendingChange) {
-	b.Str(verb).Str(change.Path).Byte(' ').Str(change.Member).Byte('\n')
+	b.Str(verb).Str(change.Path)
+	if change.Member != "" {
+		b.Byte(' ').Str(change.Member)
+	}
+	b.Byte('\n')
 }
 
 // pendingChangePaths returns the YANG paths of every pending change in the
@@ -438,9 +445,9 @@ func (m *EditorManager) pendingChangePaths(username string) []string {
 	}
 	out := make([]string, 0, len(pending))
 	for _, p := range pending {
-		//exhaustive:ignore // Rename projects two paths; every other change projects its Path.
+		//exhaustive:ignore // Rename and copy project two paths; every other change projects its Path.
 		switch p.Kind {
-		case contract.PendingChangeRename:
+		case contract.PendingChangeRename, contract.PendingChangeCopy:
 			// Both old and new locations carry the change.
 			if p.OldPath != "" {
 				out = append(out, p.OldPath)

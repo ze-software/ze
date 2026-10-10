@@ -294,6 +294,57 @@ func (mt *MetaTree) RenameListEntry(listName, oldKey, newKey string) error {
 	return nil
 }
 
+// CopyListEntry clones a list-entry subtree under the named list container to
+// a new key, for a copy that carries a session's pending edits to the
+// destination. A missing source is not an error: the source then carries no
+// metadata and the copy carries none either. An existing destination is
+// refused, as Tree.CopyListEntry refuses it.
+//
+// Every copied entry's Previous is cleared. Previous is the committed value the
+// stale-conflict check compares against, and the committed config holds
+// nothing at a destination the copy creates; keeping the source's Previous
+// would report every copied set as stale at commit.
+func (mt *MetaTree) CopyListEntry(listName, sourceKey, targetKey string) error {
+	mt.mu.RLock()
+	listContainer := mt.containers[listName]
+	mt.mu.RUnlock()
+	if listContainer == nil {
+		return nil
+	}
+
+	listContainer.mu.Lock()
+	defer listContainer.mu.Unlock()
+
+	source, ok := listContainer.lists[sourceKey]
+	if !ok {
+		return nil
+	}
+	if _, exists := listContainer.lists[targetKey]; exists {
+		return fmt.Errorf("%s already exists in %s", targetKey, listName)
+	}
+	target := source.Clone()
+	target.clearPrevious()
+	listContainer.lists[targetKey] = target
+	return nil
+}
+
+// clearPrevious empties Previous on every entry of a tree that CopyListEntry
+// just cloned and nothing else holds yet. The recursion is bounded by the YANG
+// schema depth the tree mirrors.
+func (mt *MetaTree) clearPrevious() {
+	for _, entries := range mt.entries {
+		for i := range entries {
+			entries[i].Previous = ""
+		}
+	}
+	for _, child := range mt.containers {
+		child.clearPrevious()
+	}
+	for _, child := range mt.lists {
+		child.clearPrevious()
+	}
+}
+
 // Clone returns a deep copy of the metadata tree.
 func (mt *MetaTree) Clone() *MetaTree {
 	if mt == nil {

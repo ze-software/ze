@@ -1,0 +1,81 @@
+# Test: session copy, leaf and path deactivate/activate write through and commit
+# VALIDATES: spec-session-editor-file-mode-parity AC-8, AC-9, AC-10, AC-30 at the
+#            model level: each verb is accepted in session mode (previously
+#            refused with "not supported in session mode"), shows as one change,
+#            and commits
+# PREVENTS: session editors refusing copy and leaf/path deactivation
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+    asn {
+      local 65000
+    }
+  }
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+      local {
+        ip auto
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=ssh
+
+input=type:text=copy bgp peer peer1 to peer2
+input=enter
+expect=error:none
+expect=status:contains=Copied peer peer1 to peer2
+
+# Copy never overwrites an existing destination
+input=type:text=copy bgp peer peer1 to peer2
+input=enter
+expect=error:contains=already exists
+
+# Two peers may not share a remote address, so the copy gets its own
+input=type:text=set bgp peer peer2 connection remote ip 2.2.2.2
+input=enter
+expect=error:none
+
+input=type:text=deactivate bgp router-id
+input=enter
+expect=error:none
+expect=status:contains=Deactivated
+
+input=type:text=deactivate bgp peer peer1
+input=enter
+expect=error:none
+expect=status:contains=Deactivated
+
+input=type:text=commit
+input=enter
+expect=error:none
+expect=dirty:false
+expect=key:path=file/active/test.conf:contains=peer2
+expect=key:path=file/active/test.conf:contains=nop bgp peer peer1
+expect=key:path=file/active/test.conf:contains=nop bgp router-id
+
+input=type:text=activate bgp router-id
+input=enter
+expect=error:none
+input=type:text=activate bgp peer peer1
+input=enter
+expect=error:none
+input=type:text=commit
+input=enter
+expect=error:none
+expect=dirty:false
+expect=key:path=file/active/test.conf:not-contains=nop bgp

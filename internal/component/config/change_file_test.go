@@ -290,3 +290,94 @@ func TestPendingChangeSummaryPreservesSetStyleFallback(t *testing.T) {
 		change.Summary(nil)
 	})
 }
+
+// TestChangeFileDeactivateOpsRoundTrip verifies that the structural ops the
+// session editor records for copy and for leaf and path deactivation survive
+// serialize and parse unchanged, and project to one pending change each.
+func TestChangeFileDeactivateOpsRoundTrip(t *testing.T) {
+	schema := testChangeFileSchema()
+	stamp := time.Date(2026, 10, 10, 1, 2, 3, 0, time.UTC)
+	base := StructuralOp{User: "thomas", Source: "ssh", Time: stamp}
+
+	cases := []struct {
+		name    string
+		op      StructuralOp
+		line    string
+		kind    PendingChangeKind
+		path    string
+		summary string
+	}{
+		{"copy-entry", withOp(base, StructuralOpCopyEntry, "bgp", "peer", "london", "paris"),
+			"copy-entry bgp peer london to paris", PendingChangeCopy, "bgp peer paris", "copy bgp peer london to bgp peer paris"},
+		{"deactivate-leaf", withOp(base, StructuralOpDeactivateLeaf, "bgp peer london", "description", "", ""),
+			"deactivate-leaf bgp peer london description", PendingChangeDeactivate, "bgp peer london description", "deactivate bgp peer london description"},
+		{"activate-leaf", withOp(base, StructuralOpActivateLeaf, "bgp peer london", "description", "", ""),
+			"activate-leaf bgp peer london description", PendingChangeActivate, "bgp peer london description", "activate bgp peer london description"},
+		{"deactivate-path", withOp(base, StructuralOpDeactivatePath, "bgp peer", "london", "", ""),
+			"deactivate-path bgp peer london", PendingChangeDeactivate, "bgp peer london", "deactivate bgp peer london"},
+		{"activate-path root", withOp(base, StructuralOpActivatePath, "", "bgp", "", ""),
+			"activate-path bgp", PendingChangeActivate, "bgp", "activate bgp"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			content := SerializeChangeFile(NewTree(), NewMetaTree(), []StructuralOp{tc.op}, schema)
+			assert.Contains(t, content, "#thomas @ssh %2026-10-10T01:02:03Z "+tc.line)
+
+			_, _, parsed, err := ParseChangeFile(content, NewSetParser(schema))
+			require.NoError(t, err)
+			require.Len(t, parsed, 1)
+			assert.Equal(t, tc.op, parsed[0])
+
+			change := parsed[0].PendingChange()
+			assert.Equal(t, tc.kind, change.Kind)
+			assert.Equal(t, tc.path, change.Path)
+			assert.Equal(t, tc.summary, change.Summary(schema))
+		})
+	}
+}
+
+// TestParseChangeFileRejectsTruncatedToggleOps verifies a toggle or copy line
+// missing its operands is a parse error, never an op with an empty target.
+func TestParseChangeFileRejectsTruncatedToggleOps(t *testing.T) {
+	schema := testChangeFileSchema()
+	for _, line := range []string{
+		"#thomas @ssh %2026-10-10T01:02:03Z deactivate-leaf",
+		"#thomas @ssh %2026-10-10T01:02:03Z activate-path",
+		"#thomas @ssh %2026-10-10T01:02:03Z copy-entry bgp peer london paris",
+		"deactivate-path bgp",
+	} {
+		_, _, _, err := ParseChangeFile(line+"\n", NewSetParser(schema))
+		assert.Error(t, err, line)
+	}
+}
+
+func withOp(base StructuralOp, opType StructuralOpType, parentPath, name, oldKey, newKey string) StructuralOp {
+	base.Type = opType
+	base.ParentPath = parentPath
+	base.ListName = name
+	base.OldKey = oldKey
+	base.NewKey = newKey
+	return base
+}
+
+// TestChangeFileLeafDeleteSurvivesRewrite verifies that a pending leaf delete
+// inside a list entry survives a parse and a re-serialize of the change file.
+// Every write-through after the first reads the file back and writes it again,
+// and a delete line creates no tree node to hang its metadata on, so the
+// serializer, which walks the tree, dropped the delete at the next edit and the
+// commit never applied it.
+func TestChangeFileLeafDeleteSurvivesRewrite(t *testing.T) {
+	schema := testChangeFileSchema()
+	content := "#thomas @ssh %2026-10-10T01:02:03Z ^old delete bgp peer london description\n"
+
+	tree, meta, ops, err := ParseChangeFile(content, NewSetParser(schema))
+	require.NoError(t, err)
+	rewritten := SerializeChangeFile(tree, meta, ops, schema)
+	assert.Contains(t, rewritten, "#thomas @ssh %2026-10-10T01:02:03Z ^old delete bgp peer london description")
+
+	_, again, _, err := ParseChangeFile(rewritten, NewSetParser(schema))
+	require.NoError(t, err)
+	entry, ok := again.GetContainer("bgp").GetContainer("peer").GetListEntry("london").GetEntry("description")
+	require.True(t, ok, "the delete metadata survives a second round trip")
+	assert.Equal(t, "old", entry.Previous)
+}

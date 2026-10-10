@@ -112,6 +112,7 @@ const (
 	PendingChangeRename     PendingChangeKind = "rename"
 	PendingChangeDeactivate PendingChangeKind = "deactivate"
 	PendingChangeActivate   PendingChangeKind = "activate"
+	PendingChangeCopy       PendingChangeKind = "copy"
 )
 
 // PendingChange is the unified pending-change view used by web diff/count UI.

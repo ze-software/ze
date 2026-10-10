@@ -208,16 +208,13 @@ edit must be reconciled before a competing daemon commit can succeed. Bare
 
 Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:
 
-<!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode, errCopyNotSupportedInSessionMode, errDeactivateNotSupportedInSessionMode, errActivateNotSupportedInSessionMode -->
+<!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode -->
 <!-- source: internal/component/cli/model_commands.go -- errCommitConfirmedNotYetSupportedIn -->
 <!-- source: internal/component/cli/model_commands_commit.go -- errCommitForceNotYetSupportedIn -->
 
 | Blocked command | Reason |
 |-----------------|--------|
 | `load` | Replaces tree without generating per-leaf change entries |
-| `copy` | Creates structure without write-through |
-| `deactivate` on a leaf or a path | Requires metadata write-through |
-| `activate` on a leaf or a path | Requires metadata write-through |
 | `commit confirmed` | Needs session-aware rollback |
 | `commit force` | Needs session-aware rollback |
 
@@ -226,6 +223,14 @@ Some commands are not yet supported in session mode because they replace the tre
 leaf-list member rather than a leaf or a path.
 <!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue -->
 <!-- source: internal/component/cli/editor_leaflist.go -- writeThroughMemberOp -->
+
+`copy`, and `deactivate` or `activate` on a leaf or a path, are supported in
+session mode too. Each records one structural op in your change file
+(`copy-entry`, `deactivate-leaf`, `activate-leaf`, `deactivate-path`,
+`activate-path`), shows as one change in `show | changes`, and is applied by
+`commit` before your leaf edits. `copy` never overwrites: a destination that
+exists is refused, so delete it first.
+<!-- source: internal/component/cli/editor_draft.go -- writeThroughCopy, writeThroughToggle, writeThroughStructuralOp, applyToggleOp -->
 
 Use file mode (`ze config edit -f`) for these operations.
 
