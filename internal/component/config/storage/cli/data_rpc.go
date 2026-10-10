@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -29,6 +30,11 @@ type DataRPCTarget struct {
 	// ServesClient reports whether this hub serves the named managed client. It
 	// is nil when the daemon serves no managed client at all.
 	ServesClient func(name string) bool
+	// Window returns the daemon's confirmed-commit window, nil when it has
+	// none. A config restore is refused while one is open, because the
+	// window's revert would wipe it (confirm.WriteOutside). Window itself is
+	// nil when the daemon runs no window at all.
+	Window func() *confirm.Window
 }
 
 // dataRPC holds the target once the daemon has built its reload. Until then,
@@ -133,7 +139,9 @@ type dataRestoreArgs struct {
 // [client <c>]`. Without client, the artifact's config is staged as the
 // candidate FIRST and promoted LAST, by the same reload a SIGHUP runs, so a
 // config the reload refuses never becomes active and the active pointer and its
-// rollback stay as they were. With client, see restoreClientConfig.
+// rollback stay as they were. It is refused while a confirmed-commit window is
+// open, with the window's own refusal naming its owner. With client, see
+// restoreClientConfig: the client's config is not the one a window reverts.
 func handleDataRestore(ctx *pluginserver.CommandContext, args []string) (*zePlugin.Response, error) {
 	target := dataRPC.Load()
 	if target == nil {
@@ -154,15 +162,18 @@ func handleDataRestore(ctx *pluginserver.CommandContext, args []string) (*zePlug
 	if err != nil {
 		return dataRefusal(fmt.Errorf("request data restore: %w", err)), nil
 	}
-	stamp, err := storage.WriteCandidateVersion(target.Store, target.ConfigPath, selected.Data, time.Now())
-	if errors.Is(err, storage.ErrCandidateExists) {
-		return dataRefusal(errors.New("request data restore: a config change is already staged; commit or discard it first")), nil
+	var window *confirm.Window
+	if target.Window != nil {
+		window = target.Window()
 	}
-	if err != nil {
-		return dataRefusal(fmt.Errorf("request data restore: stage candidate: %w", err)), nil
-	}
-	if err := target.Reload(ctx.Context()); err != nil {
-		return dataRefusal(fmt.Errorf("request data restore: the reload refused the config, the active config is unchanged: %w", err)), nil
+	var stamp string
+	writeErr := confirm.WriteOutside(window, func() error {
+		var stageErr error
+		stamp, stageErr = restoreDaemonConfig(ctx.Context(), target, selected.Data)
+		return stageErr
+	})
+	if writeErr != nil {
+		return dataRefusal(fmt.Errorf("request data restore: %w", writeErr)), nil
 	}
 	return &zePlugin.Response{
 		Status: zePlugin.StatusDone,
@@ -173,6 +184,23 @@ func handleDataRestore(ctx *pluginserver.CommandContext, args []string) (*zePlug
 			"version":     stamp,
 		},
 	}, nil
+}
+
+// restoreDaemonConfig stages data as the daemon's candidate and promotes it by
+// the reload, returning the version stamp. It refuses when another change is
+// already staged.
+func restoreDaemonConfig(ctx context.Context, target *DataRPCTarget, data []byte) (string, error) {
+	stamp, err := storage.WriteCandidateVersion(target.Store, target.ConfigPath, data, time.Now())
+	if errors.Is(err, storage.ErrCandidateExists) {
+		return "", errors.New("a config change is already staged; commit or discard it first")
+	}
+	if err != nil {
+		return "", fmt.Errorf("stage candidate: %w", err)
+	}
+	if err := target.Reload(ctx); err != nil {
+		return "", fmt.Errorf("the reload refused the config, the active config is unchanged: %w", err)
+	}
+	return stamp, nil
 }
 
 // restoreClientConfig writes the artifact's config as the config this hub serves

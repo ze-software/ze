@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -172,7 +173,7 @@ func TestExplicitRuntimeCommitPublishesBothAuthorities(t *testing.T) {
 	}
 	err := commitRuntimeConfig(store, path, path, before, after, func() error {
 		return promoteConfigCandidate(store, path)
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,5 +201,57 @@ func TestExplicitRuntimeCommitPublishesBothAuthorities(t *testing.T) {
 	}
 	if !retained {
 		t.Fatal("prior accepted config disappeared from history")
+	}
+}
+
+// confirmNopRecorder persists nothing: the test never restarts the daemon.
+type confirmNopRecorder struct{}
+
+func (confirmNopRecorder) Save(confirm.Pending) error { return nil }
+func (confirmNopRecorder) Clear() error               { return nil }
+
+// TestRuntimeCommitRefusedDuringConfirmWindow is owner decision (e) of
+// spec-session-editor-file-mode-parity for commitRuntimeConfig, the commit
+// behind `update bgp config` (SetRuntimeConfigCommit) and the web raw-source
+// editor: while a confirmed-commit window is open it is refused with the
+// window's refusal naming its owner, and nothing is written.
+//
+// PREVENTS: a raw-source commit landing inside a window and being wiped,
+// silently, by the window's revert.
+func TestRuntimeCommitRefusedDuringConfirmWindow(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "router.conf")
+	store := newTestFileStore(t, path)
+	before, after := []byte("accepted"), []byte("committed")
+	if err := os.WriteFile(path, before, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := initializeConfigSource(store, path, before); err != nil {
+		t.Fatal(err)
+	}
+	window := confirm.NewWindow(func([]byte) error { return nil }, confirmNopRecorder{})
+	t.Cleanup(window.Stop)
+	opened := confirm.Commit{
+		Snapshot: func() ([]byte, error) { return before, nil },
+		Apply:    func() error { return nil },
+	}
+	if err := window.Confirmed("alice", time.Minute, false, opened); err != nil {
+		t.Fatal(err)
+	}
+
+	reloaded := false
+	err := commitRuntimeConfig(store, path, path, before, after, func() error {
+		reloaded = true
+		return promoteConfigCandidate(store, path)
+	}, window)
+	var other *confirm.OtherUserError
+	if !errors.As(err, &other) || other.Owner != "alice" {
+		t.Fatalf("commit during alice's window = %v, want the window's refusal naming alice", err)
+	}
+	if reloaded {
+		t.Fatal("the refused commit reloaded the daemon")
+	}
+	file, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(file, before) {
+		t.Fatalf("explicit file = %q, %v; the refused commit wrote it", file, err)
 	}
 }

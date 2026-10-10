@@ -278,3 +278,31 @@ func TestConfirmWindowStopped(t *testing.T) {
 	require.ErrorIs(t, w.Now("alice", d.commit("v2")), ErrStopped)
 	w.Stop()
 }
+
+// TestConfirmWindowRefusesWritersOutsideTheEditors is owner decision (e) of
+// spec-session-editor-file-mode-parity: a config write no editor makes (an
+// API config session, a data restore, a raw-source commit) is refused while a
+// window is open, because the window's revert would wipe it, and runs when
+// no window is open or there is no daemon window at all.
+//
+// VALIDATES: WriteOutside refuses with OtherUserError naming the owner, even
+// for the owner's own name, and applies nothing; it applies with no window.
+// PREVENTS: a write that lands during a window and is silently reverted with it.
+func TestConfirmWindowRefusesWritersOutsideTheEditors(t *testing.T) {
+	d := newFakeDaemon("v1")
+	w := newTestWindow(t, d)
+
+	require.NoError(t, WriteOutside(w, d.commit("v2").Apply), "no window open: the write applies")
+	assert.Equal(t, "v2", d.config())
+
+	require.NoError(t, w.Confirmed("alice", time.Minute, false, d.commit("v3")))
+	err := WriteOutside(w, d.commit("v4").Apply)
+	var other *OtherUserError
+	require.ErrorAs(t, err, &other)
+	assert.Equal(t, "alice", other.Owner)
+	assert.Contains(t, err.Error(), "seconds left")
+	assert.Equal(t, "v3", d.config(), "the refused write applied nothing")
+
+	require.NoError(t, WriteOutside(nil, d.commit("v5").Apply), "no daemon window: the write applies")
+	assert.Equal(t, "v5", d.config())
+}

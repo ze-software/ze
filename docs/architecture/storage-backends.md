@@ -246,7 +246,9 @@ entry naming a missing one. Offline, `RestoreConfig` writes the candidate and
 promotes it under ONE guard, so a crash leaves either nothing or a normal
 candidate; a failure before the active pointer moves withdraws the candidate
 and its version. The daemon's `request data restore` stages the same bytes as
-the candidate and runs its SIGHUP reload, which promotes last. `request data
+the candidate and runs its SIGHUP reload, which promotes last; it is refused
+while a confirmed-commit window is open (`confirm.WriteOutside`), because the
+window's revert would wipe it. `request data
 backup` runs `Backup` over the daemon's own bound handle (`ownedStore` looks
 through `BindConfigSource`), under the lock every commit takes.
 <!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->

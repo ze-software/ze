@@ -58,6 +58,7 @@ func buildAPIShared(in *apiBuildInputs) *apiShared {
 	})
 	sessions.SetValidationHook(configValidationHook(in.ConfigPath))
 	sessions.SetCommitHook(in.ReloadHook)
+	sessions.SetConfirmWindow(daemonConfirmWindow.Load)
 	if ctx := in.Server.Context(); ctx != nil {
 		go sessions.RunCleanup(ctx)
 	}

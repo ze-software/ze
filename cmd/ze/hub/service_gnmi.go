@@ -166,5 +166,6 @@ func buildGNMISessionManager(store storage.Storage, configPath string, reloadAft
 	})
 	sessions.SetValidationHook(configValidationHook(configPath))
 	sessions.SetCommitHook(reloadAfterCommit)
+	sessions.SetConfirmWindow(daemonConfirmWindow.Load)
 	return sessions
 }

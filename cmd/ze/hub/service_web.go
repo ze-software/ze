@@ -402,7 +402,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		editorMgr.SetConfigSource(func() ([]byte, error) {
 			return storage.ReadConfigSource(store, configPath)
 		}, func(expected, content []byte) error {
-			return commitRuntimeConfig(store, configPath, configPath, expected, content, commitHook)
+			return commitRuntimeConfig(store, configPath, configPath, expected, content, commitHook, daemonConfirmWindow.Load())
 		})
 	}
 

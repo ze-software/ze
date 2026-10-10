@@ -1070,12 +1070,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// server starts, below.
 	var dataTarget *storagecli.DataRPCTarget
 	if store != nil {
-		dataTarget = &storagecli.DataRPCTarget{Store: store, ConfigPath: configPath, Reload: reloadAfterCommitContext}
+		dataTarget = &storagecli.DataRPCTarget{Store: store, ConfigPath: configPath, Reload: reloadAfterCommitContext, Window: daemonConfirmWindow.Load}
 		storagecli.InstallDataRPC(dataTarget)
 		defer storagecli.InstallDataRPC(nil)
 	}
 	commandregistry.SetRuntimeConfigCommit(func(path string, expected, content []byte) error {
-		return commitRuntimeConfig(store, configPath, path, expected, content, reloadAfterCommit)
+		return commitRuntimeConfig(store, configPath, path, expected, content, reloadAfterCommit, daemonConfirmWindow.Load())
 	})
 	defer commandregistry.SetRuntimeConfigCommit(nil)
 

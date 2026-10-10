@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -75,6 +76,9 @@ type ConfigSessionManager struct {
 	onCommit   ConfigCommitHook
 	onValidate ConfigValidationHook
 	timeout    time.Duration
+	// confirmWindow returns the daemon's confirmed-commit window, nil when it
+	// has none; SetConfirmWindow. Nil here too until the composition root sets it.
+	confirmWindow func() *confirm.Window
 }
 
 // NewConfigSessionManager creates a session manager with the default timeout.
@@ -92,6 +96,16 @@ func NewConfigSessionManager(factory ConfigEditorFactory) *ConfigSessionManager 
 func (m *ConfigSessionManager) SetCommitHook(hook ConfigCommitHook) {
 	m.mu.Lock()
 	m.onCommit = hook
+	m.mu.Unlock()
+}
+
+// SetConfirmWindow sets how a commit finds the daemon's confirmed-commit
+// window. While one is open, every session's commit is refused with the
+// window's own refusal naming its owner, because the window's revert would
+// wipe the write (confirm.WriteOutside).
+func (m *ConfigSessionManager) SetConfirmWindow(window func() *confirm.Window) {
+	m.mu.Lock()
+	m.confirmWindow = window
 	m.mu.Unlock()
 }
 
@@ -253,27 +267,17 @@ func (m *ConfigSessionManager) Commit(req *ConfigCommitRequest) error {
 	}
 	m.mu.RLock()
 	onCommit := m.onCommit
+	confirmWindow := m.confirmWindow
 	m.mu.RUnlock()
-	if onCommit != nil {
-		stageStart := time.Now()
-		content, _, warnings, stageErr := session.Editor.StageCandidate(stageStart)
-		if stageErr != nil {
-			return fmt.Errorf("commit candidate: %w", stageErr)
-		}
-		configSessionLogger().Debug("commit: candidate staged", "user", req.Username, "elapsed", time.Since(stageStart))
-		logCommitWarnings(req.Username, warnings)
-		hookStart := time.Now()
-		if hookErr := onCommit(); hookErr != nil {
-			return fmt.Errorf("commit runtime reload failed: %w", hookErr)
-		}
-		configSessionLogger().Debug("commit: runtime reload applied", "user", req.Username, "elapsed", time.Since(hookStart))
-		session.Editor.MarkCommittedContent(content)
-	} else {
-		warnings, saveErr := session.Editor.Save()
-		if saveErr != nil {
-			return fmt.Errorf("commit: %w", saveErr)
-		}
-		logCommitWarnings(req.Username, warnings)
+	var window *confirm.Window
+	if confirmWindow != nil {
+		window = confirmWindow()
+	}
+	writeErr := confirm.WriteOutside(window, func() error {
+		return commitSession(session.Editor, req.Username, onCommit)
+	})
+	if writeErr != nil {
+		return writeErr
 	}
 	session.closed = true
 	m.mu.Lock()
@@ -281,6 +285,33 @@ func (m *ConfigSessionManager) Commit(req *ConfigCommitRequest) error {
 		delete(m.sessions, req.SessionID)
 	}
 	m.mu.Unlock()
+	return nil
+}
+
+// commitSession writes the session's candidate: staged and applied by the
+// runtime reload hook when the daemon set one, else saved to the file.
+func commitSession(editor ConfigEditor, username string, onCommit ConfigCommitHook) error {
+	if onCommit == nil {
+		warnings, saveErr := editor.Save()
+		if saveErr != nil {
+			return fmt.Errorf("commit: %w", saveErr)
+		}
+		logCommitWarnings(username, warnings)
+		return nil
+	}
+	stageStart := time.Now()
+	content, _, warnings, stageErr := editor.StageCandidate(stageStart)
+	if stageErr != nil {
+		return fmt.Errorf("commit candidate: %w", stageErr)
+	}
+	configSessionLogger().Debug("commit: candidate staged", "user", username, "elapsed", time.Since(stageStart))
+	logCommitWarnings(username, warnings)
+	hookStart := time.Now()
+	if hookErr := onCommit(); hookErr != nil {
+		return fmt.Errorf("commit runtime reload failed: %w", hookErr)
+	}
+	configSessionLogger().Debug("commit: runtime reload applied", "user", username, "elapsed", time.Since(hookStart))
+	editor.MarkCommittedContent(content)
 	return nil
 }
 

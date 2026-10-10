@@ -381,9 +381,12 @@ In an SSH session editor or the web editor of the daemon's own
 configuration, the daemon owns the window, not your session. Both editors
 commit through the same window code, so the rules below hold for a web user
 too, from the web terminal, the CLI bar and the "Review & Commit" button.
-The API config sessions, `request data restore`, and the web raw-source editor
-do not commit through the window yet: a commit they make while it is open is
-reverted with it. Closing or losing the session leaves the countdown
+While a window is open, the config writers that are not editors are refused
+for every user, its owner included, with the same "A confirmed commit by <user>
+is pending" refusal, because the revert would wipe what they wrote: a REST,
+gRPC or gNMI config session commit, `request data restore` of the daemon's
+config, `update bgp config`, and the web raw-source editor. Accept or abort the
+window first. Closing or losing the session leaves the countdown
 running, and the revert still happens at the deadline. The window belongs to
 the user who opened it: from any session as that user, `commit accept` and
 `commit abort` answer it, and the status line shows "Confirm within <N>s or

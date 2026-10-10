@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -168,13 +169,24 @@ func recoverFileCommit(store storage.Storage, path string) error {
 	return nil
 }
 
-func commitRuntimeConfig(store storage.Storage, sourcePath, path string, expected, content []byte, reload func() error) error {
+// commitRuntimeConfig commits content as the daemon's config through reload,
+// the commit behind `update bgp config` and the web raw-source editor. While
+// window, the daemon's confirmed-commit window, is open it is refused with
+// the window's refusal: the window's revert would wipe it (confirm.WriteOutside).
+func commitRuntimeConfig(store storage.Storage, sourcePath, path string, expected, content []byte, reload func() error, window *confirm.Window) error {
 	if store == nil {
 		return errors.New("configuration commits require a persistent store")
 	}
 	if reload == nil {
 		return errors.New("configuration commit has no daemon reload handler")
 	}
+	return confirm.WriteOutside(window, func() error {
+		return writeRuntimeConfig(store, sourcePath, path, expected, content, reload)
+	})
+}
+
+// writeRuntimeConfig is commitRuntimeConfig once the window allows it.
+func writeRuntimeConfig(store storage.Storage, sourcePath, path string, expected, content []byte, reload func() error) error {
 	if err := recoverFileCommit(store, sourcePath); err != nil {
 		return err
 	}

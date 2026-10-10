@@ -297,7 +297,30 @@ func (w *Window) refuse(user string) error {
 	if w.pending.User == user {
 		return ErrPending
 	}
+	return w.otherUserError()
+}
+
+// otherUserError is the refusal of anyone but the open window's owner. The
+// window MUST be open.
+func (w *Window) otherUserError() *OtherUserError {
 	return &OtherUserError{Owner: w.pending.User, Left: time.Until(w.pending.Deadline), Revert: w.revertErr}
+}
+
+// WriteOutside runs apply, a config write that no editor makes (an API
+// config session, a data restore, a raw-source commit), on window's worker:
+// refused with OtherUserError while any window is open, whoever asks, because
+// the window's revert would wipe the write. A nil window, a daemon with no
+// window, runs apply directly.
+func WriteOutside(window *Window, apply func() error) error {
+	if window == nil {
+		return apply()
+	}
+	return window.do(func() error {
+		if window.pending != nil {
+			return window.otherUserError()
+		}
+		return apply()
+	})
 }
 
 // Now runs `commit now [force]`: refused while any window is open (AC-18).
