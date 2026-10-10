@@ -2425,9 +2425,34 @@ func (l *scenarioLab) waitZeIKEEstablished(ctx context.Context) error {
 // id, so an equal id before and after proves the same IKE SA carried both.
 var swanIKESAIdentity = regexp.MustCompile(`ze: #(\d+), ESTABLISHED`)
 
-// swanCreateChildWithKE is strongSwan's own trace of a CREATE_CHILD_SA request for
-// a NEW Child SA with PFS: no N(REKEY_SA) before SA, and a KE payload.
-var swanCreateChildWithKE = regexp.MustCompile(`generating CREATE_CHILD_SA request \d+ \[ SA No KE TSi TSr \]`)
+// swanCreateChildRequest is strongSwan's own trace of a CREATE_CHILD_SA request it
+// sent, with the payload list it carried.
+var swanCreateChildRequest = regexp.MustCompile(`generating CREATE_CHILD_SA request \d+ \[ ([^\]]*)\]`)
+
+// swanSentNewChildWithKE answers whether strongSwan sent a CREATE_CHILD_SA request
+// for a NEW Child SA with PFS: SA, nonce, KE and both traffic selectors, and no
+// N(REKEY_SA). The payload list is read as a set, because strongSwan may add
+// notifies around it. It also answers every request line it read, for the error.
+func swanSentNewChildWithKE(logs string) (bool, []string) {
+	var seen []string
+	for _, match := range swanCreateChildRequest.FindAllStringSubmatch(logs, -1) {
+		seen = append(seen, match[0])
+		payloads := strings.Fields(match[1])
+		if slices.Contains(payloads, "N(REKEY_SA)") {
+			continue
+		}
+		wanted := true
+		for _, payload := range []string{"SA", "No", "KE", "TSi", "TSr"} {
+			if !slices.Contains(payloads, payload) {
+				wanted = false
+			}
+		}
+		if wanted {
+			return true, seen
+		}
+	}
+	return false, seen
+}
 
 func (l *scenarioLab) swanIKESAID(ctx context.Context) (string, error) {
 	output, err := l.listSAs(ctx)
@@ -2461,7 +2486,10 @@ func checkChildlessIKESAZeResponder(ctx context.Context, lab *scenarioLab) error
 	if err := lab.waitSA(ctx, lab.timeout); err != nil {
 		return fmt.Errorf("strongSwan holds no IKE SA after Ze refused its first Child SA: %w", err)
 	}
-	if err := lab.waitLog(ctx, swanPeer, "NO_PROPOSAL_CHOSEN", lab.timeout); err != nil {
+	// strongSwan 5.9.14 abbreviates the notify in the payload list of the IKE_AUTH
+	// response it parsed ("parsed IKE_AUTH response 1 [ IDr AUTH N(NO_PROP) ... ]",
+	// MEASURED 2026-10-10), which ties the refusal to the IKE_AUTH exchange.
+	if err := lab.waitLog(ctx, swanPeer, "AUTH N(NO_PROP)", lab.timeout); err != nil {
 		return fmt.Errorf("strongSwan never read Ze's refusal of the `refused` Child SA: %w", err)
 	}
 	before, err := lab.swanIKESAID(ctx)
@@ -2490,8 +2518,8 @@ func checkChildlessIKESAZeResponder(ctx context.Context, lab *scenarioLab) error
 	if err != nil {
 		return err
 	}
-	if !swanCreateChildWithKE.MatchString(swanLogs) {
-		return errors.New("strongSwan never sent a CREATE_CHILD_SA request with KE for a new Child SA")
+	if sent, requests := swanSentNewChildWithKE(swanLogs); !sent {
+		return fmt.Errorf("strongSwan never sent a CREATE_CHILD_SA request with KE for a new Child SA; its CREATE_CHILD_SA requests: %q", requests)
 	}
 	if strings.Contains(swanLogs, "deleting IKE_SA ze[") {
 		return errors.New("strongSwan deleted the IKE SA during the scenario")

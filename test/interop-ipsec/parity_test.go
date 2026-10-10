@@ -15,6 +15,8 @@ var ipsecScenarios = []string{
 	"child-rekey",
 	"child-rekey-narrowing",
 	"child-rekey-refused-keeps-the-sa",
+	"childless-ike-sa-ze-initiator",
+	"childless-ike-sa-ze-responder",
 	"clear-reestablish",
 	"cookie-challenge",
 	"dataplane-readback",

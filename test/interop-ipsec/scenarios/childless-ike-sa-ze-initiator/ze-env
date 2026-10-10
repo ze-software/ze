@@ -1,0 +1,8 @@
+# Observation, not stimulus. The checker waits for Ze's "child-sa: created via
+# CREATE_CHILD_SA", which finishChildCreate (internal/component/ike/engine/create_child.go)
+# logs at INFO, and the ike subsystem runs at WARN by default. The lab-wide
+# ZE_LOG_LEVEL=debug (zeEnvironment, ipsec.go) resolves to the key ze.log.level,
+# a subsystem named "level", so it raises nothing. MEASURED 2026-10-10: strongSwan
+# logged "CHILD_SA ze-child{3} established" from Ze's CREATE_CHILD_SA request 6
+# while Ze's log held only its WARN lines.
+ZE_LOG_IKE=info
