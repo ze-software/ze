@@ -60,6 +60,16 @@ and a second `commit confirmed` are refused: answer the window first with
 terminal share this grammar.
 <!-- source: internal/component/cli/contract/commit.go -- ParseCommit, commitSubcommands -->
 
+A commit that validation refuses says so on the status line: how many errors
+and warnings block it, then each one. When only warnings block it, the line
+names the forced form of what you typed (`commit now force`, or
+`commit confirmed <seconds> force`), and a forced commit reports how many
+warnings it skipped. `force` never commits over an error. `commit verify`
+gives the same list and applies nothing. The configuration stays on screen with
+each issue marked.
+<!-- source: internal/component/cli/model_commands_commit.go -- commitValidationRefusal, withSkippedWarnings, cmdCommitVerify -->
+<!-- source: internal/component/cli/model_commit_window.go -- forcedCommand -->
+
 In the SSH editor and the web terminal, `commit now` is refused when your
 change conflicts with another user's pending change (LIVE) or with a value
 committed since you made it (STALE). `commit now force` applies your change

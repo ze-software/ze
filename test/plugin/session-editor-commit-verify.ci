@@ -1,0 +1,84 @@
+# Test: `commit verify` validates an SSH session's candidate and applies nothing
+# VALIDATES: spec-session-editor-file-mode-parity AC-26 -- a valid candidate is
+#            reported valid; a candidate with a warning, then with an error,
+#            lists what `commit now` would report; in every case the running
+#            daemon and the pending changes are unchanged
+# PREVENTS: a verify that applies the candidate, or drops its pending changes
+option=timeout:value=60s
+
+tmpfs=session-editor-commit-verify.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-verify.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send set bgp router-id 5.6.7.8
+send commit verify
+wait the candidate is valid; nothing was applied
+send show | changes
+wait 1 pending change
+lacks 5.6.7.8
+has 1.2.3.4
+# A password that is not a bcrypt hash raises a warning, not an error.
+send set system authentication user bob password notahash
+send commit verify
+wait nothing was applied; 0 error(s), 1 warning(s): system.authentication.user.bob.password: not a valid bcrypt hash
+send show | changes
+wait 2 pending changes
+has 1.2.3.4
+# A role that needs a transit-leak filter no chain names is an error.
+send set bgp peer peer1 role import peer
+send commit verify
+wait nothing was applied; 1 error(s), 1 warning(s): peer peer1: role peer requires a filter against a transit leak
+send show | changes
+wait 3 pending changes
+has 1.2.3.4
+kill
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-verify.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-verify.conf session-editor-commit-verify.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-verify.conf:contains=1.2.3.4

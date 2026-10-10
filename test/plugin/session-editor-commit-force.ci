@@ -1,0 +1,95 @@
+# Test: `commit now force` applies a warning-only candidate to a running daemon over SSH
+# VALIDATES: spec-session-editor-file-mode-parity AC-12 -- `commit now` refuses a
+#            candidate whose only issue is a warning and names `commit now force`;
+#            `commit now force` applies it to the running daemon and says how many
+#            warnings it skipped; `commit confirmed 60 force` does the same and
+#            opens a window; with an error in the candidate both forms with
+#            `force` are refused naming the error
+# PREVENTS: the session editor refusing `force` ("not yet supported"), and a
+#           `force` that also skips errors
+option=timeout:value=60s
+
+tmpfs=session-editor-commit-force.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-force.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+# A password that is not a bcrypt hash raises a warning, not an error.
+send set system authentication user bob password notahash
+send set bgp router-id 5.6.7.8
+send commit now
+wait 'commit now force' commits over the warnings
+wait bcrypt
+send show | changes
+wait 2 pending changes
+has 1.2.3.4
+send commit now force
+wait commit now force: skipping 1 warning(s)
+has 5.6.7.8
+# A role that needs a transit-leak filter no chain names is an error.
+send set bgp peer peer1 role import peer
+send commit now force
+wait force commits over warnings, never errors
+wait transit leak
+send show | changes
+wait 1 pending change
+send commit confirmed 60 force
+wait never errors
+send delete bgp peer peer1 role
+send set system authentication user carol password notahash
+send set bgp router-id 6.6.6.6
+send commit confirmed 60 force
+wait commit confirmed 60 force: skipping 2 warning(s)
+wait Confirm within 60s
+has 6.6.6.6
+send commit accept
+wait accepted
+has 6.6.6.6
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-force.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-force.conf session-editor-commit-force.script:timeout=60s
+expect=exit:code=0

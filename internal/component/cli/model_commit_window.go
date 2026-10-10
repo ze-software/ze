@@ -66,7 +66,7 @@ func (m *Model) cmdCommitWindowRequest(window *confirm.Window, req contract.Comm
 	switch req.Action {
 	case contract.CommitNow:
 		var result commandResult
-		err := commit.Run(req, m.applySessionCommit(req.Force, &result))
+		err := commit.Run(req, m.applySessionCommit(req, &result))
 		return windowCommitAnswer(result, err)
 	case contract.CommitConfirmed:
 		return m.cmdCommitConfirmedWindow(commit, req)
@@ -97,7 +97,7 @@ func (m *Model) cmdCommitWindowRequest(window *confirm.Window, req contract.Comm
 // window snapshots the running config, applies the commit, and counts down.
 func (m *Model) cmdCommitConfirmedWindow(commit WindowCommit, req contract.CommitRequest) (commandResult, error) {
 	var result commandResult
-	if err := commit.Run(req, m.applySessionCommit(req.Force, &result)); err != nil {
+	if err := commit.Run(req, m.applySessionCommit(req, &result)); err != nil {
 		return windowCommitAnswer(result, err)
 	}
 	result.windowWatch = watchedWindow(commit.Window)
@@ -109,9 +109,9 @@ func (m *Model) cmdCommitConfirmedWindow(commit WindowCommit, req contract.Commi
 
 // applySessionCommit is the Apply a window runs: the session commit, its
 // status kept in result, and ErrCommitNotApplied when it did not happen.
-func (m *Model) applySessionCommit(force bool, result *commandResult) func() error {
+func (m *Model) applySessionCommit(req contract.CommitRequest, result *commandResult) func() error {
 	return func() error {
-		answer, committed, err := m.runCommitSession(force)
+		answer, committed, err := m.runCommitSession(req.Force, forcedCommand(req))
 		*result = answer
 		if err != nil {
 			return err
@@ -191,4 +191,14 @@ func (m *Model) pollDaemonWindow() (string, bool) {
 		return m.windowReverted("Timeout: configuration automatically rolled back.").statusMessage, true
 	}
 	return m.windowReverted("The confirmed commit window was closed by another session.").statusMessage, true
+}
+
+// forcedCommand is the command that commits req over validation warnings: the
+// form a refusal names, so `commit confirmed` never points at `commit now`.
+func forcedCommand(req contract.CommitRequest) string {
+	if req.Action == contract.CommitConfirmed {
+		var b textbuf.Buffer
+		return b.Str("commit confirmed ").Int(int64(req.Seconds)).Str(" force").String()
+	}
+	return "commit now force"
 }

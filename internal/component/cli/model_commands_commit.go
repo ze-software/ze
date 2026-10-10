@@ -205,9 +205,58 @@ func (m *Model) cmdCommitVerify() (commandResult, error) {
 	if len(result.Errors) == 0 && len(result.Warnings) == 0 {
 		return commandResult{statusMessage: "commit verify: the candidate is valid; nothing was applied"}, nil
 	}
+	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
+	issues = append(issues, result.Errors...)
+	issues = append(issues, result.Warnings...)
 	var b textbuf.Buffer
-	b.Str("commit verify: ").Int(int64(len(result.Errors))).Str(" error(s), ").Int(int64(len(result.Warnings))).Str(" warning(s), type 'errors' for details; nothing was applied")
+	b.Str("commit verify: nothing was applied; ").Int(int64(len(result.Errors))).Str(" error(s), ").
+		Int(int64(len(result.Warnings))).Str(" warning(s): ")
+	appendIssueSummary(&b, issues)
 	return commandResult{statusMessage: b.String(), configView: m.configViewAtPath(m.contextPath)}, nil
+}
+
+// commitValidationRefusal answers whether validation blocks a commit, and the
+// status that says why: every error blocks, and a warning blocks unless force.
+// The status counts what blocks, names forced (the command that commits over
+// the warnings) when only warnings block (AC-12), then lists every blocking
+// issue, the list `commit verify` gives. The hint comes before the list, so a
+// status line the terminal cuts short still carries it. The config stays in the
+// viewport with its issue markers.
+func (m *Model) commitValidationRefusal(result ConfigValidationResult, force bool, forced string) (commandResult, bool) {
+	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
+	issues = append(issues, result.Errors...)
+	if !force {
+		issues = append(issues, result.Warnings...)
+	}
+	if len(issues) == 0 {
+		return commandResult{}, false
+	}
+	var b textbuf.Buffer
+	b.Str("commit blocked: ").Int(int64(len(result.Errors))).Str(" error(s), ").
+		Int(int64(len(issues) - len(result.Errors))).Str(" warning(s)")
+	switch {
+	case force:
+		b.Str("; force commits over warnings, never errors")
+	case len(result.Errors) == 0:
+		b.Str("; '").Str(forced).Str("' commits over the warnings")
+	}
+	b.Str(": ")
+	appendIssueSummary(&b, issues)
+	return commandResult{statusMessage: b.String(), configView: m.configViewAtPath(m.contextPath)}, true
+}
+
+// appendIssueSummary writes issues on one line, each as formatIssueList
+// words it, separated by "; ".
+func appendIssueSummary(b *textbuf.Buffer, issues []ConfigValidationError) {
+	for i, e := range issues {
+		if i > 0 {
+			b.Str("; ")
+		}
+		if e.Line > 0 {
+			b.Str("line ").Int(int64(e.Line)).Str(": ")
+		}
+		b.Str(e.Message)
+	}
 }
 
 // cmdCommit saves changes with validation check.
@@ -218,15 +267,8 @@ func (m *Model) cmdCommit() (commandResult, error) {
 	// Validate inline - don't rely on m.validationErrors which may be stale
 	// (m is captured by value in the tea.Cmd closure)
 	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
-	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
-	issues = append(issues, result.Errors...)
-	issues = append(issues, result.Warnings...)
-	if len(issues) > 0 {
-		var b textbuf.Buffer
-		return commandResult{
-			statusMessage: b.Reset().Str("commit blocked: ").Int(int64(len(issues))).Str(" issue(s), type 'errors' for details").String(),
-			configView:    m.configViewAtPath(m.contextPath),
-		}, nil
+	if refusal, blocked := m.commitValidationRefusal(result, false, "commit now force"); blocked {
+		return refusal, nil
 	}
 
 	return m.commitSaveAndReload()
@@ -247,18 +289,27 @@ func (m *Model) tryReload() string {
 // Used when the operator explicitly overrides warnings (e.g., dangling profile references).
 func (m *Model) cmdCommitForce() (commandResult, error) {
 	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
-	if len(result.Errors) > 0 {
-		return commandResult{
-			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(result.Errors)), " error(s), type 'errors' for details"),
-			configView:    m.configViewAtPath(m.contextPath),
-		}, nil
+	if refusal, blocked := m.commitValidationRefusal(result, true, "commit now force"); blocked {
+		return refusal, nil
 	}
 
-	if len(result.Warnings) > 0 {
-		m.statusMessage = textbuf.StrIntStr("commit now force: skipping ", int64(len(result.Warnings)), " warning(s)")
+	committed, err := m.commitSaveAndReload()
+	if err != nil {
+		return committed, err
 	}
+	committed.statusMessage = withSkippedWarnings("commit now force", len(result.Warnings), committed.statusMessage)
+	return committed, nil
+}
 
-	return m.commitSaveAndReload()
+// withSkippedWarnings prefixes a forced commit's status with how many warnings
+// forced committed over (AC-12), and returns the status alone when it skipped
+// none.
+func withSkippedWarnings(forced string, skipped int, status string) string {
+	if skipped == 0 {
+		return status
+	}
+	var b textbuf.Buffer
+	return b.Str(forced).Str(": skipping ").Int(int64(skipped)).Str(" warning(s). ").Str(status).String()
 }
 
 // commitSaveAndReload performs the save, archive, and reload steps shared
@@ -338,33 +389,23 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 // With force, warnings and conflicts do not block and the status counts the
 // warnings; errors always block.
 func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
-	result, _, err := m.runCommitSession(force)
+	result, _, err := m.runCommitSession(force, "commit now force")
 	return result, err
 }
 
 // runCommitSession is cmdCommitSession, also answering whether the commit
 // reached the config. A commit that validation, a conflict or the daemon's
 // reload refused answers false with the status saying why, so the daemon's
-// confirm window opens only over a commit that happened.
-func (m *Model) runCommitSession(force bool) (commandResult, bool, error) {
+// confirm window opens only over a commit that happened. forced is the
+// command a validation refusal names to commit over warnings.
+func (m *Model) runCommitSession(force bool, forced string) (commandResult, bool, error) {
 	detail := m.editor.Diff()
 	// Validate the current config before attempting commit.
 	// Session mode uses set/delete commands that validate per-field, but
 	// whole-config validation catches semantic issues (mandatory fields, etc.).
 	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
-	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
-	issues = append(issues, result.Errors...)
-	if !force {
-		issues = append(issues, result.Warnings...)
-	}
-	if len(issues) > 0 {
-		return commandResult{
-			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(issues)), " issue(s), type 'errors' for details"),
-			configView:    m.configViewAtPath(m.contextPath),
-		}, false, nil
-	}
-	if force && len(result.Warnings) > 0 {
-		m.statusMessage = textbuf.StrIntStr("commit now force: skipping ", int64(len(result.Warnings)), " warning(s)")
+	if refusal, blocked := m.commitValidationRefusal(result, force, forced); blocked {
+		return refusal, false, nil
 	}
 
 	var (
@@ -430,6 +471,9 @@ func (m *Model) runCommitSession(force bool) (commandResult, bool, error) {
 	m.recordConfigCommit(detail)
 
 	var tb4 textbuf.Buffer
+	if force {
+		tb4.Str(withSkippedWarnings(forced, len(result.Warnings), ""))
+	}
 	tb4.Str("Session committed: ").Int(int64(commitResult.Applied)).Str(" change(s) applied")
 	appendCommitWarnings(&tb4, commitResult.Warnings)
 	if transactional && commitResult.Applied > 0 {
