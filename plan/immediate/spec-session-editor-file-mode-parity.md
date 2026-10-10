@@ -653,7 +653,23 @@ Owed gates (not run by an implementing agent): `./le test unit all` (race),
 
 ## Review Gate
 
-Status: ready for round 3 (2026-10-10). Round 2 (findings ISSUE 1 to 4,
+Status: ready for round 4 (2026-10-10). Round 3 (findings ISSUE 1 and 2,
+NOTEs 3 to 6) has its fix commits, in order: 4bfdf70880 (ISSUE 1, every web
+editor carries the daemon window, so a web `rollback <N>` is refused during
+one), 3e79ef7d3e (NOTE 6, owner rule of 2026-10-10: offline `ze config
+rollback` refused while the window's persisted record exists,
+`confirm.WriteOutsideRecorded`), 15f9fce33f (ISSUE 2, a discard notice no longer
+expires by age and a later session is told only what no session told; NOTE
+4, `AckDiscardNotice` moves the seen marker only once the lock is held;
+NOTE 3, each web stream takes a notice once, `EventBroker.SendNotice`).
+Round 4 reviews those commits.
+
+Correction recorded for NOTE 5 (history not rewritten): 5d55e4985d's
+message says the appliance-kernel rows of `test/weakened/d1987d95.md`
+"ride along unchanged". They did not: its diff replaced those 12 rows. The
+rows were introduced by 36c851fc58 and live on in that commit.
+
+Round 3 scope, kept for reference: ready for round 3 (2026-10-10). Round 2 (findings ISSUE 1 to 4,
 NOTEs 5 and 6 recorded, not ruled) has its fix commits, in order:
 e427e63d04 (ISSUE 1, web window poll skips a user whose commit is in
 flight), 8bb7e0f216 (ISSUE 3, a failed discard after a forced commit is a
