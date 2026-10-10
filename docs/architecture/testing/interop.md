@@ -357,13 +357,28 @@ is required of every Docker host with no le change. `NET_ADMIN` lets the
 netlink probes ask; `SYS_ADMIN` lets the xfrm-interface probe unshare a network
 namespace. Without it that row reads `unknown`, which also refuses.
 
+On a daemon whose `docker info` security options list `name=apparmor`, the
+probe container runs under Ze's AppArmor profile instead of `docker-default`
+(`--security-opt apparmor=ze-kernel-probe`): docker-default denies the MPLS
+transit MTU probe's mount and its `/proc/sys` write, and that row would read
+`denied` (owner D-7: the host is set up for Ze, never unconfined). On a Linux
+client whose `/sys/kernel/security/apparmor/profiles` lacks the profile, the
+check refuses before any container starts and names
+`./le setup docker-kernel apparmor confirm ze-kernel-probe`; an unreadable list
+says nothing, so the probe runs and Docker's own answer is reported. A security
+options query that fails or prints no JSON refuses, because the argv depends on
+it. Ze's own kernel carries no AppArmor, so the QEMU guest's daemon lists none
+and the guest route is unchanged.
+
+<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, kernelProbeArgv -->
+
 The check runs after the preflight, because it needs the staged ze, and before
 the first image build, so a refused host costs no build and counts no scenario.
 It refuses when:
 
 | Answer | Refusal names |
 |--------|---------------|
-| a row is `absent` or `unknown` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6): on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot, elsewhere the lab inside the Ze-kernel QEMU guest, `./le test qemu docker-lab` |
+| a row is `absent`, `unknown` or `denied` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6): on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot, elsewhere the lab inside the Ze-kernel QEMU guest, `./le test qemu docker-lab`; a `denied` row adds `./le setup docker-kernel apparmor confirm ze-kernel-probe` |
 | the container fails, or prints no JSON | the command it ran, its exit code, stdout and stderr |
 | the answer holds no row | the command it ran |
 | every row is `present` but the probe exits non-zero or answers `ready` false | the command it ran, its exit code and the `ready` it read: the producer's verdict and its rows disagree, so the answer is unread, never a pass |
@@ -405,7 +420,12 @@ ignores so the tree stays clean, and makes the same check with it.
 <!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, dockerKernel, kernelZeRel -->
 
 `./le setup docker-kernel check ze <linux ze>` asks the daemon in hand the same
-question with any linux `ze`. `./le setup docker-kernel install` is the Linux
+question with any linux `ze`. `./le setup docker-kernel apparmor` is Linux-only:
+it refuses where `/sys/module/apparmor/parameters/enabled` does not read `Y` or
+`apparmor_parser` is absent, installs `kernelcap.ProbeAppArmorProfile` as
+`/etc/apparmor.d/ze-kernel-probe` (so it loads again at boot) and loads it with
+`apparmor_parser -r -W`; without `confirm ze-kernel-probe` it prints the two
+`sudo` steps and runs none. `./le setup docker-kernel install` is the Linux
 route: it installs the cached runtime kernel for the host's architecture under
 `/boot` and `/lib/modules`, rebuilds the initramfs and the GRUB menu with the
 Debian tools, and saves the new entry as GRUB's default by its title. It

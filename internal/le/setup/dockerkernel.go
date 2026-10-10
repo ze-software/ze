@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
@@ -74,6 +75,18 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 			{Keyword: dockerKernelConfirmKeyword, Value: "release", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runDockerKernelInstall,
+	},
+	leaction.Action{
+		Verb:   dockerKernelAppArmorVerb,
+		Writes: true,
+		Why: "Linux only: install and load Ze's AppArmor profile " + kernelcap.ProbeAppArmorProfileName +
+			", which the Docker kernel check runs its probe under on a daemon applying AppArmor (docker-default" +
+			" denies the probe's mount and /proc/sys write). Without `confirm " + kernelcap.ProbeAppArmorProfileName +
+			"` it prints the steps and runs none; every step runs through sudo and is printed first",
+		Parameters: []leaction.Parameter{
+			{Keyword: dockerKernelConfirmKeyword, Value: "profile", Requirement: leaction.Optional},
+		},
+		AnswerArgs: runDockerKernelAppArmor,
 	},
 )
 

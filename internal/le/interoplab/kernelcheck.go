@@ -14,12 +14,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -45,6 +47,47 @@ func DockerKernelRoute(goos string) string {
 	}
 	return "On " + goos + ", run the lab inside the Ze-kernel QEMU guest: " +
 		"`./le test qemu docker-lab lab \"<le words>\"`."
+}
+
+// AppArmorLoadCommand is the command that loads Ze's probe profile on a Linux
+// Docker host (D-7). Every refusal that a missing or outdated profile explains
+// names it; `le setup docker-kernel` registers the action it names, and its test
+// compares the two.
+const AppArmorLoadCommand = "./le setup docker-kernel apparmor confirm " + kernelcap.ProbeAppArmorProfileName
+
+// dockerSecurityOptionsFormat asks the daemon which security modules it applies
+// to a container; a daemon applying AppArmor lists "name=apparmor".
+const dockerSecurityOptionsFormat = "{{json .SecurityOptions}}"
+
+// appArmorProfilesPath lists the AppArmor profiles a Linux kernel has loaded,
+// one "name (mode)" per line.
+const appArmorProfilesPath = "/sys/kernel/security/apparmor/profiles"
+
+// appArmorProfiles answers the local kernel's loaded profile list, and false
+// when it cannot be read: off Linux, or without AppArmor. A var so a unit test
+// fakes the host.
+var appArmorProfiles = readAppArmorProfiles
+
+func readAppArmorProfiles() (string, bool) {
+	if runtime.GOOS != "linux" {
+		return "", false
+	}
+	data, err := os.ReadFile(appArmorProfilesPath)
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
+}
+
+// appArmorProfileLoaded reports whether profiles, in the kernel's
+// "name (mode)" lines, lists name.
+func appArmorProfileLoaded(profiles, name string) bool {
+	for line := range strings.SplitSeq(profiles, "\n") {
+		if strings.HasPrefix(line, name+" (") {
+			return true
+		}
+	}
+	return false
 }
 
 // kernelProbeCommand is what the probe container runs. It is named in every
@@ -87,17 +130,66 @@ func StagedZePath(root string, binaries []LabBinary) string {
 }
 
 // kernelProbeArgv is the probe container's command line. It grants NET_ADMIN
-// for the netlink probes and SYS_ADMIN for the xfrm-interface probe, which
-// unshares a network namespace, and gives the container its own network so
-// nothing it creates reaches the host's.
-func kernelProbeArgv(zePath string) []string {
-	argv := make([]string, 0, 12+len(kernelProbeCommand))
+// for the netlink probes and SYS_ADMIN for the probes that unshare a network
+// namespace, and gives the container its own network so nothing it creates
+// reaches the host's. On a daemon applying AppArmor it runs under Ze's profile,
+// because docker-default denies the MPLS probe's mount and sysctl write (D-7).
+func kernelProbeArgv(zePath string, appArmor bool) []string {
+	argv := make([]string, 0, 14+len(kernelProbeCommand))
 	argv = append(argv, dockerExecutable, "run", "--rm",
 		"--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN",
-		"--network", "none",
-		"-v", zePath+":"+kernelProbeMount+":ro",
-		kernelProbeImage)
+		"--network", "none")
+	if appArmor {
+		argv = append(argv, "--security-opt", "apparmor="+kernelcap.ProbeAppArmorProfileName)
+	}
+	argv = append(argv, "-v", zePath+":"+kernelProbeMount+":ro", kernelProbeImage)
 	return append(argv, kernelProbeCommand...)
+}
+
+// dockerAppArmor asks whether the daemon applies AppArmor to its containers. A
+// question it cannot answer is an error: the probe's argv depends on it.
+func dockerAppArmor(ctx context.Context, docker *Docker) (bool, error) {
+	argv := []string{dockerExecutable, "info", "--format", dockerSecurityOptionsFormat}
+	result, err := docker.runner.Run(ctx, processCommand{Arguments: argv, Timeout: dockerInfoTimeout})
+	var problem textbuf.Buffer
+	problem.Str("the Docker kernel check could not read the daemon's security options: `").
+		Str(strings.Join(argv, " ")).Str("` ")
+	if err != nil {
+		return false, errors.New(problem.Str("failed: ").Err(err).String())
+	}
+	if result.ExitCode != 0 {
+		return false, errors.New(problem.Str("exit ").Str(strconv.Itoa(result.ExitCode)).
+			Str(": ").Str(strings.TrimSpace(result.Stderr)).String())
+	}
+	var options []string
+	if jsonErr := json.Unmarshal([]byte(result.Stdout), &options); jsonErr != nil {
+		return false, errors.New(problem.Str("answered unreadable JSON (").Err(jsonErr).Str("): ").
+			Str(strings.TrimSpace(result.Stdout)).String())
+	}
+	for _, option := range options {
+		if option == "name=apparmor" || strings.HasPrefix(option, "name=apparmor,") {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// appArmorProfileMissing answers the refusal for a Linux host whose kernel
+// lists its loaded profiles and lacks Ze's, or nil. An unreadable list says
+// nothing, so the probe runs and Docker's own answer is reported.
+func appArmorProfileMissing() error {
+	profiles, readable := appArmorProfiles()
+	if !readable {
+		return nil
+	}
+	if appArmorProfileLoaded(profiles, kernelcap.ProbeAppArmorProfileName) {
+		return nil
+	}
+	var refusal textbuf.Buffer
+	return errors.New(refusal.Str("the Docker daemon applies AppArmor, and the kernel probe runs under Ze's profile ").
+		Str(kernelcap.ProbeAppArmorProfileName).Str(", which ").Str(appArmorProfilesPath).
+		Str(" does not list. Docker's docker-default profile denies the probe's mount and its /proc/sys write, so load Ze's: ").
+		Str(AppArmorLoadCommand).String())
 }
 
 // checkDockerKernel runs the probe and returns nil only when the answer holds at
@@ -112,8 +204,17 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 		return errors.New("the Docker kernel check needs the staged ze to probe with, and this suite names none (Suite.StagedZe)")
 	}
 
+	appArmor, err := dockerAppArmor(ctx, docker)
+	if err != nil {
+		return err
+	}
+	if appArmor {
+		if missing := appArmorProfileMissing(); missing != nil {
+			return missing
+		}
+	}
 	release := dockerKernelRelease(ctx, docker)
-	argv := kernelProbeArgv(zePath)
+	argv := kernelProbeArgv(zePath, appArmor)
 	result, err := docker.runner.Run(ctx, processCommand{Arguments: argv, Timeout: kernelProbeTimeout})
 
 	var problem textbuf.Buffer
@@ -134,9 +235,13 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 
 	var missing textbuf.Buffer
 	count := 0
+	denied := false
 	for _, row := range answer.Capabilities {
 		if row.State == "present" {
 			continue
+		}
+		if row.State == "denied" {
+			denied = true
 		}
 		missing.Str("\n  ").Str(row.Subsystem).Str(" (").Str(row.Kernel).Str("): ").Str(row.State)
 		if row.Reason != "" {
@@ -159,6 +264,12 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 		Str(" kernel feature(s) Ze needs (`").Str(strings.Join(kernelProbeCommand, " ")).Str("` answered):").
 		Str(missing.String()).
 		Byte('\n').Str(DockerKernelRoute(runtime.GOOS))
+	// A denied row is the host's security policy, not the kernel: the fix is
+	// Ze's profile, loaded or reloaded by one command (D-7).
+	if denied {
+		refusal.Str("\nA denied row is the host's security policy refusing the probe, not the kernel: load or reload Ze's AppArmor profile with ").
+			Str(AppArmorLoadCommand).Str(".")
+	}
 	return errors.New(refusal.String())
 }
 

@@ -15,12 +15,22 @@ const kernelCheckZe = "/checkout/test/interop-ipsec/ze-linux"
 // the probe container answers stdout with exit.
 func scriptedKernel(stdout string, exit int, runErr error) *recordingRunner {
 	return &recordingRunner{run: func(command processCommand) (processResult, error) {
+		if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
+			return processResult{Stdout: noAppArmor}, nil
+		}
 		if slices.Contains(command.Arguments, "info") {
 			return processResult{Stdout: "6.8.0-117-generic\n"}, nil
 		}
 		return processResult{Stdout: stdout, ExitCode: exit}, runErr
 	}}
 }
+
+// noAppArmor and withAppArmor are `docker info` security options as a daemon
+// prints them; withAppArmor is colima's, read 2026-10-10.
+const (
+	noAppArmor   = `["name=seccomp,profile=builtin","name=cgroupns"]` + "\n"
+	withAppArmor = `["name=apparmor","name=seccomp,profile=builtin","name=cgroupns"]` + "\n"
+)
 
 const allPresent = `{"ready": true, "capabilities": [
  {"subsystem": "ipsec", "kernel": "CONFIG_XFRM_USER", "state": "present"},
@@ -136,10 +146,13 @@ func TestDockerKernelUnknownRefuses(t *testing.T) {
 // kernelAnswering wraps a scripted runner so the Docker kernel check that
 // Suite.Run performs reads a kernel with every feature present; every other
 // command reaches run. A Suite test that is about something else uses it, and
-// the check adds two commands (docker info, the probe container) before the
+// the check adds three commands (docker info twice, the probe container) before the
 // first image build.
 func kernelAnswering(run func(processCommand) (processResult, error)) func(processCommand) (processResult, error) {
 	return func(command processCommand) (processResult, error) {
+		if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
+			return processResult{Stdout: noAppArmor}, nil
+		}
 		if slices.Contains(command.Arguments, "{{.KernelVersion}}") {
 			return processResult{Stdout: "6.8.0-117-generic\n"}, nil
 		}
@@ -266,5 +279,141 @@ func TestDockerKernelRouteNamesEachPlatformsNextStep(t *testing.T) {
 	}
 	if strings.Contains(DockerKernelRoute("darwin"), "docker-kernel install") {
 		t.Errorf("the darwin route names the Linux-only install: %s", DockerKernelRoute("darwin"))
+	}
+}
+
+// appArmorKernel scripts a daemon that applies AppArmor and a probe answering
+// stdout, and fakes the local profile list.
+func appArmorKernel(t *testing.T, stdout string, profiles string, readable bool) *recordingRunner {
+	t.Helper()
+	original := appArmorProfiles
+	t.Cleanup(func() { appArmorProfiles = original })
+	appArmorProfiles = func() (string, bool) { return profiles, readable }
+	return &recordingRunner{run: func(command processCommand) (processResult, error) {
+		if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
+			return processResult{Stdout: withAppArmor}, nil
+		}
+		if slices.Contains(command.Arguments, "info") {
+			return processResult{Stdout: "6.8.0-117-generic\n"}, nil
+		}
+		return processResult{Stdout: stdout}, nil
+	}}
+}
+
+// probeArgv answers the probe container's argv among the recorded commands.
+func probeArgv(runner *recordingRunner) string {
+	for _, command := range runner.commands {
+		if slices.Contains(command.Arguments, "run") {
+			return strings.Join(command.Arguments, " ")
+		}
+	}
+	return ""
+}
+
+// VALIDATES: AC-18 (D-7). A daemon that applies AppArmor runs the probe under
+// Ze's profile, whether or not the local profile list is readable; a daemon that
+// does not runs it unchanged.
+// PREVENTS: the probe meeting docker-default (deny mount) and answering denied on
+// a host whose operator already loaded Ze's profile.
+func TestDockerKernelProbesUnderZeProfileWhenTheDaemonAppliesAppArmor(t *testing.T) {
+	loaded := "docker-default (enforce)\nze-kernel-probe (enforce)\n"
+	for name, readable := range map[string]bool{"profile listed": true, "list unreadable": false} {
+		t.Run(name, func(t *testing.T) {
+			runner := appArmorKernel(t, allPresent, loaded, readable)
+			if err := checkDockerKernel(context.Background(), newDocker(runner), kernelCheckZe); err != nil {
+				t.Fatalf("all present refused: %v", err)
+			}
+			if argv := probeArgv(runner); !strings.Contains(argv, "--security-opt apparmor=ze-kernel-probe") {
+				t.Errorf("the probe does not run under ze-kernel-probe: %s", argv)
+			}
+		})
+	}
+
+	runner := scriptedKernel(allPresent, 0, nil)
+	if err := checkDockerKernel(context.Background(), newDocker(runner), kernelCheckZe); err != nil {
+		t.Fatalf("all present refused: %v", err)
+	}
+	if argv := probeArgv(runner); strings.Contains(argv, "--security-opt") {
+		t.Errorf("a daemon without AppArmor got a security option: %s", argv)
+	}
+}
+
+// VALIDATES: AC-18. A local profile list that lacks Ze's profile refuses before
+// any container runs, naming the command that loads it.
+// PREVENTS: a probe that docker refuses to start ("profile not found") and a
+// reader who has to work out which profile and how to load it.
+func TestDockerKernelRefusesAnUnloadedProfileNamingTheFix(t *testing.T) {
+	runner := appArmorKernel(t, allPresent, "docker-default (enforce)\n", true)
+	err := checkDockerKernel(context.Background(), newDocker(runner), kernelCheckZe)
+	if err == nil {
+		t.Fatal("an unloaded profile proceeded")
+	}
+	for _, want := range []string{"AppArmor", "ze-kernel-probe", AppArmorLoadCommand} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not name %q: %v", want, err)
+		}
+	}
+	if argv := probeArgv(runner); argv != "" {
+		t.Errorf("a container ran before the refusal: %s", argv)
+	}
+}
+
+// VALIDATES: AC-17. A denied row refuses as any missing feature does, its
+// reason in the text, plus the command that loads Ze's profile.
+// PREVENTS: a policy denial read as a kernel fault, and a refusal with no fix.
+func TestDockerKernelDeniedRowNamesTheProfileCommand(t *testing.T) {
+	answer := `{"ready": false, "capabilities": [
+ {"subsystem": "mpls-transit-mtu", "kernel": "CONFIG_MPLS_IP_MTU", "state": "denied",
+  "reason": "make the probe's mounts private: permission denied; AppArmor profile docker-default (enforce) refused it"}]}`
+	err := checkDockerKernel(context.Background(), newDocker(scriptedKernel(answer, 1, nil)), kernelCheckZe)
+	if err == nil {
+		t.Fatal("a denied row proceeded")
+	}
+	for _, want := range []string{"mpls-transit-mtu", "denied", "docker-default (enforce)", AppArmorLoadCommand} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not name %q: %v", want, err)
+		}
+	}
+}
+
+// VALIDATES: AC-4 for the new question. Security options the check cannot read
+// refuse: the probe's argv depends on them.
+// PREVENTS: a probe run under the wrong profile because a failed query read as
+// "no AppArmor".
+func TestDockerKernelUnreadableSecurityOptionsRefuse(t *testing.T) {
+	for name, answer := range map[string]processResult{
+		"not JSON": {Stdout: "permission denied\n"},
+		"failed":   {Stdout: "", ExitCode: 1, Stderr: "daemon gone"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+				if slices.Contains(command.Arguments, dockerSecurityOptionsFormat) {
+					return answer, nil
+				}
+				return processResult{Stdout: allPresent}, nil
+			}}
+			if err := checkDockerKernel(context.Background(), newDocker(runner), kernelCheckZe); err == nil {
+				t.Fatal("unreadable security options proceeded")
+			}
+			if argv := probeArgv(runner); argv != "" {
+				t.Errorf("a container ran: %s", argv)
+			}
+		})
+	}
+}
+
+// VALIDATES: the profile list is read by name and mode, so a profile whose name
+// merely starts with Ze's is not taken for it.
+func TestAppArmorProfileLoaded(t *testing.T) {
+	for profiles, want := range map[string]bool{
+		"ze-kernel-probe (enforce)\n":     true,
+		"docker-default (enforce)\n":      false,
+		"ze-kernel-probe-old (enforce)\n": false,
+		"":                                false,
+		"a (enforce)\nze-kernel-probe (complain)": true,
+	} {
+		if got := appArmorProfileLoaded(profiles, "ze-kernel-probe"); got != want {
+			t.Errorf("appArmorProfileLoaded(%q) = %v, want %v", profiles, got, want)
+		}
 	}
 }
