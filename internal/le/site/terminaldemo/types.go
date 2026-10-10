@@ -10,16 +10,22 @@
 package siteterminaldemo
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 const (
-	manifestSchema         = 2
-	lockWaitDefault        = 2 * time.Hour
-	lockPollDefault        = 500 * time.Millisecond
+	manifestSchema  = 2
+	lockWaitDefault = 2 * time.Hour
+	lockPollDefault = 500 * time.Millisecond
+	// kernelCheckTimeout bounds the Docker host kernel check: the release
+	// query and the probe container, whose own bound is two minutes.
+	kernelCheckTimeout     = 3 * time.Minute
 	renderSpeedup          = 5
 	renderTypingSpeedMS    = 25
 	outputWidth            = 1680
@@ -67,9 +73,19 @@ type Executor func(Command) int
 // PathLookup resolves a required host binary.
 type PathLookup func(string) (string, error)
 
-// Options supplies the checkout, publish tree, process boundary, and lock
-// timing for one Engine. Zero process and timing values select production
-// behavior.
+// KernelCheck refuses a Docker daemon whose kernel lacks a feature Ze enrolls,
+// probing it with the linux ze at zePath.
+type KernelCheck func(ctx context.Context, zePath string) error
+
+// dockerKernelCheck is the production KernelCheck: the one check every Docker
+// run that runs Ze makes (interoplab.DockerKernel).
+func dockerKernelCheck(ctx context.Context, zePath string) error {
+	return interoplab.DockerKernel(zePath)(ctx, interoplab.NewDocker())
+}
+
+// Options supplies the checkout, publish tree, process boundary, Docker kernel
+// check, and lock timing for one Engine. Zero process, check and timing values
+// select production behavior.
 type Options struct {
 	Root         string
 	ArtifactRoot string
@@ -78,6 +94,7 @@ type Options struct {
 	Output       io.Writer
 	LockWait     time.Duration
 	LockPoll     time.Duration
+	KernelCheck  KernelCheck
 }
 
 // Engine owns one invocation of the renderer pipeline. It is not safe for
@@ -94,6 +111,7 @@ type Engine struct {
 	output               io.Writer
 	lockWait             time.Duration
 	lockPoll             time.Duration
+	kernelCheck          KernelCheck
 }
 
 // New creates an Engine. Root and ArtifactRoot must be absolute or relative
@@ -119,6 +137,10 @@ func New(options Options) *Engine {
 	if poll == 0 {
 		poll = lockPollDefault
 	}
+	kernelCheck := options.KernelCheck
+	if kernelCheck == nil {
+		kernelCheck = dockerKernelCheck
+	}
 	demoRoot := filepath.Join(options.Root, "demos", terminalLabel)
 	return &Engine{
 		root:                 options.Root,
@@ -132,6 +154,7 @@ func New(options Options) *Engine {
 		output:               output,
 		lockWait:             wait,
 		lockPoll:             poll,
+		kernelCheck:          kernelCheck,
 	}
 }
 

@@ -2,6 +2,7 @@ package siteterminaldemo
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -155,6 +156,16 @@ type demoFixture struct {
 	missingImage int
 	// failImageBuild is the exit code `docker build` answers with.
 	failImageBuild int
+	// kernelChecked records the binary each Docker kernel check probed with.
+	kernelChecked []string
+}
+
+// kernelCheck stands in for the Docker host kernel check: it records the
+// binary and answers a kernel with every feature, so the render cases reach
+// the steps they are about without a Docker daemon.
+func (f *demoFixture) kernelCheck(_ context.Context, zePath string) error {
+	f.kernelChecked = append(f.kernelChecked, zePath)
+	return nil
 }
 
 func newDemoFixture(t *testing.T) *demoFixture {
@@ -209,6 +220,7 @@ func (f *demoFixture) engine(output *bytes.Buffer) *Engine {
 		Output:       output,
 		LockWait:     30 * time.Millisecond,
 		LockPoll:     time.Millisecond,
+		KernelCheck:  f.kernelCheck,
 	})
 }
 

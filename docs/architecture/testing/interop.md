@@ -198,7 +198,7 @@ proof. Diagnostic collection has a cancellation-independent fifteen-second bound
 | Requirement | Used By | Notes |
 |-------------|---------|-------|
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
-| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs | Checked before any image build or container start; see "The Docker host kernel check" |
+| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs, the terminal-demo render | Checked before any image build or container start; see "The Docker host kernel check" |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
@@ -381,6 +381,11 @@ and before the proof's first container, so a refused host starts nothing. With
 `NO_BUILD=1` the proof skips the build and probes with the daemon already at
 that path, and refuses by name when there is none.
 
+The terminal-demo render (`le site terminal-demo render` and `render-all`) runs
+Ze in its validator and recorder containers, so it makes the same check with
+the demo binary (`tmp/terminal-demos/bin/ze`) after confirming that binary
+exists and before the renderer image is inspected or any container starts.
+
 To ask a host by hand, stage ze with any lab once and run the command above.
 `TestDockerKernelCheckOnThisHost` (build tag `integration`) does that against
 the daemon this machine uses: it stages ze, starts the probe container and
@@ -395,6 +400,7 @@ nothing else, and judges the verdict against the rows it read. On colima's
 <!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernel, checkDockerKernel, StagedZePath -->
 <!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.StagedZe -->
 <!-- source: internal/le/test/deployment/daemonkernel.go -- buildCheckedDaemon -->
+<!-- source: internal/le/site/terminaldemo/render.go -- Engine.validateAndRender, Engine.checkKernel -->
 
 Each local image build also creates a unique, run-owned tag. This keeps its
 image ID available when another build replaces the shared cache tag.

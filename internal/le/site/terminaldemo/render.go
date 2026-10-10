@@ -221,6 +221,12 @@ func (e *Engine) validateAndRender(manifest Manifest, indexed map[string]Demo, s
 		}
 		return report, fmt.Errorf("missing demo binary: %s", filepath.ToSlash(relative))
 	}
+	// The demos run Ze in containers on the Docker daemon's kernel, so that
+	// kernel must carry every feature Ze enrolls before any validator or
+	// recorder starts (owner D-4: a wrong kernel "should not be possible - fail").
+	if err := e.checkKernel(); err != nil {
+		return report, err
+	}
 	if err := e.requireRendererImage(manifest); err != nil {
 		return report, err
 	}
@@ -232,6 +238,15 @@ func (e *Engine) validateAndRender(manifest Manifest, indexed map[string]Demo, s
 	return report, e.withLock(func() error {
 		return e.renderSelected(manifest, indexed, selected, release)
 	})
+}
+
+// checkKernel runs the Docker host kernel check with the demo binary, bounded
+// by kernelCheckTimeout.
+func (e *Engine) checkKernel() error {
+	ctx, cancel := context.WithTimeout(context.Background(), kernelCheckTimeout)
+	defer cancel()
+
+	return e.kernelCheck(ctx, e.binaryPath)
 }
 
 func manifestIDs(manifest Manifest) []string {
