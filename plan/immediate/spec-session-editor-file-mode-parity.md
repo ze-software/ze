@@ -631,6 +631,14 @@ ACs not evidenced through their named entry point:
 |----|-----------------|
 | (none) | |
 
+At e395308952 (2026-10-10, after the round 2 fixes): `./le test editor`
+174/174, `./le test web` 103/103, `./le test bgp plugin -pattern
+session-editor` 24/24, `TestCIAcceptOnlyLint` ok, `./le repo compiles
+check` OK after 00755d0565; scoped lint of cli, web, api, gnmi,
+config/cli and config/confirm 0 issues. Scoped lint of `cmd/ze/hub` did
+not run: three tries each stopped at "lint inputs changed during
+planning" while other sessions edited the tree, so it is owed.
+
 At 08f414e79a (2026-10-10, after the round 1 fixes): `./le test editor`
 174/174, `./le test web` 103/103, `./le test bgp plugin -pattern
 session-editor` 24/24, `./le repo compiles check` OK; scoped lint of
@@ -645,7 +653,18 @@ Owed gates (not run by an implementing agent): `./le test unit all` (race),
 
 ## Review Gate
 
-Status: ready for round 2 (2026-10-10). Round 1 ran over
+Status: ready for round 3 (2026-10-10). Round 2 (findings ISSUE 1 to 4,
+NOTEs 5 and 6 recorded, not ruled) has its fix commits, in order:
+e427e63d04 (ISSUE 1, web window poll skips a user whose commit is in
+flight), 8bb7e0f216 (ISSUE 3, a failed discard after a forced commit is a
+warning on the landed commit), 5d55e4985d (ISSUE 4, every session of the
+overridden user gets the discard notice), 00755d0565 (ISSUE 2, owner
+decision: `rollback <N>` and managed pushes refused during a window through
+`confirm.WriteOutside`), e395308952 (four session-editor `.ci` flagged by
+`TestCIAcceptOnlyLint` read the committed config back). Round 3 reviews
+those commits.
+
+Round 2 scope, kept for reference: ready for round 2 (2026-10-10). Round 1 ran over
 `b5274c4fa8^..4700624c8a` (findings B1, I2 to I7, NOTEs 8 to 10). Its
 fix commits, in order: e331710552 (I2, I3), e7d916be5d (I6), f24e13e0ab
 (B1 web button), 365edbbf79 (I7), c692784281 (I4), 2ebfddc99d (I5),
