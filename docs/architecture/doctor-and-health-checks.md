@@ -57,6 +57,26 @@ and two functions. `InUse` reads the parsed config tree. `Probe` reads the host.
 <!-- source: internal/component/kernelcap/kernelcap.go -- Capability, MustRegister, Evaluate, Refuse -->
 <!-- source: internal/component/ike/engine/kernelcap_linux.go -- the ipsec enrolment -->
 <!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- the mpls and mpls-transit-mtu enrolments -->
+<!-- source: internal/component/ike/dataplane/kernelcap_linux.go -- xfrmKernelCapabilities -->
+
+The XFRM backend enrols what it needs beyond the netlink socket, all with
+`Degrades`, because an IPsec configuration can still work without any one of
+them:
+
+| Subsystem | Kernel symbol | Probe |
+|-----------|---------------|-------|
+| `ipsec-mobike` | `CONFIG_XFRM_MIGRATE` (Linux 7.2 on) | `XFRM_MSG_MIGRATE_STATE` naming no SA: `ESRCH` is the handler running, `EINVAL` a kernel before 7.2, `ENOPROTOOPT` the handler built out |
+| `ipsec-esp-ipv4`, `ipsec-esp-ipv6` | `CONFIG_INET_ESP`, `CONFIG_INET6_ESP` | `XFRM_MSG_UPDSA` of an AES-GCM SA that cannot exist: `EPROTONOSUPPORT` is no ESP type for the family |
+| `ipsec-transform-<name>` | the crypto symbol of each transform | the same update carrying the transform: `ENOSYS` or `ENOENT` is the kernel lacking it |
+
+The transform rows are DERIVED from the backend's algorithm tables
+(`xfrmEncNames`, `xfrmAEADNames`, `xfrmAuthNames`), one per distinct kernel
+transform, so a cipher the backend learns to install is asked about with no
+edit to the enrolment. The update probes need `CAP_NET_ADMIN`. The kernel
+builds the whole state, algorithms, ESP type and keyed crypto transform, before
+it looks for the SA to replace, and the update names a reserved SPI (RFC 4303
+Section 2.1) between documentation addresses, so `ESRCH` proves every piece
+exists while nothing was installed.
 
 This is the `ze doctor` tier of the table above, not a fourth one. The verdict is
 produced at read time, in the reader's own process, and it keeps no memory of a

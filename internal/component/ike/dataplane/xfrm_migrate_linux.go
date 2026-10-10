@@ -15,6 +15,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/kernelcap"
 )
 
 // Linux 7.2 include/uapi/linux/xfrm.h, struct xfrm_user_migrate_state.
@@ -65,19 +67,54 @@ type xfrmStateMove struct {
 	encap    nl.XfrmEncapTmpl
 }
 
+// xfrmMigrationAvailable reports whether the backend may advertise mobility. Only
+// a present answer does: an undetermined kernel is not offered MOBIKE.
 func xfrmMigrationAvailable() bool {
+	return xfrmMigrationProbe().State == kernelcap.StatePresent
+}
+
+// xfrmMigrationProbe asks the kernel whether it handles XFRM_MSG_MIGRATE_STATE.
+// It is both the backend's own question and the ipsec-mobike capability's probe
+// (kernelcap_linux.go), so ze doctor and the backend cannot disagree.
+func xfrmMigrationProbe() kernelcap.Result {
 	// AF_UNSPEC cannot identify an installed SA: verify_newsa_info accepts only
 	// AF_INET/AF_INET6. ESRCH therefore proves this handler exists without any
-	// possible mutation. EINVAL is NOT evidence: old kernels return it for an
-	// unknown netlink message type as well.
+	// possible mutation.
 	var body [xfrmMigrateStateLen]byte
 	body[19] = 1 // SPI 1, network order; old family remains AF_UNSPEC.
 	body[22] = ProtoESP
 	nl.NativeEndian().PutUint16(body[128:130], unix.AF_INET)
 	req := nl.NewNetlinkRequest(xfrmMsgMigrateState, unix.NLM_F_ACK)
 	req.AddRawData(body[:])
-	err := xfrmMigrationExecute(req)
-	return errors.Is(err, unix.ESRCH)
+	return classifyXFRMMigration(xfrmMigrationExecute(req))
+}
+
+// errMigrationAccepted is reported when the kernel accepted a migration naming no
+// SA. That answers nothing, so it is no verdict.
+var errMigrationAccepted = errors.New("the kernel accepted a state migration naming no SA")
+
+// classifyXFRMMigration reads the probe's errno. ESRCH is the handler running
+// its lookup, so it is presence. EINVAL is a kernel before 7.2, which refuses the
+// message type above XFRM_MSG_MAX; ENOPROTOOPT is the handler built without
+// CONFIG_XFRM_MIGRATE; EPROTONOSUPPORT is no XFRM netlink at all. Those three
+// are absence. Every other errno, EPERM included, did not reach the question.
+func classifyXFRMMigration(err error) kernelcap.Result {
+	if errors.Is(err, unix.ESRCH) {
+		return kernelcap.Result{State: kernelcap.StatePresent}
+	}
+	if errors.Is(err, unix.EINVAL) {
+		return kernelcap.Result{State: kernelcap.StateAbsent, Reason: err}
+	}
+	if errors.Is(err, unix.ENOPROTOOPT) {
+		return kernelcap.Result{State: kernelcap.StateAbsent, Reason: err}
+	}
+	if errors.Is(err, unix.EPROTONOSUPPORT) {
+		return kernelcap.Result{State: kernelcap.StateAbsent, Reason: err}
+	}
+	if err == nil {
+		return kernelcap.Result{State: kernelcap.StateUnknown, Reason: errMigrationAccepted}
+	}
+	return kernelcap.Result{State: kernelcap.StateUnknown, Reason: err}
 }
 
 func executeXFRMMigration(req *nl.NetlinkRequest) error {

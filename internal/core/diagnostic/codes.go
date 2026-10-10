@@ -56,6 +56,12 @@ const (
 	CodeDoctorIPsecUDPEncap                        = "doctor-ipsec-udp-encap"
 	CodeDoctorIPsecXFRMUnavailable                 = "doctor-ipsec-xfrm-unavailable"
 	CodeDoctorIPsecXFRMUnknown                     = "doctor-ipsec-xfrm-unknown"
+	CodeDoctorIPsecMOBIKEUnavailable               = "doctor-ipsec-mobike-unavailable"
+	CodeDoctorIPsecMOBIKEUnknown                   = "doctor-ipsec-mobike-unknown"
+	CodeDoctorIPsecESPUnavailable                  = "doctor-ipsec-esp-unavailable"
+	CodeDoctorIPsecESPUnknown                      = "doctor-ipsec-esp-unknown"
+	CodeDoctorIPsecTransformUnavailable            = "doctor-ipsec-transform-unavailable"
+	CodeDoctorIPsecTransformUnknown                = "doctor-ipsec-transform-unknown"
 	CodeDoctorMPLSUnavailable                      = "doctor-mpls-unavailable"
 	CodeDoctorMPLSUnknown                          = "doctor-mpls-unknown"
 	CodeDoctorMPLSTransitMTUUnenforced             = "doctor-mpls-transit-mtu-unenforced"
@@ -807,6 +813,77 @@ var builtinCodes = []CodeMeta{
 			"A permission denial is a privilege fault rather than a kernel one, and rebuilding a " +
 			"kernel for it changes nothing.",
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-xfrm-unknown"},
+	},
+	{
+		Code:  CodeDoctorIPsecMOBIKEUnavailable,
+		Title: "IPsec MOBIKE migration unavailable",
+		Description: "The configuration installs an IPsec Security Association and the kernel does not " +
+			"handle XFRM_MSG_MIGRATE_STATE, which first appears in Linux 7.2 and needs " +
+			"CONFIG_XFRM_MIGRATE. Ze moves a live Child SA to a new address pair with that message " +
+			"alone, so without it Ze does not offer MOBIKE (RFC 4555) and a peer whose address " +
+			"changes must renegotiate. This is a WARNING and it does not refuse a start. A Docker " +
+			"host that runs Ze's labs is refused on it, because the MOBIKE scenarios cannot pass " +
+			"there. The probe sends a migration naming no SA, so it changes nothing. Remedy: run a " +
+			"kernel built with CONFIG_XFRM_MIGRATE from Linux 7.2 on, such as Ze's own runtime kernel.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-mobike-unavailable"},
+		RelatedCodes: []string{CodeDoctorIPsecMOBIKEUnknown},
+	},
+	{
+		Code:  CodeDoctorIPsecMOBIKEUnknown,
+		Title: "IPsec MOBIKE migration undetermined",
+		Description: "Ze could not establish whether the kernel handles XFRM_MSG_MIGRATE_STATE: the " +
+			"probe needs CAP_NET_ADMIN, and the kernel answered with an errno that neither proves " +
+			"nor rules out the handler. Ze does not offer MOBIKE until the answer is present. This " +
+			"is a WARNING and it does not refuse a start. Remedy: run `ze doctor` as root.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-mobike-unknown"},
+		RelatedCodes: []string{CodeDoctorIPsecMOBIKEUnavailable},
+	},
+	{
+		Code:  CodeDoctorIPsecESPUnavailable,
+		Title: "IPsec ESP unavailable for an address family",
+		Description: "The configuration installs an IPsec Security Association and the kernel holds " +
+			"no ESP transform type for IPv4 (CONFIG_INET_ESP) or IPv6 (CONFIG_INET6_ESP), which the " +
+			"message names. XFRM netlink alone accepts the request and the kernel then has nothing " +
+			"to encrypt with, so a Child SA of that family fails to install. This is a WARNING and " +
+			"it does not refuse a start, because the other family may still work. The probe asks " +
+			"the kernel to replace an SA on a reserved SPI that cannot exist, so it installs " +
+			"nothing. Remedy: load esp4 or esp6, or run a kernel built with the symbol named.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-esp-unavailable"},
+		RelatedCodes: []string{CodeDoctorIPsecESPUnknown, CodeDoctorIPsecXFRMUnavailable},
+	},
+	{
+		Code:  CodeDoctorIPsecESPUnknown,
+		Title: "IPsec ESP support undetermined",
+		Description: "Ze could not establish whether the kernel holds ESP for the address family the " +
+			"message names. The probe needs CAP_NET_ADMIN and builds an AES-GCM state, so a denied " +
+			"request, or a kernel missing AES-GCM itself, leaves the question open. This is a " +
+			"WARNING and it does not refuse a start. Remedy: run `ze doctor` as root and read the " +
+			"reason the message carries.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-esp-unknown"},
+		RelatedCodes: []string{CodeDoctorIPsecESPUnavailable},
+	},
+	{
+		Code:  CodeDoctorIPsecTransformUnavailable,
+		Title: "IPsec ESP transform unavailable",
+		Description: "The kernel cannot run a cryptographic transform Ze's XFRM backend installs for " +
+			"the algorithm words the message names. A Child SA negotiated with one of those words " +
+			"fails to install. The transforms are derived from the backend's own algorithm tables, " +
+			"so every word Ze can install is asked about. This is a WARNING and it does not refuse " +
+			"a start, because a proposal naming another algorithm still installs. A Docker host " +
+			"that runs Ze's labs is refused on it. Remedy: run a kernel built with the symbol the " +
+			"message names, or load its module.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-transform-unavailable"},
+		RelatedCodes: []string{CodeDoctorIPsecTransformUnknown},
+	},
+	{
+		Code:  CodeDoctorIPsecTransformUnknown,
+		Title: "IPsec ESP transform undetermined",
+		Description: "Ze could not establish whether the kernel runs the transform the message names. " +
+			"The probe needs CAP_NET_ADMIN and an ESP transform type, so a denied request, or a " +
+			"kernel without ESP, leaves the question open. This is a WARNING and it does not " +
+			"refuse a start. Remedy: run `ze doctor` as root and read the reason the message carries.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-transform-unknown"},
+		RelatedCodes: []string{CodeDoctorIPsecTransformUnavailable},
 	},
 	{
 		Code:        CodeDoctorBGPListen,
