@@ -38,6 +38,19 @@ options.
 <!-- source: internal/le/site/terminaldemo/entrypoint.go -- recorderCommand -->
 <!-- source: internal/le/site/terminaldemo/pty.go -- RunPTY -->
 
+Each demo's lab and its output check are one scenario, registered under the
+id that the manifest's `validate` field names. A tape starts, drives and stops
+its lab with `ze-demo run <id> <action>`, and `ze-demo validate <id>` checks
+the output with that scenario's validator. A new demo registers its scenario from
+an `init()` in a `register_*.go` file in `internal/le/site/terminaldemo/` and
+edits no central switch or map. The validator is required, so no recording
+ships without a check of what it shows. A demo whose tape starts no lab
+registers a validator and no runner. A tape that names an unregistered id, or a
+manifest demo with no scenario, fails the package's unit test.
+<!-- source: internal/le/site/terminaldemo/registry.go -- scenarioRegistry -->
+<!-- source: internal/le/site/terminaldemo/register_scenarios.go -- init -->
+<!-- source: internal/le/site/terminaldemo/registry_test.go -- TestEveryManifestDemoHasARegisteredScenario -->
+
 `./le site build output <directory>` builds into another artifact root, and
 `./le site check output <directory>` judges that same root. Both default to
 `../gh-pages`, so a session verifying its own work builds into its scratch

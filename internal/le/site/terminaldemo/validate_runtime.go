@@ -19,26 +19,15 @@ import (
 )
 
 func validateDemoRuntime(id string, stdout, _ io.Writer) (err error) {
-	validator, ok := demoValidators[id]
-	if !ok {
-		return fmt.Errorf("no validator for demo %q", id)
-	}
-	if err := validator(); err != nil {
+	sc, err := scenarios.lookup(id)
+	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "validated %s output\n", id)
+	if err := sc.validate(); err != nil {
+		return err
+	}
+	_, err = io.WriteString(stdout, "validated "+id+" output\n")
 	return err
-}
-
-var demoValidators = map[string]func() error{
-	"cli-dashboard": validateCLIDashboard, demoZefsConfig: validateZeFSConfig,
-	"rbac": validateRBAC, "traceroute": validateTraceroute, "launcher": validateLauncher,
-	"web-config": validateWebConfig, demoCommitConfirmed: validateCommitConfirmed,
-	demoRPKI: validateRPKI, "irr-filter": validateIRR, "rib-fib": validateRIBFIB,
-	"health-reports": validateHealthReports, demoConfigViews: validateConfigViews,
-	"bfd-failover": validateBFD, "ospf-adjacency": validateOSPF,
-	"traffic-anomaly": validateTraffic, "vrrp-failover": validateVRRP,
-	"host-inventory": validateHostInventory, "config-graph": validateConfigGraph,
 }
 
 func contains(value, expected string) error {

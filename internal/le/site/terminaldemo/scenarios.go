@@ -17,42 +17,14 @@ import (
 const demoPassword = "secret123"
 
 func runScenario(id, action string, args []string, stdout, stderr io.Writer) error {
-	var err error
-	switch id {
-	case "cli-dashboard":
-		err = runCLIDashboard(action)
-	case demoZefsConfig:
-		err = runZeFSConfig(action)
-	case "rbac":
-		err = runRBAC(action)
-	case "traceroute":
-		err = runTraceroute(action)
-	case "web-config":
-		err = runWebConfig(action)
-	case demoRPKI:
-		err = runRPKI(action)
-	case "irr-filter":
-		err = runIRR(action)
-	case "rib-fib":
-		err = runRIBFIB(action, args, stdout)
-	case "health-reports":
-		err = runHealthReports(action)
-	case demoConfigViews:
-		err = runConfigViews(action)
-	case demoCommitConfirmed:
-		err = runCommitConfirmed(action)
-	case "bfd-failover":
-		err = runBFD(action, args, stdout)
-	case "ospf-adjacency":
-		err = runOSPF(action, args, stdout)
-	case "traffic-anomaly":
-		err = runTraffic(action, stdout)
-	case "vrrp-failover":
-		err = runVRRP(action, stdout)
-	default:
-		return fmt.Errorf("unknown demo %q", id)
-	}
+	sc, err := scenarios.lookup(id)
 	if err != nil {
+		return err
+	}
+	if sc.run == nil {
+		return fmt.Errorf("demo %q starts no lab: its tape has no `ze-demo run` action", id)
+	}
+	if err = sc.run(action, args, stdout); err != nil {
 		reportDemoLogs(id, stderr)
 	}
 	return err
