@@ -1,0 +1,75 @@
+# Test: Tab in the SSH session editor completes the commit subcommands
+# VALIDATES: spec-session-editor-file-mode-parity AC-27 (completion clause) --
+#            after `commit`, Tab opens a completion box offering now, confirmed,
+#            accept, abort and verify, through the real SSH session editor
+# PREVENTS: the commit subcommands parsing in the editor but missing from what
+#           Tab offers an operator over SSH
+#
+# `input` types with no Enter and `key tab` presses Tab. The first Tab
+# completes the single match `commit` and adds a space; the second opens the
+# box with the five subcommands. `confirm` is an unknown command whose answer
+# ends its line, so its wait leaves nothing pending for the candidate waits.
+option=timeout:value=60s
+
+tmpfs=session-editor-commit-completion.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-completion.script:terminator=EOF_SCRIPT
+send confirm
+wait unknown command: confirm
+input commit
+key tab
+key tab
+wait now
+wait confirmed
+wait accept
+wait abort
+wait verify
+kill
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-completion.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-completion.conf session-editor-commit-completion.script:timeout=60s
+expect=exit:code=0

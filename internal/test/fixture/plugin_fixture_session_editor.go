@@ -44,6 +44,9 @@ const (
 	// start a second daemon on the store this one leaves. It takes no text,
 	// follows a kill (no editor is left to quit), and is the last step.
 	sessionEditorStop
+	// sessionEditorInput types its text into the editor with no Enter, so a
+	// following key step (Tab) acts on a partial line.
+	sessionEditorInput
 )
 
 // sessionEditorVerbs maps a script word to its verb. It is the grammar, so the
@@ -57,12 +60,15 @@ var sessionEditorVerbs = map[string]sessionEditorVerb{
 	"key":   sessionEditorKey,
 	"kill":  sessionEditorKill,
 	"stop":  sessionEditorStop,
+	"input": sessionEditorInput,
 }
 
 // sessionEditorKeys maps a key name a key step accepts to the bytes the
-// terminal sends for it. Ctrl-D ends the editor's paste mode.
+// terminal sends for it. Ctrl-D ends the editor's paste mode; Tab completes
+// the line and opens the completion box.
 var sessionEditorKeys = map[string]string{
 	"ctrl-d": "\x04",
+	"tab":    "\t",
 }
 
 // sessionEditorStep is one parsed script line.
@@ -177,6 +183,9 @@ func sessionEditorCheckStep(verb sessionEditorVerb, text string, killed bool) er
 		return errors.New("after the editor was killed")
 	}
 	if verb == sessionEditorKey {
+		return errors.New("after the editor was killed")
+	}
+	if verb == sessionEditorInput {
 		return errors.New("after the editor was killed")
 	}
 	return nil
@@ -326,6 +335,8 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 			err = sessionEditorPoll(ctx, env, command, step.text, false)
 		case sessionEditorKey:
 			_, err = terminal.WriteString(sessionEditorKeys[step.text])
+		case sessionEditorInput:
+			_, err = terminal.WriteString(step.text)
 		case sessionEditorKill:
 			var tail string
 			tail, err = killSessionEditor(cmd, terminal)

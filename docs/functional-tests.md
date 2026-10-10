@@ -351,8 +351,9 @@ and `#` lines are skipped:
 | `cli` | name the `ze cli -c` command the following `has` and `lacks` run |
 | `has` | run that command until its output holds the text |
 | `lacks` | run that command until its output no longer holds the text |
-| `key` | press the named key with no Enter; `ctrl-d` is the one name, and it ends the editor's paste mode (`load terminal`) |
-| `kill` | kill the editor's SSH client, as a dropped connection does; takes no text, and no `send`, `wait` or `key` may follow it |
+| `input` | type the text with no Enter, so a `key` step acts on a partial line; the text is trimmed, so it cannot end in a space |
+| `key` | press the named key with no Enter: `ctrl-d` ends the editor's paste mode (`load terminal`), and `tab` completes the line or opens its completion box (`session-editor-commit-completion.ci`) |
+| `kill` | kill the editor's SSH client, as a dropped connection does; takes no text, and no `send`, `input`, `wait` or `key` may follow it |
 | `stop` | stop the daemon with `ze signal stop`; takes no text, follows a `kill`, and is the last step. It does not wait for the exit: a `.ci` that starts a second daemon on the same store runs `le test fixture daemon/await-exit` first, as `session-editor-commit-confirmed-restart.ci` does |
 
 `has` and `lacks` poll, because the daemon applies a commit after the editor
@@ -370,7 +371,7 @@ changes still pending, `quit` asks for confirmation and the editor never exits,
 so a script that leaves its changes pending ends with `kill`, as both users in
 `session-editor-load-conflict.ci` do. The `test/plugin/session-editor-*.ci` files use it.
 
-<!-- source: internal/test/fixture/plugin_fixture_session_editor.go -- sessionEditorDriver, parseSessionEditorScript, sessionEditorRun, killSessionEditor -->
+<!-- source: internal/test/fixture/plugin_fixture_session_editor.go -- sessionEditorDriver, parseSessionEditorScript, sessionEditorKeys, sessionEditorRun, killSessionEditor -->
 
 ### Changing a live test that already passes
 

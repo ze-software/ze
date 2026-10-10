@@ -126,3 +126,44 @@ func TestSessionEditorUser(t *testing.T) {
 		}
 	}
 }
+
+// TestParseSessionEditorScriptInputAndTab holds the two steps a completion
+// test needs: `input` types its text with no Enter, and `key tab` presses Tab,
+// so a .ci can open the editor's completion box on a partial line. The method
+// parses a script to its exact steps, then refuses `input` once a kill ended
+// the editor, as `send` is refused.
+func TestParseSessionEditorScriptInputAndTab(t *testing.T) {
+	steps, err := parseSessionEditorScript(strings.NewReader("input commit\nkey tab\nkey tab\nwait verify\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	want := []sessionEditorStep{
+		{verb: sessionEditorInput, text: "commit"},
+		{verb: sessionEditorKey, text: "tab"},
+		{verb: sessionEditorKey, text: "tab"},
+		{verb: sessionEditorWait, text: "verify"},
+	}
+	if len(steps) != len(want) {
+		t.Fatalf("steps = %+v, want %+v", steps, want)
+	}
+	for i := range want {
+		if steps[i] != want[i] {
+			t.Fatalf("step %d = %+v, want %+v", i, steps[i], want[i])
+		}
+	}
+	if sessionEditorKeys["tab"] != "\t" {
+		t.Fatalf("key tab sends %q, want a tab", sessionEditorKeys["tab"])
+	}
+
+	refused := map[string]string{
+		"input after kill":   "kill\ninput x\n",
+		"input without text": "input\n",
+	}
+	for name, script := range refused {
+		t.Run(name, func(t *testing.T) {
+			if _, err := parseSessionEditorScript(strings.NewReader(script)); err == nil {
+				t.Fatalf("script %q parsed, want refusal", script)
+			}
+		})
+	}
+}
