@@ -211,19 +211,24 @@ func readChecksum(path string) (string, error) {
 }
 
 func buildGuestWorker(ctx context.Context, req Request) (string, error) {
-	rel := filepath.Join("tmp", backendQEMU, "bin", workerGOARCH(req.Arch), "ze-kernel-builder")
-	path := filepath.Join(req.Root, rel)
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+	rel, args, env := guestWorkerBuild(req)
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(req.Root, rel)), 0o750); err != nil {
 		return "", err
 	}
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", path, "./tools/kernel-builder") //nolint:gosec // fixed Go package and validated output
-	cmd.Dir = req.Root
-	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+workerGOARCH(req.Arch), "CGO_ENABLED=0")
-	cmd.Stdout, cmd.Stderr = req.Stdout, req.Stderr
-	if err := cmd.Run(); err != nil {
+	if err := runWorkerBuild(ctx, req, env, args...); err != nil {
 		return "", fmt.Errorf("build QEMU kernel worker: %w", err)
 	}
 	return filepath.ToSlash(rel), nil
+}
+
+// runWorkerBuild runs the go command guestWorkerBuild answers, with env added
+// to the host's. A variable so a test can read what the host runs.
+var runWorkerBuild = func(ctx context.Context, req Request, env []string, args ...string) error {
+	cmd := exec.CommandContext(ctx, "go", args...) //nolint:gosec // argv from guestWorkerBuild, a fixed package and a validated output
+	cmd.Dir = req.Root
+	cmd.Env = append(os.Environ(), env...)
+	cmd.Stdout, cmd.Stderr = req.Stdout, req.Stderr
+	return cmd.Run()
 }
 
 func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string) error {
@@ -319,7 +324,6 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		return fmt.Errorf("the build VM booted, but SSH into it never answered after %d attempts%s", bootstrapAttempts, qemuSaid(stopQEMU()))
 	}
 	fmt.Fprintln(req.Stderr, "  VM ready, installing build dependencies...") //nolint:errcheck // progress output
-	fullCommand := guestBuildCommand(req, workerRel, shares)
 	tarball := filepath.Join(build, kernelTarballName(req.Version))
 	if regularFile(tarball) {
 		fmt.Fprintf(req.Stderr, "  %s cached on host\n", filepath.Base(tarball)) //nolint:errcheck // progress output
@@ -333,7 +337,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 	fmt.Fprintf(req.Stderr, "  building kernel (version=%s, arch=%s, profile=%s)...\n", req.Version, req.Arch, req.Profile) //nolint:errcheck // progress output
 	buildCtx, cancel := context.WithTimeout(ctx, buildTimeout)
 	defer cancel()
-	if err := sshRun(buildCtx, port, fullCommand, req); err != nil {
+	if err := sshRun(buildCtx, port, guestBuildCommand(req, workerRel, shares), req); err != nil {
 		return fmt.Errorf("kernel build failed: %w%s", err, qemuSaid(stopQEMU()))
 	}
 	fmt.Fprintln(req.Stderr, ">>> kernel build complete") //nolint:errcheck // progress output

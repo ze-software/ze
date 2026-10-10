@@ -4,12 +4,15 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/packages"
 
 	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 )
@@ -88,65 +91,222 @@ func TestKernelCacheKeyCoversEveryBuildInput(t *testing.T) {
 		}
 	}
 
-	// Which kernelbuilder file declares each package-level function, variable
-	// and constant. Types are left out: a field set alone produces nothing.
-	declaredIn := map[string]string{}
-	parsed := map[string]*ast.File{}
-	for _, path := range nonTestGoFiles(t, kernelBuilderPkg) {
-		file, parseErr := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
-		if parseErr != nil {
-			t.Fatal(parseErr)
+	// No BuildSources file may use anything a host-side file declares: a
+	// function, a variable, a constant, a type, a method or a field. Resolved
+	// by the type checker, so a method or a field is caught as surely as a
+	// function call.
+	pkg := loadKernelBuilder(t)
+	held := map[string]bool{}
+	for _, file := range pkg.Syntax {
+		held[filepath.Base(pkg.Fset.Position(file.Pos()).Filename)] = true
+	}
+	for name := range buildFiles {
+		if !held[name] {
+			t.Errorf("BuildSources names %s, which %s does not hold", name, kernelBuilderPkg)
 		}
-		name := filepath.Base(path)
-		parsed[name] = file
+	}
+	for _, file := range pkg.Syntax {
+		name := filepath.Base(pkg.Fset.Position(file.Pos()).Filename)
 		for _, decl := range file.Decls {
-			switch decl := decl.(type) {
-			case *ast.FuncDecl:
-				if decl.Recv != nil {
-					continue
-				}
-				if decl.Name.Name == "init" && !buildFiles[name] {
-					t.Errorf("%s declares init, which runs in the build container, outside BuildSources", path)
-				}
-				declaredIn[decl.Name.Name] = name
-			case *ast.GenDecl:
-				if decl.Tok == token.TYPE || decl.Tok == token.IMPORT {
-					continue
-				}
-				for _, spec := range decl.Specs {
-					if value, isValue := spec.(*ast.ValueSpec); isValue {
-						for _, ident := range value.Names {
-							declaredIn[ident.Name] = name
-						}
-					}
-				}
+			if fn, isFunc := decl.(*ast.FuncDecl); isFunc && fn.Recv == nil && fn.Name.Name == "init" && !buildFiles[name] {
+				t.Errorf("%s declares init, which runs in the build container, outside BuildSources", name)
+			}
+		}
+		if !buildFiles[name] {
+			continue
+		}
+		for ident, obj := range pkg.TypesInfo.Uses {
+			if pkg.Fset.Position(ident.Pos()).Filename != pkg.Fset.Position(file.Pos()).Filename {
+				continue
+			}
+			if obj.Pkg() == nil || obj.Pkg() != pkg.Types {
+				continue
+			}
+			if home := filepath.Base(pkg.Fset.Position(obj.Pos()).Filename); !buildFiles[home] {
+				t.Errorf("%s/%s uses %s, declared in the host-side %s, which the key does not hash: move it into a BuildSources file", kernelBuilderPkg, name, obj.Name(), home)
 			}
 		}
 	}
-	for name := range buildFiles {
-		file := parsed[name]
-		if file == nil {
-			t.Fatalf("BuildSources names %s, which %s does not hold", name, kernelBuilderPkg)
+}
+
+// loadKernelBuilder type-checks the kernelbuilder package, without its tests,
+// from the repository root.
+func loadKernelBuilder(t *testing.T) *packages.Package {
+	t.Helper()
+	pkgs, err := packages.Load(&packages.Config{
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
+	}, "./"+kernelBuilderPkg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkgs) != 1 || len(pkgs[0].Errors) > 0 {
+		t.Fatalf("load %s: %v", kernelBuilderPkg, pkgs)
+	}
+	return pkgs[0]
+}
+
+// TestHostSideNeverWritesTheRequest proves the other direction of the key: a
+// host-side kernelbuilder file never decides what the build receives. The
+// Request is written only by normalizeRequest (recipe.go), and the backends
+// run only the recipe's argv (TestRunDockerArgvAndOwnershipRepair,
+// TestBuildGuestWorkerTakesTheRecipe, and the sshRun check below), so a
+// host-side edit cannot change a kernel's bytes and keep the key.
+//
+// VALIDATES: round-3 ISSUE 1, the guard is two-way.
+// PREVENTS: a host-side rewrite of the request (a default, a cleaned path, a
+// modules value) changing the build under an unchanged key.
+func TestHostSideNeverWritesTheRequest(t *testing.T) {
+	t.Chdir(filepath.Join("..", ".."))
+	pkg := loadKernelBuilder(t)
+	buildFiles := map[string]bool{}
+	for _, name := range kernelbuilder.BuildSources {
+		buildFiles[name] = true
+	}
+	request := pkg.Types.Scope().Lookup("Request")
+	if request == nil {
+		t.Fatal("kernelbuilder declares no Request")
+	}
+	isRequest := func(expr ast.Expr) bool {
+		typ := pkg.TypesInfo.TypeOf(expr)
+		if pointer, isPointer := typ.(*types.Pointer); isPointer {
+			typ = pointer.Elem()
 		}
-		// A selector's Sel names a field, a method or another package's
-		// declaration, never one of this package's.
-		selected := map[*ast.Ident]bool{}
+		return typ != nil && types.Identical(typ, request.Type())
+	}
+	// writesRequest answers whether expr, the target of a write, is the Request
+	// or one of its fields.
+	writesRequest := func(expr ast.Expr) bool {
+		for {
+			switch node := expr.(type) {
+			case *ast.SelectorExpr:
+				if isRequest(node.X) {
+					return true
+				}
+				expr = node.X
+			case *ast.IndexExpr:
+				expr = node.X
+			case *ast.StarExpr:
+				return isRequest(node.X)
+			case *ast.ParenExpr:
+				expr = node.X
+			default:
+				return false
+			}
+		}
+	}
+	for _, file := range pkg.Syntax {
+		name := filepath.Base(pkg.Fset.Position(file.Pos()).Filename)
+		if buildFiles[name] {
+			continue
+		}
+		var sshCommands int
 		ast.Inspect(file, func(node ast.Node) bool {
-			if selector, isSelector := node.(*ast.SelectorExpr); isSelector {
-				selected[selector.Sel] = true
+			switch node := node.(type) {
+			case *ast.AssignStmt:
+				for _, lhs := range node.Lhs {
+					if writesRequest(lhs) {
+						t.Errorf("%s writes the build request at %s: only normalizeRequest (recipe.go) may", name, pkg.Fset.Position(lhs.Pos()))
+					}
+				}
+			case *ast.IncDecStmt:
+				if writesRequest(node.X) {
+					t.Errorf("%s writes the build request at %s: only normalizeRequest (recipe.go) may", name, pkg.Fset.Position(node.Pos()))
+				}
+			case *ast.UnaryExpr:
+				if node.Op == token.AND && writesRequest(node.X) {
+					t.Errorf("%s hands out a pointer into the build request at %s: only normalizeRequest (recipe.go) may write it", name, pkg.Fset.Position(node.Pos()))
+				}
+			case *ast.CompositeLit:
+				if isRequest(node) {
+					t.Errorf("%s builds a Request of its own at %s: the build receives the caller's request, normalised by recipe.go", name, pkg.Fset.Position(node.Pos()))
+				}
+			case *ast.CallExpr:
+				if callee, isIdent := node.Fun.(*ast.Ident); isIdent && callee.Name == "sshRun" && len(node.Args) > 2 {
+					sshCommands++
+					command, isCall := node.Args[2].(*ast.CallExpr)
+					recipe, named := ast.Expr(nil), false
+					if isCall {
+						recipe = command.Fun
+						ident, isIdent := recipe.(*ast.Ident)
+						named = isIdent && ident.Name == "guestBuildCommand"
+					}
+					if !named {
+						t.Errorf("%s runs a guest command at %s that is not guestBuildCommand(...) itself: the guest runs the recipe's command, unchanged", name, pkg.Fset.Position(node.Pos()))
+					}
+				}
 			}
 			return true
 		})
-		ast.Inspect(file, func(node ast.Node) bool {
-			ident, isIdent := node.(*ast.Ident)
-			if !isIdent || selected[ident] {
-				return true
-			}
-			if home, found := declaredIn[ident.Name]; found && !buildFiles[home] {
-				t.Errorf("%s/%s uses %s, declared in the host-side %s, which the key does not hash: move it into a BuildSources file", kernelBuilderPkg, name, ident.Name, home)
-			}
-			return true
-		})
+		if name == "qemu.go" && sshCommands == 0 {
+			t.Errorf("qemu.go runs no guest command through sshRun, so this check sees no QEMU build")
+		}
+	}
+}
+
+// TestKernelCacheKeyCarriesTheBackend proves a Docker kernel and a QEMU kernel
+// never share a cache entry: the two compile with different gcc releases.
+//
+// VALIDATES: round-3 ISSUE 2, the backend is keyed.
+// PREVENTS: a kernel one backend built served for a build the other would run.
+func TestKernelCacheKeyCarriesTheBackend(t *testing.T) {
+	t.Chdir(filepath.Join("..", ".."))
+	resolved, err := resolveKernelProfile(runtimeKernelConfigDir, runtimeKernelProfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := map[string]string{}
+	for _, builder := range []string{builderDocker, builderQEMU, ""} {
+		key, err := kernelCacheVariantFor(kernelTargetRuntime, archAMD64, builder, resolved)
+		if err != nil {
+			t.Fatal(err)
+		}
+		keys[builder] = key
+	}
+	if keys[builderDocker] == keys[builderQEMU] {
+		t.Errorf("docker and qemu kernels share the key %s", keys[builderDocker])
+	}
+	if want := keys[kernelbuilder.PreferredBackend("")]; keys[""] != want {
+		t.Errorf("a build naming no backend keys %s, want the key of the backend it would run, %s", keys[""], want)
+	}
+}
+
+// TestKernelCacheKeyRefusesWhatItCannotHash proves a key that cannot be
+// computed is refused with its fix, never replaced by a shorter key every
+// input would share.
+//
+// VALIDATES: round-3 NOTE 2.
+// PREVENTS: one kernel served for every config when the hash inputs are absent.
+func TestKernelCacheKeyRefusesWhatItCannotHash(t *testing.T) {
+	t.Chdir(t.TempDir())
+	resolved := kernelProfileResolution{Name: runtimeKernelProfile, Fragments: []string{"fixture.config"}}
+	patch := filepath.Join(runtimeKernelPatchesDir, "0001.patch")
+	// Each step supplies the input the previous one lacked, so every refusal
+	// is reached in turn: the patches, the config, then the builder sources.
+	steps := []struct {
+		missing string
+		supply  string
+	}{
+		{"the patch directory", patch},
+		{"its config", "fixture.config"},
+		{"the builder sources", ""},
+	}
+	for _, step := range steps {
+		key, err := kernelCacheVariantFor(kernelTargetRuntime, archAMD64, "", resolved)
+		if err == nil {
+			t.Fatalf("kernelCacheVariantFor without %s = %q, want a refusal", step.missing, key)
+		}
+		if !strings.Contains(err.Error(), "cannot key the runtime kernel cache") || !strings.Contains(err.Error(), "run ze appliance from the top of the Ze source tree") {
+			t.Errorf("refusal without %s = %v, want the cause and the fix", step.missing, err)
+		}
+		if step.supply == "" {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(step.supply), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(step.supply, []byte("fixture\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -256,4 +416,25 @@ func nonTestGoFiles(t *testing.T, dir string) []string {
 		}
 	}
 	return files
+}
+
+// mustKernelCacheVariant is kernelCacheVariant for a test, which has the tree.
+func mustKernelCacheVariant(t *testing.T, arch, profile string) string {
+	t.Helper()
+	variant, err := kernelCacheVariant(arch, profile)
+	if err != nil {
+		t.Fatalf("kernelCacheVariant(%s, %s): %v", arch, profile, err)
+	}
+	return variant
+}
+
+// mustKernelCacheVariantFor is kernelCacheVariantFor for a build that names
+// no backend.
+func mustKernelCacheVariantFor(t *testing.T, target, arch string, profile kernelProfileResolution) string {
+	t.Helper()
+	variant, err := kernelCacheVariantFor(target, arch, "", profile)
+	if err != nil {
+		t.Fatalf("kernelCacheVariantFor(%s, %s): %v", target, arch, err)
+	}
+	return variant
 }

@@ -158,6 +158,18 @@ func TestRunDockerArgvAndOwnershipRepair(t *testing.T) {
 	if len(calls) != 3 {
 		t.Fatalf("docker calls = %v", calls)
 	}
+	// runDocker runs the recipe's argv and nothing it built itself: the
+	// recipe is what the cache key hashes (recipe.go, BuildSources).
+	runArgs, err := containerRunArgs(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(calls[0], append([]string{"docker"}, containerBuildArgs(req)...)) {
+		t.Errorf("docker build argv = %v, want containerBuildArgs %v", calls[0], containerBuildArgs(req))
+	}
+	if !slices.Equal(calls[1], append([]string{"docker"}, runArgs...)) {
+		t.Errorf("docker run argv = %v, want containerRunArgs %v", calls[1], runArgs)
+	}
 	build := strings.Join(calls[0], " ")
 	if !strings.Contains(build, "docker build --platform linux/amd64 -t fixture -f tools/kernel-builder/Dockerfile "+root) {
 		t.Fatalf("docker build argv = %s", build)

@@ -44,9 +44,22 @@ const (
 	modulesYes = "yes"
 	modulesNo  = "no"
 
-	defaultBuilderDir = "tools/kernel-builder"
-	defaultCommonDir  = "tools/kernel-builder/common"
+	// The two backends. Each compiles with its own toolchain (the Debian gcc of
+	// the Docker image, the Alpine gcc of the QEMU guest), so the backend is
+	// part of the cached-kernel key and of the provenance record.
+	backendDocker = "docker"
+	backendQEMU   = "qemu"
+
+	// DefaultBuilderDir is the worker's Go package and the Docker build
+	// context; DefaultCommonDir holds the config fragments every profile
+	// shares. internal/appliance hashes the first whole into the cache key and
+	// resolves profiles from the second, so both read these declarations.
+	DefaultBuilderDir = "tools/kernel-builder"
+	DefaultCommonDir  = "tools/kernel-builder/common"
 	defaultImage      = "ze-kernel-builder"
+
+	targetRuntime   = "runtime"
+	targetInstaller = "installer"
 
 	dockerPlatformFlag = "--platform"
 
@@ -73,25 +86,64 @@ const (
 	containerCommonDir = "/builder/common"
 )
 
-// normalizeRequest fills the defaults a request may leave out. validateRequest
-// runs it, then refuses what is still wrong.
-func normalizeRequest(req *Request) {
+// Request is one complete kernel build. Fragments MUST be in merge order. It
+// is declared here because its fields are what the build receives: a field
+// added or retyped changes the build, so it changes the cache key.
+type Request struct {
+	Root        string
+	Version     string
+	Arch        string
+	Profile     string
+	Builder     string
+	Target      string
+	SourceDir   string
+	OutputDir   string
+	BuilderDir  string
+	CommonDir   string
+	Modules     string
+	Jobs        string
+	PatchesDir  string
+	FirmwareDir string
+	Fragments   []string
+	Image       string
+	Stdout      *os.File
+	Stderr      *os.File
+}
+
+// normalizeRequest fills the defaults a request may leave out and rewrites it
+// into the form every backend reads. validateRequest runs it, then refuses what
+// is still wrong. It is the only code that writes a Request field: a rewrite
+// decides what the build receives, so it lives in a file the cache key hashes
+// (TestHostSideNeverWritesTheRequest, internal/appliance).
+func normalizeRequest(req *Request) error {
+	if req.Root == "" {
+		req.Root = "."
+	}
+	root, err := filepath.Abs(req.Root)
+	if err != nil {
+		return fmt.Errorf("resolve repository root: %w", err)
+	}
+	req.Root = root
 	if req.BuilderDir == "" {
-		req.BuilderDir = defaultBuilderDir
+		req.BuilderDir = DefaultBuilderDir
 	}
 	if req.CommonDir == "" {
-		req.CommonDir = defaultCommonDir
+		req.CommonDir = DefaultCommonDir
 	}
 	if req.Image == "" {
 		req.Image = defaultImage
 	}
 	if req.Target == "" {
 		if req.Modules == modulesYes {
-			req.Target = "runtime"
+			req.Target = targetRuntime
 		} else {
-			req.Target = "installer"
+			req.Target = targetInstaller
 		}
 	}
+	// The target decides whether the kernel carries modules: a caller names
+	// the target, never the modules switch, so the value that changes the
+	// kernel's bytes is declared here, where the key hashes it.
+	req.Modules = targetModules[req.Target]
 	if req.Stdout == nil {
 		req.Stdout = os.Stdout
 	}
@@ -101,10 +153,43 @@ func normalizeRequest(req *Request) {
 	if req.Arch == archAArch64 {
 		req.Arch = archARM64
 	}
+	if req.OutputDir != "" {
+		req.OutputDir = filepath.Clean(req.OutputDir)
+	}
+	return nil
+}
+
+// targetModules answers, for each kernel target, whether the kernel is built
+// with loadable modules: the runtime tree carries lib/modules, the installer
+// Image is monolithic. A target missing here has no answer, and
+// validateRequest refuses it.
+var targetModules = map[string]string{
+	targetRuntime:   modulesYes,
+	targetInstaller: modulesNo,
+}
+
+// containerBuildArgs answers the `docker build` argv that builds the kernel
+// builder image: the toolchain every Docker kernel is compiled with. runDocker
+// passes it unchanged (TestRunDockerArgvAndOwnershipRepair).
+func containerBuildArgs(req Request) []string {
+	return []string{"build", dockerPlatformFlag, dockerPlatforms[req.Arch], "-t", req.Image, "-f", filepath.Join(req.BuilderDir, "Dockerfile"), req.Root}
+}
+
+// guestWorkerBuild answers how the host compiles the worker the QEMU guest
+// runs: the repository-relative binary path, the go command's argv, and the
+// environment added to the host's. buildGuestWorker passes all three
+// unchanged (TestBuildGuestWorkerTakesTheRecipe).
+func guestWorkerBuild(req Request) (rel string, args, env []string) {
+	goarch := workerGOARCH(req.Arch)
+	rel = filepath.Join("tmp", backendQEMU, "bin", goarch, "ze-kernel-builder")
+	args = []string{"build", "-o", filepath.Join(req.Root, rel), "./" + DefaultBuilderDir}
+	env = []string{"GOOS=linux", "GOARCH=" + goarch, "CGO_ENABLED=0"}
+	return rel, args, env
 }
 
 // containerRunArgs answers the `docker run` argv that runs the worker in the
-// kernel builder image. runDocker passes it unchanged.
+// kernel builder image. runDocker passes it unchanged
+// (TestRunDockerArgvAndOwnershipRepair).
 func containerRunArgs(req Request) ([]string, error) {
 	args := []string{
 		"run", "--rm", dockerPlatformFlag, dockerPlatforms[req.Arch],
@@ -190,7 +275,8 @@ func guestSetup(req Request, shares []tmplink.Share) (string, string) {
 
 // guestBuildCommand answers the one shell command the QEMU guest runs over SSH:
 // the setup line, then the worker with the request's arguments, under ccache.
-// runQEMUBuild passes it unchanged.
+// runQEMUBuild passes it unchanged (TestRunQEMUBuildSendsTheRecipeCommand,
+// internal/appliance).
 func guestBuildCommand(req Request, workerRel string, shares []tmplink.Share) string {
 	setup, guestOutput := guestSetup(req, shares)
 	workerArgs := []string{"/workspace/" + workerRel, "--version", req.Version, "--arch", req.Arch, "--profile", req.Profile, "--src-dir", "/workspace/" + filepath.ToSlash(req.SourceDir), "--out-dir", guestOutput, "--modules", req.Modules}

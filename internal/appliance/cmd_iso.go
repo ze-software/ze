@@ -18,10 +18,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/thirdparty/fat"
 )
@@ -157,7 +157,12 @@ func checkISOPrerequisites(opts isoOptions) int {
 
 	kernelPath := opts.kernelPath
 	if kernelPath == "" {
-		kernelPath = defaultISOKernelPath()
+		found, err := defaultISOKernelPath()
+		if err != nil {
+			fmt.Fprintln(os.Stdout, "kernel:   cannot check: "+err.Error()) //nolint:errcheck // CLI output
+			return exitError
+		}
+		kernelPath = found
 	}
 	if _, err := resolveISOArtifact(kernelPath, "installer kernel", ""); err != nil {
 		fmt.Fprintf(os.Stdout, "kernel:   missing (run ze appliance kernel)\n") //nolint:errcheck // CLI output
@@ -302,7 +307,11 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 		if profile == "" {
 			profile = defaultKernelProfile
 		}
-		if p := isoKernelCachePath(cfg.Image.Arch, profile); p == "" {
+		p, err := isoKernelCachePath(cfg.Image.Arch, profile)
+		if err != nil {
+			return isoBuildInput{}, err
+		}
+		if p == "" {
 			if _, err := resolveKernelProfile(kernelInstallerConfigDir, profile); err != nil {
 				return isoBuildInput{}, err
 			}
@@ -385,12 +394,19 @@ func resolveISOArtifact(path, label, hint string) (string, error) {
 	return abs, nil
 }
 
-func isoKernelCachePath(arch, profile string) string {
-	cached := kernelCachePath(defaultKernelVersion, kernelCacheVariant(arch, profile))
-	if _, err := os.Stat(cached); err == nil {
-		return cached
+// isoKernelCachePath answers the cached installer kernel for arch and profile,
+// or "" when the cache holds none. An error means the cache key could not be
+// computed, so whether a kernel is cached is unknown.
+func isoKernelCachePath(arch, profile string) (string, error) {
+	variant, err := kernelCacheVariant(arch, profile)
+	if err != nil {
+		return "", err
 	}
-	return ""
+	cached := kernelCachePath(defaultKernelVersion, variant)
+	if _, err := os.Stat(cached); err == nil {
+		return cached, nil
+	}
+	return "", nil
 }
 
 func installerKernelBuildMatches(arch, profile string) bool {
@@ -416,17 +432,24 @@ func installerKernelFallbackPath(arch string, profiles []string) string {
 	return ""
 }
 
-func defaultISOKernelPath() string {
+// defaultISOKernelPath answers the installer kernel for this host's arch (the
+// one arch a kernel build here produces), or "" when none is cached or built.
+func defaultISOKernelPath() (string, error) {
 	profiles, err := registeredKernelProfiles(kernelInstallerConfigDir)
 	if err != nil {
-		return ""
+		return "", nil //nolint:nilerr // no registry here: no kernel to find, and the caller reports it missing
 	}
+	arch := kernelbuilder.HostArch()
 	for _, profile := range profiles {
-		if p := isoKernelCachePath(runtime.GOARCH, profile); p != "" {
-			return p
+		p, err := isoKernelCachePath(arch, profile)
+		if err != nil {
+			return "", err
+		}
+		if p != "" {
+			return p, nil
 		}
 	}
-	return installerKernelFallbackPath(runtime.GOARCH, profiles)
+	return installerKernelFallbackPath(arch, profiles), nil
 }
 
 // arm64 Image: magic 0x644d5241 at offset 56 ("ARM\x64" little-endian).

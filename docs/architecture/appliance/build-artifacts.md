@@ -137,24 +137,47 @@ that changes no kernel must keep the cache. The key covers:
 | Input | Why it decides the bytes |
 |-------|--------------------------|
 | The kernel version | It names the cache entry; the tarball's SHA-256 pin sits in `kernelbuilder/worker.go` |
+| The target, arch and profile | They select the config, and the target decides whether the kernel carries modules (`targetModules`, `recipe.go`) |
+| The backend, `docker` or `qemu` | The Docker image compiles with Debian bookworm's gcc, the QEMU guest with Alpine 3.21's, so the two build different bytes from one tree. The `--builder` value names it; with none, the backend a build here would choose (`kernelbuilder.PreferredBackend`: Docker when installed, else QEMU) |
 | The profile's config fragments, `.require` manifests, and the target's patch series | They are the config and the source the kernel is built from |
 | Every file under `tools/kernel-builder` | The container definition (toolchain and packages), the worker's `main`, and the shared fragments |
-| The `kernelbuilder` files named in `kernelbuilder.BuildSources` | `worker.go` is the build. `recipe.go` holds what the host hands it: the `docker run` argv, the QEMU guest's Alpine release, packages and command line, the request defaults, and the provenance record |
+| The `kernelbuilder` files named in `kernelbuilder.BuildSources` | `worker.go` is the build. `recipe.go` holds what the host hands it: the `Request` type, the `docker build` and `docker run` argv, the worker's `go build` argv and environment, the QEMU guest's Alpine release, packages and command line, the request defaults and normalisation, and the provenance record |
 | Every Ze package those Go files import, followed transitively | The worker and the recipe run that code |
 
 The other `kernelbuilder` files are host-side: they select a backend, probe the
 accelerator, measure free space, and word refusals. An edit there keeps every
 cached kernel. The rule follows: code that changes what the build produces goes
 in a `BuildSources` file, never in a host-side one.
-`TestKernelCacheKeyCoversEveryBuildInput` refuses a `BuildSources` file that
-reaches a function, variable or constant declared in a host-side file, an
+The guard runs both ways. `TestKernelCacheKeyCoversEveryBuildInput` type-checks
+the package and refuses a `BuildSources` file that uses anything a host-side
+file declares (a function, variable, constant, type, method or field), an
 `init` outside them, and a hashed file whose Ze import is not hashed.
-`TestKernelCacheKeyIgnoresHostSideEdits` edits each host-side file and checks
-the key holds, then edits each `BuildSources` file and checks it moves.
+`TestHostSideNeverWritesTheRequest` refuses a host-side file that writes a
+`Request` field, takes a pointer into one, builds a `Request` of its own, or
+sends the QEMU guest anything but `guestBuildCommand(...)` itself.
+`TestRunDockerArgvAndOwnershipRepair` and `TestBuildGuestWorkerTakesTheRecipe`
+check that the Docker and worker builds run the recipe's argv and environment
+unchanged. `TestKernelCacheKeyIgnoresHostSideEdits` edits each host-side file
+and checks the key holds, then edits each `BuildSources` file and checks it
+moves.
 
-One input is not in the key: the `hardware-kms` installer profile's i915
-firmware blobs, fetched once into the cache by `ensureFirmware` with no digest
-pinned. A different blob under the same name keeps the cached installer kernel.
+A key that cannot be computed (a patch directory, a config fragment or a
+builder source that cannot be read) is refused with its fix, never replaced by
+a shorter key every config would share.
+
+The key does not cover what each backend fetches from upstream, so the
+toolchain floats under one key:
+
+| Input not in the key | What drifts |
+|----------------------|-------------|
+| `FROM golang:1.27-bookworm` and `FROM debian:bookworm-slim` in `tools/kernel-builder/Dockerfile` | Tags, not digests: a rebuilt image brings a new Go or Debian point release |
+| The packages `apt-get install` takes in the image, and `apk add` in the QEMU guest | No versions pinned: gcc, binutils and the rest move with the distribution |
+| The Alpine ISO | Its SHA-256 is fetched beside it (`fetchPublishedChecksum`), not pinned in the tree |
+| The `hardware-kms` installer profile's i915 firmware blobs | Fetched once by `ensureFirmware` with no digest pinned: a different blob under the same name keeps the cached installer kernel |
+
+`plan/journal/stale-artifact-reused.md` records each row. To rebuild against
+the current upstream, remove the cache entry that
+`ze appliance kernel --target <target> --print-cache-dir` prints.
 
 <!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 <!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel -->

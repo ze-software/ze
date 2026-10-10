@@ -124,12 +124,19 @@ func writeRuntimeKernelRegistry(t *testing.T) {
 		}
 	}
 	files := map[string]string{
-		filepath.Join(dir, "kernel.config"):        "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n",
-		filepath.Join(dir, "kernel.require"):       "CONFIG_IP_PNP_DHCP\nCONFIG_EXT4_FS\nCONFIG_BLK_DEV_INITRD\nCONFIG_DEVTMPFS_MOUNT\n",
-		filepath.Join(dir, "runtime.config"):       completeRuntimeConfig("CONFIG_VETH"),
-		filepath.Join(dir, "runtime.require"):      "CONFIG_MODULES\nCONFIG_VETH\n",
-		filepath.Join(kernelBuilderDir, "main.go"): "package main\n",
-		filepath.Join(nativeDir, "driver.go"):      "package kernelbuilder\n",
+		filepath.Join(dir, "kernel.config"):         "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n",
+		filepath.Join(dir, "kernel.require"):        "CONFIG_IP_PNP_DHCP\nCONFIG_EXT4_FS\nCONFIG_BLK_DEV_INITRD\nCONFIG_DEVTMPFS_MOUNT\n",
+		filepath.Join(dir, "runtime.config"):        completeRuntimeConfig("CONFIG_VETH"),
+		filepath.Join(dir, "runtime.require"):       "CONFIG_MODULES\nCONFIG_VETH\n",
+		filepath.Join(kernelBuilderDir, "main.go"):  "package main\n",
+		filepath.Join(nativeDir, "driver.go"):       "package kernelbuilder\n",
+		filepath.Join(dir, "patches", "0001.patch"): "fixture patch\n",
+		"go.mod": "module github.com/ze-software/ze\n",
+	}
+	// The cached-kernel key refuses a tree it cannot hash, so the fixture
+	// carries every input it reads: the builder sources and one patch.
+	for _, name := range kernelbuilder.BuildSources {
+		files[filepath.Join(nativeDir, name)] = "package kernelbuilder\n"
 	}
 	for path, content := range files {
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -176,7 +183,7 @@ func TestKernelResolvesCache(t *testing.T) {
 
 	version := "7.1.1"
 	arch := archAMD64
-	cached := kernelCachePath(version, kernelCacheVariant(arch, defaultKernelProfile))
+	cached := kernelCachePath(version, mustKernelCacheVariant(t, arch, defaultKernelProfile))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +208,7 @@ func TestKernelCacheHitCopiesToToolsPath(t *testing.T) {
 
 	version := "7.1.1"
 	content := []byte("cached-hardware-kernel")
-	cached := kernelCachePath(version, kernelCacheVariant(archAMD64, "hardware"))
+	cached := kernelCachePath(version, mustKernelCacheVariant(t, archAMD64, "hardware"))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +317,7 @@ func TestKernelVersionFlag(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	version := "7.0.5"
-	cached := kernelCachePath(version, kernelCacheVariant(archAMD64, defaultKernelProfile))
+	cached := kernelCachePath(version, mustKernelCacheVariant(t, archAMD64, defaultKernelProfile))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -357,7 +364,7 @@ func TestKernelInvalidatesInstallerVariant(t *testing.T) {
 	}{
 		{name: "build", populate: func(*testing.T) {}},
 		{name: "cache-hit", populate: func(t *testing.T) {
-			cached := kernelCachePath(version, kernelCacheVariant(kernelbuilder.HostArch(), "hardware"))
+			cached := kernelCachePath(version, mustKernelCacheVariant(t, kernelbuilder.HostArch(), "hardware"))
 			if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 				t.Fatal(err)
 			}
@@ -457,7 +464,7 @@ func TestKernelReadsArchFromAppliance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cached := kernelCachePath(defaultKernelVersion, kernelCacheVariant(archAMD64, defaultKernelProfile))
+	cached := kernelCachePath(defaultKernelVersion, mustKernelCacheVariant(t, archAMD64, defaultKernelProfile))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -465,7 +472,7 @@ func TestKernelReadsArchFromAppliance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hostCached := kernelCachePath(defaultKernelVersion, kernelCacheVariant(runtime.GOARCH, defaultKernelProfile))
+	hostCached := kernelCachePath(defaultKernelVersion, mustKernelCacheVariant(t, runtime.GOARCH, defaultKernelProfile))
 	if hostCached != cached {
 		if err := os.MkdirAll(filepath.Dir(hostCached), 0o755); err != nil {
 			t.Fatal(err)
@@ -525,7 +532,7 @@ func TestKernelReadsProfileFromAppliance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cached := kernelCachePath(defaultKernelVersion, kernelCacheVariant(archAMD64, "hardware"))
+	cached := kernelCachePath(defaultKernelVersion, mustKernelCacheVariant(t, archAMD64, "hardware"))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -570,7 +577,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	variant1 := kernelCacheVariant(kernelbuilder.HostArch(), defaultKernelProfile)
+	variant1 := mustKernelCacheVariant(t, kernelbuilder.HostArch(), defaultKernelProfile)
 	cached1 := kernelCachePath("7.1.1", variant1)
 	if err := os.MkdirAll(filepath.Dir(cached1), 0o755); err != nil {
 		t.Fatal(err)
@@ -591,7 +598,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	variant2 := kernelCacheVariant(kernelbuilder.HostArch(), defaultKernelProfile)
+	variant2 := mustKernelCacheVariant(t, kernelbuilder.HostArch(), defaultKernelProfile)
 	if variant1 == variant2 {
 		t.Fatal("config change did not change cache variant")
 	}
@@ -638,11 +645,11 @@ func TestKernelBuilderSourceInvalidatesCache(t *testing.T) {
 	if err := os.WriteFile(source, []byte("package kernelbuilder\nconst revision = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	variant1 := kernelCacheVariant(archAMD64, defaultKernelProfile)
+	variant1 := mustKernelCacheVariant(t, archAMD64, defaultKernelProfile)
 	if err := os.WriteFile(source, []byte("package kernelbuilder\nconst revision = 2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	variant2 := kernelCacheVariant(archAMD64, defaultKernelProfile)
+	variant2 := mustKernelCacheVariant(t, archAMD64, defaultKernelProfile)
 	if variant1 == variant2 {
 		t.Fatal("a change to the worker the build runs did not change cache variant")
 	}
@@ -654,7 +661,7 @@ func TestKernelBuilderSourceInvalidatesCache(t *testing.T) {
 	if err := os.WriteFile(added, []byte("CONFIG_X=y\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	variant3 := kernelCacheVariant(archAMD64, defaultKernelProfile)
+	variant3 := mustKernelCacheVariant(t, archAMD64, defaultKernelProfile)
 	if variant3 == variant2 {
 		t.Fatal("a file added under tools/kernel-builder did not change cache variant")
 	}
@@ -663,7 +670,7 @@ func TestKernelBuilderSourceInvalidatesCache(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(pkg, "driver.go"), []byte("package kernelbuilder\nconst message = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if variant4 := kernelCacheVariant(archAMD64, defaultKernelProfile); variant4 != variant3 {
+	if variant4 := mustKernelCacheVariant(t, archAMD64, defaultKernelProfile); variant4 != variant3 {
 		t.Fatal("an edit to the host-side driver.go changed cache variant")
 	}
 }
@@ -712,14 +719,14 @@ func TestTargetSelectsRegistryDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if installer.configDir != kernelInstallerConfigDir || installer.isTree || installer.modules != "no" {
+	if installer.configDir != kernelInstallerConfigDir || installer.isTree {
 		t.Errorf("installer target = %+v", installer)
 	}
 	rt, err := kernelTargetFor(kernelTargetRuntime)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rt.configDir != runtimeKernelConfigDir || !rt.isTree || rt.modules != "yes" || rt.defaultProfile != runtimeKernelProfile {
+	if rt.configDir != runtimeKernelConfigDir || !rt.isTree || rt.defaultProfile != runtimeKernelProfile {
 		t.Errorf("runtime target = %+v", rt)
 	}
 	if _, err := kernelTargetFor("bogus"); err == nil {
@@ -730,9 +737,10 @@ func TestTargetSelectsRegistryDir(t *testing.T) {
 func TestCacheVariantIncludesTarget(t *testing.T) {
 	// VALIDATES: AC-6/R-6 expect installer and runtime artifacts to get distinct cache variants.
 	// PREVENTS: a runtime tree overwriting an installer Image (or vice versa) in the cache.
+	t.Chdir(filepath.Join("..", ".."))
 	resolved := kernelProfileResolution{Name: "qemu"}
-	installer := kernelCacheVariantFor(kernelTargetInstaller, archAMD64, resolved)
-	rt := kernelCacheVariantFor(kernelTargetRuntime, archAMD64, resolved)
+	installer := mustKernelCacheVariantFor(t, kernelTargetInstaller, archAMD64, resolved)
+	rt := mustKernelCacheVariantFor(t, kernelTargetRuntime, archAMD64, resolved)
 	if installer == rt {
 		t.Fatalf("installer and runtime variants collide: %q", installer)
 	}
@@ -766,12 +774,12 @@ func TestRuntimeCacheVariantIncludesEveryPatchInput(t *testing.T) {
 		Name:      runtimeKernelProfile,
 		Fragments: []string{"gokrazy/kernel/runtime.config"},
 	}
-	base := kernelCacheVariantFor(kernelTargetRuntime, archAMD64, profile)
+	base := mustKernelCacheVariantFor(t, kernelTargetRuntime, archAMD64, profile)
 
 	if err := os.WriteFile("gokrazy/kernel/patches/one.patch", []byte("edited patch\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	edited := kernelCacheVariantFor(kernelTargetRuntime, archAMD64, profile)
+	edited := mustKernelCacheVariantFor(t, kernelTargetRuntime, archAMD64, profile)
 	if edited == base {
 		t.Fatal("editing a runtime patch did not invalidate the kernel cache variant")
 	}
@@ -779,14 +787,14 @@ func TestRuntimeCacheVariantIncludesEveryPatchInput(t *testing.T) {
 	if err := os.WriteFile("gokrazy/kernel/patches/two.patch", []byte("second patch\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	added := kernelCacheVariantFor(kernelTargetRuntime, archAMD64, profile)
+	added := mustKernelCacheVariantFor(t, kernelTargetRuntime, archAMD64, profile)
 	if added == edited {
 		t.Fatal("adding a runtime patch did not invalidate the kernel cache variant")
 	}
 	if err := os.Remove("gokrazy/kernel/patches/two.patch"); err != nil {
 		t.Fatal(err)
 	}
-	removed := kernelCacheVariantFor(kernelTargetRuntime, archAMD64, profile)
+	removed := mustKernelCacheVariantFor(t, kernelTargetRuntime, archAMD64, profile)
 	if removed == added {
 		t.Fatal("removing a runtime patch did not invalidate the kernel cache variant")
 	}
@@ -827,13 +835,12 @@ func TestDefaultKernelBuildDockerRequest(t *testing.T) {
 	err := defaultKernelBuild(kernelBuildSpec{
 		version: "7.1.1", arch: archAMD64, profile: defaultKernelProfile, builder: builderDocker,
 		target: kernelTargetInstaller, srcDir: kernelInstallerConfigDir, outDir: kernelInstallerOutputDir,
-		modules: "no",
 	})
 	if err != nil {
 		t.Fatalf("defaultKernelBuild: %v", err)
 	}
 	if got.Version != "7.1.1" || got.Arch != archAMD64 || got.Profile != defaultKernelProfile ||
-		got.Builder != builderDocker || got.Target != kernelTargetInstaller || got.Modules != "no" {
+		got.Builder != builderDocker || got.Target != kernelTargetInstaller || got.Modules != "" {
 		t.Fatalf("native docker request = %+v", got)
 	}
 	wantFragments := []string{
@@ -861,12 +868,12 @@ func TestDefaultKernelBuildQEMURuntimeRequest(t *testing.T) {
 	err := defaultKernelBuild(kernelBuildSpec{
 		version: "7.1.1", arch: archAMD64, profile: runtimeKernelProfile, builder: builderQEMU,
 		target: kernelTargetRuntime, srcDir: runtimeKernelConfigDir, outDir: runtimeKernelOutputDir,
-		modules: "yes", patches: runtimeKernelPatchesDir,
+		patches: runtimeKernelPatchesDir,
 	})
 	if err != nil {
 		t.Fatalf("defaultKernelBuild runtime: %v", err)
 	}
-	if got.Builder != builderQEMU || got.Target != kernelTargetRuntime || got.Modules != "yes" ||
+	if got.Builder != builderQEMU || got.Target != kernelTargetRuntime || got.Modules != "" ||
 		got.SourceDir != runtimeKernelConfigDir || got.OutputDir != runtimeKernelOutputDir ||
 		got.PatchesDir != runtimeKernelPatchesDir {
 		t.Fatalf("native QEMU request = %+v", got)

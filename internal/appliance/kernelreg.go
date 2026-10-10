@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 )
 
 const (
@@ -18,8 +20,8 @@ const (
 	kernelRequireName    = "kernel.require"
 	// kernelCommonDir holds shared config fragments pulled in by a
 	// `# ze-include: <name>` directive. The native builder receives this
-	// resolver's explicit fragment order.
-	kernelCommonDir = "tools/kernel-builder/common"
+	// resolver's explicit fragment order, and reads the same declaration.
+	kernelCommonDir = kernelbuilder.DefaultCommonDir
 )
 
 var validKernelProfileRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)

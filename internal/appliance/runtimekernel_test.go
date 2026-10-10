@@ -134,7 +134,7 @@ func TestRuntimeKernelTreeServesCacheWithoutBuilding(t *testing.T) {
 		t.Fatal("a cached runtime kernel started a build")
 		return nil
 	})
-	cached, err := kernelCachePathFor(defaultKernelVersion, archARM64, runtimeKernelProfile, kernelTargetRuntime)
+	cached, err := kernelCachePathFor(defaultKernelVersion, archARM64, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestColdOfflineCacheNamesRemedy(t *testing.T) {
 	setTestKernelBuild(t, func(kernelBuildSpec) error {
 		return errors.New("download linux-7.2.9.tar.xz: dial tcp: lookup cdn.kernel.org: no such host")
 	})
-	cached, err := kernelCachePathFor(defaultKernelVersion, runtime.GOARCH, runtimeKernelProfile, kernelTargetRuntime)
+	cached, err := kernelCachePathFor(defaultKernelVersion, runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,7 @@ func TestColdForeignArchCacheRefusesBeforeBuilding(t *testing.T) {
 		t.Fatalf("a %s kernel build started on a %s host", foreign, runtime.GOARCH)
 		return nil
 	})
-	cached, err := kernelCachePathFor(defaultKernelVersion, foreign, runtimeKernelProfile, kernelTargetRuntime)
+	cached, err := kernelCachePathFor(defaultKernelVersion, foreign, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		t.Fatal(err)
 	}

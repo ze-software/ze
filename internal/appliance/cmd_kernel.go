@@ -37,7 +37,7 @@ var defaultKernelVersion = strings.TrimSpace(kernelVersionFile)
 
 const (
 	kernelURLKey             = "ze.appliance.kernel.url"
-	kernelBuilderDir         = "tools/kernel-builder"
+	kernelBuilderDir         = kernelbuilder.DefaultBuilderDir
 	kernelInstallerConfigDir = "tools/installer-kernel"
 	kernelInstallerOutputDir = "build/kernel"
 	runtimeKernelConfigDir   = "gokrazy/kernel"
@@ -81,7 +81,6 @@ type kernelTargetDesc struct {
 	name           string
 	configDir      string
 	outputDir      string
-	modules        string
 	patchesDir     string
 	artifact       string
 	defaultProfile string
@@ -109,7 +108,6 @@ func kernelTargetFor(target string) (kernelTargetDesc, error) {
 			name:           kernelTargetInstaller,
 			configDir:      kernelInstallerConfigDir,
 			outputDir:      kernelOutputDir(kernelInstallerOutputDir),
-			modules:        "no",
 			patchesDir:     "",
 			artifact:       kernelFileName,
 			defaultProfile: defaultKernelProfile,
@@ -122,7 +120,6 @@ func kernelTargetFor(target string) (kernelTargetDesc, error) {
 			name:           kernelTargetRuntime,
 			configDir:      runtimeKernelConfigDir,
 			outputDir:      kernelOutputDir(runtimeKernelOutputDir),
-			modules:        "yes",
 			patchesDir:     runtimeKernelPatchesDir,
 			artifact:       runtimeKernelArtifact,
 			defaultProfile: runtimeKernelProfile,
@@ -263,7 +260,7 @@ func runKernel(args []string) int {
 	}
 
 	if *printCacheDirFlag {
-		dir, err := kernelCachePathFor(*versionFlag, arch, profile, target)
+		dir, err := kernelCachePathFor(*versionFlag, arch, profile, builder, target)
 		if err != nil {
 			cliErrorf("%v", err)
 			return exitError
@@ -277,7 +274,7 @@ func runKernel(args []string) int {
 		if td.isTree {
 			ns = runtimeKernelCacheDir
 		}
-		current, err := kernelCachePathFor(*versionFlag, arch, profile, target)
+		current, err := kernelCachePathFor(*versionFlag, arch, profile, builder, target)
 		if err != nil {
 			cliErrorf("%v", err)
 			return exitError
@@ -305,7 +302,10 @@ func resolveKernel(version, arch, profile, builder, target string) (string, erro
 	if err != nil {
 		return "", err
 	}
-	variant := kernelCacheVariantFor(target, arch, resolved)
+	variant, err := kernelCacheVariantFor(target, arch, builder, resolved)
+	if err != nil {
+		return "", err
+	}
 	if td.isTree {
 		return resolveRuntimeKernel(version, arch, profile, builder, td, resolved, variant)
 	}
@@ -315,8 +315,9 @@ func resolveKernel(version, arch, profile, builder, target string) (string, erro
 // kernelCachePathFor returns the durable cache directory for the same identity
 // resolveKernel uses. It observes the cache namespace without downloading or
 // building. Runtime targets return the tree directory; installer targets return
-// the directory containing Image.
-func kernelCachePathFor(version, arch, profile, target string) (string, error) {
+// the directory containing Image. builder is the --builder value, empty for the
+// backend a build here would choose (kernelbuilder.PreferredBackend).
+func kernelCachePathFor(version, arch, profile, builder, target string) (string, error) {
 	td, err := kernelTargetFor(target)
 	if err != nil {
 		return "", err
@@ -325,7 +326,10 @@ func kernelCachePathFor(version, arch, profile, target string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	variant := kernelCacheVariantFor(target, arch, resolved)
+	variant, err := kernelCacheVariantFor(target, arch, builder, resolved)
+	if err != nil {
+		return "", err
+	}
 	if td.isTree {
 		return kernelTreeCachePath(version, variant), nil
 	}
@@ -491,7 +495,7 @@ func runtimeKernelReachable(arch string) error {
 	if err != nil {
 		return err
 	}
-	cachedDir, err := kernelCachePathFor(defaultKernelVersion, arch, runtimeKernelProfile, kernelTargetRuntime)
+	cachedDir, err := kernelCachePathFor(defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		return err
 	}
@@ -528,7 +532,6 @@ func buildKernelArtifact(version, arch, profile, builder string, td kernelTarget
 		target:   td.name,
 		srcDir:   td.configDir,
 		outDir:   td.outputDir,
-		modules:  td.modules,
 		patches:  td.patchesDir,
 		firmware: fwDir,
 	})
@@ -543,7 +546,6 @@ type kernelBuildSpec struct {
 	target   string
 	srcDir   string
 	outDir   string
-	modules  string
 	patches  string
 	firmware string
 }
@@ -560,6 +562,9 @@ func defaultKernelBuild(spec kernelBuildSpec) error {
 	defer stop()
 	buildCtx, cancel := context.WithTimeout(signalCtx, kernelBuildTimeout)
 	defer cancel()
+	// The builder directory, the common directory and the modules switch are
+	// left to the builder (kernelbuilder.normalizeRequest): they decide the
+	// kernel's bytes, so they are declared where the cache key hashes them.
 	return nativeKernelBuildFn(buildCtx, kernelbuilder.Request{
 		Version:     spec.version,
 		Arch:        spec.arch,
@@ -568,9 +573,6 @@ func defaultKernelBuild(spec kernelBuildSpec) error {
 		Target:      spec.target,
 		SourceDir:   spec.srcDir,
 		OutputDir:   spec.outDir,
-		BuilderDir:  kernelBuilderDir,
-		CommonDir:   kernelCommonDir,
-		Modules:     spec.modules,
 		PatchesDir:  spec.patches,
 		FirmwareDir: spec.firmware,
 		Fragments:   resolved.Fragments,

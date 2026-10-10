@@ -16,9 +16,6 @@ import (
 
 const (
 	ownershipRepairTimeout = 2 * time.Minute
-
-	backendDocker = "docker"
-	backendQEMU   = "qemu"
 )
 
 // hostGOARCH is the arch of the machine running the build. Every kernel is
@@ -49,28 +46,6 @@ func CheckArch(arch string) error {
 // runtime.GOARCH, so the build and the cache lookup never disagree.
 func HostArch() string { return hostGOARCH }
 
-// Request is one complete kernel build. Fragments MUST be in merge order.
-type Request struct {
-	Root        string
-	Version     string
-	Arch        string
-	Profile     string
-	Builder     string
-	Target      string
-	SourceDir   string
-	OutputDir   string
-	BuilderDir  string
-	CommonDir   string
-	Modules     string
-	Jobs        string
-	PatchesDir  string
-	FirmwareDir string
-	Fragments   []string
-	Image       string
-	Stdout      *os.File
-	Stderr      *os.File
-}
-
 // Build selects a native backend, runs it, then records the exact build provenance.
 func Build(ctx context.Context, req Request) error {
 	if err := validateRequest(&req); err != nil {
@@ -100,15 +75,9 @@ func Build(ctx context.Context, req Request) error {
 }
 
 func validateRequest(req *Request) error {
-	if req.Root == "" {
-		req.Root = "."
+	if err := normalizeRequest(req); err != nil {
+		return err
 	}
-	root, err := filepath.Abs(req.Root)
-	if err != nil {
-		return fmt.Errorf("resolve repository root: %w", err)
-	}
-	req.Root = root
-	normalizeRequest(req)
 	if err := validateVersion(req.Version); err != nil {
 		return err
 	}
@@ -118,8 +87,8 @@ func validateRequest(req *Request) error {
 	if err := validateProfile(req.Profile); err != nil {
 		return err
 	}
-	if req.Modules != modulesYes && req.Modules != modulesNo {
-		return fmt.Errorf("unsupported MODULES=%s (expected yes or no)", req.Modules)
+	if req.Modules == "" {
+		return fmt.Errorf("unsupported kernel target %q (expected %s or %s)", req.Target, targetInstaller, targetRuntime)
 	}
 	if err := validateJobs(req.Jobs); err != nil {
 		return err
@@ -129,7 +98,7 @@ func validateRequest(req *Request) error {
 			return err
 		}
 	}
-	if err := validateOutputPath(&req.OutputDir); err != nil {
+	if err := validateOutputPath(req.OutputDir); err != nil {
 		return err
 	}
 	if req.PatchesDir != "" {
@@ -173,21 +142,21 @@ func validateRepoPath(value string) error {
 	return nil
 }
 
-func validateOutputPath(value *string) error {
-	if *value == "" {
+// validateOutputPath refuses an output path the build must not write to.
+// normalizeRequest has already cleaned it.
+func validateOutputPath(value string) error {
+	if value == "" {
 		return errors.New("output path is empty")
 	}
-	clean := filepath.Clean(*value)
-	volumeRoot := filepath.VolumeName(clean) + string(filepath.Separator)
-	if clean == "." || clean == volumeRoot {
-		return fmt.Errorf("unsafe output path: %s", *value)
+	volumeRoot := filepath.VolumeName(value) + string(filepath.Separator)
+	if value == "." || value == volumeRoot {
+		return fmt.Errorf("unsafe output path: %s", value)
 	}
-	if !filepath.IsAbs(clean) {
-		if err := validateRepoPath(clean); err != nil {
+	if !filepath.IsAbs(value) {
+		if err := validateRepoPath(value); err != nil {
 			return err
 		}
 	}
-	*value = clean
 	return nil
 }
 
@@ -198,6 +167,9 @@ func validateOutputPath(value *string) error {
 // `ze doctor` asks the same question before a build (internal/appliance).
 func SelectBuilder(ctx context.Context, requested, arch string) (string, error) {
 	hasDocker := commandAvailable(backendDocker)
+	if requested == "" && PreferredBackend("") == backendDocker {
+		return backendDocker, nil
+	}
 	qemu := qemuBinary(arch)
 	hasQEMU := commandAvailable(qemu) && commandAvailable("go")
 	switch requested {
@@ -215,9 +187,6 @@ func SelectBuilder(ctx context.Context, requested, arch string) (string, error) 
 		}
 		return requested, nil
 	case "":
-		if hasDocker {
-			return backendDocker, nil
-		}
 		if !hasQEMU {
 			return "", errors.New("no builder available; install docker or qemu and go")
 		}
@@ -228,6 +197,22 @@ func SelectBuilder(ctx context.Context, requested, arch string) (string, error) 
 	default:
 		return "", fmt.Errorf("unsupported builder %s (expected docker or qemu)", requested)
 	}
+}
+
+// PreferredBackend answers the backend a build with requested names would run
+// on, with no probe: the one named, else Docker when it is installed, else
+// QEMU. SelectBuilder makes the same choice and then refuses a backend this host
+// cannot run. The cached-kernel key carries the answer (internal/appliance),
+// because the two backends compile with different toolchains: a kernel the one
+// built is never served for the other.
+func PreferredBackend(requested string) string {
+	if requested != "" {
+		return requested
+	}
+	if commandAvailable(backendDocker) {
+		return backendDocker
+	}
+	return backendQEMU
 }
 
 // acceleratorCheck is hardwareAccelerator, a variable so a test can select a
@@ -252,8 +237,7 @@ func runDocker(ctx context.Context, req Request) error {
 	if err := os.MkdirAll(hostOutputPath(req), 0o750); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
-	buildArgs := []string{"build", dockerPlatformFlag, platform, "-t", req.Image, "-f", filepath.Join(req.BuilderDir, "Dockerfile"), req.Root}
-	if err := runCommand(ctx, req, backendDocker, buildArgs...); err != nil {
+	if err := runCommand(ctx, req, backendDocker, containerBuildArgs(req)...); err != nil {
 		return fmt.Errorf("build kernel builder image: %w", err)
 	}
 	args, err := containerRunArgs(req)

@@ -115,7 +115,15 @@ func checkKernelArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	if err == nil {
 		for _, arch := range []string{archAMD64, archARM64} {
 			for _, profile := range profiles {
-				if p := isoKernelCachePath(arch, profile); p != "" {
+				p, err := isoKernelCachePath(arch, profile)
+				if err != nil {
+					return []diagnostic.Diagnostic{{
+						Code:     "doctor-appliance-kernel",
+						Severity: diagnostic.SeverityWarning,
+						Message:  "cannot check the installer kernel: " + err.Error(),
+					}}
+				}
+				if p != "" {
 					return nil
 				}
 			}
@@ -190,7 +198,7 @@ func checkE2fsprogs(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 // vmlinuz is present and otherwise builds.
 func checkRuntimeKernel(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	arch := kernelbuilder.HostArch()
-	cached, err := kernelCachePathFor(defaultKernelVersion, arch, runtimeKernelProfile, kernelTargetRuntime)
+	cached, err := kernelCachePathFor(defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		return runtimeKernelDiagnostic("cannot check the runtime kernel: " + err.Error() + "\n" +
 			"ze appliance build reads the kernel config from " + runtimeKernelConfigDir + " in the Ze source tree.\n" +

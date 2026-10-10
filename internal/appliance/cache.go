@@ -208,13 +208,14 @@ func cacheFileHashPaths(paths []string) (string, bool) {
 	return hex.EncodeToString(h.Sum(nil))[:8], true
 }
 
-func kernelCacheVariant(arch, profile string) string {
+// kernelCacheVariant answers the installer kernel's cache variant for a build
+// that names no backend.
+func kernelCacheVariant(arch, profile string) (string, error) {
 	resolved, err := resolveKernelProfile(kernelInstallerConfigDir, profile)
 	if err != nil {
-		var tb textbuf.Buffer
-		return tb.Str(kernelTargetInstaller).Byte('-').Str(arch).Byte('-').Str(profile).String()
+		return "", err
 	}
-	return kernelCacheVariantFor(kernelTargetInstaller, arch, resolved)
+	return kernelCacheVariantFor(kernelTargetInstaller, arch, "", resolved)
 }
 
 // kernelPatchSources lists every file under the target's patch directory.
@@ -244,25 +245,57 @@ func kernelPatchSources(target string) (paths []string, ok bool) {
 	return paths, true
 }
 
-// kernelCacheVariantFor keys the cache by target so installer (single-file
-// Image) and runtime (vmlinuz tree) artifacts never collide, and by the config
-// and native builder hashes so profile, fragment, or backend changes invalidate
-// stale artifacts. Resolved fragments include shared # ze-include fragments.
-func kernelCacheVariantFor(target, arch string, profile kernelProfileResolution) string {
-	var tb textbuf.Buffer
+// kernelCacheVariantFor keys the cache by target, so the installer Image and
+// the runtime tree never collide; by arch, profile and backend; by a hash of
+// the config fragments, manifests and patches the profile resolves; and by a
+// hash of the builder sources (kernelBuilderSources). builder is the --builder
+// value, empty for the backend a build here would choose: the Docker and QEMU
+// backends compile with different gcc releases, so a kernel one built is never
+// served for the other. The version is in the path.
+//
+// What the key does not cover: the base images and packages each backend
+// installs (FROM golang and debian images, apt and apk packages, the Alpine
+// ISO), which float upstream under one Dockerfile or one Alpine release, and the
+// i915 firmware blobs (plan/journal/stale-artifact-reused.md). A key that
+// cannot be computed is an error, never a shorter key every input shares.
+func kernelCacheVariantFor(target, arch, builder string, profile kernelProfileResolution) (string, error) {
 	configInputs := append([]string{}, profile.Fragments...)
 	configInputs = append(configInputs, profile.Manifests...)
 	patches, patchesOK := kernelPatchSources(target)
+	if !patchesOK {
+		return "", fmt.Errorf("cannot key the %s kernel cache: the patch directory for target %s cannot be read, or holds no patch; run ze appliance from the top of the Ze source tree", target, target)
+	}
 	configInputs = append(configInputs, patches...)
-	configHash, configOK := cacheFileHashPaths(configInputs)
-	builderHash, builderOK := "", false
-	if sources, found := kernelBuilderSources(); found {
-		builderHash, builderOK = cacheFileHashPaths(sources)
+	configHash, err := cacheFileHash(configInputs)
+	if err != nil {
+		return "", fmt.Errorf("cannot key the %s kernel cache from its config: %w; run ze appliance from the top of the Ze source tree", target, err)
 	}
-	if !configOK || !patchesOK || !builderOK {
-		return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).String()
+	sources, found := kernelBuilderSources()
+	if !found {
+		return "", fmt.Errorf("cannot key the %s kernel cache: the builder sources under %s and %s cannot be listed; run ze appliance from the top of the Ze source tree", target, kernelBuilderDir, filepath.Join("internal", "appliance", "kernelbuilder"))
 	}
-	return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).Byte('-').Str(configHash).Byte('-').Str(builderHash).String()
+	builderHash, err := cacheFileHash(sources)
+	if err != nil {
+		return "", fmt.Errorf("cannot key the %s kernel cache from its builder: %w; run ze appliance from the top of the Ze source tree", target, err)
+	}
+	var tb textbuf.Buffer
+	return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).
+		Byte('-').Str(kernelbuilder.PreferredBackend(builder)).
+		Byte('-').Str(configHash).Byte('-').Str(builderHash).String(), nil
+}
+
+// cacheFileHash is cacheFileHashPaths, naming the input it could not read.
+func cacheFileHash(paths []string) (string, error) {
+	for _, path := range paths {
+		if _, err := os.Stat(path); err != nil {
+			return "", err
+		}
+	}
+	hash, ok := cacheFileHashPaths(paths)
+	if !ok {
+		return "", fmt.Errorf("a kernel cache input in %v could not be read", paths)
+	}
+	return hash, nil
 }
 
 // initrdSourceDirs are the first-party source directories the installer initrd
