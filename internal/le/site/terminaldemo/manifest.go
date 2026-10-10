@@ -207,9 +207,19 @@ func (e *Engine) validateDemo(demo *Demo) error {
 // reason on a demo that is not privileged. --privileged lifts every container
 // limit, so each demo that takes it says why in the manifest
 // (spec-lab-containers-least-privilege, owner decision 3), and a reason that
-// outlives its grant is a stale claim.
+// outlives its grant is a stale claim. A privileged demo that also says
+// net-sysctl is refused too: --privileged already makes /proc/sys writable,
+// so the second grant would claim a confinement the container does not run
+// under.
 func privilegeJustified(demo *Demo) error {
 	if demo.isPrivileged() {
+		if demo.isNetSysctl() {
+			return fmt.Errorf("manifest.json: %s runs --privileged and also states net-sysctl: "+
+				"--privileged already makes /proc/sys writable with no AppArmor profile confining it; "+
+				"remove \"privileged\" and \"privileged-reason\" from %s in demos/terminal/manifest.json "+
+				"if /proc/sys/net writes are all it needs, or remove \"net-sysctl\"",
+				demo.ID, demo.ID)
+		}
 		if demo.PrivilegedReason == "" {
 			return fmt.Errorf("manifest.json: %s runs --privileged and states no privileged-reason: "+
 				"--privileged lifts every container limit, so the manifest must say why this demo needs it; "+
@@ -428,7 +438,13 @@ func renderContract(includeKind bool, demo Demo) []byte {
 	if includeKind {
 		buffer.Str(`"kind": `).Str(strconv.Quote(demo.Kind)).Str(", ")
 	}
-	buffer.Str(`"privileged": `).Bool(demo.isPrivileged()).Str(", ").
+	buffer.Str(`"privileged": `).Bool(demo.isPrivileged()).Str(", ")
+	// Only a demo that takes the grant names it, so every other demo's
+	// digest, and with it its published verdict, stays as it was.
+	if demo.isNetSysctl() {
+		buffer.Str(`"net-sysctl": true, `)
+	}
+	buffer.
 		Str(`"realtime": `).Bool(demo.isRealtime()).Str(", ").
 		Str(`"source": `).Str(strconv.Quote(demo.Source)).Byte('}')
 	return append([]byte(nil), buffer.Bytes()...)

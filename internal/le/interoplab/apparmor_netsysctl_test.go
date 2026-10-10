@@ -69,3 +69,41 @@ func TestNetSysctlGrantedFollowsTheProfile(t *testing.T) {
 		t.Errorf("NetSysctlWriteArguments = %v, want systempaths=unconfined", arguments)
 	}
 }
+
+// VALIDATES: NOTE 9 of spec-lab-containers-least-privilege review round 1. A
+// container outside a lab (the rib-fib terminal demo) that writes its
+// namespace's net sysctls gets systempaths unconfined, plus the profile on a
+// daemon that applies AppArmor, and is refused, naming the load command, on
+// a host that has not loaded the profile.
+// PREVENTS: /proc/sys made writable with docker-default left to deny the
+// write, or with nothing confining it on a host that could.
+func TestNetSysctlSecurityArgumentsFollowTheDaemon(t *testing.T) {
+	writable := strings.Join(NetSysctlWriteArguments(), " ")
+	for _, tc := range []struct {
+		name, options, profiles, want string
+		refused                       bool
+	}{
+		{"apparmor, profile loaded", withAppArmor, NetSysctlAppArmorProfileName + " (enforce)\n",
+			writable + " --security-opt apparmor=" + NetSysctlAppArmorProfileName, false},
+		{"no apparmor", `["name=seccomp,profile=builtin"]`, "", writable, false},
+		{"apparmor, profile missing", withAppArmor, "docker-default (enforce)\n", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := labDaemon(t, tc.options, tc.profiles)
+			arguments, err := newDocker(runner).NetSysctlSecurityArguments(t.Context())
+			if tc.refused {
+				if err == nil {
+					t.Fatalf("an unloaded profile was accepted: %v", arguments)
+				}
+				requireCommandOnItsOwnLine(t, err, AppArmorLoadCommandFor(NetSysctlAppArmorProfileName))
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Join(arguments, " "); got != tc.want {
+				t.Errorf("arguments = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

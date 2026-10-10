@@ -158,6 +158,21 @@ type demoFixture struct {
 	failImageBuild int
 	// kernelChecked records the binary each Docker kernel check probed with.
 	kernelChecked []string
+	// netSysctlRefusal is what the net sysctl grant answers; nil grants
+	// fixtureNetSysctlGrants.
+	netSysctlRefusal error
+}
+
+// fixtureNetSysctlGrants stands in for the daemon's net sysctl arguments.
+var fixtureNetSysctlGrants = []string{"--security-opt", "systempaths=unconfined", "--security-opt", "apparmor=ze-lab-net-sysctl"}
+
+// netSysctl stands in for interoplab's net sysctl arguments, so a case reads
+// the grants a net-sysctl demo takes without a Docker daemon.
+func (f *demoFixture) netSysctl(context.Context) ([]string, error) {
+	if f.netSysctlRefusal != nil {
+		return nil, f.netSysctlRefusal
+	}
+	return fixtureNetSysctlGrants, nil
 }
 
 // kernelCheck stands in for the Docker host kernel check: it records the
@@ -221,6 +236,7 @@ func (f *demoFixture) engine(output *bytes.Buffer) *Engine {
 		LockWait:     30 * time.Millisecond,
 		LockPoll:     time.Millisecond,
 		KernelCheck:  f.kernelCheck,
+		NetSysctl:    f.netSysctl,
 	})
 }
 
@@ -511,6 +527,84 @@ func TestAPrivilegedDemoWithoutAReasonIsRefused(t *testing.T) {
 			}
 		})
 	}
+}
+
+// VALIDATES: NOTE 9 of spec-lab-containers-least-privilege review round 1. A
+// net-sysctl demo validates and records with systempaths unconfined under the
+// net sysctl profile and never --privileged; a host that cannot confine the
+// writes refuses it before its container starts; and a demo that states both
+// grants is refused before any command starts.
+// PREVENTS: the rib-fib demo regaining --privileged, which lifts every
+// container limit, for what is only a /proc/sys/net write.
+func TestANetSysctlDemoRunsWithoutPrivilege(t *testing.T) {
+	setNetSysctl := func(t *testing.T, fixture *demoFixture, privileged bool) {
+		t.Helper()
+		path := filepath.Join(fixture.root, "demos", "terminal", "manifest.json")
+		var manifest Manifest
+		readJSONForTest(t, path, &manifest)
+		manifest.Demos[1].NetSysctl = new(true)
+		if !privileged {
+			manifest.Demos[1].Privileged = nil
+			manifest.Demos[1].PrivilegedReason = ""
+		}
+		writeJSON(t, path, manifest)
+	}
+	t.Run("granted", func(t *testing.T) {
+		fixture := newDemoFixture(t)
+		setNetSysctl(t, fixture, false)
+		if _, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27"); err != nil {
+			t.Fatalf("RenderAll: %v", err)
+		}
+		runs := 0
+		for _, command := range fixture.commands {
+			if !slices.Contains(command.Args, "--network") {
+				continue
+			}
+			if slices.Contains(command.Args, "--privileged") {
+				t.Errorf("a container runs --privileged: %v", command.Args)
+			}
+			if slices.Contains(command.Args, "/src/demos/terminal/browser/run.cjs") || slices.Contains(command.Args, "browser") {
+				runs++
+				assertSubsequence(t, command.Args, append([]string{"docker", "run", "--rm", "--platform", "linux/amd64"}, fixtureNetSysctlGrants...))
+			}
+		}
+		if runs != 2 {
+			t.Errorf("net-sysctl demo containers = %d, want 2 (validation and recording): %#v", runs, fixture.commands)
+		}
+	})
+	t.Run("host cannot confine", func(t *testing.T) {
+		fixture := newDemoFixture(t)
+		setNetSysctl(t, fixture, false)
+		fixture.netSysctlRefusal = errors.New("load it with: sudo apparmor_parser -r ze-lab-net-sysctl")
+		_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27")
+		if err == nil {
+			t.Fatal("a net-sysctl demo ran on a host that cannot confine its writes")
+		}
+		for _, want := range []string{"terminal demo browser writes /proc/sys/net", "apparmor_parser"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error %q lacks %q", err, want)
+			}
+		}
+		for _, command := range fixture.commands {
+			if slices.Contains(command.Args, "browser") && slices.Contains(command.Args, "--network") {
+				t.Errorf("the refused demo's container started: %v", command.Args)
+			}
+		}
+	})
+	t.Run("both grants", func(t *testing.T) {
+		fixture := newDemoFixture(t)
+		setNetSysctl(t, fixture, true)
+		_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27")
+		if err == nil {
+			t.Fatal("a demo stating --privileged and net-sysctl was accepted")
+		}
+		if want := "manifest.json: browser runs --privileged and also states net-sysctl"; !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q lacks %q", err, want)
+		}
+		if len(fixture.commands) != 0 {
+			t.Errorf("the refused manifest started commands: %#v", fixture.commands)
+		}
+	})
 }
 
 // VALIDATES: release and source digests are checked before a published artifact is accepted.

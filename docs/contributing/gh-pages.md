@@ -79,6 +79,18 @@ and a reason on a demo that is not privileged, before any command starts.
 <!-- source: internal/le/site/terminaldemo/render.go -- containerCommand -->
 <!-- source: internal/le/site/terminaldemo/manifest.go -- privilegeJustified -->
 
+A demo whose only extra need is writing its own network namespace's sysctls
+under `/proc/sys/net`, such as `rib-fib`, where `fib-kernel` has the `sysctl`
+plugin turn on forwarding, sets `"net-sysctl": true` instead. Its container runs with
+`--security-opt systempaths=unconfined` and, on a daemon that applies AppArmor,
+under the `ze-lab-net-sysctl` profile the interop labs use, which admits
+`/proc/sys` writes under `net/` only. A host that applies AppArmor without that
+profile loaded refuses the demo and names the command that loads it. On a
+daemon with no AppArmor nothing confines the writes to `net/`, which is still
+narrower than `--privileged`. A demo that states both grants is refused.
+<!-- source: internal/le/site/terminaldemo/render.go -- demoGrants -->
+<!-- source: internal/le/interoplab/apparmor_netsysctl.go -- NetSysctlSecurityArguments -->
+
 A tape can `Source` a fragment that lives outside its demo directory, such as a
 topic's `demos/terminal/topics/<topic>/configure.tape`, which both the topic
 recording and the showcase play. A recording's source and definition digests

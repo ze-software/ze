@@ -258,7 +258,11 @@ func manifestIDs(manifest Manifest) []string {
 }
 
 func (e *Engine) runValidation(manifest Manifest, demo Demo) error {
-	command := e.containerCommand(manifest.Renderer, demo.isPrivileged(), demoBinary("ze-demo"), commandValidate, demo.Validate)
+	grants, err := e.demoGrants(&demo)
+	if err != nil {
+		return err
+	}
+	command := e.containerCommand(manifest.Renderer, grants, demoBinary("ze-demo"), commandValidate, demo.Validate)
 	var buffer textbuf.Buffer
 	e.output.Write(buffer.Str("validating ").Str(demo.ID).Str("...\n").Bytes()) //nolint:errcheck // CLI progress output cannot change the validation verdict.
 	return e.withLock(func() error {
@@ -274,9 +278,9 @@ func (e *Engine) runValidation(manifest Manifest, demo Demo) error {
 //
 // The container holds NET_ADMIN, NET_RAW and SYS_ADMIN and keeps Docker's
 // default seccomp profile, which admits mount, unshare and setns once
-// SYS_ADMIN is granted. Only a demo whose manifest says privileged runs
-// --privileged.
-func (e *Engine) containerCommand(renderer Renderer, privileged bool, entries ...string) []string {
+// SYS_ADMIN is granted. grants (demoGrants) follow --rm and carry what the
+// demo's manifest entry adds to that.
+func (e *Engine) containerCommand(renderer Renderer, grants []string, entries ...string) []string {
 	uid := strconv.Itoa(os.Getuid())
 	gid := strconv.Itoa(os.Getgid())
 	scratchRoot := filepath.Join(e.root, "tmp", "terminal-demos")
@@ -315,13 +319,32 @@ func (e *Engine) containerCommand(renderer Renderer, privileged bool, entries ..
 		renderer.Image,
 	)
 	args = append(args, entries...)
-	if privileged {
-		args = insertArgs(args, 3, "--privileged")
-	}
+	args = insertArgs(args, 3, grants...)
 	if !strings.HasSuffix(renderer.Platform, "/native") {
 		args = insertArgs(args, 3, "--platform", renderer.Platform)
 	}
 	return args
+}
+
+// demoGrants answers the docker run arguments a demo takes beyond the default
+// grants: --privileged for a privileged demo, systempaths unconfined under
+// the net sysctl AppArmor profile for a net-sysctl demo, and none otherwise.
+// A net-sysctl demo is refused on a host that has not loaded the profile.
+func (e *Engine) demoGrants(demo *Demo) ([]string, error) {
+	if demo.isPrivileged() {
+		return []string{"--privileged"}, nil
+	}
+	if !demo.isNetSysctl() {
+		return nil, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), kernelCheckTimeout)
+	defer cancel()
+
+	grants, err := e.netSysctl(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("terminal demo %s writes /proc/sys/net: %w", demo.ID, err)
+	}
+	return grants, nil
 }
 
 func insertArgs(args []string, index int, values ...string) []string {
@@ -480,7 +503,11 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 		return ArtifactEntry{}, err
 	}
 	containerSource := path.Join("/src", filepath.ToSlash(relativeSource))
-	command := e.containerCommand(manifest.Renderer, demo.isPrivileged(), containerSource)
+	grants, err := e.demoGrants(&demo)
+	if err != nil {
+		return ArtifactEntry{}, err
+	}
+	command := e.containerCommand(manifest.Renderer, grants, containerSource)
 	imageIndex := indexOf(command, manifest.Renderer.Image)
 	if imageIndex < 0 {
 		return ArtifactEntry{}, errors.New("renderer image is absent from Docker argv")

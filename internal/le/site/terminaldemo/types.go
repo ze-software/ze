@@ -83,6 +83,18 @@ func dockerKernelCheck(ctx context.Context, zePath string) error {
 	return interoplab.DockerKernel(zePath)(ctx, interoplab.NewDocker())
 }
 
+// NetSysctlArguments answers the docker run arguments that let a demo
+// container write its network namespace's sysctls on this daemon, or the
+// refusal naming what the host must load first.
+type NetSysctlArguments func(ctx context.Context) ([]string, error)
+
+// dockerNetSysctlArguments is the production NetSysctlArguments: the same
+// arguments every lab peer that writes net sysctls at run time takes
+// (interoplab.Docker.NetSysctlSecurityArguments).
+func dockerNetSysctlArguments(ctx context.Context) ([]string, error) {
+	return interoplab.NewDocker().NetSysctlSecurityArguments(ctx)
+}
+
 // Options supplies the checkout, publish tree, process boundary, Docker kernel
 // check, and lock timing for one Engine. Zero process, check and timing values
 // select production behavior.
@@ -95,6 +107,7 @@ type Options struct {
 	LockWait     time.Duration
 	LockPoll     time.Duration
 	KernelCheck  KernelCheck
+	NetSysctl    NetSysctlArguments
 }
 
 // Engine owns one invocation of the renderer pipeline. It is not safe for
@@ -112,6 +125,7 @@ type Engine struct {
 	lockWait             time.Duration
 	lockPoll             time.Duration
 	kernelCheck          KernelCheck
+	netSysctl            NetSysctlArguments
 }
 
 // New creates an Engine. Root and ArtifactRoot must be absolute or relative
@@ -141,6 +155,10 @@ func New(options Options) *Engine {
 	if kernelCheck == nil {
 		kernelCheck = dockerKernelCheck
 	}
+	netSysctl := options.NetSysctl
+	if netSysctl == nil {
+		netSysctl = dockerNetSysctlArguments
+	}
 	demoRoot := filepath.Join(options.Root, "demos", terminalLabel)
 	return &Engine{
 		root:                 options.Root,
@@ -155,6 +173,7 @@ func New(options Options) *Engine {
 		lockWait:             wait,
 		lockPoll:             poll,
 		kernelCheck:          kernelCheck,
+		netSysctl:            netSysctl,
 	}
 }
 
@@ -193,10 +212,19 @@ type Demo struct {
 	// AppArmor profiles) refuse. It is required when Privileged is true and
 	// refused otherwise.
 	PrivilegedReason string `json:"privileged-reason,omitempty"`
-	Realtime         *bool  `json:"realtime,omitempty"`
+	// NetSysctl says the demo writes its network namespace's sysctls under
+	// /proc/sys/net while it runs, which Docker mounts read-only and
+	// docker-default denies. The container then runs with systempaths
+	// unconfined under the ze-lab-net-sysctl AppArmor profile, which admits
+	// writes under net/ only, instead of --privileged. A privileged demo
+	// already writes there, so the two are refused together.
+	NetSysctl *bool `json:"net-sysctl,omitempty"`
+	Realtime  *bool `json:"realtime,omitempty"`
 }
 
 func (d Demo) isPrivileged() bool { return d.Privileged != nil && *d.Privileged }
+
+func (d Demo) isNetSysctl() bool { return d.NetSysctl != nil && *d.NetSysctl }
 
 func (d Demo) isRealtime() bool { return d.Realtime != nil && *d.Realtime }
 

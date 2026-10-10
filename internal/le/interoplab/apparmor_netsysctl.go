@@ -16,6 +16,7 @@
 package interoplab
 
 import (
+	"context"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
@@ -34,6 +35,23 @@ const netSysctlProcSysKeep = "net/"
 // AppArmor host but docker-default, which denies them.
 func NetSysctlWriteArguments() []string {
 	return []string{"--security-opt", "systempaths=unconfined"}
+}
+
+// NetSysctlSecurityArguments answers every docker run argument a container
+// that writes its network namespace's sysctls at run time takes on this
+// daemon: NetSysctlWriteArguments, then the NetSysctlAppArmorProfileName
+// option on a daemon that applies AppArmor. It refuses, naming the load
+// command, a host whose kernel lists its profiles without this one. On a
+// daemon that applies no AppArmor nothing confines the writes to net/, so
+// container root can write any host sysctl whose handler checks only
+// ownership (R-3 of spec-lab-containers-least-privilege); --privileged
+// lifts that and every other limit.
+func (d *Docker) NetSysctlSecurityArguments(ctx context.Context) ([]string, error) {
+	profile, err := d.appArmorSecurityOption(ctx, NetSysctlAppArmorProfileName)
+	if err != nil {
+		return nil, err
+	}
+	return append(NetSysctlWriteArguments(), profile...), nil
 }
 
 // NetSysctlGranted reports whether the profile admits a write of key, spelled
