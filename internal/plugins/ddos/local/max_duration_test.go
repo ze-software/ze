@@ -658,18 +658,18 @@ func TestLocalRetiredResponderDoesNotReclaimACarriedRule(t *testing.T) {
 // takes the drop rule with it.
 //
 // VALIDATES: AC-6's premise on the exit path.
-// PREVENTS: the orphan that deleting the PARENT `ddos` block leaves. That commit
-// removes one key for the whole subtree (diffMapsRecursive,
-// internal/component/config/diff.go), which rootHasChanges does not match against
-// the root "ddos/local" (plugin/server/reload.go), so ddos-local receives no
-// verify and no apply -- while parentRemoved (plugin/server/startup_autoload.go)
-// matches it and stops the plugin anyway. The config-boundary withdrawal in
-// replaceResponder cannot fire when no config arrives, so before this the rule
-// stayed in the kernel with no responder and no cap worker left to remove it.
+// PREVENTS: a drop rule left in the kernel by a stop that delivers nothing: a
+// daemon stop or an engine exit. The config-boundary withdrawal in
+// replaceResponder cannot fire when no config arrives, so without this path the
+// rule would stay with no responder and no cap worker left to remove it. Until
+// 2026-10-10 deleting the PARENT `ddos` block was such a stop (rootHasChanges in
+// plugin/server/reload.go did not match the one removed key "ddos" against the
+// root "ddos/local"); it now delivers an empty body, so no operator gesture
+// isolates this path any more.
 //
 // The engine's own exit path is what this drives, through the function its defer
-// calls. test/plugin/ddos-parent-config-removed.ci drives the wiring, in the
-// guest, over the operator gesture itself.
+// calls. test/plugin/ddos-parent-config-removed.ci drives the parent-block
+// gesture in the guest, and now pins the delivered withdrawal instead.
 func TestLocalEngineStopRemovesTheDrop(t *testing.T) {
 	installs, removals, _, restore := countingTables()
 	defer restore()

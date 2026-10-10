@@ -4,25 +4,34 @@
 #
 # VALIDATES: spec-ddos-timing-leaves-reach-no-worker AC-6's premise -- a drop
 #            rule ddos local installs is always reachable by something that can
-#            remove it, when the operator deletes the whole parent block.
-# PREVENTS:  the orphan this operator gesture used to leave. diffMapsRecursive
-#            (internal/component/config/diff.go) records ONE removed key for a
-#            deleted subtree, so the diff holds "ddos" and nothing under it.
-#            Until 2026-10-10 rootHasChanges
+#            remove it, when the operator deletes the whole parent block -- and,
+#            since 2026-10-10, WHICH path removes it: the reload delivers
+#            ddos-local the empty body for its root before it stops the plugin
+#            (reload.go reloadConfig: verify and apply, then the deferred
+#            stopCollectedProcesses), so the config boundary withdraws, exactly
+#            as for `delete ddos local` (ddos-local-config-removed.ci).
+# PREVENTS:  the orphan this operator gesture used to leave, and the return of
+#            its cause. diffMapsRecursive (internal/component/config/diff.go)
+#            records ONE removed key for a deleted subtree, so the diff holds
+#            "ddos" and nothing under it. Until 2026-10-10 rootHasChanges
 #            (internal/component/plugin/server/reload.go) matched only the root
 #            itself or a key beneath it, so ddos-local received no verify and no
 #            apply, while parentRemoved
 #            (internal/component/plugin/server/startup_autoload.go) matched the
-#            ancestor and stopped it all the same. rootHasChanges and
-#            buildDiffSections now also match an added, removed or changed
-#            ANCESTOR that holds the root, so this gesture delivers the empty
-#            body `delete ddos local` delivers and the config boundary
-#            withdraws on it. Two paths now take the rule out: that delivery,
-#            and the plugin's exit path (register.go runEngine's defer ->
-#            stopResponder -> responder.go withdrawMitigation), which a stop
-#            that delivers nothing still reaches. This test no longer isolates
-#            the exit path; TestLocalEngineStopRemovesTheDrop
-#            (internal/plugins/ddos/local/max_duration_test.go) does.
+#            ancestor and stopped it all the same; only the plugin's exit path
+#            then took the rule out. The expectations below fail if that comes
+#            back: the "section was removed" withdrawal would be missing and the
+#            exit-path line ("the plugin is stopping") would appear instead.
+#
+# THE EXIT PATH (register.go runEngine's defer -> stopResponder ->
+# responder.go withdrawMitigation) still guards a stop that delivers nothing: a
+# daemon stop or an engine exit. No operator gesture isolates it any more,
+# because both removal gestures now deliver a config, and a daemon stop also
+# flushes every ze-owned table through the firewall engine
+# (firewall.FlushAllTables), which would hide a missing withdrawal. So no .ci
+# can discriminate it; TestLocalEngineStopRemovesTheDrop
+# (internal/plugins/ddos/local/max_duration_test.go) drives it through the
+# function the defer calls.
 #
 # WHY THE KERNEL IS THE ONLY WITNESS. `show ddos local` belongs to the plugin the
 # removal stops, so after the commit the daemon has no answer left to give. That
@@ -33,7 +42,8 @@
 # can arrive: the detector needs clear-consecutive-checks evaluations under the
 # threshold, which the config puts at 100. And `max-mitigation-duration` is 3600,
 # far outside the 40 seconds the assertion allows, so the cap cannot account for
-# a removal either. The exit-path withdrawal is the only path left.
+# a removal either. The withdrawal the delivered empty body triggers is the only
+# path left before the stop.
 #
 # WHY COPP IS IN THIS CONFIG. It keeps the FIREWALL engine running after
 # ddos-local stops, and without it this test cannot fail. ddos-local declares
@@ -121,4 +131,5 @@ expect=exit:code=0
 expect=stderr:contains=PARENT-REMOVED-INSTALLED 127.0.0.12
 expect=stderr:contains=PARENT-REMOVED-WITHDRAWN 127.0.0.12
 expect=stderr:contains=ddos-local: drop rule installed
-expect=stderr:contains=ddos-local: the plugin is stopping, removing the drop rule
+expect=stderr:contains=ddos-local: the ddos local section was removed, removing the drop rule
+reject=stderr:contains=ddos-local: the plugin is stopping, removing the drop rule
