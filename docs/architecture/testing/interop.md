@@ -198,7 +198,7 @@ proof. Diagnostic collection has a cancellation-independent fifteen-second bound
 | Requirement | Used By | Notes |
 |-------------|---------|-------|
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
-| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs, `TestVPPSRv6ServiceRoute`, the terminal-demo render and validate mode, the `./le perf` ze DUT | Checked before any image build or container start; see "The Docker host kernel check" |
+| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs, `TestVPPSRv6ServiceRoute`, the terminal-demo render and validate mode, the `./le perf` ze DUT, `./le verify evidence release-candidate` | Checked before any image build or container start; see "The Docker host kernel check" |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
@@ -394,6 +394,13 @@ with the ze the DUT image carries, `test/interop/ze-linux`, before the
 benchmark starts. A build alone, or a run of other DUTs only, starts no ze and
 does not check.
 <!-- source: internal/le/perf/bench.go -- Bench.Run, runsZe, stagedZeRel -->
+
+`./le verify evidence release-candidate` runs the whole verify gate, Ze's
+functional tests included, inside a container on the daemon's kernel. After the
+clean-tree check and before the container starts, it cross-compiles a linux ze
+for the daemon's architecture into `tmp/verify-evidence/ze-linux`, which git
+ignores so the tree stays clean, and makes the same check with it.
+<!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, dockerKernel, kernelZeRel -->
 
 `./le setup docker-kernel check ze <linux ze>` asks the daemon in hand the same
 question with any linux `ze`. `./le setup docker-kernel install` is the Linux

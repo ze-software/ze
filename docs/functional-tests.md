@@ -3353,6 +3353,9 @@ guest with the registered integration population.
 ```
 
 These actions are external evidence and declare their own prerequisites.
+`./le verify evidence release-candidate` refuses before its container starts when
+the Docker daemon's kernel lacks a feature Ze enrolls (see "The Docker host
+kernel check" in [testing/interop.md](architecture/testing/interop.md)).
 The L2TP peer actions require `xl2tpd`, `pppd`, `/dev/ppp`, `iproute2`, and
 PPPoL2TP kernel support.
 

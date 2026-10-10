@@ -18,6 +18,10 @@ type recorder struct {
 	status  string
 	fail    error
 	code    int
+	// kernelErr is what the Docker kernel check answers; kernelChecks counts
+	// the checks made.
+	kernelErr    error
+	kernelChecks int
 }
 
 // checkout is the tree every case in this file judges. Its value never
@@ -43,6 +47,35 @@ func (rec *recorder) runner() *Runner {
 			rec.started = append(rec.started, args)
 			return rec.code
 		},
+		Kernel: func() error {
+			rec.kernelChecks++
+			return rec.kernelErr
+		},
+	}
+}
+
+// VALIDATES: the release-candidate run checks the Docker daemon's kernel once
+// before it starts the container, and a refusal starts no container and
+// carries the refusal.
+// PREVENTS: the verify gate's ze functional tests, which run inside the
+// container on the daemon's kernel, passing or failing on a kernel that lacks
+// a feature Ze enrolls (owner D-4: every Docker run that runs Ze).
+func TestRunChecksTheDockerKernelBeforeTheContainer(t *testing.T) {
+	rec := &recorder{}
+	if _, err := rec.runner().Run(); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if rec.kernelChecks != 1 || len(rec.started) != 1 {
+		t.Fatalf("kernel checks = %d, containers = %d, want one of each", rec.kernelChecks, len(rec.started))
+	}
+
+	refused := &recorder{kernelErr: errors.New("the Docker daemon's kernel lacks CONFIG_XFRM_MIGRATE")}
+	_, err := refused.runner().Run()
+	if err == nil || !strings.Contains(err.Error(), "CONFIG_XFRM_MIGRATE") {
+		t.Errorf("err = %v, want the kernel refusal", err)
+	}
+	if len(refused.started) != 0 {
+		t.Errorf("a container started after the kernel refused: %v", refused.started)
 	}
 }
 

@@ -7,11 +7,13 @@
 // that carries none of the developer's own state. Nothing in the working tree
 // can make it pass, which is the whole of what it is for.
 //
-// Two facts are established before anything starts, and each is a refusal
+// Three facts are established before anything starts, and each is a refusal
 // rather than a warning. The external commands must exist, because a missing
 // docker otherwise arrives as an unreadable failure from somewhere inside the
 // run. The worktree must be clean, because a dirty tree means the thing being
-// judged is not the thing that would be released.
+// judged is not the thing that would be released. The Docker daemon's kernel
+// must carry every feature Ze enrolls, because the gate runs Ze's functional
+// tests inside the container on that kernel.
 //
 // The work inside the container is a bash program rather than a sequence of
 // steps this package drives. The container is a golang image that carries no
@@ -26,11 +28,14 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // ImageKey and PlatformKey are the dot-notation spellings of
@@ -149,6 +154,8 @@ type Runner struct {
 	// Start runs docker to completion, with the container's output going to
 	// the operator's terminal, and answers its exit status.
 	Start func(args ...string) int
+	// Kernel refuses a Docker daemon whose kernel lacks a feature Ze enrolls.
+	Kernel func() error
 }
 
 // NewRunner answers the runner the command uses: the real PATH, the real git
@@ -161,6 +168,33 @@ func NewRunner(tree string) *Runner {
 		Look:     lookPath,
 		Ask:      askGit(tree),
 		Start:    startDocker,
+		Kernel:   dockerKernel(tree),
+	}
+}
+
+// kernelZeRel is where the kernel check's linux ze is staged, relative to the
+// tree. It sits under tmp/, which git ignores, so staging it leaves the tree
+// as clean as the dirty-tree check found it.
+const kernelZeRel = "tmp/verify-evidence/ze-linux"
+
+// kernelCheckTimeout bounds the kernel check: one cross-compile of ze, whose
+// own bound is five minutes, then the release query and the probe container.
+const kernelCheckTimeout = 10 * time.Minute
+
+// dockerKernel answers the production Kernel: it cross-compiles a linux ze for
+// the daemon's architecture into the tree and runs the check every Docker run
+// that runs Ze makes (interoplab.DockerKernel) with it.
+func dockerKernel(tree string) func() error {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), kernelCheckTimeout)
+		defer cancel()
+
+		docker := interoplab.NewDocker()
+		ze := interoplab.LabBinary{Name: "ze", Base: repofeaturetags.DaemonBase, Output: kernelZeRel}
+		if err := interoplab.StageBinaries(tree, false, ze)(ctx, docker); err != nil {
+			return err
+		}
+		return interoplab.DockerKernel(filepath.Join(tree, filepath.FromSlash(kernelZeRel)))(ctx, docker)
 	}
 }
 
@@ -177,8 +211,9 @@ func setting(key, fallback string) string {
 
 // Run judges the tree and answers what happened.
 //
-// A missing command and a dirty tree are errors: nothing was started, and the
-// operator has something to fix before anything can be. A container that ran
+// A missing command, a dirty tree and a refused Docker kernel are errors:
+// nothing was started, and the operator has something to fix before anything
+// can be. A container that ran
 // and failed is NOT an error. It is the verdict this command exists to deliver,
 // and it travels in the report's own code.
 func (r *Runner) Run() (Report, error) {
@@ -198,6 +233,14 @@ func (r *Runner) Run() (Report, error) {
 	report.Dirty = statusLines(status)
 	if len(report.Dirty) > 0 {
 		return report, ErrDirtyTree
+	}
+
+	// The gate inside the container runs Ze's functional tests on the Docker
+	// daemon's kernel, so that kernel must carry every feature Ze enrolls
+	// before the container starts (owner D-4: a wrong kernel "should not be
+	// possible - fail").
+	if err := r.Kernel(); err != nil {
+		return report, err
 	}
 
 	report.Code = r.Start(r.dockerArgs()...)
