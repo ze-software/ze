@@ -18,6 +18,31 @@ configuration into the running router one section at a time with a
 `load merge`-style verb. Each section is shown on screen and explained as it is
 loaded. Then the demo runs `show | compare` and `commit now`.
 
+The sections load inside the SSH editor, which holds the terminal, so the
+explanation takes two kinds of card. The owner chose both on 2026-10-11:
+
+> "both"
+
+| Card | When it shows | How a tape writes it |
+|------|---------------|----------------------|
+| The overview | Once, before the editor opens. It names every section the recording will load, in order | `Type "ze-demo card topic-<topic> overview"` in the outer shell, as every other card is printed |
+| The section card | Before each section loads, over the editor's screen. It says what the section does | `Card topic-<topic> <section>` on the line above the section's `load ... merge` |
+
+The recorder writes a section card into the recording only. The editor never
+sees it, so the candidate and the session stay as they were. The card stays on
+screen for two seconds plus 300 milliseconds a word, then the recorder repaints
+the editor's screen and the section loads. The card text lives in
+`internal/le/site/terminaldemo/cards.json` under `topic-<topic>:<section>`, and
+the card's first line is its title.
+
+Two checks hold a tape to this. The recorder refuses a tape that loads a
+section with no `Card` since the previous section load, and a `Card` between
+`Hide` and `Show`, where nobody would see it. A unit test refuses a topic whose
+overview card does not carry the title of every section card its fragments
+show.
+<!-- source: internal/le/site/terminaldemo/tapecard.go -- requireSectionCards, cardHold, restoreScreen -->
+<!-- source: internal/le/site/terminaldemo/tapecard_test.go -- TestTopicOverviewCardNamesEverySection -->
+
 ### 2. Show the lab a user would build
 
 > "the video should be what a user who is going to use the feature would have

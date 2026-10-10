@@ -286,10 +286,11 @@ func parseTape(path, root string) (terminalTape, error) {
 	if err != nil {
 		return terminalTape{}, err
 	}
+	hidden := false
 	for _, line := range lines {
 		word, argument, _ := strings.Cut(line.text, " ")
 		name, modifier, _ := strings.Cut(word, "+")
-		requiresArgument := name == "Output" || name == "Screenshot" || name == "Set" || name == tapeSleepCommand || name == "Source" || name == tapeTypeCommand || name == tapeWaitCommand
+		requiresArgument := name == "Output" || name == "Screenshot" || name == "Set" || name == tapeCardCommand || name == tapeSleepCommand || name == "Source" || name == tapeTypeCommand || name == tapeWaitCommand
 		known := name == "Down" || name == "Enter" || name == "Escape" || name == "Hide" || name == "Left" || requiresArgument || name == "Show"
 		if !known {
 			return terminalTape{}, fmt.Errorf("%s: unknown directive %q", line.where, word)
@@ -302,6 +303,16 @@ func parseTape(path, root string) (terminalTape, error) {
 		}
 		if modifier != "" && name != tapeWaitCommand {
 			return terminalTape{}, fmt.Errorf("%s: directive %q takes no +%q", line.where, name, modifier)
+		}
+		switch name {
+		case "Hide":
+			hidden = true
+		case "Show":
+			hidden = false
+		case tapeCardCommand:
+			if hidden {
+				return terminalTape{}, fmt.Errorf("%s: a Card between Hide and Show is never seen; move it after Show", line.where)
+			}
 		}
 		switch name {
 		case "Output":
@@ -321,6 +332,9 @@ func parseTape(path, root string) (terminalTape, error) {
 			}
 			tape.actions = append(tape.actions, action)
 		}
+	}
+	if err := requireSectionCards(tape.actions); err != nil {
+		return terminalTape{}, err
 	}
 	return tape, nil
 }
@@ -457,6 +471,13 @@ func tapeQuoted(value string) (string, error) {
 func parseTapeAction(name, modifier, argument, where string) (tapeAction, error) {
 	action := tapeAction{name: name, where: where}
 	switch name {
+	case tapeCardCommand:
+		text, hold, err := tapeCard(argument)
+		if err != nil {
+			return tapeAction{}, fmt.Errorf("%s: Card %w", where, err)
+		}
+		action.text = text
+		action.duration = hold
 	case tapeTypeCommand:
 		text, err := tapeQuoted(argument)
 		if err != nil {
@@ -610,6 +631,12 @@ type castWriter struct {
 	residue  []string
 	last     float64
 	events   int
+	// replay is the live output written since the last screen erase, which
+	// repaints the screen a Card covered (tapecard.go).
+	replay []string
+	// carded is true while a Card covers the screen: live output then goes to
+	// replay only, so it cannot paint over the card.
+	carded bool
 }
 
 func newCastWriter(path string, columns, rows int) (*castWriter, error) {
@@ -653,7 +680,11 @@ func (writer *castWriter) write(text string) error {
 		writer.residue = []string{text[matches[len(matches)-1][1]:]}
 		return nil
 	}
-	return writer.emit(text)
+	if writer.carded {
+		writer.remember(text)
+		return nil
+	}
+	return writer.paint(text)
 }
 func (writer *castWriter) emit(text string) error {
 	if text == "" {
@@ -681,7 +712,7 @@ func (writer *castWriter) show() error {
 	writer.origin = writer.origin.Add(time.Since(writer.hiddenAt))
 	writer.hiddenAt = time.Time{}
 	if writer.cleared {
-		if err := writer.emit("\x1b[H\x1b[2J\x1b[3J" + strings.Join(writer.residue, "")); err != nil {
+		if err := writer.paint("\x1b[H\x1b[2J\x1b[3J" + strings.Join(writer.residue, "")); err != nil {
 			return err
 		}
 	}
@@ -836,6 +867,8 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 			writer.hide()
 		case "Show":
 			err = writer.show()
+		case tapeCardCommand:
+			err = session.card(action)
 		case tapeSleepCommand:
 			err = session.pump(action.duration)
 		case tapeWaitCommand:

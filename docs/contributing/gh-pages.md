@@ -103,6 +103,16 @@ its own directory, such as the config snippets the fragment loads. Editing a
 fragment therefore marks every recording that plays it stale.
 <!-- source: internal/le/site/terminaldemo/manifest.go -- addSourceClosure -->
 
+`Card <demo> <phase>` shows a card from `cards.json` while a program such as
+the SSH editor holds the terminal, where `ze-demo card` cannot print. The
+recorder writes the card into the cast and nothing into the PTY. Output the
+program writes meanwhile is held back. When the card's time is up, the
+recorder clears the screen and replays the output written since the program's
+last screen erase. The repaint is the same byte stream the screen was drawn
+from, so it keeps the colors. When the card should appear, and the rules a tape
+must follow, are in `terminal-demos.md`.
+<!-- source: internal/le/site/terminaldemo/tapecard.go -- tapeSession.card, castWriter.remember -->
+
 `./le site build output <directory>` builds into another artifact root, and
 `./le site check output <directory>` judges that same root. Both default to
 `../gh-pages`, so a session verifying its own work builds into its scratch
