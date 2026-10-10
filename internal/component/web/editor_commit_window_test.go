@@ -23,7 +23,7 @@ func (nopRecorder) Clear() error               { return nil }
 // revert stages the rollback and promotes it, as the hub's confirmRevert does.
 func newWindowEditorManager(t *testing.T) (*EditorManager, *config.Schema, *confirm.Window) {
 	t.Helper()
-	mgr, schema := newPromotingEditorManager(t, "# ze config\n")
+	mgr, schema := newPromotingEditorManager(t)
 	window := confirm.NewWindow(func(rollback []byte) error {
 		if _, err := storage.WriteCandidateVersion(mgr.store, mgr.configPath, rollback, time.Now()); err != nil {
 			return err
@@ -123,7 +123,7 @@ func TestWebTerminalCommitThroughDaemonWindow(t *testing.T) {
 // VALIDATES: AC-29 (web): the refusal names what is missing.
 // PREVENTS: a web commit confirmed that applies with no window to revert it.
 func TestWebTerminalCommitConfirmedNeedsDaemonWindow(t *testing.T) {
-	mgr, schema := newPromotingEditorManager(t, "# ze config\n")
+	mgr, schema := newPromotingEditorManager(t)
 	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.5"))
 	assert.Contains(t, webCommit(schema, mgr, "alice", "confirmed", "60"), "needs a daemon")
 	requireCommitted(t, mgr, "", "10.0.0.5")
@@ -135,7 +135,7 @@ func TestWebTerminalCommitConfirmedNeedsDaemonWindow(t *testing.T) {
 // VALIDATES: AC-26 (web): verify names the validation error.
 // PREVENTS: a verify that answers "valid" without validating.
 func TestWebTerminalCommitVerifyReportsInvalid(t *testing.T) {
-	mgr, schema := newPromotingEditorManager(t, "# ze config\n")
+	mgr, schema := newPromotingEditorManager(t)
 	installPeerValidator(t, func(*config.Tree) error { return errors.New("peer check refused") })
 	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.6"))
 	output := webCommit(schema, mgr, "alice", "verify")

@@ -29,7 +29,7 @@ import (
 // over alice's.
 func TestWebTerminalCommitForceOverridesConflict(t *testing.T) {
 	t.Run("commit hook", func(t *testing.T) {
-		mgr, schema := newPromotingEditorManager(t, "# ze config\n")
+		mgr, schema := newPromotingEditorManager(t)
 		checkWebCommitForce(t, mgr, schema)
 	})
 	t.Run("no commit hook", func(t *testing.T) {

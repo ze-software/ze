@@ -37,29 +37,29 @@ func (c *Completer) isConfigFalse(path []string) bool {
 
 // validateTokenPath walks the full token path (including list key values) against the schema.
 // Unlike getEntry (which skips list keys silently), this enforces that every list has a key value.
-// Returns the leaf entry at the end of the path, or an error if the path is invalid.
-func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
+// Returns an error naming the first invalid token; nil when the whole path is valid.
+func (c *Completer) validateTokenPath(tokens []string) error {
 	if c.schema == nil {
-		return nil, errNoSchemaLoaded
+		return errNoSchemaLoaded
 	}
 	if len(tokens) == 0 {
-		return nil, errEmptyPath
+		return errEmptyPath
 	}
 
 	entry := c.findModuleEntry(tokens[0])
 	if entry == nil {
-		return nil, fmt.Errorf("unknown path: %s", tokens[0])
+		return fmt.Errorf("unknown path: %s", tokens[0])
 	}
 
 	for i := 1; i < len(tokens); i++ {
 		part := tokens[i]
 		children := effectiveChildren(entry)
 		if len(children) == 0 {
-			return nil, fmt.Errorf("unknown path: %s", textbuf.Join(tokens[:i+1], " "))
+			return fmt.Errorf("unknown path: %s", textbuf.Join(tokens[:i+1], " "))
 		}
 		child, ok := children[part]
 		if !ok {
-			return nil, fmt.Errorf("unknown path: %s", textbuf.Join(tokens[:i+1], " "))
+			return fmt.Errorf("unknown path: %s", textbuf.Join(tokens[:i+1], " "))
 		}
 		entry = child
 
@@ -69,21 +69,21 @@ func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
 		// exclude it from the "missing key" check -- it IS the key value.
 		if entry.IsList() {
 			if i+1 >= len(tokens) {
-				return nil, fmt.Errorf("%s is a list — requires a key (e.g., %s <key> ...)", part, part)
+				return fmt.Errorf("%s is a list — requires a key (e.g., %s <key> ...)", part, part)
 			}
 			nextToken := tokens[i+1]
 			children := effectiveChildren(entry)
 			_, isChild := children[nextToken]
 			isKeyLeaf := entry.Key == nextToken
 			if isChild && !isKeyLeaf {
-				return nil, fmt.Errorf("%s is a list — requires a key (e.g., %s <key> %s ...)", part, part, nextToken)
+				return fmt.Errorf("%s is a list — requires a key (e.g., %s <key> %s ...)", part, part, nextToken)
 			}
 			// Next token is the key value — skip it
 			i++
 		}
 	}
 
-	return entry, nil
+	return nil
 }
 
 // getListKeyEntry returns the YANG entry for a list's key leaf.

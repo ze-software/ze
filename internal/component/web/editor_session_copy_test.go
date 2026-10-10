@@ -34,13 +34,14 @@ func TestWebSessionCopyAfterCommit(t *testing.T) {
 	}
 }
 
-// newPromotingEditorManager builds the manager a daemon wires: a peer validator
-// that accepts, and a commit hook that promotes the candidate.
-func newPromotingEditorManager(t *testing.T, base string) (*EditorManager, *config.Schema) {
+// newPromotingEditorManager builds the manager a daemon wires over the empty
+// config file a daemon starts on: a peer validator that accepts, and a commit
+// hook that promotes the candidate.
+func newPromotingEditorManager(t *testing.T) (*EditorManager, *config.Schema) {
 	t.Helper()
 	installPeerValidator(t, func(*config.Tree) error { return nil })
 	configPath := filepath.Join(t.TempDir(), "test.conf")
-	require.NoError(t, os.WriteFile(configPath, []byte(base), 0o600))
+	require.NoError(t, os.WriteFile(configPath, []byte("# ze config\n"), 0o600))
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
@@ -65,7 +66,7 @@ func newPromotingEditorManager(t *testing.T, base string) (*EditorManager, *conf
 // value, so `set bgp router-id 10.0.0.9` answered "set bgp ..." while it stored
 // nothing a commit could apply, and the next copy answered "path not found".
 func TestWebTerminalSetTakesATokenPath(t *testing.T) {
-	mgr, schema := newPromotingEditorManager(t, "# ze config\n")
+	mgr, schema := newPromotingEditorManager(t)
 	for _, line := range [][]string{
 		{"bgp", "router-id", "10.0.0.9"},
 		{"bgp", "session", "asn", "local", "65000"},
@@ -156,7 +157,7 @@ func TestWebTerminalListEntryOpWording(t *testing.T) {
 // PREVENTS: the terminal sending a leaf path to DeactivatePath, which only
 // walks containers and list entries, so it answered "path not found".
 func TestWebTerminalDeactivateLeafAndEntry(t *testing.T) {
-	mgr, schema := newPromotingEditorManager(t, "# ze config\n")
+	mgr, schema := newPromotingEditorManager(t)
 	for _, line := range [][]string{
 		{"bgp", "router-id", "10.0.0.9"},
 		{"bgp", "peer", "wbsrc", "connection", "remote", "ip", "10.0.0.1"},

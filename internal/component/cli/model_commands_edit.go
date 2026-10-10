@@ -53,7 +53,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 		}
 	} else {
 		// Validate the full token path (with list keys) against schema.
-		if _, err := m.completer.validateTokenPath(path); err != nil {
+		if err := m.completer.validateTokenPath(path); err != nil {
 			return commandResult{}, err
 		}
 		// Validate value against YANG type before applying. A refusal names
@@ -157,7 +157,7 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 
 	// A leaf-list value is no schema node, so only the other paths are checked.
 	if _, _, isLeafList := m.resolveLeafListValue(fullPath); !isLeafList {
-		if _, err := m.completer.validateTokenPath(fullPath); err != nil {
+		if err := m.completer.validateTokenPath(fullPath); err != nil {
 			return commandResult{}, err
 		}
 	}
@@ -305,7 +305,7 @@ func (m *Model) cmdRename(args []string) (commandResult, error) {
 	newPath := make([]string, 0, len(parentPath)+2)
 	newPath = append(newPath, parentPath...)
 	newPath = append(newPath, listName, newKey)
-	if _, err := m.completer.validateTokenPath(newPath); err != nil {
+	if err := m.completer.validateTokenPath(newPath); err != nil {
 		return commandResult{}, fmt.Errorf("invalid new name: %w", err)
 	}
 
@@ -367,7 +367,7 @@ func (m *Model) cmdCopy(args []string) (commandResult, error) {
 	newPath := make([]string, 0, len(parentPath)+2)
 	newPath = append(newPath, parentPath...)
 	newPath = append(newPath, listName, dstKey)
-	if _, err := m.completer.validateTokenPath(newPath); err != nil {
+	if err := m.completer.validateTokenPath(newPath); err != nil {
 		return commandResult{}, fmt.Errorf("invalid destination name: %w", err)
 	}
 

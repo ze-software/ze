@@ -203,13 +203,13 @@ func TestCompleterKeyLeafAsValue(t *testing.T) {
 func TestValidateTokenPathKeyLeaf(t *testing.T) {
 	c := newTestCompleter(t)
 
-	_, err := c.validateTokenPath([]string{"bgp", "peer", "name", "description"})
+	err := c.validateTokenPath([]string{"bgp", "peer", "name", "description"})
 	require.NoError(t, err, "peer 'name' should be accepted as key value")
 
-	_, err = c.validateTokenPath([]string{"static", "table", "default", "route", "prefix", "description"})
+	err = c.validateTokenPath([]string{"static", "table", "default", "route", "prefix", "description"})
 	require.NoError(t, err, "route 'prefix' should be accepted as key value")
 
-	_, err = c.validateTokenPath([]string{"static", "table", "default", "route", "10.0.0.0/8", "description"})
+	err = c.validateTokenPath([]string{"static", "table", "default", "route", "10.0.0.0/8", "description"})
 	require.NoError(t, err, "route <value> leaf should work")
 }
 
