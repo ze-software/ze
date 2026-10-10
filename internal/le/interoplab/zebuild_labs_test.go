@@ -126,3 +126,23 @@ func TestDockerIgnoreAdmitsEveryStagedLabBinary(t *testing.T) {
 		t.Errorf(".dockerignore admits %s, which no lab declares as a staging path", admitted)
 	}
 }
+
+// VALIDATES: every lab stages a ze that Suite.Run can probe the daemon's
+// kernel with (StagedZePath answers a path inside that lab's build context).
+// PREVENTS: a lab whose suite names no staged ze, which Suite.Run refuses at
+// the start of every run rather than at review.
+func TestEveryLabStagesTheZeTheKernelCheckRuns(t *testing.T) {
+	for name, binaries := range map[string][]interoplab.LabBinary{
+		"bgp":    bgp.LabBinaries(),
+		"ipsec":  ipsec.LabBinaries(),
+		"l2tp":   l2tp.LabBinaries(),
+		"pppoe":  pppoe.LabBinaries(),
+		"radius": radius.LabBinaries(),
+		"rsvpte": rsvpte.LabBinaries(),
+	} {
+		staged := interoplab.StagedZePath("/checkout", binaries)
+		if !strings.HasPrefix(staged, "/checkout/test/interop") {
+			t.Errorf("lab %s stages no ze for the kernel check: %q", name, staged)
+		}
+	}
+}

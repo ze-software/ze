@@ -1,0 +1,4 @@
+#!/bin/sh
+# A stand-in for the staged ze, for a Suite test about something other than the
+# kernel: it answers `ze doctor --json kernel-capabilities` with one present row.
+echo '{"ready": true, "capabilities": [{"subsystem": "stand-in", "kernel": "CONFIG_STAND_IN", "state": "present", "reason": ""}]}'

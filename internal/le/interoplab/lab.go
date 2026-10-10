@@ -69,6 +69,11 @@ func Preflights(checks ...PreflightCheck) PreflightCheck {
 type Suite struct {
 	Docker    *Docker
 	Preflight PreflightCheck
+	// StagedZe is the absolute path of the linux ze Preflight stages for the
+	// daemon's architecture (StagedZePath). Run probes the daemon's kernel with
+	// it before any image build (DockerKernel), and refuses when it is empty:
+	// every suite runs Ze on that kernel, so the check fails and never skips.
+	StagedZe  string
 	Images    []ImageBuild
 	Scenarios []ScenarioPlan
 	NoBuild   bool
@@ -154,7 +159,8 @@ type Lab struct {
 
 var _ CheckerLab = (*Lab)(nil)
 
-// Run probes Docker once, prepares images once, and runs every scenario.
+// Run probes Docker once, checks the daemon's kernel, prepares images once,
+// and runs every scenario.
 func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 	if s.Docker == nil {
 		report.SetupError = "interop suite has no Docker client"
@@ -177,6 +183,14 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 			report.Code = 1
 			return report
 		}
+	}
+	// The kernel check follows Preflight because it runs the ze Preflight
+	// stages, and precedes the first image build so a host that cannot run
+	// the lab costs no build.
+	if err := DockerKernel(s.StagedZe)(ctx, s.Docker); err != nil {
+		report.SetupError = err.Error()
+		report.Code = 1
+		return report
 	}
 
 	images, references, err := s.prepareImages(ctx)

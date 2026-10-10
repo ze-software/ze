@@ -107,6 +107,7 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 	return interoplab.Suite{
 		Docker:    interoplab.NewDocker(),
 		Preflight: interoplab.StageBinaries(root, options.NoBuild, LabBinaries()...),
+		StagedZe:  interoplab.StagedZePath(root, LabBinaries()),
 		Images: append([]interoplab.ImageBuild{
 			{Name: "ze", Tag: "ze-interop", Dockerfile: filepath.Join(producer, "Dockerfile.ze"), Context: root, Required: true},
 			{Name: peerBIRD, Tag: "bird-interop", Dockerfile: filepath.Join(producer, "Dockerfile.bird"), Context: producer, Required: true},

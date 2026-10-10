@@ -425,15 +425,17 @@ func TestPeerCommandAndLogAPIsPreserveTheirContracts(t *testing.T) {
 // PREVENTS: protocol names or fixed topology branches entering the shared engine.
 func TestScenarioPreparerReceivesSelectedNetwork(t *testing.T) {
 	runner := &recordingRunner{}
-	runner.run = func(command processCommand) (processResult, error) {
+	// The first network removal is the pre-clean; the kernel check runs two
+	// commands before it.
+	runner.run = kernelAnswering(func(command processCommand) (processResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		if strings.Contains(joined, "docker network rm dynamic-net") {
-			if len(runner.commands) <= 4 {
+			if len(runner.commands) <= 6 {
 				return processResult{ExitCode: 1, Stderr: "network dynamic-net not found"}, nil
 			}
 		}
 		return processResult{}, nil
-	}
+	})
 	preparedNetwork := netip.Prefix{}
 	hostCleanups := 0
 	checkerCalls := 0
@@ -462,7 +464,8 @@ func TestScenarioPreparerReceivesSelectedNetwork(t *testing.T) {
 			})
 			return err
 		},
-		NoBuild: true,
+		StagedZe: kernelCheckZe,
+		NoBuild:  true,
 		Scenarios: []ScenarioPlan{{
 			Source:     source,
 			Network:    NetworkSpec{Name: "dynamic-net", Candidates: []Subnet{{IPv4: netip.MustParsePrefix("172.31.8.0/24")}}},
@@ -503,10 +506,12 @@ func TestScenarioPreparerReceivesSelectedNetwork(t *testing.T) {
 func TestSuiteRunsLifecycleAndCheckerInOrder(t *testing.T) {
 	runner := &recordingRunner{}
 	checkerCalls := 0
-	runner.run = func(command processCommand) (processResult, error) {
+	// The first network removal is the pre-clean; the kernel check runs two
+	// commands before it.
+	runner.run = kernelAnswering(func(command processCommand) (processResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		if strings.Contains(joined, "docker network rm lab-net") {
-			if len(runner.commands) <= 4 {
+			if len(runner.commands) <= 6 {
 				return processResult{ExitCode: 1, Stderr: "network lab-net not found"}, nil
 			}
 		}
@@ -514,7 +519,7 @@ func TestSuiteRunsLifecycleAndCheckerInOrder(t *testing.T) {
 			return processResult{Stdout: "ready\n"}, nil
 		}
 		return processResult{}, nil
-	}
+	})
 	checker := func(ctx context.Context, check *CheckContext) error {
 		checkerCalls++
 		output, err := check.Lab.Query(ctx, "peer", []string{"show", "state"}, nil)
@@ -528,8 +533,9 @@ func TestSuiteRunsLifecycleAndCheckerInOrder(t *testing.T) {
 	}
 	source := ScenarioSource{Name: "one", Directory: "/scenarios/one", Checker: checker}
 	suite := Suite{
-		Docker:  newDocker(runner),
-		NoBuild: true,
+		Docker:   newDocker(runner),
+		StagedZe: kernelCheckZe,
+		NoBuild:  true,
 		Scenarios: []ScenarioPlan{{
 			Source:  source,
 			Network: NetworkSpec{Name: "lab-net", Candidates: []Subnet{{IPv4: netip.MustParsePrefix("172.29.0.0/24")}}},
@@ -598,7 +604,7 @@ func TestSuiteWaitsForConfiguredPeer(t *testing.T) {
 				cancel()
 			}
 			probes, starts, checks := 0, 0, 0
-			runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+			runner := &recordingRunner{run: kernelAnswering(func(command processCommand) (processResult, error) {
 				joined := strings.Join(command.Arguments, " ")
 				if strings.HasPrefix(joined, "docker exec ") {
 					probes++
@@ -624,10 +630,11 @@ func TestSuiteWaitsForConfiguredPeer(t *testing.T) {
 					}
 				}
 				return processResult{}, nil
-			}}
+			})}
 			suite := Suite{
-				Docker:  newDocker(runner),
-				NoBuild: true,
+				Docker:   newDocker(runner),
+				StagedZe: kernelCheckZe,
+				NoBuild:  true,
 				Scenarios: []ScenarioPlan{{
 					Source: ScenarioSource{Name: "configured-peer", Checker: func(context.Context, *CheckContext) error {
 						checks++
@@ -675,15 +682,16 @@ func TestSuiteWaitsForConfiguredPeer(t *testing.T) {
 // PREVENTS: setup failures bypassing the finally-style cleanup contract.
 func TestSuiteCleansUpAfterSetupFailure(t *testing.T) {
 	runner := &recordingRunner{}
-	runner.run = func(command processCommand) (processResult, error) {
+	// Command counts include the two the kernel check runs after docker info.
+	runner.run = kernelAnswering(func(command processCommand) (processResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		if strings.Contains(joined, "docker network rm fail-net") {
-			if len(runner.commands) <= 3 {
+			if len(runner.commands) <= 5 {
 				return processResult{ExitCode: 1, Stderr: "network fail-net not found"}, nil
 			}
 		}
 		if strings.Contains(joined, "docker rm -f fail-peer") {
-			if len(runner.commands) > 5 {
+			if len(runner.commands) > 7 {
 				return processResult{ExitCode: 23, Stderr: "cleanup busy"}, nil
 			}
 		}
@@ -691,10 +699,11 @@ func TestSuiteCleansUpAfterSetupFailure(t *testing.T) {
 			return processResult{ExitCode: 17, Stderr: "cannot start peer"}, nil
 		}
 		return processResult{}, nil
-	}
+	})
 	suite := Suite{
-		Docker:  newDocker(runner),
-		NoBuild: true,
+		Docker:   newDocker(runner),
+		StagedZe: kernelCheckZe,
+		NoBuild:  true,
 		Scenarios: []ScenarioPlan{{
 			Source:  ScenarioSource{Name: "failure", Checker: func(context.Context, *CheckContext) error { return nil }},
 			Network: NetworkSpec{Name: "fail-net", Candidates: []Subnet{{IPv4: netip.MustParsePrefix("172.28.0.0/24")}}},

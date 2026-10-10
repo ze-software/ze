@@ -102,6 +102,7 @@ func runAt(ctx context.Context, root, selector string, docker *interoplab.Docker
 	suite := interoplab.Suite{
 		Docker:    docker,
 		Preflight: stage,
+		StagedZe:  interoplab.StagedZePath(root, LabBinaries()),
 		Images:    imageBuilds(root, plans, environment.Image),
 		Scenarios: plans,
 		NoBuild:   environment.NoBuild,

@@ -97,7 +97,8 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 
 	docker := interoplab.NewDocker()
 	suite := interoplab.Suite{
-		Docker: docker,
+		Docker:   docker,
+		StagedZe: interoplab.StagedZePath(root, LabBinaries()),
 		// The kernel probe runs FIRST: a machine with no pppox module cannot
 		// run this lab, and refusing it before the cross-compile costs that
 		// machine nothing.

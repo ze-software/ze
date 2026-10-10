@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -61,6 +62,32 @@ func DockerKernel(zePath string) PreflightCheck {
 	}
 }
 
+// StagedZePath answers the absolute path of the binary named ze among the
+// binaries a lab stages, which is what Suite.StagedZe names. A lab that stages
+// no ze answers empty, and Suite.Run refuses that answer rather than skipping.
+func StagedZePath(root string, binaries []LabBinary) string {
+	for _, binary := range binaries {
+		if binary.Name == "ze" {
+			return filepath.Join(root, binary.Output)
+		}
+	}
+	return ""
+}
+
+// kernelProbeArgv is the probe container's command line. It grants NET_ADMIN
+// for the netlink probes and SYS_ADMIN for the xfrm-interface probe, which
+// unshares a network namespace, and gives the container its own network so
+// nothing it creates reaches the host's.
+func kernelProbeArgv(zePath string) []string {
+	argv := make([]string, 0, 12+len(kernelProbeCommand))
+	argv = append(argv, dockerExecutable, "run", "--rm",
+		"--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN",
+		"--network", "none",
+		"-v", zePath+":"+kernelProbeMount+":ro",
+		kernelProbeImage)
+	return append(argv, kernelProbeCommand...)
+}
+
 // checkDockerKernel runs the probe and returns nil only when the answer holds at
 // least one row and every row is present. Unknown is a refusal (owner D-4: a
 // wrong kernel "should not be possible - fail"), and so is a probe that did not
@@ -70,17 +97,11 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 		return errors.New("the Docker kernel check needs a Docker client")
 	}
 	if zePath == "" {
-		return errors.New("the Docker kernel check needs the staged ze to probe with")
+		return errors.New("the Docker kernel check needs the staged ze to probe with, and this suite names none (Suite.StagedZe)")
 	}
 
 	release := dockerKernelRelease(ctx, docker)
-	argv := make([]string, 0, 12+len(kernelProbeCommand))
-	argv = append(argv, dockerExecutable, "run", "--rm",
-		"--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN",
-		"--network", "none",
-		"-v", zePath+":"+kernelProbeMount+":ro",
-		kernelProbeImage)
-	argv = append(argv, kernelProbeCommand...)
+	argv := kernelProbeArgv(zePath)
 	result, err := docker.runner.Run(ctx, processCommand{Arguments: argv, Timeout: kernelProbeTimeout})
 
 	var problem textbuf.Buffer

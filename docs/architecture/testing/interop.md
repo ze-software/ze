@@ -198,6 +198,7 @@ proof. Diagnostic collection has a cancellation-independent fifteen-second bound
 | Requirement | Used By | Notes |
 |-------------|---------|-------|
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
+| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs | Checked before any image build; see "The Docker host kernel check" |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
@@ -317,8 +318,10 @@ via each daemon's native CLI.
 ### How It Works
 
 The native `internal/le/interoplab/bgp` package discovers scenario directories in
-`test/interop/scenarios/`. For each scenario, the shared `interoplab.Suite`
-engine:
+`test/interop/scenarios/`. Before any scenario, the shared `interoplab.Suite`
+engine runs the lab's preflight (which stages ze), checks the Docker daemon's
+kernel with that ze ("The Docker host kernel check" below), and builds the
+images. For each scenario it then:
 
 1. Creates an isolated Docker network.
 2. Starts Ze and the peer daemons declared by the scenario's config files.
@@ -326,6 +329,64 @@ engine:
 4. Runs the scenario's typed checker from the package-local BGP registry.
 5. Tears down every container and network, including after setup or checker failure.
 <!-- source: internal/le/interoplab/lab.go -- suite lifecycle -->
+
+### The Docker host kernel check
+
+A container runs on the Docker daemon's kernel, so a kernel feature Ze needs and
+that kernel lacks fails scenarios for a fact about the host. `mobike-initiator`
+and `mobike-responder` showed the cost: on a 6.8 kernel they spent fifteen
+minutes and reported two protocol failures that were the missing
+`XFRM_MSG_MIGRATE_STATE`. Every Docker run that runs Ze therefore checks the
+daemon's kernel first, and refuses a kernel that lacks any feature. The owner's
+ruling is that a wrong kernel "should not be possible - fail": there is no skip,
+no warning mode and no exemption.
+
+The required set is not listed in le. `Suite.Run` starts the ze the lab staged
+for the daemon's architecture (`Suite.StagedZe`, from `StagedZePath`) in a
+throwaway container and reads its answer:
+
+```bash
+docker run --rm --cap-add NET_ADMIN --cap-add SYS_ADMIN --network none \
+  -v <staged ze>:/ze:ro alpine:3.21 /ze doctor --json kernel-capabilities
+```
+
+`ze doctor kernel-capabilities` probes every capability a package enrolls in
+`internal/component/kernelcap`, with configuration ignored
+(`docs/architecture/doctor-and-health-checks.md`). A capability enrolled later
+is required of every Docker host with no le change. `NET_ADMIN` lets the
+netlink probes ask; `SYS_ADMIN` lets the xfrm-interface probe unshare a network
+namespace. Without it that row reads `unknown`, which also refuses.
+
+The check runs after the preflight, because it needs the staged ze, and before
+the first image build, so a refused host costs no build and counts no scenario.
+It refuses when:
+
+| Answer | Refusal names |
+|--------|---------------|
+| a row is `absent` or `unknown` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the two repairs: a kernel with every feature, or `./le setup docker-kernel install` |
+| the container fails, or prints no JSON | the command it ran, its exit code, stdout and stderr |
+| the answer holds no row | the command it ran |
+| the suite names no staged ze | `Suite.StagedZe` |
+
+The refusal is the suite's setup error: `interop: setup: <reason>`, exit 1. The
+`docker-l2tp-ppp-test` and `docker-pppoe-accel-test` deployment proofs run the
+L2TP and PPPoE suites, so they reach the same check. A suite with no kernel
+module of its own, such as the FreeRADIUS admin-login suite, is checked too:
+the owner's rule is about the host, not about the scenario.
+
+To ask a host by hand, stage ze with any lab once and run the command above.
+`TestDockerKernelCheckOnThisHost` (build tag `integration`) does that against
+the daemon this machine uses: it stages ze, starts the probe container and
+nothing else, and judges the verdict against the rows it read. On colima's
+`6.8.0-117-generic` (2026-10-10) the check refuses `ipsec-mobike`, `l2tp`,
+`l2tp-ppp` and `mpls` as absent and `mpls-transit-mtu` as unknown.
+
+```bash
+./le job run label kernel-host command go test -tags integration -count=1 \
+  -run '^TestDockerKernelCheckOnThisHost$' ./internal/le/interoplab/
+```
+<!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernel, checkDockerKernel, StagedZePath -->
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.StagedZe -->
 
 Each local image build also creates a unique, run-owned tag. This keeps its
 image ID available when another build replaces the shared cache tag.
@@ -729,7 +790,9 @@ tunnel, a stale direction, or a one-way success does not satisfy the scenario.
 
 The Docker host must support `XFRM_MSG_MIGRATE_STATE`. A kernel without atomic live
 ESP migration cannot run this scenario: Ze does not negotiate MOBIKE there. The
-checker does not convert that missing prerequisite into a pass.
+checker does not convert that missing prerequisite into a pass, and the suite
+does not reach it on such a kernel: the Docker host kernel check refuses the
+run first, naming `ipsec-mobike (CONFIG_XFRM_MIGRATE)`.
 
 <!-- source: internal/le/interoplab/ipsec/mobike.go -- checkMOBIKEInitiator, checkMOBIKEResponder -->
 
@@ -870,7 +933,9 @@ for the `l2tp_ppp` or `pppol2tp` kernel module and refuses to run without it,
 which is correct for a suite that carries PPP sessions. Admin login is ze's SSH
 listener, a UDP socket and a RADIUS server, so this lab declares no preflight
 beyond its own ze cross-compile, mounts no module tree, asks for no capability
-and runs nothing privileged. `TestSuiteNeedsNoKernelModule` holds that.
+and runs nothing privileged. `TestSuiteNeedsNoKernelModule` holds that. The
+Docker host kernel check still applies: it is a rule about the host, so a
+kernel without PPPoL2TP refuses this suite as it refuses every other.
 
 Every checker reads BOTH sides. Ze's log saying `source=radius` is not enough on
 its own, because a login the local bcrypt backend satisfied produces a line of

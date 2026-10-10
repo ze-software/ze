@@ -80,8 +80,16 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 	}
 
 	// A later setup failure must release an earlier successful build as well.
+	// The suite runs no Ze, so a stand-in answers the kernel check Suite.Run
+	// makes before the first build; it sits in the checkout so a Docker VM that
+	// mounts only the home directory sees it.
+	standIn, err := filepath.Abs(filepath.Join("testdata", "kernel-all-present", "ze"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	report := (Suite{
-		Docker: docker,
+		Docker:   docker,
+		StagedZe: standIn,
 		Images: []ImageBuild{
 			{Name: "probe", Tag: cacheTag, Dockerfile: dockerfile, Context: directory, Required: true},
 			{Name: "invalid-without-tag"},

@@ -122,7 +122,8 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 	}
 	labRoot := filepath.Join(root, labDirectory)
 	return interoplab.Suite{
-		Docker: docker,
+		Docker:   docker,
+		StagedZe: interoplab.StagedZePath(root, LabBinaries()),
 		// The MPLS probe runs first: a host kernel without mpls_router cannot
 		// run this lab, and refusing it before the cross-compile costs nothing.
 		Preflight: interoplab.Preflights(mplsPreflight(environment.Suffix), interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)),
