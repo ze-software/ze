@@ -7,7 +7,11 @@
 // dockerkernel.go is `le setup docker-kernel`: the Docker daemon's kernel must
 // carry every feature Ze enrolls (owner D-4). `check` asks the daemon in hand.
 // `install` puts Ze's runtime kernel on a Linux Docker host and makes it GRUB's
-// default, through sudo, one stated step at a time, and never reboots (D-6). On
+// default, through sudo, one stated step at a time, and never reboots (D-6). It
+// runs no root step until the operator confirms the release by name, and it
+// installs only a release carrying the CONFIG_LOCALVERSION suffix the runtime
+// kernel config declares, so a reinstall replaces Ze's own tree and nothing
+// else. On
 // macOS the labs run inside the Ze-kernel QEMU guest instead, so `install`
 // refuses there and names that route.
 
@@ -37,6 +41,10 @@ const (
 	dockerKernelCheckVerb   = "check"
 	dockerKernelInstallVerb = "install"
 	dockerKernelZeKeyword   = "ze"
+	// dockerKernelConfirmKeyword takes the release the operator is about to
+	// install. Passwordless sudo asks nothing, so this is the one question
+	// every root step waits on.
+	dockerKernelConfirmKeyword = "confirm"
 	// dockerKernelCheckTimeout bounds the release query and the probe
 	// container, whose own bound is two minutes.
 	dockerKernelCheckTimeout = 3 * time.Minute
@@ -59,9 +67,13 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 		Writes: true,
 		Why: "Linux only: install Ze's cached runtime kernel for this host's architecture under /boot" +
 			" and /lib/modules, rebuild the initramfs and the GRUB menu, and make it GRUB's saved" +
-			" default by title. Every step runs through sudo and is printed first; it never reboots. " +
+			" default by title. Without `confirm <release>` it prints the steps and runs none; every step" +
+			" runs through sudo and is printed first; it never reboots. " +
 			interoplab.DockerKernelRoute("darwin"),
-		Answer: runDockerKernelInstall,
+		Parameters: []leaction.Parameter{
+			{Keyword: dockerKernelConfirmKeyword, Value: "release", Requirement: leaction.Optional},
+		},
+		AnswerArgs: runDockerKernelInstall,
 	},
 )
 
@@ -100,10 +112,11 @@ type installStep struct {
 	Argv []string
 }
 
-// runDockerKernelInstall refuses off Linux and without GRUB_DEFAULT=saved,
-// before any step; then it places the kernel, rebuilds the boot files, and
-// selects the new GRUB entry by title. The reboot is the operator's.
-func runDockerKernelInstall() (any, int) {
+// runDockerKernelInstall refuses off Linux, without GRUB_DEFAULT=saved, for a
+// cache entry whose release lacks Ze's suffix, and without the release
+// confirmed, before any step; then it places the kernel, rebuilds the boot
+// files, and selects the new GRUB entry by title. The reboot is the operator's.
+func runDockerKernelInstall(args leaction.Arguments) (any, int) {
 	if err := dockerKernelInstallPlatform(runtime.GOOS); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -132,7 +145,15 @@ func runDockerKernelInstall() (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	for _, step := range dockerKernelInstallSteps(cache, release) {
+	steps := dockerKernelInstallSteps(cache, release)
+	if err := installConfirmed(args, release); err != nil {
+		if planErr := printInstallPlan(steps); planErr != nil {
+			leaction.ReportError(planErr)
+		}
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	for _, step := range steps {
 		if err := runInstallStep(step); err != nil {
 			leaction.ReportError(err)
 			return nil, 1
@@ -169,8 +190,15 @@ func dockerKernelInstallPlatform(goos string) error {
 		Str(interoplab.DockerKernelRoute(goos)).String())
 }
 
+// runtimeKernelRebuild is what every refusal of a cache entry tells the
+// operator to run.
+const runtimeKernelRebuild = "./ze appliance kernel --target runtime --arch " + runtime.GOARCH
+
 // cachedKernelRelease answers the release a runtime-kernel cache entry holds:
 // the one directory under lib/modules, which every installed path is named for.
+// The release MUST end with the CONFIG_LOCALVERSION suffix the entry's own
+// config declares. A bare upstream release such as 7.2.0 names files another
+// kernel of that release owns, and a reinstall removes the trees it replaces.
 func cachedKernelRelease(cache string) (string, error) {
 	modules := filepath.Join(cache, "lib", "modules")
 	entries, err := os.ReadDir(modules)
@@ -182,20 +210,85 @@ func cachedKernelRelease(cache string) (string, error) {
 		return "", errors.New(tb.Str(modules).Str(" holds ").Int(int64(len(entries))).
 			Str(" entries, want one release directory").String())
 	}
-	return entries[0].Name(), nil
+	release := entries[0].Name()
+
+	config, err := os.ReadFile(filepath.Join(cache, "config")) //nolint:gosec // a file inside the cache entry this command resolved
+	if err != nil {
+		return "", err
+	}
+	suffix, err := kernelLocalVersion(string(config))
+	if err != nil {
+		var tb textbuf.Buffer
+		return "", errors.New(tb.Str("the runtime kernel in ").Str(cache).Str(" is release ").Str(release).
+			Str(": ").Err(err).Str("; installed under a bare release it would replace another kernel of that name.").
+			Str(" gokrazy/kernel/runtime.config declares the suffix; rebuild with: ").Str(runtimeKernelRebuild).String())
+	}
+	if !strings.HasSuffix(release, suffix) {
+		var tb textbuf.Buffer
+		return "", errors.New(tb.Str("the runtime kernel in ").Str(cache).Str(" is release ").Str(release).
+			Str(", which does not end with its CONFIG_LOCALVERSION ").Str(suffix).
+			Str(" (gokrazy/kernel/runtime.config); rebuild with: ").Str(runtimeKernelRebuild).String())
+	}
+	return release, nil
+}
+
+// kernelLocalVersion answers the CONFIG_LOCALVERSION a kernel config sets, and
+// refuses a config that sets none or sets it empty: the suffix is what makes
+// the release Ze's own.
+func kernelLocalVersion(config string) (string, error) {
+	for line := range strings.SplitSeq(config, "\n") {
+		value, ok := strings.CutPrefix(strings.TrimSpace(line), "CONFIG_LOCALVERSION=")
+		if !ok {
+			continue
+		}
+		suffix := strings.Trim(value, `"`)
+		if suffix == "" {
+			return "", errors.New("its config sets CONFIG_LOCALVERSION empty")
+		}
+		return suffix, nil
+	}
+	return "", errors.New("its config sets no CONFIG_LOCALVERSION")
+}
+
+// installConfirmed refuses unless the operator named, after `confirm`, the
+// release the install is about to place, and names the command that does.
+func installConfirmed(args leaction.Arguments, release string) error {
+	if args.One(dockerKernelConfirmKeyword) == release {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return errors.New(tb.Str("the steps above, then saving its GRUB menu entry as the default, run as root and none ran;" +
+		" to run them, confirm the release: ./le setup docker-kernel install ").
+		Str(dockerKernelConfirmKeyword).Byte(' ').Str(release).String())
+}
+
+// printInstallPlan prints every step and its reason without running any.
+func printInstallPlan(steps []installStep) error {
+	for _, step := range steps {
+		if err := printInstallStep(step); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // dockerKernelInstallSteps answers the root steps that place the cached kernel
 // and rebuild the boot files (Debian and Ubuntu tools). Selecting the entry is
 // a separate step, because its title exists only once update-grub has run.
+// Every removal is named for release, which carries Ze's suffix
+// (cachedKernelRelease), so it reaches only what an earlier install wrote.
 func dockerKernelInstallSteps(cache, release string) []installStep {
 	return []installStep{
 		{Why: "install the kernel image", Argv: []string{"sudo", "install", "-m", "0644",
 			filepath.Join(cache, "vmlinuz"), "/boot/vmlinuz-" + release}},
 		{Why: "install its config, which update-initramfs reads", Argv: []string{"sudo", "install", "-m", "0644",
 			filepath.Join(cache, "config"), "/boot/config-" + release}},
+		{Why: "remove the modules an earlier install of this release left, so the copy replaces them rather than nesting inside them",
+			Argv: []string{"sudo", "rm", "-rf", "/lib/modules/" + release}},
 		{Why: "install its modules", Argv: []string{"sudo", "cp", "-a",
 			filepath.Join(cache, "lib", "modules", release), "/lib/modules/" + release}},
+		{Why: "remove the initramfs an earlier install of this release built, which update-initramfs -c does not replace",
+			Argv: []string{"sudo", "rm", "-f", "/boot/initrd.img-" + release}},
 		{Why: "build its initramfs", Argv: []string{"sudo", "update-initramfs", "-c", "-k", release}},
 		{Why: "add it to the GRUB menu", Argv: []string{"sudo", "update-grub"}},
 	}
@@ -263,9 +356,7 @@ func grubTitle(line string) string {
 // runInstallStep prints the step and its reason, then runs it with the
 // terminal attached, so sudo can ask for a password.
 func runInstallStep(step installStep) error {
-	var tb textbuf.Buffer
-	line := tb.Str("setup docker-kernel: ").Str(step.Why).Str(": ").Str(strings.Join(step.Argv, " ")).Byte('\n').String()
-	if _, err := os.Stderr.WriteString(line); err != nil {
+	if err := printInstallStep(step); err != nil {
 		return err
 	}
 	command := exec.Command(step.Argv[0], step.Argv[1:]...) //nolint:gosec,noctx // argv is this file's own; sudo may wait on a password prompt
@@ -273,8 +364,16 @@ func runInstallStep(step installStep) error {
 	command.Stdout = os.Stderr
 	command.Stderr = os.Stderr
 	if err := command.Run(); err != nil {
-		tb.Reset()
+		var tb textbuf.Buffer
 		return errors.New(tb.Str(strings.Join(step.Argv, " ")).Str(": ").Err(err).String())
 	}
 	return nil
+}
+
+// printInstallStep prints one step and its reason to stderr.
+func printInstallStep(step installStep) error {
+	var tb textbuf.Buffer
+	line := tb.Str("setup docker-kernel: ").Str(step.Why).Str(": ").Str(strings.Join(step.Argv, " ")).Byte('\n').String()
+	_, err := os.Stderr.WriteString(line)
+	return err
 }

@@ -308,7 +308,9 @@ operator gets, and every recipe on this page passes one.
 The host action `./le test qemu run` owns the Alpine cache, the QEMU lifecycle, both
 9p shares, bounded SSH waits, package installation, and cleanup. When the
 parameter is there, the guest release check refuses a boot whose `uname -r`
-disagrees with `internal/appliance/kernel.version`.
+disagrees with `internal/appliance/kernel.version`: it accepts that version, a
+longer version of it, and either with the runtime kernel's `-ze` suffix
+(`docs/architecture/appliance/kernel-profiles.md`).
 
 The native host action cross-compiles a Linux `cmd/ze` personality with the
 `ze_le` tag before boot. That guest binary runs the selected action. The full

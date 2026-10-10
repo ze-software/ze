@@ -90,6 +90,17 @@ from `TCP_MD5SIG`; enabling the separate `CRYPTO_MD5` module is not the fix.
 <!-- source: gokrazy/kernel/runtime.config -- CONFIG_TCP_MD5SIG -->
 <!-- source: gokrazy/kernel/runtime.require -- CONFIG_TCP_MD5SIG -->
 
+The runtime fragment sets `CONFIG_LOCALVERSION="-ze"`, so the runtime kernel's
+release is the pinned version with that suffix (`7.2.9-ze`) and its `/boot`
+and `/lib/modules` entries never share a name with another kernel built from
+the same upstream release. `le setup docker-kernel install` reads the suffix
+from the cache entry's emitted `config` and refuses a release that does not end
+with it, because a reinstall removes the trees it replaces. The QEMU guest
+release check accepts the suffixed release.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_LOCALVERSION -->
+<!-- source: internal/le/setup/dockerkernel.go -- cachedKernelRelease, kernelLocalVersion -->
+<!-- source: internal/le/test/qemu/run_exec.go -- Run.assertRuntimeKernel -->
+
 
 ## Decisions
 

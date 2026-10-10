@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -458,6 +459,52 @@ func TestRuntimeKernelAssertionIsReportData(t *testing.T) {
 	failure, err := run.assertRuntimeKernel(context.Background(), &RunPlan{SSHPort: 2222})
 	if err != nil || failure == "" || calls != 1 {
 		t.Fatalf("kernel assertion = failure %q, err %v, calls %d", failure, err, calls)
+	}
+}
+
+// VALIDATES: the guest kernel probe accepts the pinned release, a longer
+// version of it, and the pinned release with a CONFIG_LOCALVERSION suffix
+// (gokrazy/kernel/runtime.config sets -ze), and refuses any other kernel. The
+// probe runs in sh against a stand-in uname, so the case pattern itself is
+// what is judged.
+// PREVENTS: Ze's own suffixed runtime kernel (7.2.9-ze) being refused as a
+// stock kernel, and a 7.20 kernel being accepted as 7.2.
+func TestRuntimeKernelProbeAcceptsTheZeSuffix(t *testing.T) {
+	run := fixtureRun(t, ArchAMD64)
+	versionDir := filepath.Join(run.Tree, "internal", "appliance")
+	if err := os.MkdirAll(versionDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "kernel.version"), []byte("7.2\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	probe := ""
+	run.ops.Run = func(_ context.Context, spec commandSpec) (commandResult, error) {
+		probe = spec.Args[len(spec.Args)-1]
+		return commandResult{Code: 1}, nil
+	}
+	if _, err := run.assertRuntimeKernel(context.Background(), &RunPlan{SSHPort: 2222}); err != nil {
+		t.Fatalf("kernel assertion: %v", err)
+	}
+
+	for release, accepted := range map[string]bool{
+		"7.2": true, "7.2.9": true, "7.2-ze": true, "7.2.9-ze": true,
+		"7.20": false, "6.8.0-117-generic": false,
+	} {
+		bin := t.TempDir()
+		uname := "#!/bin/sh\necho " + release + "\n"
+		if err := os.WriteFile(filepath.Join(bin, "uname"), []byte(uname), 0o700); err != nil { //nolint:gosec // an executable stand-in for uname
+			t.Fatal(err)
+		}
+		command := exec.CommandContext(context.Background(), "/bin/sh", "-c", probe)
+		command.Env = []string{"PATH=" + bin}
+		err := command.Run()
+		if accepted && err != nil {
+			t.Errorf("release %s refused: %v", release, err)
+		}
+		if !accepted && err == nil {
+			t.Errorf("release %s accepted as 7.2", release)
+		}
 	}
 }
 

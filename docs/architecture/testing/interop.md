@@ -407,8 +407,15 @@ question with any linux `ze`. `./le setup docker-kernel install` is the Linux
 route: it installs the cached runtime kernel for the host's architecture under
 `/boot` and `/lib/modules`, rebuilds the initramfs and the GRUB menu with the
 Debian tools, and saves the new entry as GRUB's default by its title. It
-refuses before any step unless `GRUB_DEFAULT=saved`, prints each `sudo` step
-before it runs it, and never reboots. Off Linux it refuses and names the guest
+refuses before any step unless `GRUB_DEFAULT=saved`, and unless the cached
+release ends with the `CONFIG_LOCALVERSION` suffix its config declares (`-ze`,
+so never a bare upstream release another kernel could own). Without
+`confirm <release>` it prints the steps and runs none, because passwordless
+sudo asks nothing: `./le setup docker-kernel install confirm 7.2.9-ze`. A
+reinstall replaces: it removes `/lib/modules/<release>` and
+`/boot/initrd.img-<release>` before writing them again, so `cp -a` never nests
+the new modules inside the old tree. It prints each `sudo` step before it runs
+it, and never reboots. Off Linux it refuses and names the guest
 route, `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).
 <!-- source: internal/le/setup/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
 <!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute -->
