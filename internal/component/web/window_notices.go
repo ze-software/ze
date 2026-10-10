@@ -23,7 +23,7 @@ const windowNoticeInterval = time.Second
 // SSH draft poll shows that user on its status line: the daemon window's
 // countdown or owner, how a window the user saw ended, and what another
 // user's forced commit discarded from the user's changes. The words are the
-// SSH editor's: WindowWatch.Poll and Editor.TakeDiscardNotice produce both.
+// SSH editor's: WindowWatch.Poll and Editor.PendingDiscardNotice produce both.
 //
 // Lifecycle: NewWindowNotices, then `go Run()`; Run returns when the broker
 // closes. Safe for concurrent use with the manager it reads.
@@ -61,9 +61,7 @@ func (n *WindowNotices) push() {
 		if window != nil {
 			n.pushWindow(window, user)
 		}
-		if notice := n.mgr.takeDiscardNotice(user); notice != "" {
-			n.send(user, notice)
-		}
+		n.pushDiscardNotice(user)
 	}
 }
 
@@ -84,16 +82,37 @@ func (n *WindowNotices) pushWindow(window *confirm.Window, user string) {
 	n.send(user, line)
 }
 
+// pushDiscardNotice sends user what forced commits discarded from the user's
+// changes, and marks it shown only once every stream of user took it: a
+// notice a full client buffer refused is offered again at the next tick.
+func (n *WindowNotices) pushDiscardNotice(user string) {
+	notice, through := n.mgr.pendingDiscardNotice(user)
+	if notice == "" {
+		return
+	}
+	if !n.send(user, notice) {
+		return
+	}
+	if through == 0 {
+		return
+	}
+	if err := n.mgr.ackDiscardNotice(user, through); err != nil {
+		var tb textbuf.Buffer
+		n.send(user, tb.Str("your editor could not reload, so it may still show the discarded value: ").Err(err).String())
+	}
+}
+
 // send renders line in the config-change banner, which the page's SSE client
-// already swaps into the notification bar, and sends it to user alone.
-func (n *WindowNotices) send(user, line string) {
+// already swaps into the notification bar, and sends it to user alone. It
+// answers whether every stream of user took it.
+func (n *WindowNotices) send(user, line string) bool {
 	var buf bytes.Buffer
 	data := notificationBannerData{Reason: line, RefreshURL: showPathPrefix}
 	if err := notificationBanner(data).Render(context.Background(), &buf); err != nil {
 		serverLogger.Warn("window notice render failed", "user", user, "error", err)
-		return
+		return false
 	}
-	n.broker.SendTo(user, "config-change", buf.String())
+	return n.broker.SendTo(user, "config-change", buf.String())
 }
 
 // pollWindow is user's WindowWatch.Poll: the web keeps one watch per user,
@@ -150,16 +169,31 @@ func (m *EditorManager) setWindowWatch(user string, watch *cli.WindowWatch) {
 	m.windowWatches[user] = watch
 }
 
-// takeDiscardNotice is user's discard notice, taken from the user's editor;
-// a user with no editor has no changes a forced commit could discard.
-func (m *EditorManager) takeDiscardNotice(user string) string {
+// pendingDiscardNotice is user's discard notice not yet shown, from the
+// user's editor; a user with no editor has no changes a forced commit could
+// discard.
+func (m *EditorManager) pendingDiscardNotice(user string) (string, int64) {
 	m.mu.RLock()
 	us, ok := m.sessions[user]
 	m.mu.RUnlock()
 	if !ok {
-		return ""
+		return "", 0
 	}
 	us.mu.Lock()
 	defer us.mu.Unlock()
-	return us.editor.TakeDiscardNotice()
+	return us.editor.PendingDiscardNotice()
+}
+
+// ackDiscardNotice marks user's notice shown through the stamp
+// pendingDiscardNotice returned, and rebuilds the user's view.
+func (m *EditorManager) ackDiscardNotice(user string, through int64) error {
+	m.mu.RLock()
+	us, ok := m.sessions[user]
+	m.mu.RUnlock()
+	if !ok {
+		return nil
+	}
+	us.mu.Lock()
+	defer us.mu.Unlock()
+	return us.editor.AckDiscardNotice(through)
 }

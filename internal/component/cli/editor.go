@@ -67,7 +67,10 @@ type Editor struct {
 	// candidate commit overrode, until MarkCommittedContent discards them. Each
 	// candidate commit resets it, so a failed reload discards nothing.
 	overridden []liveOverlap
-	stdoutSink io.Writer // Non-nil for a stdin-sourced ("-") editor: Save emits here instead of writing a file
+	// discardNoticeSeen is the stamp of the last discard notice line this
+	// session showed (AckDiscardNotice): zero shows every line in the log.
+	discardNoticeSeen int64
+	stdoutSink        io.Writer // Non-nil for a stdin-sourced ("-") editor: Save emits here instead of writing a file
 	// now supplies the wall clock for version stamps. A field rather than a
 	// direct time.Now() call so a test can pin it: the same-millisecond backup
 	// collision this guards is otherwise unreproducible on demand, and a test

@@ -155,3 +155,38 @@ func TestWindowNoticesSkipAUserWhoseCommitIsInFlight(t *testing.T) {
 	notices.push()
 	assert.Empty(t, drainEvents(alice), "her commit forgot the window it closed")
 }
+
+// TestDiscardNoticeKeptWhileTheStreamIsFull is review round 2 ISSUE 4 of
+// spec-session-editor-file-mode-parity: push took the notice before sending
+// it, and a full client buffer dropped the event, so the notice was lost.
+//
+// GOAL: a discard notice reaches the user even when the stream was full at
+// the first attempt.
+// METHOD: bob's stream buffer is filled, alice forces over bob's change, push
+// runs; the buffer is drained and push runs again.
+//
+// VALIDATES: the notice arrives at the second push, and only once.
+// PREVENTS: a forced-commit notice silently lost to a slow browser.
+func TestDiscardNoticeKeptWhileTheStreamIsFull(t *testing.T) {
+	mgr, schema, _ := newWindowEditorManager(t)
+	broker := NewEventBroker(0)
+	t.Cleanup(broker.Close)
+	bob := broker.Subscribe("bob")
+	notices := NewWindowNotices(mgr, broker)
+
+	require.NoError(t, mgr.SetValue("bob", []string{"bgp"}, "router-id", "10.0.0.2"))
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.9"))
+	require.Equal(t, terminalOutputCommitSuccessful, webCommit(schema, mgr, "alice", "now", "force"))
+
+	for broker.SendTo("bob", "filler", "x") {
+	}
+	notices.push()
+	for _, event := range drainEvents(bob) {
+		assert.NotContains(t, event, "discarded", "the full buffer refused the notice")
+	}
+
+	notices.push()
+	requireOneEvent(t, bob, "Your change at bgp router-id was discarded by alice")
+	notices.push()
+	assert.Empty(t, drainEvents(bob), "the notice is shown once")
+}

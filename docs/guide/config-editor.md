@@ -84,19 +84,21 @@ change conflicts with another user's pending change (LIVE) or with a value
 committed since you made it (STALE). `commit now force` applies your change
 anyway. Each other user's pending change that it overrides is removed from that
 user's change file, or from the shared draft when they already ran `save`, and
-nothing else of theirs is touched. Their next commit does not bring it back. Their SSH editor
-reports "Your change at <path> was discarded by <you>'s forced commit" once, at
-its next check for changes by other sessions (every two seconds, or when they
-next connect); from then on it shows the committed value in place of theirs,
-and `show | changes` there no longer lists it. A web user with a page open
-gets the same notice in the notification bar within a second, and the web
-editor's tree drops the discarded value at the same moment. Validation errors
+nothing else of theirs is touched. Their next commit does not bring it back. Every
+editor session of theirs, SSH or web, reports "Your change at <path> was
+discarded by <you>'s forced commit" once: an SSH session at its next check for
+changes by other sessions (every two seconds, or when they next connect), a web
+page in the notification bar within a second, and again at the next second
+when the page's event stream was too full to take it. From then on each
+session shows the committed value in place of theirs, and `show | changes`
+there no longer lists it. A notice stays on disk for a minute after a session
+first showed it, so another session of theirs still sees it. Validation errors
 still block a forced commit. When the commit applies but the discard fails, for
 example because a file could not be written, the answer says the commit applied
 and adds the warning "commit applied, but the changes it overrode were not
 discarded and stay pending for their owners", with the cause, so you know to
 tell them.
-<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, overriddenNotDiscarded, TakeDiscardNotice -->
+<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, overriddenNotDiscarded, PendingDiscardNotice, AckDiscardNotice, discardNoticeLinger -->
 <!-- source: internal/component/web/window_notices.go -- WindowNotices.push -->
 <!-- source: internal/component/cli/editor_commit.go -- reloadSessionView -->
 <!-- source: internal/component/cli/model.go -- handleDraftPoll, draftPollInterval -->

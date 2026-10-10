@@ -172,10 +172,14 @@ type Editor interface {
 	// RefreshCommittedView rebuilds the session's view over the committed
 	// config, after the daemon's confirmed-commit window reverted it.
 	RefreshCommittedView() error
-	// TakeDiscardNotice returns, once, what other users' forced commits
-	// discarded from this user's changes, and rebuilds the view without the
-	// discarded values. Empty means there is no notice.
-	TakeDiscardNotice() string
+	// PendingDiscardNotice returns what this session has not yet shown of
+	// what other users' forced commits discarded from this user's changes,
+	// and the stamp it runs through; empty means there is no notice.
+	// AckDiscardNotice MUST follow once the notice reached the user: it marks
+	// it shown and rebuilds the view without the discarded values. Until then
+	// the notice is offered again.
+	PendingDiscardNotice() (notice string, through int64)
+	AckDiscardNotice(through int64) error
 	// OriginalContent and WorkingContent are the committed config and the
 	// session's view: the transition a commit's validation judges (AC-29).
 	OriginalContent() string

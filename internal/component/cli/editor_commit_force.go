@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -85,25 +86,33 @@ func (e *Editor) discardUserChanges(guard storage.WriteGuard, user string, owned
 		return err
 	}
 
-	var notice textbuf.Buffer
-	for i := range owned {
-		if !fromChange[i] && !fromDraft[i] {
-			continue
-		}
-		notice.Str(owned[i].conflict.Path).Byte('\t').Str(e.session.User).Byte('\n')
-	}
-	if notice.Len() == 0 {
-		return nil
-	}
-
 	noticePath := DiscardNoticePath(e.originalPath, user)
 	previous, err := guard.ReadFile(noticePath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("forced commit: read %s: %w", noticePath, err)
 	}
-	previous = append(previous, notice.String()...)
-	if err := guard.WriteFile(noticePath, previous, 0o600); err != nil {
-		return fmt.Errorf("forced commit: write %s: %w", noticePath, err)
+	lines := parseDiscardNotice(previous)
+
+	// The stamp is later than every line already logged, so a session that
+	// showed those never takes this commit's lines for seen ones.
+	now := time.Now()
+	stamp := now.UnixNano()
+	for _, line := range lines {
+		stamp = max(stamp, line.stamp+1)
+	}
+	added := 0
+	for i := range owned {
+		if !fromChange[i] && !fromDraft[i] {
+			continue
+		}
+		lines = append(lines, discardNoticeLine{stamp: stamp, path: owned[i].conflict.Path, forcer: e.session.User})
+		added++
+	}
+	if added == 0 {
+		return nil
+	}
+	if err := writeDiscardNotice(guard, noticePath, lines, now); err != nil {
+		return fmt.Errorf("forced commit: %w", err)
 	}
 	return nil
 }
@@ -284,52 +293,156 @@ func removeMetaChange(meta *config.MetaTree, schema *config.Schema, change confi
 	return true
 }
 
-// TakeDiscardNotice returns, once, what forced commits by other users
-// discarded from this user's changes, removes the notice, and rebuilds this
-// editor's working tree without the discarded values. An empty answer
-// means there is no notice; a notice that cannot be read is said so, because
-// dropping it would hide a discarded change from its owner.
+// The discard notice is one file per user, a log every session of that user
+// reads: each line is "<stamp>\t<shown>\t<path>\t<forcer>", stamp and
+// shown in Unix nanoseconds, shown 0 until a session first showed the line.
+// Each session shows every line stamped after the last one it showed, so all
+// of a user's sessions are told, once each. A line shown at least
+// discardNoticeLinger ago is pruned (the SSH and web polls look every one to
+// two seconds), and the log keeps at most discardNoticeLinesMax lines.
+const (
+	discardNoticeLinger   = time.Minute
+	discardNoticeLinesMax = 64
+)
+
+// discardNoticeLine is one line of the discard notice log.
+type discardNoticeLine struct {
+	stamp  int64
+	shown  int64
+	path   string
+	forcer string
+}
+
+// parseDiscardNotice reads the notice log; a line it cannot read is skipped.
+func parseDiscardNotice(data []byte) []discardNoticeLine {
+	var lines []discardNoticeLine
+	for raw := range strings.Lines(string(data)) {
+		fields := strings.SplitN(strings.TrimRight(raw, "\n"), "\t", 4)
+		if len(fields) != 4 {
+			continue
+		}
+		stamp, err := strconv.ParseInt(fields[0], 10, 64)
+		if err != nil {
+			continue
+		}
+		shown, err := strconv.ParseInt(fields[1], 10, 64)
+		if err != nil {
+			continue
+		}
+		lines = append(lines, discardNoticeLine{stamp: stamp, shown: shown, path: fields[2], forcer: fields[3]})
+	}
+	return lines
+}
+
+// writeDiscardNotice prunes the lines shown long enough ago, keeps the
+// newest discardNoticeLinesMax, and writes the log, or removes it when empty.
+// The caller MUST hold guard.
+func writeDiscardNotice(guard storage.WriteGuard, noticePath string, lines []discardNoticeLine, now time.Time) error {
+	kept := lines[:0]
+	for _, line := range lines {
+		if line.shown != 0 && now.Sub(time.Unix(0, line.shown)) >= discardNoticeLinger {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if len(kept) > discardNoticeLinesMax {
+		kept = kept[len(kept)-discardNoticeLinesMax:]
+	}
+	if len(kept) == 0 {
+		if err := guard.Remove(noticePath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("discard notice: remove %s: %w", noticePath, err)
+		}
+		return nil
+	}
+	var tb textbuf.Buffer
+	for _, line := range kept {
+		tb.Int(line.stamp).Byte('\t').Int(line.shown).Byte('\t').Str(line.path).Byte('\t').Str(line.forcer).Byte('\n')
+	}
+	if err := guard.WriteFile(noticePath, []byte(tb.String()), 0o600); err != nil {
+		return fmt.Errorf("discard notice: write %s: %w", noticePath, err)
+	}
+	return nil
+}
+
+// TakeDiscardNotice returns, once for this session, what forced commits by
+// other users discarded from this user's changes, and rebuilds this editor's
+// working tree without the discarded values: PendingDiscardNotice, then
+// AckDiscardNotice. An empty answer means there is no notice.
 func (e *Editor) TakeDiscardNotice() string {
+	notice, through := e.PendingDiscardNotice()
+	if through == 0 {
+		return notice
+	}
+	if err := e.AckDiscardNotice(through); err != nil {
+		var tb textbuf.Buffer
+		return tb.Str(notice).Str("; your editor could not reload, so it may still show the discarded value until you reconnect: ").Err(err).String()
+	}
+	return notice
+}
+
+// PendingDiscardNotice returns what this session has not yet shown of the
+// user's discard notice, and the stamp it runs through; the caller MUST call
+// AckDiscardNotice with that stamp once the notice reached the user, and the
+// notice is offered again until it does. A through of 0 with a notice means
+// the log could not be read: said, because dropping it would hide a discarded
+// change from its owner.
+func (e *Editor) PendingDiscardNotice() (string, int64) {
 	noticePath := DiscardNoticePath(e.originalPath, e.session.User)
 	if !e.store.Exists(noticePath) {
-		return ""
+		return "", 0
 	}
+	data, err := e.store.ReadFile(noticePath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", 0
+	}
+	if err != nil {
+		return "a forced commit discarded some of your changes, and the notice could not be read: " + err.Error(), 0
+	}
+	var tb textbuf.Buffer
+	var through int64
+	for _, line := range parseDiscardNotice(data) {
+		if line.stamp <= e.discardNoticeSeen {
+			continue
+		}
+		if through != 0 {
+			tb.Str("; ")
+		}
+		through = max(through, line.stamp)
+		tb.Str("Your change at ").Str(line.path).Str(" was discarded by ").Str(line.forcer).Str("'s forced commit")
+	}
+	return tb.String(), through
+}
+
+// AckDiscardNotice records that this session showed the notice through the
+// stamp PendingDiscardNotice returned, marks those lines shown in the log,
+// and rebuilds the view from disk: the editor still holds the discarded value
+// in its working tree and meta, which show and show | changes read. It MUST be
+// called after PendingDiscardNotice, once the notice reached the user.
+func (e *Editor) AckDiscardNotice(through int64) error {
+	if through <= e.discardNoticeSeen {
+		return nil
+	}
+	e.discardNoticeSeen = through
 	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
-		return "a forced commit discarded some of your changes, and the notice could not be read: " + err.Error()
+		return err
 	}
 	defer guard.Release() //nolint:errcheck // Best effort unlock
 
+	noticePath := DiscardNoticePath(e.originalPath, e.session.User)
 	data, err := guard.ReadFile(noticePath)
-	if errors.Is(err, fs.ErrNotExist) {
-		return ""
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("discard notice: read %s: %w", noticePath, err)
 	}
-	if err != nil {
-		return "a forced commit discarded some of your changes, and the notice could not be read: " + err.Error()
-	}
-	if err := guard.Remove(noticePath); err != nil {
-		draftLogger.Warn("discard notice shown but not removed", "path", noticePath, "error", err)
-	}
-
-	var tb textbuf.Buffer
-	first := true
-	for line := range strings.Lines(string(data)) {
-		path, user, ok := strings.Cut(strings.TrimRight(line, "\n"), "\t")
-		if !ok {
-			continue
+	now := time.Now()
+	lines := parseDiscardNotice(data)
+	for i := range lines {
+		if lines[i].stamp <= through && lines[i].shown == 0 {
+			lines[i].shown = now.UnixNano()
 		}
-		if !first {
-			tb.Str("; ")
-		}
-		first = false
-		tb.Str("Your change at ").Str(path).Str(" was discarded by ").Str(user).Str("'s forced commit")
 	}
-
-	// The owner's editor still holds the discarded value in its working tree
-	// and meta, which show and show | changes read. Rebuild both from disk now,
-	// so the discarded value disappears at once rather than at the next reload.
-	if err := e.reloadSessionView(guard); err != nil {
-		tb.Str("; your editor could not reload, so it may still show the discarded value until you reconnect: ").Str(err.Error())
+	if err := writeDiscardNotice(guard, noticePath, lines, now); err != nil {
+		draftLogger.Warn("discard notice shown but not marked", "path", noticePath, "error", err)
 	}
-	return tb.String()
+	return e.reloadSessionView(guard)
 }

@@ -122,9 +122,14 @@ func (a *testEditorAdapter) MarkCommittedContent(content string) error {
 }
 func (a *testEditorAdapter) VerifySession() error        { return a.ed.VerifySession() }
 func (a *testEditorAdapter) RefreshCommittedView() error { return a.ed.RefreshCommittedView() }
-func (a *testEditorAdapter) TakeDiscardNotice() string   { return a.ed.TakeDiscardNotice() }
-func (a *testEditorAdapter) OriginalContent() string     { return a.ed.OriginalContent() }
-func (a *testEditorAdapter) WorkingContent() string      { return a.ed.WorkingContent() }
+func (a *testEditorAdapter) PendingDiscardNotice() (string, int64) {
+	return a.ed.PendingDiscardNotice()
+}
+func (a *testEditorAdapter) AckDiscardNotice(through int64) error {
+	return a.ed.AckDiscardNotice(through)
+}
+func (a *testEditorAdapter) OriginalContent() string { return a.ed.OriginalContent() }
+func (a *testEditorAdapter) WorkingContent() string  { return a.ed.WorkingContent() }
 func (a *testEditorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
 }

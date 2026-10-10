@@ -97,10 +97,12 @@ func (b *EventBroker) Unsubscribe(c *sseClient) {
 // broadcastEvent sends an event to a single client. A client whose buffer is
 // full loses the event (dropped by design: SSE clients that fall behind lose
 // events rather than blocking the broker), and no caller acts on the drop.
-func broadcastEvent(c *sseClient, ev sseEvent) {
+func broadcastEvent(c *sseClient, ev sseEvent) bool {
 	select {
 	case c.ch <- ev:
+		return true
 	default: // Non-blocking send: drop event for slow client (by design).
+		return false
 	}
 }
 
@@ -118,18 +120,25 @@ func (b *EventBroker) Broadcast(eventType, data string) {
 }
 
 // SendTo sends an event to every client of user, as Broadcast does: a client
-// whose buffer is full loses it.
-func (b *EventBroker) SendTo(user, eventType, data string) {
+// whose buffer is full loses it. It answers whether every client of user, at
+// least one, took the event, so a caller that must not lose it sends again.
+func (b *EventBroker) SendTo(user, eventType, data string) bool {
 	ev := sseEvent{eventType: eventType, data: data}
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	delivered, clients := 0, 0
 	for c := range b.clients {
-		if c.user == user {
-			broadcastEvent(c, ev)
+		if c.user != user {
+			continue
+		}
+		clients++
+		if broadcastEvent(c, ev) {
+			delivered++
 		}
 	}
+	return clients > 0 && delivered == clients
 }
 
 // Users returns each user that has a connected client, once.
