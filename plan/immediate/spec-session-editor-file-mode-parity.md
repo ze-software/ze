@@ -360,7 +360,7 @@ and the operator deletes the destination first (AC-30).
 | `session-editor-commit-confirmed-boundary` | `test/plugin/session-editor-commit-confirmed-boundary.ci` | AC-20 (AC-21 cannot be driven over SSH, see below) | PASS 2026-10-10; red under mutation `CommitConfirmedSecondsMax = 3601` at step 9, `commit confirmed 3601` opened a window instead of "at most 3600 seconds" |
 | replaces `load-blocked.et` | `test/editor/session/load-merge.et` | AC-1 at model level | |
 | `commit-grammar` (file mode) | `test/editor/lifecycle/commit-grammar.et` | AC-29 for file mode: AC-12, AC-13, AC-16, AC-20, AC-25 to AC-28, AC-30 | |
-| `cli-commit-grammar` (web terminal) | `test/web/cli-commit-grammar.wb` | AC-29 for the web terminal | |
+| `cli-commit-grammar` (web terminal) | `test/web/cli-commit-grammar.wb` | AC-29 for the web terminal | PASS 2026-10-10 (18.3s) against a real daemon (`option=server:kind=daemon`), promoted in c734b3fb85; red with the hub's `SetConfirmWindow` call removed |
 | existing editor tests | every file in Files to Modify, "Surfaces that type the old grammar" | AC-29: moved to the new grammar with the same assertions; `confirm-without-pending.et` and `abort-without-pending.et` become AC-25's `commit accept` and `commit abort` cases | |
 
 Each `.ci` drives `ze config edit` over SSH against the running daemon through a
@@ -559,6 +559,80 @@ Surfaces that type the old grammar (from `grep -rlE 'text=(commit|confirm)\b|Typ
 | A window belongs to the user who started it: any new SSH session of that user is its owner, as a reconnection; sessions of other users are refused (AC-17) | only the SSH session that ran `commit confirmed` owns it, so a dropped client leaves the operator waiting for the deadline | Owner decision 2026-10-10: "the new session should behave like a reconnection" |
 | Confirm worker home (A-4): package `internal/component/config/confirm`, one `Window` per daemon and config, one long-lived goroutine reading a request channel and owning the deadline timer; built in `runYANGConfig` right after `reloadAfterCommit` (the reload a revert calls) and published to session editors beside `sessionReloadHolder`; stopped before `commitReloads` closes. Editors see it through an interface in `internal/component/cli/contract`, so `cli` and `web` never import the worker. The pending record is a store key written by `storage` beside the `pointer.go` keys. Boot recovery (AC-19) runs beside `clearStaleCandidateOnBoot`, BEFORE `ReadConfigSource`, so the reverted config is the one that boots | the CLI `Model` tick (dies with the SSH channel); `cmd/ze/hub` itself (no unit test without a daemon, and `web` could not reach it); `config/transaction` (the plugin verify/apply protocol, not an operator window) | engineering choice inside the owner's "daemon owns the window" decision: the hub alone holds the store, the config path and the reload together, and a component package keeps the worker unit-testable with a fake reload (recorded 2026-10-10) |
 | Seconds, 1 to 3600, kept | switch to minutes like Junos/VyOS | the unit is the existing contract; changing it is scope the owner did not ask for |
+
+## Implementation Status (2026-10-10)
+
+Each row names the commit, the test that demonstrates the AC, and the red that
+proves the test discriminates. "Evidenced" means a passing test through the
+named entry point; a row marked "partial" or "owner" is listed again under
+Remaining.
+
+| AC | Status | Commit | Demonstrated by | Red proof |
+|----|--------|--------|-----------------|-----------|
+| AC-1 | evidenced | d2c8103327 | `session-editor-load-merge.ci`, `TestSessionLoadMergeEmitsPerLeafEntries` | draft red on "load not supported in session mode" before d2c8103327 |
+| AC-2 | evidenced | d2c8103327 | `session-editor-load-terminal-relative.ci` | same draft red |
+| AC-3, AC-4 | evidenced | d2c8103327 | `session-editor-load-replace.ci`, `TestSessionLoadReplaceEmitsDeletes` | same draft red |
+| AC-5 | evidenced | d2c8103327, 0863b5fe42, 2dc4dd3ae8 | `session-editor-load-refused.ci`, `TestSessionLoadRefusesBadInputAtomically`, `TestUnknownKeyNamesClosestValidKey` | .ci red under mutation; `TestUnknownKeyNamesClosestValidKey` observed red (5 subtests) before 0863b5fe42 |
+| AC-6 | evidenced | e9cd0def79 | `session-editor-load-conflict.ci` | red with `Editor.detectConflicts` returning nil |
+| AC-7 | owner | d2c8103327, 2dc4dd3ae8 | `TestFileModeLoadTreeMergeMatchesPrevious` (absolute replace, relative), `TestFileModeLoadAbsoluteMergeNestedBlocks` | `test/editor/lifecycle/load-file-absolute-merge.et` RED since d2c8103327: it asserts the old text merge kept the existing leaf, the tree load makes the loaded leaf win |
+| AC-8 | evidenced | b5274c4fa8, 440ef0753a | `session-editor-copy.ci`, `TestSessionCopyWritesThrough`, `TestSessionCopyCarriesPendingSourceEdits` | .ci red with `CopyListEntry`'s session branch mutated back to a refusal |
+| AC-9, AC-10 | evidenced | b5274c4fa8, 440ef0753a | `session-editor-deactivate-activate.ci`, `TestSessionDeactivateActivateLeafAndPath` | .ci red with the `DeactivatePath` session branch mutated back to a refusal |
+| AC-11 | evidenced | 482bdc3986 | `test/web/cli-session-copy-deactivate.wb` | red at line 49 ("path not found") before 482bdc3986 |
+| AC-12 | partial | 0d6fe64cd1 | file mode: `commit-grammar.et`; Model: `TestCommitGrammar` | SSH `.ci` `test/draft/plugin/session-editor-commit-force.ci` is still a draft and RED (2026-10-10: step 6, wait for "commit now force", output deadline expired); no SSH evidence |
+| AC-13 | evidenced | e9eb530301 | `session-editor-commit-confirmed-accept.ci` | 9/9 confirm `.ci` red with `Editor.daemonWindow` returning nil (record above) |
+| AC-14 | evidenced | e9eb530301 | `session-editor-commit-confirmed-timeout.ci`, `TestConfirmWindowWorkerRevertsAtDeadline` | same 9/9 record |
+| AC-15 | evidenced | e9eb530301, b2be26dfae | `session-editor-commit-confirmed-disconnect.ci` | same 9/9 record |
+| AC-16 | evidenced | e9eb530301 | `session-editor-commit-confirmed-abort.ci` | same 9/9 record |
+| AC-17 | evidenced | e9eb530301 | `session-editor-commit-confirmed-reconnect.ci`, `TestConfirmWindowOwnerIsTheUser` | same 9/9 record |
+| AC-18 | evidenced | e9eb530301, b2be26dfae | `session-editor-commit-confirmed-commit-now-refused.ci`, `session-editor-commit-confirmed-other-user.ci`, `TestConfirmWindowRefusesOtherUsers`, `TestConfirmWindowCommitNowRefused`; file mode `TestCommitNowRefusedDuringWindow` | same 9/9 record |
+| AC-19 | evidenced | 082d50f2d7, 012d69b946, 2baa46a608 | `session-editor-commit-confirmed-restart.ci`, `TestConfirmWindowRevertsOnStart`, `TestRecoverConfirmWindow`, `TestSSHLifecycleEndsServerWait` | .ci red with `recoverConfirmWindow` skipping recovery; `TestSSHLifecycleEndsServerWait` red (5s deadline) for stop, restart and reboot on the old wiring |
+| AC-20 | evidenced | 86cf02e4a1 | `session-editor-commit-confirmed-boundary.ci` | red at step 9 with `CommitConfirmedSecondsMax = 3601` |
+| AC-21 | evidenced (unit only, by design) | 86cf02e4a1 | `TestSessionCommitConfirmedNeedsHistory` | red with the `HasHistory` guard removed; no daemon session can lack history (record above) |
+| AC-22 | evidenced (docs) | 6de8153c35, c734b3fb85, fd7ef25dec | `docs/guide/config-editor.md` Commit Confirmed, `docs/architecture/hub-architecture.md`, `docs/guide/web-interface.md` | not a test; read against the AC text |
+| AC-23 | evidenced | e9eb530301, fd7ef25dec | SSH `session-editor-commit-confirmed-nested.ci`, `TestConfirmWindowNestedRevertsToFirst`, `TestSessionCommitConfirmedForceNests`; file mode `TestFileModeNestedCommitConfirmedForce`, `TestFileModeNestedCountdownKeepsOneTicker` | .ci in the 9/9 record; both file-mode tests observed red before fd7ef25dec (nested force refused with ErrPending; a second `tea.Tick`) |
+| AC-24 | evidenced | e9eb530301 | `session-editor-commit-confirmed-accept-keeps-candidate.ci`, `TestConfirmWindowAcceptKeepsCandidateEdits` | same 9/9 record |
+| AC-25 | partial | 0d6fe64cd1, eeaa9864bd | `TestConfirmWindowAcceptAbortOutsideWindow`, file mode `commit-grammar.et`, web `cli-commit-grammar.wb` | no SSH `.ci`: `session-editor-commit-grammar.ci` was never written |
+| AC-26 | partial | 0d6fe64cd1, c734b3fb85 | file mode `commit-grammar.et`; web `TestWebTerminalCommitVerifyReportsInvalid`, `cli-commit-grammar.wb`; another user's verify during a window in `session-editor-commit-confirmed-other-user.ci` | `TestWebTerminalCommitVerifyReportsInvalid` red with `VerifySession` returning nil. SSH `.ci` `test/draft/plugin/session-editor-commit-verify.ci` is still a draft and RED (2026-10-10: step 12, wait for "remote", output deadline expired) |
+| AC-27, AC-28 | partial | 0d6fe64cd1, 9e142fbcae | `TestCommitGrammar`, `TestCommitCompletion`, file mode `commit-grammar.et`, web `cli-commit-grammar.wb` | no SSH `.ci` (`session-editor-commit-grammar.ci` never written) |
+| AC-29 | evidenced | 0d6fe64cd1, c734b3fb85 | `commit-grammar.et` (file mode), `cli-commit-grammar.wb` (web, real daemon) | `.wb` red with the hub's `SetConfirmWindow` removed; `commit-grammar.et` red (step 6) before 0d6fe64cd1 |
+| AC-30 | partial | 0d6fe64cd1 | `TestCopyRenameRefuseExistingDestination` (session and file mode), `commit-grammar.et` | no SSH `.ci` (`session-editor-copy-rename-existing.ci` never written); the web terminal case is not in `cli-commit-grammar.wb` |
+| AC-31 | withdrawn | - | - | - |
+| AC-32 | evidenced (SSH); web owner | da04760ffc, 2b0522811b | `session-editor-commit-force-conflict.ci`, `TestCommitForceOverridesConflict`, `TestWebTerminalCommitForceOverridesConflict` | .ci and unit red with `discardOverridden` returning nil. A web user whose change is discarded gets no notice (Remaining) |
+
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| `load` works in session mode against the running daemon, as tracked change entries, and `commit now` applies it | functional | `session-editor-load-merge.ci`, `-load-replace.ci`, `-load-terminal-relative.ci` assert the running daemon's state through `ze cli -c show bgp`; `-load-conflict.ci` proves conflict detection sees a loaded leaf |
+| `copy`, `deactivate`, `activate` work in session mode as tracked entries | functional | `session-editor-copy.ci`, `session-editor-deactivate-activate.ci` (SSH), `cli-session-copy-deactivate.wb` (web) |
+| `commit force` works in session mode | functional | SSH: NOT evidenced (`session-editor-commit-force.ci` draft red). Force over a conflict: `session-editor-commit-force-conflict.ci` |
+| `commit confirmed` auto-reverts even when the SSH session is gone | functional | `session-editor-commit-confirmed-disconnect.ci` (client killed, daemon reverts), `-timeout.ci`, `-restart.ci` (daemon stopped mid-window boots the pre-commit config) |
+| one commit grammar in every editor | functional | `commit-grammar.et` (file mode), `cli-commit-grammar.wb` (web), SSH through the confirm `.ci` set; SSH grammar refusals (AC-25, AC-27, AC-28) not in a `.ci` |
+
+## Remaining
+
+Owner decisions pending:
+
+| Item | Question |
+|------|----------|
+| `test/editor/session/load-blocked.et` | it asserts the session-mode load refusal d2c8103327 removed, so it is RED; deleting it needs the owner's approval (`load-session.et` replaces it) |
+| `test/editor/lifecycle/load-file-absolute-merge.et` (load merge semantics, AC-7) | the old text merge kept the existing leaf over the loaded one; the tree load makes the loaded leaf win (AC-1, Junos merge). Correct the `.et` to loaded-wins, or change the semantics |
+| `checkLiveConflicts` deletion | a dead duplicate of `Editor.detectConflicts` with no production caller (`plan/journal/production-function-only-tests-call.md`); deleting it removes its two `editor_test.go` tests, which needs the owner's approval |
+| web notice of a forced-commit discard | a web user whose change a forced commit discards gets no notice and keeps a stale tree until its editor is rebuilt (the web has no draft poll) |
+| web terminal countdown and status line | the web terminal has no status line, so it shows neither the countdown nor how a window it did not close ended |
+
+ACs not evidenced through their named entry point:
+
+| AC | What is missing |
+|----|-----------------|
+| AC-12 | SSH `.ci` `session-editor-commit-force.ci`: draft, RED at step 6, not diagnosed |
+| AC-26 | SSH `.ci` `session-editor-commit-verify.ci`: draft, RED at step 12, not diagnosed |
+| AC-25, AC-27, AC-28 | SSH `.ci` `session-editor-commit-grammar.ci`: not written |
+| AC-30 | SSH `.ci` `session-editor-copy-rename-existing.ci`: not written; web terminal case not covered |
+| AC-7 | blocked on the load merge owner decision above |
+
+Owed gates (not run by an implementing agent): `./le test unit all` (race),
+`./le verify worktree`, the review gate.
 
 ## Known Limitations
 - The web terminal has no `load` verb at all (absent, not refused); not this class. Copy, deactivate and activate reach it through the shared `Editor` and are covered (AC-11). It gains the commit subcommands, `commit confirmed` included, and the `force` modifier (AC-29).
