@@ -1,0 +1,137 @@
+# Test: a VRRP group with interface tracking ADDED over SSH to a running
+#       daemon becomes master
+# Initial config: a daemon with one iBGP peer and an addressed ethernet
+#                 interface, and no `vrrp` block anywhere.
+# Live change:    an SSH session editor load-merges a VRRP group (with a
+#                 tracked interface) under the interface's IPv4 unit, and
+#                 commits with `commit now`.
+# Expected:       `show vrrp` lists the group as master at its full
+#                 priority, so the commit reached the vrrp plugin's apply step
+#                 and the instance ran its election.
+#
+# VALIDATES: spec-terminal-demo-showcase AC-2 (VRRP tracking topic) and A-2 --
+#            the vrrp plugin, started at boot by the `interface` root alone,
+#            builds a group committed live through the SSH editor, the path
+#            the recording types.
+# PREVENTS: a topic recording whose commit reports success while no VRRP
+#           instance starts. tcp_connections=1 also proves adding the group
+#           leaves the BGP session alone: a second connection fails the peer.
+#
+# Before the commit `show vrrp` answers an empty list, so the lacks step
+# proves the group is absent until the commit.
+#
+# PLATFORM: needs Linux with CAP_NET_ADMIN (macvlan, raw sockets, netlink VIP
+# install), as test/vrrp/vrrp-track.ci, whose setup fixture builds the parent
+# zeptrk0 and the tracked zetrk1 veths. A user and network namespace
+# (`unshare -rn`, loopback up) is enough. The tracking demotion itself is
+# proven by vrrp-track.ci; this file proves only the live add.
+option=needs-linux:caps=net-admin
+option=exclusive:group=iface-owned-macvlan
+option=timeout:value=60s
+option=env:var=ze.log.vrrp:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=vrrp-added-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+interface {
+    backend netlink;
+    ethernet zeptrk0 {
+        unit 0 {
+            ipv4 {
+                address [ 203.0.113.251/24 ];
+            }
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=vrrp-topic.conf:terminator=EOF_TOPIC
+interface {
+    ethernet zeptrk0 {
+        unit 0 {
+            ipv4 {
+                vrrp {
+                    group uplink {
+                        vrid 12;
+                        virtual-address [ 203.0.113.1 ];
+                        priority 200;
+                        advertise-interval-milliseconds 1000;
+                        track {
+                            interface zetrk1 {
+                                priority-decrement 150;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+EOF_TOPIC
+
+tmpfs=vrrp-added-live.script:terminator=EOF_SCRIPT
+cli show vrrp | yaml
+lacks uplink
+send load file absolute merge vrrp-topic.conf
+wait Configuration merged from
+send commit now
+wait Session committed:
+cli show vrrp | yaml
+has master
+has uplink
+has effective-priority: 200
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=le test fixture vrrp/vrrp-track-setup
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze start vrrp-added-live.conf:timeout=60s
+cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT2 vrrp-added-live.conf vrrp-added-live.script:timeout=60s
+expect=exit:code=0
