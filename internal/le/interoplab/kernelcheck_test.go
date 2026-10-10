@@ -3,8 +3,8 @@ package interoplab
 import (
 	"context"
 	"errors"
-	"slices"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -70,6 +70,34 @@ func TestDockerKernelRefusesNamingEveryMissingFeature(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "CONFIG_XFRM_USER") {
 		t.Errorf("refusal names a present feature: %v", err)
+	}
+}
+
+// VALIDATES: rows that all read present still refuse when the probe's own
+// verdict disagrees: a non-zero exit, or `ready` false. The refusal names the
+// exit code and the ready field it read.
+// PREVENTS: the check re-deriving a pass from the rows alone and proceeding on
+// a kernel the producer itself (doctor writeKernelCapabilities) did not call
+// ready.
+func TestDockerKernelHonoursTheProbeVerdict(t *testing.T) {
+	notReady := `{"ready": false, "capabilities": [
+ {"subsystem": "ipsec", "kernel": "CONFIG_XFRM_USER", "state": "present"}]}`
+	for name, tc := range map[string]struct {
+		stdout string
+		exit   int
+		want   string
+	}{
+		"present rows, exit 1":      {allPresent, 1, "exit 1"},
+		"present rows, ready false": {notReady, 0, "ready false"},
+	} {
+		err := checkDockerKernel(context.Background(), newDocker(scriptedKernel(tc.stdout, tc.exit, nil)), kernelCheckZe)
+		if err == nil {
+			t.Errorf("%s: accepted", name)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: refusal does not name %q: %v", name, tc.want, err)
+		}
 	}
 }
 

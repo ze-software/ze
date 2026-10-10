@@ -366,6 +366,7 @@ It refuses when:
 | a row is `absent` or `unknown` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6): on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot, elsewhere the lab inside the Ze-kernel QEMU guest, `./le test qemu docker-lab` |
 | the container fails, or prints no JSON | the command it ran, its exit code, stdout and stderr |
 | the answer holds no row | the command it ran |
+| every row is `present` but the probe exits non-zero or answers `ready` false | the command it ran, its exit code and the `ready` it read: the producer's verdict and its rows disagree, so the answer is unread, never a pass |
 | the suite names no staged ze | `Suite.StagedZe` |
 
 The refusal is the suite's setup error: `interop: setup: <reason>`, exit 1. The

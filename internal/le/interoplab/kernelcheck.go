@@ -145,7 +145,14 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 		count++
 	}
 	if count == 0 {
-		return nil
+		// Every row reads present, so the probe's own verdict must agree: the
+		// producer (doctor writeKernelCapabilities) exits 0 with ready true only
+		// then. A disagreement is a probe this check cannot read, never a pass.
+		if answer.Ready && result.ExitCode == 0 {
+			return nil
+		}
+		return errors.New(problem.Str("answered every row present but exit ").Str(strconv.Itoa(result.ExitCode)).
+			Str(", ready ").Str(strconv.FormatBool(answer.Ready)).Str(", so its verdict disagrees with its rows").String())
 	}
 	var refusal textbuf.Buffer
 	refusal.Str("the Docker daemon's kernel ").Str(release).Str(" lacks ").Str(strconv.Itoa(count)).
