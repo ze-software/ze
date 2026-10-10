@@ -11,6 +11,11 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+Review state (2026-10-10): round-1 findings fixed (b99e74e99c, ff75ef7668, e5fa0e63a1
+and this spec's closure sections); READY FOR REVIEW ROUND 2. Interop re-run owed after
+the arm64 kernel rebuild: ff75ef7668 changed the initiator checker's KE assertion, so
+the green logs below predate it. BLOCKER 1 of round 1 waits on the owner (Review Gate).
+
 ## Task
 
 Ze never creates a NEW Child SA on an established IKE SA. Its CREATE_CHILD_SA
@@ -165,9 +170,9 @@ New-child builder field sources (no old child):
 | A-1 | strongSwan as initiator, given a responder that answers IDr, AUTH and NO_PROPOSAL_CHOSEN, keeps the IKE SA and initiates later children with CREATE_CHILD_SA | `child_create.c` `handle_child_sa_failure`, `close_ike_on_child_failure` default FALSE | the responder interop scenario cannot reach the creation path | the `childless-ike-sa-ze-responder` scenario sees charon log "failed to establish CHILD_SA, keeping IKE_SA" | validated 2026-10-10 (strongSwan 5.9.14): as initiator it logged "parsed IKE_AUTH response 1 [ IDr AUTH N(NO_PROP) N(MOBIKE_SUP) ]" then "IKE_SA ze[1] established", and the scenario passed (same `ze: #N` IKE id before and after, no "deleting IKE_SA ze[", `wanted` sent as "CREATE_CHILD_SA request [ SA No KE TSi TSr ]"). The named line "failed to establish CHILD_SA, keeping IKE_SA" was observed from strongSwan as responder (initiator scenario); the initiator-side log of that run was block-buffered and ended at "established", which is why both scenarios now carry a flush_line strongswan.conf |
 | A-2 | strongSwan as responder accepts a CREATE_CHILD_SA new-child request on an IKE SA whose IKE_AUTH child it refused | RFC 7296 Section 1.3; strongSwan child_create responder path | the initiator scenario fails at creation | the `childless-ike-sa-ze-initiator` scenario | validated 2026-10-10 (strongSwan 5.9.14): it refused the IKE_AUTH child ("[ IDr AUTH N(MOBIKE_SUP) N(NO_ADD_ADDR) N(NO_PROP) ]", "failed to establish CHILD_SA, keeping IKE_SA"), refused Ze's first retry ("parsed CREATE_CHILD_SA request 3 [ SA No KE TSi TSr ]", "generating CREATE_CHILD_SA response 3 [ N(NO_PROP) ]", "failed to establish CHILD_SA, keeping IKE_SA"), then after `swanctl --load-conns` ("updated vici connection: ze") accepted "parsed CREATE_CHILD_SA request 6 [ SA No KE TSi TSr ]" with "CHILD_SA ze-child{3} established" on the same IKE SA. `--load-conns` with only `esp_proposals` changed keeps the IKE SA: vici `merge_config` finds the equal peer_cfg and swaps its child cfgs in place |
 | A-3 | The interop checker can rewrite strongSwan's conn mid-scenario and reload it | `checkPeerReloadNarrowing` writes `zz-narrow.conf` then runs `swanctl --load-conns` | the initiator scenario needs another way to turn the refusal into acceptance | read of `checkPeerReloadNarrowing` (done) | validated |
-| A-4 | A `.ci` can reload the responder ze's esp-group mid-test | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` reloads a peer | the functional test can show only the childless hold, not the recovery | read that `.ci` at implementation start | unvalidated |
-| A-5 | No caller outside the engine dereferences the Child SA of an established session without a nil check | the `getChildSA()` reader list above | a nil dereference on a childless session | a childless unit case per reader, plus `show vpn ipsec sa` on a childless session in the `.ci` | unvalidated |
-| A-6 | The tagged fixtures RFC7296-2.5-13 and RFC7296-1.2-2 assert only `StateEstablished` and the AUTH outcome, not the Child SA | read of the three test files | treating no-SAr2 as childless would still redden them, forcing an owner-approved edit | run the three tests unedited after phase 2 | unvalidated |
+| A-4 | A `.ci` can reload the responder ze's esp-group mid-test | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` reloads a peer | the functional test can show only the childless hold, not the recovery | read that `.ci` at implementation start | validated 2026-10-10: `test/ipsec/ipsec-childless-ike-sa-recovers.ci` (3d069a957e) reloads the responder's esp-group mid-test (fixture `internal/test/fixture/tunnel_fixture_ipsec_childless.go` sends SIGHUP and prints "RELOADED:"); the `.ci` expects stdout `RELOADED:` and stderr "esp-group reloaded on a childless IKE SA, kept the IKE SA", and passed on b99e74e99c (`tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/ccs-r1-ci-green.log`, PASS 34.1 s, exit=0) |
+| A-5 | No caller outside the engine dereferences the Child SA of an established session without a nil check | the `getChildSA()` reader list above | a nil dereference on a childless session | a childless unit case per reader, plus `show vpn ipsec sa` on a childless session in the `.ci` | validated 2026-10-10: `TestChildlessSAMaintenance` (`childless_readers_test.go`) drives every reader on a childless session (espInstalled, Info, migrateMobikeChild, closeDesignatedChildSAs, cleanupChild) with no panic, and each was reddened by mutation (2d98a75602); the `.ci` reads `show vpn ipsec sa | json` on the childless responder and prints `CHILDLESS:` for the established entry, after refusing with `CHILD-BEFORE-RELOAD` (a `reject=` in the `.ci`) when that entry carries a Child SA (green log above); engine package green with -race on HEAD 2026-10-10 (55.1 s) |
+| A-6 | The tagged fixtures RFC7296-2.5-13 and RFC7296-1.2-2 assert only `StateEstablished` and the AUTH outcome, not the Child SA | read of the three test files | treating no-SAr2 as childless would still redden them, forcing an owner-approved edit | run the three tests unedited after phase 2 | validated 2026-10-10: no commit since e2e724cf57 (phase 2) touched `rfc7296_auth_test.go`, `rfc7296_payload_order_test.go`, `rfc7296_remote_cert_chain_test.go` or `wire/rfc7296_test.go` (`git log e2e724cf57^..HEAD` over those paths is empty), and both packages that hold them are green with -race on HEAD: engine (55.1 s) and wire (1.3 s) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -234,21 +239,35 @@ New-child builder field sources (no old child):
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestResponderKeepsIKESAWhenChildRefused` | `internal/component/ike/engine/childless_test.go` | AC-1 payload set and order, ESTABLISHED, nothing installed; tagged RFC7296-2.21.2 (responder half) | |
-| `TestResponderEAPKeepsIKESAWhenChildRefused` | same | AC-1 on the final EAP IKE_AUTH | |
-| `TestInitiatorKeepsChildlessIKESA` | same | AC-2, no Delete sent; tagged RFC7296-2.21.2-2 positive, and negative (a corrupted AUTH beside the notify still fails) | |
-| `TestInitiatorNoSAr2NoNotifyIsChildless` | same | AC-3 | |
-| `TestChildlessInitiatorCreatesChildSA` | `internal/component/ike/engine/create_child_test.go` | AC-4 request payloads, key order, install, lifetime start | |
-| `TestCreateChildCarriesKEiWhenPFS` | same | AC-5; RFC7296-1.3-1 | |
-| `TestCreateChildInvalidKERetriesNamedGroup` | same | AC-5 | |
-| `TestCreateChildRefusalRouting` | same | AC-6 rows; per-kind holds independent | |
-| `TestResponderCreatesChildOnChildlessSA` | same | AC-7 with and without KEi, transport mode echo | |
-| `TestNewChildWithKEIsNotAnIKERekey` | same | AC-8 | |
-| `TestNewChildWhileChildHeldAnswersNoAdditionalSAs` | same | AC-9 | |
-| `TestChildlessSAMaintenance` | same | AC-10 readers: metrics, MOBIKE, cleanup; an IKE rekey keeps creation scheduled | |
-| `TestCreateChildWaitsForIKERekey` | same | AC-11 | |
-| `TestCreateChildCollisionDeletesNewPair` | same | AC-12 | |
-| `TestCreateChildRetrySchedule` | same | Q-2 schedule, reset on success | |
+Every file below is under `internal/component/ike/engine/`. Status: every row PASS on
+HEAD 2026-10-10 (`go test -race` over the engine package, 55.1 s, under `./le job run`).
+The red column names how each test's red was observed, recorded in the per-spec state file.
+
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestResponderKeepsIKESAWhenChildRefused` | `rfc7296_auth_child_refusal_test.go` (planned `childless_test.go`, never created) | AC-1 payload set and order, ESTABLISHED, nothing installed; tagged RFC7296-2.21.2 (responder half) | PASS; red before code (e2e724cf57) |
+| `TestResponderEAPKeepsIKESAWhenChildRefused` | `rfc7296_auth_child_refusal_test.go` | AC-1 on the final EAP IKE_AUTH | PASS; red by mutation (2d98a75602) |
+| `TestInitiatorKeepsChildlessIKESA` | `rfc7296_auth_child_refusal_test.go` | AC-2, no Delete sent; tagged RFC7296-2.21.2-2 positive, and negative (a corrupted AUTH beside the notify still fails) | PASS; discrimination records in `rfc/discrimination/rfc7296.json` (7adea0a4b7) |
+| `TestInitiatorNoSAr2NoNotifyIsChildless` | `rfc7296_auth_child_refusal_test.go` | AC-3 | PASS; red before code (e2e724cf57) |
+| `TestChildlessInitiatorCreatesChildSA` | `create_child_test.go` | AC-4 request payloads, key order, install, lifetime start; its `pfs` subtest is AC-5 KEi in the configured group, RFC7296-1.3-1 (planned `TestCreateChildCarriesKEiWhenPFS`, folded here) | PASS; red by mutation (52910baca4) |
+| `TestCreateChildWithoutKErIsRefused` | `create_child_test.go` | AC-5: a success answer without KEr under pfs is refused | PASS; red by mutation (52910baca4) |
+| `TestCreateChildInvalidKERetriesNamedGroup` | `create_child_test.go` | AC-5 | PASS; red by mutation (52910baca4) |
+| `TestCreateChildRefusalRouting` | `create_child_test.go` | AC-6 rows, NO_ADDITIONAL_SAS re-establishes; per-kind holds independent | PASS; red by mutation (52910baca4) |
+| `TestResponderCreatesChildOnChildlessSA` | `create_child_test.go` | AC-7 with and without KEi, transport mode echo | PASS; red before code (d20f52052c) |
+| `TestResponderRefusesUnacceptableNewChild` | `create_child_test.go` | AC-7 refusal answers the error notify and keeps the IKE SA | PASS; red before code (d20f52052c) |
+| `TestNewChildWithKEIsNotAnIKERekey` | `create_child_test.go` | AC-8, and AC-9: the request goes to a responder that holds a Child SA and must draw exactly NO_ADDITIONAL_SAS with the live Child SA and the IKE SA unchanged (planned `TestNewChildWhileChildHeldAnswersNoAdditionalSAs`, folded here) | PASS; red before code (e8d7fc3fcd, answered notify 14) |
+| `TestIKERekeyWithoutTSStaysAnIKERekey` | `create_child_test.go` | AC-8: SA, Ni, KEi and no TS stays an IKE SA rekey | PASS (e8d7fc3fcd) |
+| `TestChildlessSAMaintenance` | `childless_readers_test.go` | AC-10 readers: metrics, MOBIKE, cleanup | PASS; red by mutation (2d98a75602) |
+| `TestIcyChildlessInitiatorStaysInMaintainSA` | `initiator_cycle_test.go` | AC-10: an IKE rekey keeps the SA childless with creation still scheduled | PASS; red by mutation (2d98a75602, 227f9df3c2) |
+| `TestChildlessSALiveness`, `TestChildlessSAHardLifetimeEnds`, `TestCreatedChildStartsItsLifetimeOnTheOwnerLoop`, `TestPeerDeleteOfTheLiveChildEndsTheOwnerLoop` | `childless_lifecycle_test.go` | AC-10 DPD and hard lifetime, AC-4 lifetime start at install, AC-15 | PASS; red by `-overlay` mutation (227f9df3c2) |
+| `TestCreateChildWaitsForIKERekey` | `create_child_test.go` | AC-11 | PASS; red by mutation (52910baca4) |
+| `TestCreateChildCollisionDeletesNewPair` | `create_child_test.go` | AC-12 | PASS; red by mutation (52910baca4) |
+| `TestCreateChildRetrySchedule` | `create_child_test.go` | Q-2 schedule, reset on success | PASS; red by mutation (52910baca4) |
+| `TestReloadKeepsChildlessSessionForESPGroupChange`, `TestReloadRestartsSessionOutsideTheChildlessESPChange` | `reconcile_childless_test.go` | Q-8 option A: an esp-group reload keeps a childless IKE SA, and every other edit restarts | PASS; red before code and by `-overlay` mutation (f4d62a62f7) |
+| `TestChildlessInitiatorCreatesTransportChildSA` | `create_child_transport_test.go` | AC-4 under `mode transport`: USE_TRANSPORT_MODE in the creation request (review ISSUE 3) | PASS; red under scratch overlay (b99e74e99c, `scratch/ccs-r1-overlay/red.log`) |
+| `TestChildlessInitiatorDeletesDeclinedTransportChildSA` | `create_child_transport_test.go` | RFC7296-1.3.1-2: a transport-required creation answered tunnel-mode is deleted (review ISSUE 3) | PASS; tagged, discrimination record e5fa0e63a1 |
+| `TestReloadOfMissingESPGroupRestartsChildlessSession`, `TestESPGroupReloadRestartsTheCreationSchedule` | `reload_child_schedule_test.go` | review NOTE 3 (`espResolved=false` branch) and NOTE 8 (a reload resets a backed-off creation wait) | PASS; red under scratch overlay (b99e74e99c) |
+| `TestInitiatorCycleKeepsChildlessIKESA` | `childless_initiator_cycle_test.go` | AC-2 through the cycle: `sa-up`, no Delete, the loop keeps running with no Child SA (review NOTE 8) | PASS; red under scratch overlay (b99e74e99c) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -259,7 +278,7 @@ New-child builder field sources (no old child):
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-childless-ike-sa-recovers` | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` | two ze instances; the responder's esp-group shares nothing with the initiator's; `sa-up` fires, `show vpn ipsec sa` shows the peer with no Child SA and no reconnect; the responder's esp-group is reloaded to match; `child-up` fires on the initiator from a CREATE_CHILD_SA creation | |
+| `ipsec-childless-ike-sa-recovers` | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` | two ze instances; the responder's esp-group shares nothing with the initiator's; `sa-up` fires, `show vpn ipsec sa` shows the peer with no Child SA and no reconnect; the responder's esp-group is reloaded to match; `child-up` fires on the initiator from a CREATE_CHILD_SA creation | GREEN on b99e74e99c: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/ccs-r1-ci-green.log` (`./le --name ccsr test ipsec ipsec-childless-ike-sa-recovers`, its own freshly built le, PASS 34.1 s, exit=0). RED (3d069a957e, scratch clone): `if false && r.ps.retargetESPGroup` in reconcilePeers fails at NEVER-CREATED after 97.8 s. The designed RECONNECTED red (review NOTE 5): see the Review Gate |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -469,3 +488,172 @@ section.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- Responder (AC-1): `handleAuthRequest` verifies AUTH before it builds the Child SA; a refused child answers IDr, CERT, AUTH and the error notify with no SAr2 and establishes the IKE SA childless (`responder.go` `buildChildlessAuthResponse`; EAP through `sa.eapChildRefusal` in `responder_eap.go`). e2e724cf57.
+- Initiator (AC-2, AC-3): `handleAuthResponse` establishes from an authenticated answer carrying a notify, or nothing, in place of SAr2; `deleteChildlessIKESA` and `errChildSARefused` deleted (Q-1). e2e724cf57.
+- Classification (AC-8, AC-9): a CREATE_CHILD_SA with TS and no REKEY_SA is a new-child request even with KEi; NO_ADDITIONAL_SAS while a Child SA is held. e8d7fc3fcd.
+- Responder creation (AC-7): `create_child.go` `respondNewChild` on a childless IKE SA, in either IKE role. d20f52052c.
+- Initiator creation (AC-4, AC-5, AC-6, AC-11, AC-12, Q-2): `serviceChildCreate` on the owner tick, `initiateChildCreate`, `applyChildCreateResponse`, `finishChildCreate`, schedule 30 s doubling to 300 s. 52910baca4.
+- Reload (Q-8 option A): an esp-group-only reload keeps a childless IKE SA (`retargetESPGroup`, `adoptESPGroup`). f4d62a62f7.
+- Proof: `.ci` 3d069a957e; interop scenarios 369d9fbb72, 2c813c4d58, ff75ef7668; RFC tags and records 7adea0a4b7, e5fa0e63a1.
+- Review round 1 fixes: b99e74e99c, ff75ef7668.
+
+### Bugs Found/Fixed
+- An IKE_AUTH response with neither SAr2 nor an error notify established and then failed "no peer ESP SPI recorded" with no Delete (`plan/journal/silent-fall-through.md`, 2026-10-10). Fixed by the childless establish; covered by `TestInitiatorNoSAr2NoNotifyIsChildless`.
+- An esp-group reload did not reset a creation wait already backed off to 300 s (review NOTE 8). Fixed in b99e74e99c (`childCreateSchedule.restart`); covered by `TestESPGroupReloadRestartsTheCreationSchedule`.
+- The interop lab's `ZE_LOG_LEVEL=debug` is read by no logger, so INFO lines never reach the log. Journal row in `plan/journal/silent-fall-through.md` (2c813c4d58); the scenario sets `ZE_LOG_IKE=info` in its `ze-env`.
+
+### Documentation Updates
+- `docs/architecture/ike/ipsec-7-ikev2-engine.md` (e2e724cf57, f4d62a62f7), `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (e8d7fc3fcd, e2e724cf57, d20f52052c, 52910baca4), `docs/architecture/ike/ipsec-14-responder.md` (e2e724cf57), `docs/architecture/ike/ipsec-10-cli-diag.md` (b99e74e99c, review ISSUE 4), `docs/guide/ipsec.md` "Which edits restart a tunnel" (f4d62a62f7), `features/ikev2-engine.md` and `rfc/short/rfc7296.md` (7adea0a4b7). `docs/features/rfc-status.md` carries the Section 2.21.2 childless IKE SA sentence.
+- `./le doc check verify` and `./le spec citation anchors spec plan/immediate/spec-ike-create-child-sa-on-established-ike-sa.md`: owed to the main thread after round 2 (citation anchors exited 0 at round 1, review NOTE 7).
+
+### Deviations from Plan
+- Test files: the planned `childless_test.go` was never created; the AC-1 to AC-3 tests live in `rfc7296_auth_child_refusal_test.go`, `TestChildlessSAMaintenance` in `childless_readers_test.go`. `TestCreateChildCarriesKEiWhenPFS` is the `pfs` subtest of `TestChildlessInitiatorCreatesChildSA`; `TestNewChildWhileChildHeldAnswersNoAdditionalSAs` is folded into `TestNewChildWithKEIsNotAnIKERekey`. The TDD table records the real names.
+- `rekey.go` was not the home of the creation builder and applier: they went to a new `create_child.go`, reusing `childRekeyKeys` and `rekeyRefusal`.
+- Q-8 (esp-group reload on a childless IKE SA) arose during implementation and was decided by the owner (option A).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Phase 4 tests were reddened by mutations applied in the shared tree | Other sessions build the same tree; a mutation must go through `go test -overlay` or a scratch clone | Coordinator note after 52910baca4 | Every later red used `-overlay` or `scratch/ccs-clone` |
+| assumption | The interop lab's `ZE_LOG_LEVEL=debug` was taken to make Ze log at INFO | No logger consults `ze.log.level`; Ze ran at WARN and the INFO creation line never appeared | The initiator scenario failed with strongSwan's side complete (`initiator-debug-clone.log`) | Scenario `ze-env` sets `ZE_LOG_IKE=info`; journal row |
+| approach | The `.ci` forced red took the NEVER-CREATED branch, not the designed RECONNECTED one | A reload that restarts the peer is the regression the SPI identity check exists for | Review round 1 NOTE 5 | RECONNECTED red forced in a scratch clone (Review Gate) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Section 2.21.2 responder keeps the IKE SA when only the child fails | Done | `responder.go` `buildChildlessAuthResponse`, `responder_eap.go` | AC-1 |
+| Section 2.21.2 initiator does not fail authentication | Done | `fsm.go` `handleAuthResponse` | AC-2, AC-3 |
+| Section 1.3.1 new Child SA creation, initiator | Done | `create_child.go` `serviceChildCreate`, `applyChildCreateResponse` | AC-4 to AC-6, AC-11, AC-12 |
+| Section 1.3.1 new Child SA creation, responder | Done | `create_child.go` `respondNewChild`, `inbound.go` `handleNewChildRequest` | AC-7 to AC-9 |
+| A childless IKE SA stays useful (DPD, rekey, Delete, show) | Done | `established.go`, `reconcile.go`, `metrics.go`, `mobike.go` | AC-10 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestResponderKeepsIKESAWhenChildRefused`, `TestResponderEAPKeepsIKESAWhenChildRefused`; interop `childless-ike-sa-ze-responder` | |
+| AC-2 | Done | `TestInitiatorKeepsChildlessIKESA`, `TestInitiatorCycleKeepsChildlessIKESA`; interop `childless-ike-sa-ze-initiator` | |
+| AC-3 | Done | `TestInitiatorNoSAr2NoNotifyIsChildless`; RFC7296-2.5-13 and RFC7296-1.2-2 tests unedited (A-6) | |
+| AC-4 | Done | `TestChildlessInitiatorCreatesChildSA`, `TestChildlessInitiatorCreatesTransportChildSA`, `TestCreatedChildStartsItsLifetimeOnTheOwnerLoop` | |
+| AC-5 | Done | `TestChildlessInitiatorCreatesChildSA` (pfs), `TestCreateChildWithoutKErIsRefused`, `TestCreateChildInvalidKERetriesNamedGroup` | |
+| AC-6 | Done | `TestCreateChildRefusalRouting` | |
+| AC-7 | Done | `TestResponderCreatesChildOnChildlessSA`, `TestResponderRefusesUnacceptableNewChild` | |
+| AC-8 | Done | `TestNewChildWithKEIsNotAnIKERekey`, `TestIKERekeyWithoutTSStaysAnIKERekey` | |
+| AC-9 | Done | `TestNewChildWithKEIsNotAnIKERekey` | folded test |
+| AC-10 | Done | `TestChildlessSAMaintenance`, `childless_lifecycle_test.go`, `TestIcyChildlessInitiatorStaysInMaintainSA`; `.ci` CHILDLESS marker | |
+| AC-11 | Done | `TestCreateChildWaitsForIKERekey` | |
+| AC-12 | Done | `TestCreateChildCollisionDeletesNewPair` | |
+| AC-13 | Done | interop `childless-ike-sa-ze-responder` green and red | |
+| AC-14 | Done, re-run owed | interop `childless-ike-sa-ze-initiator` green and red | ff75ef7668 added the KE assertion after the green run; re-run after the arm64 kernel rebuild |
+| AC-15 | Done | `TestPeerDeleteOfTheLiveChildEndsTheOwnerLoop` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Unit tests | Done | TDD Unit Tests table above | Two planned names folded, recorded there |
+| `ipsec-childless-ike-sa-recovers` | Done | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` | |
+| `childless-ike-sa-ze-responder`, `childless-ike-sa-ze-initiator` | Done, initiator re-run owed | `test/interop-ipsec/scenarios/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `responder.go`, `responder_eap.go`, `fsm.go`, `delete.go`, `sa.go`, `established.go`, `inbound.go`, `child.go`, `reconcile.go`, `msgid.go`, `register.go` | Done | engine edits listed per commit above |
+| `rekey.go` | Changed | creation code in the new `create_child.go` (Deviations) |
+| `metrics.go`, `mobike.go` | Done, no edit needed | their readers already nil-check the Child SA; `TestChildlessSAMaintenance` drives both |
+| `childless_test.go` | Changed | never created (Deviations) |
+| docs, features, rfc summary, journal | Done | Documentation Updates |
+| `internal/le/interoplab/ipsec/checkers.go`, `test/interop-ipsec/parity_test.go` | Done | 369d9fbb72, 2c813c4d58, ff75ef7668 |
+
+### Audit Summary
+- **Total items:** 15 AC, 5 Task requirements
+- **Done:** all, AC-14's interop re-run owed after the arm64 kernel rebuild
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** test file names and the creation code's home (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Ze as responder keeps the IKE SA when only the IKE_AUTH Child SA fails, and creates the Child SA the peer asks for later | interop | `childless-ike-sa-ze-responder` GREEN `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/responder-green5-clone.log`; RED with the creation arm reverted, `.../scratch/interop/responder-red-clone.log` ("ze never created the `wanted` Child SA on the childless IKE SA") |
+| Ze as initiator does not fail authentication on a refused child, keeps the IKE SA, and creates the Child SA later | interop + unit | `childless-ike-sa-ze-initiator` GREEN `.../scratch/interop/initiator-green3-clone.log`; RED with `serviceChildCreate` disabled, `.../scratch/interop/initiator-red-clone.log` ("ze never retried the refused Child SA with CREATE_CHILD_SA"); `TestInitiatorCycleKeepsChildlessIKESA`. Re-run owed after the arm64 kernel rebuild (ff75ef7668 checker change) |
+| A childless IKE SA stays useful: DPD, rekey, Delete, show | unit + functional | `childless_lifecycle_test.go` (DPD, hard lifetime, peer Delete), `TestIcyChildlessInitiatorStaysInMaintainSA` (IKE rekey keeps creation scheduled), `TestChildlessSAMaintenance` (readers); `.ci` CHILDLESS marker from `show vpn ipsec sa \| json` |
+| An operator recovers a childless tunnel by fixing the esp-group, without a restart | functional | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` GREEN `.../scratch/ccs-r1-ci-green.log`; REDs: NEVER-CREATED (3d069a957e) and RECONNECTED (Review Gate, NOTE 5) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none in scope | More than one Child SA per IKE SA and RFC 6023 childless initiation are out of scope by the Task section (Known Limitations); no owner order to spec them yet | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded: round 1 was not CLEAN |
+| `./le spec review check` | not run |
+| Rounds | 1 complete (1 BLOCKER, 6 ISSUE, 8 NOTE); round 2 owed |
+| Reviewer lenses used | round 1: independent reviewer over the diff, RFC text, commit audit, interop evidence (`tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r1-ike-ccs.md`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | Commit audit WEAKENED with no RFC-approved trailer: `rfc7296_transport_test.go` `TestEAPResponderNarrowsToo` (2d98a75602, StateDead assertion became `errors.Is(bad.eapChildRefusal, errTSUnacceptable)`, follows from Q-1) and `rfc7296_auth_child_refusal_test.go` (0f732c91b5, enum const only, lint) | `internal/component/ike/engine/` | PENDING OWNER APPROVAL: `./le rfc approve unit ...` with the owner's words; the main thread asks him |
+| 2 | ISSUE | `serviceChildCreate` cited Section 2.8 for a Section 1.3.2 sentence | `create_child.go` | b99e74e99c |
+| 3 | ISSUE | Paraphrased RFC quotes where a verbatim quote is owed; the USE_TRANSPORT_MODE quote sat far from its statement | `create_child.go`, `reconcile.go` | b99e74e99c |
+| 4 | ISSUE | AC-4 and RFC7296-1.3.1-1/-2 untested on the initiator creation path | `create_child_transport_test.go` | b99e74e99c, e5fa0e63a1 |
+| 5 | ISSUE | `ipsec-10-cli-diag.md` did not say what a childless peer shows | `docs/architecture/ike/ipsec-10-cli-diag.md` | b99e74e99c |
+| 6 | ISSUE | Refusal log lines named no next step | `fsm.go`, `responder.go`, `create_child.go`, `inbound.go` | b99e74e99c (slog `fix` and `retry-after` attributes, messages unchanged so needles match) |
+| 7 | ISSUE | Goal Validation missing, A-4 to A-6 unvalidated, TDD and Functional Status empty | this spec | this spec commit |
+| N3 | NOTE | `espResolved=false` branch of `retargetESPGroup` untested | `reload_child_schedule_test.go` | b99e74e99c |
+| N4 | NOTE | AC-14 checker did not assert KE | `internal/le/interoplab/ipsec/checkers.go` | ff75ef7668 (interop re-run owed) |
+| N8 | NOTE | Reload did not reset a backed-off creation wait; AC-2 unit did not assert no Delete and `sa-up`; spec test names drifted | `create_child.go`, `childless_initiator_cycle_test.go`, this spec | b99e74e99c, this spec commit |
+
+NOTE 1 (RFC7296-2.7-1 and RFC3948-3.1.2-1 SHIFTED by checkers.go) goes to an independent RFC re-judge. NOTE 2 and NOTE 7 need nothing. NOTE 6 belongs to another session's privilege work. NOTE 5 is answered under Functional Tests and the RECONNECTED red recorded below.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/create_child.go`, `create_child_test.go` | yes | `ls` 2026-10-10: 30K and 26K |
+| `test/ipsec/ipsec-childless-ike-sa-recovers.ci` | yes | 183 lines |
+| `test/interop-ipsec/scenarios/childless-ike-sa-ze-responder/` | yes | strongswan.conf, swanctl.conf, ze.conf |
+| `test/interop-ipsec/scenarios/childless-ike-sa-ze-initiator/` | yes | strongswan.conf, swanctl.conf, ze-env, ze.conf |
+| `internal/component/ike/engine/childless_test.go` | no | never created, see Deviations |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-12, AC-15 | Unit tests named in the Acceptance Criteria audit pass | `./le job run label ccsr2-engine command go test -race -count=1 -tags "<gates>" ./internal/component/ike/engine/`: `ok ... 55.148s` on HEAD 2026-10-10 |
+| AC-2 | `deleteChildlessIKESA` and `errChildSARefused` no longer exist | `grep -rn` over `internal/`: one hit, a comment in `childless_initiator_cycle_test.go` naming the deleted function |
+| AC-13, AC-14 | interop | logs named in Goal Validation; AC-14 re-run owed |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| config: two ze instances, responder esp-group mismatched then reloaded | `test/ipsec/ipsec-childless-ike-sa-recovers.ci` | read: `exec=le test fixture ipsec/childless-ike-sa-recovers`, expects CHILDLESS, RELOADED and "child-sa: created via CREATE_CHILD_SA", rejects RECONNECTED and CHILD-BEFORE-RELOAD; green log above |
+| strongSwan peer, both roles | interop scenarios | logs named in Goal Validation |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | validated | Assumptions table, strongSwan 5.9.14 lines |
+| A-2 | validated | Assumptions table, `--load-conns` keeps the IKE SA |
+| A-3 | validated | read of `checkPeerReloadNarrowing` |
+| A-4 | validated | Assumptions table, `.ci` green log |
+| A-5 | validated | `TestChildlessSAMaintenance`, `.ci` |
+| A-6 | validated | no spec commit touched the three files; engine and wire green on HEAD |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Doc checklist rows 1, 9, 12 | files and commits under Documentation Updates | yes, by commit; round-2 reviewer re-reads them against source |
+| Row 6 (user guide) | `docs/guide/ipsec.md` lines 92-97 describe the childless esp-group reload | yes |
+| Row 16 (source anchors) | `./le spec citation anchors` exit 0 at round 1 (NOTE 7) | re-run owed after round 2 |
