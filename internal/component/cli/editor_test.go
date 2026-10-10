@@ -5013,37 +5013,6 @@ func TestGetValueAtPathEmpty(t *testing.T) {
 	assert.Equal(t, "", got)
 }
 
-// TestCheckLiveConflictsEmptyPath verifies checkLiveConflicts returns nil for empty path.
-//
-// VALIDATES: Empty pathParts early return (line 929-931).
-//
-// PREVENTS: Index out of range on empty path slice.
-func TestCheckLiveConflictsEmptyPath(t *testing.T) {
-	schema := testNavSchema()
-	meta := config.NewMetaTree()
-
-	conflicts := checkLiveConflicts(meta, "alice:100", "", nil, "value", schema)
-	assert.Nil(t, conflicts)
-
-	conflicts = checkLiveConflicts(meta, "alice:100", "", []string{}, "value", schema)
-	assert.Nil(t, conflicts)
-}
-
-// TestCheckLiveConflictsNilMetaTarget verifies checkLiveConflicts returns nil
-// when walkMetaReadOnly returns nil (meta path doesn't exist).
-//
-// VALIDATES: Nil metaTarget handling (line 938-939).
-//
-// PREVENTS: Panic when checking conflicts for a path with no metadata.
-func TestCheckLiveConflictsNilMetaTarget(t *testing.T) {
-	schema := testNavSchema()
-	meta := config.NewMetaTree()
-
-	conflicts := checkLiveConflicts(meta, "alice:100", "neighbor 1.1.1.1 peer-as",
-		[]string{"neighbor", "1.1.1.1", "peer-as"}, "65001", schema)
-	assert.Nil(t, conflicts)
-}
-
 // TestCopyNonSessionMetaNoOverwrite verifies that copyNonSessionMeta does not
 // overwrite existing entries in the destination MetaTree.
 //

@@ -752,50 +752,6 @@ func (e *Editor) DisconnectSession(sessionID string) error {
 	return nil
 }
 
-// checkLiveConflicts checks if other sessions have pending changes at the same YANG path.
-// myValue is this session's Entry.Value (empty string = delete intent).
-// Other sessions' values are also read from Entry.Value, not the draft tree.
-func checkLiveConflicts(meta *config.MetaTree, mySessionID, yangPath string, pathParts []string, myValue string, schema *config.Schema) []Conflict {
-	if len(pathParts) == 0 {
-		return nil
-	}
-	leafName := pathParts[len(pathParts)-1]
-	parentPath := pathParts[:len(pathParts)-1]
-
-	// Walk MetaTree to the leaf's parent using schema-aware navigation
-	// so list entries are found in .lists (not .containers).
-	metaTarget := walkMetaReadOnly(meta, schema, parentPath)
-	if metaTarget == nil {
-		return nil
-	}
-
-	entries := metaTarget.GetAllEntries(leafName)
-	if len(entries) == 0 {
-		return nil
-	}
-
-	// Check all entries for other-session disagreements.
-	// Both myValue and otherValue come from Entry.Value (session intent).
-	// Empty Value with non-empty SessionKey = delete intent.
-	var conflicts []Conflict
-	for _, entry := range entries {
-		if entry.SessionKey() != mySessionID && entry.SessionKey() != "" {
-			otherValue := entry.Value
-			if otherValue != myValue {
-				conflicts = append(conflicts, Conflict{
-					Path:       yangPath,
-					Type:       ConflictLive,
-					MyValue:    config.DisplayValueAtPath(schema, pathParts, myValue),
-					OtherValue: config.DisplayValueAtPath(schema, pathParts, otherValue),
-					OtherUser:  entry.User,
-				})
-			}
-		}
-	}
-
-	return conflicts
-}
-
 // plaintextPasswordLeafPrefix is the leaf-name prefix used by the Junos-style
 // auto-hash convention; entries targeting these leaves are dropped from the
 // commit metadata after ApplyPasswordHashing removes the leaves from the tree.
