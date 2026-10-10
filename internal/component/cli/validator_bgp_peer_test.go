@@ -108,7 +108,7 @@ func TestEditorValidationSkipsTheEngineWithoutABGPBlock(t *testing.T) {
 		return errors.New("must not be consulted")
 	})
 
-	validator, err := newConfigValidator()
+	validator, err := NewConfigValidator()
 	require.NoError(t, err)
 
 	assert.Empty(t, validator.bgpPeerErrors(nil), "a config that did not parse has no peer to validate")

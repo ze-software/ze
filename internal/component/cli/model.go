@@ -414,7 +414,7 @@ func NewModel(ed *Editor, filesystemAuthority FilesystemAuthority) (Model, error
 	}
 	comp.SetTree(ed.Tree())
 
-	val, err := newConfigValidator()
+	val, err := NewConfigValidator()
 	if err != nil {
 		return Model{}, fmt.Errorf("failed to create validator: %w", err)
 	}

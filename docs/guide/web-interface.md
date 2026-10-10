@@ -303,12 +303,14 @@ In integrated mode, CLI commands update the page content directly:
 | `show [path]` | Display config text at the current or specified path |
 | `top` | Navigate to root |
 | `up` | Navigate one level up |
-| `commit now` | Commit pending changes. `commit now force` commits over another user's conflicting change and discards it from theirs (see the config editor guide). `commit` without a subcommand is refused with the list of subcommands; `commit confirmed` and `commit verify` are refused in the browser by name |
+| `commit now` | Commit pending changes. `commit now force` commits over another user's conflicting change and discards it from theirs (see the config editor guide). `commit` without a subcommand is refused with the list of subcommands. `commit confirmed <seconds>`, `commit accept`, `commit abort` and `commit verify` follow the config editor guide. A commit that validation refuses answers with the SSH editor's text, listing each error and warning; when only warnings block it, the answer names the forced form, and the CLI bar shows it as an error |
 | `discard` | Discard pending changes |
 | `help` | List available commands |
 
 The prompt shows the current context path: `ze[bgp peer]# `.
 <!-- source: internal/component/web/cli.go -- formatCLIPrompt, dispatchCLICommand -->
+<!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
+<!-- source: internal/component/web/cli.go -- handleCLICommit -->
 
 ### Terminal Mode
 

@@ -36,7 +36,7 @@ func TestValidationHintPlacement(t *testing.T) {
 	}
 	workingContent := config.Serialize(workTree, schema)
 
-	v, err := newConfigValidator()
+	v, err := NewConfigValidator()
 	if err != nil {
 		t.Fatalf("validator: %v", err)
 	}

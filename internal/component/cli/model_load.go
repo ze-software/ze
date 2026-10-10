@@ -77,7 +77,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 			var b textbuf.Buffer
 			b.Str("cannot commit: ").Str(formatValidationErrors(issues))
 			if len(result.Errors) == 0 {
-				b.Str("\n'").Str(forcedCommand(contract.CommitRequest{Action: contract.CommitConfirmed, Seconds: seconds})).
+				b.Str("\n'").Str(ForcedCommand(contract.CommitRequest{Action: contract.CommitConfirmed, Seconds: seconds})).
 					Str("' commits over the warnings")
 			}
 			return commandResult{}, errors.New(b.String())

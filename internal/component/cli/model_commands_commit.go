@@ -215,21 +215,32 @@ func (m *Model) cmdCommitVerify() (commandResult, error) {
 	return commandResult{statusMessage: b.String(), configView: m.configViewAtPath(m.contextPath)}, nil
 }
 
-// commitValidationRefusal answers whether validation blocks a commit, and the
-// status that says why: every error blocks, and a warning blocks unless force.
-// The status counts what blocks, names forced (the command that commits over
-// the warnings) when only warnings block (AC-12), then lists every blocking
-// issue, the list `commit verify` gives. The hint comes before the list, so a
-// status line the terminal cuts short still carries it. The config stays in the
-// viewport with its issue markers.
+// commitValidationRefusal is CommitRefusal as this session's status, with the
+// config kept in the viewport with its issue markers.
 func (m *Model) commitValidationRefusal(result ConfigValidationResult, force bool, forced string) (commandResult, bool) {
+	refusal, blocked := CommitRefusal(result, force, forced)
+	if !blocked {
+		return commandResult{}, false
+	}
+	return commandResult{statusMessage: refusal, configView: m.configViewAtPath(m.contextPath)}, true
+}
+
+// CommitRefusal answers whether validation blocks a commit, and the line that
+// says why: every error blocks, and a warning blocks unless force. The line
+// counts what blocks, names forced (the command that commits over the
+// warnings) when only warnings block (AC-12), then lists every blocking issue,
+// the list `commit verify` gives. The hint comes before the list, so a status
+// line the terminal cuts short still carries it. Every editor that refuses a
+// commit over validation words it here: the SSH and file-mode Model and the
+// web terminal (AC-29).
+func CommitRefusal(result ConfigValidationResult, force bool, forced string) (string, bool) {
 	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
 	issues = append(issues, result.Errors...)
 	if !force {
 		issues = append(issues, result.Warnings...)
 	}
 	if len(issues) == 0 {
-		return commandResult{}, false
+		return "", false
 	}
 	var b textbuf.Buffer
 	b.Str("commit blocked: ").Int(int64(len(result.Errors))).Str(" error(s), ").
@@ -242,7 +253,7 @@ func (m *Model) commitValidationRefusal(result ConfigValidationResult, force boo
 	}
 	b.Str(": ")
 	appendIssueSummary(&b, issues)
-	return commandResult{statusMessage: b.String(), configView: m.configViewAtPath(m.contextPath)}, true
+	return b.String(), true
 }
 
 // appendIssueSummary writes issues on one line, each as formatIssueList
@@ -297,14 +308,14 @@ func (m *Model) cmdCommitForce() (commandResult, error) {
 	if err != nil {
 		return committed, err
 	}
-	committed.statusMessage = withSkippedWarnings("commit now force", len(result.Warnings), committed.statusMessage)
+	committed.statusMessage = WithSkippedWarnings("commit now force", len(result.Warnings), committed.statusMessage)
 	return committed, nil
 }
 
-// withSkippedWarnings prefixes a forced commit's status with how many warnings
+// WithSkippedWarnings prefixes a forced commit's status with how many warnings
 // forced committed over (AC-12), and returns the status alone when it skipped
-// none.
-func withSkippedWarnings(forced string, skipped int, status string) string {
+// none. The web terminal words its forced commit with it too (AC-29).
+func WithSkippedWarnings(forced string, skipped int, status string) string {
 	if skipped == 0 {
 		return status
 	}
@@ -472,7 +483,7 @@ func (m *Model) runCommitSession(force bool, forced string) (commandResult, bool
 
 	var tb4 textbuf.Buffer
 	if force {
-		tb4.Str(withSkippedWarnings(forced, len(result.Warnings), ""))
+		tb4.Str(WithSkippedWarnings(forced, len(result.Warnings), ""))
 	}
 	tb4.Str("Session committed: ").Int(int64(commitResult.Applied)).Str(" change(s) applied")
 	appendCommitWarnings(&tb4, commitResult.Warnings)

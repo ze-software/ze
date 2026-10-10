@@ -45,23 +45,43 @@ func (m *EditorManager) daemonWindow() *confirm.Window {
 }
 
 // webCommitAnswer is what one commit subcommand answered: the conflicts that
-// refused a commit, or the line to show.
+// refused a commit, the validation refusal that blocked it, or the line to
+// show. A refusal is a failed commit, so a caller shows it as an error and
+// never as the answer to a commit that happened.
 type webCommitAnswer struct {
 	conflicts []contract.Conflict
+	refusal   string
 	message   string
 }
 
 // runCommit runs one parsed commit subcommand for username. Every subcommand
 // but verify goes through cli.WindowCommit, the path the SSH session editor
-// takes, so the window's owner rules apply to a web user unchanged.
+// takes, so the window's owner rules apply to a web user unchanged. A commit
+// is judged by the SSH editor's validation and refused with its words
+// (cli.CommitRefusal): a warning blocks unless force, an error always does.
 func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (webCommitAnswer, error) {
 	if req.Action == contract.CommitVerify {
 		return m.verifyCommit(username)
 	}
 	commit := cli.WindowCommit{Window: m.daemonWindow(), User: username, Store: m.store, ConfigPath: m.configPath}
+	forced := cli.ForcedCommand(req)
+	var refusal string
+	var skipped int
+	check := func(ed contract.Editor) error {
+		validation, err := m.validateTransition(ed)
+		if err != nil {
+			return err
+		}
+		if text, blocked := cli.CommitRefusal(validation, req.Force, forced); blocked {
+			refusal = text
+			return cli.ErrCommitNotApplied
+		}
+		skipped = len(validation.Warnings)
+		return nil
+	}
 	var result *contract.CommitResult
 	err := commit.Run(req, func() error {
-		answer, err := m.commit(username, req.Force)
+		answer, err := m.commit(username, req.Force, check)
 		result = answer
 		if err != nil {
 			return err
@@ -75,12 +95,36 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (
 		return nil
 	})
 	if errors.Is(err, cli.ErrCommitNotApplied) {
+		if refusal != "" {
+			return webCommitAnswer{refusal: refusal}, nil
+		}
 		return notAppliedAnswer(req, result), nil
 	}
 	if err != nil {
 		return webCommitAnswer{}, err
 	}
-	return m.appliedAnswer(username, req)
+	answer, err := m.appliedAnswer(username, req)
+	if err != nil {
+		return webCommitAnswer{}, err
+	}
+	answer.message = cli.WithSkippedWarnings(forced, skipped, answer.message)
+	return answer, nil
+}
+
+// validateTransition runs the validation the SSH editor's commit runs over
+// ed's transition from the committed config to the user's view (AC-29). The
+// validator loads the YANG modules, so it is built once, at the first commit;
+// it is not safe for concurrent use, so one validation runs at a time.
+func (m *EditorManager) validateTransition(ed contract.Editor) (cli.ConfigValidationResult, error) {
+	m.validatorOnce.Do(func() {
+		m.validator, m.validatorErr = cli.NewConfigValidator()
+	})
+	if m.validatorErr != nil {
+		return cli.ConfigValidationResult{}, m.validatorErr
+	}
+	m.validateMu.Lock()
+	defer m.validateMu.Unlock()
+	return m.validator.ValidateTransition(ed.OriginalContent(), ed.WorkingContent()), nil
 }
 
 // notAppliedAnswer is the answer to a commit that did not happen: its

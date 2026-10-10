@@ -792,6 +792,7 @@ const terminalScopedConfig = `bgp {
     }
 }
 interface {
+    backend netlink;
     ethernet eth0 {
         mac {
             address 00:11:22:33:44:55;
@@ -1079,6 +1080,29 @@ func TestCLIBarCommit(t *testing.T) {
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// TestCLIBarCommitRefusalIsAnError proves a commit the SSH editor's
+// validation refuses reaches the CLI bar as an error notification carrying the
+// refusal, and never as the redirect a successful commit answers with. Method:
+// a password that is not a bcrypt hash is a validation warning, so a plain
+// `commit now` is refused and the change stays pending.
+func TestCLIBarCommitRefusalIsAnError(t *testing.T) {
+	mgr, renderer := setupCLITest(t)
+	schema, _ := buildTestSchemaAndTree()
+	handler := HandleCLICommand(mgr, schema, renderer)
+
+	require.NoError(t, mgr.SetValue("testuser", []string{"system", "authentication", "user", "bob"}, "password", "notahash"))
+	changes := mgr.ChangeCount("testuser")
+
+	w := httptest.NewRecorder()
+	r := authedRequest(t, http.MethodPost, "/cli", url.Values{"command": {"commit now"}})
+	handler.ServeHTTP(w, r)
+
+	require.Equal(t, http.StatusOK, w.Code, "a refused commit redirected as if it had committed")
+	assert.Contains(t, w.Body.String(), "notification-error")
+	assert.Contains(t, w.Body.String(), "commit blocked: ")
+	assert.Equal(t, changes, mgr.ChangeCount("testuser"), "a refused commit applied the change")
 }
 
 // VALIDATES: AC-9 (discard command clears pending changes and redirects).

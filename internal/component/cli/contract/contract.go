@@ -169,6 +169,10 @@ type Editor interface {
 	// RefreshCommittedView rebuilds the session's view over the committed
 	// config, after the daemon's confirmed-commit window reverted it.
 	RefreshCommittedView() error
+	// OriginalContent and WorkingContent are the committed config and the
+	// session's view: the transition a commit's validation judges (AC-29).
+	OriginalContent() string
+	WorkingContent() string
 	Discard() error
 	DiscardSessionPath(path []string) error
 	DisconnectSession(sessionID string) error

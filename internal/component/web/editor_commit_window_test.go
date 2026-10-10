@@ -144,3 +144,42 @@ func TestWebTerminalCommitVerifyReportsInvalid(t *testing.T) {
 	assert.Equal(t, 1, mgr.ChangeCount("alice"))
 	requireCommitted(t, mgr, "", "10.0.0.6")
 }
+
+// TestWebTerminalCommitRefusesWarnings is AC-29 of
+// spec-session-editor-file-mode-parity for AC-12: the web terminal refuses a
+// commit over validation warnings with the SSH editor's text, from the same
+// code (cli.CommitRefusal), and `force` commits over them saying how many it
+// skipped.
+//
+// VALIDATES: `commit now` and `commit confirmed 60` are refused listing the
+// warning and naming their own forced form; nothing applies; the forced forms
+// apply and report "skipping 1 warning(s)"; the forced confirmed commit opens
+// the window.
+// PREVENTS: a web commit that applies over warnings in silence, or a refusal
+// worded differently from the SSH editor's.
+func TestWebTerminalCommitRefusesWarnings(t *testing.T) {
+	mgr, schema, window := newWindowEditorManager(t)
+	require.NoError(t, mgr.SetValue("alice", []string{"system", "authentication", "user", "bob"}, "password", "notahash"))
+
+	output := webCommit(schema, mgr, "alice", "now")
+	assert.Contains(t, output, "commit blocked: 0 error(s), 1 warning(s); 'commit now force' commits over the warnings: ")
+	assert.Contains(t, output, "bcrypt")
+	requireCommitted(t, mgr, "", "notahash")
+
+	output = webCommit(schema, mgr, "alice", "now", "force")
+	assert.Contains(t, output, "commit now force: skipping 1 warning(s).")
+	requireCommitted(t, mgr, "notahash", "")
+
+	require.NoError(t, mgr.SetValue("alice", []string{"system", "authentication", "user", "carol"}, "password", "alsoplain"))
+	output = webCommit(schema, mgr, "alice", "confirmed", "60")
+	assert.Contains(t, output, "'commit confirmed 60 force' commits over the warnings")
+	requireCommitted(t, mgr, "", "alsoplain")
+	_, open := window.Status()
+	assert.False(t, open, "a refused commit opens no window")
+
+	output = webCommit(schema, mgr, "alice", "confirmed", "60", "force")
+	assert.Contains(t, output, "commit confirmed 60 force: skipping")
+	requireCommitted(t, mgr, "alsoplain", "")
+	_, open = window.Status()
+	assert.True(t, open, "the forced confirmed commit opens the window")
+}

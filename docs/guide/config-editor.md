@@ -66,9 +66,13 @@ names the forced form of what you typed (`commit now force`, or
 `commit confirmed <seconds> force`), and a forced commit reports how many
 warnings it skipped. `force` never commits over an error. `commit verify`
 gives the same list and applies nothing. The configuration stays on screen with
-each issue marked.
-<!-- source: internal/component/cli/model_commands_commit.go -- commitValidationRefusal, withSkippedWarnings, cmdCommitVerify -->
-<!-- source: internal/component/cli/model_commit_window.go -- forcedCommand -->
+each issue marked. The web terminal and the web CLI bar run the same validation
+and answer with the same text, the CLI bar as an error notification, and a
+refused commit leaves your changes pending there too.
+<!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal, WithSkippedWarnings, cmdCommitVerify -->
+<!-- source: internal/component/cli/model_commit_window.go -- ForcedCommand -->
+<!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
+<!-- source: internal/component/web/cli.go -- handleCLICommit -->
 
 In the SSH editor and the web terminal, `commit now` is refused when your
 change conflicts with another user's pending change (LIVE) or with a value

@@ -57,9 +57,9 @@ type ConfigValidator struct {
 	yangValidator *yang.Validator
 }
 
-// newConfigValidator creates a new config validator.
+// NewConfigValidator creates a new config validator.
 // Returns error if YANG schema cannot be loaded.
-func newConfigValidator() (*ConfigValidator, error) {
+func NewConfigValidator() (*ConfigValidator, error) {
 	schema, err := config.YANGSchema()
 	if err != nil {
 		return nil, fmt.Errorf("YANG schema: %w", err)

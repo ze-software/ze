@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/confirm"
@@ -40,13 +41,19 @@ type EditorManager struct {
 	configPath         string
 	editorFactory      contract.EditorFactory
 	editSessionFactory contract.EditSessionFactory
-	schema             *config.Schema
-	maxSessions        int
-	idleTimeout        time.Duration
-	commitHook         func() error
-	readSource         func() ([]byte, error)
-	commitSource       func(expected, content []byte) error
-	confirmWindow      func() *confirm.Window // The daemon's window; SetConfirmWindow.
+	// validator judges a terminal commit the way the SSH editor's commit
+	// does (validateTransition); built once, at the first commit.
+	validatorOnce sync.Once
+	validator     *cli.ConfigValidator
+	validatorErr  error
+	validateMu    sync.Mutex // one validation at a time: ConfigValidator is not safe for concurrent use
+	schema        *config.Schema
+	maxSessions   int
+	idleTimeout   time.Duration
+	commitHook    func() error
+	readSource    func() ([]byte, error)
+	commitSource  func(expected, content []byte) error
+	confirmWindow func() *confirm.Window // The daemon's window; SetConfirmWindow.
 }
 
 // NewEditorManager creates an EditorManager for the given storage backend and config path.
@@ -218,13 +225,15 @@ func (m *EditorManager) RenameListEntry(username string, parentPath []string, li
 // Commit applies the user's pending changes to the configuration file.
 // Returns a CommitResult describing conflicts or the number of applied changes.
 func (m *EditorManager) Commit(username string) (*contract.CommitResult, error) {
-	return m.commit(username, false)
+	return m.commit(username, false, nil)
 }
 
 // commit is Commit, and with force a LIVE or STALE conflict applies instead
 // of refusing: the editor discards the other users' overridden changes and
-// leaves them a notice (cli.Editor.CommitSessionForce, AC-32).
-func (m *EditorManager) commit(username string, force bool) (*contract.CommitResult, error) {
+// leaves them a notice (cli.Editor.CommitSessionForce, AC-32). check, when
+// set, judges the user's editor under the same lock the commit holds, so the
+// view it judged is the view that commits; its error refuses the commit.
+func (m *EditorManager) commit(username string, force bool, check func(contract.Editor) error) (*contract.CommitResult, error) {
 	us, err := m.GetOrCreate(username)
 	if err != nil {
 		return nil, err
@@ -232,6 +241,12 @@ func (m *EditorManager) commit(username string, force bool) (*contract.CommitRes
 
 	us.mu.Lock()
 	defer us.mu.Unlock()
+
+	if check != nil {
+		if err := check(us.editor); err != nil {
+			return nil, err
+		}
+	}
 
 	m.mu.RLock()
 	hook := m.commitHook

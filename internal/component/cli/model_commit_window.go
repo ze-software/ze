@@ -111,7 +111,7 @@ func (m *Model) cmdCommitConfirmedWindow(commit WindowCommit, req contract.Commi
 // status kept in result, and ErrCommitNotApplied when it did not happen.
 func (m *Model) applySessionCommit(req contract.CommitRequest, result *commandResult) func() error {
 	return func() error {
-		answer, committed, err := m.runCommitSession(req.Force, forcedCommand(req))
+		answer, committed, err := m.runCommitSession(req.Force, ForcedCommand(req))
 		*result = answer
 		if err != nil {
 			return err
@@ -193,9 +193,9 @@ func (m *Model) pollDaemonWindow() (string, bool) {
 	return m.windowReverted("The confirmed commit window was closed by another session.").statusMessage, true
 }
 
-// forcedCommand is the command that commits req over validation warnings: the
+// ForcedCommand is the command that commits req over validation warnings: the
 // form a refusal names, so `commit confirmed` never points at `commit now`.
-func forcedCommand(req contract.CommitRequest) string {
+func ForcedCommand(req contract.CommitRequest) string {
 	if req.Action == contract.CommitConfirmed {
 		var b textbuf.Buffer
 		return b.Str("commit confirmed ").Int(int64(req.Seconds)).Str(" force").String()

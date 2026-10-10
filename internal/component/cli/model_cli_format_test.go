@@ -40,7 +40,7 @@ func schemaCLIFormats(t *testing.T) []string {
 func modelWithSchema(t *testing.T) *Model {
 	t.Helper()
 
-	validator, err := newConfigValidator()
+	validator, err := NewConfigValidator()
 	require.NoError(t, err, "the config validator must build")
 	return &Model{validator: validator}
 }

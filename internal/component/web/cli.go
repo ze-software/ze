@@ -494,6 +494,10 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer,
 		writeCLINotification(w, renderer, formatCommitConflicts("Commit conflicts:\n", answer.conflicts), "error")
 		return
 	}
+	if answer.refusal != "" {
+		writeCLINotification(w, renderer, answer.refusal, "error")
+		return
+	}
 	// A commit that opened or closed a window, or only verified, tells the
 	// operator what to do next; a plain commit or an abort reloads the page.
 	switch req.Action {

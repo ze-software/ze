@@ -894,6 +894,9 @@ func executeTerminalCommit(mgr *EditorManager, username string, args []string) s
 	if len(answer.conflicts) > 0 {
 		return formatCommitConflicts("commit conflicts:\n", answer.conflicts)
 	}
+	if answer.refusal != "" {
+		return answer.refusal
+	}
 	return answer.message
 }
 
