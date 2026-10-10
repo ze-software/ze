@@ -398,9 +398,12 @@ gRPC or gNMI config session commit, `request data restore` of the daemon's
 config, `update bgp config`, the web raw-source editor, a config push from the
 managed hub, which the hub receives as the error in its acknowledgement, and
 `rollback <N>` in a session editor (SSH or web terminal), which writes the file
-directly, and `ze config rollback <N> <file>` from the shell, which runs outside
-the daemon and reads the window's record in the store, so it is refused too
-when a daemon stopped during a window that it will revert at start. The owner's
+directly. `ze config rollback <N> <file>` from the shell runs outside the
+daemon and needs the store to itself, so a running daemon refuses it as busy.
+With the daemon stopped, it reads the window's record in the store: a daemon
+that stopped during a window reverts that window when it starts, so the
+rollback is refused, and the refusal names `ze start <file>` to start the
+daemon and revert the window first. The owner's
 `rollback <N>` refusal points to `commit abort`, which reverts the window and
 lets the rollback run. Accept or abort the window first. Closing or losing the session leaves the countdown
 running, and the revert still happens at the deadline. The window belongs to

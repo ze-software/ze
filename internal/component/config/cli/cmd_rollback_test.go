@@ -140,3 +140,38 @@ func TestCmdRollbackRefusedDuringWindow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, current, string(data), "a refused rollback writes nothing")
 }
+
+// TestCmdRollbackLeftOpenWindowNamesStart is review round 4 ISSUE 1 of
+// spec-session-editor-file-mode-parity. `ze config rollback` opens the store
+// as its owner, so a running daemon refuses it as busy before the window's
+// record is read: a record it does see was left by a daemon that stopped
+// during a window. Nobody can accept or abort that window with the daemon
+// down; starting the daemon reverts it (recoverConfirmWindow).
+//
+// GOAL: the refusal tells the user what is wrong, why the rollback cannot run,
+// and the exact command that clears it (ai/rules/user-facing-errors.md).
+// METHOD: the store holds a revision and the record of alice's window, with no
+// daemon; stderr of cmdRollback is captured.
+//
+// VALIDATES: the message names alice, says the daemon reverts the commit when
+// it starts, and ends with `ze start <file>` on a line of its own; it does not
+// tell the user to wait or to have alice run commit accept or abort.
+// PREVENTS: a refusal whose only remedies need the stopped daemon.
+func TestCmdRollbackLeftOpenWindowNamesStart(t *testing.T) {
+	current := "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 99;\n\t\t}\n\t}\n}\n"
+	configPath := writeTestConfig(t, current)
+	store, err := storage.Create(filepath.Dir(configPath))
+	require.NoError(t, err)
+	require.NoError(t, store.WriteVersion(configPath, []byte("bgp {}\n"), time.Now().Add(-time.Second)))
+	record := confirm.NewStoreRecorder(store, configPath)
+	require.NoError(t, record.Save(confirm.Pending{User: "alice", Deadline: time.Now().Add(time.Minute), Rollback: []byte(current)}))
+	require.NoError(t, store.Close())
+
+	code, stderr := captureStderr(t, func() int { return cmdRollback([]string{"1", configPath}) })
+	assert.Equal(t, exitError, code, "a rollback beside a left-open window is refused")
+	assert.Contains(t, stderr, "alice", "the refusal names the window's owner")
+	assert.Contains(t, stderr, "when the daemon starts", "the refusal says why: the daemon reverts the window at start")
+	assert.Contains(t, stderr, "\n  ze start "+configPath+"\n", "the refusal ends with the command that clears it")
+	assert.NotContains(t, stderr, "seconds left", "no countdown runs with the daemon stopped")
+	assert.NotContains(t, stderr, "commit accept", "nobody can accept the window with the daemon stopped")
+}

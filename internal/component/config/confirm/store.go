@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -65,21 +66,40 @@ func (r *StoreRecorder) Clear() error {
 
 // WriteOutsideRecorded is WriteOutside for a writer that runs outside the
 // daemon, such as `ze config rollback`, and so cannot reach its window: it
-// reads the window's persisted record for configPath instead. A record means
-// a window is open, or was left by a daemon that stopped during one and will
-// revert it at start; either way the revert would wipe the write, so it is
-// refused with OtherUserError naming the owner. A record that cannot be read
-// refuses too, because the write could not be shown safe. The check is not
-// atomic with apply: a window the daemon opens between the two is not seen.
+// reads the window's persisted record for configPath instead. store MUST be
+// opened as the store's owner (storage.Open): the owner lock refuses the open
+// while a daemon runs, so no daemon can open a window between the check and
+// apply, and a record found here is one a daemon left when it stopped during
+// a window. That daemon reverts the window when it next starts, which would
+// wipe the write, so the write is refused with StoppedWindowError. A record
+// that cannot be read refuses too, because the write could not be shown safe.
 func WriteOutsideRecorded(store storage.Storage, configPath string, apply func() error) error {
 	pending, err := NewStoreRecorder(store, configPath).Load()
 	if err != nil {
 		return err
 	}
 	if pending != nil {
-		return &OtherUserError{Owner: pending.User, Left: time.Until(pending.Deadline)}
+		return &StoppedWindowError{Owner: pending.User, ConfigPath: configPath}
 	}
 	return apply()
+}
+
+// StoppedWindowError refuses a write made outside the daemon while the store
+// holds the record of a window a stopped daemon left open. Nobody can accept
+// or abort that window until the daemon runs again, so the remedy it names is
+// to start the daemon, whose boot reverts the window.
+type StoppedWindowError struct {
+	Owner      string
+	ConfigPath string
+}
+
+func (e *StoppedWindowError) Error() string {
+	var tb textbuf.Buffer
+	return tb.Str("a confirmed commit by ").Str(e.Owner).
+		Str(" was not confirmed before the daemon stopped.\n").
+		Str("That commit is reverted when the daemon starts, and the revert would undo this change.\n").
+		Str("Start the daemon to revert the commit, then make this change from its config editor:\n").
+		Str("  ze start ").Str(e.ConfigPath).String()
 }
 
 // Load reads the record a stopped daemon left. It answers nil only when no

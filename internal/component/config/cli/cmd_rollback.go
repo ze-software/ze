@@ -98,8 +98,10 @@ func cmdRollbackImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	// The running daemon's confirmed-commit window would revert this write,
-	// so it is refused while the window's record says one is open.
+	// The owner lock taken above refuses a running daemon's store, so a
+	// window record here was left by a daemon that stopped during a window.
+	// Its next start reverts that window, which would wipe this write, so the
+	// write is refused and the refusal says to start the daemon.
 	err = confirm.WriteOutsideRecorded(store, fs.Arg(1), func() error {
 		return ed.Rollback(backups[n-1].Path)
 	})
