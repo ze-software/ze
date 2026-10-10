@@ -335,8 +335,11 @@ The same stream carries, to each user alone, what the SSH editor's status
 line would show that user: the countdown of a `commit confirmed` window, or
 whose window is pending, how a window ended, and that another user's forced
 commit discarded one of your changes. They arrive as `config-change` events,
-so they use the same banner. See "Commit Confirmed" in `config-editor.md`.
-<!-- source: internal/component/web/window_notices.go -- WindowNotices -->
+so they use the same banner. While a user's own commit is in flight, the
+window news for that user waits, so a user's own `commit accept` or
+`commit abort` is never reported as closed by another session. See "Commit
+Confirmed" in `config-editor.md`.
+<!-- source: internal/component/web/window_notices.go -- WindowNotices, pollWindow -->
 
 Connect to the SSE stream at `/events` (requires authentication). Each stream is registered under its user. The broker supports up to 100 concurrent SSE clients. Slow clients that fall behind have events dropped rather than blocking other clients.
 

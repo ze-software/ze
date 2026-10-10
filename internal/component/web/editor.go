@@ -56,6 +56,10 @@ type EditorManager struct {
 	confirmWindow func() *confirm.Window // The daemon's window; SetConfirmWindow.
 	watchMu       sync.Mutex
 	windowWatches map[string]*cli.WindowWatch // Per user, what WindowNotices saw of the window.
+	// commitsInFlight counts, per user, the window commits runCommit holds:
+	// a guard, so pollWindow never reads a window the user's own commit is
+	// closing as closed by another session. Guarded by watchMu.
+	commitsInFlight map[string]int
 }
 
 // NewEditorManager creates an EditorManager for the given storage backend and config path.
@@ -64,6 +68,7 @@ func NewEditorManager(store storage.Storage, configPath string, schema *config.S
 	return &EditorManager{
 		sessions:           make(map[string]*userSession),
 		windowWatches:      make(map[string]*cli.WindowWatch),
+		commitsInFlight:    make(map[string]int),
 		store:              store,
 		configPath:         configPath,
 		schema:             schema,

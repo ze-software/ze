@@ -97,16 +97,44 @@ func (n *WindowNotices) send(user, line string) {
 }
 
 // pollWindow is user's WindowWatch.Poll: the web keeps one watch per user,
-// because the web user has no session of its own to keep it in.
+// because the web user has no session of its own to keep it in. It says
+// nothing while a commit of user's is in flight (beginWindowCommit).
 func (m *EditorManager) pollWindow(window *confirm.Window, user string) (cli.WindowNews, bool) {
 	m.watchMu.Lock()
 	defer m.watchMu.Unlock()
+	// The guard: user's own commit is closing or opening the window, and its
+	// answer updates the watch. Reading the window now would report the
+	// user's own accept or abort as another session's (the SSH editor skips
+	// the same poll while dispatchQueue.busy).
+	if m.commitsInFlight[user] > 0 {
+		return cli.WindowNews{}, false
+	}
 	watch := m.windowWatches[user]
 	if watch == nil {
 		watch = &cli.WindowWatch{}
 		m.windowWatches[user] = watch
 	}
 	return watch.Poll(window, user)
+}
+
+// beginWindowCommit marks a window commit of user in flight, from before it
+// reaches the window until its answer has updated user's watch. The caller
+// MUST call endWindowCommit after.
+func (m *EditorManager) beginWindowCommit(user string) {
+	m.watchMu.Lock()
+	defer m.watchMu.Unlock()
+	m.commitsInFlight[user]++
+}
+
+// endWindowCommit ends what beginWindowCommit began. It MUST be called once
+// for each beginWindowCommit.
+func (m *EditorManager) endWindowCommit(user string) {
+	m.watchMu.Lock()
+	defer m.watchMu.Unlock()
+	m.commitsInFlight[user]--
+	if m.commitsInFlight[user] <= 0 {
+		delete(m.commitsInFlight, user)
+	}
 }
 
 // setWindowWatch records what user's own commit did to the window, so the

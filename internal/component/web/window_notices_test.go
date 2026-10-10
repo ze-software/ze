@@ -114,3 +114,44 @@ func TestEventStreamSubscribesItsUser(t *testing.T) {
 	<-served
 	assert.Empty(t, broker.Users(), "a closed stream is forgotten")
 }
+
+// TestWindowNoticesSkipAUserWhoseCommitIsInFlight is review round 2 ISSUE 1
+// of spec-session-editor-file-mode-parity: the notices tick runs on its own
+// clock, so it can look between the moment a web user's own accept closes the
+// window and the moment runCommit forgets the user's watch.
+//
+// GOAL: a user is never told "closed by another session" about a window the
+// user's own commit closed.
+// METHOD: alice opens a window from the web terminal; with her commit marked
+// in flight, as runCommit marks it, the window is accepted under her name and
+// push runs in that gap. The SSH editor guards the same poll with
+// dispatchQueue.busy().
+//
+// VALIDATES: push says nothing to alice while her commit is in flight, and
+// still tells bob the window closed.
+// PREVENTS: a web user's own accept or abort reported as another session's.
+func TestWindowNoticesSkipAUserWhoseCommitIsInFlight(t *testing.T) {
+	mgr, schema, window := newWindowEditorManager(t)
+	broker := NewEventBroker(0)
+	t.Cleanup(broker.Close)
+	alice := broker.Subscribe("alice")
+	bob := broker.Subscribe("bob")
+	notices := NewWindowNotices(mgr, broker)
+
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.1"))
+	assert.Contains(t, webCommit(schema, mgr, "alice", "confirmed", "60"), "commit accept")
+	notices.push()
+	requireOneEvent(t, alice, "Confirm within")
+	requireOneEvent(t, bob, "A confirmed commit by alice is pending")
+
+	mgr.beginWindowCommit("alice")
+	require.NoError(t, window.Accept("alice"))
+	notices.push()
+	assert.Empty(t, drainEvents(alice), "alice's own accept is still in flight")
+	requireOneEvent(t, bob, contract.CommitClosedElsewhere)
+	mgr.setWindowWatch("alice", nil)
+	mgr.endWindowCommit("alice")
+
+	notices.push()
+	assert.Empty(t, drainEvents(alice), "her commit forgot the window it closed")
+}

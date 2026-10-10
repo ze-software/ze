@@ -57,10 +57,14 @@ type webCommitAnswer struct {
 // takes, so the window's owner rules apply to a web user unchanged. A commit
 // is judged by the SSH editor's validation and refused with its words
 // (cli.CommitRefusal): a warning blocks unless force, an error always does.
+// The commit is in flight for WindowNotices until its answer has updated
+// username's watch, so the notices never misreport the user's own commit.
 func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (webCommitAnswer, error) {
 	if req.Action == contract.CommitVerify {
 		return m.verifyCommit(username)
 	}
+	m.beginWindowCommit(username)
+	defer m.endWindowCommit(username)
 	commit := cli.WindowCommit{Window: m.daemonWindow(), User: username, Store: m.store, ConfigPath: m.configPath}
 	forced := contract.ForcedCommand(req)
 	var refusal string
