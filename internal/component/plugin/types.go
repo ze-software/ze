@@ -31,10 +31,12 @@ type ReactorConfigurator interface {
 	// Reload reloads the configuration from the config file via reloadFunc.
 	Reload() error
 
-	// VerifyConfig validates protocol-specific settings from a config tree.
+	// VerifyConfig validates protocol-specific settings from the whole
+	// configuration tree, the tree SetConfigTree takes, not one protocol's block.
 	VerifyConfig(configTree map[string]any) error
 
-	// ApplyConfigDiff applies incremental changes from a protocol config tree.
+	// ApplyConfigDiff applies incremental changes from the whole configuration
+	// tree, the tree SetConfigTree takes, not one protocol's block.
 	ApplyConfigDiff(configTree map[string]any) error
 
 	// GetConfigTree returns the full config as a map for plugin config delivery.
@@ -122,10 +124,12 @@ type ProtocolReactor interface {
 	// SetConfigTree replaces the running config tree after a successful reload.
 	SetConfigTree(tree map[string]any)
 
-	// VerifyConfig validates protocol-specific settings from a config tree.
+	// VerifyConfig validates protocol-specific settings from the whole
+	// configuration tree, the tree SetConfigTree takes, not one protocol's block.
 	VerifyConfig(configTree map[string]any) error
 
-	// ApplyConfigDiff applies incremental changes from a protocol config tree.
+	// ApplyConfigDiff applies incremental changes from the whole configuration
+	// tree, the tree SetConfigTree takes, not one protocol's block.
 	ApplyConfigDiff(configTree map[string]any) error
 
 	// SignalPluginStartupComplete signals that all plugin phases are done.

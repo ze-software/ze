@@ -901,20 +901,22 @@ func (a *reactorAPIAdapter) Reload() error {
 }
 
 // VerifyConfig validates peer settings without modifying reactor state.
-// Peer parsing goes through loadPeersFullOrTree.
+// tree is the whole configuration tree, as SetConfigTree takes it. Peer
+// parsing goes through loadPeersFullOrTree.
 // Called by the reload coordinator during the verify phase.
-func (a *reactorAPIAdapter) VerifyConfig(bgpTree map[string]any) error {
-	if _, _, err := a.loadPeersFullOrTree(bgpTree); err != nil {
+func (a *reactorAPIAdapter) VerifyConfig(tree map[string]any) error {
+	if _, _, err := a.loadPeersFullOrTree(tree); err != nil {
 		return err
 	}
 	return nil
 }
 
 // ApplyConfigDiff applies peer changes from config.
-// Peer parsing goes through loadPeersFullOrTree.
+// tree is the whole configuration tree, as SetConfigTree takes it. Peer
+// parsing goes through loadPeersFullOrTree.
 // Called by the reload coordinator during the apply phase.
-func (a *reactorAPIAdapter) ApplyConfigDiff(bgpTree map[string]any) error {
-	newPeers, globals, err := a.loadPeersFullOrTree(bgpTree)
+func (a *reactorAPIAdapter) ApplyConfigDiff(tree map[string]any) error {
+	newPeers, globals, err := a.loadPeersFullOrTree(tree)
 	if err != nil {
 		return fmt.Errorf("apply config diff: %w", err)
 	}
@@ -934,12 +936,14 @@ func (a *reactorAPIAdapter) ApplyConfigDiff(bgpTree map[string]any) error {
 // peerSettingsEqual. It also refreshes the dynamic peer groups, which the tree
 // alone cannot do.
 //
-// Every other reactor parses the tree it was handed, with none of that around
-// it. The only stage the two routes share is PeersFromTree (config.go), and
+// Every other reactor parses the bgp block of the configuration tree it was
+// handed, with none of that around it. A tree with no bgp block declares no
+// peer; a bgp block that is not a container is refused, because reading it as
+// absent would tear every session down. The only stage the two routes share is PeersFromTree (config.go), and
 // sharing it is what stops them disagreeing about how a peer's config is READ.
 // It does not make them equivalent, because they differ in what reaches the
 // parser and in what runs on the result.
-func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*PeerSettings, Globals, error) {
+func (a *reactorAPIAdapter) loadPeersFullOrTree(tree map[string]any) ([]*PeerSettings, Globals, error) {
 	r := a.r
 
 	configPath := r.config.ConfigPath
@@ -951,6 +955,14 @@ func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*Peer
 		return reloadFn(configPath)
 	}
 
+	var bgpTree map[string]any
+	if block, present := tree[configRootNameBGP]; present {
+		container, isMap := block.(map[string]any)
+		if !isMap {
+			return nil, Globals{}, fmt.Errorf("%s: not a container", configRootNameBGP)
+		}
+		bgpTree = container
+	}
 	globals, err := GlobalsFromTree(bgpTree)
 	if err != nil {
 		return nil, Globals{}, err

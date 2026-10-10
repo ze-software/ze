@@ -53,11 +53,11 @@ func TestReloadAppliesGlobalRouterID(t *testing.T) {
 	defer r.Stop()
 
 	adapter := &reactorAPIAdapter{r: r}
-	require.NoError(t, adapter.ApplyConfigDiff(routerIDTree(t, "1.2.3.4")))
+	require.NoError(t, adapter.ApplyConfigDiff(configRoot(routerIDTree(t, "1.2.3.4"))))
 	inheritsBefore := peerByAddr(t, r, "10.0.0.1")
 	overridesBefore := peerByAddr(t, r, "10.0.0.2")
 
-	require.NoError(t, adapter.ApplyConfigDiff(routerIDTree(t, "2.2.2.2")))
+	require.NoError(t, adapter.ApplyConfigDiff(configRoot(routerIDTree(t, "2.2.2.2"))))
 
 	assert.Equal(t, uint32(0x02020202), r.Stats().RouterID, "show bgp must report the reloaded router-id")
 

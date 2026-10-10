@@ -547,14 +547,14 @@ func TestReactorVerifyConfigValid(t *testing.T) {
 		"peer2": {remoteIP: "10.0.0.2", remoteAS: "65002", localAS: "65000"},
 	})
 
-	err := adapter.VerifyConfig(bgpTree)
+	err := adapter.VerifyConfig(configRoot(bgpTree))
 	require.NoError(t, err)
 
 	// VerifyConfig discards the parse, so "no error" alone is also what a tree
 	// whose peers were all SKIPPED as incomplete returns (PeersFromTree,
 	// config.go, warns and continues on ErrIncompleteConfig). Assert the tree
 	// really produced both peers, or this test passes on a shape nobody reads.
-	peers, _, err := adapter.loadPeersFullOrTree(bgpTree)
+	peers, _, err := adapter.loadPeersFullOrTree(configRoot(bgpTree))
 	require.NoError(t, err)
 	assert.Len(t, peers, 2, "both peers must parse, not be skipped as incomplete")
 }
@@ -574,7 +574,7 @@ func TestReactorVerifyConfigInvalidAddress(t *testing.T) {
 		"peer1": {remoteIP: "not-an-ip", remoteAS: "65001", localAS: "65000"},
 	})
 
-	err := adapter.VerifyConfig(bgpTree)
+	err := adapter.VerifyConfig(configRoot(bgpTree))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not-an-ip")
 }
@@ -604,12 +604,12 @@ func TestReactorVerifyConfigNoMutation(t *testing.T) {
 		"peer99": {remoteIP: "10.0.0.99", remoteAS: "65099", localAS: "65000"},
 	})
 
-	err := adapter.VerifyConfig(bgpTree)
+	err := adapter.VerifyConfig(configRoot(bgpTree))
 	require.NoError(t, err)
 
 	// A tree that parses to nothing would also leave the count unchanged, so
 	// pin that peer99 is a peer this config really produces.
-	parsed, _, err := adapter.loadPeersFullOrTree(bgpTree)
+	parsed, _, err := adapter.loadPeersFullOrTree(configRoot(bgpTree))
 	require.NoError(t, err)
 	require.Len(t, parsed, 1, "the verified tree must produce the peer it names")
 
@@ -635,7 +635,7 @@ func TestReactorApplyConfigDiffAddPeer(t *testing.T) {
 		"peer1": {remoteIP: "10.0.0.1", remoteAS: "65001", localAS: "65000"},
 	})
 
-	err := adapter.ApplyConfigDiff(bgpTree)
+	err := adapter.ApplyConfigDiff(configRoot(bgpTree))
 	require.NoError(t, err)
 
 	peers := r.Peers()
@@ -663,7 +663,7 @@ func TestReactorApplyConfigDiffRemovePeer(t *testing.T) {
 	// Empty peer map — peer should be removed.
 	bgpTree := makeBGPTree(map[string]testPeer{})
 
-	err := adapter.ApplyConfigDiff(bgpTree)
+	err := adapter.ApplyConfigDiff(configRoot(bgpTree))
 	require.NoError(t, err)
 
 	assert.Empty(t, r.Peers(), "peer should be removed")
@@ -695,7 +695,7 @@ func TestReactorApplyConfigDiffChangedPeer(t *testing.T) {
 		"peer1": {remoteIP: "10.0.0.1", remoteAS: "65002", localAS: "65001", holdTime: "30"},
 	})
 
-	err := adapter.ApplyConfigDiff(bgpTree)
+	err := adapter.ApplyConfigDiff(configRoot(bgpTree))
 	require.NoError(t, err)
 
 	peers = r.Peers()
@@ -760,7 +760,7 @@ func TestReactorVerifyConfigNoPeerSection(t *testing.T) {
 		"router-id": "1.2.3.4",
 	}
 
-	err := adapter.VerifyConfig(bgpTree)
+	err := adapter.VerifyConfig(configRoot(bgpTree))
 	require.NoError(t, err)
 }
 
@@ -785,8 +785,50 @@ func TestReactorApplyConfigDiffNoPeerSection(t *testing.T) {
 		"router-id": "1.2.3.4",
 	}
 
-	err := adapter.ApplyConfigDiff(bgpTree)
+	err := adapter.ApplyConfigDiff(configRoot(bgpTree))
 	require.NoError(t, err)
 
 	assert.Empty(t, r.Peers(), "all peers should be removed when no peer section")
+}
+
+// TestTreeRouteReadsTheBGPBlockOfTheConfigTree holds the contract of
+// VerifyConfig and ApplyConfigDiff on a reactor with no configuration file
+// (loadPeersFullOrTree, reactor_api.go).
+//
+// GOAL: the reload hands the reactor the whole configuration tree, the tree
+// SetConfigTree and ReloadRunning take (reloadConfig,
+// ../../plugin/server/reload.go), and a reactor that parses that tree reads its
+// bgp block.
+// METHOD: a reactor with no config path and no reload function; verify and
+// apply a root tree whose bgp block declares one peer, then verify one whose
+// peer address is invalid.
+// VALIDATES: the apply runs the declared peer; the verify refuses the invalid
+// address.
+// PREVENTS: a reload that parses the root as if it were the bgp block, finds
+// no peer list, verifies nothing and tears every configured session down.
+func TestTreeRouteReadsTheBGPBlockOfTheConfigTree(t *testing.T) {
+	r := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
+	require.NoError(t, r.Start())
+	defer r.Stop()
+	adapter := &reactorAPIAdapter{r: r}
+
+	tree := configRoot(makeBGPTree(map[string]testPeer{
+		"peer1": {remoteIP: "10.0.0.1", remoteAS: "65001", localAS: "65000"},
+	}))
+	require.NoError(t, adapter.VerifyConfig(tree))
+	require.NoError(t, adapter.ApplyConfigDiff(tree))
+	peers := r.Peers()
+	require.Len(t, peers, 1, "the peer the bgp block declares runs")
+	assert.Equal(t, "10.0.0.1", peers[0].Settings().Address.String())
+
+	invalid := configRoot(makeBGPTree(map[string]testPeer{
+		"peer1": {remoteIP: "not-an-address", remoteAS: "65001", localAS: "65000"},
+	}))
+	require.Error(t, adapter.VerifyConfig(invalid), "the verify reads the peers of the bgp block")
+}
+
+// configRoot answers the configuration tree that holds bgp as its bgp block,
+// the shape a reload hands VerifyConfig and ApplyConfigDiff.
+func configRoot(bgp map[string]any) map[string]any {
+	return map[string]any{configRootNameBGP: bgp}
 }

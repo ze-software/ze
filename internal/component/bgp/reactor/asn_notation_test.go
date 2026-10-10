@@ -56,7 +56,7 @@ func TestVerifyingACandidateOnTheTreeBranchLeavesTheRenderedNotation(t *testing.
 		t.Fatal("candidateTree built no bgp block")
 	}
 
-	if err := adapter.VerifyConfig(candidate); err != nil {
+	if err := adapter.VerifyConfig(configRoot(candidate)); err != nil {
 		t.Fatalf("verifying the candidate failed for an unrelated reason: %v", err)
 	}
 	// Nothing calls SetConfigTree, so the commit is refused. The notation an
