@@ -1288,7 +1288,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	managedCtx, managedCancel := context.WithCancel(context.Background())
 	defer managedCancel()
 	if managedClient != nil && store != nil {
-		wireManagedCommit(managedClient, store, configPath, reloadAfterCommit, auditLog)
+		wireManagedCommit(managedClient, store, configPath, reloadAfterCommit, auditLog, daemonConfirmWindow.Load)
 	}
 	if apiCfgOK {
 		// bootUsers and the auth-mode report were resolved above; the boot-time

@@ -8,6 +8,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/archive"
 	"github.com/ze-software/ze/internal/component/config/confirm"
@@ -1278,7 +1280,30 @@ func (e *Editor) deleteLive() {
 
 // Rollback restores the configuration from a backup file.
 // Creates a backup of the current config first, so the rollback itself can be undone.
+// The write lands outside the commit path, so while the daemon's
+// confirmed-commit window is open it is refused with the window's refusal
+// naming its owner (confirm.WriteOutside): the window's revert would wipe it.
+// The owner's refusal also points to `commit abort`, which ends the window.
 func (e *Editor) Rollback(backupPath string) error {
+	err := confirm.WriteOutside(e.daemonWindow(), func() error {
+		return e.rollback(backupPath)
+	})
+	var other *confirm.OtherUserError
+	if !errors.As(err, &other) {
+		return err
+	}
+	if e.session == nil {
+		return err
+	}
+	if other.Owner != e.session.User {
+		return err
+	}
+	return fmt.Errorf("rollback refused while your confirmed commit is pending: run '%s' to revert it, then roll back (%w)",
+		contract.CommitCommand(contract.CommitAbort), err)
+}
+
+// rollback is Rollback once the window allows it.
+func (e *Editor) rollback(backupPath string) error {
 	// Read backup content through its object, hash verified.
 	data, err := e.readBackupContent(backupPath)
 	if err != nil {

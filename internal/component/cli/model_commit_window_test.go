@@ -388,3 +388,44 @@ func TestSessionCommitNothingPendingOpensNoWindow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, contract.NothingToCommit(now), result.statusMessage)
 }
+
+// TestSessionRollbackRefusedDuringWindow: owner decision ISSUE 2. A
+// `rollback <N>` writes the config file outside the editors' commit path, so
+// while the daemon's window is open it is refused through
+// confirm.WriteOutside: another user reads the window's refusal naming its
+// owner, the owner is pointed to `commit abort`, and neither rollback writes
+// the config nor closes the window.
+// PREVENTS: a rollback written inside a window and wiped by its revert.
+func TestSessionRollbackRefusedDuringWindow(t *testing.T) {
+	f := newWindowFixture(t)
+	alice := f.model(t, "alice")
+	bob := f.model(t, "bob")
+	require.NoError(t, bob.editor.createBackup(bob.editor.OriginalContent(), nil))
+
+	require.NoError(t, alice.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+	_, err := alice.cmdCommitRequest(confirmedRequest(60, false))
+	require.NoError(t, err)
+	applied := f.active(t)
+	file, err := f.store.ReadFile(f.configPath)
+	require.NoError(t, err)
+
+	_, err = bob.cmdRollback([]string{"1"})
+	var other *confirm.OtherUserError
+	require.ErrorAs(t, err, &other, "another user's rollback is refused with the window's refusal")
+	assert.Equal(t, "alice", other.Owner)
+	assert.NotContains(t, err.Error(), "your confirmed commit")
+
+	_, err = alice.cmdRollback([]string{"1"})
+	require.ErrorAs(t, err, &other, "the owner's rollback is refused with the window's refusal")
+	assert.Equal(t, "alice", other.Owner)
+	assert.Contains(t, err.Error(), "your confirmed commit")
+	assert.Contains(t, err.Error(), "'"+contract.CommitCommand(contract.CommitAbort)+"'", "the owner is pointed to commit abort")
+
+	assert.Equal(t, applied, f.active(t), "a refused rollback changes nothing the daemon runs")
+	after, err := f.store.ReadFile(f.configPath)
+	require.NoError(t, err)
+	assert.Equal(t, string(file), string(after), "a refused rollback writes no config file")
+	status, open := f.window.Status()
+	require.True(t, open, "a refused rollback leaves the window open")
+	assert.Equal(t, "alice", status.User)
+}

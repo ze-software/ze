@@ -237,6 +237,14 @@ Truncated SHA-256 of the config bytes (hex-encoded, first 16 characters). Comput
 | 4. Apply | If valid: stage the config, reload BGP, promote the candidate, send `config-ack {"ok":true}` |
 | 5. Reject | If invalid: send `config-ack {"ok":false,"error":"..."}`, keep running |
 
+While the client daemon has a confirmed-commit window open, phase 4 stages
+nothing: `wireManagedCommit` (`cmd/ze/hub/managed.go`) refuses the push through
+`confirm.WriteOutside` with the window's refusal naming its owner, because the
+window's revert would wipe the push, and the client answers
+`config-ack {"ok":false}` carrying that refusal. The client keeps its old
+version, so a later fetch, on the next `config-changed` or reconnection,
+delivers the push again; nothing retries it when the window closes.
+
 The client controls timing. A router in the middle of graceful restart or convergence is not forced to reload.
 
 ---
