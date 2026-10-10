@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -1187,6 +1188,10 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 	restoreLog := setFixtureEnv("ZE_INSTALL_DOCKER_LOG", logPath)
 	defer restoreLog()
 
+	// The driver builds only for the host's own arch (AC-13 refuses a foreign
+	// one), so the requests name the arch of the host the fixture runs on.
+	arch := runtime.GOARCH
+
 	requests := []struct {
 		name     string
 		request  kernelbuilder.Request
@@ -1196,18 +1201,18 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 		{
 			name: targetInstaller,
 			request: kernelbuilder.Request{
-				Root: root, Version: version, Arch: archAMD64, Profile: profileQEMU, Builder: builderDocker,
+				Root: root, Version: version, Arch: arch, Profile: profileQEMU, Builder: builderDocker,
 				Target: targetInstaller, SourceDir: pathInstallerKernel, OutputDir: filepath.Join(work, "installer"),
 				BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon, Modules: "no",
 				Fragments: []string{pathInstallerKernelConfig, "tools/installer-kernel/qemu.config"},
 			},
 			worker:   []string{"--modules", "no", flagFragment, "/src/kernel.config", flagFragment, "/src/qemu.config"},
-			wantProv: fmt.Sprintf("version=%s\ntarget=installer\nprofile=qemu\narch=amd64\nmodules=no\nbuilder=docker\n", version) + provenanceSource(version),
+			wantProv: fmt.Sprintf("version=%s\ntarget=installer\nprofile=qemu\narch=%s\nmodules=no\nbuilder=docker\n", version, arch) + provenanceSource(version),
 		},
 		{
 			name: targetRuntime,
 			request: kernelbuilder.Request{
-				Root: root, Version: version, Arch: archAMD64, Profile: targetRuntime, Builder: builderDocker,
+				Root: root, Version: version, Arch: arch, Profile: targetRuntime, Builder: builderDocker,
 				Target: targetRuntime, SourceDir: pathGokrazyKernel, OutputDir: filepath.Join(work, "runtime"),
 				BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon, Modules: valueYes,
 				PatchesDir: "gokrazy/kernel/patches",
@@ -1222,7 +1227,7 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 				flagFragment, "/src/kernel.config", flagFragment, "/src/runtime.config",
 				flagFragment, "/builder/common/efi-console.config",
 			},
-			wantProv: fmt.Sprintf("version=%s\ntarget=runtime\nprofile=runtime\narch=amd64\nmodules=yes\nbuilder=docker\n", version) + provenanceSource(version),
+			wantProv: fmt.Sprintf("version=%s\ntarget=runtime\nprofile=runtime\narch=%s\nmodules=yes\nbuilder=docker\n", version, arch) + provenanceSource(version),
 		},
 	}
 	for index := range requests {
@@ -1241,7 +1246,7 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 		if err != nil {
 			return err
 		}
-		if err := assertKernelBuildCalls(calls, test.request.OutputDir, test.worker); err != nil {
+		if err := assertKernelBuildCalls(calls, arch, test.request.OutputDir, test.worker); err != nil {
 			return fmt.Errorf("%s request: %w", test.name, err)
 		}
 		provenance, err := os.ReadFile(filepath.Join(test.request.OutputDir, "kernel.version"))
@@ -1270,14 +1275,15 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 	return nil
 }
 
-func assertKernelBuildCalls(calls [][]string, outputDir string, workerSequence []string) error {
+func assertKernelBuildCalls(calls [][]string, arch, outputDir string, workerSequence []string) error {
 	if len(calls) != 3 {
 		return fmt.Errorf("docker calls = %v, want build, worker, repair", calls)
 	}
-	if !containsArgSequence(calls[0], "build", "--platform", "linux/amd64") {
+	platform := "linux/" + arch
+	if !containsArgSequence(calls[0], "build", "--platform", platform) {
 		return fmt.Errorf("builder image argv = %v", calls[0])
 	}
-	if !containsArgSequence(calls[1], "run", "--rm", "--platform", "linux/amd64") ||
+	if !containsArgSequence(calls[1], "run", "--rm", "--platform", platform) ||
 		!containsArg(calls[1], "ze-kernel-builder") ||
 		!containsArg(calls[1], outputDir+":/out") {
 		return fmt.Errorf("worker argv = %v", calls[1])
