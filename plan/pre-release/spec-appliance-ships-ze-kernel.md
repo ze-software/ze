@@ -583,6 +583,14 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 |---|----------|---------|----------|----------|
 | 1 | ISSUE | `availableAccelerators` swallowed the `<qemu> -accel help` exec error and returned an empty set, so a missing or crashing QEMU was reported as "offers neither hvf nor kvm" | `internal/appliance/kernelbuilder/qemu.go` | 45834f22d7: returns the error with exit status and QEMU's stderr; `TestQEMUArgsNamesABrokenQEMU` red before the fix. qemu.go is hashed into the runtime kernel cache variant, so every cached runtime kernel (both arches) rebuilds on next use |
 
+### Round 1 addendum: found during the amd64 build, not by the reviewer
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 2 | ISSUE | `dockerStoreHostPath` returned `/var/lib/docker` on native Linux whenever it existed, without asking the daemon. On the amd64 host (2026-10-10) the daemon's root is `/home/thomas/.cache/docker` (295G disk, 118G free) and an empty `/var/lib/docker` sits on the 98G root disk (20G free), so the build was refused with a silently wrong reading. The refusal also carried no fix command on a line of its own | `internal/appliance/kernelbuilder/space.go`, `driver.go` | 6ae709558c: on Linux the guard asks `docker info --format {{.DockerRootDir}}` through `runCommandOutput`, measures `/var/lib/docker` only when the daemon cannot answer or names a missing path, and says which path it measured and why; the refusal ends with `df -h <path>` and `ze appliance kernel --builder qemu ...` on their own lines; the macOS VM-disk branch is unchanged. `TestDockerStoreHostPathAsksTheLinuxDaemon` and `TestCheckKernelBuildSpaceMeasuresTheDaemonRoot` red with the daemon query disabled, green with it. No page described the check, so no page edit. kernelbuilder files are hashed into the cache variant, so both cached runtime kernels rebuild |
+| 3 | NOTE | lint `misspell`: "honours" in the comment of `TestTrimSkipsATargetHoldingTheKernelCache` | `internal/le/scratch/cacheclean_kernel_test.go` | e9ab56300d. The other finding in the same lint log, a `godot` in `internal/test/fixture/plugin_fixture_rfc2545_joint_subnet_frr_oracle_linux.go`, is in another session's RFC 2545 work, not this spec's files, and was left alone |
+
+Ready for independent review round 2, over the round-1 fix commits and 6ae709558c, e9ab56300d. Scoped lint (`./internal/appliance/... ./internal/le/scratch/...`): 0 issues on darwin and linux-integration, 2026-10-10.
+
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
