@@ -238,7 +238,7 @@ func StagedZePath(root string, binaries []LabBinary) string {
 // because docker-default denies the MPLS probe's mount and sysctl write (D-7).
 func kernelProbeArgv(zePath string, appArmor bool) []string {
 	argv := make([]string, 0, 14+len(kernelProbeCommand))
-	argv = append(argv, dockerExecutable, "run", "--rm",
+	argv = append(argv, DockerExecutable, "run", "--rm",
 		"--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN",
 		"--network", "none")
 	if appArmor {
@@ -251,7 +251,7 @@ func kernelProbeArgv(zePath string, appArmor bool) []string {
 // dockerAppArmor asks whether the daemon applies AppArmor to its containers. A
 // question it cannot answer is an error: the probe's argv depends on it.
 func dockerAppArmor(ctx context.Context, docker *Docker) (bool, error) {
-	argv := []string{dockerExecutable, "info", "--format", dockerSecurityOptionsFormat}
+	argv := []string{DockerExecutable, "info", "--format", dockerSecurityOptionsFormat}
 	result, err := docker.runner.Run(ctx, processCommand{Arguments: argv, Timeout: dockerInfoTimeout})
 	var problem textbuf.Buffer
 	problem.Str("the Docker kernel check could not read the daemon's security options: `").
@@ -440,7 +440,7 @@ func deniedFix(appArmor, seLinux bool) string {
 // its place rather than stopping the check.
 func dockerKernelRelease(ctx context.Context, docker *Docker) string {
 	result, err := docker.runner.Run(ctx, processCommand{
-		Arguments: []string{dockerExecutable, "info", "--format", "{{.KernelVersion}}"},
+		Arguments: []string{DockerExecutable, "info", "--format", "{{.KernelVersion}}"},
 		Timeout:   dockerInfoTimeout,
 	})
 	if err != nil {

@@ -17,7 +17,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const dockerExecutable = "docker"
+// DockerExecutable is the program every lab Docker command runs. grantcheck
+// skips it when a whole argv opens with it.
+const DockerExecutable = "docker"
 
 const (
 	dockerInfoTimeout    = 15 * time.Second
@@ -231,7 +233,7 @@ func machineBuildTimeout(lookup func(string) (string, bool)) time.Duration {
 
 // Probe fails when Docker is absent, unresponsive, or refuses the current context.
 func (d *Docker) Probe(ctx context.Context) error {
-	_, err := d.command(ctx, dockerInfoTimeout, dockerExecutable, "info")
+	_, err := d.command(ctx, dockerInfoTimeout, DockerExecutable, "info")
 	return err
 }
 
@@ -248,7 +250,7 @@ func (d *Docker) Probe(ctx context.Context) error {
 // it got. It never falls back to the host architecture, because a guess here is
 // the failure this method exists to remove.
 func (d *Docker) ServerArchitecture(ctx context.Context) (string, error) {
-	result, err := d.command(ctx, dockerCommandTimeout, dockerExecutable, "version", "--format", serverArchitectureFormat)
+	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "version", "--format", serverArchitectureFormat)
 	if err != nil {
 		return "", err
 	}
@@ -305,7 +307,7 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 		return image, errors.New("Docker build timeout must be positive")
 	}
 	image.retainedTag = "ze-interop-retained:" + rand.Text()
-	arguments := []string{dockerExecutable, "build", "-t", build.Tag}
+	arguments := []string{DockerExecutable, "build", "-t", build.Tag}
 	for _, argument := range build.BuildArgs {
 		arguments = append(arguments, "--build-arg", argument)
 	}
@@ -328,7 +330,7 @@ func (d *Docker) releaseImage(ctx context.Context, image ImageResult) error {
 	if image.retainedTag == "" {
 		return nil
 	}
-	_, err := d.command(ctx, dockerCommandTimeout, dockerExecutable, "image", "rm", "--no-prune", image.retainedTag)
+	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "image", "rm", "--no-prune", image.retainedTag)
 	if err == nil {
 		return nil
 	}
@@ -348,7 +350,7 @@ func (d *Docker) releaseImage(ctx context.Context, image ImageResult) error {
 
 // Pull makes one external image available before the scenarios start.
 func (d *Docker) Pull(ctx context.Context, image string) error {
-	_, err := d.command(ctx, dockerPullTimeout, dockerExecutable, "pull", "-q", image)
+	_, err := d.command(ctx, dockerPullTimeout, DockerExecutable, "pull", "-q", image)
 	return err
 }
 
@@ -361,7 +363,7 @@ func (d *Docker) RunOneShot(ctx context.Context, spec OneShotContainer) (Command
 		return CommandResult{}, errors.New("one-shot container timeout must be positive")
 	}
 	argv := make([]string, 0, 4+len(spec.Arguments)+len(spec.Command))
-	argv = append(argv, dockerExecutable, "run", "--rm")
+	argv = append(argv, DockerExecutable, "run", "--rm")
 	argv = append(argv, spec.Arguments...)
 	argv = append(argv, spec.Image)
 	argv = append(argv, spec.Command...)
@@ -402,7 +404,7 @@ func (d *Docker) createNetwork(ctx context.Context, spec NetworkSpec) (Network, 
 
 // removeNetwork removes a network. A name-specific not-found answer is success.
 func (d *Docker) removeNetwork(ctx context.Context, name string) error {
-	_, err := d.command(ctx, dockerCommandTimeout, dockerExecutable, "network", "rm", name)
+	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "network", "rm", name)
 	if err == nil {
 		return nil
 	}
@@ -439,7 +441,7 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 		argvCapacity += 2
 	}
 	argv := make([]string, 0, argvCapacity)
-	argv = append(argv, dockerExecutable, "run", "-d", "--name", peer.Container,
+	argv = append(argv, DockerExecutable, "run", "-d", "--name", peer.Container,
 		"--network", network.Name, "--ip", ipv4.String())
 	if network.IPv6.IsValid() {
 		ipv6, addrErr := addressAtHost(network.IPv6, peer.Host)
@@ -499,7 +501,7 @@ func (d *Docker) runContainer(ctx context.Context, network Network, peer PeerCon
 // RemoveContainer force-removes one peer. It accepts only Docker's
 // name-specific absent-container answer as an empty pre-clean state.
 func (d *Docker) RemoveContainer(ctx context.Context, name string) error {
-	_, err := d.command(ctx, dockerCommandTimeout, dockerExecutable, "rm", "-f", name)
+	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "rm", "-f", name)
 	if err == nil {
 		return nil
 	}
@@ -519,19 +521,19 @@ func (d *Docker) RemoveContainer(ctx context.Context, name string) error {
 
 // pauseContainer freezes every process in one peer's cgroup.
 func (d *Docker) pauseContainer(ctx context.Context, name string) error {
-	_, err := d.command(ctx, dockerCommandTimeout, dockerExecutable, "pause", name)
+	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "pause", name)
 	return err
 }
 
 // unpauseContainer resumes every process in one paused peer's cgroup.
 func (d *Docker) unpauseContainer(ctx context.Context, name string) error {
-	_, err := d.command(ctx, dockerCommandTimeout, dockerExecutable, "unpause", name)
+	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "unpause", name)
 	return err
 }
 
 // startContainer restarts the same stopped container and preserves its accumulated state.
 func (d *Docker) startContainer(ctx context.Context, name string) error {
-	_, err := d.command(ctx, dockerRunTimeout, dockerExecutable, "start", name)
+	_, err := d.command(ctx, dockerRunTimeout, DockerExecutable, "start", name)
 	return err
 }
 
@@ -545,7 +547,7 @@ func (d *Docker) stopContainer(ctx context.Context, name string, timeoutSeconds 
 	}
 	timeout := time.Duration(timeoutSeconds)*time.Second + dockerCommandTimeout
 	_, err := d.command(ctx, timeout,
-		dockerExecutable, "stop", "-t", strconv.Itoa(timeoutSeconds), name)
+		DockerExecutable, "stop", "-t", strconv.Itoa(timeoutSeconds), name)
 	return err
 }
 
@@ -554,13 +556,13 @@ func (d *Docker) Signal(ctx context.Context, name, signal string) error {
 	if signal == "" {
 		signal = "TERM"
 	}
-	_, err := d.command(ctx, dockerCommandTimeout, dockerExecutable, "kill", "--signal", signal, name)
+	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "kill", "--signal", signal, name)
 	return err
 }
 
 // Exec runs one command in a peer container. A non-zero exit always returns an error.
 func (d *Docker) Exec(ctx context.Context, name string, argv []string, environ []EnvironmentVariable) (CommandResult, error) {
-	arguments, err := dockerExecArguments([]string{dockerExecutable, "exec"}, name, argv, environ)
+	arguments, err := dockerExecArguments([]string{DockerExecutable, "exec"}, name, argv, environ)
 	if err != nil {
 		return CommandResult{}, err
 	}
@@ -570,7 +572,7 @@ func (d *Docker) Exec(ctx context.Context, name string, argv []string, environ [
 
 // ExecDetached starts one command in a peer container and returns after Docker accepts it.
 func (d *Docker) ExecDetached(ctx context.Context, name string, argv []string, environ []EnvironmentVariable) error {
-	arguments, err := dockerExecArguments([]string{dockerExecutable, "exec", "-d"}, name, argv, environ)
+	arguments, err := dockerExecArguments([]string{DockerExecutable, "exec", "-d"}, name, argv, environ)
 	if err != nil {
 		return err
 	}
@@ -597,7 +599,7 @@ func (d *Docker) Logs(ctx context.Context, name string, lines int) (LogResult, e
 		return LogResult{}, errors.New("Docker log line count must be positive")
 	}
 	result, err := d.command(ctx, dockerLogsTimeout,
-		dockerExecutable, "logs", name, "--tail", strconv.Itoa(lines))
+		DockerExecutable, "logs", name, "--tail", strconv.Itoa(lines))
 	if err != nil {
 		return LogResult{}, err
 	}
@@ -608,7 +610,7 @@ func (d *Docker) Logs(ctx context.Context, name string, lines int) (LogResult, e
 // containerPID returns the positive host PID of one container's PID 1.
 func (d *Docker) containerPID(ctx context.Context, name string) (int, error) {
 	result, err := d.command(ctx, dockerCommandTimeout,
-		dockerExecutable, "inspect", "--format", "{{.State.Pid}}", name)
+		DockerExecutable, "inspect", "--format", "{{.State.Pid}}", name)
 	if err != nil {
 		return 0, err
 	}
@@ -668,7 +670,7 @@ func networkCreateArguments(name string, subnet Subnet) ([]string, error) {
 		return nil, errors.New("Docker network IPv4 subnet must be a /24")
 	}
 	var tb textbuf.Buffer
-	argv := []string{dockerExecutable, "network", "create", tb.Str("--subnet=").Str(subnet.IPv4.String()).String()}
+	argv := []string{DockerExecutable, "network", "create", tb.Str("--subnet=").Str(subnet.IPv4.String()).String()}
 	if subnet.IPv6.IsValid() {
 		if subnet.IPv6.Bits() != 64 {
 			return nil, errors.New("Docker network IPv6 subnet must be a /64")

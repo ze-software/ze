@@ -17,7 +17,7 @@ import (
 
 // Replacing a shared tag must not change or remove an image that a run selected.
 func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
-	if _, err := exec.LookPath(dockerExecutable); err != nil {
+	if _, err := exec.LookPath(DockerExecutable); err != nil {
 		t.Skip("Docker is required for the image-retention integration test")
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
@@ -54,7 +54,7 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 	}
 	for index, marker := range []string{"first", "second"} {
 		result, err := docker.command(ctx, dockerCommandTimeout,
-			dockerExecutable, "run", "--rm", "--network", "none", images[index].Reference)
+			DockerExecutable, "run", "--rm", "--network", "none", images[index].Reference)
 		if err != nil {
 			t.Fatalf("run selected %s image after retag: %v", marker, err)
 		}
@@ -67,14 +67,14 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, err := docker.command(ctx, dockerCommandTimeout,
-			dockerExecutable, "image", "inspect", image.retainedTag)
+			DockerExecutable, "image", "inspect", image.retainedTag)
 		var commandErr *commandError
 		if !errors.As(err, &commandErr) || !strings.Contains(commandErr.Stderr, "No such image: "+image.retainedTag) {
 			t.Fatalf("released tag remains or inspection failed for another reason: %v", err)
 		}
 	}
 	result, err := docker.command(ctx, dockerCommandTimeout,
-		dockerExecutable, "run", "--rm", "--network", "none", cacheTag)
+		DockerExecutable, "run", "--rm", "--network", "none", cacheTag)
 	if err != nil || strings.TrimSpace(result.Stdout) != "second" {
 		t.Fatalf("releasing run-owned tags changed the shared cache image: stdout=%q error=%v", result.Stdout, err)
 	}
@@ -100,7 +100,7 @@ func TestDockerBuildRetainsImageAcrossRetag(t *testing.T) {
 		t.Fatalf("failed setup did not retain its result and complete cleanup: %+v", report)
 	}
 	_, err = docker.command(ctx, dockerCommandTimeout,
-		dockerExecutable, "image", "inspect", report.Images[0].retainedTag)
+		DockerExecutable, "image", "inspect", report.Images[0].retainedTag)
 	var commandErr *commandError
 	if !errors.As(err, &commandErr) || !strings.Contains(commandErr.Stderr, "No such image: "+report.Images[0].retainedTag) {
 		t.Fatalf("failed suite did not release its image tag: %v", err)

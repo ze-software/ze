@@ -9,6 +9,8 @@
 package grantcheck
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -138,12 +140,14 @@ var dockerSubcommands = map[string]bool{"container": true, "create": true, "run"
 
 // ParsePeer answers the grants of one lab peer: its argv and declared
 // capabilities (Parse), its AppArmor profile, and each of its mounts that
-// is a grant. A read-only mount of a file or directory whose source,
-// symlinks resolved, lies strictly inside one of stagedRoots is the lab
-// handing the daemon its own config file and is not a grant; a writable
-// mount, a unix socket wherever it lies (a socket hands the container the
-// service behind it), or a mount from anywhere else (/, the Docker socket,
-// /lib/modules) is recorded as source:target[:ro].
+// is a grant. A read-only mount of a file whose source, symlinks resolved,
+// lies strictly inside one of stagedRoots is the lab handing the daemon its
+// own config file and is not a grant. A writable mount, a directory wherever
+// it lies (whatever it holds, a socket included, reaches the container), a
+// unix socket wherever it lies (a socket hands the container the service
+// behind it), a source whose symlinks do not resolve, or a mount from
+// anywhere else (/, the Docker socket, /lib/modules) is recorded as
+// source:target[:ro].
 func ParsePeer(peer interoplab.PeerConfig, stagedRoots ...string) Grants {
 	g := Parse(peer.Capabilities, peer.Arguments)
 	g.AppArmorProfile = peer.AppArmorProfile
@@ -174,16 +178,32 @@ func StagedRoots(tb testing.TB) []string {
 }
 
 // stagedInside answers whether source, symlinks resolved, lies strictly
-// below one of roots, also resolved, and is not a unix socket. The root
-// itself is not inside it, so mounting the whole checkout is a grant, and a
-// symlink inside a root that points out of it is judged where it points.
+// below one of roots, also resolved, and is neither a directory nor a unix
+// socket. The root itself is not inside it, so mounting the whole checkout is
+// a grant, and a symlink inside a root that points out of it is judged where
+// it points. A directory is refused because what it holds is not read: a
+// socket inside it (/tmp/.X11-unix below the system temporary directory)
+// would reach the container through a mount that looked staged, and every lab
+// mounts files only. A path whose symlinks do not resolve is refused too.
 func stagedInside(source string, roots []string) bool {
-	resolved := resolvePath(source)
-	if info, err := os.Stat(resolved); err == nil && info.Mode()&os.ModeSocket != 0 {
+	resolved, ok := resolvePath(source)
+	if !ok {
 		return false
 	}
+	if info, err := os.Stat(resolved); err == nil {
+		if info.IsDir() {
+			return false
+		}
+		if info.Mode()&os.ModeSocket != 0 {
+			return false
+		}
+	}
 	for _, root := range roots {
-		relative, err := filepath.Rel(resolvePath(root), resolved)
+		resolvedRoot, rootOK := resolvePath(root)
+		if !rootOK {
+			continue
+		}
+		relative, err := filepath.Rel(resolvedRoot, resolved)
 		if err != nil {
 			continue
 		}
@@ -199,19 +219,25 @@ func stagedInside(source string, roots []string) bool {
 }
 
 // resolvePath answers path cleaned, with every symlink in its longest
-// existing prefix resolved. A lab may name a file it has not rendered yet,
-// so the part that does not exist is kept as written below the resolved
-// prefix; it holds no symlink because it holds nothing.
-func resolvePath(path string) string {
+// existing prefix resolved, and false when the path cannot be judged. A lab
+// may name a file it has not rendered yet, so a part Lstat reports as absent
+// is kept as written below the resolved prefix: no entry exists there, so it
+// holds no symlink. A prefix that exists but does not resolve (a dangling
+// symlink, a loop, an entry Lstat cannot read) answers false, because where
+// it points is unknown and a mount through it may reach anywhere.
+func resolvePath(path string) (string, bool) {
 	clean := filepath.Clean(path)
 	missing := ""
 	for prefix := clean; ; prefix = filepath.Dir(prefix) {
 		resolved, err := filepath.EvalSymlinks(prefix)
 		if err == nil {
-			return filepath.Join(resolved, missing)
+			return filepath.Join(resolved, missing), true
+		}
+		if _, lstatErr := os.Lstat(prefix); !errors.Is(lstatErr, fs.ErrNotExist) {
+			return "", false
 		}
 		if prefix == filepath.Dir(prefix) {
-			return clean
+			return "", false
 		}
 		missing = filepath.Join(filepath.Base(prefix), missing)
 	}
@@ -233,10 +259,15 @@ func privilegedValue(value string) bool {
 // `docker run` argv or a lab peer's extra arguments. Every spelling Docker
 // reads is read: `--flag value`, `--flag=value`, a short flag with its value
 // joined (`-v/:/host`, `-v=/:/host`) or separate, and combined short
-// booleans (`-it`). Reading stops at `--` or at the image, the first
-// positional that is not a docker subcommand.
+// booleans (`-it`). A leading docker executable (`docker`, `/usr/bin/docker`)
+// is skipped. Reading stops at `--` or at the image, the first positional
+// that is not a docker subcommand and follows a subcommand or a flag. A
+// positional that opens the argv, or follows only the executable, cannot be
+// the image, so it is Unclassified: reading would stop there and report no
+// grant for every flag after it.
 func Parse(capabilities, argv []string) Grants {
 	g := Grants{Capabilities: slices.Clone(capabilities)}
+	opened := false
 	for i := 0; i < len(argv); i++ {
 		argument := argv[i]
 		if argument == "--" {
@@ -244,10 +275,19 @@ func Parse(capabilities, argv []string) Grants {
 		}
 		if !strings.HasPrefix(argument, "-") || argument == "-" {
 			if dockerSubcommands[argument] {
+				opened = true
 				continue
 			}
+			if opened {
+				break
+			}
+			if i == 0 && filepath.Base(argument) == interoplab.DockerExecutable {
+				continue
+			}
+			g.Unclassified = append(g.Unclassified, argument+" (opens the argv, yet is neither a docker flag nor a subcommand)")
 			break
 		}
+		opened = true
 		if strings.HasPrefix(argument, "--") {
 			flag, value, joined := strings.Cut(argument, "=")
 			i = g.readFlag(flag, value, joined, argument, argv, i)

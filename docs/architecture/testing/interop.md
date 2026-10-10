@@ -574,6 +574,42 @@ The rule and its reasoning live in `ai/rules/interop-and-goal-validation.md`,
 which is always-on, so a spec author planning a scenario meets it without
 opening this page.
 
+### The exact grant-set check
+
+Each lab's privilege test (`TestL2TPLabPeersRunWithoutPrivilege` and its
+PPPoE, IPsec and RSVP-TE siblings, the deployment proofs' container tests and
+the release-candidate container test) compares a container's whole grant set
+with the set its daemon needs, through `internal/le/interoplab/grantcheck`. A
+check that only looked for the wanted grants would pass a container that also
+held `--cap-add ALL` or `--privileged`; comparing the whole set fails on any
+extra.
+
+`grantcheck.Parse` reads a `docker run` argv, or a lab peer's extra arguments,
+in every spelling Docker reads (`--flag value`, `--flag=value`, a short flag
+with its value joined or separate, combined short booleans). A flag that can
+widen what the container may do fills one list: capabilities, devices,
+security options, sysctls, host namespaces, networks, device cgroup rules,
+mounts, or other grants (`--user`, `--volumes-from`, `--runtime` and the like).
+`--privileged` counts in any spelling Docker reads as true. A flag classified
+as no grant (`--name`, `--env`, `--rm`...) is skipped. Every other flag is
+unclassified, and `grantcheck.Problems` reports each one whatever the wanted
+set, so a flag nobody classified fails the check rather than passing unread:
+classifying it is an edit to `grantFlags` or `nonGrantFlags`. A leading
+`docker` is skipped, reading stops at `--` or at the image, and an argv that
+opens with any other word is refused, because reading would stop there before
+a single flag.
+
+`grantcheck.ParsePeer` adds a lab peer's declared capabilities, its AppArmor
+profile and its mounts. A read-only mount of a file whose source, symlinks
+resolved, lies strictly inside the checkout or the system temporary directory
+(`grantcheck.StagedRoots`) is the lab staging its daemon's own config and is no
+grant. A writable mount, a directory, a unix socket, a root itself, a source
+whose symlinks do not resolve, or a source anywhere else is a mount grant the
+want must name. Every lab mounts files only, and a directory is refused because
+what it holds, a socket included, reaches the container unread.
+
+<!-- source: internal/le/interoplab/grantcheck/grantcheck.go -- Grants, Parse, ParsePeer, Problems, StagedRoots, stagedInside, resolvePath -->
+
 ### Container Addresses
 
 | Daemon | IP | Container |

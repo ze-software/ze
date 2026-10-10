@@ -120,12 +120,53 @@ func TestProblemsCatchEveryExtraGrant(t *testing.T) {
 	}
 }
 
+// VALIDATES: a whole argv that opens with the docker executable is read past
+// it, and an argv that opens with any other word (which would end the read
+// before a single flag) fails the exact check.
+// PREVENTS: `docker run --privileged image` or `image --privileged` parsing
+// to no grant and passing.
+func TestParseReadsPastTheExecutableAndRefusesAnOpeningWord(t *testing.T) {
+	for _, executable := range []string{"docker", "/usr/bin/docker"} {
+		got := Parse(nil, []string{executable, "run", "--privileged", "--cap-add", "SYS_ADMIN", "image", "--cap-add", "X"})
+		if !got.Privileged {
+			t.Errorf("%s run --privileged read as unprivileged", executable)
+		}
+		if !slices.Equal(got.Capabilities, []string{"SYS_ADMIN"}) {
+			t.Errorf("%s run: capabilities read as %v, want [SYS_ADMIN]", executable, got.Capabilities)
+		}
+		if len(got.Unclassified) != 0 {
+			t.Errorf("%s run: unclassified %v", executable, got.Unclassified)
+		}
+	}
+	for name, argv := range map[string][]string{
+		"image first":               {"image", "--privileged"},
+		"opening word, clean flags": {"image", "--rm"},
+		"executable then word":      {"docker", "image", "--privileged"},
+		"executable not first":      {"run", "docker", "--privileged"},
+	} {
+		got := Parse(nil, argv)
+		if name == "executable not first" {
+			// After a subcommand the word is the image, and what follows it
+			// is the container's command.
+			if got.Privileged || len(got.Unclassified) != 0 {
+				t.Errorf("%s: %v read as %+v", name, argv, got)
+			}
+			continue
+		}
+		if problems := Problems(got, Grants{}); len(problems) == 0 {
+			t.Errorf("%s: %v passed the exact check", name, argv)
+		}
+	}
+}
+
 // VALIDATES: ParsePeer judges a read-only mount where its source really is:
 // a symlink inside the staged root that points outside it is a grant, a
-// symlinked staged root still admits the files below it, and a unix socket
-// inside the root is a grant.
+// symlinked staged root still admits the files below it, and a unix socket,
+// a directory (one holding a socket here), a dangling symlink and a path below
+// one inside the root are each a grant.
 // PREVENTS: a lab handing a container a host file or a service socket
-// through a path that only looks staged.
+// through a path that only looks staged, or through a name whose target
+// nobody can read.
 func TestParsePeerResolvesSymlinksAndRefusesSockets(t *testing.T) {
 	base, err := os.MkdirTemp("", "gc")
 	if err != nil {
@@ -177,9 +218,27 @@ func TestParsePeerResolvesSymlinksAndRefusesSockets(t *testing.T) {
 			t.Errorf("%s (%s) reported %v", name, source, problems)
 		}
 	}
+	dangling := filepath.Join(root, "dangling")
+	if err := os.Symlink(filepath.Join(outside, "absent"), dangling); err != nil {
+		t.Fatal(err)
+	}
+	// A directory holding a socket, as the X11 socket directory does below
+	// the system temporary directory a lab stages in.
+	directory := filepath.Join(root, "dir")
+	if err := os.Mkdir(directory, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	inner, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", filepath.Join(directory, "s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { inner.Close() }) //nolint:errcheck // test listener
 	for name, source := range map[string]string{
-		"symlink out of the root": escape,
-		"unix socket":             socket,
+		"symlink out of the root":    escape,
+		"unix socket":                socket,
+		"dangling symlink":           dangling,
+		"below a dangling symlink":   filepath.Join(dangling, "ze.conf"),
+		"directory holding a socket": directory,
 	} {
 		if problems := Problems(ParsePeer(peerWith(source), root), want); len(problems) == 0 {
 			t.Errorf("%s (%s) passed the exact check", name, source)
