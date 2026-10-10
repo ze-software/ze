@@ -1,0 +1,95 @@
+# Test: the SSH session editor refuses every commit form outside the grammar
+# VALIDATES: spec-session-editor-file-mode-parity AC-25 -- with no window pending,
+#            `commit accept` and `commit abort` say no confirmed commit is pending;
+#            AC-27 -- `commit` alone and `commit bogus` name the subcommands,
+#            `commit force` says force is a modifier, `confirm` and `confirm abort`
+#            are unknown commands; AC-28 -- `commit accept force`, `commit abort
+#            force` and `commit verify force` are refused, and outside `commit`
+#            `force` is an ordinary value. Nothing reaches the running daemon until
+#            `commit now`.
+# PREVENTS: a typo or a legacy verb applying a configuration over SSH
+option=timeout:value=60s
+
+tmpfs=session-editor-commit-grammar.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-grammar.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send set bgp router-id 5.6.7.8
+send commit accept
+wait no confirmed commit is pending
+send commit
+wait commit needs a subcommand: commit now, commit confirmed <seconds>, commit accept, commit abort or commit verify
+send commit abort
+wait no confirmed commit is pending
+send commit bogus
+wait unknown commit subcommand "bogus": use commit now
+send commit force
+wait force is a modifier, not a subcommand
+send confirm
+wait unknown command: confirm
+send commit accept force
+wait commit accept takes no force: force overrides validation warnings or a conflict
+send confirm abort
+wait unknown command: confirm
+send commit abort force
+wait commit abort takes no force
+send commit verify force
+# The status line redraws only the tail after the prefix it shares with the line before.
+wait verify takes no force
+lacks 5.6.7.8
+has 1.2.3.4
+send set bgp peer peer1 description force
+send commit now
+wait Session committed: 2 change(s) applied
+has 5.6.7.8
+send show bgp peer peer1
+wait description force
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-grammar.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-grammar.conf session-editor-commit-grammar.script:timeout=60s
+expect=exit:code=0

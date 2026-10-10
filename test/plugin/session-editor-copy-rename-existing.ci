@@ -1,0 +1,85 @@
+# Test: copy and rename over SSH never overwrite an existing list entry
+# VALIDATES: spec-session-editor-file-mode-parity AC-30 -- `copy` and `rename`
+#            whose destination exists are refused naming it and saying to delete
+#            it first; nothing changes, so the next commit applies only the
+#            operator's own edit
+# PREVENTS: a copy or rename silently replacing a configured peer
+option=timeout:value=60s
+
+tmpfs=session-editor-copy-rename-existing.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+    peer peer2 {
+        connection {
+            remote {
+                ip 127.0.0.3
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-copy-rename-existing.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send copy bgp peer peer1 to peer2
+wait peer2 already exists in peer: delete it first
+send rename bgp peer peer2 to peer1
+wait peer1 already exists in peer: delete it first
+send set bgp router-id 5.6.7.8
+send commit now
+wait Session committed: 1 change(s) applied
+has 5.6.7.8
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-copy-rename-existing.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-copy-rename-existing.conf session-editor-copy-rename-existing.script:timeout=60s
+expect=exit:code=0
