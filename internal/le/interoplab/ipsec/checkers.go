@@ -2524,7 +2524,7 @@ const childlessCreateWait = 150 * time.Second
 // (with KE, PFS on) installs the Child SA on the SAME IKE SA.
 //
 // RFC 7296 Section 2.21.2: "However, if the failure is related to creating the
-// Child SA, the IKE SA is created and the Child SA is not created."
+// Child SA, the IKE SA is created and the Child SA is not created".
 func checkChildlessIKESAZeInitiator(ctx context.Context, lab *scenarioLab) error {
 	if err := lab.waitSA(ctx, lab.timeout); err != nil {
 		return fmt.Errorf("strongSwan holds no IKE SA after refusing Ze's first Child SA: %w", err)

@@ -16,7 +16,7 @@ import (
 type crfRefusal uint8
 
 const (
-	crfRefusalUnspecified crfRefusal = iota
+	_ crfRefusal = iota // The zero value names no shape, so a forgotten argument cannot pick one.
 	// crfRefusalNotify puts NO_PROPOSAL_CHOSEN where SAr2, TSi and TSr stood.
 	crfRefusalNotify
 	// crfRefusalSilent drops SAr2, TSi and TSr and puts nothing in their place.

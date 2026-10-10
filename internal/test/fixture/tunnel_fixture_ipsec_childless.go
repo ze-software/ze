@@ -54,7 +54,7 @@ func tunnelIPsecChildlessRead(ctx context.Context) (tunnelIPsecChildlessState, e
 	// The established IKE SA is the one judged; while none is established the
 	// read reports "not established", never a stale SPI.
 	for _, sa := range sas {
-		if sa.State != "established" {
+		if sa.State != stateEstablished {
 			continue
 		}
 		child := len(sa.ChildSA) > 0 && string(sa.ChildSA) != "null" && string(sa.ChildSA) != "[]"

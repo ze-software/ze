@@ -650,7 +650,7 @@ func (ps *PeerSession) finishChildCreate(sa *SA, p *pendingRekey, inner []wire.P
 // RFC 7296 Section 1.3.1: "The responder replies (using the same Message ID to respond)
 // with the accepted offer in an SA payload, a nonce in the Nr payload, and a
 // Diffie-Hellman value in the KEr payload if KEi was included in the request and the
-// selected cryptographic suite includes that group."
+// selected cryptographic suite includes that group".
 func applyChildCreateResponse(sa *SA, pending *pendingRekey, inner []wire.PayloadEntry,
 	dp dataplane.Dataplane, log *slog.Logger,
 ) (*ChildSA, error) {

@@ -1087,7 +1087,7 @@ func selectAuthChildSA(sa *SA, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.Payloa
 // authentication (IDr, CERT, and AUTH) while sending error notifications for the
 // piggybacked exchanges (FAILED_CP_REQUIRED, NO_PROPOSAL_CHOSEN, and so on)".
 // RFC 7296 Section 1.3.1: "A failed attempt to create a Child SA SHOULD NOT tear down
-// the IKE SA: there is no reason to lose the work done to set up the IKE SA."
+// the IKE SA: there is no reason to lose the work done to set up the IKE SA".
 func buildChildlessAuthResponse(sa *SA, msgID uint32, authInner []wire.PayloadEntry, childErr error, log *slog.Logger) ([]byte, *ChildSA, error) {
 	notifyType := notifyForRefusal(childErr)
 	log.Warn("ike: refused the IKE_AUTH Child SA, keeping the IKE SA", "peer", sa.PeerName,
