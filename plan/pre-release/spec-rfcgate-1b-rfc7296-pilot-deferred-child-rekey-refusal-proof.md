@@ -28,7 +28,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **Provenance.** Deferred out of the rfcgate-1b RFC 7296 pilot spec (work package
 WP-3), rows dated 2026-07-31 in the retired deferral shard "rfcgate-1b-rfc7296-pilot". That spec is
 closed and its shard is deleted, so this file is the tracker now. WP-3's design named both
-carriers; detail is in `plan/handover/04-wp3-residuals.md`.
+carriers. The WP-3 residuals handover that held the detail (added in `beb3db8ccb`, deleted
+2026-10-10) is replaced by this file: its blocker is stated below, and its one owner question,
+RFC 7296 Section 2.21.2, is answered: keep the IKE SA up.
 
 **The problem.** A refused Child SA rekey must draw NO_PROPOSAL_CHOSEN and leave the IKE SA
 established. The handler is proven by `TestErrRefusedChildRekeyIsAnswered`, which drives the
