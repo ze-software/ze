@@ -123,9 +123,12 @@ write. A step that fails with `EACCES` while `/proc/self/attr/apparmor/current`
 and the grant. The module is AppArmor for the AppArmor file and for a
 `name (mode)` label, SELinux for a `user:role:type` context, and unnamed
 otherwise. An SELinux context whose type is one of the targeted policy's
-unconfined domains (`unconfined_t`, `unconfined_service_t`, `kernel_t`) is no
-confining label: Red Hat's SELinux guide says the policy allows those domains
-"almost all access", so an `EACCES` under one is not blamed on SELinux.
+unconfined domains (`unconfined_t`, `unconfined_service_t`, `kernel_t`), or
+`spc_t`, the domain of a privileged container, is no confining label: Red
+Hat's SELinux guide says the policy allows those domains "almost all access",
+and container-selinux's `container.te` declares
+`unconfined_domain_noaudit(spc_t)`, so an `EACCES` under one is not blamed on
+SELinux.
 `EPERM`, a missing capability, stays `unknown`, and so does `EACCES`
 with no confining label. Ze ships the grant for AppArmor only, so under any
 other module the reason names the steps the host's policy must grant and no

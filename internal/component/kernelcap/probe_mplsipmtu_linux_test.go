@@ -281,7 +281,6 @@ func TestClassifyLabel(t *testing.T) {
 		"docker-default (enforce)":               securityModuleAppArmor,
 		"ze-kernel-probe (complain)":             securityModuleAppArmor,
 		"system_u:system_r:container_t:s0:c1,c2": securityModuleSELinux,
-		"system_u:system_r:spc_t:s0":             securityModuleSELinux,
 		"_":                                      securityModuleOther,
 	} {
 		if got := classifyLabel(label); got.module != want || got.label != label {
@@ -290,7 +289,8 @@ func TestClassifyLabel(t *testing.T) {
 	}
 }
 
-// VALIDATES: review round 3, NOTE 6. A context in one of the targeted
+// VALIDATES: review round 3, NOTE 6, and round 4, ISSUE 2 (spc_t, the
+// domain a privileged container runs in). A context in one of the targeted
 // policy's unconfined domains confines nothing, as AppArmor's `unconfined`
 // does, so it classifies as the zero confinement.
 // PREVENTS: an EACCES under unconfined_t blamed on SELinux, sending the
@@ -300,6 +300,7 @@ func TestClassifyLabelUnconfinedSELinuxDomain(t *testing.T) {
 		"unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",
 		"system_u:system_r:unconfined_service_t:s0",
 		"system_u:system_r:kernel_t:s0",
+		"system_u:system_r:spc_t:s0",
 	} {
 		if got := classifyLabel(label); got != (confinement{}) {
 			t.Errorf("classifyLabel(%q) = %+v, want no confining policy", label, got)

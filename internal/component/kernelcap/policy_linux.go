@@ -102,8 +102,12 @@ func classifyLabel(label string) confinement {
 // running in the kernel_t domain, and unconfined services executed by
 // unconfined Linux users end up running in the unconfined_t domain. For
 // unconfined processes, SELinux policy rules are applied, but policy rules
-// exist that allow processes running in unconfined domains almost all access."
-var unconfinedSELinuxTypes = [...]string{"unconfined_t", "unconfined_service_t", "kernel_t"}
+// exist that allow processes running in unconfined domains almost all access".
+// spc_t is the domain container-selinux gives a privileged container, and its
+// policy makes that domain unconfined: containers/container-selinux
+// `container.te` (commit 464dd1655eb2488b3408fc60e160a2148aeabb16, line 864)
+// declares "unconfined_domain_noaudit(spc_t)".
+var unconfinedSELinuxTypes = [...]string{"unconfined_t", "unconfined_service_t", "kernel_t", "spc_t"}
 
 // readLabel answers one attr file's label, empty when it is unreadable, empty,
 // or unconfined. The kernel ends the label with a newline, and with a NUL on
