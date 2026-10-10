@@ -326,6 +326,42 @@ N-A: no wire behavior changes; the kernel gains transforms Ze already negotiates
 | derive the cipher symbols from the XFRM name tables | hand list in `runtime.require` only | a cipher added to Ze's tables without its kernel symbol is the exact defect found here |
 | build DES and NULL in | drop them from Ze's tables | Ze accepts them in config today; removing them is a scope change the owner has not asked for |
 
+## AC-5 Evidence
+
+### arm64 (built 2026-10-10, native Docker builder in colima's aarch64 VM, Mac)
+- Cache entry: `~/.cache/ze/runtime-kernel/7.2.9-runtime-arm64-runtime-7c0d8f79-bf3ac1c9` (`vmlinuz`, `config`, `lib/modules/7.2.9-ze`, 1612 `.ko`; `kernel.version`: version=7.2.9, target=runtime, profile=runtime, arch=arm64, modules=yes, builder=docker). Log: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/kernel-build-arm64.log`.
+- `enforceKernelRequirements` (`runKernel`, `internal/appliance/cmd_kernel.go`) accepted the emitted config with the runtime floor; a shell walk of all 114 `runtime.require` symbols against the same `config` found none missing. `CONFIG_LOCALVERSION="-ze"`.
+- First attempt refused before compile: `FATAL: kernel profile runtime: CONFIG_IP_NF_FILTER did not resolve to =y` (`kernel-build-arm64-try1-iptables-legacy.log`). Since Linux 6.17 the iptables filter, mangle, raw and nat tables depend on `IP_NF_IPTABLES_LEGACY` / `IP6_NF_IPTABLES_LEGACY`, which depend on `NETFILTER_XTABLES_LEGACY` (7.2.9 `net/ipv4/netfilter/Kconfig`, `net/ipv6/netfilter/Kconfig`, `net/netfilter/Kconfig`). The 7.2 entry `d1de5ab8` shows the old silence: `# CONFIG_NETFILTER_XTABLES_LEGACY is not set` and no `CONFIG_IP_NF_NAT`. Fixed by requesting and requiring the three parents in `runtime.config` / `runtime.require`.
+- Emitted VPN symbol lines:
+
+```
+CONFIG_XFRM_USER=y
+CONFIG_XFRM_INTERFACE=y
+CONFIG_XFRM_MIGRATE=y
+CONFIG_XFRM_STATISTICS=y
+CONFIG_INET_AH=y
+CONFIG_INET_ESP=y
+CONFIG_INET6_AH=y
+CONFIG_INET6_ESP=y
+CONFIG_WIREGUARD=y
+CONFIG_CRYPTO_NULL=y
+CONFIG_CRYPTO_AUTHENC=y
+CONFIG_CRYPTO_AES=y
+CONFIG_CRYPTO_DES=y
+CONFIG_CRYPTO_CBC=y
+CONFIG_CRYPTO_CHACHA20POLY1305=y
+CONFIG_CRYPTO_GCM=y
+CONFIG_CRYPTO_SEQIV=y
+CONFIG_CRYPTO_ECHAINIV=y
+CONFIG_CRYPTO_HMAC=y
+CONFIG_CRYPTO_SHA1=y
+CONFIG_CRYPTO_SHA256=y
+CONFIG_CRYPTO_SHA512=y
+```
+
+### amd64
+- Not built: owed on the Linux host (native amd64 builder). AC-5 stays open until its lines are pasted here.
+
 ## Known Limitations
 - N100 hardware boot: owner-deferred (decision above), not evidence for this spec.
 - GPLv2 source offer: decided by the owner 2026-10-09, carried by `spec-appliance-ships-ze-kernel.md` AC-17.
