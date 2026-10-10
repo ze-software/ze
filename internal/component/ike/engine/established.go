@@ -99,6 +99,9 @@ func (ps *PeerSession) runEstablished(
 	switch {
 	case sa.IsInitiator && sa.IKEAuthChildless:
 		log.Info("ike: IKE SA established with no Child SA", "peer", ps.peerName)
+		// Only the IKE SA initiator asks for the Child SA later, so two Ze peers never
+		// collide on it; a responder serves the peer's request (respondNewChild).
+		ps.childCreate.start(time.Now())
 	case sa.IsInitiator:
 		var err error
 		child, err = initiatorFirstChildSA(sa, peer, ifID, dp, log)
@@ -116,6 +119,10 @@ func (ps *PeerSession) runEstablished(
 		if child == nil {
 			log.Info("ike: IKE SA established with no Child SA", "peer", ps.peerName)
 		}
+	}
+
+	if child != nil {
+		ps.childCreate.stop()
 	}
 
 	// The Child SA lifetime starts when a Child SA is installed, never at IKE
@@ -359,6 +366,7 @@ func (ps *PeerSession) maintainSA(
 			// A Child SA created on a childless IKE SA starts its lifetime at install,
 			// and is announced as a Child SA coming up, not as a rekey.
 			if out.createdChild != nil {
+				ps.childCreate.stop()
 				childLT = newLifetimeState(ps.espGroup.Lifetime)
 				emitChildUp(bus, ps.peerName, out.createdChild, log)
 				emitRouteAdd(bus, out.createdChild.TSRemote, log)
@@ -436,6 +444,8 @@ func (ps *PeerSession) maintainSA(
 			if childLT != nil && childLT.softExpired(now) && ps.pendingRekey == nil {
 				ps.startChildRekey(sa, tr, log)
 			}
+
+			ps.serviceChildCreate(sa, tr, now, log)
 
 			if ps.pendingRekey != nil {
 				if err := ps.serviceRekeyRetransmit(sa, tr, now, dp, bus, log); err != nil {

@@ -143,6 +143,14 @@ type PeerSession struct {
 	childRekeyRefusedUntil time.Time
 	ikeRekeyRefusedUntil   time.Time
 
+	// childCreate paces the Child SA creation a childless IKE SA initiator retries, and
+	// childCreateRefusal records the Diffie-Hellman groups the peer refused for it
+	// (create_child.go). They live on the session, not the SA, so an IKE SA rekey keeps
+	// the creation scheduled. Neither touches the rekey holds above: a refused creation
+	// never delays a rekey. Owned by the maintainSA loop.
+	childCreate        childCreateSchedule
+	childCreateRefusal rekeyRefusalRecord
+
 	// pendingProbe is the padded path probe that holds the request window, with the
 	// channel its outcome is answered on (probe.go). Owned by the maintainSA loop,
 	// like pendingRekey.

@@ -410,8 +410,24 @@ error notify `notifyForRefusal` names and leaves the IKE SA up and childless
 (Section 1.3.1, "A failed attempt to create a Child SA SHOULD NOT tear down the
 IKE SA").
 
+Only the IKE SA initiator asks for the Child SA it lacks, so two Ze peers never
+collide on it. `runEstablished` starts `childCreateSchedule` when IKE_AUTH left
+the initiator childless, and the owner tick calls `serviceChildCreate`: the first
+request goes 30 s after establishment, and each refusal doubles the wait up to
+300 s. The request is `{[N(USE_TRANSPORT_MODE),] SA, Ni, [KEi,] TSi, TSr}` from
+the configured esp-group, with KEi in the IKE SA's group under `pfs`. No request
+goes out while our IKE SA rekey is pending, while a peer IKE SA rekey awaits its
+swap (Section 2.8), or while the request window is held. `finishChildCreate`
+routes the answer: TEMPORARY_FAILURE waits 60 s, NO_ADDITIONAL_SAS re-establishes
+the IKE SA, INVALID_KE_PAYLOAD naming a configured group retries at once in it,
+and any other refusal keeps the IKE SA and backs off. A refused creation sets no
+Child or IKE rekey hold. An answer this node refuses after the peer accepted it
+(a missing KEr, for example) is followed by a Delete for the pair, and so is a
+success that arrives after the peer created the session's Child SA meanwhile. The
+schedule lives on the session, so an IKE SA rekey keeps it.
+
 <!-- source: internal/component/ike/engine/inbound.go -- inbound message classification, handleNewChildRequest, hasTSPayload -->
-<!-- source: internal/component/ike/engine/create_child.go -- respondNewChild, newChildSA, parseNewChildRequest -->
+<!-- source: internal/component/ike/engine/create_child.go -- respondNewChild, newChildSA, parseNewChildRequest, serviceChildCreate, finishChildCreate, childCreateSchedule -->
 <!-- source: internal/component/ike/engine/delete.go -- Child SA teardown over INFORMATIONAL -->
 <!-- source: internal/component/ike/engine/bypass.go -- IKE control-plane bypass policies -->
 

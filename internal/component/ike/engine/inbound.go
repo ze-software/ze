@@ -325,6 +325,10 @@ func (ps *PeerSession) refuseRekey(sa *SA, p *pendingRekey, named crypto.DHGroup
 		record, hold = &sa.childRekeyRefusal, &ps.childRekeyRefusedUntil
 	case rekeyIKE:
 		record, hold = &sa.ikeRekeyRefusal, &ps.ikeRekeyRefusedUntil
+	case rekeyCreate:
+		// A refused creation follows its own schedule and sets no rekey hold.
+		ps.childCreate.refused(time.Now())
+		return
 	default:
 		panic("BUG: unknown pending IKE rekey kind")
 	}
@@ -354,7 +358,7 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 				wire.NotifyTemporaryFailure, nil, tr, log)
 			return ownedOutcome{}
 		}
-		if p := ps.pendingRekey; p != nil && p.kind == rekeyChild {
+		if p := ps.pendingRekey; p != nil && p.kind != rekeyIKE {
 			p.clear()
 			ps.pendingRekey = nil
 			// The authenticated response has freed our request window. Its peer
@@ -384,6 +388,8 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 			return ownedOutcome{}
 		}
 		switch p.kind {
+		case rekeyCreate:
+			return ps.finishChildCreate(sa, p, inner, tr, dp, log)
 		case rekeyChild:
 			newChild, err := applyChildRekeyResponse(sa, p, inner, dp, log)
 			if err != nil {

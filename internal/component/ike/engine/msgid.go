@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/crypto"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 )
 
@@ -18,6 +19,9 @@ type rekeyKind int
 const (
 	rekeyChild rekeyKind = iota
 	rekeyIKE
+	// rekeyCreate is a new Child SA this node asked for on a childless IKE SA (RFC 7296
+	// Section 1.3.1). It replaces nothing, so it carries no oldChild.
+	rekeyCreate
 )
 
 // pendingRekey tracks a CREATE_CHILD_SA exchange this side initiated and is
@@ -41,6 +45,9 @@ type pendingRekey struct {
 	// Child SA rekey.
 	newInboundSPI uint32   // our proposed ESP SPI
 	oldChild      *ChildSA // the Child SA being replaced
+	// offered is the esp-group a creation offered, which the accepted proposal is
+	// checked against (RFC 7296 Section 3.3.6). Set for rekeyCreate only.
+	offered ipsec.ESPGroup
 
 	// IKE SA rekey.
 	newInitiatorSPI [8]byte // our proposed new IKE SPI
