@@ -255,26 +255,41 @@ func (e *Editor) bracketLeafList(path []string, name string) *config.BracketLeaf
 func (e *Editor) loadBracketLeafList(path []string, name string, node *config.BracketLeafListNode, current, want *config.Tree, replace bool) error {
 	where := append(slices.Clip(path), name)
 	wantStates := want.GetMultiValuesState(name)
-	members := make([]string, len(wantStates))
-	for i, state := range wantStates {
-		members[i] = state.Value
-	}
+	members := memberValues(wantStates)
+	// Compare members with members, deactivated ones included: the scalar
+	// mirror names the active ones only, so an unchanged list holding a
+	// deactivated member would read as changed and record a `set` the load
+	// never made.
+	changed := !slices.Equal(memberValues(current.GetMultiValuesState(name)), members)
 	if !replace && !node.Ordered {
+		// The value is the active view: SetValue keeps the deactivated
+		// members it does not name, so the merge appends to the active ones.
 		merged := current.GetMultiValues(name)
+		appended := false
 		for _, member := range members {
 			if present, _ := current.MultiValueMemberState(name, member); !present && !slices.Contains(merged, member) {
 				merged = append(merged, member)
+				appended = true
 			}
 		}
 		members = merged
+		changed = appended
 	}
-	value := config.JoinLeafListMembers(members)
-	if have, ok := current.Get(name); !ok || have != value {
-		if err := e.SetValue(path, name, value); err != nil {
+	if changed {
+		if err := e.SetValue(path, name, config.JoinLeafListMembers(members)); err != nil {
 			return loadError(where, err)
 		}
 	}
 	return e.loadBracketMemberStates(path, name, current, wantStates, replace)
+}
+
+// memberValues answers the member values of states, in order.
+func memberValues(states []config.MemberState) []string {
+	values := make([]string, len(states))
+	for i, state := range states {
+		values[i] = state.Value
+	}
+	return values
 }
 
 // loadBracketMemberStates applies the deactivation markers of the loaded

@@ -13,10 +13,10 @@ import (
 // writes, with the member to deactivate appended by each test.
 var bracketAddressPath = []string{"interface", "ethernet", "eth9", "unit", "0", "ipv4", "address"}
 
-// memberStates answers a leaf-list's members split by deactivation, so a
-// test can compare them without depending on member order.
-func memberStates(tree *config.Tree, name string) (active, inactive []string) {
-	for _, state := range tree.GetMultiValuesState(name) {
+// memberStates answers the address leaf-list's members split by deactivation,
+// so a test can compare them without depending on member order.
+func memberStates(tree *config.Tree) (active, inactive []string) {
+	for _, state := range tree.GetMultiValuesState("address") {
 		if state.Inactive {
 			inactive = append(inactive, state.Value)
 			continue
@@ -46,7 +46,7 @@ func TestDeactivateBracketMemberSurvivesSave(t *testing.T) {
 	_, err = ed.Save()
 	require.NoError(t, err)
 
-	active, inactive := memberStates(loadIfaceIPv4(t, committedLoadTree(t, ed, filePath)), "address")
+	active, inactive := memberStates(loadIfaceIPv4(t, committedLoadTree(t, ed, filePath)))
 	assert.Equal(t, []string{"192.0.2.1/24"}, active)
 	assert.Equal(t, []string{"192.0.2.2/30"}, inactive)
 }
@@ -64,7 +64,7 @@ func TestDeactivateBracketMemberSurvivesCommit(t *testing.T) {
 	_, err = ed.CommitSession()
 	require.NoError(t, err)
 
-	active, inactive := memberStates(loadIfaceIPv4(t, committedLoadTree(t, ed, configPath)), "address")
+	active, inactive := memberStates(loadIfaceIPv4(t, committedLoadTree(t, ed, configPath)))
 	assert.Equal(t, []string{"192.0.2.1/24"}, active)
 	assert.Equal(t, []string{"192.0.2.2/30"}, inactive)
 }
@@ -86,7 +86,7 @@ func TestLoadMergeKeepsDeactivatedBracketMember(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, ed.LoadMerge(nil, parseLoadInput(t, ed, loadIfaceAddresses("192.0.2.3/30"))))
 
-	active, inactive := memberStates(loadIfaceIPv4(t, ed.tree), "address")
+	active, inactive := memberStates(loadIfaceIPv4(t, ed.tree))
 	assert.ElementsMatch(t, []string{"192.0.2.1/24", "192.0.2.3/30"}, active)
 	assert.Equal(t, []string{"192.0.2.2/30"}, inactive)
 }

@@ -526,29 +526,31 @@ func (e *Editor) SaveDraft() error {
 		return fmt.Errorf("save: %w", err)
 	}
 
-	if err := applyStructuralOps(baseTree, e.schema, myOps, true); err != nil {
-		return fmt.Errorf("save apply structural ops: %w", err)
-	}
 	if err := applyStructuralOpsToMeta(baseMeta, e.schema, myOps, true); err != nil {
 		return fmt.Errorf("save apply rename meta: %w", err)
 	}
+	// Apply changes to base, the member ops a new member waits for after them.
+	applyEntries := func() error {
+		for _, se := range myEntries {
+			pathParts := strings.Fields(se.Path)
+			if len(pathParts) == 0 {
+				continue
+			}
+			leafName := pathParts[len(pathParts)-1]
+			parentPath := pathParts[:len(pathParts)-1]
 
-	// Apply changes to base.
-	for _, se := range myEntries {
-		pathParts := strings.Fields(se.Path)
-		if len(pathParts) == 0 {
-			continue
+			if err := e.applySessionEntryToTree(baseTree, parentPath, leafName, se.Entry); err != nil {
+				return fmt.Errorf("save apply %s: %w", se.Path, err)
+			}
+
+			// Record metadata in draft.
+			metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
+			metaTarget.SetEntry(leafName, se.Entry)
 		}
-		leafName := pathParts[len(pathParts)-1]
-		parentPath := pathParts[:len(pathParts)-1]
-
-		if err := e.applySessionEntryToTree(baseTree, parentPath, leafName, se.Entry); err != nil {
-			return fmt.Errorf("save apply %s: %w", se.Path, err)
-		}
-
-		// Record metadata in draft.
-		metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
-		metaTarget.SetEntry(leafName, se.Entry)
+		return nil
+	}
+	if err := e.applyStructuralOpsAroundEntries(baseTree, myOps, applyEntries, true); err != nil {
+		return fmt.Errorf("save %w", err)
 	}
 
 	if e.preCommitValidate != nil {
@@ -667,6 +669,63 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 		}
 	}
 	return nil
+}
+
+// applyStructuralOpsAroundEntries applies a session's structural ops, and its
+// entries through applyEntries, to tree in the one order that lets each find what it names. Every op
+// goes first, as a rename or a delete reshapes the paths the entries name,
+// except a member op whose member is not in the tree yet: it names a member one
+// of the session's own entries adds (`set address [ a b ]`, then `deactivate
+// address b`), so it is held back and applied after the entries, in recorded
+// order. A member op cannot wait for every entry: a member the session
+// deactivated and then deleted must be deactivated before the delete entry
+// removes it. The change file records no order between an op and an entry,
+// both carry the session start time, so presence decides.
+func (e *Editor) applyStructuralOpsAroundEntries(tree *config.Tree, ops []config.StructuralOp, applyEntries func() error, allowAlreadyApplied bool) error {
+	var held []config.StructuralOp
+	for i := range ops {
+		if memberOpWaitsForEntries(tree, e.schema, ops[i]) {
+			held = append(held, ops[i])
+			continue
+		}
+		if err := applyStructuralOps(tree, e.schema, ops[i:i+1], allowAlreadyApplied); err != nil {
+			return fmt.Errorf("apply structural ops: %w", err)
+		}
+	}
+	if err := applyEntries(); err != nil {
+		return err
+	}
+	if err := applyStructuralOps(tree, e.schema, held, allowAlreadyApplied); err != nil {
+		return fmt.Errorf("apply structural ops: %w", err)
+	}
+	return nil
+}
+
+// memberOpWaitsForEntries reports whether a member op names a member, or for a
+// positional insert a reference member, that tree does not hold yet. Any other
+// op never waits.
+func memberOpWaitsForEntries(tree *config.Tree, schema *config.Schema, op config.StructuralOp) bool {
+	//exhaustive:ignore // Only the three member ops can name a member an entry adds.
+	switch op.Type {
+	case config.StructuralOpDeactivateMember, config.StructuralOpActivateMember:
+		target := walkPath(tree, schema, strings.Fields(op.ParentPath))
+		if target == nil {
+			return true
+		}
+		present, _ := target.MultiValueMemberState(op.ListName, op.NewKey)
+		return !present
+	case config.StructuralOpInsertMember:
+		if op.Position != config.InsertBefore && op.Position != config.InsertAfter {
+			return false
+		}
+		target := walkPath(tree, schema, strings.Fields(op.ParentPath))
+		if target == nil {
+			return true
+		}
+		present, _ := target.MultiValueMemberState(op.ListName, op.OldKey)
+		return !present
+	}
+	return false
 }
 
 // copyAlreadyApplied reports whether a replayed copy finds both entries in

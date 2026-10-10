@@ -337,11 +337,15 @@ func (e *Editor) DeleteByPath(fullPath []string) error {
 		}
 	}
 
-	// Leaf-list member: path ends `<leaf-list> <member>` — delete one member.
+	// Leaf-list member: path ends `<leaf-list> <member>` — delete one member,
+	// of a plain or a bracket leaf-list alike, active or deactivated.
 	if len(fullPath) >= 2 {
 		memberParent := fullPath[:len(fullPath)-2]
 		leafName := fullPath[len(fullPath)-2]
 		if e.isValueOrArrayLeaf(memberParent, leafName) {
+			return e.deleteLeafListValue(memberParent, leafName, fullPath[len(fullPath)-1])
+		}
+		if e.bracketLeafList(memberParent, leafName) != nil {
 			return e.deleteLeafListValue(memberParent, leafName, fullPath[len(fullPath)-1])
 		}
 	}

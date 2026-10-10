@@ -1,0 +1,71 @@
+# Test: Session deactivate of a new bracket leaf-list member commits, saves and reloads
+# VALIDATES: a member the session adds to a bracket leaf-list (interface
+#            address) and then deactivates commits, is written as
+#            `nop <path> <member>` beside the list line, reloads deactivated
+#            after an editor restart, and `delete <leaf> <member>` then removes
+#            it alone through a second commit
+# PREVENTS: the commit refusing the deactivation ("not found in address")
+#           because it ran before the set that adds the member, and the member
+#           delete committing as a delete of the whole list
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+}
+interface {
+	backend netlink;
+	ethernet eth9 {
+		unit 0 {
+			description lab;
+			ipv4 {
+				address [ 192.0.2.1/24 ];
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=ssh
+
+input=type:text=set interface ethernet eth9 unit 0 ipv4 address "192.0.2.1/24 192.0.2.3/30"
+input=enter
+expect=error:none
+
+input=type:text=deactivate interface ethernet eth9 unit 0 ipv4 address 192.0.2.3/30
+input=enter
+expect=error:none
+
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=status:contains=applied
+expect=dirty:false
+expect=key:path=file/active/test.conf:contains=address [ 192.0.2.1/24 192.0.2.3/30 ]
+expect=key:path=file/active/test.conf:contains=nop interface ethernet eth9 unit 0 ipv4 address 192.0.2.3/30
+expect=key:path=file/active/test.conf:not-contains=inactive interface
+
+# A fresh editor reads the committed file back: the member is still there and
+# still deactivated, so the delete below finds it.
+restart=editor
+
+input=type:text=delete interface ethernet eth9 unit 0 ipv4 address 192.0.2.3/30
+input=enter
+expect=error:none
+
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=key:path=file/active/test.conf:contains=address [ 192.0.2.1/24 ]
+# The committed file keeps earlier values as their own history lines, so the
+# proof is what a fresh editor reads back from it.
+expect=key:path=file/active/test.conf:not-contains=nop interface ethernet eth9 unit 0 ipv4 address 192.0.2.3/30
+restart=editor
+expect=content:contains=192.0.2.1/24
+expect=content:not-contains=192.0.2.3/30

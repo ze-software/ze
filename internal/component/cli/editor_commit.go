@@ -142,14 +142,14 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 	}
 
 	// No conflicts, or force overrides them: apply my changes to committed tree.
-	if err := applyStructuralOps(committedTree, e.schema, myOps, false); err != nil {
-		return nil, fmt.Errorf("apply structural ops: %w", err)
+	applyEntries := func() error {
+		_, err := e.applyCommitEntries(committedTree, myEntries)
+		return err
 	}
-	applied, err := e.applyCommitEntries(committedTree, myEntries)
-	if err != nil {
+	if err := e.applyStructuralOpsAroundEntries(committedTree, myOps, applyEntries, false); err != nil {
 		return nil, err
 	}
-	applied += len(myOps)
+	applied := len(myEntries) + len(myOps)
 
 	// Fail closed if a secret leaf holds the display placeholder: a masked
 	// `show config` pasted back must never clobber the stored secret. The guard
@@ -352,14 +352,14 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 		return &CommitResult{Conflicts: conflicts}, "", nil
 	}
 
-	if err := applyStructuralOps(committedTree, e.schema, myOps, false); err != nil {
-		return nil, "", fmt.Errorf("apply structural ops: %w", err)
+	applyEntries := func() error {
+		_, err := e.applyCommitEntries(committedTree, myEntries)
+		return err
 	}
-	applied, err := e.applyCommitEntries(committedTree, myEntries)
-	if err != nil {
+	if err := e.applyStructuralOpsAroundEntries(committedTree, myOps, applyEntries, false); err != nil {
 		return nil, "", err
 	}
-	applied += len(myOps)
+	applied := len(myEntries) + len(myOps)
 
 	if err := config.RejectMaskedSecretLeaves(committedTree, e.schema); err != nil {
 		return nil, "", err
@@ -613,24 +613,27 @@ func (e *Editor) reloadSessionView(guard storage.WriteGuard) error {
 	if err != nil {
 		return err
 	}
-	if err := applyStructuralOps(baseTree, e.schema, changeOps, true); err != nil {
-		return fmt.Errorf("reload apply structural ops: %w", err)
-	}
 	if err := applyStructuralOpsToMeta(baseMeta, e.schema, changeOps, true); err != nil {
 		return fmt.Errorf("reload apply rename meta: %w", err)
 	}
-	for _, sid := range changeMeta.AllSessions() {
-		for _, se := range changeMeta.SessionEntries(sid) {
-			pathParts := strings.Fields(se.Path)
-			if len(pathParts) == 0 {
-				continue
+	applyEntries := func() error {
+		for _, sid := range changeMeta.AllSessions() {
+			for _, se := range changeMeta.SessionEntries(sid) {
+				pathParts := strings.Fields(se.Path)
+				if len(pathParts) == 0 {
+					continue
+				}
+				leafName := pathParts[len(pathParts)-1]
+				parentPath := pathParts[:len(pathParts)-1]
+				_ = e.applySessionEntryToTree(baseTree, parentPath, leafName, se.Entry) // best-effort replay, mirrors the old walk-error tolerance
+				metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
+				metaTarget.SetEntry(leafName, se.Entry)
 			}
-			leafName := pathParts[len(pathParts)-1]
-			parentPath := pathParts[:len(pathParts)-1]
-			_ = e.applySessionEntryToTree(baseTree, parentPath, leafName, se.Entry) // best-effort replay, mirrors the old walk-error tolerance
-			metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
-			metaTarget.SetEntry(leafName, se.Entry)
 		}
+		return nil
+	}
+	if err := e.applyStructuralOpsAroundEntries(baseTree, changeOps, applyEntries, true); err != nil {
+		return fmt.Errorf("reload %w", err)
 	}
 
 	// Refresh originalContent from disk to capture external commits.
