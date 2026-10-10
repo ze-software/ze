@@ -479,28 +479,70 @@ func declaresDecomposition(decls []rpc.ConfigOperationDecl) bool {
 
 // rootHasChanges returns true if the diff contains changes under the given root.
 // Checks config key paths: "bgp" matches "bgp", "bgp/peer", "bgp/peer/foo", etc.
+//
+// It also matches a key that is an ANCESTOR of the root and whose value holds
+// the root's subtree. config.DiffMaps records a wholly added or removed subtree
+// as one key, so adding `traffic { usage { ... } }` to a config with no traffic
+// block puts only "traffic" in diff.Added, and deleting the whole `ddos` block
+// puts only "ddos" in diff.Removed. A plugin declaring "traffic/usage" or
+// "ddos/local" is reached through that ancestor or not at all.
 func rootHasChanges(diff *config.ConfigDiff, root string) bool {
 	if root == "*" {
 		return len(diff.Added) > 0 || len(diff.Removed) > 0 || len(diff.Changed) > 0
 	}
 
 	prefix := root + config.PathSep
-	for k := range diff.Added {
+	for k, v := range diff.Added {
 		if k == root || strings.HasPrefix(k, prefix) {
 			return true
 		}
-	}
-	for k := range diff.Removed {
-		if k == root || strings.HasPrefix(k, prefix) {
+		if _, ok := rootUnderAncestor(k, v, root); ok {
 			return true
 		}
 	}
-	for k := range diff.Changed {
+	for k, v := range diff.Removed {
 		if k == root || strings.HasPrefix(k, prefix) {
+			return true
+		}
+		if _, ok := rootUnderAncestor(k, v, root); ok {
+			return true
+		}
+	}
+	for k, pair := range diff.Changed {
+		if k == root || strings.HasPrefix(k, prefix) {
+			return true
+		}
+		if _, ok := rootUnderAncestor(k, pair.Old, root); ok {
+			return true
+		}
+		if _, ok := rootUnderAncestor(k, pair.New, root); ok {
 			return true
 		}
 	}
 	return false
+}
+
+// rootUnderAncestor answers the value root holds inside value, when key is a
+// proper ancestor of root ("traffic" for "traffic/usage") and value, the
+// ancestor's subtree, holds every segment between them. ok is false when key is
+// not an ancestor of root or the subtree does not reach it.
+func rootUnderAncestor(key string, value any, root string) (any, bool) {
+	rest, isAncestor := strings.CutPrefix(root, key+config.PathSep)
+	if !isAncestor {
+		return nil, false
+	}
+	for seg := range strings.SplitSeq(rest, config.PathSep) {
+		m, isMap := value.(map[string]any)
+		if !isMap {
+			return nil, false
+		}
+		next, found := m[seg]
+		if !found {
+			return nil, false
+		}
+		value = next
+	}
+	return value, true
 }
 
 // wildcardConfigRoot is the declared root meaning "every root in this reload".
@@ -573,6 +615,42 @@ func buildDiffSections(diff *config.ConfigDiff, declaredRoots []string) []rpc.Co
 	for k, v := range diff.Changed {
 		r := ensure(groupFor(k))
 		r.changed[k] = v
+	}
+
+	// A key that is an ANCESTOR of a declared root ("traffic" for
+	// "traffic/usage") carries that root's whole subtree, because
+	// config.DiffMaps records a wholly added or removed subtree as one key.
+	// The ancestor stays filed under its own root above; the declared root
+	// also gets its part, keyed by the root itself, or the orchestrator's
+	// exact lookup misses it exactly as it did before the declared-root pass.
+	// A type change at the ancestor is an add or a removal for the root when
+	// only one side holds it.
+	for _, root := range declaredRoots {
+		if root == "" || root == wildcardConfigRoot {
+			continue
+		}
+		for k, v := range diff.Added {
+			if sub, ok := rootUnderAncestor(k, v, root); ok {
+				ensure(root).added[root] = sub
+			}
+		}
+		for k, v := range diff.Removed {
+			if sub, ok := rootUnderAncestor(k, v, root); ok {
+				ensure(root).removed[root] = sub
+			}
+		}
+		for k, pair := range diff.Changed {
+			oldSub, inOld := rootUnderAncestor(k, pair.Old, root)
+			newSub, inNew := rootUnderAncestor(k, pair.New, root)
+			switch {
+			case inOld && inNew:
+				ensure(root).changed[root] = config.DiffPair{Old: oldSub, New: newSub}
+			case inNew:
+				ensure(root).added[root] = newSub
+			case inOld:
+				ensure(root).removed[root] = oldSub
+			}
+		}
 	}
 
 	sections := make([]rpc.ConfigDiffSection, 0, len(roots))

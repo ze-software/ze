@@ -316,15 +316,11 @@ func clearStaleDropRule() error {
 // This is the exit path, beside the config boundary in replaceResponder, and the
 // two cover different stops. replaceResponder covers a stop that DELIVERS a
 // config: `delete ddos local`, a response-level that leaves enforce,
-// forward-mitigation turned off. A stop that delivers NOTHING reaches only this
-// one, and deleting the PARENT `ddos` block is such a stop: diffMapsRecursive
-// (internal/component/config/diff.go) records the one key "ddos" for the whole
-// subtree, which rootHasChanges (plugin/server/reload.go) does not match against
-// the root "ddos/local", so no verify and no apply is delivered -- while
-// parentRemoved (plugin/server/startup_autoload.go) does match it and stops the
-// plugin anyway. That delivery defect is recorded in
-// plan/journal/component-rebuilt-during-reload.md; this path is what stops it
-// blackholing a victim in the meantime.
+// forward-mitigation turned off, and deleting the PARENT `ddos` block, whose one
+// removed key "ddos" rootHasChanges (plugin/server/reload.go) matches as an
+// ancestor of "ddos/local" since 2026-10-10. A stop that delivers NOTHING
+// reaches only this one: a daemon stop, a plugin crash, or any stop the reload
+// does not announce with a config.
 //
 // The two cannot double-withdraw. withdrawMitigation returns on !active, and a
 // config-boundary withdrawal leaves the responder it acted on inactive while the

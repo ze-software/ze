@@ -916,6 +916,80 @@ func TestRootHasChanges(t *testing.T) {
 	assert.True(t, rootHasChanges(diff, "*"))
 }
 
+// TestRootHasChangesUnderAnAddedOrRemovedAncestor pins that a nested root counts
+// as changed when the diff records it only through an ancestor key.
+//
+// VALIDATES: config.DiffMaps records a wholly added or removed subtree as ONE
+// key ("traffic", "ddos"), and a plugin declaring a nested root under it
+// ("traffic/usage", "ddos/local") still counts as changed, but only when the
+// ancestor's value actually holds that root.
+// PREVENTS: a live commit that adds `traffic { usage { ... } }` auto-loading
+// traffic-usage and then sending it no verify and no apply, and deleting the
+// whole `ddos` block stopping ddos-local without telling it.
+func TestRootHasChangesUnderAnAddedOrRemovedAncestor(t *testing.T) {
+	t.Parallel()
+
+	diff := &config.ConfigDiff{
+		Added:   map[string]any{"traffic": map[string]any{"usage": map[string]any{"interface": "lo"}}},
+		Removed: map[string]any{"ddos": map[string]any{"local": map[string]any{}}},
+		Changed: map[string]config.DiffPair{
+			"anomaly": {Old: "flat", New: map[string]any{"shape": map[string]any{}}},
+		},
+	}
+	assert.True(t, rootHasChanges(diff, "traffic/usage"), "added ancestor holding the root")
+	assert.True(t, rootHasChanges(diff, "ddos/local"), "removed ancestor holding the root")
+	assert.True(t, rootHasChanges(diff, "anomaly/shape"), "changed ancestor whose new value holds the root")
+	assert.False(t, rootHasChanges(diff, "traffic/shaping"), "added ancestor NOT holding the root")
+	assert.False(t, rootHasChanges(diff, "ddos/detect"), "removed ancestor NOT holding the root")
+	assert.False(t, rootHasChanges(diff, "anomaly/detect"), "changed ancestor NOT holding the root")
+	assert.False(t, rootHasChanges(diff, "trafficx/usage"), "segment boundary")
+}
+
+// TestBuildDiffSectionsFilesAnAncestorKeyUnderItsDeclaredRoot pins that the
+// subtree a nested root holds inside a wholly added or removed ancestor reaches
+// the section keyed by that declared root.
+//
+// VALIDATES: an Added "traffic" key gives declared root "traffic/usage" a
+// section whose Added holds "traffic/usage" with the usage subtree; a Removed
+// "ddos" key gives "ddos/local" a section whose Removed holds "ddos/local"; the
+// ancestor key itself stays filed under its own root.
+// PREVENTS: the orchestrator's exact lookup (filterDiffs) missing the nested
+// root, so runVerify and runApply skip the plugin even after rootHasChanges put
+// it among the affected.
+func TestBuildDiffSectionsFilesAnAncestorKeyUnderItsDeclaredRoot(t *testing.T) {
+	t.Parallel()
+
+	diff := &config.ConfigDiff{
+		Added:   map[string]any{"traffic": map[string]any{"usage": map[string]any{"interface": "lo"}}},
+		Removed: map[string]any{"ddos": map[string]any{"local": map[string]any{"enabled": "true"}}},
+	}
+	sectionMap := make(map[string]rpc.ConfigDiffSection)
+	for _, s := range buildDiffSections(diff, []string{"traffic/usage", "ddos/local", "ddos/detect"}) {
+		sectionMap[s.Root] = s
+	}
+
+	sec, ok := sectionMap["traffic/usage"]
+	require.True(t, ok, "traffic/usage must get a section, or the orchestrator never drives the plugin")
+	var addedData map[string]any
+	require.NoError(t, json.Unmarshal([]byte(sec.Added), &addedData))
+	assert.Equal(t, map[string]any{"traffic/usage": map[string]any{"interface": "lo"}}, addedData)
+
+	sec, ok = sectionMap["ddos/local"]
+	require.True(t, ok, "ddos/local must get a section when its parent block is deleted")
+	var removedData map[string]any
+	require.NoError(t, json.Unmarshal([]byte(sec.Removed), &removedData))
+	assert.Equal(t, map[string]any{"ddos/local": map[string]any{"enabled": "true"}}, removedData)
+
+	_, ok = sectionMap["ddos/detect"]
+	assert.False(t, ok, "the removed ancestor held no detect subtree")
+
+	top, ok := sectionMap["traffic"]
+	require.True(t, ok, "the ancestor key stays under its own root")
+	var topData map[string]any
+	require.NoError(t, json.Unmarshal([]byte(top.Added), &topData))
+	assert.Contains(t, topData, "traffic")
+}
+
 // TestReloadConfigRootRemoved verifies that removing an entire config root
 // still notifies the plugin (verify + apply).
 //

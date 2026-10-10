@@ -748,16 +748,15 @@ const fixture06ParentConfigRemovedVictim = "127.0.0.12"
 // fixture06ParentConfigRemovedConfig is what the operator commits: the same file
 // with the WHOLE `ddos` block deleted.
 //
-// That gesture is not the sibling test's, and the difference is the point.
-// diffMapsRecursive (internal/component/config/diff.go) records ONE removed key
-// for a deleted subtree, so this commit puts "ddos" in the diff and nothing
-// under it. rootHasChanges (plugin/server/reload.go) matches only the root
-// itself or a key beneath it, so "ddos" matches neither "ddos/local" nor
-// "ddos/local/": ddos-local is not among the affected plugins and receives NO
-// verify and NO apply. parentRemoved (plugin/server/startup_autoload.go) DOES
-// match an ancestor, so the plugin is stopped anyway. The config-boundary
-// withdrawal cannot fire when no config arrives, so the plugin's exit path is
-// the only thing left that can take the rule out.
+// That gesture is not the sibling test's. diffMapsRecursive
+// (internal/component/config/diff.go) records ONE removed key for a deleted
+// subtree, so this commit puts "ddos" in the diff and nothing under it.
+// rootHasChanges and buildDiffSections (plugin/server/reload.go) match that key
+// as an ancestor holding "ddos/local", so ddos-local receives the empty-body
+// verify and apply of a removed root, and parentRemoved
+// (plugin/server/startup_autoload.go) then stops it. Before 2026-10-10 the
+// ancestor matched in parentRemoved alone and the plugin's exit path was the
+// only thing that took the rule out; it still runs, so both paths act here.
 //
 // The control-plane-protection block stays, and it is load-bearing rather than
 // scenery: copp declares the firewall plugin as a dependency, so it keeps the

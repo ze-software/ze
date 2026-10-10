@@ -4,26 +4,25 @@
 #
 # VALIDATES: spec-ddos-timing-leaves-reach-no-worker AC-6's premise -- a drop
 #            rule ddos local installs is always reachable by something that can
-#            remove it. The plugin withdraws on its own exit path when it is
-#            stopped without being told anything (register.go runEngine's defer
-#            -> stopResponder -> responder.go withdrawMitigation).
-# PREVENTS:  the orphan that this operator gesture leaves and the sibling gesture
-#            does not. `delete ddos local` delivers an empty body for the removed
-#            root and the config boundary withdraws on it; `delete ddos` delivers
-#            NOTHING. diffMapsRecursive (internal/component/config/diff.go)
-#            records ONE removed key for a deleted subtree, so the diff holds
-#            "ddos" and nothing under it, and rootHasChanges
-#            (internal/component/plugin/server/reload.go) matches only the root
-#            itself or a key beneath it -- so ddos-local is not among the
-#            affected plugins and gets no verify and no apply. parentRemoved
-#            (internal/component/plugin/server/startup_autoload.go) DOES match an
-#            ancestor, so the plugin is stopped all the same. The drop then sits
-#            in the kernel with no responder to see it and no cap worker to
-#            remove it, for the life of the daemon, with no config left that
-#            mentions it. The delivery defect itself belongs to
-#            internal/component/** and is recorded in
-#            plan/journal/component-rebuilt-during-reload.md; this test pins the
-#            plugin-side guarantee that holds whatever the reload delivers.
+#            remove it, when the operator deletes the whole parent block.
+# PREVENTS:  the orphan this operator gesture used to leave. diffMapsRecursive
+#            (internal/component/config/diff.go) records ONE removed key for a
+#            deleted subtree, so the diff holds "ddos" and nothing under it.
+#            Until 2026-10-10 rootHasChanges
+#            (internal/component/plugin/server/reload.go) matched only the root
+#            itself or a key beneath it, so ddos-local received no verify and no
+#            apply, while parentRemoved
+#            (internal/component/plugin/server/startup_autoload.go) matched the
+#            ancestor and stopped it all the same. rootHasChanges and
+#            buildDiffSections now also match an added, removed or changed
+#            ANCESTOR that holds the root, so this gesture delivers the empty
+#            body `delete ddos local` delivers and the config boundary
+#            withdraws on it. Two paths now take the rule out: that delivery,
+#            and the plugin's exit path (register.go runEngine's defer ->
+#            stopResponder -> responder.go withdrawMitigation), which a stop
+#            that delivers nothing still reaches. This test no longer isolates
+#            the exit path; TestLocalEngineStopRemovesTheDrop
+#            (internal/plugins/ddos/local/max_duration_test.go) does.
 #
 # WHY THE KERNEL IS THE ONLY WITNESS. `show ddos local` belongs to the plugin the
 # removal stops, so after the commit the daemon has no answer left to give. That
