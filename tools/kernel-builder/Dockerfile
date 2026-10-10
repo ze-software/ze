@@ -18,6 +18,7 @@ COPY go.mod go.sum ./
 # qemu.go's.
 COPY internal/appliance/kernelbuilder ./internal/appliance/kernelbuilder
 COPY internal/core/diskspace ./internal/core/diskspace
+COPY internal/core/textbuf ./internal/core/textbuf
 COPY internal/core/tmplink ./internal/core/tmplink
 COPY tools/kernel-builder/main.go ./tools/kernel-builder/main.go
 RUN CGO_ENABLED=0 go build -o /ze-kernel-builder ./tools/kernel-builder

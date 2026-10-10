@@ -388,6 +388,10 @@ const (
 	targetInstaller            = "installer"
 	targetRuntime              = "runtime"
 	versionKernel711           = "7.1.1"
+	// versionKernelPinned is a version kernelbuilder holds a tracked SHA-256
+	// for. A driver build writes provenance only for such a version, so every
+	// fixture that runs the driver to completion names it.
+	versionKernelPinned = "7.2.9"
 )
 
 // Plain values a fixture compares against.

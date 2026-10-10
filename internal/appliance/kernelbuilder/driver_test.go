@@ -202,7 +202,7 @@ func TestRunDockerRepairsOwnershipAfterFailure(t *testing.T) {
 
 func TestWriteProvenanceBytes(t *testing.T) {
 	root := t.TempDir()
-	req := Request{Root: root, Version: "7.2.3", Arch: "arm64", Profile: "hardware", Target: "runtime", Modules: "yes"}
+	req := Request{Root: root, Version: "7.2.9", Arch: "arm64", Profile: "hardware", Target: "runtime", Modules: "yes"}
 	if err := writeProvenance("out", req, "qemu"); err != nil {
 		t.Fatal(err)
 	}
@@ -210,9 +210,54 @@ func TestWriteProvenanceBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "version=7.2.3\ntarget=runtime\nprofile=hardware\narch=arm64\nmodules=yes\nbuilder=qemu\n"
+	want := "version=7.2.9\ntarget=runtime\nprofile=hardware\narch=arm64\nmodules=yes\nbuilder=qemu\n" +
+		"source-url=https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz\n" +
+		"source-sha256=b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba\n"
 	if string(data) != want {
 		t.Fatalf("provenance = %q, want %q", data, want)
+	}
+}
+
+// VALIDATES: the provenance names the source the worker verified: the URL
+// downloadKernelSource fetches and the tracked digest verifyKernelSource checks.
+// PREVENTS: a provenance whose source lines are typed by hand and drift from the
+// declaration the build uses.
+func TestWriteProvenanceSourceIsTheVerifiedOne(t *testing.T) {
+	root := t.TempDir()
+	req := Request{Root: root, Version: "7.2.9", Arch: "amd64", Profile: "runtime", Target: "runtime", Modules: "yes"}
+	if err := writeProvenance("out", req, "docker"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "out", provenanceName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest, tracked := SourceDigest(req.Version)
+	if !tracked {
+		t.Fatalf("7.2.9 has no tracked digest")
+	}
+	for _, line := range []string{"source-url=" + kernelTarballURL(req.Version) + "\n", "source-sha256=" + digest + "\n"} {
+		if !strings.Contains(string(data), line) {
+			t.Errorf("provenance %q does not carry %q", data, line)
+		}
+	}
+}
+
+// VALIDATES: a version with no tracked digest gets no provenance.
+// PREVENTS: a provenance that records an empty digest, which reads as a source
+// nobody verified.
+func TestWriteProvenanceRefusesUntrackedSource(t *testing.T) {
+	root := t.TempDir()
+	req := Request{Root: root, Version: "7.2.3", Arch: "arm64", Profile: "hardware", Target: "runtime", Modules: "yes"}
+	err := writeProvenance("out", req, "qemu")
+	if err == nil {
+		t.Fatal("provenance written for 7.2.3, which has no tracked SHA-256")
+	}
+	if !strings.Contains(err.Error(), "7.2.3") {
+		t.Errorf("refusal %q does not name the version", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "out", provenanceName)); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("a refused provenance left a file behind: %v", statErr)
 	}
 }
 

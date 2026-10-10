@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -362,13 +364,32 @@ var runCommand = func(ctx context.Context, req Request, name string, args ...str
 	return cmd.Run()
 }
 
+// writeProvenance records what was built, and the source it was built from: the
+// tarball URL downloadKernelSource fetches and the tracked SHA-256
+// verifyKernelSource checked. Both derive from req.Version through the same
+// declarations the worker uses, so the record cannot name a source the build
+// did not verify. A version with no tracked digest gets no record, because the
+// worker refuses to build it and an empty digest would read as verified.
 func writeProvenance(outputDir string, req Request, backend string) error {
+	digest, tracked := SourceDigest(req.Version)
+	if !tracked {
+		return fmt.Errorf("write kernel provenance: linux %s has no tracked SHA-256 (kernelSourceSHA256), so its source is not one the build verified", req.Version)
+	}
 	path := hostOutputPath(Request{Root: req.Root, OutputDir: outputDir})
 	if err := os.MkdirAll(path, 0o750); err != nil {
 		return fmt.Errorf("create provenance directory: %w", err)
 	}
-	data := fmt.Sprintf("version=%s\ntarget=%s\nprofile=%s\narch=%s\nmodules=%s\nbuilder=%s\n", req.Version, req.Target, req.Profile, req.Arch, req.Modules, backend)
-	if err := os.WriteFile(filepath.Join(path, provenanceName), []byte(data), 0o600); err != nil {
+	var tb textbuf.Buffer
+	data := tb.Str("version=").Str(req.Version).
+		Str("\ntarget=").Str(req.Target).
+		Str("\nprofile=").Str(req.Profile).
+		Str("\narch=").Str(req.Arch).
+		Str("\nmodules=").Str(req.Modules).
+		Str("\nbuilder=").Str(backend).
+		Str("\nsource-url=").Str(kernelTarballURL(req.Version)).
+		Str("\nsource-sha256=").Str(digest).
+		Str("\n").Bytes()
+	if err := os.WriteFile(filepath.Join(path, provenanceName), data, 0o600); err != nil {
 		return fmt.Errorf("write kernel provenance: %w", err)
 	}
 	return nil

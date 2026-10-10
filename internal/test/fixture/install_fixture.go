@@ -797,7 +797,7 @@ func kernelQEMUFixture(ctx context.Context, args []string) error {
 	canceled, cancel := context.WithCancel(ctx)
 	cancel()
 	req := kernelbuilder.Request{
-		Root: root, Version: versionKernel711, Arch: archARM64, Profile: "hardware", Builder: builderQEMU,
+		Root: root, Version: versionKernelPinned, Arch: archARM64, Profile: "hardware", Builder: builderQEMU,
 		Target: targetInstaller, SourceDir: pathInstallerKernel, OutputDir: relOut,
 		BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon,
 		Modules: "no", Fragments: fragments,
@@ -852,7 +852,8 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		wantProvenance := "version=7.1.1\ntarget=runtime\nprofile=runtime\narch=arm64\nmodules=yes\nbuilder=docker\n"
+		wantProvenance := "version=" + versionKernelPinned + "\ntarget=runtime\nprofile=runtime\narch=arm64\nmodules=yes\nbuilder=docker\n" +
+			provenanceSource(versionKernelPinned)
 		if string(provenance) != wantProvenance {
 			return fmt.Errorf("runtime provenance = %q, want %q", provenance, wantProvenance)
 		}
@@ -883,7 +884,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 		return errors.New("kernel-build-output-ownership requires REPOSITORY OUTPUT")
 	}
 	return buildKernel(ctx, kernelbuilder.Request{
-		Root: args[0], Version: versionKernel711, Arch: archAMD64, Profile: targetRuntime, Builder: builderDocker,
+		Root: args[0], Version: versionKernelPinned, Arch: archAMD64, Profile: targetRuntime, Builder: builderDocker,
 		Target: targetRuntime, SourceDir: pathGokrazyKernel, OutputDir: args[1],
 		BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon,
 		Modules: valueYes, PatchesDir: "gokrazy/kernel/patches",
@@ -987,7 +988,8 @@ func kernelVersionProvenanceFixture(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		want := "version=7.1.1\ntarget=installer\nprofile=qemu\narch=arm64\nmodules=no\nbuilder=docker\n"
+		want := "version=" + versionKernelPinned + "\ntarget=installer\nprofile=qemu\narch=arm64\nmodules=no\nbuilder=docker\n" +
+			provenanceSource(versionKernelPinned)
 		if string(data) != want {
 			return fmt.Errorf("provenance = %q, want %q", data, want)
 		}
@@ -1200,7 +1202,7 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 				Fragments: []string{pathInstallerKernelConfig, "tools/installer-kernel/qemu.config"},
 			},
 			worker:   []string{"--modules", "no", flagFragment, "/src/kernel.config", flagFragment, "/src/qemu.config"},
-			wantProv: fmt.Sprintf("version=%s\ntarget=installer\nprofile=qemu\narch=amd64\nmodules=no\nbuilder=docker\n", version),
+			wantProv: fmt.Sprintf("version=%s\ntarget=installer\nprofile=qemu\narch=amd64\nmodules=no\nbuilder=docker\n", version) + provenanceSource(version),
 		},
 		{
 			name: targetRuntime,
@@ -1220,7 +1222,7 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 				flagFragment, "/src/kernel.config", flagFragment, "/src/runtime.config",
 				flagFragment, "/builder/common/efi-console.config",
 			},
-			wantProv: fmt.Sprintf("version=%s\ntarget=runtime\nprofile=runtime\narch=amd64\nmodules=yes\nbuilder=docker\n", version),
+			wantProv: fmt.Sprintf("version=%s\ntarget=runtime\nprofile=runtime\narch=amd64\nmodules=yes\nbuilder=docker\n", version) + provenanceSource(version),
 		},
 	}
 	for index := range requests {
@@ -1298,7 +1300,7 @@ func kernelQEMUArchAliasFixture(_ context.Context, _ []string) error {
 	}
 	defer os.RemoveAll(root) //nolint:errcheck // fixture cleanup
 	err = buildKernel(context.Background(), kernelbuilder.Request{
-		Root: root, Version: versionKernel711, Arch: "aarch64", Profile: targetRuntime, Builder: builderQEMU,
+		Root: root, Version: versionKernelPinned, Arch: "aarch64", Profile: targetRuntime, Builder: builderQEMU,
 		Target: targetRuntime, SourceDir: "../bad", OutputDir: "out", BuilderDir: dirBuilder,
 		CommonDir: dirCommon, Modules: valueYes, Fragments: []string{"fragment.config"},
 	})
@@ -1658,7 +1660,7 @@ func syntheticBuildRequest() (string, kernelbuilder.Request, func(), error) {
 		return "", kernelbuilder.Request{}, func() {}, err
 	}
 	req := kernelbuilder.Request{
-		Root: root, Version: versionKernel711, Arch: archARM64, Profile: targetRuntime, Target: targetRuntime,
+		Root: root, Version: versionKernelPinned, Arch: archARM64, Profile: targetRuntime, Target: targetRuntime,
 		SourceDir: dirSource, OutputDir: "out", BuilderDir: dirBuilder, CommonDir: dirCommon,
 		Modules: valueYes, Fragments: []string{"src/runtime.config"}, Image: "fixture-builder",
 	}
@@ -1725,4 +1727,18 @@ func expectBytes(label string, got, want []byte) error {
 		return nil
 	}
 	return fmt.Errorf("%s: got %q, want %q", label, got, want)
+}
+
+// provenanceSource is the source half of the kernel provenance a driver build
+// writes for version: the kernel.org tarball URL and the tracked SHA-256 the
+// worker verifies. An untracked version yields a line no provenance carries, so
+// the comparison fails and prints it.
+func provenanceSource(version string) string {
+	digest, tracked := kernelbuilder.SourceDigest(version)
+	if !tracked {
+		digest = "<no tracked digest for " + version + ">"
+	}
+	major, _, _ := strings.Cut(version, ".")
+	return "source-url=https://cdn.kernel.org/pub/linux/kernel/v" + major + ".x/linux-" + version + ".tar.xz\n" +
+		"source-sha256=" + digest + "\n"
 }
