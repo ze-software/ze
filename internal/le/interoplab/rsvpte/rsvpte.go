@@ -6,8 +6,9 @@
 // <role>.conf makes the role a Ze node, <role>-sw.txt a freeRouter node. Each
 // freeRouter owns its own IPv4 stack and MAC, reached through rawInt.bin on
 // its container's eth0 (test/interop-rsvpte/run-freertr.sh), so no host root,
-// TAP device or network namespace is needed: Docker and privileged containers
-// suffice. Ze runs in a privileged container because it programs MPLS labels.
+// TAP device or network namespace is needed, and no container runs privileged.
+// A Ze node holds NET_ADMIN to program MPLS labels and VLANs, and writes its
+// MPLS sysctls at run time under the generic net sysctl profile.
 package rsvpte
 
 import (
@@ -40,8 +41,10 @@ const (
 	imageZe      = "ze"
 	imageFreeRtr = "freertr"
 
-	modulesPath        = "/lib/modules"
-	privilegedArgument = "--privileged"
+	// netAdminCapability is what a Ze node needs beyond Docker's default
+	// grants: MPLS routes, VLAN links and addresses. Its raw RSVP socket and
+	// tcpdump take NET_RAW, which Docker grants by default.
+	netAdminCapability = "NET_ADMIN"
 )
 
 // labNetwork is fixed because every scenario file names its addresses: the
@@ -247,8 +250,13 @@ func zePeer(role string, host uint8, suffix, directory string) interoplab.PeerCo
 			{Source: filepath.Join(directory, role+".conf"), Target: "/etc/ze/ze.conf", ReadOnly: true},
 			{Source: filepath.Join(directory, role+"-setup.sh"), Target: "/etc/ze/setup.sh", ReadOnly: true},
 		},
-		Arguments:   []string{privilegedArgument},
-		Environment: []interoplab.EnvironmentVariable{{Name: "ze.log.rsvp-te", Value: "debug"}},
+		// The setup script writes net.mpls.conf.<link>.input for a VLAN it
+		// creates first, so the writes happen at run time and cannot be
+		// --sysctl arguments.
+		Capabilities:    []string{netAdminCapability},
+		Arguments:       interoplab.NetSysctlWriteArguments(),
+		AppArmorProfile: interoplab.NetSysctlAppArmorProfileName,
+		Environment:     []interoplab.EnvironmentVariable{{Name: "ze.log.rsvp-te", Value: "debug"}},
 		Command: []string{"sh", "-c", "mkdir -p /run/fr; " +
 			"tcpdump -i eth0 -nn -l -vvv 'ip proto 46 or mpls' > " + captureFile + " 2> /run/fr/tcpdump.err & " +
 			"exec sh /etc/ze/setup.sh"},
@@ -261,31 +269,39 @@ func zePeer(role string, host uint8, suffix, directory string) interoplab.PeerCo
 	}
 }
 
-// mplsPreflight loads the MPLS modules the Ze container needs and refuses the
-// run when the host kernel cannot provide them. Docker's privileged container
-// is the only privilege it uses.
+// mplsPreflight refuses the run when the host kernel has no MPLS routing. It
+// loads no module: the modules are the host's (spec-lab-containers-least-privilege, D-7).
 func mplsPreflight(suffix string) interoplab.PreflightCheck {
 	return func(ctx context.Context, docker *interoplab.Docker) error {
-		arguments := []string{privilegedArgument, "--name", containerName("preflight", suffix)}
-		if info, err := os.Stat(modulesPath); err == nil && info.IsDir() {
-			var tb textbuf.Buffer
-			arguments = append(arguments, "-v", tb.Str(modulesPath).Byte(':').Str(modulesPath).Str(":ro").String())
-		}
-		result, err := docker.RunOneShot(ctx, interoplab.OneShotContainer{
-			Image:     "alpine:3.21",
-			Arguments: arguments,
-			Command: []string{"sh", "-c",
-				"apk add --no-cache -q kmod > /dev/null 2>&1; " +
-					"modprobe mpls_router 2>/dev/null; modprobe mpls_iptunnel 2>/dev/null; " +
-					"echo MPLS=$(test -f /proc/sys/net/mpls/platform_labels && echo ok || echo missing)"},
-			Timeout: 120 * time.Second,
-		})
+		result, err := docker.RunOneShot(ctx, mplsPreflightContainer(suffix))
 		if err != nil {
 			return fmt.Errorf("MPLS preflight probe failed: %w", err)
 		}
-		if !strings.Contains(result.Stdout, "MPLS=ok") {
-			return fmt.Errorf("host kernel has no MPLS routing (mpls_router): %s", strings.TrimSpace(result.Stdout))
-		}
+		return mplsPreflightRefusal(result.Stdout)
+	}
+}
+
+// mplsPreflightContainer reads the MPLS sysctl tree, which needs no grant:
+// mpls_router creates it in every network namespace once the host has it.
+func mplsPreflightContainer(suffix string) interoplab.OneShotContainer {
+	return interoplab.OneShotContainer{
+		Image:     "alpine:3.21",
+		Arguments: []string{"--name", containerName("preflight", suffix)},
+		Command: []string{"sh", "-c",
+			"echo MPLS=$(test -f /proc/sys/net/mpls/platform_labels && echo ok || echo missing)"},
+		Timeout: 120 * time.Second,
+	}
+}
+
+// mplsPreflightRefusal names the missing MPLS support and the host command
+// that loads it, or answers nil when the probe saw it.
+func mplsPreflightRefusal(stdout string) error {
+	if strings.Contains(stdout, "MPLS=ok") {
 		return nil
 	}
+	return fmt.Errorf("the host kernel cannot run the RSVP-TE lab: it lacks MPLS routing "+
+		"(modules mpls_router and mpls_iptunnel; the probe answered %q).\n"+
+		"Lab containers never load kernel modules, so the host must provide them.\n"+
+		"Load them on the Docker host, then run the lab again:\n"+
+		"  sudo modprobe -a mpls_router mpls_iptunnel\n", strings.TrimSpace(stdout))
 }

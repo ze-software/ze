@@ -1134,9 +1134,13 @@ bypass. A third shape puts Ze at the point of local repair: Ze ingress, Ze
 PLR, freeRouter relay on the bypass, freeRouter egress as the merge point. Each freeRouter owns its own IPv4 stack
 and MAC: `test/interop-rsvpte/run-freertr.sh` makes the container's `eth0`
 promiscuous and joins it to the jar through the upstream `rawInt.bin`, so the
-suite needs Docker and privileged containers, never host root, a TAP device or
-a network namespace. Ze's container is privileged because it programs MPLS
-labels; the preflight loads `mpls_router` and refuses a host kernel without it.
+suite needs Docker alone, never host root, a TAP device or a network namespace,
+and no container runs privileged: a freeRouter holds `NET_ADMIN` and `NET_RAW`.
+A Ze node holds `NET_ADMIN` to program MPLS labels and VLANs, and its setup
+script writes its MPLS sysctls at run time (one names a VLAN it creates first),
+so it runs under `ze-lab-net-sysctl` with `/proc/sys` writable. The preflight
+reads `/proc/sys/net/mpls/platform_labels` with no grant, loads no module, and
+refuses a host kernel without MPLS routing with the host command that loads it.
 
 Every assertion reads what a peer received. Every container, Ze or freeRouter,
 runs `tcpdump -vvv` on its `eth0` into `/run/fr/rsvp.txt`, RSVP and every

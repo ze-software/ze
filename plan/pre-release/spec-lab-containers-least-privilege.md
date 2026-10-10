@@ -20,6 +20,7 @@ Owner instruction, 2026-10-10 (recorded as the approval, design gates waived by 
 Owner principle D-7, restated at his request on 2026-10-10 in corrected English and made generic rather than specific to AppArmor: "The host should be set up correctly for Ze. A user will meet a misconfigured host sooner or later; when they do, Ze should report it without friction, and the path from the symptom to understanding the problem and its fix should be as smooth as possible. Where tooling can make sure the admin does the right thing, we should have the tooling." The owner's clarification, same day: the point is user friendliness, on every user interface Ze has (CLI, web, `ze doctor`, logs, the `./le` tooling), not the CLI alone, so every refusal this spec writes names what is wrong, why, and the exact command that fixes it.
 
 -> Decision (owner, 2026-10-10, "make it generic"): one generic lab profile, not one per lab. A peer that writes its own network namespace's sysctls at run time runs under `ze-lab-net-sysctl` (docker-default with `/proc/sys` writes denied everywhere but under `net/`), registered once in `interoplab`; a lab names it, never defines its own copy.
+-> Decision (owner, confirmed 2026-10-10): "make it generic" means ONE shared AppArmor profile, `ze-lab-net-sysctl`, for every lab container that writes network sysctls, granting only what the labs together need; no per-lab profiles. The IPsec strongSwan peer and the RSVP-TE Ze nodes use it; VRRP moves onto it and `ze-lab-vrrp` is deleted (docker-host spec's work).
 
 Goals.
 
