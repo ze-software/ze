@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | design |
 | Scope | tooling, config, protocol |
 | Depends | Phase 1: `plan/pre-release/spec-config-yang-loader-structural-checks.md` lands first, and the goyang fork `replace` in `go.mod` (enum numbering fix, another agent, 2026-10-09) lands before step 1. Later phases: reconcile the completed enum migration before changing its producers; coordinate overlapping IKE plans below |
-| Phase | Phase 1 (YANG resolved schema, strict `DefaultLoader`, validated command arguments, `ArgDef` construction) authorized by the owner on 2026-10-08; design decisions D-1 to D-7 answered by the owner on 2026-10-09. Later phases not authorized |
-| Handoff | `plan/handover/12-validated-construction-phase-1.md` |
-| Updated | 2026-10-09 |
+| Phase | Phase 1 (YANG resolved schema, strict `DefaultLoader`, validated command arguments, `ArgDef` construction) authorized by the owner on 2026-10-08; design decisions D-1 to D-7 answered by the owner on 2026-10-09. **Phase 1 closed on 2026-10-11** (review clean, I5 resolved; evidence and what is still owed in "Phase 1 closure" below). Later phases not authorized, so the spec stays, at `design`, until the owner authorizes one |
+| Handoff | None. The Phase 1 handover (12-validated-construction-phase-1) was retired in the Phase 1 closing commit; its owed items are reconciled in "Phase 1 closure" below |
+| Updated | 2026-10-11 |
 
 ## Task
 
@@ -518,7 +518,9 @@ The owner authorized a first phase of three concrete migrations. Each is a type 
 
 → Decision (2026-10-08, superseded): Status stayed `design` until the owner answered the open decisions.
 
-→ Decision (2026-10-09): Status is `ready`. The owner answered D-1 to D-7 and confirmed D-6, which were the design approval this phase waited for. Resume state for the batches lives in the committed handover `plan/handover/12-validated-construction-phase-1.md`, never under `tmp/`, because the owner moves machines.
+→ Decision (2026-10-09): Status is `ready`. The owner answered D-1 to D-7 and confirmed D-6, which were the design approval this phase waited for. Resume state for the batches lived in the committed handover 12-validated-construction-phase-1 (retired at the Phase 1 close, 2026-10-11; its batch log stays in git history), never under `tmp/`, because the owner moves machines.
+
+→ Decision (2026-10-11): Phase 1 is closed and Status is `design`. The phase's code is committed and reviewed clean; the rest of this spec is the unapproved migration proposal, so it returns to the design gate rather than holding an `in-progress` slot.
 
 → Constraint: Phase 1 implementation starts only after `plan/pre-release/spec-config-yang-loader-structural-checks.md` lands. That work is editing `internal/component/config/yang/loader.go`, adding `loader_structure.go`, `loader_structure_test.go` and `loader_rfc7950_structural_test.go`, removing `loader_rfc7950_structural_red_test.go`, and names `validator.go` and `loader_rfc7950_test.go`. Phase 1 changes `loader.go` and `validator.go` throughout.
 
@@ -849,7 +851,7 @@ Compile-negative probes follow the procedure in the TDD plan above: one forbidde
 
 ### Phase 1 implementation steps
 
-Each step is one commit, or the chunks it names; the tree builds after each. Resume state is the committed handover `plan/handover/12-validated-construction-phase-1.md`.
+Each step is one commit, or the chunks it names; the tree builds after each. Resume state was the committed handover 12-validated-construction-phase-1, retired at the Phase 1 close; "Phase 1 closure" below carries what it still listed as owed.
 
 1. **Precondition and census.** Confirm `spec-config-yang-loader-structural-checks` has landed (A-5) and the goyang fork `replace` is in `go.mod` (A-12). Re-read at HEAD `loader.go`, `loader_structure.go`, `enum_assignment.go`, `validator.go`, `plugin/server/handler.go`, `rpc_register.go` and `config/yang/rpc_publish.go`. Reconcile every count above, including the D-2 A table, with `gopls references` across build tags; classify each production call site and each handler cross-call; resolve A-6 and A-8 to A-11. Re-run the D-6 probe over the new tree. Append the reconciled census to this section before any source edit.
 2. **T3 first.** It is the leaf, and the other two read definitions. Write `TestArgDefConstructorRefuses`, `TestArgDefAccessorsDoNotAlias`, `TestZeroArgDefRefused` and probes P-5 and P-6, and watch them fail. Add the constructors and accessors, make the fields private, and migrate the lowering, `appendAnchored`, the MCP projection (D-7), every reader and every test literal in one commit. Run `TestCommandTreeBuildsFromEveryRegisteredModule`.
@@ -857,6 +859,55 @@ Each step is one commit, or the chunks it names; the tree builds after each. Res
 4. **T1.** Write `TestResolveRefusesLoadAfterResolution`, `TestResolvedZeroValueIsABug`, `TestYANGContractBaselineRefusesFailedResolution` and probes P-1 and P-2. Introduce `yang.Resolved`, move the read operations, migrate every census consumer and its tests, fold the `usage.go` policy into the shared transition, and remove the `applyPatterns` compile-error branch. Update `yang-config-design.md` in this step.
 5. **T2, chunks C-T2a to C-T2e, one commit each, in that order.** C-T2a: write `TestValidateArgsEmptyDefinitionsPassTokens`, the per-route tests and probe P-4; introduce the value, make every route R1 to R9 call `ValidateArgs` (D-3), add `cli-argument-refused-plugin-route.ci`; for each route remove its validation call, record the red, restore it; update `commands.md`. C-T2b to C-T2e: for each handler type, write its row of `TestHandlerTypesTakeValidatedArguments` and its P-3 case, watch them fail, change the type and every implementation, route and test call together, and delete the raw-args signature. C-T2e follows the rewriter decision and R-18. Update `commands.md` with each type.
 6. **Reconcile.** Re-run the census for added or removed producers and handlers, delete the probe files after recording their errors here, and hand the long gates to the main thread: `./le go lint run`, `./le test unit all`, the `ui` functional suite and `./le verify worktree`. An independent review follows under `/ze-review`.
+
+### Phase 1 closure (2026-10-11)
+
+Phase 1 is closed: its code is committed (`9cbd3485ca`, `7d69d6a669`, `5eaa197f32`, `180df07922`, `62842be4c7`, `eaff5d644b`, `e4b25d9bc2`, `b84faaebe4`, `7c25971594`, and the review fixes named in the Review Gate), the review loop ended clean at round 3, and the owner resolved I5 on 2026-10-11. This spec is not removed, because its later phases are not authorized. Phase 1 changes no wire format and speaks to no protocol peer, so it owes no interop scenario (`ai/rules/interop-and-goal-validation.md`, internal refactor exemption).
+
+#### Phase 1 Goal Validation
+
+Each goal is a Phase 1 scope row. The tests were run at the close, at HEAD `7689a86b74`, through `./le job run` over `internal/component/command`, `config/yang`, `plugin/all`, `plugin/server`, `le/doc/yangcontract` and `le/plugin/imports`: all 13 named tests `--- PASS`.
+
+| Goal | Evidence type | Concrete evidence |
+|------|---------------|-------------------|
+| T1: only a successful resolution yields a checked-schema reader, and a loader cannot be read before or used after it | Compiler shape plus unit tests | `Loader` (`internal/component/config/yang/loader.go`) holds only `LoadEmbedded`, `LoadRegistered`, `AddModuleFromText`, `AddModuleFromFile` and `Resolve`; `GetEntry` and `GetModule` are methods of `Resolved` (same file). `TestResolveRefusesLoadAfterResolution`, `TestResolvedZeroValueIsABug`, `TestCommandTreeBuildsFromEveryRegisteredModule`, `TestYANGContractBaselineRefusesFailedResolution` PASS. P-1 and P-2 compile-negative probes recorded under batch 3 Evidence above |
+| T2: every author-facing handler takes the validated-arguments value, and every route R1 to R9 produces it through `ValidateArgs` | Unit tests over the handler types and routes, functional test over R9 | `TestHandlerTypesTakeValidatedArguments` (command and plugin/server) and `TestValidateArgsEmptyDefinitionsPassTokens` PASS; per-route red/green recorded in the C-T2a to C-T2e Evidence lines above; `test/ui/cli-argument-refused-plugin-route.ci` covers R9 (`Dispatcher.routeToProcess`). The `.ci` was not re-run at the close: owed below |
+| T3: an `ArgDef` exists only through a validating constructor and exposes no mutable slice | Unit tests plus compile-negative probes | `TestArgDefConstructorRefuses`, `TestArgDefAccessorsDoNotAlias`, `TestZeroArgDefRefused` PASS; P-5 and P-6 recorded under batch 1 Evidence above |
+| T4: `DefaultLoader` is strict and every YANG import edge is backed by a Go import | Unit tests | `TestDefaultLoaderReportsEveryRegisteredFailure` and `TestYANGImportsFollowGoImports` PASS; `./le repo compiles check` OK on every flavor at `7689a86b74` (below), so no shipped profile links a module without its import |
+
+#### Phase 1 Assumptions resolved
+
+| ID | Final status | Evidence |
+|----|--------------|----------|
+| A-5 | Confirmed | `Loader.Resolve` calls `checkStructure` (`loader.go`); `loader_structure.go` is committed |
+| A-6 | Confirmed by construction | Every reader is a `Resolved` method, so a read before `Resolve` or after a failed one does not compile |
+| A-7 | Confirmed | `TestValidateArgsEmptyDefinitionsPassTokens` PASS at `7689a86b74` |
+| A-8 | Confirmed, by a name-based grep, not a type walk | Field assignments in the 20 production files that call `GetEntry` or `GetModule`: the only writes to goyang entries are in `mergedRoot` and `mergeAugmentedEntries` (`internal/component/cli/completer.go`), which write a new root and a value copy (`merged := *entries[0]`, with a fresh `Dir` map), never a shared entry. The other hits assign Ze's own node types (`aihelp.go`, `config/yang/cli/tree.go`, `config/yang/rpc.go`, `config/yang_schema.go`) |
+| A-9 | Resolved (false as written) | See the A-9 row above |
+| A-10 | Confirmed | R9 validates engine-side since `62842be4c7` (T2 census, plugin-process row); `test/ui/cli-argument-refused-plugin-route.ci` |
+| A-11 | Confirmed | See the A-11 row above |
+| A-12 | Confirmed for what the close observes | `go.mod` replaces goyang with the ze-software fork; every flavor compiles and the strict `DefaultLoader` builds the full registered tree (`TestCommandTreeBuildsFromEveryRegisteredModule`) |
+| A-13 | Confirmed | `TestYANGImportsFollowGoImports` PASS |
+
+#### Gates run at the close, and what the retired handover listed as owed
+
+| Item the handover listed | Result at the close |
+|--------------------------|---------------------|
+| `./le repo compiles check` (owed at `eaff5d644b` and `7c25971594`) | OK at `7689a86b74` on distro, appliance, setup, host and installer ("every flavor of the committed tree compiles"), which contains both |
+| `./le rfc check` for rfc7950, rfc8907 and rfc9384 | No finding for any of the three stems. The run exits 2 on 6 findings, none in a Phase 1 file: three test file names (`bgp/plugins/rib/rfc4271_igp_cost_reselect_test.go`, `l2tp/ppp/rfc1661_transition_cells_test.go`, `core/eap/rfc5216_resumption_defect_test.go`), RFC4456-8-1 and 8-2 SHIFTED in `internal/le/interoplab/bgp/check_special.go`, and the RFC4090-6.2-1 record whose producer `setupBypass` changed in `ae7a5972a6` |
+| Scoped lint owed from 4c (config/yang/cli, config/schema/cli, config/storage/cli, le/verify/dispatch, le/cli/grammar, component/plugin), from 4d and from 4e | **Still owed.** `./le go lint run scope` over the 197 package directories the Phase 1 commits touched was refused three times ("lint inputs changed during planning", other sessions' edits), and once more over the six 4c packages alone. Run it when the tree is quiet |
+| `./le --update`, then `./le verify worktree` (never run over any batch) | **Still owed**, together with `./le test unit all` and the `ui` functional suite (`cli-argument-refused-plugin-route.ci` included): too long for the closing agent. Batch 1's unfinished web, `cmd/ze/hub` and plugin/server runs are inside `./le test unit all` |
+| Drop the goyang `replace` once a goyang release holds the fix | Waits on upstream (openconfig/goyang PR 317); the comment above the `replace` in `go.mod` carries it |
+| Independent review of Phase 1 | Done: Review Gate below, round 3 clean, I5 resolved |
+
+`./le commit audit base origin/main` reports a WEAKENED finding for each owner-approved RFC-tagged edit in `180df07922`, `eaff5d644b` and `7c25971594`, because `auditDiff` (`internal/le/test/weakened/audit.go`) never reads `RFC-approved:` trailers. Recorded in `plan/journal/check-cannot-see-the-change-it-looks-for.md` (2026-10-11).
+
+#### Work not done in Phase 1
+
+| What | Why | Owner |
+|------|-----|-------|
+| Every later phase: the full census, the IKE families, AC-1, AC-5, AC-8 to AC-12, AC-14, AC-15, and the `command.Node` and plugin SDK exclusions above | Not authorized by the owner | This spec, at `design` |
+| T2 residual bypasses (`ValidateArgs` with nil definitions, `InvokeLocal` with a caller-chosen path) | Review-only today, recorded in the T2 residual (N1) | This spec, later phase |
 
 ## Review Gate
 
