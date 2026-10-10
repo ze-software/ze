@@ -23,9 +23,9 @@ esac
 exit 0
 `
 
-// VALIDATES: AC-3 through the terminal-demo render, with the production check
-// (no KernelCheck option). A daemon kernel lacking an enrolled feature refuses
-// the render, naming the feature and the kernel release, before any validator
+// VALIDATES: AC-3 through the terminal-demo render and the renderer's validate
+// mode, with the production check (no KernelCheck option). A daemon kernel
+// lacking an enrolled feature refuses the render or the validation, naming the feature and the kernel release, before any validator
 // or recorder container starts.
 // PREVENTS: a demo recorded on a kernel Ze does not support, whose transcript
 // then shows a host fact as product behavior.
@@ -56,6 +56,8 @@ func TestRenderRefusesMissingKernelFeature(t *testing.T) {
 	}{
 		{"all", func() error { _, err := engine.RenderAll("26.10.10"); return err }},
 		{"one", func() error { _, err := engine.RenderOne("term", "26.10.10"); return err }},
+		// The renderer's validate mode runs ze-demo in containers too.
+		{"validate", func() error { _, err := engine.validationCheckAll(); return err }},
 	} {
 		err := render.run()
 		if err == nil {

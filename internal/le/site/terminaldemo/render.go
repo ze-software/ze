@@ -150,14 +150,7 @@ func (e *Engine) validationCheckAll() (Report, error) {
 		return Report{}, err
 	}
 	selected := manifestIDs(manifest)
-	if !regularFile(e.binaryPath) {
-		relative, relErr := filepath.Rel(e.root, e.binaryPath)
-		if relErr != nil {
-			relative = e.binaryPath
-		}
-		return Report{Mode: rendererValidateMode, Demos: selected}, fmt.Errorf("missing demo binary: %s", filepath.ToSlash(relative))
-	}
-	if err := e.requireRendererImage(manifest); err != nil {
+	if err := e.preflightContainers(manifest); err != nil {
 		return Report{Mode: rendererValidateMode, Demos: selected}, err
 	}
 	for _, demoID := range selected {
@@ -210,24 +203,11 @@ func (e *Engine) RenderOne(demoID, release string) (Report, error) {
 }
 
 // validateAndRender is the body the whole-manifest and single-demo renders
-// share: refuse a missing demo binary, run each selected demo's validators,
-// then record the selection under the lock.
+// share: the container preflight, each selected demo's validators, then the
+// recording of the selection under the lock.
 func (e *Engine) validateAndRender(manifest Manifest, indexed map[string]Demo, selected []string, release string) (Report, error) {
 	report := Report{Mode: rendererRenderMode, Demos: selected}
-	if !regularFile(e.binaryPath) {
-		relative, relErr := filepath.Rel(e.root, e.binaryPath)
-		if relErr != nil {
-			relative = e.binaryPath
-		}
-		return report, fmt.Errorf("missing demo binary: %s", filepath.ToSlash(relative))
-	}
-	// The demos run Ze in containers on the Docker daemon's kernel, so that
-	// kernel must carry every feature Ze enrolls before any validator or
-	// recorder starts (owner D-4: a wrong kernel "should not be possible - fail").
-	if err := e.checkKernel(); err != nil {
-		return report, err
-	}
-	if err := e.requireRendererImage(manifest); err != nil {
+	if err := e.preflightContainers(manifest); err != nil {
 		return report, err
 	}
 	for _, demoID := range selected {
@@ -238,6 +218,26 @@ func (e *Engine) validateAndRender(manifest Manifest, indexed map[string]Demo, s
 	return report, e.withLock(func() error {
 		return e.renderSelected(manifest, indexed, selected, release)
 	})
+}
+
+// preflightContainers is what every path that starts a demo container owes
+// first, validate and render alike: the demo binary exists, the Docker daemon's
+// kernel carries every feature Ze enrolls, and the renderer image is present.
+// The demos run Ze in containers on that kernel, so the check comes before any
+// validator or recorder starts (owner D-4: a wrong kernel "should not be
+// possible - fail").
+func (e *Engine) preflightContainers(manifest Manifest) error {
+	if !regularFile(e.binaryPath) {
+		relative, relErr := filepath.Rel(e.root, e.binaryPath)
+		if relErr != nil {
+			relative = e.binaryPath
+		}
+		return fmt.Errorf("missing demo binary: %s", filepath.ToSlash(relative))
+	}
+	if err := e.checkKernel(); err != nil {
+		return err
+	}
+	return e.requireRendererImage(manifest)
 }
 
 // checkKernel runs the Docker host kernel check with the demo binary, bounded

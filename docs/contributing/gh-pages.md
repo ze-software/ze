@@ -24,12 +24,13 @@ It reads the image tag from `demos/terminal/manifest.json`, which is the tag the
 recorder runs. A render refuses to start when that image is absent and names
 this action. Rebuild after any change to `demos/terminal/Dockerfile`.
 
-Before that, a render checks the Docker daemon's kernel with the demo `ze`, and
+Before that, a render, like the renderer's `validate` mode, checks the Docker
+daemon's kernel with the demo `ze`, and
 refuses a kernel that lacks any feature Ze enrolls, naming each one: a demo
 recorded there would show a host fact as product behavior. The check is the
 one every Docker run that runs Ze makes, described in
 `docs/architecture/testing/interop.md`, "The Docker host kernel check".
-<!-- source: internal/le/site/terminaldemo/render.go -- Engine.checkKernel -->
+<!-- source: internal/le/site/terminaldemo/render.go -- Engine.preflightContainers, Engine.checkKernel -->
 
 `./le site terminal-demo binaries-build-ze` cross-builds the programs the
 container runs into `tmp/terminal-demos/bin`: `ze`, `ze-demo`, and a linux
