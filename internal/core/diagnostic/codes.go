@@ -67,6 +67,7 @@ const (
 	CodeDoctorIPsecTransformUnknown                = "doctor-ipsec-transform-unknown"
 	CodeDoctorMPLSUnavailable                      = "doctor-mpls-unavailable"
 	CodeDoctorMPLSUnknown                          = "doctor-mpls-unknown"
+	CodeDoctorKernelCapabilityForced               = "doctor-kernel-capability-forced"
 	CodeDoctorMPLSTransitMTUUnenforced             = "doctor-mpls-transit-mtu-unenforced"
 	CodeDoctorMPLSTransitMTUUnknown                = "doctor-mpls-transit-mtu-unknown"
 	CodeDoctorModuleMissing                        = "doctor-module-missing"
@@ -533,6 +534,12 @@ var builtinCodes = []CodeMeta{
 		Description:  "The BGP engine's own peer resolution refuses this configuration, so the daemon will fail to start on it -- an unknown address family, a missing mandatory setting (prefix maximum, connection local ip), or an unresolvable cross-reference. Doctor runs the same gate `ze config validate` applies; before this check existed it reported such a config as ready and exited 0, which is the operator trap it closes. Severity is error: the report is not ready and `ze doctor` exits 1. Remedy: run `ze config validate <file>` for the full error list and correct the named peer.",
 		Examples:     []string{exampleDoctorJSON, exampleConfigValidate, "ze explain doctor-config-bgp-peer"},
 		RelatedCodes: []string{codeConfigBGPPeer, codeConfigBGPResolve},
+	},
+	{
+		Code:        CodeDoctorKernelCapabilityForced,
+		Title:       "Kernel capability answer forced by a test",
+		Description: "A kernel capability probe did not run: its answer was forced through ze.test.kernelcap.force, which only a zetest build (the functional-test daemon) reads. Every forced answer says so, a forced present included, so a verdict injected by a test is never read as the host's kernel. This code carries a forced PRESENT, at WARNING severity, and does not refuse a start; a forced absent or unknown reports the capability's own code with the variable named in its message. A shipped ze never reads the variable, so seeing this code from a shipped binary is a build defect. Remedy: unset ze.test.kernelcap.force, or run the build you meant to test.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-kernel-capability-forced"},
 	},
 	{
 		Code:         CodeDoctorMPLSUnknown,

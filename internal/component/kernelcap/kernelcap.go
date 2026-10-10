@@ -73,8 +73,8 @@ func (s State) String() string {
 // Result is one probe's answer and the evidence behind it.
 type Result struct {
 	State State
-	// Reason is why the kernel gave this answer. It is nil for StatePresent and
-	// set for every other state, so a message can separate "the kernel lacks the
+	// Reason is why the kernel gave this answer. It is nil for a probed
+	// StatePresent, errForced for a forced one, and set for every other state, so a message can separate "the kernel lacks the
 	// feature" from "this process was not allowed to ask".
 	Reason error
 }
@@ -156,7 +156,7 @@ func MustRegister(capability Capability) {
 		Component:    capability.Component,
 		Dependencies: []string{"config-tree", "kernel"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{capability.CodeAbsent, capability.CodeUnknown},
+		Codes:        []string{capability.CodeAbsent, capability.CodeUnknown, diagnostic.CodeDoctorKernelCapabilityForced},
 		Check:        checkFor(capability.Subsystem),
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
@@ -316,7 +316,7 @@ func evaluateOne(capability *Capability, tree *config.Tree) (diagnostic.Diagnost
 
 	result := probe(capability)
 	if result.State == StatePresent {
-		return diagnostic.Diagnostic{}, false
+		return forcedPresent(capability, result)
 	}
 
 	var text textbuf.Buffer
@@ -357,6 +357,24 @@ func evaluateOne(capability *Capability, tree *config.Tree) (diagnostic.Diagnost
 	}
 	return diagnostic.Diagnostic{
 		Code:     capability.CodeUnknown,
+		Severity: diagnostic.SeverityWarning,
+		Message:  text.String(),
+	}, true
+}
+
+// forcedPresent is the answer for a present capability: nothing when a probe
+// ran, and a warning when a test forced it. A probed present has no Reason; a
+// forced one carries errForced (forcedState), so a forced verdict is never
+// read as the host's kernel. The warning never refuses a start.
+func forcedPresent(capability *Capability, result Result) (diagnostic.Diagnostic, bool) {
+	if result.Reason == nil {
+		return diagnostic.Diagnostic{}, false
+	}
+	var text textbuf.Buffer
+	text.Str(capability.Subsystem).Str(": the kernel is taken to hold ").Str(capability.Kernel).
+		Str(" without probing it: ").Err(result.Reason)
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorKernelCapabilityForced,
 		Severity: diagnostic.SeverityWarning,
 		Message:  text.String(),
 	}, true

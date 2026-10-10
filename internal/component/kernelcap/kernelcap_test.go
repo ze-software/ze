@@ -12,7 +12,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/env"
 )
 
 // withEnrolment replaces the enrolment for the duration of a test. Nothing else
@@ -307,14 +306,12 @@ func TestDoctorAllCapabilitiesIgnoresConfig(t *testing.T) {
 	}
 }
 
-// withForcedAnswers sets the forced-probe variable for the duration of a test.
+// withForcedAnswers forces probe answers for the duration of a test, through the
+// Go seam rather than the variable: a unit test binary is not a zetest build, so
+// the variable is not read here (probe_force_shipped.go).
 func withForcedAnswers(t *testing.T, value string) {
 	t.Helper()
-	original := env.Get(forceEnv)
-	t.Cleanup(func() { _ = env.Set(forceEnv, original) })
-	if err := env.Set(forceEnv, value); err != nil {
-		t.Fatalf("set %s: %v", forceEnv, err)
-	}
+	t.Cleanup(ForceAnswersForTest(value))
 }
 
 // refusingProbe fails the test if the real probe is consulted, which is what a
@@ -326,10 +323,10 @@ func refusingProbe(t *testing.T, subsystem string) func() Result {
 	}
 }
 
-// VALIDATES: the forced-probe variable gives ANY enrolled capability the answer
-// it names, through both readers (Evaluate for doctor, start and validate;
-// ProbeAll for the Docker-host check), and the diagnostic says the answer was
-// injected. A capability the variable does not name keeps its real probe.
+// VALIDATES: a forced answer gives ANY enrolled capability the answer it names,
+// through both readers (Evaluate for doctor, start and validate; ProbeAll for
+// the Docker-host check), and the row and the diagnostic say the answer was
+// injected, for a forced present as much as for a forced fault. A capability the variable does not name keeps its real probe.
 // PREVENTS: a branch that a functional test can reach only on a host whose
 // kernel happens to lack the feature, the vacuity trap of
 // ai/rules/interop-and-goal-validation.md, for every enrolment rather than XFRM
@@ -351,7 +348,7 @@ func TestForcedAnswerReplacesTheNamedProbe(t *testing.T) {
 			if rows[0].Subsystem != "alpha" || rows[0].State != want.String() {
 				t.Errorf("forced row = %+v, want alpha %v", rows[0], want)
 			}
-			if want != StatePresent && !strings.Contains(rows[0].Reason, forceEnv) {
+			if !strings.Contains(rows[0].Reason, forceEnv) {
 				t.Errorf("forced row reason %q does not name %s", rows[0].Reason, forceEnv)
 			}
 			if rows[1].State != "absent" || rows[1].Reason != "real bravo answer" {
@@ -361,7 +358,8 @@ func TestForcedAnswerReplacesTheNamedProbe(t *testing.T) {
 			diags := Evaluate(config.NewTree())
 			alphaCodes := 0
 			for i := range diags {
-				if !strings.HasPrefix(diags[i].Code, "doctor-alpha-") {
+				if !strings.HasPrefix(diags[i].Code, "doctor-alpha-") &&
+					diags[i].Code != diagnostic.CodeDoctorKernelCapabilityForced {
 					continue
 				}
 				alphaCodes++
@@ -369,12 +367,14 @@ func TestForcedAnswerReplacesTheNamedProbe(t *testing.T) {
 					t.Errorf("forced diagnostic does not name %s: %s", forceEnv, diags[i].Message)
 				}
 			}
-			wantCodes := 1
-			if want == StatePresent {
-				wantCodes = 0
+			// A forced present is still a forced answer: it warns under its
+			// own code rather than passing in silence, so a forced verdict is
+			// never read as the host's.
+			if alphaCodes != 1 {
+				t.Errorf("alpha produced %d diagnostics, want 1: %+v", alphaCodes, diags)
 			}
-			if alphaCodes != wantCodes {
-				t.Errorf("alpha produced %d diagnostics, want %d: %+v", alphaCodes, wantCodes, diags)
+			if want == StatePresent {
+				assertForcedPresentDiagnostic(t, diags)
 			}
 		})
 	}
@@ -400,4 +400,20 @@ func TestForcedAnswerListAndMisspellings(t *testing.T) {
 			t.Errorf("%s = %s, want %s", rows[i].Subsystem, rows[i].State, want[i])
 		}
 	}
+}
+
+// assertForcedPresentDiagnostic checks the one diagnostic a forced present
+// produces: the forced code, at warning severity, so it never refuses a start.
+func assertForcedPresentDiagnostic(t *testing.T, diags []diagnostic.Diagnostic) {
+	t.Helper()
+	for i := range diags {
+		if diags[i].Code != diagnostic.CodeDoctorKernelCapabilityForced {
+			continue
+		}
+		if diags[i].Severity != diagnostic.SeverityWarning {
+			t.Errorf("forced present severity = %q, want warning", diags[i].Severity)
+		}
+		return
+	}
+	t.Errorf("a forced present produced no %s diagnostic: %+v", diagnostic.CodeDoctorKernelCapabilityForced, diags)
 }

@@ -9,20 +9,15 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	coreenv "github.com/ze-software/ze/internal/core/env"
 )
-
-const envKeyForcedAnswers = "ze.test.kernelcap.force"
 
 // withXFRMState forces the shared kernel XFRM probe's answer for the duration of
 // a test, so every verdict is reachable on a host whose own kernel never changes.
+// It goes through the Go seam: this unit test binary is not a zetest build, so
+// ze.test.kernelcap.force is not read here.
 func withXFRMState(t *testing.T, state string) {
 	t.Helper()
-	original := coreenv.Get(envKeyForcedAnswers)
-	t.Cleanup(func() { _ = coreenv.Set(envKeyForcedAnswers, original) })
-	if err := coreenv.Set(envKeyForcedAnswers, ipsecName+"="+state); err != nil {
-		t.Fatalf("set %s: %v", envKeyForcedAnswers, err)
-	}
+	t.Cleanup(kernelcap.ForceAnswersForTest(ipsecName + "=" + state))
 }
 
 // ipsecPeerTree builds a config that installs one site-to-site Child SA, which
@@ -114,9 +109,13 @@ func TestXFRMCapabilitySilentWhenNothingIsWrong(t *testing.T) {
 	check := ipsecCapabilityCheck(t)
 
 	t.Run("the dataplane answers", func(t *testing.T) {
+		// A forced present still says it was forced (kernelcap's own tests
+		// cover a probed present, which is silent), so the one diagnostic
+		// allowed here is the forced warning, never an IPsec fault.
 		withXFRMState(t, "present")
-		if diags := check.Check(diagnostic.DoctorCheckContext{Tree: ipsecPeerTree()}); len(diags) != 0 {
-			t.Errorf("a present dataplane produced %d diagnostics: %+v", len(diags), diags)
+		diags := check.Check(diagnostic.DoctorCheckContext{Tree: ipsecPeerTree()})
+		if len(diags) != 1 || diags[0].Code != diagnostic.CodeDoctorKernelCapabilityForced {
+			t.Errorf("a present dataplane produced %d diagnostics, want only the forced warning: %+v", len(diags), diags)
 		}
 	})
 

@@ -182,17 +182,26 @@ There is no operator override, by owner decision (2026-08-14). A NOS that
 half-works on a kernel missing a required feature is the hazard this removes, and
 an override is what an operator reaches for under pressure.
 
-Tests have one, and it is not an operator switch. The private variable
-`ze.test.kernelcap.force` takes `<subsystem>=<present|absent|unknown>` entries,
-comma-separated, and every reader of the enrolment (doctor, the start and
-reload gates, validate, `ProbeAll`) takes the forced answer for a subsystem it
-names instead of running that probe. The diagnostic carries
-`forced answer (ze.test.kernelcap.force)`, so an injected verdict is never read
-as the host's. A misspelt state leaves the real probe in charge. It exists so a
+Tests have one, and a shipped ze cannot read it. The private variable
+`ze.test.kernelcap.force` is registered and read only in a build carrying the
+`zetest` tag, which is the functional-test daemon and never a shipped binary;
+any other build ignores it whatever the environment holds and runs every probe.
+It takes `<subsystem>=<present|absent|unknown>` entries, comma-separated, and
+every reader of the enrolment (doctor, the start and reload gates, validate,
+`ProbeAll`) takes the forced answer for a subsystem it names instead of running
+that probe. Every forced answer says so: the row's reason and the diagnostic
+carry `forced answer (ze.test.kernelcap.force)`, and a forced `present`, which a
+probed present never does, reports `doctor-kernel-capability-forced` at warning
+severity. A misspelt state leaves the real probe in charge. It exists so a
 functional test reaches the absent and cannot-determine rows on a healthy host:
 `test/ui/doctor-l2tp-kernelcap.ci`, `test/ui/doctor-pppoe-kernelcap.ci`,
-`test/ui/doctor-ipsec-xfrm.ci` and `test/plugin/kernel-capability-*.ci`.
-<!-- source: internal/component/kernelcap/probe.go -- probe, forcedFor -->
+`test/ui/doctor-ipsec-xfrm.ci` and `test/plugin/kernel-capability-*.ci`. A unit
+test in another package, whose test binary is not a `zetest` build, forces
+through `kernelcap.ForceAnswersForTest`, a Go call no operator input reaches.
+<!-- source: internal/component/kernelcap/probe.go -- probe, forcedFor, ForceAnswersForTest -->
+<!-- source: internal/component/kernelcap/probe_force_zetest.go -- forcedAnswersFromEnv -->
+<!-- source: internal/component/kernelcap/probe_force_shipped.go -- forcedAnswersFromEnv -->
+<!-- source: internal/component/kernelcap/kernelcap.go -- forcedPresent -->
 
 ### The predicate decides more than the refusal
 
