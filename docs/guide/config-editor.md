@@ -363,6 +363,14 @@ ended. Inside your own window, `commit confirmed <seconds> force` applies
 your new changes and restarts the countdown at `<seconds>`; the revert still
 restores the configuration from before the first commit.
 
+File mode (`ze config edit -f`) keeps the countdown in the editor itself
+rather than in a daemon. Inside that window, `commit now` and a plain
+`commit confirmed` are refused as in a session editor, and
+`commit confirmed <seconds> force` takes the same nested form: the new changes
+apply, the countdown restarts at `<seconds>`, and an abort or a timeout restores
+the backup the first commit recorded.
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, cmdCommitConfirmedNested -->
+
 The open window is recorded in the store. If the daemon stops while it is
 open, the next start reverts it before the configuration is read, so the
 daemon boots the configuration from before the unconfirmed commit.

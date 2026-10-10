@@ -134,3 +134,73 @@ func TestCommitCompletion(t *testing.T) {
 	assert.Empty(t, texts("commit now force "))
 	assert.NotContains(t, texts("conf"), "confirm")
 }
+
+// TestFileModeNestedCommitConfirmedForce proves file mode's own window takes
+// `commit confirmed <seconds> force` from its owner: the new changes apply, the
+// countdown restarts at the new seconds, and an abort still restores the
+// config from before the FIRST commit of the window.
+//
+// VALIDATES: AC-23 in file mode (`ze config edit -f`).
+// PREVENTS: file mode refusing the nested force the SSH editor takes, and a
+// nested commit whose revert restores only the first commit's result.
+func TestFileModeNestedCommitConfirmedForce(t *testing.T) {
+	model, store, configPath := newCommitGrammarModel(t, "")
+	committedHas := func(want, lacks string) {
+		t.Helper()
+		committed, err := store.ReadFile(configPath)
+		require.NoError(t, err)
+		if want != "" {
+			assert.Contains(t, string(committed), want)
+		}
+		if lacks != "" {
+			assert.NotContains(t, string(committed), lacks)
+		}
+	}
+
+	_, err := model.dispatchCommand("set bgp router-id 5.6.7.8")
+	require.NoError(t, err)
+	result, err := model.dispatchCommand("commit confirmed 60")
+	require.NoError(t, err)
+	model.applyResult(result)
+	require.True(t, model.confirmTimerActive)
+	firstBackup := model.confirmBackupPath
+	require.NotEmpty(t, firstBackup)
+	committedHas("5.6.7.8", "")
+
+	_, err = model.dispatchCommand("set bgp router-id 9.9.9.9")
+	require.NoError(t, err)
+	result, err = model.dispatchCommand("commit confirmed 30 force")
+	require.NoError(t, err, "the owner's nested force is taken")
+	assert.Contains(t, result.statusMessage, "Confirm within 30s")
+	model.applyResult(result)
+	committedHas("9.9.9.9", "")
+	assert.True(t, model.confirmTimerActive)
+	assert.Equal(t, 30, model.confirmSecondsLeft, "the countdown restarted at the new seconds")
+	assert.Equal(t, firstBackup, model.confirmBackupPath, "the revert target stays the first commit's")
+
+	result, err = model.dispatchCommand("commit abort")
+	require.NoError(t, err)
+	model.applyResult(result)
+	committedHas("1.2.3.4", "5.6.7.8")
+	committedHas("", "9.9.9.9")
+	assert.False(t, model.confirmTimerActive)
+}
+
+// TestFileModeNestedCountdownKeepsOneTicker proves a nested restart resets
+// the running countdown instead of starting a second ticker beside it, which
+// would count the window down twice a second.
+//
+// VALIDATES: AC-23 in file mode: the countdown restarts at <seconds>.
+// PREVENTS: two tick chains halving the window the operator asked for.
+func TestFileModeNestedCountdownKeepsOneTicker(t *testing.T) {
+	model, _, _ := newCommitGrammarModel(t, "")
+	model.confirmTimerActive = true
+	model.confirmSecondsLeft = 12
+	updated, cmd := model.handleCommandResult(commandResultMsg{result: commandResult{
+		setConfirmTimer: true, confirmTimerValue: true, confirmBackupPath: "kept", startConfirmCountdown: 30,
+	}})
+	m, ok := updated.(Model)
+	require.True(t, ok)
+	assert.Equal(t, 30, m.confirmSecondsLeft)
+	assert.Nil(t, cmd, "a running countdown gets no second ticker")
+}

@@ -671,17 +671,24 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 	if r.windowWatch != nil {
 		m.windowWatch = *r.windowWatch
 	}
+	// A nested `commit confirmed <s> force` restarts a running countdown. Its
+	// tick chain re-arms itself while the window is open, so a second
+	// tea.Tick here would count the window down twice a second.
+	countdownRunning := m.confirmTimerActive
 	if r.setConfirmTimer {
 		m.confirmTimerActive = r.confirmTimerValue
 		m.confirmBackupPath = r.confirmBackupPath
 	}
 
-	// Start countdown timer if requested
+	// Start countdown timer if requested; a running one only takes the new
+	// seconds.
 	if r.startConfirmCountdown > 0 {
 		m.confirmSecondsLeft = r.startConfirmCountdown
-		return m, tea.Tick(time.Second, func(_ time.Time) tea.Msg {
-			return confirmCountdownMsg{}
-		})
+		if !countdownRunning {
+			return m, tea.Tick(time.Second, func(_ time.Time) tea.Msg {
+				return confirmCountdownMsg{}
+			})
+		}
 	}
 
 	// Apply paste mode state

@@ -138,9 +138,10 @@ func (m *Model) cmdSave() (commandResult, error) {
 
 // cmdCommitRequest runs one parsed commit subcommand. A pending confirm window
 // refuses `commit now` and a plain nested `commit confirmed`, because a commit
-// inside the window would be reverted with it (AC-18, AC-23). A session editor
-// of the daemon's own config commits through the daemon's window
-// (model_commit_window.go); file mode keeps its in-process countdown.
+// inside the window would be reverted with it (AC-18, AC-23); the owner's
+// nested `commit confirmed <seconds> force` is taken and restarts the window.
+// A session editor of the daemon's own config commits through the daemon's
+// window (model_commit_window.go); file mode keeps its in-process countdown.
 func (m *Model) cmdCommitRequest(req contract.CommitRequest) (commandResult, error) {
 	if window := m.editor.daemonWindow(); window != nil {
 		return m.cmdCommitWindowRequest(window, req)
@@ -161,10 +162,13 @@ func (m *Model) cmdCommitRequest(req contract.CommitRequest) (commandResult, err
 		if m.editor.HasSession() {
 			return commandResult{}, errCommitConfirmedNeedsDaemon
 		}
-		if m.confirmTimerActive {
+		if !m.confirmTimerActive {
+			return m.cmdCommitConfirmed(req.Seconds, req.Force)
+		}
+		if !req.Force {
 			return commandResult{}, confirm.ErrPending
 		}
-		return m.cmdCommitConfirmed(req.Seconds, req.Force)
+		return m.cmdCommitConfirmedNested(req.Seconds)
 	case contract.CommitAccept:
 		return m.cmdConfirm()
 	case contract.CommitAbort:
@@ -175,6 +179,23 @@ func (m *Model) cmdCommitRequest(req contract.CommitRequest) (commandResult, err
 		panic("BUG: commit request carries no action")
 	}
 	panic("BUG: unknown commit action")
+}
+
+// cmdCommitConfirmedNested takes the window owner's `commit confirmed <seconds>
+// force` inside file mode's own window (AC-23): the new changes apply and the
+// countdown restarts at <seconds>, but the revert target stays the backup the
+// FIRST commit of the window recorded. The nested commit records its own
+// backup, which holds the first commit's result, so taking it would make an
+// abort or a timeout restore only half of what the window covers.
+func (m *Model) cmdCommitConfirmedNested(seconds int) (commandResult, error) {
+	result, err := m.cmdCommitConfirmed(seconds, true)
+	if err != nil {
+		return result, err
+	}
+	if result.setConfirmTimer {
+		result.confirmBackupPath = m.confirmBackupPath
+	}
+	return result, nil
 }
 
 // cmdCommitVerify runs the validation `commit now` runs and applies nothing:
