@@ -138,10 +138,12 @@ var dockerSubcommands = map[string]bool{"container": true, "create": true, "run"
 
 // ParsePeer answers the grants of one lab peer: its argv and declared
 // capabilities (Parse), its AppArmor profile, and each of its mounts that
-// is a grant. A read-only mount whose source lies strictly inside one of
-// stagedRoots is the lab handing the daemon its own config file and is not
-// a grant; a writable mount, or one from anywhere else (/, the Docker
-// socket, /lib/modules), is recorded as source:target[:ro].
+// is a grant. A read-only mount of a file or directory whose source,
+// symlinks resolved, lies strictly inside one of stagedRoots is the lab
+// handing the daemon its own config file and is not a grant; a writable
+// mount, a unix socket wherever it lies (a socket hands the container the
+// service behind it), or a mount from anywhere else (/, the Docker socket,
+// /lib/modules) is recorded as source:target[:ro].
 func ParsePeer(peer interoplab.PeerConfig, stagedRoots ...string) Grants {
 	g := Parse(peer.Capabilities, peer.Arguments)
 	g.AppArmorProfile = peer.AppArmorProfile
@@ -171,12 +173,17 @@ func StagedRoots(tb testing.TB) []string {
 	return []string{root, os.TempDir()}
 }
 
-// stagedInside answers whether source lies strictly below one of roots. The
-// root itself is not inside it, so mounting the whole checkout is a grant.
+// stagedInside answers whether source, symlinks resolved, lies strictly
+// below one of roots, also resolved, and is not a unix socket. The root
+// itself is not inside it, so mounting the whole checkout is a grant, and a
+// symlink inside a root that points out of it is judged where it points.
 func stagedInside(source string, roots []string) bool {
-	clean := filepath.Clean(source)
+	resolved := resolvePath(source)
+	if info, err := os.Stat(resolved); err == nil && info.Mode()&os.ModeSocket != 0 {
+		return false
+	}
 	for _, root := range roots {
-		relative, err := filepath.Rel(filepath.Clean(root), clean)
+		relative, err := filepath.Rel(resolvePath(root), resolved)
 		if err != nil {
 			continue
 		}
@@ -189,6 +196,25 @@ func stagedInside(source string, roots []string) bool {
 		return true
 	}
 	return false
+}
+
+// resolvePath answers path cleaned, with every symlink in its longest
+// existing prefix resolved. A lab may name a file it has not rendered yet,
+// so the part that does not exist is kept as written below the resolved
+// prefix; it holds no symlink because it holds nothing.
+func resolvePath(path string) string {
+	clean := filepath.Clean(path)
+	missing := ""
+	for prefix := clean; ; prefix = filepath.Dir(prefix) {
+		resolved, err := filepath.EvalSymlinks(prefix)
+		if err == nil {
+			return filepath.Join(resolved, missing)
+		}
+		if prefix == filepath.Dir(prefix) {
+			return clean
+		}
+		missing = filepath.Join(filepath.Base(prefix), missing)
+	}
 }
 
 // privilegedValue answers whether a --privileged=<value> spelling grants

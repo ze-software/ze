@@ -1,6 +1,9 @@
 package grantcheck
 
 import (
+	"net"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -114,5 +117,72 @@ func TestProblemsCatchEveryExtraGrant(t *testing.T) {
 	problems := Problems(Parse(nil, []string{"--privileged"}), Grants{})
 	if len(problems) != 1 || !strings.Contains(problems[0], "--privileged") {
 		t.Errorf("--privileged reported as %v", problems)
+	}
+}
+
+// VALIDATES: ParsePeer judges a read-only mount where its source really is:
+// a symlink inside the staged root that points outside it is a grant, a
+// symlinked staged root still admits the files below it, and a unix socket
+// inside the root is a grant.
+// PREVENTS: a lab handing a container a host file or a service socket
+// through a path that only looks staged.
+func TestParsePeerResolvesSymlinksAndRefusesSockets(t *testing.T) {
+	base, err := os.MkdirTemp("", "gc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(base) }) //nolint:errcheck // test temp dir
+	root := filepath.Join(base, "lab")
+	outside := filepath.Join(base, "host")
+	for _, dir := range []string{root, outside} {
+		if err := os.Mkdir(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	staged := filepath.Join(root, "ze.conf")
+	secret := filepath.Join(outside, "secret")
+	for _, file := range []string{staged, secret} {
+		if err := os.WriteFile(file, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	escape := filepath.Join(root, "escape")
+	if err := os.Symlink(secret, escape); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(base, "alias")
+	if err := os.Symlink(root, alias); err != nil {
+		t.Fatal(err)
+	}
+	socket := filepath.Join(root, "s")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() }) //nolint:errcheck // test listener
+
+	want := Grants{Capabilities: []string{"NET_ADMIN"}}
+	peerWith := func(source string) interoplab.PeerConfig {
+		return interoplab.PeerConfig{
+			Capabilities: []string{"NET_ADMIN"},
+			Mounts:       []interoplab.Mount{{Source: source, Target: "/etc/ze/ze.conf", ReadOnly: true}},
+		}
+	}
+	for name, source := range map[string]string{
+		"staged file":             staged,
+		"staged through the root": filepath.Join(alias, "ze.conf"),
+		"not rendered yet":        filepath.Join(root, "later", "ze.conf"),
+	} {
+		if problems := Problems(ParsePeer(peerWith(source), alias), want); len(problems) != 0 {
+			t.Errorf("%s (%s) reported %v", name, source, problems)
+		}
+	}
+	for name, source := range map[string]string{
+		"symlink out of the root": escape,
+		"unix socket":             socket,
+	} {
+		if problems := Problems(ParsePeer(peerWith(source), root), want); len(problems) == 0 {
+			t.Errorf("%s (%s) passed the exact check", name, source)
+		}
 	}
 }
