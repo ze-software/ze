@@ -31,6 +31,17 @@ func init() {
 	// instead of rejecting them.
 	leroot.RegisterShape(area, command.ShapeMap)
 
+	// `le setup docker-kernel` is its own area: its install changes a host's
+	// boot kernel, so it never shares the `setup install` run (dockerkernel.go).
+	leroot.Register(dockerKernelArea, leroot.GroupWorkflow, DockerKernelAnswer, registry.Meta{
+		ShortHelp: "check the Docker daemon's kernel, or install Ze's kernel on a Linux Docker host",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  DockerKernelSubs,
+	})
+	leroot.RegisterActions(dockerKernelArea, DockerKernelActions)
+	leroot.RegisterShape(dockerKernelArea, command.ShapeDoc)
+
 	// No parity.Claim: setup has no migration-census gate, so it declares none
 	// of those rows.
 }

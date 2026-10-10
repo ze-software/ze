@@ -384,6 +384,9 @@ var excludedIntegrationPackages = map[string]string{
 		" through ./le job run as documented in docs/architecture/testing/interop.md",
 	"internal/le/test/deployment": "requires the host Docker daemon and privileged VPP containers;" +
 		" run TestVPPSRv6ServiceRoute through ./le job run as documented in docs/architecture/testing/interop.md",
+	"internal/le/test/qemu": "boots its own QEMU guest on the host (TestDockerLabGuestBootsZeKernel), so it" +
+		" cannot run inside one; run it on the host through ./le job run as documented in" +
+		" docs/architecture/testing/qemu-integration.md",
 }
 
 // optionalPackages are added when the directory is there. Each is a transport

@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -30,10 +31,21 @@ const (
 	kernelProbeTimeout = 2 * time.Minute
 	// kernelProbeMount is where the staged ze appears inside the probe container.
 	kernelProbeMount = "/ze"
-	// kernelInstallRoute is the repair a refusal names beside "a kernel with the
-	// feature" (owner D-5: Ze's own hosts run the appliance kernel).
-	kernelInstallRoute = "./le setup docker-kernel install"
 )
+
+// DockerKernelRoute answers the next step a refusal names for a reader on goos
+// (owner D-6). On Linux the labs run on the host's Docker, so the step is a
+// kernel with the feature or Ze's own (D-5) through the install action, which
+// never reboots. Elsewhere the labs run inside the Alpine QEMU guest booted on
+// Ze's runtime kernel, and the Linux-only install would refuse.
+func DockerKernelRoute(goos string) string {
+	if goos == "linux" {
+		return "Run Docker on a kernel with every feature, or install Ze's kernel with " +
+			"`./le setup docker-kernel install` and reboot."
+	}
+	return "On " + goos + ", run the lab inside the Ze-kernel QEMU guest: " +
+		"`./le test qemu docker-lab lab \"<le words>\"`."
+}
 
 // kernelProbeCommand is what the probe container runs. It is named in every
 // refusal, so an operator can run the same question by hand.
@@ -139,8 +151,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	refusal.Str("the Docker daemon's kernel ").Str(release).Str(" lacks ").Str(strconv.Itoa(count)).
 		Str(" kernel feature(s) Ze needs (`").Str(strings.Join(kernelProbeCommand, " ")).Str("` answered):").
 		Str(missing.String()).
-		Str("\nRun Docker on a kernel with every feature, or install Ze's kernel with `").
-		Str(kernelInstallRoute).Str("`.")
+		Byte('\n').Str(DockerKernelRoute(runtime.GOOS))
 	return errors.New(refusal.String())
 }
 

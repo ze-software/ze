@@ -346,7 +346,7 @@ func resolveKernelPackage(tree, work, arch string, progress io.Writer) (string, 
 		return copyKernelPackage(staged, work, arch)
 	}
 
-	cache, err := kernelCacheDir(tree, arch, progress)
+	cache, err := RuntimeKernelCacheDir(tree, arch, progress)
 	if err != nil {
 		return "", err
 	}
@@ -368,13 +368,13 @@ func resolveKernelPackage(tree, work, arch string, progress io.Writer) (string, 
 	return copyKernelPackage(staged, work, arch)
 }
 
-// kernelCacheDir asks the host ze where the runtime kernel for this architecture
+// RuntimeKernelCacheDir asks the host ze where the runtime kernel for this architecture
 // is cached.
 //
 // The host binary is built first because it owns this answer. The cache layout
 // is keyed by architecture and by the pinned version. A second statement of that
 // layout here would create a second thing to keep in step.
-func kernelCacheDir(tree, arch string, progress io.Writer) (string, error) {
+func RuntimeKernelCacheDir(tree, arch string, progress io.Writer) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), imageBuildTimeout)
 	defer cancel()
 

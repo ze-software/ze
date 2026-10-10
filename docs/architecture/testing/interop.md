@@ -363,7 +363,7 @@ It refuses when:
 
 | Answer | Refusal names |
 |--------|---------------|
-| a row is `absent` or `unknown` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the two repairs: a kernel with every feature, or `./le setup docker-kernel install` |
+| a row is `absent` or `unknown` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6): on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot, elsewhere the lab inside the Ze-kernel QEMU guest, `./le test qemu docker-lab` |
 | the container fails, or prints no JSON | the command it ran, its exit code, stdout and stderr |
 | the answer holds no row | the command it ran |
 | the suite names no staged ze | `Suite.StagedZe` |
@@ -386,6 +386,17 @@ The terminal-demo render (`le site terminal-demo render` and `render-all`) runs
 Ze in its validator and recorder containers, so it makes the same check with
 the demo binary (`tmp/terminal-demos/bin/ze`) after confirming that binary
 exists and before the renderer image is inspected or any container starts.
+
+`./le setup docker-kernel check ze <linux ze>` asks the daemon in hand the same
+question with any linux `ze`. `./le setup docker-kernel install` is the Linux
+route: it installs the cached runtime kernel for the host's architecture under
+`/boot` and `/lib/modules`, rebuilds the initramfs and the GRUB menu with the
+Debian tools, and saves the new entry as GRUB's default by its title. It
+refuses before any step unless `GRUB_DEFAULT=saved`, prints each `sudo` step
+before it runs it, and never reboots. Off Linux it refuses and names the guest
+route, `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).
+<!-- source: internal/le/setup/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute -->
 
 To ask a host by hand, stage ze with any lab once and run the command above.
 `TestDockerKernelCheckOnThisHost` (build tag `integration`) does that against

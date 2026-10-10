@@ -377,6 +377,34 @@ excludes every file behind it. On a host that is not Linux,
 `./le test unit installer` can only type-check them, so this virtual machine
 is where they run.
 
+## Docker labs in the Ze-kernel guest
+
+A Docker lab that runs Ze needs a Docker daemon whose kernel carries every
+feature Ze enrolls (`docs/architecture/testing/interop.md`, "The Docker host
+kernel check"). On Linux the labs run on the host's Docker. On macOS, and on the
+scheduled nightly, whose hosted runner kernel is too old, they run inside this
+VM booted on Ze's runtime kernel, with Docker inside it (owner D-6). Both use
+one action:
+
+```text
+./le test qemu docker-lab lab "test integration interop-ipsec" timeout 3600s
+```
+
+The action asks the host ze for the runtime-kernel cache entry of the guest's
+architecture (`ze appliance kernel --target runtime --arch <arch>
+--print-cache-dir`, the same answer the gokrazy proofs read), boots that entry's
+`vmlinuz`, and refuses before booting when the entry holds none, naming the
+build that writes it. It demands HVF or KVM, because a lab under TCG measures
+the emulator. The guest installs Alpine's `docker` package, starts dockerd
+through OpenRC, waits at most 60 seconds for `docker info`, runs
+`le setup docker-kernel check` with the guest le as the `ze` it probes with,
+and only then runs `le <lab>`. A failed step stops the line. With no `lab` it
+stops after the check, which is what `TestDockerLabGuestBootsZeKernel` (build
+tag `integration`, host only) runs to prove the guest boots, Docker starts and
+the kernel passes.
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel, dockerLabCommand -->
+<!-- source: internal/le/test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir -->
+
 ## Appliance first-boot storage import
 
 The host-side `install-test` action boots a fresh appliance through the HTTP

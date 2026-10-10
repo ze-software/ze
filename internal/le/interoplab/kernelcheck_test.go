@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -62,7 +63,7 @@ func TestDockerKernelRefusesNamingEveryMissingFeature(t *testing.T) {
 	if err == nil {
 		t.Fatal("a kernel lacking features was accepted")
 	}
-	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "invalid argument", "fake-later-enrolment", "CONFIG_FAKE", "6.8.0-117-generic", "./le setup docker-kernel install"} {
+	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "invalid argument", "fake-later-enrolment", "CONFIG_FAKE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not name %q: %v", want, err)
 		}
@@ -157,7 +158,7 @@ func TestSuiteRefusesDockerHostMissingAKernelFeature(t *testing.T) {
 	if !staged {
 		t.Error("the kernel check ran without the Preflight that stages ze")
 	}
-	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "6.8.0-117-generic", kernelInstallRoute} {
+	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
 		if !strings.Contains(report.SetupError, want) {
 			t.Errorf("setup error does not name %q: %s", want, report.SetupError)
 		}
@@ -216,5 +217,26 @@ func TestStagedZePathIsTheZeOutput(t *testing.T) {
 	}
 	if got := StagedZePath("/checkout", binaries[:1]); got != "" {
 		t.Errorf("a lab that stages no ze answered %q; Suite.Run refuses the empty answer", got)
+	}
+}
+
+// VALIDATES: AC-3 under D-6, the refusal names the next step the reader's
+// platform takes: the install action on Linux, the Ze-kernel QEMU guest on
+// macOS, where that install refuses.
+// PREVENTS: a Mac developer sent to an action that cannot run there.
+func TestDockerKernelRouteNamesEachPlatformsNextStep(t *testing.T) {
+	for goos, wants := range map[string][]string{
+		"linux":  {"./le setup docker-kernel install", "reboot"},
+		"darwin": {"./le test qemu docker-lab"},
+	} {
+		route := DockerKernelRoute(goos)
+		for _, want := range wants {
+			if !strings.Contains(route, want) {
+				t.Errorf("%s route %q does not name %q", goos, route, want)
+			}
+		}
+	}
+	if strings.Contains(DockerKernelRoute("darwin"), "docker-kernel install") {
+		t.Errorf("the darwin route names the Linux-only install: %s", DockerKernelRoute("darwin"))
 	}
 }
