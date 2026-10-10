@@ -181,3 +181,66 @@ func parseCommitSeconds(sub CommitSubcommand, rest []string) (int, error) {
 	}
 	return seconds, nil
 }
+
+// The answers every editor gives to a commit subcommand. They are declared
+// here once, beside the grammar, and built from its keywords, so the SSH, the
+// file-mode and the web editors cannot disagree (AC-29) and a renamed
+// subcommand renames every message that names it.
+const (
+	// CommitAccepted answers `commit accept`.
+	CommitAccepted = "Commit accepted: the confirmed configuration is saved permanently."
+	// CommitAborted answers `commit abort`.
+	CommitAborted = "Changes rolled back to previous configuration."
+	// CommitTimedOut reports a window its deadline reverted.
+	CommitTimedOut = "Timeout: configuration automatically rolled back."
+	// CommitNothingPending answers `commit now` with nothing to apply.
+	CommitNothingPending = "no changes to commit"
+	// commitNothingPendingNoWindow answers `commit confirmed <seconds>` with
+	// nothing to apply: no window opens, because it would revert nothing.
+	commitNothingPendingNoWindow = CommitNothingPending + ": no confirmed commit was opened"
+)
+
+// CommitCommand is how the subcommand for action is typed, `<seconds>`
+// included, with no force: `commit confirmed <seconds>`.
+func CommitCommand(action CommitAction) string {
+	return commitSubcommandFor(action).usage()
+}
+
+// CommitAcceptOrAbort names the two subcommands that end an open window.
+func CommitAcceptOrAbort() string {
+	return "Use '" + CommitCommand(CommitAccept) + "' or '" + CommitCommand(CommitAbort) + "'."
+}
+
+// ConfirmWithin is the window owner's countdown line.
+func ConfirmWithin(seconds int64) string {
+	return "Confirm within " + strconv.FormatInt(seconds, 10) + "s or auto-revert. " + CommitAcceptOrAbort()
+}
+
+// ForcedCommand is the command that commits req over validation warnings and
+// conflicts: the form a refusal names, so `commit confirmed` never points at
+// `commit now`.
+func ForcedCommand(req CommitRequest) string {
+	if req.Action == CommitConfirmed {
+		return "commit " + commitSubcommandFor(CommitConfirmed).Keyword + " " + strconv.Itoa(req.Seconds) + " " + CommitForce
+	}
+	return CommitCommand(CommitNow) + " " + CommitForce
+}
+
+// NothingToCommit answers req when the user has nothing pending: the commit
+// applies nothing and no window opens.
+func NothingToCommit(req CommitRequest) string {
+	if req.Action == CommitConfirmed {
+		return commitNothingPendingNoWindow
+	}
+	return CommitNothingPending
+}
+
+// commitSubcommandFor is the subcommand for action. Every action but
+// CommitActionUnspecified has one, so a miss is a defect in the table.
+func commitSubcommandFor(action CommitAction) CommitSubcommand {
+	idx := slices.IndexFunc(commitSubcommands, func(s CommitSubcommand) bool { return s.Action == action })
+	if idx < 0 {
+		panic("BUG: commit action with no subcommand")
+	}
+	return commitSubcommands[idx]
+}

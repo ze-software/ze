@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -23,7 +24,10 @@ var confirmLog = slogutil.Logger("config.confirm")
 var (
 	// ErrPending refuses the owner's `commit now [force]` and a plain nested
 	// `commit confirmed <seconds>` while the owner's window is open (AC-18 a).
-	ErrPending = errors.New("a confirmed commit is pending: use 'commit accept' to keep it, 'commit abort' to revert it, or 'commit confirmed <seconds> force' to add changes and reset the countdown")
+	ErrPending = errors.New("a confirmed commit is pending: use '" + contract.CommitCommand(contract.CommitAccept) +
+		"' to keep it, '" + contract.CommitCommand(contract.CommitAbort) + "' to revert it, or '" +
+		contract.CommitCommand(contract.CommitConfirmed) + " " + contract.CommitForce +
+		"' to add changes and reset the countdown")
 	// ErrNoWindow refuses `commit accept` and `commit abort` with no window open.
 	ErrNoWindow = errors.New("no confirmed commit is pending")
 	// ErrStopped answers every call once the window's worker has stopped.
@@ -31,17 +35,36 @@ var (
 )
 
 // OtherUserError refuses a user who does not own the open window (AC-18 b).
+// Revert is the error of the window's last failed deadline revert, nil while
+// it counts down.
 type OtherUserError struct {
-	Owner string
-	Left  time.Duration
+	Owner  string
+	Left   time.Duration
+	Revert error
 }
 
 func (e *OtherUserError) Error() string {
 	var tb textbuf.Buffer
+	if e.Revert != nil {
+		return tb.Str("a confirmed commit by ").Str(e.Owner).Str(" passed its deadline and its revert failed (").
+			Err(e.Revert).Str("): every other commit is refused until it reverts, or until ").Str(e.Owner).
+			Str(" runs '").Str(contract.CommitCommand(contract.CommitAbort)).Str("' to retry the revert or '").
+			Str(contract.CommitCommand(contract.CommitAccept)).Str("' to keep it").String()
+	}
 	return tb.Str("a confirmed commit by ").Str(e.Owner).Str(" is pending with ").
-		Int(int64(e.Left.Round(time.Second) / time.Second)).
+		Int(wholeSeconds(e.Left)).
 		Str(" seconds left: wait for its deadline, or have ").Str(e.Owner).
-		Str(" run 'commit accept' or 'commit abort'").String()
+		Str(" run '").Str(contract.CommitCommand(contract.CommitAccept)).Str("' or '").
+		Str(contract.CommitCommand(contract.CommitAbort)).Str("'").String()
+}
+
+// wholeSeconds rounds left to whole seconds, and a deadline already passed to
+// zero: a countdown never shows a negative number.
+func wholeSeconds(left time.Duration) int64 {
+	if left > 0 {
+		return int64(left.Round(time.Second) / time.Second)
+	}
+	return 0
 }
 
 // Pending is the persisted record of an open window: who opened it, when it
@@ -72,6 +95,31 @@ type Recorder interface {
 	Clear() error
 }
 
+// revertRetry bounds the retries of a failed deadline revert: the first
+// retry waits first, each next one doubles the wait up to max, and after
+// attemptsMax reverts in all the worker stops retrying and waits for the
+// owner's abort or accept, or a restart, which reverts from the record.
+type revertRetry struct {
+	first       time.Duration
+	max         time.Duration
+	attemptsMax int
+}
+
+// defaultRevertRetry tries a failed revert eight times over about two minutes.
+var defaultRevertRetry = revertRetry{first: time.Second, max: time.Minute, attemptsMax: 8}
+
+// wait is the delay before the retry that follows the attempts-th failure.
+func (r revertRetry) wait(attempts int) time.Duration {
+	wait := r.first
+	for range attempts - 1 {
+		wait *= 2
+		if wait >= r.max {
+			return r.max
+		}
+	}
+	return wait
+}
+
 // Window is the daemon's confirmed-commit window. NewWindow starts its one
 // worker goroutine, which owns the state and the deadline timer and runs every
 // request in order; Stop ends it. Safe for concurrent use: every method that
@@ -82,6 +130,7 @@ type Recorder interface {
 type Window struct {
 	revert   Reverter
 	record   Recorder
+	retry    revertRetry
 	requests chan func()
 	quit     chan struct{}
 	done     chan struct{}
@@ -90,28 +139,74 @@ type Window struct {
 	shown    atomic.Pointer[Status]
 	timeouts atomic.Uint64
 
-	// Owned by the worker goroutine alone.
-	pending *Pending
-	timer   *time.Timer
+	// Owned by the worker goroutine alone. revertErr and revertAttempts
+	// describe the failed deadline reverts of the open window: while
+	// revertErr is set, the timer, when set, is the next retry.
+	pending        *Pending
+	timer          *time.Timer
+	revertErr      error
+	revertAttempts int
 }
 
 // Status is what an editor shows of an open window: its owner, and the
-// deadline it reverts at.
+// deadline it reverts at. RevertFailed is the error of the last failed
+// deadline revert, nil while the window counts down; Retry is when the worker
+// tries the revert again, zero once its retries are spent.
 type Status struct {
-	User     string
-	Deadline time.Time
+	User         string
+	Deadline     time.Time
+	RevertFailed error
+	Retry        time.Time
 }
 
-// Left is the time until the window reverts.
+// Left is the time until the window reverts, and zero once the deadline has
+// passed.
 func (s Status) Left() time.Duration {
-	return time.Until(s.Deadline)
+	left := time.Until(s.Deadline)
+	if left > 0 {
+		return left
+	}
+	return 0
+}
+
+// Line is the status line an editor of viewer shows for the window: the
+// owner's countdown, another user's notice, or, after a failed revert, what
+// failed and what each user may do. While a revert is failing, every user but
+// the owner stays refused, because a commit they made would be wiped by the
+// revert that later succeeds; the owner may retry it with `commit abort` or
+// keep the configuration with `commit accept`.
+func (s Status) Line(viewer string) string {
+	var tb textbuf.Buffer
+	if s.RevertFailed != nil {
+		tb.Str("The deadline revert of the confirmed commit by ").Str(s.User).Str(" failed: ").Err(s.RevertFailed).Str(". ")
+		if s.Retry.IsZero() {
+			tb.Str("No retry is left. ")
+		} else {
+			tb.Str("Retrying in ").Int(wholeSeconds(time.Until(s.Retry))).Str("s. ")
+		}
+		if viewer == s.User {
+			return tb.Str("Use '").Str(contract.CommitCommand(contract.CommitAbort)).Str("' to retry the revert or '").
+				Str(contract.CommitCommand(contract.CommitAccept)).Str("' to keep this configuration.").String()
+		}
+		return tb.Str("Commits are refused until it reverts or ").Str(s.User).Str(" accepts it.").String()
+	}
+	if viewer == s.User {
+		return contract.ConfirmWithin(wholeSeconds(s.Left()))
+	}
+	return tb.Str("A confirmed commit by ").Str(s.User).Str(" is pending: ").Int(wholeSeconds(s.Left())).Str("s left.").String()
 }
 
 // NewWindow starts the window's worker. The caller MUST call Stop.
 func NewWindow(revert Reverter, record Recorder) *Window {
+	return newWindow(revert, record, defaultRevertRetry)
+}
+
+// newWindow is NewWindow with the retry bounds of a failed revert.
+func newWindow(revert Reverter, record Recorder, retry revertRetry) *Window {
 	w := &Window{
 		revert:   revert,
 		record:   record,
+		retry:    retry,
 		requests: make(chan func()),
 		quit:     make(chan struct{}),
 		done:     make(chan struct{}),
@@ -150,14 +245,36 @@ func (w *Window) run() {
 			request()
 		case <-deadline:
 			w.timer = nil
-			if err := w.restore(); err != nil {
-				confirmLog.Error("confirmed commit not accepted, and the revert failed", "error", err)
-				continue
-			}
-			w.timeouts.Add(1)
-			confirmLog.Info("confirmed commit not accepted: reverted to the previous configuration")
+			w.deadlineRevert()
 		}
 	}
+}
+
+// deadlineRevert reverts a window whose deadline, or whose revert retry, is
+// due. A failed revert keeps the window, its record and its refusals, and the
+// worker retries it within w.retry; the failure is logged at each attempt and
+// published in Status, so every editor shows it. Called on the worker.
+func (w *Window) deadlineRevert() {
+	err := w.restore()
+	if err == nil {
+		w.timeouts.Add(1)
+		confirmLog.Info("confirmed commit not accepted: reverted to the previous configuration")
+		return
+	}
+	w.revertErr = err
+	w.revertAttempts++
+	shown := Status{User: w.pending.User, Deadline: w.pending.Deadline, RevertFailed: err}
+	if w.revertAttempts < w.retry.attemptsMax {
+		wait := w.retry.wait(w.revertAttempts)
+		w.timer = time.NewTimer(wait)
+		shown.Retry = time.Now().Add(wait)
+		confirmLog.Error("confirmed commit not accepted, and the revert failed: retrying",
+			"user", w.pending.User, "attempt", w.revertAttempts, "retry-in", wait, "error", err)
+	} else {
+		confirmLog.Error("confirmed commit not accepted, and every revert failed: the owner must abort or accept it, or a restart reverts it",
+			"user", w.pending.User, "attempts", w.revertAttempts, "error", err)
+	}
+	w.shown.Store(&shown)
 }
 
 // do runs fn on the worker and returns its answer, or ErrStopped.
@@ -180,7 +297,7 @@ func (w *Window) refuse(user string) error {
 	if w.pending.User == user {
 		return ErrPending
 	}
-	return &OtherUserError{Owner: w.pending.User, Left: time.Until(w.pending.Deadline)}
+	return &OtherUserError{Owner: w.pending.User, Left: time.Until(w.pending.Deadline), Revert: w.revertErr}
 }
 
 // Now runs `commit now [force]`: refused while any window is open (AC-18).
@@ -208,39 +325,53 @@ func (w *Window) Confirmed(user string, seconds time.Duration, force bool, commi
 		if !force {
 			return ErrPending
 		}
-		if err := commit.Apply(); err != nil {
+		previous := *w.pending
+		next := previous
+		next.Deadline = time.Now().Add(seconds)
+		if err := w.record.Save(next); err != nil {
 			return err
 		}
-		next := *w.pending
-		next.Deadline = time.Now().Add(seconds)
-		return w.arm(next)
+		if err := commit.Apply(); err != nil {
+			return errors.Join(err, w.record.Save(previous))
+		}
+		w.arm(next)
+		return nil
 	})
 }
 
-// open snapshots, applies and arms a new window. Called on the worker.
+// open snapshots the running config and opens a window over commit. The
+// record is saved BEFORE the commit applies, so no commit is ever applied
+// with no revert behind it: a failed save applies nothing, and a daemon that
+// dies after the apply boots the rollback (AC-19). A commit that fails to
+// apply clears the record again. Called on the worker.
 func (w *Window) open(user string, seconds time.Duration, commit Commit) error {
 	rollback, err := commit.Snapshot()
 	if err != nil {
 		return err
 	}
-	if err := commit.Apply(); err != nil {
-		return err
-	}
-	return w.arm(Pending{User: user, Deadline: time.Now().Add(seconds), Rollback: rollback})
-}
-
-// arm records p and sets the timer to its deadline. Called on the worker.
-func (w *Window) arm(p Pending) error {
+	p := Pending{User: user, Deadline: time.Now().Add(seconds), Rollback: rollback}
 	if err := w.record.Save(p); err != nil {
 		return err
 	}
+	if err := commit.Apply(); err != nil {
+		return errors.Join(err, w.record.Clear())
+	}
+	w.arm(p)
+	return nil
+}
+
+// arm makes p, already recorded, the open window and sets the timer to its
+// deadline; a failed revert of the previous deadline is forgotten, because p
+// has a deadline of its own. Called on the worker.
+func (w *Window) arm(p Pending) {
 	if w.timer != nil {
 		w.timer.Stop()
 	}
 	w.pending = &p
+	w.revertErr = nil
+	w.revertAttempts = 0
 	w.shown.Store(&Status{User: p.User, Deadline: p.Deadline})
 	w.timer = time.NewTimer(time.Until(p.Deadline))
-	return nil
 }
 
 // Accept runs `commit accept`: the owner's open window closes and keeps what
@@ -299,6 +430,8 @@ func (w *Window) close() {
 		w.timer = nil
 	}
 	w.pending = nil
+	w.revertErr = nil
+	w.revertAttempts = 0
 	w.shown.Store(nil)
 }
 

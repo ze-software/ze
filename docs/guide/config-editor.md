@@ -391,9 +391,23 @@ apply, the countdown restarts at `<seconds>`, and an abort or a timeout restores
 the backup the first commit recorded.
 <!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, cmdCommitConfirmedNested -->
 
-The open window is recorded in the store. If the daemon stops while it is
-open, the next start reverts it before the configuration is read, so the
-daemon boots the configuration from before the unconfirmed commit.
+The open window is recorded in the store before the commit applies, so no
+commit is ever applied without its revert: a record that cannot be saved
+refuses the commit and applies nothing. If the daemon stops while the window
+is open, even just after the commit applied, the next start reverts it before
+the configuration is read, so the daemon boots the configuration from before
+the unconfirmed commit.
+
+If the revert at the deadline fails, the window stays open and its record
+stays in the store. The daemon logs each failure and retries with a doubling
+wait, from one second up to one minute, eight attempts in all. Every SSH
+session's status line says the revert failed, with the error and when the next
+retry runs, and every other user's commit is refused with the same error,
+because a commit made meanwhile would be wiped by the revert that later
+succeeds. The owner may run `commit abort` to retry the revert at once, or
+`commit accept` to keep the configuration and close the window. Once the
+retries are spent, the window waits for one of those two, or for a restart,
+which reverts from the record. The countdown never shows a negative number.
 <!-- source: internal/component/config/confirm/confirm.go -- Window, Confirmed, RecoverOnStart -->
 <!-- source: internal/component/config/confirm/store.go -- StoreRecorder -->
 <!-- source: internal/component/cli/commit_window.go -- WindowCommit.Run -->

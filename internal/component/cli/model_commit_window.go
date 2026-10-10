@@ -7,7 +7,6 @@ package cli
 
 import (
 	"errors"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config/confirm"
@@ -156,7 +155,8 @@ func (m *Model) windowReverted(msg string) commandResult {
 }
 
 // pollDaemonWindow is the draft poll's look at the daemon window. An open
-// window shows its owner and the seconds left (AC-17); a window this session
+// window shows its owner and the seconds left (AC-17), or that its deadline
+// revert failed and what each user may do; a window this session
 // saw open and that is now gone says how it ended (AC-14). It answers the
 // status line, and false when there is nothing to say.
 func (m *Model) pollDaemonWindow() (string, bool) {
@@ -171,12 +171,7 @@ func (m *Model) pollDaemonWindow() (string, bool) {
 				m.windowWatch = *watched
 			}
 		}
-		left := int64(status.Left().Round(time.Second) / time.Second)
-		var tb textbuf.Buffer
-		if status.User == m.editor.session.User {
-			return tb.Str("Confirm within ").Int(left).Str("s or auto-revert. Use 'commit accept' or 'commit abort'.").String(), true
-		}
-		return tb.Str("A confirmed commit by ").Str(status.User).Str(" is pending: ").Int(left).Str("s left.").String(), true
+		return status.Line(m.editor.session.User), true
 	}
 	if !m.windowWatch.open {
 		return "", false
