@@ -318,20 +318,22 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	zeArguments := ipv6Sysctls()
 	zeCommand := []string{"start", zeMountedConfig}
 	// A scenario carrying keepalived.conf runs ze as a VRRP router, and VRRP
-	// writes per-device sysctls on the virtual-MAC macvlan it creates at run
-	// time (applyDataplaneSysctls, internal/plugins/vrrp/dataplane_linux.go),
-	// so no `--sysctl` at container start can name them. Docker blocks the
-	// write twice in an unprivileged container: it mounts /proc/sys read-only
-	// (lifted by systempaths=unconfined), and its docker-default AppArmor
-	// profile denies writes under /proc/sys except kernel/ (measured
-	// 2026-09-27, the first alone answers "Permission denied"). AppArmor is
-	// never lifted (owner decision D-7): ze runs under the VRRP lab profile,
-	// which denies every /proc/sys write but the per-device conf trees. The
-	// net.* knobs stay confined to the container's own network namespace.
+	// writes sysctls once it knows its interface (applyDataplaneSysctls,
+	// internal/plugins/vrrp/dataplane_linux.go): per-device knobs on the
+	// virtual-MAC macvlan it creates at run time and on its parent, and the
+	// namespace-wide all.rp_filter and icmp_errors_use_inbound_ifaddr. No
+	// `--sysctl` at container start can name a device that does not exist
+	// yet. Docker blocks the write twice in an unprivileged container: it
+	// mounts /proc/sys read-only, and docker-default denies writes under
+	// /proc/sys except kernel/ (measured 2026-09-27, the first alone answers
+	// "Permission denied"). AppArmor is never lifted (owner decision D-7): ze
+	// takes the generic lab grant, which keeps every /proc/sys write outside
+	// net/ and every mount denied. The net.* knobs stay confined to the
+	// container's own network namespace.
 	appArmorProfile := ""
 	if regularFile(filepath.Join(scenario, "keepalived.conf")) {
-		zeArguments = append(zeArguments, "--security-opt", "systempaths=unconfined")
-		appArmorProfile = vrrpLabAppArmorProfileName
+		zeArguments = append(zeArguments, interoplab.NetSysctlWriteArguments()...)
+		appArmorProfile = interoplab.NetSysctlAppArmorProfileName
 	}
 	// A scenario carrying ze-reload.conf reloads ze mid-run, so ze must read a
 	// config file the checker can REPLACE. The mounted one is not it: every

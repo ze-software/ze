@@ -3,9 +3,9 @@
 //
 // `le setup docker-kernel apparmor` loads any registered Ze AppArmor profile on
 // a Linux Docker host. Its root steps never run here: the tests read the plan,
-// the refusals and the commands the lab refusals name. The blank import of the
-// BGP lab registers ze-lab-vrrp, so the registry holds more than the probe's
-// profile, as it does in the le binary.
+// the refusals and the commands the lab refusals name. interoplab registers the
+// generic lab profile ze-lab-net-sysctl, so the registry holds more than the
+// probe's profile, as it does in the le binary.
 
 package setup
 
@@ -18,7 +18,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/le/interoplab"
-	_ "github.com/ze-software/ze/internal/le/interoplab/bgp" // registers ze-lab-vrrp
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
@@ -79,7 +78,7 @@ func TestAppArmorLoadRefusesAHostThatCannotLoadIt(t *testing.T) {
 // file it installs holds the text the profile registers, for every profile.
 // PREVENTS: a profile loaded for this boot only, and a second copy of the text.
 func TestAppArmorLoadSteps(t *testing.T) {
-	for _, name := range []string{kernelcap.ProbeAppArmorProfileName, "ze-lab-vrrp"} {
+	for _, name := range []string{kernelcap.ProbeAppArmorProfileName, interoplab.NetSysctlAppArmorProfileName} {
 		t.Run(name, func(t *testing.T) {
 			profile, registered := interoplab.LookupAppArmorProfile(name)
 			if !registered {
@@ -124,7 +123,7 @@ func TestAppArmorLoadSteps(t *testing.T) {
 // nothing runs, and the refusal names the command that loads each registered
 // profile; every registered profile's own name is accepted and answers that
 // profile.
-// PREVENTS: a lab refusal naming `confirm ze-lab-vrrp`, which this action then
+// PREVENTS: a lab refusal naming `confirm ze-lab-net-sysctl`, which this action then
 // refuses.
 func TestAppArmorLoadNeedsConfirmation(t *testing.T) {
 	for _, value := range []string{"", "docker-default", "ze-kernel-probe-old"} {
@@ -139,7 +138,7 @@ func TestAppArmorLoadNeedsConfirmation(t *testing.T) {
 			}
 		}
 	}
-	for _, name := range []string{kernelcap.ProbeAppArmorProfileName, "ze-lab-vrrp"} {
+	for _, name := range []string{kernelcap.ProbeAppArmorProfileName, interoplab.NetSysctlAppArmorProfileName} {
 		profile, err := appArmorLoadConfirmed(name)
 		if err != nil {
 			t.Errorf("the profile's own name %s refused: %v", name, err)

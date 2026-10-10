@@ -219,8 +219,10 @@ kernel that lacks one.
   probe under Ze's `ze-kernel-probe` profile, because Docker's `docker-default`
   denies what the probe does; `./le setup docker-kernel apparmor confirm
   ze-kernel-probe` installs and loads it, one stated `sudo` step at a time. The
-  VRRP interop scenarios run ze under `ze-lab-vrrp` the same way, loaded with
-  `./le setup docker-kernel apparmor confirm ze-lab-vrrp`; the action with no
+  lab peers that write their network sysctls while they run (the VRRP
+  scenarios' ze, strongSwan in some IPsec scenarios) run under the one generic
+  profile `ze-lab-net-sysctl` the same way, loaded with
+  `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl`; the action with no
   `confirm` lists every profile and the steps each one runs.
 
 `docs/architecture/testing/qemu-integration.md`, "Docker labs in the Ze-kernel

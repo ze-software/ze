@@ -389,14 +389,8 @@ profile in `PeerConfig.AppArmorProfile`. On a daemon that applies AppArmor the
 container starts with `--security-opt apparmor=<name>`; on a Linux client whose
 profile list lacks it, the lab refuses before the container starts, naming
 `./le setup docker-kernel apparmor confirm <name>`; on a daemon that applies no
-AppArmor the option is left out. The VRRP scenarios' ze (any scenario carrying
-`keepalived.conf`) runs under `ze-lab-vrrp`: VRRP writes per-device sysctls under
-`/proc/sys/net/ipv4/conf/` and `/proc/sys/net/ipv6/conf/` once it knows its
-interface, so the container keeps `systempaths=unconfined` (Docker mounts
-`/proc/sys` read-only otherwise) and the profile, docker-default with its
-`/proc/sys` write denials narrowed to `net/ipv[46]/conf/`, keeps every other
-`/proc/sys` write and every mount denied. `ze-kernel-probe` and `ze-lab-vrrp`
-parse with `apparmor_parser -Q` 4.0.1 (Ubuntu 24.04).
+AppArmor the option is left out. `ze-kernel-probe` parses with `apparmor_parser -Q`
+4.0.1 (Ubuntu 24.04).
 
 A lab peer runs with no more than its daemon needs, never `--privileged`
 (`plan/pre-release/spec-lab-containers-least-privilege.md`). A sysctl set once
@@ -405,7 +399,15 @@ peer's own network namespace. A sysctl written while the peer runs takes
 `interoplab.NetSysctlWriteArguments` (`systempaths=unconfined`) together with
 the generic profile `ze-lab-net-sysctl`, which is docker-default with every
 `/proc/sys` write denied outside `net/` and every mount denied; any lab names it,
-none defines its own copy. In the IPsec lab the NAT box, strongSwan and ze hold
+none defines its own copy (owner, 2026-10-10: one shared profile granting only
+what the labs together need). The VRRP scenarios' ze (any scenario carrying
+`keepalived.conf`) is such a peer: once it knows its interface VRRP writes the
+per-device knobs under `net/ipv4/conf/` and `net/ipv6/conf/` and the
+namespace-wide `net/ipv4/conf/all/rp_filter` and
+`net/ipv4/icmp_errors_use_inbound_ifaddr` (`applyDataplaneSysctls`,
+`internal/plugins/vrrp/dataplane_linux.go`), and
+`TestVRRPWritesOnlyLabGrantedSysctls` records every write it makes and checks
+the profile grants each. In the IPsec lab the NAT box, strongSwan and ze hold
 `NET_ADMIN`; the NAT box sets its three sysctls through `--sysctl`; strongSwan
 runs under `ze-lab-net-sysctl` only in a scenario named in `peerSysctlWriters`
 (`internal/le/interoplab/ipsec/checkers.go`), whose checker cuts its reassembly
@@ -416,7 +418,8 @@ accel-ppp and the pppd client the same two, its preflight probes the same way,
 and no PPPoE image installs `kmod` or runs `modprobe`.
 
 <!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing -->
-<!-- source: internal/le/interoplab/bgp/register_apparmor.go -- vrrpLabAppArmorProfile -->
+<!-- source: internal/le/interoplab/apparmor_netsysctl.go -- NetSysctlAppArmorProfileName, NetSysctlGranted -->
+<!-- source: internal/plugins/vrrp/dataplane_linux.go -- applyDataplaneSysctls -->
 
 The check runs after the preflight, because it needs the staged ze, and before
 the first image build, so a refused host costs no build and counts no scenario.

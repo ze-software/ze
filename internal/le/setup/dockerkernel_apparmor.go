@@ -7,7 +7,8 @@
 // Docker host whose daemon applies AppArmor (D-7). A lab container that needs
 // more than Docker's docker-default profile grants runs under a Ze profile that
 // grants exactly that, never unconfined: the Docker kernel check's probe under
-// ze-kernel-probe, the VRRP scenario's ze under ze-lab-vrrp. Every profile
+// ze-kernel-probe, a lab peer that writes its network sysctls at run time (the
+// VRRP scenarios' ze among them) under ze-lab-net-sysctl. Every profile
 // registers in interoplab, so this action loads any of them and lists them all.
 // The profile goes into /etc/apparmor.d, so it loads again at boot, and is
 // loaded with apparmor_parser through sudo, one printed step at a time, only
