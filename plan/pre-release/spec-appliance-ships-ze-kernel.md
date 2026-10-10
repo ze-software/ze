@@ -559,7 +559,7 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 |-------|-------|
 | Artifact | round 1: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r1-appliance-ships-ze-kernel.md` (0 BLOCKER, 6 ISSUE, 8 NOTE); every finding fixed or recorded below; ready for independent review round 2 |
 | `./le spec review check` | not run |
-| Rounds | 2 (round 1 preceded by a partial pass the owner interrupted, whose ISSUE is row 1 below); round 2 artifact `scratch/review-r2-appliance-ships-ze-kernel.md` (0 BLOCKER, 3 ISSUE, 6 NOTE), fixes in "Round 2 fixes"; round 3 owed over dc501faa9f, 5ffef6eedc, 248d1ed071, 8949969c96 |
+| Rounds | 2 (round 1 preceded by a partial pass the owner interrupted, whose ISSUE is row 1 below); round 2 artifact `scratch/review-r2-appliance-ships-ze-kernel.md` (0 BLOCKER, 3 ISSUE, 6 NOTE), fixes in "Round 2 fixes"; round 3 artifact `scratch/review-r3-appliance-ships-ze-kernel.md` (0 BLOCKER, 4 ISSUE, 9 NOTE) over dc501faa9f, 5ffef6eedc, 248d1ed071, 8949969c96, 9bcaef2d4e, fixes in "Round 3 fixes"; round 4 owed over 590760235b, e308e4cdb2, b3f4b0c3bb |
 | Reviewer lenses used | round 1: logic+wiring (resolver to image), supply chain (digest pin, notice), cache safety |
 
 ### Round 1 fixes
@@ -613,6 +613,33 @@ Docker-root evidence on a real host: measured 2026-10-10 20:15 on `ssh claude` (
 Both cached runtime kernels (arm64 `...-d826e25e` and the amd64 entries) are stale since dc501faa9f; the next build of each arch rebuilds, and the arm64 config owes the 128-symbol check again.
 
 Ready for independent review round 3, over dc501faa9f, 5ffef6eedc, 248d1ed071, 8949969c96.
+
+### Round 3 fixes
+Artifact: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r3-appliance-ships-ze-kernel.md` (0 BLOCKER, 4 ISSUE, 9 NOTE), over dc501faa9f, 5ffef6eedc, 248d1ed071, 8949969c96, 9bcaef2d4e.
+
+| Finding | Fixed by | What changed |
+|---------|----------|--------------|
+| ISSUE 1 (key guard one-way: methods, types and host-side code that writes what the build receives went unchecked) | 590760235b, e308e4cdb2 | `recipe.go` holds `Request`, `containerBuildArgs` (the `docker build` argv), `guestWorkerBuild` (the worker's compile argv and env), `normalizeRequest` (the request rewrite and defaults) and `targetModules`; the appliance passes no builder dir, common dir or modules. `TestKernelCacheKeyCoversEveryBuildInput` reads `go/types` uses, so a type, method or field reference to host-side code is caught; `TestHostSideNeverWritesTheRequest`, exact argv in `TestRunDockerArgvAndOwnershipRepair`, `TestBuildGuestWorkerTakesTheRecipe`, `TestTargetDecidesModules`; 8 mutations red (`scratch/r3fix/mut.log`, `mut7.log`); weakened row for the guard's rewrite. e308e4cdb2 is the lint pass over `recipe.go` (`buildVerb`), the last keyed edit |
+| ISSUE 2 (backend shares a key; page said firmware was the only unkeyed input) | 590760235b | `kernelCacheVariantFor` keys `kernelbuilder.PreferredBackend(builder)`; `TestKernelCacheKeyCarriesTheBackend`. `build-artifacts.md` carries the key table and a not-in-key table (firmware, unpinned `FROM` images, apt, apk, the fetched ISO checksum); journal row in `plan/journal/stale-artifact-reused.md` for the unpinned toolchain |
+| ISSUE 3 (foreign-arch fix filled another host's cache; the gokrazy image command never pre-checked) | b3f4b0c3bb | `GokrazyRuntimeKernelReachable` runs in `prepareArgs` before the kernel resolver; `foreignArchKernelError.forGokrazy` ends with `GOARCH=<host>` and the same args, shell-quoted; `TestForeignArchRefusedBeforeTheKernel` |
+| ISSUE 4 (SSH never answered, no command) | b3f4b0c3bb | `errSSHNeverAnswered` ends with the QEMU command that boots the same VM and the `sshd -d` hint |
+| NOTE 1 (an exited QEMU reported as a boot timeout) | b3f4b0c3bb | `errBootFailed` takes the process state and reports an exit with its status |
+| NOTE 2 (hashing failure fell back to an unhashed key) | 590760235b | `kernelCacheVariantFor` returns an error with its fix; no fallback key; `TestKernelCacheKeyRefusesWhatItCannotHash` (3 steps) |
+| NOTE 3 (third-party imports and `go.sum` not keyed) | recorded | not changed: `recipe.go` and `worker.go` import only the standard library and `internal/core` `textbuf` and `tmplink`, so no third-party package reaches the build today. A future third-party import owes `go.sum` in the key |
+| NOTE 4 (var initializers with side effects in host-only imports unchecked) | recorded | not changed: the guard checks `init` only, and no host-only import compiled into the worker has a side-effecting var initializer today |
+| NOTE 5 (no replacement for "hashed files hold no non-build code") | recorded | not changed: host-side code in a hashed file costs a needless rebuild, never a wrong kernel, so correctness does not depend on it |
+| NOTE 6 (CheckArch refusals named no command; `--dir` unquoted) | b3f4b0c3bb | refusals end with `ze appliance kernel --arch <host>`; `forInstance` quotes dir and name through `shellArg` |
+| NOTE 7 (`runtime.GOARCH` for the installer kernel lookup) | 590760235b | `cmd_iso.go` uses `kernelbuilder.HostArch` |
+| NOTE 8 (doctor code outside `codes.go`; any `go.mod` in the working directory trusted) | b3f4b0c3bb; first half recorded | `goDirective` refuses a `go.mod` whose module is not Ze's, read from the appliance package's import path. The code stays in `doctor_checks.go` with its five appliance siblings, none of which is in `internal/core/diagnostic/codes.go`; e308e4cdb2 names it once as `doctorKernelCode` |
+| NOTE 9 (a canceled build reported as a hung probe) | b3f4b0c3bb | `availableAccelerators` and `dockerRootDir` say the kernel build was canceled on `context.Canceled` |
+
+-> Decision: the build backend is part of the key, since Docker (Debian bookworm gcc) and QEMU (Alpine 3.21 gcc) compile different bytes. Toolchain drift upstream (unpinned images and packages) is journaled, not pinned: pinning is outside the owner's agreed scope for this spec.
+
+Cache key final at e308e4cdb2 (last commit touching `recipe.go`, `worker.go` or `tools/kernel-builder`). Both cached runtime kernels are stale again since 590760235b; the next build of each arch rebuilds.
+
+Scoped lint (`./internal/appliance/... ./internal/le/build/gokrazy/...`): 0 issues on darwin and linux-integration, 2026-10-10 (`scratch/r3fix/lint5.log`). `internal/appliance`, `internal/appliance/kernelbuilder` and `internal/le/build/gokrazy` pass `-race` with the gate tags (`scratch/r3fix/t4.log`).
+
+Ready for independent review round 4, over 590760235b, e308e4cdb2, b3f4b0c3bb.
 
 ## Pre-Commit Verification
 
