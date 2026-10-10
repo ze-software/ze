@@ -1132,8 +1132,9 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// matchCommandTokens walks only the KEY's tokens and never checks that
 		// the input is exhausted: it returns the unmatched tail as args and
 		// reports a successful match. When the matched node has no leaves it has
-		// no ArgDefs, so the validation below is skipped and the tail is handed
-		// to a handler that may ignore it. `show l2tp --user alice tunnels` then
+		// no ArgDefs, so ValidateArgs (which runs for every matched command)
+		// iterates nothing and passes the tail through unchanged to a handler
+		// that may ignore it. `show l2tp --user alice tunnels` then
 		// matches `show l2tp`, whose handler takes `_ command.ValidatedArgs`, and the operator
 		// silently gets the summary for the DEFAULT user with exit 0.
 		//
