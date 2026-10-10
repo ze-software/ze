@@ -120,7 +120,7 @@ The codegen (`internal/le/plugin/imports.Write`) scans the directory tree for:
 
 - Packages containing `yang.RegisterModule` calls -> adds to `all.go` schema imports
 - Packages containing `pluginserver.RegisterRPCs` calls -> adds to `all.go` RPC imports
-- Packages calling a `command/registry` registrar -> adds to `all.go` CLI command imports
+- Packages calling a `command` or `command/registry` registrar, resolved through the file's imports -> adds to `all.go` CLI command imports
 - `yang/` directories containing `.yang` files -> generates `embed.go` + `register.go`
 
 Because discovery is directory-based, copying a plugin folder in (or deleting it)
@@ -227,7 +227,10 @@ func init() {
 The package must be blank-imported (directly or transitively) from
 `internal/component/plugin/all/all.go`. The codegen scans for packages
 containing `pluginserver.RegisterRPCs` or `yang.RegisterModule` calls, or a
-`command/registry` registrar call, and generates the import list.
+`command` or `command/registry` registrar call, and generates the import list.
+A registrar call counts when its qualifier names an import of one of those two
+packages (under any alias, or unqualified through a dot import); the two
+declaring packages are never owners themselves.
 
 ## What the Removal Test Forbids
 

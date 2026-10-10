@@ -220,16 +220,11 @@ func TestGeneratedImportsCoverTodaysHandList(t *testing.T) {
 	}
 }
 
-// commandRegistryDir declares the registry whose registrars commandRegistrars
-// matches. It is the anchor: a directory that stops resolving fails this test
-// rather than leaving it asserting nothing.
-const commandRegistryDir = "internal/component/command/registry"
-
-// notACommandRegistrar names the exported registrars of that package which
-// register something OTHER than a command, so a package calling only one of
-// them owns no command and needs no blank import.
+// notACommandRegistrar names the exported registrars of the packages
+// commandRegistrars covers which register something OTHER than a command, so a
+// package calling only one of them owns no command and needs no blank import.
 //
-// This is a list of DECISIONS rather than a copy of the package's contents,
+// This is a list of DECISIONS rather than a copy of the packages' contents,
 // which is the distinction the enumeration gate itself turns on: each row is a
 // judgement a reader can check against the function, and a registrar this list
 // does not name is one a command owner can be reached through.
@@ -238,63 +233,83 @@ var notACommandRegistrar = map[string]string{
 	// (internal/component/command/registry/flags.go). It creates no command, so
 	// a package calling only it registers nothing to dispatch to.
 	"RegisterCommandFlags": "records the flags of a command another registrar declared",
+	// The command package's presentation and argument registrars each decorate
+	// a command path some other registrar declared: aliases, answer shapes and
+	// address fields, column orders, pipe filters, and the source of argument
+	// definitions. None creates a path to dispatch to.
+	"RegisterAliases":       "names another spelling of a command another registrar declared",
+	"RegisterPluginAliases": "names another spelling of a plugin command another registrar declared",
+	"RegisterShape":         "records the answer shape of a command another registrar declared",
+	"RegisterAddressFields": "records the address fields of a command another registrar declared",
+	"RegisterPluginShapes":  "records the answer shapes of a plugin's commands, declared elsewhere",
+	"RegisterColumns":       "records the column order of a command another registrar declared",
+	"RegisterPipeFilters":   "records the pipe filters of a command another registrar declared",
+	"RegisterArgDefSource":  "installs the source the argument judgment reads, for every command",
 }
 
-// VALIDATES: commandRegistrars names every exported registrar of
-// internal/component/command/registry that can declare a command.
+// VALIDATES: commandRegistrars names every exported registrar of each
+// package it covers that can declare a command.
 // PREVENTS: the silent half of the fifth discovery kind. discoverRootHandlers
-// matches registrar calls as TEXT, so a registrar added to that package and not
-// added here makes every owner using it invisible: the package links nowhere,
-// `ze <command>` answers "unknown command", and the build, the lint and every
-// gate stay green. This test is what turns that silence into a red.
+// matches only the registrars commandRegistrars lists, so a registrar added to
+// one of those packages and not added there makes every owner using it
+// invisible: the package links nowhere, `ze <command>` answers "unknown
+// command", and the build, the lint and every gate stay green. This test is
+// what turns that silence into a red.
 func TestEveryCommandRegistrarIsMatched(t *testing.T) {
 	root := treeRoot(t)
-	dir := filepath.Join(root, filepath.FromSlash(commandRegistryDir))
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read %s: %v", commandRegistryDir, err)
+	if len(commandRegistrars) == 0 {
+		t.Fatal("commandRegistrars covers no package, so this test asserted nothing")
 	}
+	for dirRel, names := range commandRegistrars {
+		t.Run(dirRel, func(t *testing.T) {
+			dir := filepath.Join(root, filepath.FromSlash(dirRel))
 
-	matched := make(map[string]bool, len(commandRegistrars))
-	for _, call := range commandRegistrars {
-		matched[strings.TrimSuffix(strings.TrimPrefix(call, "."), "(")] = true
-	}
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				t.Fatalf("read %s: %v", dirRel, err)
+			}
 
-	fset := token.NewFileSet()
-	registrars := 0
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		file, parseErr := parser.ParseFile(fset, filepath.Join(dir, name), nil, parser.SkipObjectResolution)
-		if parseErr != nil {
-			t.Fatalf("parse %s/%s: %v", commandRegistryDir, name, parseErr)
-		}
-		for _, decl := range file.Decls {
-			fn, isFunc := decl.(*ast.FuncDecl)
-			if !isFunc || fn.Recv != nil || !fn.Name.IsExported() {
-				continue
+			matched := make(map[string]bool, len(names))
+			for _, name := range names {
+				matched[name] = true
 			}
-			if !strings.HasPrefix(fn.Name.Name, "Register") && !strings.HasPrefix(fn.Name.Name, "MustRegister") {
-				continue
-			}
-			registrars++
-			if matched[fn.Name.Name] {
-				continue
-			}
-			if why, declared := notACommandRegistrar[fn.Name.Name]; declared {
-				t.Logf("%s is not a command registrar: %s", fn.Name.Name, why)
 
-				continue
-			}
-			t.Errorf("%s.%s registers a command and commandRegistrars does not match it; every owner calling it links nowhere and `ze <command>` answers unknown command",
-				commandRegistryDir, fn.Name.Name)
-		}
-	}
+			fset := token.NewFileSet()
+			registrars := 0
+			for _, entry := range entries {
+				name := entry.Name()
+				if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+					continue
+				}
+				file, parseErr := parser.ParseFile(fset, filepath.Join(dir, name), nil, parser.SkipObjectResolution)
+				if parseErr != nil {
+					t.Fatalf("parse %s/%s: %v", dirRel, name, parseErr)
+				}
+				for _, decl := range file.Decls {
+					fn, isFunc := decl.(*ast.FuncDecl)
+					if !isFunc || fn.Recv != nil || !fn.Name.IsExported() {
+						continue
+					}
+					if !strings.HasPrefix(fn.Name.Name, "Register") && !strings.HasPrefix(fn.Name.Name, "MustRegister") {
+						continue
+					}
+					registrars++
+					if matched[fn.Name.Name] {
+						continue
+					}
+					if why, declared := notACommandRegistrar[fn.Name.Name]; declared {
+						t.Logf("%s is not a command registrar: %s", fn.Name.Name, why)
 
-	if registrars == 0 {
-		t.Fatalf("no exported registrar was found in %s, so this test asserted nothing", commandRegistryDir)
+						continue
+					}
+					t.Errorf("%s.%s registers a command and commandRegistrars does not match it; every owner calling it links nowhere and `ze <command>` answers unknown command",
+						dirRel, fn.Name.Name)
+				}
+			}
+
+			if registrars == 0 {
+				t.Fatalf("no exported registrar was found in %s, so this test asserted nothing", dirRel)
+			}
+		})
 	}
 }

@@ -8,7 +8,8 @@
 //   - a schema package: a yang/ or schema/ register.go importing config/yang
 //   - an RPC command package: a file calling pluginserver.RegisterRPCs
 //   - an event namespace: a file calling .RegisterNamespace(
-//   - a CLI command owner: a file calling a command/registry registrar
+//   - a CLI command owner: a file calling a command or command/registry
+//     registrar, resolved through its imports
 //
 // A package feature-gates.txt gates leaves the universal all.go for a generated
 // all_<tag>.go carrying that tag's //go:build line, so a build without the tag
@@ -24,6 +25,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -540,55 +542,102 @@ func discoverNamespaces(root, module string) ([]string, error) {
 	return imports, nil
 }
 
-// commandRegistrars are the calls that put a CLI command into
-// internal/component/command/registry: a root command, a local command path, a
-// local data command, or an offline fallback.
+// commandRegistrars names, for each package below the module that declares
+// command registrars, the calls that put a CLI command into the command
+// registry: a root command (command/registry), a local command path, a local
+// data command, or an offline fallback (command).
 //
-// Each is matched as a SELECTOR, with its leading dot, for two reasons. An
-// aliased import matches, and internal/component/plugin/register.go spells the
-// package cmdregistry. And the registry's own declarations do not match,
-// because "func RegisterLocal(" carries no dot.
-var commandRegistrars = []string{
-	".MustRegisterLocal(",
-	".MustRegisterLocalData(",
-	".MustRegisterLocalMeta(",
-	".MustRegisterOfflineFallback(",
-	".MustRegisterRootHandler(",
-	".RegisterLocal(",
-	".RegisterLocalData(",
-	".RegisterLocalMeta(",
-	".RegisterOfflineFallback(",
-	".RegisterRoot(",
-	".RegisterRootHandler(",
+// A call is matched by RESOLUTION rather than by its text: the callee's
+// package qualifier has to name an import of one of these packages, under
+// whatever name the file gives it (internal/component/plugin/register.go spells
+// command/registry as cmdregistry), or the file has to dot-import that package
+// and call the registrar unqualified. Two consequences follow. A selector on an
+// unrelated package that happens to share a registrar's name is not a
+// registration. And the declaring packages themselves are not command owners:
+// command.RegisterLocalData calling RegisterLocalMeta in its own package is
+// registry plumbing run on another package's behalf, and command declares no
+// init() of its own, so the composition root has no reason to name it.
+var commandRegistrars = map[string][]string{
+	"internal/component/command": {
+		"MustRegisterLocal",
+		"MustRegisterLocalData",
+		"MustRegisterLocalMeta",
+		"MustRegisterOfflineFallback",
+		"RegisterLocal",
+		"RegisterLocalData",
+		"RegisterLocalMeta",
+		"RegisterOfflineFallback",
+	},
+	"internal/component/command/registry": {
+		"MustRegisterRootHandler",
+		"RegisterRoot",
+		"RegisterRootHandler",
+	},
 }
 
-// callsCommandRegistrar reports whether path holds a CALL to a command
-// registrar, rather than a comment about one.
+// callsCommandRegistrar reports whether pathname holds a CALL to a command
+// registrar, resolved through the file's imports, rather than a comment, a
+// string, or a same-named function of another package.
 //
-// A file that cannot be opened, or whose scan ends early, is an ERROR for the
-// reason fileHolds gives: answering false is indistinguishable from a file that
-// registers nothing, and it drops the command from the composition root.
-func callsCommandRegistrar(pathname string) (bool, error) {
-	f, err := os.Open(pathname) //nolint:gosec // a build tool reads the checkout it was pointed at
+// A file that cannot be read or parsed is an ERROR for the reason fileHolds
+// gives: answering false is indistinguishable from a file that registers
+// nothing, and it drops the command from the composition root.
+func callsCommandRegistrar(pathname, module string) (bool, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, pathname, nil, parser.SkipObjectResolution)
 	if err != nil {
 		return false, err
 	}
-	defer f.Close() //nolint:errcheck // read-only
 
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "//") {
+	// qualified maps the name this file gives each registrar package to the
+	// registrars it declares; unqualified holds those of a dot-imported one.
+	qualified := map[string][]string{}
+	var unqualified []string
+	for _, spec := range file.Imports {
+		imported, unquoteErr := strconv.Unquote(spec.Path.Value)
+		if unquoteErr != nil {
+			return false, unquoteErr
+		}
+		rel, below := strings.CutPrefix(imported, module+"/")
+		names, declares := commandRegistrars[rel]
+		if !below || !declares {
 			continue
 		}
-		for _, call := range commandRegistrars {
-			if strings.Contains(line, call) {
-				return true, nil
-			}
+		local := path.Base(rel)
+		if spec.Name != nil {
+			local = spec.Name.Name
+		}
+		switch local {
+		case "_":
+		case ".":
+			unqualified = append(unqualified, names...)
+		default:
+			qualified[local] = names
 		}
 	}
+	if len(qualified) == 0 && len(unqualified) == 0 {
+		return false, nil
+	}
 
-	return false, scanner.Err()
+	calls := false
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, isCall := n.(*ast.CallExpr)
+		if calls || !isCall {
+			return !calls
+		}
+		switch fun := call.Fun.(type) {
+		case *ast.SelectorExpr:
+			if pkg, isIdent := fun.X.(*ast.Ident); isIdent && slices.Contains(qualified[pkg.Name], fun.Sel.Name) {
+				calls = true
+			}
+		case *ast.Ident:
+			calls = slices.Contains(unqualified, fun.Name)
+		}
+
+		return !calls
+	})
+
+	return calls, nil
 }
 
 // pkgSkipsCodegen reports whether any non-test Go file of dir carries the
@@ -744,7 +793,7 @@ func discoverRootHandlers(root, module string, cycling map[string]bool) ([]strin
 			return nil
 		}
 
-		calls, readErr := callsCommandRegistrar(pathname)
+		calls, readErr := callsCommandRegistrar(pathname, module)
 		if readErr != nil {
 			return readErr
 		}

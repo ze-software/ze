@@ -5,6 +5,7 @@ package pluginimports
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -453,7 +454,8 @@ func TestUnimportedRootHandlerIsReported(t *testing.T) {
 	// normally lives: the component owns the command, and pluginDirs states
 	// where a PLUGIN may live rather than where a command owner may.
 	write(t, root, "internal/component/firewall/cli/register.go",
-		"package cli\n\nfunc init() {\n\tregistry.MustRegisterRootHandler(\"firewall\", dispatch, registry.Meta{})\n}\n")
+		"package cli\n\nimport (\n\t\""+registryImport+"\"\n)\n\n"+
+			"func init() {\n\tregistry.MustRegisterRootHandler(\"firewall\", dispatch, registry.Meta{})\n}\n")
 
 	report, code := runCheck(root)
 	if code != 1 {
@@ -472,6 +474,46 @@ func TestUnimportedRootHandlerIsReported(t *testing.T) {
 	}
 }
 
+// registryImport and commandImport are the fixture's spellings of the two
+// packages that declare command registrars.
+const (
+	registryImport = module + "/internal/component/command/registry"
+	commandImport  = module + "/internal/component/command"
+)
+
+// VALIDATES: a command owner is found by what its registrar call RESOLVES to
+// through the file's imports, not by the call's text.
+// PREVENTS: three wrong answers the textual ".RegisterRoot(" match gave. A
+// dot-imported registrar called unqualified was missed, so its owner linked
+// nowhere. A same-named function of an unrelated package, and the registry
+// package's own plumbing calling a registrar on another package's behalf, were
+// each taken for a command owner and blank-imported for no init().
+func TestCommandOwnerIsFoundByResolution(t *testing.T) {
+	root := fixture(t)
+	write(t, root, "internal/component/firewall/cli/register.go",
+		"package cli\n\nimport . \""+commandImport+"\"\n\n"+
+			"func init() {\n\tMustRegisterLocal(\"firewall show\", show)\n}\n")
+	write(t, root, "internal/component/widget/cli/register.go",
+		"package cli\n\nimport cmdregistry \""+registryImport+"\"\n\n"+
+			"func init() {\n\tcmdregistry.MustRegisterRootHandler(\"widget\", run, cmdregistry.Meta{})\n}\n")
+	write(t, root, "internal/component/other/thing/thing.go",
+		"package thing\n\nimport \""+module+"/internal/component/other/registry\"\n\n"+
+			"// registry.RegisterRoot(\"x\") in a comment registers nothing.\n"+
+			"var s = \"registry.RegisterRoot(\"\n\n"+
+			"func init() {\n\tregistry.RegisterRoot(\"thing\")\n}\n")
+	write(t, root, "internal/component/command/local_data.go",
+		"package command\n\nfunc RegisterLocalData(path string) error {\n\treturn RegisterLocalMeta(path)\n}\n")
+
+	found, err := derive(root)
+	if err != nil {
+		t.Fatalf("derive: %v", err)
+	}
+	want := []string{module + "/internal/component/firewall/cli", module + "/internal/component/widget/cli"}
+	if !slices.Equal(found.RootHandlers, want) {
+		t.Errorf("the cli commands are %v, want only the dot-importing and the aliasing owner %v", found.RootHandlers, want)
+	}
+}
+
 // VALIDATES: a command owner that reaches the composition root, and one marked
 // codegen:skip, are both left out of the generated imports.
 // PREVENTS: two ways of breaking the product. all.go naming a package that
@@ -486,11 +528,11 @@ func TestACyclingOrSkippedCommandOwnerIsNotGenerated(t *testing.T) {
 	write(t, root, "internal/component/cli/client/main.go",
 		"package client\n\nimport (\n\t_ \""+module+"/"+allDir+"\"\n)\n")
 	write(t, root, "internal/plugins/completion/complete.go",
-		"package completion\n\nimport (\n\t_ \""+module+"/internal/component/cli/client\"\n)\n\n"+
+		"package completion\n\nimport (\n\t_ \""+module+"/internal/component/cli/client\"\n\t\""+registryImport+"\"\n)\n\n"+
 			"func init() {\n\tregistry.MustRegisterRootHandler(\"completion\", run, registry.Meta{})\n}\n")
 	// Declared out: another composition root owns it.
 	write(t, root, "internal/perf/cli/register.go",
-		"// codegen:skip -- the le perf personality wires this.\n\npackage cli\n\n"+
+		"// codegen:skip -- the le perf personality wires this.\n\npackage cli\n\nimport \""+registryImport+"\"\n\n"+
 			"func init() {\n\tregistry.MustRegisterRootHandler(\"perf\", run, registry.Meta{})\n}\n")
 
 	found, err := derive(root)
