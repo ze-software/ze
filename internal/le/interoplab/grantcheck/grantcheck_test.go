@@ -8,12 +8,15 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-// VALIDATES: Parse reads both flag spellings and the declared capabilities,
-// and Problems names every extra grant, including the ones a presence check
-// misses (ALL, seccomp=unconfined, --privileged in any true spelling, a host
-// namespace, the host network, a device cgroup rule, a volume, a lab peer's
-// AppArmor profile and a mount that is writable or comes from outside the
-// lab's staged files).
+// VALIDATES: Parse reads every flag spelling Docker reads (--flag value,
+// --flag=value, -v/:/host, -v=/:/host, combined short booleans) and the
+// declared capabilities, stops at the image, and Problems names every extra
+// grant, including the ones a presence check misses (ALL,
+// seccomp=unconfined, --privileged in any true spelling, a host namespace,
+// the host network, a device cgroup rule, a volume, --volumes-from, --gpus,
+// --runtime, --cgroup-parent, --user, --group-add, a lab peer's AppArmor
+// profile and a mount that is writable or comes from outside the lab's
+// staged files), and every flag nobody classified.
 // PREVENTS: the exact-set check passing a container that holds more than its
 // daemons need.
 func TestProblemsCatchEveryExtraGrant(t *testing.T) {
@@ -40,6 +43,21 @@ func TestProblemsCatchEveryExtraGrant(t *testing.T) {
 		"docker socket":       {"--device", "/dev/ppp", "-v", "/var/run/docker.sock:/var/run/docker.sock"},
 		"volume root":         {"--device", "/dev/ppp", "--volume=/:/host"},
 		"mount":               {"--device", "/dev/ppp", "--mount", "type=bind,source=/,target=/host"},
+		"joined short volume": {"--device", "/dev/ppp", "-v/:/host"},
+		"short volume equals": {"--device", "/dev/ppp", "-v=/:/host"},
+		"named short volume":  {"--device", "/dev/ppp", "-vX"},
+		"combined short":      {"--device", "/dev/ppp", "-itv/:/host"},
+		"volumes from":        {"--device", "/dev/ppp", "--volumes-from", "other"},
+		"gpus":                {"--device", "/dev/ppp", "--gpus=all"},
+		"runtime":             {"--device", "/dev/ppp", "--runtime", "runc"},
+		"cgroup parent":       {"--device", "/dev/ppp", "--cgroup-parent=/"},
+		"user":                {"--device", "/dev/ppp", "--user", "0"},
+		"short user":          {"--device", "/dev/ppp", "-u0"},
+		"group add":           {"--device", "/dev/ppp", "--group-add=disk"},
+		"unclassified long":   {"--device", "/dev/ppp", "--oom-kill-disable"},
+		"unclassified short":  {"--device", "/dev/ppp", "-z"},
+		"unclassified joined": {"--device", "/dev/ppp", "--shm-size=1g"},
+		"value missing":       {"--device", "/dev/ppp", "--cap-add"},
 	} {
 		got := Parse([]string{"NET_ADMIN"}, argv)
 		if problems := Problems(got, want); len(problems) == 0 {
@@ -71,6 +89,22 @@ func TestProblemsCatchEveryExtraGrant(t *testing.T) {
 		if problems := Problems(ParsePeer(changed, "/lab"), Grants{Capabilities: []string{"NET_ADMIN"}}); len(problems) == 0 {
 			t.Errorf("%s: %+v passed the exact check", name, changed)
 		}
+	}
+
+	// Known non-grant flags pass, in every spelling, and nothing after the
+	// image is read as a docker flag: it is the container's own command.
+	quiet := Parse([]string{"NET_ADMIN"}, []string{
+		"run", "--rm", "-it", "--name=peer", "--platform", "linux/amd64", "-e", "A=1", "-w/src",
+		"--device", "/dev/ppp", "image:tag", "bash", "-lc", "--privileged -v /:/host",
+	})
+	if problems := Problems(quiet, want); len(problems) != 0 {
+		t.Errorf("classified non-grant flags and a container command reported %v", problems)
+	}
+	if got := Parse(nil, []string{"-v/:/host"}); !slices.Equal(got.Mounts, []string{"/:/host"}) {
+		t.Errorf("joined -v read as %v", got.Mounts)
+	}
+	if got := Parse(nil, []string{"--shm-size=1g"}); !slices.Equal(got.Unclassified, []string{"--shm-size=1g"}) {
+		t.Errorf("an unclassified flag read as %v", got.Unclassified)
 	}
 
 	got := Parse(nil, []string{"--security-opt=systempaths=unconfined"})

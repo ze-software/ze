@@ -22,7 +22,11 @@ import (
 )
 
 // Grants is every privilege-bearing option of one container, each list
-// sorted. Only options that widen what the container may do are read.
+// sorted. Parse reads every flag of the argv: a flag that can widen what the
+// container may do fills one of these lists, a flag classified as no grant
+// (nonGrantFlags) is skipped, and any other flag lands in Unclassified, which
+// Problems always reports. An argv flag nobody classified therefore fails the
+// exact check rather than passing it unread.
 type Grants struct {
 	// Capabilities are the --cap-add values, and the capability list a lab
 	// peer declares beside its arguments.
@@ -48,6 +52,15 @@ type Grants struct {
 	// lab peer that is writable or whose source lies outside the directories
 	// the lab stages its files in (ParsePeer).
 	Mounts []string
+	// OtherGrants are the --volumes-from, --gpus, --runtime, --cgroup-parent,
+	// --user, --group-add, --cap-drop and --ulimit values, each written as
+	// flag=value: each changes who the container runs as, what it shares or
+	// which limits bind it, and no lab container sets one today.
+	OtherGrants []string
+	// Unclassified are the flags Parse found in neither grantFlags nor
+	// nonGrantFlags, as written. Problems reports every one whatever the
+	// want, because an unread flag can be a grant.
+	Unclassified []string
 	// AppArmorProfile is the registered Ze profile a lab peer runs under
 	// (interoplab.PeerConfig.AppArmorProfile); empty is docker-default.
 	AppArmorProfile string
@@ -55,9 +68,9 @@ type Grants struct {
 	Privileged bool
 }
 
-// valueFlags maps each flag that carries a privilege value to the list it
-// fills.
-var valueFlags = map[string]func(*Grants, string){
+// grantFlags maps each flag that carries a privilege value to the list it
+// fills. Every one takes a value.
+var grantFlags = map[string]func(*Grants, string){
 	"--cap-add":      func(g *Grants, v string) { g.Capabilities = append(g.Capabilities, v) },
 	"--device":       func(g *Grants, v string) { g.Devices = append(g.Devices, v) },
 	"--security-opt": func(g *Grants, v string) { g.SecurityOptions = append(g.SecurityOptions, v) },
@@ -72,10 +85,56 @@ var valueFlags = map[string]func(*Grants, string){
 	"--device-cgroup-rule": func(g *Grants, v string) {
 		g.DeviceCgroupRules = append(g.DeviceCgroupRules, v)
 	},
-	"-v":       func(g *Grants, v string) { g.Mounts = append(g.Mounts, v) },
-	"--volume": func(g *Grants, v string) { g.Mounts = append(g.Mounts, v) },
-	"--mount":  func(g *Grants, v string) { g.Mounts = append(g.Mounts, v) },
+	"--volume":        func(g *Grants, v string) { g.Mounts = append(g.Mounts, v) },
+	"--mount":         func(g *Grants, v string) { g.Mounts = append(g.Mounts, v) },
+	"--volumes-from":  otherGrant("--volumes-from"),
+	"--gpus":          otherGrant("--gpus"),
+	"--runtime":       otherGrant("--runtime"),
+	"--cgroup-parent": otherGrant("--cgroup-parent"),
+	"--user":          otherGrant("--user"),
+	"--group-add":     otherGrant("--group-add"),
+	"--cap-drop":      otherGrant("--cap-drop"),
+	"--ulimit":        otherGrant("--ulimit"),
 }
+
+// otherGrant answers the grantFlags entry that records flag=value in
+// OtherGrants.
+func otherGrant(flag string) func(*Grants, string) {
+	return func(g *Grants, v string) { g.OtherGrants = append(g.OtherGrants, flag+"="+v) }
+}
+
+// nonGrantFlags lists every flag the lab argvs use that widens nothing, and
+// whether it takes a value. A flag missing from here and from grantFlags is
+// Unclassified, so classifying a new flag is a decision written here.
+var nonGrantFlags = map[string]bool{
+	"--detach":      false,
+	"--entrypoint":  true,
+	"--env":         true,
+	"--interactive": false,
+	"--ip":          true,
+	"--ip6":         true,
+	"--name":        true,
+	"--platform":    true,
+	"--rm":          false,
+	"--tty":         false,
+	"--workdir":     true,
+}
+
+// shortFlags maps each one-letter docker flag to its long spelling.
+var shortFlags = map[byte]string{
+	'd': "--detach",
+	'e': "--env",
+	'i': "--interactive",
+	't': "--tty",
+	'u': "--user",
+	'v': "--volume",
+	'w': "--workdir",
+}
+
+// dockerSubcommands are the positional words before a `docker run` argv's
+// flags. Any other positional is the image, and what follows it is the
+// container's own command, which Parse does not read as docker flags.
+var dockerSubcommands = map[string]bool{"container": true, "create": true, "run": true}
 
 // ParsePeer answers the grants of one lab peer: its argv and declared
 // capabilities (Parse), its AppArmor profile, and each of its mounts that
@@ -144,36 +203,107 @@ func privilegedValue(value string) bool {
 }
 
 // Parse answers the grants in argv, plus capabilities a lab peer declares
-// outside its argv (interoplab.PeerConfig.Capabilities). Both the
-// `--flag value` and the `--flag=value` spellings are read.
+// outside its argv (interoplab.PeerConfig.Capabilities). argv is a whole
+// `docker run` argv or a lab peer's extra arguments. Every spelling Docker
+// reads is read: `--flag value`, `--flag=value`, a short flag with its value
+// joined (`-v/:/host`, `-v=/:/host`) or separate, and combined short
+// booleans (`-it`). Reading stops at `--` or at the image, the first
+// positional that is not a docker subcommand.
 func Parse(capabilities, argv []string) Grants {
 	g := Grants{Capabilities: slices.Clone(capabilities)}
 	for i := 0; i < len(argv); i++ {
 		argument := argv[i]
-		flag, value, joined := strings.Cut(argument, "=")
-		if flag == "--privileged" {
-			if !joined || privilegedValue(value) {
-				g.Privileged = true
+		if argument == "--" {
+			break
+		}
+		if !strings.HasPrefix(argument, "-") || argument == "-" {
+			if dockerSubcommands[argument] {
+				continue
 			}
+			break
+		}
+		if strings.HasPrefix(argument, "--") {
+			flag, value, joined := strings.Cut(argument, "=")
+			i = g.readFlag(flag, value, joined, argument, argv, i)
 			continue
 		}
-		add, ok := valueFlags[flag]
-		if !ok {
-			continue
-		}
-		if joined {
-			add(&g, value)
-			continue
-		}
-		if i+1 < len(argv) {
-			i++
-			add(&g, argv[i])
-		}
+		i = g.readShortFlags(argument, argv, i)
 	}
-	for _, list := range []*[]string{&g.Capabilities, &g.Devices, &g.SecurityOptions, &g.Sysctls, &g.HostNamespaces, &g.Networks, &g.DeviceCgroupRules, &g.Mounts} {
+	for _, list := range []*[]string{
+		&g.Capabilities, &g.Devices, &g.SecurityOptions, &g.Sysctls, &g.HostNamespaces,
+		&g.Networks, &g.DeviceCgroupRules, &g.Mounts, &g.OtherGrants, &g.Unclassified,
+	} {
 		slices.Sort(*list)
 	}
 	return g
+}
+
+// readShortFlags reads one single-dash token as Docker does: each letter is a
+// flag, and the first letter whose flag takes a value takes the rest of the
+// token (an `=` after the letter is dropped) or, when nothing is left, the
+// next argument. It answers the index of the last argument consumed.
+func (g *Grants) readShortFlags(argument string, argv []string, i int) int {
+	for at := 1; at < len(argument); at++ {
+		flag, known := shortFlags[argument[at]]
+		if !known {
+			g.Unclassified = append(g.Unclassified, argument)
+			return i
+		}
+		rest := argument[at+1:]
+		if !takesValue(flag) {
+			g.readFlag(flag, "", false, argument, argv, i)
+			continue
+		}
+		if rest == "" {
+			return g.readFlag(flag, "", false, argument, argv, i)
+		}
+		g.readFlag(flag, strings.TrimPrefix(rest, "="), true, argument, argv, i)
+		return i
+	}
+	return i
+}
+
+// takesValue answers whether a classified flag takes a value. An
+// unclassified flag is answered false, so it never swallows the next
+// argument; it is reported either way.
+func takesValue(flag string) bool {
+	if _, grant := grantFlags[flag]; grant {
+		return true
+	}
+	return nonGrantFlags[flag]
+}
+
+// readFlag records one flag. written is the argument as the argv spelled it,
+// for Unclassified. When the flag takes a value and none was joined, the next
+// argument is the value. It answers the index of the last argument consumed.
+func (g *Grants) readFlag(flag, value string, joined bool, written string, argv []string, i int) int {
+	if flag == "--privileged" {
+		if !joined || privilegedValue(value) {
+			g.Privileged = true
+		}
+		return i
+	}
+	add, grant := grantFlags[flag]
+	needsValue, nonGrant := nonGrantFlags[flag]
+	if !grant && !nonGrant {
+		g.Unclassified = append(g.Unclassified, written)
+		return i
+	}
+	if !grant && !needsValue {
+		return i
+	}
+	if !joined {
+		if i+1 >= len(argv) {
+			g.Unclassified = append(g.Unclassified, written+" (no value)")
+			return i
+		}
+		i++
+		value = argv[i]
+	}
+	if grant {
+		add(g, value)
+	}
+	return i
 }
 
 // Problems answers one line for each way got differs from want, empty when
@@ -198,6 +328,11 @@ func Problems(got, want Grants) []string {
 	compare("networks", got.Networks, want.Networks)
 	compare("device cgroup rules", got.DeviceCgroupRules, want.DeviceCgroupRules)
 	compare("mounts", got.Mounts, want.Mounts)
+	compare("other grants", got.OtherGrants, want.OtherGrants)
+	for _, flag := range got.Unclassified {
+		problems = append(problems, "carries "+flag+", a flag grantcheck has not classified as a grant or as no grant; "+
+			"add it to grantFlags or nonGrantFlags in internal/le/interoplab/grantcheck")
+	}
 	if got.AppArmorProfile != want.AppArmorProfile {
 		problems = append(problems, "AppArmor profile = \""+got.AppArmorProfile+"\", want \""+want.AppArmorProfile+"\"")
 	}
