@@ -333,7 +333,9 @@ func createFirstChildSA(
 	})
 	if err != nil {
 		keys.Clear()
-		return nil, err
+		// The responder's IKE_AUTH refusal names the address fix from this sentinel
+		// (childRefusedResponderFix, buildChildlessAuthResponse).
+		return nil, fmt.Errorf("%w: %w", errChildAddress, err)
 	}
 
 	if dp == nil {
@@ -345,7 +347,9 @@ func createFirstChildSA(
 		log.Debug("child-sa: install error", "error", err, "xfrm_unsupported", isXFRMUnsupported(err))
 		if !isXFRMUnsupported(err) {
 			keys.Clear()
-			return nil, err
+			// The responder's IKE_AUTH refusal names the install fix from this sentinel
+			// (childRefusedResponderFix, buildChildlessAuthResponse).
+			return nil, fmt.Errorf("%w: %w", errChildInstall, err)
 		}
 
 		warnDegraded(child, log, err)

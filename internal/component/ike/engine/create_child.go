@@ -459,7 +459,8 @@ func childRefusedResponderFix(err error) string {
 // The causes for which this node refuses a creation response the peer accepted. Each
 // carries its own next step, so finishChildCreate tells them apart. The binding, address
 // and install causes also mark a Child SA this node refuses as the responder
-// (respondNewChild, selectAuthChildSA), which childRefusedResponderFix tells apart.
+// (respondNewChild, and on IKE_AUTH selectAuthChildSA and createFirstChildSA), which
+// childRefusedResponderFix tells apart.
 var (
 	errChildTransportDeclined = errors.New("child creation response: the peer declined the required transport mode")
 	errChildBinding           = errors.New("child-sa: resolving the peer's vti binding")

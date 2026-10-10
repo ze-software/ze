@@ -310,3 +310,46 @@ func TestResponderAuthChildRefusalNamesBindingFix(t *testing.T) {
 	}
 	cfxExpectResponderLine(t, logged, "ike: refused the IKE_AUTH Child SA", childRefusedFixResponderBinding)
 }
+
+// VALIDATES: the Child SA piggybacked on IKE_AUTH, refused because this node has no tunnel
+// address or because the kernel refused the install, names that local cause's fix while the
+// IKE SA is kept.
+//
+// Goal: createFirstChildSA marks both causes, so the IKE_AUTH refusal line follows the same
+// per-cause contract as a refused CREATE_CHILD_SA request. Method: an established PSK
+// responder rebuilds its IKE_AUTH answer through buildAuthResponse with one local cause
+// broken; the childless answer's line MUST carry that cause's responder fix.
+//
+// PREVENTS: a bad tunnel address or a kernel refusal on the responder reported as a
+// proposal mismatch.
+func TestResponderAuthChildRefusalNamesLocalFix(t *testing.T) {
+	cases := []struct {
+		name  string
+		setup func(t *testing.T, resp *SA)
+		fix   string
+	}{
+		{name: "bad address", fix: childRefusedFixResponderAddress,
+			setup: func(_ *testing.T, resp *SA) {
+				resp.PeerCfg.LocalAddress = "not-an-address"
+			}},
+		{name: "kernel refusal", fix: childRefusedFixResponderInstall,
+			setup: func(t *testing.T, _ *SA) {
+				loadFailClosedBackend(t, &bypassDP{installErr: errors.New("test: install refused")})
+			}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, resp, ps := establishPSK(t)
+			tc.setup(t, resp)
+			log, logged := cfxLogger()
+			out, child, err := ps.buildAuthResponse(resp, 2, nil, nil, nil, false, log)
+			if err != nil {
+				t.Fatalf("the childless IKE_AUTH answer could not be built: %v", err)
+			}
+			if out == nil || child != nil {
+				t.Fatal("a refused IKE_AUTH Child SA did not produce a childless answer")
+			}
+			cfxExpectResponderLine(t, logged, "ike: refused the IKE_AUTH Child SA", tc.fix)
+		})
+	}
+}
