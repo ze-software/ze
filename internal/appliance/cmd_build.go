@@ -176,6 +176,16 @@ func buildOne(name string) int {
 		return exitError
 	}
 
+	// A runtime kernel this host cannot build, and the cache does not hold,
+	// is refused before anything is written, naming this appliance's file.
+	if err := runtimeKernelReachable(cfg.Image.Arch); err != nil {
+		if foreign, ok := errors.AsType[*foreignArchKernelError](err); ok {
+			err = foreign.forInstance(dir, name)
+		}
+		fmt.Fprintln(os.Stderr, "error:", err) //nolint:errcheck // CLI output
+		return exitError
+	}
+
 	var passphrase []byte
 	if isEncrypted(dir, name) {
 		var resolveErr error

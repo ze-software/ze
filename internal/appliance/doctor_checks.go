@@ -179,7 +179,7 @@ func checkE2fsprogs(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 // build. It mirrors resolveRuntimeKernel, which serves the entry when its
 // vmlinuz is present and otherwise builds.
 func checkRuntimeKernel(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	arch := runtime.GOARCH
+	arch := kernelbuilder.HostArch()
 	cached, err := kernelCachePathFor(defaultKernelVersion, arch, runtimeKernelProfile, kernelTargetRuntime)
 	if err != nil {
 		return runtimeKernelDiagnostic("cannot check the runtime kernel: " + err.Error() + "\n" +

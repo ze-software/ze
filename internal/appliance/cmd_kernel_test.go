@@ -333,7 +333,7 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("no network") })
 	setTestKernelBuild(t, fakeInstallerBuild("built-kernel"))
 
-	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller)
+	got, err := resolveKernel("7.1.1", kernelbuilder.HostArch(), defaultKernelProfile, "", kernelTargetInstaller)
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -357,7 +357,7 @@ func TestKernelInvalidatesInstallerVariant(t *testing.T) {
 	}{
 		{name: "build", populate: func(*testing.T) {}},
 		{name: "cache-hit", populate: func(t *testing.T) {
-			cached := kernelCachePath(version, kernelCacheVariant(archAMD64, "hardware"))
+			cached := kernelCachePath(version, kernelCacheVariant(kernelbuilder.HostArch(), "hardware"))
 			if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 				t.Fatal(err)
 			}
@@ -378,14 +378,14 @@ func TestKernelInvalidatesInstallerVariant(t *testing.T) {
 			}
 			// A record for a different profile. The resolve below asks for
 			// hardware, so a survivor would misdescribe the replacement image.
-			if err := os.WriteFile(variantPath, []byte(archAMD64+"-qemu-"+defaultKernelVersion+"-docker\n"), 0o644); err != nil {
+			if err := os.WriteFile(variantPath, []byte(kernelbuilder.HostArch()+"-qemu-"+defaultKernelVersion+"-docker\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
 
 			setTestHTTP(t, func(string) (*http.Response, error) { return nil, errors.New("no network") })
 			setTestKernelBuild(t, fakeInstallerBuild("hardware-kernel"))
 
-			if _, err := resolveKernel(version, archAMD64, "hardware", "", kernelTargetInstaller); err != nil {
+			if _, err := resolveKernel(version, kernelbuilder.HostArch(), "hardware", "", kernelTargetInstaller); err != nil {
 				t.Fatalf("resolveKernel: %v", err)
 			}
 
@@ -393,7 +393,7 @@ func TestKernelInvalidatesInstallerVariant(t *testing.T) {
 				t.Errorf("%s survived a kernel resolve (err=%v); ze appliance iso would ship this image as the qemu profile's", variantPath, err)
 			}
 			// The consumer must now refuse the image under the stale profile.
-			if installerKernelBuildMatches(archAMD64, "qemu") {
+			if installerKernelBuildMatches(kernelbuilder.HostArch(), "qemu") {
 				t.Error("installerKernelBuildMatches still claims the image is the qemu profile's")
 			}
 		})
@@ -570,7 +570,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	variant1 := kernelCacheVariant(archAMD64, defaultKernelProfile)
+	variant1 := kernelCacheVariant(kernelbuilder.HostArch(), defaultKernelProfile)
 	cached1 := kernelCachePath("7.1.1", variant1)
 	if err := os.MkdirAll(filepath.Dir(cached1), 0o755); err != nil {
 		t.Fatal(err)
@@ -579,7 +579,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller)
+	got, err := resolveKernel("7.1.1", kernelbuilder.HostArch(), defaultKernelProfile, "", kernelTargetInstaller)
 	if err != nil {
 		t.Fatalf("resolveKernel before config change: %v", err)
 	}
@@ -591,7 +591,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	variant2 := kernelCacheVariant(archAMD64, defaultKernelProfile)
+	variant2 := kernelCacheVariant(kernelbuilder.HostArch(), defaultKernelProfile)
 	if variant1 == variant2 {
 		t.Fatal("config change did not change cache variant")
 	}
@@ -599,7 +599,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("no network") })
 	setTestKernelBuild(t, fakeInstallerBuild("kernel-v2"))
 
-	got2, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller)
+	got2, err := resolveKernel("7.1.1", kernelbuilder.HostArch(), defaultKernelProfile, "", kernelTargetInstaller)
 	if err != nil {
 		t.Fatalf("resolveKernel after config change: %v", err)
 	}

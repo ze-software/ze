@@ -26,6 +26,29 @@ const (
 // (validateRequest). It is a variable so a test can play either host.
 var hostGOARCH = runtime.GOARCH
 
+// CheckArch refuses a kernel arch this host cannot build. Owner decision
+// 2026-10-09: every kernel is built on a host of its own arch, never under
+// Docker --platform emulation or QEMU tcg, which run for hours and fail late.
+// validateRequest runs it before any backend starts, and a caller that fetches
+// inputs first (the installer firmware) runs it before the fetch.
+func CheckArch(arch string) error {
+	if arch == archAArch64 {
+		arch = archARM64
+	}
+	if _, ok := dockerPlatforms[arch]; !ok {
+		return fmt.Errorf("unsupported ARCH=%s (expected amd64, x86_64, or arm64)", arch)
+	}
+	if want := workerGOARCH(arch); want != hostGOARCH {
+		return fmt.Errorf("kernel for %s cannot be built here: the host is %s, and Ze builds every kernel on a host of its own arch, with no CPU emulation; build it on an %s host", want, hostGOARCH, want)
+	}
+	return nil
+}
+
+// HostArch answers the kernel arch of the machine running Ze: the one arch a
+// kernel build here can produce. internal/appliance asks it rather than read
+// runtime.GOARCH, so the build and the cache lookup never disagree.
+func HostArch() string { return hostGOARCH }
+
 // Request is one complete kernel build. Fragments MUST be in merge order.
 type Request struct {
 	Root        string
@@ -89,14 +112,8 @@ func validateRequest(req *Request) error {
 	if err := validateVersion(req.Version); err != nil {
 		return err
 	}
-	if _, ok := dockerPlatforms[req.Arch]; !ok {
-		return fmt.Errorf("unsupported ARCH=%s (expected amd64, x86_64, or arm64)", req.Arch)
-	}
-	// Owner decision 2026-10-09: every kernel is built on a host of its own
-	// arch, never under Docker --platform emulation or QEMU tcg, which run for
-	// hours and fail late. Refused here, before any backend starts.
-	if want := workerGOARCH(req.Arch); want != hostGOARCH {
-		return fmt.Errorf("kernel for %s cannot be built here: the host is %s, and Ze builds every kernel on a host of its own arch, with no CPU emulation; build it on an %s host", want, hostGOARCH, want)
+	if err := CheckArch(req.Arch); err != nil {
+		return err
 	}
 	if err := validateProfile(req.Profile); err != nil {
 		return err

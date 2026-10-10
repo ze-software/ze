@@ -170,7 +170,7 @@ func TestColdOfflineCacheNamesRemedy(t *testing.T) {
 	if err == nil {
 		t.Fatal("a cold cache with no network resolved a kernel")
 	}
-	for _, want := range []string{cached, "on this host", "ze appliance kernel --target runtime --arch " + runtime.GOARCH, "no such host"} {
+	for _, want := range []string{cached, "on this host", "\nze appliance kernel --target runtime --arch " + runtime.GOARCH, "no such host"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error does not name %q:\n%v", want, err)
 		}
@@ -209,14 +209,69 @@ func TestColdForeignArchCacheRefusesBeforeBuilding(t *testing.T) {
 	for _, want := range []string{
 		cached,
 		"this " + runtime.GOARCH + " host cannot build it",
-		"build the image on an " + foreign + " host",
-		`"arch": "` + runtime.GOARCH + `"`,
+		"run this on an " + foreign + " host",
+		"\nze appliance kernel --target runtime --arch " + foreign,
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error does not name %q:\n%v", want, err)
 		}
 	}
-	if strings.Contains(err.Error(), "--arch "+foreign) {
-		t.Errorf("error offers a kernel build for %s, which fills another host's cache:\n%v", foreign, err)
+
+	// The image build is refused before it starts, and its fix names this
+	// appliance's file and the build command, never a kernel build for the
+	// foreign arch, which would fill another host's cache.
+	reachErr := runtimeKernelReachable(foreign)
+	foreignErr, ok := errors.AsType[*foreignArchKernelError](reachErr)
+	if !ok {
+		t.Fatalf("runtimeKernelReachable(%s) = %v, want the foreign-arch refusal", foreign, reachErr)
+	}
+	dir := t.TempDir()
+	refusal := foreignErr.forInstance(dir, "lab").Error()
+	lines := strings.Split(refusal, "\n")
+	for _, want := range []string{
+		cached,
+		"build the image on an " + foreign + " host",
+		`"arch": "` + runtime.GOARCH + `"} in ` + ConfigPath(dir, "lab"),
+	} {
+		if !strings.Contains(refusal, want) {
+			t.Errorf("image-build refusal does not name %q:\n%s", want, refusal)
+		}
+	}
+	if last := lines[len(lines)-1]; last != "ze appliance --dir "+dir+" build lab" {
+		t.Errorf("image-build refusal does not end with the build command on its own line:\n%s", refusal)
+	}
+	if strings.Contains(refusal, "--arch "+foreign) {
+		t.Errorf("image-build refusal offers a kernel build for %s, which fills another host's cache:\n%s", foreign, refusal)
+	}
+	if err := runtimeKernelReachable(runtime.GOARCH); err != nil {
+		t.Errorf("runtimeKernelReachable refused the host's own arch: %v", err)
+	}
+}
+
+// TestForeignArchBuildFetchesNoFirmware verifies a kernel build for an arch
+// this host cannot build is refused before the hardware-kms firmware download.
+//
+// VALIDATES: round-2 NOTE 6, validation before the fetch.
+func TestForeignArchBuildFetchesNoFirmware(t *testing.T) {
+	cache := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cache)
+	foreign := archARM64
+	if runtime.GOARCH == archARM64 {
+		foreign = archAMD64
+	}
+	setTestKernelBuild(t, func(kernelBuildSpec) error {
+		t.Fatalf("a %s kernel build started on a %s host", foreign, runtime.GOARCH)
+		return nil
+	})
+	td, err := kernelTargetFor(kernelTargetInstaller)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = buildKernelArtifact(defaultKernelVersion, foreign, hardwareKMSProfile, "", td)
+	if err == nil || !strings.Contains(err.Error(), "cannot be built here") {
+		t.Fatalf("buildKernelArtifact(%s) = %v, want the arch refusal", foreign, err)
+	}
+	if _, statErr := os.Stat(filepath.Join(cache, cacheSubdir, firmwareCacheDir)); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("firmware was fetched for a build this host refuses (stat: %v)", statErr)
 	}
 }

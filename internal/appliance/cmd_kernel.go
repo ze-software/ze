@@ -8,13 +8,13 @@ import (
 	"context"
 	_ "embed" // for go:embed kernel.version
 	"flag"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -239,7 +239,7 @@ func runKernel(args []string) int {
 		}
 	}
 	if arch == "" {
-		arch = runtime.GOARCH
+		arch = kernelbuilder.HostArch()
 	}
 	if profile == "" {
 		profile = td.defaultProfile
@@ -420,17 +420,14 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 	// with the two moves that work: a kernel built on a host of that arch fills
 	// that host's cache, never this one, so the remedy is where the image is
 	// built, or which arch it is built for.
-	if arch != runtime.GOARCH {
-		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and this %s host cannot build it: "+
-			"Ze builds every kernel on a host of its own arch, with no CPU emulation\n"+
-			"build the image on an %s host, or build an %s image here by setting \"image\": {\"arch\": \"%s\"} in appliance.json",
-			version, arch, cachedDir, runtime.GOARCH, arch, runtime.GOARCH, runtime.GOARCH)
+	if arch != kernelbuilder.HostArch() {
+		return "", &foreignArchKernelError{version: version, arch: arch, cachedDir: cachedDir}
 	}
 	if err := buildKernelArtifact(version, arch, profile, builder, td); err != nil {
 		// A cold cache with no network fails here, at the source download, so the
 		// error names the entry that was missing and the command that fills it.
 		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and building it failed: %w\n"+
-			"build it once, with network access, on this host: ze appliance kernel --target runtime --arch %s",
+			"build it once, with network access, on this host:\nze appliance kernel --target runtime --arch %s",
 			version, arch, cachedDir, err, arch)
 	}
 
@@ -452,8 +449,65 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 	return cachedDir, nil
 }
 
+// foreignArchKernelError refuses a runtime kernel this host cannot build: the
+// cache holds no entry for arch, and Ze builds every kernel on a host of its own
+// arch (AC-13). Error answers the fix for a bare kernel request; forInstance
+// answers it for an image build, naming the instance file and the build command.
+type foreignArchKernelError struct {
+	version, arch, cachedDir string
+}
+
+func (e *foreignArchKernelError) refusal(fix string) string {
+	var tb textbuf.Buffer
+	return tb.Str("runtime kernel ").Str(e.version).Str(" for ").Str(e.arch).
+		Str(" is not in the cache at ").Str(e.cachedDir).
+		Str(", and this ").Str(kernelbuilder.HostArch()).
+		Str(" host cannot build it: Ze builds every kernel on a host of its own arch, with no CPU emulation; ").
+		Str(fix).String()
+}
+
+func (e *foreignArchKernelError) Error() string {
+	return e.refusal("run this on an " + e.arch + " host, which builds it into that host's cache:\nze appliance kernel --target runtime --arch " + e.arch)
+}
+
+// forInstance answers the refusal for the image build of appliance name in
+// dir. A kernel built on another host fills that host's cache, never this one,
+// so the moves that work are building the image there, or building an image
+// of this host's arch here; both end in the same command.
+func (e *foreignArchKernelError) forInstance(dir, name string) error {
+	host := kernelbuilder.HostArch()
+	return errors.New(e.refusal("build the image on an " + e.arch + " host, or set \"image\": {\"arch\": \"" + host +
+		"\"} in " + ConfigPath(dir, name) + " to build an " + host + " image here; then run:\nze appliance --dir " + dir + " build " + name))
+}
+
+// runtimeKernelReachable answers the refusal an image build of arch would meet
+// at the runtime kernel, before anything long starts: nil when this host can
+// build arch, or when the cache already holds its kernel.
+func runtimeKernelReachable(arch string) error {
+	if arch == kernelbuilder.HostArch() {
+		return nil
+	}
+	td, err := kernelTargetFor(kernelTargetRuntime)
+	if err != nil {
+		return err
+	}
+	cachedDir, err := kernelCachePathFor(defaultKernelVersion, arch, runtimeKernelProfile, kernelTargetRuntime)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(filepath.Join(cachedDir, td.artifact)); err == nil {
+		return nil
+	}
+	return &foreignArchKernelError{version: defaultKernelVersion, arch: arch, cachedDir: cachedDir}
+}
+
 // buildKernelArtifact resolves the firmware directory then invokes the native driver.
 func buildKernelArtifact(version, arch, profile, builder string, td kernelTargetDesc) error {
+	// The arch is refused before the firmware download, which a build this
+	// host cannot run would only waste.
+	if err := kernelbuilder.CheckArch(arch); err != nil {
+		return err
+	}
 	fwDir, err := ensureFirmware(profile)
 	if err != nil {
 		return err
