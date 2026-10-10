@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | 3/6 |
 | Handoff | - |
 | Updated | 2026-10-10 |
 
@@ -209,7 +209,7 @@ and the operator deletes the destination first (AC-30).
 | A-1 | The set-format change file can carry inactive markers for leaves and paths | `serialize_set.go` and `parser_list.go` handle `IsInactive`/`IsLeafInactive`; `PendingChangeDeactivate` exists | new tokens need parser work beyond the op list | round-trip unit test of the new ops through `SerializeChangeFile`/`ParseChangeFile` | unvalidated |
 | A-2 | Tree-level merge gives the same result file-mode text merge gave for every existing load test | `mergeConfigs` merges top-level keys; tree merge is a superset | a file-mode load test changes result | run every existing `test/editor/**/load*.et` and `model_load` unit test unchanged | unvalidated |
 | A-3 | A loaded subtree of a few thousand leaves writes through in one lock hold within the editor's command latency | write-through is one serialize + one write | large paste stalls the session | unit test with a 5000-leaf load, timed | unvalidated |
-| A-4 | The daemon can host one confirm worker per config name, started with the daemon | the daemon owns the store and the reload | needs a new component home | Phase 1 wiring test | unvalidated |
+| A-4 | The daemon can host one confirm worker per config name, started with the daemon | the daemon owns the store and the reload: `runYANGConfig` (`cmd/ze/hub/main.go`) builds `reloadAfterCommit` and publishes it to SSH session editors through `sessionReloadHolder`; `newSessionEditor` (`cmd/ze/hub/session_editor.go`) and the attached console take it; boot clears a stale candidate in `clearStaleCandidateOnBoot` before `runYANGConfig` | needs a new component home | read 2026-10-10 (Phase 1): home chosen, see Key Design Decisions "Confirm worker home" | confirmed |
 | A-5 | A reloaded rollback revision restores the running daemon's behavior (not only the file) | transactional commit path promotes a candidate and reloads | revert changes the file but not the daemon | `.ci` asserts daemon state, not only the file | unvalidated |
 | A-6 | `rollback <N>` in session mode writes the config file directly without the candidate/reload path | `Editor.Rollback` writes `originalPath`; `cmdRollback` does not reload | the confirm revert cannot reuse `Editor.Rollback` | read and test at Phase 4; the revert uses the candidate path regardless | unvalidated |
 
@@ -417,7 +417,7 @@ Surfaces that type the old grammar (from `grep -rlE 'text=(commit|confirm)\b|Typ
 
 ## Files to Create
 - `internal/component/cli/model_load_session_test.go`
-- the confirm-window worker and its test, in the package Phase 1 chooses
+- `internal/component/config/confirm/` - the confirm-window worker and its test (A-4)
 - `internal/test/fixture/plugin_fixture_NN_session_editor.go` - SSH editor driver with one mode per `.ci`
 - the 23 `.ci` files, two `.wb` files and `test/editor/lifecycle/commit-grammar.et` named in the Functional Tests table
 - `test/editor/session/load-merge.et`
@@ -534,6 +534,7 @@ Surfaces that type the old grammar (from `grep -rlE 'text=(commit|confirm)\b|Typ
 | Every editor (SSH, file mode, web terminal) takes the grammar; plain `commit` removed everywhere with no alias | session mode only; an alias for `commit` | Owner answer 2026-10-10: "yes, every editor"; `ai/rules/no-layering.md` |
 | A nested `commit confirmed` reverts to the state before the FIRST unconfirmed commit | revert only the latest commit to the state the first commit produced | nothing unconfirmed survives a revert; matches the owner's "revert target stays the state before the first unconfirmed commit" |
 | A window belongs to the user who started it: any new SSH session of that user is its owner, as a reconnection; sessions of other users are refused (AC-17) | only the SSH session that ran `commit confirmed` owns it, so a dropped client leaves the operator waiting for the deadline | Owner decision 2026-10-10: "the new session should behave like a reconnection" |
+| Confirm worker home (A-4): package `internal/component/config/confirm`, one `Window` per daemon and config, one long-lived goroutine reading a request channel and owning the deadline timer; built in `runYANGConfig` right after `reloadAfterCommit` (the reload a revert calls) and published to session editors beside `sessionReloadHolder`; stopped before `commitReloads` closes. Editors see it through an interface in `internal/component/cli/contract`, so `cli` and `web` never import the worker. The pending record is a store key written by `storage` beside the `pointer.go` keys. Boot recovery (AC-19) runs beside `clearStaleCandidateOnBoot`, BEFORE `ReadConfigSource`, so the reverted config is the one that boots | the CLI `Model` tick (dies with the SSH channel); `cmd/ze/hub` itself (no unit test without a daemon, and `web` could not reach it); `config/transaction` (the plugin verify/apply protocol, not an operator window) | engineering choice inside the owner's "daemon owns the window" decision: the hub alone holds the store, the config path and the reload together, and a component package keeps the worker unit-testable with a fake reload (recorded 2026-10-10) |
 | Seconds, 1 to 3600, kept | switch to minutes like Junos/VyOS | the unit is the existing contract; changing it is scope the owner did not ask for |
 
 ## Known Limitations

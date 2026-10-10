@@ -35,6 +35,11 @@ const (
 	sessionEditorHas
 	// sessionEditorLacks polls the command until its output no longer holds the text.
 	sessionEditorLacks
+	// sessionEditorKey presses the named key from sessionEditorKeys, with no Enter.
+	sessionEditorKey
+	// sessionEditorKill kills the editor's SSH client, as a dropped connection
+	// does. It takes no text, and no step after it may type into the editor.
+	sessionEditorKill
 )
 
 // sessionEditorVerbs maps a script word to its verb. It is the grammar, so the
@@ -45,6 +50,14 @@ var sessionEditorVerbs = map[string]sessionEditorVerb{
 	"cli":   sessionEditorCLI,
 	"has":   sessionEditorHas,
 	"lacks": sessionEditorLacks,
+	"key":   sessionEditorKey,
+	"kill":  sessionEditorKill,
+}
+
+// sessionEditorKeys maps a key name a key step accepts to the bytes the
+// terminal sends for it. Ctrl-D ends the editor's paste mode.
+var sessionEditorKeys = map[string]string{
+	"ctrl-d": "\x04",
 }
 
 // sessionEditorStep is one parsed script line.
@@ -63,6 +76,7 @@ const sessionEditorStepsMax = 200
 func parseSessionEditorScript(r io.Reader) ([]sessionEditorStep, error) {
 	var steps []sessionEditorStep
 	haveCLI := false
+	killed := false
 	scanner := bufio.NewScanner(r)
 	line := 0
 	for scanner.Scan() {
@@ -80,8 +94,11 @@ func parseSessionEditorScript(r io.Reader) ([]sessionEditorStep, error) {
 			return nil, fmt.Errorf("script line %d: unknown verb %q", line, word)
 		}
 		text = strings.TrimSpace(text)
-		if text == "" {
-			return nil, fmt.Errorf("script line %d: %s needs text", line, word)
+		if err := sessionEditorCheckStep(verb, text, killed); err != nil {
+			return nil, fmt.Errorf("script line %d: %s %w", line, word, err)
+		}
+		if verb == sessionEditorKill {
+			killed = true
 		}
 		if verb == sessionEditorCLI {
 			haveCLI = true
@@ -106,6 +123,42 @@ func parseSessionEditorScript(r io.Reader) ([]sessionEditorStep, error) {
 		return nil, errors.New("script has no steps")
 	}
 	return steps, nil
+}
+
+// sessionEditorCheckStep answers why one step cannot run, or nil. kill takes
+// no text and every other verb needs one; a key names a known key; nothing
+// types into an editor a kill already ended.
+func sessionEditorCheckStep(verb sessionEditorVerb, text string, killed bool) error {
+	if verb == sessionEditorKill {
+		if text != "" {
+			return errors.New("takes no text")
+		}
+		if killed {
+			return errors.New("after the editor was killed")
+		}
+		return nil
+	}
+	if text == "" {
+		return errors.New("needs text")
+	}
+	if verb == sessionEditorKey {
+		if _, known := sessionEditorKeys[text]; !known {
+			return fmt.Errorf("names unknown key %q", text)
+		}
+	}
+	if !killed {
+		return nil
+	}
+	if verb == sessionEditorSend {
+		return errors.New("after the editor was killed")
+	}
+	if verb == sessionEditorWait {
+		return errors.New("after the editor was killed")
+	}
+	if verb == sessionEditorKey {
+		return errors.New("after the editor was killed")
+	}
+	return nil
 }
 
 // sessionEditorPendingAfter answers the output after the first needle in buf,
@@ -204,6 +257,7 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 		return fmt.Errorf("config editor did not draw its first frame: %w\n%s", err, transcript.String())
 	}
 	command := ""
+	killed := false
 	for i, step := range steps {
 		switch step.verb {
 		case sessionEditorSend:
@@ -216,12 +270,21 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 			err = sessionEditorPoll(ctx, env, command, step.text, true)
 		case sessionEditorLacks:
 			err = sessionEditorPoll(ctx, env, command, step.text, false)
+		case sessionEditorKey:
+			_, err = terminal.WriteString(sessionEditorKeys[step.text])
+		case sessionEditorKill:
+			err = cmd.Process.Kill()
+			_ = cmd.Wait() //nolint:errcheck // a killed client exits with the signal, which is the point
+			killed = true
 		case sessionEditorUnspecified:
 			panic("BUG: parseSessionEditorScript produced an unspecified step")
 		}
 		if err != nil {
 			return fmt.Errorf("step %d (%q): %w\n%s", i+1, step.text, err, transcript.String())
 		}
+	}
+	if killed {
+		return nil
 	}
 	if _, err := terminal.WriteString("quit\r"); err != nil {
 		return fmt.Errorf("quit: %w\n%s", err, transcript.String())

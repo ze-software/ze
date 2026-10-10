@@ -350,6 +350,8 @@ and `#` lines are skipped:
 | `cli` | name the `ze cli -c` command the following `has` and `lacks` run |
 | `has` | run that command until its output holds the text |
 | `lacks` | run that command until its output no longer holds the text |
+| `key` | press the named key with no Enter; `ctrl-d` is the one name, and it ends the editor's paste mode (`load terminal`) |
+| `kill` | kill the editor's SSH client, as a dropped connection does; takes no text, and no `send`, `wait` or `key` may follow it |
 
 `has` and `lacks` poll, because the daemon applies a commit after the editor
 reports it. `wait` matches the raw PTY stream, and the editor redraws only the
@@ -358,7 +360,7 @@ before it arrives as its differing tail alone, so its full text never appears.
 Put a command with a different status between two such lines, as
 `session-editor-deactivate-activate.ci` does with `show | changes`. A failing step names its number and carries the editor transcript.
 The driver types `quit` after the last step and fails when the editor exits
-non-zero. The `test/plugin/session-editor-*.ci` files use it.
+non-zero; after a `kill` it types nothing, because the client is gone. The `test/plugin/session-editor-*.ci` files use it.
 
 <!-- source: internal/test/fixture/plugin_fixture_session_editor.go -- sessionEditorDriver, parseSessionEditorScript, sessionEditorRun -->
 
