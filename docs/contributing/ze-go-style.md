@@ -469,6 +469,18 @@ measured yet.
 - **Do not depend on the compiler.** Extract a hot loop into a function that
   takes primitive arguments and no receiver, so no struct field has to be
   proved cacheable and a redundant computation is visible.
+- **Prove a compiler optimization from the compiler output.** Inlining is not
+  that proof: an inlined call still executes its body. `-gcflags=-m` shows the
+  inlining and the escapes, and `-gcflags=-S` shows the instructions. The passes
+  that remove a redundant copy run in an order that changes between Go
+  releases, so run the hot-path benchmarks again after each toolchain bump.
+- **Change the form of a value once.** A conversion goes from the source form
+  to the destination form. It does not go through a third form: a typed value
+  to bytes and back to a typed value, or wire bytes to a struct and back to
+  wire bytes. When the type has no direct operation, add the operation to the
+  type that owns the representation. Bernat measured the round trip
+  `netip.AddrFrom16(a.As16())` at eight times the cost of a direct method
+  (<https://vincent.bernat.ch/en/blog/2026-go-netip-addrto6>).
 
 Ze targets zero allocation on a wire path, because every allocation there is a
 payment to the garbage collector.
