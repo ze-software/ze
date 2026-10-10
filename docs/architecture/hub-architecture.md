@@ -201,6 +201,14 @@ Startup recovers an interrupted publication before candidate cleanup. Recovery
 accepts only the recorded old or new file content and refuses a third value,
 so a restart cannot overwrite an intervening external edit.
 
+Startup then reverts a confirmed-commit window the last daemon left open, after
+the file-commit recovery and before the configuration is read, so the daemon
+boots the configuration from before the unconfirmed commit. The running hub
+starts the window once the session editors' reload is published, and stops it
+before the commit reloads close at shutdown; a window still open at shutdown
+stays recorded in the store for the next start.
+<!-- source: cmd/ze/hub/confirm_window.go -- recoverConfirmWindow, startConfirmWindow, stopConfirmWindow -->
+
 Runtime state, editor drafts, command history and SSH credentials use the same
 owned handle. Read-only clients may inspect the tree while it runs; another
 writer cannot acquire ownership. A truly storeless stdin start names the

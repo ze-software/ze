@@ -74,7 +74,8 @@ this notice. Validation errors still block a forced commit.
 <!-- source: internal/component/cli/editor_commit.go -- reloadSessionView -->
 <!-- source: internal/component/cli/model.go -- handleDraftPoll, draftPollInterval -->
 <!-- source: internal/component/web/editor.go -- EditorManager.commit -->
-<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, errCommitWindowPending -->
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest -->
+<!-- source: internal/component/config/confirm/confirm.go -- ErrPending -->
 
 `commit now` reaches the same reload as `ze signal reload`. Which configuration
 changes stop a session, and in what order, is in
@@ -233,13 +234,12 @@ edit must be reconciled before a competing daemon commit can succeed. Bare
 <!-- source: internal/component/cli/editor.go -- NewLooseFileEditor, NewEditorWithStorage -->
 <!-- source: internal/component/cli/editor_commands.go -- Save -->
 
-Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:
-
-<!-- source: internal/component/cli/model_commands.go -- errCommitConfirmedNotYetSupportedIn -->
-
-| Blocked command | Reason |
-|-----------------|--------|
-| `commit confirmed <seconds>` | Needs session-aware rollback |
+In a session editor, `commit confirmed <seconds>` runs through the daemon's
+confirmed-commit window (see [Commit Confirmed](#commit-confirmed)). A session
+editor of a configuration the daemon does not run has no such window, and
+refuses it with "commit confirmed needs a daemon that runs this configuration
+from its store"; `commit now` still works there.
+<!-- source: internal/component/cli/model_commit_window.go -- errCommitConfirmedNeedsDaemon, daemonWindow -->
 
 `insert` is supported in session mode: `InsertLeafListValue` routes through
 `writeThroughMemberOp`, and so do `deactivate` and `activate` when they name a
@@ -342,6 +342,29 @@ from configuration mode behind `run `, and the keys are in the
 | *or* timer expires | Config reverts automatically |
 
 The seconds parameter accepts values from 1 to 3600 (one hour).
+
+In an SSH session editor of the daemon's own configuration, the daemon owns the
+window, not your session. Closing or losing the session leaves the countdown
+running, and the revert still happens at the deadline. The window belongs to
+the user who opened it: from any session as that user, `commit accept` and
+`commit abort` answer it, and the status line shows "Confirm within <N>s or
+auto-revert". Every other user's `commit now`, `commit confirmed`,
+`commit accept` and `commit abort` are refused while it is open, and their
+status line shows "A confirmed commit by <user> is pending:
+<N>s left." A session that saw the window open reports how it closed: a
+timeout says "Timeout: configuration automatically rolled back", and an accept
+or abort from another of your sessions says the window "was closed by another
+session". Inside your own window, `commit confirmed <seconds> force` applies
+your new changes and restarts the countdown at `<seconds>`; the revert still
+restores the configuration from before the first commit.
+
+The open window is recorded in the store. If the daemon stops while it is
+open, the next start reverts it before the configuration is read, so the
+daemon boots the configuration from before the unconfirmed commit.
+<!-- source: internal/component/config/confirm/confirm.go -- Window, Confirmed, RecoverOnStart -->
+<!-- source: internal/component/config/confirm/store.go -- StoreRecorder -->
+<!-- source: internal/component/cli/model_commit_window.go -- cmdCommitWindowRequest, pollDaemonWindow -->
+<!-- source: cmd/ze/hub/confirm_window.go -- startConfirmWindow, recoverConfirmWindow -->
 
 The revert restores the rollback revision the commit records, so `commit
 confirmed` needs config history. An editor without one, such as
