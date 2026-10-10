@@ -29,7 +29,7 @@
 # (ci-format.md, "HTTP Checks"), so a wait placed before cmd=foreground would
 # not run any earlier than one placed after it. The fixture itself polls
 # /metrics for its baseline read (tunnelPPPoEProcessOpenFDs).
-option=needs-linux:caps=net-admin,net-raw
+option=needs-linux:caps=net-admin,net-raw:devices=ppp
 option=netns-link:name=veth-bng:peer=veth-sub
 
 

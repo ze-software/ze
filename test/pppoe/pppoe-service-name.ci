@@ -14,7 +14,7 @@
 #           defeats the point of configuring one -- delete the MatchServiceName
 #           check in handlePADR (internal/component/l2tp/pppoe/server.go) and
 #           the mismatched dial below gets a session instead of a refusal.
-option=needs-linux:caps=net-admin,net-raw
+option=needs-linux:caps=net-admin,net-raw:devices=ppp
 option=netns-link:name=veth-bng:peer=veth-sub
 
 

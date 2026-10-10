@@ -10,7 +10,7 @@
 # The daemon binds AF_PACKET to veth-bng and the client to veth-sub, the two ends
 # of one veth pair inside this test's own network namespace, so the frames below
 # are real Ethernet frames through the kernel and not a loopback of the encoder.
-option=needs-linux:caps=net-admin,net-raw
+option=needs-linux:caps=net-admin,net-raw:devices=ppp
 option=netns-link:name=veth-bng:peer=veth-sub
 
 

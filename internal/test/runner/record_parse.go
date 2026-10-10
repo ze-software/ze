@@ -448,6 +448,18 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 				caps = append(caps, c)
 			}
 		}
+		// devices= names the device nodes the test opens (devices.go). It is
+		// validated here for the same reason as caps=, and recorded rather
+		// than gated: see devicesRequired for why an absent node never skips.
+		if raw := kv["devices"]; raw != "" {
+			for d := range strings.SplitSeq(raw, ",") {
+				d = strings.TrimSpace(d)
+				if _, ok := devicesRequired[d]; !ok {
+					return fmt.Errorf("option=needs-linux: unknown devices %q (supported: %s)", d, devicesAccepted())
+				}
+				r.Devices = append(r.Devices, d)
+			}
+		}
 
 		if runtime.GOOS != goosLinux {
 			var tb textbuf.Buffer

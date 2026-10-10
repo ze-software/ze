@@ -9,7 +9,7 @@
 #
 # The runner builds the veth pair and both .100 sub-interfaces inside this test's
 # own network namespace, so the tag is carried by the kernel, not by the test.
-option=needs-linux:caps=net-admin,net-raw
+option=needs-linux:caps=net-admin,net-raw:devices=ppp
 option=netns-link:name=veth-bng:peer=veth-sub:vlan=100
 
 

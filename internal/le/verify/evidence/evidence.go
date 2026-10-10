@@ -259,24 +259,33 @@ func (r *Runner) Run() (Report, error) {
 //
 // The container never runs --privileged (spec-lab-containers-least-privilege,
 // site 6). The gate inside it runs every test in the tree, and a test that
-// needs a capability declares it as `option=needs-linux:caps=`, so the
-// container holds the union of that vocabulary, read from the runner's own
-// table (runner.CapsDockerNames), and Docker's default seccomp and AppArmor
-// profiles stay on. A capability added to the vocabulary reaches this list
-// with no edit here.
+// needs a capability or a device declares it as `option=needs-linux:caps=`
+// or `devices=`, so the container holds the union of both vocabularies, read
+// from the runner's own tables (runner.ContainerCapsDockerNames,
+// runner.ContainerDevicePaths), and Docker's default seccomp and AppArmor
+// profiles stay on. A token added to either vocabulary reaches this list with
+// no edit here. SYS_TIME is the one capability left out on purpose: a test
+// that sets the clock from a container sets the Docker host's clock, so
+// storage-ntp-restart.ci skips here through its own caps gate. Docker's
+// default capability set already holds NET_BIND_SERVICE, so its --cap-add is
+// redundant and harmless; it is kept because it comes from the table.
 func (r *Runner) dockerArgs() ([]string, error) {
-	capabilities, err := runner.CapsDockerNames()
+	capabilities, err := runner.ContainerCapsDockerNames()
 	if err != nil {
 		return nil, err
 	}
+	devices := runner.ContainerDevicePaths()
 
 	var tb textbuf.Buffer
 	mount := tb.Str(r.Tree).Str(":/host:ro").String()
 
-	args := make([]string, 0, 2+2*len(capabilities)+12)
+	args := make([]string, 0, 2+2*len(capabilities)+2*len(devices)+12)
 	args = append(args, "run", "--rm")
 	for _, capability := range capabilities {
 		args = append(args, "--cap-add", capability)
+	}
+	for _, device := range devices {
+		args = append(args, "--device", device)
 	}
 	return append(args,
 		"--platform", r.Platform,

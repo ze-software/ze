@@ -8,8 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // recorder is a Runner whose two outside effects are captured rather than made:
@@ -110,23 +108,33 @@ func TestACleanTreeStartsOneContainer(t *testing.T) {
 			t.Errorf("the docker argv does not carry %q:\n%s", want, line)
 		}
 	}
-	// spec-lab-containers-least-privilege, site 6: the container holds the
-	// capabilities the caps= vocabulary names, derived from the runner's own
-	// table, and never --privileged.
+	// spec-lab-containers-least-privilege, site 6: the container holds
+	// exactly the capabilities and devices the caps= and devices= vocabularies
+	// name, never SYS_TIME, never --privileged and never a relaxed security
+	// profile. The want lists are written out here, independent of the
+	// runner's tables, so a stray grant fails this test.
+	var capAdds, devices []string
+	for i := 0; i+1 < len(argv); i++ {
+		switch argv[i] {
+		case "--cap-add":
+			capAdds = append(capAdds, argv[i+1])
+		case "--device":
+			devices = append(devices, argv[i+1])
+		case "--privileged", "--security-opt", "--cap-drop", "--userns", "--pid", "--ipc":
+			t.Errorf("the docker argv carries %s:\n%s", argv[i], line)
+		}
+	}
+	if want := []string{"BPF", "NET_ADMIN", "NET_BIND_SERVICE", "NET_RAW"}; !slices.Equal(capAdds, want) {
+		t.Fatalf("the container is granted %v, want exactly %v", capAdds, want)
+	}
+	if slices.Contains(capAdds, "SYS_TIME") {
+		t.Errorf("the container may set the Docker host's clock:\n%s", line)
+	}
+	if want := []string{"/dev/ppp"}; !slices.Equal(devices, want) {
+		t.Fatalf("the container is given devices %v, want exactly %v", devices, want)
+	}
 	if slices.Contains(argv, "--privileged") {
 		t.Errorf("the container runs --privileged:\n%s", line)
-	}
-	granted, err := runner.CapsDockerNames()
-	if err != nil {
-		t.Fatalf("the caps= vocabulary has no Docker names: %v", err)
-	}
-	if len(granted) == 0 {
-		t.Fatal("the caps= vocabulary derived no capability")
-	}
-	for _, name := range granted {
-		if !strings.Contains(line, "--cap-add "+name) {
-			t.Errorf("the docker argv lacks --cap-add %s:\n%s", name, line)
-		}
 	}
 	if argv[len(argv)-1] != ContainerScript {
 		t.Error("the last argument is not the container script")

@@ -275,6 +275,12 @@ type Record struct {
 	// run ONLY these tests and skip everything else.
 	NeedsLinux bool
 
+	// Devices are the devices= tokens of option=needs-linux, the device nodes
+	// the test opens (devices.go). Populated at parse time; no gate reads them
+	// on the host, and a container that runs every test is granted the whole
+	// vocabulary through ContainerDevicePaths.
+	Devices []string
+
 	// NetnsLinks are interfaces the runner provisions inside this test's per-test
 	// network namespace (option=netns-link) before spawning ze. Populated at parse
 	// time; consumed only under netns mode (ZE_TEST_NETNS), so the option is inert

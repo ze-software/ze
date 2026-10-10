@@ -101,27 +101,42 @@ var capsRequired = map[string][]int{
 }
 
 // capDockerName is the name `docker run --cap-add` takes for each capability
-// bit above, the kernel's CAP_ name with its prefix dropped. It is a second
-// spelling of the bit constants, so TestEveryCapsBitHasADockerName compares the
-// two and CapsDockerNames refuses a bit it cannot name.
+// bit a caps= token requires, the kernel's CAP_ name with its prefix dropped.
+// It is a second spelling of the bit constants, so
+// TestEveryCapsBitHasADockerName compares it with an independent table and
+// ContainerCapsDockerNames refuses a bit it cannot name. A bit no token
+// requires has no entry: a name here is a grant some container receives.
 var capDockerName = map[int]string{
 	capNetBindService: "NET_BIND_SERVICE",
 	capNetAdmin:       "NET_ADMIN",
 	capNetRaw:         "NET_RAW",
-	capSysResource:    "SYS_RESOURCE",
 	capSysTime:        "SYS_TIME",
 	capBPF:            "BPF",
 }
 
-// CapsDockerNames answers, sorted and once each, the `docker run --cap-add`
-// name of every capability a `caps=` token requires. A container that holds
-// these can run every capability-gated `.ci` test, which is what the
+// capsAltersHost names the caps= tokens whose test changes the host it runs
+// on rather than its own namespace. A container shares its kernel's clock with
+// the Docker host, so a test that sets the time from inside one sets the
+// host's time. ContainerCapsDockerNames leaves these tokens out, and their
+// tests skip in a container through their own caps gate, which is what the
+// gate exists for: it keeps them off any host that must keep its time.
+var capsAltersHost = map[string]bool{
+	capsSysTime: true,
+}
+
+// ContainerCapsDockerNames answers, sorted and once each, the `docker run
+// --cap-add` name of every capability a caps= token requires, except the
+// tokens in capsAltersHost. A container that holds these can run every
+// capability-gated `.ci` test that does not change its host, which is what the
 // release-candidate evidence container needs (spec-lab-containers-least-privilege,
 // site 6), so its grant list follows this table rather than a hand list.
 // A bit with no Docker name is an error naming the bit, never a shorter list.
-func CapsDockerNames() ([]string, error) {
+func ContainerCapsDockerNames() ([]string, error) {
 	names := make([]string, 0, len(capDockerName))
-	for _, bits := range capsRequired {
+	for token, bits := range capsRequired {
+		if capsAltersHost[token] {
+			continue
+		}
 		for _, bit := range bits {
 			name, ok := capDockerName[bit]
 			if !ok {

@@ -17,6 +17,8 @@
 package runner
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -213,41 +215,117 @@ func TestCapsNetBindGateBothPolarities(t *testing.T) {
 	}
 }
 
-// TestEveryCapsBitHasADockerName pins the Docker spelling of each caps= bit.
+// TestEveryCapsBitHasADockerName pins the Docker spelling of each caps= bit
+// against a table written out here, independent of capDockerName.
 //
-// VALIDATES: every bit capsRequired names has an entry in capDockerName, and
-// CapsDockerNames answers each such name once, sorted, with no name for a bit
-// no token requires.
-// PREVENTS: a new caps= token whose bit has no Docker name, which would leave
-// the release-candidate evidence container (internal/le/verify/evidence)
-// without the capability its test needs, and that test skipping or failing
-// there for a reason that is about the grant list, not about ze.
+// VALIDATES: capDockerName holds exactly the bits some caps= token requires,
+// each under the kernel's CAP_ name with the prefix dropped, and
+// ContainerCapsDockerNames answers exactly BPF, NET_ADMIN, NET_BIND_SERVICE
+// and NET_RAW: every token's grant except sys-time, whose test sets the clock
+// of the host the container shares.
+// PREVENTS: a wrong spelling or a stray grant (SYS_RESOURCE, which no token
+// requires) reaching the release-candidate evidence container
+// (internal/le/verify/evidence), and SYS_TIME reaching it, which would let a
+// verify run set the Docker host's clock.
 func TestEveryCapsBitHasADockerName(t *testing.T) {
-	var want []string
-	for _, bits := range capsRequired {
+	spelled := map[int]string{
+		10: "NET_BIND_SERVICE",
+		12: "NET_ADMIN",
+		13: "NET_RAW",
+		25: "SYS_TIME",
+		39: "BPF",
+	}
+	if len(capDockerName) != len(spelled) {
+		t.Errorf("capDockerName = %v, want exactly %v", capDockerName, spelled)
+	}
+	for bit, want := range spelled {
+		if got := capDockerName[bit]; got != want {
+			t.Errorf("capDockerName[%d] = %q, want %q", bit, got, want)
+		}
+	}
+	for token, bits := range capsRequired {
 		for _, bit := range bits {
-			name, ok := capDockerName[bit]
-			if !ok {
-				t.Errorf("capability bit %d has no Docker name in capDockerName", bit)
-				continue
-			}
-			if !slices.Contains(want, name) {
-				want = append(want, name)
+			if _, ok := capDockerName[bit]; !ok {
+				t.Errorf("caps=%s requires bit %d, which has no Docker name", token, bit)
 			}
 		}
 	}
-	slices.Sort(want)
 
-	got, err := CapsDockerNames()
+	got, err := ContainerCapsDockerNames()
 	if err != nil {
-		t.Fatalf("CapsDockerNames: %v", err)
+		t.Fatalf("ContainerCapsDockerNames: %v", err)
 	}
+	want := []string{"BPF", "NET_ADMIN", "NET_BIND_SERVICE", "NET_RAW"}
 	if !slices.Equal(got, want) {
-		t.Errorf("CapsDockerNames() = %v, want %v", got, want)
+		t.Errorf("ContainerCapsDockerNames() = %v, want exactly %v", got, want)
 	}
-	for _, name := range []string{"BPF", "NET_ADMIN", "NET_BIND_SERVICE", "NET_RAW", "SYS_TIME"} {
-		if !slices.Contains(got, name) {
-			t.Errorf("CapsDockerNames() = %v lacks %s", got, name)
+}
+
+// TestNeedsLinuxDevicesAreValidatedAndRecorded drives the devices= key.
+//
+// VALIDATES: option=needs-linux:devices=ppp records the token, does not skip a
+// Linux host on its own, an unknown token is refused on every host naming the
+// accepted ones, and ContainerDevicePaths answers /dev/ppp for it.
+// PREVENTS: a typo leaving a test's device need undeclared, and the evidence
+// container losing /dev/ppp, which is what made test/l2tp/radius-acct-wire.ci
+// unrunnable there once --privileged went.
+func TestNeedsLinuxDevicesAreValidatedAndRecorded(t *testing.T) {
+	withCaps(t, true)
+
+	r := parseNeedsLinux(t, "option=needs-linux:caps=net-admin:devices=ppp")
+	if !slices.Equal(r.Devices, []string{"ppp"}) {
+		t.Errorf("Devices = %v, want [ppp]", r.Devices)
+	}
+	if runtime.GOOS == goosLinux && r.SkipReason != "" {
+		t.Errorf("a declared device skipped a Linux host: %q", r.SkipReason)
+	}
+
+	et := &EncodingTests{}
+	err := et.parseLine(newRecord("bad-device"), "test/l2tp/fake.ci", "option=needs-linux:devices=pp")
+	if err == nil {
+		t.Fatal("devices=pp was accepted")
+	}
+	if !strings.Contains(err.Error(), "supported: ppp") {
+		t.Errorf("the refusal does not name the accepted tokens: %v", err)
+	}
+
+	if got := ContainerDevicePaths(); !slices.Equal(got, []string{"/dev/ppp"}) {
+		t.Errorf("ContainerDevicePaths() = %v, want exactly [/dev/ppp]", got)
+	}
+}
+
+// TestPPPSessionTestsDeclareDevPPP reads the real .ci files that reach
+// ppp.DevPPPSetup and checks each one declares devices=ppp.
+//
+// VALIDATES: the L2TP tests that complete a kernel session and the PPPoE tests
+// whose PADR is admitted (the PADS follows DevPPPSetup) declare the device.
+// PREVENTS: the declaration being dropped from a test that opens /dev/ppp.
+func TestPPPSessionTestsDeclareDevPPP(t *testing.T) {
+	for _, path := range []string{
+		"test/l2tp/radius-acct-wire.ci",
+		"test/l2tp/session-stopccn-cascade.ci",
+		"test/pppoe/pppoe-basic.ci",
+		"test/pppoe/pppoe-padr-flood.ci",
+		"test/pppoe/pppoe-per-mac-cap.ci",
+		"test/pppoe/pppoe-service-name.ci",
+		"test/pppoe/pppoe-vlan.ci",
+	} {
+		data, err := os.ReadFile(filepath.Join("..", "..", "..", path))
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		declared := false
+		for line := range strings.SplitSeq(string(data), "\n") {
+			if !strings.HasPrefix(line, "option=needs-linux") {
+				continue
+			}
+			withCaps(t, true)
+			if slices.Contains(parseNeedsLinux(t, line).Devices, devicesPPP) {
+				declared = true
+			}
+		}
+		if !declared {
+			t.Errorf("%s opens /dev/ppp but does not declare option=needs-linux:...:devices=ppp", path)
 		}
 	}
 }
