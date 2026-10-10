@@ -1,0 +1,126 @@
+# Test: RPKI origin validation loaded into a RUNNING daemon over SSH takes effect
+# Initial config: one iBGP peer bound to bgp-adj-rib-in and bgp-rpki, no
+#                 `bgp rpki` block, so nothing is validated. The peer announces
+#                 Valid, Invalid and NotFound prefixes, installed unvalidated.
+# Live change:    an SSH session editor load-merges the RTR cache and policy,
+#                 and commits.
+# Expected:       the cache syncs, and the routes the peer sent BEFORE the commit
+#                 carry their RFC 6811 states: the Invalid one held ineligible
+#                 (validation-state 3), the Valid one 1, the NotFound one 2.
+#
+# VALIDATES: spec-terminal-demo-showcase AC-2 (RPKI topic) -- a topic's
+#            configuration load-merged in the SSH editor and committed enables
+#            the feature on a daemon started without it.
+# PREVENTS: a commit that reports success while routes already received stay
+#           unvalidated, which the RPKI topic recording would show as wrong output.
+#           tcp_connections=1 also proves the commit does not reset the session:
+#           a second connection would leave the peer's routes gone.
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=update:value=send-route:prefix=9.43.0.0/24:origin-as=65001:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.43.0.0/24:origin-as=65001:next-hop=10.0.0.1
+option=update:value=send-route:prefix=11.43.0.0/24:origin-as=65001:next-hop=10.0.0.1
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=bgp-rpki-added-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+plugin {
+    internal adj-rib-in {
+        use bgp-adj-rib-in
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ]
+        }
+        attach process bgp-rpki {
+            receive [ update-received state ]
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=rpki-cache.conf:terminator=EOF_CACHE
+bgp {
+    rpki {
+        cache-server 127.0.0.1 {
+            trusted-network true
+            port $PORT3
+        }
+        validation-timeout 5
+        action {
+            invalid reject
+            not-found accept
+        }
+    }
+}
+EOF_CACHE
+
+tmpfs=bgp-rpki-added-live.script:terminator=EOF_SCRIPT
+cli show bgp adj-rib-in | no-more | yaml
+has 10.43.0.0/24
+lacks validation-state: 3
+send load file absolute merge rpki-cache.conf
+wait Configuration merged from
+send commit now
+wait Session committed:
+cli show bgp rpki status | yaml
+has vrp-count-ipv4: 2
+cli show bgp adj-rib-in | no-more | yaml
+has validation-state: 3
+has validation-state: 1
+has validation-state: 2
+EOF_SCRIPT
+
+# VRPs: 9.43.0.0/24 by AS 65001 (Valid); 10.43.0.0/24 by AS 65099 (Invalid for
+# origin 65001); 11.43.0.0/24 has no ROA (NotFound).
+cmd=background:seq=1:exec=le test rtr-mock --port $PORT3 --vrp 9.43.0.0/24,24,65001 --vrp 10.43.0.0/24,24,65099:ready=le test rtr-mock: listening on
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze start bgp-rpki-added-live.conf:timeout=60s
+cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT2 bgp-rpki-added-live.conf bgp-rpki-added-live.script:timeout=60s
+expect=exit:code=0
