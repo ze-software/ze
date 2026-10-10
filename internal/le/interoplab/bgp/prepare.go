@@ -424,6 +424,12 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		if err != nil {
 			return nil, err
 		}
+		// FRR's zebra and bgpd put CAP_SYS_ADMIN in their permitted set at start
+		// (zebra/main.c and bgpd/bgp_main.c _caps_p: "ZCAP_NET_ADMIN,
+		// ZCAP_SYS_ADMIN"), and lib/privs.c zprivs_caps_init exits when
+		// cap_set_proc cannot raise it ("privs_init: initial cap_set_proc
+		// failed"), which it cannot outside Docker's bounding set. NET_RAW and
+		// NET_BIND_SERVICE, which they also ask for, are in Docker's default set.
 		peers = append(peers, interoplab.PeerConfig{Name: frr.name, Container: containerName(frr.name, suffix), Image: image, Host: frr.host,
 			Mounts:       []interoplab.Mount{mount(path, "/etc/frr/frr.conf"), mount(daemons, "/etc/frr/daemons"), mount(filepath.Join(producer, "vtysh.conf"), "/etc/frr/vtysh.conf")},
 			Capabilities: []string{capabilityNetAdmin, "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready(cmdVtysh, "-c", "show version")})

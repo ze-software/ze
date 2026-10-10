@@ -105,7 +105,9 @@ var capsRequired = map[string][]int{
 // It is a second spelling of the bit constants, so
 // TestEveryCapsBitHasADockerName compares it with an independent table and
 // ContainerCapsDockerNames refuses a bit it cannot name. A bit no token
-// requires has no entry: a name here is a grant some container receives.
+// requires has no entry. A name here is not by itself a grant:
+// ContainerCapsDockerNames leaves out the capsAltersHost tokens, so SYS_TIME
+// is named here and granted to no container.
 var capDockerName = map[int]string{
 	capNetBindService: "NET_BIND_SERVICE",
 	capNetAdmin:       "NET_ADMIN",
