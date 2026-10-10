@@ -51,6 +51,14 @@ manifest demo with no scenario, fails the package's unit test.
 <!-- source: internal/le/site/terminaldemo/register_scenarios.go -- init -->
 <!-- source: internal/le/site/terminaldemo/registry_test.go -- TestEveryManifestDemoHasARegisteredScenario -->
 
+A tape can `Source` a fragment that lives outside its demo directory, such as a
+topic's `demos/terminal/topics/<topic>/configure.tape`, which both the topic
+recording and the showcase play. A recording's source and definition digests
+cover every tape it sources, nested, and every file beside a fragment outside
+its own directory, such as the config snippets the fragment loads. Editing a
+fragment therefore marks every recording that plays it stale.
+<!-- source: internal/le/site/terminaldemo/manifest.go -- addSourceClosure -->
+
 `./le site build output <directory>` builds into another artifact root, and
 `./le site check output <directory>` judges that same root. Both default to
 `../gh-pages`, so a session verifying its own work builds into its scratch

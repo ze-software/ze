@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -245,17 +246,81 @@ func (e *Engine) sourceDigest(demo Demo) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	shared := make([]string, 0, 2+len(sources))
-	shared = append(shared,
-		filepath.Join(e.demoRoot, "common.tape"),
-		filepath.Join(e.demoRoot, "Dockerfile"),
-	)
+	files := make(map[string]bool, 2+len(sources))
+	files[filepath.Join(e.demoRoot, "common.tape")] = true
+	files[filepath.Join(e.demoRoot, "Dockerfile")] = true
 	for _, relative := range sources {
-		shared = append(shared, filepath.Join(e.root, filepath.FromSlash(relative)))
+		files[filepath.Join(e.root, filepath.FromSlash(relative))] = true
 	}
-	files := append([]string(nil), shared...)
-	sourceDir := filepath.Join(e.demoRoot, filepath.Dir(demo.Source))
-	err = filepath.WalkDir(sourceDir, func(path string, entry os.DirEntry, walkErr error) error {
+	own, err := regularFiles(filepath.Join(e.demoRoot, filepath.Dir(demo.Source)))
+	if err != nil {
+		return "", err
+	}
+	for _, path := range own {
+		files[path] = true
+	}
+	if err := e.addSourceClosure(demo, files); err != nil {
+		return "", err
+	}
+	return e.digestPaths(renderContract(false, demo), slices.Collect(maps.Keys(files)))
+}
+
+// addSourceClosure adds to files what a demo's tape plays beyond its own
+// directory: every tape it sources, nested, and every file beside a sourced
+// fragment, such as the config snippets a topic fragment loads. A fragment is
+// shared by a topic recording and the showcase, so it lives in no demo's
+// directory, and a digest that missed it would report both recordings current
+// after the fragment changed. The demo root's own files are not swept, because
+// that directory holds every demo; common.tape is named there directly.
+//
+// A browser demo's source is a driver script, not a tape, so it sources
+// nothing and adds only itself.
+func (e *Engine) addSourceClosure(demo Demo, files map[string]bool) error {
+	tape := filepath.Join(e.demoRoot, demo.Source)
+	if demo.Kind != terminalLabel {
+		files[tape] = true
+		return nil
+	}
+	seen := make(map[string]bool)
+	if _, err := tapeLines(tape, e.demoRoot, seen); err != nil {
+		return fmt.Errorf("%s: %w", demo.ID, err)
+	}
+	// tapeLines keys seen by absolute path; digestPaths takes paths under
+	// e.root as given, so each one is rebased onto e.demoRoot.
+	absoluteRoot, err := filepath.Abs(e.demoRoot)
+	if err != nil {
+		return err
+	}
+	ownDir := filepath.Join(e.demoRoot, filepath.Dir(demo.Source))
+	for absolute := range seen {
+		relative, err := filepath.Rel(absoluteRoot, absolute)
+		if err != nil {
+			return err
+		}
+		path := filepath.Join(e.demoRoot, relative)
+		files[path] = true
+		dir := filepath.Dir(path)
+		if dir == e.demoRoot {
+			continue
+		}
+		if dir == ownDir {
+			continue
+		}
+		beside, err := regularFiles(dir)
+		if err != nil {
+			return err
+		}
+		for _, file := range beside {
+			files[file] = true
+		}
+	}
+	return nil
+}
+
+// regularFiles answers every regular file under dir, skipping dot files.
+func regularFiles(dir string) ([]string, error) {
+	var files []string
+	err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -274,11 +339,7 @@ func (e *Engine) sourceDigest(demo Demo) (string, error) {
 		}
 		return nil
 	})
-	if err != nil {
-		return "", err
-	}
-	contract := renderContract(false, demo)
-	return e.digestPaths(contract, files)
+	return files, err
 }
 
 // recorderBinaries are the two program entry points that drive a recording
@@ -326,9 +387,11 @@ func nativeRecorderSources(root string) ([]string, error) {
 }
 
 func (e *Engine) definitionDigest(demo Demo) (string, error) {
-	files := []string{filepath.Join(e.demoRoot, "common.tape"), filepath.Join(e.demoRoot, demo.Source)}
-	contract := renderContract(true, demo)
-	return e.digestPaths(contract, files)
+	files := map[string]bool{filepath.Join(e.demoRoot, "common.tape"): true}
+	if err := e.addSourceClosure(demo, files); err != nil {
+		return "", err
+	}
+	return e.digestPaths(renderContract(true, demo), slices.Collect(maps.Keys(files)))
 }
 
 func renderContract(includeKind bool, demo Demo) []byte {

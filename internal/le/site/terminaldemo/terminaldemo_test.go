@@ -873,3 +873,66 @@ func TestPTYActionAnswersRunPTYsHelp(t *testing.T) {
 		t.Errorf("pty --no-such-option answered %d, want RunPTY's refusal 2", code)
 	}
 }
+
+// VALIDATES: spec-terminal-demo-showcase AC-5. A topic fragment lives outside
+// every demo directory and two demos source it, a topic tape and the showcase.
+// Editing the fragment, or a config snippet beside it, moves both demos' source
+// and definition digests, and the check mode reports the rendered demo stale.
+// PREVENTS: a digest built from the demo's own directory alone, which reports
+// a recording current after the fragment it plays has changed.
+func TestSourceDigestFollowsSourcedTapes(t *testing.T) {
+	fixture := newDemoFixture(t)
+	demoRoot := filepath.Join(fixture.root, "demos", "terminal")
+	fragment := filepath.Join(demoRoot, "topics", "rpki", "configure.tape")
+	snippet := filepath.Join(demoRoot, "topics", "rpki", "1-cache.conf")
+	mustWrite(t, fragment, "Type load file relative merge topics/rpki/1-cache.conf\n")
+	mustWrite(t, snippet, "rpki { cache-server 192.0.2.1 }\n")
+	mustWrite(t, filepath.Join(demoRoot, "term", "demo.tape"),
+		"Source common.tape\nSource topics/rpki/configure.tape\nType show term\n")
+	mustWrite(t, filepath.Join(demoRoot, "showcase", "demo.tape"),
+		"Source common.tape\nSource topics/rpki/configure.tape\nType show showcase\n")
+	topic := Demo{ID: "term", Kind: "terminal", Source: "term/demo.tape"}
+	showcase := Demo{ID: "showcase", Kind: "terminal", Source: "showcase/demo.tape"}
+
+	engine := fixture.engine(&bytes.Buffer{})
+	if _, err := engine.RenderAll("26.08.27"); err != nil {
+		t.Fatalf("render fixture: %v", err)
+	}
+	digests := func() []string {
+		t.Helper()
+		var all []string
+		for _, demo := range []Demo{topic, showcase} {
+			source, err := engine.sourceDigest(demo)
+			if err != nil {
+				t.Fatalf("%s source digest: %v", demo.ID, err)
+			}
+			definition, err := engine.definitionDigest(demo)
+			if err != nil {
+				t.Fatalf("%s definition digest: %v", demo.ID, err)
+			}
+			all = append(all, source, definition)
+		}
+		return all
+	}
+	names := []string{"topic source", "topic definition", "showcase source", "showcase definition"}
+
+	before := digests()
+	for _, edit := range []struct{ name, path, content string }{
+		{"fragment", fragment, "Type load file relative merge topics/rpki/1-cache.conf\nType show bgp rpki status\n"},
+		{"snippet", snippet, "rpki { cache-server 192.0.2.2 }\n"},
+	} {
+		mustWrite(t, edit.path, edit.content)
+		after := digests()
+		for index := range before {
+			if after[index] == before[index] {
+				t.Errorf("%s edit: %s digest did not change", edit.name, names[index])
+			}
+		}
+		before = after
+	}
+
+	_, err := engine.checkAll("")
+	if err == nil || err.Error() != "term: source changed since the last render" {
+		t.Fatalf("check after a fragment edit: err %v, want the term demo reported stale", err)
+	}
+}
