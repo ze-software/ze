@@ -21,6 +21,8 @@ Owner answers to the first design (2026-10-09), which replace its exact-version 
 -> Decision (owner, D-3): "if the kernel of github is recent enough, good enough, check". Checked below: it is not, so the QEMU-guest fallback is the nightly route.
 -> Decision (owner, D-4): "how could we have wrong kernel, it should not be possible - fail". Every Docker run that runs Ze fails on a host lacking a required feature, with no exemption. The check sits where Ze-running Docker work starts; the kernel build runs no Ze, so it never reaches the check and needs no exemption.
 -> Decision (owner, D-5, 2026-10-10): option B, "docker needs our kernel". Every Docker host runs EXACTLY the appliance kernel, so every interop result comes from the kernel the appliance ships. There is no separate docker-host profile: the options Docker itself needs are added to `gokrazy/kernel/runtime.config` and declared once in `runtime.require` (AC-14). D-1's "a distro kernel that has everything is equally fine" still describes what the derived check accepts; D-5 fixes which kernel Ze's own hosts install.
+-> Decision (owner, D-6, 2026-10-10): "we can use qemu, there is no reason to not have docker use on linux and qemu on mac". On Linux, Ze's Docker labs run natively on a host whose kernel has every enrolled feature (its own kernel, or Ze's after `./le setup docker-kernel install` and an operator reboot). On macOS, Ze's Docker-based labs (interop suites, `docker-*` and the other Docker deployment proofs, the terminal-demo render) run inside a QEMU guest under HVF booted on Ze's own arm64 runtime kernel, with Docker inside that guest. colima is no longer the Ze lab host, and the colima kernel-install route is dropped: `./le setup docker-kernel install` is Linux-only. The Mac and the nightly (Ze's amd64 kernel under KVM) share ONE "run the Docker lab inside the Ze-kernel QEMU guest" path. The derived kernel check still runs, inside the guest, and must pass there.
+-> Constraint (D-6): booting that guest needs (a) Ze's runtime kernel for the guest's architecture from the kernel cache (`ze appliance kernel` writes `tmp/kernel/build/vmlinuz`, cache under `~/.cache/ze/runtime-kernel/<version>-runtime-<arch>-...`; on 2026-10-10 the Mac holds arm64 entries `d1de5ab8` (2026-10-02) and `8e843adc` (2026-09-27), both built before the D-5 Docker options landed in `runtime.config` on 2026-10-10, so the key has changed and a fresh build is owed before the guest can be trusted to start Docker), and (b) a guest image that carries Docker (Alpine's `docker` package through `./le test qemu run ... packages`, A-5). No kernel build is started by this spec's agents; the build is the owner's to run.
 -> Constraint (D-5): the Docker option list is derived from moby's `contrib/check-config.sh` "Generally Necessary" section, read at moby commit `9fabd6dfbb926381278c436a866bc8d6ac222274` (master, 2026-10-10), never from memory. For a kernel at 5.3 or later its `check_flags` there name: `NAMESPACES NET_NS PID_NS IPC_NS UTS_NS CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG KEYS VETH BRIDGE BRIDGE_NETFILTER IP_NF_FILTER IP_NF_MANGLE IP_NF_TARGET_MASQUERADE IP6_NF_FILTER IP6_NF_MANGLE IP6_NF_TARGET_MASQUERADE NETFILTER_XT_MATCH_ADDRTYPE NETFILTER_XT_MATCH_CONNTRACK NETFILTER_XT_MATCH_IPVS NETFILTER_XT_MARK IP_NF_RAW IP_NF_NAT NF_NAT IP6_NF_RAW IP6_NF_NAT POSIX_MQUEUE CGROUP_BPF`, and a cgroup v2 hierarchy with the `cpu cpuset io memory pids` controllers. The owner also named overlayfs, the user namespace and seccomp, which the same script lists under "Optional Features" (`OVERLAY_FS`, `USER_NS`, `SECCOMP SECCOMP_FILTER`, `CGROUP_PIDS`); those are added too, because Docker's default storage driver and default seccomp profile use them.
 
 The symptom. `mobike-initiator` and `mobike-responder` fail on every nightly and on the Mac (`plan/spec-interop-image-copies-a-prebuilt-ze.md`, AC-9: `34 passed, 3 failed`). Ze offers MOBIKE only when the kernel answers `XFRM_MSG_MIGRATE_STATE` (`xfrmMigrationAvailable`, `internal/component/ike/dataplane/xfrm_migrate_linux.go`), which first appears in Linux 7.2. The suite spends 15 minutes and reports two protocol failures that are a host fact.
@@ -31,7 +33,7 @@ Goals.
 |----|------|
 | G-1 | The set of kernel features a Docker host must provide is DERIVED from Ze's kernel capability enrolment (`internal/component/kernelcap`), and that enrolment covers every feature the Docker labs exercise |
 | G-2 | Every Docker run that runs Ze (interop labs, `docker-*` deployment proofs, terminal-demo render) probes the daemon's kernel for that whole set before any image build, and fails naming each missing feature |
-| G-3 | Every Docker host Ze's labs use (colima on the Mac, the Linux amd64 host, the scheduled nightly) has a kernel that passes, by its own kernel or by Ze's build |
+| G-3 | Every Docker host Ze's labs use has a kernel that passes: a Linux host natively (its own kernel or Ze's build), and on the Mac and the scheduled nightly the Ze-kernel QEMU guest (D-6) |
 | G-4 | `mobike-initiator` and `mobike-responder` pass on the Mac and on the nightly |
 
 ## Required Reading
@@ -54,7 +56,7 @@ Goals.
 **Key insights:**
 - GitHub `ubuntu-latest` fails the feature set. `actions/runner-images` README: "`ubuntu-latest` or `ubuntu-24.04`" maps to Ubuntu 24.04 x64. `images/ubuntu/Ubuntu2404-Readme.md`, read 2026-10-10: "Kernel Version: 6.17.0-1022-azure", "Image Version: 20261004.327.1". 6.17 predates 7.2, so it has no `XFRM_MSG_MIGRATE_STATE` and MOBIKE cannot run there. The nightly therefore keeps the QEMU-guest route (D-3 fallback). The README also warns `-latest` moves; the derived check, not this note, is what decides on each run.
 - The Mac fails too: colima's VM runs Ubuntu `6.8.0-117-generic`, and its `/boot/config-6.8.0-117-generic` reads `# CONFIG_XFRM_MIGRATE is not set`.
-- The colima VM (`vmType: vz`, Ubuntu 24.04, grub-efi-arm64 2.12) boots `/boot/vmlinuz-<release>` through EFI grub with no initramfs (`root=PARTUUID=...`). Installing Ze's arm64 build there is the ordinary Linux route: files in `/boot` and `/lib/modules`, `update-grub`, restart. Ze's arm64 build emits the uncompressed `Image` as `vmlinuz` (`workerArch`, `internal/appliance/kernelbuilder/worker.go`).
+- (Superseded by D-6: colima is no longer the Ze lab host, so this route is not taken.) The colima VM (`vmType: vz`, Ubuntu 24.04, grub-efi-arm64 2.12) boots `/boot/vmlinuz-<release>` through EFI grub with no initramfs. Ze's arm64 build emits the uncompressed `Image` as `vmlinuz` (`workerArch`, `internal/appliance/kernelbuilder/worker.go`), which is what `./le test qemu run kernel <vmlinuz>` boots under HVF.
 - Tools installed 2026-10-09: colima 0.10.3, limactl 2.2.0, docker client 29.8.2, server 29.5.2.
 
 ## Current Behavior (MANDATORY)
@@ -114,18 +116,18 @@ Goals.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | a probe run in a container sees the daemon host's kernel features | containers share the kernel; module autoload requests reach the host kernel | a feature present on the host reads absent, or the reverse | AC-3 and AC-5 on colima before and after the kernel install | unvalidated |
+| A-1 | a probe run in a container sees the daemon host's kernel features | containers share the kernel; module autoload requests reach the host kernel | a feature present on the host reads absent, or the reverse | AC-3 on colima (6.8, before D-6) and AC-5 in the Ze-kernel QEMU guest (D-6) | unvalidated |
 | A-2 | each feature the labs exercise has a native, mutation-free or namespace-confined probe: `XFRM_MSG_MIGRATE_STATE` (exists), xfrm interface (rtnetlink link kind), WireGuard (generic netlink family), L2TP (generic netlink family), PPPoE (socket family), ESP and every AEAD and cipher Ze's XFRM algorithm table installs | `xfrmMigrationAvailable`; the gate spec's "ESP has no unprivileged runtime probe" | an unprobeable feature cannot be required; it is named as a gap and the owner decides | each enrolment's probe test | partly confirmed 2026-10-10: MOBIKE, ESP v4/v6 and all nine XFRM transforms probe mutation-free (`XFRM_MSG_UPDSA` on reserved SPI 1 answers `ESRCH` after the kernel built the state); on colima 6.8 MOBIKE reads absent (`EINVAL`), the rest present, a bogus cipher absent, no SA left (`TestXFRMKernelProbesOnThisHost`, commit ecfa32e1fd). Confirmed 2026-10-10 for the rest: L2TP and WireGuard by generic netlink `CTRL_CMD_GETFAMILY` (`ENOENT` absent; a name over `GENL_NAMSIZ` answers `EINVAL`, so the negative control is `zenosuchfam`), L2TP sessions and PPPoE by an `AF_PPPOX` socket open (`pppox_create` requests the module, no privilege check), xfrm interface by `RTM_NEWLINK`+`NLM_F_CREATE` of kind `xfrm` with if_id 0 inside a throwaway netns (`xfrmi_newlink` answers `EINVAL` "if_id must be non zero" before registering; `EOPNOTSUPP` "Unknown device type" is absent; needs `CAP_SYS_ADMIN`, so the probe container is granted it). Kernel source read: torvalds/linux master `net/core/rtnetlink.c`, `net/xfrm/xfrm_interface_core.c`, `drivers/net/ppp/pppox.c`, `pppoe.c`, `net/l2tp/l2tp_ppp.c`. On colima 6.8 in a container with NET_ADMIN+SYS_ADMIN: wireguard present, PPPoE present, xfrm interface present, l2tp ABSENT (no l2tp family), PPPoL2TP ABSENT (`EPROTONOSUPPORT`), bogus link kind absent |
-| A-3 | colima's vz VM boots a kernel installed in its own `/boot` through grub, with no initramfs | `/proc/cmdline` `BOOT_IMAGE=/vmlinuz-6.8.0-117-generic root=PARTUUID=...`; no initrd in `/boot` | install route fails on the Mac; fall back to lima `images[].kernel` direct boot | AC-8 | unvalidated |
+| A-3 | the Alpine QEMU guest under HVF boots Ze's arm64 runtime kernel and runs a Docker daemon in it (D-6) | `./le test qemu run kernel <vmlinuz>` already boots Ze's arm64 kernel under HVF (`docs/architecture/testing/qemu-integration.md`); Alpine packages `docker`; D-5 put Docker's kernel options into `runtime.config` | the Mac route fails; the owner decides the next route | AC-8 | unvalidated (needs a kernel built after the D-5 config change; no build started) |
 | A-4 | the Linux amd64 host either passes with its own kernel or boots through grub | owner statement of a Linux host; not inspected | the install step differs | AC-9 run on the host | unvalidated |
-| A-5 | Docker runs inside the Alpine QEMU guest booted on Ze's amd64 kernel under KVM on `ubuntu-latest` | Alpine packages `docker`; `qemu-nightly.yml` boots Ze's kernel there with `/dev/kvm` | nightly route fails; owner decides between a self-hosted runner on the Linux host and dropping the hosted runner | AC-10 | unvalidated |
+| A-5 | Docker runs inside the Alpine QEMU guest booted on Ze's amd64 kernel under KVM on `ubuntu-latest`, through the same guest path as A-3 | Alpine packages `docker`; `qemu-nightly.yml` boots Ze's kernel there with `/dev/kvm` | nightly route fails; owner decides between a self-hosted runner on the Linux host and dropping the hosted runner | AC-10 | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | a capability's probe answers `unknown` in a container (missing privilege, seccomp) | every run fails on that row | the container is granted what the labs' own containers are granted; an `unknown` still fails (D-4) and names the reason |
-| R-2 | `colima delete` or an upgrade re-creates the VM and Ze's kernel is gone | next run fails naming `XFRM_MSG_MIGRATE_STATE` | the failure names `./le setup docker-kernel install` |
-| R-3 | the colima VM's Ubuntu installs a newer distro kernel that grub ranks first and that lacks a feature | run fails naming the feature | the install action sets `GRUB_DEFAULT` to Ze's entry by title |
+| R-2 | the Mac's cached arm64 runtime kernel predates a `runtime.config` change (true on 2026-10-10: the D-5 options landed after both cache entries) | the guest's Docker daemon fails to start, or the check names a missing feature | the failure names the kernel build (`ze appliance kernel`) as the route; the guest never boots a stock Alpine kernel (`Run.assertRuntimeKernel`) |
+| R-3 | a Linux host's distro installs a newer kernel that grub ranks first and that lacks a feature | run fails naming the feature | the Linux install action sets `GRUB_DEFAULT` to Ze's entry by title |
 | R-4 | GitHub moves `ubuntu-latest` to a kernel that passes | the QEMU-guest job still runs | AC-10's job prints the hosted runner's own verdict too, so the move is seen and the route can be simplified |
 | R-5 | enrolling a capability changes `ze doctor` and the daemon gate for operators | a new doctor row on an appliance | each enrolment carries `InUse` and, where the subsystem still works without it, `Degrades`, so operators see a row only for configured subsystems |
 
@@ -153,18 +155,18 @@ Goals.
 |-------|-------------------|-------------------|
 | AC-1 | the `ze doctor` all-capabilities mode, any host | answers one JSON row per enrolled capability (subsystem, `CONFIG_` symbol, state, reason), probing each regardless of configuration; the row set equals `kernelcap.Enrolled()` |
 | AC-2 | the enrolment after this spec | includes `XFRM_MSG_MIGRATE_STATE` (MOBIKE, Degrades), xfrm interface, ESP, each AEAD and cipher Ze's XFRM algorithm table installs (derived from that table, not listed), WireGuard, L2TP and PPPoE, each from its owning package; any of them A-2 finds unprobeable is named in this spec as a gap for the owner, not silently dropped |
-| AC-3 | a Docker run that runs Ze, daemon kernel lacking any enrolled feature | exits 1 before any image build or container start, naming every absent feature by subsystem and `CONFIG_` symbol, the daemon's kernel release, and the two routes (a kernel with the feature, or `./le setup docker-kernel install`); no scenario counted as passed, failed or skipped |
+| AC-3 | a Docker run that runs Ze, daemon kernel lacking any enrolled feature | exits 1 before any image build or container start, naming every absent feature by subsystem and `CONFIG_` symbol, the daemon's kernel release, and the routes to a passing kernel (D-6: on Linux a kernel with the feature or `./le setup docker-kernel install`; on macOS the Ze-kernel QEMU guest); no scenario counted as passed, failed or skipped |
 | AC-4 | a row is `unknown`, the probe container fails, or the JSON is unreadable | fails as AC-3, naming what it ran and what it read; never proceeds |
 | AC-5 | every row `present` | proceeds to image builds unchanged |
 | AC-6 | the kernel build (`ze appliance kernel`, Docker backend) | runs no Ze, never calls the check, and builds on any daemon: this is not an exemption, it is outside the check's callers |
 | AC-7 | every `Capability.Kernel` symbol enrolled | appears in `gokrazy/kernel/runtime.require` (a test compares them), so Ze's own build passes the check by construction |
-| AC-8 | Mac: `./le setup docker-kernel install` with Ze's arm64 kernel cached | installs it into colima's VM, sets grub's default by title, restarts colima; the next Docker run passes AC-5 |
+| AC-8 | Mac (D-6): a Docker lab run with Ze's arm64 runtime kernel cached | runs inside the Alpine QEMU guest under HVF booted on that kernel, with Docker in the guest; the kernel check runs in the guest and passes AC-5; colima is never the lab host |
 | AC-9 | Linux amd64 host | the check passes with the host's own kernel, or after the same install action and an operator reboot; the action never reboots the host itself |
-| AC-10 | `evidence-nightly.yml` jobs `interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop` | run inside the Alpine QEMU guest booted on Ze's cached amd64 kernel under KVM; the log shows the check passing in the guest and, as information, the hosted runner's own failing rows |
+| AC-10 | `evidence-nightly.yml` jobs `interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop` | run inside the Alpine QEMU guest booted on Ze's cached amd64 kernel under KVM, through the same guest path as AC-8; the log shows the check passing in the guest and, as information, the hosted runner's own failing rows |
 | AC-11 | a capability enrolled later by any package | is required of every Docker host with no le change (unit test enrolling a fake capability) |
 | AC-12 | `./le test integration interop-ipsec` on the Mac after AC-8 | `mobike-initiator` and `mobike-responder` pass; this is the evidence `plan/spec-interop-image-copies-a-prebuilt-ze.md` AC-9 cites |
 | AC-13 | the same suite on the nightly after AC-10 | `mobike-initiator` and `mobike-responder` pass |
-| AC-14 | `gokrazy/kernel/runtime.config` and `runtime.require` (D-5) | carry every symbol of the D-5 constraint list, each once, with a comment citing moby `contrib/check-config.sh` at the recorded commit; the appliance kernel's own build then refuses a config that loses one, and a Docker daemon starts on the appliance kernel (the colima VM after AC-8, the QEMU guest of AC-10). No kernel build is started by the config edit itself |
+| AC-14 | `gokrazy/kernel/runtime.config` and `runtime.require` (D-5) | carry every symbol of the D-5 constraint list, each once, with a comment citing moby `contrib/check-config.sh` at the recorded commit; the appliance kernel's own build then refuses a config that loses one, and a Docker daemon starts on the appliance kernel (the QEMU guest of AC-8 and AC-10). No kernel build is started by the config edit itself |
 
 ## 🧪 TDD Test Plan
 
@@ -199,7 +201,8 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 - the WireGuard, L2TP and PPPoE owning packages - their enrolments
 - `internal/le/interoplab/lab.go`, `internal/le/interoplab/docker.go` - the check after `Preflight`
 - `internal/le/test/deployment/`, `internal/le/site/terminaldemo/render.go` - call the same check
-- `internal/le/setup/setup.go` - `docker-kernel install` action and a setup check that runs the same probe
+- `internal/le/setup/setup.go` - `docker-kernel install` action (Linux hosts only, D-6) and a setup check that runs the same probe
+- `internal/le/test/qemu/` - the one "Docker lab inside the Ze-kernel guest" path the Mac and the nightly share (D-6)
 - `internal/core/diagnostic/codes.go` - codes for each new enrolment
 - `.github/workflows/evidence-nightly.yml` - the four Docker jobs inside the QEMU guest
 - `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - Docker's own kernel options (D-5, AC-14)
@@ -233,7 +236,7 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 | 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` for the `ze doctor` mode |
 | 4 | API/RPC added/changed? | No | |
 | 5 | Plugin added/changed? | No | |
-| 6 | Has a user guide page? | Yes | `docs/guide/developer-setup.md` |
+| 6 | Has a user guide page? | Yes | `docs/guide/developer-setup.md` (its colima section changes: colima is no longer the Ze lab host, D-6) |
 | 7 | Wire format changed? | No | |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | MOBIKE (RFC 4555) interop evidence becomes runnable; `rfc/short/rfc4555.md` carriers cite the passing run |
@@ -244,15 +247,15 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, command, capability, or inventory changed? | No | |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | run `./le spec citation anchors spec plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md` at implementation; `lab.go` declares `interop.md` and `docs/features/interoperability-testing.md`; `render.go` and `internal/le/dockerhost/dockerhost.go` declare `docs/architecture/core-design.md`, unaffected: it states le's one-import-per-tool composition and Docker as the pinned demo renderer, neither of which changes |
-| 17 | Existing docs show examples for this area? | Yes | doctor examples; `developer-setup.md` colima section |
+| 17 | Existing docs show examples for this area? | Yes | doctor examples; `developer-setup.md` colima section (rewritten for D-6) |
 
 ## Implementation Steps
 
 1. **Phase: Wiring** -- the le check in `Suite.Run` after `Preflight`, the deployment proofs and the render, over a recorded ze JSON answer; failing wiring tests
 2. **Phase: Doctor mode** -- every enrolment evaluated with `InUse` ignored, JSON rows; AC-1
 3. **Phase: Enrolments** -- MOBIKE migration first (it unblocks AC-12), then ESP and the algorithm set, xfrm interface, WireGuard, L2TP, PPPoE; AC-2, AC-7
-4. **Phase: Mac** -- record today's failure, then Ze's arm64 kernel into colima (`./le setup docker-kernel install`); AC-8, AC-12
-5. **Phase: Linux host** -- AC-9
+4. **Phase: Mac** -- record today's failure, then the Docker labs inside the Ze-kernel QEMU guest under HVF, the path the nightly shares (D-6); AC-8, AC-12
+5. **Phase: Linux host** -- `./le setup docker-kernel install`, Linux only (D-6); AC-9
 6. **Phase: Nightly** -- the four jobs in the QEMU guest; AC-10, AC-13
 7. **Phase: Docs and rule**
 
@@ -277,7 +280,7 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | the JSON from the container is untrusted text: bounded size, known fields only, quoted in the failure |
-| Privilege | the probe container gets only what the labs' own containers get; the install action runs root steps inside colima via `colima ssh`, and on the Linux host states each `sudo` step and never reboots |
+| Privilege | the probe container gets only what the labs' own containers get; the install action is Linux-only (D-6): it states each `sudo` step and never reboots; the Mac guest runs in QEMU with no host root step |
 | Mutation | every probe is mutation-free or confined to the probe container's own network namespace |
 
 ### Failure Routing
@@ -306,7 +309,7 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 | `unknown` fails | warn as the daemon does | owner D-4: a wrong kernel "should not be possible - fail" |
 | Kernel build is not a caller | an exemption flag | it runs no Ze, so it never reaches the check (owner D-4) |
 | Nightly: QEMU guest on Ze's amd64 kernel | Docker directly on `ubuntu-latest` | its kernel `6.17.0-1022-azure` lacks `XFRM_MSG_MIGRATE_STATE` (runner-images Ubuntu2404-Readme, 2026-10-10) |
-| Mac: install Ze's kernel into colima's own VM through grub | lima `images[].kernel` direct boot; a distro 7.x kernel | colima rewrites `lima.yaml` on start; a distro kernel is acceptable whenever it passes the check, but none is in hand that does |
+| Mac: Docker labs inside the Alpine QEMU guest under HVF on Ze's arm64 kernel, one path shared with the nightly (owner D-6) | install Ze's kernel into colima's VM through grub; lima `images[].kernel` direct boot | owner: "we can use qemu, there is no reason to not have docker use on linux and qemu on mac"; the QEMU runner already boots Ze's kernel and refuses any other (`Run.assertRuntimeKernel`) |
 
 ## Known Limitations
 
