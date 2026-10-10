@@ -163,7 +163,7 @@ release check accepts the suffixed release.
   helpers stay unexported for that reason.
 
 <!-- source: internal/appliance/cmd_kernel.go -- kernelInstallerConfigDir, defaultKernelBuild -->
-<!-- source: internal/appliance/kernelbuilder/driver.go -- Request.Root -->
+<!-- source: internal/appliance/kernelbuilder/recipe.go -- Request.Root -->
 <!-- source: internal/appliance/kernelreg_test.go -- TestRegisteredKernelProfilesShippedSet -->
 
 ## Related

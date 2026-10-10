@@ -340,7 +340,7 @@ for `ze appliance kernel --builder qemu`, whose worker binary and runtime output
 both sit under `/workspace/tmp`.
 <!-- source: internal/core/tmplink/tmplink.go -- Shares -->
 <!-- source: internal/le/test/qemu/run.go -- Run.scratchShares -->
-<!-- source: internal/appliance/kernelbuilder/qemu.go -- guestSetup -->
+<!-- source: internal/appliance/kernelbuilder/recipe.go -- guestSetup -->
 
 ```text
 host                                      QEMU Alpine VM
