@@ -1,0 +1,80 @@
+# Test: the web terminal refuses copy and rename onto a list entry that exists
+# VALIDATES: spec-session-editor-file-mode-parity AC-30 (web terminal, AC-29) --
+#            `copy <list> <src> to <dst>` and `rename <list> <old> to <new>`
+#            whose destination exists are refused, naming the destination and
+#            saying to delete it first, and nothing changes
+# PREVENTS: the web terminal overwriting an existing entry the SSH and file-mode
+#           editors refuse to overwrite
+#
+# No step sleeps: each command waits for its own request (action=wait) and each
+# outcome is a positive expectation, which polls.
+
+option=timeout:value=60s
+
+action=open:path=/cli
+expect=element:id=terminal-input
+
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze#
+
+action=fill:id=terminal-input:value=set bgp router-id 10.0.0.9
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer wbone connection remote ip 10.0.0.1
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer wbone connection local ip auto
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer wbone session asn remote 65001
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer wbtwo connection remote ip 10.0.0.2
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer wbtwo connection local ip auto
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer wbtwo session asn remote 65002
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=fill:id=terminal-input:value=copy bgp peer wbone to wbtwo
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=wbtwo already exists in peer: delete it first
+
+action=fill:id=terminal-input:value=rename bgp peer wbtwo to wbone
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=wbone already exists in peer: delete it first
+
+# Nothing changed: the session has no pending change (`errors` lists them,
+# EditorManager.Diff), and both peers keep their own address.
+action=fill:id=terminal-input:value=errors
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=show bgp peer wbtwo
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=html:contains=remote ip 10.0.0.2
+expect=html:not-contains=+ copy
+expect=html:not-contains=~ rename
