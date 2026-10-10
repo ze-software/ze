@@ -176,6 +176,18 @@ There is no operator override, by owner decision (2026-08-14). A NOS that
 half-works on a kernel missing a required feature is the hazard this removes, and
 an override is what an operator reaches for under pressure.
 
+Tests have one, and it is not an operator switch. The private variable
+`ze.test.kernelcap.force` takes `<subsystem>=<present|absent|unknown>` entries,
+comma-separated, and every reader of the enrolment (doctor, the start and
+reload gates, validate, `ProbeAll`) takes the forced answer for a subsystem it
+names instead of running that probe. The diagnostic carries
+`forced answer (ze.test.kernelcap.force)`, so an injected verdict is never read
+as the host's. A misspelt state leaves the real probe in charge. It exists so a
+functional test reaches the absent and cannot-determine rows on a healthy host:
+`test/ui/doctor-l2tp-kernelcap.ci`, `test/ui/doctor-pppoe-kernelcap.ci`,
+`test/ui/doctor-ipsec-xfrm.ci` and `test/plugin/kernel-capability-*.ci`.
+<!-- source: internal/component/kernelcap/probe.go -- probe, forcedFor -->
+
 ### The predicate decides more than the refusal
 
 `IPsecInUse` has three readers: the gate, the kernel module check and the

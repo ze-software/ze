@@ -15,7 +15,7 @@
 # carries the registration behind //go:build linux, because XFRM is a Linux
 # dataplane and off Linux ze installs none. So `ze doctor` on darwin emits no
 # xfrm diagnostic at all and nothing here can be reached, whatever
-# ze.test.kernelcap.xfrm is forced to.
+# ze.test.kernelcap.force is forced to.
 #
 # This file passed on darwin until 2026-09-14 only because every stream
 # assertion was checked against the whole test's output: its own
@@ -24,7 +24,7 @@
 # behaviour is Linux-only.
 option=needs-linux
 
-option=env:var=ze.test.kernelcap.xfrm:value=unknown
+option=env:var=ze.test.kernelcap.force:value=ipsec=unknown
 option=env:var=ze.gnmi.enabled:value=1
 option=env:var=ze.gnmi.listen:value=127.0.0.1:19352
 
@@ -64,7 +64,7 @@ cmd=foreground:seq=1:exec=ze doctor --json ipsec-unknown.conf
 # Exit 0: a warning does not make the host unready, and it must not.
 expect=exit:code=0
 expect=stdout:contains=doctor-ipsec-xfrm-unknown
-expect=stdout:contains=ze.test.kernelcap.xfrm
+expect=stdout:contains=ze.test.kernelcap.force
 reject=stdout:pattern=doctor-ipsec-xfrm-unavailable
 
 cmd=foreground:seq=2:exec=ze config validate ipsec-unknown.conf

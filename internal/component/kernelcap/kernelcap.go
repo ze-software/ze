@@ -265,7 +265,7 @@ func ProbeAll() []Row {
 
 	rows := make([]Row, 0, len(entries))
 	for i := range entries {
-		result := entries[i].Probe()
+		result := probe(&entries[i])
 		if result.State == StateUnspecified {
 			result = Result{State: StateUnknown, Reason: errProbeNoVerdict}
 		}
@@ -314,7 +314,7 @@ func evaluateOne(capability *Capability, tree *config.Tree) (diagnostic.Diagnost
 		return diagnostic.Diagnostic{}, false
 	}
 
-	result := capability.Probe()
+	result := probe(capability)
 	if result.State == StatePresent {
 		return diagnostic.Diagnostic{}, false
 	}

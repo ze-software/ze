@@ -1,0 +1,28 @@
+# Test: ze doctor --json reports a PPPoE config the host's kernel cannot carry
+# VALIDATES: the pppoe kernel capability enrolment (CONFIG_PPPOE, the PPPoX
+# discovery socket) is reachable from the USER entry point. A forced absent
+# answer is an ERROR, so `ze doctor` exits 1 and the message names the kernel
+# feature and the configuration that asked.
+# PREVENTS: a PPPoE access concentrator that accepts a configuration on a kernel
+# with no PPPoE and answers no subscriber. This replaces doctor-pppoe-module.ci,
+# whose /proc/modules check was deleted with ad0931ae26
+# (its ledger row is in that commit).
+#
+# The probe is FORCED so the branch is reached on a host whose kernel is healthy
+# (ai/rules/interop-and-goal-validation.md). The enrolment is Linux-only
+# (internal/component/l2tp/pppoe/register_kernelcap_linux.go).
+option=needs-linux
+
+option=env:var=ze.test.kernelcap.force:value=pppoe=absent
+
+tmpfs=pppoe.conf:terminator=EOF_CONF
+pppoe {
+    enabled true
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json pppoe.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-pppoe-unavailable
+expect=stdout:contains=CONFIG_PPPOE
+expect=stdout:contains=ze.test.kernelcap.force

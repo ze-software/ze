@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // withEnrolment replaces the enrolment for the duration of a test. Nothing else
@@ -302,6 +303,101 @@ func TestDoctorAllCapabilitiesIgnoresConfig(t *testing.T) {
 		}
 		if rows[i] != want[i] {
 			t.Errorf("row %d = %+v, want %+v", i, rows[i], want[i])
+		}
+	}
+}
+
+// withForcedAnswers sets the forced-probe variable for the duration of a test.
+func withForcedAnswers(t *testing.T, value string) {
+	t.Helper()
+	original := env.Get(forceEnv)
+	t.Cleanup(func() { _ = env.Set(forceEnv, original) })
+	if err := env.Set(forceEnv, value); err != nil {
+		t.Fatalf("set %s: %v", forceEnv, err)
+	}
+}
+
+// refusingProbe fails the test if the real probe is consulted, which is what a
+// forced answer exists to prevent.
+func refusingProbe(t *testing.T, subsystem string) func() Result {
+	return func() Result {
+		t.Errorf("the real %s probe was consulted under a forced answer", subsystem)
+		return Result{State: StatePresent}
+	}
+}
+
+// VALIDATES: the forced-probe variable gives ANY enrolled capability the answer
+// it names, through both readers (Evaluate for doctor, start and validate;
+// ProbeAll for the Docker-host check), and the diagnostic says the answer was
+// injected. A capability the variable does not name keeps its real probe.
+// PREVENTS: a branch that a functional test can reach only on a host whose
+// kernel happens to lack the feature, the vacuity trap of
+// ai/rules/interop-and-goal-validation.md, for every enrolment rather than XFRM
+// alone.
+func TestForcedAnswerReplacesTheNamedProbe(t *testing.T) {
+	for state, want := range map[string]State{
+		"present": StatePresent,
+		"absent":  StateAbsent,
+		"unknown": StateUnknown,
+	} {
+		t.Run(state, func(t *testing.T) {
+			forced := capabilityFor("alpha", StatePresent, nil)
+			forced.Probe = refusingProbe(t, "alpha")
+			unforced := capabilityFor("bravo", StateAbsent, errors.New("real bravo answer"))
+			withEnrolment(t, forced, unforced)
+			withForcedAnswers(t, "alpha="+state)
+
+			rows := ProbeAll()
+			if rows[0].Subsystem != "alpha" || rows[0].State != want.String() {
+				t.Errorf("forced row = %+v, want alpha %v", rows[0], want)
+			}
+			if want != StatePresent && !strings.Contains(rows[0].Reason, forceEnv) {
+				t.Errorf("forced row reason %q does not name %s", rows[0].Reason, forceEnv)
+			}
+			if rows[1].State != "absent" || rows[1].Reason != "real bravo answer" {
+				t.Errorf("unforced row = %+v, want bravo's real answer", rows[1])
+			}
+
+			diags := Evaluate(config.NewTree())
+			alphaCodes := 0
+			for i := range diags {
+				if !strings.HasPrefix(diags[i].Code, "doctor-alpha-") {
+					continue
+				}
+				alphaCodes++
+				if !strings.Contains(diags[i].Message, forceEnv) {
+					t.Errorf("forced diagnostic does not name %s: %s", forceEnv, diags[i].Message)
+				}
+			}
+			wantCodes := 1
+			if want == StatePresent {
+				wantCodes = 0
+			}
+			if alphaCodes != wantCodes {
+				t.Errorf("alpha produced %d diagnostics, want %d: %+v", alphaCodes, wantCodes, diags)
+			}
+		})
+	}
+}
+
+// VALIDATES: the variable names several subsystems at once, and a misspelt
+// state or an entry with no state leaves the real probe in charge.
+// PREVENTS: a typo in a test variable deciding whether a daemon starts.
+func TestForcedAnswerListAndMisspellings(t *testing.T) {
+	alpha := capabilityFor("alpha", StatePresent, nil)
+	alpha.Probe = refusingProbe(t, "alpha")
+	bravo := capabilityFor("bravo", StatePresent, nil)
+	bravo.Probe = refusingProbe(t, "bravo")
+	charlie := capabilityFor("charlie", StatePresent, nil)
+	delta := capabilityFor("delta", StatePresent, nil)
+	withEnrolment(t, alpha, bravo, charlie, delta)
+	withForcedAnswers(t, "alpha=absent, bravo=unknown,charlie=abcent,delta")
+
+	want := []string{"absent", "unknown", "present", "present"}
+	rows := ProbeAll()
+	for i := range want {
+		if rows[i].State != want[i] {
+			t.Errorf("%s = %s, want %s", rows[i].Subsystem, rows[i].State, want[i])
 		}
 	}
 }

@@ -18,7 +18,7 @@
 # carries the registration behind //go:build linux, because XFRM is a Linux
 # dataplane and off Linux ze installs none. So `ze doctor` on darwin emits no
 # xfrm diagnostic at all and nothing here can be reached, whatever
-# ze.test.kernelcap.xfrm is forced to.
+# ze.test.kernelcap.force is forced to.
 #
 # This file passed on darwin until 2026-09-14 only because every stream
 # assertion was checked against the whole test's output: its own
@@ -27,7 +27,7 @@
 # behaviour is Linux-only.
 option=needs-linux
 
-option=env:var=ze.test.kernelcap.xfrm:value=absent
+option=env:var=ze.test.kernelcap.force:value=ipsec=absent
 
 tmpfs=ipsec-xfrm.conf:terminator=EOF_CONF
 vpn {
@@ -67,7 +67,7 @@ expect=exit:code=1
 expect=stdout:contains=doctor-ipsec-xfrm-unavailable
 # The netlink failure must reach the operator. A message that says the dataplane is
 # unavailable and nothing about the cause names no action.
-expect=stdout:contains=ze.test.kernelcap.xfrm
+expect=stdout:contains=ze.test.kernelcap.force
 
 cmd=foreground:seq=2:exec=ze explain doctor-ipsec-xfrm-unavailable
 expect=exit:code=0

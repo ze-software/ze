@@ -10,7 +10,7 @@
 #
 # The gNMI listener is the readiness fence. It is the daemon saying it got past
 # the capability gate, on loopback so no management guard is involved.
-option=env:var=ze.test.kernelcap.xfrm:value=absent
+option=env:var=ze.test.kernelcap.force:value=ipsec=absent
 option=env:var=ze.gnmi.enabled:value=1
 option=env:var=ze.gnmi.listen:value=127.0.0.1:19351
 

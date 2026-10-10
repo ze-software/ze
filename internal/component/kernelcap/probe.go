@@ -8,6 +8,7 @@ package kernelcap
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
 )
@@ -19,12 +20,13 @@ const (
 	// ProcPath, so a functional test points ONE variable at its fixture tree.
 	procRootEnv = "ze.test.doctor.procfs-root"
 
-	// xfrmStateEnv forces the XFRM probe's answer, so a functional test reaches
-	// the absent and cannot-determine branches on a host whose kernel is
-	// healthy. Without it those branches would only be exercised where XFRM
-	// happens to be missing, which is the vacuity trap of
-	// ai/rules/interop-and-goal-validation.md.
-	xfrmStateEnv = "ze.test.kernelcap.xfrm"
+	// forceEnv forces the probe answer of named enrolled capabilities, so a
+	// functional test reaches the absent and cannot-determine branches of any
+	// enrolment on a host whose kernel is healthy. Without it those branches
+	// would only be exercised where the feature happens to be missing, which is
+	// the vacuity trap of ai/rules/interop-and-goal-validation.md. The value is
+	// a comma-separated list of <subsystem>=<present|absent|unknown>.
+	forceEnv = "ze.test.kernelcap.force"
 
 	envTypeString = "string"
 )
@@ -37,15 +39,15 @@ var _ = env.MustRegister(env.EnvEntry{
 })
 
 var _ = env.MustRegister(env.EnvEntry{
-	Key:         xfrmStateEnv,
+	Key:         forceEnv,
 	Type:        envTypeString,
-	Description: "Force the XFRM kernel capability probe answer: present, absent or unknown (test infrastructure)",
+	Description: "Force enrolled kernel capability probe answers: <subsystem>=<present|absent|unknown>[,...] (test infrastructure)",
 	Private:     true,
 })
 
-// errXFRMForced is what the test override reports. It names itself so an
+// errForced is what a forced answer reports. It names the variable so an
 // operator who finds it in a diagnostic knows the answer was injected.
-var errXFRMForced = errors.New("forced answer (ze.test.kernelcap.xfrm)")
+var errForced = errors.New("forced answer (" + forceEnv + ")")
 
 // ProcPath joins parts under the /proc root, honoring the test override. It is
 // the one place the root is decided, so a fixture tree covers every procfs
@@ -68,23 +70,45 @@ func MPLSPlatformLabelsPath() string {
 	return ProcPath("sys", "net", "mpls", "platform_labels")
 }
 
-// forcedXFRM returns the injected probe answer and true when the test override
-// names one.
-func forcedXFRM() (Result, bool) {
-	return forcedXFRMFor(env.Get(xfrmStateEnv))
+// probe answers for one enrolled capability: the forced answer when the test
+// variable names its subsystem, the capability's own probe otherwise. Every
+// reader of the enrolment probes through here, so a forced answer reaches
+// doctor, the start and reload gates, validate and ProbeAll alike.
+func probe(capability *Capability) Result {
+	if forced, ok := forcedFor(capability.Subsystem, env.Get(forceEnv)); ok {
+		return forced
+	}
+	return capability.Probe()
 }
 
-// forcedXFRMFor classifies one override spelling. An unknown spelling is treated
+// forcedFor returns the answer value forces on subsystem, and true when it
+// forces one. An entry whose state is not one of the three spellings is treated
 // as no override rather than as an answer: a typo in a test variable must not
-// decide whether a daemon starts.
-func forcedXFRMFor(value string) (Result, bool) {
-	switch value {
+// decide whether a daemon starts. The variable is read on the control plane
+// only (doctor, start, reload, validate), so it is parsed at each read.
+func forcedFor(subsystem, value string) (Result, bool) {
+	for entry := range strings.SplitSeq(value, ",") {
+		name, state, found := strings.Cut(strings.TrimSpace(entry), "=")
+		if !found {
+			continue
+		}
+		if name != subsystem {
+			continue
+		}
+		return forcedState(state)
+	}
+	return Result{}, false
+}
+
+// forcedState classifies one state spelling.
+func forcedState(state string) (Result, bool) {
+	switch state {
 	case "present":
 		return Result{State: StatePresent}, true
 	case "absent":
-		return Result{State: StateAbsent, Reason: errXFRMForced}, true
+		return Result{State: StateAbsent, Reason: errForced}, true
 	case "unknown":
-		return Result{State: StateUnknown, Reason: errXFRMForced}, true
+		return Result{State: StateUnknown, Reason: errForced}, true
 	default:
 		return Result{}, false
 	}

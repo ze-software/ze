@@ -1,0 +1,36 @@
+# Test: ze doctor --json reports an L2TP config the host's kernel cannot carry
+# VALIDATES: the l2tp component's two kernel capability enrolments (l2tp, the
+# CONFIG_L2TP control family; l2tp-ppp, the CONFIG_PPPOL2TP session socket) are
+# reachable from the USER entry point. A forced absent l2tp is an ERROR, so
+# `ze doctor` exits 1, and the message names the kernel feature and the
+# configuration that asked. A forced cannot-determine l2tp-ppp is a separate
+# WARNING row with its own code, so both enrolments are proved in one run.
+# PREVENTS: an L2TP LNS that accepts a configuration on a kernel with no L2TP
+# dataplane and carries no session. This replaces doctor-l2tp-module.ci, whose
+# /proc/modules check was deleted with ad0931ae26 (its ledger row is in that commit).
+#
+# The probes are FORCED so both branches are reached on a host whose kernel is
+# healthy; without the override this would pass only where L2TP happens to be
+# missing (ai/rules/interop-and-goal-validation.md). The enrolment is Linux-only
+# (internal/component/l2tp/register_kernelcap_linux.go), so off Linux ze doctor
+# emits no l2tp row at all.
+option=needs-linux
+
+option=env:var=ze.test.kernelcap.force:value=l2tp=absent,l2tp-ppp=unknown
+
+tmpfs=l2tp.conf:terminator=EOF_CONF
+l2tp {
+    enabled true
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json l2tp.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-l2tp-unavailable
+expect=stdout:contains=CONFIG_L2TP
+expect=stdout:contains=doctor-l2tp-ppp-unknown
+expect=stdout:contains=CONFIG_PPPOL2TP
+# The forced answer must reach the operator, so the injection is never mistaken
+# for the host's own verdict.
+expect=stdout:contains=ze.test.kernelcap.force
+reject=stdout:contains=doctor-l2tp-ppp-unavailable

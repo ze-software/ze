@@ -1,7 +1,7 @@
 //go:build !linux
 
 // Design: docs/architecture/doctor-and-health-checks.md -- the kernel capability tier
-// Overview: probe.go -- the shared /proc root and the test override
+// Overview: probe.go -- the shared /proc root and the forced-answer override
 //
 // XFRM and AF_MPLS are Linux dataplanes. Off Linux ze installs neither, so no
 // capability enrolls here (the owners' registration files are Linux-only) and
@@ -22,9 +22,6 @@ var errNotLinux = errors.New("kernel capabilities are a Linux question and this 
 
 // XFRM reports cannot-determine off Linux.
 func XFRM() Result {
-	if forced, ok := forcedXFRM(); ok {
-		return forced
-	}
 	return Result{State: StateUnknown, Reason: errNotLinux}
 }
 

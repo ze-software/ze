@@ -84,36 +84,3 @@ func TestXFRMCapabilityAbsentIsEPROTONOSUPPORT(t *testing.T) {
 		}
 	})
 }
-
-// VALIDATES: the test override drives all three verdicts, which is what the
-// functional tests need to reach the absent and cannot-determine branches on a
-// host whose kernel is healthy.
-// PREVENTS: a functional test that passes only where XFRM happens to be absent,
-// which is the vacuity trap of ai/rules/interop-and-goal-validation.md. A typo in
-// the variable must not be read as an answer either: it leaves the real probe in
-// charge rather than deciding a start on a misspelling.
-func TestXFRMOverrideDrivesEveryVerdict(t *testing.T) {
-	for value, want := range map[string]State{
-		"present": StatePresent,
-		"absent":  StateAbsent,
-		"unknown": StateUnknown,
-	} {
-		t.Run(value, func(t *testing.T) {
-			withXFRMOpen(t, errors.New("the real probe must not be consulted"))
-			forced, ok := forcedXFRMFor(value)
-			if !ok {
-				t.Fatalf("%q was not read as an override", value)
-			}
-			if forced.State != want {
-				t.Errorf("%q forced %v, want %v", value, forced.State, want)
-			}
-		})
-	}
-
-	if _, ok := forcedXFRMFor("abcent"); ok {
-		t.Error("a misspelled override was read as an answer; it must leave the real probe in charge")
-	}
-	if _, ok := forcedXFRMFor(""); ok {
-		t.Error("an unset override was read as an answer")
-	}
-}

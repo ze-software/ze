@@ -12,16 +12,16 @@ import (
 	coreenv "github.com/ze-software/ze/internal/core/env"
 )
 
-const envKeyXFRMState = "ze.test.kernelcap.xfrm"
+const envKeyForcedAnswers = "ze.test.kernelcap.force"
 
 // withXFRMState forces the shared kernel XFRM probe's answer for the duration of
 // a test, so every verdict is reachable on a host whose own kernel never changes.
 func withXFRMState(t *testing.T, state string) {
 	t.Helper()
-	original := coreenv.Get(envKeyXFRMState)
-	t.Cleanup(func() { _ = coreenv.Set(envKeyXFRMState, original) })
-	if err := coreenv.Set(envKeyXFRMState, state); err != nil {
-		t.Fatalf("set %s: %v", envKeyXFRMState, err)
+	original := coreenv.Get(envKeyForcedAnswers)
+	t.Cleanup(func() { _ = coreenv.Set(envKeyForcedAnswers, original) })
+	if err := coreenv.Set(envKeyForcedAnswers, ipsecName+"="+state); err != nil {
+		t.Fatalf("set %s: %v", envKeyForcedAnswers, err)
 	}
 }
 

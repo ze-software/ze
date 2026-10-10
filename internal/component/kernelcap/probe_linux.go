@@ -44,9 +44,6 @@ var readFile = os.ReadFile
 // process without the capability. The open needs no CAP_NET_ADMIN, and on a
 // modular kernel it loads xfrm_user the same way any XFRM user would.
 func XFRM() Result {
-	if forced, ok := forcedXFRM(); ok {
-		return forced
-	}
 	return classifyXFRM(xfrmOpen())
 }
 
