@@ -331,7 +331,7 @@ What remains owed before closure:
 | Owner approval | Thomas | his answer to the verification-debt rows for 2e16e9e966, 11e3964084 and 61e717df0c (`./le commit debt-discharge ... kind owner`, or `./le rfc approve unit` per unit) |
 | AC-8 and AC-9 lab runs | main thread | the amd64 runtime kernel cache entry built on a host with room, then every lab and proof run in the docker-lab guest (AC-8 row), then one grant-removal red per grant (AC-9 row) |
 | AC-2 AppArmor load | main thread, root on an AppArmor host | `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl` loads and enforces the profile |
-| AC-10 evidence | main thread | `./le verify evidence release-candidate` on Ze's kernel with `ze-kernel-probe` loaded, and one terminal-demo render on amd64 Linux including `rib-fib` |
+| AC-10 evidence | main thread | `./le verify evidence release-candidate` on Ze's kernel with `ze-kernel-probe` loaded, and one terminal-demo render on amd64 Linux including `rib-fib`. Attempted 2026-10-11 on `ssh claude` with the renderer image built there (`ze-terminal-demo-render-all:...-liberation-2.1.5`, id `1245f714befa`) at 14e552532b: `./le site terminal-demo render name rib-fib` refused at the Docker host kernel check (stock 6.8.0-146-generic lacks `CONFIG_XFRM_MIGRATE` and `CONFIG_MPLS_IP_MTU`; fix `./le setup docker-kernel install`), before the `net-sysctl` grant or the AppArmor profile was reached. Whether `ze-lab-net-sysctl` is loaded there is unknown: the profile list is root-only and was not read with `sudo` |
 | Full lint and verify | main thread or a fresh agent | `./le go lint run` and `./le verify worktree` over the tree |
 
 ### Round 4 (2026-10-10, independent reviewer): fixes
