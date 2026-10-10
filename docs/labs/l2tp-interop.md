@@ -5,8 +5,9 @@ Peer-isolated Docker lab for full L2TP PPP/NCP/kernel dataplane evidence.
 ## Overview
 
 The lab runs Ze as an LNS, a real `xl2tpd`/`pppd` LAC, and optionally FRR
-as a BGP peer in separate privileged Docker containers on an isolated bridge
-network. It proves the complete path from L2TP control tunnel through PPP
+as a BGP peer in separate Docker containers on an isolated bridge
+network. No container runs privileged: Ze and the LAC hold `NET_ADMIN` and the
+host's `/dev/ppp` device, and neither loads a kernel module. It proves the complete path from L2TP control tunnel through PPP
 LCP/IPCP, kernel `pppN` interface creation, dataplane connectivity, and BGP
 route redistribution from a live PPP session.
 
@@ -37,10 +38,19 @@ the checker map fixes the complete four-scenario population.
 
 ## Prerequisites
 
-The lab requires Docker and a host kernel with PPPoL2TP support. The
+The lab requires Docker and a host kernel with PPPoL2TP support, built in
+or loaded by the host: a lab container never loads a kernel module. The
 preflight check probes for `/dev/ppp`, `ip l2tp`, and the `l2tp_ppp` or
-`pppol2tp` kernel module from inside a temporary privileged container. If
-any requirement is missing, the runner exits non-zero with a clear message.
+`pppol2tp` kernel module from inside a temporary container that holds the
+peers' grants (`NET_ADMIN`, `--device /dev/ppp`) and nothing more. If any
+requirement is missing, the runner exits non-zero, names what is missing, and
+prints the host command that loads it:
+
+```
+sudo modprobe -a ppp_generic l2tp_ppp l2tp_netlink
+```
+
+Ze's kernel builds all three in, so `./le test qemu docker-lab` needs none.
 
 Docker Desktop on macOS typically cannot pass this check because its Linux
 VM lacks PPPoL2TP kernel modules. The runner does not skip or downgrade;

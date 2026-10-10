@@ -179,7 +179,7 @@ func TestPlansCoverEveryScenario(t *testing.T) {
 	}
 }
 
-// VALIDATES: peer roles, image commands, configuration mounts, and privileged isolation match the native lifecycle.
+// VALIDATES: peer roles, image commands, and configuration mounts match the native lifecycle.
 // PREVENTS: a typed checker running without its independent xl2tpd, FRR, or RADIUS participant.
 func TestPlanPeerCommandsAndConfigBytes(t *testing.T) {
 	root := l2tpCheckout(t)

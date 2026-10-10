@@ -409,7 +409,9 @@ none defines its own copy. In the IPsec lab the NAT box, strongSwan and ze hold
 `NET_ADMIN`; the NAT box sets its three sysctls through `--sysctl`; strongSwan
 runs under `ze-lab-net-sysctl` only in a scenario named in `peerSysctlWriters`
 (`internal/le/interoplab/ipsec/checkers.go`), whose checker cuts its reassembly
-marks at run time.
+marks at run time. In the L2TP lab ze and the xl2tpd LAC hold `NET_ADMIN` and
+`--device /dev/ppp`, and the preflight probes with the same grants and loads no
+module, so it passes only where the peers can run.
 
 <!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing -->
 <!-- source: internal/le/interoplab/bgp/register_apparmor.go -- vrrpLabAppArmorProfile -->
