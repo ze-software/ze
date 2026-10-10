@@ -84,16 +84,23 @@ func (n *WindowNotices) pushWindow(window *confirm.Window, user string) {
 
 // pushDiscardNotice sends user what forced commits discarded from the user's
 // changes, and marks it shown only once every stream of user took it: a
-// notice a full client buffer refused is offered again at the next tick.
+// notice a full client buffer refused is offered again at the next tick, to
+// the streams that have not taken it (EventBroker.SendNotice). A notice with
+// no stamp says the log could not be read, and is said at every tick.
 func (n *WindowNotices) pushDiscardNotice(user string) {
 	notice, through := n.mgr.pendingDiscardNotice(user)
 	if notice == "" {
 		return
 	}
-	if !n.send(user, notice) {
+	if through == 0 {
+		n.send(user, notice)
 		return
 	}
-	if through == 0 {
+	banner, ok := renderNotice(user, notice)
+	if !ok {
+		return
+	}
+	if !n.broker.SendNotice(user, "config-change", banner, through) {
 		return
 	}
 	if err := n.mgr.ackDiscardNotice(user, through); err != nil {
@@ -106,13 +113,23 @@ func (n *WindowNotices) pushDiscardNotice(user string) {
 // already swaps into the notification bar, and sends it to user alone. It
 // answers whether every stream of user took it.
 func (n *WindowNotices) send(user, line string) bool {
+	banner, ok := renderNotice(user, line)
+	if !ok {
+		return false
+	}
+	return n.broker.SendTo(user, "config-change", banner)
+}
+
+// renderNotice renders line in the config-change banner; a failed render is
+// logged and answers false.
+func renderNotice(user, line string) (string, bool) {
 	var buf bytes.Buffer
 	data := notificationBannerData{Reason: line, RefreshURL: showPathPrefix}
 	if err := notificationBanner(data).Render(context.Background(), &buf); err != nil {
 		serverLogger.Warn("window notice render failed", "user", user, "error", err)
-		return false
+		return "", false
 	}
-	return n.broker.SendTo(user, "config-change", buf.String())
+	return buf.String(), true
 }
 
 // pollWindow is user's WindowWatch.Poll: the web keeps one watch per user,

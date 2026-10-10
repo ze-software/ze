@@ -31,6 +31,10 @@ type sseClient struct {
 	ch   chan sseEvent
 	done chan struct{}
 	user string // the authenticated user, "" when the stream has none
+	// noticeThrough is the stamp of the last discard notice this stream took
+	// (SendNotice), so a notice resent for a slower stream skips this one.
+	// Guarded by the broker's mu.
+	noticeThrough int64
 }
 
 // EventBroker manages SSE client connections for the web interface and
@@ -117,6 +121,34 @@ func (b *EventBroker) Broadcast(eventType, data string) {
 	for c := range b.clients {
 		broadcastEvent(c, ev)
 	}
+}
+
+// SendNotice sends a discard notice running through stamp to every client of
+// user that has not taken it yet, and records each client that takes it. It
+// answers whether every client of user, at least one, now holds the notice,
+// so a caller sends again until it does, and no client is told twice.
+func (b *EventBroker) SendNotice(user, eventType, data string, through int64) bool {
+	ev := sseEvent{eventType: eventType, data: data}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	held, clients := 0, 0
+	for c := range b.clients {
+		if c.user != user {
+			continue
+		}
+		clients++
+		if c.noticeThrough >= through {
+			held++
+			continue
+		}
+		if broadcastEvent(c, ev) {
+			c.noticeThrough = through
+			held++
+		}
+	}
+	return clients > 0 && held == clients
 }
 
 // SendTo sends an event to every client of user, as Broadcast does: a client

@@ -190,3 +190,41 @@ func TestDiscardNoticeKeptWhileTheStreamIsFull(t *testing.T) {
 	notices.push()
 	assert.Empty(t, drainEvents(bob), "the notice is shown once")
 }
+
+// TestDiscardNoticeOncePerTab is review round 3 NOTE 3 of
+// spec-session-editor-file-mode-parity: with two tabs of one user and one tab
+// full, the notice was resent to both at the next tick, so the tab that had
+// taken it showed it twice.
+//
+// GOAL: each tab shows a discard notice once, whatever the other tab does.
+// METHOD: bob has two streams; the second is full when alice forces; push
+// runs, the full stream is drained, push runs twice more.
+//
+// VALIDATES: the first tab gets the notice at the first push only, the
+// second at the second push only.
+// PREVENTS: a tab told twice because another tab was slow.
+func TestDiscardNoticeOncePerTab(t *testing.T) {
+	mgr, schema, _ := newWindowEditorManager(t)
+	broker := NewEventBroker(0)
+	t.Cleanup(broker.Close)
+	first := broker.Subscribe("bob")
+	second := broker.Subscribe("bob")
+	notices := NewWindowNotices(mgr, broker)
+
+	require.NoError(t, mgr.SetValue("bob", []string{"bgp"}, "router-id", "10.0.0.2"))
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.9"))
+	require.Equal(t, terminalOutputCommitSuccessful, webCommit(schema, mgr, "alice", "now", "force"))
+
+	for broadcastEvent(second, sseEvent{eventType: "filler", data: "x"}) {
+	}
+	notices.push()
+	requireOneEvent(t, first, "Your change at bgp router-id was discarded by alice")
+	drainEvents(second)
+
+	notices.push()
+	assert.Empty(t, drainEvents(first), "the first tab already showed the notice")
+	requireOneEvent(t, second, "Your change at bgp router-id was discarded by alice")
+	notices.push()
+	assert.Empty(t, drainEvents(first), "the notice is shown once per tab")
+	assert.Empty(t, drainEvents(second), "the notice is shown once per tab")
+}

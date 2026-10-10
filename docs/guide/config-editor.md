@@ -88,18 +88,22 @@ nothing else of theirs is touched. Their next commit does not bring it back. Eve
 editor session of theirs, SSH or web, reports "Your change at <path> was
 discarded by <you>'s forced commit" once: an SSH session at its next check for
 changes by other sessions (every two seconds, or when they next connect), a web
-page in the notification bar within a second, and again at the next second
-when the page's event stream was too full to take it. From then on each
-session shows the committed value in place of theirs, and `show | changes`
-there no longer lists it. A notice stays on disk for a minute after a session
-first showed it, so another session of theirs still sees it. Validation errors
+session in the notification bar of each open page within a second, or when a
+page next opens if none was open, and again at the next second for a page whose
+event stream was too full to take it. From then on each session shows the
+committed value in place of theirs, and `show | changes` there no longer lists
+it. A notice does not expire with time: it stays on disk until each session of
+theirs has shown it, so a web session with no page open is told when its page
+opens. A session they open later is told only of discards no session of theirs
+has reported yet. The log keeps their 64 newest discards. Validation errors
 still block a forced commit. When the commit applies but the discard fails, for
 example because a file could not be written, the answer says the commit applied
 and adds the warning "commit applied, but the changes it overrode were not
 discarded and stay pending for their owners", with the cause, so you know to
 tell them.
-<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, overriddenNotDiscarded, PendingDiscardNotice, AckDiscardNotice, discardNoticeLinger -->
-<!-- source: internal/component/web/window_notices.go -- WindowNotices.push -->
+<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, overriddenNotDiscarded, PendingDiscardNotice, AckDiscardNotice, startDiscardNotice, discardNoticeLinesMax -->
+<!-- source: internal/component/web/window_notices.go -- WindowNotices.push, pushDiscardNotice -->
+<!-- source: internal/component/web/sse.go -- EventBroker.SendNotice -->
 <!-- source: internal/component/cli/editor_commit.go -- reloadSessionView -->
 <!-- source: internal/component/cli/model.go -- handleDraftPoll, draftPollInterval -->
 <!-- source: internal/component/web/editor.go -- EditorManager.commit -->
@@ -393,7 +397,10 @@ is pending" refusal, because the revert would wipe what they wrote: a REST,
 gRPC or gNMI config session commit, `request data restore` of the daemon's
 config, `update bgp config`, the web raw-source editor, a config push from the
 managed hub, which the hub receives as the error in its acknowledgement, and
-`rollback <N>` in a session editor, which writes the file directly. The owner's
+`rollback <N>` in a session editor (SSH or web terminal), which writes the file
+directly, and `ze config rollback <N> <file>` from the shell, which runs outside
+the daemon and reads the window's record in the store, so it is refused too
+when a daemon stopped during a window that it will revert at start. The owner's
 `rollback <N>` refusal points to `commit abort`, which reverts the window and
 lets the rollback run. Accept or abort the window first. Closing or losing the session leaves the countdown
 running, and the revert still happens at the deadline. The window belongs to
@@ -438,7 +445,8 @@ succeeds. The owner may run `commit abort` to retry the revert at once, or
 retries are spent, the window waits for one of those two, or for a restart,
 which reverts from the record. The countdown never shows a negative number.
 <!-- source: internal/component/config/confirm/confirm.go -- Window, Confirmed, RecoverOnStart -->
-<!-- source: internal/component/config/confirm/store.go -- StoreRecorder -->
+<!-- source: internal/component/config/confirm/store.go -- StoreRecorder, WriteOutsideRecorded -->
+<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackImpl -->
 <!-- source: internal/component/cli/commit_window.go -- WindowCommit.Run -->
 <!-- source: internal/component/cli/model_commit_window.go -- cmdCommitWindowRequest, pollDaemonWindow, WindowWatch.Poll -->
 <!-- source: internal/component/web/window_notices.go -- WindowNotices -->

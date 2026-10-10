@@ -111,7 +111,7 @@ func (e *Editor) discardUserChanges(guard storage.WriteGuard, user string, owned
 	if added == 0 {
 		return nil
 	}
-	if err := writeDiscardNotice(guard, noticePath, lines, now); err != nil {
+	if err := writeDiscardNotice(guard, noticePath, lines); err != nil {
 		return fmt.Errorf("forced commit: %w", err)
 	}
 	return nil
@@ -297,13 +297,14 @@ func removeMetaChange(meta *config.MetaTree, schema *config.Schema, change confi
 // reads: each line is "<stamp>\t<shown>\t<path>\t<forcer>", stamp and
 // shown in Unix nanoseconds, shown 0 until a session first showed the line.
 // Each session shows every line stamped after the last one it showed, so all
-// of a user's sessions are told, once each. A line shown at least
-// discardNoticeLinger ago is pruned (the SSH and web polls look every one to
-// two seconds), and the log keeps at most discardNoticeLinesMax lines.
-const (
-	discardNoticeLinger   = time.Minute
-	discardNoticeLinesMax = 64
-)
+// of a user's sessions are told, once each. A session starts past the lines
+// some session already showed (startDiscardNotice), so a session opened later
+// is told only what no session told. No line expires by age: a session that
+// polls rarely (a web session with no page open) is told whenever it next
+// looks. Stamps only grow, because a new stamp is later than every logged one
+// and the log, once written, always keeps its newest line. The log keeps at
+// most discardNoticeLinesMax lines, dropping the oldest.
+const discardNoticeLinesMax = 64
 
 // discardNoticeLine is one line of the discard notice log.
 type discardNoticeLine struct {
@@ -334,25 +335,12 @@ func parseDiscardNotice(data []byte) []discardNoticeLine {
 	return lines
 }
 
-// writeDiscardNotice prunes the lines shown long enough ago, keeps the
-// newest discardNoticeLinesMax, and writes the log, or removes it when empty.
-// The caller MUST hold guard.
-func writeDiscardNotice(guard storage.WriteGuard, noticePath string, lines []discardNoticeLine, now time.Time) error {
-	kept := lines[:0]
-	for _, line := range lines {
-		if line.shown != 0 && now.Sub(time.Unix(0, line.shown)) >= discardNoticeLinger {
-			continue
-		}
-		kept = append(kept, line)
-	}
+// writeDiscardNotice keeps the newest discardNoticeLinesMax lines and writes
+// the log. The caller MUST hold guard and pass at least one line.
+func writeDiscardNotice(guard storage.WriteGuard, noticePath string, lines []discardNoticeLine) error {
+	kept := lines
 	if len(kept) > discardNoticeLinesMax {
 		kept = kept[len(kept)-discardNoticeLinesMax:]
-	}
-	if len(kept) == 0 {
-		if err := guard.Remove(noticePath); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("discard notice: remove %s: %w", noticePath, err)
-		}
-		return nil
 	}
 	var tb textbuf.Buffer
 	for _, line := range kept {
@@ -418,31 +406,67 @@ func (e *Editor) PendingDiscardNotice() (string, int64) {
 // and rebuilds the view from disk: the editor still holds the discarded value
 // in its working tree and meta, which show and show | changes read. It MUST be
 // called after PendingDiscardNotice, once the notice reached the user.
+//
+// The seen marker moves only once the lock is held: an ack that cannot lock
+// rebuilds nothing, so the notice is offered again at the next poll.
 func (e *Editor) AckDiscardNotice(through int64) error {
 	if through <= e.discardNoticeSeen {
 		return nil
 	}
-	e.discardNoticeSeen = through
+
 	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
 		return err
 	}
 	defer guard.Release() //nolint:errcheck // Best effort unlock
 
+	e.discardNoticeSeen = through
 	noticePath := DiscardNoticePath(e.originalPath, e.session.User)
 	data, err := guard.ReadFile(noticePath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("discard notice: read %s: %w", noticePath, err)
 	}
-	now := time.Now()
 	lines := parseDiscardNotice(data)
+	marked := false
+	shown := time.Now().UnixNano()
 	for i := range lines {
 		if lines[i].stamp <= through && lines[i].shown == 0 {
-			lines[i].shown = now.UnixNano()
+			lines[i].shown = shown
+			marked = true
 		}
 	}
-	if err := writeDiscardNotice(guard, noticePath, lines, now); err != nil {
-		draftLogger.Warn("discard notice shown but not marked", "path", noticePath, "error", err)
+	if marked {
+		if err := writeDiscardNotice(guard, noticePath, lines); err != nil {
+			draftLogger.Warn("discard notice shown but not marked", "path", noticePath, "error", err)
+		}
 	}
 	return e.reloadSessionView(guard)
+}
+
+// startDiscardNotice places a new session's seen marker before the first line
+// no session showed yet, or past the whole log when every line was shown: the
+// session is then told what no session told, and not what another session of
+// the user already reported. A log it cannot read leaves the marker at zero,
+// so the session is told every line rather than none.
+func (e *Editor) startDiscardNotice() {
+	// A store-less editor (NewLooseFileEditor) has no log: no forced commit
+	// can reach its changes.
+	if e.store == nil {
+		return
+	}
+	noticePath := DiscardNoticePath(e.originalPath, e.session.User)
+	data, err := e.store.ReadFile(noticePath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return
+	}
+	if err != nil {
+		draftLogger.Warn("discard notice unreadable at session start; every line will be shown", "path", noticePath, "error", err)
+		return
+	}
+	for _, line := range parseDiscardNotice(data) {
+		if line.shown == 0 {
+			return
+		}
+		e.discardNoticeSeen = line.stamp
+	}
 }

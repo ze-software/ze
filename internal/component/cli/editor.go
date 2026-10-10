@@ -70,7 +70,8 @@ type Editor struct {
 	// candidate commit resets it, so a failed reload discards nothing.
 	overridden []liveOverlap
 	// discardNoticeSeen is the stamp of the last discard notice line this
-	// session showed (AckDiscardNotice): zero shows every line in the log.
+	// session showed (AckDiscardNotice), set when the session starts past the
+	// lines another session already showed (startDiscardNotice).
 	discardNoticeSeen int64
 	stdoutSink        io.Writer // Non-nil for a stdin-sourced ("-") editor: Save emits here instead of writing a file
 	// now supplies the wall clock for version stamps. A field rather than a
@@ -1050,6 +1051,9 @@ func (e *Editor) SetSession(session *EditSession) {
 	e.session = session
 	if e.meta == nil {
 		e.meta = config.NewMetaTree()
+	}
+	if session != nil {
+		e.startDiscardNotice()
 	}
 }
 
