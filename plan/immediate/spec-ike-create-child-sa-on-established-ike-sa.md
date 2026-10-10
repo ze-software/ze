@@ -598,7 +598,7 @@ section.
 |-------|-------|
 | Artifact | not recorded: round 1 was not CLEAN |
 | `./le spec review check` | not run |
-| Rounds | 1 complete (1 BLOCKER, 6 ISSUE, 8 NOTE); round 2 owed |
+| Rounds | 1 complete (1 BLOCKER, 6 ISSUE, 8 NOTE); round 2 ISSUE 1 fixed by fbd9399f33; ready for round 3 over that fix only |
 | Reviewer lenses used | round 1: independent reviewer over the diff, RFC text, commit audit, interop evidence (`tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r1-ike-ccs.md`) |
 
 ### Findings fixed
@@ -614,6 +614,13 @@ section.
 | N3 | NOTE | `espResolved=false` branch of `retargetESPGroup` untested | `reload_child_schedule_test.go` | b99e74e99c |
 | N4 | NOTE | AC-14 checker did not assert KE | `internal/le/interoplab/ipsec/checkers.go` | ff75ef7668 (interop re-run owed) |
 | N8 | NOTE | Reload did not reset a backed-off creation wait; AC-2 unit did not assert no Delete and `sa-up`; spec test names drifted | `create_child.go`, `childless_initiator_cycle_test.go`, this spec | b99e74e99c, this spec commit |
+
+### Round 2 findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Two Warn lines named no next step (user-facing-errors): `finishChildCreate`'s default arm had retry-after and no fix; `serviceChildCreate`'s "creation request failed" had neither | `create_child.go` | fbd9399f33: the default arm's `fix` is derived from the cause (`childResponseRefusedFix`: transport declined under transport-required, local install failure, malformed or out-of-offer answer); the request line gains `fix` and `retry-after`. Untagged `create_child_fix_test.go` asserts each, all four red against the old lines via `-overlay`; engine package green under `-race`; `./le rfc check` names no ike violation, so no discrimination record staled |
+
+Round 3 is owed over fbd9399f33 for that fix only.
 
 NOTE 1 (RFC7296-2.7-1 and RFC3948-3.1.2-1 SHIFTED by checkers.go) goes to an independent RFC re-judge. NOTE 2 and NOTE 7 need nothing. NOTE 6 belongs to another session's privilege work. NOTE 5 is answered: the RECONNECTED red is recorded under Functional Tests.
 
