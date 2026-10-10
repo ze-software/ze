@@ -1060,7 +1060,7 @@ func selectAuthChildSA(sa *SA, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.Payloa
 
 	ifID, err := resolveIfID(&sa.PeerCfg)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("%w: %w", errChildBinding, err)
 	}
 
 	inner := make([]wire.PayloadEntry, 0, 4)
@@ -1091,7 +1091,7 @@ func selectAuthChildSA(sa *SA, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.Payloa
 func buildChildlessAuthResponse(sa *SA, msgID uint32, authInner []wire.PayloadEntry, childErr error, log *slog.Logger) ([]byte, *ChildSA, error) {
 	notifyType := notifyForRefusal(childErr)
 	log.Warn("ike: refused the IKE_AUTH Child SA, keeping the IKE SA", "peer", sa.PeerName,
-		"notify", wire.NotifyTypeName(notifyType), "error", childErr, "fix", childRefusedFixResponder)
+		"notify", wire.NotifyTypeName(notifyType), "error", childErr, "fix", childRefusedResponderFix(childErr))
 	refusal := wire.PayloadEntry{Payload: &wire.PayloadNotify{NotifyMsgType: notifyType}}
 	inner := slices.Concat(authInner, []wire.PayloadEntry{refusal}, mobikeAuthOffer(sa))
 	resp, err := buildEncryptedMessageEx(sa, inner, msgID, wire.ExchangeIKEAuth, wire.FlagResponse)

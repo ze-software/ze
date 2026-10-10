@@ -253,7 +253,7 @@ func respondNewChild(sa *SA, inner []wire.PayloadEntry, espGroup ipsec.ESPGroup,
 
 	ifID, err := resolveIfID(&sa.PeerCfg)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("%w: %w", errChildBinding, err)
 	}
 	nr, err := GenerateNonce(nonceLen)
 	if err != nil {
@@ -302,11 +302,11 @@ func respondNewChild(sa *SA, inner []wire.PayloadEntry, espGroup ipsec.ESPGroup,
 	})
 	if err != nil {
 		keys.Clear()
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("%w: %w", errChildAddress, err)
 	}
 	if err := installChildTolerant(child, prop, dp, log); err != nil {
 		keys.Clear()
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("%w: %w", errChildInstall, err)
 	}
 
 	// RFC 7296 Section 1.3.1: "HDR, SK {SA, Nr, [KEr,] TSi, TSr}".
@@ -421,13 +421,50 @@ const (
 		"peer's, then reload the configuration: ze signal reload"
 )
 
+// The next step a Child SA this node refused as the responder names, one per local cause
+// childRefusedResponderFix tells apart. This node answered with an error notify and holds
+// no pair, and only the peer asks again, so no line names a retry-after or a deletion.
+const (
+	childRefusedFixResponderBinding = "this node refused the peer's Child SA because it could not " +
+		"bind it; no traffic is protected until a Child SA exists, and the peer may ask again with " +
+		"CREATE_CHILD_SA; vti bind on this peer must name an interface declared under interfaces " +
+		"xfrm whose if-id is not 0: correct the name or declare that interface with an if-id, then " +
+		"reload the configuration: ze signal reload"
+	childRefusedFixResponderAddress = "this node refused the peer's Child SA because it has no tunnel " +
+		"endpoints for it; no traffic is protected until a Child SA exists, and the peer may ask " +
+		"again with CREATE_CHILD_SA; set local-address and remote-address on this peer to IP " +
+		"addresses, then reload the configuration: ze signal reload"
+	childRefusedFixResponderInstall = "this node refused the peer's Child SA because the kernel refused " +
+		"to install it; no traffic is protected until a Child SA exists, and the peer may ask again " +
+		"with CREATE_CHILD_SA; the error names what the kernel refused: make the esp-group " +
+		"algorithms ones this kernel supports, then reload the configuration: ze signal reload"
+)
+
+// childRefusedResponderFix is the next step for a Child SA this node refused to create as
+// the responder, derived from the cause err carries. A cause the peer's request decides
+// (proposals, traffic selectors, KE) falls to childRefusedFixResponder.
+func childRefusedResponderFix(err error) string {
+	switch {
+	case errors.Is(err, errChildBinding):
+		return childRefusedFixResponderBinding
+	case errors.Is(err, errChildAddress):
+		return childRefusedFixResponderAddress
+	case errors.Is(err, errChildInstall):
+		return childRefusedFixResponderInstall
+	default:
+		return childRefusedFixResponder
+	}
+}
+
 // The causes for which this node refuses a creation response the peer accepted. Each
-// carries its own next step, so finishChildCreate tells them apart.
+// carries its own next step, so finishChildCreate tells them apart. The binding, address
+// and install causes also mark a Child SA this node refuses as the responder
+// (respondNewChild, selectAuthChildSA), which childRefusedResponderFix tells apart.
 var (
 	errChildTransportDeclined = errors.New("child creation response: the peer declined the required transport mode")
-	errChildBinding           = errors.New("child creation response: resolving the peer's vti binding")
-	errChildAddress           = errors.New("child creation response: reading the tunnel addresses")
-	errChildInstall           = errors.New("child creation response: installing the Child SA")
+	errChildBinding           = errors.New("child-sa: resolving the peer's vti binding")
+	errChildAddress           = errors.New("child-sa: reading the tunnel addresses")
+	errChildInstall           = errors.New("child-sa: installing the Child SA")
 )
 
 // The next step a refused creation response names, one per cause childResponseRefusedFix
