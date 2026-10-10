@@ -92,11 +92,11 @@
       "verdict": "enforced"
     },
     "RFC3948-3.1.2-1": {
-      "note": "Forbidden: dropping a transport-mode ESP-in-UDP datagram whose inner TCP/UDP checksum a NAT invalidated, when none of the three alternatives is done. checkNATTTransportInnerChecksum asserts Ze installs transport mode with the espinudp template and that nping --badsum TCP and UDP probes are delivered (checkInnerChecksums true). The tunnel-mode scenario, differing in mode alone, refuses the same probes, proving the corruption is real.",
+      "note": "Forbidden: dropping a transport-mode ESP-in-UDP datagram whose inner TCP/UDP checksum a NAT invalidated, when none of the three alternatives is done. checkNATTTransportInnerChecksum asserts Ze installs transport mode with the espinudp template and that nping --badsum TCP and UDP probes are delivered (checkInnerChecksums true). The tunnel-mode scenario, differing in mode alone, refuses the same probes, proving the corruption is real. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit is byte-identical to the judged one (git diff 2d57003d45..HEAD touches only other functions, a const block, and new functions appended to the file), so the verdict stands unchanged.",
       "requirement_sha": "637ce5ff3c56e746",
       "tests": {
-        "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum": "1b13f2045a7cde2a",
-        "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum": "1b13f2045a7cde2a"
+        "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum": "dbc90779066a4a70",
+        "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum": "dbc90779066a4a70"
       },
       "units": {
         "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum": "ac994d7ac287f161",
