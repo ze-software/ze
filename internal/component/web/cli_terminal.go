@@ -475,11 +475,11 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		var tb textbuf.Buffer
 		return nil, tb.Str("rolled back to ").Str(backups[n-1].Path).String()
 	case verbRename:
-		return execListEntryOp(cmd.Args, contextPath, "rename", "<old-name>", func(parent []string, list, src, dst string) error {
+		return execListEntryOp(cmd.Args, contextPath, listEntryRename, func(parent []string, list, src, dst string) error {
 			return mgr.RenameListEntry(username, parent, list, src, dst)
 		})
 	case verbCopy:
-		return execListEntryOp(cmd.Args, contextPath, "copy", "<source>", func(parent []string, list, src, dst string) error {
+		return execListEntryOp(cmd.Args, contextPath, listEntryCopy, func(parent []string, list, src, dst string) error {
 			return mgr.CopyListEntry(username, parent, list, src, dst)
 		})
 	case verbInsert:
@@ -1095,17 +1095,31 @@ func buildConfigEditURL(path []string) string {
 	return tb.Str(configEditPath).Join(path, "/").Byte('/').String()
 }
 
-func execListEntryOp(args, contextPath []string, verb, srcLabel string, op func(parent []string, list, src, dst string) error) ([]string, string) {
+// listEntryVerb names a verb that moves a list entry to a new key: the word the
+// operator types, the label its usage line gives the source, and the word its
+// answer opens with, which is the one the SSH editor prints.
+type listEntryVerb struct {
+	name        string
+	sourceLabel string
+	done        string
+}
+
+var (
+	listEntryCopy   = listEntryVerb{name: "copy", sourceLabel: "<source>", done: "Copied"}
+	listEntryRename = listEntryVerb{name: "rename", sourceLabel: "<old-name>", done: "Renamed"}
+)
+
+func execListEntryOp(args, contextPath []string, verb listEntryVerb, op func(parent []string, list, src, dst string) error) ([]string, string) {
 	if len(args) < 4 || args[len(args)-2] != "to" {
 		var tb textbuf.Buffer
-		return nil, tb.Str("usage: ").Str(verb).Str(" <list> ").Str(srcLabel).Str(" to <destination>").String()
+		return nil, tb.Str("usage: ").Str(verb.name).Str(" <list> ").Str(verb.sourceLabel).Str(" to <destination>").String()
 	}
 	dstKey := args[len(args)-1]
 	srcTokens := args[:len(args)-2]
 	fullPath := append(append([]string{}, contextPath...), srcTokens...)
 	if len(fullPath) < 2 {
 		var tb textbuf.Buffer
-		return nil, tb.Str(verb).Str(" requires at least a list name and entry key").String()
+		return nil, tb.Str(verb.name).Str(" requires at least a list name and entry key").String()
 	}
 	srcKey := fullPath[len(fullPath)-1]
 	listName := fullPath[len(fullPath)-2]
@@ -1115,5 +1129,5 @@ func execListEntryOp(args, contextPath []string, verb, srcLabel string, op func(
 		return nil, tb.Str("error: ").Err(err).String()
 	}
 	var tb textbuf.Buffer
-	return nil, tb.Str(verb).Str("d ").Str(listName).Byte(' ').Str(srcKey).Str(" to ").Str(dstKey).String()
+	return nil, tb.Str(verb.done).Byte(' ').Str(listName).Byte(' ').Str(srcKey).Str(" to ").Str(dstKey).String()
 }
