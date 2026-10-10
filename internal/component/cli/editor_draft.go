@@ -879,6 +879,19 @@ func (e *Editor) LoadDraft() bool {
 
 // detectConflicts scans pending changes from other sessions and reports live overlaps.
 func (e *Editor) detectConflicts() []Conflict {
+	return overlapConflicts(e.liveOverlaps())
+}
+
+// liveOverlap is one LIVE conflict together with the other session's pending
+// change that causes it, which a forced commit discards (AC-32).
+type liveOverlap struct {
+	conflict Conflict
+	other    config.PendingChange
+}
+
+// liveOverlaps pairs each of this session's pending changes with every other
+// session's pending change it conflicts with.
+func (e *Editor) liveOverlaps() []liveOverlap {
 	if e.session == nil || e.meta == nil {
 		return nil
 	}
@@ -887,7 +900,7 @@ func (e *Editor) detectConflicts() []Conflict {
 		return nil
 	}
 
-	var conflicts []Conflict
+	var overlaps []liveOverlap
 	for _, sid := range e.ActiveSessions() {
 		if sid == e.session.ID {
 			continue
@@ -898,17 +911,32 @@ func (e *Editor) detectConflicts() []Conflict {
 				if !pendingChangesConflict(mine, other) {
 					continue
 				}
-				conflicts = append(conflicts, Conflict{
-					Path:       conflictPath(mine, other),
-					Type:       ConflictLive,
-					MyValue:    pendingConflictValue(e.schema, mine),
-					OtherValue: pendingConflictValue(e.schema, other),
-					OtherUser:  otherUser,
+				overlaps = append(overlaps, liveOverlap{
+					conflict: Conflict{
+						Path:       conflictPath(mine, other),
+						Type:       ConflictLive,
+						MyValue:    pendingConflictValue(e.schema, mine),
+						OtherValue: pendingConflictValue(e.schema, other),
+						OtherUser:  otherUser,
+					},
+					other: other,
 				})
 			}
 		}
 	}
 
+	return overlaps
+}
+
+// overlapConflicts is the conflict report of a set of live overlaps.
+func overlapConflicts(overlaps []liveOverlap) []Conflict {
+	if len(overlaps) == 0 {
+		return nil
+	}
+	conflicts := make([]Conflict, 0, len(overlaps))
+	for i := range overlaps {
+		conflicts = append(conflicts, overlaps[i].conflict)
+	}
 	return conflicts
 }
 
@@ -1178,6 +1206,12 @@ func (e *Editor) AdoptSession(oldSessionID string) error {
 func (e *Editor) checkDraftChanged() (changed bool, notification string) {
 	if e.session == nil {
 		return false, ""
+	}
+
+	// A forced commit by another user discarded some of this user's changes
+	// (AC-32): say so before anything else, once.
+	if notice := e.takeDiscardNotice(); notice != "" {
+		return true, notice
 	}
 
 	draftPath := DraftPath(e.originalPath)

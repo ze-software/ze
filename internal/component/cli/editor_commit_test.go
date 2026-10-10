@@ -499,3 +499,119 @@ func TestCommitRefusesSessionEntryItCannotApply(t *testing.T) {
 	assert.Contains(t, err.Error(), "no-such-container leaf", "the error names the entry")
 	assert.Equal(t, 0, applied)
 }
+
+// TestCommitForceOverridesConflict proves AC-32: a forced session commit
+// applies over a LIVE and over a STALE conflict, removes only the overridden
+// user's conflicting entry from that user's change file, and that user's
+// editor reports the discard and who made it, once.
+//
+// VALIDATES: CommitSessionForce applies where CommitSession refuses; the other
+// user's unrelated pending change survives; checkDraftChanged names the path
+// and the forcing user.
+// PREVENTS: force silently dropping a whole change file, or the overridden
+// user's pending change surviving to be committed over the forced value.
+func TestCommitForceOverridesConflict(t *testing.T) {
+	holdTime := []string{"bgp", "peer", "peer1", "timer"}
+
+	t.Run("live", func(t *testing.T) {
+		configPath := writeTestConfig(t, validBGPConfig)
+		store := newTestTreeStore(t, configPath)
+
+		alice, err := NewEditorWithStorage(store, configPath)
+		require.NoError(t, err)
+		defer alice.Close() //nolint:errcheck,gosec // test cleanup
+		aliceSession := NewEditSession("alice", "ssh")
+		alice.SetSession(aliceSession)
+		require.NoError(t, alice.SetValue([]string{"bgp"}, "router-id", "10.0.0.1"))
+		require.NoError(t, alice.SetValue(holdTime, "receive-hold-time", "180"))
+
+		bob, err := NewEditorWithStorage(store, configPath)
+		require.NoError(t, err)
+		defer bob.Close() //nolint:errcheck,gosec // test cleanup
+		bob.SetSession(NewEditSession("bob", "ssh"))
+		require.NoError(t, bob.SetValue([]string{"bgp"}, "router-id", "10.0.0.2"))
+
+		refused, err := bob.CommitSession()
+		require.NoError(t, err)
+		require.Len(t, refused.Conflicts, 1, "commit now alone is refused by the LIVE conflict")
+		assert.Equal(t, ConflictLive, refused.Conflicts[0].Type)
+
+		// Prime alice's poll so the notice, not the first-seen mtime, answers.
+		alice.checkDraftChanged()
+
+		forced, err := bob.CommitSessionForce()
+		require.NoError(t, err)
+		require.Empty(t, forced.Conflicts)
+		assert.Equal(t, 1, forced.Applied)
+
+		committed, err := store.ReadFile(configPath)
+		require.NoError(t, err)
+		assert.Contains(t, string(committed), "router-id 10.0.0.2")
+
+		aliceChange, err := store.ReadFile(ChangePath(configPath, "alice"))
+		require.NoError(t, err)
+		assert.NotContains(t, string(aliceChange), "10.0.0.1", "the overridden entry is gone from alice's change file")
+		assert.Contains(t, string(aliceChange), "receive-hold-time 180", "alice's other change is untouched")
+
+		changed, notice := alice.checkDraftChanged()
+		assert.True(t, changed)
+		assert.Contains(t, notice, "bgp router-id")
+		assert.Contains(t, notice, "discarded by bob's forced commit")
+
+		// After the notice, alice's own view of her changes agrees.
+		var alicePaths []string
+		for _, change := range alice.PendingChanges(aliceSession.ID) {
+			alicePaths = append(alicePaths, change.Path)
+		}
+		assert.NotContains(t, alicePaths, "bgp router-id")
+		assert.Contains(t, alicePaths, "bgp peer peer1 timer receive-hold-time")
+
+		_, again := alice.checkDraftChanged()
+		assert.NotContains(t, again, "discarded", "the notice is shown once")
+	})
+
+	t.Run("stale", func(t *testing.T) {
+		configPath := writeTestConfig(t, validBGPConfig)
+		store := newTestTreeStore(t, configPath)
+
+		alice, err := NewEditorWithStorage(store, configPath)
+		require.NoError(t, err)
+		defer alice.Close() //nolint:errcheck,gosec // test cleanup
+		aliceSession := NewEditSession("alice", "ssh")
+		alice.SetSession(aliceSession)
+		require.NoError(t, alice.SetValue(holdTime, "receive-hold-time", "180"))
+
+		bob, err := NewEditorWithStorage(store, configPath)
+		require.NoError(t, err)
+		defer bob.Close() //nolint:errcheck,gosec // test cleanup
+		bob.SetSession(NewEditSession("bob", "ssh"))
+		require.NoError(t, bob.SetValue([]string{"bgp"}, "router-id", "10.0.0.2"))
+
+		// The committed router-id moves under bob, as another commit would.
+		original, err := store.ReadFile(configPath)
+		require.NoError(t, err)
+		moved := strings.Replace(string(original), "router-id 1.2.3.4", "router-id 9.9.9.9", 1)
+		require.NotEqual(t, string(original), moved)
+		require.NoError(t, store.WriteFile(configPath, []byte(moved), 0o600))
+
+		refused, err := bob.CommitSession()
+		require.NoError(t, err)
+		require.Len(t, refused.Conflicts, 1, "commit now alone is refused by the STALE conflict")
+		assert.Equal(t, ConflictStale, refused.Conflicts[0].Type)
+
+		forced, err := bob.CommitSessionForce()
+		require.NoError(t, err)
+		require.Empty(t, forced.Conflicts)
+		assert.Equal(t, 1, forced.Applied)
+
+		committed, err := store.ReadFile(configPath)
+		require.NoError(t, err)
+		assert.Contains(t, string(committed), "router-id 10.0.0.2")
+
+		var alicePaths []string
+		for _, change := range alice.PendingChanges(aliceSession.ID) {
+			alicePaths = append(alicePaths, change.Path)
+		}
+		assert.Contains(t, alicePaths, "bgp peer peer1 timer receive-hold-time", "a STALE override touches no other user's change")
+	})
+}

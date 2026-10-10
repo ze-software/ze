@@ -21,15 +21,23 @@ import (
 // First saves (change file → draft), then applies draft to config.conf.
 // Returns a CommitResult with conflicts (if any) or the number of applied changes.
 //
-//nolint:cyclop // commit protocol has inherently many steps
 func (e *Editor) CommitSession() (*CommitResult, error) {
+	return e.commitSession(false)
+}
+
+// commitSession is CommitSession, and with force CommitSessionForce: a LIVE or
+// STALE conflict then applies instead of refusing (AC-32).
+//
+//nolint:cyclop // commit protocol has inherently many steps
+func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 	if e.session == nil {
 		return nil, errNoSessionSet
 	}
 
 	// Check for live conflicts before saving (scanning change files).
-	if liveConflicts := e.detectConflicts(); len(liveConflicts) > 0 {
-		return &CommitResult{Conflicts: liveConflicts}, nil
+	overlaps := e.liveOverlaps()
+	if len(overlaps) > 0 && !force {
+		return &CommitResult{Conflicts: overlapConflicts(overlaps)}, nil
 	}
 
 	// Save: apply change file → draft.
@@ -130,11 +138,11 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		}
 	}
 
-	if len(conflicts) > 0 {
+	if len(conflicts) > 0 && !force {
 		return &CommitResult{Conflicts: conflicts}, nil
 	}
 
-	// No conflicts: apply my changes to committed tree.
+	// No conflicts, or force overrides them: apply my changes to committed tree.
 	if err := applyStructuralOps(committedTree, e.schema, myOps, false); err != nil {
 		return nil, fmt.Errorf("apply structural ops: %w", err)
 	}
@@ -200,6 +208,11 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	// Also clean up the per-user change file now that structural ops are committed.
 	guard.Remove(changePath) //nolint:errcheck // Best effort
 
+	// A forced commit owes the overridden users their discard (AC-32).
+	if err := e.discardOverridden(guard, overlaps); err != nil {
+		return nil, err
+	}
+
 	// Update in-memory state to the committed config and clear any stale dirty
 	// markers or saved edit snapshots from the pre-commit working tree.
 	e.originalContent = committedOutput
@@ -216,15 +229,27 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 // candidate version instead of overwriting the active config file. Session
 // draft/change files are left intact until MarkCommittedContent confirms the
 // daemon promoted the candidate.
+func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string, error) {
+	return e.commitSessionCandidate(stamp, false)
+}
+
+// commitSessionCandidate is CommitSessionCandidate, and with force
+// CommitSessionCandidateForce. The overridden users' entries are discarded only
+// when MarkCommittedContent confirms the daemon took the candidate, so a reload
+// that fails discards nothing.
 //
 //nolint:cyclop,funlen // Mirrors CommitSession's conflict and merge protocol.
-func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string, error) {
+func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitResult, string, error) {
 	if e.session == nil {
 		return nil, "", errNoSessionSet
 	}
 
-	if liveConflicts := e.detectConflicts(); len(liveConflicts) > 0 {
-		return &CommitResult{Conflicts: liveConflicts}, "", nil
+	// Each candidate commit decides its own overrides: a previous forced
+	// candidate whose reload failed must not discard anything later.
+	e.overridden = nil
+	overlaps := e.liveOverlaps()
+	if len(overlaps) > 0 && !force {
+		return &CommitResult{Conflicts: overlapConflicts(overlaps)}, "", nil
 	}
 
 	if err := e.SaveDraft(); err != nil {
@@ -322,7 +347,7 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 		}
 	}
 
-	if len(conflicts) > 0 {
+	if len(conflicts) > 0 && !force {
 		return &CommitResult{Conflicts: conflicts}, "", nil
 	}
 
@@ -360,6 +385,7 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 	}
 	released = true
 
+	e.overridden = overlaps
 	e.dirty.Store(true)
 
 	return &CommitResult{Applied: applied, Warnings: warnings}, committedOutput, nil
@@ -439,6 +465,15 @@ func (e *Editor) cleanupCommittedSession() {
 
 	changePath := ChangePath(e.originalPath, e.session.User)
 	guard.Remove(changePath) //nolint:errcheck // Best effort cleanup after successful commit
+
+	// The daemon took a forced candidate: the overridden users' entries go now.
+	// Like the rest of this cleanup it cannot fail the commit, which has landed,
+	// so a failure is logged rather than dropped.
+	overlaps := e.overridden
+	e.overridden = nil
+	if err := e.discardOverridden(guard, overlaps); err != nil {
+		draftLogger.Warn("forced commit landed but the overridden changes were not discarded", "error", err)
+	}
 }
 
 // DiscardSessionPath discards this session's changes at the given path.

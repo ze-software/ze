@@ -59,6 +59,15 @@ and a second `commit confirmed` are refused: answer the window first with
 `commit accept` or `commit abort`. The SSH editor, `ze config edit` and the web
 terminal share this grammar.
 <!-- source: internal/component/cli/contract/commit.go -- ParseCommit, commitSubcommands -->
+
+In the SSH editor, `commit now` is refused when your change conflicts with
+another user's pending change (LIVE) or with a value committed since you made it
+(STALE). `commit now force` applies your change anyway. Each other user's
+pending change that it overrides is removed from that user's change file, and
+nothing else of theirs is touched; their editor then reports "Your change at
+<path> was discarded by <you>'s forced commit" once, and `show | changes` there
+no longer lists it. Validation errors still block a forced commit.
+<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, takeDiscardNotice -->
 <!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, errCommitWindowPending -->
 
 `commit now` reaches the same reload as `ze signal reload`. Which configuration

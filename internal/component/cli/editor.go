@@ -61,6 +61,10 @@ type Editor struct {
 	// step then edits the one parsed copy of the change file it holds, under
 	// the one lock the load holds, and the load writes the file once at the end.
 	loadStage  *loadStage
+	// overridden holds the other users' LIVE-conflicting changes a forced
+	// candidate commit overrode, until MarkCommittedContent discards them. Each
+	// candidate commit resets it, so a failed reload discards nothing.
+	overridden []liveOverlap
 	stdoutSink io.Writer // Non-nil for a stdin-sourced ("-") editor: Save emits here instead of writing a file
 	// now supplies the wall clock for version stamps. A field rather than a
 	// direct time.Now() call so a test can pin it: the same-millisecond backup

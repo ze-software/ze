@@ -309,7 +309,8 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 
 // cmdCommitSession commits only the current session's changes with conflict detection.
 // Validates the resulting config before committing (same check as non-session commit).
-// With force, warnings do not block and the status counts them; errors always block.
+// With force, warnings and conflicts do not block and the status counts the
+// warnings; errors always block.
 func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
 	detail := m.editor.Diff()
 	// Validate the current config before attempting commit.
@@ -337,9 +338,15 @@ func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
 		err          error
 	)
 	transactional := m.editor.HasReloadNotifier()
-	if transactional {
+	// Force also overrides LIVE and STALE conflicts (AC-32).
+	switch {
+	case transactional && force:
+		commitResult, content, err = m.editor.CommitSessionCandidateForce(time.Now())
+	case transactional:
 		commitResult, content, err = m.editor.CommitSessionCandidate(time.Now())
-	} else {
+	case force:
+		commitResult, err = m.editor.CommitSessionForce()
+	default:
 		commitResult, err = m.editor.CommitSession()
 	}
 	if err != nil {
