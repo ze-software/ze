@@ -219,6 +219,37 @@ func TestSessionCommitConfirmedFailedOpensNoWindow(t *testing.T) {
 	assert.True(t, alice.editor.Dirty())
 }
 
+// TestSessionCommitConfirmedNeedsHistory: AC-21. An editor that reaches the
+// daemon window but holds no store cannot be reverted to a recorded version,
+// so `commit confirmed` is refused before anything is written and no window
+// opens. A daemon session editor always holds a store (NewEditorWithStorage
+// refuses nil), so this is the Model-level proof of the guard; no .ci can
+// start a daemon session without one. A store-less session editor cannot
+// record a `set` either (its draft lock lives in the store), so the commit
+// runs with nothing pending: the refusal comes before any change is looked at.
+func TestSessionCommitConfirmedNeedsHistory(t *testing.T) {
+	f := newWindowFixture(t)
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "loose.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600))
+	ed, err := NewLooseFileEditor(nil, configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
+	require.False(t, ed.HasHistory(), "the fixture must be an editor with no history")
+	ed.SetConfirmWindow(func() *confirm.Window { return f.window })
+	ed.SetSession(NewEditSession("alice", "ssh"))
+	m, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
+	require.NoError(t, err)
+
+	_, err = m.cmdCommitRequest(confirmedRequest(60, false))
+	require.ErrorIs(t, err, errCommitConfirmedNeedsHistory)
+	_, open := f.window.Status()
+	assert.False(t, open, "a refused commit opens no window")
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, testValidBGPConfigSimplePeer, string(data), "nothing is written before the refusal")
+}
+
 // TestSessionWindowPollReportsTheEnd: AC-14 and AC-17 at the draft poll. The
 // window a session saw open is carried through the command result (a
 // command runs on a copy of the Model), so the poll stays quiet after the

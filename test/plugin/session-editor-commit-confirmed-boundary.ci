@@ -1,0 +1,75 @@
+# Test: session `commit confirmed` takes 1 to 3600 seconds, as file mode does
+# VALIDATES: spec-session-editor-file-mode-parity AC-20 -- 0, 3601, abc and a
+#            missing time are refused with the file-mode errors and open no
+#            window; 1 opens a window that reverts at once; 3600 opens one that
+#            `commit abort` reverts. Each refusal starts differently from the
+#            status before it, because the screen redraws only what changed
+# PREVENTS: an off-by-one at either bound, or a refused time that still commits
+option=timeout:value=90s
+
+tmpfs=session-editor-commit-confirmed-boundary.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+        user bob {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-confirmed-boundary.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send set bgp router-id 5.6.7.8
+send commit confirmed 0
+wait at least 1 second
+send commit confirmed abc
+wait invalid seconds
+send commit confirmed 3601
+wait at most 3600 seconds
+send commit confirmed
+wait needs the seconds, from 1 to 3600
+lacks 5.6.7.8
+send commit confirmed 1
+wait Confirm within 1s
+wait Timeout: configuration automatically rolled back
+has 1.2.3.4
+send set bgp router-id 9.9.9.9
+send commit confirmed 3600
+wait Confirm within 3600s
+has 9.9.9.9
+send commit abort
+wait Changes rolled back to previous configuration
+has 1.2.3.4
+lacks 9.9.9.9
+kill
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-boundary.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-boundary.conf session-editor-commit-confirmed-boundary.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-confirmed-boundary.conf:contains=router-id 1.2.3.4
+expect=file:path=session-editor-commit-confirmed-boundary.conf:not-contains=9.9.9.9
+expect=file:path=session-editor-commit-confirmed-boundary.conf:not-contains=5.6.7.8

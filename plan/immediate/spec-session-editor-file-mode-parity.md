@@ -357,7 +357,7 @@ and the operator deletes the destination first (AC-30).
 | `session-editor-commit-confirmed-nested` | `test/plugin/session-editor-commit-confirmed-nested.ci` | AC-23: nested `commit confirmed` without `force` refused; with `force` applies, restarts the countdown, and on timeout reverts to before the first commit; a second run accepts and keeps both | |
 | `session-editor-commit-confirmed-reconnect` | `test/plugin/session-editor-commit-confirmed-reconnect.ci` | AC-17: user U starts a window and the client is killed; U's new SSH session shows the window and seconds left and is accepted as its owner; a session of user V is refused; the running daemon reports the state the owner's action produces | |
 | `session-editor-commit-confirmed-restart` | `test/plugin/session-editor-commit-confirmed-restart.ci` | AC-19 | |
-| `session-editor-commit-confirmed-boundary` | `test/plugin/session-editor-commit-confirmed-boundary.ci` | AC-20, AC-21 | |
+| `session-editor-commit-confirmed-boundary` | `test/plugin/session-editor-commit-confirmed-boundary.ci` | AC-20 (AC-21 cannot be driven over SSH, see below) | PASS 2026-10-10; red under mutation `CommitConfirmedSecondsMax = 3601` at step 9, `commit confirmed 3601` opened a window instead of "at most 3600 seconds" |
 | replaces `load-blocked.et` | `test/editor/session/load-merge.et` | AC-1 at model level | |
 | `commit-grammar` (file mode) | `test/editor/lifecycle/commit-grammar.et` | AC-29 for file mode: AC-12, AC-13, AC-16, AC-20, AC-25 to AC-28, AC-30 | |
 | `cli-commit-grammar` (web terminal) | `test/web/cli-commit-grammar.wb` | AC-29 for the web terminal | |
@@ -367,6 +367,29 @@ Each `.ci` drives `ze config edit` over SSH against the running daemon through a
 fixture modelled on `driveEditor04` (`internal/test/fixture/plugin_fixture_04_cli.go`),
 and asserts the running daemon's state (a `show` through `ze cli -c`), not only
 the stored file (A-5). Each is run red against the unfixed tree first.
+
+Red record, 2026-10-10 (HEAD clone with `Editor.daemonWindow` mutated to return
+nil, so no session reaches the daemon window): 9/9 confirm `.ci` FAIL, each at
+the wait for the window's `commit accept` prompt after `commit confirmed`
+(output deadline expired): accept, abort, commit-now-refused, disconnect,
+nested and timeout at step 5; accept-keeps-candidate, other-user and reconnect
+at step 3. Unmutated tree: 9/9 PASS (`./le --name sccw test bgp plugin -pattern
+session-editor-commit-confirmed`).
+
+AC-21 has no `.ci`, because no daemon session can lack history. Evidence:
+every SSH session editor comes from `newSessionEditor`
+(`cmd/ze/hub/session_editor.go`), which calls `cli.NewEditorWithStorage`, and
+that refuses a nil store (`internal/component/cli/editor.go`, "config editor:
+no configuration store; run ze init"); `Editor.HasHistory` is `e.store != nil`;
+every store is the zefs store, whose `WriteVersion` records dated history
+(`docs/architecture/storage-backends.md`, "Content-addressed history"); and a
+daemon started on a plain file creates its live store first ("created live
+store" in every confirm `.ci` log). A store-less session editor cannot even
+record a `set`: its draft lock lives in the store (`Editor.draftLock` panics on
+nil). The guard in `cmdCommitConfirmedWindow` is proven at the Model by
+`TestSessionCommitConfirmedNeedsHistory` (`model_commit_window_test.go`): red
+under the mutation `if !m.editor.HasHistory()` -> `if false` (nil dereference
+in the window's snapshot of a nil store), green restored.
 
 ### Interop Tests (Scope: protocol)
 N-A: no wire-visible change; the editor applies config through the existing reload.
