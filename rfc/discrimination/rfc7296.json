@@ -68,6 +68,17 @@
       "break": "body of childRekeyDHGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-1.3.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/create_child_transport_test.go::TestChildlessInitiatorDeletesDeclinedTransportChildSA",
+      "unit-sha": "a528e277c4edb33d",
+      "claim-sha": "106c2404fe2be198",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/create_child.go::applyChildCreateResponse",
+      "producer-sha": "74db3bf5061ae143",
+      "break": "body of applyChildCreateResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-1.3.3-3",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused",
