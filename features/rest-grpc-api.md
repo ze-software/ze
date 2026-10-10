@@ -12,8 +12,8 @@
 | Components | internal/component/api |
 | Real-path tests | test/plugin/rest-execute.ci, test/plugin/grpc-execute.ci, test/plugin/rest-api-commands.ci, test/plugin/rest-no-auth-readonly.ci, test/parse/api-rest-multi-listener.ci, test/parse/api-grpc-multi-listener.ci |
 | Docs | docs/guide/api.md |
-| Doc review | 2026-10-07: OpenAPI 3.1 generation read in internal/component/api/schema.go OpenAPISchema |
-| Defect review | 2026-10-07: plan/immediate/spec-yang-rpc-declarations-with-no-handler.md and journal 2026-09-03 name ze-bgp-api.yang handlers, not the transports |
+| Doc review | 2026-10-10: OpenAPI 3.1 generation read in internal/component/api/schema.go OpenAPISchema |
+| Defect review | 2026-10-07: spec-yang-rpc-declarations-with-no-handler (closed 2026-10-10) and journal 2026-09-03 name ze-bgp-api.yang handlers, not the transports |
 | Extra criteria | supported: SSE and gRPC streaming of monitor event = test/plugin/api-stream-monitor-event.ci |
 
 ## Description

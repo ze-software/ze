@@ -655,6 +655,9 @@ from this checkout (`le test exabgp api --pattern api-peer-lifecycle`, exabgp==5
 | Every published method has a handler; the gate fails on an orphan declaration or handler | gate + unit | `TestEveryPublishedMethodHasAHandler`, `TestAnUnservedRPCDeclarationFailsTheVerdict`, `TestAnOrphanLocalHandlerFailsTheVerdict` (949091e15a) |
 | The six removed declarations stay absent; `peer-save` declared once | gate | `TestEveryCommandNodeHasASummary` green; command-contract lists one `ze-bgp:peer-save` row |
 | The ExaBGP bridge still reaches the renamed commands | interop-adjacent | `test/exabgp-compat/api/api-peer-lifecycle.ci` PASS 2026-10-10 (exabgp==5.0.13) |
+| The created-peer mark is race-free across a concurrent reload (review round 1 ISSUE-1) | concurrency | `go test -race -count=5 ./internal/component/bgp/reactor/` with the gate tags: `ok ... 1104.293s`, exit=0 (session scratch `reactor-race-count5-r2.log`, after the round-2 fixes) |
+| A reload of a tree with no bgp block configures no peer (round 3 NOTE-C) | unit, discriminated | `TestTreeWithNoBGPBlockConfiguresNoPeer` (0127676a03), red under three breaks: absent block answering an error, non-container answering nil, `ApplyConfigDiff` returning early on a nil block (session scratch `configbgpblock-red1..3.log`) |
+| Fresh closure re-run | functional + unit | 2026-10-10 `bin/le test bgp plugin api-peer-create-delete-rib api-peer-save`: `pass 2/2` (scratch `close-plugin.log`); every unit test of the TDD plan plus the tree-route tests: five packages `ok` (scratch `close-unit.log`) |
 
 ## RFC Documentation (Scope: protocol)
 
@@ -703,3 +706,144 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Wire methods: `create bgp peer` answers `ze-bgp:peer-create`, `delete bgp peer` answers `ze-bgp:peer-delete`, `update bgp config` answers `ze-bgp:peer-save`; `ze-cli-delete-api.yang` removed (3b9366fa72).
+- Reload model: `reactorAPIAdapter.ReloadRunning` hands the reload a running tree without the undeclared created peers, so an unrelated commit or reload keeps them (4ddd3c3914); the mark is set where the peer is published, under one `r.mu` section (`Reactor.AddDynamicPeer`, `recordCreatedPeerLocked`, 57dd115cc2); a rejected reload gives the created peers back (`RestoreCreatedPeers`, `restoreReload`, 557e2efad6, c5ee8bf12f), with the snapshot read before the scope lock (3794356852).
+- Delete: a removed peer's down event is published before it leaves the delivery index, so the RIB withdraws its routes (dcfdebb6ba).
+- Save: `update bgp config` refuses a selector and says it acts on the whole running set (650f778d2d, 631d1160b5).
+- Gate: `./le doc yang-contract command-contract` fails on every orphan it prints (949091e15a).
+- Tree route: `VerifyConfig` and `ApplyConfigDiff` read the bgp block of the whole tree (`configBGPBlock`, b3a11aac58, 3fe073c586); its absent-block answer tested (0127676a03).
+- Proof: `api-peer-create-delete-rib.ci` and `api-peer-save.ci`, each with a second daemon started on the file (14fbd132b7, 760f08569f).
+
+### Bugs Found/Fixed
+- A reload removed every peer `create bgp peer` built: `TestUnrelatedReloadKeepsACreatedPeer`.
+- The RIB never heard a deleted peer went down, so no WITHDRAW: `TestRemovedPeerStaysInTheIndexUntilItsDownEvent`.
+- A reload landing between publish and mark removed the new peer (review ISSUE-1): `TestReloadRightAfterThePeerIsPublishedKeepsIt`.
+- A rejected reload lost the created-peer marks (review NOTE-2): `TestRejectedReloadMarksTheCreatedPeersAgain`, `TestCompensatedTakeoverMarksTheCreatedPeerAgain`, `TestCompensatedRenameTakeoverRebuildsTheCreatedPeer`.
+- The parse-the-tree reload parsed the root as the bgp block and tore every session down: `TestTreeRouteReadsTheBGPBlockOfTheConfigTree`.
+- `cmd/ze/hub` tests did not build after the interface change: 6240605b62.
+
+### Documentation Updates
+- `docs/architecture/api/commands.md` (create/delete/save model, reload rule), `docs/guide/config-reload.md`, `docs/guide/command-reference.md`, `docs/architecture/exabgp-bridge.md`, `docs/functional-tests.md` section 4, `docs/contributing/documentation-testing.md`, `docs/architecture/config/transaction-protocol.md` (compensation restores created peers).
+- `./le doc check verify` 2026-10-10: every stage green except source anchors, whose 6 refusals name anchors no commit of this spec wrote (journalled in `plan/journal/claim-outlives-the-evidence-it-cites.md`).
+- Feature declarations: `features/api-commands.md` Scope partial to complete (its only gap was this spec), `features/cli-commands.md` drops this spec's gap, `features/rest-grpc-api.md` cites the bare stem; the three Doc review claims re-read against `ssh.go` `commandReboot`, `schema.go` `OpenAPISchema` and the `docs/features/api-commands.md` table.
+
+### Deviations from Plan
+- AC-7, AC-10 and AC-11 are proven by a second daemon started on the file, not by a SIGHUP reload (Key Design Decisions).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The created-peer mark was set after `r.mu` was released | A reload in that window removed the peer the operator had just created | independent review round 1 (ISSUE-1) | marked under the publishing lock, 57dd115cc2 |
+| approach | The parse-the-tree reload passed the whole tree where the bgp block was expected | No peer list was found, so every configured session would be torn down | review round 2 follow-up | `configBGPBlock`, b3a11aac58 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `create`/`delete` act on the runtime set only | Done | `handleBgpPeerCreate`, `handleBgpPeerDelete` (`bgp/plugins/cmd/peer/create.go`) | AC-1..8 |
+| `peer-save` persists presence and absence | Done | `handleBgpPeerSave` (`save.go`) | AC-10..13 |
+| `peer-save` declared once under its served name | Done | `ze-bgp-api.yang` | AC-17 |
+| Gate fails on an orphan | Done | `contractSatisfied` (`internal/le/doc/yangcontract/contract.go`) | AC-14..16 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-2, AC-3 | Done | `api-peer-create-delete-rib.ci` (`lifecycleCreate`) | |
+| AC-4 | Done | same `.ci`, through `Plugin.DispatchCommand` | |
+| AC-5, AC-6 | Done | same `.ci`, `expect=bgp:conn=1:seq=2:contains=02000418C000020000`; `TestRemovedPeerStaysInTheIndexUntilItsDownEvent` | |
+| AC-7 | Done | same `.ci`, second daemon on the unchanged file | red recorded in `red-rib.log` |
+| AC-8 | Done | same `.ci`, delete through the dispatcher | |
+| AC-9 | Done | same `.ci` (commit and reload keep the peer); `TestUnrelatedReloadKeepsACreatedPeer`, `TestReloadRightAfterThePeerIsPublishedKeepsIt` | |
+| AC-10, AC-11, AC-12 | Done | `api-peer-save.ci`, second daemon on the saved file | red recorded in `red-save.log` |
+| AC-13 | Done | `TestPeerSaveRefusesASelector`; fixture 01 | |
+| AC-14 | Done | `TestEveryPublishedMethodHasAHandler` | |
+| AC-15 | Done | `TestAnUnservedRPCDeclarationFailsTheVerdict`, `TestADeliberatelyOrphanedDeclarationIsNamed` | |
+| AC-16 | Done | `TestAnOrphanLocalHandlerFailsTheVerdict` | |
+| AC-17 | Done | `TestEveryCommandNodeHasASummary`; command-contract lists one `ze-bgp:peer-save` row | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every row of the Unit Tests table | Done | files named there | all green 2026-10-10 (`close-unit.log`) |
+| `TestTreeWithNoBGPBlockConfiguresNoPeer` | Done | `internal/component/bgp/reactor/reload_test.go` | added at closure (round 3 NOTE-C) |
+| `api-peer-create-delete-rib`, `api-peer-save` | Done | `test/plugin/` | `pass 2/2` (`close-plugin.log`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify and Files to Create | Done | changed by the commits listed in What Was Implemented |
+| `internal/component/cmd/delete/yang/ze-cli-delete-api.yang` | Done | removed: `git ls-files internal/component/cmd/delete/yang` lists no `-api.yang` |
+
+### Audit Summary
+- **Total items:** 17 ACs, 4 requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (fresh daemon for AC-7/10/11, recorded in Deviations)
+
+Goal Validation: the `## Goal Validation (BLOCKING)` section above carries every goal with its evidence, including the race run and the closure re-run.
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done; the Known Limitations are journal rows of defects outside AC scope, not in-scope work | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/yang-rpc-declarations-with-no-handler-5620b26f-603e-4d57-826d-6ef92b7fcd64.md` |
+| `./le spec review check` | clean: `review_gate: OK (... clean, hashes match ...)` |
+| Rounds | 3 |
+| Reviewer lenses used | concurrency and lock order, wiring end to end, callers of every changed shape, tests red under mutation |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Round 1 ISSUE-1: created-peer mark set after the peer was published and `r.mu` released, so a reload in the window removed it | `Reactor.AddDynamicPeer` | 57dd115cc2 |
+| 2 | ISSUE | Round 1 ISSUE-2: a candidate declaring a created peer's address under another name was untested through the reactor | `reactor_peers_takeover_test.go` | 6a858747df |
+
+NOTEs: round 1 NOTE-2 (compensation lost the marks) fixed in 557e2efad6; NOTE-3 and the nameless add-peer journalled. Round 2 NOTE-A fixed in c5ee8bf12f, NOTE-B in 3794356852. Round 3 NOTE-C fixed in 0127676a03 (test-only). Round 3 NOTE-D reviewed and accepted: `RestoreCreatedPeers` returns on the first `addPeerLocked` failure before marking the rest, but `compensateReload` keeps the pending compensation and `retryReloadCompensation` reruns `restoreReload` before the next reload, the retry is idempotent (rebuilt peers are skipped as running), and the operator sees "restore committed configuration: restore created peer <name>: <err>".
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/api-peer-create-delete-rib.ci`, `test/plugin/api-peer-save.ci` | Yes | `ls` 2026-10-10 |
+| `internal/test/fixture/plugin_fixture_13_peer_lifecycle.go`, `register_peer_create_delete_rib.go`, `daemon_await_exit_fixture.go`, `register_daemon_await_exit.go` | Yes | `ls` 2026-10-10 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-13 | lifecycle and save | `bin/le test bgp plugin api-peer-create-delete-rib api-peer-save`: `PASS 31`, `PASS 36`, `pass 2/2` |
+| AC-9, AC-13..AC-17 | unit proofs | `go test -run <TDD plan tests>` over reactor, plugin/server, cmd/peer, yangcontract, core/ipc: five `ok` |
+| AC-14, AC-17 | contract | command-contract rows `ze-bgp:peer-create`, `ze-bgp:peer-delete`, `ze-bgp:peer-save`; "All commands validated" |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `create bgp peer`, `delete bgp peer`, REST commit, SIGHUP reload | `test/plugin/api-peer-create-delete-rib.ci` | Yes, PASS 2026-10-10 |
+| `update bgp config` | `test/plugin/api-peer-save.ci` | Yes, PASS 2026-10-10 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | fixture 13 dispatches through `Plugin.DispatchCommand` and asserts reactor state |
+| A-2 | confirmed | `api-peer-lifecycle` ExaBGP api PASS 2026-10-10 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/features/api-commands.md` create/delete/save rows | `ze-peer-cmd.yang` command nodes; command-contract rows | Yes |
+| `docs/architecture/config/transaction-protocol.md` compensation restores created peers | `restoreReload` (`plugin/server/reload_compensation.go`) | Yes (review round 2) |
+| RFC status | No: no protocol behavior changed (interop decision above) | Yes |

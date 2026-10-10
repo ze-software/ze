@@ -8,12 +8,12 @@
 | Page | docs/features/cli-commands.md |
 | Kind | daemon |
 | Scope | partial |
-| Scope gaps | YANG RPC declarations with no handler (plan/immediate/spec-yang-rpc-declarations-with-no-handler.md), declared commands without leaves (plan/immediate/spec-declared-commands-without-leaves.md) |
+| Scope gaps | declared commands without leaves (plan/immediate/spec-declared-commands-without-leaves.md) |
 | Level | experimental |
 | Components | internal/plugins/signal/main.go, internal/component/ssh/ssh.go, internal/component/command |
 | Real-path tests | test/ui/cli-verb-daemon-dispatch.ci, test/ui/send-old-paths-are-refused.ci, test/ui/help-parent-node.ci |
 | Docs | docs/features/cli-commands.md |
-| Doc review | 2026-10-07: ssh.go intercepts stop, restart and reboot (commandReboot) in the exec middleware as the row says |
+| Doc review | 2026-10-10: ssh.go intercepts stop, restart and reboot (commandReboot) in the exec middleware as the row says |
 | Defect review | 2026-10-07: open: the three Scope gaps specs plus plan/immediate/spec-cli-question-mark-cannot-be-typed.md |
 | Extra criteria | supported: a gate that every declared command path has a handler = none yet |
 
