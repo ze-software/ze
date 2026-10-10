@@ -3,6 +3,7 @@ package appliance
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -154,6 +155,80 @@ func TestRuntimeFloorRequiresESP(t *testing.T) {
 		err := enforceKernelRequirements(profile, config, runtimeKernelRequirements)
 		if err == nil || !strings.Contains(err.Error(), symbol) {
 			t.Errorf("runtime floor error = %v, want %s", err, symbol)
+		}
+	}
+}
+
+// runtimeVPNSymbols are the kernel symbols Ze's IPsec and WireGuard code needs
+// built in (spec-appliance-kernel-vpn-modules AC-2). The CRYPTO entries are the
+// symbols xfrmTransformKernel (internal/component/ike/dataplane) maps the XFRM
+// tables' transforms to; TestXfrmTransformsHaveRequiredKernelSymbol compares
+// that map with runtime.require, and the test below compares this list with the
+// floor and runtime.require, so the copy here cannot drift unseen.
+var runtimeVPNSymbols = []string{
+	"CONFIG_XFRM_USER",
+	"CONFIG_XFRM_INTERFACE",
+	"CONFIG_INET_ESP",
+	"CONFIG_INET6_ESP",
+	"CONFIG_INET_AH",
+	"CONFIG_INET6_AH",
+	"CONFIG_WIREGUARD",
+	"CONFIG_CRYPTO_CBC",
+	"CONFIG_CRYPTO_DES",
+	"CONFIG_CRYPTO_NULL",
+	"CONFIG_CRYPTO_GCM",
+	"CONFIG_CRYPTO_CHACHA20POLY1305",
+	"CONFIG_CRYPTO_SHA1",
+	"CONFIG_CRYPTO_SHA256",
+	"CONFIG_CRYPTO_SHA512",
+}
+
+// VALIDATES: AC-2 of spec-appliance-kernel-vpn-modules. Every VPN symbol is in
+// the compiled runtime floor and in gokrazy/kernel/runtime.require, so neither
+// an edited manifest nor an edited floor can drop one alone.
+// PREVENTS: an appliance whose IKE negotiates a Child SA, or whose config makes
+// a WireGuard link, that the kernel cannot carry.
+func TestRuntimeFloorCarriesVPNSymbols(t *testing.T) {
+	required, err := readKernelRequireManifest(filepath.Join("..", "..", "gokrazy", "kernel", "runtime.require"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, symbol := range runtimeVPNSymbols {
+		if !slices.Contains(runtimeKernelRequirements, symbol) {
+			t.Errorf("%s is not in runtimeKernelRequirements", symbol)
+		}
+		if !slices.Contains(required, symbol) {
+			t.Errorf("%s is not in gokrazy/kernel/runtime.require", symbol)
+		}
+	}
+}
+
+// VALIDATES: AC-4 of spec-appliance-kernel-vpn-modules. An emitted config with
+// one VPN symbol modular, or unset, is refused, and the error names it.
+// PREVENTS: a kernel shipping a transform as =m on an appliance with no
+// modprobe, where the module is never loaded and the SA never installs.
+func TestEnforceRefusesModularVPNSymbol(t *testing.T) {
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "runtime.require")
+	if err := os.WriteFile(manifest, []byte("CONFIG_VETH\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	config := filepath.Join(dir, "config")
+	full := completeRuntimeConfig("CONFIG_VETH")
+	profile := kernelProfileResolution{Name: "runtime", Manifests: []string{manifest}}
+	for _, symbol := range runtimeVPNSymbols {
+		for _, answer := range []string{symbol + "=m\n", "# " + symbol + " is not set\n"} {
+			emitted := strings.ReplaceAll(full, symbol+"=y\n", answer)
+			if emitted == full {
+				t.Fatalf("%s=y is not in the complete config, so dropping it tests nothing", symbol)
+			}
+			if err := os.WriteFile(config, []byte(emitted), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			err := enforceKernelRequirements(profile, config, runtimeKernelRequirements)
+			if err == nil || !strings.Contains(err.Error(), symbol) {
+				t.Errorf("config with %q: error = %v, want one naming %s", strings.TrimSpace(answer), err, symbol)
+			}
 		}
 	}
 }

@@ -34,6 +34,19 @@ var universalKernelRequirements = []string{
 // build is the only place to catch it. CONFIG_XFRM_STATISTICS sources the SAD byte
 // counters `show vpn ipsec sa` reports.
 //
+// The rest of the VPN set follows the same reasoning. CONFIG_XFRM_USER is the
+// netlink interface every SA install goes through, CONFIG_XFRM_INTERFACE the
+// device a route-based peer binds to, AH the protocol OSPFv3 authentication
+// installs, and CONFIG_WIREGUARD the link kind Ze creates. The CRYPTO entries
+// are the kernel symbols of the transforms Ze's XFRM tables name
+// (xfrmTransformKernel, internal/component/ike/dataplane/kernelcap_linux.go);
+// TestXfrmTransformsHaveRequiredKernelSymbol compares those tables with
+// runtime.config and runtime.require. Every one is built in: gokrazy ships no
+// modprobe, so a transform built as a module is never loaded and the SA naming
+// it fails to install. The AES, AUTHENC, ECHAINIV, SEQIV, HMAC and SHA256
+// templates the transforms also need are selected by CONFIG_INET_ESP through
+// XFRM_ESP in Linux 7.2, so they are built in whenever ESP is.
+//
 // Flow export installs act_sample and receives its packets through psample.
 // Keep both built in: enabling the matchall classifier alone still leaves
 // sampling filter installation failing with ENOENT.
@@ -52,6 +65,19 @@ var runtimeKernelRequirements = []string{
 	"CONFIG_INET6_ESP",
 	"CONFIG_XFRM_STATISTICS",
 	"CONFIG_XFRM_MIGRATE",
+	"CONFIG_XFRM_USER",
+	"CONFIG_XFRM_INTERFACE",
+	"CONFIG_INET_AH",
+	"CONFIG_INET6_AH",
+	"CONFIG_WIREGUARD",
+	"CONFIG_CRYPTO_CBC",
+	"CONFIG_CRYPTO_DES",
+	"CONFIG_CRYPTO_NULL",
+	"CONFIG_CRYPTO_GCM",
+	"CONFIG_CRYPTO_CHACHA20POLY1305",
+	"CONFIG_CRYPTO_SHA1",
+	"CONFIG_CRYPTO_SHA256",
+	"CONFIG_CRYPTO_SHA512",
 	"CONFIG_MPLS_IP_MTU",
 	"CONFIG_PSTORE",
 	"CONFIG_PSTORE_RAM",

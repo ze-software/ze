@@ -73,7 +73,7 @@ The build resolves pinned system packages through the Go module graph.
 ## Runtime Kernel Requirements
 
 The runtime kernel is pinned by two manifests, `gokrazy/kernel/kernel.require`
-and `gokrazy/kernel/runtime.require`, holding 59 symbols between them. Each is
+and `gokrazy/kernel/runtime.require`. Each is
 checked against the resolved config after the build, and `enforce_required_symbols`
 accepts `=y` alone. A Kconfig answer of `m` therefore fails the BUILD rather than
 shipping an appliance where a feature Ze accepts in config cannot work. A module
@@ -90,9 +90,10 @@ Each symbol has a producer in Ze rather than a test that wanted it.
 | Policy routing | `IP_MULTIPLE_TABLES`, `IPV6_MULTIPLE_TABLES`, `IP_ROUTE_MULTIPATH` | The policy-routing engine. Without `IPV6_MULTIPLE_TABLES` the kernel folds every table id into the main table and says nothing |
 | Traffic control | `NET_SCH_HTB`, `TBF`, `FQ_CODEL`, `HFSC`, `FQ`, `SFQ`, `NETEM`, `PRIO`, `INGRESS`, `NET_CLS_U32`, `NET_CLS_FW`, `NET_CLS_MATCHALL`, `NET_ACT_MIRRED` | Class of service, rate limiting, and mirroring |
 | Interfaces and VPN | `DUMMY`, `VETH`, `MACVLAN`, `VLAN_8021Q`, `INET_ESP`, `INET6_ESP`, `XFRM_STATISTICS`, `HUGETLBFS`, `BPF_SYSCALL`, `BPF_JIT` | Interface creation, IPsec, VPP hugepages, and the eBPF surfaces |
+| IPsec and WireGuard | `XFRM_USER`, `XFRM_INTERFACE`, `XFRM_MIGRATE`, `INET_AH`, `INET6_AH`, `WIREGUARD`, `CRYPTO_CBC`, `CRYPTO_DES`, `CRYPTO_NULL`, `CRYPTO_GCM`, `CRYPTO_CHACHA20POLY1305`, `CRYPTO_SHA1`, `CRYPTO_SHA256`, `CRYPTO_SHA512` | Every SA install (XFRM netlink), route-based IPsec, MOBIKE, OSPFv3 authentication, WireGuard links, and one symbol for each ESP transform Ze can install, so every cipher Ze accepts in config is carried by the kernel |
 
-`CONFIG_NET_UDP_TUNNEL`, `CONFIG_WIREGUARD` and `CONFIG_TUN` are `=y` in the
-config fragment and are not pinned in a manifest.
+`CONFIG_NET_UDP_TUNNEL` and `CONFIG_TUN` are `=y` in the config fragment and
+are not pinned in a manifest.
 <!-- source: gokrazy/kernel/runtime.require -- runtime requirements -->
 <!-- source: gokrazy/kernel/kernel.require -- base requirements -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- enforceRequiredSymbols -->

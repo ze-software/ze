@@ -51,6 +51,23 @@ Default nftables logging requires built-in `CONFIG_NF_LOG_SYSLOG` as well as
 The runtime manifest and compiled floor require both symbols.
 <!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
 
+IPsec and WireGuard require their kernel support built in: `CONFIG_XFRM_USER`
+(the netlink interface every SA install goes through), `CONFIG_XFRM_INTERFACE`,
+`CONFIG_INET_ESP`, `CONFIG_INET6_ESP`, `CONFIG_INET_AH`, `CONFIG_INET6_AH`,
+`CONFIG_WIREGUARD`, and one CRYPTO symbol for each kernel transform Ze's XFRM
+algorithm tables can install: `CBC`, `DES`, `NULL`, `GCM`, `CHACHA20POLY1305`,
+`SHA1`, `SHA256` and `SHA512`. gokrazy ships no `modprobe`, so a transform built
+as a module is never loaded and the SA naming it fails to install. The runtime
+fragment requests each one, and the runtime manifest and compiled floor require
+each one. The transform-to-symbol map is `xfrmTransformKernel`, and
+`TestXfrmTransformsHaveRequiredKernelSymbol` walks the algorithm tables and
+fails when a transform's symbol is not `=y` in the fragments or not in
+`runtime.require`, so a cipher added to a table alone fails a test. The AES,
+AUTHENC, ECHAINIV, SEQIV, HMAC and SHA256 templates the transforms also use are
+selected by `INET_ESP` through `XFRM_ESP` in Linux 7.2.
+<!-- source: internal/component/ike/dataplane/kernelcap_linux.go -- xfrmTransformKernel -->
+<!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
+
 TCP-MD5 sessions require built-in `CONFIG_TCP_MD5SIG`. The runtime fragment
 requests it and the runtime manifest verifies the emitted value. Ze configures
 the socket through `setTCPMD5Sig`; a kernel without this feature refuses that

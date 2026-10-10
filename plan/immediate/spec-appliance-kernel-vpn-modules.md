@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | config \| tooling |
 | Depends | `plan/pre-release/spec-appliance-ships-ze-kernel.md` (AC-6 and AC-7 only; AC-1..AC-5 land without it) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-09 |
+| Updated | 2026-10-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -83,6 +83,9 @@ carry traffic.
 **Key insights:**
 - Ze's runtime kernel ALREADY carries the core VPN options built in. The open work is (1) three crypto transforms Ze's XFRM code names that the kernel does not hold, (2) the enforcement gap (several symbols set but required nowhere), (3) proof on a booted kernel. Adding the options to rtr7 is impossible (it is a pinned upstream binary package) and would be layering under `ai/rules/no-layering.md` in any case; the rtr7 removal is the other spec.
 - `=m` is not "present" on the appliance: gokrazy ships no `modprobe`, so the kernel's `request_module` finds no helper and a modular transform is never loaded. Every requirement here is `=y`.
+
+-> Constraint (found at implementation, 2026-10-10): ad0931ae26 had already set AC-1's three lines `=y` in `runtime.config` and declared every VPN and CRYPTO symbol in `runtime.require`, and `xfrmTransformKernel` (`internal/component/ike/dataplane/kernelcap_linux.go`) already maps each table transform to its symbol for the kernelcap enrolment. The derivation test reads that map; no second map was written. The test is `xfrm_kernelsym_linux_test.go`, because the tables are Linux-only.
+-> Constraint (read from linux-7.2 `net/xfrm/Kconfig`, 2026-10-10): `config XFRM_ESP` selects `CRYPTO_AES`, `CRYPTO_AUTHENC`, `CRYPTO_CBC`, `CRYPTO_ECHAINIV`, `CRYPTO_GCM`, `CRYPTO_HMAC`, `CRYPTO_SEQIV` and `CRYPTO_SHA256`, so `CONFIG_INET_ESP=y` forces the templates every transform uses; `crypto/sha256.c` implements `hmac(sha256)` itself. The per-transform requirement is therefore the one distinguishing symbol each `xfrmTransformKernel` entry names.
 
 ## Current Behavior (MANDATORY)
 
