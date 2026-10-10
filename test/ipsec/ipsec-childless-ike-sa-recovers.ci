@@ -1,0 +1,180 @@
+# Functional test: a refused first Child SA leaves the IKE SA up, and the tunnel
+# recovers through CREATE_CHILD_SA once the responder's esp-group is fixed.
+# Spec: plan/immediate/spec-ike-create-child-sa-on-established-ike-sa.md, Wiring Test
+# row 1 and End-to-End User Stories 2 and 3.
+#
+# VALIDATES: RFC 7296 Section 2.21.2 on both ends and Section 1.3.1 on the
+# initiator, through the real entry points. The responder's esp-group offers
+# aes128, the initiator's offers aes256 only, so the IKE_AUTH Child SA is refused.
+# The responder answers IDr, AUTH and NO_PROPOSAL_CHOSEN, and BOTH sides keep the
+# IKE SA. The operator then reloads the responder's esp-group to aes256. The
+# reload keeps the childless IKE SA (owner decision Q-8, option A), and the
+# initiator's scheduled creation (30 s, then doubling) installs the Child SA on the
+# SAME IKE SA.
+#
+# PREVENTS: the two shapes this spec removed. Before it, the initiator sent an
+# INFORMATIONAL Delete for an authenticated IKE SA the moment its Child SA was
+# refused, and the responder marked its own IKE SA dead; and an esp-group reload
+# restarted the peer, so a child-up that followed came from a fresh IKE_SA_INIT,
+# never from CREATE_CHILD_SA.
+#
+# WHAT DISCRIMINATES. The fixture reads `show vpn ipsec sa | json` on the
+# responder (story 3: the operator's view) and records the IKE SA's initiator SPI
+# while the SA is established with no "child-sa". After the reload it waits for
+# "child-sa" under that SAME SPI, and reports RECONNECTED if the SPI changes. A
+# reload that restarted the peer, or an initiator that re-established instead of
+# creating, carries a new SPI, so neither can pass. The stderr lines name the
+# path: the initiator kept the IKE SA, the reload kept it, and the Child SA came
+# from CREATE_CHILD_SA.
+#
+# WHY THE RESPONDER IS THE `ze -` DAEMON. Only a command whose binary is `ze`
+# gets its config written to a file (ze-bgp.conf for the first block) and a
+# daemon.pid. The initiator launches through `env`, so its config is piped and it
+# publishes no pid. Its ze_config_dir names a directory of its own: a piped
+# daemon otherwise opens the store in the work directory, which the responder
+# already owns, and exits with "store is owned by another process". The fixture edits ze-bgp.conf in place, swapping the one
+# "encryption aes128" line, so the $PORT the runner expanded stays as it was.
+#
+# Both daemons use the noop dataplane: the claim is about IKE state, and the
+# unprivileged host cannot program XFRM.
+
+option=env:var=ze_test_ike_port:value=$PORT2
+option=env:var=ze_test_ike_dataplane:value=noop
+option=env:var=ze.log.ike:value=info
+option=env:var=ze.ssh.username:value=operator
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.insecure:value=true
+option=env:var=ze.ssh.port:value=$PORT
+option=env:var=ze.ssh.host:value=127.0.0.2
+option=timeout:value=150s
+
+# ── responder (background, reloaded): binds 127.0.0.2, esp-group aes128 ──
+stdin=responder:terminator=EOF_RESPONDER
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes128
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 198.51.100.128/25
+					}
+					remote {
+						prefix 198.51.100.0/25
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+system {
+	authentication {
+		user operator {
+			# bcrypt hash of testpass, the password ze.ssh.password gives the fixture.
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO";
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.2;
+			port $PORT;
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── initiator (background, piped config): binds 127.0.0.1, esp-group aes256 only ──
+stdin=initiator:terminator=EOF_INITIATOR
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer responder {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 198.51.100.0/25
+					}
+					remote {
+						prefix 198.51.100.128/25
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_INITIATOR
+
+cmd=background:seq=1:exec=ze -:stdin=responder:name=responder
+cmd=background:seq=2:exec=env ze_test_ike_dataplane=noop ze_config_dir=initiator-store ze -:stdin=initiator:name=initiator
+cmd=foreground:seq=3:exec=le test fixture ipsec/childless-ike-sa-recovers:timeout=140s
+expect=stdout:contains=CHILDLESS:
+expect=stdout:contains=RELOADED:
+expect=stdout:contains=CREATED:
+reject=stdout:pattern=RECONNECTED
+reject=stdout:pattern=CHILD-BEFORE-RELOAD
+# The initiator kept the IKE SA its peer refused a Child SA on (fsm.go handleAuthResponse).
+expect=stderr:contains=peer authenticated and refused the Child SA, keeping the IKE SA
+# The reload kept the childless IKE SA (reconcile.go adoptESPGroup).
+expect=stderr:contains=esp-group reloaded on a childless IKE SA, kept the IKE SA
+# The Child SA came from CREATE_CHILD_SA (create_child.go applyChildCreateResponse).
+expect=stderr:contains=child-sa: created via CREATE_CHILD_SA
+reject=stderr:pattern=re-establishing
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+cmd=stop:seq=4:name=initiator:signal=term
+cmd=stop:seq=5:name=responder:signal=term
+
+expect=exit:code=0
