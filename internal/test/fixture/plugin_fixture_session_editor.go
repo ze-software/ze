@@ -40,6 +40,10 @@ const (
 	// sessionEditorKill kills the editor's SSH client, as a dropped connection
 	// does. It takes no text, and no step after it may type into the editor.
 	sessionEditorKill
+	// sessionEditorStop stops the daemon with `ze signal stop`, so a .ci can
+	// start a second daemon on the store this one leaves. It takes no text,
+	// follows a kill (no editor is left to quit), and is the last step.
+	sessionEditorStop
 )
 
 // sessionEditorVerbs maps a script word to its verb. It is the grammar, so the
@@ -52,6 +56,7 @@ var sessionEditorVerbs = map[string]sessionEditorVerb{
 	"lacks": sessionEditorLacks,
 	"key":   sessionEditorKey,
 	"kill":  sessionEditorKill,
+	"stop":  sessionEditorStop,
 }
 
 // sessionEditorKeys maps a key name a key step accepts to the bytes the
@@ -77,6 +82,7 @@ func parseSessionEditorScript(r io.Reader) ([]sessionEditorStep, error) {
 	var steps []sessionEditorStep
 	haveCLI := false
 	killed := false
+	stopped := false
 	scanner := bufio.NewScanner(r)
 	line := 0
 	for scanner.Scan() {
@@ -94,11 +100,17 @@ func parseSessionEditorScript(r io.Reader) ([]sessionEditorStep, error) {
 			return nil, fmt.Errorf("script line %d: unknown verb %q", line, word)
 		}
 		text = strings.TrimSpace(text)
+		if stopped {
+			return nil, fmt.Errorf("script line %d: %s after the daemon was stopped", line, word)
+		}
 		if err := sessionEditorCheckStep(verb, text, killed); err != nil {
 			return nil, fmt.Errorf("script line %d: %s %w", line, word, err)
 		}
 		if verb == sessionEditorKill {
 			killed = true
+		}
+		if verb == sessionEditorStop {
+			stopped = true
 		}
 		if verb == sessionEditorCLI {
 			haveCLI = true
@@ -125,10 +137,19 @@ func parseSessionEditorScript(r io.Reader) ([]sessionEditorStep, error) {
 	return steps, nil
 }
 
-// sessionEditorCheckStep answers why one step cannot run, or nil. kill takes
-// no text and every other verb needs one; a key names a known key; nothing
-// types into an editor a kill already ended.
+// sessionEditorCheckStep answers why one step cannot run, or nil. kill and
+// stop take no text and every other verb needs one; a key names a known key;
+// nothing types into an editor a kill already ended; stop needs that kill.
 func sessionEditorCheckStep(verb sessionEditorVerb, text string, killed bool) error {
+	if verb == sessionEditorStop {
+		if text != "" {
+			return errors.New("takes no text")
+		}
+		if !killed {
+			return errors.New("before the editor was killed")
+		}
+		return nil
+	}
 	if verb == sessionEditorKill {
 		if text != "" {
 			return errors.New("takes no text")
@@ -310,6 +331,8 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 			tail, err = killSessionEditor(cmd, terminal)
 			transcript.WriteString(tail)
 			killed = true
+		case sessionEditorStop:
+			_, err = runCommandProcess04(ctx, env, nil, "signal", "stop")
 		case sessionEditorUnspecified:
 			panic("BUG: parseSessionEditorScript produced an unspecified step")
 		}

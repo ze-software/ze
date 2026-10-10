@@ -353,6 +353,7 @@ and `#` lines are skipped:
 | `lacks` | run that command until its output no longer holds the text |
 | `key` | press the named key with no Enter; `ctrl-d` is the one name, and it ends the editor's paste mode (`load terminal`) |
 | `kill` | kill the editor's SSH client, as a dropped connection does; takes no text, and no `send`, `wait` or `key` may follow it |
+| `stop` | stop the daemon with `ze signal stop`; takes no text, follows a `kill`, and is the last step. It does not wait for the exit: a `.ci` that starts a second daemon on the same store runs `le test fixture daemon/await-exit` first, as `session-editor-commit-confirmed-restart.ci` does |
 
 `has` and `lacks` poll, because the daemon applies a commit after the editor
 reports it. `wait` matches the raw PTY stream, and the editor redraws only the

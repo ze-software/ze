@@ -17,7 +17,7 @@ import (
 func TestParseSessionEditorScript(t *testing.T) {
 	steps, err := parseSessionEditorScript(strings.NewReader(
 		"# comment\n\nsend copy bgp peer peer1 to peer2\nwait Copied peer peer1 to peer2\n" +
-			"cli show bgp peer list\nhas peer2\nlacks peer3\nkey ctrl-d\nkill\nhas peer1\n"))
+			"cli show bgp peer list\nhas peer2\nlacks peer3\nkey ctrl-d\nkill\nhas peer1\nstop\n"))
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -30,6 +30,7 @@ func TestParseSessionEditorScript(t *testing.T) {
 		{verb: sessionEditorKey, text: "ctrl-d"},
 		{verb: sessionEditorKill},
 		{verb: sessionEditorHas, text: "peer1"},
+		{verb: sessionEditorStop},
 	}
 	if len(steps) != len(want) {
 		t.Fatalf("steps = %+v, want %+v", steps, want)
@@ -57,6 +58,9 @@ func TestParseSessionEditorScript(t *testing.T) {
 		{"wait after kill", "kill\nwait x\n", "line 2"},
 		{"key after kill", "kill\nkey ctrl-d\n", "line 2"},
 		{"kill twice", "kill\nkill\n", "line 2"},
+		{"stop with text", "kill\nstop now\n", "line 2"},
+		{"stop before kill", "send x\nstop\n", "line 2"},
+		{"step after stop", "cli show bgp\nkill\nstop\nhas peer1\n", "line 4"},
 	}
 	for _, tc := range refused {
 		t.Run(tc.name, func(t *testing.T) {

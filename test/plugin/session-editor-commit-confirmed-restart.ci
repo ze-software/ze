@@ -1,0 +1,70 @@
+# Test: a daemon restarted inside a confirm window starts on the config from before the commit
+# VALIDATES: spec-session-editor-file-mode-parity AC-19 -- admin runs `commit
+#            confirmed 600` over SSH, the window is pending, and the daemon is
+#            stopped. A second daemon started on the same store finds the
+#            pending record, restores the rollback before it applies config,
+#            and logs that it reverted an unconfirmed commit; no window is left
+# PREVENTS: a restart that boots the unconfirmed config and keeps it, because
+#           the countdown that would have reverted it died with the daemon
+option=timeout:value=90s
+option=env:var=ze.log.config.confirm:value=info
+
+tmpfs=session-editor-commit-confirmed-restart.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-confirmed-restart-before.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send set bgp router-id 5.6.7.8
+send commit confirmed 600
+wait commit accept
+has 5.6.7.8
+kill
+stop
+EOF_SCRIPT
+
+tmpfs=session-editor-commit-confirmed-restart-after.script:terminator=EOF_AFTER
+cli show bgp
+has 1.2.3.4
+lacks 5.6.7.8
+send commit accept
+wait no confirmed commit is pending
+kill
+EOF_AFTER
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-restart.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-restart.conf session-editor-commit-confirmed-restart-before.script:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:timeout=30s
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=ze start session-editor-commit-confirmed-restart.conf:timeout=90s
+cmd=foreground:seq=5:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-restart.conf session-editor-commit-confirmed-restart-after.script:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=reverted an unconfirmed commit left pending at shutdown
+expect=file:path=session-editor-commit-confirmed-restart.conf:contains=router-id 1.2.3.4
+expect=file:path=session-editor-commit-confirmed-restart.conf:not-contains=5.6.7.8
