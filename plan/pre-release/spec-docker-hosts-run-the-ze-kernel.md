@@ -190,6 +190,7 @@ N-A: the check takes no numeric input; it compares states, not versions.
 | failure on today's colima | recorded run of `./le test integration interop-ipsec` before AC-8 | developer gets one failure naming `XFRM_MSG_MIGRATE_STATE` in seconds, not 15 minutes of scenario failures | |
 | MOBIKE on the Mac | recorded run after AC-8 | AC-12 | |
 | MOBIKE on the nightly | `evidence-nightly` run | AC-13 | |
+| `ze doctor config <file>` grammar | `test/ui/doctor-refuses-bare-config-path.ci` | a bare path after `ze doctor` is refused, naming `ze doctor config <file>` | red observed 2026-10-10: the `.ci` copied into a `git archive` export of `c5ee8bf12f` (1ecb27591e^), run there with `./le test ui doctor-refuses-bare-config-path`, failed `exit_code_mismatch`: "cmd seq=1 (ze doctor --json empty.conf): expected exit code 1, got 0". Green at 1ecb27591e |
 
 ### Interop Tests (Scope: protocol)
 N-A as a new scenario: no protocol behavior changes. The existing `mobike-initiator` and `mobike-responder` go from red (6.8) to green on a passing kernel; that pair is the discrimination record for AC-12.
