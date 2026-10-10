@@ -36,6 +36,7 @@ AC-15 depends on this spec.
 
 ### Owner decisions, second round (2026-10-09)
 
+-> Decision (owner, 2026-10-10, recorded as D-5 in `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md`): "docker needs our kernel". Ze's Docker hosts run exactly this appliance kernel, so the options Docker itself needs (moby `contrib/check-config.sh`, "Generally Necessary", plus overlayfs, user namespaces and seccomp) join `runtime.config` and `runtime.require`, declared once. There is no separate docker-host profile. That spec's AC-14 owns the edit; this spec's build and cache carry it unchanged.
 -> Decision (owner): kernel route (b) confirmed: "we want to control the modules so we need to compile our own kernel". No published kernel module (option a) and no download tier (option c).
 -> Decision (owner): every kernel is built on a host of its own arch, with no CPU emulation: arm64 on the Mac, amd64 on the Linux host. Found at source: today the Docker backend passes `--platform linux/<arch>` (`internal/appliance/kernelbuilder/driver.go`, `dockerPlatforms`), which runs a foreign arch under emulation, and the QEMU backend falls back to `-accel tcg` when neither `hvf` nor `kvm` serves the target binary (`internal/appliance/kernelbuilder/qemu.go`, accelerator selection). Both routes are refused by AC-13.
 -> Decision (owner): a long cold first build is acceptable IF the result is cached and the cache is never deleted when space is reclaimed. Found at source, what removes kernel build output today:

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 |
 | Handoff | - |
 | Updated | 2026-10-10 |
 
@@ -20,7 +20,8 @@ Owner answers to the first design (2026-10-09), which replace its exact-version 
 -> Decision (owner, D-1 and D-2): "either our own build or a recent kernel supporting all the features we need for Ze". The requirement is FEATURE-based. A Docker host is acceptable when its kernel provides every kernel feature Ze needs, and the required list derives from the declaration Ze already uses, never from a second hand-written list. Ze's own build is one way to meet it; a distro kernel that has everything is equally fine.
 -> Decision (owner, D-3): "if the kernel of github is recent enough, good enough, check". Checked below: it is not, so the QEMU-guest fallback is the nightly route.
 -> Decision (owner, D-4): "how could we have wrong kernel, it should not be possible - fail". Every Docker run that runs Ze fails on a host lacking a required feature, with no exemption. The check sits where Ze-running Docker work starts; the kernel build runs no Ze, so it never reaches the check and needs no exemption.
--> Open (D-5): whether the Docker-host additions live in their own kernel profile or in `runtime.config`. The coordinator is explaining it to the owner.
+-> Decision (owner, D-5, 2026-10-10): option B, "docker needs our kernel". Every Docker host runs EXACTLY the appliance kernel, so every interop result comes from the kernel the appliance ships. There is no separate docker-host profile: the options Docker itself needs are added to `gokrazy/kernel/runtime.config` and declared once in `runtime.require` (AC-14). D-1's "a distro kernel that has everything is equally fine" still describes what the derived check accepts; D-5 fixes which kernel Ze's own hosts install.
+-> Constraint (D-5): the Docker option list is derived from moby's `contrib/check-config.sh` "Generally Necessary" section, read at moby commit `9fabd6dfbb926381278c436a866bc8d6ac222274` (master, 2026-10-10), never from memory. For a kernel at 5.3 or later its `check_flags` there name: `NAMESPACES NET_NS PID_NS IPC_NS UTS_NS CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG KEYS VETH BRIDGE BRIDGE_NETFILTER IP_NF_FILTER IP_NF_MANGLE IP_NF_TARGET_MASQUERADE IP6_NF_FILTER IP6_NF_MANGLE IP6_NF_TARGET_MASQUERADE NETFILTER_XT_MATCH_ADDRTYPE NETFILTER_XT_MATCH_CONNTRACK NETFILTER_XT_MATCH_IPVS NETFILTER_XT_MARK IP_NF_RAW IP_NF_NAT NF_NAT IP6_NF_RAW IP6_NF_NAT POSIX_MQUEUE CGROUP_BPF`, and a cgroup v2 hierarchy with the `cpu cpuset io memory pids` controllers. The owner also named overlayfs, the user namespace and seccomp, which the same script lists under "Optional Features" (`OVERLAY_FS`, `USER_NS`, `SECCOMP SECCOMP_FILTER`, `CGROUP_PIDS`); those are added too, because Docker's default storage driver and default seccomp profile use them.
 
 The symptom. `mobike-initiator` and `mobike-responder` fail on every nightly and on the Mac (`plan/spec-interop-image-copies-a-prebuilt-ze.md`, AC-9: `34 passed, 3 failed`). Ze offers MOBIKE only when the kernel answers `XFRM_MSG_MIGRATE_STATE` (`xfrmMigrationAvailable`, `internal/component/ike/dataplane/xfrm_migrate_linux.go`), which first appears in Linux 7.2. The suite spends 15 minutes and reports two protocol failures that are a host fact.
 
@@ -45,7 +46,7 @@ Goals.
 - [ ] `docs/architecture/testing/interop.md` - labs, preflights, "IPsec address movement"
   → Constraint: "The Docker host must support `XFRM_MSG_MIGRATE_STATE`" is prose with no check today; this spec makes it a derived refusal and rewrites that paragraph.
 - [ ] `docs/architecture/appliance/kernel-profiles.md` - profile registry (`internal/appliance/kernelreg.go`)
-  → Decision: a profile is discovered from `<profile>.config` + `<profile>.require`; `# ze-base: <profile>` stacks one base. Ze's own Docker-host kernel, where a host needs it, is a profile over `runtime` with no Go edit (D-5 decides whether it is its own profile).
+  → Decision: a profile is discovered from `<profile>.config` + `<profile>.require`; `# ze-base: <profile>` stacks one base. D-5: Ze's Docker-host kernel IS the `runtime` profile, with Docker's options added to it; no new profile.
 - [ ] `docs/architecture/testing/qemu-integration.md` - `./le test qemu run kernel <vmlinuz> packages ...` boots Alpine on Ze's kernel under KVM or HVF
 - [ ] `docs/architecture/testing/ci-workflows.md` - `evidence-nightly.yml` runs `interop`, `interop-ipsec`, `docker-l2tp-ppp-test`, `docker-pppoe-accel-test` on `ubuntu-latest`
 - [ ] `ai/rules/platform-linux.md` - its sentence "the Alpine QEMU VM has no Docker" becomes false under the nightly route and is edited in the same change
@@ -163,6 +164,7 @@ Goals.
 | AC-11 | a capability enrolled later by any package | is required of every Docker host with no le change (unit test enrolling a fake capability) |
 | AC-12 | `./le test integration interop-ipsec` on the Mac after AC-8 | `mobike-initiator` and `mobike-responder` pass; this is the evidence `plan/spec-interop-image-copies-a-prebuilt-ze.md` AC-9 cites |
 | AC-13 | the same suite on the nightly after AC-10 | `mobike-initiator` and `mobike-responder` pass |
+| AC-14 | `gokrazy/kernel/runtime.config` and `runtime.require` (D-5) | carry every symbol of the D-5 constraint list, each once, with a comment citing moby `contrib/check-config.sh` at the recorded commit; the appliance kernel's own build then refuses a config that loses one, and a Docker daemon starts on the appliance kernel (the colima VM after AC-8, the QEMU guest of AC-10). No kernel build is started by the config edit itself |
 
 ## 🧪 TDD Test Plan
 
@@ -200,11 +202,12 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 - `internal/le/setup/setup.go` - `docker-kernel install` action and a setup check that runs the same probe
 - `internal/core/diagnostic/codes.go` - codes for each new enrolment
 - `.github/workflows/evidence-nightly.yml` - the four Docker jobs inside the QEMU guest
+- `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - Docker's own kernel options (D-5, AC-14)
 - `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/testing/interop.md`, `docs/architecture/testing/qemu-integration.md`, `docs/architecture/testing/ci-workflows.md`, `docs/guide/developer-setup.md`
 - `ai/rules/platform-linux.md` - "the Alpine QEMU VM has no Docker" is no longer true
 
 ## Files to Create
-- `gokrazy/kernel/docker-host.config` and `docker-host.require` only if D-5 chooses a separate profile; otherwise the Docker-host symbols go into `runtime.config` and `runtime.require`
+- None. D-5 put the Docker options into `gokrazy/kernel/runtime.config` and `runtime.require` (Files to Modify), so no `docker-host` profile exists
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -310,7 +313,7 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 - Ze's own build, its pin and its digest belong to `plan/pre-release/spec-appliance-ships-ze-kernel.md`; this spec uses whatever kernel passes.
 - `ipsec-bgp-redistribute-frr` fails for a separate, journalled cause (`plan/journal/unwired-feature.md`, `plan/journal/test-against-broken-path.md`).
 - nftables, policy routing, traffic shaping, eBPF and other interface kinds stay unenrolled unless a Docker lab exercises them; `plan/immediate/spec-kernel-capability-gate.md` keeps them.
-- D-5 is open with the owner.
+- D-5 closed (option B): no separate kernel profile. A distro kernel still passes the derived check when it has every feature, but Ze's own hosts install the appliance kernel.
 
 ## Checklist
 
