@@ -444,14 +444,14 @@ Round 4 verdict (independent reviewer, 2026-10-10): 0 BLOCKER, 3 ISSUE, 4 NOTE.
 | 3 | ISSUE | on darwin the route rebuilt the command from `os.Args` alone, so a run a selector variable chose reran the whole suite | `49697ff613`: every suite declares its selector to `ReadEnvironment` (L2TP now too), and `DockerKernelRoute(goos, lab, environment)` appends `env 'NAME=value'`, or falls back to the check-only command when an assignment cannot be carried; `TestDockerKernelRouteNamesEachPlatformsNextStep`, `TestSelectorEnvironmentCarriesTheDeclaredSelectors`, `TestDockerKernelRefusalNamesTheExactRouteCommand` |
 | 4 | NOTE 1 | AC-14 Blocked row still "blocked on AC-8 or AC-10" | this spec-record commit: proven under HVF by `docker-lab-nolab-5.log` |
 | 5 | NOTE 2 | a refusal inside the QEMU guest prescribed `./le setup docker-kernel install` and a reboot | `49697ff613`: the guest exports `ZE_DOCKER_LAB_GUEST=1` before its check, and the route there names `gokrazy/kernel/runtime.config`, `runtime.require` and the host's cache rebuild; `TestDockerKernelRouteInsideTheDockerLabGuest`, `TestDockerLabCommandChecksTheKernelBeforeTheLab` |
-| 6 | NOTE 3 | an edge case, to be journalled | OPEN: the finding's text did not reach the fixing agent, so no row was written |
+| 6 | NOTE 3 | darwin route rerunning a host path: if the refused run was `./le setup docker-kernel check ze <host path>`, the darwin route reruns it in the guest with a host path that does not exist there. Edge case | journalled 2026-10-10 in `plan/journal/failure-report-names-a-command-that-does-not-exist.md` |
 | 7 | NOTE 4 | untracked `proof.json` under `internal/le/interoplab/bgp/tmp/session/` | already journalled 2026-10-09 in `test-artifacts-land-in-the-repository-root.md`; that row now records the 2026-10-10 recurrence (18 files). The files are left in place |
 
 ### Round 5: ready for review round 5 (2026-10-10)
 
 Scope for the reviewer: round 4's fixes, `acdd48c266`, `49697ff613` and the spec-record commit after them.
 
-Owed elsewhere, not reviewable here: as round 4, plus NOTE 3's journal row. Gates owed: `./le go lint run`, `./le test unit all`, `./le cli grammar`.
+Owed elsewhere, not reviewable here: as round 4 (NOTE 3 is now journalled). AC-12 `mobike-responder` attempt, 2026-10-10: failed before boot, not on the kernel. A concurrent docker-lab run held host port 2222, so QEMU refused "Could not set up host forwarding rule 'tcp::2222-:22'" (the `freeRunSSHPort` probe-then-release race, journalled in `plan/journal/parallel-copies-collide-on-a-deterministic-port.md`; log `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/docker-lab-ipsec-mobike-responder.log`). Gates owed: `./le go lint run`, `./le test unit all`, `./le cli grammar`.
 
 ## Checklist
 
