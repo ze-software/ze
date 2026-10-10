@@ -45,8 +45,10 @@ func TestL2TPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 
 // VALIDATES: AC-7. The VPP proofs' container (vpp-iface-test and vpp-test),
 // where VPP locks its buffer memory and creates tap interfaces and ze programs
-// the namespace, holds NET_ADMIN, IPC_LOCK, --device /dev/net/tun and
-// --device /dev/vhost-net, and runs no --privileged.
+// the namespace, holds NET_ADMIN, --device /dev/net/tun and
+// --device /dev/vhost-net, and runs no --privileged and no IPC_LOCK: on an
+// amd64 Linux host VPP started, created its tap and answered pings through it
+// without IPC_LOCK (spec-lab-containers-least-privilege, owner decision 4).
 // PREVENTS: the container silently regaining --privileged, or losing a grant
 // VPP needs, whose absence looks like a ze defect.
 func TestVPPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
@@ -55,10 +57,11 @@ func TestVPPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 	if slices.Contains(argv, "--privileged") {
 		t.Errorf("the container runs --privileged: %v", argv)
 	}
-	for _, capability := range []string{"NET_ADMIN", "IPC_LOCK"} {
-		if !slices.Contains(flagValues(argv, "--cap-add"), capability) {
-			t.Errorf("the container lacks --cap-add %s: %v", capability, argv)
-		}
+	if !slices.Contains(flagValues(argv, "--cap-add"), "NET_ADMIN") {
+		t.Errorf("the container lacks --cap-add NET_ADMIN: %v", argv)
+	}
+	if slices.Contains(flagValues(argv, "--cap-add"), "IPC_LOCK") {
+		t.Errorf("the container holds IPC_LOCK, which VPP was shown not to need: %v", argv)
 	}
 	for _, device := range []string{"/dev/net/tun", "/dev/vhost-net"} {
 		if !slices.Contains(flagValues(argv, "--device"), device) {

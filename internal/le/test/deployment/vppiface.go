@@ -149,10 +149,11 @@ func newVPPIface(tree string) *vppIface {
 
 // containerArgs answers the container VPP and the daemon both run in.
 //
-// It holds NET_ADMIN, IPC_LOCK and the host's /dev/net/tun and /dev/vhost-net,
-// never --privileged: VPP locks its buffer memory, and its tap interfaces (the
-// LCP pair) open a TUN device and a vhost-net backend, and ze programs the
-// container's own network namespace. VPP needs no hugepages: with none
+// It holds NET_ADMIN and the host's /dev/net/tun and /dev/vhost-net, never
+// --privileged: VPP's tap interfaces (the LCP pair) open a TUN device and a
+// vhost-net backend, and ze programs the container's own network namespace.
+// It holds no IPC_LOCK: on an amd64 Linux host VPP started, created its tap and
+// moved traffic without it, and ze's memlock plugin fails soft. VPP needs no hugepages: with none
 // reserved its buffer pool sits on default pages. It holds the checkout at /src and the
 // run's scratch directory at /run/vpp. The entry point is replaced by a sleep
 // so the image's own VPP is not started before its configuration has been
@@ -166,7 +167,6 @@ func (v *vppIface) containerArgs(name, work string) []string {
 	return []string{
 		"run", "--rm", dockerDetach,
 		dockerCapAdd, "NET_ADMIN",
-		dockerCapAdd, "IPC_LOCK",
 		dockerDevice, "/dev/net/tun",
 		dockerDevice, "/dev/vhost-net",
 		"--platform", v.Platform,

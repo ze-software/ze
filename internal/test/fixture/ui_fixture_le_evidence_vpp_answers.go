@@ -227,8 +227,8 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if containsCall(ifaceCalls, "--privileged") {
 		return fmt.Errorf("the container runs --privileged:\n%s", strings.Join(ifaceCalls, "\n"))
 	}
-	if !containsCall(ifaceCalls, "--cap-add NET_ADMIN --cap-add IPC_LOCK --device /dev/net/tun --device /dev/vhost-net") {
-		return fmt.Errorf("the container lacks NET_ADMIN, IPC_LOCK, /dev/net/tun and /dev/vhost-net:\n%s", strings.Join(ifaceCalls, "\n"))
+	if !containsCall(ifaceCalls, "--cap-add NET_ADMIN --device /dev/net/tun --device /dev/vhost-net") {
+		return fmt.Errorf("the container lacks NET_ADMIN, /dev/net/tun and /dev/vhost-net:\n%s", strings.Join(ifaceCalls, "\n"))
 	}
 	for _, owed := range []string{"start " + zeRunDirConfig("tunnel.conf"), "show gre tunnel", "start " + zeRunDirConfig("wg.conf"), "show wireguard interface"} {
 		if !containsCall(ifaceCalls, owed) {
