@@ -17,7 +17,7 @@
 
 FROM alpine:3.21
 
-RUN apk add --no-cache tini iproute2 kmod ppp
+RUN apk add --no-cache tini iproute2 ppp
 
 COPY test/interop-l2tp/ze-linux /usr/local/bin/ze
 

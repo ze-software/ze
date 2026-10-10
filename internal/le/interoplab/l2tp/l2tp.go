@@ -392,7 +392,7 @@ func preflightRefusal(checks map[string]string) error {
 	message := tb.Str("the host kernel cannot run the L2TP lab: it lacks ").Join(missing, ", ").
 		Str(".\nLab containers never load kernel modules, so the host must provide them.\n").
 		Str("Load them on the Docker host, then run the lab again:\n").
-		Str("  sudo modprobe -a ppp_generic l2tp_ppp l2tp_netlink\n").String()
+		Str("  sudo modprobe -a ppp_generic l2tp_ppp l2tp_netlink").String()
 	return errors.New(message)
 }
 

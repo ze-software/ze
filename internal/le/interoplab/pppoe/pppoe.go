@@ -228,11 +228,7 @@ func preflight(suffix string) interoplab.PreflightCheck {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return errors.New("preflight probe container timed out")
 			}
-			return fmt.Errorf(
-				"preflight probe failed (rc=%d): %s",
-				result.ExitCode,
-				strings.TrimSpace(result.Stderr),
-			)
+			return preflightRunRefusal(result.ExitCode, result.Stderr)
 		}
 
 		return validatePreflightOutput(result.Stdout)
@@ -257,6 +253,22 @@ func preflightContainer(suffix string) interoplab.OneShotContainer {
 		},
 		Timeout: 120 * time.Second,
 	}
+}
+
+// preflightRunRefusal explains a preflight container that did not run.
+// Docker refuses --device /dev/ppp before the probe starts when the host has
+// no PPP device, and says so on stderr; that refusal names the module that
+// provides the device, as the L2TP lab's does. Any other failure keeps
+// Docker's own words.
+func preflightRunRefusal(exitCode int, stderr string) error {
+	stderr = strings.TrimSpace(stderr)
+	if strings.Contains(stderr, pppDevice) {
+		return fmt.Errorf("the PPPoE preflight container did not run (rc=%d): %s\n"+
+			"The Docker host has no PPP device, and lab containers never load kernel modules.\n"+
+			"Load it on the Docker host, then run the lab again:\n"+
+			"  sudo modprobe ppp_generic", exitCode, stderr)
+	}
+	return fmt.Errorf("preflight probe failed (rc=%d): %s", exitCode, stderr)
 }
 
 func validatePreflightOutput(output string) error {

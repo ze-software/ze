@@ -11,6 +11,7 @@ package l2tp
 
 import (
 	"net/netip"
+	"os"
 	"strings"
 	"testing"
 
@@ -101,9 +102,51 @@ func TestL2TPPreflightRefusalNamesTheHostFix(t *testing.T) {
 		t.Fatal("a host with no part passed")
 	}
 	message := err.Error()
-	for _, want := range []string{"/dev/ppp", "l2tp_ppp", "L2TP Generic Netlink", "\n  sudo modprobe -a ppp_generic l2tp_ppp l2tp_netlink\n"} {
+	for _, want := range []string{"/dev/ppp", "l2tp_ppp", "L2TP Generic Netlink"} {
 		if !strings.Contains(message, want) {
 			t.Errorf("refusal %q does not name %q", message, want)
+		}
+	}
+	// The command ends the message on a line of its own, with no trailing
+	// newline: the caller prints the error and adds its own.
+	if !strings.HasSuffix(message, "\n  sudo modprobe -a ppp_generic l2tp_ppp l2tp_netlink") {
+		t.Errorf("refusal %q does not end with the host command on a line of its own", message)
+	}
+}
+
+// VALIDATES: AC-3 for the images. No L2TP lab image installs kmod or runs
+// modprobe; the twin of TestPPPoELabImagesLoadNoModule.
+// PREVENTS: an entrypoint or a daemon start that loads a module on a host that
+// granted it, hiding the host's missing setup from the preflight. ze's own
+// probe (probeKernelModules) reads /sys/module first, so on a host the
+// preflight passed it never reaches modprobe.
+func TestL2TPLabImagesLoadNoModule(t *testing.T) {
+	root := l2tpCheckout(t)
+	plans, _, err := plansAt(root, "", testEnvironment())
+	if err != nil {
+		t.Fatalf("build plans: %v", err)
+	}
+	builds := imageBuilds(root, plans, "frr-image")
+	if len(builds) == 0 {
+		t.Fatal("the L2TP lab builds no image")
+	}
+	for _, image := range builds {
+		if image.Dockerfile == "" {
+			continue
+		}
+		content, err := os.ReadFile(image.Dockerfile)
+		if err != nil {
+			t.Fatalf("read %s: %v", image.Dockerfile, err)
+		}
+		for line := range strings.SplitSeq(string(content), "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "#") {
+				continue
+			}
+			for _, banned := range []string{"modprobe", "kmod"} {
+				if strings.Contains(line, banned) {
+					t.Errorf("%s still uses %s: %s", image.Dockerfile, banned, line)
+				}
+			}
 		}
 	}
 }

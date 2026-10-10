@@ -82,6 +82,31 @@ func TestPPPoEPreflightRunsWithoutPrivilege(t *testing.T) {
 	}
 }
 
+// VALIDATES: R-4 for a host with no /dev/ppp at all. Docker refuses the
+// preflight's --device before the probe runs, and the refusal names the module
+// that provides the device on a line of its own, as the L2TP lab's does; any
+// other failure keeps Docker's words and names no module.
+// PREVENTS: an operator reading only Docker's "error gathering device
+// information" with no fix.
+func TestPPPoEPreflightWithoutDevPPPNamesTheHostFix(t *testing.T) {
+	stderr := `docker: Error response from daemon: error gathering device information while adding custom device "/dev/ppp": no such file or directory.`
+	err := preflightRunRefusal(125, stderr+"\n")
+	if err == nil {
+		t.Fatal("a refused container was not reported")
+	}
+	if !strings.HasSuffix(err.Error(), "\n  sudo modprobe ppp_generic") {
+		t.Errorf("refusal %q does not end with the host command on a line of its own", err)
+	}
+	if !strings.Contains(err.Error(), stderr) {
+		t.Errorf("refusal %q drops Docker's own words", err)
+	}
+
+	other := preflightRunRefusal(1, "pull access denied")
+	if other == nil || strings.Contains(other.Error(), "modprobe") {
+		t.Errorf("a failure unrelated to /dev/ppp answered %v", other)
+	}
+}
+
 // VALIDATES: AC-4 for the images. No PPPoE lab image installs kmod or runs
 // modprobe.
 // PREVENTS: an entrypoint that loads a module on a host that granted it,

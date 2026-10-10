@@ -3,6 +3,6 @@
 
 FROM alpine:3.21
 
-RUN apk add --no-cache xl2tpd ppp iproute2 kmod iputils
+RUN apk add --no-cache xl2tpd ppp iproute2 iputils
 
 CMD ["xl2tpd", "-D", "-c", "/etc/xl2tpd/xl2tpd.conf"]
