@@ -141,7 +141,8 @@ attribute" (`EINVAL`). Sending the path MTU there would fail every RSVP-TE
 transit install whose PATH carried an ADSPEC, so no transit LSP would come up.
 
 Before its first transit route that has a path MTU, the forwarding owner asks
-the kernel once (`kernelcap.MPLSIPMTU`). The probe sends two `RTM_NEWROUTE`
+the kernel once (`kernelcap.MPLSIPMTUInThisNamespace`), in its own network
+namespace, whose label space it has already sized. The probe sends two `RTM_NEWROUTE`
 requests for label 16 with `NLM_F_EXCL` and no `NLM_F_CREATE`, which can only
 fail and so change nothing: a control without the metric, then the same request
 carrying `RTAX_MTU`. The control must reach the label lookup (`ENOENT` or
@@ -161,6 +162,20 @@ warning when enforcement is lost. `ze doctor` reports the same probe as the
 `doctor-mpls-transit-mtu-unknown` when it could not ask, both warnings that never
 refuse a start. Ze's appliance kernel carries the patch and keeps full
 enforcement.
+
+The capability asks the same question from a network namespace of its own
+(`kernelcap.MPLSIPMTU`), because the reader's namespace may hold no label space:
+every new namespace starts with `net.mpls.platform_labels` at 0, so a Docker
+container, or a host where ze has not yet programmed a label, cannot address
+label 16. The probe unshares a throwaway network namespace on a locked thread,
+sets the label space there to 17, makes a private writable copy of `/proc/sys`
+in a mount namespace of its own (Docker mounts it read-only), and asks. Both
+namespaces die with the thread, so the caller's label space is never changed.
+This needs `CAP_SYS_ADMIN` as well as `CAP_NET_ADMIN`, which is why the
+forwarding owner, running without `CAP_SYS_ADMIN`, asks in its own namespace
+instead. A container whose AppArmor profile denies `mount` (Docker's
+`docker-default`) cannot make the copy, and the row reads "cannot determine"
+with that reason.
 
 A push metric is also a hazard on a stock kernel. A forwarded IPv4 packet on a
 push route is bounded by `ip_dst_mtu_maybe_forward`: `RTAX_MTU` minus the
@@ -189,7 +204,8 @@ refused rather than raised to the floor, because a larger MTU would claim frames
 the path cannot carry. IPv6 needs no floor of its own here: a router never
 fragments IPv6, so an oversized IPv6 datagram is answered with Packet Too Big.
 
-<!-- source: internal/component/kernelcap/probe_linux.go -- MPLSIPMTU, classifyMPLSIPMTU -->
+<!-- source: internal/component/kernelcap/probe_linux.go -- MPLSIPMTU, MPLSIPMTUInThisNamespace, classifyMPLSIPMTU -->
+<!-- source: internal/component/kernelcap/namespace_linux.go -- InThrowawayNetworkNamespace -->
 <!-- source: internal/plugins/fib/kernel/mplsentry_linux.go -- transitRouteMTU, askTransitMTU -->
 <!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- transitMTUCapability -->
 <!-- source: internal/core/mplsfib/events.go -- Entry.PathMTU -->

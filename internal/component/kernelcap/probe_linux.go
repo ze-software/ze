@@ -123,15 +123,33 @@ var (
 // lets an AF_MPLS route hold a path MTU (RTA_METRICS/RTAX_MTU) and enforces it
 // on transit. Upstream Linux rejects the attribute with EINVAL.
 //
+// The question needs a label space, and a network namespace starts with none:
+// mpls_net_init (net/mpls/af_mpls.c, v7.2) sets
+// "net->mpls.platform_labels = 0;", and mpls_label_ok refuses every label
+// with "Label >= configured maximum in platform_labels" until it is raised.
+// A Docker container, and a host where ze has not yet programmed a label,
+// therefore cannot be asked in its own namespace. The probe asks from a
+// throwaway network namespace (InThrowawayNetworkNamespace) instead, sizes the label space
+// there, and leaves the caller's label space as it found it. Patch or no patch
+// is a property of the kernel, so any namespace gives the same answer. This
+// needs CAP_SYS_ADMIN and CAP_NET_ADMIN; without them the answer is unknown.
+func MPLSIPMTU() Result {
+	return InThrowawayNetworkNamespace(askMPLSIPMTUInThrowawayNamespace)
+}
+
+// MPLSIPMTUInThisNamespace asks the same question in the calling thread's
+// network namespace, needing CAP_NET_ADMIN alone. It is for the forwarding
+// owner, which runs without CAP_SYS_ADMIN (the systemd unit grants none) and
+// MUST have sized its own label space before it asks; with no unreserved label
+// to address the answer is unknown.
+//
 // The probe asks without changing anything: an RTM_NEWROUTE with NLM_F_EXCL
 // and no NLM_F_CREATE can only fail, with ENOENT when the label is free and
 // EEXIST when it is taken, once the kernel has parsed every attribute. A
 // control request without the metric must reach that answer first, so the
 // probe never reads an EINVAL from its own malformed request, a label outside
-// the label space or a missing AF_MPLS table as the unpatched kernel. Asking
-// needs CAP_NET_ADMIN; an unprivileged reader is told the answer is unknown.
-// Both requests run in the calling thread's network namespace.
-func MPLSIPMTU() Result {
+// the label space or a missing AF_MPLS table as the unpatched kernel.
+func MPLSIPMTUInThisNamespace() Result {
 	data, err := readFile(MPLSPlatformLabelsPath())
 	if err != nil {
 		return Result{State: StateUnknown, Reason: fmt.Errorf("read the MPLS label space: %w", err)}
@@ -144,6 +162,60 @@ func MPLSIPMTU() Result {
 		return Result{State: StateUnknown, Reason: errMPLSLabelSpaceSmall}
 	}
 	return classifyMPLSIPMTU(mplsRouteProbe(false), mplsRouteProbe(true))
+}
+
+// askMPLSIPMTUInThrowawayNamespace runs inside MPLSIPMTU's throwaway network
+// namespace. It gives the namespace a label space holding the probe label,
+// then asks.
+//
+// The label space is a sysctl, and the kernel resolves /proc/sys/net against
+// the writing thread's network namespace (mpls_net_init registers "net/mpls"
+// per namespace with register_net_sysctl_sz), so the write sizes the throwaway
+// namespace only. Docker mounts /proc/sys read-only inside a container that is
+// not privileged, so the probe first makes a writable copy of that mount in a
+// mount namespace of its own; the container's mount stays read-only.
+func askMPLSIPMTUInThrowawayNamespace() Result {
+	if err := mplsProbeWritableSysctl(); err != nil {
+		return Result{State: StateUnknown, Reason: fmt.Errorf("make /proc/sys writable in the probe namespace: %w", err)}
+	}
+	labelSpace := strconv.AppendUint(nil, mplsProbeLabel+1, 10)
+	if err := writeFile(MPLSPlatformLabelsPath(), labelSpace, 0o644); err != nil {
+		return Result{State: StateUnknown, Reason: fmt.Errorf("size the MPLS label space in the probe namespace: %w", err)}
+	}
+	return MPLSIPMTUInThisNamespace()
+}
+
+// writeFile is the probe's sysctl write, a var so a unit test drives it.
+var writeFile = os.WriteFile
+
+// mplsProbeWritableSysctl is the remount, a var so a unit test drives the
+// probe without CAP_SYS_ADMIN.
+var mplsProbeWritableSysctl = remountSysctlWritable
+
+// remountSysctlWritable gives the calling thread a private mount namespace in
+// which /proc/sys is writable. MUST be called on the locked thread of
+// InThrowawayNetworkNamespace, which dies with both namespaces.
+//
+// The copied mounts keep the propagation of the originals, so the copy is made
+// private first, as `unshare --mount` does: a mount on a shared mount would
+// otherwise appear in the caller's namespace. The bind of /proc/sys onto itself
+// works whether or not it is already a mount point (it is in a container, not
+// on a host), and the remount clears the read-only flag on that bind alone.
+func remountSysctlWritable() error {
+	if err := unix.Unshare(unix.CLONE_NEWNS); err != nil {
+		return fmt.Errorf("create a mount namespace: %w", err)
+	}
+	if err := unix.Mount("", "/", "", unix.MS_REC|unix.MS_PRIVATE, ""); err != nil {
+		return fmt.Errorf("make the probe's mounts private: %w", err)
+	}
+	sysctlRoot := ProcPath("sys")
+	if err := unix.Mount(sysctlRoot, sysctlRoot, "", unix.MS_BIND, ""); err != nil {
+		return fmt.Errorf("bind %s: %w", sysctlRoot, err)
+	}
+	if err := unix.Mount("", sysctlRoot, "", unix.MS_REMOUNT|unix.MS_BIND, ""); err != nil {
+		return fmt.Errorf("remount %s read-write: %w", sysctlRoot, err)
+	}
+	return nil
 }
 
 // classifyMPLSIPMTU turns the control answer and the metric answer into a

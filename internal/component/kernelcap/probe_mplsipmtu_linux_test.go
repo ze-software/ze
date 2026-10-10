@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: docs/architecture/mpls/mpls-kernel.md -- Path MTU and label overhead
-// Related: probe_linux.go -- MPLSIPMTU, the probe these tests drive
+// Related: probe_linux.go -- MPLSIPMTU and MPLSIPMTUInThisNamespace, the probes these tests drive
 //
 // The transit MTU probe's classification, driven by errno through the request
 // seam rather than by whichever kernel the host runs. The live answer on a stock
@@ -62,7 +62,7 @@ func TestMPLSIPMTUProbeClassification(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			sent := withMPLSIPMTUProbe(t, "100000\n", nil, tc.control, tc.metric)
 
-			result := MPLSIPMTU()
+			result := MPLSIPMTUInThisNamespace()
 			if result.State != tc.state {
 				t.Fatalf("control %v, metric %v: got %v (%v), want %v", tc.control, tc.metric, result.State, result.Reason, tc.state)
 			}
@@ -100,7 +100,7 @@ func TestMPLSIPMTUProbeNeedsALabelSpace(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			sent := withMPLSIPMTUProbe(t, tc.labelSpace, tc.err, unix.ENOENT, unix.ENOENT)
 
-			result := MPLSIPMTU()
+			result := MPLSIPMTUInThisNamespace()
 			if result.State != StateUnknown {
 				t.Fatalf("got %v (%v), want unknown", result.State, result.Reason)
 			}
@@ -109,6 +109,61 @@ func TestMPLSIPMTUProbeNeedsALabelSpace(t *testing.T) {
 			}
 			if len(*sent) != 0 {
 				t.Errorf("the probe sent %d requests with no label to address", len(*sent))
+			}
+		})
+	}
+}
+
+// VALIDATES: inside its throwaway namespace the probe makes /proc/sys writable,
+// sizes the label space to hold the probe label, and only then asks; a step
+// that fails is reported as unknown with its reason and nothing is sent.
+// Method: the remount, the sysctl write and the route request are faked, and
+// the faked label space reads back what the probe wrote.
+// PREVENTS: the probe asking a namespace whose label space is 0, which is every
+// fresh namespace (the Docker kernel check read unknown on every kernel), and a
+// failed remount or write being read as the unpatched kernel.
+func TestMPLSIPMTUThrowawayNamespaceSizesTheLabelSpace(t *testing.T) {
+	for name, tc := range map[string]struct {
+		remountErr, writeErr error
+		state                State
+		written              string
+	}{
+		"sized, then asked": {nil, nil, StatePresent, "17"},
+		"remount refused":   {unix.EPERM, nil, StateUnknown, ""},
+		"write refused":     {nil, unix.EROFS, StateUnknown, ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			sent := withMPLSIPMTUProbe(t, "0\n", nil, unix.ENOENT, unix.ENOENT)
+			originalWrite, originalRemount := writeFile, mplsProbeWritableSysctl
+			t.Cleanup(func() { writeFile, mplsProbeWritableSysctl = originalWrite, originalRemount })
+
+			labelSpace := "0\n"
+			readFile = func(string) ([]byte, error) { return []byte(labelSpace), nil }
+			var writtenPath string
+			writeFile = func(path string, data []byte, _ fs.FileMode) error {
+				if tc.writeErr != nil {
+					return tc.writeErr
+				}
+				writtenPath, labelSpace = path, string(data)
+				return nil
+			}
+			mplsProbeWritableSysctl = func() error { return tc.remountErr }
+
+			result := askMPLSIPMTUInThrowawayNamespace()
+			if result.State != tc.state {
+				t.Fatalf("got %v (%v), want %v", result.State, result.Reason, tc.state)
+			}
+			if tc.state == StatePresent {
+				if writtenPath != MPLSPlatformLabelsPath() || labelSpace != tc.written {
+					t.Errorf("wrote %q to %q, want %q to %q", labelSpace, writtenPath, tc.written, MPLSPlatformLabelsPath())
+				}
+				return
+			}
+			if result.Reason == nil {
+				t.Error("an unknown verdict carries no reason")
+			}
+			if len(*sent) != 0 {
+				t.Errorf("the probe sent %d requests after a failed step", len(*sent))
 			}
 		})
 	}

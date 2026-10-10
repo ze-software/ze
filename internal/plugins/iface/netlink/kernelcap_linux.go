@@ -17,10 +17,10 @@
 // (net/xfrm/xfrm_interface_core.c) then refuses interface id 0 with EINVAL
 // "if_id must be non zero" before registering anything, so on a kernel that
 // has the kind nothing is created. Kernels before that check would create the
-// link, so the request runs inside a throwaway network namespace on a thread
-// that dies with it, and whatever the kernel does there disappears with it.
-// Creating that namespace needs CAP_SYS_ADMIN; without it the probe answers
-// unknown and says so.
+// link, so the request runs inside a throwaway namespace
+// (kernelcap.InThrowawayNetworkNamespace), and whatever the kernel does there
+// disappears with it. Creating that namespace needs CAP_SYS_ADMIN; without it
+// the probe answers unknown and says so.
 
 //go:build linux
 
@@ -29,7 +29,6 @@ package ifacenetlink
 import (
 	"errors"
 	"fmt"
-	"runtime"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -104,38 +103,21 @@ func wireguardProbe() kernelcap.Result {
 	return kernelcap.GenericNetlinkFamily(wireguardFamily)
 }
 
-// xfrmInterfaceProbe runs the link request on a goroutine of its own, because
-// unshare(CLONE_NEWNET) moves the calling OS thread into the new namespace. The
-// worker keeps its thread locked and returns, and the Go runtime then destroys
-// that thread, so no other goroutine ever runs in the throwaway namespace.
+// xfrmInterfaceProbe sends the link request from a throwaway namespace, so a
+// kernel that creates the link creates it there and nowhere else.
 func xfrmInterfaceProbe() kernelcap.Result {
-	verdict := make(chan kernelcap.Result, 1)
-	go probeXFRMInterfaceInThrowawayNamespace(verdict)
-	return <-verdict
+	return kernelcap.InThrowawayNetworkNamespace(askXFRMInterface)
 }
 
-// probeXFRMInterfaceInThrowawayNamespace is the one-shot worker of
-// xfrmInterfaceProbe. It MUST NOT unlock its OS thread: the thread is in the
-// throwaway namespace, and an unlocked thread would go back to the scheduler.
-func probeXFRMInterfaceInThrowawayNamespace(verdict chan<- kernelcap.Result) {
-	runtime.LockOSThread()
-
-	if err := unix.Unshare(unix.CLONE_NEWNET); err != nil {
-		verdict <- kernelcap.Result{
-			State:  kernelcap.StateUnknown,
-			Reason: fmt.Errorf("create a throwaway network namespace for the probe (needs CAP_SYS_ADMIN): %w", err),
-		}
-		return
-	}
-
+// askXFRMInterface runs inside the throwaway namespace of xfrmInterfaceProbe.
+func askXFRMInterface() kernelcap.Result {
 	handle, err := netlink.NewHandle(unix.NETLINK_ROUTE)
 	if err != nil {
-		verdict <- kernelcap.Result{State: kernelcap.StateUnknown, Reason: fmt.Errorf("open rtnetlink in the probe namespace: %w", err)}
-		return
+		return kernelcap.Result{State: kernelcap.StateUnknown, Reason: fmt.Errorf("open rtnetlink in the probe namespace: %w", err)}
 	}
 	defer handle.Close()
 
-	verdict <- classifyXFRMInterfaceProbe(xfrmInterfaceProbeAdd(handle))
+	return classifyXFRMInterfaceProbe(xfrmInterfaceProbeAdd(handle))
 }
 
 // classifyXFRMInterfaceProbe maps the RTM_NEWLINK answer to a verdict. EINVAL is

@@ -185,9 +185,11 @@ func (n *netlinkBackend) resolveMPLSNextHop(nextHop netip.Addr) (int, error) {
 }
 
 // probeMPLSTransitMTU asks the kernel whether an AF_MPLS route may carry a path
-// MTU. It is the one probe kernelcap holds for the question, and a var so a
-// unit test fakes the netlink answer.
-var probeMPLSTransitMTU = kernelcap.MPLSIPMTU
+// MTU, and a var so a unit test fakes the netlink answer. It asks in this
+// process's own namespace, whose label space ensureLabelSpace has sized,
+// because the daemon holds CAP_NET_ADMIN but not the CAP_SYS_ADMIN the
+// enrolled probe (kernelcap.MPLSIPMTU) needs for its throwaway namespace.
+var probeMPLSTransitMTU = kernelcap.MPLSIPMTUInThisNamespace
 
 // transitRouteMTU returns the RTAX_MTU an AF_MPLS swap or pop carries for
 // pathMTU: the path MTU on a kernel that accepts one, and none otherwise.

@@ -39,7 +39,8 @@ func init() {
 // a kernel with gokrazy/kernel/patches/0002-mpls-ip-mtu.patch accepts it, so on
 // a stock kernel addMPLSSwap installs the route without it and this capability
 // reports the loss as a warning (owner decision, 2026-10-08). The backend asks
-// the same probe before its first such install (transitRouteMTU).
+// the same question in its own namespace before its first such install
+// (transitRouteMTU, kernelcap.MPLSIPMTUInThisNamespace).
 var transitMTUCapability = kernelcap.Capability{
 	Subsystem:   "mpls-transit-mtu",
 	Component:   pluginName,

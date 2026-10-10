@@ -102,7 +102,17 @@ answers `ENODEV` to a request without `NLM_F_CREATE` before it looks at the
 kind, so only a create request reaches the answer, and a kernel older than the
 id-0 check (Linux 6.0) would create the link. The throwaway namespace keeps
 that link where nothing sees it, and creating the namespace needs
-`CAP_SYS_ADMIN`; without it the row reads unknown and says why.
+`CAP_SYS_ADMIN`; without it the row reads unknown and says why. Both probes
+that need one go through `kernelcap.InThrowawayNetworkNamespace`.
+
+`mpls-transit-mtu` asks from a throwaway network namespace too, for another
+reason: the question needs a label space, and every new namespace starts with
+`net.mpls.platform_labels` at 0. The probe sizes the label space inside its own
+namespace and asks there, so it answers in a Docker container and on a host
+where ze has not yet programmed a label, and the reader's label space is left
+as it was. It also needs `CAP_SYS_ADMIN`, and a mount namespace in which
+`/proc/sys` is writable; the method is
+`docs/architecture/mpls/mpls-kernel.md`, "On a kernel without the patch".
 
 This is the `ze doctor` tier of the table above, not a fourth one. The verdict is
 produced at read time, in the reader's own process, and it keeps no memory of a
