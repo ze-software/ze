@@ -472,3 +472,30 @@ func TestCommitInsertMemberAlreadyPresentNoConflict(t *testing.T) {
 	assert.Empty(t, result.Conflicts,
 		"member already present must not conflict")
 }
+
+// TestCommitRefusesSessionEntryItCannotApply: a commit never answers success
+// over an edit it dropped.
+//
+// VALIDATES: applyCommitEntries, the loop both commit paths (CommitSession and
+// CommitSessionCandidate) run over the session's entries, returns an error that
+// names the entry it cannot apply to the committed tree.
+// PREVENTS: the old `continue`, which skipped the entry with no log line while
+// the commit still reported success and counted only the entries that landed.
+func TestCommitRefusesSessionEntryItCannotApply(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ed.Close() })
+	ed.SetSession(NewEditSession("thomas", "local"))
+
+	tree := config.NewTree()
+	entries := []config.SessionEntry{
+		{Path: "bgp router-id", Entry: config.MetaEntry{User: "thomas", Value: "9.9.9.9"}},
+		{Path: "no-such-container leaf", Entry: config.MetaEntry{User: "thomas", Value: "x"}},
+	}
+	applied, err := ed.applyCommitEntries(tree, entries)
+	require.Error(t, err, "an entry the commit cannot apply fails the commit")
+	assert.Contains(t, err.Error(), "no-such-container leaf", "the error names the entry")
+	assert.Equal(t, 0, applied)
+}

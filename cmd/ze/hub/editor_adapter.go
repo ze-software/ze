@@ -56,9 +56,10 @@ func (a *editorAdapter) MarkCommittedContent(content string) { a.ed.MarkCommitte
 func (a *editorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
 }
-func (a *editorAdapter) DeactivatePath(path []string) error { return a.ed.DeactivatePath(path) }
-func (a *editorAdapter) ActivatePath(path []string) error   { return a.ed.ActivatePath(path) }
-func (a *editorAdapter) Discard() error                     { return a.ed.Discard() }
+func (a *editorAdapter) ApplyActivation(fullPath []string, activate bool) (string, error) {
+	return a.ed.ApplyActivation(fullPath, activate)
+}
+func (a *editorAdapter) Discard() error { return a.ed.Discard() }
 func (a *editorAdapter) DiscardSessionPath(path []string) error {
 	return a.ed.DiscardSessionPath(path)
 }

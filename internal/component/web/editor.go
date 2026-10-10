@@ -564,30 +564,19 @@ func (m *EditorManager) CopyListEntry(username string, parentPath []string, list
 	return us.editor.CopyListEntry(parentPath, listName, srcKey, dstKey)
 }
 
-// DeactivatePath marks a node inactive in the user's working tree.
-func (m *EditorManager) DeactivatePath(username string, path []string) error {
+// ApplyActivation deactivates (activate false) or activates the node a token
+// path names in the user's working tree, through the dispatch the SSH editor
+// runs, and returns the status line it prints.
+func (m *EditorManager) ApplyActivation(username string, fullPath []string, activate bool) (string, error) {
 	us, err := m.GetOrCreate(username)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	return us.editor.DeactivatePath(path)
-}
-
-// ActivatePath re-activates a node in the user's working tree.
-func (m *EditorManager) ActivatePath(username string, path []string) error {
-	us, err := m.GetOrCreate(username)
-	if err != nil {
-		return err
-	}
-
-	us.mu.Lock()
-	defer us.mu.Unlock()
-
-	return us.editor.ActivatePath(path)
+	return us.editor.ApplyActivation(fullPath, activate)
 }
 
 // SaveDraft saves the user's pending changes to the draft file.

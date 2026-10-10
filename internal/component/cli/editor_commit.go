@@ -130,18 +130,11 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	if err := applyStructuralOps(committedTree, e.schema, myOps, false); err != nil {
 		return nil, fmt.Errorf("apply structural ops: %w", err)
 	}
-	applied := len(myOps)
-	for _, se := range myEntries {
-		pathParts := strings.Fields(se.Path)
-		if len(pathParts) > 0 {
-			leafName := pathParts[len(pathParts)-1]
-			parentPath := pathParts[:len(pathParts)-1]
-			if err := e.applySessionEntryToTree(committedTree, parentPath, leafName, se.Entry); err != nil {
-				continue
-			}
-			applied++
-		}
+	applied, err := e.applyCommitEntries(committedTree, myEntries)
+	if err != nil {
+		return nil, err
 	}
+	applied += len(myOps)
 
 	// Fail closed if a secret leaf holds the display placeholder: a masked
 	// `show config` pasted back must never clobber the stored secret. The guard
@@ -321,18 +314,11 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 	if err := applyStructuralOps(committedTree, e.schema, myOps, false); err != nil {
 		return nil, "", fmt.Errorf("apply structural ops: %w", err)
 	}
-	applied := len(myOps)
-	for _, se := range myEntries {
-		pathParts := strings.Fields(se.Path)
-		if len(pathParts) > 0 {
-			leafName := pathParts[len(pathParts)-1]
-			parentPath := pathParts[:len(pathParts)-1]
-			if err := e.applySessionEntryToTree(committedTree, parentPath, leafName, se.Entry); err != nil {
-				continue
-			}
-			applied++
-		}
+	applied, err := e.applyCommitEntries(committedTree, myEntries)
+	if err != nil {
+		return nil, "", err
 	}
+	applied += len(myOps)
 
 	if err := config.RejectMaskedSecretLeaves(committedTree, e.schema); err != nil {
 		return nil, "", err
@@ -362,6 +348,24 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 	e.dirty.Store(true)
 
 	return &CommitResult{Applied: applied, Warnings: warnings}, committedOutput, nil
+}
+
+// applyCommitEntries applies this session's entries to the committed tree and
+// returns how many landed. An entry it cannot apply fails the whole commit,
+// naming the entry: skipping it would report success over a dropped edit.
+func (e *Editor) applyCommitEntries(committedTree *config.Tree, myEntries []config.SessionEntry) (int, error) {
+	for _, se := range myEntries {
+		pathParts := strings.Fields(se.Path)
+		if len(pathParts) == 0 {
+			return 0, errSessionEntryHasNoPath
+		}
+		leafName := pathParts[len(pathParts)-1]
+		parentPath := pathParts[:len(pathParts)-1]
+		if err := e.applySessionEntryToTree(committedTree, parentPath, leafName, se.Entry); err != nil {
+			return 0, fmt.Errorf("commit apply %s: %w", se.Path, err)
+		}
+	}
+	return len(myEntries), nil
 }
 
 // validateStagedTree runs the injected pre-commit validator over the tree the

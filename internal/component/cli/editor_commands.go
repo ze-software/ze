@@ -24,6 +24,7 @@ var (
 	errRenameTargetMustBeTheLast       = errors.New("rename target must be the last element in the path")
 	errSaveNotAllowedWithActiveSession = errors.New("Save() not allowed with active session; use CommitSession()")
 	errNoSessionSet                    = errors.New("no session set")
+	errSessionEntryHasNoPath           = errors.New("commit apply: session entry has no path")
 	errLoadNotSupportedInSessionMode   = errors.New("load not supported in session mode")
 )
 

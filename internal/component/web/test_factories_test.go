@@ -112,9 +112,10 @@ func (a *testEditorAdapter) MarkCommittedContent(content string) { a.ed.MarkComm
 func (a *testEditorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
 }
-func (a *testEditorAdapter) DeactivatePath(path []string) error { return a.ed.DeactivatePath(path) }
-func (a *testEditorAdapter) ActivatePath(path []string) error   { return a.ed.ActivatePath(path) }
-func (a *testEditorAdapter) Discard() error                     { return a.ed.Discard() }
+func (a *testEditorAdapter) ApplyActivation(fullPath []string, activate bool) (string, error) {
+	return a.ed.ApplyActivation(fullPath, activate)
+}
+func (a *testEditorAdapter) Discard() error { return a.ed.Discard() }
 func (a *testEditorAdapter) DiscardSessionPath(path []string) error {
 	return a.ed.DiscardSessionPath(path)
 }

@@ -34,6 +34,62 @@ func TestWebSessionCopyAfterCommit(t *testing.T) {
 	}
 }
 
+// newPromotingEditorManager builds the manager a daemon wires: a peer validator
+// that accepts, and a commit hook that promotes the candidate.
+func newPromotingEditorManager(t *testing.T, base string) (*EditorManager, *config.Schema) {
+	t.Helper()
+	installPeerValidator(t, func(*config.Tree) error { return nil })
+	configPath := filepath.Join(t.TempDir(), "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(base), 0o600))
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
+		validatingEditorFactory(), testEditSessionFactory())
+	mgr.SetCommitHook(func() error {
+		return storage.PromoteCandidate(mgr.store, mgr.configPath)
+	})
+	return mgr, schema
+}
+
+// TestWebTerminalSetTakesATokenPath is AC-11 of
+// spec-session-editor-file-mode-parity through the lines the operator types.
+//
+// GOAL: the web terminal reads `set <path> <leaf> <value>` the way the SSH
+// editor does, so a peer set from the root lands, commits and can be copied.
+// METHOD: type each line through executeTerminalNav at the root, commit, then
+// copy the committed peer.
+//
+// VALIDATES: the leaf lands at its full path, the commit applies it, and the
+// copy answers "Copied peer wbsrc to wbdst".
+// PREVENTS: the terminal taking the first token as the leaf and the rest as its
+// value, so `set bgp router-id 10.0.0.9` answered "set bgp ..." while it stored
+// nothing a commit could apply, and the next copy answered "path not found".
+func TestWebTerminalSetTakesATokenPath(t *testing.T) {
+	mgr, schema := newPromotingEditorManager(t, "# ze config\n")
+	for _, line := range [][]string{
+		{"bgp", "router-id", "10.0.0.9"},
+		{"bgp", "session", "asn", "local", "65000"},
+		{"bgp", "peer", "wbsrc", "connection", "remote", "ip", "10.0.0.1"},
+		{"bgp", "peer", "wbsrc", "connection", "local", "ip", "auto"},
+		{"bgp", "peer", "wbsrc", "session", "asn", "remote", "65001"},
+	} {
+		_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbSet, Args: line})
+		require.NotContains(t, output, "error", "set %v", line)
+	}
+	bgp := mgr.Tree("alice").GetContainer("bgp")
+	require.NotNil(t, bgp, "the set lines created no bgp container")
+	routerID, ok := bgp.Get("router-id")
+	require.True(t, ok, "the leaf lands at its full path")
+	assert.Equal(t, "10.0.0.9", routerID)
+
+	_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbCommit})
+	require.Equal(t, terminalOutputCommitSuccessful, output)
+
+	_, output = executeTerminalNav(schema, nil, mgr, "alice", nil,
+		cliCommand{Verb: verbCopy, Args: []string{"bgp", "peer", "wbsrc", "to", "wbdst"}})
+	assert.Equal(t, "Copied peer wbsrc to wbdst", output)
+}
+
 func checkWebSessionCopyAfterCommit(t *testing.T, base string) {
 	t.Helper()
 	installPeerValidator(t, func(*config.Tree) error { return nil })
@@ -85,4 +141,38 @@ func TestWebTerminalListEntryOpWording(t *testing.T) {
 
 	_, renamed := execListEntryOp(args, nil, listEntryRename, ok)
 	assert.Equal(t, "Renamed peer a to b", renamed)
+}
+
+// TestWebTerminalDeactivateLeafAndEntry is AC-11 of
+// spec-session-editor-file-mode-parity for deactivate and activate.
+//
+// GOAL: the web terminal deactivates a leaf and a list entry the way the SSH
+// editor does, and answers in its words.
+// METHOD: set a router-id and a peer, then deactivate and activate each one
+// through executeTerminalNav at the root.
+//
+// VALIDATES: "Deactivated bgp router-id", "Deactivated bgp peer wbsrc", the
+// "Activated" pair, and the leaf marked inactive in the working tree.
+// PREVENTS: the terminal sending a leaf path to DeactivatePath, which only
+// walks containers and list entries, so it answered "path not found".
+func TestWebTerminalDeactivateLeafAndEntry(t *testing.T) {
+	mgr, schema := newPromotingEditorManager(t, "# ze config\n")
+	for _, line := range [][]string{
+		{"bgp", "router-id", "10.0.0.9"},
+		{"bgp", "peer", "wbsrc", "connection", "remote", "ip", "10.0.0.1"},
+	} {
+		_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbSet, Args: line})
+		require.NotContains(t, output, "error", "set %v", line)
+	}
+	run := func(verb string, args ...string) string {
+		_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verb, Args: args})
+		return output
+	}
+
+	assert.Equal(t, "Deactivated bgp router-id", run(verbDeactivate, "bgp", "router-id"))
+	assert.True(t, mgr.Tree("alice").GetContainer("bgp").IsLeafInactive("router-id"), "the leaf is marked inactive")
+	assert.Equal(t, "Deactivated bgp peer wbsrc", run(verbDeactivate, "bgp", "peer", "wbsrc"))
+	assert.Equal(t, "Activated bgp router-id", run(verbActivate, "bgp", "router-id"))
+	assert.Equal(t, "Activated bgp peer wbsrc", run(verbActivate, "bgp", "peer", "wbsrc"))
+	assert.Equal(t, "bgp router-id already active", run(verbActivate, "bgp", "router-id"))
 }

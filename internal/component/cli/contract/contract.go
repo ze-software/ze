@@ -151,8 +151,10 @@ type Editor interface {
 	DeleteByPath(fullPath []string) error
 	RenameListEntry(parentPath []string, listName, oldKey, newKey string) error
 	CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error
-	DeactivatePath(path []string) error
-	ActivatePath(path []string) error
+	// ApplyActivation deactivates (activate false) or activates the node a
+	// token path names (leaf-list value, leaf, container or list entry) and
+	// returns the status line the SSH editor prints.
+	ApplyActivation(fullPath []string, activate bool) (string, error)
 	CommitSession() (*CommitResult, error)
 	CommitSessionCandidate(stamp time.Time) (*CommitResult, string, error)
 	MarkCommittedContent(content string)

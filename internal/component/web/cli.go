@@ -342,31 +342,42 @@ func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *co
 // is the leaf name, and any preceding tokens extend the context path.
 // The full path (context + args) must resolve to a specific list entry, not an
 // anonymous list access (which would create a "default" entry).
+// errInvalidSetPath refuses a set whose path tokens fail ValidatePathSegments.
+var errInvalidSetPath = errors.New("invalid path")
+
+// splitSetArgs reads `set` the way the SSH editor does: the last token is the
+// value, the one before it the leaf, and the rest extend the context path. Both
+// web surfaces, the integrated CLI and the terminal, call it, so one line means
+// one thing in every editor. MUST be called with at least two arguments.
+func splitSetArgs(schema *config.Schema, contextPath, args []string) (setPath []string, key, value string, err error) {
+	if err := ValidatePathSegments(args[:len(args)-1]); err != nil {
+		return nil, "", "", errInvalidSetPath
+	}
+	value = args[len(args)-1]
+	key = args[len(args)-2]
+	setPath = append(append([]string{}, contextPath...), args[:len(args)-2]...)
+
+	// The target must be a leaf, not a container or list.
+	if schema != nil {
+		if node, lookupErr := schema.Lookup(config.JoinPath(append(setPath, key)...)); lookupErr == nil {
+			if node.Kind() != config.NodeLeaf {
+				return nil, "", "", fmt.Errorf("%s is not a leaf -- did you forget a value?", key)
+			}
+		}
+	}
+	return setPath, key, value, nil
+}
+
 func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []string, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
 	if len(args) < 2 { //nolint:mnd // set requires key and value
 		writeCLINotification(w, renderer, "usage: set <leaf> <value>", "error")
 		return
 	}
 
-	if err := ValidatePathSegments(args[:len(args)-1]); err != nil {
-		writeCLINotification(w, renderer, "invalid path", "error")
+	setPath, key, value, err := splitSetArgs(schema, contextPath, args)
+	if err != nil {
+		writeCLINotification(w, renderer, err.Error(), "error")
 		return
-	}
-
-	// Last token is value, second-to-last is leaf, rest extend the path.
-	value := args[len(args)-1]
-	key := args[len(args)-2]
-	setPath := append(append([]string{}, contextPath...), args[:len(args)-2]...)
-
-	// Validate that the target key is a leaf, not a container or list.
-	if schema != nil {
-		lookupPath := config.JoinPath(append(setPath, key)...)
-		if node, err := schema.Lookup(lookupPath); err == nil {
-			if node.Kind() != config.NodeLeaf {
-				writeCLINotification(w, renderer, key+" is not a leaf -- did you forget a value?", "error")
-				return
-			}
-		}
 	}
 
 	if err := mgr.SetValue(username, setPath, key, value); err != nil {

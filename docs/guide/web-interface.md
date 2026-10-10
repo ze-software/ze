@@ -298,7 +298,7 @@ In integrated mode, CLI commands update the page content directly:
 | Command | Effect |
 |---------|--------|
 | `edit <path>` | Navigate to a config path |
-| `set <leaf> <value>` | Set a value at the current context path |
+| `set [path] <leaf> <value>` | Set a value under the current context path. The last token is the value and the one before it the leaf, as in the SSH CLI; quote a value that holds spaces |
 | `delete <leaf>` | Delete a value at the current context path |
 | `show [path]` | Display config text at the current or specified path |
 | `top` | Navigate to root |
@@ -312,8 +312,11 @@ The prompt shows the current context path: `ze[bgp peer]# `.
 
 ### Terminal Mode
 
-Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo.
-<!-- source: internal/component/web/cli_terminal.go -- HandleCLITerminalWithDispatchAuthorizerAndAudit, executeTerminalCommand -->
+Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo. `set` reads its line the way the integrated mode does. `deactivate <path>` and `activate <path>` take a leaf, a leaf-list value, a container or a list entry, and answer as the SSH editor does ("Deactivated bgp router-id"). `errors` lists this session's pending changes, one line each: `+ copy`, `~ deactivate`, `~ activate`, `+`/`-` for a set or a delete.
+<!-- source: internal/component/web/cli_terminal.go -- HandleCLITerminalWithDispatchAuthorizerAndAudit, executeTerminalCommand, executeTerminalSet -->
+<!-- source: internal/component/web/cli.go -- splitSetArgs -->
+<!-- source: internal/component/cli/editor_activation.go -- ApplyActivation -->
+<!-- source: internal/component/web/editor.go -- EditorManager.Diff -->
 
 ### Tab Completion
 

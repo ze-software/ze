@@ -498,23 +498,23 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 			return nil, "usage: deactivate <path>"
 		}
 		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
-		if err := mgr.DeactivatePath(username, fullPath); err != nil {
+		msg, err := mgr.ApplyActivation(username, fullPath, false)
+		if err != nil {
 			var tb textbuf.Buffer
 			return nil, tb.Str("error: ").Err(err).String()
 		}
-		var tb textbuf.Buffer
-		return nil, tb.Str("deactivated ").Join(cmd.Args, " ").String()
+		return nil, msg
 	case verbActivate:
 		if len(cmd.Args) < 1 {
 			return nil, "usage: activate <path>"
 		}
 		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
-		if err := mgr.ActivatePath(username, fullPath); err != nil {
+		msg, err := mgr.ApplyActivation(username, fullPath, true)
+		if err != nil {
 			var tb textbuf.Buffer
 			return nil, tb.Str("error: ").Err(err).String()
 		}
-		var tb textbuf.Buffer
-		return nil, tb.Str("activated ").Join(cmd.Args, " ").String()
+		return nil, msg
 	case verbErrors:
 		// The masked pending-change diff, which is the one diff the web renders.
 		// The editor's text diff carried the stored value of every ze:sensitive
@@ -839,21 +839,20 @@ func executeTerminalSet(mgr *EditorManager, username string, contextPath, args [
 	}
 
 	var tb textbuf.Buffer
-	if err := ValidatePathSegments([]string{args[0]}); err != nil {
-		return tb.Str("error: invalid leaf name: ").Str(args[0]).String()
+	setPath, key, value, err := splitSetArgs(mgr.schema, contextPath, args)
+	if err != nil {
+		return tb.Str("error: ").Err(err).String()
 	}
+	leafPath := append(append([]string{}, setPath...), key)
 
-	value := textbuf.Join(args[1:], " ")
-	leafPath := append(append([]string{}, contextPath...), args[0])
-
-	if err := mgr.SetValue(username, contextPath, args[0], value); err != nil {
+	if err := mgr.SetValue(username, setPath, key, value); err != nil {
 		return tb.Reset().Str("error: ").Str(config.DisplayMessageAtPath(mgr.schema, leafPath, err.Error(), value)).String()
 	}
 
 	// The acknowledgement travels to the browser in the response body, so a
 	// credential in it reaches view-source, the disk cache and any proxy that
 	// reads the document.
-	return tb.Reset().Str("set ").Str(args[0]).Byte(' ').Str(config.DisplayValueAtPath(mgr.schema, leafPath, value)).String()
+	return tb.Reset().Str("set ").Join(args[:len(args)-1], " ").Byte(' ').Str(config.DisplayValueAtPath(mgr.schema, leafPath, value)).String()
 }
 
 // executeTerminalDelete handles the delete command in terminal mode.

@@ -1,0 +1,106 @@
+# Test: the web terminal copies, deactivates and activates in its session editor
+# VALIDATES: spec-session-editor-file-mode-parity AC-11 -- the web terminal runs a
+#            session editor; copy, deactivate and activate each succeed, show in
+#            the pending changes (`errors`), and `commit` applies them
+# PREVENTS: the web terminal refusing copy, deactivate and activate ("not
+#           supported in session mode")
+#
+# No step sleeps: each command waits for its own request (action=wait) and each
+# outcome is a positive expectation, which polls.
+
+option=timeout:value=60s
+
+action=open:path=/cli
+expect=element:id=terminal-input
+
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze#
+
+action=fill:id=terminal-input:value=set bgp router-id 10.0.0.9
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer wbsrc connection remote ip 10.0.0.1
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer wbsrc connection local ip auto
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer wbsrc session asn remote 65001
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=commit
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=fill:id=terminal-input:value=copy bgp peer wbsrc to wbdst
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=Copied peer wbsrc to wbdst
+
+action=fill:id=terminal-input:value=set bgp peer wbdst connection remote ip 10.0.0.2
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=deactivate bgp router-id
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=Deactivated bgp router-id
+
+action=fill:id=terminal-input:value=deactivate bgp peer wbsrc
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=Deactivated bgp peer wbsrc
+
+# The web terminal lists this session's pending changes with `errors`
+# (EditorManager.Diff): "+ copy", "~ deactivate" and "~ activate" lines.
+action=fill:id=terminal-input:value=errors
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=html:contains=+ copy bgp peer wbsrc to bgp peer wbdst
+expect=html:contains=~ deactivate bgp router-id
+expect=html:contains=~ deactivate bgp peer wbsrc
+
+action=fill:id=terminal-input:value=commit
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=fill:id=terminal-input:value=activate bgp router-id
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=Activated bgp router-id
+
+action=fill:id=terminal-input:value=activate bgp peer wbsrc
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=Activated bgp peer wbsrc
+
+action=fill:id=terminal-input:value=errors
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=html:contains=~ activate bgp router-id
+expect=html:contains=~ activate bgp peer wbsrc
+expect=html:not-contains=+ copy
+
+action=fill:id=terminal-input:value=commit
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=fill:id=terminal-input:value=show bgp
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=html:contains=peer wbdst
+expect=html:contains=remote ip 10.0.0.2
+

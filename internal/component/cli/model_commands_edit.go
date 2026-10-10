@@ -139,21 +139,14 @@ func (m *Model) cmdActivate(args []string) (commandResult, error) {
 }
 
 // runActivation backs both cmdDeactivate (activate=false) and cmdActivate
-// (activate=true). The two verbs share path resolution, leaf-list-value
-// detection, and idempotent-error mapping; only the editor methods and
-// the wording of the status messages differ.
-//
-//nolint:cyclop // exhaustive node-type dispatch
+// (activate=true). The schema check and the operator's context are the
+// model's; the dispatch and the wording are Editor.ApplyActivation, which the
+// web terminal runs too.
 func (m *Model) runActivation(args []string, activate bool) (commandResult, error) {
 	verb := "deactivate"
-	pastTense := "Deactivated"
-	alreadyState := "deactivated"
 	if activate {
 		verb = "activate"
-		pastTense = "Activated"
-		alreadyState = "active"
 	}
-
 	if len(args) < 1 {
 		return commandResult{}, fmt.Errorf("usage: %s <path>", verb)
 	}
@@ -162,78 +155,24 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 	fullPath = append(fullPath, m.contextPath...)
 	fullPath = append(fullPath, args...)
 
-	// Leaf-list value path.
-	if len(fullPath) >= 2 {
-		parentPath, leafListName, isLeafList := m.resolveLeafListValue(fullPath)
-		if isLeafList {
-			value := fullPath[len(fullPath)-1]
-			var llErr error
-			if activate {
-				llErr = m.editor.ActivateLeafListValue(parentPath, leafListName, value)
-			} else {
-				llErr = m.editor.DeactivateLeafListValue(parentPath, leafListName, value)
-			}
-			if llErr != nil {
-				return commandResult{}, fmt.Errorf("%s failed: %w", verb, llErr)
-			}
-			m.refreshCompleter()
-			var tb textbuf.Buffer
-			tb.Str(pastTense).Byte(' ').Str(value).Str(" in ").Str(leafListName)
-			if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
-				tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
-			}
-			msg := tb.String()
-			return commandResult{
-				statusMessage: msg,
-				configView:    m.configViewAtPath(m.contextPath),
-				revalidate:    true,
-			}, nil
+	// A leaf-list value is no schema node, so only the other paths are checked.
+	if _, _, isLeafList := m.resolveLeafListValue(fullPath); !isLeafList {
+		if _, err := m.completer.validateTokenPath(fullPath); err != nil {
+			return commandResult{}, err
 		}
 	}
-
-	// Schema-validated leaf vs container/list-entry dispatch.
-	entry, err := m.completer.validateTokenPath(fullPath)
+	msg, err := m.editor.ApplyActivation(fullPath, activate)
 	if err != nil {
 		return commandResult{}, err
 	}
-	var opErr error
-	switch {
-	case entry != nil && entry.IsLeaf():
-		parentPath := fullPath[:len(fullPath)-1]
-		leafName := fullPath[len(fullPath)-1]
-		if activate {
-			opErr = m.editor.ActivateLeaf(parentPath, leafName)
-		} else {
-			opErr = m.editor.DeactivateLeaf(parentPath, leafName)
-		}
-	case activate:
-		opErr = m.editor.ActivatePath(fullPath)
-	default:
-		opErr = m.editor.DeactivatePath(fullPath)
-	}
-
-	if opErr != nil {
-		// Idempotent: already-in-state becomes a status message.
-		if errors.Is(opErr, ErrLeafAlreadyInactive) || errors.Is(opErr, ErrPathAlreadyInactive) ||
-			errors.Is(opErr, ErrLeafNotInactive) || errors.Is(opErr, ErrPathNotInactive) {
-			var tb textbuf.Buffer
-			return commandResult{
-				statusMessage: tb.Join(fullPath, " ").Str(" already ").Str(alreadyState).String(),
-				configView:    m.configViewAtPath(m.contextPath),
-			}, nil
-		}
-		return commandResult{}, fmt.Errorf("%s failed: %w", verb, opErr)
-	}
-
 	m.refreshCompleter()
-	var tb2 textbuf.Buffer
-	tb2.Str(pastTense).Byte(' ').Join(fullPath, " ")
+	var tb textbuf.Buffer
+	tb.Str(msg)
 	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
-		tb2.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
+		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
-	msg := tb2.String()
 	return commandResult{
-		statusMessage: msg,
+		statusMessage: tb.String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
