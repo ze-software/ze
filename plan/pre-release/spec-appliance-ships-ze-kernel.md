@@ -559,7 +559,7 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 |-------|-------|
 | Artifact | round 1: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r1-appliance-ships-ze-kernel.md` (0 BLOCKER, 6 ISSUE, 8 NOTE); every finding fixed or recorded below; ready for independent review round 2 |
 | `./le spec review check` | not run |
-| Rounds | 1 (preceded by a partial pass the owner interrupted, whose ISSUE is row 1 below); round 2 owed over the fix commits |
+| Rounds | 2 (round 1 preceded by a partial pass the owner interrupted, whose ISSUE is row 1 below); round 2 artifact `scratch/review-r2-appliance-ships-ze-kernel.md` (0 BLOCKER, 3 ISSUE, 6 NOTE), fixes in "Round 2 fixes"; round 3 owed over dc501faa9f, 5ffef6eedc, 248d1ed071, 8949969c96 |
 | Reviewer lenses used | round 1: logic+wiring (resolver to image), supply chain (digest pin, notice), cache safety |
 
 ### Round 1 fixes
@@ -590,6 +590,29 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 | 3 | NOTE | lint `misspell`: "honours" in the comment of `TestTrimSkipsATargetHoldingTheKernelCache` | `internal/le/scratch/cacheclean_kernel_test.go` | e9ab56300d. The other finding in the same lint log, a `godot` in `internal/test/fixture/plugin_fixture_rfc2545_joint_subnet_frr_oracle_linux.go`, is in another session's RFC 2545 work, not this spec's files, and was left alone |
 
 Ready for independent review round 2, over the round-1 fix commits and 6ae709558c, e9ab56300d. Scoped lint (`./internal/appliance/... ./internal/le/scratch/...`): 0 issues on darwin and linux-integration, 2026-10-10.
+
+### Round 2 fixes
+Artifact: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r2-appliance-ships-ze-kernel.md` (0 BLOCKER, 3 ISSUE, 6 NOTE). Every round-1 finding was found fixed at the producer.
+
+| Finding | Fixed by | What changed |
+|---------|----------|--------------|
+| NOTE 1 (cache key hashed host-side kernelbuilder code that decides no kernel bytes; `notBuildTime` was a hand list) | dc501faa9f | `kernelbuilder.BuildSources` names `recipe.go` (new: `docker run` argv, QEMU guest Alpine release, packages and command, `normalizeRequest`, `writeProvenance`, `workerGOARCH`) and `worker.go`; `kernelBuilderSources` hashes those, every file under `tools/kernel-builder`, and the transitive Ze import closure (`zeImportClosure`, module path read from `go.mod`). `TestKernelCacheKeyCoversEveryBuildInput` (both mutations red) and `TestKernelCacheKeyIgnoresHostSideEdits`; `TestKernelBuilderSourcesHoldOnlyBuildCode` removed with its row in `test/weakened/d1987d95.md`; `build-artifacts.md` states the rule; journal row for the unpinned, unkeyed i915 firmware in `plan/journal/stale-artifact-reused.md` |
+| ISSUE 1 (QEMU stderr tail read before `cmd.Wait`) + NOTE 6 second half (stderr lost when the VM dies after login) | 5ffef6eedc | `stopQEMU` waits up to `qemuExitGrace`, then reads the tail (test red with read-before-Wait); SSH and build failures carry QEMU's stderr |
+| ISSUE 3 (refusals without the exact fix command on its own line) | 5ffef6eedc, 248d1ed071 | a silent QEMU prints its exact command line on its own line (5ffef6eedc); `foreignArchKernelError` names the instance file `ConfigPath(dir, name)` and ends with `ze appliance --dir <dir> build <name>`, the offline cold-cache command sits on its own line, and `buildOne` refuses through `runtimeKernelReachable` before building (248d1ed071) |
+| ISSUE 2 (no `ze doctor` check calls `CheckGoToolchain`) | 8949969c96 | doctor check `appliance-go-toolchain` (diagnostic `doctor-appliance-go-toolchain`); `TestDoctorGoToolchainReportsAnOldGo` |
+| NOTE 2 (host arch declared twice) | 248d1ed071 | `kernelbuilder.HostArch` is the single declaration, used by `resolveRuntimeKernel` |
+| NOTE 3 (no timeouts on host probes) | 5ffef6eedc | `hostProbeTimeout` (15 s) bounds `-accel help`, the KVM/HVF probes and `docker info` |
+| NOTE 4 (`usermod -aG kvm` offered for every open error) | 5ffef6eedc | the group fix is given only for `fs.ErrPermission` |
+| NOTE 5 (Docker-root edge cases; no page documented the guard) | recorded; page 8949969c96 | not changed in code: with a remote `DOCKER_HOST` the path the daemon names is measured on this host, the wrong machine, and the guard does not detect it; a daemon that does not answer falls back to `/var/lib/docker` and the refusal says why. Both are now stated in `build-artifacts.md`, "Free space before a Docker kernel build" (8949969c96) |
+| NOTE 6 first half (i915 firmware downloaded before a foreign-arch refusal) | 248d1ed071 | `kernelbuilder.CheckArch` runs before `ensureFirmware` (test red with the check removed) |
+
+Docker-root evidence on a real host: measured 2026-10-10 20:15 on `ssh claude` (amd64), with 6ae709558c the free-space guard passed and the build reached the container, confirming the round-1 addendum row 2 fix outside tests.
+
+-> Decision: the kernel cache key covers only the inputs that determine the kernel's bytes (`kernelbuilder.BuildSources`, `tools/kernel-builder`, their Ze import closure, the version, fragments, manifests and patches). Host-side code (space checks, accelerator probes, error text) is left out, so editing it keeps a thirty-minute cached build. `TestKernelCacheKeyCoversEveryBuildInput` guards the inclusion side.
+
+Both cached runtime kernels (arm64 `...-d826e25e` and the amd64 entries) are stale since dc501faa9f; the next build of each arch rebuilds, and the arm64 config owes the 128-symbol check again.
+
+Ready for independent review round 3, over dc501faa9f, 5ffef6eedc, 248d1ed071, 8949969c96.
 
 ## Pre-Commit Verification
 
