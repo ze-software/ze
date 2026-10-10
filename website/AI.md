@@ -320,6 +320,13 @@ their public siblings. Pages built from JSON produce HTML and Markdown from the
 same typed input. Hand-authored HTML pages derive their mirror from the
 published main content, and the homepage is one of them: its copy lives in the
 build's own template, so a hand-written mirror would state that copy twice.
+The homepage hero replays the recording `homeHeroDemo` names, and its "Watch a
+demo" action opens the one `homeTourDemo` names (`internal/le/site/home.go`).
+The file name in the hero's frame, its caption, its player label and both links
+come from those ids' entries in `demos/terminal/manifest.json`: the caption is
+the entry's `title`, and each link is the entry's `page` at its `anchor`. The
+template names no recording, so moving the hero is that one constant.
+<!-- source: internal/le/site/home.go -- homeHeroSlots -->
 
 
 ### Site design and content rules

@@ -24,9 +24,13 @@ const (
 	homeDest         = pageIndexFile
 	// homeRoot is empty because the homepage IS the site root, so every link
 	// it carries is already relative to itself.
-	homeRoot      = ""
-	homeHeroDemo  = "cli-dashboard"
-	homeHeroLabel = "Operate BGP from the live dashboard demonstration"
+	homeRoot = ""
+	// homeHeroDemo is the recording the hero replays. Its file name, caption,
+	// player label and transcript link all come from its manifest entry, so
+	// pointing the hero at another recording is this one edit.
+	homeHeroDemo = "cli-dashboard"
+	// homeTourDemo is the recording the hero's "Watch a demo" action opens.
+	homeTourDemo = "web-config"
 )
 
 // The homepage's two data files, under website/data/.
@@ -154,7 +158,7 @@ func renderHome(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	hero, err := newDemoCatalog(paths).heroMount(homeHeroDemo, homeRoot, homeHeroLabel)
+	hero, err := homeHeroSlots(newDemoCatalog(paths))
 	if err != nil {
 		return nil, err
 	}
@@ -208,10 +212,42 @@ func homeMirror(page string) (string, error) {
 	return htmlToMarkdown(main, pageCanonicalURL(homeDest))
 }
 
-// homeBody fills the template's fifteen slots: six here, and the nine proof
-// spans homeProofStats answers.
+// homeHeroSlots answers the hero's five slots, every one derived from
+// homeHeroDemo or homeTourDemo and its manifest entry: the player, the file
+// name in the frame's bar, the caption, the transcript link, and the link the
+// "Watch a demo" action follows. Each link is the recording's own page and
+// anchor, where its player and transcript are embedded.
+func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
+	mount, err := catalog.heroMount(homeHeroDemo, homeRoot)
+	if err != nil {
+		return nil, err
+	}
+	hero, err := catalog.demo(homeHeroDemo)
+	if err != nil {
+		return nil, err
+	}
+	transcript, err := catalog.demoHref(homeHeroDemo, homeRoot)
+	if err != nil {
+		return nil, err
+	}
+	tour, err := catalog.demoHref(homeTourDemo, homeRoot)
+	if err != nil {
+		return nil, err
+	}
+	return []string{
+		"{hero_demo}", mount,
+		"{hero_demo_file}", html.EscapeString(hero.ID + "." + hero.Kind),
+		"{hero_demo_title}", html.EscapeString(hero.Title),
+		"{hero_demo_transcript}", html.EscapeString(transcript),
+		"{tour_demo_href}", html.EscapeString(tour),
+	}, nil
+}
+
+// homeBody fills the template's nineteen slots: the five hero slots
+// homeHeroSlots answers, five here, and the nine proof spans homeProofStats
+// answers.
 func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureData,
-	articles []blogArticle, weeks []changeWeek, hero string, stats map[string]string,
+	articles []blogArticle, weeks []changeWeek, hero []string, stats map[string]string,
 ) (string, error) {
 	runCards, err := audienceCards(audience.Run)
 	if err != nil {
@@ -221,14 +257,14 @@ func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureDa
 	if err != nil {
 		return "", err
 	}
-	slots := []string{
-		"{hero_demo}", hero,
+	slots := append([]string(nil), hero...)
+	slots = append(slots,
 		"{whats_new}", whatsNewBand(whatsNew, articles, weeks),
 		"{run_cards}", runCards,
 		"{who_cards}", whoCards,
 		"{category_links}", featureCategoryLinks(features),
 		"{blog_teaser_cards}", blogTeaserCards(weeks),
-	}
+	)
 	for name, span := range stats {
 		slots = append(slots, name, span)
 	}

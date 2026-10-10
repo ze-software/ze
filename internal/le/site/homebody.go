@@ -7,10 +7,13 @@ package site
 // The hero, the proof block, the why-Ze cards, the quickstart terminal and the
 // try-safely panel are bespoke homepage copy: there is nothing repeated here to
 // model as data, and the retired renderer held them as a literal template for
-// the same reason. The fifteen placeholders are the parts that ARE data.
+// the same reason. The nineteen placeholders are the parts that ARE data.
 // home.go fills each one:
 //
 //	{hero_demo}                    the recorded terminal the hero replays
+//	{hero_demo_file} {hero_demo_title}
+//	{hero_demo_transcript}         its file name, manifest title and transcript link
+//	{tour_demo_href}               the recording "Watch a demo" opens
 //	{whats_new}                    the newest article, the newest week, the note
 //	{unit_tests} {e2e_tests}       the proof strip's nine data-ze-stat spans
 //	{fuzz_targets} {interop_targets}
@@ -59,15 +62,15 @@ const homeTemplate = `            <section class="hero" aria-labelledby="hero-ti
                                 <div class="hero-product-frame">
                                     <div class="hero-product-bar" aria-hidden="true">
                                         <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
-                                        <span>cli-dashboard.terminal</span>
+                                        <span>{hero_demo_file}</span>
                                         <span>CAST</span>
                                     </div>
                                     {hero_demo}
                                 </div>
                                 <figcaption>
-                                    <strong id="hero-demo-title">Live BGP dashboard</strong>
+                                    <strong id="hero-demo-title">{hero_demo_title}</strong>
                                     <span>Replayable Ze terminal lab</span>
-                                    <a href="demos/terminal/#live-bgp-dashboard">Read transcript</a>
+                                    <a href="{hero_demo_transcript}">Read transcript</a>
                                 </figcaption>
                             </figure>
                         </div>
@@ -77,7 +80,7 @@ const homeTemplate = `            <section class="hero" aria-labelledby="hero-ti
                                     <strong>Why Ze exists</strong>
                                     <small>Learn how Ze came to be.</small>
                                 </a>
-                                <a class="hero-start-action" href="demos/terminal/#web-configuration-commit">
+                                <a class="hero-start-action" href="{tour_demo_href}">
                                     <strong>Watch a demo</strong>
                                     <small>Discover the web interface.</small>
                                 </a>

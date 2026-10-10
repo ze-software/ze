@@ -105,6 +105,10 @@ func writeHeroDemo(t *testing.T, root, output string) {
 			"id": homeHeroDemo, "title": "Live BGP dashboard", "description": "Operate BGP from the dashboard.",
 			"page": "guide/quickstart.md", "anchor": "dashboard", "platform": "portable",
 			"kind": "terminal", "engine": "ze-demo", "source": "tape", "validate": "check",
+		}, map[string]any{
+			"id": homeTourDemo, "title": "Web tour", "description": "Commit from the browser.",
+			"page": "guide/quickstart.md", "anchor": "web-tour", "platform": "portable",
+			"kind": "browser", "engine": "playwright", "source": "run.cjs", "validate": "check",
 		}},
 	})
 	writeDemoJSON(t, filepath.Join(media, "manifest.json"), map[string]any{
@@ -535,13 +539,13 @@ func TestTheTemplateAndTheProducerAgreeAboutEverySlot(t *testing.T) {
 // correct.
 func TestTheHeroReplaysTheRecordingTheManifestNames(t *testing.T) {
 	paths := homeFixture(t)
-	mount, err := newDemoCatalog(paths).heroMount(homeHeroDemo, homeRoot, homeHeroLabel)
+	mount, err := newDemoCatalog(paths).heroMount(homeHeroDemo, homeRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
 		`data-cols="137"`, `data-rows="36"`,
-		`aria-label="` + homeHeroLabel + `"`,
+		`aria-label="Live BGP dashboard"`,
 		`assets/demos/` + homeHeroDemo + `.cast?v=`,
 		`assets/demos/` + homeHeroDemo + `.txt?v=`,
 	} {
@@ -570,7 +574,7 @@ func TestTheHeroReplaysTheRecordingTheManifestNames(t *testing.T) {
 	}
 	first["kind"] = "video"
 	writeDemoJSON(t, manifest, decoded)
-	if _, err := newDemoCatalog(video).heroMount(homeHeroDemo, homeRoot, homeHeroLabel); err == nil {
+	if _, err := newDemoCatalog(video).heroMount(homeHeroDemo, homeRoot); err == nil {
 		t.Error("a video recording was mounted in the hero's terminal frame")
 	} else if !strings.Contains(err.Error(), "replays a terminal") {
 		t.Errorf("the refusal says %q, which does not say the frame replays a terminal", err)
@@ -618,4 +622,73 @@ func TestTheHomepageCarriesTheShellAndItsMirror(t *testing.T) {
 // page and mirror artifacts. renderHomeFixture checks this producer answer.
 func TestTheHomeProducerClaimsTheSiteRoot(t *testing.T) {
 	renderHomeFixture(t)
+}
+
+// VALIDATES: spec-terminal-demo-showcase AC-8. The hero's file name, caption,
+// player label and transcript link, and the tour link beside it, come from
+// homeHeroDemo and homeTourDemo plus their manifest entries: a fixture manifest
+// with its own title, page and anchor reaches the rendered homepage, and the
+// authored template names no demonstration id or anchor of the real manifest.
+// PREVENTS: a hero pointed at a new recording that still shows the old one's
+// caption and links to the old one's transcript.
+func TestHomeHeroDerivesFromTheManifest(t *testing.T) {
+	paths := homeFixture(t)
+	manifestPath := filepath.Join(paths.Repository, "demos", "terminal", "manifest.json")
+	var manifest map[string]any
+	readDemoJSON(t, manifestPath, &manifest)
+	hero, isObject := manifest["demos"].([]any)[0].(map[string]any)
+	if !isObject {
+		t.Fatal("the fixture manifest's first demonstration is not an object")
+	}
+	hero["title"] = "Fixture hero caption"
+	hero["anchor"] = "fixture-hero-anchor"
+	writeDemoJSON(t, manifestPath, manifest)
+
+	if _, err := renderHome(paths); err != nil {
+		t.Fatalf("render the homepage: %v", err)
+	}
+	page := readArtifact(t, paths.Output, homeDest)
+	destination, err := docsDestination("guide/quickstart.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"<span>" + homeHeroDemo + ".terminal</span>",
+		`<strong id="hero-demo-title">Fixture hero caption</strong>`,
+		`aria-label="Fixture hero caption"`,
+		`<a href="` + destination + `/#fixture-hero-anchor">Read transcript</a>`,
+		`<a class="hero-start-action" href="` + destination + `/#web-tour">`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the homepage carries no %s", want)
+		}
+	}
+
+	var real struct {
+		Demos []struct{ ID, Anchor string } `json:"demos"`
+	}
+	readDemoJSON(t, filepath.Join(repositoryRoot(t), "demos", "terminal", "manifest.json"), &real)
+	if strings.Contains(homeTemplate, "demos/terminal/#") {
+		t.Error("the homepage template links a gallery anchor literally")
+	}
+	for _, demo := range real.Demos {
+		if strings.Contains(homeTemplate, demo.ID) {
+			t.Errorf("the homepage template names demonstration %s literally", demo.ID)
+		}
+		if strings.Contains(homeTemplate, "#"+demo.Anchor) {
+			t.Errorf("the homepage template names anchor %s literally", demo.Anchor)
+		}
+	}
+}
+
+// readDemoJSON decodes one manifest into value.
+func readDemoJSON(t *testing.T, path string, value any) {
+	t.Helper()
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(content, value); err != nil {
+		t.Fatal(err)
+	}
 }

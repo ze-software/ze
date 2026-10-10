@@ -237,13 +237,12 @@ func (catalog *demoCatalog) expand(body, mirror, root, docRel string) (string, s
 // render could correct. A recording that is not a terminal one is refused: the
 // hero frame is a terminal window, so a video in it would be a frame around the
 // wrong thing.
-func (catalog *demoCatalog) heroMount(id, root, label string) (string, error) {
-	if err := catalog.load(); err != nil {
+//
+// The player's label is the recording's manifest title.
+func (catalog *demoCatalog) heroMount(id, root string) (string, error) {
+	demo, err := catalog.demo(id)
+	if err != nil {
 		return "", err
-	}
-	demo, known := catalog.demos[id]
-	if !known {
-		return "", fmt.Errorf("unknown terminal demo: %s", id)
 	}
 	if demo.Kind != "terminal" {
 		return "", fmt.Errorf("hero demo %s is a %s recording, and the hero frame replays a terminal", id, demo.Kind)
@@ -262,7 +261,34 @@ func (catalog *demoCatalog) heroMount(id, root, label string) (string, error) {
 	}
 	return playerMount(html.EscapeString(demoAssetURL(root, id, entry, demoCast)),
 		html.EscapeString(demoAssetURL(root, id, entry, demoTranscript)),
-		facts, html.EscapeString(label)), nil
+		facts, html.EscapeString(demo.Title)), nil
+}
+
+// demo answers the manifest entry of one recording, and refuses an id the
+// manifest does not list.
+func (catalog *demoCatalog) demo(id string) (siteterminaldemo.Demo, error) {
+	if err := catalog.load(); err != nil {
+		return siteterminaldemo.Demo{}, err
+	}
+	demo, known := catalog.demos[id]
+	if !known {
+		return siteterminaldemo.Demo{}, fmt.Errorf("unknown terminal demo: %s", id)
+	}
+	return demo, nil
+}
+
+// demoHref answers the link to the place a recording is embedded with its
+// transcript: its manifest page, at its manifest anchor, relative to root.
+func (catalog *demoCatalog) demoHref(id, root string) (string, error) {
+	demo, err := catalog.demo(id)
+	if err != nil {
+		return "", err
+	}
+	destination, err := docsDestination(demo.Page)
+	if err != nil {
+		return "", fmt.Errorf("terminal demo %s: %w", id, err)
+	}
+	return root + destination + "/#" + demo.Anchor, nil
 }
 
 // sameDemoOrder reports whether two marker runs name the same demonstrations
