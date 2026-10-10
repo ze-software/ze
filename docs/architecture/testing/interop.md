@@ -378,8 +378,9 @@ the owner's rule is about the host, not about the scenario.
 The `l2tp-test`, `vpp-test` and `vpp-iface-test` deployment proofs run no suite,
 and neither does `TestVPPSRv6ServiceRoute` (build tag `integration`), which
 prepares its daemon through the step `vpp-iface-test` uses. Each cross-compiles its own daemon to `tmp/evidence/bin/ze-linux-<arch>`, and
-`buildCheckedDaemon` runs the same check with that binary right after the build
-and before the proof's first container, so a refused host starts nothing. With
+`buildCheckedDaemon` runs the same check with that binary right after the build,
+before the proof inspects or pulls its peer image and before its first
+container, so a refused host downloads and starts nothing. With
 `NO_BUILD=1` the proof skips the build and probes with the daemon already at
 that path, and refuses by name when there is none.
 

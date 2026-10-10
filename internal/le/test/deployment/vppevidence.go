@@ -69,10 +69,11 @@ func (v *VPP) Run() (VPPReport, error) {
 	if err := look("docker", "go"); err != nil {
 		return report, err
 	}
-	if err := ensureImage(v.Image, v.Progress); err != nil {
+	// The kernel check comes before the image, so a refused host pulls nothing.
+	if err := buildCheckedDaemon(v.Tree, v.Goarch, v.buildBinaries); err != nil {
 		return report, err
 	}
-	if err := buildCheckedDaemon(v.Tree, v.Goarch, v.buildBinaries); err != nil {
+	if err := ensureImage(v.Image, v.Progress); err != nil {
 		return report, err
 	}
 

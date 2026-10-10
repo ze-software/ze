@@ -324,10 +324,11 @@ func (l *L2TP) Run() (L2TPReport, error) {
 	if err := look("docker", "go"); err != nil {
 		return report, err
 	}
-	if err := ensureImage(l.Image, l.Progress); err != nil {
+	// The kernel check comes before the image, so a refused host pulls nothing.
+	if err := buildCheckedDaemon(l.Tree, l.Goarch, func() error { return buildDaemon(l.Tree, l.Goarch, l.Progress) }); err != nil {
 		return report, err
 	}
-	if err := buildCheckedDaemon(l.Tree, l.Goarch, func() error { return buildDaemon(l.Tree, l.Goarch, l.Progress) }); err != nil {
+	if err := ensureImage(l.Image, l.Progress); err != nil {
 		return report, err
 	}
 

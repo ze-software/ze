@@ -21,21 +21,18 @@ esac
 exit 0
 `
 
-// VALIDATES: AC-3 through the deployment proofs that build their own daemon
-// (l2tp-test, vpp-test, vpp-iface-test) and the SRv6 service-route proof. Each
-// refuses a daemon kernel that lacks an enrolled feature, naming it and the
-// kernel release, before any container starts.
-// PREVENTS: a proof that runs Ze in Docker without the check the interop suites
-// make. Removing the check from any one Run turns its subtest red.
-//
-// NO_BUILD=1 keeps each run from cross-compiling: the test plants a stand-in at
-// the path the build would write, which is the binary the probe mounts.
-func TestDaemonProofsRefuseMissingKernelFeature(t *testing.T) {
-	proofs := []struct {
-		name   string
-		goarch func(tree string) string
-		run    func(tree string) error
-	}{
+// daemonProof is one deployment proof that builds its own daemon: its name,
+// the architecture it builds for, and the call that runs it.
+type daemonProof struct {
+	name   string
+	goarch func(tree string) string
+	run    func(tree string) error
+}
+
+// daemonProofs answers the proofs that build their own daemon and run Ze in
+// Docker.
+func daemonProofs() []daemonProof {
+	return []daemonProof{
 		{"l2tp-test", func(tree string) string { return NewL2TP(tree).Goarch }, func(tree string) error {
 			_, err := NewL2TP(tree).Run()
 			return err
@@ -54,6 +51,19 @@ func TestDaemonProofsRefuseMissingKernelFeature(t *testing.T) {
 			return newVPP(tree).prepareDaemon()
 		}},
 	}
+}
+
+// VALIDATES: AC-3 through the deployment proofs that build their own daemon
+// (l2tp-test, vpp-test, vpp-iface-test) and the SRv6 service-route proof. Each
+// refuses a daemon kernel that lacks an enrolled feature, naming it and the
+// kernel release, before any container starts.
+// PREVENTS: a proof that runs Ze in Docker without the check the interop suites
+// make. Removing the check from any one Run turns its subtest red.
+//
+// NO_BUILD=1 keeps each run from cross-compiling: the test plants a stand-in at
+// the path the build would write, which is the binary the probe mounts.
+func TestDaemonProofsRefuseMissingKernelFeature(t *testing.T) {
+	proofs := daemonProofs()
 	for _, proof := range proofs {
 		t.Run(proof.name, func(t *testing.T) {
 			bin := t.TempDir()
@@ -119,5 +129,61 @@ func TestDaemonProofNoBuildNeedsTheDaemon(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), daemonRel(NewL2TP(tree).Goarch)) {
 		t.Errorf("refusal does not name the missing daemon: %v", err)
+	}
+}
+
+// proofDockerNoImage is proofDocker on a host that holds no image yet: `image
+// inspect` fails, so a proof that reached ensureImage would pull.
+const proofDockerNoImage = `#!/bin/sh
+echo "$*" >> "$DOCKER_RECORD"
+case "$*" in
+*KernelVersion*) echo 6.8.0-117-generic ;;
+*kernel-capabilities*)
+  echo '{"ready": false, "capabilities": [{"subsystem": "ipsec-mobike", "kernel": "CONFIG_XFRM_MIGRATE", "state": "absent", "reason": "XFRM_MSG_MIGRATE_STATE: invalid argument"}]}'
+  exit 1 ;;
+"image inspect"*) exit 1 ;;
+esac
+exit 0
+`
+
+// VALIDATES: each proof that builds its own daemon checks the Docker kernel
+// before it inspects or pulls its peer image, so a refused host downloads
+// nothing.
+// PREVENTS: a multi-gigabyte VPP or xl2tpd pull on a host the check is about
+// to refuse.
+func TestDaemonProofsCheckTheKernelBeforeThePull(t *testing.T) {
+	for _, proof := range daemonProofs() {
+		t.Run(proof.name, func(t *testing.T) {
+			bin := t.TempDir()
+			if err := os.WriteFile(filepath.Join(bin, "docker"), []byte(proofDockerNoImage), 0o755); err != nil { //nolint:gosec // a stub on a test's own PATH must be executable
+				t.Fatalf("write the docker stub: %v", err)
+			}
+			record := filepath.Join(bin, "record")
+			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+			t.Setenv("DOCKER_RECORD", record)
+			t.Setenv("NO_BUILD", "1")
+
+			tree := t.TempDir()
+			daemon := filepath.Join(tree, daemonRel(proof.goarch(tree)))
+			if err := os.MkdirAll(filepath.Dir(daemon), 0o750); err != nil {
+				t.Fatalf("make the daemon directory: %v", err)
+			}
+			if err := os.WriteFile(daemon, []byte("stand-in"), 0o600); err != nil {
+				t.Fatalf("write the stand-in daemon: %v", err)
+			}
+
+			if err := proof.run(tree); err == nil || !strings.Contains(err.Error(), "CONFIG_XFRM_MIGRATE") {
+				t.Fatalf("%s: err = %v, want the kernel refusal", proof.name, err)
+			}
+			recorded, readErr := os.ReadFile(record) //nolint:gosec // the test's own temp file
+			if readErr != nil {
+				t.Fatalf("read the docker record: %v", readErr)
+			}
+			for line := range strings.SplitSeq(string(recorded), "\n") {
+				if strings.HasPrefix(line, "pull ") || strings.HasPrefix(line, "image inspect ") {
+					t.Errorf("%s reached its image before the kernel refusal: %s", proof.name, line)
+				}
+			}
+		})
 	}
 }
