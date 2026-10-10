@@ -168,21 +168,34 @@ func rekeyRefusal(inner []wire.PayloadEntry) error {
 	if hasNoAdditionalSAs(inner) {
 		return errNoAdditionalSAs
 	}
+	n := firstErrorNotify(inner)
+	if n == nil {
+		return nil
+	}
+	refused := &rekeyRefusedError{notify: n.NotifyMsgType}
+	// RFC 7296 Section 1.3: "There are two octets of data associated with this
+	// notification: the accepted Diffie-Hellman group number in big endian order."
+	if n.NotifyMsgType == wire.NotifyInvalidKEPayload && len(n.NotificationData) == 2 {
+		refused.named = crypto.DHGroupID(binary.BigEndian.Uint16(n.NotificationData))
+	}
+	return refused
+}
+
+// firstErrorNotify returns the first Notify payload of a response chain whose type is in
+// the error range, or nil when the chain carries none.
+//
+// RFC 7296 Section 3.10.1: "Types in the range 0 - 16383 are intended for reporting
+// errors." rekeyRefusal reads it for a CREATE_CHILD_SA response, and handleAuthResponse
+// (fsm.go) for the Child SA half of an IKE_AUTH response.
+func firstErrorNotify(inner []wire.PayloadEntry) *wire.PayloadNotify {
 	for i := range inner {
 		n, ok := inner[i].Payload.(*wire.PayloadNotify)
 		if !ok {
 			continue
 		}
-		if !wire.NotifyIsError(n.NotifyMsgType) {
-			continue
+		if wire.NotifyIsError(n.NotifyMsgType) {
+			return n
 		}
-		refused := &rekeyRefusedError{notify: n.NotifyMsgType}
-		// RFC 7296 Section 1.3: "There are two octets of data associated with this
-		// notification: the accepted Diffie-Hellman group number in big endian order."
-		if n.NotifyMsgType == wire.NotifyInvalidKEPayload && len(n.NotificationData) == 2 {
-			refused.named = crypto.DHGroupID(binary.BigEndian.Uint16(n.NotificationData))
-		}
-		return refused
 	}
 	return nil
 }

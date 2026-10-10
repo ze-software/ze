@@ -354,8 +354,21 @@ threshold rather than the path (`plan/immediate/spec-ike-fragmentation-rfc7383.m
   they arrived, before that substitution replaced them. Section 2.23.1 requires
   the originals kept for the [UDPENCAPS] "real source and destination address"
   and for the TCP/UDP checksum fixup.
+- RFC 7296 Section 2.21.2 lets a responder authenticate in IKE_AUTH while it
+  refuses the piggybacked Child SA, sending an error notify such as
+  `NO_PROPOSAL_CHOSEN` where SAr2 would be. The initiator does not fail the
+  authentication: `handleAuthResponse` establishes the IKE SA and records the
+  notify in `SA.ChildRefusal`. Ze cannot create a Child SA after IKE_AUTH, so
+  `runInitiator` then deletes the IKE SA with an INFORMATIONAL Delete, which the
+  same section permits "for reasons of policy". The log names the peer's notify,
+  no `sa-up` is emitted, and the cycle ends with `errChildSARefused`, so the
+  reconnect backs off as for a failed connect. A response with neither SAr2 nor an
+  error notify is not recognized as a refusal and still fails later in
+  `initiatorFirstChildSA`.
 
 <!-- source: internal/component/ike/engine/sa.go -- NATDetected, BehindNAT, PeerBehindNAT, OriginalTSiAddr, OriginalTSrAddr -->
+<!-- source: internal/component/ike/engine/delete.go -- deleteChildlessIKESA -->
+<!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse, runInitiator, errChildSARefused -->
 <!-- source: internal/component/ike/engine/ts_nat_substitute.go -- substituteResponderSelectors, substituteInitiatorSelectors -->
 
 <!-- source: internal/component/ike/engine/cookie.go -- cookie generation and validation -->

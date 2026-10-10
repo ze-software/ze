@@ -355,10 +355,14 @@ type SA struct {
 	ChildProposalNum uint8
 
 	// Negotiated Child SA parameters from IKE_AUTH piggybacked exchange.
-	ChildInboundSPI  uint32     // our ESP SPI included in SAi2
-	ChildOutboundSPI uint32     // responder's ESP SPI from AUTH response SA
-	NegotiatedTSi    *net.IPNet // narrowed initiator TS from AUTH response
-	NegotiatedTSr    *net.IPNet // narrowed responder TS from AUTH response
+	ChildInboundSPI  uint32 // our ESP SPI included in SAi2
+	ChildOutboundSPI uint32 // responder's ESP SPI from AUTH response SA
+	// ChildRefusal is the error notify an authenticated IKE_AUTH response carried in
+	// place of SAr2, or 0 when the responder accepted the Child SA. handleAuthResponse
+	// (fsm.go) records it and runInitiator acts on it (deleteChildlessIKESA, delete.go).
+	ChildRefusal  uint16
+	NegotiatedTSi *net.IPNet // narrowed initiator TS from AUTH response
+	NegotiatedTSr *net.IPNet // narrowed responder TS from AUTH response
 
 	// NegotiatedPairs is the full narrowed selector set, in TSi/TSr orientation.
 	//
