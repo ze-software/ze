@@ -792,10 +792,12 @@ other architecture is refused before any backend starts, naming the host's
 architecture and where to build it, because a build under CPU emulation runs
 for hours and fails late. For the same reason the QEMU backend runs only under
 a hardware accelerator, `hvf` on macOS or `kvm` on Linux, and refuses rather
-than fall back to the `tcg` emulator.
+than fall back to the `tcg` emulator. When QEMU itself is missing or fails to
+start, the error says so and shows QEMU's own message; install or repair QEMU,
+then check that `qemu-system-<arch> -accel help` lists `hvf` or `kvm`.
 
 <!-- source: internal/appliance/kernelbuilder/driver.go -- validateRequest, hostGOARCH -->
-<!-- source: internal/appliance/kernelbuilder/qemu.go -- qemuArgs -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- qemuArgs, availableAccelerators -->
 <!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
 <!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->

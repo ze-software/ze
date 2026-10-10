@@ -26,11 +26,14 @@ command.
 The builder runs only natively. `validateRequest` refuses a kernel whose
 architecture is not the host's (`hostGOARCH`), so Docker's `--platform` always
 names the host's own platform, and `qemuArgs` refuses a QEMU that offers
-neither `hvf` nor `kvm` instead of emulating under `tcg`. An arm64 kernel is
-built on the Mac and an amd64 kernel on the Linux host.
+neither `hvf` nor `kvm` instead of emulating under `tcg`. A QEMU that cannot
+answer `-accel help` at all, missing or crashing, is refused as that failure
+with its exit status and stderr, never reported as a host without an
+accelerator. An arm64 kernel is built on the Mac and an amd64 kernel on the
+Linux host.
 
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build, validateRequest -->
-<!-- source: internal/appliance/kernelbuilder/qemu.go -- qemuArgs -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- qemuArgs, availableAccelerators -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 `ze appliance kernel` selects the profile and architecture, validates the

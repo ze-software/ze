@@ -399,6 +399,39 @@ func TestQEMUArgsRefusesWithoutHardwareAccelerator(t *testing.T) {
 	}
 }
 
+// TestQEMUArgsNamesABrokenQEMU verifies that a QEMU binary which cannot list
+// its accelerators is reported as that failure, with its exit status and its
+// stderr, and not as a host that lacks hvf and kvm.
+//
+// VALIDATES: availableAccelerators returns the exec error; qemuArgs names it.
+// PREVENTS: a missing or crashing QEMU read as "offers neither hvf nor kvm",
+// sending the operator to enable an accelerator the host already has.
+func TestQEMUArgsNamesABrokenQEMU(t *testing.T) {
+	root := t.TempDir()
+	fakeBin := filepath.Join(root, "bin")
+	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	qemu := filepath.Join(fakeBin, "qemu-system-x86_64")
+	if err := os.WriteFile(qemu, []byte("#!/bin/sh\necho 'qemu: library not loaded: libglib' >&2\nexit 3\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	req := Request{Root: root, Arch: "amd64", OutputDir: filepath.Join(root, "out")}
+	_, err := qemuArgs(context.Background(), req, "alpine.iso", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"), nil)
+	if err == nil {
+		t.Fatal("qemuArgs accepted a QEMU that cannot list its accelerators")
+	}
+	if strings.Contains(err.Error(), "offers neither") {
+		t.Errorf("a broken QEMU is reported as a missing accelerator: %v", err)
+	}
+	for _, want := range []string{"qemu-system-x86_64 -accel help", "exit status 3", "library not loaded: libglib"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error does not name %q: %v", want, err)
+		}
+	}
+}
+
 // VALIDATES: a real checkout tmp whose qemu child is a symlink out of the tree
 // gets that child's target exported and mounted at its own absolute path
 // before the worker under /workspace/tmp/qemu runs, and the kernel child the

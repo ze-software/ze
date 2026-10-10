@@ -356,7 +356,10 @@ func qemuArgs(ctx context.Context, req Request, iso string, port, memory int, cc
 	// Owner decision 2026-10-09: no CPU emulation. QEMU runs only under a
 	// hardware accelerator; tcg is never offered, even as a fallback.
 	binary := qemuBinary(req.Arch)
-	accels := availableAccelerators(ctx, binary)
+	accels, err := availableAccelerators(ctx, binary)
+	if err != nil {
+		return nil, err
+	}
 	accelerated := false
 	for _, accel := range []string{"hvf", "kvm"} {
 		if accels[accel] {
@@ -380,11 +383,21 @@ func qemuArgs(ctx context.Context, req Request, iso string, port, memory int, cc
 	return args, nil
 }
 
-func availableAccelerators(ctx context.Context, binary string) map[string]bool {
+// availableAccelerators asks QEMU which accelerators it offers. A QEMU that
+// cannot answer is an error naming that failure: an empty set would read as a
+// host without hvf or kvm and send the operator to the wrong fix.
+func availableAccelerators(ctx context.Context, binary string) (map[string]bool, error) {
 	result := make(map[string]bool)
 	output, err := exec.CommandContext(ctx, binary, "-accel", "help").Output()
 	if err != nil {
-		return result
+		detail := ""
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+			detail = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		if detail != "" {
+			detail = " (" + detail + ")"
+		}
+		return nil, fmt.Errorf("%s -accel help failed: %w%s: QEMU cannot list its accelerators, so the kernel build cannot start; install or repair QEMU, then run `%s -accel help` and confirm it lists hvf or kvm", binary, err, detail, binary)
 	}
 	known := map[string]bool{"hvf": true, "kvm": true, "tcg": true, "whpx": true, "xen": true}
 	for line := range strings.SplitSeq(string(output), "\n") {
@@ -393,7 +406,7 @@ func availableAccelerators(ctx context.Context, binary string) map[string]bool {
 			result[token] = true
 		}
 	}
-	return result
+	return result, nil
 }
 func findAArch64Firmware() (string, error) {
 	prefixes := []string{}
