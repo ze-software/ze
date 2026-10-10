@@ -245,10 +245,9 @@ func (e *Editor) bracketLeafList(path []string, name string) *config.BracketLeaf
 	return node
 }
 
-// loadBracketLeafList applies a bracket-syntax leaf-list. The parser stores
-// its members as a leaf-list, but the editor writes the kind as ONE value
-// holding every member (SetValue keeps scalar semantics for it), so the load
-// sets that value whole. A merge keeps the members the configuration holds
+// loadBracketLeafList applies a bracket-syntax leaf-list. The editor writes the
+// kind whole, as ONE value holding every member (SetValue stores it as members
+// plus the scalar mirror), so the load sets that value whole. A merge keeps the members the configuration holds
 // and appends the loaded ones it lacks; a replace, and an ordered sequence
 // whose repeats are meaningful, take the loaded members as they are.
 func (e *Editor) loadBracketLeafList(path []string, name string, node *config.BracketLeafListNode, current, want *config.Tree, replace bool) error {
@@ -270,8 +269,8 @@ func (e *Editor) loadBracketLeafList(path []string, name string, node *config.Br
 }
 
 // bracketMembers answers the members a bracket leaf-list holds in tree: the
-// leaf-list store when the parser filled it, else the one value the editor
-// wrote. A nil tree holds none.
+// member store, which every parser and the editor fill, else the fields of a
+// value some other writer set with Tree.Set alone. A nil tree holds none.
 func bracketMembers(tree *config.Tree, name string) []string {
 	if tree == nil {
 		return nil
@@ -335,7 +334,7 @@ func (e *Editor) loadDeletes(path []string, current, want *config.Tree) error {
 	for _, name := range multi {
 		keep := want.GetMultiValues(name)
 		if e.bracketLeafList(path, name) != nil {
-			// One value in this editor: loadBracketLeafList replaces it
+			// Written whole in this editor: loadBracketLeafList replaces it
 			// when want holds members, and an absent leaf-list is deleted whole.
 			if len(keep) == 0 {
 				if err := e.DeleteValue(path, name); err != nil {

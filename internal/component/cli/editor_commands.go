@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -175,9 +176,22 @@ func (e *Editor) SetValue(path []string, key, value string) error {
 	if err != nil {
 		return err
 	}
-	target.Set(key, value)
+	e.storeLeaf(target, path, key, value)
 	e.dirty.Store(true)
 	return nil
+}
+
+// storeLeaf writes value whole at key in target. A bracket leaf-list is the one
+// value this editor writes for that kind, but the tree holds it as members plus
+// a scalar mirror, so it goes in through SetSlice: Set alone would leave a
+// first write with no members, and GetSlice and ToMap would then answer the
+// joined text as one value.
+func (e *Editor) storeLeaf(target *config.Tree, path []string, key, value string) {
+	if e.bracketLeafList(path, key) != nil {
+		target.SetSlice(key, strings.Fields(value))
+		return
+	}
+	target.Set(key, value)
 }
 
 // normalizeLeafValue rewrites the value into the one spelling the tree stores.

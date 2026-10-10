@@ -240,12 +240,21 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
 		}
-		for _, item := range bracketItems(tokens) {
+		// The members are the fields of the joined value, so a quoted token
+		// holding several members (a metadata line's earlier value) splits
+		// exactly as the scalar mirror would.
+		items := strings.Fields(parseBracketValue(tokens))
+		for _, item := range items {
 			if err := validateValuePatterns(bracket.Type, bracket.Patterns, item); err != nil {
 				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 			}
 		}
-		tree.Set(name, parseBracketValue(tokens))
+		// Members plus the scalar mirror, the store the hierarchical parser
+		// fills (storeBracketLeafList), so a set-format load hands the editor
+		// a leaf-list it merges member by member exactly as a hierarchical
+		// one. A set line states the whole list, so a later line for the same
+		// leaf replaces an earlier one, as it always has in this format.
+		tree.SetSlice(name, items)
 		return nil
 	}
 
@@ -739,6 +748,8 @@ func (t *Tree) Delete(name string) {
 	defer t.mu.Unlock()
 
 	delete(t.multiValues, name)
+	delete(t.mirrored, name)
+	delete(t.inactiveMembers, name)
 	if _, exists := t.values[name]; !exists {
 		return
 	}

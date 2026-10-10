@@ -295,12 +295,23 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
 		}
-		for _, item := range bracketItems(tokens) {
+		// The members are the fields of the joined value, so a quoted token
+		// holding several members (a metadata line's earlier value) splits
+		// exactly as the scalar mirror would.
+		items := strings.Fields(parseBracketValue(tokens))
+		for _, item := range items {
 			if err := validateValuePatterns(bracket.Type, bracket.Patterns, item); err != nil {
 				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 			}
 		}
-		setLeafMeta(parseBracketValue(tokens))
+		// Members plus the scalar mirror, as walkAndSet stores them. A later
+		// line for the same leaf replaces an earlier one: a committed file
+		// carries a leaf's earlier value as its own line, before the current.
+		tree.SetSlice(name, items)
+		if hasMetadata {
+			entry.Value = parseBracketValue(tokens)
+			meta.SetEntry(name, entry)
+		}
 		return nil
 	}
 

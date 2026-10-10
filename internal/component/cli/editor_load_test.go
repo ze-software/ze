@@ -198,9 +198,95 @@ func committedIfaceAddresses(t *testing.T, ed *Editor, configPath string) []stri
 	require.NotNil(t, eth, "interface ethernet eth9 must survive the commit")
 	unit := eth.GetList("unit")["0"]
 	require.NotNil(t, unit)
-	// The set-format parser keeps a bracket leaf-list as ONE value, so
-	// GetSlice answers nil here: read the members the way the load does.
-	return bracketMembers(unit.GetContainer("ipv4"), "address")
+	// Every parser stores a bracket leaf-list as members plus the scalar
+	// mirror, so the member store answers here whatever format the commit wrote.
+	// A load that deletes the address leaves no ipv4 container at all.
+	ipv4 := unit.GetContainer("ipv4")
+	if ipv4 == nil {
+		return nil
+	}
+	return ipv4.GetSlice("address")
+}
+
+// loadIfaceIPv4 answers the unit 0 ipv4 container of tree.
+func loadIfaceIPv4(t *testing.T, tree *config.Tree) *config.Tree {
+	t.Helper()
+	eth := tree.GetContainer("interface").GetList("ethernet")["eth9"]
+	require.NotNil(t, eth)
+	unit := eth.GetList("unit")["0"]
+	require.NotNil(t, unit)
+	return unit.GetContainer("ipv4")
+}
+
+// requireBracketStoresAgree fails unless every reader of the address
+// leaf-list in ipv4 answers want: the member store, ToMap (what a plugin
+// receives), the scalar mirror and the serialized text (what a commit writes).
+func requireBracketStoresAgree(t *testing.T, ed *Editor, ipv4 *config.Tree, want []string) {
+	t.Helper()
+	assert.ElementsMatch(t, want, ipv4.GetSlice("address"), "member store")
+	assert.ElementsMatch(t, want, ipv4.ToMap()["address"], "ToMap")
+	scalar, ok := ipv4.Get("address")
+	require.True(t, ok)
+	assert.ElementsMatch(t, want, strings.Fields(scalar), "scalar mirror")
+	assert.Contains(t, config.SerializeSet(ed.tree, ed.schema), "ipv4 address [ "+scalar+" ]")
+}
+
+// TestLoadMergeBracketTwiceBeforeCommit verifies that two merges of a bracket
+// leaf-list with no commit between keep every member, in a session and in
+// file mode, and that every reader of the leaf-list agrees between them.
+//
+// VALIDATES: [a], merge [b], merge [c] -> [a b c]; ToMap, GetSlice, the
+// scalar and the serializer answer the same members after each write.
+// PREVENTS: the second merge unioning against the member store the first
+// merge left stale (it wrote the scalar only), which silently dropped b.
+func TestLoadMergeBracketTwiceBeforeCommit(t *testing.T) {
+	want := []string{"192.0.2.1/24", "192.0.2.2/30", "192.0.2.3/30"}
+
+	ed, _, configPath := newLoadSessionEditor(t, validBGPConfig+loadIfaceAddresses("192.0.2.1/24"))
+	require.NoError(t, ed.LoadMerge(nil, parseLoadInput(t, ed, loadIfaceAddresses("192.0.2.2/30"))))
+	requireBracketStoresAgree(t, ed, loadIfaceIPv4(t, ed.tree), want[:2])
+	require.NoError(t, ed.LoadMerge(nil, parseLoadInput(t, ed, loadIfaceAddresses("192.0.2.3/30"))))
+	requireBracketStoresAgree(t, ed, loadIfaceIPv4(t, ed.tree), want)
+	result, err := ed.CommitSession()
+	require.NoError(t, err)
+	require.Empty(t, result.Conflicts)
+	assert.ElementsMatch(t, want, committedIfaceAddresses(t, ed, configPath))
+
+	filePath := writeTestConfig(t, validBGPConfig+loadIfaceAddresses("192.0.2.1/24"))
+	file, err := NewEditorWithStorage(newTestTreeStore(t, filePath), filePath)
+	require.NoError(t, err)
+	t.Cleanup(func() { file.Close() }) //nolint:errcheck,gosec // Best effort cleanup
+	require.NoError(t, file.LoadMerge(nil, parseLoadInput(t, file, loadIfaceAddresses("192.0.2.2/30"))))
+	require.NoError(t, file.LoadMerge(nil, parseLoadInput(t, file, loadIfaceAddresses("192.0.2.3/30"))))
+	requireBracketStoresAgree(t, file, loadIfaceIPv4(t, file.tree), want)
+}
+
+// TestLoadBracketSetFormat verifies that a set-format load treats a bracket
+// leaf-list exactly as a hierarchical one: a merge adds members, and a
+// replace with the configuration's own text changes nothing.
+//
+// VALIDATES: merge `set ... address [ b ]` over [a] -> [a b]; replace with
+// SerializeSet of the configuration records no change.
+// PREVENTS: the set parser storing the bracket as a scalar only, so a merge
+// replaced the list and a replace recorded a delete and a set for a leaf that
+// did not change.
+func TestLoadBracketSetFormat(t *testing.T) {
+	ed, session, configPath := newLoadSessionEditor(t, validBGPConfig+loadIfaceAddresses("192.0.2.1/24"))
+
+	unchanged, err := ed.ParseLoad(config.SerializeSet(ed.tree, ed.schema), nil)
+	require.NoError(t, err)
+	require.NoError(t, ed.LoadReplace(nil, unchanged))
+	assert.Empty(t, pendingKinds(ed, session.ID), "a replace with the configuration itself changes nothing")
+
+	loaded, err := ed.ParseLoad("set interface ethernet eth9 unit 0 ipv4 address [ 192.0.2.2/30 ]\n", nil)
+	require.NoError(t, err)
+	require.NoError(t, ed.LoadMerge(nil, loaded))
+	want := []string{"192.0.2.1/24", "192.0.2.2/30"}
+	requireBracketStoresAgree(t, ed, loadIfaceIPv4(t, ed.tree), want)
+	result, err := ed.CommitSession()
+	require.NoError(t, err)
+	require.Empty(t, result.Conflicts)
+	assert.ElementsMatch(t, want, committedIfaceAddresses(t, ed, configPath))
 }
 
 // TestLoadMergeBracketLeafList verifies that a load merges a bracket-syntax

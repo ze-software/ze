@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/configorder"
@@ -42,9 +43,19 @@ type Tree struct {
 	// prepends, MPLS labels) refuses deactivation of that value in
 	// DeactivateMultiValue rather than silently marking every copy inactive.
 	inactiveMembers map[string]map[string]bool
-	containers      map[string]*Tree
-	lists           map[string]map[string]*Tree
-	listOrder       map[string][]string // Preserves insertion order for list keys
+	// mirrored names every leaf-list whose values[name] is the derived mirror
+	// of its multiValues members, written by syncMultiValueToValueLocked. The
+	// members are authoritative; the mirror exists for Get() and for the
+	// serializers that read values[name]. A leaf-list held in both stores MUST
+	// change both on every write, so setLocked re-derives the members when a
+	// caller sets the mirror whole, and no reader sees a stale member list.
+	// A name with members but no mirror (AppendValue: freeform entries, the
+	// plugin-map singleton view) is not in this set, because its values are not
+	// space-joined members and splitting them would corrupt them.
+	mirrored   map[string]bool
+	containers map[string]*Tree
+	lists      map[string]map[string]*Tree
+	listOrder  map[string][]string // Preserves insertion order for list keys
 }
 
 // NewTree creates an empty config tree.
@@ -54,6 +65,7 @@ func NewTree() *Tree {
 		multiValues:     make(map[string][]string),
 		inactiveValues:  make(map[string]bool),
 		inactiveMembers: make(map[string]map[string]bool),
+		mirrored:        make(map[string]bool),
 		containers:      make(map[string]*Tree),
 		lists:           make(map[string]map[string]*Tree),
 		listOrder:       make(map[string][]string),
@@ -120,6 +132,7 @@ func (t *Tree) removeValue(name string) {
 	defer t.mu.Unlock()
 	delete(t.values, name)
 	delete(t.multiValues, name)
+	delete(t.mirrored, name)
 	delete(t.inactiveValues, name)
 	delete(t.inactiveMembers, name)
 	if len(t.valuesOrder) > 0 {
@@ -146,6 +159,7 @@ func (t *Tree) pruneInactiveLeaves() {
 	for name := range t.inactiveValues {
 		delete(t.values, name)
 		delete(t.multiValues, name)
+		delete(t.mirrored, name)
 		delete(t.inactiveMembers, name)
 	}
 	if len(t.valuesOrder) > 0 {
@@ -176,7 +190,26 @@ func (t *Tree) Set(name, value string) {
 }
 
 // setLocked is the lock-free core of Set. Caller MUST hold t.mu.Lock().
+//
+// When name is a mirrored leaf-list (see Tree.mirrored), value is the whole
+// list spelled as the mirror spells it, members joined by spaces, so the
+// members are replaced by its fields and their deactivation markers dropped:
+// setting the list whole states every member active. Without this the member
+// store keeps the old list, ToMap and GetSlice answer it, and the serializers,
+// which read the mirror, answer the new one.
 func (t *Tree) setLocked(name, value string) {
+	if t.mirrored[name] {
+		t.multiValues[name] = strings.Fields(value)
+		delete(t.inactiveMembers, name)
+		t.syncMultiValueToValueLocked(name)
+		return
+	}
+	t.storeValueLocked(name, value)
+}
+
+// storeValueLocked writes values[name] and records its insertion order.
+// Caller MUST hold t.mu.Lock().
+func (t *Tree) storeValueLocked(name, value string) {
 	if _, exists := t.values[name]; !exists {
 		t.valuesOrder = append(t.valuesOrder, name)
 	}
@@ -201,14 +234,16 @@ func (t *Tree) GetMultiValues(name string) []string {
 	return t.activeMembersLocked(name)
 }
 
-// SetSlice stores a leaf-list value as a string slice, preserving token
-// boundaries. Replacing the whole leaf-list clears any stale per-member
-// deactivation markers for the name.
+// SetSlice replaces a whole leaf-list with items, preserving token
+// boundaries, and re-syncs the scalar mirror so Get and the serializers agree
+// with GetSlice. Replacing the whole leaf-list clears any stale per-member
+// deactivation markers for the name. An empty items removes the leaf-list.
 func (t *Tree) SetSlice(name string, items []string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.multiValues[name] = items
+	t.multiValues[name] = slices.Clone(items)
 	delete(t.inactiveMembers, name)
+	t.syncMultiValueToValueLocked(name)
 }
 
 // AppendSlice adds leaf-list members to any already stored under name,
@@ -342,6 +377,8 @@ func (t *Tree) Clone() *Tree {
 		copy(copied, v)
 		clone.multiValues[k] = copied
 	}
+
+	maps.Copy(clone.mirrored, t.mirrored)
 
 	// Clone inactiveValues (leaf-level deactivation markers)
 	maps.Copy(clone.inactiveValues, t.inactiveValues)
@@ -521,6 +558,14 @@ func (t *Tree) mergeFrom(other *Tree) {
 	maps.Copy(t.values, other.values)
 	for k, v := range other.multiValues {
 		t.multiValues[k] = append(t.multiValues[k], v...)
+	}
+	// A mirrored leaf-list on either side now holds the appended members, and
+	// the copied value is other's mirror alone: re-derive it from the members.
+	for k := range other.mirrored {
+		t.mirrored[k] = true
+	}
+	for k := range t.mirrored {
+		t.syncMultiValueToValueLocked(k)
 	}
 	for k, v := range other.containers {
 		if existing := t.containers[k]; existing != nil {
@@ -812,12 +857,18 @@ const (
 // a key, mirroring only the ACTIVE members (deactivated members are excluded,
 // consistent with the effective-config accessors). Caller MUST hold t.mu.Lock().
 func (t *Tree) syncMultiValueToValueLocked(name string) {
+	if len(t.multiValues[name]) == 0 {
+		delete(t.multiValues, name)
+		delete(t.mirrored, name)
+	} else {
+		t.mirrored[name] = true
+	}
 	active := t.activeMembersLocked(name)
 	if len(active) == 0 {
 		delete(t.values, name)
 		return
 	}
-	t.setLocked(name, textbuf.Join(active, " "))
+	t.storeValueLocked(name, textbuf.Join(active, " "))
 }
 
 // InsertMultiValue inserts a value into a multi-value list at the specified position.

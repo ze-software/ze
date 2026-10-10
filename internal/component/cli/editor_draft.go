@@ -71,7 +71,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	if err != nil {
 		return fmt.Errorf("write-through set change path: %w", err)
 	}
-	changeTarget.Set(key, value)
+	e.storeLeaf(changeTarget, path, key, value)
 
 	// Build the YANG path for metadata recording.
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
@@ -100,7 +100,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 
 	// Update in-memory tree directly (base + own changes).
 	target, _ := e.walkOrCreateIn(e.tree, path)
-	target.Set(key, value)
+	e.storeLeaf(target, path, key, value)
 	metaTarget := walkOrCreateMeta(e.meta, e.schema, path)
 	metaTarget.SetEntry(key, entry)
 
