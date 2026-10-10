@@ -103,8 +103,9 @@ func (e *configSessionEditor) Save() ([]string, error) {
 func (e *configSessionEditor) StageCandidate(time.Time) (string, string, []string, error) {
 	return e.WorkingContent(), "test-version", nil, nil
 }
-func (e *configSessionEditor) MarkCommittedContent(content string) {
+func (e *configSessionEditor) MarkCommittedContent(content string) error {
 	e.committedContent = content
+	return nil
 }
 func (e *configSessionEditor) RestoreOriginalContent(string) error { return nil }
 func (e *configSessionEditor) Discard() error                      { e.values = make(map[string]string); return nil }

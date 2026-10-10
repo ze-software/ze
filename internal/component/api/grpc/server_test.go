@@ -113,7 +113,10 @@ func (e *fakeEditor) Save() ([]string, error) {
 func (e *fakeEditor) StageCandidate(time.Time) (string, string, []string, error) {
 	return e.WorkingContent(), "test-version", nil, nil
 }
-func (e *fakeEditor) MarkCommittedContent(content string) { e.committedContent = content }
+func (e *fakeEditor) MarkCommittedContent(content string) error {
+	e.committedContent = content
+	return nil
+}
 func (e *fakeEditor) RestoreOriginalContent(string) error { return nil }
 func (e *fakeEditor) Discard() error                      { e.values = make(map[string]string); return nil }
 func (e *fakeEditor) OriginalContent() string             { return "# original\n" }

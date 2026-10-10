@@ -42,6 +42,13 @@ func DiscardNoticePath(configPath, user string) string {
 	return tb.Str(configPath).Str(".discarded.").Str(sanitizeUser(user)).String()
 }
 
+// overriddenNotDiscarded is what a forced commit that landed reports when its
+// discard of the overridden changes failed: those changes stay pending for
+// their owners, and the owner's next commit would apply them again.
+func overriddenNotDiscarded(err error) error {
+	return fmt.Errorf("commit applied, but the changes it overrode were not discarded and stay pending for their owners: %w", err)
+}
+
 // discardOverridden removes each overridden change from its owner's change
 // file and leaves that owner a notice. The caller MUST hold guard.
 func (e *Editor) discardOverridden(guard storage.WriteGuard, overlaps []liveOverlap) error {

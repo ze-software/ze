@@ -108,6 +108,14 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (
 	answer := m.appliedAnswer(username, req)
 	answer.applied = true
 	answer.message = cli.WithSkippedWarnings(forced, skipped, answer.message)
+	if result != nil && len(result.Warnings) > 0 {
+		// The SSH editor's words for what the applied commit warns of,
+		// a forced commit's failed discard among them.
+		var tb textbuf.Buffer
+		tb.Str(answer.message)
+		cli.AppendCommitWarnings(&tb, result.Warnings)
+		answer.message = tb.String()
+	}
 	return answer, nil
 }
 

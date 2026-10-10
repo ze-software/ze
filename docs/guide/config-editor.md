@@ -91,8 +91,12 @@ next connect); from then on it shows the committed value in place of theirs,
 and `show | changes` there no longer lists it. A web user with a page open
 gets the same notice in the notification bar within a second, and the web
 editor's tree drops the discarded value at the same moment. Validation errors
-still block a forced commit.
-<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, TakeDiscardNotice -->
+still block a forced commit. When the commit applies but the discard fails, for
+example because a file could not be written, the answer says the commit applied
+and adds the warning "commit applied, but the changes it overrode were not
+discarded and stay pending for their owners", with the cause, so you know to
+tell them.
+<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, overriddenNotDiscarded, TakeDiscardNotice -->
 <!-- source: internal/component/web/window_notices.go -- WindowNotices.push -->
 <!-- source: internal/component/cli/editor_commit.go -- reloadSessionView -->
 <!-- source: internal/component/cli/model.go -- handleDraftPoll, draftPollInterval -->

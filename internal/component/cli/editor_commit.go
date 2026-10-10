@@ -207,11 +207,6 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 	// Also clean up the per-user change file now that structural ops are committed.
 	guard.Remove(changePath) //nolint:errcheck // Best effort
 
-	// A forced commit owes the overridden users their discard (AC-32).
-	if err := e.discardOverridden(guard, overlaps); err != nil {
-		return nil, err
-	}
-
 	// Update in-memory state to the committed config and clear any stale dirty
 	// markers or saved edit snapshots from the pre-commit working tree.
 	e.originalContent = committedOutput
@@ -220,6 +215,13 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 	e.meta = commitMeta
 	e.dirty.Store(false)
 	e.deleteEditFileGuard(guard)
+
+	// A forced commit owes the overridden users their discard (AC-32). The
+	// config file is written, so a failure here is a warning on the commit
+	// that applied, never a failed commit.
+	if err := e.discardOverridden(guard, overlaps); err != nil {
+		warnings = append(warnings, overriddenNotDiscarded(err).Error())
+	}
 
 	return &CommitResult{Applied: applied, Warnings: warnings}, nil
 }
@@ -461,13 +463,13 @@ func (e *Editor) VerifySession() error {
 	return e.validateStagedTree(e.tree)
 }
 
-func (e *Editor) cleanupCommittedSession() {
+func (e *Editor) cleanupCommittedSession() error {
 	if e.session == nil {
-		return
+		return nil
 	}
 	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
-		return
+		return fmt.Errorf("commit applied, but its session cleanup could not lock the config: %w", err)
 	}
 	defer guard.Release() //nolint:errcheck // Best effort cleanup after successful commit
 
@@ -491,12 +493,13 @@ func (e *Editor) cleanupCommittedSession() {
 
 	// The daemon took a forced candidate: the overridden users' entries go now.
 	// Like the rest of this cleanup it cannot fail the commit, which has landed,
-	// so a failure is logged rather than dropped.
+	// so a failure is returned for the caller to report beside the success.
 	overlaps := e.overridden
 	e.overridden = nil
 	if err := e.discardOverridden(guard, overlaps); err != nil {
-		draftLogger.Warn("forced commit landed but the overridden changes were not discarded", "error", err)
+		return overriddenNotDiscarded(err)
 	}
+	return nil
 }
 
 // DiscardSessionPath discards this session's changes at the given path.

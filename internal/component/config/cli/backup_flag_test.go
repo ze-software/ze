@@ -117,7 +117,9 @@ func TestEditBackupNoDaemon(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, result.Applied)
 		require.NoError(t, ed.NotifyReload())
-		ed.MarkCommittedContent(content)
+		if err := ed.MarkCommittedContent(content); err != nil {
+			t.Fatal(err)
+		}
 
 		secondAfter, sessionStderr = captureStderr(t, func() int { return cmdEditWithStorage(nil, []string{"--backup", path, "router.conf"}) })
 		return exitOK

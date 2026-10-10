@@ -148,7 +148,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 		statusMessage: func() string {
 			var tb textbuf.Buffer
 			tb.Str("Committed").Str(reloadWarning).Str(". ").Str(contract.ConfirmWithin(int64(seconds)))
-			appendCommitWarnings(&tb, warnings)
+			AppendCommitWarnings(&tb, warnings)
 			return tb.String()
 		}(),
 		refreshConfig:         true,

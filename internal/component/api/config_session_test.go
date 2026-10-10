@@ -62,9 +62,10 @@ func (e *fakeEditor) StageCandidate(_ time.Time) (string, string, []string, erro
 	return e.stagedContent, "20260524-100000.000", e.warnings, nil
 }
 
-func (e *fakeEditor) MarkCommittedContent(content string) {
+func (e *fakeEditor) MarkCommittedContent(content string) error {
 	e.committedContent = content
 	e.originalContent = content
+	return nil
 }
 
 func (e *fakeEditor) RestoreOriginalContent(content string) error {
@@ -113,7 +114,7 @@ func (e *serializingEditor) Save() ([]string, error)       { return nil, nil }
 func (e *serializingEditor) StageCandidate(time.Time) (string, string, []string, error) {
 	return "", "20260524-100000.000", nil, nil
 }
-func (e *serializingEditor) MarkCommittedContent(string)         {}
+func (e *serializingEditor) MarkCommittedContent(string) error   { return nil }
 func (e *serializingEditor) RestoreOriginalContent(string) error { return nil }
 func (e *serializingEditor) Discard() error                      { return nil }
 func (e *serializingEditor) OriginalContent() string             { return "" }

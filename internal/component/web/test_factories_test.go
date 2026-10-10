@@ -117,12 +117,14 @@ func (a *testEditorAdapter) CommitSessionForce() (*contract.CommitResult, error)
 func (a *testEditorAdapter) CommitSessionCandidateForce(stamp time.Time) (*contract.CommitResult, string, error) {
 	return a.ed.CommitSessionCandidateForce(stamp)
 }
-func (a *testEditorAdapter) MarkCommittedContent(content string) { a.ed.MarkCommittedContent(content) }
-func (a *testEditorAdapter) VerifySession() error                { return a.ed.VerifySession() }
-func (a *testEditorAdapter) RefreshCommittedView() error         { return a.ed.RefreshCommittedView() }
-func (a *testEditorAdapter) TakeDiscardNotice() string           { return a.ed.TakeDiscardNotice() }
-func (a *testEditorAdapter) OriginalContent() string             { return a.ed.OriginalContent() }
-func (a *testEditorAdapter) WorkingContent() string              { return a.ed.WorkingContent() }
+func (a *testEditorAdapter) MarkCommittedContent(content string) error {
+	return a.ed.MarkCommittedContent(content)
+}
+func (a *testEditorAdapter) VerifySession() error        { return a.ed.VerifySession() }
+func (a *testEditorAdapter) RefreshCommittedView() error { return a.ed.RefreshCommittedView() }
+func (a *testEditorAdapter) TakeDiscardNotice() string   { return a.ed.TakeDiscardNotice() }
+func (a *testEditorAdapter) OriginalContent() string     { return a.ed.OriginalContent() }
+func (a *testEditorAdapter) WorkingContent() string      { return a.ed.WorkingContent() }
 func (a *testEditorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
 }

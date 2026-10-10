@@ -351,14 +351,14 @@ func (m *Model) commitSaveAndReload() (commandResult, error) {
 
 	var tb textbuf.Buffer
 	tb.Str("Configuration committed (daemon not running)").Str(archiveMsg)
-	appendCommitWarnings(&tb, warnings)
+	AppendCommitWarnings(&tb, warnings)
 	return commandResult{statusMessage: tb.String(), refreshConfig: true, revalidate: true}, nil
 }
 
-// appendCommitWarnings writes one " (warning: <line>)" for each advisory line a
+// AppendCommitWarnings writes one " (warning: <line>)" for each advisory line a
 // commit produced. Every caller of it has already succeeded: a warning tells the
 // operator what to look at and never says the commit failed.
-func appendCommitWarnings(tb *textbuf.Buffer, warnings []string) {
+func AppendCommitWarnings(tb *textbuf.Buffer, warnings []string) {
 	for _, warning := range warnings {
 		tb.Str(" (warning: ").Str(warning).Byte(')')
 	}
@@ -383,7 +383,10 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 			revalidate:    true,
 		}, nil
 	}
-	m.editor.MarkCommittedContent(content)
+	if err := m.editor.MarkCommittedContent(content); err != nil {
+		// The commit landed: what its cleanup left undone is a warning on it.
+		warnings = append(warnings, err.Error())
+	}
 	m.recordConfigCommit(detail)
 
 	var archiveMsg string
@@ -394,7 +397,7 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 	}
 	var tb2 textbuf.Buffer
 	tb2.Str("Configuration committed and ").Str(m.editor.acceptedVerb()).Str(archiveMsg)
-	appendCommitWarnings(&tb2, warnings)
+	AppendCommitWarnings(&tb2, warnings)
 	return commandResult{statusMessage: tb2.String(), refreshConfig: true, revalidate: true}, nil
 }
 
@@ -486,7 +489,10 @@ func (m *Model) runCommitSession(req contract.CommitRequest) (commandResult, boo
 				revalidate:    true,
 			}, false, nil
 		}
-		m.editor.MarkCommittedContent(content)
+		if err := m.editor.MarkCommittedContent(content); err != nil {
+			// The commit landed: what its cleanup left undone is a warning on it.
+			commitResult.Warnings = append(commitResult.Warnings, err.Error())
+		}
 	}
 
 	m.searchCache = "" // tree changed, invalidate cached set-view
@@ -497,7 +503,7 @@ func (m *Model) runCommitSession(req contract.CommitRequest) (commandResult, boo
 		tb4.Str(WithSkippedWarnings(forced, len(result.Warnings), ""))
 	}
 	tb4.Str("Session committed: ").Int(int64(commitResult.Applied)).Str(" change(s) applied")
-	appendCommitWarnings(&tb4, commitResult.Warnings)
+	AppendCommitWarnings(&tb4, commitResult.Warnings)
 	if transactional && commitResult.Applied > 0 {
 		tb4.Str(" and ").Str(m.editor.acceptedVerb())
 	}

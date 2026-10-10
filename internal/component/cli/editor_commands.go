@@ -964,7 +964,9 @@ func (e *Editor) Save() ([]string, error) {
 		if err := e.commitWriter([]byte(e.originalContent), []byte(content)); err != nil {
 			return nil, err
 		}
-		e.MarkCommittedContent(content)
+		if err := e.MarkCommittedContent(content); err != nil {
+			warnings = append(warnings, err.Error())
+		}
 		return warnings, nil
 	}
 	if e.looseFile {
@@ -987,7 +989,9 @@ func (e *Editor) Save() ([]string, error) {
 		return nil, fmt.Errorf("failed to write config: %w", err)
 	}
 
-	e.MarkCommittedContent(content)
+	if err := e.MarkCommittedContent(content); err != nil {
+		warnings = append(warnings, err.Error())
+	}
 
 	return warnings, nil
 }
@@ -1013,9 +1017,13 @@ func (e *Editor) StageCandidate(stamp time.Time) (string, string, []string, erro
 	return content, stampStr, warnings, nil
 }
 
-// MarkCommittedContent updates editor state after the daemon has promoted a candidate.
-func (e *Editor) MarkCommittedContent(content string) {
-	e.cleanupCommittedSession()
+// MarkCommittedContent updates editor state after the daemon has promoted a
+// candidate, or after a file-mode commit wrote the file. The commit has landed
+// either way: the error names what the session cleanup could not do, the
+// discard a forced commit owes the users it overrode among it, and the caller
+// MUST report it as a warning on the success, never as a failed commit.
+func (e *Editor) MarkCommittedContent(content string) error {
+	cleanupErr := e.cleanupCommittedSession()
 	e.originalContent = content
 	e.workingContent = content
 	if e.schema != nil {
@@ -1029,6 +1037,7 @@ func (e *Editor) MarkCommittedContent(content string) {
 	}
 	e.dirty.Store(false)
 	e.deleteEditFile()
+	return cleanupErr
 }
 
 // commitContent serializes the working config and returns it with the advisory

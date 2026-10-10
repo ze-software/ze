@@ -162,7 +162,10 @@ type Editor interface {
 	// other users' overridden changes are discarded with a notice to them.
 	CommitSessionForce() (*CommitResult, error)
 	CommitSessionCandidateForce(stamp time.Time) (*CommitResult, string, error)
-	MarkCommittedContent(content string)
+	// MarkCommittedContent moves the editor to the committed content. The
+	// commit has landed either way: an error names what its cleanup could not
+	// do, and the caller MUST report it beside the success, never as a failure.
+	MarkCommittedContent(content string) error
 	// VerifySession validates the session's view and writes nothing: the
 	// web editor's `commit verify`.
 	VerifySession() error

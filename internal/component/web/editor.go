@@ -271,7 +271,10 @@ func (m *EditorManager) commit(username string, force bool, check func(contract.
 		_ = storage.ClearCandidate(m.store, m.configPath)
 		return nil, err
 	}
-	us.editor.MarkCommittedContent(content)
+	if err := us.editor.MarkCommittedContent(content); err != nil {
+		// The commit landed: what its cleanup left undone is a warning on it.
+		result.Warnings = append(result.Warnings, err.Error())
+	}
 	return result, nil
 }
 

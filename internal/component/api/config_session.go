@@ -34,7 +34,9 @@ type ConfigEditor interface {
 	Diff() string
 	Save() (warnings []string, err error)
 	StageCandidate(stamp time.Time) (content string, version string, warnings []string, err error)
-	MarkCommittedContent(content string)
+	// MarkCommittedContent's error names what the cleanup after a commit that
+	// landed could not do; the commit itself succeeded.
+	MarkCommittedContent(content string) error
 	RestoreOriginalContent(content string) error
 	Discard() error
 	OriginalContent() string
@@ -311,7 +313,11 @@ func commitSession(editor ConfigEditor, username string, onCommit ConfigCommitHo
 		return fmt.Errorf("commit runtime reload failed: %w", hookErr)
 	}
 	configSessionLogger().Debug("commit: runtime reload applied", "user", username, "elapsed", time.Since(hookStart))
-	editor.MarkCommittedContent(content)
+	if err := editor.MarkCommittedContent(content); err != nil {
+		// The commit landed; the responses carry no warning field, so the
+		// daemon log is where the operator sees what the cleanup left undone.
+		logCommitWarnings(username, []string{err.Error()})
+	}
 	return nil
 }
 
