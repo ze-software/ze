@@ -554,7 +554,7 @@ func TestReactorVerifyConfigValid(t *testing.T) {
 	// whose peers were all SKIPPED as incomplete returns (PeersFromTree,
 	// config.go, warns and continues on ErrIncompleteConfig). Assert the tree
 	// really produced both peers, or this test passes on a shape nobody reads.
-	peers, _, err := adapter.loadPeersFullOrTree(configRoot(bgpTree))
+	peers, _, err := adapter.loadPeersFullOrTree(bgpTree)
 	require.NoError(t, err)
 	assert.Len(t, peers, 2, "both peers must parse, not be skipped as incomplete")
 }
@@ -609,7 +609,7 @@ func TestReactorVerifyConfigNoMutation(t *testing.T) {
 
 	// A tree that parses to nothing would also leave the count unchanged, so
 	// pin that peer99 is a peer this config really produces.
-	parsed, _, err := adapter.loadPeersFullOrTree(configRoot(bgpTree))
+	parsed, _, err := adapter.loadPeersFullOrTree(bgpTree)
 	require.NoError(t, err)
 	require.Len(t, parsed, 1, "the verified tree must produce the peer it names")
 
