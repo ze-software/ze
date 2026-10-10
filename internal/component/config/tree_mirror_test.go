@@ -11,9 +11,10 @@ import (
 )
 
 // requireMirrorAgrees fails unless the member store, ToMap and the scalar
-// mirror of name in tree all answer want.
-func requireMirrorAgrees(t *testing.T, tree *Tree, name string, want []string) {
+// mirror of the "items" leaf-list in tree all answer want.
+func requireMirrorAgrees(t *testing.T, tree *Tree, want []string) {
 	t.Helper()
+	const name = "items"
 	assert.Equal(t, want, tree.GetSlice(name), "member store")
 	scalar, ok := tree.Get(name)
 	require.True(t, ok, "scalar mirror present")
@@ -43,22 +44,22 @@ func TestTreeSetKeepsMirroredLeafListConsistent(t *testing.T) {
 	require.NoError(t, err)
 
 	tree.Set("items", "a c")
-	requireMirrorAgrees(t, tree, "items", []string{"a", "c"})
+	requireMirrorAgrees(t, tree, []string{"a", "c"})
 	assert.Equal(t, "items [ a c ]\n", Serialize(tree, schema))
 
 	tree.AppendSlice("items", []string{"b"})
-	requireMirrorAgrees(t, tree, "items", []string{"a", "c", "b"})
+	requireMirrorAgrees(t, tree, []string{"a", "c", "b"})
 
 	require.NoError(t, tree.DeactivateMultiValue("items", "c"))
 	tree.Set("items", "c d")
-	requireMirrorAgrees(t, tree, "items", []string{"d"})
+	requireMirrorAgrees(t, tree, []string{"d"})
 	assert.Equal(t, []MemberState{{Value: "c", Inactive: true}, {Value: "d"}}, tree.GetMultiValuesState("items"))
 
 	clone := tree.Clone()
 	clone.Set("items", "e")
-	requireMirrorAgrees(t, clone, "items", []string{"e"})
+	requireMirrorAgrees(t, clone, []string{"e"})
 	assert.Equal(t, []MemberState{{Value: "e"}, {Value: "c", Inactive: true}}, clone.GetMultiValuesState("items"))
-	requireMirrorAgrees(t, tree, "items", []string{"d"})
+	requireMirrorAgrees(t, tree, []string{"d"})
 
 	tree.Delete("items")
 	tree.Set("items", "x y")
@@ -101,11 +102,11 @@ func TestSetParserBracketStoresMembers(t *testing.T) {
 
 	tree, err := NewSetParser(schema).Parse(input)
 	require.NoError(t, err)
-	requireMirrorAgrees(t, tree, "items", want)
+	requireMirrorAgrees(t, tree, want)
 
 	tree, _, err = NewSetParser(schema).ParseWithMeta("#thomas %2026-10-10T19:59:37Z set items \"a b\"\n#thomas %2026-10-10T19:59:38Z set items [ c d ]\n")
 	require.NoError(t, err)
-	requireMirrorAgrees(t, tree, "items", want)
+	requireMirrorAgrees(t, tree, want)
 
 	tree, err = NewSetParser(schema).Parse("set items \"a b\"\n")
 	require.NoError(t, err)

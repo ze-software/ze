@@ -85,7 +85,7 @@ func DiscoverListenerServices(schema *Schema) []ListenerService {
 // walkListenerNodes recursively walks the schema tree, collecting ze:listener lists.
 // parentNode is the schema node that contains the children being iterated.
 func walkListenerNodes(parentNode Node, path []string, services *[]ListenerService) {
-	cp, ok := parentNode.(childProvider)
+	cp, ok := parentNode.(ChildProvider)
 	if !ok {
 		return
 	}
@@ -143,7 +143,7 @@ func buildListenerService(ln *ListNode, fullPath []string, parentNode Node) List
 	// Services with an enabled leaf require explicit enabled=true in config
 	// (YANG default is false). Services without one are always collected.
 	hasEnabled := false
-	if pcp, ok := parentNode.(childProvider); ok {
+	if pcp, ok := parentNode.(ChildProvider); ok {
 		if child := pcp.Get("enabled"); child != nil {
 			if _, isLeaf := child.(*LeafNode); isLeaf {
 				hasEnabled = true

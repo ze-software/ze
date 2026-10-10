@@ -115,7 +115,7 @@ func SensitiveKeys(schema *Schema) map[string]bool {
 // predicate accepts. One walk serves both key sets, so a node kind reached by
 // one is reached by the other.
 func collectLeafNames(node Node, accept func(*LeafNode) bool, keys map[string]bool) {
-	cp, ok := node.(childProvider)
+	cp, ok := node.(ChildProvider)
 	if !ok {
 		return
 	}
@@ -367,7 +367,7 @@ func (s *Schema) LookupTokenPath(path []string) Node {
 		return nil
 	}
 
-	var current childProvider = s
+	var current ChildProvider = s
 	var node Node
 
 	for i := 0; i < len(path); {
@@ -384,7 +384,7 @@ func (s *Schema) LookupTokenPath(path []string) Node {
 			break
 		}
 
-		next, hasChildren := node.(childProvider)
+		next, hasChildren := node.(ChildProvider)
 		if !hasChildren {
 			return nil
 		}

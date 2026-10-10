@@ -45,6 +45,10 @@ type SetParser struct {
 	schema       *Schema
 	preMigration bool     // collect unknown fields as warnings for migration (not final parse)
 	warnings     []string // unknown field warnings from pre-migration parse
+	// nopLine is true while a `nop` line is walked, so a bracket leaf-list
+	// reads `nop <path> <member>` as the deactivation of a member the list
+	// line already set (nopBracketMember), never as a new list.
+	nopLine bool
 }
 
 // NewSetParser creates a new set-style parser with the given schema.
@@ -110,6 +114,53 @@ func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 	default:
 		return fmt.Errorf("line %d: unknown command: %s (expected set/nop/delete/inactive)", lineNum, cmd)
 	}
+}
+
+// bracketMembers answers the members a set-format line gives a bracket
+// leaf-list, each token one member, every member validated against the leaf's
+// type.
+//
+// One older spelling is still read: a draft written before each token became a
+// member spelled a contested entry as one quoted value, `address "a/24 b/30"`.
+// When a lone value fails as one member but every word of it passes, it is
+// that spelling, and it answers the words. A value that is one valid member,
+// such as a quoted description holding a space, stays one member.
+func bracketMembers(bracket *BracketLeafListNode, tokens []string) ([]string, error) {
+	items := bracketItems(tokens)
+	var firstErr error
+	for _, item := range items {
+		if err := validateValuePatterns(bracket.Type, bracket.Patterns, item); err != nil {
+			firstErr = err
+			break
+		}
+	}
+	if firstErr == nil {
+		return items, nil
+	}
+	if len(tokens) != 1 {
+		return nil, firstErr
+	}
+	words := strings.Fields(tokens[0])
+	if len(words) < 2 {
+		return nil, firstErr
+	}
+	for _, word := range words {
+		if err := validateValuePatterns(bracket.Type, bracket.Patterns, word); err != nil {
+			return nil, firstErr
+		}
+	}
+	return words, nil
+}
+
+// isMemberLeafList reports whether node is a leaf-list whose members a
+// `delete <path> <member>` or a `nop <path> <member>` line names one by one: a
+// plain leaf-list or a bracket one.
+func isMemberLeafList(node Node) bool {
+	switch node.(type) {
+	case *ValueOrArrayNode, *BracketLeafListNode:
+		return true
+	}
+	return false
 }
 
 // tokenizeLine splits a line into tokens, respecting quotes.
@@ -240,13 +291,14 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
 		}
+		if handled, err := p.nopBracketMember(tree, name, tokens); handled {
+			return err
+		}
 		// Each token is one member, a quoted one included, as the hierarchical
 		// parser reads `[ a "b c" ]`, so the two parsers agree on the members.
-		items := bracketItems(tokens)
-		for _, item := range items {
-			if err := validateValuePatterns(bracket.Type, bracket.Patterns, item); err != nil {
-				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
-			}
+		items, err := bracketMembers(bracket, tokens)
+		if err != nil {
+			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
 		// Members plus the scalar mirror, the store the hierarchical parser
 		// fills (storeBracketLeafList), so a set-format load hands the editor
@@ -344,11 +396,34 @@ func (p *SetParser) parseNop(tree *Tree, tokens []string, lineNum int) error {
 	if len(tokens) < 1 {
 		return fmt.Errorf("line %d: nop requires at least a path", lineNum)
 	}
-	if err := p.walkAndSet(tree, p.schema.root, tokens, lineNum); err != nil {
+	p.nopLine = true
+	err := p.walkAndSet(tree, p.schema.root, tokens, lineNum)
+	p.nopLine = false
+	if err != nil {
 		return err
 	}
 	p.markNopInactive(tree, p.schema.root, tokens)
 	return nil
+}
+
+// nopBracketMember handles `nop <path> <member>` on a bracket leaf-list, the
+// set-format spelling of one deactivated member, as for a plain leaf-list. The
+// serializer writes it after the line that sets the whole list, so the member
+// is there: it is deactivated and the list is left as it is. It answers false
+// for any other line, which then takes the whole-leaf meaning: the value is the
+// list, and markNopInactive deactivates the leaf.
+func (p *SetParser) nopBracketMember(tree *Tree, name string, tokens []string) (bool, error) {
+	if !p.nopLine || len(tokens) != 1 || tokens[0] == "[" {
+		return false, nil
+	}
+	present, inactive := tree.MultiValueMemberState(name, tokens[0])
+	if !present {
+		return false, nil
+	}
+	if inactive {
+		return true, nil
+	}
+	return true, tree.DeactivateMultiValue(name, tokens[0])
 }
 
 // markNopInactive walks the schema path and marks the terminal node
@@ -379,6 +454,13 @@ func (p *SetParser) markNopInactive(tree *Tree, parent Node, tokens []string) {
 		return
 	}
 	if _, ok := node.(*BracketLeafListNode); ok {
+		// A member line was handled by nopBracketMember, which left the member
+		// deactivated; only a list line deactivates the whole leaf.
+		if len(tokens) == 1 {
+			if present, inactive := tree.MultiValueMemberState(name, tokens[0]); present && inactive {
+				return
+			}
+		}
 		tree.SetLeafInactive(name, true)
 		return
 	}
@@ -490,9 +572,10 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 		tree.SetLeafInactive(name, true)
 		return nil
 	}
-	// A bracket leaf-list takes the same two forms as a plain one below: the
-	// serializer writes `inactive <path> <member>` after the list line for each
-	// deactivated member, and the member MUST already be in the list.
+	// A bracket leaf-list takes the same two forms as a plain one below. The
+	// serializer writes `nop <path> <member>` now; `inactive <path> <member>`
+	// is the older spelling of the same thing, and the member MUST already be
+	// in the list.
 	if _, ok := node.(*BracketLeafListNode); ok {
 		switch len(tokens) {
 		case 0:
@@ -600,8 +683,9 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, UnknownKeywordHint(name, schemaChildNames(p.schema, parent)))
 	}
 
-	// Leaf-list member delete: `delete <path> <member>` removes one member.
-	if _, ok := node.(*ValueOrArrayNode); ok && len(tokens) == 1 {
+	// Leaf-list member delete: `delete <path> <member>` removes one member, of
+	// a plain or a bracket leaf-list alike.
+	if isMemberLeafList(node) && len(tokens) == 1 {
 		tree.RemoveMultiValueMember(name, tokens[0])
 		return nil
 	}
@@ -823,7 +907,7 @@ func schemaChildNames(schema *Schema, parent Node) []string {
 	if parent == nil {
 		return schema.Children()
 	}
-	if c, ok := parent.(childProvider); ok {
+	if c, ok := parent.(ChildProvider); ok {
 		return c.Children()
 	}
 	return nil

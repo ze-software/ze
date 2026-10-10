@@ -36,7 +36,7 @@ func CheckBcryptLeaves(tree *Tree, schema *Schema) []string {
 }
 
 func checkBcryptLeavesWalk(tree *Tree, node Node, prefix string, warnings *[]string) {
-	cp, ok := node.(childProvider)
+	cp, ok := node.(ChildProvider)
 	if !ok {
 		return
 	}
@@ -148,7 +148,7 @@ func PasswordWeaknessWarnings(hashed []HashedPassword) []string {
 // dot-path of the current level, and every canonical leaf hashed is appended to
 // hashed.
 func walkHashNodes(tree *Tree, node Node, prefix string, hashed *[]HashedPassword) error {
-	cp, ok := node.(childProvider)
+	cp, ok := node.(ChildProvider)
 	if !ok {
 		return nil
 	}
@@ -175,11 +175,11 @@ func walkHashNodes(tree *Tree, node Node, prefix string, hashed *[]HashedPasswor
 }
 
 // descend walks into a child-bearing node using the schema. Containers and
-// lists project to sub-Trees; other childProviders (e.g., FlexNode) keep the
+// lists project to sub-Trees; other ChildProviders (e.g., FlexNode) keep the
 // surrounding tree because they do not introduce a sub-Tree, so ze:bcrypt
 // leaves nested under them are still discoverable from the parent walk.
 //
-// Assumption: the childProvider graph is acyclic. ze schema today (Container,
+// Assumption: the ChildProvider graph is acyclic. ze schema today (Container,
 // List, Flex) does not produce a node whose Children() includes itself; if
 // a future schema feature introduces recursion, the fallback walk would
 // loop. Bound by node-graph traversal depth in practice.
@@ -198,7 +198,7 @@ func descend(tree *Tree, name string, node Node, path string, hashed *[]HashedPa
 		}
 		return nil
 	}
-	if _, ok := node.(childProvider); ok {
+	if _, ok := node.(ChildProvider); ok {
 		return walkHashNodes(tree, node, path, hashed)
 	}
 	return nil

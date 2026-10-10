@@ -207,7 +207,10 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 	case cmdSet:
 		return p.parseSetWithMeta(tree, meta, entry, tokens, lineNum)
 	case cmdNop:
-		if err := p.parseSetWithMeta(tree, meta, entry, tokens, lineNum); err != nil {
+		p.nopLine = true
+		err := p.parseSetWithMeta(tree, meta, entry, tokens, lineNum)
+		p.nopLine = false
+		if err != nil {
 			return err
 		}
 		p.markNopInactive(tree, p.schema.root, tokens)
@@ -295,14 +298,16 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
 		}
+		// A member deactivation is not a value of the leaf: no metadata.
+		if handled, err := p.nopBracketMember(tree, name, tokens); handled {
+			return err
+		}
 		// Each token is one member, a quoted one included, as walkAndSet
 		// reads it. A contested entry's line spells its value in brackets
 		// (bracketValue), so it reads back as members too.
-		items := bracketItems(tokens)
-		for _, item := range items {
-			if err := validateValuePatterns(bracket.Type, bracket.Patterns, item); err != nil {
-				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
-			}
+		items, err := bracketMembers(bracket, tokens)
+		if err != nil {
+			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
 		// Members plus the scalar mirror, as walkAndSet stores them. A later
 		// line for the same leaf replaces an earlier one: a committed file
@@ -485,8 +490,9 @@ func (p *SetParser) walkAndRecordDeleteMeta(meta *MetaTree, parent Node, entry M
 		return
 	}
 
-	// Leaf-list member delete: record which member the delete targets.
-	if _, ok := node.(*ValueOrArrayNode); ok && len(tokens) == 1 {
+	// Leaf-list member delete: record which member the delete targets, so a
+	// replay removes that member and never the whole leaf.
+	if isMemberLeafList(node) && len(tokens) == 1 {
 		entry.Member = tokens[0]
 		meta.SetEntry(name, entry)
 		return

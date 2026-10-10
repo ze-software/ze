@@ -170,7 +170,7 @@ func writeAnnotatedCloseBraceGutter(b *textbuf.Buffer, meta *MetaTree, columns S
 
 // SerializeAnnotatedSubtree produces annotated hierarchical output for a subtree
 // at a specific schema node (used when showing config at a sub-path).
-func SerializeAnnotatedSubtree(tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns) string {
+func SerializeAnnotatedSubtree(tree *Tree, meta *MetaTree, parent ChildProvider, columns ShowColumns) string {
 	var b textbuf.Buffer
 	serializeAnnotatedTree(&b, tree, meta, parent, columns, 0)
 	return b.String()
@@ -178,7 +178,7 @@ func SerializeAnnotatedSubtree(tree *Tree, meta *MetaTree, parent childProvider,
 
 // SerializeAnnotatedSubtreeSet produces annotated set commands for a subtree
 // at a specific schema node (used when showing config at a sub-path in set format).
-func SerializeAnnotatedSubtreeSet(tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns) string {
+func SerializeAnnotatedSubtreeSet(tree *Tree, meta *MetaTree, parent ChildProvider, columns ShowColumns) string {
 	var b textbuf.Buffer
 	serializeAnnotatedSetNode(&b, tree, meta, parent, columns, "")
 	return b.String()
@@ -191,7 +191,7 @@ func SerializeAnnotatedSubtreeSet(tree *Tree, meta *MetaTree, parent childProvid
 // Holds tree.mu.RLock (and meta.mu.RLock when meta is non-nil) for the walk
 // so callees can read tree / meta internals directly. Recursion into sub-
 // trees and sub-metas acquires their own locks independently.
-func serializeAnnotatedTree(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns, indent int) {
+func serializeAnnotatedTree(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent ChildProvider, columns ShowColumns, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	if meta != nil {
@@ -638,7 +638,7 @@ func serializeAnnotatedExtraValues(b *textbuf.Buffer, tree *Tree, meta *MetaTree
 //
 // Holds tree.mu.RLock (and meta.mu.RLock when meta is non-nil) for the walk.
 // Recursion into sub-trees / sub-metas acquires their own locks.
-func serializeAnnotatedSetNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns, prefix string) {
+func serializeAnnotatedSetNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent ChildProvider, columns ShowColumns, prefix string) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	if meta != nil {
@@ -688,7 +688,7 @@ func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 			for _, member := range tree.multiValues[name] {
 				if tree.inactiveMembers[name][member] {
 					writeAnnotatedLeafGutter(b, meta, name, columns)
-					b.Str("inactive ").Str(path).Byte(' ').Str(quoteIfNeeded(member)).Byte('\n')
+					b.Str("nop ").Str(path).Byte(' ').Str(quoteIfNeeded(member)).Byte('\n')
 				}
 			}
 		}

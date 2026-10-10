@@ -357,7 +357,7 @@ func TestSetFormatDeactivatedMemberRoundTrip(t *testing.T) {
 // TestHierarchicalDeactivatedMemberRoundTrip: the hierarchical serializer
 // renders a deactivated leaf-list member as the bare member in the leaf line
 // plus an `inactive: <leaf> <member>` statement (the hierarchical analog of
-// the set-format `inactive <path> <member>` line), and the hierarchical
+// the set-format `nop <path> <member>` line), and the hierarchical
 // parser restores the member state from that form.
 //
 // VALIDATES: hierarchical serialize/parse round-trip of deactivated members.

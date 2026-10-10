@@ -31,11 +31,11 @@ func SplitLeafListMembers(value string) []string {
 	inMember := false
 	for i := 0; i < len(value); i++ {
 		ch := value[i]
-		switch {
-		case ch == '"':
+		switch ch {
+		case '"':
 			i = readQuotedMember(value, i+1, &current)
 			inMember = true
-		case ch == ' ' || ch == '\t':
+		case ' ', '\t':
 			if inMember {
 				members = append(members, current.String())
 				current.Reset()

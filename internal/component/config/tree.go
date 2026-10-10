@@ -594,15 +594,20 @@ func (t *Tree) RemoveContainer(name string) *Tree {
 // A caller with no schema passes nil, and every leaf-list then keeps its
 // repeats: without the schema a set cannot be told from a sequence, and
 // keeping a repeat loses nothing while dropping one can drop a prepend.
-func (t *Tree) MergeContainer(name string, child *Tree, schema childProvider) {
+//
+// It answers an error when the merge would deactivate a member an ordered
+// sequence repeats, the one state DeactivateMultiValue refuses: the marker is
+// keyed by value, so it would deactivate every copy, and the file would not
+// load again. The tree is then partly merged, and the caller MUST discard it.
+func (t *Tree) MergeContainer(name string, child *Tree, schema ChildProvider) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	existing := t.containers[name]
 	if existing == nil {
 		t.containers[name] = child
-		return
+		return nil
 	}
-	existing.mergeFrom(child, schema)
+	return existing.mergeFrom(child, schema)
 }
 
 // mergeFrom merges the contents of `other` into t. Acquires t.mu itself;
@@ -613,10 +618,13 @@ func (t *Tree) MergeContainer(name string, child *Tree, schema childProvider) {
 // mergeFrom must respect this order. There is no code path that takes
 // a child mutex before its parent; if one is added, deadlock is possible.
 // `other` is assumed caller-owned and unshared.
-func (t *Tree) mergeFrom(other *Tree, schema childProvider) {
+func (t *Tree) mergeFrom(other *Tree, schema ChildProvider) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
+	if err := t.checkMergedRepeatsLocked(other, schema); err != nil {
+		return err
+	}
 	maps.Copy(t.values, other.values)
 	// The second block's leaf-list statements accumulate onto the first's, as
 	// repeated statements in one block do (RFC 7950 Section 7.7): a set keeps
@@ -651,7 +659,9 @@ func (t *Tree) mergeFrom(other *Tree, schema childProvider) {
 		if existing := t.containers[k]; existing != nil {
 			// existing.mu is a different lock from t.mu; recurse in
 			// parent-then-child order (we still hold t.mu here).
-			existing.mergeFrom(v, childSchema(schema, k))
+			if err := existing.mergeFrom(v, childSchema(schema, k)); err != nil {
+				return err
+			}
 		} else {
 			t.containers[k] = v
 		}
@@ -669,13 +679,39 @@ func (t *Tree) mergeFrom(other *Tree, schema childProvider) {
 			t.lists[k][key] = v[key]
 		}
 	}
+	return nil
+}
+
+// checkMergedRepeatsLocked answers an error when merging other into t would
+// leave a deactivated member that the merged list holds more than once: a
+// repeat the ordered sequence keeps, with a marker from either side. Caller
+// holds t.mu.
+func (t *Tree) checkMergedRepeatsLocked(other *Tree, schema ChildProvider) error {
+	for k, v := range other.multiValues {
+		if !keepsRepeats(schema, k) {
+			continue
+		}
+		merged := slices.Concat(t.multiValues[k], v)
+		for _, marks := range []map[string]bool{t.inactiveMembers[k], other.inactiveMembers[k]} {
+			for member := range marks {
+				if n := multiValueOccurrences(merged, member); n > 1 {
+					return fmt.Errorf("%s: the blocks merged repeat deactivated member %q %d times; "+
+						"deactivation is ambiguous for a repeated member of an ordered leaf-list, "+
+						"so write the %s list in one block, without the inactive: statement for %q",
+						k, member, n, k, member)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // keepsRepeats reports whether a merge keeps repeated members of the
 // leaf-list name under schema: an ordered sequence (ze:ordered) does, a set
-// does not. With no schema the answer is unknown and repeats are kept, so a
-// merge never drops a member it cannot prove redundant.
-func keepsRepeats(schema childProvider, name string) bool {
+// does not. With no schema, or a schema that does not name the leaf-list, the
+// answer is unknown and repeats are kept, so a merge never drops a member it
+// cannot prove redundant.
+func keepsRepeats(schema ChildProvider, name string) bool {
 	if schema == nil {
 		return true
 	}
@@ -685,16 +721,16 @@ func keepsRepeats(schema childProvider, name string) bool {
 	case *ValueOrArrayNode:
 		return n.Ordered
 	}
-	return false
+	return true
 }
 
 // childSchema answers the schema node of the container name under schema, or
 // nil when there is none.
-func childSchema(schema childProvider, name string) childProvider {
+func childSchema(schema ChildProvider, name string) ChildProvider {
 	if schema == nil {
 		return nil
 	}
-	child, ok := schema.Get(name).(childProvider)
+	child, ok := schema.Get(name).(ChildProvider)
 	if !ok {
 		return nil
 	}

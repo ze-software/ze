@@ -340,7 +340,10 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 		}
 
 		// Check for template inheritance and expand if found.
-		expandedTree := expandInheritance(neighborTree, templates)
+		expandedTree, err := expandInheritance(neighborTree, templates)
+		if err != nil {
+			return err
+		}
 
 		// Derive peer name from description or generate "peer-N".
 		peerName := derivePeerName(expandedTree, &peerCounter)
@@ -540,18 +543,18 @@ func sanitizePeerName(s string) string {
 
 // expandInheritance merges template properties into neighbor if inherit is specified.
 // Template properties are applied first, then neighbor properties override.
-func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree) *config.Tree {
+func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree) (*config.Tree, error) {
 	// Check for inherit field.
 	inheritName, hasInherit := neighbor.Get("inherit")
 	if !hasInherit {
-		return neighbor
+		return neighbor, nil
 	}
 
 	// Look up template.
 	tmpl, found := templates[inheritName]
 	if !found {
 		// Template not found - return original (warning could be added).
-		return neighbor
+		return neighbor, nil
 	}
 
 	// Create merged tree: template first, then neighbor overrides.
@@ -596,7 +599,9 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 	mergeContainerFields := []string{"static", "announce"}
 	for _, key := range mergeContainerFields {
 		if c := neighbor.GetContainer(key); c != nil {
-			merged.MergeContainer(key, c.Clone(), nil)
+			if err := merged.MergeContainer(key, c.Clone(), nil); err != nil {
+				return nil, fmt.Errorf("inherit %s: %w", inheritName, err)
+			}
 		}
 	}
 
@@ -616,7 +621,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 		}
 	}
 
-	return merged
+	return merged, nil
 }
 
 // copySimpleFields copies simple leaf values from neighbor to peer.

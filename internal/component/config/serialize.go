@@ -174,8 +174,8 @@ func Serialize(tree *Tree, schema *Schema) string {
 	return b.String()
 }
 
-// childProvider is any schema node with children that can be iterated.
-type childProvider interface {
+// ChildProvider is any schema node with children that can be iterated.
+type ChildProvider interface {
 	Children() []string
 	Get(name string) Node
 }
@@ -183,7 +183,7 @@ type childProvider interface {
 // SerializeSubtree serializes a subtree using the given schema node for ordering.
 // Works with *ContainerNode, *ListNode, or *FlexNode.
 func SerializeSubtree(tree *Tree, node Node) string {
-	cp, ok := node.(childProvider)
+	cp, ok := node.(ChildProvider)
 	if !ok {
 		return ""
 	}
@@ -227,7 +227,7 @@ func serializeExtraValues(b *textbuf.Buffer, tree *Tree, children []string, inde
 // Holds tree.mu.RLock for the duration so callees can read tree.values /
 // tree.containers / tree.lists directly. Recursion into child trees acquires
 // the child's own lock independently.
-func serializeWithChildren(b *textbuf.Buffer, tree *Tree, node childProvider, indent int) {
+func serializeWithChildren(b *textbuf.Buffer, tree *Tree, node ChildProvider, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
@@ -297,9 +297,9 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 		if items := tree.multiValues[name]; len(items) > 0 {
 			// Deactivated members render as the bare member in the leaf
 			// line plus an `inactive: <leaf> <member>` statement (the
-			// hierarchical analog of the set-format `inactive <path>
-			// <member>` line): the raw "inactive:" prefix would fail item
-			// validation (e.g. ip-address) on reparse.
+			// hierarchical analog of the set-format `nop <path> <member>`
+			// line): the raw "inactive:" prefix would fail item validation
+			// (e.g. ip-address) on reparse.
 			bare, inactiveMembers := splitInactiveMembers(items, tree.inactiveMembers[name])
 			b.Str(prefix)
 			if tree.inactiveValues[name] {

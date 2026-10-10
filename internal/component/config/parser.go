@@ -66,7 +66,7 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 	p.warnings = nil
 	context := slices.Clip(slices.Clone(contextPath))
 	var known []string
-	if parent, ok := p.schema.LookupTokenPath(context).(childProvider); ok {
+	if parent, ok := p.schema.LookupTokenPath(context).(ChildProvider); ok {
 		known = parent.Children()
 	}
 	return p.parseBody("unknown keyword", known, func(name string) Node {
@@ -390,7 +390,9 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				if err := p.parseNode(child, childName, childNode); err != nil {
 					return err
 				}
-				tree.MergeContainer(name, child, node)
+				if err := tree.MergeContainer(name, child, node); err != nil {
+					return p.errorf(tok, "%v", err)
+				}
 				return nil
 			}
 		}
@@ -455,7 +457,9 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 		}
 	}
 
-	tree.MergeContainer(name, child, node)
+	if err := tree.MergeContainer(name, child, node); err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
 	return nil
 }
 

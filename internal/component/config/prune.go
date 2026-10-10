@@ -35,7 +35,7 @@ func PruneUnchanged(tree, baseline *Tree, schema *Schema) {
 // pruneUnchangedNode removes children that render identically in baseline, then
 // recurses into the ones that differ so their unchanged descendants go too.
 func pruneUnchangedNode(tree, baseline *Tree, node Node) {
-	cp, ok := node.(childProvider)
+	cp, ok := node.(ChildProvider)
 	if !ok {
 		return
 	}
@@ -188,7 +188,7 @@ func PruneActive(tree *Tree, schema *Schema) {
 
 // pruneActiveNode recursively removes active children from a tree node.
 func pruneActiveNode(tree *Tree, node Node) {
-	cp, ok := node.(childProvider)
+	cp, ok := node.(ChildProvider)
 	if !ok {
 		return
 	}
@@ -228,7 +228,7 @@ func pruneActiveNode(tree *Tree, node Node) {
 
 // pruneNode recursively removes inactive children from a tree node.
 func pruneNode(tree *Tree, node Node) {
-	cp, ok := node.(childProvider)
+	cp, ok := node.(ChildProvider)
 	if !ok {
 		return
 	}

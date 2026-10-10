@@ -5,6 +5,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -91,7 +93,9 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 		}
 	}
 
-	tree.MergeContainer(name, child, nil)
+	if err := tree.MergeContainer(name, child, nil); err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
 	return nil
 }
 
@@ -137,7 +141,9 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 			}
 		}
 
-		tree.MergeContainer(name, child, node)
+		if err := tree.MergeContainer(name, child, node); err != nil {
+			return fmt.Errorf("%s: %w", name, err)
+		}
 		return nil
 
 	case tokenLParen:

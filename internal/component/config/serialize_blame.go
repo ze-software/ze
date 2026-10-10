@@ -185,7 +185,7 @@ func SerializeBlame(tree *Tree, meta *MetaTree, schema *Schema) string {
 // Holds tree.mu.RLock (and meta.mu.RLock when meta is non-nil) for the walk
 // so callees can read tree / meta internals directly. Recursion into sub-
 // trees / sub-metas acquires their own locks independently.
-func serializeBlameTree(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent childProvider, indent int) {
+func serializeBlameTree(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent ChildProvider, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	if meta != nil {

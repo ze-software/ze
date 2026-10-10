@@ -113,7 +113,7 @@ func setOrNop(tree *Tree, name string) string {
 // Holds tree.mu.RLock for the duration of the walk so callees can read
 // tree.values / tree.containers / tree.lists directly. Recursion into child
 // trees acquires the child's own lock independently.
-func serializeSetNode(b *textbuf.Buffer, tree *Tree, parent childProvider, prefix string) {
+func serializeSetNode(b *textbuf.Buffer, tree *Tree, parent ChildProvider, prefix string) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	for _, name := range parent.Children() {
@@ -200,15 +200,33 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 	}
 }
 
-// writeInactiveMemberLines writes one `inactive <path> <member>` line for each
+// writeInactiveMemberLines writes one `nop <path> <member>` line for each
 // deactivated member of a bracket leaf-list, after the line that sets the whole
-// list, so a set-format load reads the members back deactivated. Caller holds
-// tree.mu.RLock.
+// list, so a set-format load reads the members back deactivated. `nop <path>
+// <member>` is how this format spells a deactivated member of a plain
+// leaf-list too (emitValueOrArrayNop), so the format has one spelling for it.
+// Caller holds tree.mu.RLock.
 func writeInactiveMemberLines(b *textbuf.Buffer, tree *Tree, name, prefix string) {
 	for _, member := range tree.multiValues[name] {
 		if tree.inactiveMembers[name][member] {
-			b.Str("inactive ").Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(member)).Byte('\n')
+			b.Str("nop ").Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(member)).Byte('\n')
 		}
+	}
+}
+
+// writeBracketMemberDeleteLines writes one `delete <path> <member>` line, with
+// its session's prefix, for each member delete a session recorded on a bracket
+// leaf-list. The set parser reads the line back as a member delete
+// (walkAndRecordDeleteMeta), so a replay removes that member and never the
+// whole list. A bracket leaf-list records no member add: a session writes the
+// list whole. Caller holds meta.mu.RLock.
+func writeBracketMemberDeleteLines(b *textbuf.Buffer, name, prefix string, entries []MetaEntry) {
+	for i := range entries {
+		if entries[i].Member == "" || entries[i].Value != "" {
+			continue
+		}
+		writeMetaPrefix(b, entries[i])
+		b.Str("delete ").Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(entries[i].Member)).Byte('\n')
 	}
 }
 
@@ -579,7 +597,7 @@ func metaListEntry(meta *MetaTree, listName, key string) *MetaTree {
 // duration of the walk so callees can read tree / meta internals directly.
 // Recursion into child trees and sub-metas acquires their own locks
 // independently.
-func serializeSetMetaNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent childProvider, prefix string) {
+func serializeSetMetaNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent ChildProvider, prefix string) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	if meta != nil {
@@ -618,6 +636,9 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 			writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, bracketValue(body), bracketValue)
 			writeInactiveMemberLines(b, tree, name, prefix)
+		}
+		if meta != nil {
+			writeBracketMemberDeleteLines(b, name, prefix, meta.entries[name])
 		}
 
 	case *ValueOrArrayNode:
@@ -676,6 +697,22 @@ func hasMemberEntries(entries []MetaEntry) bool {
 		}
 	}
 	return false
+}
+
+// wholeLeafEntries answers the entries of entries that set or delete the
+// whole leaf, dropping member entries. It answers entries itself when none is a
+// member entry, the common case, so nothing is copied.
+func wholeLeafEntries(entries []MetaEntry) []MetaEntry {
+	if !hasMemberEntries(entries) {
+		return entries
+	}
+	whole := make([]MetaEntry, 0, len(entries))
+	for i := range entries {
+		if entries[i].Member == "" {
+			whole = append(whole, entries[i])
+		}
+	}
+	return whole
 }
 
 // findMemberAddEntry returns the add-intent entry for a member, or nil.
@@ -762,7 +799,9 @@ func writeMetaLeafLineCmd(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathPref
 // bracket leaf-list, whose entry value is several members.
 func writeMetaLeafLineFormat(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathPrefix, value string, entryValue func(string) string) {
 	if meta != nil {
-		entries := meta.entries[name]
+		// A member entry is not a value of the whole leaf: its caller writes it
+		// as its own line (writeBracketMemberDeleteLines).
+		entries := wholeLeafEntries(meta.entries[name])
 		if len(entries) > 1 {
 			for _, e := range entries {
 				writeMetaPrefix(b, e)

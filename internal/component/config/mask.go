@@ -268,7 +268,7 @@ func maskClone(tree *Tree, schema *Schema, holdsSecret func(*LeafNode) bool) *Tr
 // secrets under it in the clear, which is what the ze:bcrypt walk did to a flex
 // node before this function was one walk.
 func maskWalk(tree *Tree, node Node, holdsSecret func(*LeafNode) bool) {
-	cp, ok := node.(childProvider)
+	cp, ok := node.(ChildProvider)
 	if !ok {
 		return
 	}
@@ -347,7 +347,7 @@ func changedSecretPaths(base, work *Tree, node Node) []string {
 // they disagree. It walks the same node kinds as maskWalk, so a secret the mask
 // hides cannot fall outside the report that names it.
 func changedSecretWalk(base, work *Tree, node Node, prefix string, changed *[]string) {
-	cp, ok := node.(childProvider)
+	cp, ok := node.(ChildProvider)
 	if !ok {
 		return
 	}
@@ -411,7 +411,7 @@ func RejectMaskedSecretLeaves(tree *Tree, schema *Schema) error {
 }
 
 func rejectMaskedSecretWalk(tree *Tree, node Node, prefix string, masked *[]string) {
-	cp, ok := node.(childProvider)
+	cp, ok := node.(ChildProvider)
 	if !ok {
 		return
 	}
