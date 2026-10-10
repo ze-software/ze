@@ -554,12 +554,13 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 |-------|-------|
 | Artifact | none yet: ready for independent review |
 | `./le spec review check` | not run |
-| Rounds | 0 |
+| Rounds | 0 recorded; round 1 interrupted by the owner after a partial pass (one ISSUE, two NOTEs), full round 1 owed |
 | Reviewer lenses used | owed: logic+wiring (resolver to image), supply chain (digest pin, notice), cache safety |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| 1 | ISSUE | `availableAccelerators` swallowed the `<qemu> -accel help` exec error and returned an empty set, so a missing or crashing QEMU was reported as "offers neither hvf nor kvm" | `internal/appliance/kernelbuilder/qemu.go` | 45834f22d7: returns the error with exit status and QEMU's stderr; `TestQEMUArgsNamesABrokenQEMU` red before the fix. qemu.go is hashed into the runtime kernel cache variant, so every cached runtime kernel (both arches) rebuilds on next use |
 
 ## Pre-Commit Verification
 
