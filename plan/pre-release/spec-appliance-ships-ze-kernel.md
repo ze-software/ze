@@ -63,6 +63,7 @@ AC-15 depends on this spec.
 -> Implemented (2026-10-10): the provenance source digest in 33d6ff0a4e. `writeProvenance` adds `source-url` (`kernelTarballURL`, what `downloadKernelSource` fetches) and `source-sha256` (`SourceDigest`, what `verifyKernelSource` checks), and refuses a version with no tracked digest. AC-17 next: `kernelbuilder.ReadProvenance` and `Provenance.LinuxNotice` (`provenance.go`); `instance.Prepare` reads the kernel tree's provenance and `addLinuxNotice` puts the notice at `/etc/linux-gpl-notice` through the ze package's `ExtraFileContents` (gokrazy copies only `lib/modules` from a kernel package). `TestLinuxNoticeMatchesTheBuiltKernel` builds the notice from the provenance `writeProvenance` wrote and asserts version, URL and digest; `TestPrepareCarriesTheLinuxNotice` and `TestPrepareRefusesAKernelWithoutProvenance` went red with the `addLinuxNotice` call removed. A cache entry built before 33d6ff0a4e has no source lines and is refused, so every existing cache entry needs the rebuild. Found: `kernel-builder-single-driver` and `kernel-wiring` fixtures are red on an arm64 host since 179ca326f2 (their amd64 requests meet the AC-13 refusal).
 -> Evidence (2026-10-10, arm64 on the Mac under HVF, after the cold rebuild; AC-1, AC-3 and AC-11 for arm64, with the NIC fix and AC-13 in the tree): the cold rebuild wrote cache entry `7.2.9-runtime-arm64-runtime-7c0d8f79-d826e25e`, whose `kernel.version` carries `source-url=https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz` and `source-sha256=b4c5dfbe...d8ba`; the old entry `...-bf3ac1c9` (no source lines) has a different key and nothing selected it. The first image build after the rebuild FAILED in gok: le exports `GOTOOLCHAIN=go1.27.0` (go.mod's go directive, for its linter), the host go is 1.27.1, and with `GOMODCACHE=gokrazy/modcache` and `GOPROXY=off` every go subprocess answered `toolchain not available`; gok reported its failed `go list` as `go get ze.invalid/kernel`. The replace was in place (the failed builddir's go.mod carries it, and `go list ze.invalid/kernel` resolves under `GOTOOLCHAIN=local`). Fixed in 0313f16ee7: `appliance.SetGokGoEnv` sets `GOTOOLCHAIN=local` for both gok entry points (`TestGokBuildsWithTheHostToolchain`, red first). Re-run: `ze_vpp_hp_aarch64_bios=/opt/homebrew/share/qemu/edk2-aarch64-code.fd ./le --name zek test qemu mpls-boot-test` answered `APPLIANCE-MPLS-QEMU: PASS ze started with MPLS in use; \`show ldp neighbor | json\` answered`, exit 0 (log `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/mpls-boot-arm64-run2.log`). The arm64 fixture red is fixed in ecd9a892ba (`kernel-builder-single-driver`, `kernel-wiring` use `runtime.GOARCH`). `/etc/linux-gpl-notice` was not read back from the booted image.
 -> Implemented (2026-10-10): the doctor check. `ze doctor` registers `appliance-runtime-kernel` (code `doctor-appliance-runtime-kernel`, a warning; `checkRuntimeKernel` in `internal/appliance/doctor_checks.go`). It asks about the host arch, because AC-13 builds the kernel only there: it passes when the cache entry `resolveRuntimeKernel` would serve holds its `vmlinuz`, else when `kernelbuilder.UsableBuilder` finds Docker, or QEMU with Go. With neither, it names the cache entry, why `ze appliance build` needs it, and `ze appliance kernel --target runtime --arch <arch>`. Where the kernel config cannot be read (outside the source tree) it warns rather than pass. Unit tests `TestDoctorRuntimeKernelCached`, `TestDoctorRuntimeKernelBuildable`, `TestDoctorRuntimeKernelMissing`, `TestDoctorRuntimeKernelOutsideSourceTree` (`internal/appliance/doctor_checks_test.go`): Missing and OutsideSourceTree went red against a stub returning nil; Cached and Buildable went red under mutations removing the cache test and the builder test. Functional `test/ui/doctor-appliance-runtime-kernel.ci` runs `ze doctor --json` outside the tree and asserts the code and the message; red with the unreadable-config branch mutated to return nil, green restored. Page: `docs/architecture/appliance/build-artifacts.md`.
+-> Evidence (2026-10-10, AC-17 read back from a built image): `ze appliance build t1` (arm64, tree at 3fa832a60c, `ZE_APPLIANCE_DIR` absolute) served cache entry `7.2.9-runtime-arm64-runtime-7c0d8f79-d826e25e` with no kernel build and wrote `ze-20261010-140153.img` (image SHA-256 `33958148aee423ff94b2643d498083837e4da32a56127b568c67aecd3b7896dd`, exit 0, log `scratch/appl-build-notice3.log`). `7zz` extracted the root squashfs (GPT partition 1) and its `etc/linux-gpl-notice` reads `Version: 7.2.9`, `Source: https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz`, `SHA-256: b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba`, plus the GPLv2 statement and the pointer to `gokrazy/kernel/`, `gokrazy/kernel/patches/` and `tools/kernel-builder/`. The three values equal the cache entry's provenance (`~/.cache/ze/runtime-kernel/7.2.9-runtime-arm64-runtime-7c0d8f79-d826e25e/kernel.version`: `version=7.2.9`, the same `source-url` and `source-sha256`) and `kernelSourceSHA256["7.2.9"]` in `internal/appliance/kernelbuilder/worker.go`. Found on the way: a relative `ZE_APPLIANCE_DIR` loses the image to in-process gok's `os.Chdir` (journal row in `plan/journal/option-set-for-one-caller-changes-another.md`, 6c4e143c3e; predates this spec).
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
@@ -121,7 +122,7 @@ AC-15 depends on this spec.
 **Question 1, how the runtime kernel is built today:** `ze appliance kernel --target runtime --arch <arch>` (Go driver `internal/appliance/kernelbuilder`) downloads the kernel.org tarball named by `kernel.version` (7.2), applies `gokrazy/kernel/patches/series`, merges `runtime.config` over `defconfig`, enforces `kernel.require` + `runtime.require` + the compiled floor, compiles in Docker (`ze-kernel-builder`, Debian bookworm) or a QEMU Alpine guest, and caches the tree in `~/.cache/ze/runtime-kernel/<version>-runtime-<arch>-runtime-<hash>-<hash>/`. It is pinned in its inputs (version string, tracked config, manifests, patches) but NOT reproducible: the tarball is unverified, the toolchain floats with Debian apt, and kbuild embeds the build timestamp, user and host. The symbol set is reproducible (enforced from the emitted config); the bytes are not.
 
 **Behavior to preserve:**
-- `ze.gok.kernel-package` remains an explicit operator override for a custom kernel package (it replaces the default, it is not a fallback to rtr7)
+- (superseded by the owner decision of 2026-10-09 in Task: `ze.gok.kernel-package` is deleted, and no route lets an image carry a kernel other than ze's own; AC-6)
 - the prepared-instance isolation: the checked-in `gokrazy/` tree is never written; two builds in one checkout do not share state
 - `ze appliance kernel --target runtime` CLI, cache layout, `--print-cache-dir`, and the variant hash invalidation
 - `ze appliance kernel` for the INSTALLER target (`tools/installer-kernel`, ISO path) is untouched
@@ -172,11 +173,11 @@ AC-15 depends on this spec.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Everyone who runs `ze appliance build` works from a ze checkout with Docker or QEMU available | `resolveBuildParentDir` uses relative `gokrazy`; the guide's end-to-end flow already runs `ze appliance kernel prod` (installer kernel, Docker/QEMU) before `ze appliance build` | operators without a builder cannot build an image on a cold cache; option (a) below becomes necessary | owner confirmation (open question) | unvalidated |
-| A-2 | gokrazy needs nothing from rtr7's package beyond `vmlinuz`, `lib/modules`, `*.dtb`, `overlays`, a `.go` file and `go.mod` (rtr7's `cmdline.txt`, `config.txt` are Raspberry Pi firmware inputs, not read for x86/arm64 VM targets) | `kernelGlobs` in `vendor/.../packer/write.go`; deployment proof images boot with the assembled package | boot partition lacks a file; boot fails | `./le test qemu mpls-boot-test` and `./le test qemu vpp-hugepages-test` boot the new default image | unvalidated |
-| A-3 | `runtime.config` boots the gokrazy appliance under QEMU and on N100 hardware (drivers, console, virtio, ext4/squashfs) | the L2TP deployment proof boots it under QEMU; no hardware boot recorded | hardware appliance fails to boot or loses NICs | QEMU proofs here; hardware boot recorded by the owner before release | unvalidated |
-| A-4 | an arm64 default image builds once rtr7 is gone (ze's builder supports arm64) | `ze appliance kernel --arch arm64 --builder qemu` documented | arm64 image build fails at gokrazy arch check or boot | one arm64 `ze appliance build` | unvalidated |
-| A-5 | kernel.org publishes `sha256sums.asc` for 7.x tarballs, so the tracked pin can be taken from it | kernel.org practice | the pin is computed from a download and the provenance is weaker | read the published file when writing the pin | unvalidated |
+| A-1 | Everyone who runs `ze appliance build` works from a ze checkout with Docker or QEMU available | `resolveBuildParentDir` uses relative `gokrazy`; the guide's end-to-end flow already runs `ze appliance kernel prod` (installer kernel, Docker/QEMU) before `ze appliance build` | operators without a builder cannot build an image on a cold cache; option (a) below becomes necessary | owner confirmation (open question) | validated: owner chose route (b) ("we need to compile our own kernel") and accepted a cached cold build; `ze doctor` warns when neither a cache entry nor a builder exists |
+| A-2 | gokrazy needs nothing from rtr7's package beyond `vmlinuz`, `lib/modules`, `*.dtb`, `overlays`, a `.go` file and `go.mod` (rtr7's `cmdline.txt`, `config.txt` are Raspberry Pi firmware inputs, not read for x86/arm64 VM targets) | `kernelGlobs` in `vendor/.../packer/write.go`; deployment proof images boot with the assembled package | boot partition lacks a file; boot fails | `./le test qemu mpls-boot-test` and `./le test qemu vpp-hugepages-test` boot the new default image | validated on arm64 (`mpls-boot-test` PASS, run2 log); amd64 half owed on the Linux host |
+| A-3 | `runtime.config` boots the gokrazy appliance under QEMU and on N100 hardware (drivers, console, virtio, ext4/squashfs) | the L2TP deployment proof boots it under QEMU; no hardware boot recorded | hardware appliance fails to boot or loses NICs | QEMU proofs here; hardware boot recorded by the owner before release | QEMU half validated on arm64 under HVF; amd64 QEMU owed on the Linux host; hardware half owner-deferred ("ignore n100 atm") |
+| A-4 | an arm64 default image builds once rtr7 is gone (ze's builder supports arm64) | `ze appliance kernel --arch arm64 --builder qemu` documented | arm64 image build fails at gokrazy arch check or boot | one arm64 `ze appliance build` | validated: arm64 `ze appliance build t1` exit 0 (`ze-20261010-140153.img`) and `mpls-boot-test` PASS |
+| A-5 | kernel.org publishes `sha256sums.asc` for 7.x tarballs, so the tracked pin can be taken from it | kernel.org practice | the pin is computed from a download and the provenance is weaker | read the published file when writing the pin | validated: the 7.2.9 digest came from `sha256sums.asc` and matched the download (c9e17d79ea) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -368,7 +369,7 @@ Discovery: `ai/INDEX.md` row "runtime kernel profile, kernel config" gains "appl
 | (b) `ze appliance build` resolves ze's runtime kernel through the existing cache-or-build resolver and assembles the gokrazy package at build time | (a) publish a ze kernel Go module (separate repo, or per-arch like gokrazy's `kernel.amd64`), vmlinuz committed by CI, pinned in the builddir go.mod/go.sum; (a') commit the kernel package inside this repo with a filesystem replace; (c) add a release-server download tier for the runtime kernel, SHA-256 pinned in the repo, before the local build | (b) reuses every piece that exists (resolver, cache, requirement enforcement, assembler) and pairs `runtime.config` with the shipped kernel BY CONSTRUCTION: the image is always built from the config at the same commit, so no drift check is needed. (a) needs a second repo, a CI publish job, owner-ordered pushes and a drift test tying the module's recorded input hash to `runtime.config`/`runtime.require`/patches/`kernel.version`; a config edit takes two commits in two repos to reach an image; operator cost is zero and offline works from the modcache. (a') puts 17 MB per arch per kernel bump into this repository's history forever. (c) needs release hosting that a pre-release project does not have, and its pin must be bumped after every config edit |
 | tarball verified by a tracked SHA-256 pin | trust HTTPS only; GPG-verify `sha256sums.asc` | a tracked digest is the simplest proof that the source is the one reviewed; GPG adds a keyring to the builder for no stronger claim at this stage |
 | rtr7 removed, not kept as fallback | keep rtr7 for hosts without a builder | `ai/rules/no-layering.md`; a fallback ships an image that silently lacks MPLS, L2TP and nftables inet, which is the defect being fixed |
-| `ze.gok.kernel-package` kept | delete it | it is an explicit custom-kernel override, not a second default |
+| `ze.gok.kernel-package` deleted (owner decision 2026-10-09, replacing the first design's "kept") | keep it as an explicit custom-kernel override | "we have our own kernel we should ONLY use it NOTHING ELSE": a route that lets an image carry another kernel is what the decision forbids, and every kernel floor check then judges the kernel that ships (`TestRunHasNoKernelOverride`) |
 
 What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (about 30 minutes, network to kernel.org); bit-identical images across build hosts at one commit (toolchain from unpinned Debian apt, kbuild timestamp/user/host); and automatic upstream kernel updates from rtr7's autoupdate, so `kernel.version` bumps are ze's own job. A later move to (a) or (c), for signed release images, stays open: it adds a tier in front of the same resolver.
 
@@ -419,3 +420,184 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/pre-release/spec-appliance-ships-ze-kernel.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- rtr7 removed and `ze.gok.kernel-package` deleted; `gokrazy/ze/config.json` names `ze.invalid/kernel`; `ze appliance build` (`resolveBuildParentDir`) and `./le build gokrazy` resolve `RuntimeKernelTree(arch)`, and `instance.Prepare` assembles the kernel package inside the prepared parent (36c851fc58, 0a221fb741).
+- Linux pinned to 7.2.9 by exact version and SHA-256; `verifyKernelSource` refuses any other tarball; patch series regenerated to apply with no fuzz (c9e17d79ea).
+- Kernel cache eviction keeps the newest per arch and never the current entry; no cleanup target reaches the kernel caches; the disk-full page says why (afa87ac498).
+- Native-only kernel builds: foreign arch refused, QEMU without hvf or kvm refused (179ca326f2).
+- Provenance names the verified source URL and digest (33d6ff0a4e); every image carries `/etc/linux-gpl-notice` derived from it (5fcbae2a10).
+- `ze doctor` check `appliance-runtime-kernel` (1927823c9f), kept out of the kernel cache hash (3fa832a60c).
+- Harness and toolchain fixes the boot proofs needed: arm64 guest NIC (1ec402852a), gok error reaching stderr (0a221fb741), gok on the host toolchain (0313f16ee7), fixtures on `runtime.GOARCH` (ecd9a892ba).
+
+### Bugs Found/Fixed
+- arm64 QEMU guest had an e1000 NIC its kernel builds as a module: `TestTheArm64MachineGetsTheNICItsKernelBuildsIn`.
+- gok's `ERROR:` line lost to the crashlog relay on `os.Exit`: `TestGokExitReachesStderr`.
+- assembled kernel package lacked `cmdline.txt` and `config.txt`: `TestAssembleKernelPackageWritesCmdline`.
+- le's `GOTOOLCHAIN=go1.27.0` pin broke every gok go call: `TestGokBuildsWithTheHostToolchain`.
+- `kernel-builder-single-driver` and `kernel-wiring` fixtures red on arm64 after AC-13: fixed in ecd9a892ba.
+- 1927823c9f staled every cached kernel: `TestKernelBuilderSourcesSkipTheDoctorQuery`.
+- Recorded, not fixed (predates this spec): relative `ZE_APPLIANCE_DIR` loses the image to in-process gok's `os.Chdir`, journal row 6c4e143c3e.
+
+### Documentation Updates
+- `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `docs/architecture/appliance/gokrazy-build-pins.md`, `kernel-profiles.md`, `build-artifacts.md`, `docs/contributing/running-commands.md` ("When the disk is full"), `docs/labs/l2tp-interop.md`, `ai/INDEX.md`, `ai/rules/platform-linux.md` and its two appliance-dependency-bump points; `features/installation.md` (default image boots ze's kernel, GPLv2 notice).
+- `./le doc check verify`: owed to the main thread with the gates below.
+
+### Deviations from Plan
+- `ze.gok.kernel-package` deleted rather than kept (owner decision 2026-10-09); AC-6 and the design row rewritten.
+- Assembler lives in `internal/appliance/instance/kernelpkg.go` and writes the module files itself; no tracked `gokrazy/kernel/package/` skeleton and no tracked digest file beside `kernel.version` (the pin is `kernelSourceSHA256` in `worker.go`).
+- AC-13 to AC-17 and AC-19 were added by the owner's second round of decisions.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | `UsableBuilder` added to `kernelbuilder/driver.go` for the doctor check (1927823c9f) | every non-test file in `kernelbuilder` is hashed into the cache variant, so the edit staled every cached kernel (a 40G cold rebuild was asked for) | the next arm64 build refused for disk space | moved to `kernelbuilder/doctor.go`, excluded from the hash, test red first (3fa832a60c) |
+| assumption | the harness NIC suits every guest arch | arm64 builds e1000 as a module and gokrazy loads none | first arm64 boot booted with no SSH answer | `virtio-net-pci` for arm64 (1ec402852a) |
+| assumption | in-process gok inherits a usable go toolchain | le's `GOTOOLCHAIN` pin plus `GOPROXY=off` refused every go call | first build after the cold rebuild | `SetGokGoEnv` sets `GOTOOLCHAIN=local` (0313f16ee7) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| default image boots ze's own runtime kernel | Done | `resolveBuildParentDir` (`internal/appliance/kernelargs.go`), `RuntimeKernelTree` (`runtimekernel.go`) | arm64 booted; amd64 owed |
+| rtr7 leaves the build | Done | `TestNoRtr7KernelReference` | |
+| `ze.gok.kernel-package` deleted | Done | `TestRunHasNoKernelOverride` | |
+| build natively, never emulated | Done | `validateRequest`, `qemuArgs` (`kernelbuilder`) | |
+| cache never deleted by reclamation | Done | `evictKeepN`, `TestCleanTargetsNeverReachTheKernelCache` | |
+| GPLv2 notice in every image | Done | `addLinuxNotice` (`instance/kernelpkg.go`) | read back from a built image |
+| latest stable 7.x pinned by digest | Done | `internal/appliance/kernel.version`, `kernelSourceSHA256` | 7.2.9 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Partial | arm64: packaged config of the cache entry has `CONFIG_MPLS_ROUTING=y`, `CONFIG_MPLS_IPTUNNEL=y` | amd64 owed on the Linux host |
+| AC-2 | Partial | arm64: all 128 required symbols `=y`; `show host kernel` release `7.2.9-ze` | amd64 owed on the Linux host |
+| AC-3 | Partial | arm64 `mpls-boot-test` PASS (run2 log) | amd64 owed on the Linux host |
+| AC-4 | Done | `TestNoRtr7KernelReference` | |
+| AC-5 | Done | `TestPrepareRefusesWithoutKernelPackage` | |
+| AC-6 | Done | `TestRunHasNoKernelOverride` | rewritten to the owner decision |
+| AC-7 | Done | `TestResolveBuildParentDirUsesRuntimeKernel`; arm64 build served the cache entry with no kernel build | |
+| AC-8 | Done | `TestDownloadKernelSourceVerifiesDigest` | |
+| AC-9 | Done | `TestKernelVersionHasDigestPin` | |
+| AC-10 | Done | `TestColdOfflineCacheNamesRemedy` | |
+| AC-11 | Done | arm64 build passes gokrazy's arch check and boots | |
+| AC-12 | Done | `TestEveryRuntimeConfigSymbolIsAssertedOrAcknowledged`, `TestUnverifiedRuntimeSymbolsHasNoStaleEntries` | |
+| AC-13 | Done | `TestValidateRequestRefusesForeignArch`, `TestQEMUArgsRefusesWithoutHardwareAccelerator` | |
+| AC-14 | Done | `TestCleanTargetsNeverReachTheKernelCache` | |
+| AC-15 | Done | `TestEvictKeepsNewestPerArchAndTheCurrentEntry` | |
+| AC-16 | Done | `docs/contributing/running-commands.md`, "When the disk is full" | |
+| AC-17 | Done | `TestLinuxNoticeMatchesTheBuiltKernel`, `TestPrepareCarriesTheLinuxNotice`; notice read back from `ze-20261010-140153.img` | |
+| AC-19 | Done | `kernel.version` 7.2.9, `TestKernelVersionHasDigestPin` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestResolveBuildParentDirUsesRuntimeKernel` | Done | `internal/appliance/runtimekernel_test.go` | file moved from plan |
+| `TestPrepareRefusesWithoutKernelPackage`, `TestPrepareReplacesZeKernelModule`, `TestAssembleKernelPackage` | Done | `internal/appliance/instance/kernelpkg_test.go` | |
+| `TestDownloadKernelSourceVerifiesDigest` | Done | `internal/appliance/kernelbuilder/worker_test.go` | |
+| `TestKernelVersionHasDigestPin` | Done | `internal/appliance/cmd_kernel_test.go` | |
+| `TestColdOfflineCacheNamesRemedy` | Done | `internal/appliance/runtimekernel_test.go` | |
+| `TestRunResolvesRuntimeKernelByDefault` / `TestRunHonorsKernelPackageOverride` | Changed | `internal/le/build/gokrazy/gokrazy_test.go` | override test replaced by `TestRunHasNoKernelOverride` |
+| `TestPrepareRealInstanceCarriesEveryModule`, `TestPreparedModulesResolveIdenticallyToTracked`, `TestNoRtr7KernelReference` | Done | `internal/appliance/instance/prepare_repo_test.go` | |
+| `mpls-boot-test` | Partial | `./le test qemu mpls-boot-test` | arm64 PASS; amd64 owed |
+| `vpp-hugepages-test` | Partial | `./le test qemu vpp-hugepages-test` | not run; owed on the Linux host |
+| `gokrazy-l2tp-ppp-test` | Partial | `./le test deployment gokrazy-l2tp-ppp-test` | not run; owed on the Linux host |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `gokrazy/ze/config.json` | Done | `ze.invalid/kernel` |
+| `internal/appliance/instance/prepare.go` | Done | |
+| `internal/appliance/kernelargs.go`, `cmd_kernel.go` | Done | |
+| `internal/appliance/kernelbuilder/worker.go`, `driver.go` | Done | |
+| `internal/le/build/gokrazy/gokrazy.go` | Done | |
+| `internal/le/test/deployment/gokrazyimage.go`, `gokrazykernel.go` | Done | private resolver removed in 36c851fc58 |
+| `internal/appliance/kernelpkg.go` | Changed | lives at `internal/appliance/instance/kernelpkg.go` |
+| `gokrazy/kernel/package/`, `kernel.sha256` | Changed | not created: the assembler writes the module, the digest sits in `kernelSourceSHA256` |
+| docs and rules listed in Files to Modify | Done | see Documentation Updates |
+
+### Audit Summary
+- **Total items:** 18 ACs, 7 requirements
+- **Done:** 15 ACs
+- **Partial:** AC-1, AC-2, AC-3 (amd64 halves owed on the Linux host; no approval needed, the work is not reduced, it waits on that host)
+- **Skipped:** none
+- **Changed:** AC-6, assembler location, no skeleton, digest location (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| the default image boots ze's own runtime kernel | functional (QEMU boot) | arm64: `./le --name zek test qemu mpls-boot-test` printed `APPLIANCE-MPLS-QEMU: PASS ze started with MPLS in use`, exit 0 (`scratch/mpls-boot-arm64-run2.log`); `show host kernel | json` gave `"release": "7.2.9-ze"`. amd64: OWED on the Linux host, never emulated |
+| the kernel is built from the tracked `runtime.config` at the same commit, carrying MPLS | data correctness | arm64 cache entry's packaged config: all 128 symbols of `kernel.require` + `runtime.require` read `=y`, including `CONFIG_MPLS_ROUTING=y`, `CONFIG_MPLS_IPTUNNEL=y`; amd64 OWED |
+| rtr7 leaves the build entirely | unit (tree scan) | `TestNoRtr7KernelReference` PASS 2026-10-10; `gokrazy/ze/builddir/github.com/rtr7` absent |
+| the image honours GPLv2 by pointing at the exact source | data correctness | `/etc/linux-gpl-notice` extracted with `7zz` from the root squashfs of `ze-20261010-140153.img` reads Version 7.2.9, `https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz`, SHA-256 `b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba`, equal to the cache entry's `kernel.version` provenance |
+| a long cold build is acceptable because the cache is never deleted | unit | `TestCleanTargetsNeverReachTheKernelCache`, `TestEvictKeepsNewestPerArchAndTheCurrentEntry` PASS; the arm64 build at 14:01 served `...-7c0d8f79-d826e25e` with no kernel build |
+| kernels are built natively only | unit (negative) | `TestValidateRequestRefusesForeignArch`, `TestQEMUArgsRefusesWithoutHardwareAccelerator` PASS |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| amd64 halves of AC-1, AC-2, AC-3: `ze appliance build` amd64, `mpls-boot-test` on amd64 | the owner rules every kernel is built and booted on a host of its own arch; the amd64 kernel needs the Linux host, never emulation | this spec, which stays open until the run on the Linux host |
+| `vpp-hugepages-test` and `gokrazy-l2tp-ppp-test` on the new default image | not run in this session | this spec, same Linux-host run |
+| N100 hardware boot (A-3 hardware half) | owner-deferred: "ignore n100 atm" | owner-run before release; no spec |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | none yet: ready for independent review |
+| `./le spec review check` | not run |
+| Rounds | 0 |
+| Reviewer lenses used | owed: logic+wiring (resolver to image), supply chain (digest pin, notice), cache safety |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/appliance/instance/kernelpkg.go` | yes | `addLinuxNotice` found by `git grep` 2026-10-10 |
+| `internal/appliance/runtimekernel.go` | yes | `RuntimeKernelTree` found by `git grep` 2026-10-10 |
+| `test/ui/doctor-appliance-runtime-kernel.ci` | yes | committed in 1927823c9f |
+| `internal/le/scratch/cacheclean_kernel_test.go` | yes | `TestCleanTargetsNeverReachTheKernelCache` at line 20 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-4..AC-17, AC-19 | unit tests named in the audit pass | `./le job run label unit-pkg command go test -v -tags "<gate tags>" -run '<30 tests>'` over `internal/appliance`, `.../instance`, `.../kernelbuilder`, `internal/le/build/gokrazy`, `internal/le/scratch`, `internal/le/test/qemu`: 30 `--- PASS`, 0 FAIL, 2026-10-10 |
+| AC-17 | notice in a built image | read back from `ze-20261010-140153.img`, see Goal Validation |
+| AC-1..AC-3 | arm64 boot | `mpls-boot-arm64-run2.log` PASS line; amd64 owed |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze appliance build` | `TestResolveBuildParentDirUsesRuntimeKernel`, and a real arm64 build (exit 0) | yes, arm64 |
+| `./le build gokrazy` | `TestRunResolvesRuntimeKernelByDefault` | unit only |
+| image boot | `./le test qemu mpls-boot-test` | arm64 PASS; amd64 owed |
+| `ze doctor` | `test/ui/doctor-appliance-runtime-kernel.ci` | red-proven by mutation in 1927823c9f |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | validated | owner decisions in Task (route b, cached cold build accepted) |
+| A-2 | validated on arm64 | `mpls-boot-test` PASS; amd64 owed |
+| A-3 | QEMU half validated on arm64; hardware owner-deferred | Task decision "ignore n100 atm" |
+| A-4 | validated | arm64 build exit 0 and boot |
+| A-5 | validated | c9e17d79ea, digest from `sha256sums.asc` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| feature entry: default image boots ze's kernel and carries the notice | `resolveBuildParentDir`, `RuntimeKernelTree`, `addLinuxNotice` exist (`git grep`) | yes |
+| disk-full page names the kernel cache | `evictKeepN`, `TestCleanTargetsNeverReachTheKernelCache` | yes |
+| doctor check page | `checkRuntimeKernel` in `internal/appliance/doctor_checks.go` | yes (1927823c9f) |
