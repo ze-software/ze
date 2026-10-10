@@ -1,0 +1,118 @@
+# Test: the commit-confirmed topic's `system host` change, committed on
+#       probation through the SSH editor against a RUNNING daemon, rolls back
+#       when nobody confirms it and stays when it is accepted
+# Initial config: `system host edge-original`, as the showcase lab's base.
+# Live change:    the editor load-merges the trial host
+#                 (demos/terminal/topics/commit-confirmed/1-trial-host.conf),
+#                 commits confirmed and lets the deadline pass; then it merges
+#                 the confirmed host (2-confirmed-host.conf), commits confirmed
+#                 and accepts.
+#                 A third probation commit of the trial host, left to
+#                 time out, shows the accepted host is the new baseline.
+# Expected:       the editor prints the texts the topic tapes wait for
+#                 ("Confirm within", "automatically rolled back",
+#                 "Commit accepted"), and the saved config ends with
+#                 edge-confirmed: the last rollback restored the accepted host,
+#                 not the trial and not the original, after the accepted
+#                 commit's own deadline had passed.
+#
+# READBACK: the hub's reload path reads only the name servers from `system`
+# (applyResolvConf, cmd/ze/hub/main_system.go), no show command reports the
+# host, and `ze cli -c "show config dump"` is the offline command that wants a
+# file, so the saved file is the daemon's only observable answer.
+#
+# VALIDATES: spec-terminal-demo-showcase AC-2 (commit-confirmed topic) -- the
+#            topic's change, committed in session mode, the path the recording
+#            types, is reverted at its deadline and kept once accepted.
+# PREVENTS: a topic recording whose waits name texts session mode never prints.
+#           The older validator in validate_runtime.go drives file mode
+#           (`ze config edit -f`), which is not the recording's path.
+#
+# WAITS: the editor redraws only the cells that change, so each wait names text
+# the step newly writes: the merge notice after a status line that held other
+# text, the commit replies, and the timeout notice.
+option=timeout:value=60s
+
+tmpfs=session-editor-commit-confirmed-system-host.conf:terminator=EOF_CONF
+system {
+    host edge-original
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=1-trial-host.conf:terminator=EOF_TRIAL
+system {
+    host edge-trial
+}
+EOF_TRIAL
+
+tmpfs=2-confirmed-host.conf:terminator=EOF_CONFIRMED
+system {
+    host edge-confirmed
+}
+EOF_CONFIRMED
+
+tmpfs=session-editor-commit-confirmed-system-host.script:terminator=EOF_SCRIPT
+send load file absolute merge 1-trial-host.conf
+wait Configuration merged from
+send commit confirmed 5
+wait Confirm within
+wait automatically rolled back
+send load file absolute merge 2-confirmed-host.conf
+wait merged from
+send commit confirmed 5
+wait Confirm within
+send commit accept
+wait Commit accepted
+send load file absolute merge 1-trial-host.conf
+wait merged from
+send commit confirmed 5
+wait Confirm within
+wait automatically rolled back
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-system-host.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-system-host.conf session-editor-commit-confirmed-system-host.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-confirmed-system-host.conf:contains=edge-confirmed
+expect=file:path=session-editor-commit-confirmed-system-host.conf:not-contains=edge-trial
+expect=file:path=session-editor-commit-confirmed-system-host.conf:not-contains=edge-original
