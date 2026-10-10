@@ -990,6 +990,62 @@ func TestBuildDiffSectionsFilesAnAncestorKeyUnderItsDeclaredRoot(t *testing.T) {
 	assert.Contains(t, topData, "traffic")
 }
 
+// TestBuildDiffSectionsFilesAChangedAncestorUnderItsDeclaredRoot pins the
+// Changed arm of the declared-root pass: an ancestor key whose value changed
+// gives the declared root an add, a removal or a change, by which side holds it.
+//
+// VALIDATES: "traffic" changed from a scalar to a map holding usage gives
+// "traffic/usage" an Added entry; "ddos" changed from a map holding local to a
+// scalar gives "ddos/local" a Removed entry; "anomaly" holding detect on both
+// sides gives "anomaly/detect" a Changed pair of the two subtrees.
+// PREVENTS: a type change at an ancestor reaching no section for the nested
+// root, so the orchestrator skips the plugin whose subtree appeared or vanished.
+func TestBuildDiffSectionsFilesAChangedAncestorUnderItsDeclaredRoot(t *testing.T) {
+	t.Parallel()
+
+	diff := &config.ConfigDiff{
+		Changed: map[string]config.DiffPair{
+			"traffic": {Old: "x", New: map[string]any{"usage": map[string]any{"interface": "lo"}}},
+			"ddos":    {Old: map[string]any{"local": map[string]any{"enabled": "true"}}, New: "x"},
+			"anomaly": {
+				Old: map[string]any{"detect": map[string]any{"floor": "1"}},
+				New: map[string]any{"detect": map[string]any{"floor": "2"}},
+			},
+		},
+	}
+	sectionMap := make(map[string]rpc.ConfigDiffSection)
+	for _, s := range buildDiffSections(diff, []string{"traffic/usage", "ddos/local", "anomaly/detect"}) {
+		sectionMap[s.Root] = s
+	}
+
+	usage, ok := sectionMap["traffic/usage"]
+	require.True(t, ok)
+	var added map[string]any
+	require.NoError(t, json.Unmarshal([]byte(usage.Added), &added))
+	assert.Equal(t, map[string]any{"traffic/usage": map[string]any{"interface": "lo"}}, added)
+	assert.Empty(t, usage.Removed)
+	assert.Empty(t, usage.Changed)
+
+	local, ok := sectionMap["ddos/local"]
+	require.True(t, ok)
+	var removed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(local.Removed), &removed))
+	assert.Equal(t, map[string]any{"ddos/local": map[string]any{"enabled": "true"}}, removed)
+	assert.Empty(t, local.Added)
+	assert.Empty(t, local.Changed)
+
+	detect, ok := sectionMap["anomaly/detect"]
+	require.True(t, ok)
+	var changed map[string]config.DiffPair
+	require.NoError(t, json.Unmarshal([]byte(detect.Changed), &changed))
+	assert.Equal(t, map[string]config.DiffPair{"anomaly/detect": {
+		Old: map[string]any{"floor": "1"},
+		New: map[string]any{"floor": "2"},
+	}}, changed)
+	assert.Empty(t, detect.Added)
+	assert.Empty(t, detect.Removed)
+}
+
 // TestReloadConfigRootRemoved verifies that removing an entire config root
 // still notifies the plugin (verify + apply).
 //
