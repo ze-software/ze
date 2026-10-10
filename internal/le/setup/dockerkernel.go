@@ -313,7 +313,7 @@ func dockerKernelInstallPlatform(goos string) error {
 	}
 	var tb textbuf.Buffer
 	return errors.New(tb.Str("`le setup docker-kernel install` changes a Linux Docker host's boot kernel and runs on Linux only. ").
-		Str(interoplab.DockerKernelRoute(goos, nil)).String())
+		Str(interoplab.DockerKernelRoute(goos, nil, nil)).String())
 }
 
 // runtimeKernelRebuild is what every refusal of a cache entry tells the

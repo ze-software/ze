@@ -76,6 +76,7 @@ func ReadEnvironment(options EnvironmentOptions) Environment {
 	}
 	selector := ""
 	if options.SelectorVariable != "" {
+		selectorVariables.Store(options.SelectorVariable, struct{}{})
 		if value, ok := lookup(options.SelectorVariable); ok {
 			selector = strings.TrimSpace(value)
 		}

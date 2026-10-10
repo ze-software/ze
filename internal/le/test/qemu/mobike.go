@@ -99,7 +99,7 @@ func buildMOBIKEGuests(ctx context.Context, root, directory string) error {
 	if runtime.GOARCH == ArchARM64 {
 		architecture = ArchARM64
 	}
-	environment := toolchain.Environment(gotoolchain.EnvOptions{GOOS: "linux", GOARCH: architecture})
+	environment := toolchain.Environment(gotoolchain.EnvOptions{GOOS: guestOS, GOARCH: architecture})
 	for _, binary := range []struct{ name, base string }{
 		{"ze", repofeaturetags.DaemonBase},
 		{"le", repofeaturetags.LEBase},

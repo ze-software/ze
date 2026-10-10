@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // VALIDATES: D-6, AC-8 and AC-10's one guest path. The guest starts Docker,
@@ -31,6 +33,11 @@ func TestDockerLabCommandChecksTheKernelBeforeTheLab(t *testing.T) {
 	}
 	if !strings.HasPrefix(command, "set -e;") {
 		t.Errorf("a failed step does not stop the guest command:\n%s", command)
+	}
+	// Review round 4, NOTE 2: the guest marks itself before the check, so a
+	// refusal names the appliance kernel's fix, not an install into the guest.
+	if marker := strings.Index(command, "export "+interoplab.DockerLabGuestVariable+"=1;"); marker < 0 || marker >= check {
+		t.Errorf("the guest command does not mark the Docker lab guest before the check:\n%s", command)
 	}
 	if !strings.Contains(command, "60") {
 		t.Errorf("the wait for dockerd carries no bound:\n%s", command)

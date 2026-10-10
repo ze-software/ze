@@ -79,15 +79,11 @@ func Run(ctx context.Context) interoplab.SuiteReport {
 			Code:       1,
 		}
 	}
-	selector := strings.TrimSpace(os.Getenv("ZE_L2TP_INTEROP_SCENARIO"))
-	return RunAt(ctx, root, selector)
+	return RunAt(ctx, root, "")
 }
 
 // RunAt runs the selected L2TP scenarios from an explicit repository tree.
 func RunAt(ctx context.Context, root, selector string) interoplab.SuiteReport {
-	if strings.TrimSpace(selector) == "" {
-		selector = strings.TrimSpace(os.Getenv("ZE_L2TP_INTEROP_SCENARIO"))
-	}
 	absoluteRoot, err := filepath.Abs(root)
 	if err != nil {
 		var tb textbuf.Buffer
@@ -97,9 +93,13 @@ func RunAt(ctx context.Context, root, selector string) interoplab.SuiteReport {
 		}
 	}
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
-		SuffixVariable: "ZE_L2TP_INTEROP_SUFFIX",
-		DefaultImage:   defaultFRRImage,
+		SelectorVariable: "ZE_L2TP_INTEROP_SCENARIO",
+		SuffixVariable:   "ZE_L2TP_INTEROP_SUFFIX",
+		DefaultImage:     defaultFRRImage,
 	})
+	if strings.TrimSpace(selector) == "" {
+		selector = environment.Selector
+	}
 	return runAt(ctx, absoluteRoot, selector, interoplab.NewDocker(), environment)
 }
 

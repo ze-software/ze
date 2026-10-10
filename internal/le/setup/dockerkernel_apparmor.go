@@ -131,7 +131,7 @@ func appArmorLoadPlatform(goos string) error {
 	}
 	var tb textbuf.Buffer
 	return errors.New(tb.Str("`le setup docker-kernel apparmor` loads an AppArmor profile into a Linux Docker host's kernel and runs on Linux only. ").
-		Str(interoplab.DockerKernelRoute(goos, nil)).String())
+		Str(interoplab.DockerKernelRoute(goos, nil, nil)).String())
 }
 
 // findAppArmorParser answers apparmor_parser's path, empty when absent.

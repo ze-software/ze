@@ -17,12 +17,15 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	buildhostdriver "github.com/ze-software/ze/internal/le/build/hostdriver"
 )
 
 const (
@@ -38,36 +41,60 @@ const (
 // DockerKernelRoute answers the next step a refusal names for a reader on goos
 // (owner D-6), its command on a line of its own (user-facing-errors.md). On
 // Linux the labs run on the host's Docker, so the step is a kernel with the
-// feature or Ze's own (D-5) through the install action, which never reboots.
-// Elsewhere the labs run inside the Alpine QEMU guest booted on Ze's runtime
+// feature or Ze's own (D-5) through the install action, which never reboots;
+// inside the Docker lab's QEMU guest, whose kernel is the appliance's, the step
+// is that kernel's config and the host's cache rebuild instead. Elsewhere the labs run inside the Alpine QEMU guest booted on Ze's runtime
 // kernel, and the Linux-only install would refuse: the command reruns lab, the
-// le words of the run that was refused, inside that guest. With no lab, or one
-// the guest's `lab` keyword cannot carry intact, the command boots the guest
-// and runs its kernel check only, which is still a command the reader can run
-// as printed.
-func DockerKernelRoute(goos string, lab []string) string {
+// le words of the run that was refused, inside that guest, under environment,
+// the NAME=value selector assignments that chose its scenario, through the
+// guest's `env` keyword. Without them the rerun would run the whole suite. With
+// no lab, or a lab or an assignment the guest's `lab` and `env` keywords cannot
+// carry intact, the command boots the guest and runs its kernel check only,
+// which is still a command the reader can run as printed.
+func DockerKernelRoute(goos string, lab, environment []string) string {
 	if goos == "linux" {
+		if inDockerLabGuest() {
+			return "This check ran inside the throwaway Ze-kernel QEMU guest of `./le test qemu docker-lab`," +
+				" which boots the appliance's runtime kernel, so installing a kernel there changes nothing:" +
+				" the appliance kernel lacks the feature. Add its options to gokrazy/kernel/runtime.config" +
+				" and gokrazy/kernel/runtime.require, then rebuild the kernel cache entry on the host with:\n" +
+				buildhostdriver.RuntimeKernelBuild(runtime.GOARCH)
+		}
 		return "Run Docker on a kernel with every feature, or install Ze's kernel and reboot." +
 			" The install prints its steps and runs none until you confirm the release:\n" +
 			"  ./le setup docker-kernel install"
 	}
-	if quoted, ok := quotedLabWords(lab); ok {
-		return "On " + goos + " the labs run inside the Ze-kernel QEMU guest. Run the same lab there with:\n" +
-			"  ./le test qemu docker-lab lab " + quoted
+	quotedLab, labOK := quotedGuestWords(lab)
+	quotedEnvironment, environmentOK := quotedGuestWords(environment)
+	if labOK && (environmentOK || len(environment) == 0) {
+		command := "  ./le test qemu docker-lab lab " + quotedLab
+		if environmentOK {
+			command += " env " + quotedEnvironment
+		}
+		return "On " + goos + " the labs run inside the Ze-kernel QEMU guest. Run the same lab there with:\n" + command
 	}
 	return "On " + goos + " the labs run inside the Ze-kernel QEMU guest. Boot it and check its kernel with:\n" +
 		"  ./le test qemu docker-lab"
 }
 
-// quotedLabWords answers lab as one single-quoted shell word for the guest's
-// `lab` keyword, and false when there is no lab or a word is empty or holds
-// white space or a quote: the guest splits the value on white space, so such
-// a word would not arrive as typed.
-func quotedLabWords(lab []string) (string, bool) {
-	if len(lab) == 0 {
+// DockerLabGuestVariable is set to 1 by the shell line the Docker lab's QEMU
+// guest runs (testqemu dockerLabCommand), so a refusal inside that guest names
+// the appliance kernel's own fix rather than an install into a throwaway VM.
+const DockerLabGuestVariable = "ZE_DOCKER_LAB_GUEST"
+
+// inDockerLabGuest reports whether this process runs inside the Docker lab's
+// QEMU guest. A var so a unit test names either answer.
+var inDockerLabGuest = func() bool { return os.Getenv(DockerLabGuestVariable) == "1" }
+
+// quotedGuestWords answers words as one single-quoted shell word for the
+// guest's `lab` or `env` keyword, and false when there are none or a word is
+// empty or holds white space or a quote: the guest splits the value on white
+// space, so such a word would not arrive as typed.
+func quotedGuestWords(words []string) (string, bool) {
+	if len(words) == 0 {
 		return "", false
 	}
-	for _, word := range lab {
+	for _, word := range words {
 		if word == "" {
 			return "", false
 		}
@@ -75,7 +102,33 @@ func quotedLabWords(lab []string) (string, bool) {
 			return "", false
 		}
 	}
-	return "'" + strings.Join(lab, " ") + "'", true
+	return "'" + strings.Join(words, " ") + "'", true
+}
+
+// selectorVariables holds the name of every scenario selector variable a suite
+// in this process declared to ReadEnvironment, so the route reruns a refused
+// lab under the same selection. The suites declare the names; nothing here
+// lists them.
+var selectorVariables sync.Map
+
+// selectorEnvironment answers the NAME=value selector assignments of this
+// process's run. A var so a unit test names an environment.
+var selectorEnvironment = invokedSelectorEnvironment
+
+// invokedSelectorEnvironment answers NAME=value, sorted by name, for every
+// declared selector variable set to a non-empty value in this process's
+// environment.
+func invokedSelectorEnvironment() []string {
+	var assignments []string
+	selectorVariables.Range(func(key, _ any) bool {
+		name, _ := key.(string)
+		if value, ok := os.LookupEnv(name); ok && strings.TrimSpace(value) != "" {
+			assignments = append(assignments, name+"="+strings.TrimSpace(value))
+		}
+		return true
+	})
+	slices.Sort(assignments)
+	return assignments
 }
 
 // leWords answers the le words of the command line this process runs, the
@@ -263,7 +316,7 @@ func appArmorRefusal(release, finding string) error {
 		Str(AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName)).
 		Str("\nThe profile lets the probe answer and adds no kernel feature: every feature the daemon's kernel (").
 		Str(release).Str(") lacks, MOBIKE's xfrm migrate for example, is then named.\n").
-		Str(DockerKernelRoute(runtime.GOOS, leWords())).String())
+		Str(DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment())).String())
 }
 
 // checkDockerKernel runs the probe and returns nil only when the answer holds at
@@ -348,7 +401,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	refusal.Str("the Docker daemon's kernel ").Str(release).Str(" lacks ").Str(strconv.Itoa(count)).
 		Str(" kernel feature(s) Ze needs (`").Str(strings.Join(kernelProbeCommand, " ")).Str("` answered):").
 		Str(missing.String()).
-		Byte('\n').Str(DockerKernelRoute(runtime.GOOS, leWords()))
+		Byte('\n').Str(DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment()))
 	if denied {
 		refusal.Str("\nA denied row is the host's security policy refusing the probe, not the kernel.").
 			Str(deniedFix(appArmor, deniedBySELinux))

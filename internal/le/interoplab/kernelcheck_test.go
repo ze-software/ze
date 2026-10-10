@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
+	buildhostdriver "github.com/ze-software/ze/internal/le/build/hostdriver"
 )
 
 // kernelCheckZe is a staged ze stand-in: a regular file, because the check
@@ -95,7 +96,7 @@ func TestDockerKernelRefusesNamingEveryMissingFeature(t *testing.T) {
 	if err == nil {
 		t.Fatal("a kernel lacking features was accepted")
 	}
-	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "invalid argument", "fake-later-enrolment", "CONFIG_FAKE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords())} {
+	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "invalid argument", "fake-later-enrolment", "CONFIG_FAKE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment())} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not name %q: %v", want, err)
 		}
@@ -221,7 +222,7 @@ func TestSuiteRefusesDockerHostMissingAKernelFeature(t *testing.T) {
 	if !staged {
 		t.Error("the kernel check ran without the Preflight that stages ze")
 	}
-	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords())} {
+	for _, want := range []string{"ipsec-mobike", "CONFIG_XFRM_MIGRATE", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment())} {
 		if !strings.Contains(report.SetupError, want) {
 			t.Errorf("setup error does not name %q: %s", want, report.SetupError)
 		}
@@ -288,28 +289,43 @@ func TestStagedZePathIsTheZeOutput(t *testing.T) {
 // macOS, where that install refuses. Review round 3, ISSUE 2: each command
 // stands on a line of its own and is the exact command, never a template: on
 // macOS it reruns the refused lab's own le words inside the guest.
-// PREVENTS: a Mac developer sent to an action that cannot run there, and a
-// route the reader must edit (`"<le words>"`) before it runs.
+// Review round 4, ISSUE 3: a run whose scenario a selector variable chose
+// reruns under the same assignment, through the guest's `env` keyword.
+// PREVENTS: a Mac developer sent to an action that cannot run there, a route
+// the reader must edit (`"<le words>"`) before it runs, and a route that reruns
+// the whole suite in place of the one scenario that was refused.
 func TestDockerKernelRouteNamesEachPlatformsNextStep(t *testing.T) {
+	originalGuest := inDockerLabGuest
+	t.Cleanup(func() { inDockerLabGuest = originalGuest })
+	inDockerLabGuest = func() bool { return false }
 	lab := []string{"test", "integration", "interop", "ipsec"}
+	selected := []string{"IPSEC_INTEROP_SCENARIO=mobike-responder"}
 	for _, tc := range []struct {
-		goos    string
-		lab     []string
-		command string
+		goos        string
+		lab         []string
+		environment []string
+		command     string
 	}{
-		{"linux", lab, "./le setup docker-kernel install"},
-		{"darwin", lab, "./le test qemu docker-lab lab 'test integration interop ipsec'"},
-		{"darwin", nil, "./le test qemu docker-lab"},
-		{"darwin", []string{"perf", "run", "name", "two words"}, "./le test qemu docker-lab"},
+		{"linux", lab, nil, "./le setup docker-kernel install"},
+		{"linux", lab, selected, "./le setup docker-kernel install"},
+		{"darwin", lab, nil, "./le test qemu docker-lab lab 'test integration interop ipsec'"},
+		{"darwin", lab, selected, "./le test qemu docker-lab lab 'test integration interop ipsec' env 'IPSEC_INTEROP_SCENARIO=mobike-responder'"},
+		{"darwin", lab, []string{"A=1", "B=2"}, "./le test qemu docker-lab lab 'test integration interop ipsec' env 'A=1 B=2'"},
+		// An assignment the guest's env keyword cannot carry intact would rerun
+		// the whole suite, so the route falls back to the kernel check alone.
+		{"darwin", lab, []string{"IPSEC_INTEROP_SCENARIO=it's"}, "./le test qemu docker-lab"},
+		{"darwin", nil, nil, "./le test qemu docker-lab"},
+		{"darwin", nil, selected, "./le test qemu docker-lab"},
+		{"darwin", []string{"perf", "run", "name", "two words"}, nil, "./le test qemu docker-lab"},
 	} {
-		route := DockerKernelRoute(tc.goos, tc.lab)
+		route := DockerKernelRoute(tc.goos, tc.lab, tc.environment)
 		requireCommandOnItsOwnLine(t, errors.New(route), tc.command)
 		if strings.Contains(route, "<") {
 			t.Errorf("%s route %q holds a template, not a command", tc.goos, route)
 		}
 	}
-	if strings.Contains(DockerKernelRoute("darwin", lab), "docker-kernel install") {
-		t.Errorf("the darwin route names the Linux-only install: %s", DockerKernelRoute("darwin", lab))
+	if strings.Contains(DockerKernelRoute("darwin", lab, nil), "docker-kernel install") {
+		t.Errorf("the darwin route names the Linux-only install: %s", DockerKernelRoute("darwin", lab, nil))
 	}
 }
 
@@ -335,13 +351,63 @@ func TestInvokedLeWordsReadTheCommandLine(t *testing.T) {
 	}
 }
 
+// VALIDATES: review round 4, NOTE 2. A refusal inside the Docker lab's QEMU
+// guest names the appliance kernel's own fix: its config files and the host's
+// kernel cache rebuild, each command on a line of its own.
+// PREVENTS: an install and a reboot prescribed for a throwaway VM whose kernel
+// is the appliance's, which changes nothing.
+func TestDockerKernelRouteInsideTheDockerLabGuest(t *testing.T) {
+	originalGuest := inDockerLabGuest
+	t.Cleanup(func() { inDockerLabGuest = originalGuest })
+	inDockerLabGuest = func() bool { return true }
+	route := DockerKernelRoute("linux", []string{"test", "integration", "interop-ipsec"}, nil)
+	if strings.Contains(route, "docker-kernel install") || strings.Contains(route, "reboot") {
+		t.Errorf("the guest route prescribes an install into the throwaway guest: %s", route)
+	}
+	for _, want := range []string{"gokrazy/kernel/runtime.config", "gokrazy/kernel/runtime.require"} {
+		if !strings.Contains(route, want) {
+			t.Errorf("the guest route does not name %s: %s", want, route)
+		}
+	}
+	for line := range strings.SplitSeq(buildhostdriver.RuntimeKernelBuild(runtime.GOARCH), "\n") {
+		requireCommandOnItsOwnLine(t, errors.New(route), strings.TrimSpace(line))
+	}
+}
+
+// VALIDATES: review round 4, ISSUE 3. The selector assignments the route
+// carries are the variables a suite declared to ReadEnvironment, read from
+// this process's environment, sorted, and none that is unset or blank.
+// PREVENTS: a refused IPSEC_INTEROP_SCENARIO run rerun in the guest as the
+// whole suite.
+func TestSelectorEnvironmentCarriesTheDeclaredSelectors(t *testing.T) {
+	t.Setenv("ZE_TEST_ROUTE_SELECTOR_B", "mobike-responder")
+	t.Setenv("ZE_TEST_ROUTE_SELECTOR_A", " ebgp ")
+	t.Setenv("ZE_TEST_ROUTE_SELECTOR_BLANK", " ")
+	t.Setenv("ZE_TEST_ROUTE_UNDECLARED", "x")
+	for _, name := range []string{"ZE_TEST_ROUTE_SELECTOR_B", "ZE_TEST_ROUTE_SELECTOR_A", "ZE_TEST_ROUTE_SELECTOR_BLANK", "ZE_TEST_ROUTE_SELECTOR_UNSET"} {
+		ReadEnvironment(EnvironmentOptions{SelectorVariable: name, Lookup: func(string) (string, bool) { return "", false }})
+	}
+	var got []string
+	for _, assignment := range invokedSelectorEnvironment() {
+		if strings.HasPrefix(assignment, "ZE_TEST_ROUTE_") {
+			got = append(got, assignment)
+		}
+	}
+	want := "ZE_TEST_ROUTE_SELECTOR_A=ebgp ZE_TEST_ROUTE_SELECTOR_B=mobike-responder"
+	if strings.Join(got, " ") != want {
+		t.Errorf("invokedSelectorEnvironment() = %q, want %q", got, want)
+	}
+}
+
 // VALIDATES: review round 3, ISSUE 2, on the refusal itself: a kernel lacking
 // a feature names the platform's route command on a line of its own, and on
 // macOS that command reruns the refused lab.
 func TestDockerKernelRefusalNamesTheExactRouteCommand(t *testing.T) {
-	original := leWords
-	t.Cleanup(func() { leWords = original })
-	leWords = func() []string { return []string{"test", "integration", "interop", "ipsec"} }
+	original, originalEnvironment, originalGuest := leWords, selectorEnvironment, inDockerLabGuest
+	t.Cleanup(func() { leWords, selectorEnvironment, inDockerLabGuest = original, originalEnvironment, originalGuest })
+	inDockerLabGuest = func() bool { return false }
+	leWords = func() []string { return []string{"test", "integration", "interop-ipsec"} }
+	selectorEnvironment = func() []string { return []string{"IPSEC_INTEROP_SCENARIO=mobike-responder"} }
 	answer := `{"ready": false, "capabilities": [
  {"subsystem": "ipsec-mobike", "kernel": "CONFIG_XFRM_MIGRATE", "state": "absent", "reason": "invalid argument"}]}`
 	err := checkDockerKernel(context.Background(), newDocker(scriptedKernel(answer, 1, nil)), kernelCheckZe)
@@ -350,7 +416,7 @@ func TestDockerKernelRefusalNamesTheExactRouteCommand(t *testing.T) {
 	}
 	command := "./le setup docker-kernel install"
 	if runtime.GOOS != "linux" {
-		command = "./le test qemu docker-lab lab 'test integration interop ipsec'"
+		command = "./le test qemu docker-lab lab 'test integration interop-ipsec' env 'IPSEC_INTEROP_SCENARIO=mobike-responder'"
 	}
 	requireCommandOnItsOwnLine(t, err, command)
 }
@@ -547,7 +613,7 @@ func TestDockerKernelUnloadedProfileOnAnUnreadableListNamesTheFix(t *testing.T) 
 		t.Fatal("a profile the daemon could not apply proceeded")
 	}
 	requireCommandOnItsOwnLine(t, err, AppArmorLoadCommandFor(kernelcap.ProbeAppArmorProfileName))
-	for _, want := range []string{"ze-kernel-probe", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords())} {
+	for _, want := range []string{"ze-kernel-probe", "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment())} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}
@@ -568,7 +634,7 @@ func TestDockerKernelUnloadedProfileNamesTheKernelRoute(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unloaded profile proceeded")
 	}
-	for _, want := range []string{"6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords())} {
+	for _, want := range []string{"6.8.0-117-generic", DockerKernelRoute(runtime.GOOS, leWords(), selectorEnvironment())} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q: %v", want, err)
 		}

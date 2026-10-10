@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	buildhostdriver "github.com/ze-software/ze/internal/le/build/hostdriver"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -156,7 +157,7 @@ func BuildLinuxZe(root, goarch string) (string, error) {
 	admission.Out = os.Stderr
 
 	output := filepath.Join(root, GuestZeRel(goarch))
-	environment := append(toolchain.Environment(gotoolchain.EnvOptions{GOOS: "linux", GOARCH: goarch}),
+	environment := append(toolchain.Environment(gotoolchain.EnvOptions{GOOS: guestOS, GOARCH: goarch}),
 		linuxle.Overrides(goarch)...)
 	argv := []string{"go", "build", tagsFlag, tags, "-o", output, zeMainPackage}
 	if _, code := admission.Run("qemu-build-ze", argv, root, environment); code != 0 {
@@ -203,14 +204,16 @@ func environmentName(name string) bool {
 // dockerLabCommand is the shell line the guest runs from GuestWorkspace: start
 // dockerd, wait a bounded time for it to answer, run the Docker kernel check
 // probing with the guest ze, then run the lab as `le <lab>`, under `env` with
-// the lab's assignments when it has any.
+// the lab's assignments when it has any. It exports
+// interoplab.DockerLabGuestVariable first, so a refusal names the appliance
+// kernel's fix rather than an install into this throwaway guest.
 // `set -e` stops the line at the first step that fails, so no lab runs on a
 // daemon that never answered or a kernel that failed the check.
 func dockerLabCommand(goarch string, lab, environment []string) string {
 	guestLe := shellQuote(filepath.ToSlash(filepath.Join(GuestWorkspace, GuestLeRel(goarch))))
 	guestZe := shellQuote(filepath.ToSlash(filepath.Join(GuestWorkspace, GuestZeRel(goarch))))
 	var b textbuf.Buffer
-	b.Str("set -e; rc-service docker start; ").
+	b.Str("set -e; export ").Str(interoplab.DockerLabGuestVariable).Str("=1; rc-service docker start; ").
 		Str("timeout ").Str(dockerReadySeconds).
 		Str(" sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done' || ").
 		Str("{ echo 'dockerd did not answer within ").Str(dockerReadySeconds).Str("s' >&2; exit 1; }; ").

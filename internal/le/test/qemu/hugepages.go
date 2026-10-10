@@ -86,6 +86,10 @@ const (
 	ArchAMD64 = "amd64"
 )
 
+// guestOS is the GOOS of every binary cross-built to run inside the guest: the
+// appliance, and the Docker lab's guest, are Linux whatever the host is.
+const guestOS = "linux"
+
 // ApplianceName is what the appliance built for this proof is called. It is
 // fixed rather than derived, because the run makes its own directory for each
 // invocation and two runs therefore never share one.
