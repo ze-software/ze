@@ -352,6 +352,19 @@ TWO durable Go caches: `cache/go-cache`, which every le action writes, and
 (see "A verify worktree shares that cache" below). Naming each cache path rather
 than the checkout is what makes `df` answer correctly.
 
+The built kernels under the same per-user target, `~/.cache/ze/runtime-kernel/`
+and `~/.cache/ze/installer-kernel/`, are NOT a reclamation target, and no
+cleanup removes them: not `./le scratch cache-clean`, not the store trim, and
+not a hand `rm` while recovering a full disk. A cold kernel build takes about
+thirty minutes, the arm64 kernel is built on the Mac and the amd64 kernel on the
+Linux host, and neither host can rebuild the other's. The only thing that
+removes an entry is the eviction after a newer build, which keeps the two newest
+entries of each architecture and never the entry the current tree resolves to
+(`evictKeepN`, `internal/appliance/cache.go`).
+`TestCleanTargetsNeverReachTheKernelCache` (`internal/le/scratch`) fails when a
+clean or trim target reaches into either directory.
+<!-- source: internal/appliance/cache.go -- KernelCacheNamespaces, evictKeepN -->
+
 `stat -f` is NOT the command to reach for, and the 2026-09-12 and 2026-09-13
 rows in the class file are both that mistake. On macOS `stat -f` takes a FORMAT
 string, so `stat -f cache/go-cache` prints `cache/go-cache` back and diagnoses

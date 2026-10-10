@@ -277,7 +277,12 @@ func runKernel(args []string) int {
 		if td.isTree {
 			ns = runtimeKernelCacheDir
 		}
-		evictKeepN(filepath.Join(resolveCacheDir(), ns))
+		current, err := kernelCachePathFor(*versionFlag, arch, profile, target)
+		if err != nil {
+			cliErrorf("%v", err)
+			return exitError
+		}
+		evictKeepN(filepath.Join(resolveCacheDir(), ns), current)
 		return exitOK
 	}
 
@@ -389,7 +394,7 @@ func resolveInstallerKernel(version, arch, profile, builder string, td kernelTar
 	if err := copyToToolsPath(cached, toolsDst); err != nil {
 		fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, err) //nolint:errcheck // CLI warning
 	}
-	evictKeepN(filepath.Join(resolveCacheDir(), kernelCacheDir))
+	evictKeepN(filepath.Join(resolveCacheDir(), kernelCacheDir), cached)
 	return cached, nil
 }
 
@@ -428,7 +433,7 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 	if err := copyTree(td.outputDir, cachedDir); err != nil {
 		return "", fmt.Errorf("cache runtime kernel tree: %w", err)
 	}
-	evictKeepN(filepath.Join(resolveCacheDir(), runtimeKernelCacheDir))
+	evictKeepN(filepath.Join(resolveCacheDir(), runtimeKernelCacheDir), cachedDir)
 	return cachedDir, nil
 }
 

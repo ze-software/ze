@@ -95,7 +95,7 @@ func TestEvictKeepN(t *testing.T) {
 	evictNow = func() time.Time { return now }
 	evictGrace = 10 * time.Minute
 
-	evictKeepN(ns)
+	evictKeepN(ns, "")
 
 	exists := func(name string) bool {
 		_, err := os.Stat(filepath.Join(ns, name))
@@ -198,7 +198,7 @@ func TestEvictKeepNStagingDirs(t *testing.T) {
 	evictNow = func() time.Time { return now }
 	evictGrace = 10 * time.Minute
 
-	evictKeepN(ns)
+	evictKeepN(ns, "")
 
 	exists := func(name string) bool {
 		_, err := os.Stat(filepath.Join(ns, name))
@@ -244,12 +244,59 @@ func TestEvictKeepNReapsStagingBelowKeepN(t *testing.T) {
 	evictNow = func() time.Time { return now }
 	evictGrace = 10 * time.Minute
 
-	evictKeepN(ns)
+	evictKeepN(ns, "")
 
 	if _, err := os.Stat(filepath.Join(ns, ".copytree-orphan")); err == nil {
 		t.Error("orphaned staging must be reaped even when real keys are within keep-N")
 	}
 	if _, err := os.Stat(filepath.Join(ns, "only-key")); err != nil {
 		t.Error("the single real key must be retained")
+	}
+}
+
+// VALIDATES: AC-15 of spec-appliance-ships-ze-kernel. Eviction keeps the newest
+// entries of EACH architecture, so arm64 rebuilds never evict the amd64 kernel
+// the Linux host built, and the entry the current tree resolves to survives
+// even when it is the oldest of its arch.
+// Method: one amd64 entry, the current arm64 entry (oldest), and three newer
+// arm64 entries, all past the grace window, then one eviction pass.
+func TestEvictKeepsNewestPerArchAndTheCurrentEntry(t *testing.T) {
+	ns := t.TempDir()
+	now := time.Now()
+	mk := func(name string, ageMin int) {
+		dir := filepath.Join(ns, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		at := now.Add(-time.Duration(ageMin) * time.Minute)
+		if err := os.Chtimes(dir, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk("7.2.9-runtime-amd64-runtime-aaaa-bbbb", 500)
+	mk("7.2.9-runtime-arm64-runtime-cur0-bbbb", 400)
+	mk("7.2.9-runtime-arm64-runtime-old1-bbbb", 300)
+	mk("7.2.9-runtime-arm64-runtime-new2-bbbb", 200)
+	mk("7.2.9-runtime-arm64-runtime-new3-bbbb", 100)
+
+	origNow, origGrace := evictNow, evictGrace
+	t.Cleanup(func() { evictNow, evictGrace = origNow, origGrace })
+	evictNow = func() time.Time { return now }
+	evictGrace = 10 * time.Minute
+
+	evictKeepN(ns, filepath.Join(ns, "7.2.9-runtime-arm64-runtime-cur0-bbbb", "vmlinuz"))
+
+	want := map[string]bool{
+		"7.2.9-runtime-amd64-runtime-aaaa-bbbb": true,  // only amd64 entry
+		"7.2.9-runtime-arm64-runtime-cur0-bbbb": true,  // the current variant
+		"7.2.9-runtime-arm64-runtime-old1-bbbb": false, // third newest arm64
+		"7.2.9-runtime-arm64-runtime-new2-bbbb": true,
+		"7.2.9-runtime-arm64-runtime-new3-bbbb": true,
+	}
+	for name, kept := range want {
+		_, err := os.Stat(filepath.Join(ns, name))
+		if kept != (err == nil) {
+			t.Errorf("%s: kept=%v, want %v", name, err == nil, kept)
+		}
 	}
 }

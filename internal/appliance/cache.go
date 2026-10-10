@@ -66,6 +66,16 @@ func resolveCacheDir() string {
 	return filepath.Join(home, ".cache", cacheSubdir)
 }
 
+// KernelCacheNamespaces returns the cache directories that hold built kernels.
+// A cold kernel build takes about thirty minutes, and each arch is built on its
+// own host, so no cleanup or disk-full recovery may remove them; the only thing
+// that removes an entry is evictKeepN, after a newer build of the same arch.
+// internal/le/scratch tests that no clean or trim target reaches into them.
+func KernelCacheNamespaces() []string {
+	root := resolveCacheDir()
+	return []string{filepath.Join(root, kernelCacheDir), filepath.Join(root, runtimeKernelCacheDir)}
+}
+
 func kernelCachePath(version, variant string) string {
 	var tb textbuf.Buffer
 	return filepath.Join(resolveCacheDir(), kernelCacheDir, tb.Str(version).Byte('-').Str(variant).String(), kernelFileName)
@@ -454,12 +464,19 @@ func walkCopyInto(src, dst string) error {
 }
 
 // evictKeepN bounds a cache namespace directory to the evictKeepDefault most-recently-
-// modified entries, removing older ones so a version/config bump reclaims what it supersedes
-// (AC-4). It is called ONLY after a new entry is populated (key-change-only, never on a
+// modified entries FOR EACH ARCHITECTURE, removing older ones so a version/config bump
+// reclaims what it supersedes (AC-4). Entries are grouped by the arch field of their name
+// (cacheEntryArch), so rebuilding one arch never evicts the other: an amd64 kernel comes
+// from the Linux host and an arm64 one from the Mac, each a cold build of about thirty
+// minutes that the other host cannot redo. current is a path inside the namespace naming
+// the entry the running tree's variant resolves to; that entry is never removed, whatever
+// its age. Empty current protects nothing extra.
+//
+// It is called ONLY after a new entry is populated (key-change-only, never on a
 // wall-clock timer), and it never removes an entry modified within evictGrace, since a
 // concurrent run may be materializing or booting it (R-1/AC-8). Errors are swallowed:
 // eviction is a best-effort space bound, never a correctness gate.
-func evictKeepN(nsDir string) {
+func evictKeepN(nsDir, current string) {
 	entries, err := os.ReadDir(nsDir)
 	if err != nil {
 		return
@@ -468,8 +485,9 @@ func evictKeepN(nsDir string) {
 		name  string
 		mtime time.Time
 	}
+	protected := cacheEntryName(nsDir, current)
 	cutoff := evictNow().Add(-evictGrace)
-	dirs := make([]ent, 0, len(entries))
+	byArch := make(map[string][]ent)
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -487,18 +505,54 @@ func evictKeepN(nsDir string) {
 			}
 			continue
 		}
-		dirs = append(dirs, ent{e.Name(), info.ModTime()})
+		arch := cacheEntryArch(e.Name())
+		byArch[arch] = append(byArch[arch], ent{e.Name(), info.ModTime()})
 	}
-	if len(dirs) <= evictKeepDefault {
-		return
-	}
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].mtime.After(dirs[j].mtime) })
-	for _, d := range dirs[evictKeepDefault:] {
-		if d.mtime.After(cutoff) {
-			continue // too fresh to be safe: leave garbage over racing a live run
+	for _, dirs := range byArch {
+		if len(dirs) <= evictKeepDefault {
+			continue
 		}
-		_ = os.RemoveAll(filepath.Join(nsDir, d.name)) //nolint:errcheck // best-effort
+		sort.Slice(dirs, func(i, j int) bool { return dirs[i].mtime.After(dirs[j].mtime) })
+		for _, d := range dirs[evictKeepDefault:] {
+			if d.name == protected {
+				continue // the entry the current tree resolves to
+			}
+			if d.mtime.After(cutoff) {
+				continue // too fresh to be safe: leave garbage over racing a live run
+			}
+			_ = os.RemoveAll(filepath.Join(nsDir, d.name)) //nolint:errcheck // best-effort
+		}
 	}
+}
+
+// cacheEntryArch returns the architecture field of a kernel cache entry name,
+// "<version>-<target>-<arch>-<profile>[-<config hash>-<builder hash>]" as
+// kernelCachePath and kernelTreeCachePath build it. The version holds no hyphen,
+// so the arch is the third field. A name of another shape returns "", and all
+// such names share one group.
+func cacheEntryArch(name string) string {
+	fields := strings.SplitN(name, "-", 4)
+	if len(fields) < 4 {
+		return ""
+	}
+	return fields[2]
+}
+
+// cacheEntryName returns the first component of path below nsDir, which is the
+// cache entry path lives in, or "" when path is empty or outside nsDir.
+func cacheEntryName(nsDir, path string) string {
+	if path == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(nsDir, path)
+	if err != nil {
+		return ""
+	}
+	name, _, _ := strings.Cut(filepath.ToSlash(rel), "/")
+	if name == "" || name == "." || name == ".." {
+		return ""
+	}
+	return name
 }
 
 func copyRegularFile(src, dst string) error {
