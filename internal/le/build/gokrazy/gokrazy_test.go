@@ -37,6 +37,14 @@ func fakeRuntimeKernel(t *testing.T) *[]string {
 		if err := os.WriteFile(filepath.Join(tree, "vmlinuz"), image, 0o644); err != nil {
 			t.Fatal(err)
 		}
+		// The provenance a 7.2.9 build writes; Prepare derives the image's GPLv2
+		// notice from it and refuses a tree without one.
+		provenance := "version=7.2.9\ntarget=runtime\nprofile=runtime\narch=" + arch + "\nmodules=yes\nbuilder=docker\n" +
+			"source-url=https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz\n" +
+			"source-sha256=b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba\n"
+		if err := os.WriteFile(filepath.Join(tree, "kernel.version"), []byte(provenance), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		return tree, nil
 	}
 	t.Cleanup(func() { runtimeKernelTreeFn = old })

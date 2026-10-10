@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/appliance/instance"
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 )
 
 // kernelImageMagic is where a vmlinuz of each arch carries its header magic.
@@ -34,6 +35,17 @@ func writeRuntimeKernelTree(t *testing.T, dir, arch string) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(release, "modules.builtin"), []byte("kernel/net/mpls/mpls_router.ko\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The provenance a build writes; Prepare derives the image's GPLv2 notice
+	// from it and refuses a tree without one.
+	digest, tracked := kernelbuilder.SourceDigest(defaultKernelVersion)
+	if !tracked {
+		t.Fatalf("kernel %s has no tracked digest", defaultKernelVersion)
+	}
+	provenance := "version=" + defaultKernelVersion + "\ntarget=runtime\nprofile=runtime\narch=" + arch + "\nmodules=yes\nbuilder=docker\n" +
+		"source-url=https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-" + defaultKernelVersion + ".tar.xz\nsource-sha256=" + digest + "\n"
+	if err := os.WriteFile(filepath.Join(dir, kernelbuilder.ProvenanceName), []byte(provenance), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

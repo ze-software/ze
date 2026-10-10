@@ -6,6 +6,7 @@
 package instance
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,8 +14,68 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// The image carries the kernel's GPLv2 notice as a file in its root file system,
+// through the ExtraFileContents of the ze package, which every appliance image
+// builds. gokrazy copies only lib/modules from a kernel package into the root
+// (packerbuild.go in the vendored packer), so the kernel package cannot carry it.
+const (
+	noticePackage   = "github.com/ze-software/ze/cmd/ze"
+	linuxNoticePath = "/etc/linux-gpl-notice"
+)
+
+// addLinuxNotice returns config with the GPLv2 notice for the kernel in tree
+// added to noticePackage's ExtraFileContents, preserving every other field. The
+// notice derives from the tree's own provenance (kernelbuilder.ReadProvenance),
+// so it names the version built and the source the build verified. A tree with
+// no provenance, or one recorded before the source was, is refused: the image
+// would ship a kernel whose source it cannot name.
+func addLinuxNotice(config []byte, tree string) ([]byte, error) {
+	record, err := kernelbuilder.ReadProvenance(filepath.Join(tree, kernelbuilder.ProvenanceName))
+	if err != nil {
+		return nil, fmt.Errorf("kernel package: %w", err)
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(config, &obj); err != nil {
+		return nil, fmt.Errorf("parse instance config: %w", err)
+	}
+	packages := make(map[string]map[string]json.RawMessage)
+	if raw, ok := obj["PackageConfig"]; ok {
+		if err := json.Unmarshal(raw, &packages); err != nil {
+			return nil, fmt.Errorf("parse PackageConfig: %w", err)
+		}
+	}
+	pkg := packages[noticePackage]
+	if pkg == nil {
+		pkg = make(map[string]json.RawMessage)
+	}
+	files := make(map[string]string)
+	if raw, ok := pkg["ExtraFileContents"]; ok {
+		if err := json.Unmarshal(raw, &files); err != nil {
+			return nil, fmt.Errorf("parse ExtraFileContents of %s: %w", noticePackage, err)
+		}
+	}
+	if _, taken := files[linuxNoticePath]; taken {
+		return nil, fmt.Errorf("instance config already places a file at %s, where the image's Linux GPLv2 notice goes", linuxNoticePath)
+	}
+	files[linuxNoticePath] = record.LinuxNotice()
+
+	if pkg["ExtraFileContents"], err = json.Marshal(files); err != nil {
+		return nil, fmt.Errorf("encode ExtraFileContents: %w", err)
+	}
+	packages[noticePackage] = pkg
+	if obj["PackageConfig"], err = json.Marshal(packages); err != nil {
+		return nil, fmt.Errorf("encode PackageConfig: %w", err)
+	}
+	out, err := json.MarshalIndent(obj, "", "    ")
+	if err != nil {
+		return nil, fmt.Errorf("encode instance config: %w", err)
+	}
+	return out, nil
+}
 
 // KernelModule is the module path of the appliance kernel package. gokrazy
 // resolves the instance's KernelPackage through the builddir module that

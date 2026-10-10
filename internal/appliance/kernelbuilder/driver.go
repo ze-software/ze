@@ -19,7 +19,7 @@ const (
 	defaultBuilderDir      = "tools/kernel-builder"
 	defaultCommonDir       = "tools/kernel-builder/common"
 	defaultImage           = "ze-kernel-builder"
-	provenanceName         = "kernel.version"
+	ProvenanceName         = "kernel.version"
 	ownershipRepairTimeout = 2 * time.Minute
 
 	archAMD64   = "amd64"
@@ -389,7 +389,7 @@ func writeProvenance(outputDir string, req Request, backend string) error {
 		Str("\nsource-url=").Str(kernelTarballURL(req.Version)).
 		Str("\nsource-sha256=").Str(digest).
 		Str("\n").Bytes()
-	if err := os.WriteFile(filepath.Join(path, provenanceName), data, 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(path, ProvenanceName), data, 0o600); err != nil {
 		return fmt.Errorf("write kernel provenance: %w", err)
 	}
 	return nil

@@ -206,7 +206,7 @@ func TestWriteProvenanceBytes(t *testing.T) {
 	if err := writeProvenance("out", req, "qemu"); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(root, "out", provenanceName))
+	data, err := os.ReadFile(filepath.Join(root, "out", ProvenanceName))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestWriteProvenanceSourceIsTheVerifiedOne(t *testing.T) {
 	if err := writeProvenance("out", req, "docker"); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(root, "out", provenanceName))
+	data, err := os.ReadFile(filepath.Join(root, "out", ProvenanceName))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,7 +256,7 @@ func TestWriteProvenanceRefusesUntrackedSource(t *testing.T) {
 	if !strings.Contains(err.Error(), "7.2.3") {
 		t.Errorf("refusal %q does not name the version", err)
 	}
-	if _, statErr := os.Stat(filepath.Join(root, "out", provenanceName)); !errors.Is(statErr, os.ErrNotExist) {
+	if _, statErr := os.Stat(filepath.Join(root, "out", ProvenanceName)); !errors.Is(statErr, os.ErrNotExist) {
 		t.Errorf("a refused provenance left a file behind: %v", statErr)
 	}
 }

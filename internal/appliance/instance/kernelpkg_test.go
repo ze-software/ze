@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -8,11 +9,14 @@ import (
 	"testing"
 
 	"golang.org/x/mod/modfile"
+
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 )
 
 // writeKernelTree lays out a runtime kernel cache entry for arch: a vmlinuz
 // carrying the arch's header magic, a modules tree with a dangling build link
-// (as modules_install leaves it), a device tree and an overlay.
+// (as modules_install leaves it), a device tree, an overlay, and the provenance
+// a 7.2.9 build writes, from which Prepare derives the image's GPLv2 notice.
 func writeKernelTree(t *testing.T, arch string) string {
 	t.Helper()
 	tree := filepath.Join(t.TempDir(), "7.2.9-runtime-"+arch)
@@ -34,6 +38,9 @@ func writeKernelTree(t *testing.T, arch string) string {
 	write(filepath.Join(release, "modules.builtin"), []byte("kernel/net/mpls/mpls_router.ko\n"))
 	write(filepath.Join(tree, "board.dtb"), []byte("dtb"))
 	write(filepath.Join(tree, overlaysName, "overlay_map.dtb"), []byte("map"))
+	write(filepath.Join(tree, kernelbuilder.ProvenanceName), []byte("version=7.2.9\ntarget=runtime\nprofile=runtime\narch="+arch+"\nmodules=yes\nbuilder=docker\n"+
+		"source-url=https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz\n"+
+		"source-sha256=b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba\n"))
 	if err := os.Symlink("/nonexistent/kernel/source", filepath.Join(release, "build")); err != nil {
 		t.Fatal(err)
 	}
@@ -209,6 +216,72 @@ func TestPrepareRefusesWithoutKernelPackage(t *testing.T) {
 	}
 	if _, statErr := os.Stat(filepath.Join(root, "tmp")); !os.IsNotExist(statErr) {
 		t.Errorf("a refused Prepare created project tmp/: %v", statErr)
+	}
+}
+
+// VALIDATES: AC-17. The prepared instance config gives the image a GPLv2 notice
+// for its kernel, and the notice is the one the kernel tree's own provenance
+// answers: the version built, the tarball URL and the SHA-256 verified.
+// PREVENTS: an image that ships Linux with no notice, or with a notice naming
+// another kernel than the one in its package.
+func TestPrepareCarriesTheLinuxNotice(t *testing.T) {
+	_, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze","PackageConfig":{"`+noticePackage+`":{"CommandLineFlags":["start"]}}}`))
+	opts := testOptions(t)
+
+	parent, cleanup, err := Prepare(srcParent, opts)
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	defer cleanup()
+
+	data, err := os.ReadFile(filepath.Join(parent, Name, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		PackageConfig map[string]struct {
+			CommandLineFlags  []string
+			ExtraFileContents map[string]string
+		}
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("parse prepared config: %v", err)
+	}
+	record, err := kernelbuilder.ReadProvenance(filepath.Join(opts.KernelTree, kernelbuilder.ProvenanceName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg := cfg.PackageConfig[noticePackage]
+	if got := pkg.ExtraFileContents[linuxNoticePath]; got != record.LinuxNotice() {
+		t.Errorf("image notice at %s = %q, want the kernel tree's %q", linuxNoticePath, got, record.LinuxNotice())
+	}
+	if !strings.Contains(pkg.ExtraFileContents[linuxNoticePath], "Version: 7.2.9\n") {
+		t.Errorf("notice does not name the tree's kernel 7.2.9:\n%s", pkg.ExtraFileContents[linuxNoticePath])
+	}
+	if len(pkg.CommandLineFlags) != 1 {
+		t.Errorf("the notice dropped the package's other settings: %+v", pkg)
+	}
+}
+
+// VALIDATES: a kernel tree with no provenance is refused before anything is
+// created, naming the record.
+// PREVENTS: an image built from a kernel whose source nobody can name.
+func TestPrepareRefusesAKernelWithoutProvenance(t *testing.T) {
+	_, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze"}`))
+	opts := testOptions(t)
+	if err := os.Remove(filepath.Join(opts.KernelTree, kernelbuilder.ProvenanceName)); err != nil {
+		t.Fatal(err)
+	}
+
+	_, cleanup, err := Prepare(srcParent, opts)
+	if cleanup != nil {
+		cleanup()
+	}
+	if err == nil {
+		t.Fatal("Prepare accepted a kernel tree with no provenance")
+	}
+	if !strings.Contains(err.Error(), kernelbuilder.ProvenanceName) {
+		t.Errorf("refusal does not name %s: %v", kernelbuilder.ProvenanceName, err)
 	}
 }
 

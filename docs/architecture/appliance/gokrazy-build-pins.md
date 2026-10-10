@@ -289,3 +289,17 @@ configuration, patches and build scripts are in the public Ze repository, and th
 kernel source is not re-published.
 
 <!-- source: internal/appliance/kernelbuilder/worker.go -- kernelSourceSHA256, verifyKernelSource -->
+
+The notice is the file `/etc/linux-gpl-notice` in the image's root file system.
+The build records its source in the `kernel.version` provenance beside each
+built kernel: `source-url`, the tarball URL `downloadKernelSource` fetched, and
+`source-sha256`, the tracked digest `verifyKernelSource` checked. `instance.Prepare`
+reads that record from the resolved kernel tree and adds the notice to the ze
+package's `ExtraFileContents` in the prepared `config.json`; gokrazy copies only
+`lib/modules` from a kernel package into the root, so the kernel package cannot
+carry it. A kernel tree with no provenance, or one built before the build recorded
+its source, is refused with the field it lacks, and the kernel is rebuilt.
+
+<!-- source: internal/appliance/kernelbuilder/driver.go -- writeProvenance -->
+<!-- source: internal/appliance/kernelbuilder/provenance.go -- ReadProvenance, Provenance.LinuxNotice -->
+<!-- source: internal/appliance/instance/kernelpkg.go -- addLinuxNotice, linuxNoticePath -->

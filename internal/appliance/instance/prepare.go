@@ -140,6 +140,10 @@ func Prepare(srcParent string, opts Options) (string, func(), error) {
 	if err := checkKernelArch(filepath.Join(opts.KernelTree, vmlinuzName), opts.Arch); err != nil {
 		return "", nil, fmt.Errorf("kernel package: %w", err)
 	}
+	patched, err = addLinuxNotice(patched, opts.KernelTree)
+	if err != nil {
+		return "", nil, err
+	}
 
 	// Project tmp/, never the system temp dir (ai/rules/testing.md). srcParent is
 	// <repo>/gokrazy, so its parent is the repo root whatever the caller's cwd is.
