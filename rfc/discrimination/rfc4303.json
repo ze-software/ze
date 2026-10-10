@@ -75,7 +75,7 @@
       "claim-sha": "b069f21d92cf23e6",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "5b85e21fdd7a760d",
+      "producer-sha": "9712f345129b9c17",
       "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "a3f9b45600b981ee",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "5b85e21fdd7a760d",
+      "producer-sha": "9712f345129b9c17",
       "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

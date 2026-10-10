@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- the childless IKE SA
-// Related: auth_child_refusal_test.go -- how an IKE SA becomes childless
+// Related: rfc7296_auth_child_refusal_test.go -- how an IKE SA becomes childless
 
 package engine
 

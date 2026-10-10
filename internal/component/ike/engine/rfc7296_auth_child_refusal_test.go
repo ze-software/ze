@@ -111,6 +111,12 @@ func crfAuthRefusingChild(t *testing.T, refusal crfRefusal, log *slog.Logger) (i
 //
 // RFC 7296 Section 2.21.2: "the initiator MUST NOT fail the authentication because of
 // this." The f0006faaa2 delete-and-back-off this replaces is gone (owner decision Q-1).
+//
+// RFC requirement: RFC7296-2.21.2-2 positive -- handleAuthResponse (fsm.go) accepts an
+// IKE_AUTH response whose AUTH verifies and which carries NO_PROPOSAL_CHOSEN in place of
+// SAr2: the SA is established, marked childless, and no Delete is sent.
+// RFC requirement: RFC7296-2.21.2-2 negative -- the same response with a corrupted AUTH
+// leaves the SA dead, so the authentication verdict comes from AUTH and not the notify.
 func TestInitiatorKeepsChildlessIKESA(t *testing.T) {
 	var buf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
