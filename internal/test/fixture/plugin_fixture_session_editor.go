@@ -280,8 +280,7 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 	defer terminal.Close() //nolint:errcheck // fixture teardown
 	defer func() {
 		if cmd.ProcessState == nil {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
+			_, _ = killSessionEditor(cmd, terminal) //nolint:errcheck // fixture teardown after a failed step
 		}
 	}()
 
@@ -307,8 +306,9 @@ func sessionEditorRun(ctx context.Context, env []string, config string, steps []
 		case sessionEditorKey:
 			_, err = terminal.WriteString(sessionEditorKeys[step.text])
 		case sessionEditorKill:
-			err = cmd.Process.Kill()
-			_ = cmd.Wait() //nolint:errcheck // a killed client exits with the signal, which is the point
+			var tail string
+			tail, err = killSessionEditor(cmd, terminal)
+			transcript.WriteString(tail)
 			killed = true
 		case sessionEditorUnspecified:
 			panic("BUG: parseSessionEditorScript produced an unspecified step")
@@ -365,4 +365,18 @@ func sessionEditorPoll(ctx context.Context, env []string, command, needle string
 		return fmt.Errorf("%q never held %q; last output:\n%s", command, needle, last)
 	}
 	return fmt.Errorf("%q still held %q; last output:\n%s", command, needle, last)
+}
+
+// killSessionEditor kills the client, reads its terminal to the end, and reaps
+// it. The read is what lets it exit: a script that only sends and polls the
+// daemon leaves the client's output unread, and a process whose controlling
+// terminal holds unread output waits on its exit for that output to drain, so
+// a bare Kill then Wait never returns. It answers what the drain read.
+func killSessionEditor(cmd *exec.Cmd, terminal *os.File) (string, error) {
+	// A client that already exited still has to be drained and reaped, so a
+	// failed Kill is answered only after both.
+	killErr := cmd.Process.Kill()
+	tail, _ := readPTYUntil04(terminal, nil, true) //nolint:errcheck // the drain ends at EOF or its deadline; Wait below is the answer
+	_ = cmd.Wait()                                 //nolint:errcheck // a killed client exits with the signal, which is the point
+	return tail, killErr
 }

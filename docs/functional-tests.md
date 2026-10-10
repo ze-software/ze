@@ -361,12 +361,15 @@ before it arrives as its differing tail alone, so its full text never appears.
 Put a command with a different status between two such lines, as
 `session-editor-deactivate-activate.ci` does with `show | changes`. A failing step names its number and carries the editor transcript.
 The driver types `quit` after the last step and fails when the editor exits
-non-zero; after a `kill` it types nothing, because the client is gone. With
+non-zero; after a `kill` it types nothing, because the client is gone. `kill`
+reads the client's terminal to the end before reaping it: output the script
+never waited for (a countdown redrawn during a run of `has` polls) fills the
+terminal, and a killed client cannot exit until that output is read. With
 changes still pending, `quit` asks for confirmation and the editor never exits,
 so a script that leaves its changes pending ends with `kill`, as both users in
 `session-editor-load-conflict.ci` do. The `test/plugin/session-editor-*.ci` files use it.
 
-<!-- source: internal/test/fixture/plugin_fixture_session_editor.go -- sessionEditorDriver, parseSessionEditorScript, sessionEditorRun -->
+<!-- source: internal/test/fixture/plugin_fixture_session_editor.go -- sessionEditorDriver, parseSessionEditorScript, sessionEditorRun, killSessionEditor -->
 
 ### Changing a live test that already passes
 
