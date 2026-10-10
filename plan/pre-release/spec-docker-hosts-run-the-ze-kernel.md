@@ -391,6 +391,29 @@ Round 1's fixes start at `c4bd4708ed`. Commits since then, for an independent re
 
 Gates at hand-off: `./le cli grammar` fails on five R1 rows (`explain`, `generate wireguard keypair`, `skills`, `support`, `validate config`), none a verb this spec added (`plan/journal/gate-fires-outside-its-population.md`, 2026-10-10). Scoped lint (kernelcap, doctor, interoplab, interoplab/bgp, setup) produced no verdict twice: "lint inputs changed during planning", other sessions editing the tree. Owed: that scoped lint when edits stop, `./le go lint run`, `./le test unit all`, and the owner's scope answer on the six `--privileged`/`seccomp=unconfined` rows (D-7 verdict table).
 
+Round 2 verdict (independent reviewer, 2026-10-10): 1 BLOCKER, 2 ISSUE, 8 NOTE over `c4bd4708ed..ba7af683c6`.
+
+| # | Severity | Finding | Resolution |
+|---|----------|---------|------------|
+| 1 | BLOCKER | `ze-lab-vrrp` denied `net/ipv4/icmp_errors_use_inbound_ifaddr`, which VRRP writes | `84d07bf11c`: VRRP lab ze runs under the shared `ze-lab-net-sysctl`; `ze-lab-vrrp` deleted; `TestVRRPWritesOnlyLabGrantedSysctls` derives the grant from VRRP's own writes |
+| 2 | ISSUE | fake dockers answered the security-options query empty, so four D-4 entry-point tests were red | `4147096555` |
+| 3 | ISSUE | perf probed an unstaged `test/interop/ze-linux` | `6d423d8c60`: `Bench.Run` stages first, `checkDockerKernel` refuses a missing ze path |
+| 4 | NOTE | an SELinux denial named the AppArmor fix | `3aad367c33` |
+| 5 | NOTE | profile list read on the local host with a remote daemon | journal `gate-verdict-depends-on-the-machine.md` |
+| 6 | NOTE | only runc's unapplied-profile phrase recognised | journal `failing-gate-prints-no-cause.md` |
+| 7 | NOTE | force-variable description omitted `denied` | round 3 commit: `forcedSpellings` is the one declaration, description built from it, `TestForceGrammarNamesEveryForcibleState` |
+| 8 | NOTE | `ze-kernel-probe` lacks docker-default's daemon-profile signal rule | journal `helper-bypassed-by-an-open-coded-copy.md` |
+| 9 | NOTE | fix command mid-sentence in three refusals | round 3 commit: command on a line of its own in `appArmorRefusal`, the denied-row text, `labAppArmorProfileMissing`, `installConfirmed`; tests assert the line |
+| 10 | NOTE | proof.json under the package dir | already journalled, `test-artifacts-land-in-the-repository-root.md` |
+| 11 | NOTE | non-zetest `ZE_BIN` accepted | already journalled, `feature-test-missing-build-tag.md` |
+| perf | NOTE | a build-only perf run builds the ze image with nothing staged | journal `guard-added-to-one-half-of-a-pair.md` |
+
+### Round 3: ready for review round 3 (2026-10-10)
+
+Scope for the reviewer: round 2's fixes only, `84d07bf11c`, `4147096555`, `6d423d8c60`, `3aad367c33`, `50eed92a29` (note 7) and `966c9cb302` (note 9 and the lint findings in the same files).
+
+Gates at hand-off: scoped lint over kernelcap, interoplab, setup, perf, plugins/vrrp: clean for this spec's files; one finding left, `internal/le/setup/system.go` goconst `lo0`, from `0b3c569cac` (another session). The wider scope (interoplab/bgp, pppoe, rsvpte, test/deployment, setup tools/claude_server) carries findings in files this spec did not write. Package tests green with gate tags and -race: kernelcap (with and without `zetest`), interoplab, interoplab/bgp, setup. Owed: `./le go lint run`, `./le test unit all`, `./le cli grammar`, and every AC that needs the Linux host after the owner loads the profiles and boots the amd64 kernel.
+
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)
