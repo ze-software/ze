@@ -58,9 +58,14 @@ build on a host of the target's architecture. It has no download tier.
 `ze appliance build` and `./le build gokrazy` resolve it for the image's
 architecture through the same resolver as `ze appliance kernel --target
 runtime`, so a warm cache starts no container or VM and a cold one builds and
-caches the kernel first. A cold cache that cannot build, for example with no
-network for the kernel.org tarball, fails with the cache path and the command
-that fills it. The image's kernel package is assembled from the cache entry,
+caches the kernel first. A cold cache for another architecture than the
+host's is refused before any build starts, because a kernel built elsewhere
+fills that host's cache, never this one: the error names the cache path and
+the two moves that work, building the image on a host of that architecture or
+setting `image.arch` to the host's. A cold cache that cannot build on this
+host, for example with no network for the kernel.org tarball, fails with the
+cache path and the command that fills it here.
+<!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel --> The image's kernel package is assembled from the cache entry,
 never from `tmp/kernel/build`, which every resolver call rewrites.
 
 `ze doctor` reports a host that cannot produce this kernel, as the warning

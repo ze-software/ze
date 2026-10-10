@@ -170,9 +170,53 @@ func TestColdOfflineCacheNamesRemedy(t *testing.T) {
 	if err == nil {
 		t.Fatal("a cold cache with no network resolved a kernel")
 	}
-	for _, want := range []string{cached, "on an " + runtime.GOARCH + " host", "ze appliance kernel --target runtime --arch " + runtime.GOARCH, "no such host"} {
+	for _, want := range []string{cached, "on this host", "ze appliance kernel --target runtime --arch " + runtime.GOARCH, "no such host"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error does not name %q:\n%v", want, err)
 		}
+	}
+}
+
+// TestColdForeignArchCacheRefusesBeforeBuilding verifies an image arch the
+// host cannot build, with no cache entry, is refused before any build starts,
+// and that the fix names the two moves that work: building the image on a host
+// of that arch, or setting image.arch to the host's arch. Building the kernel
+// "on an <arch> host" fills that host's cache, never this one, so the old
+// remedy could not fix this host.
+//
+// VALIDATES: AC-10, AC-13.
+func TestColdForeignArchCacheRefusesBeforeBuilding(t *testing.T) {
+	t.Chdir(t.TempDir())
+	writeRuntimeKernelRegistry(t)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	foreign := archARM64
+	if runtime.GOARCH == archARM64 {
+		foreign = archAMD64
+	}
+	setTestKernelBuild(t, func(kernelBuildSpec) error {
+		t.Fatalf("a %s kernel build started on a %s host", foreign, runtime.GOARCH)
+		return nil
+	})
+	cached, err := kernelCachePathFor(defaultKernelVersion, foreign, runtimeKernelProfile, kernelTargetRuntime)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = RuntimeKernelTree(foreign)
+	if err == nil {
+		t.Fatal("a cold cache for a foreign arch resolved a kernel")
+	}
+	for _, want := range []string{
+		cached,
+		"this " + runtime.GOARCH + " host cannot build it",
+		"build the image on an " + foreign + " host",
+		`"arch": "` + runtime.GOARCH + `"`,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error does not name %q:\n%v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "--arch "+foreign) {
+		t.Errorf("error offers a kernel build for %s, which fills another host's cache:\n%v", foreign, err)
 	}
 }

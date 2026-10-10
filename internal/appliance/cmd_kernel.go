@@ -415,12 +415,23 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 		return cachedDir, nil
 	}
 
+	// Ze builds every kernel on a host of its own arch (AC-13), so a cold cache
+	// for another arch cannot be filled here. Refused before the build starts,
+	// with the two moves that work: a kernel built on a host of that arch fills
+	// that host's cache, never this one, so the remedy is where the image is
+	// built, or which arch it is built for.
+	if arch != runtime.GOARCH {
+		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and this %s host cannot build it: "+
+			"Ze builds every kernel on a host of its own arch, with no CPU emulation\n"+
+			"build the image on an %s host, or build an %s image here by setting \"image\": {\"arch\": \"%s\"} in appliance.json",
+			version, arch, cachedDir, runtime.GOARCH, arch, runtime.GOARCH, runtime.GOARCH)
+	}
 	if err := buildKernelArtifact(version, arch, profile, builder, td); err != nil {
 		// A cold cache with no network fails here, at the source download, so the
 		// error names the entry that was missing and the command that fills it.
 		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and building it failed: %w\n"+
-			"build it once, with network access, on an %s host: ze appliance kernel --target runtime --arch %s",
-			version, arch, cachedDir, err, arch, arch)
+			"build it once, with network access, on this host: ze appliance kernel --target runtime --arch %s",
+			version, arch, cachedDir, err, arch)
 	}
 
 	builtKernel := filepath.Join(td.outputDir, td.artifact)

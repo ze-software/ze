@@ -854,7 +854,7 @@ func TestRuntimeKernelBuildsTree(t *testing.T) {
 
 	setTestKernelBuild(t, fakeRuntimeBuild)
 
-	got, err := resolveKernel("7.1.1", archAMD64, runtimeKernelProfile, "", kernelTargetRuntime)
+	got, err := resolveKernel("7.1.1", runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
 		t.Fatalf("resolveKernel runtime: %v", err)
 	}
@@ -888,7 +888,7 @@ func TestRuntimeTargetIgnoresApplianceProfile(t *testing.T) {
 	defer func() { baseDir = oldBase }()
 
 	cfg := DefaultConfig("rtapp") // DefaultConfig sets KernelProfile = "qemu"
-	cfg.Image.Arch = archAMD64
+	cfg.Image.Arch = runtime.GOARCH
 	appPath := filepath.Join(appDir, "rtapp")
 	if err := os.MkdirAll(appPath, 0o755); err != nil {
 		t.Fatal(err)
@@ -943,7 +943,7 @@ func TestRuntimeKernelFloorRejectsMissing(t *testing.T) {
 		return os.WriteFile(filepath.Join(spec.outDir, "config"), []byte(cfg), 0o644)
 	})
 
-	_, err := resolveKernel("7.1.1", archAMD64, runtimeKernelProfile, "", kernelTargetRuntime)
+	_, err := resolveKernel("7.1.1", runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err == nil || !strings.Contains(err.Error(), "CONFIG_PPPOE") {
 		t.Fatalf("runtime floor error = %v, want CONFIG_PPPOE", err)
 	}

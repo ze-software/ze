@@ -104,17 +104,24 @@ Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance runtime
 kernel: `CONFIG_PPP`, `CONFIG_PPPOL2TP`, `CONFIG_L2TP`, and
 `CONFIG_L2TP_V3`. The shared runtime proof kernel also keeps `CONFIG_PPPOE`
 built in for PPPoE evidence. The appliance image boots this kernel, so every
-image carries these options. To fill the cache before a build:
+image carries these options. To fill the cache before a build, on an amd64
+host:
 
 ```bash
 ze appliance kernel --target runtime --arch amd64
 ```
 
-Select the QEMU builder or arm64 explicitly when needed:
+A kernel is built only on a host of its own architecture, so the arm64 kernel
+is built on an arm64 host (a Mac, for example). Select the QEMU builder there
+when Docker is absent:
 
 ```bash
 ze appliance kernel --target runtime --arch arm64 --builder qemu
 ```
+
+On a host of the other architecture both commands are refused before anything
+starts. To build an image for another architecture, build it on a host of that
+architecture, or set `image.arch` to the host's.
 This is the kernel every appliance image boots, and no other kernel can reach
 an image. `ze appliance build` and `./le build gokrazy` resolve it for the
 image's architecture themselves: from the cache when an entry is there, else by
@@ -661,7 +668,7 @@ artifacts automatically:
     ze appliance iso --check
     ze appliance kernel lab
     ze appliance kernel --profile hardware lab
-    ze appliance kernel --builder qemu --arch arm64 lab
+    ze appliance kernel --builder qemu --arch arm64 lab    # a build needs an arm64 host
     ze appliance kernel --target runtime
     ze appliance initrd
     ze appliance iso lab
