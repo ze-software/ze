@@ -61,7 +61,7 @@ vpn {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json ipsec-xfrm.conf
+cmd=foreground:seq=1:exec=ze doctor --json config ipsec-xfrm.conf
 # Exit 1: an absent capability makes the host not ready, and the daemon refuses.
 expect=exit:code=1
 expect=stdout:contains=doctor-ipsec-xfrm-unavailable

@@ -22,7 +22,7 @@ vpp {
 }
 EOF_OFF
 
-cmd=foreground:seq=1:exec=ze doctor --json vpp-off.conf:exit=0
+cmd=foreground:seq=1:exec=ze doctor --json config vpp-off.conf:exit=0
 expect=exit:code=0
 expect=stdout:contains="diagnostics"
 reject=stdout:contains=doctor-vpp-hugepages

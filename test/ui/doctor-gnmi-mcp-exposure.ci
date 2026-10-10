@@ -24,7 +24,7 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json exposed.conf
+cmd=foreground:seq=1:exec=ze doctor --json config exposed.conf
 expect=stdout:contains=config-gnmi-invalid
 expect=stdout:contains=config-mcp-invalid
 expect=stdout:contains=environment.gnmi: non-loopback listener requires token

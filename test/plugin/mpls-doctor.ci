@@ -51,7 +51,7 @@ fib {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json mpls.conf
+cmd=foreground:seq=1:exec=ze doctor --json config mpls.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-mpls-unavailable
 expect=stdout:contains=CONFIG_MPLS_ROUTING

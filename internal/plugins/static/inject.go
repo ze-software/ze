@@ -69,7 +69,7 @@ func newRouteManager(backend routeBackend) *routeManager {
 
 // activeRouteManager points at the running static plugin's route manager, set in
 // runStaticPlugin. The doctor check reads it to report routes the backend
-// skipped at runtime. It is nil in the offline `ze doctor <config>` path (no
+// skipped at runtime. It is nil in the offline `ze doctor config <file>` path (no
 // daemon), where there is no runtime skip state to report, and when static runs
 // as an external forked plugin (the daemon process holds no route manager) --
 // in those cases `static show` and the WARN logs remain the always-on skip

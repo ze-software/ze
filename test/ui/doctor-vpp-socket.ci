@@ -12,7 +12,7 @@ vpp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json vpp-socket.conf
+cmd=foreground:seq=1:exec=ze doctor --json config vpp-socket.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-vpp-unreachable
 expect=stdout:contains=/nonexistent-ze-doctor-test/vpp.sock

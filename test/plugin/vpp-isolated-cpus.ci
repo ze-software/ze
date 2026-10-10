@@ -72,11 +72,11 @@ vpp {
 EOF_OFF
 
 # AC-1: workers land on isolated cores 2 and 3, so nothing is reported.
-cmd=foreground:seq=1:exec=ze doctor --json isolated-workers.conf:exit=1
+cmd=foreground:seq=1:exec=ze doctor --json config isolated-workers.conf:exit=1
 expect=exit:code=0
 reject=stdout:contains=doctor-vpp-cpu-isolation
 
 # VPP disabled: the check is silent whatever the host holds.
-cmd=foreground:seq=2:exec=ze doctor --json vpp-off.conf:exit=0
+cmd=foreground:seq=2:exec=ze doctor --json config vpp-off.conf:exit=0
 expect=exit:code=0
 reject=stdout:contains=doctor-vpp-cpu-isolation

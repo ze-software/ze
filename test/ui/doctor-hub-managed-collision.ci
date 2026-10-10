@@ -24,7 +24,7 @@ plugin {
 }
 EOF_COLLISION
 
-cmd=foreground:seq=1:exec=ze doctor --json hub-collision.conf
+cmd=foreground:seq=1:exec=ze doctor --json config hub-collision.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-hub-managed-collision
 expect=stdout:contains=127.0.0.1:12790

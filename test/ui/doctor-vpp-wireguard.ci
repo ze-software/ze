@@ -23,6 +23,6 @@ vpp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json vpp-wg.conf
+cmd=foreground:seq=1:exec=ze doctor --json config vpp-wg.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-vpp-wireguard

@@ -43,7 +43,7 @@ EOF_SHARED
 
 # AC-5: cores 6 and 7 are online but were never isolated, so the operator is
 # told the Linux scheduler still places work on them.
-cmd=foreground:seq=1:exec=ze doctor --json shared-workers.conf:exit=1
+cmd=foreground:seq=1:exec=ze doctor --json config shared-workers.conf:exit=1
 expect=exit:code=1
 expect=stdout:contains=doctor-vpp-cpu-isolation
 expect=stdout:contains=worker core 6-7 is not isolated

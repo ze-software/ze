@@ -49,7 +49,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json bad-peer.conf:exit=1
+cmd=foreground:seq=1:exec=ze doctor --json config bad-peer.conf:exit=1
 expect=stdout:contains=doctor-config-bgp-peer
 expect=stdout:contains=prefix maximum is mandatory
 expect=stdout:contains="ready": false

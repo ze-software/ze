@@ -29,6 +29,6 @@ vpp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json vpp-lcp.conf
+cmd=foreground:seq=1:exec=ze doctor --json config vpp-lcp.conf
 expect=stdout:contains=doctor-vpp-lcp-plugin
 expect=stdout:contains=could not be probed

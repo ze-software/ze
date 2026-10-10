@@ -1,0 +1,16 @@
+# Test: ze doctor refuses a config file given without the config keyword
+# VALIDATES: `ze doctor <file>` exits 1 with an error naming the grammar
+# `ze doctor config <file>`, and runs no readiness check (no JSON verdict on
+# stdout). The accepted form `ze doctor config <file>` is what every other
+# doctor-*.ci runs.
+# PREVENTS: a free-form path in the first slot after the noun (ai/rules/cli.md,
+# keyword before value), which a file named `config` or `kernel-capabilities`
+# would turn into a different mode.
+
+tmpfs=empty.conf:terminator=EOF_CONF
+# empty config
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json empty.conf:exit=1
+expect=stderr:contains=ze doctor config <file>
+reject=stdout:contains="ready"

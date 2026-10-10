@@ -30,7 +30,7 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json mcp-port-default.conf
+cmd=foreground:seq=1:exec=ze doctor --json config mcp-port-default.conf
 # The positive assertion first: doctor ran and produced its report. Without it a
 # doctor that printed nothing at all would satisfy the absence below.
 expect=stdout:contains="schema-version": 1

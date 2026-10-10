@@ -46,7 +46,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json dangling.conf
+cmd=foreground:seq=1:exec=ze doctor --json config dangling.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-config-reference
 expect=stdout:contains=nonexistent-policy

@@ -8,7 +8,7 @@ pki {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json pki-missing-cert.conf
+cmd=foreground:seq=1:exec=ze doctor --json config pki-missing-cert.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-pki-cert
 expect=stdout:contains=PKI CA root

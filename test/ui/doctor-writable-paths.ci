@@ -10,6 +10,6 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json writable.conf
+cmd=foreground:seq=1:exec=ze doctor --json config writable.conf
 expect=exit:code=0
 expect=stdout:contains=doctor-write-destination

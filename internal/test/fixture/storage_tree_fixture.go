@@ -499,7 +499,7 @@ func storageDoctorLooseModeScenario(ctx context.Context) error {
 	if err := os.Chmod(storageTreeName, 0o755); err != nil { //nolint:gosec // the fixture weakens the mode so doctor reports it
 		return err
 	}
-	output, err := storageCommand(ctx, "", "doctor", "--json", "router.conf")
+	output, err := storageCommand(ctx, "", "doctor", "--json", "config", "router.conf")
 	if err == nil {
 		return fmt.Errorf("doctor accepted a loose-mode tree:\n%s", output)
 	}

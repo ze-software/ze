@@ -26,6 +26,6 @@ service {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json geodns-doctor.conf
+cmd=foreground:seq=1:exec=ze doctor --json config geodns-doctor.conf
 expect=exit:code=0
 expect=stdout:contains=doctor-geodns-port-unavailable

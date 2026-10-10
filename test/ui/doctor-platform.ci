@@ -5,6 +5,6 @@ tmpfs=empty.conf:terminator=EOF_CONF
 # empty config
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json empty.conf
+cmd=foreground:seq=1:exec=ze doctor --json config empty.conf
 expect=stdout:contains="diagnostics"
 reject=stdout:contains=doctor-platform-detect

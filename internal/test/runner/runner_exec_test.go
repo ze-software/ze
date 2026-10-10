@@ -15,7 +15,7 @@ func TestZeDaemonConfigArgIndex(t *testing.T) {
 		{name: "web flags", args: []string{"--web", "3443", "--insecure-web", "test.conf"}, want: 3},
 		{name: "mcp flags", args: []string{"--mcp", "8080", "--mcp-token", "secret", "ze.conf"}, want: 4},
 		{name: "config subcommand", args: []string{"config", "validate", "-"}, want: -1},
-		{name: "doctor subcommand", args: []string{"doctor", "--json", "empty.conf"}, want: -1},
+		{name: "doctor subcommand", args: []string{"doctor", "--json", "config", "empty.conf"}, want: -1},
 		{name: "service subcommand", args: []string{"service", "install", "--dry-run"}, want: -1},
 		// After spec-fixit-config-file-positional-grammar the runner launches a
 		// config file as `ze start <config>`; the leading verb is skipped so the

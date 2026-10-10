@@ -36,7 +36,7 @@ interface {
 }
 EOF_BAD
 
-cmd=foreground:seq=1:exec=ze doctor --json vrrp-bad.conf:timeout=60s:exit=1
+cmd=foreground:seq=1:exec=ze doctor --json config vrrp-bad.conf:timeout=60s:exit=1
 expect=exit:code=1
 expect=stdout:contains=doctor-vrrp-config-invalid
 expect=stdout:contains=accept-mode
@@ -61,7 +61,7 @@ interface {
 }
 EOF_VPP
 
-cmd=foreground:seq=2:exec=ze doctor --json vrrp-vpp.conf:exit=1
+cmd=foreground:seq=2:exec=ze doctor --json config vrrp-vpp.conf:exit=1
 expect=exit:code=1
 expect=stdout:contains=doctor-vrrp-backend-unusable
 
@@ -92,7 +92,7 @@ interface {
 }
 EOF_TRKOWN
 
-cmd=foreground:seq=3:exec=ze doctor --json vrrp-track-owner.conf:timeout=60s:exit=1
+cmd=foreground:seq=3:exec=ze doctor --json config vrrp-track-owner.conf:timeout=60s:exit=1
 expect=exit:code=1
 expect=stdout:contains=doctor-vrrp-config-invalid
 expect=stdout:contains=track cannot be combined with an address-owner group

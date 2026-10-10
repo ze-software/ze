@@ -43,7 +43,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json bgp-listen.conf
+cmd=foreground:seq=1:exec=ze doctor --json config bgp-listen.conf
 expect=exit:code=0
 expect=stdout:contains=doctor-bgp-listen
 expect=stdout:contains=203.0.113.254

@@ -108,7 +108,7 @@ func doctorConfigClaims(ctx context.Context) error {
 func doctorConfigClaimsDoctor(ctx context.Context, path string) ([]doctorConfigClaimsDiagnostic, error) {
 	// A non-zero status is intentionally accepted: the placeholder certificate
 	// also triggers doctor-pki-cert. This fixture judges the diagnostics list.
-	result, err := doctorConfigClaimsRun(ctx, "ze-stripped", "doctor", "--json", path)
+	result, err := doctorConfigClaimsRun(ctx, "ze-stripped", "doctor", "--json", "config", path)
 	if err != nil {
 		return nil, doctorConfigClaimsFail("run ze doctor for %s: %v", path, err)
 	}

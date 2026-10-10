@@ -26,6 +26,6 @@ expect=stdout:contains="subsystem": "ipsec"
 tmpfs=empty.conf:terminator=EOF_CONF
 EOF_CONF
 
-cmd=foreground:seq=2:exec=ze doctor kernel-capabilities empty.conf
+cmd=foreground:seq=2:exec=ze doctor kernel-capabilities config empty.conf
 expect=exit:code=1
 expect=stderr:contains=kernel-capabilities takes no config file

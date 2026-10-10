@@ -423,4 +423,4 @@ made rather than forgotten.
 | Test type | What it proves | Location |
 |-----------|----------------|----------|
 | Unit test | The check fires only when its config block is present, and emits the registered code | The owning package beside the registration, or `internal/component/doctor` when there is no narrower owner |
-| Functional test | `ze doctor --json <config>` exposes the behavior through the user entry point | `internal/component/doctor`, or the existing functional suite for that entry point |
+| Functional test | `ze doctor --json config <file>` exposes the behavior through the user entry point | `internal/component/doctor`, or the existing functional suite for that entry point |

@@ -79,7 +79,7 @@ func staticDoctorChecks() []registry.DoctorCheckDef {
 
 // checkRouteSkipped reports the routes the running static plugin could not
 // program and skipped (per-route isolation). It reads the live route manager
-// (activeRouteManager); when nil -- the offline `ze doctor <config>` path with
+// (activeRouteManager); when nil -- the offline `ze doctor config <file>` path with
 // no running daemon, or an external forked static plugin -- there is no runtime
 // skip state to report and it stays silent (the WARN logs and `static show`
 // remain the always-on surfaces). It is a WARNING, not an error: the daemon is

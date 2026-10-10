@@ -27,5 +27,5 @@ EOF_ON
 # internal/component/vpp/doctor_linux.go), an error diagnostic makes the report
 # not-ready, and `ze doctor` exits 1 when it is not ready. An exit=0 here would
 # assert that the check does NOT fire, contradicting the stdout assertion below.
-cmd=foreground:seq=1:exec=ze doctor --json vpp-on.conf:exit=1
+cmd=foreground:seq=1:exec=ze doctor --json config vpp-on.conf:exit=1
 expect=stdout:contains=doctor-vpp-hugepages

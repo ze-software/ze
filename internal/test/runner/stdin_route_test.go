@@ -40,7 +40,7 @@ func TestCIStdinPipesForNonDaemonZeCommand(t *testing.T) {
 		{name: "config rollback", args: []string{"config", "rollback", "1", "-"}},
 		{name: "config history", args: []string{"config", "history", "-"}},
 		{name: "schema validate", args: []string{"schema", "validate", "-"}},
-		{name: "doctor", args: []string{"doctor", "-"}},
+		{name: "doctor", args: []string{"doctor", "config", "-"}},
 		{name: "support", args: []string{"support", "bundle", "-"}},
 		{name: "plugin test", args: []string{"plugin", "test", "-"}},
 		{name: "data store", args: []string{"data", "banner", "-"}},

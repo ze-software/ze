@@ -24,6 +24,6 @@ static {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json static-no-fib.conf
+cmd=foreground:seq=1:exec=ze doctor --json config static-no-fib.conf
 expect=stdout:contains=diagnostics
 reject=stdout:contains=doctor-static-no-fib-writer

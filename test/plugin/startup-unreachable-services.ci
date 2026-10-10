@@ -49,7 +49,7 @@ EOF_CONF
 
 # The offline command remains a declarative runner command, so the exact ze doctor
 # entry point is exercised without an embedded helper program.
-cmd=foreground:seq=1:exec=ze doctor --json unreachable.conf:exit=0:timeout=60s
+cmd=foreground:seq=1:exec=ze doctor --json config unreachable.conf:exit=0:timeout=60s
 # Asserted under the command that WRITES it.
 expect=stdout:contains=doctor-bmp-unreachable
 # Asserted under the command that WRITES it.

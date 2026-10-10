@@ -134,7 +134,7 @@ func TestCheckRouteSkippedSilentWhenNone(t *testing.T) {
 }
 
 // TestCheckRouteSkippedNoRunningManager
-// VALIDATES: the offline `ze doctor <config>` path (no running daemon, no route
+// VALIDATES: the offline `ze doctor config <file>` path (no running daemon, no route
 // manager published) is silent -- there is no runtime skip state to report.
 func TestCheckRouteSkippedNoRunningManager(t *testing.T) {
 	activeRouteManager.Store(nil)

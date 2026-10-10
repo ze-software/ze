@@ -59,7 +59,7 @@ vpn {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json ipsec-capability.conf
+cmd=foreground:seq=1:exec=ze doctor --json config ipsec-capability.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-ipsec-xfrm-unavailable
 expect=stdout:contains=CONFIG_XFRM_USER

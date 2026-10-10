@@ -15,7 +15,7 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json probe.conf
+cmd=foreground:seq=1:exec=ze doctor --json config probe.conf
 expect=exit:code=0
 expect=stdout:contains=doctor-storage-unavailable
 expect=stdout:contains=ze init

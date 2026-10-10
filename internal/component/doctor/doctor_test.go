@@ -69,7 +69,7 @@ func TestDoctorHelp(t *testing.T) {
 
 func TestDoctorMissingConfig(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run([]string{"--json", "/nonexistent/ze.conf"})
+		code := Run([]string{"--json", "config", "/nonexistent/ze.conf"})
 		assert.Equal(t, 1, code)
 	})
 
@@ -91,7 +91,7 @@ func TestDoctorMissingConfig(t *testing.T) {
 func TestDoctorValidConfigJSON(t *testing.T) {
 	cfgPath := writeTestConfig(t, minimalConfig)
 	out := captureStdout(t, func() {
-		code := Run([]string{"--json", cfgPath})
+		code := Run([]string{"--json", "config", cfgPath})
 		assert.Equal(t, 0, code)
 	})
 
@@ -109,7 +109,7 @@ func TestDoctorValidConfigJSON(t *testing.T) {
 func TestDoctorValidConfigText(t *testing.T) {
 	cfgPath := writeTestConfig(t, minimalConfig)
 	out := captureStdout(t, func() {
-		code := Run([]string{cfgPath})
+		code := Run([]string{"config", cfgPath})
 		assert.Equal(t, 0, code)
 	})
 	assert.True(t, strings.Contains(out, "all checks passed") || strings.Contains(out, "ready (0 errors"), "unexpected doctor output: %s", out)
@@ -118,7 +118,7 @@ func TestDoctorValidConfigText(t *testing.T) {
 func TestDoctorInvalidConfig(t *testing.T) {
 	cfgPath := writeTestConfig(t, "this is not valid config {{{")
 	out := captureStdout(t, func() {
-		code := Run([]string{"--json", cfgPath})
+		code := Run([]string{"--json", "config", cfgPath})
 		assert.Equal(t, 1, code)
 	})
 
@@ -137,7 +137,7 @@ func TestDoctorInvalidConfig(t *testing.T) {
 }
 
 func TestDoctorExtraArg(t *testing.T) {
-	code := Run([]string{"file1.conf", "file2.conf"})
+	code := Run([]string{"config", "file1.conf", "file2.conf"})
 	assert.Equal(t, 1, code)
 }
 

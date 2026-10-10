@@ -26,7 +26,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json rpki-bmp.conf
+cmd=foreground:seq=1:exec=ze doctor --json config rpki-bmp.conf
 expect=exit:code=0
 expect=stdout:contains=doctor-rpki-unreachable
 expect=stdout:contains=doctor-bmp-unreachable

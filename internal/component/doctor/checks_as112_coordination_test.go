@@ -297,7 +297,7 @@ func TestCheckAS112GlobalOriginCoordination_RemoteASNBoundaries(t *testing.T) {
 }
 
 // TestDoctorAS112CoordinationFunctional exercises both checks through the
-// real user entry point (ze doctor --json <config>), not just the check
+// real user entry point (ze doctor --json config <file>), not just the check
 // functions directly, per ai/rules/repo-maintenance.md's functional-test
 // requirement. The config text omits the mandatory watchdog{withdraw true}
 // marker (AC-10) and sets asn.local 112 + replace-as against a public
@@ -331,7 +331,7 @@ bgp {
 `
 	cfgPath := writeTestConfig(t, cfg)
 	out := captureStdout(t, func() {
-		code := Run([]string{"--json", cfgPath})
+		code := Run([]string{"--json", "config", cfgPath})
 		assert.Equal(t, 0, code, "advisory warnings must not fail readiness")
 	})
 

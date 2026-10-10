@@ -30,7 +30,7 @@ vpn {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json ipsec-missing-iface.conf
+cmd=foreground:seq=1:exec=ze doctor --json config ipsec-missing-iface.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-ipsec-iface
 expect=stdout:contains=ze-doctor-missing0

@@ -38,7 +38,7 @@ EOF_OK
 # The property under test is that the VRRP check stays quiet, so the payload
 # assertion below proves doctor ran and produced its JSON and the rejects prove
 # no vrrp code is in it.
-cmd=foreground:seq=1:exec=ze doctor --json vrrp-ok.conf:timeout=60s
+cmd=foreground:seq=1:exec=ze doctor --json config vrrp-ok.conf:timeout=60s
 expect=stdout:contains=schema-version
 reject=stdout:pattern=doctor-vrrp-config-invalid
 reject=stdout:pattern=doctor-vrrp-backend-unusable

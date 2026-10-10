@@ -47,6 +47,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json bgp-md5.conf
+cmd=foreground:seq=1:exec=ze doctor --json config bgp-md5.conf
 expect=exit:code=0
 expect=stdout:contains=doctor-bgp-md5

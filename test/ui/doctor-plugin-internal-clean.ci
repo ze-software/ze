@@ -10,7 +10,7 @@ plugin {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json internal-clean.conf
+cmd=foreground:seq=1:exec=ze doctor --json config internal-clean.conf
 expect=exit:code=0
 expect=stdout:contains=diagnostics
 reject=stdout:contains=doctor-plugin-missing

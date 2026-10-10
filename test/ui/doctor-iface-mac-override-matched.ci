@@ -20,6 +20,6 @@ interface {
 }
 EOF_MATCHED
 
-cmd=foreground:seq=1:exec=ze doctor --json mac-override-matched.conf:timeout=60s
+cmd=foreground:seq=1:exec=ze doctor --json config mac-override-matched.conf:timeout=60s
 expect=stdout:contains=schema-version
 reject=stdout:pattern=doctor-iface-mac-override-by-name

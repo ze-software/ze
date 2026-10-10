@@ -68,7 +68,7 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json listeners.conf
+cmd=foreground:seq=1:exec=ze doctor --json config listeners.conf
 expect=exit:code=0
 expect=stdout:contains=doctor-bfd-port
 expect=stdout:contains=doctor-ipsec-listen

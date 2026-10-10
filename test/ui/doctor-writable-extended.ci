@@ -12,6 +12,6 @@ system {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json writable-ext.conf
+cmd=foreground:seq=1:exec=ze doctor --json config writable-ext.conf
 expect=exit:code=0
 expect=stdout:contains=doctor-write-destination

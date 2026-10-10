@@ -47,6 +47,6 @@ expect=stdout:contains=CAP_NET_RAW
 # --- ze doctor --json fires the system-id-mismatch check (AC-12). ------------
 # `ze doctor` exits non-zero when it finds a problem (a SeverityError diagnostic),
 # so a fired config-sanity check returns exit code 1 (cf. doctor-config-reference).
-cmd=foreground:seq=4:exec=ze doctor --json isis-mismatch.conf:exit=1
+cmd=foreground:seq=4:exec=ze doctor --json config isis-mismatch.conf:exit=1
 expect=exit:code=1
 expect=stdout:contains=doctor-isis-system-id-mismatch

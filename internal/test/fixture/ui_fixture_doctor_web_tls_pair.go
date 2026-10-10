@@ -41,7 +41,7 @@ func runUIDoctorWebTLSPair(ctx context.Context) error {
 		return fmt.Errorf("close the seeded store: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, "ze", "doctor", "--json", "web.conf")
+	cmd := exec.CommandContext(ctx, "ze", "doctor", "--json", "config", "web.conf")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

@@ -12,6 +12,6 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json ntp-client.conf
+cmd=foreground:seq=1:exec=ze doctor --json config ntp-client.conf
 expect=exit:code=0
 expect=stdout:contains=doctor-ntp-server-unreachable

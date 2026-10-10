@@ -35,7 +35,7 @@ l2tp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json aaa.conf
+cmd=foreground:seq=1:exec=ze doctor --json config aaa.conf
 expect=exit:code=0
 expect=stdout:contains=doctor-tacacs-unreachable
 expect=stdout:contains=doctor-radius-unreachable

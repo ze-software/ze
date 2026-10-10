@@ -42,7 +42,7 @@ vpn {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json ipsec-cookie-threshold.conf
+cmd=foreground:seq=1:exec=ze doctor --json config ipsec-cookie-threshold.conf
 expect=stdout:contains=doctor-ipsec-cookie-threshold
 # Both numbers must reach the operator: the value they set and the ceiling it
 # cannot pass. Without them the message says nothing they can act on.

@@ -74,7 +74,7 @@ a central server.
 `ze doctor` says so before you find out the hard way:
 
 ```
-ze doctor --json router.conf
+ze doctor --json config router.conf
 ze explain doctor-aaa-no-local-fallback
 ```
 

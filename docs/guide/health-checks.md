@@ -12,9 +12,16 @@ Add `--json` for machine-readable output with stable diagnostic codes.
 ```
 ze doctor
 ze doctor --json
-ze doctor --json /path/to/config.conf
+ze doctor --json config /path/to/config.conf
 ze doctor --json kernel-capabilities
 ```
+
+With no argument, `ze doctor` checks the active config in the store. `config
+<file>` names a config file to check instead, and `config -` reads it from
+stdin. The file is always the value of the `config` keyword: a bare path such as
+`ze doctor router.conf` is refused with an error that names
+`ze doctor config <file>`.
+<!-- source: internal/component/doctor/doctor.go -- Run, refuseDoctorArgs -->
 
 `ze doctor kernel-capabilities` asks a different question: it probes every
 kernel feature Ze enrolls, whatever the configuration uses, prints one row per

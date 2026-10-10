@@ -81,7 +81,7 @@ func TestRunChecksCallsNoDoctorOwnedCheckTwice(t *testing.T) {
 func doctorCodesFor(t *testing.T, cfg string) []string {
 	t.Helper()
 	cfgPath := writeTestConfig(t, cfg)
-	out := captureStdout(t, func() { Run([]string{"--json", cfgPath}) })
+	out := captureStdout(t, func() { Run([]string{"--json", "config", cfgPath}) })
 
 	var result diagnostic.DoctorResult
 	if err := json.Unmarshal([]byte(out), &result); err != nil {

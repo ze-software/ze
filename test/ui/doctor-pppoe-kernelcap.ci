@@ -21,7 +21,7 @@ pppoe {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json pppoe.conf
+cmd=foreground:seq=1:exec=ze doctor --json config pppoe.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-pppoe-unavailable
 expect=stdout:contains=CONFIG_PPPOE

@@ -10,7 +10,7 @@ service {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json dhcp-missing-iface.conf
+cmd=foreground:seq=1:exec=ze doctor --json config dhcp-missing-iface.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-dhcp-iface
 expect=stdout:contains=ze-doctor-missing0

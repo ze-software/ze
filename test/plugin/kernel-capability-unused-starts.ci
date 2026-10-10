@@ -22,7 +22,7 @@ vpn {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json ipsec-unused.conf
+cmd=foreground:seq=1:exec=ze doctor --json config ipsec-unused.conf
 expect=exit:code=0
 reject=stdout:pattern=doctor-ipsec-xfrm
 

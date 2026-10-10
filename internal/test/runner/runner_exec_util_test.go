@@ -98,7 +98,7 @@ func TestFirstZeSubcommand(t *testing.T) {
 		want string
 	}{
 		{"plain verb", []string{"config", "validate", "-"}, "config"},
-		{"leading flags skipped", []string{"-d", "--color", "doctor", "x.conf"}, "doctor"},
+		{"leading flags skipped", []string{"-d", "--color", "doctor", "config", "x.conf"}, "doctor"},
 		{"bare dash is not a verb", []string{"-"}, ""},
 		{"dash then nothing", []string{"--debug", "-"}, ""},
 		{"isis verb", []string{"isis"}, "isis"},
@@ -125,7 +125,7 @@ func TestIsQuickExitZeCommand(t *testing.T) {
 		{"config", "validate", "-"},
 		{"show", "bgp", "peer", "list"},
 		{"explain", "doctor-isis-net-missing"},
-		{"doctor", "--json", "isis-mismatch.conf"}, // .conf is an arg to a verb, not the daemon config
+		{"doctor", "--json", "config", "isis-mismatch.conf"}, // .conf is an arg to a verb, not the daemon config
 		{"isis", "decode"},
 		{"schema", "tree"},
 		{"version"},

@@ -26,6 +26,6 @@ interface {
 }
 EOF_OVERRIDE
 
-cmd=foreground:seq=1:exec=ze doctor --json mac-override-by-name.conf:timeout=60s
+cmd=foreground:seq=1:exec=ze doctor --json config mac-override-by-name.conf:timeout=60s
 expect=stdout:contains=schema-version
 expect=stdout:contains=doctor-iface-mac-override-by-name

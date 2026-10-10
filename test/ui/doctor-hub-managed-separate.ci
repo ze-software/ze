@@ -28,5 +28,5 @@ plugin {
 }
 EOF_SEPARATE
 
-cmd=foreground:seq=1:exec=ze doctor --json hub-separate.conf
+cmd=foreground:seq=1:exec=ze doctor --json config hub-separate.conf
 reject=stdout:contains=doctor-hub-managed-collision

@@ -49,7 +49,7 @@ vpp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json vpp-lcp-netns.conf
+cmd=foreground:seq=1:exec=ze doctor --json config vpp-lcp-netns.conf
 expect=stdout:contains=doctor-vpp-lcp-netns
 expect=stdout:contains=is not root-reachable
 expect=stdout:contains=dataplane

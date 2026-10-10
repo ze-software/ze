@@ -36,7 +36,7 @@ plugin {
 }
 EOF_EXTERNAL
 
-cmd=foreground:seq=1:exec=ze doctor --json gr-external.conf:exit=0
+cmd=foreground:seq=1:exec=ze doctor --json config gr-external.conf:exit=0
 # The `"code":` prefix matters: `ze explain` below prints the same code, so a
 # bare substring match on it would pass with the check unregistered.
 expect=stdout:contains="code": "doctor-bgp-gr-out-of-process"
@@ -57,7 +57,7 @@ plugin {
 }
 EOF_INTERNAL
 
-cmd=foreground:seq=3:exec=ze doctor --json gr-internal.conf:exit=0
+cmd=foreground:seq=3:exec=ze doctor --json config gr-internal.conf:exit=0
 reject=stdout:contains=plugin grint
 
 # --- 4. Contrast: an internal bgp-gr beside an external one ---
@@ -75,5 +75,5 @@ plugin {
 }
 EOF_BOTH
 
-cmd=foreground:seq=4:exec=ze doctor --json gr-both.conf:exit=0
+cmd=foreground:seq=4:exec=ze doctor --json config gr-both.conf:exit=0
 reject=stdout:contains=plugin grsib

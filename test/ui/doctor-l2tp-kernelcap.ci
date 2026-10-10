@@ -24,7 +24,7 @@ l2tp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json l2tp.conf
+cmd=foreground:seq=1:exec=ze doctor --json config l2tp.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-l2tp-unavailable
 expect=stdout:contains=CONFIG_L2TP
