@@ -58,6 +58,11 @@ configuration. `force` is a modifier that only follows `commit now` or
 and a second `commit confirmed` are refused: answer the window first with
 `commit accept` or `commit abort`. The SSH editor, `ze config edit` and the web
 terminal share this grammar.
+With nothing pending, the SSH editor and the web terminal answer `commit now`
+with "no changes to commit" and apply nothing, and `commit confirmed <seconds>`
+with "no changes to commit: no confirmed commit was opened", because a window
+over no change would revert nothing.
+<!-- source: internal/component/cli/contract/commit.go -- NothingToCommit -->
 <!-- source: internal/component/cli/contract/commit.go -- ParseCommit, commitSubcommands -->
 
 A commit that validation refuses says so on the status line: how many errors

@@ -366,3 +366,25 @@ func TestCommandTurnEndsWhenItsResultIsApplied(t *testing.T) {
 	assert.Contains(t, m6.statusMessage, "Changes rolled back to previous configuration.",
 		"the poll leaves the abort's answer alone")
 }
+
+// TestSessionCommitNothingPendingOpensNoWindow: AC-29 parity. With nothing
+// pending, `commit confirmed <seconds>` opens no window and `commit now` does
+// not report a commit; both answer the words every editor shares.
+// PREVENTS: a countdown that reverts nothing, and "Session committed: 0
+// change(s) applied" read as a commit that happened.
+func TestSessionCommitNothingPendingOpensNoWindow(t *testing.T) {
+	f := newWindowFixture(t)
+	alice := f.model(t, "alice")
+
+	confirmed := confirmedRequest(60, false)
+	result, err := alice.cmdCommitRequest(confirmed)
+	require.NoError(t, err)
+	assert.Equal(t, contract.NothingToCommit(confirmed), result.statusMessage)
+	_, open := f.window.Status()
+	assert.False(t, open, "nothing pending opens no window")
+
+	now := contract.CommitRequest{Action: contract.CommitNow}
+	result, err = alice.cmdCommitRequest(now)
+	require.NoError(t, err)
+	assert.Equal(t, contract.NothingToCommit(now), result.statusMessage)
+}

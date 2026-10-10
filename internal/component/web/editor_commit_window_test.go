@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -182,4 +183,18 @@ func TestWebTerminalCommitRefusesWarnings(t *testing.T) {
 	requireCommitted(t, mgr, "alsoplain", "")
 	_, open = window.Status()
 	assert.True(t, open, "the forced confirmed commit opens the window")
+}
+
+// TestWebTerminalCommitNothingPending: AC-29 parity with the SSH editor. With
+// nothing pending, `commit now` does not say "commit successful" and
+// `commit confirmed <seconds>` opens no window; both answer the shared words.
+func TestWebTerminalCommitNothingPending(t *testing.T) {
+	mgr, schema, window := newWindowEditorManager(t)
+
+	assert.Equal(t, contract.NothingToCommit(contract.CommitRequest{Action: contract.CommitNow}),
+		webCommit(schema, mgr, "alice", "now"))
+	assert.Equal(t, contract.NothingToCommit(contract.CommitRequest{Action: contract.CommitConfirmed, Seconds: 60}),
+		webCommit(schema, mgr, "alice", "confirmed", "60"))
+	_, open := window.Status()
+	assert.False(t, open, "nothing pending opens no window")
 }

@@ -110,7 +110,7 @@ func (m *Model) cmdCommitConfirmedWindow(commit WindowCommit, req contract.Commi
 // status kept in result, and ErrCommitNotApplied when it did not happen.
 func (m *Model) applySessionCommit(req contract.CommitRequest, result *commandResult) func() error {
 	return func() error {
-		answer, committed, err := m.runCommitSession(req.Force, ForcedCommand(req))
+		answer, committed, err := m.runCommitSession(req)
 		*result = answer
 		if err != nil {
 			return err

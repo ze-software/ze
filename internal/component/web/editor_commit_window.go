@@ -16,10 +16,9 @@ import (
 
 // The answers a web commit subcommand gives when it changed something.
 const (
-	webCommitConfirmNoChanges = "no changes to commit: no confirmed commit was opened"
-	webCommitAccepted         = "Commit accepted: the confirmed configuration is saved permanently."
-	webCommitAborted          = "Changes rolled back to previous configuration."
-	webCommitVerified         = "commit verify: the candidate is valid; nothing was applied"
+	webCommitAccepted = "Commit accepted: the confirmed configuration is saved permanently."
+	webCommitAborted  = "Changes rolled back to previous configuration."
+	webCommitVerified = "commit verify: the candidate is valid; nothing was applied"
 )
 
 // SetConfirmWindow gives the manager the daemon's confirmed-commit window,
@@ -125,15 +124,13 @@ func (m *EditorManager) validateTransition(ed contract.Editor) (cli.ConfigValida
 }
 
 // notAppliedAnswer is the answer to a commit that did not happen: its
-// conflicts, or that nothing was pending.
+// conflicts, or that nothing was pending, in the words the SSH editor uses
+// (AC-29), never a success.
 func notAppliedAnswer(req contract.CommitRequest, result *contract.CommitResult) webCommitAnswer {
 	if result != nil && len(result.Conflicts) > 0 {
 		return webCommitAnswer{conflicts: result.Conflicts}
 	}
-	if req.Action == contract.CommitConfirmed {
-		return webCommitAnswer{message: webCommitConfirmNoChanges}
-	}
-	return webCommitAnswer{message: terminalOutputCommitSuccessful}
+	return webCommitAnswer{message: contract.NothingToCommit(req)}
 }
 
 // appliedAnswer is the line a subcommand that succeeded shows. An abort also

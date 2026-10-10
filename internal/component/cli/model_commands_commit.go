@@ -400,16 +400,18 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 // With force, warnings and conflicts do not block and the status counts the
 // warnings; errors always block.
 func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
-	result, _, err := m.runCommitSession(force, "commit now force")
+	result, _, err := m.runCommitSession(contract.CommitRequest{Action: contract.CommitNow, Force: force})
 	return result, err
 }
 
 // runCommitSession is cmdCommitSession, also answering whether the commit
 // reached the config. A commit that validation, a conflict or the daemon's
 // reload refused answers false with the status saying why, so the daemon's
-// confirm window opens only over a commit that happened. forced is the
-// command a validation refusal names to commit over warnings.
-func (m *Model) runCommitSession(force bool, forced string) (commandResult, bool, error) {
+// confirm window opens only over a commit that happened; so does a commit
+// with nothing pending, which answers contract.NothingToCommit. req is the
+// subcommand typed, which names the forced form a validation refusal offers.
+func (m *Model) runCommitSession(req contract.CommitRequest) (commandResult, bool, error) {
+	force, forced := req.Force, ForcedCommand(req)
 	detail := m.editor.Diff()
 	// Validate the current config before attempting commit.
 	// Session mode uses set/delete commands that validate per-field, but
@@ -458,6 +460,12 @@ func (m *Model) runCommitSession(force bool, forced string) (commandResult, bool
 			output:        b.String(),
 			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(commitResult.Conflicts)), " conflict(s)"),
 		}, false, nil
+	}
+
+	// AC-29: nothing pending is no commit, so no window opens over it and
+	// every editor answers the same words.
+	if commitResult.Applied == 0 {
+		return commandResult{statusMessage: contract.NothingToCommit(req)}, false, nil
 	}
 
 	if transactional && commitResult.Applied > 0 {
