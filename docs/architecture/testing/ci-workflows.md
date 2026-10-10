@@ -14,7 +14,7 @@ need.
 | `./le test integration iface`, `fib`, `firewall`, `traffic`, `gtsm`, `as112` | `evidence-nightly.yml`, job `integration`, under `sudo` | schedule | advisory |
 | `./le test integration interop`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `interop` | schedule | advisory |
 | `./le test integration interop-ipsec`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `ipsec-interop` | schedule | advisory |
-| `./le test integration interop-radius` | `evidence-nightly.yml`, job `radius-interop` | schedule | advisory |
+| `./le test integration interop-radius`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `radius-interop` | schedule | advisory |
 | `./le test deployment docker-l2tp-ppp-test`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `l2tp-interop` | schedule | advisory |
 | `./le test deployment docker-pppoe-accel-test`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `pppoe-interop` | schedule | advisory |
 | `./le test qemu all-tests`, inside a guest booting the runtime kernel | `qemu-nightly.yml`, job `needs-linux` | schedule `43 4 * * *` | advisory |
@@ -35,17 +35,19 @@ when you add a test, and say so.
 ## The Docker labs run on Ze's kernel
 
 A Docker lab runs Ze in containers, so the kernel under test is the Docker
-host's. Ze enrolls features the hosted runner's kernel lacks, so the four Docker
-lab jobs (`interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop`) do not
-run on it. Each restores the amd64 runtime kernel cache entry under the key
+host's. Ze enrolls features the hosted runner's kernel lacks, so the five Docker
+lab jobs (`interop`, `ipsec-interop`, `radius-interop`, `l2tp-interop`,
+`pppoe-interop`) do not run on it. Each restores the amd64 runtime kernel cache entry under the key
 `qemu-nightly.yml` uses, builds the entry on a miss with `./ze-host appliance
 kernel --target runtime --arch amd64`, and saves it. It then runs its lab as
 `./le test qemu docker-lab lab "<le words>"`: an Alpine guest boots that kernel
 under KVM, never TCG, starts Docker, runs `./le setup docker-kernel check` and
 only then the lab. A last step runs the same check against the hosted runner's
 own Docker daemon, as information: it may fail without failing the job, and its
-log shows the day GitHub's kernel starts to pass. `radius-interop` needs no
-kernel feature, so it runs on the runner's own Docker.
+log shows the day GitHub's kernel starts to pass. `radius-interop` is among
+them although its admin path needs no kernel feature: the lab stages a ze that
+enrols every capability, and the interop harness checks that ze against the
+Docker kernel for every suite, so on the runner's kernel it would be refused.
 `docs/architecture/testing/qemu-integration.md`, "Docker labs in the Ze-kernel
 guest", is the guest path.
 
@@ -89,6 +91,7 @@ cached runtime kernel, that every `./le` action a workflow names is registered
 in the Go action tables, and that a capability-gated `.ci` test has a VM home.
 
 <!-- source: .github/workflows/verify.yml -- the merge gate -->
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run -->
 <!-- source: .github/workflows/evidence-nightly.yml -- fuzz, integration, interop, ipsec-interop, radius-interop, l2tp-interop, pppoe-interop -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere -->
 <!-- source: internal/le/rfc/carriers.go -- workflowNestedLe, nestedLeWords -->

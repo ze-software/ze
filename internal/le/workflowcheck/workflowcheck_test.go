@@ -523,11 +523,16 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 	}) {
 		t.Errorf("%s must leave VM evidence other than the Docker labs to qemu-nightly.yml: %v", name, actions)
 	}
+	// Every interop lab stages a ze that enrols every kernel capability, so
+	// each one is refused on the hosted runner's kernel and runs in the guest:
+	// radius included, because interoplab.Suite.Run checks the staged ze's
+	// Docker kernel for every suite whatever the lab itself needs.
 	dockerLabs := map[string]string{
-		"interop":       "test integration interop",
-		"ipsec-interop": "test integration interop-ipsec",
-		"l2tp-interop":  "test deployment docker-l2tp-ppp-test",
-		"pppoe-interop": "test deployment docker-pppoe-accel-test",
+		"interop":        "test integration interop",
+		"ipsec-interop":  "test integration interop-ipsec",
+		"radius-interop": "test integration interop-radius",
+		"l2tp-interop":   "test deployment docker-l2tp-ppp-test",
+		"pppoe-interop":  "test deployment docker-pppoe-accel-test",
 	}
 	for _, job := range jobBlocks(t, name) {
 		lab, isLab := dockerLabs[job.name]
