@@ -421,6 +421,11 @@ func TestIcyChildlessInitiatorStaysInMaintainSA(t *testing.T) {
 	if child := ps.getChildSA(); child != nil {
 		t.Errorf("the session holds a Child SA (outbound SPI %#08x) the far end refused", child.OutboundSPI)
 	}
+	// AC-10: the IKE SA rekey keeps the Child SA creation scheduled, because the
+	// schedule lives on the session and the replacement SA is still childless.
+	if !ps.childCreate.active {
+		t.Error("the IKE SA rekey dropped the scheduled Child SA creation")
+	}
 	if _, err := far.get(); err != nil {
 		t.Fatalf("the driven handshake failed: %v", err)
 	}
