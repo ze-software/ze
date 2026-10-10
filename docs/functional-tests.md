@@ -334,6 +334,34 @@ markers so the source peer cannot start before the intended observer releases it
 
 <!-- source: internal/test/fixture/plugin_fixture_02_events.go -- waitFileDriver02, dynamicGroupWait02, waitForMarker02 -->
 
+### Driving the SSH session editor from a script
+
+`le test fixture plugin/session-editor <ssh-port> <config> <script>` runs
+`ze init` against the daemon's SSH server as `admin` with password `testpass`,
+opens `ze config edit <config>` over a PTY, and runs the script, so a `.ci`
+states both its typing and its assertions on the running daemon. The script is
+usually a `tmpfs=` block. One step per line, a verb then its text; blank lines
+and `#` lines are skipped:
+
+| Verb | Step |
+|------|------|
+| `send` | type the text and press Enter |
+| `wait` | read the editor's output until the text appears; output after it stays for the next `wait` |
+| `cli` | name the `ze cli -c` command the following `has` and `lacks` run |
+| `has` | run that command until its output holds the text |
+| `lacks` | run that command until its output no longer holds the text |
+
+`has` and `lacks` poll, because the daemon applies a commit after the editor
+reports it. `wait` matches the raw PTY stream, and the editor redraws only the
+part of a line that changed: a status line that shares its start with the one
+before it arrives as its differing tail alone, so its full text never appears.
+Put a command with a different status between two such lines, as
+`session-editor-deactivate-activate.ci` does with `show | changes`. A failing step names its number and carries the editor transcript.
+The driver types `quit` after the last step and fails when the editor exits
+non-zero. The `test/plugin/session-editor-*.ci` files use it.
+
+<!-- source: internal/test/fixture/plugin_fixture_session_editor.go -- sessionEditorDriver, parseSessionEditorScript, sessionEditorRun -->
+
 ### Changing a live test that already passes
 
 An edit to a `.ci` or `.et` under `test/` that removes an `expect=`, empties a

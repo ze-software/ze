@@ -1,0 +1,114 @@
+# Test: an SSH session editor deactivates and activates a leaf and a path on a running daemon
+# VALIDATES: spec-session-editor-file-mode-parity AC-9, AC-10 -- over SSH against a
+#            running daemon, deactivate on a leaf and on a path each show as a
+#            pending deactivate, the commit makes the running daemon treat them as
+#            absent, and activate then commits them back into use; activating an
+#            active node gives the existing not-inactive refusal
+# PREVENTS: the session editor refusing leaf and path deactivation, and a toggle
+#           that reaches the change file but never the running daemon
+
+option=timeout:value=60s
+
+tmpfs=session-editor-toggle.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+    peer peer2 {
+        connection {
+            remote {
+                ip 127.0.0.3
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-toggle.script:terminator=EOF_SCRIPT
+cli show bgp peer list
+has peer2
+cli show bgp
+has 1.2.3.4
+send activate bgp router-id
+wait router-id already active
+send deactivate bgp router-id
+wait Deactivated bgp router-id
+send show | changes
+wait 1 pending change
+send deactivate bgp peer peer2
+wait Deactivated bgp peer peer2
+send show | changes
+wait 2 pending changes
+send commit
+wait Session committed:
+cli show bgp peer list
+lacks peer2
+has peer1
+cli show bgp
+lacks 1.2.3.4
+send activate bgp router-id
+wait Activated bgp router-id
+send show | changes
+wait 1 pending change
+send activate bgp peer peer2
+wait Activated bgp peer peer2
+send show | changes
+wait 2 pending changes
+send commit
+wait Session committed:
+cli show bgp peer list
+has peer2
+cli show bgp
+has 1.2.3.4
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-toggle.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-toggle.conf session-editor-toggle.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-toggle.conf:not-contains=inactive

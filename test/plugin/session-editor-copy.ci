@@ -1,0 +1,76 @@
+# Test: an SSH session editor copies a list entry and commits it to the running daemon
+# VALIDATES: spec-session-editor-file-mode-parity AC-8 -- over SSH against a running
+#            daemon, copy shows as a pending copy change, the commit applies it,
+#            and the running daemon holds both peers; copying onto an existing
+#            entry is refused
+# PREVENTS: the session editor refusing copy ("not supported in session mode"),
+#           and a copy that reaches the change file but never the running daemon
+
+option=timeout:value=60s
+
+tmpfs=session-editor-copy.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-copy.script:terminator=EOF_SCRIPT
+cli show bgp peer list
+has peer1
+lacks peer2
+send copy bgp peer peer1 to peer2
+wait Copied peer peer1 to peer2
+send copy bgp peer peer1 to peer2
+wait already exists
+send set bgp peer peer2 connection remote ip 127.0.0.3
+send show | changes
+wait 2 pending changes
+send commit
+wait Session committed:
+has peer2
+has peer1
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-copy.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-copy.conf session-editor-copy.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-copy.conf:contains=peer2
