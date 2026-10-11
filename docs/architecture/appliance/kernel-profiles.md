@@ -45,19 +45,34 @@ and either way with its exact command line, to run by hand. A failure after
 login (SSH never answers, the build fails) carries QEMU's stderr when it wrote
 any; SSH that never answers ends with the QEMU command that boots the same VM,
 to log in on its console and run `sshd -d`. A probe stopped because the build
-was canceled says so, rather than reporting a hung QEMU or Docker daemon. A
-build stopped once QEMU is running names the stage the VM had reached (before
-its login prompt, after it, while it set up SSH, while it built the kernel),
-says whether the build was canceled or ran out of its caller's time, and in the
-second case ends with the QEMU command; it is never reported as a guest that
-failed or a kernel that failed to compile. The kernel build in the VM has its
-own limit, `buildTimeout` (4 hours): a build past it says it did not finish
-within that limit and ends with the QEMU command, to log in on its console and
-watch where it stalls. An arm64 kernel is built on the Mac and an amd64 kernel on the
-Linux host.
+was canceled says so, rather than reporting a hung QEMU or Docker daemon.
 
-<!-- source: internal/appliance/kernelbuilder/driver.go -- Build, validateRequest -->
-<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed, errBuildStopped, errBuildTimedOut, buildTimeout -->
+`ze appliance kernel` gives one kernel build 2 hours (`kernelBuildTimeout`,
+owner decision 2026-10-11). That is the only limit on a build, and the command
+hands it to the builder as Ze's own (`kernelbuilder.WithBuildLimit`). A build
+stopped part way names the step it was at and why it stopped. It is never
+reported as a failed step or as a kernel that failed to compile:
+
+| Why it stopped | What the error says |
+|----------------|---------------------|
+| Canceled (Ctrl-C) | the step, and that the build was canceled. No next step: the operator stopped it |
+| Ze's limit | the step, that the build did not finish within the 2-hour limit Ze gives one kernel build, then the step's next step |
+| A deadline that a caller of the package set | the step, that the build ran out of the time its caller gave it, then the step's next step |
+
+| Step | Next step when it runs out of time |
+|------|------------------------------------|
+| Docker builds the builder image | the same `docker build` command, to run by hand |
+| The kernel container builds the kernel | `docker ps --filter ancestor=<image>`: the stop kills the Docker CLI, not the container, which can still be compiling |
+| Go compiles the QEMU kernel worker | the same Go command, with its `GOOS` and `GOARCH`, to run from the repository root |
+| The build VM boots, logs in, or sets up SSH | the QEMU command that boots the same VM to the same stage |
+| The build VM builds the kernel | the build output above, and `ssh -t ... -p <port> root@localhost top` to watch the next build, with the port that run prints on its `>>> booting Alpine VM` line. The QEMU command alone boots a VM with no build in it, so it is not offered here |
+
+An arm64 kernel is built on the Mac and an amd64 kernel on the Linux host.
+
+<!-- source: internal/appliance/cmd_kernel.go -- kernelBuildTimeout, defaultKernelBuild -->
+<!-- source: internal/appliance/kernelbuilder/stopped.go -- WithBuildLimit, buildLimit, errBuildStopped -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build, validateRequest, runDocker, containerFailure -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed, buildGuestWorker, qemuNextStep, guestBuildNextStep -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 `ze appliance kernel` selects the profile and architecture, validates the

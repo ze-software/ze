@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/env"
@@ -849,6 +850,38 @@ func TestDefaultKernelBuildDockerRequest(t *testing.T) {
 	}
 	if strings.Join(got.Fragments, "|") != strings.Join(wantFragments, "|") {
 		t.Fatalf("native docker fragments = %v, want %v", got.Fragments, wantFragments)
+	}
+}
+
+// TestDefaultKernelBuildNamesZesLimit proves `ze appliance kernel` hands the
+// build its limit as Ze's own (kernelbuilder.WithBuildLimit), so a build that
+// runs out of it names the limit rather than blaming its caller. The fake
+// build waits for its context and answers the context's cause.
+//
+// VALIDATES: round-8 ISSUE 2.
+// PREVENTS: a 2-hour build reported as running out of "the time its caller
+// gave it", with no limit named.
+func TestDefaultKernelBuildNamesZesLimit(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeInstallerKernelRegistry(t)
+
+	limit := kernelBuildTimeout
+	kernelBuildTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { kernelBuildTimeout = limit })
+	old := nativeKernelBuildFn
+	nativeKernelBuildFn = func(ctx context.Context, _ kernelbuilder.Request) error {
+		<-ctx.Done()
+		return context.Cause(ctx)
+	}
+	t.Cleanup(func() { nativeKernelBuildFn = old })
+
+	err := defaultKernelBuild(kernelBuildSpec{
+		version: "7.1.1", arch: archAMD64, profile: defaultKernelProfile, builder: builderDocker,
+		target: kernelTargetInstaller, srcDir: kernelInstallerConfigDir, outDir: kernelInstallerOutputDir,
+	})
+	if err == nil || err.Error() != "the 200ms limit Ze gives one kernel build" {
+		t.Fatalf("defaultKernelBuild past its limit = %v, want the limit named as Ze's", err)
 	}
 }
 

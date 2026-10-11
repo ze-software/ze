@@ -46,7 +46,6 @@ const (
 	runtimeKernelOutputDir   = "tmp/kernel/build"
 	runtimeKernelPatchesDir  = "gokrazy/kernel/patches"
 	runtimeKernelArtifact    = "vmlinuz"
-	kernelBuildTimeout       = 120 * time.Minute
 	builderDocker            = "docker"
 	builderQEMU              = "qemu"
 	firmwareCacheDir         = "firmware"
@@ -72,6 +71,12 @@ var _ = env.MustRegister(env.EnvEntry{
 var kernelBuildFn = defaultKernelBuild
 
 var nativeKernelBuildFn = kernelbuilder.Build
+
+// kernelBuildTimeout is Ze's limit on one kernel build (owner decision
+// 2026-10-11, "2 hours"), and the only declaration of it: defaultKernelBuild
+// hands it to kernelbuilder.WithBuildLimit, so a build that runs out of it
+// names it. A variable only so a test can expire it.
+var kernelBuildTimeout = 120 * time.Minute
 
 func init() {
 	cmdKernel = runKernel
@@ -628,7 +633,9 @@ func defaultKernelBuild(spec kernelBuildSpec) error {
 	}
 	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	buildCtx, cancel := context.WithTimeout(signalCtx, kernelBuildTimeout)
+	// kernelBuildTimeout is Ze's limit on one kernel build, so it goes in as
+	// that (WithBuildLimit): a build that runs out of it names the limit.
+	buildCtx, cancel := kernelbuilder.WithBuildLimit(signalCtx, kernelBuildTimeout)
 	defer cancel()
 	// The builder directory, the common directory and the modules switch are
 	// left to the builder (kernelbuilder.normalizeRequest): they decide the

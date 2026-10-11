@@ -135,21 +135,21 @@ func TestStoppedAfterLoginPromptNamesTheStage(t *testing.T) {
 
 // TestStoppedDuringGuestBuildNamesTheStage proves a build stopped while the
 // kernel compiles in the build VM is named as the build stopping at that
-// stage, and that the stage's own buildTimeout is named as a timeout ending
-// with the QEMU command, never as "kernel build failed: signal: killed", which
-// reads as a compile failure. The fake QEMU prints the login prompt and
+// stage, never as "kernel build failed: signal: killed", which reads as a
+// compile failure. A build out of Ze's limit (WithBuildLimit) names the limit,
+// and a deadline ends with the ssh command that watches a running build, never
+// the QEMU command, which boots a VM with no build in it. The fake QEMU prints the login prompt and
 // SSHD_READY at once; the fake ssh answers the readiness probe and sleeps on
 // the build command, so every stop lands in sshRun under buildCtx, about 4 s
 // in. The kernel tarball is cached so nothing is downloaded.
 //
-// VALIDATES: round-7 ISSUE 2.
-// PREVENTS: an operator who pressed Ctrl-C, or whose build ran past
-// buildTimeout, told the kernel failed to compile, with no next step.
+// VALIDATES: round-7 ISSUE 2, round-8 ISSUE 2 and ISSUE 3.
+// PREVENTS: an operator who pressed Ctrl-C, or whose build ran past Ze's
+// limit, told the kernel failed to compile, or sent to a VM with no build.
 func TestStoppedDuringGuestBuildNamesTheStage(t *testing.T) {
 	cases := []struct {
 		name    string
 		context func() (context.Context, context.CancelFunc)
-		limit   time.Duration
 		want    error
 		say     string
 	}{
@@ -157,21 +157,18 @@ func TestStoppedDuringGuestBuildNamesTheStage(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			stop := time.AfterFunc(6*time.Second, cancel)
 			return ctx, func() { stop.Stop(); cancel() }
-		}, time.Hour, context.Canceled, "stopped while it built the kernel: the kernel build was canceled"},
+		}, context.Canceled, "stopped while it built the kernel: the kernel build was canceled"},
 		{"caller deadline", func() (context.Context, context.CancelFunc) {
 			return context.WithTimeout(context.Background(), 6*time.Second)
-		}, time.Hour, context.DeadlineExceeded, "stopped while it built the kernel: the kernel build ran out of the time its caller gave it"},
-		{"build timeout", func() (context.Context, context.CancelFunc) {
-			return context.WithCancel(context.Background())
-		}, time.Second, context.DeadlineExceeded, "the kernel build in the build VM did not finish within 1s, the limit Ze gives one build"},
+		}, context.DeadlineExceeded, "stopped while it built the kernel: the kernel build ran out of the time its caller gave it"},
+		{"build limit", func() (context.Context, context.CancelFunc) {
+			return WithBuildLimit(context.Background(), 6*time.Second)
+		}, context.DeadlineExceeded, "stopped while it built the kernel: the kernel build did not finish within the 6s limit Ze gives one kernel build"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			fakeQEMU(t, "echo login:\necho SSHD_READY\nexec sleep 60\n")
 			fakeGuestBuildSSH(t)
-			limit := buildTimeout
-			buildTimeout = tc.limit
-			defer func() { buildTimeout = limit }()
 			req := Request{Root: t.TempDir(), Arch: "amd64", Version: "6.1.1", Profile: "p", OutputDir: "out", Stderr: os.Stderr, Stdout: os.Stderr}
 			cacheKernelTarball(t, req)
 			ctx, cancel := tc.context()
@@ -186,10 +183,16 @@ func TestStoppedDuringGuestBuildNamesTheStage(t *testing.T) {
 			if strings.Contains(err.Error(), "kernel build failed") || strings.Contains(err.Error(), "signal: killed") {
 				t.Errorf("a stopped build is reported as a compile failure:\n%v", err)
 			}
+			if strings.Contains(err.Error(), "stall") || strings.Contains(err.Error(), "too slow") {
+				t.Errorf("a stopped build guesses at a cause the code cannot tell:\n%v", err)
+			}
 			if errors.Is(tc.want, context.DeadlineExceeded) {
 				lines := strings.Split(err.Error(), "\n")
-				if last := lines[len(lines)-1]; !strings.HasPrefix(last, "qemu-system-x86_64 ") || !strings.Contains(last, "alpine.iso") {
-					t.Errorf("a build out of time does not end with the QEMU command on its own line:\n%v", err)
+				if last := lines[len(lines)-1]; !strings.HasPrefix(last, "ssh -t ") || !strings.HasSuffix(last, " root@localhost top") {
+					t.Errorf("a build out of time does not end with the ssh command that watches a build:\n%v", err)
+				}
+				if strings.Contains(err.Error(), "qemu-system-x86_64 ") {
+					t.Errorf("a build out of time sends the operator to a QEMU command that boots no build:\n%v", err)
 				}
 			}
 		})

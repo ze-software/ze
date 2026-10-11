@@ -263,6 +263,13 @@ func runDocker(ctx context.Context, req Request) error {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 	if err := runCommand(ctx, req, backendDocker, containerBuildArgs(req)...); err != nil {
+		// runCommand ends in "signal: killed" whenever ctx ends, which reads
+		// as a failed image build, so the stop is named first.
+		if ctx.Err() != nil {
+			return errBuildStopped(ctx, "Docker was stopped while it built the kernel builder image",
+				"the docker output above shows the last step it reached; run the same command by hand to see where it stops:\n"+
+					backendDocker+" "+shellJoin(containerBuildArgs(req)))
+		}
 		return fmt.Errorf("build kernel builder image: %w", err)
 	}
 	args, err := containerRunArgs(req)
@@ -280,15 +287,30 @@ func runDocker(ctx context.Context, req Request) error {
 		reclaimBuildSpace(repairCtx, req, store.path)
 	}
 	if buildErr != nil {
+		failed := containerFailure(ctx, req, buildErr)
 		if repairErr != nil {
-			return fmt.Errorf("kernel container failed: %w (ownership repair also failed: %w)", buildErr, repairErr)
+			return fmt.Errorf("%w (ownership repair also failed: %w)", failed, repairErr)
 		}
-		return fmt.Errorf("kernel container failed: %w", buildErr)
+		return failed
 	}
 	if repairErr != nil {
 		return repairErr
 	}
 	return nil
+}
+
+// containerFailure names why `docker run` of the kernel container failed. A
+// stop ends it with "signal: killed", which reads as a failed kernel compile,
+// so the stop is named first. The stop kills the Docker CLI, not the
+// container, so the container may still be compiling.
+func containerFailure(ctx context.Context, req Request, buildErr error) error {
+	if ctx.Err() != nil {
+		return errBuildStopped(ctx, "the kernel container was stopped while it built the kernel",
+			"the build output above shows the last step it reached. Docker may still run the container, "+
+				"which holds the build volumes the next build mounts; list it, then stop it with docker stop <id>:\n"+
+				"docker ps --filter ancestor="+req.Image)
+	}
+	return fmt.Errorf("kernel container failed: %w", buildErr)
 }
 
 func repairOwnership(ctx context.Context, req Request, platform string) error {

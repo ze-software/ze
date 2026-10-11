@@ -35,10 +35,6 @@ const (
 	qemuExitGrace = 5 * time.Second
 )
 
-// buildTimeout bounds the kernel build inside the build VM, from the ssh that
-// starts it to its exit. It is a variable only so a test can expire it.
-var buildTimeout = 4 * time.Hour
-
 // hostProbeTimeout bounds each question the host is asked before a build
 // (`-accel help`, the accelerator probe, `docker info`): ze doctor asks them
 // too, and a hung daemon must not hang the report. A variable so a test can
@@ -219,6 +215,13 @@ func buildGuestWorker(ctx context.Context, req Request) (string, error) {
 		return "", err
 	}
 	if err := runWorkerBuild(ctx, req, env, args...); err != nil {
+		// runWorkerBuild ends in "signal: killed" whenever ctx ends, which
+		// reads as a failed compile of the worker, so the stop is named first.
+		if ctx.Err() != nil {
+			return "", errBuildStopped(ctx, "the Go compile of the QEMU kernel worker was stopped",
+				"the Go output above shows how far it got; run the same command from the repository root to see where it stops:\n"+
+					strings.Join(env, " ")+" go "+shellJoin(args))
+		}
 		return "", fmt.Errorf("build QEMU kernel worker: %w", err)
 	}
 	return filepath.ToSlash(rel), nil
@@ -293,18 +296,18 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 	}
 	if !console.expect(ctx, "login:", bootTimeout) {
 		said := stopQEMU()
-		return errBootFailed(ctx.Err(), qemuBinary(req.Arch), args, said, cmd.ProcessState)
+		return errBootFailed(ctx, qemuBinary(req.Arch), args, said, cmd.ProcessState)
 	}
 	// A wait the build's own context ends here is the build stopping after
 	// the guest booted, so it is named as such, with the QEMU command.
 	if !sleepContext(ctx, time.Second) {
-		return errBuildStopped(ctx.Err(), "after its login prompt", qemuBinary(req.Arch), args)
+		return errBuildStopped(ctx, "the build VM was stopped after its login prompt", qemuNextStep(qemuBinary(req.Arch), args))
 	}
 	if err := sendConsole(stdin, "root"); err != nil {
 		return err
 	}
 	if !sleepContext(ctx, 3*time.Second) {
-		return errBuildStopped(ctx.Err(), "after its login prompt", qemuBinary(req.Arch), args)
+		return errBuildStopped(ctx, "the build VM was stopped after its login prompt", qemuNextStep(qemuBinary(req.Arch), args))
 	}
 	bootstrap := "setup-interfaces -a 2>/dev/null; ifup eth0 2>/dev/null; ifup lo 2>/dev/null; echo nameserver 8.8.8.8 > /etc/resolv.conf; apk add --no-cache openssh; echo PermitRootLogin yes >> /etc/ssh/sshd_config; echo PermitEmptyPasswords yes >> /etc/ssh/sshd_config; passwd -d root; ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N '' 2>/dev/null; ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N '' 2>/dev/null; /usr/sbin/sshd; echo SSHD_READY"
 	ready := false
@@ -318,7 +321,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 			// an sshd that never started: retrying cannot help, and
 			// errSSHNeverAnswered would send the operator to debug sshd.
 			if ctx.Err() != nil {
-				return errBuildStopped(ctx.Err(), "while it set up SSH", qemuBinary(req.Arch), args)
+				return errBuildStopped(ctx, "the build VM was stopped while it set up SSH", qemuNextStep(qemuBinary(req.Arch), args))
 			}
 			continue
 		}
@@ -329,7 +332,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		}
 		fmt.Fprintln(req.Stderr, "  SSH not up; retrying...") //nolint:errcheck // progress output
 		if !sleepContext(ctx, 2*time.Second) {
-			return errBuildStopped(ctx.Err(), "while it set up SSH", qemuBinary(req.Arch), args)
+			return errBuildStopped(ctx, "the build VM was stopped while it set up SSH", qemuNextStep(qemuBinary(req.Arch), args))
 		}
 	}
 	if !ready {
@@ -347,17 +350,12 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		}
 	}
 	fmt.Fprintf(req.Stderr, "  building kernel (version=%s, arch=%s, profile=%s)...\n", req.Version, req.Arch, req.Profile) //nolint:errcheck // progress output
-	buildCtx, cancel := context.WithTimeout(ctx, buildTimeout)
-	defer cancel()
-	if err := sshRun(buildCtx, port, guestBuildCommand(req, workerRel, shares), req); err != nil {
-		// sshRun ends in "signal: killed" whenever buildCtx ends, which reads
-		// as a compile failure. The caller's stop is named first, then this
-		// stage's own limit, and only then is the error the build's own.
+	if err := sshRun(ctx, port, guestBuildCommand(req, workerRel, shares), req); err != nil {
+		// sshRun ends in "signal: killed" whenever ctx ends, which reads as a
+		// compile failure, so the stop is named first and only then is the
+		// error the build's own.
 		if ctx.Err() != nil {
-			return errBuildStopped(ctx.Err(), "while it built the kernel", qemuBinary(req.Arch), args)
-		}
-		if buildCtx.Err() != nil {
-			return errBuildTimedOut(buildCtx.Err(), qemuBinary(req.Arch), args, stopQEMU())
+			return errBuildStopped(ctx, "the build VM was stopped while it built the kernel", guestBuildNextStep)
 		}
 		return fmt.Errorf("kernel build failed: %w%s", err, qemuSaid(stopQEMU()))
 	}
@@ -471,12 +469,12 @@ func probeHVF(ctx context.Context) error {
 // cannot open, a bad option) says why there, and the console says nothing.
 // state is QEMU's state once stopped: a QEMU that exited on its own (rather
 // than being killed after bootTimeout) is reported as an exit, not a timeout.
-// ctxErr is the build context's error once the wait ended: a build canceled or
-// out of time stopped the wait itself, so it is reported as that, never as a
-// guest that failed to boot (errBuildStopped).
-func errBootFailed(ctxErr error, binary string, args []string, stderr string, state *os.ProcessState) error {
-	if ctxErr != nil {
-		return errBuildStopped(ctxErr, "before its login prompt", binary, args)
+// ctx is the build's context: when it has ended, a build canceled or out of
+// time stopped the wait itself, so it is reported as that, never as a guest
+// that failed to boot (errBuildStopped).
+func errBootFailed(ctx context.Context, binary string, args []string, stderr string, state *os.ProcessState) error {
+	if ctx.Err() != nil {
+		return errBuildStopped(ctx, "the build VM was stopped before its login prompt", qemuNextStep(binary, args))
 	}
 	if stderr != "" {
 		return fmt.Errorf("the build VM did not reach its login prompt: %s stopped or stalled, and wrote:\n%s", binary, stderr)
@@ -487,29 +485,23 @@ func errBootFailed(ctxErr error, binary string, args []string, stderr string, st
 	return fmt.Errorf("the build VM did not reach its login prompt within %s, and %s wrote nothing to stderr, so QEMU ran but the Alpine guest never booted to a prompt; run the same QEMU command by hand and watch the console:\n%s %s", bootTimeout, binary, binary, shellJoin(args))
 }
 
-// errBuildStopped reports a build VM wait that ended because the build's own
-// context did, at stage (before its login prompt, while it set up SSH, while
-// it built the kernel). A canceled build is reported as canceled, never as a
-// guest that failed. A build out of the time its caller gave it ends with the
-// QEMU command that boots the same VM, whose console shows where it stalls.
-func errBuildStopped(ctxErr error, stage, binary string, args []string) error {
-	if errors.Is(ctxErr, context.Canceled) {
-		return fmt.Errorf("the build VM was stopped %s: the kernel build was canceled (%w)", stage, ctxErr)
-	}
-	return fmt.Errorf("the build VM was stopped %s: the kernel build ran out of the time its caller gave it (%w), "+
-		"with the VM still at that stage; run the same QEMU command by hand and watch the console to see where it stalls:\n%s %s",
-		stage, ctxErr, binary, shellJoin(args))
+// qemuNextStep is the next step for a build VM stopped before the kernel
+// build starts: the QEMU command boots the same VM to the same stage, so its
+// console shows where it stops.
+func qemuNextStep(binary string, args []string) string {
+	return "the VM was still at that stage; run the same QEMU command by hand and watch its console to see where it stops:\n" +
+		binary + " " + shellJoin(args)
 }
 
-// errBuildTimedOut reports a kernel build in the build VM that ran past
-// buildTimeout, with what QEMU wrote and the command that boots the same VM,
-// so the operator can log in on its console and see where the build stalls.
-func errBuildTimedOut(ctxErr error, binary string, args []string, stderr string) error {
-	return fmt.Errorf("the kernel build in the build VM did not finish within %s, the limit Ze gives one build (%w), "+
-		"so the build stalled or this host is too slow for it%s\n"+
-		"run the same QEMU command by hand, log in as root on its console, and watch the build with top to see where it stalls:\n%s %s",
-		buildTimeout, ctxErr, qemuSaid(stderr), binary, shellJoin(args))
-}
+// guestBuildNextStep is the next step for a build VM stopped while the kernel
+// built. The QEMU command alone boots a bare Alpine VM with no sshd and no
+// build, so it cannot show this stage; ssh into a running build can. The
+// options match sshOptions, and runQEMUBuild prints the port, which is new for
+// each run, on its ">>> booting Alpine VM" line.
+const guestBuildNextStep = "the build output above shows the last step it reached. " +
+	"To watch the next build while it runs, log in to its build VM with the ssh port " +
+	"its \">>> booting Alpine VM\" line prints, and run top:\n" +
+	"ssh -t -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p <port> root@localhost top"
 
 // errSSHNeverAnswered reports a build VM that reached its login prompt but
 // whose sshd never answered, with what QEMU wrote and the command that boots

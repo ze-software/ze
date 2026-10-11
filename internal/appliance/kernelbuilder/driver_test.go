@@ -206,8 +206,10 @@ func TestRunDockerRepairsOwnershipAfterFailure(t *testing.T) {
 		}
 		return nil
 	}
+	// The build was canceled while docker run failed, so the stop is the
+	// answer, not the step's own error (round-8 ISSUE 1).
 	err := runDocker(ctx, req)
-	if err == nil || !strings.Contains(err.Error(), "build failed") {
+	if !errors.Is(err, context.Canceled) || !strings.Contains(err.Error(), "the kernel container was stopped") {
 		t.Fatalf("runDocker error = %v", err)
 	}
 	if calls != 3 || !repairRanAfterCancel {
