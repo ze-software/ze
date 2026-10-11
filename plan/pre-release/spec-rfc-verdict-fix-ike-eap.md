@@ -240,8 +240,16 @@ Second fix round (2026-10-11, owner approval "Approve the fixes (Recommended)").
 
 | Stem | Ids | Mode |
 |------|-----|------|
-| rfc7296 | 3.1-8, 3.1-11, 2.21.4-6 (STALE) | rejudge |
+| rfc7296 | 3.1-8, 3.1-11, 2.21.4-6 (STALE) | rejudge: DONE 2026-10-11 by an independent judge, outcomes below |
 | rfc7296 | 2.21.2-1, 2.21.2-2, 2.21.4-7, 3.10.1-1, 3.10.1-3, 3.1-3, 3.1-4, 3.1-7, 3.1-9, 3.1-12 (SHIFTED only) | `./le rfc reseal` |
+
+Rejudge of the second fix round (2026-10-11, independent judge, stamped `mode rejudge` into `rfc/audit/rfc7296.json`):
+
+| Id | Verdict | Reason | Fix owed |
+|----|---------|--------|----------|
+| RFC7296-3.1-8 | enforced | the X-bit request, established-SA request and initiator response reach the three dispatch entries with exact outcomes; the R-bit control and the tryResponderSAInit mutant records discriminate | none; four receive readers (AUTH and EAP response arms, established-SA response arm, sendInvalidIKESPI guard) stay undriven, all mask R alone |
+| RFC7296-3.1-11 | weak | receive clause now sound; the send claim says "every message it sends" while the sample misses two of five header writers, sendSAInitNotifyRaw (COOKIE and IKE_SA_INIT error notifies) and sendInvalidIKESPI | sample those two emissions in TestBuiltMessagesClearXAndVBits, or scope the claim to the sample |
+| RFC7296-2.21.4-6 | weak | the established route is now isolated and discriminating, but an unprotected IKE_AUTH response kills a half-open initiator SA: handleAuthResponse (fsm.go) sets StateDead when the SK payload is missing, as handleEAPResponse does; the VALIDATES line claims every SA | code defect, journal row in `plan/journal/guard-added-to-one-half-of-a-pair.md`; fix the handshake arms to drop silently, then add a StateAuthSent case to the test |
 
 Mechanical: `./le rfc reseal` for any rfc4555 verdict whose `mobike_test.go` unit only shifted.
 
