@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | protocol |
-| Depends | plan/immediate/spec-bgp-unowned-rfc-rows.md (row 3, for AC-8's receive half) |
+| Depends | plan/immediate/spec-bgp-unowned-rfc-rows.md (row 3 and its scenario `bgp-linklocal-capability-interface-frr`, which proves AC-8's receive direction) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-11 |
@@ -44,17 +44,30 @@ dropped as already met by other work, and this spec keeps AC-7 and AC-8.
   `draft_ietf_idr_linklocal_capability_multihop_test.go`
   → Constraint: these already carry `RFC requirement:` tags for `-5-1`, `-4-2`
     and `-4-8`, and `rfc/discrimination/draft-ietf-idr-linklocal-capability.json`
-    holds records for all three (grep, 2026-10-11). AC-7 re-reads them; it
-    writes new tests only where a re-read finds one that does not drive the
-    reachable form.
+    holds records for all three (grep, 2026-10-11). `-4-2` carries positive and
+    negative tags (`draft_ietf_idr_linklocal_capability_test.go` lines 73 and 84;
+    `draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go` lines 155 and
+    158). AC-7 re-reads them; it writes new tests only where a re-read finds one
+    that does not drive the reachable form.
 - `plan/immediate/spec-bgp-update-propagation-rfc-defects.md`, D6
-  → Constraint: on 2026-09-27 this spec recorded `-4-2` as unmet for a received
-    link-local forwarded under next-hop auto or unchanged (D6 there), while the
-    summary now records `-4-2` as met. AC-7 settles which is true at the
-    producer.
+  → Constraint: D6 is fixed. Its row reads "Fixed, including mixed post-policy
+    output and section-specific withdrawals ... D6 implementation and independent
+    round 3 review complete" (round-3 I1, read 2026-10-11). The 2026-09-27 record
+    of `-4-2` as unmet is superseded, so AC-7 re-reads `-4-2` like the other two
+    rows.
+- `docs/contributing/rfc-conformance-gates.md`
+  → Constraint: a `{gap}` row with a positive or negative tag is refused as a
+    stale annotation, and an author-written `{gap}` is not an escape from the
+    coverage ratchet, so a met row with tags is never moved to `{gap}` to clear a
+    finding.
 - `docs/architecture/testing/interop.md`
   → Constraint: the scenario is named, owes a recorded red with the fix reverted
     and the artifact rebuilt.
+- `test/interop/scenarios/bgp-linklocal-only-multihop-withdraw-frr/`
+  → Decision: AC-8's session runs over IPv4, as this scenario's does (`frr.conf`
+    `neighbor 172.30.0.2 capability link-local`, `ze.conf` `link-local
+    fe80::be:ef:2`), because Ze refuses a link-local session address
+    (`reactor_peers.go`, "link-local addresses not supported for local-address").
 
 ## Current Behavior (MANDATORY)
 
@@ -66,30 +79,33 @@ Source files read:
 - [ ] `internal/component/bgp/message/update_build.go` - `buildMPReach`, the 16-octet and 32-octet forms
 - [ ] `internal/component/bgp/reactor/forward_next_hop.go` - `egressNextHopIsLinkLocalOnly`
 - [ ] `internal/component/bgp/reactor/link_scope.go` - `sameLinkLayerSegment`
+- [ ] `internal/component/bgp/reactor/reactor_peers.go` - the refusal of a link-local `local-address`
 
 Capability 77 is advertised, parsed, negotiated and acted on for the send side
 and the reflection path. `test/interop/scenarios/bgp-linklocal-only-multihop-withdraw-frr/`
-exists and covers the multihop withdraw. No scenario exchanges the 16-octet
-link-local form in both directions with another implementation.
+exists and covers the multihop withdraw. No scenario shows another
+implementation installing the 16-octet link-local next hop Ze sends on a shared
+link.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 
-An operator sets `link-local-nexthop` on a peer facing a speaker that also
-advertises capability 77.
+An operator sets `link-local-nexthop` and `link-local` on a peer facing a
+speaker that also advertises capability 77, over an IPv4 session on the shared
+link.
 
 ### Transformation Path
 
 Send: OPEN capability 77 negotiated, `linkLocalOnlyNextHopPermitted`,
-`buildMPReach` writes the 16-octet link-local. Receive: MP_REACH_NLRI with a
-16-octet link-local, carried with the session interface to the FIB, which
-`plan/immediate/spec-bgp-unowned-rfc-rows.md` row 3 builds.
+`buildMPReach` writes the 16-octet link-local in the IPv6 unicast MP_REACH.
+Receive: MP_REACH_NLRI with a 16-octet link-local, carried with the session
+interface to the FIB, which `plan/immediate/spec-bgp-unowned-rfc-rows.md` row 3
+builds and its scenario `bgp-linklocal-capability-interface-frr` proves.
 
 ### Boundaries Crossed
 
-The BGP wire in both directions, against a peer daemon that implements the
-draft.
+The BGP wire, against a peer daemon that implements the draft.
 
 ### Integration Points
 
@@ -100,19 +116,19 @@ checker.
 
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | FRR implements the draft's capability 77 and the 16-octet form | `plan/immediate/spec-bgp-unowned-rfc-rows.md` names FRR's `PEER_HAS_LINK_LOCAL_CAPABILITY` for its `bgp-linklocal-capability-interface-frr` scenario | AC-8 has no peer, which `ai/rules/interop-and-goal-validation.md` refuses; the owner is asked which implementation to use | build the FRR scenario and capture the OPEN | unvalidated |
+| A-1 | FRR implements the draft's capability 77 and the 16-octet form | FRR source: `bgpd/bgp_attr.c` (`PEER_HAS_LINK_LOCAL_CAPABILITY`), also `bgp_nht.c` and `bgp_updgrp_packet.c` (round-3 review N2); the existing `bgp-linklocal-only-multihop-withdraw-frr` scenario already negotiates capability 77 between FRR 10.4.1 and Ze | AC-8 has no peer, which `ai/rules/interop-and-goal-validation.md` refuses; the owner is asked which implementation to use | the existing scenario's negotiation | holds |
 | A-2 | The existing tagged tests for `-5-1`, `-4-2`, `-4-8` drive the form Ze now emits | tags and discrimination records exist (grep, 2026-10-11) | a test that passes because the form is unreachable is vacuous; AC-7 replaces it | AC-7 | unvalidated |
 
 | ID | Risk | Mitigation |
 |----|------|-----------|
-| R-1 | The `-4-2` re-read finds D6 still open, so the summary's "met" is a false public claim | the summary row and its `docs/features/rfc-status.md` row are corrected in the same change (`ai/rules/rfc-compliance.md`); the fix stays D6's, in its own spec |
-| R-2 | AC-8's receive half runs before row 3 of the unowned-rows spec lands | the Depends field; the send half can land first and the receive assertion follows row 3 |
+| R-1 | The `-4-2` re-read finds that a received link-local forwarded under next-hop auto or unchanged reaches a peer more than one hop away again, a regression of D6 | it is a defect in an implemented capability and is fixed in this spec (`ai/rules/completion.md`): the producer changes, the tagged tests go red on the regression and green on the fix, and the row stays met; the ledger is never moved to `{gap}` to absorb it |
+| R-2 | AC-8's receive direction rests on row 3 of the unowned-rows spec | the receive direction is proven by that spec's scenario `bgp-linklocal-capability-interface-frr`, and this spec's scenario asserts the send direction only, so it lands on its own |
 
 ## Blast Radius
 
 Tests and the ledger only, unless AC-7 finds a vacuous test (then that test is
-rewritten) or a false met claim (then the summary is corrected). No production
-code is owed by this spec.
+rewritten) or a regression of `-4-2` (then its producer is fixed here). No other
+production code is owed by this spec.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -120,18 +136,21 @@ code is owed by this spec.
 |-------------|---|--------------|------|
 | An operator sets `link-local-nexthop` on a peer, and the peer advertises capability 77 | → | `Peer.linkLocalOnlyNextHopPermitted`, `buildMPReach` | `bgp-linklocal-only-next-hop-frr` interop scenario |
 
+AC-7 has no row here: it adds no entry point, it re-reads tests over existing
+producers (round-3 N3).
+
 ## Acceptance Criteria
 
 | ID | When | Then |
 |----|------|------|
-| AC-7 | `-5-1`, `-4-2` and `-4-8` are re-read against the producers the summary names | each row's tagged test is shown, by its discrimination record and by reading its body, to drive the form Ze now emits rather than rest on the form being unreachable; a test that does not is rewritten and re-recorded. `-4-2` is settled against D6 of `plan/immediate/spec-bgp-update-propagation-rfc-defects.md`: where a received link-local forwarded under next-hop auto or unchanged is still sent to a peer more than one hop away, the summary's met claim is corrected to `{gap}` naming D6 in the same change. `./le rfc check` exits clean for the stem. `-6-1` and `-1-2` are not in this list |
-| AC-8 | The interop scenario `bgp-linklocal-only-next-hop-frr` runs, both speakers advertising capability 77 on one link with no global next hop available | Ze's UPDATE carries a 16-octet link-local Next Hop (capture asserted) and FRR installs the route through the shared interface; FRR's 16-octet link-local next hop reaches Ze and the kernel route Ze installs names the session interface (row 3 of the unowned-rows spec). The revert, rebuild, red, restore, green walk is recorded |
+| AC-7 | `-5-1`, `-4-2` and `-4-8` are re-read against the producers the summary names | each row's tagged test is shown, by its discrimination record and by reading its body, to drive the form Ze now emits rather than rest on the form being unreachable; a test that does not is rewritten and re-recorded. For `-4-2` the re-read covers the D6 forms: a received link-local forwarded under next-hop auto and under unchanged, to a peer on the shared segment and to one more than one hop away. If a form regressed, the producer is fixed in this spec and the tagged test proves it (R-1); the row stays met. `./le rfc check` exits clean for the stem. `-6-1` and `-1-2` are not in this list |
+| AC-8 | The interop scenario `bgp-linklocal-only-next-hop-frr` runs: Ze and FRR on one shared link, the BGP session over IPv4 addresses on that link (single hop), the IPv6 unicast family negotiated with capability 77 on both sides, no global IPv6 address on the link, and Ze's `link-local` set to its address on that interface | Ze's UPDATE carries a 16-octet link-local Next Hop (capture asserted) and FRR installs the route through the shared interface, read from FRR's RIB and kernel. The receive direction, FRR's 16-octet link-local next hop installed by Ze with the session interface, is AC-3 of `plan/immediate/spec-bgp-unowned-rfc-rows.md` and its scenario `bgp-linklocal-capability-interface-frr`; this scenario does not repeat it. The revert, rebuild, red, restore, green walk is recorded |
 
 ## End-to-End User Stories
 
 | Story | Path |
 |-------|------|
-| An operator peers over IPv6 with no global addresses configured on the link | both speakers advertise 77, each sends a 16-octet link-local next hop, and each installs a usable route through the link |
+| An operator peers over an IPv4 session on a shared link, carries IPv6 unicast routes, and configures no global IPv6 address on the link | both speakers advertise 77; Ze sends a 16-octet link-local next hop and FRR installs a usable route through the link (`bgp-linklocal-only-next-hop-frr`); FRR's 16-octet link-local next hop is installed by Ze through the link (`bgp-linklocal-capability-interface-frr`, unowned-rows spec) |
 
 ## 🧪 TDD Test Plan
 
@@ -145,23 +164,63 @@ code is owed by this spec.
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-linklocal-only-next-hop-frr` | `test/interop/scenarios/bgp-linklocal-only-next-hop-frr` | FRR | AC-8: the 16-octet form is sent, accepted and installed in both directions | |
+| `bgp-linklocal-only-next-hop-frr` | `test/interop/scenarios/bgp-linklocal-only-next-hop-frr` | FRR | AC-8: the 16-octet form Ze sends is accepted and installed by FRR | |
+| `bgp-linklocal-capability-interface-frr` (created by the unowned-rows spec) | `test/interop/scenarios/bgp-linklocal-capability-interface-frr` | FRR | AC-8 receive direction, by reference | |
 
 ## Files to Modify
 
 - `rfc/short/draft-ietf-idr-linklocal-capability.md`, `docs/features/rfc-status.md` - AC-7, only where the re-read corrects a claim
 - `internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_*_test.go` - AC-7, only a test the re-read finds vacuous
+- `internal/component/bgp/reactor/forward_next_hop.go` - AC-7, only if the `-4-2` re-read finds a regression (R-1)
 - `internal/le/interoplab/bgp/check_special.go` - map entry for `bgp-linklocal-only-next-hop-frr`
+- `docs/architecture/testing/interop.md` - a paragraph for `bgp-linklocal-only-next-hop-frr` beside the existing `bgp-linklocal-only-multihop-withdraw-frr` one
 
 ## Files to Create
 
 - `test/interop/scenarios/bgp-linklocal-only-next-hop-frr/`
 - `internal/le/interoplab/bgp/check_linklocal_only.go` and its `_test.go` - the scenario checker
 
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | N-A | no new leaf; `link-local-nexthop` and `link-local` exist |
+| YANG validation constraints | N-A | none new |
+| YANG custom validators | N-A | none new |
+| CLI commands/flags | N-A | no command changes |
+| CLI grammar (keyword before value) | N-A | no command changes |
+| Editor autocomplete | N-A | no new leaf |
+| Functional test for new RPC/API | N-A | no new RPC |
+| Pipe completeness | N-A | no command output |
+| Env var registration | N-A | none |
+| Doctor check for runtime dependencies | N-A | no new runtime dependency |
+| Prometheus counters/metrics | N-A | none |
+| BGP family surface (new SAFI / capability / attribute) | N-A | capability 77 and IPv6 unicast exist; the work is interop and a re-read |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | the feature exists; AC-8 adds interop evidence recorded in the summary (item 9) |
+| 2 | Config syntax changed? | No | none |
+| 3 | CLI command added/changed? | No | none |
+| 4 | API/RPC added/changed? | No | none |
+| 5 | Plugin added/changed? | No | none |
+| 6 | Has a user guide page? | No | no behavior changes |
+| 7 | Wire format changed? | No | none |
+| 8 | Plugin SDK/protocol changed? | No | none |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/draft-ietf-idr-linklocal-capability.md` (the interop evidence, and any claim AC-7 corrects) and `docs/features/rfc-status.md` where AC-7 corrects a claim |
+| 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/interop.md`: the new scenario's paragraph |
+| 11 | Affects daemon comparison? | No | none |
+| 12 | Internal architecture changed? | No | none, unless the R-1 fix lands: then `docs/architecture/core-design.md` (egress route decisions on the forward rails), the page `forward_next_hop.go` declares |
+| 13 | Route metadata keys added/changed? | No | none |
+| 14 | Prometheus counters added/changed? | No | none |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/architecture/testing/interop.md`, declared by `check_special.go`: the new checker gets its `<!-- source: -->` line; `docs/architecture/core-design.md`, declared by `forward_next_hop.go`, only if the R-1 fix lands |
+| 17 | Existing docs show config/CLI/API examples for this area? | No | none changed |
+
 ## Implementation Steps
 
-1. AC-7 re-read of `-5-1`, `-4-2`, `-4-8`; correct any vacuous test or false claim. Own commit.
-2. AC-8 send half once A-1 holds; receive half after row 3 of the unowned-rows spec lands. Own commit, with the recorded red.
+1. AC-7 re-read of `-5-1`, `-4-2`, `-4-8`; correct any vacuous test, and fix a `-4-2` regression at its producer if the re-read finds one. Own commit.
+2. AC-8 scenario `bgp-linklocal-only-next-hop-frr` (send direction), with the recorded red. Own commit.
 
 ## Design Insights
 
@@ -172,6 +231,15 @@ code is owed by this spec.
 
 - Interop is the evidence for AC-8. A capability-gated wire format proven only
   against Ze proves the encoder agrees with itself (`ai/rules/interop-and-goal-validation.md`).
+- AC-8 runs over an IPv4 session on the shared link, because Ze refuses a
+  link-local session address; "no global next hop" means no global IPv6 address
+  on the link, not an IPv6 session (round-3 I2).
+- The receive direction is proven once, by the unowned-rows spec's
+  `bgp-linklocal-capability-interface-frr`; a second scenario asserting the same
+  install would be a second copy of one proof (round-3 I2).
+- A `-4-2` regression is a defect fixed here, never a ledger move to `{gap}`:
+  the gates refuse a tagged `{gap}`, and a met row that broke is a defect in an
+  implemented capability (round-3 I1).
 
 ## Owner decisions (2026-10-11)
 
