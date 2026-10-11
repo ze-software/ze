@@ -78,7 +78,9 @@ func TestSharedReviveTakesTheRequestAuth(t *testing.T) {
 // with no local address (sharedAuthLocked). Both reach replaceAuth. A request
 // naming profile "secure" with other authentication is then refused, and the
 // refusal must name "rekeyed" as the profile the session was built from; a
-// request naming "open" again must not be told "open" was edited. If the
+// request naming "open" again must be sent to "rekeyed" and must not be told
+// "open" was edited. The loop's profile lookup answers that no profile was
+// edited, so the refusals may name "rekeyed". If the
 // revive kept "open" as the session's source, the first refusal would name
 // "open" and the second would send the operator to release the session from
 // every client, which helps nothing.
@@ -96,6 +98,14 @@ func TestReviveRecordsTheRevivingProfile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			clk := &steppedClock{now: time.Unix(1_000_000, 0)}
 			l := NewLoop(&captureTransport{}, clk)
+			// The config as the bfd plugin's lookup would answer it: no profile
+			// is edited, so "rekeyed" still resolves to the revived session's
+			// authentication.
+			profiles := map[string]*api.AuthSettings{"open": nil, "rekeyed": rekeyed, "secure": secure}
+			l.SetProfileAuth(func(name string) (*api.AuthSettings, bool) {
+				auth, defined := profiles[name]
+				return auth, defined
+			})
 			open := reqFor(addrB, addrA)
 			open.Profile = "open"
 			openHandle, err := l.EnsureSession(open)
@@ -139,7 +149,7 @@ func TestReviveRecordsTheRevivingProfile(t *testing.T) {
 				t.Fatalf("EnsureSession open after the revive: err = %v, want ErrAuthMismatch", err)
 			}
 			text := err.Error()
-			const wantFix = `give bfd profile "open" the auth block of bfd profile "rekeyed"`
+			const wantFix = `name bfd profile "rekeyed" on this client`
 			if !strings.Contains(text, wantFix) {
 				t.Errorf("refusal %q\ndoes not contain %q", text, wantFix)
 			}

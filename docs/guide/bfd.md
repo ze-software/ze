@@ -501,9 +501,10 @@ has some) is refused rather than joined: the session keeps the
 authentication it was built with, and the refused client logs the error,
 which names the peer, interface and VRF, says what differs, explains that one
 session per neighbor runs one authentication (RFC 5882 Section 4.4) so the
-client runs without BFD, and gives the one fix for that case. A BGP peer then
-runs without BFD (a strict-mode peer is held down), a static route's next-hop
-runs without BFD, and an OSPF neighbor runs on its hello and dead timers. Two
+client gets no BFD session, and gives the one fix for that case. A BGP peer
+then runs without BFD, a strict-mode BGP peer is held down, a static route's
+next-hop runs without BFD, a pinned session fails the apply of the commit that
+asked for it, and an OSPF neighbor runs on its hello and dead timers. Two
 profiles with the same auth block under different names share the session.
 
 OSPF BFD runs unauthenticated: an OSPF interface's `bfd` block takes timers
@@ -513,23 +514,30 @@ that session runs no authentication, so those clients' profiles carry no
 auth block either; otherwise take OSPF out of BFD on that interface with
 `bfd { enabled false; }` or by deleting its `bfd` block.
 
-Each fix the error names changes only the refused client, so it takes effect
-when that client next asks for the session (see "Editing live"). The only
-exception is a profile edited after the session was built from it, where only
-a release by every client helps:
+No fix the error names edits a profile. An edit to a profile reaches every
+client that names it, on any neighbor, at that client's next ask: removing the
+auth block from a profile many BGP peers share, to fix one refused peer, would
+drop authentication for all of them. Each fix instead names a profile on the
+refused client, or copies an auth block into a profile only that client names,
+so it changes the refused client alone and takes effect when that client next
+asks for the session (see "Editing live"). The exceptions are a profile the
+session was built from that was edited or removed after the session was built,
+where only a release by every client helps:
 
 | Live session | Refused client | Fix the error names |
 |--------------|----------------|---------------------|
-| No authentication | Profile with an auth block | Remove the auth block from this client's profile |
-| Authentication | Profile with no auth block | Give this client's profile the auth block of the profile the session was built from |
+| No authentication | Profile with an auth block | Name the profile the session was built from, or another profile with no auth block, on this client. When no client's profile built the session (an OSPF interface or a pinned session naming none), or that profile has gained an auth block since, the error names only the second |
+| Authentication | Profile with no auth block | Name the profile the session was built from on this client, or copy that profile's auth block into a profile only this client names |
 | Authentication | No profile (an OSPF interface, or a BGP peer or pinned session naming none) | Name the profile the session was built from on this client, or, on an OSPF interface, set `bfd { enabled false; }` |
-| Authentication | Profile with a different auth block | Name the profile the session was built from on this client, or copy that profile's auth block into this client's profile |
+| Authentication | Profile with a different auth block | Name the profile the session was built from on this client, or copy that profile's auth block into a profile only this client names |
 | Either | The profile the live session was built from, edited since | Release the session from every client (see "Editing live"), so the next client to ask builds it from the edited profile |
+| Authentication | Any client, while the profile the session was built from has been edited or removed since | Release the session from every client (see "Editing live"). The error never names that profile then: copying it, or naming it, would give the client an authentication the session does not run, or a name the commit refuses |
 
 The other way round, changing every other client to match the refused one,
 also works, but a live session keeps its authentication until every client has
 released it, so it needs the release in "Editing live" too.
-<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase -->
+<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent -->
+<!-- source: internal/component/bfd/bfd.go -- profileAuth, loopFor -->
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession -->
 <!-- source: internal/component/bgp/reactor/peer_bfd.go -- startBFDClient -->
 <!-- source: internal/plugins/static/inject.go -- setupBFDLocked -->
@@ -578,7 +586,7 @@ itself, and can join the old session again before the other clients have let
 go of it; if that happens, tear it down again once they have.
 
 A client refused because its authentication differs from the live
-session's asks again at the same moments, so a fix to its own profile
+session's asks again at the same moments, so a fix to its own config
 takes effect then.
 <!-- source: internal/component/bfd/bfd.go -- applyPinned -->
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession, reviveReleasedLocked, createSessionLocked -->

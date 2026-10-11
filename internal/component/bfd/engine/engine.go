@@ -121,6 +121,9 @@ type Loop struct {
 	byDiscr   map[uint32]*sessionEntry
 	byKey     map[firstPacketKey]*sessionEntry
 	nextDiscr uint32
+	// profileAuth resolves a profile name in the config applied now
+	// (SetProfileAuth), nil when none is installed. Guarded by mu.
+	profileAuth ProfileAuth
 
 	subsMu      sync.Mutex
 	subscribers map[api.Key][]chan api.StateChange
@@ -165,8 +168,9 @@ type sessionEntry struct {
 	// authFrom names the profile of the request that set auth: the one that
 	// created the session, or the last to revive it (replaceAuth). It is not
 	// profile, which a shared revive leaves naming the creator's. A refused
-	// join reads it to tell an edited profile from a different one
-	// (authMismatchCase).
+	// join reads it to tell an edited profile from a different one, and asks
+	// the loop's profile lookup whether it still resolves to auth
+	// (authMismatchCase, sourceCurrent).
 	authFrom  string
 	createdAt time.Time
 	// lastChange is when the session entered lastState, or the zero time when
@@ -555,7 +559,7 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 		if entry.released {
 			return l.reviveReleasedLocked(req, key, entry)
 		}
-		if err := joinAuthCheck(entry, req, key); err != nil {
+		if err := joinAuthCheck(entry, req, key, l.profileAuth); err != nil {
 			return nil, err
 		}
 		entry.machine.Acquire()

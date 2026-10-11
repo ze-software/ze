@@ -535,13 +535,28 @@ Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scrat
 
 Tests: `TestAuthJoinRefusalNamesApplicableFix` and `TestReviveRecordsTheRevivingProfile` green. `./le --name bfdr6 test bgp plugin --pattern bgp-bfd-auth`: 105 and 106 PASS (`ci-green.log`). Race with the gate tags over `bfd/...`, `static/...`, `test/fixture/...`: ok (`race.log`). Scoped lint over `bfd/...` and `test/fixture/...`: no finding in a changed file (`lint.log`). `./le rfc check`: no rfc5880, rfc5881 or rfc5882 violation (`rfccheck.log`; the 17 are rfc4271, rfc4760 and rfc7296). No RFC-tagged test asserts the changed text.
 
+## Review round 6 fixes, 2026-10-11
+
+Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-rfc-verdict-bfd-r6.md` (0 BLOCKER, 2 ISSUE, 4 NOTE). Evidence in `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/red-bfd-r7/`.
+
+| # | Finding | Fixed by | Evidence |
+|---|---------|----------|----------|
+| ISSUE 1 | fixes that edit a named profile reach every client naming it | the commit that carries this row | no refusal names a profile edit any more. Live none: "name bfd profile P on this client, or another bfd profile with no auth block" (P only while it still resolves to none), else "name a bfd profile with no auth block on this client". Profile with no auth block, and two authenticated profiles: "name bfd profile P on this client, or copy its auth block into a profile only this client names". `TestAuthJoinRefusalNamesApplicableFix` refuses "remove the auth block from", "the auth block of" and `auth block into "` in every case. Guide "Session sharing" and the `authMismatchCase` comment say why: an edit reaches every client naming the profile, on any neighbor |
+| ISSUE 2 | refusal sends a client to a profile edited or removed since the session was built | same commit | `engine.ProfileAuth` lookup, installed by `loopFor` (`runtimeState.profileAuth`, read under `runtimeStateGuard`, which both `EnsureSession` callers hold); `sourceCurrent` asks whether `authFrom` still resolves to the live auth. When it does not, every authenticated-session case answers "the session's bfd profile P changed or was removed since; to fix it, release the session from every client to rebuild it (docs/guide/bfd.md, \"Editing live\")", and the live-none case drops P. Six new cases (edited or removed source, asked by another authenticated profile, an unauthenticated profile, OSPF; "open" gaining auth asked by "rekeyed"; current "open" asked by "secure"). Overlay reds: `sourceCurrent` ignoring the auth compare reddens the three edited cases (`red-noedited.log`), ignoring "not defined" reddens the two removed cases (`red-noremoved.log`). `.ci` red with the `loopFor` install commented out (`functional-red-nolookup.log`): the refusal fell to "name a bfd profile with no auth block" |
+| NOTE 1 | empty VRF only in engine tests | not a defect | recorded only |
+| NOTE 2 | weakened row overstated what the spans cover | same commit | the corrected row was written, and `./le commit create` dropped the shard's row as the ledger design does (this round's `.ci` change replaces two expect lines and adds a third, so it weakens nothing and owes no row). The corrected wording now stands in the fixture comment: the three spans cover "every word after the refusal's peer prefix but those names"; the peer is asserted by `TestRFC5882AuthJoinDifferentAuthRefused` |
+| NOTE 3 | "so this client runs without BFD" loose for strict BGP and pinned | same commit | refusal says "so this client gets no BFD session"; guide names per client what follows (BGP runs without BFD, strict held down, static runs without BFD, pinned fails the commit's apply, OSPF on hello and dead timers) |
+| NOTE 4 | non-edited refusals do not say when the fix applies | within the owner's direction | recorded only |
+
+Refusal lengths 331 to 396 characters (cap 400). `./le rfc discriminate-record` re-recorded the RFC5882-10.2-1 negative (producer `joinAuthCheck` changed; unit byte-identical, observed red). `./le rfc check`: nothing for rfc5880, rfc5881 or rfc5882. No RFC-tagged test asserts the changed text.
+
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
 | Artifact | |
 | `./le spec review check` | not run |
-| Rounds | 5 so far (scratch `review-rfc-verdict-bfd.md`, `-r2` to `-r5`); round 6 owed |
+| Rounds | 6 so far (scratch `review-rfc-verdict-bfd.md`, `-r2` to `-r6`); round 7 owed |
 | Owner authorised | round 6: Thomas, 2026-10-11, "Authorise round 6"; round 7: Thomas, 2026-10-11, "Authorise round 7" |
 | Reviewer lenses used | |
 

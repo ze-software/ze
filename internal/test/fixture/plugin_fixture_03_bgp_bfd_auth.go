@@ -133,21 +133,25 @@ bgp {
 // The refused client's log line carries the refusal joinAuthCheck builds
 // (internal/component/bfd/engine/auth_join.go, authMismatchCase) for a live
 // session that runs no authentication: what differs, why the client is
-// refused, and the one fix, removing the auth block from this client's
-// profile. The two spans stop short of the quoted profile name, which the
-// log handler escapes, and together cover the rest of the refusal.
+// refused, and the one fix, which edits no profile another client may name:
+// name profile open, which the session was built from and which still holds
+// no auth block (so the bfd plugin's profile lookup reached the engine), or
+// another profile with none. The three spans stop short of the quoted profile
+// names, which the log handler escapes, and together cover every word after
+// the refusal's peer prefix but those names.
 const (
 	logBFDAuthJoinRefused = "BFD authentication differs from the live session's: " +
 		"the session runs none, bfd profile "
 	logBFDAuthJoinRefusedWhy = " has an auth block; one session per neighbor runs one authentication " +
-		"(RFC 5882 Section 4.4), so this client runs without BFD; " +
-		"to fix it, remove the auth block from bfd profile "
+		"(RFC 5882 Section 4.4), so this client gets no BFD session; " +
+		"to fix it, name bfd profile "
+	logBFDAuthJoinRefusedFix = " on this client, or another bfd profile with no auth block"
 )
 
 func bgpBFDAuthJoinRefused03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bgpBFDAuthJoinRefusedConfig03,
 		[]string{logBFDRunning, logBFDPinnedSessionCreated, "bfd strict-mode EnsureSession failed; peer is held down",
-			logBFDAuthJoinRefused, logBFDAuthJoinRefusedWhy},
+			logBFDAuthJoinRefused, logBFDAuthJoinRefusedWhy, logBFDAuthJoinRefusedFix},
 		[]string{logRejectInvalidBFD, "bfd session shared", logBFDSessionOpenedForPeer},
 		20*time.Second, map[string]string{envLogBFD: logLevelDebug, envLogBGP: logLevelDebug})
 }

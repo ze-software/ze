@@ -8,8 +8,11 @@
 #            secure (Keyed SHA1). The peer's EnsureSession is refused with an
 #            error that says the authentication differs, why (one session per
 #            neighbor runs one authentication, RFC 5882 Section 4.4), and the
-#            one fix that changes only this client (drop the auth block from
-#            its profile), and the session is not shared.
+#            one fix that changes only this client (name the profile open, or
+#            another profile with no auth block, on it; no shared profile is
+#            edited), and the session is not shared. Naming open proves the
+#            bfd plugin's profile lookup reached the engine: without it the
+#            refusal could not know open still holds no auth block.
 # PREVENTS:  a client that asked for BFD authentication running on a session
 #            that has none, with no word to the operator.
 #
@@ -26,6 +29,7 @@ cmd=foreground:seq=1:exec=le test fixture plugin/bgp-bfd-auth-join-refused:timeo
 expect=exit:code=0
 expect=stderr:contains=bfd strict-mode EnsureSession failed; peer is held down
 expect=stderr:contains=BFD authentication differs from the live session's: the session runs none, bfd profile
-expect=stderr:contains=one session per neighbor runs one authentication (RFC 5882 Section 4.4), so this client runs without BFD
-expect=stderr:contains=to fix it, remove the auth block from bfd profile
+expect=stderr:contains=one session per neighbor runs one authentication (RFC 5882 Section 4.4), so this client gets no BFD session
+expect=stderr:contains=to fix it, name bfd profile
+expect=stderr:contains=on this client, or another bfd profile with no auth block
 reject=stderr:contains=bfd session shared

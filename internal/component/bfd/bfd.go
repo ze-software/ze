@@ -134,6 +134,7 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 	}
 	loop := engine.NewLoopWithEcho(tr, echoTr, clock.RealClock{})
 	attachMetricsHook(loop)
+	loop.SetProfileAuth(r.profileAuth)
 	if startErr := loop.Start(); startErr != nil {
 		if stopErr := tr.Stop(); stopErr != nil {
 			logger().Debug("bfd udp stop after failed start", "err", stopErr)
@@ -157,6 +158,26 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 		"ipv6", bindV6,
 		"echo", echoTr != nil)
 	return loop, nil
+}
+
+// profileAuth answers the engine's profile lookup (engine.ProfileAuth) from
+// the config applied now: the authentication profile name resolves to, through
+// the applyTo every client request goes through, and whether that config
+// defines name. The engine calls it from Loop.EnsureSession, which both of its
+// callers (pluginService.EnsureSession and applyPinned) reach holding
+// runtimeStateGuard, the lock r.cfg is written under; it MUST NOT be called
+// without that lock held.
+func (r *runtimeState) profileAuth(name string) (*api.AuthSettings, bool) {
+	if r.cfg == nil {
+		return nil, false
+	}
+	p, ok := r.cfg.profiles[name]
+	if !ok {
+		return nil, false
+	}
+	var req api.SessionRequest
+	p.applyTo(&req)
+	return req.Auth, true
 }
 
 // stopAll tears down every running loop and forgets every pinned handle.
