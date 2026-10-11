@@ -1,5 +1,7 @@
 package eap
 
+// RFC naming: untagged -- a red probe for the RFC5216-2.1.2-1 defect that plan/immediate/spec-ike-eap-rfc-defects.md AC-4 owns; it proves no requirement until that fix replaces it with a tagged test.
+
 import (
 	"bytes"
 	"testing"

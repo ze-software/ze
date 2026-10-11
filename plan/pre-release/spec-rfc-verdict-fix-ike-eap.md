@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | verification |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the IKE/EAP group before any row edit, parent R-11) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-28 |
+| Updated | 2026-10-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -476,3 +476,74 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** tests + rows + verdicts + records + D-8 code + edited spec
 - [ ] **Commit B:** `remove plan/pre-release/spec-rfc-verdict-fix-ike-eap.md` only, in the same `./le commit create` script
+
+## Progress, 2026-10-11
+
+Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD on 2026-10-11. Implementation is finished; the spec waits for its independent `/ze-review`. It is not closed.
+
+## Implementation Summary
+
+### What Was Implemented
+- 44 commits since 2026-09-28 touch this child's eleven `rfc/audit/<stem>.json` files, including the AC-C2 record sweep `6b968f093b` (120 records), the tag fixes `1075b8992f`, the RFC9190 re-record `4074fd651a` and the Linux-host RFC4555-4.2.5-1 positive record `4baacedc8f`.
+- 2026-10-11: `internal/core/eap/rfc5216_resumption_defect_test.go` (the tag-free red probe landed in `62ac09f39b`) carries `// RFC naming: untagged -- ...` naming `plan/immediate/spec-ike-eap-rfc-defects.md` AC-4, which replaces it with a tagged proof of the fix. The test body is unchanged and still fails as the defect record intends (`TestRFC5216ResumingServerSendsNothingButChangeCipherSpecAndFinished`: handshake types `[2 4]`, a NewSessionTicket after server_hello).
+
+### Bugs Found/Fixed (D-8, each with production code)
+| Commit | Fix |
+|--------|-----|
+| `cb4801b4cc` | initiator refuses a peer's reserved ESP SPI 0 (RFC 4303 2.1) |
+| `2d67f88f5f`, `51bddc694e`, `2fed107f98` | engine fixes: EAP auth, rekey nonces (2.10-3), unknown transform attribute (3.3.6-5) |
+| `320f4582c8` | inbound SAD selector (RFC4301-4.4.2-1) |
+| `3b83ac7de1`, `c548bebf6f`, `d24fc20179` | dataplane: RFC3948-5.2-1 transport conflict, SAD items, lifetimes |
+| `db64c5ca7b` | SPI-pair lookup (RFC 7296) |
+| `c648880564`, `8f1ef0ade3` | fail-closed catch-all; engine lookups return errors, no ENCR 0 offer |
+| `59712974dd`, `e585f7d591` | transport: inventory TransformErr, NAT keepalive need |
+| `48591f88d5`, `b57b47161d` | EAP peer certificate; EAP reassembly L-bit |
+
+### Deviations from Plan
+- None beyond the naming marker above.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-C1 | Done | the "Derived listing" filter at HEAD, 2026-10-11, returns RFC3948-2.1-2 (wrong), RFC4301-4.4.2.1-3 (wrong), RFC5216-2.1.1-4 (wrong), RFC5216-2.1.1-5 (weak), RFC5216-2.1.2-1 (weak); four are in AC rows of `plan/immediate/spec-ike-eap-rfc-defects.md`, RFC4301-4.4.2.1-3 in AC-7 of `plan/spec-ipsec-lifetime-volume.md` | |
+| AC-C2 | Done | 137 verdicts moved to `enforced` since `174862502f`; every tagged unit carries a record except RFC4303-2.1-1's four units, which is the parent's cross-group verdict (parent AC-9), not this child's | judge independence per commit is in QUEUE.md and is the reviewer's to confirm |
+| AC-C3 | Done | split rows landed with the package phases; the reviewer re-walks the split table against `rfc/short/` | |
+| AC-C4 | Done | the five blocked verdicts sit in their owning specs' ACs | |
+| AC-C5 | Done | `./le rfc check` 2026-10-11: the rfc5216 file-name violation is gone and no violation names an ike-eap stem | |
+| AC-C6 | Done | tag fixes `1075b8992f` (RFC3948-4-1, RFC7296-3.1-3) | |
+| AC-C7 | see table | the "Un-enrolled R-7 rows" table above | reviewer to confirm each row's date |
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| AC-C1: the derived listing holds only "Blocked by" ids | ledger query | 5 rows, each in an owning spec's AC |
+| every resolved verdict proven and judged by a non-author | discrimination records + audit | 0 unrecorded tagged units over 137 moved verdicts (RFC4303-2.1-1 is the parent's); `./le rfc check` clean for the ike-eap stems |
+| D-8 fixes work against another implementation | interop | GAP: no run is recorded for these fixes. The suite exists: `./le test integration interop-ipsec` runs the 40 strongSwan scenarios under `test/interop-ipsec/scenarios/` (correction 2026-10-11: an earlier draft of this row said no IKE or EAP scenario exists, which was wrong) |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| RFC3948-2.1-2, RFC5216-2.1.1-4, RFC5216-2.1.1-5, RFC5216-2.1.2-1 | producer defects (P-3) | `plan/immediate/spec-ike-eap-rfc-defects.md` |
+| RFC4301-4.4.2.1-3 | Ze keeps no byte-count lifetime | `plan/spec-ipsec-lifetime-volume.md` AC-7 |
+| interop evidence for the D-8 fixes, all wire-visible | no run recorded after the fixes (last D-8 `b57b47161d`, 2026-10-01). Owed, with `IPSEC_INTEROP_SCENARIO=<name> ./le test integration interop-ipsec`: EAP (`48591f88d5`, `b57b47161d`) `eap-tls`, `eap-tls13`, `eap-mschapv2`, `responder-eap-tls13`, `responder-eap-tls13-revoked-client`, `responder-eap-mschapv2`; rekey nonces (`51bddc694e`) `child-rekey`, `responder-raises-child-rekey`, `responder-ike-rekey`, `ike-rekey-retries-in-the-named-group`; SAD selector and lifetimes (`320f4582c8`, `c548bebf6f`, `d24fc20179`) `dataplane-readback`; NAT-T and RFC 3948 (`3b83ac7de1`, `e585f7d591`) `natt-transport-inner-checksum`, `natt-tunnel-inner-checksum`, `real-nat-transport-ze-initiator`, `real-nat-transport-ze-responder`, `real-nat-tunnel-control`; SPI and transform handling (`cb4801b4cc`, `2fed107f98`, `db64c5ca7b`, `c648880564`, `8f1ef0ade3`) `psk-site-to-site`, `responder-psk`. A conforming strongSwan never sends SPI 0 or an unknown transform attribute, so those two refusals stay proven by unit test only; the runs prove the fixes broke no conforming exchange | this spec, before closure |
+| `./le verify worktree` | needs a quiet machine | this spec, before closure |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | |
+| `./le spec review check` | not run |
+| Rounds | |
+| Reviewer lenses used | |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
