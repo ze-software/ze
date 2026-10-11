@@ -5,15 +5,17 @@
 #            configuration. A pinned single-hop session to 127.0.0.254 runs
 #            under the profile open (no auth block); a strict BGP peer to the
 #            same neighbor from the same local address names the profile
-#            secure (Keyed SHA1). The peer's EnsureSession is refused with
-#            "the authentication configurations differ", and the session is
-#            not shared.
+#            secure (Keyed SHA1). The peer's EnsureSession is refused with an
+#            error that says the authentication differs, why (every client of
+#            one remote system shares one BFD session, RFC 5882 Section 4.4),
+#            and the fix (the same bfd profile, or the same auth block), and
+#            the session is not shared.
 # PREVENTS:  a client that asked for BFD authentication running on a session
 #            that has none, with no word to the operator.
 #
 # Method: a native Go fixture boots ze with the config, waits for the pinned
-# session, the strict peer held down by the refusal and the mismatch text on
-# stderr, and rejects any line saying the session was shared or opened for the
+# session, the strict peer held down by the refusal and the mismatch text, with
+# its reason and fix, on stderr, and rejects any line saying the session was shared or opened for the
 # peer.
 
 option=env:var=ze.bfd.test-parallel:value=true
@@ -23,5 +25,7 @@ option=exclusive:group=bfd-ports
 cmd=foreground:seq=1:exec=le test fixture plugin/bgp-bfd-auth-join-refused:timeout=30s
 expect=exit:code=0
 expect=stderr:contains=bfd strict-mode EnsureSession failed; peer is held down
-expect=stderr:contains=the authentication configurations differ
+expect=stderr:contains=BFD authentication differs from that of the live session to the same neighbor
+expect=stderr:contains=every client of one remote system shares one BFD session (RFC 5882 Section 4.4)
+expect=stderr:contains=to fix it, name the same bfd profile on every client of this neighbor, or give their profiles the same auth { type; key-id; secret; } block
 reject=stderr:contains=bfd session shared

@@ -499,8 +499,12 @@ profile resolves to a different authentication (another Auth Type, Key ID
 or secret, or authentication where the session has none, or none where it
 has some) is refused rather than joined: the session keeps the
 authentication it was built with, and the refused client logs the error,
-which names the peer, interface and VRF and says that the authentication
-configurations differ. A BGP peer then runs without BFD (a strict-mode peer
+which names the peer, interface and VRF, says that this client's BFD
+authentication differs from the live session's, explains that every client
+of one remote system shares one BFD session (RFC 5882 Section 4.4) so the
+client gets no BFD session, and gives the fix: name the same bfd profile on
+every client of that neighbor, or give their profiles the same
+`auth { type; key-id; secret; }` block. A BGP peer then runs without BFD (a strict-mode peer
 is held down), a static route's next-hop runs without BFD, and an OSPF
 neighbor runs on its hello and dead timers. Two profiles with the same
 auth block under different names share the session. Give every client of

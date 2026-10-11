@@ -131,8 +131,13 @@ bgp {
 `
 
 // logBFDAuthJoinRefused is engine.ErrAuthMismatch's text, which the refused
-// client's log line carries (internal/component/bfd/engine/engine.go).
-const logBFDAuthJoinRefused = "the authentication configurations differ"
+// client's log line carries (internal/component/bfd/engine/engine.go): what
+// differs, why the client is refused, and the config change that fixes it.
+const logBFDAuthJoinRefused = "this client's BFD authentication differs from that of the live " +
+	"session to the same neighbor, and every client of one remote system shares one BFD session " +
+	"(RFC 5882 Section 4.4) that runs one authentication, so this client gets no BFD session; " +
+	"to fix it, name the same bfd profile on every client of this neighbor, " +
+	"or give their profiles the same auth { type; key-id; secret; } block"
 
 func bgpBFDAuthJoinRefused03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bgpBFDAuthJoinRefusedConfig03,
