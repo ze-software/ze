@@ -1,0 +1,375 @@
+# Spec: bgp-epe-peer-segments-and-srv6-peernode -- EPE PeerAdj, PeerSet, per-peer control and SRv6 PeerNode
+
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Scope | protocol |
+| Depends | - |
+| Phase | - |
+| Handoff | - |
+| Updated | 2026-10-11 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Task
+
+The BGP child of the rfc-verdict pass (`plan/pre-release/spec-rfc-verdict-fix-bgp.md`,
+"Gap accounting", around line 975) closed with requirement rows that no spec owned.
+One spec took them (`plan/immediate/spec-bgp-unowned-rfc-rows.md`). On 2026-10-11 the
+owner put EPE PeerAdj/PeerSet IN, ruled that the RFC 9514 §7.2 rows are owned
+"Only if EPE is in" (it is), and split the work: "Split into three". This spec owns
+the EPE rows. The defects stay in the immediate spec; DelayOpen and Event 3 are
+`plan/spec-bgp-fsm-delayopen-and-automatic-start.md`.
+
+No existing spec could absorb these rows: the BGP-LS specs in the tree
+(`plan/pre-release/spec-bgp-ls-origination-and-the-scheduled-marker.md`,
+`plan/immediate/spec-bgp-ls-receiver-accept-and-limit-controls.md`,
+`plan/immediate/spec-bgp-ls-receiver-fault-management.md`) own RFC 9552 node keys
+and receiver fault handling, and none names RFC 9086, RFC 9514 §7.2 or the EPE
+plugin (grep, 2026-10-11).
+
+Row numbers are the numbers the rows had in the parent spec.
+
+| # | Row id | Document, section | Class | What Ze does today |
+|---|--------|-------------------|-------|--------------------|
+| 8 | `RFC9086-7-2` (and `RFC9086-7-1`'s gap half) | RFC 9086 §7 | gap: feature absent, owner IN | Only PeerNode SID configuration exists; no PeerAdj or PeerSet SID, no per-recipient control |
+| 11 | `RFC9514-7.2-5` | RFC 9514 §7.2 | gap half (`partial`): feature absent, owned because EPE is in | Decodes TLV 1251 flags and ignores reserved bits; originates no SRv6 BGP PeerNode SID TLV, so "set to 0 when originated" is reached by no layer |
+| 12 | `RFC9514-7.2-6` | RFC 9514 §7.2 | gap half (`partial`): feature absent, owned because EPE is in | Same TLV, the 2-octet Reserved field: ignored on receipt, never originated |
+
+The class column follows `ai/rules/rfc-compliance.md`: "a capability Ze does not
+provide is an implementation gap". The owner scoped them in, so they are
+implemented here.
+
+### Bucket
+
+`plan/`. PeerAdj, PeerSet, per-recipient control and SRv6 PeerNode are features
+the release goes out without: the PeerNode SID Ze has today keeps working, and no
+operator meets the absence as a bug. `plan/README.md` puts that at this level. The
+owner's split put them here. Rows 11-12 bring a dataplane feature with them:
+SRv6 End.X SID installation, which Ze has no writer for today (R-7).
+
+### The RFC text, quoted from the source
+
+| # | Quote | Read at |
+|---|-------|---------|
+| 8 | "The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer." | `rfc/full/rfc9086.txt` §7 |
+| 11, 12 | "Other bits are reserved for future use and MUST be set to 0 when originated and ignored on receipt." and "Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt." The section opens: "Similar Peer Node and Peer Set functionality can be realized with SRv6 using SIDs with END.X behavior." | `rfc/full/rfc9514.txt` §7.2 |
+
+### How FRR and BIRD handle it
+
+| # | FRR (`/Users/thomas/Code/github.com/FRRouting/frr`) | BIRD (`/Users/thomas/Code/gitlab.nic.cz/labs/bird`) |
+|---|------|------|
+| 8 | No PeerAdj or PeerSet SID in `bgpd/`, and no BGP-LS in `bgpd/` at all (no TLV 1102 anywhere), so FRR cannot receive them | None |
+| 11, 12 | No BGP-LS origination | None |
+
+Neither can be the interop receiver; GoBGP decodes the TLVs (R-8).
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/wire/nlri-bgpls.md` - the BGP-LS NLRI and attribute TLVs Ze encodes
+  → Constraint: rows 8, 11 and 12 add PeerAdj (TLV 1102), PeerSet (TLV 1103) and SRv6 PeerNode (TLV 1251) origination; the page edit lands with the EPE phase
+- [ ] `docs/architecture/testing/interop.md` - scenario naming and the revert-and-red walk
+  → Constraint: every new scenario is named (no numeric prefix) and owes a recorded red with the fix reverted and the artifact rebuilt
+
+### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/rfc9086.md` - rows 7-1 (partial, line 372) and 7-2 (line 373)
+  → Constraint: 7-2 is the R3 split of 7-1's sentence; implementing 7-2 (owner: IN) also closes 7-1's gap half, so both rows change in the EPE phase
+- [ ] `rfc/short/rfc9514.md` - rows 7.2-5 (line 491) and 7.2-6 (line 493)
+  → Constraint: both are `partial`, receipt tested; the origination half needs a live SRv6 EPE path that emits TLV 1251, which only the SRv6 phase here provides (owner: "Only if EPE is in"; EPE is in)
+
+**Key insights:**
+- Per-recipient control is an egress filter on the BGP-LS export, not a change to the SIDs themselves.
+- An SRv6 EPE SID is only honest while it forwards, so it is advertised only while installed as End.X, the rule the MPLS PeerNode label already follows.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/component/bgp/plugins/epe/epe_config.go::ParseConfig`, `internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig` - PeerNode only, no per-recipient control (per the rfc/short annotation; re-read at implementation)
+- [ ] `internal/component/bgp/plugins/epe/yang/ze-bgp-epe-conf.yang` - container `bgp-epe` (`srgb`, `list peer { address, sid-index, weight }`); PeerNode SID over MPLS only
+- [ ] `internal/component/bgp/plugins/nlri/ls/attr_srv6.go` - `LsSRv6BGPPeerNodeSID` encodes and decodes TLV 1251; no producer originates it
+- [ ] `internal/plugins/fib/` - no `seg6local` writer: Ze installs no SRv6 End.X SID today (R-7)
+
+**Behavior to preserve:**
+- PeerNode SID configuration and its tests (RFC9086-7-1 tested half).
+- TLV 1251 receipt and its reserved-bit tests (RFC9514-7.2-5/-6 receipt halves).
+
+**Behavior to change:** rows 8, 11 and 12, as the ACs state.
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- Config: `bgp-epe` adjacency, peer-set, advertise, advertise-to and SRv6 SID leaves (rows 8, 11, 12).
+- Session state: a peer session (PeerNode, PeerSet member) or its interface (PeerAdj) going up or down.
+
+### Transformation Path
+1. Config parse in the EPE plugin into PeerNode, PeerAdj and PeerSet state.
+2. Label install (MPLS) or End.X install (SRv6) through the FIB writer, while the session or interface is up.
+3. BGP-LS export of TLVs 1101, 1102, 1103 and 1251 for enabled, installed SIDs.
+4. Per-recipient egress filter on the BGP-LS export from `advertise-to`.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| EPE plugin to FIB | label and End.X install requests | No |
+| EPE plugin to BGP-LS export | SID state per peer, adjacency, set | No |
+| BGP-LS export to peers | egress filtered per recipient | No |
+
+### Integration Points
+- `ls_export` - the export path gains TLVs 1102, 1103, 1251 and the recipient filter.
+- `internal/plugins/fib/kernel/` - a new End.X install (R-7).
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | No | to be shown at implementation |
+| No unintended coupling (components stay isolated) | No | the EPE plugin reaches the FIB through the writer the MPLS labels use, never by import |
+| No duplicated functionality (extends existing, does not recreate) | No | PeerAdj and PeerSet extend the PeerNode path |
+| Zero-copy preserved where applicable (refs, not copies) | No | TLVs written with the existing `WriteTo` encoders |
+| Registration over hardcoding, outbound | No | to be shown at implementation |
+| Registration over hardcoding, inbound | No | to be shown at implementation |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | GoBGP v3.31.0 decodes TLVs 1101-1103 and GoBGP v4 decodes TLV 1251 | GoBGP source read in the parent spec (R-8) | the interop receiver changes, and the scenario README says why | `gobgp global rib -a ls` against Ze in each scenario | holds by source reading (2026-10-11) |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-7 | Rows 11-12 originate SRv6 PeerNode/PeerSet SIDs, which RFC 9514 §7.2 realises "using SIDs with END.X behavior"; Ze installs no SRv6 End.X SID today (no `seg6local` writer in `internal/plugins/fib/`) | an advertised SRv6 EPE SID that forwards nothing | The SRv6 phase installs each advertised SRv6 SID as End.X through the FIB writer the MPLS EPE labels already use, and advertises it only while installed, the same rule the MPLS PeerNode label follows; a backend that cannot install End.X refuses the leaf at commit |
+| R-8 | GoBGP decodes TLV 1251 only from v4.0.0, and the interop image pins v3.31.0 | the SRv6 PeerNode scenario cannot read the TLV | The scenario for rows 11-12 builds a GoBGP v4 image beside the v3 one; TLVs 1101-1103 are decoded since v2.1.0, so the MPLS PeerAdj/PeerSet half runs on the existing image |
+
+R-7 and R-8 keep the ids they had in the parent spec.
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | Rows 8, 11, 12: EPE labels and SIDs installed or advertised wrongly, or advertised to a peer `advertise-to` excludes; an SRv6 SID advertised with no End.X behind it |
+| How is it reverted? | Each phase lands as its own commit, revertible alone |
+| Who else touches this path? | `plan/immediate/spec-bgp-unowned-rfc-rows.md` row 10 changes the byte order of every MP UPDATE, BGP-LS included: whichever lands second writes its expectations against the other. `plan/pre-release/spec-bgp-ls-origination-and-the-scheduled-marker.md` (BGP-LS node keys), `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (ledger rows) |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| Config `bgp-epe peer <address> adjacency <interface>` and `bgp-epe peer-set <name>` | → | EPE plugin state, BGP-LS export of TLVs 1102 and 1103 | `test/plugin/bgp-epe-peer-adj-set-export.ci` |
+| Config `bgp-epe ... advertise false` and `advertise-to <peer>` | → | per-SID enable/disable and per-recipient egress control | `test/plugin/bgp-epe-advertise-control.ci` |
+| Config `bgp-epe peer <address> srv6-sid <sid>` | → | End.X install, TLV 1251 originated with Flags reserved bits and Reserved zero | `test/plugin/bgp-epe-srv6-peernode-origination.ci` |
+
+## Acceptance Criteria
+
+AC numbers changed in the split: AC-1 was AC-8 in the parent spec, AC-2 and AC-3
+were AC-12 and AC-13, and AC-4 is the parent's ledger AC-11 for the `rfc9086` and
+`rfc9514` stems.
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 (row 8) | `bgp-epe` configures a PeerAdj SID (`peer <address> adjacency <interface>`) and a PeerSet SID (`peer-set <name>`), each with `advertise` and `advertise-to` (owner: IN) | Each of PeerNode, PeerAdj and PeerSet can be configured, enabled and disabled independently; the BGP-LS export carries TLV 1101, 1102 and 1103 for the enabled ones only, and the forwarding label of each is installed while its session (PeerAdj: its interface; PeerSet: any member) is up. `advertise-to` limits a SID's BGP-LS route to the named BGP peers, internal or external, and an empty list sends it to every BGP-LS peer; a disabled or filtered SID is withdrawn from a peer that had it. RFC9086-7-1's gap half closes with 7-2 |
+| AC-2 (row 11, `RFC9514-7.2-5`) | `bgp-epe peer <address> srv6-sid <sid>` (or the same leaf on a `peer-set`) is configured and the session is up | Ze installs the SID as an End.X SID toward the peer (R-7), and the BGP-LS export originates an SRv6 SID NLRI whose attribute carries TLV 1251 with the B, S and P flags as RFC 9514 §7.2 defines them (S set for a PeerSet) and every other Flags bit zero; the reserved-bit receipt half stays tested; with the session down the SID is withdrawn and uninstalled |
+| AC-3 (row 12, `RFC9514-7.2-6`) | The same origination | The 2-octet Reserved field of TLV 1251 is zero on the wire, asserted from the originated bytes, not from an offline encoder; the receipt half stays tested |
+| AC-4 (ledger) | Each row once its AC is met | `RFC9086-7-2` loses `{gap}`, `RFC9086-7-1` and `RFC9514-7.2-5/-6` leave `partial`, each carries tags in both polarities and a discrimination record (`./le rfc discriminate-record`); `./le rfc check` exits clean for `rfc9086` and `rfc9514` |
+
+## End-to-End User Stories
+
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | Configures PeerAdj and PeerSet SIDs and limits who receives them | config -> EPE plugin -> label install -> BGP-LS export -> per-recipient egress | `bgp-epe-peer-segments-gobgp` |
+| 2 | Configures an SRv6 PeerNode SID | config -> End.X install -> TLV 1251 in BGP-LS export | `bgp-epe-srv6-peernode-gobgp` |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestEPEPeerAdjPeerSetConfig` | `internal/component/bgp/plugins/epe/` | AC-1 config parse, enable/disable, refusals | |
+| `TestEPEAdvertiseToFiltersRecipients` | `internal/component/bgp/plugins/epe/` or `ls_export/` | AC-1 per-recipient control both polarities | |
+| `TestEPESRv6PeerNodeTLVReservedZero` | `internal/component/bgp/plugins/epe/` | AC-2, AC-3 from the originated bytes | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| `bgp-epe ... adjacency ... sid-index`, `peer-set ... sid-index` | 0..1048559, as `peer sid-index` | 1048559 | N/A | 1048560 |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `bgp-epe-peer-adj-set-export` | `test/plugin/` | AC-1 | |
+| `bgp-epe-advertise-control` | `test/plugin/` | AC-1 per-SID and per-recipient | |
+| `bgp-epe-srv6-peernode-origination` | `test/plugin/` | AC-2, AC-3 | |
+
+### Interop Tests (Scope: protocol)
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| `bgp-epe-peer-segments-gobgp` | `test/interop/scenarios/` | GoBGP v3.31.0 (decodes TLVs 1101, 1102, 1103 since v2.1.0) | GoBGP, a BGP-LS receiver, shows Ze's PeerNode, PeerAdj and PeerSet SIDs in `gobgp global rib -a ls`; a SID set to `advertise false`, or whose `advertise-to` excludes GoBGP, is absent or withdrawn. FRR and BIRD cannot be the receiver: neither has BGP-LS | |
+| `bgp-epe-srv6-peernode-gobgp` | same | GoBGP v4 (decodes TLV 1251 since v4.0.0; R-8) | GoBGP shows the SRv6 PeerNode SID TLV with reserved Flags bits and Reserved zero | |
+
+Every scenario owes the revert, rebuild, red, restore, green walk with the red recorded.
+
+## Files to Modify
+- `internal/component/bgp/plugins/epe/yang/ze-bgp-epe-conf.yang` - rows 8, 11, 12, new revision: under `bgp-epe/peer`, leaf `advertise` (boolean, default true: the PeerNode SID), leaf-list `advertise-to` (BGP peer address), leaf `srv6-sid` (IPv6 address, End.X); new `bgp-epe/peer/adjacency` list keyed by `interface` with `sid-index` (mandatory, `0..1048559`), `weight`, `advertise`, `advertise-to`; new `bgp-epe/peer-set` list keyed by `name` with `sid-index`, `weight`, leaf-list `member` (leafref to `../../peer/address`, min 1), `advertise`, `advertise-to`, `srv6-sid`
+- `internal/component/bgp/plugins/epe/epe_config.go`, `epe_plugin.go`, `epe_source.go` - rows 8, 11, 12
+- `internal/component/bgp/plugins/ls_export/export_config.go` and the export path - rows 8, 11, 12 (TLVs 1102, 1103, 1251; per-recipient egress)
+- `internal/plugins/fib/kernel/` - rows 11, 12 (End.X install for an advertised SRv6 EPE SID, R-7)
+- `docs/architecture/wire/nlri-bgpls.md` - rows 8, 11, 12
+- `rfc/short/rfc9086.md`, `rfc/short/rfc9514.md` - AC-4
+- `test/interop/Dockerfile.gobgp` or a sibling GoBGP v4 Dockerfile - R-8
+
+## Files to Create
+- the three `test/plugin/bgp-epe-*.ci` files and the two interop scenarios named above
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | Yes | `ze-bgp-epe-conf.yang` `advertise`, `advertise-to`, `srv6-sid`, list `adjacency`, list `peer-set` (Files to Modify) |
+| YANG validation constraints | Yes | `sid-index` range; `peer-set member` leafref and min 1; a `srv6-sid` refused at commit on a FIB backend that cannot install End.X, with the leaf, the reason and the fix |
+| YANG custom validators | Yes | the End.X backend refusal |
+| CLI commands/flags | N-A | no command changes |
+| CLI grammar (keyword before value) | N-A | no command changes |
+| Editor autocomplete | Yes | the new leaves come from YANG; `peer-set member` completes from configured `bgp-epe peer` addresses, `adjacency` from interface names, `advertise-to` from BGP peers |
+| Functional test for new RPC/API | N-A | no new RPC; behavior `.ci` tests are listed above |
+| Pipe completeness | N-A | no command output |
+| Env var registration | N-A | none |
+| Doctor check for runtime dependencies | Yes | rows 11-12 need kernel SRv6 End.X (`seg6local`) support when `srv6-sid` is configured. A `ze doctor` check names a missing kernel capability with the fix, beside the commit refusal |
+| Prometheus counters/metrics | No | confirm at implementation whether EPE exposes SID counts |
+| BGP family surface (new SAFI / capability / attribute) | N-A | no new family, capability or attribute; TLVs 1102, 1103 and 1251 are new BGP-LS attribute content, not a new attribute |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | the EPE feature entry under `features/` (find it with `./le feature report`) |
+| 2 | Config syntax changed? | Yes | `docs/config-reference.md` and `docs/guide/configuration.md`, which carry the `bgp-epe` / `sid-index` config |
+| 3 | CLI command added/changed? | No | none |
+| 4 | API/RPC added/changed? | No | none |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` where it describes the EPE plugin |
+| 6 | Has a user guide page? | Yes | `docs/guide/configuration.md` (`bgp-epe` section) |
+| 7 | Wire format changed? | Yes | `docs/architecture/wire/nlri-bgpls.md` (TLVs 1102, 1103, 1251 originated) |
+| 8 | Plugin SDK/protocol changed? | No | none |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc9086.md`, `rfc/short/rfc9514.md` and `docs/features/rfc-status.md` (generated by `./le rfc index-update`) |
+| 10 | Test infrastructure changed? | Yes | the GoBGP v4 interop image (R-8), in `docs/architecture/testing/interop.md` |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` if it lists EPE or BGP-LS |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/wire/nlri-bgpls.md` (rows 8, 11, 12), and the page that documents FIB writers for the End.X install |
+| 13 | Route metadata keys added/changed? | No | none |
+| 14 | Prometheus counters added/changed? | No | none |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/architecture/wire/nlri-bgpls.md` (rows 8, 11, 12: affected). Re-derive at implementation with `./le spec citation anchors spec plan/spec-bgp-epe-peer-segments-and-srv6-peernode.md` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `bgp-epe` examples in the pages of item 2 |
+
+## Implementation Steps
+
+1. **Phase: Wiring** -- the three `bgp-epe-*.ci` tests written and red.
+2. **Phase: YANG and config (row 8)** -- `ze-bgp-epe-conf.yang` new revision, parse, refusals. Own commit.
+3. **Phase: PeerAdj and PeerSet (row 8)** -- label install while up, BGP-LS export of TLVs 1102 and 1103. Own commit.
+4. **Phase: per-peer control (row 8)** -- `advertise` and `advertise-to` egress filter, withdraw on disable or filter. Own commit.
+5. **Phase: SRv6 PeerNode (rows 11, 12)** -- End.X install (R-7) with the doctor check and commit refusal, TLV 1251 originated. Own commit.
+6. **Phase: interop** -- `bgp-epe-peer-segments-gobgp` on v3.31.0, `bgp-epe-srv6-peernode-gobgp` on a v4 image, each with its recorded red.
+7. **Phase: ledger** -- AC-4, discrimination records, `./le rfc check` clean for `rfc9086` and `rfc9514`.
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Correctness | No SID is advertised while its label or End.X is not installed |
+| Correctness | A disabled or filtered SID is withdrawn from a peer that had it |
+| Rule: rfc-compliance | Each new implementing function quotes its RFC sentence; each caller names the section |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| No `{gap}` or `partial` left on rows 8, 11, 12 and 7-1 | `grep -n` each id in its `rfc/short/` file |
+| Both polarities tagged | `grep -rn "RFC requirement: <id>" internal/ test/` |
+| Ledger clean | `./le rfc check` exit status for `rfc9086` and `rfc9514` |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | `sid-index` and `srv6-sid` validated at commit |
+| Resource exhaustion | one label or End.X per configured SID, bounded by config |
+| Error leakage | `advertise-to` never leaks a SID to an excluded peer, including during a reload |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Owner decisions (2026-10-11)
+
+| Question | Owner's words | What it means here |
+|----------|---------------|--------------------|
+| Row 8: scope PeerAdj and PeerSet SIDs and per-recipient EPE control in, or out? | IN | AC-1, with `RFC9086-7-1`'s gap half |
+| RFC9514-7.2-5/-6: should this work own them? | "Only if EPE is in" | EPE is in, so they are owned here (AC-2, AC-3), with the End.X installation they need (R-7) |
+| One spec or several? | "Split into three" | This spec owns rows 8, 11, 12; the defects stay in `plan/immediate/spec-bgp-unowned-rfc-rows.md`, DelayOpen and Event 3 are `plan/spec-bgp-fsm-delayopen-and-automatic-start.md` |
+
+## Open Questions (owner)
+
+None open.
+
+## Design Insights
+
+## Key Design Decisions
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| A new spec, not an existing BGP-LS spec | Fold into `spec-bgp-ls-origination-and-the-scheduled-marker` | That spec owns RFC 9552 node keys and a ledger marker, not the EPE plugin or RFC 9086/9514 |
+| SRv6 EPE SIDs installed as End.X and advertised only while installed | Advertise without installing | RFC 9514 §7.2 realises the SIDs "using SIDs with END.X behavior"; an uninstalled SID forwards nothing (R-7) |
+| `advertise-to` as an egress filter on the BGP-LS export | Per-recipient SID state | RFC 9086 §7 asks for control of "which information is advertised to which internal or external peer"; the SID itself is the same for every recipient |
+| GoBGP as the interop receiver, v4 image for TLV 1251 | FRR or BIRD | Neither has BGP-LS (R-8) |
+
+## Known Limitations
+- None recorded at design; the End.X backend refusal covers FIB backends that cannot install SRv6 End.X.
+
+## RFC Documentation (Scope: protocol)
+
+Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code, using
+the quotes in the Task section.
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable assertions
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-4 all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] `./le verify worktree` passes
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs (or N-A when the feature takes none)
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features (or N-A with a reason)
+
+### Closure
+- [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/spec-bgp-epe-peer-segments-and-srv6-peernode.md` only, in the same `./le commit create` script

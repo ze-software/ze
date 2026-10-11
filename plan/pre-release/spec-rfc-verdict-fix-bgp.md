@@ -983,11 +983,19 @@ MP attribute-ordering deviation is not an optional-feature exemption.
 
 Owners, 2026-10-11 (owner decision: "10 give it a spec"). MUP3.3.6-4/-5,
 link-local1-2/6-1, RFC2545-3-6, RFC4271-8.2.2-13/-20, RFC9086-7-2,
-RFC9830-2.4.2-12 and RFC7606-5.1-1 are owned by
-`plan/immediate/spec-bgp-unowned-rfc-rows.md` (AC-1 to AC-10, one per row, and
-AC-11 for the ledger). RFC9252-5-2 already had an owner this reconciliation did
-not name: `plan/immediate/spec-srv6-bestpath-resolvability.md`. This child
-implements none of them; their dispositions are that spec's Open Questions.
+RFC9830-2.4.2-12 and RFC7606-5.1-1 were given one owning spec, which the owner
+then split ("Split into three", 2026-10-11). The owners are:
+
+| Rows | Owner |
+|------|-------|
+| MUP3.3.6-4/-5, link-local1-2/6-1, RFC2545-3-6, RFC7606-5.1-1, RFC9830-2.4.2-12 (owner OUT: `{feature-declined}`, uncounted) | `plan/immediate/spec-bgp-unowned-rfc-rows.md` |
+| RFC4271-8.2.2-13/-20 (owner IN) | `plan/spec-bgp-fsm-delayopen-and-automatic-start.md` |
+| RFC9086-7-2 with RFC9086-7-1's gap half, RFC9514-7.2-5/-6 (owner IN) | `plan/spec-bgp-epe-peer-segments-and-srv6-peernode.md` |
+
+RFC9252-5-2 already had an owner this reconciliation did not name:
+`plan/immediate/spec-srv6-bestpath-resolvability.md`. This child implements none
+of them; each owning spec records the owner's decisions and carries the ledger AC
+for its stems.
 
 
 
