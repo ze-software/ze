@@ -1,6 +1,8 @@
 // Design: docs/research/l2tpv2-implementation-guide.md -- shared PPP automaton.
 package ppp
 
+// RFC naming: untagged -- these cells check the RFC 1661 Section 4.1 transition table, which states no MUST-level obligation, so rfc/short/rfc1661.md holds no requirement row for them to tag.
+
 import "testing"
 
 // transitionControlData supplies a complete reject payload rather than relying

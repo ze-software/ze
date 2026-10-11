@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | verification |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the access group before any row edit, parent R-11) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-28 |
+| Updated | 2026-10-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -442,3 +442,73 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** tests + rows + verdicts + records + D-8 code + edited spec
 - [ ] **Commit B:** `remove plan/pre-release/spec-rfc-verdict-fix-access.md` only, in the same `./le commit create` script
+
+## Progress, 2026-10-11
+
+Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD `c0d31c3660` on 2026-10-11. Implementation is finished; the spec waits for its independent `/ze-review`. It is not closed.
+
+## Implementation Summary
+
+### What Was Implemented
+- 34 commits since 2026-09-28 touch this child's thirteen `rfc/audit/<stem>.json` files; the last author/judge pairs are `4e55b63ea6` (RFC1994-4.2-5, RFC5176-3-1 re-judged) and `b3c573f601` (RFC1332-2.1-1).
+- 2026-10-11: `internal/component/l2tp/ppp/rfc1661_transition_cells_test.go` (landed untagged in the wip commit `af69577952`) carries `// RFC naming: untagged -- ...`. RFC 1661 Section 4.1 is the transition table and holds no MUST, SHOULD or REQUIRED (checked in `rfc/full/rfc1661.txt`), and `rfc/short/rfc1661.md` has no 4.1 row, so there is no requirement to tag; a tag would also need a discrimination record. Test bodies unchanged; `go test -run TestRFC1661 ./internal/component/l2tp/ppp/` passes.
+
+### Bugs Found/Fixed (D-8, each with production code)
+| Commit | Fix |
+|--------|-----|
+| `a4ec232873` | PPPoE server (RFC 2516) |
+| `0cc6cb1b22` | RADIUS CoA value checks and atomic apply (RFC 5176) |
+| `60817da535`, `c7fd516b4d` | L2TP RFC 2661 fixes; 4.1-3 unknown M=1 AVP, 7.1-1 out-of-state SCCRQ/SCCRP |
+| `aaebde365c`, `f6c11e93f1` | PPP session fixes; tlf on Stopped |
+| `9793ba4da8` | PPPoE client answers CHAP re-challenge in network phase |
+| `1870461d15`, `189db75308`, `10b1ef1ebb` | RADIUS Framed-Protocol, NAS identity (RFC3579-3-1), EAP header and Framed-IP |
+| `35299852fc` | PPPoE/RADIUS (2866 5.13, 2516) |
+| `8c68fcf514`, `4e55b63ea6` | CoA 504 on SessionNotRemovable and on service stop; L2TP idle SCCRP |
+
+### Deviations from Plan
+- None beyond the naming marker above.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-C1 | Done | the "Derived listing" filter at HEAD, 2026-10-11, returns RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 (all weak), each named in an AC row of `plan/immediate/spec-radius-rfc-defects.md` (RFC2866-5.5-1 also in `spec-lifecycle-invariants.md`) | |
+| AC-C2 | Done | 121 verdicts moved to `enforced` since `174862502f`; every tagged unit carries a record (script over audit and record files, 2026-10-11: 0 unrecorded) | record sweep after the 2026-10-01 strict reading; judge independence per commit is in QUEUE.md and is the reviewer's to confirm |
+| AC-C3 | Done | rfc5176 split rows `8c68fcf514`, RFC1994-4.2-5 row `4e55b63ea6`, RFC2866 table split `10b1ef1ebb` | reviewer to re-walk the split table |
+| AC-C4 | Done | the three blocked verdicts are in `spec-radius-rfc-defects` | |
+| AC-C5 | Done | `./le rfc check` 2026-10-11: the rfc1661 file-name violation is gone and no violation names an access stem | |
+| AC-C6 | Done | corrections in `8c68fcf514` (4 corrections, 3 rfc5176 correction sites) | |
+| AC-C7 | N-A | no R-7 row belongs to this child | the Linux-only RFC2866-4.1-1 `.ci` record the handover listed as owed landed in `dd09cdd4ff` |
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| AC-C1: the derived listing holds only "Blocked by" ids | ledger query | 3 rows, all in `spec-radius-rfc-defects` ACs |
+| every resolved verdict proven and judged by a non-author | discrimination records + audit | 0 unrecorded tagged units over 121 moved verdicts; `./le rfc check` clean for the access stems |
+| D-8 fixes work against another implementation | interop | GAP: interoplab suites exist (`internal/le/interoplab/l2tp`, `pppoe`, `radius`), but no run after the D-8 commits above is recorded in the handover or in a committed log |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 | producer defects (P-3) | `plan/immediate/spec-radius-rfc-defects.md` |
+| interop run of the l2tp, pppoe and radius suites over the D-8 fixes | never run for this pass | this spec, before closure |
+| `./le verify worktree` | needs a quiet machine | this spec, before closure |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | |
+| `./le spec review check` | not run |
+| Rounds | |
+| Reviewer lenses used | |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
