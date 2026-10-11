@@ -304,10 +304,10 @@ func terminalOperationalHelp() string {
 func terminalAuditContext(mgr *EditorManager, username string, cmd cliCommand, raw string) (string, string) {
 	switch cmd.Verb {
 	case verbCommit:
-		detail, _ := mgr.Diff(username)
+		detail := mgr.Diff(username)
 		return audit.ActionConfigCommit, detail
 	case verbDiscard:
-		detail, _ := mgr.Diff(username)
+		detail := mgr.Diff(username)
 		return audit.ActionConfigDiscard, detail
 	case verbRollback:
 		return audit.ActionConfigDiscard, raw
@@ -542,12 +542,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		// The masked pending-change diff, which is the one diff the web renders.
 		// The editor's text diff carried the stored value of every ze:sensitive
 		// leaf, and this verb needs no config authorization (secret.go).
-		diff, err := mgr.Diff(username)
-		if err != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
-		}
-		return nil, diff
+		return nil, mgr.Diff(username)
 	case verbDisconnect:
 		if len(cmd.Args) < 1 {
 			return nil, "usage: disconnect <session-id>"

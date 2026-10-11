@@ -495,7 +495,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		diff, _ := editorMgr.Diff(username)
+		diff := editorMgr.Diff(username)
 		count := editorMgr.ChangeCount(username)
 		html, renderErr := renderer.RenderDiffModalOpen(diff, count)
 		if renderErr != nil {

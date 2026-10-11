@@ -87,11 +87,7 @@ func HandleConfigCommitWithAuthorizerAndAudit(mgr *EditorManager, renderer *Rend
 
 // handleCommitGet renders the commit page showing a diff of pending changes.
 func handleCommitGet(w http.ResponseWriter, mgr *EditorManager, renderer *Renderer, username string) {
-	diff, err := mgr.Diff(username)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("diff: %v", err), http.StatusInternalServerError)
-		return
-	}
+	diff := mgr.Diff(username)
 
 	layoutData := LayoutData{
 		Title:    "Commit Changes",
@@ -127,7 +123,7 @@ type commitModalData struct {
 // the read-only branch cannot fire here today. Reading the gate rather than
 // assuming it keeps the answer correct if those two commands ever differ.
 func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string, broker *EventBroker, authorizer aaa.Authorizer, recorder audit.Recorder) {
-	detail, _ := mgr.Diff(username)
+	detail := mgr.Diff(username)
 	answer, err := mgr.runCommit(username, contract.CommitRequest{Action: contract.CommitNow})
 	if err != nil {
 		writeCommitFailure(w, r, mgr, renderer, username, err.Error())
@@ -255,7 +251,7 @@ func HandleConfigDiscardWithAuthorizerAndAudit(mgr *EditorManager, authorizer aa
 			return
 		}
 
-		detail, _ := mgr.Diff(username)
+		detail := mgr.Diff(username)
 		if err := mgr.Discard(username); err != nil {
 			http.Error(w, fmt.Sprintf("discard: %v", err), http.StatusInternalServerError)
 			return

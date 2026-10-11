@@ -523,8 +523,7 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer,
 // successful discard is audited with the diff it dropped, as the terminal,
 // the Discard button and SSH record it.
 func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, args []string, recorder audit.Recorder) {
-	// An unreadable diff still owes the row: it records an empty detail.
-	before, _ := mgr.Diff(username)
+	before := mgr.Diff(username)
 	if _, err := runWebDiscard(mgr, username, args); err != nil {
 		writeCLINotification(w, renderer, "discard error: "+err.Error(), "error")
 		return
@@ -540,15 +539,7 @@ func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer
 // outside its path, and the row MUST NOT name those as dropped. The terminal
 // and the CLI bar both call it. MUST be called after the discard succeeded.
 func discardAuditDetail(mgr *EditorManager, username, before string) string {
-	after, err := mgr.Diff(username)
-	if err != nil {
-		// What the discard kept is unknown, so the row says so rather than
-		// presenting every change it read before as dropped.
-		var tb textbuf.Buffer
-		return tb.Str(before).Str("(the diff after the discard was unreadable, so this lists every change pending before it: ").
-			Str(err.Error()).Str(")\n").String()
-	}
-	return audit.DroppedDiff(before, after)
+	return audit.DroppedDiff(before, mgr.Diff(username))
 }
 
 // adjustListContext corrects the web URL path for CLI use.

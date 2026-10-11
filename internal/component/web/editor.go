@@ -404,13 +404,13 @@ func discardPathNothingPending(path []string) error {
 // content, so it carries the stored value of every ze:sensitive leaf, and no
 // leaf identity survives in it to mask by. Every editor this manager creates is
 // given a session (GetOrCreate), and a session change names the leaf it edited.
-func (m *EditorManager) Diff(username string) (string, error) {
+func (m *EditorManager) Diff(username string) string {
 	m.mu.RLock()
 	us, ok := m.sessions[username]
 	m.mu.RUnlock()
 
 	if !ok {
-		return "", nil
+		return ""
 	}
 
 	us.mu.Lock()
@@ -418,12 +418,12 @@ func (m *EditorManager) Diff(username string) (string, error) {
 
 	sid := us.editor.SessionID()
 	if sid == "" {
-		return "", nil
+		return ""
 	}
 
 	changes := us.editor.PendingChanges(sid)
 	if len(changes) == 0 {
-		return "", nil
+		return ""
 	}
 
 	var b textbuf.Buffer
@@ -463,7 +463,7 @@ func (m *EditorManager) Diff(username string) (string, error) {
 		}
 		b.Str("+ ").Str(change.Path).Byte(' ').Str(value).Byte('\n')
 	}
-	return b.String(), nil
+	return b.String()
 }
 
 // maskChangeValue answers the value one pending change renders. The change

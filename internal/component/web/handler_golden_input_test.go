@@ -192,7 +192,7 @@ func webGoldenDiffHandler(renderer *Renderer, mgr *EditorManager) http.Handler {
 			return
 		}
 
-		diff, _ := mgr.Diff(username)
+		diff := mgr.Diff(username)
 		count := mgr.ChangeCount(username)
 
 		html, renderErr := renderer.RenderDiffModalOpen(diff, count)
