@@ -28,10 +28,14 @@ func reloadDynamicGroups(t *testing.T, r *Reactor, groups ...*DynamicGroupConfig
 	return j
 }
 
+// dynamicPeerRemoteAS is the AS every dynamic peer in this file learns from its
+// OPEN, so each resolved `$remote_as` filter name in the assertions ends in it.
+const dynamicPeerRemoteAS uint16 = 65010
+
 // establishDynamicPeer gives peer an Established session whose OPEN carried
-// remoteAS, resolves the template against it as the establishment goroutine
-// does, and wires a recorder in place of the event dispatcher.
-func establishDynamicPeer(t *testing.T, r *Reactor, peer *Peer, remoteAS uint16) *bindRecorder {
+// dynamicPeerRemoteAS, resolves the template against it as the establishment
+// goroutine does, and wires a recorder in place of the event dispatcher.
+func establishDynamicPeer(t *testing.T, r *Reactor, peer *Peer) *bindRecorder {
 	t.Helper()
 	srv := &pluginserver.Server{}
 	r.api = srv
@@ -40,7 +44,7 @@ func establishDynamicPeer(t *testing.T, r *Reactor, peer *Peer, remoteAS uint16)
 
 	session := NewSession(peer.settings)
 	session.mu.Lock()
-	session.peerOpen = &message.Open{MyAS: remoteAS, BGPIdentifier: 0x0a0b0c0d}
+	session.peerOpen = &message.Open{MyAS: dynamicPeerRemoteAS, BGPIdentifier: 0x0a0b0c0d}
 	session.mu.Unlock()
 	peer.mu.Lock()
 	peer.session = session
@@ -67,7 +71,7 @@ func establishDynamicPeer(t *testing.T, r *Reactor, peer *Peer, remoteAS uint16)
 func TestDynamicTemplateReceiveOnlySwap(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
 	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
-	rec := establishDynamicPeer(t, r, peer, 65010)
+	rec := establishDynamicPeer(t, r, peer)
 	session := peer.currentSession()
 
 	changed := dynamicReloadGroup()
@@ -124,7 +128,7 @@ func TestDynamicFilterSwapResolvesAgainstLearnedAS(t *testing.T) {
 	t.Run("learned", func(t *testing.T) {
 		addr := netip.MustParseAddr("185.1.69.42")
 		r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
-		establishDynamicPeer(t, r, peer, 65010)
+		establishDynamicPeer(t, r, peer)
 
 		reloadDynamicGroups(t, r, strict())
 
@@ -174,7 +178,7 @@ func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
 	before := dynamicReloadGroup()
 	r, peer := newDynamicReloadReactor(t, before, addr, nil)
-	rec := establishDynamicPeer(t, r, peer, 65010)
+	rec := establishDynamicPeer(t, r, peer)
 	session := peer.currentSession()
 
 	changed := dynamicReloadGroup()
@@ -221,7 +225,7 @@ func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 func TestDynamicTemplateSwapRacesEstablishment(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
 	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
-	establishDynamicPeer(t, r, peer, 65010)
+	establishDynamicPeer(t, r, peer)
 	session := peer.currentSession()
 
 	stop := make(chan struct{})

@@ -48,15 +48,15 @@ func TestOrchestratorSkipsReplayOnAttachedUp(t *testing.T) {
 				reason = parsed
 			}
 
-			_, fired := coord.onStateUp(bus, peer, reason)
+			fired := coord.onStateUp(bus, peer, reason)
 			assert.False(t, fired, "an attached up fires no replay")
 			assert.Empty(t, gotIDs, "an attached up emits no ReplayRequest")
 
-			_, again := coord.onStateUp(bus, peer, "")
+			again := coord.onStateUp(bus, peer, "")
 			assert.False(t, again, "the attached up recorded the peer up, so this up is no edge")
 
 			coord.onPeerDown(peer)
-			_, edge := coord.onStateUp(bus, peer, "")
+			edge := coord.onStateUp(bus, peer, "")
 			assert.True(t, edge, "a down then a normal up is an edge again")
 			assert.Len(t, gotIDs, 1)
 		})

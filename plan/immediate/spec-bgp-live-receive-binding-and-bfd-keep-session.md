@@ -13,7 +13,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | 3/6 |
-| Progress | Phases 1 to 3 committed; AC-8 `.ci` green 10/10 with its discrimination red 3/3 (2026-10-11); Phase 4 next, now carrying AC-25 (owner decision of 2026-10-11) |
+| Progress | Phases 1 to 3 committed; AC-8 `.ci` green 10/10 with its discrimination red 3/3 (2026-10-11); Phase 4 next, now carrying AC-25 (owner decision of 2026-10-11). Gates 2026-10-12: scoped `./le go lint run` (reactor, bgp/config, rib, rr, rs, watchdog, redistribute_egress, test/runner) 64 findings, 2 from this spec (unparam `onStateUp`, `establishDynamicPeer`) fixed, 62 blame to other commits; `./le test bgp reload -a` 59/65, reds `bgp-bfd-added-live`, `bgp-bfd-dynamic-toggle-live`, `bgp-bfd-profile-edit-live` (Phase 4 entry tests, not built) and `config-apply-ordering-coarse-root`, `config-apply-ordering-mixed-rollback`, `rsvpte-reload` (darwin: interface plugin has no backend, journaled in `plan/journal/gate-verdict-depends-on-the-machine.md`); reactor `go test -race` with gate tags 20/20 green (runs of 5, 4, 6, 5) |
 | Handoff | - |
 | Updated | 2026-10-11 |
 

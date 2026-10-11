@@ -128,13 +128,15 @@ func getReplayCoordinator() *replayCoordinator { return replayCoordPtr.Load() }
 // is a reload attaching this plugin to a session already established: the
 // peer's initial routing update was sent without this plugin, so it is not this
 // plugin's to replay. The peer is recorded up, so the next down then up is an
-// edge again, and no replay fires. Every other up goes to onPeerUp.
-func (c *replayCoordinator) onStateUp(bus ze.EventBus, peer, reason string) (uint64, bool) {
+// edge again, and no replay fires. Every other up goes to onPeerUp. It answers
+// whether a replay fired; no caller reads the replay id onPeerUp also returns.
+func (c *replayCoordinator) onStateUp(bus ze.EventBus, peer, reason string) bool {
 	if reason == rpc.ReasonAttached {
 		c.markPeerUp(peer)
-		return 0, false
+		return false
 	}
-	return c.onPeerUp(bus, peer)
+	_, fired := c.onPeerUp(bus, peer)
+	return fired
 }
 
 // markPeerUp records the peer up without firing a replay.
