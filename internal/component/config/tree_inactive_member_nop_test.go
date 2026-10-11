@@ -80,12 +80,14 @@ func TestHierarchicalInactiveMemberRoundTrips(t *testing.T) {
 // TestInactiveLeafListBlameAndAnnotatedMatchSerialize: the blame and the
 // annotated views print every inactive leaf-list shape exactly as the
 // hierarchical serializer does, so a whole inactive leaf of one member keeps
-// its brackets there too. It serializes each shape three ways and compares
-// the blame and annotated lines, each with its empty gutter removed, to
-// Serialize, then reparses the annotated text.
+// its brackets there too, and a member inactive under an active leaf prints
+// as that member alone. It serializes each shape three ways and compares the
+// blame and annotated lines, each with its empty gutter removed, to
+// Serialize, then reparses the annotated text and checks the member state and
+// the whole-leaf flag survive.
 //
 // VALIDATES: round-7 NOTE 3, the bracket branch in serialize_blame.go and
-// serialize_annotated.go.
+// serialize_annotated.go; round-8 NOTE 4, the member-only shapes.
 // PREVENTS: the blame or annotated view printing `inactive: <leaf> <member>`
 // for a whole inactive leaf, which reads back as one inactive member.
 func TestInactiveLeafListBlameAndAnnotatedMatchSerialize(t *testing.T) {
@@ -93,13 +95,19 @@ func TestInactiveLeafListBlameAndAnnotatedMatchSerialize(t *testing.T) {
 	schema.Define("c", Container(Field("items", BracketLeafList(TypeString)), Field("plain", ValueOrArray(TypeString))))
 	cases := []struct {
 		name, leaf, hier, line string
+		whole                  bool
 	}{
-		{"plain whole one", "plain", "c {\n inactive: plain [ a ];\n}\n", "\tinactive: plain [ a ]"},
-		{"plain whole one plus member", "plain", "c {\n inactive: plain [ a ];\n inactive: plain x;\n}\n", "\tinactive: plain x"},
-		{"plain whole all members inactive", "plain", "c {\n inactive: plain [ a ];\n inactive: plain a;\n}\n", "\tinactive: plain [ a ]"},
-		{"bracket whole one", "items", "c {\n inactive: items [ a ];\n}\n", "\tinactive: items [ a ]"},
-		{"bracket whole one plus member", "items", "c {\n inactive: items [ a ];\n inactive: items x;\n}\n", "\tinactive: items x"},
-		{"bracket whole all members inactive", "items", "c {\n inactive: items [ a ];\n inactive: items a;\n}\n", "\tinactive: items [ a ]"},
+		{"plain whole one", "plain", "c {\n inactive: plain [ a ];\n}\n", "\tinactive: plain [ a ]", true},
+		{"plain whole one plus member", "plain", "c {\n inactive: plain [ a ];\n inactive: plain x;\n}\n", "\tinactive: plain x", true},
+		{"plain whole all members inactive", "plain", "c {\n inactive: plain [ a ];\n inactive: plain a;\n}\n", "\tinactive: plain [ a ]", true},
+		{"bracket whole one", "items", "c {\n inactive: items [ a ];\n}\n", "\tinactive: items [ a ]", true},
+		{"bracket whole one plus member", "items", "c {\n inactive: items [ a ];\n inactive: items x;\n}\n", "\tinactive: items x", true},
+		{"bracket whole all members inactive", "items", "c {\n inactive: items [ a ];\n inactive: items a;\n}\n", "\tinactive: items [ a ]", true},
+		{"plain member one of two", "plain", "c {\n plain [ a b ];\n inactive: plain b;\n}\n", "\tinactive: plain b", false},
+		{"plain member only one", "plain", "c {\n plain a;\n inactive: plain a;\n}\n", "\tinactive: plain a", false},
+		{"plain member quoted", "plain", "c {\n plain [ a \"b c\" ];\n inactive: plain \"b c\";\n}\n", "\tinactive: plain \"b c\"", false},
+		{"bracket member one of two", "items", "c {\n items [ a b ];\n inactive: items b;\n}\n", "\tinactive: items b", false},
+		{"bracket member only one", "items", "c {\n items [ a ];\n inactive: items a;\n}\n", "\tinactive: items a", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -127,7 +135,8 @@ func TestInactiveLeafListBlameAndAnnotatedMatchSerialize(t *testing.T) {
 			c := again.GetContainer("c")
 			require.NotNil(t, c, annotated)
 			orig := tree.GetContainer("c")
-			assert.True(t, c.IsLeafInactive(tc.leaf), "the whole leaf must read back inactive:\n%s", annotated)
+			require.Equal(t, tc.whole, orig.IsLeafInactive(tc.leaf), "the shape under test was not built:\n%s", want)
+			assert.Equal(t, tc.whole, c.IsLeafInactive(tc.leaf), "the whole-leaf flag must read back as built:\n%s", annotated)
 			assert.Equal(t, orig.GetMultiValuesState(tc.leaf), c.GetMultiValuesState(tc.leaf), annotated)
 		})
 	}
