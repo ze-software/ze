@@ -110,7 +110,7 @@ func dockerRootDir(ctx context.Context, req Request) (string, error) {
 		return "", errBuildStopped(ctx, "docker info was stopped", "")
 	}
 	if ctx.Err() != nil {
-		return "", fmt.Errorf("docker info did not answer within %s, so the daemon is hung or unreachable; check it answers:\ndocker info", hostProbeTimeout)
+		return "", fmt.Errorf("docker info did not answer within %s, so the daemon is hung or unreachable; check it answers:\ndocker info", LimitWords(hostProbeTimeout))
 	}
 	if err != nil {
 		return "", fmt.Errorf("docker info: %w", err)

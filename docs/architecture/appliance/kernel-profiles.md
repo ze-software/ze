@@ -78,14 +78,17 @@ that fails or runs out of that time names its URL and gives the `curl` command
 that fetches the blob by hand to where the next run looks for it. Every limit a
 build names is worded by one formatter (`kernelbuilder.LimitWords`): "the
 2-hour limit" for the kernel build, "the 10-minute limit" for a firmware
-download and for the ISO tools.
+download and for the ISO tools, and "within 15s" for each question the build
+asks the host first (`hostProbeTimeout`: QEMU's `-accel help` and
+`docker info`).
 
 An arm64 kernel is built on the Mac and an amd64 kernel on the Linux host.
 
 <!-- source: internal/appliance/cmd_kernel.go -- kernelBuildTimeout, defaultKernelBuild, downloadFirmwareBlob, firmwareDownloadFailed -->
 <!-- source: internal/appliance/kernelbuilder/stopped.go -- WithBuildLimit, buildLimit, LimitWords, errBuildStopped, errBuildStoppedLeaving, stopReport -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build, SelectBuilder, validateRequest, runDocker, containerFailure -->
-<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed, buildGuestWorker, qemuNextStep, guestBuildNextStep, sshClientOptions, ensureAlpineISO, downloadNextStep, fetchKernelTarball, tarballNextStep -->
+<!-- source: internal/appliance/kernelbuilder/space.go -- dockerRootDir -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- hostProbeTimeout, hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed, buildGuestWorker, qemuNextStep, guestBuildNextStep, sshClientOptions, ensureAlpineISO, downloadNextStep, fetchKernelTarball, tarballNextStep -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 `ze appliance kernel` selects the profile and architecture, validates the

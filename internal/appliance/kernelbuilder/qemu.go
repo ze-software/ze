@@ -609,7 +609,7 @@ func availableAccelerators(ctx context.Context, binary string) (map[string]bool,
 		return nil, errBuildStopped(ctx, binary+" -accel help was stopped", "")
 	}
 	if err != nil && ctx.Err() != nil {
-		return nil, fmt.Errorf("%s -accel help did not answer within %s, so QEMU cannot say which accelerators it has and the kernel build cannot start; run it by hand to see where it stops:\n%s -accel help", binary, hostProbeTimeout, binary)
+		return nil, fmt.Errorf("%s -accel help did not answer within %s, so QEMU cannot say which accelerators it has and the kernel build cannot start; run it by hand to see where it stops:\n%s -accel help", binary, LimitWords(hostProbeTimeout), binary)
 	}
 	if err != nil {
 		detail := ""

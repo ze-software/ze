@@ -134,13 +134,15 @@ func cacheAlpineISO(t *testing.T, arch string) {
 // with that error kept. The step it reaches is QEMU's Start under
 // exec.CommandContext, which answers "start QEMU: context canceled"
 // (freeTCPPort's Listen of a literal address does not read a done context);
-// on a host with no aarch64 firmware it is qemuArgs' refusal, raw as well. It drives Build itself on the QEMU path: a cached
-// Alpine ISO, a stubbed worker build that returns once the stop has landed,
-// and a PATH QEMU that lists both accelerators.
+// on an arm64 host with no aarch64 firmware it is qemuArgs' refusal, raw as
+// well. The test pins which of the two Build reached (stoppedAtStep). It
+// drives Build itself on the QEMU path: a cached Alpine ISO, a stubbed worker
+// build that returns once the stop has landed, and a PATH QEMU that lists both
+// accelerators.
 //
 // VALIDATES: round-10 ISSUE 1 (the backstop's call site in Build).
-// PREVENTS: a stop at QEMU's Start or freeTCPPort's Listen reported as
-// "start QEMU: context canceled", or as the limit's own noun phrase.
+// PREVENTS: a stop at QEMU's Start reported as "start QEMU: context
+// canceled", or as the limit's own noun phrase.
 func TestBuildNamesAStopAStepReturnedRaw(t *testing.T) {
 	for _, tc := range buildStopCases() {
 		t.Run(tc.name, func(t *testing.T) {
@@ -158,9 +160,21 @@ func TestBuildNamesAStopAStepReturnedRaw(t *testing.T) {
 				<-ctx.Done()
 				return nil
 			}
-			checkStoppedPartWay(t, Build(ctx, req), tc, "")
+			checkStoppedPartWay(t, Build(ctx, req), tc, stoppedAtStep(req))
 		})
 	}
+}
+
+// stoppedAtStep is the start of what the step Build reaches after the worker
+// build says, on this host: qemuArgs' refusal on an arm64 host with no aarch64
+// firmware, and QEMU's Start everywhere else.
+func stoppedAtStep(req Request) string {
+	if req.Arch == archARM64 {
+		if _, err := findAArch64Firmware(); err != nil {
+			return err.Error()
+		}
+	}
+	return "start QEMU: "
 }
 
 // TestBuildNamesAStopDuringBuilderSelection proves Build names a stop that
