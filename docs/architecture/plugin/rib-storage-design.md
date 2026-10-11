@@ -109,6 +109,10 @@ restoration precedes queued live changes and lifecycle cleanup. Both local and
 forwarded history retain their logical old sent revision, while the new wire
 message has its own unique ID. This does not depend on the optional Adj-RIB-In
 plugin. See [replay cursor](../bgp/replay-cursor.md).
+An up with reason `attached`, which a reload sends when it attaches a process to
+a session already up, carries no initial token: the session's initial routing
+update already went out. `bgp-adj-rib-in` and `bgp-rr` return before their
+peer-up replay on it.
 The initial token remains valid while the peer-up replay fence is held, even
 after Ze's own EOR. Completion carries the same captured token to the actual
 readiness owner, including when no replay group was emitted; old work cannot

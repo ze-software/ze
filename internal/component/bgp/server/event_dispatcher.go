@@ -86,13 +86,28 @@ func (d *EventDispatcher) OnPeerStateChange(peer *plugin.PeerInfo, state rpc.Ses
 
 // OnPeerUnbound tells the named processes that a live peer stopped feeding
 // them, with a state event carrying state and reason. The reactor calls it after
-// a reload removed a derived feed-only binding from the peer
-// (Peer.catchUpDerivedFeeds), so every other consumer of the peer hears nothing.
+// a reload removed a receive-only binding from the peer, or before it re-binds
+// one whose grant changed (Peer.applyHotSwappableSettings), so every other
+// consumer of the peer hears nothing.
 func (d *EventDispatcher) OnPeerUnbound(peer *plugin.PeerInfo, state rpc.SessionState, reason string, processes []string) {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return
 	}
 	onPeerUnbound(d.server, peer, state, reason, processes)
+}
+
+// OnPeerBound tells the named processes that a live peer, already up, now
+// feeds them: a state up with reason rpc.ReasonAttached to stateProcesses, then
+// the negotiated event to negotiatedProcesses when neg is not nil. neg is
+// format.DecodedNegotiated (typed as any from the reactor). The reactor calls it
+// after a reload attached the processes and BEFORE it publishes their delivery
+// edges, and the call returns once every process acknowledged, so no message of
+// the session reaches a process ahead of its up (onPeerBound).
+func (d *EventDispatcher) OnPeerBound(peer *plugin.PeerInfo, neg any, stateProcesses, negotiatedProcesses []string) {
+	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
+		return
+	}
+	onPeerBound(d.server, d.encoder, peer, neg, stateProcesses, negotiatedProcesses)
 }
 
 // OnPeerNegotiated handles capability negotiation completion.

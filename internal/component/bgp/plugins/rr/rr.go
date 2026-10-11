@@ -280,6 +280,13 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 	peer.ASN = se.PeerAS
 	switch se.State {
 	case rpc.SessionStateUp:
+		if se.Reason == rpc.ReasonAttached {
+			// A reload attached this plugin to a session already up: the
+			// peer's initial routing update was sent without it, and is not
+			// this plugin's to replay.
+			rr.mu.Unlock()
+			return
+		}
 		peer.ReplayGen++
 		gen := peer.ReplayGen
 		rr.mu.Unlock()
@@ -452,7 +459,11 @@ func (rr *routeReflector) dispatchText(text string) {
 			peerAddr := fields[1]
 			state := fields[6]
 			var initialReplay uint64
+			attached := false
 			for i := 7; i < len(fields); i++ {
+				if fields[i] == "reason" && i+1 < len(fields) && fields[i+1] == rpc.ReasonAttached {
+					attached = true
+				}
 				if fields[i] != "initial-replay" {
 					continue
 				}
@@ -475,6 +486,11 @@ func (rr *routeReflector) dispatchText(text string) {
 			peer.Up = (state == "up")
 			switch state {
 			case "up":
+				if attached {
+					// handleStructuredState's reason: no replay on an attached up.
+					rr.mu.Unlock()
+					return
+				}
 				peer.ReplayGen++
 				gen := peer.ReplayGen
 				rr.mu.Unlock()

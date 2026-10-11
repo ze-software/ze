@@ -358,6 +358,10 @@ type Event struct {
 	// State event field.
 	State         string `json:"state,omitempty"`
 	InitialReplay uint64 `json:"initial-replay,string,omitempty"`
+	// Reason qualifies a state event: why a session went down, or
+	// rpc.ReasonAttached on an up that attached this process to a session
+	// already up.
+	Reason string `json:"reason,omitempty"`
 
 	// UnheldRoles names the exclusive roles this plugin was told are claimed
 	// that no other process taking delivery of this event holds. The engine

@@ -993,7 +993,17 @@ gap without reading the program.
 
 An event that is not peer-scoped is untouched by this: the config filter is per
 peer.
+
+A reload can attach a process to a peer whose session is already up, through a
+receive-only `attach process` block (no `send`, no `open`, no `*`). That process
+receives a `state` up with reason `attached`, then `negotiated` if its block
+grants it, before any other message of that session reaches it. The up carries
+no initial-replay token, arms no End-of-RIB barrier, and is not a new session:
+a plugin that replays routes toward the peer on up MUST skip the replay for it. A
+process detached by a reload receives a `state` down with reason `removed`, to
+it alone. A changed grant is a down, then an `attached` up.
 <!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, PeerScopedProcs -->
+<!-- source: internal/component/bgp/server/events.go -- onPeerBound, onPeerUnbound -->
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- deliveryDisagreements -->
 
 Events that pass both halves are enqueued into a per-process channel.

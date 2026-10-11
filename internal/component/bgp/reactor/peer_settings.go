@@ -655,12 +655,6 @@ type ProcessBinding struct {
 	// through MaySend.
 	SendAll bool
 	Send    map[string]bool
-
-	// Derived marks a binding the config builder added (EnsureProcessBinding),
-	// never one the operator typed. A derived binding that grants no send type
-	// only feeds a consumer, so a reload can deliver a change to it without a
-	// session restart (derivedFeedsOnly, peer_derived_bindings.go).
-	Derived bool
 }
 
 // baseReceiveTypes are the event types the receive list has always named

@@ -235,50 +235,29 @@ func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) peerStop {
 // chains at establishment, so a running dynamic peer differs from every template,
 // including the one it was built from.
 //
-// A template that differs only in derived feed-only bindings does not restart the
-// peer, for the reason hotSwappableSettings delivers them to a static peer: the
-// first iBGP peer adds one to every peer (peer_derived_bindings.go). feeds is then
-// the binding list to deliver onto the running peer, and nil when there is
-// nothing to deliver. catchUp is derivedFeedsDeliverable's: a peer that owes a
-// new consumer routes it cannot re-send restarts instead.
+// Any difference restarts the peer, a binding difference included. A
+// configured peer takes a receive-only binding change on its running session
+// through the ordered bind delivery (applyHotSwappableSettings); a dynamic peer
+// does not have that path yet, and delivering a binding without it would feed a
+// process with no session up before it and no catch-up in the direction it was
+// granted, so the dynamic peer fails closed.
 //
 // Fail closed: an absent old group or a template that no longer builds counts as
 // changed, so the peer restarts and the next connection is accepted under settings
 // that were actually derived from the new configuration.
-func (r *Reactor) dynamicTemplateChanged(old, next *DynamicGroupConfig, addr netip.Addr, catchUp feedCatchUp) (changed bool, feeds []ProcessBinding) {
+func (r *Reactor) dynamicTemplateChanged(old, next *DynamicGroupConfig, addr netip.Addr) bool {
 	if old == nil || next == nil {
-		return true, nil
+		return true
 	}
 	oldSettings, oldErr := r.buildDynamicPeerSettings(old, addr)
 	if oldErr != nil {
-		return true, nil
+		return true
 	}
 	nextSettings, nextErr := r.buildDynamicPeerSettings(next, addr)
 	if nextErr != nil {
-		return true, nil
+		return true
 	}
-	if peerSettingsEqual(oldSettings, nextSettings) {
-		return false, nil
-	}
-	if !onlyDerivedFeedsDiffer(oldSettings.ProcessBindings, nextSettings.ProcessBindings) {
-		return true, nil
-	}
-	if !derivedFeedsDeliverable(oldSettings.ProcessBindings, nextSettings.ProcessBindings, catchUp) {
-		return true, nil
-	}
-	oldSettings.ProcessBindings = nextSettings.ProcessBindings
-	if !peerSettingsEqual(oldSettings, nextSettings) {
-		return true, nil
-	}
-	return false, nextSettings.ProcessBindings
-}
-
-// derivedFeedDelivery is one running peer whose derived feeds a reload changed,
-// kept for the catch-up that runs once r.mu is released.
-type derivedFeedDelivery struct {
-	peer   *Peer
-	gained []string
-	lost   []string
+	return !peerSettingsEqual(oldSettings, nextSettings)
 }
 
 // tryCreateDynamicPeer checks dynamic groups for the given address and creates a
@@ -335,26 +314,20 @@ func (r *Reactor) tryCreateDynamicPeer(addr netip.Addr) *Peer {
 // left running, session included.
 func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 	r.mu.Lock()
-	delivered, stops := r.setDynamicGroupsLocked(groups)
+	stops := r.setDynamicGroupsLocked(groups)
 	r.mu.Unlock()
 
-	// After the unlock: a stop writes a NOTIFICATION and the catch-up writes to
-	// the peer's socket and delivers to plugins, and none may run under the
-	// reactor lock.
+	// After the unlock: a stop writes a NOTIFICATION, which may not run under
+	// the reactor lock.
 	for _, stop := range stops {
 		stop.run()
 	}
-	for _, d := range delivered {
-		d.peer.catchUpDerivedFeeds(d.gained, d.lost)
-	}
 }
 
-// setDynamicGroupsLocked is SetDynamicGroups under r.mu. It returns the running
-// peers whose derived feeds it delivered, for the caller to catch up, and the
-// stops of the peers it removed, for the caller to run.
-func (r *Reactor) setDynamicGroupsLocked(groups []*DynamicGroupConfig) ([]derivedFeedDelivery, []peerStop) {
+// setDynamicGroupsLocked is SetDynamicGroups under r.mu. It returns the stops
+// of the peers it removed, for the caller to run.
+func (r *Reactor) setDynamicGroupsLocked(groups []*DynamicGroupConfig) []peerStop {
 	old := r.dynamicGroups
-	var delivered []derivedFeedDelivery
 	var stops []peerStop
 
 	// Collect peers to remove BEFORE replacing the groups slice.
@@ -389,22 +362,12 @@ func (r *Reactor) setDynamicGroupsLocked(groups []*DynamicGroupConfig) ([]derive
 				toRemove = append(toRemove, peer)
 				continue
 			}
-			catchUp := peer.currentSession().feedCatchUp()
-			changed, feeds := r.dynamicTemplateChanged(oldByName[settings.GroupName], next, settings.Address, catchUp)
-			if changed {
+			if r.dynamicTemplateChanged(oldByName[settings.GroupName], next, settings.Address) {
 				reactorLogger().Info("dynamic peer restart required",
 					"peer", settings.Address, "group", settings.GroupName, "changed", "group template")
 				toRemove = append(toRemove, peer)
 				restart[peer] = true
 				continue
-			}
-			if feeds != nil {
-				peer.mu.Lock()
-				before := peer.settings.ProcessBindings
-				peer.settings.ProcessBindings = feeds
-				peer.mu.Unlock()
-				gained, lost := derivedFeedChange(before, feeds)
-				delivered = append(delivered, derivedFeedDelivery{peer: peer, gained: gained, lost: lost})
 			}
 		}
 		for _, peer := range toRemove {
@@ -413,11 +376,6 @@ func (r *Reactor) setDynamicGroupsLocked(groups []*DynamicGroupConfig) ([]derive
 				subcode = message.NotifyCeaseOtherConfigChange
 			}
 			stops = append(stops, r.removeDynamicPeer(peer, subcode))
-		}
-		// The delivered feeds change the peer-to-process index. A removal above
-		// may already have republished it, and one more build is cheap.
-		if len(delivered) > 0 && r.deliveryPublished {
-			r.publishDeliveryGraphLocked()
 		}
 	}
 
@@ -447,7 +405,7 @@ func (r *Reactor) setDynamicGroupsLocked(groups []*DynamicGroupConfig) ([]derive
 	// socket is the peer-removal path's decision (reactor_peers.go), and a group
 	// removal that shared the socket with a peer must not take it down.
 	if !r.running || r.stopping {
-		return delivered, stops
+		return stops
 	}
 	for _, dg := range groups {
 		s := dg.Settings
@@ -459,7 +417,7 @@ func (r *Reactor) setDynamicGroupsLocked(groups []*DynamicGroupConfig) ([]derive
 				"group", dg.GroupName, "address", s.LocalAddress, "error", err)
 		}
 	}
-	return delivered, stops
+	return stops
 }
 
 // resolveDynamicPeerSettings sets PeerAS from the OPEN message and resolves

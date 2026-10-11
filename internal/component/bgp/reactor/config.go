@@ -990,7 +990,7 @@ func EnsureProcessBinding(ps *PeerSettings, processName, receive, send string) e
 		}
 	}
 
-	binding := ProcessBinding{PluginName: processName, Derived: true}
+	binding := ProcessBinding{PluginName: processName}
 	if err := parseReceiveFlags(receive, &binding); err != nil {
 		return fmt.Errorf("derived binding for process %q: %w", processName, err)
 	}

@@ -2233,7 +2233,7 @@ struct, so a field nobody classified still counts as a change.
 `hotSwappableSettings` is the swap set, and it is a SUBTRACTION from the whole
 struct rather than a list of what matters. Four fields qualify: `ImportFilters`,
 `ExportFilters`, `PrefixUpdated` and `StaticRoutes`, and `ProcessBindings` does
-for a derived feed (below). Every other field forces a
+for a receive-only binding (below). Every other field forces a
 restart, so a field added to `PeerSettings` tomorrow is restart-scoped until
 somebody classifies it on purpose. A wrongly restarted session is visible and
 self-healing; a session left running on settings nobody checked is silent.
@@ -2253,32 +2253,57 @@ first.
 
 <!-- source: internal/component/bgp/reactor/peer_static_wire.go -- deliverStaticRouteDelta, staticRouteDelta -->
 
-`ProcessBindings` is swappable for one kind of change only: a DERIVED binding
-that grants the process no send type. The config builder adds such a binding
-(`ProcessBinding.Derived`, written only by `EnsureProcessBinding`) when a feature
-needs a consumer fed with every peer's routes. The RFC 7311 AIGP grant to
-`bgp-rib` is the example: the first iBGP peer in the configuration adds it to
-EVERY peer, so a restart for it would end sessions the operator did not touch.
-A change to any other binding, the operator's `attach` block included, still
-restarts. A dynamic peer takes the same rule through its group template
-(`dynamicTemplateChanged`).
+`ProcessBindings` is swappable for one kind of change only: a RECEIVE-ONLY
+binding, one that grants the process no send type and does not receive the OPEN
+(`open` in any direction, or the `*` wildcard). The rule reads the grant, never
+who wrote it: an operator's `attach process` block and a binding the config
+builder adds (`EnsureProcessBinding`, for example the RFC 7311 AIGP grant to
+`bgp-rib` that the first iBGP peer adds to EVERY peer) are judged alike. A
+binding that may send restarts, because the process can put routes into the
+session's initial routing update and the End-of-RIB barrier counts it
+(`ProcessBinding.MayPushRoutes`). A binding that receives the OPEN restarts,
+because only a new session produces an OPEN the process can be shown. A dynamic
+peer does not take the swap yet: `dynamicTemplateChanged` restarts it on any
+template difference, a binding included, until dynamic peers join the shared
+swap.
 
-A consumer that starts being fed must also learn the routes the peer sent before
-the feed began. `Session.feedCatchUp` decides how:
+The apply delivers a binding change in an order (`Peer.applyHotSwappableSettings`):
 
-| The session | Catch-up |
-|-------------|----------|
-| announced no route (`Session.receivedRoute`, set on the read path) | none needed, the swap goes ahead |
-| announced routes, and the peer advertised Route Refresh | one ROUTE-REFRESH per negotiated family (RFC 2918 Section 3), sent after the delivery graph is republished |
-| announced routes, and the peer cannot re-send them | restart |
+1. A process whose kept binding changed grant is detached first: the running
+   list is written without it, the delivery graph republished, and the process
+   told the peer is down (`EventDispatcher.OnPeerUnbound`). From here on it is an
+   attached process like a new one.
+2. Each attached process granted the state event is told the session is up, by a
+   state event with reason `attached` (`EventDispatcher.OnPeerBound`), then the
+   negotiated event if granted. The up carries no initial-replay token and arms no
+   peer-up barrier, and the claimed roles on it are judged over every process the
+   peer feeds. The delivery waits for every acknowledgement, and the graph still
+   lacks the new edges, so no message of the session reaches a process before
+   its up.
+3. The bindings are written and the graph republished. If the session is no
+   longer the one the up was about (it closed, or it reached Established inside
+   the window), the attached processes are told down again and the session
+   restarts: no process holds an up for a session that is gone, or two ups.
+4. Processes that lost their binding are told the peer is down for them alone,
+   so they drop its routes while the others keep them, and each attached process
+   is caught up in the directions its grant covers (`Session.bindingCatchUp`).
 
-The apply decides again after the republish, because the peer can announce its
-first route between the plan and the apply. A session that now owes routes it
-cannot re-send is ended with Cease subcode 6. A consumer that LOSES its feed
-receives a peer-down for that peer alone (`EventDispatcher.OnPeerUnbound`), so it
-drops the peer's routes while the consumers still fed keep them.
+| The grant | The session | Catch-up |
+|-----------|-------------|----------|
+| carries no route (`state`, `negotiated`, `keepalive`, `notification`, `refresh` only) | any | none |
+| covers routes this speaker sent (`update-sent`, or bare `update`) | advertised a route (`Session.advertised`, read by `Peer.hasAdvertised`) | restart: nothing re-sends them |
+| covers routes the peer sent | announced no route (`Session.receivedRoute`) | none |
+| covers routes the peer sent | announced routes, the peer advertised Route Refresh | one ROUTE-REFRESH per negotiated family (RFC 2918 Section 3), after the up and the republish |
+| covers routes the peer sent | announced routes, the peer cannot re-send them | restart |
 
-<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- derivedFeedsDeliverable, Session.feedCatchUp, Peer.catchUpDerivedFeeds -->
+The plan asks this question first, and the apply asks it again after the
+republish, because the peer can announce its first route, or this speaker
+advertise one, in between. A plugin-registered receive type counts as carrying
+routes. A changed grant on a route-consuming process withdraws and re-learns
+that peer's routes downstream, because the down makes the process drop them.
+
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- receiveOnly, receiveBindingsDeliverable, Session.bindingCatchUp, Peer.bindProcesses, Peer.catchUpBoundProcesses -->
+<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- applyHotSwappableSettings -->
 
 A withdrawal is built from the ANNOUNCEMENT the peer received and then rewritten
 by `message.SynthesizeWithdraw`, which moves the NLRI into the Withdrawn Routes

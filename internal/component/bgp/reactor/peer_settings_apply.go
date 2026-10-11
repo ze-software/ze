@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/netip"
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -71,14 +72,15 @@ type peerSettingsSwap struct {
 //     not hold and withdraws what the configuration no longer names. Its one
 //     reader, sendInitialRoutes, goes through the p.mu-guarded accessor
 //     Peer.staticRoutes, and p.staticMu serializes the two writers of the wire.
-//   - ProcessBindings, and only when the two lists differ in derived feed-only
-//     bindings alone (onlyDerivedFeedsDiffer, peer_derived_bindings.go). Its
-//     consumer is the delivery graph, which applyHotSwappableSettings
-//     republishes, and catchUpDerivedFeeds then brings each gained or lost
-//     consumer in line with the running session. Any other binding change is
-//     left undelivered here, so it still reads as a difference and restarts.
-//     Its readers hold r.mu (the graph build, maySend) or p.mu
-//     (initialUpdateReporters), and the write holds both.
+//   - ProcessBindings, and only when the two lists differ in receive-only
+//     bindings alone, the ones that grant no send type and do not receive the
+//     OPEN, whoever wrote them (onlyReceiveOnlyBindingsDiffer,
+//     peer_derived_bindings.go). Its consumer is the delivery graph, which
+//     applyHotSwappableSettings republishes in the order the attached
+//     processes need: told up first, edges published after, caught up last.
+//     Any other binding change is left undelivered here, so it still reads as
+//     a difference and restarts. Its readers hold r.mu (the graph build,
+//     maySend) or p.mu (initialUpdateReporters), and the write holds both.
 //
 // The first four are the mutable set: resolveDynamicPeerSettings (reactor_dynamic.go)
 // writes the filter pair on the pointed-to struct under p.mu on a dynamic peer's
@@ -91,7 +93,7 @@ func hotSwappableSettings(dst, src *PeerSettings) {
 	dst.ExportFilters = src.ExportFilters
 	dst.PrefixUpdated = src.PrefixUpdated
 	dst.StaticRoutes = src.StaticRoutes
-	if onlyDerivedFeedsDiffer(dst.ProcessBindings, src.ProcessBindings) {
+	if onlyReceiveOnlyBindingsDiffer(dst.ProcessBindings, src.ProcessBindings) {
 		dst.ProcessBindings = src.ProcessBindings
 	}
 }
@@ -144,10 +146,11 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 	// values. What remains different is what a swap cannot deliver.
 	c := *current
 	hotSwappableSettings(&c, next)
-	// A derived feed a consumer gains needs the peer's earlier routes, and a
-	// session that owes some and cannot re-send them restarts instead
-	// (derivedFeedsDeliverable).
-	if !derivedFeedsDeliverable(current.ProcessBindings, c.ProcessBindings, s.feedCatchUp()) {
+	// A process a receive-only binding attaches needs the routes the session
+	// already carried in the directions its grant covers, and a session that
+	// owes some and cannot send them again restarts instead
+	// (receiveBindingsDeliverable).
+	if !receiveBindingsDeliverable(current.ProcessBindings, c.ProcessBindings, s) {
 		c.ProcessBindings = current.ProcessBindings
 	}
 	if peerSettingsEqual(&c, next) {
@@ -284,23 +287,67 @@ func (p *Peer) hotSwappableSnapshot(copy settingsCopier) *PeerSettings {
 // sameStaticRouteSet reads that (peer_static_wire.go). Deriving it this way is the
 // same invariant hotSwappableSettings guards, one layer out -- a field cannot be
 // delivered onto the peer and then not delivered onto the wire.
+//
+// A binding change is delivered in the order its processes need, and the steps
+// are numbered in the body. A process the change attaches to an Established
+// session is told the session is up (Peer.bindProcesses) BEFORE the graph
+// carries its edge, so no message of the session reaches it first; a process
+// whose grant changed is detached in an intermediate publish and told down
+// before that. The write then checks the session is the one the up was about.
+// Only after the publish are the detached processes told down and the attached
+// ones caught up (Peer.catchUpBoundProcesses), each step with the locks
+// released, because each can block on a plugin or on the peer's socket.
 func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier) {
+	// Step 1, no write yet: the session the delivery is judged against, whether
+	// it is up, and which processes the copy attaches and detaches. The copy runs
+	// onto a probe holding the running bindings, so it decides exactly as it
+	// will on the peer.
 	p.mu.RLock()
 	r := p.reactor
+	session := p.session
+	bindingsBefore := p.settings.ProcessBindings
 	p.mu.RUnlock()
+	established := p.State() == PeerStateEstablished
+	probe := PeerSettings{ProcessBindings: bindingsBefore}
+	copy(&probe, next)
+	bindingsAfter := probe.ProcessBindings
+	gained, lost := receiveBindingChange(bindingsBefore, bindingsAfter)
+	var rebound, detached []string
+	for _, name := range lost {
+		if slices.Contains(gained, name) {
+			rebound = append(rebound, name)
+		} else {
+			detached = append(detached, name)
+		}
+	}
 
-	// r.mu is held across the write because ProcessBindings is one of the fields
-	// a copier can deliver, and the delivery graph build and maySend read it
-	// under r.mu alone. Lock order is r.mu, then p.mu, as everywhere else.
+	if established && len(gained) > 0 {
+		// A process whose grant changed is told down before it is told up, and
+		// its edge is absent from the graph between the two, or a live message
+		// could reach it under neither grant. The journal's undo is the
+		// snapshot taken before this apply, so a rollback never restores the
+		// intermediate list.
+		if len(rebound) > 0 {
+			p.writeBindings(r, withoutProcesses(bindingsBefore, rebound))
+			p.unbindProcesses(r, rebound)
+		}
+		// Step 2: every attached process acknowledges its up while the graph
+		// still lacks its edge.
+		p.bindProcesses(r, session, bindingsAfter, gained)
+	}
+
+	// Step 3: the write. r.mu is held across it because ProcessBindings is one
+	// of the fields a copier can deliver, and the delivery graph build and
+	// maySend read it under r.mu alone. Lock order is r.mu, then p.mu, as
+	// everywhere else.
 	if r != nil {
 		r.mu.Lock()
 	}
 	p.mu.Lock()
+	sameSession := p.session == session && (p.State() == PeerStateEstablished) == established
 	before := p.settings.StaticRoutes
-	bindingsBefore := p.settings.ProcessBindings
 	copy(p.settings, next)
 	after := p.settings.StaticRoutes
-	gained, lost := derivedFeedChange(bindingsBefore, p.settings.ProcessBindings)
 	p.mu.Unlock()
 	if r != nil {
 		if (len(gained) > 0 || len(lost) > 0) && r.deliveryPublished {
@@ -308,7 +355,24 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 		}
 		r.mu.Unlock()
 	}
-	p.catchUpDerivedFeeds(gained, lost)
+
+	// Step 4: the detached processes are told down, and the attached ones
+	// caught up. A session that closed, or reached Established, inside the
+	// window holds attached processes with a missing or a second up, so it
+	// restarts instead, after telling down the ones step 2 told up.
+	switch {
+	case len(gained) > 0 && !sameSession:
+		if established {
+			p.unbindProcesses(r, gained)
+			p.unbindProcesses(r, detached)
+		}
+		p.restartForBinding(gained, "session changed while processes were bound to it: restarting the session")
+	case p.State() == PeerStateEstablished:
+		p.unbindProcesses(r, detached)
+		if established {
+			p.catchUpBoundProcesses(bindingsAfter, gained)
+		}
+	}
 
 	p.refreshForwardFactsIfLive()
 	p.refreshPrefixStale()

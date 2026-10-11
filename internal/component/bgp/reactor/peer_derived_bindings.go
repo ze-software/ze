@@ -1,8 +1,8 @@
 // Design: docs/architecture/core-design.md — config reload delivers changed peer settings
-// Related: peer_settings_apply.go — hotSwappableSettings carries the derived feeds on a swap
-// Related: reactor_dynamic.go — SetDynamicGroups delivers them to a running dynamic peer
-// Related: delivery_graph.go — the peer-to-process index a delivered feed republishes
-// Related: config.go — EnsureProcessBinding, the one writer of a derived binding
+// Related: peer_settings_apply.go — hotSwappableSettings carries receive-only bindings, applyHotSwappableSettings delivers them in order
+// Related: reactor_dynamic.go — dynamicTemplateChanged restarts a dynamic peer on any binding change
+// Related: delivery_graph.go — the peer-to-process index a delivered binding republishes
+// Related: config.go — parseProcessBindingsFromTree and EnsureProcessBinding, the writers of a binding
 // RFC: rfc/short/rfc2918.md — ROUTE-REFRESH, how a new consumer learns what the peer sent
 package reactor
 
@@ -10,41 +10,92 @@ import (
 	"reflect"
 	"slices"
 
+	"github.com/ze-software/ze/internal/component/bgp/format"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// derivedFeedsOnly reports whether b is a DERIVED binding that grants the process
-// no send type. Such a binding only feeds a consumer: the process can put nothing
-// on this peer's wire through it, so the session it rides on has nothing to
-// renegotiate when it comes or goes.
+// peerBindEvents is what the ordered bind delivery tells the plugins when a
+// reload attaches processes to, or detaches them from, a session that stays up.
+// *bgpserver.EventDispatcher satisfies it, and Reactor.bindEvents holds it as
+// this interface so a test can observe each event against the delivery graph
+// and the wire.
 //
-// The config builder adds one to every peer when the configuration needs a
-// consumer fed with every peer's candidates, for example the bgp-rib grant for
-// RFC 7311 AIGP selection (wireRedistributeDelivery,
-// internal/component/bgp/config/redistribute_binding.go). Adding the first iBGP
-// peer adds it to EVERY peer, so a restart for it would bounce sessions the
-// operator did not touch.
-func (b *ProcessBinding) derivedFeedsOnly() bool {
-	return b.Derived && !b.SendAll && len(b.Send) == 0
+// OnPeerBound MUST return only once every named process acknowledged its up:
+// the caller publishes the processes' delivery edges after it returns, and that
+// order is what keeps a message of the session from reaching a process before
+// its up. OnPeerUnbound is called after the edges are gone.
+type peerBindEvents interface {
+	OnPeerBound(peer *plugin.PeerInfo, neg any, stateProcesses, negotiatedProcesses []string)
+	OnPeerUnbound(peer *plugin.PeerInfo, state rpc.SessionState, reason string, processes []string)
 }
 
-// onlyDerivedFeedsDiffer reports whether current and next hold the same bindings,
-// in the same order, once the derived feed-only bindings are set aside.
+// routeFreeReceiveTypes are the receive types that carry no route. A process
+// attached with only these to a running session has nothing to catch up on.
+// Every other type, a plugin-registered one included, counts as route-bearing:
+// answering "carries routes" for a type that does not costs one catch-up, where
+// the opposite answer would leave a consumer without routes. The OPEN is not
+// listed because a binding receiving it is never receive-only.
+var routeFreeReceiveTypes = map[string]bool{
+	bgpevents.EventState:        true,
+	bgpevents.EventNegotiated:   true,
+	bgpevents.EventKeepalive:    true,
+	bgpevents.EventNotification: true,
+	bgpevents.EventRefresh:      true,
+}
+
+// receiveOnly reports whether b grants the process no send type and does not
+// show it the OPEN exchange. Such a binding only feeds a consumer: the process
+// can put nothing on this peer's wire through it, so it is outside the initial
+// routing update and its End-of-RIB barrier (ProcessBinding.MayPushRoutes,
+// Peer.resetAPISync), and a running session can take it on or let it go.
 //
-// Every other binding is the operator's attach block or a derived binding that
-// may send, and a change to one of those still restarts the session.
+// The rule reads the grant, never who wrote it: an operator's attach block and
+// a binding the config builder adds (EnsureProcessBinding) are judged alike.
+// The OPEN refuses it because only a new session produces an OPEN the process
+// can be shown, and the wildcard grants the OPEN.
+func (b *ProcessBinding) receiveOnly() bool {
+	if b.SendAll || len(b.Send) > 0 || b.ReceiveAll {
+		return false
+	}
+	return b.Receive[bgpevents.EventOpen] == events.DirUnspecified
+}
+
+// routeDirections reports whether b's grant carries routes the peer sent
+// (received) and routes this speaker sent the peer (sent). A bare type is
+// granted in both directions (events.SplitTypeToken), so `update` sets both.
+func (b *ProcessBinding) routeDirections() (received, sent bool) {
+	for eventType, dir := range b.Receive {
+		if routeFreeReceiveTypes[eventType] {
+			continue
+		}
+		received = received || dir&events.DirReceived != 0
+		sent = sent || dir&events.DirSent != 0
+	}
+	return received, sent
+}
+
+// onlyReceiveOnlyBindingsDiffer reports whether current and next hold the same
+// bindings, in the same order, once the receive-only bindings on each side are
+// set aside.
+//
+// A binding that may send, or that receives the OPEN, still restarts the
+// session when it changes. So does a binding that moves between the two kinds,
+// because it is set aside on one side only.
 //
 // Each pass of the loop consumes one binding from each list, so it runs at most
 // len(current)+len(next) times.
-func onlyDerivedFeedsDiffer(current, next []ProcessBinding) bool {
+func onlyReceiveOnlyBindingsDiffer(current, next []ProcessBinding) bool {
 	i, j := 0, 0
 	for {
-		for i < len(current) && current[i].derivedFeedsOnly() {
+		for i < len(current) && current[i].receiveOnly() {
 			i++
 		}
-		for j < len(next) && next[j].derivedFeedsOnly() {
+		for j < len(next) && next[j].receiveOnly() {
 			j++
 		}
 		if i == len(current) || j == len(next) {
@@ -58,85 +109,117 @@ func onlyDerivedFeedsDiffer(current, next []ProcessBinding) bool {
 	}
 }
 
-// derivedFeedChange names the processes a derived feed-only binding starts and
-// stops feeding when a peer moves from before to after. A process that keeps its
-// feed with a different grant is in neither list: derivedFeedsDeliverable
-// refuses that change, so it never reaches a delivery.
-func derivedFeedChange(before, after []ProcessBinding) (gained, lost []string) {
+// receiveBindingChange names the processes a peer starts and stops feeding
+// through a receive-only binding when its bindings move from before to after.
+//
+// A process that keeps a receive-only binding with a different grant is in
+// BOTH lists: its consumer's picture under the old grant cannot be told apart
+// from the new one, so it is told the peer is down and then up again, and is
+// caught up like a process attached for the first time.
+func receiveBindingChange(before, after []ProcessBinding) (gained, lost []string) {
 	for i := range after {
-		if after[i].derivedFeedsOnly() && !hasBinding(before, after[i].PluginName) {
+		if after[i].receiveOnly() && !holdsSameBinding(before, &after[i]) {
 			gained = append(gained, after[i].PluginName)
 		}
 	}
 	for i := range before {
-		if before[i].derivedFeedsOnly() && !hasBinding(after, before[i].PluginName) {
+		if before[i].receiveOnly() && !holdsSameBinding(after, &before[i]) {
 			lost = append(lost, before[i].PluginName)
 		}
 	}
 	return gained, lost
 }
 
-// hasBinding reports whether bindings holds one for the process.
-func hasBinding(bindings []ProcessBinding, process string) bool {
-	return slices.ContainsFunc(bindings, func(b ProcessBinding) bool { return b.PluginName == process })
+// holdsSameBinding reports whether bindings holds b's process with b's grant.
+func holdsSameBinding(bindings []ProcessBinding, b *ProcessBinding) bool {
+	for i := range bindings {
+		if bindings[i].PluginName == b.PluginName {
+			return reflect.DeepEqual(bindings[i], *b)
+		}
+	}
+	return false
+}
+
+// bindingFor returns the binding bindings holds for process, or nil.
+func bindingFor(bindings []ProcessBinding, process string) *ProcessBinding {
+	for i := range bindings {
+		if bindings[i].PluginName == process {
+			return &bindings[i]
+		}
+	}
+	return nil
+}
+
+// withoutProcesses returns a copy of bindings with the named processes' bindings
+// left out.
+func withoutProcesses(bindings []ProcessBinding, processes []string) []ProcessBinding {
+	kept := make([]ProcessBinding, 0, len(bindings))
+	for i := range bindings {
+		if !slices.Contains(processes, bindings[i].PluginName) {
+			kept = append(kept, bindings[i])
+		}
+	}
+	return kept
+}
+
+// grantedProcesses returns the processes among names whose binding in bindings
+// passes granted.
+func grantedProcesses(bindings []ProcessBinding, names []string, granted func(*ProcessBinding) bool) []string {
+	var out []string
+	for _, name := range names {
+		if b := bindingFor(bindings, name); b != nil && granted(b) {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// receivesNegotiated reports whether b grants the negotiated event.
+func receivesNegotiated(b *ProcessBinding) bool {
+	return b.ReceiveAll || b.Receive[bgpevents.EventNegotiated] != events.DirUnspecified
 }
 
 // feedCatchUp names how a consumer that starts being fed a running peer's
-// routes learns the routes the peer sent before the feed began. The zero value
-// is no answer, and every reader treats it as feedCatchUpImpossible.
+// routes learns the routes the session carried before the feed began. The zero
+// value is no answer, and every reader treats it as feedCatchUpImpossible.
 type feedCatchUp uint8
 
 const (
 	feedCatchUpUnspecified feedCatchUp = iota
-	// feedCatchUpNothing: the session has announced no route, so the new
-	// consumer has nothing to learn.
+	// feedCatchUpNothing: the grant carries no route, or the session carried
+	// none in the direction the grant covers, so the new consumer has nothing
+	// to learn.
 	feedCatchUpNothing
 	// feedCatchUpRouteRefresh: the peer advertised Route Refresh, so it
 	// re-sends its routes on request (RFC 2918).
 	feedCatchUpRouteRefresh
-	// feedCatchUpImpossible: the peer announced routes and nothing can send
-	// them again, so only a new session gives the consumer the whole picture.
+	// feedCatchUpImpossible: the session carried routes the consumer is owed
+	// and nothing can send them again, so only a new session gives the
+	// consumer the whole picture.
 	feedCatchUpImpossible
 )
 
-// derivedFeedsDeliverable reports whether a running session can take the change
-// from current to next in place. The caller has already established that only
-// derived feed-only bindings differ (onlyDerivedFeedsDiffer).
+// receiveBindingsDeliverable reports whether a running session can take the
+// change from current to next in place. The caller has already established that
+// only receive-only bindings differ (onlyReceiveOnlyBindingsDiffer).
 //
-// A consumer that starts being fed must also learn the routes the peer sent
-// before, or it holds half of that peer's routes. catchUp says how it can
-// (Session.feedCatchUp): a session that received no route owes it nothing, and
-// a peer that advertised Route Refresh re-sends them. Any other answer restarts.
-//
-// A feed that stays with a different grant is refused too. The consumer's
-// picture of the old grant cannot be told apart from the new one, so the
-// session restarts and every consumer starts again from nothing.
-func derivedFeedsDeliverable(current, next []ProcessBinding, catchUp feedCatchUp) bool {
-	for i := range next {
-		if !next[i].derivedFeedsOnly() {
-			continue
-		}
-		for k := range current {
-			if current[k].PluginName != next[i].PluginName {
-				continue
-			}
-			if !reflect.DeepEqual(current[k], next[i]) {
-				return false
-			}
+// Every process the change attaches, or re-attaches with a new grant
+// (receiveBindingChange), must also learn what the session already carried in
+// each direction its grant covers, or it holds half of that peer's routes.
+// Session.bindingCatchUp says whether it can; any process that cannot restarts
+// the whole change.
+func receiveBindingsDeliverable(current, next []ProcessBinding, s *Session) bool {
+	gained, _ := receiveBindingChange(current, next)
+	for _, name := range gained {
+		switch s.bindingCatchUp(bindingFor(next, name)) {
+		case feedCatchUpNothing, feedCatchUpRouteRefresh:
+		case feedCatchUpUnspecified, feedCatchUpImpossible:
+			return false
+		default:
+			panic("BUG: invalid binding catch-up outcome")
 		}
 	}
-	gained, _ := derivedFeedChange(current, next)
-	if len(gained) == 0 {
-		return true
-	}
-	switch catchUp {
-	case feedCatchUpNothing, feedCatchUpRouteRefresh:
-		return true
-	case feedCatchUpUnspecified, feedCatchUpImpossible:
-		return false
-	default:
-		panic("BUG: invalid derived-feed catch-up outcome")
-	}
+	return true
 }
 
 // noteReceivedRoute records, once for each connection, that the peer announced
@@ -164,9 +247,9 @@ func (s *Session) noteReceivedRoute(wu *wireu.WireUpdate) {
 	}
 }
 
-// feedCatchUp answers derivedFeedsDeliverable's question for a running session.
-// No session, and a session that announced no route, owe a new consumer
-// nothing. Otherwise the peer's Route Refresh capability decides.
+// feedCatchUp answers Session.bindingCatchUp's question for the routes the
+// peer sent. No session, and a session that announced no route, owe a new
+// consumer nothing. Otherwise the peer's Route Refresh capability decides.
 func (s *Session) feedCatchUp() feedCatchUp {
 	if s == nil {
 		return feedCatchUpNothing
@@ -188,62 +271,158 @@ func (s *Session) feedCatchUp() feedCatchUp {
 	return feedCatchUpImpossible
 }
 
-// catchUpDerivedFeeds brings the consumers of a running peer's derived feeds in
-// line after a reload delivered a binding change.
+// bindingCatchUp says how a process attached to session s through binding b
+// learns the routes the session carried before, in each direction b covers.
 //
-// The caller MUST have republished the delivery graph first and MUST NOT hold
-// r.mu: the calls below can block on the peer's socket or on a plugin.
-//
-// A consumer that lost its feed is told the peer is gone from its view. The
-// "down" goes to the named processes alone (EventDispatcher.OnPeerUnbound), so
-// the consumers still fed keep this peer's routes, and the one that stopped
-// being fed drops them rather than selecting over routes nobody updates.
-//
-// A consumer that gained its feed needs the routes the peer already sent. The
-// catch-up is decided again here, after the republish, because the peer can
-// have announced its first route since the swap plan asked. The read path marks
-// a route received before it looks the consumers up in the graph, so a route
-// this check does not see reaches the new consumer live.
-func (p *Peer) catchUpDerivedFeeds(gained, lost []string) {
-	if p.State() != PeerStateEstablished {
-		return
+// A grant that carries no route needs nothing. Routes this speaker sent cannot
+// be asked for again: nothing re-sends them, so once the session advertised one
+// (Session.advertised, the state Peer.hasAdvertised reads) a grant covering the
+// sent direction is impossible. Routes the peer sent are feedCatchUp's answer.
+func (s *Session) bindingCatchUp(b *ProcessBinding) feedCatchUp {
+	if b == nil {
+		return feedCatchUpImpossible
 	}
+	received, sent := b.routeDirections()
+	if sent && s != nil && s.advertised.Load() {
+		return feedCatchUpImpossible
+	}
+	if !received {
+		return feedCatchUpNothing
+	}
+	return s.feedCatchUp()
+}
 
-	p.mu.RLock()
-	r := p.reactor
-	p.mu.RUnlock()
-	if len(lost) > 0 && r != nil && r.eventDispatcher != nil {
-		info := establishedPeerInfo(p)
-		r.eventDispatcher.OnPeerUnbound(&info, rpc.SessionStateDown, rpc.ReasonPeerRemoved, lost)
+// bindEventsOf returns the reactor's bind event sink, or nil when there is no
+// reactor or the plugin server was never wired (a reactor built for a test).
+func bindEventsOf(r *Reactor) peerBindEvents {
+	if r == nil {
+		return nil
 	}
+	return r.bindEvents
+}
 
-	if len(gained) == 0 {
+// writeBindings replaces the peer's running bindings and republishes the
+// delivery graph. It takes r.mu then p.mu, the order every writer uses, because
+// the graph build and maySend read the bindings under r.mu alone.
+func (p *Peer) writeBindings(r *Reactor, bindings []ProcessBinding) {
+	if r != nil {
+		r.mu.Lock()
+	}
+	p.mu.Lock()
+	p.settings.ProcessBindings = bindings
+	p.mu.Unlock()
+	if r != nil {
+		if r.deliveryPublished {
+			r.publishDeliveryGraphLocked()
+		}
+		r.mu.Unlock()
+	}
+}
+
+// bindProcesses tells the named processes, whose bindings bindings holds, that
+// the running session is up for them: a state up with reason
+// rpc.ReasonAttached to the ones granted the state event, then the negotiated
+// event to the ones granted it.
+//
+// The up carries InitialReplay 0. The session's initial routing update is not
+// the attached process's to replay, and a token on it would authorize a replay
+// for an update the session already sent.
+//
+// The caller MUST hold neither r.mu nor p.mu, and MUST NOT have published the
+// processes' delivery edges yet: the delivery waits for every process
+// (peerBindEvents), and the graph without the edges is what keeps the
+// session's messages away from a process that has not been told it is up.
+func (p *Peer) bindProcesses(r *Reactor, session *Session, bindings []ProcessBinding, names []string) {
+	sink := bindEventsOf(r)
+	if sink == nil || len(names) == 0 {
 		return
 	}
-	switch p.currentSession().feedCatchUp() {
-	case feedCatchUpNothing:
+	stateNames := grantedProcesses(bindings, names, (*ProcessBinding).ReceivesPeerState)
+	negotiatedNames := grantedProcesses(bindings, names, receivesNegotiated)
+	if len(stateNames) == 0 && len(negotiatedNames) == 0 {
 		return
-	case feedCatchUpRouteRefresh:
+	}
+	var neg any
+	if session != nil {
+		session.mu.RLock()
+		negotiated := session.negotiated
+		session.mu.RUnlock()
+		if negotiated != nil {
+			neg = format.NegotiatedToDecoded(negotiated)
+		}
+	}
+	info := establishedPeerInfo(p)
+	info.InitialReplay = 0
+	sink.OnPeerBound(&info, neg, stateNames, negotiatedNames)
+}
+
+// unbindProcesses tells the named processes that the peer is down for them
+// alone. The caller MUST have republished the delivery graph without their
+// edges and MUST NOT hold r.mu or p.mu. Every other consumer of the peer hears
+// nothing and keeps the peer's routes, and the detached one drops them rather
+// than select over routes nobody updates.
+//
+// The down is not narrowed to the processes granted the state event, where the
+// up is: a process holds the peer's routes by its update grant, and the down is
+// what makes it let them go. The plugin server still delivers it only to a
+// process subscribed to state events.
+func (p *Peer) unbindProcesses(r *Reactor, names []string) {
+	sink := bindEventsOf(r)
+	if sink == nil || len(names) == 0 {
+		return
+	}
+	info := establishedPeerInfo(p)
+	sink.OnPeerUnbound(&info, rpc.SessionStateDown, rpc.ReasonPeerRemoved, names)
+}
+
+// catchUpBoundProcesses brings the processes a reload attached to the running
+// session level with the routes it already carried, after their up was
+// delivered and their edges published.
+//
+// The answer is decided again here, per process (Session.bindingCatchUp),
+// because the peer can have announced its first route, or this speaker
+// advertised one, since the swap plan asked. The read path marks a route
+// received before it looks the consumers up in the graph, so a route this
+// check does not see reaches the new consumer live. One process that cannot
+// catch up restarts the session; otherwise one ROUTE-REFRESH per negotiated
+// family serves every process that needs the peer's routes.
+//
+// The caller MUST NOT hold r.mu or p.mu: the calls below can block on the
+// peer's socket.
+func (p *Peer) catchUpBoundProcesses(bindings []ProcessBinding, gained []string) {
+	session := p.currentSession()
+	refresh := false
+	for _, name := range gained {
+		switch session.bindingCatchUp(bindingFor(bindings, name)) {
+		case feedCatchUpNothing:
+		case feedCatchUpRouteRefresh:
+			refresh = true
+		case feedCatchUpUnspecified, feedCatchUpImpossible:
+			p.restartForBinding(gained, "process bound without the routes the session already carried: restarting the session")
+			return
+		default:
+			panic("BUG: invalid binding catch-up outcome")
+		}
+	}
+	if refresh {
 		p.requestRouteRefreshAll(gained)
-		return
-	case feedCatchUpUnspecified, feedCatchUpImpossible:
-	default:
-		panic("BUG: invalid derived-feed catch-up outcome")
 	}
-	// The session re-established, or announced its first route, between the swap
-	// plan and this apply, and the peer cannot re-send. A new session is the one
-	// way every consumer holds the same routes.
+}
+
+// restartForBinding ends the session because a binding change could not be
+// delivered to it in place: a new session is the one way every consumer holds
+// the same routes and sees one up.
+func (p *Peer) restartForBinding(processes []string, why string) {
+	peerLogger().Warn(why, "peer", p.settings.Address, "processes", processes)
 	// RFC 4486 Section 4: subcode 6 "Other Configuration Change".
-	peerLogger().Warn("derived consumer bound without the peer's earlier routes: restarting the session",
-		"peer", p.settings.Address, "processes", gained)
 	if err := p.Teardown(message.NotifyCeaseOtherConfigChange, ""); err != nil {
-		peerLogger().Warn("derived consumer catch-up: session restart not queued",
+		peerLogger().Warn("binding change: session restart not queued",
 			"peer", p.settings.Address, "error", err)
 	}
 }
 
 // requestRouteRefreshAll asks the peer to re-send its routes for every
-// negotiated family, so the processes that gained a feed learn them. Every
+// negotiated family, so the processes a reload attached learn them. Every
 // consumer still fed receives them a second time, which is an implicit
 // replacement of routes it already holds (RFC 4271 Section 3.1).
 func (p *Peer) requestRouteRefreshAll(gained []string) {
@@ -264,7 +443,7 @@ func (p *Peer) requestRouteRefreshAll(gained []string) {
 			Subtype: message.RouteRefreshNormal,
 		}
 		if err := p.SendRawMessage(0, message.PackTo(rr, nil)); err != nil {
-			peerLogger().Warn("derived consumer catch-up: route refresh not sent",
+			peerLogger().Warn("bound process catch-up: route refresh not sent",
 				"peer", p.settings.Address, "family", fam, "processes", gained, "error", err)
 			return
 		}

@@ -741,6 +741,10 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 	if !isUp {
 		return
 	}
+	if se.Reason == rpc.ReasonAttached {
+		// handleState's reason: no replay on an attached up.
+		return
+	}
 	if !r.replayDrivenElsewhere(se.UnheldRoles) {
 		// No other plugin drives peer-up replay for THIS peer, so nothing else
 		// tracks a cut and nothing else forwards these routes: replay all of them.
@@ -994,6 +998,12 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	r.unlockValidation()
 
 	if !isUp {
+		return
+	}
+	if event.Reason == rpc.ReasonAttached {
+		// A reload attached this plugin to a session already up: the peer's
+		// initial routing update went out without it, so there is nothing of
+		// this plugin's to replay toward the peer.
 		return
 	}
 	if !r.replayDrivenElsewhere(event.UnheldRoles) {

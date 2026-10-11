@@ -1,14 +1,21 @@
 package reactor
 
 import (
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // setSessionFacts gives the test session what the read path and the OPEN
@@ -154,19 +161,8 @@ func TestDerivedFeedWithoutRouteRefreshRestarts(t *testing.T) {
 	assert.Equal(t, "ProcessBindings", reason)
 }
 
-// TestOperatorBindingChangeStillRestarts proves the swap stays narrow: a binding
-// the operator typed is not derived, so a change to it restarts as before.
-func TestOperatorBindingChangeStillRestarts(t *testing.T) {
-	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	next := withDerivedRIBFeed(t, peer.settings)
-	next.ProcessBindings[0].Derived = false
-
-	_, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
-	assert.Equal(t, "ProcessBindings", reason)
-}
-
 // TestDerivedFeedRemovalSendsNoRefresh proves the removal half: the lost
-// consumer is named for the targeted "down" (catchUpDerivedFeeds), and the peer
+// consumer is named for the targeted "down" (Peer.unbindProcesses), and the peer
 // is not asked to re-send anything.
 func TestDerivedFeedRemovalSendsNoRefresh(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
@@ -175,7 +171,7 @@ func TestDerivedFeedRemovalSendsNoRefresh(t *testing.T) {
 
 	next := *peer.settings
 	next.ProcessBindings = nil
-	gained, lost := derivedFeedChange(peer.settings.ProcessBindings, next.ProcessBindings)
+	gained, lost := receiveBindingChange(peer.settings.ProcessBindings, next.ProcessBindings)
 	assert.Empty(t, gained)
 	assert.Equal(t, []string{"bgp-rib"}, lost)
 
@@ -184,4 +180,333 @@ func TestDerivedFeedRemovalSendsNoRefresh(t *testing.T) {
 	peer.applyHotSwappableSettings(&next, copier)
 	assert.Empty(t, peer.settings.ProcessBindings)
 	assert.Empty(t, conn.written(), "a removed feed asks the peer for nothing")
+}
+
+// operatorBinding returns the binding an operator's
+// `attach process <name> { receive [ receive ]; send [ send ]; }` block parses
+// to, through the same parsers parseProcessBindingsFromTree uses.
+func operatorBinding(t *testing.T, name, receive, send string) ProcessBinding {
+	t.Helper()
+	b := ProcessBinding{PluginName: name}
+	require.NoError(t, parseReceiveFlags(receive, &b))
+	require.NoError(t, parseSendFlags(send, &b))
+	return b
+}
+
+// withBindings returns a copy of settings holding exactly bindings.
+func withBindings(settings *PeerSettings, bindings ...ProcessBinding) *PeerSettings {
+	next := *settings
+	next.ProcessBindings = bindings
+	return &next
+}
+
+// bindStep is one event the ordered bind delivery sent, with what the plugins
+// and the peer could see at that moment.
+type bindStep struct {
+	event      string   // "up" or "down"
+	processes  []string // the processes named
+	reason     string
+	replay     uint64   // InitialReplay on the peer info
+	graphFed   []string // processes the graph fed this peer's received UPDATEs
+	wireFrames int      // BGP messages on the wire so far
+}
+
+// bindRecorder is a peerBindEvents that records each event with the graph and
+// the wire as they stood, so a test can assert the ORDER of up, publish and
+// ROUTE-REFRESH rather than only their presence.
+type bindRecorder struct {
+	t      *testing.T
+	srv    *pluginserver.Server
+	conn   *recordingConn
+	onBind func()
+
+	mu    sync.Mutex
+	steps []bindStep
+}
+
+func (b *bindRecorder) record(event, reason string, peer *plugin.PeerInfo, processes []string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.steps = append(b.steps, bindStep{
+		event:      event,
+		processes:  append([]string(nil), processes...),
+		reason:     reason,
+		replay:     peer.InitialReplay,
+		graphFed:   recv(b.srv.DeliveryGraph(), bgpevents.EventUpdate, events.DirReceived, peer.AddrStr()),
+		wireFrames: len(bgpFrames(b.t, b.conn.written())),
+	})
+}
+
+func (b *bindRecorder) OnPeerBound(peer *plugin.PeerInfo, _ any, stateProcesses, _ []string) {
+	b.record("up", rpc.ReasonAttached, peer, stateProcesses)
+	if b.onBind != nil {
+		b.onBind()
+	}
+}
+
+func (b *bindRecorder) OnPeerUnbound(peer *plugin.PeerInfo, _ rpc.SessionState, reason string, processes []string) {
+	b.record("down", reason, peer, processes)
+}
+
+func (b *bindRecorder) recorded() []bindStep {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]bindStep(nil), b.steps...)
+}
+
+// newBindingReactor puts peer in a reactor whose delivery graph is published
+// into a real plugin server, with a recorder in place of the event dispatcher.
+func newBindingReactor(t *testing.T, peer *Peer, conn *recordingConn) (*pluginserver.Server, *bindRecorder) {
+	t.Helper()
+	srv := &pluginserver.Server{}
+	r := newTestReactor(t)
+	r.api = srv
+	rec := &bindRecorder{t: t, srv: srv, conn: conn}
+	r.bindEvents = rec
+	r.peers[peer.settings.PeerKey()] = peer
+	peer.mu.Lock()
+	peer.reactor = r
+	peer.mu.Unlock()
+	r.mu.Lock()
+	r.publishDeliveryGraphLocked()
+	r.mu.Unlock()
+	return srv, rec
+}
+
+// fedUpdates returns the processes the published graph feeds peer's received
+// UPDATEs to.
+func fedUpdates(srv *pluginserver.Server, peer *Peer) []string {
+	return recv(srv.DeliveryGraph(), bgpevents.EventUpdate, events.DirReceived, peer.settings.Address.String())
+}
+
+// TestOperatorReceiveOnlyBindingSwaps proves AC-1: an attach block the operator
+// typed that grants no send type and receives no OPEN is swapped like one the
+// config builder derived.
+//
+// VALIDATES: peerSettingsSwapPlan returns a copier and no reason.
+// PREVENTS: attaching bgp-rpki or a monitor to a running peer resetting it.
+func TestOperatorReceiveOnlyBindingSwaps(t *testing.T) {
+	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, true, true)
+
+	next := withBindings(peer.settings, operatorBinding(t, "bgp-rpki", "update-received state", ""))
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	assert.Empty(t, reason, "a receive-only operator binding must not restart the session")
+	assert.NotNil(t, copier)
+}
+
+// TestOperatorSendOrOpenBindingStillRestarts proves AC-2: a binding that may
+// put routes on the wire, or that must be shown an OPEN, restarts.
+func TestOperatorSendOrOpenBindingStillRestarts(t *testing.T) {
+	for _, tc := range []struct{ name, receive, send string }{
+		{"send update", "update-received", "update"},
+		{"receive open", "open-received state", ""},
+		{"receive open both directions", "open", ""},
+		{"receive wildcard", "*", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			setSessionFacts(peer, false, true)
+			next := withBindings(peer.settings, operatorBinding(t, "monitor", tc.receive, tc.send))
+			_, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+			assert.Equal(t, "ProcessBindings", reason)
+		})
+	}
+}
+
+// TestReceiveOnlyGainWithoutRouteRefreshRestarts proves AC-10: a peer that sent
+// routes and cannot re-send them restarts for a route-bearing receive grant.
+func TestReceiveOnlyGainWithoutRouteRefreshRestarts(t *testing.T) {
+	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, true, false)
+
+	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received", ""))
+	_, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	assert.Equal(t, "ProcessBindings", reason)
+}
+
+// TestGainedReceiveOnlyBindingGetsUpBeforeRefresh proves AC-4's order: the
+// attached process is told the session is up, with reason attached and no
+// initial-replay token, before the ROUTE-REFRESH that makes the peer re-send.
+// No other process is named.
+func TestGainedReceiveOnlyBindingGetsUpBeforeRefresh(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast, family.IPv6Unicast)
+	setSessionFacts(peer, true, true)
+	peer.settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "bystander", "update-received state", "")}
+	session := peer.session
+	_, rec := newBindingReactor(t, peer, conn)
+
+	next := withBindings(peer.settings, peer.settings.ProcessBindings[0], operatorBinding(t, "monitor", "update-received state", ""))
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason)
+	peer.applyHotSwappableSettings(next, copier)
+
+	steps := rec.recorded()
+	require.Len(t, steps, 1, "one targeted up and nothing else")
+	assert.Equal(t, "up", steps[0].event)
+	assert.Equal(t, []string{"monitor"}, steps[0].processes, "only the attached process is told")
+	assert.Equal(t, rpc.ReasonAttached, steps[0].reason)
+	assert.Zero(t, steps[0].replay, "an attached up carries no initial-replay token")
+	assert.Zero(t, steps[0].wireFrames, "the up precedes the ROUTE-REFRESH")
+	assert.Len(t, bgpFrames(t, conn.written()), 2, "then one ROUTE-REFRESH per negotiated family")
+	assert.Same(t, session, peer.session)
+}
+
+// TestUpAcknowledgedBeforeGraphEdge proves AC-4/R-4: while the attached process
+// is being told the session is up, the graph does not feed it, so a live UPDATE
+// in that window cannot reach it; once the apply returns, it does.
+func TestUpAcknowledgedBeforeGraphEdge(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, false, true)
+	srv, rec := newBindingReactor(t, peer, conn)
+
+	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason)
+	peer.applyHotSwappableSettings(next, copier)
+
+	steps := rec.recorded()
+	require.Len(t, steps, 1)
+	assert.NotContains(t, steps[0].graphFed, "monitor", "the edge must not be published before the up returned")
+	assert.Contains(t, fedUpdates(srv, peer), "monitor", "the edge is published after the up")
+}
+
+// TestChangedReceiveGrantIsDownThenUp proves AC-8 at the reactor: a kept
+// receive-only binding whose grant changes is told down and then up, its edge
+// absent from the graph for both, the ROUTE-REFRESH after the up, and the
+// process that kept its binding named in neither.
+func TestChangedReceiveGrantIsDownThenUp(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, true, true)
+	peer.settings.ProcessBindings = []ProcessBinding{
+		operatorBinding(t, "bgp-rib", "update-received", ""),
+		operatorBinding(t, "bystander", "update-received state", ""),
+	}
+	srv, rec := newBindingReactor(t, peer, conn)
+	require.Contains(t, fedUpdates(srv, peer), "bgp-rib")
+
+	next := withBindings(peer.settings,
+		operatorBinding(t, "bgp-rib", "update-received state", ""),
+		peer.settings.ProcessBindings[1])
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason, "a changed receive-only grant swaps")
+	peer.applyHotSwappableSettings(next, copier)
+
+	steps := rec.recorded()
+	require.Len(t, steps, 2, "a down then an up")
+	assert.Equal(t, "down", steps[0].event)
+	assert.Equal(t, "up", steps[1].event)
+	for _, step := range steps {
+		assert.Equal(t, []string{"bgp-rib"}, step.processes, "no other process is told")
+		assert.NotContains(t, step.graphFed, "bgp-rib", "the edge is absent between the down and the up")
+		assert.Contains(t, step.graphFed, "bystander", "the kept binding keeps its edge")
+		assert.Zero(t, step.wireFrames, "the ROUTE-REFRESH follows the up")
+	}
+	assert.Contains(t, fedUpdates(srv, peer), "bgp-rib")
+	assert.Len(t, bgpFrames(t, conn.written()), 1, "one ROUTE-REFRESH for the one family")
+}
+
+// TestSentDirectionGrantNeedsNothingAdvertised proves AC-13: a grant covering
+// the routes this speaker sent restarts once the session advertised one, since
+// nothing re-sends them, and swaps on a session that advertised nothing, where
+// the apply keeps the one connection and writes nothing. The wildcard restarts
+// either way, for AC-2's reason.
+func TestSentDirectionGrantNeedsNothingAdvertised(t *testing.T) {
+	for _, receive := range []string{"update-sent state", "update"} {
+		t.Run(receive+" advertised", func(t *testing.T) {
+			peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			setSessionFacts(peer, false, true)
+			peer.session.advertised.Store(true)
+			require.True(t, peer.hasAdvertised())
+			_, reason := peerSettingsSwapPlan(peer.settings, withBindings(peer.settings, operatorBinding(t, "monitor", receive, "")), peer.session)
+			assert.Equal(t, "ProcessBindings", reason)
+		})
+		t.Run(receive+" nothing advertised", func(t *testing.T) {
+			peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			setSessionFacts(peer, false, false)
+			session := peer.session
+			next := withBindings(peer.settings, operatorBinding(t, "monitor", receive, ""))
+			copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+			require.Empty(t, reason)
+			peer.applyHotSwappableSettings(next, copier)
+			assert.Same(t, session, peer.session, "one connection")
+			assert.Equal(t, PeerStateEstablished, peer.State())
+			assert.Empty(t, conn.written(), "no NOTIFICATION and nothing to ask for")
+		})
+	}
+	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, false, true)
+	_, reason := peerSettingsSwapPlan(peer.settings, withBindings(peer.settings, operatorBinding(t, "monitor", "*", "")), peer.session)
+	assert.Equal(t, "ProcessBindings", reason)
+}
+
+// TestRouteFreeGrantNeedsNoCatchUp proves AC-14: a grant carrying no route needs
+// no catch-up, even on a peer that sent routes and cannot re-send them, and a
+// plugin-registered type counts as route-bearing.
+func TestRouteFreeGrantNeedsNoCatchUp(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, true, false)
+	session := peer.session
+	_, rec := newBindingReactor(t, peer, conn)
+
+	next := withBindings(peer.settings, operatorBinding(t, "watcher", "state", ""))
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason, "a route-free grant does not restart")
+	peer.applyHotSwappableSettings(next, copier)
+	assert.Same(t, session, peer.session)
+	assert.Empty(t, conn.written(), "no ROUTE-REFRESH and no NOTIFICATION")
+	steps := rec.recorded()
+	require.Len(t, steps, 1)
+	assert.Equal(t, "up", steps[0].event)
+
+	plugged := ProcessBinding{PluginName: "decorator", Receive: map[string]events.Direction{"update-rpki": events.DirReceived}}
+	received, sent := plugged.routeDirections()
+	assert.True(t, received, "a plugin-registered type is route-bearing")
+	assert.False(t, sent)
+}
+
+// TestBindRacesEstablished proves the session check of AC-17: the session the
+// up was delivered for is gone by the write, so the attached process is told
+// down again and the session restarts, rather than leave it with an up that
+// belongs to no session or a second one from the next.
+func TestBindRacesEstablished(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, true, true)
+	_, rec := newBindingReactor(t, peer, conn)
+	replacement := NewSession(peer.settings)
+	rec.onBind = func() {
+		peer.mu.Lock()
+		peer.session = replacement
+		peer.mu.Unlock()
+	}
+
+	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason)
+	peer.applyHotSwappableSettings(next, copier)
+
+	var events []string
+	for _, step := range rec.recorded() {
+		events = append(events, step.event+":"+strings.Join(step.processes, ","))
+	}
+	assert.Equal(t, []string{"up:monitor", "down:monitor"}, events, "exactly one up, matched by a down")
+	assert.Empty(t, conn.written(), "no ROUTE-REFRESH on a session the up was not about")
+}
+
+// TestIdenticalOperatorBindingReplacingDerived proves AC-18: an attach block
+// granting what the config builder's binding granted is the same binding, so it
+// changes nothing: no restart, and no process told down or up.
+func TestIdenticalOperatorBindingReplacingDerived(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, true, false)
+	peer.settings.ProcessBindings = withDerivedRIBFeed(t, peer.settings).ProcessBindings
+	_, rec := newBindingReactor(t, peer, conn)
+
+	next := withBindings(peer.settings, operatorBinding(t, "bgp-rib", "update-received state", ""))
+	assert.True(t, peerSettingsEqual(peer.settings, next), "the two bindings are one")
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason)
+	peer.applyHotSwappableSettings(next, copier)
+	assert.Empty(t, rec.recorded())
+	assert.Empty(t, conn.written())
 }

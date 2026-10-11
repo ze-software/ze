@@ -9,6 +9,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"sync"
 
@@ -588,7 +589,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 
 	var fmtCache formatCache
 	var scratchArr [512]byte
-	unheldRoles := deliverPeerState(s, peer, procs, state, reason, &fmtCache, &scratchArr)
+	unheldRoles := deliverPeerState(s, peer, procs, procs, state, reason, true, &fmtCache, &scratchArr)
 
 	// Deliver to CLI monitors lazily.
 	monitorDeliverLazyTyped(s, stateETID, events.DirUnspecified, peerAddr, peer.Name, func() string {
@@ -605,10 +606,18 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 // formatted, which the caller reuses for the CLI monitors, and returns the
 // unheld roles it carried on every copy for the same reuse.
 //
-// It serves two callers: onPeerStateChange, which delivers to every process the
-// delivery graph feeds this peer, and onPeerUnbound, which delivers to named
-// processes the graph no longer feeds.
-func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*process.Process, state rpc.SessionState, reason string, fmtCache *formatCache, scratch *[512]byte) []string {
+// It serves three callers: onPeerStateChange, which delivers to every process
+// the delivery graph feeds this peer; onPeerUnbound, which delivers to named
+// processes the graph no longer feeds; and onPeerBound, which delivers to named
+// processes the graph does not feed yet.
+//
+// fed is every process the peer feeds once this event lands, and the claimed
+// roles are judged held or unheld over it, never over procs alone: a targeted
+// event reaches a few processes, and a role the rest of the fed set holds is
+// still held for this peer. armBarrier says whether an up may arm the peer-up
+// barrier. Only an up that starts a session's initial routing update may: the
+// barrier delays that update's End-of-RIB, and a targeted up starts nothing.
+func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs, fed []*process.Process, state rpc.SessionState, reason string, armBarrier bool, fmtCache *formatCache, scratch *[512]byte) []string {
 	peerAddr := peer.AddrStr()
 	// Sort by reverse dependency tier: dependents first, dependencies last.
 	sortByReverseDependencyTier(procs)
@@ -622,7 +631,7 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*pr
 	// costs one map read on a daemon where nothing ever claimed a role, which is
 	// every daemon running neither bgp-rs nor another claiming plugin.
 	graph := s.DeliveryGraph()
-	unheldRoles := s.UnheldRoles(procs, func(role string, proc *process.Process) bool {
+	unheldRoles := s.UnheldRoles(fed, func(role string, proc *process.Process) bool {
 		// A replay claimant must be able to emit RelayStoredRoute's UPDATEs,
 		// not merely observe this peer's state. Other roles keep their own
 		// delivery semantics.
@@ -637,7 +646,10 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*pr
 	// A nil reactor holds no peers and so has no End-of-RIB to gate, but a
 	// barrier plugin whose registration cannot be tracked is worth saying out
 	// loud rather than dropping in silence (ai/rules/evidence.md).
-	barrier := countPeerUpBarrier(procs, state)
+	barrier := 0
+	if armBarrier {
+		barrier = countPeerUpBarrier(procs, state)
+	}
 	reactor := s.Reactor()
 	if reactor == nil {
 		if barrier > 0 {
@@ -725,9 +737,9 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*pr
 }
 
 // onPeerUnbound tells the named processes that a live peer no longer feeds
-// them. A reload removed a derived feed-only binding from the peer's settings
-// (peer_derived_bindings.go in the reactor), and the republished delivery graph
-// already omits the edge, so PeerScopedProcs cannot find them and they are
+// them. A reload removed a receive-only binding from the peer's settings, or
+// changed its grant (peer_derived_bindings.go in the reactor), and the
+// republished delivery graph already omits the edge, so PeerScopedProcs cannot find them and they are
 // looked up by name. Only a process that subscribed to state events is told.
 //
 // The CLI monitors are not told: the peer is still up, and a monitor watches the
@@ -743,7 +755,73 @@ func onPeerUnbound(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.Sess
 	}
 	var fmtCache formatCache
 	var scratchArr [512]byte
-	deliverPeerState(s, peer, procs, state, reason, &fmtCache, &scratchArr)
+	deliverPeerState(s, peer, procs, procs, state, reason, false, &fmtCache, &scratchArr)
+}
+
+// onPeerBound tells the named processes that a live peer, already up, now
+// feeds them. A reload attached them to the running session
+// (Peer.applyHotSwappableSettings in the reactor), and the delivery graph does
+// not carry their edges yet: the reactor publishes the edges only after this
+// returns, so every process has acknowledged its up before the first message of
+// the session can reach it. They are therefore looked up by name, like
+// onPeerUnbound's.
+//
+// The up carries reason rpc.ReasonAttached and whatever InitialReplay the caller
+// put in peer, which the reactor sets to 0: the session's initial routing update
+// is not this process's to replay. It arms no peer-up barrier. The claimed roles
+// on it are judged over every process the peer feeds once the edges land, the
+// graph's state subscribers and the named ones together.
+//
+// stateNames are the processes whose binding grants the state event, and
+// negotiatedNames those whose binding grants the negotiated event. The
+// negotiated event follows the up, to its own list, and is skipped when neg is
+// nil. Both deliveries wait for every result before returning. The CLI monitors
+// are not told, for onPeerUnbound's reason: a monitor watches the peer, and the
+// peer did not change state.
+func onPeerBound(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plugin.PeerInfo, neg any, stateNames, negotiatedNames []string) {
+	if s.Context().Err() != nil {
+		return
+	}
+	peerAddr := peer.AddrStr()
+	if len(stateNames) > 0 {
+		stateETID := events.LookupEventTypeID(bgpevents.EventState)
+		procs := s.SubscribedProcsNamed(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name, stateNames)
+		if len(procs) > 0 {
+			fed := peerBoundFedSet(s.PeerScopedProcs(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name), procs)
+			var fmtCache formatCache
+			var scratchArr [512]byte
+			deliverPeerState(s, peer, procs, fed, rpc.SessionStateUp, rpc.ReasonAttached, false, &fmtCache, &scratchArr)
+		}
+	}
+	if len(negotiatedNames) == 0 || neg == nil {
+		return
+	}
+	decoded, ok := neg.(format.DecodedNegotiated)
+	if !ok {
+		logger().Warn("OnPeerBound: invalid neg type, negotiated event not delivered",
+			"peer", peerAddr, "type", fmt.Sprintf("%T", neg), "processes", negotiatedNames)
+		return
+	}
+	negETID := events.LookupEventTypeID(bgpevents.EventNegotiated)
+	procs := s.SubscribedProcsNamed(bgpNS(), negETID, events.DirUnspecified, peerAddr, peer.Name, negotiatedNames)
+	if len(procs) == 0 {
+		return
+	}
+	deliverToProcs(s, procs, encoder.Negotiated(peer, decoded), "OnPeerBound")
+}
+
+// peerBoundFedSet returns every process a peer feeds state events to once a
+// bind lands: the ones the graph already feeds, then the bound ones it does not
+// carry yet. A process in both lists appears once.
+func peerBoundFedSet(graphFed, bound []*process.Process) []*process.Process {
+	fed := make([]*process.Process, 0, len(graphFed)+len(bound))
+	fed = append(fed, graphFed...)
+	for _, proc := range bound {
+		if !slices.Contains(fed, proc) {
+			fed = append(fed, proc)
+		}
+	}
+	return fed
 }
 
 // onPeerNegotiated handles capability negotiation completion.

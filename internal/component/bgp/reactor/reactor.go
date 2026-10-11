@@ -285,6 +285,9 @@ type Reactor struct {
 	signals         *SignalHandler
 	api             *pluginserver.Server       // API server for CLI and external processes
 	eventDispatcher *bgpserver.EventDispatcher // BGP event dispatch to plugins
+	// bindEvents is eventDispatcher seen through the bind events alone
+	// (peerBindEvents, peer_derived_bindings.go). Set beside it.
+	bindEvents peerBindEvents
 
 	// modifyFailLog bounds the modify-failure warning to one line per reason
 	// per second. The failure is peer-influenceable and fires once per
@@ -1463,6 +1466,7 @@ func (r *Reactor) startAPIServer() error {
 
 	// Wire BGP-specific handlers regardless of server origin.
 	r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
+	r.bindEvents = r.eventDispatcher
 	if r.eventBus != nil {
 		r.eventDispatcher.SetEventBus(r.eventBus)
 	}

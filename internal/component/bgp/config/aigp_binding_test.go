@@ -121,11 +121,11 @@ bgp {
 // VALIDATES: adding one iBGP peer, which enables AIGP by the RFC 7311 Section
 // 3.3 default, leaves every binding of the existing static peer and of the
 // dynamic group template what it was, apart from derived feed-only bindings.
-// Each binding the edit adds is marked Derived and grants no send type.
-// PREVENTS: the reload restarting every established session. The reactor
-// delivers a derived feed-only change in place (peer_derived_bindings.go,
-// TestDerivedFeedSwapKeepsSessionAndCatchesUp), so the invariant it relies on
-// is this one. An earlier form asserted the bindings UNCHANGED; the grant MUST
+// Each binding the edit adds grants no send type, so it is receive-only.
+// PREVENTS: the reload restarting every established configured session. The
+// reactor delivers a receive-only binding change in place
+// (peer_derived_bindings.go, TestDerivedFeedSwapKeepsSessionAndCatchesUp), so
+// the invariant it relies on is this one. An earlier form asserted the bindings UNCHANGED; the grant MUST
 // follow the RFC 7311 Section 4.2 selection, which feeds every peer's
 // candidates to the RIB once any peer enables AIGP, so the bindings do change,
 // and only the session must not (reload-dynamic-peer-survives.ci).
@@ -159,13 +159,14 @@ func TestAddingIBGPPeerChangesOtherPeersOnlyByDerivedFeeds(t *testing.T) {
 }
 
 // requireOnlyDerivedFeedsAdded fails unless after is before plus bindings that
-// are derived and grant no send type, and unless the edit added at least one:
+// grant no send type and receive no OPEN, the receive-only kind the reactor
+// swaps live, and unless the edit added at least one:
 // without one the test would pass against a config that never enables AIGP.
 func requireOnlyDerivedFeedsAdded(t *testing.T, who string, before, after []reactor.ProcessBinding) {
 	t.Helper()
 	var kept, added []reactor.ProcessBinding
 	for _, b := range after {
-		if b.Derived && !b.SendAll && len(b.Send) == 0 && !slices.ContainsFunc(before, func(o reactor.ProcessBinding) bool { return o.PluginName == b.PluginName }) {
+		if !b.SendAll && len(b.Send) == 0 && !b.ReceiveAll && b.Receive[bgpevents.EventOpen] == events.DirUnspecified && !slices.ContainsFunc(before, func(o reactor.ProcessBinding) bool { return o.PluginName == b.PluginName }) {
 			added = append(added, b)
 			continue
 		}

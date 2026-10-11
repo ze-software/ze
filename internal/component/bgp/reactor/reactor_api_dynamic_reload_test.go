@@ -297,6 +297,44 @@ func TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges(t *testing.T) {
 	assert.Nil(t, after, "a changed group template must restart the sessions built from it")
 }
 
+// TestDynamicBindingChangeRestartsBeforeSharedSwap pins R-22, the Phase 2 rule
+// that dynamicTemplateChanged fails closed: once ProcessBinding.Derived is gone,
+// a dynamic group template that gains any binding, the kind the config builder
+// adds or the kind an operator types, restarts the dynamic peers built from it.
+// A dynamic peer has no ordered bind delivery until the shared swap replaces
+// this function, and delivering a binding without it would feed a process with
+// no up before it.
+//
+// Transient by design: deleted with dynamicTemplateChanged when the journaled
+// dynamic step lands, and replaced by TestDynamicTemplateReceiveOnlySwap.
+func TestDynamicBindingChangeRestartsBeforeSharedSwap(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		bind func(*testing.T, *PeerSettings)
+	}{
+		{"builder binding", func(t *testing.T, ps *PeerSettings) {
+			require.NoError(t, EnsureProcessBinding(ps, "bgp-rib", "update-received state", ""))
+		}},
+		{"operator binding", func(t *testing.T, ps *PeerSettings) {
+			ps.ProcessBindings = append(ps.ProcessBindings, operatorBinding(t, "monitor", "update-received state", ""))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			addr := netip.MustParseAddr("185.1.69.42")
+			r, _ := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+
+			changed := dynamicReloadGroup()
+			tc.bind(t, changed.Settings)
+			r.SetDynamicGroups([]*DynamicGroupConfig{changed})
+
+			r.mu.RLock()
+			after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
+			r.mu.RUnlock()
+			assert.Nil(t, after, "a template binding change must restart the dynamic peer until the shared swap exists")
+		})
+	}
+}
+
 // TestSetDynamicGroupsIgnoresChangesThePeerDoesNotHold keeps the restart narrow.
 //
 // VALIDATES: a wider range and a raised max-peers change the GROUP and change

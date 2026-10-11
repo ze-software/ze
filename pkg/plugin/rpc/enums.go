@@ -455,6 +455,15 @@ const (
 // fires even for peers that are not Established at removal time.
 const ReasonPeerRemoved = "removed"
 
+// ReasonAttached is the SessionStateUp reason emitted when a reload attaches a
+// process to a session that was already up. The process is told the session is
+// up before any message of it reaches the process, and the event is not a new
+// session: it carries no initial-replay token, arms no End-of-RIB barrier, and
+// a plugin that replays routes toward a peer on up skips the replay for it.
+// Emitted by the reactor's ordered bind delivery (peer_derived_bindings.go)
+// through the plugin server's targeted up, to the attached processes alone.
+const ReasonAttached = "attached"
+
 func (s SessionState) String() string {
 	switch s {
 	case SessionStateUp:

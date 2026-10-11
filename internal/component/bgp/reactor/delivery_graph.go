@@ -52,10 +52,10 @@ func deliveryPeersFromSettings(peers []*PeerSettings) []pluginserver.DeliveryPee
 // reactor's own peers and swaps it into the plugin server.
 //
 // The caller MUST hold r.mu. Address and Name are written once, when the peer is
-// built, and no later path writes them. ProcessBindings has two later writers,
-// applyHotSwappableSettings and setDynamicGroupsLocked, and both deliver only a
-// derived feed-only change while holding r.mu, so reading it here under r.mu
-// without p.mu is safe. The build only reads the reactor, and
+// built, and no later path writes them. ProcessBindings has one later writer,
+// applyHotSwappableSettings (through Peer.writeBindings and its own write), and
+// it delivers only a receive-only change while holding r.mu, so reading it here
+// under r.mu without p.mu is safe. The build only reads the reactor, and
 // the plugin server only builds an index and stores a pointer, so nothing calls
 // back into the reactor under the lock.
 func (r *Reactor) publishDeliveryGraphLocked() {
