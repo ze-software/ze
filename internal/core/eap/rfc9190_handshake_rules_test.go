@@ -303,6 +303,12 @@ func requireRecordTypes(t *testing.T, what string, message []byte, required byte
 // with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS
 // used". The peer's answer to the authenticator's Finished is EAP-TLS and
 // carries TLS 1.3 protected records.
+//
+// RFC requirement: RFC9190-2.1-8 positive -- "When EAP-TLS is used with TLS
+// version 1.3, the formatting and processing of the TLS handshake SHALL be done
+// as specified in version 1.3 of TLS." Both ends complete a TLS 1.3 handshake
+// whose flights after the ServerHello are TLS 1.3 protected records, with only
+// the one compatibility change_cipher_spec RFC 8446 Appendix D.4 allows.
 func TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", pki.resumptionPeerConfig(NewResumption(time.Now, true)))
@@ -335,6 +341,11 @@ func TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion(t *testing.T) {
 // RFC requirement: RFC9190-2.1.4-2 negative -- the same on the peer: at TLS 1.2
 // its Finished flight carries its Certificate in a plaintext handshake record,
 // which no TLS 1.3 flight does.
+//
+// RFC requirement: RFC9190-2.1-8 negative -- the TLS 1.3 formatting is tied to
+// TLS 1.3 being used: with the authenticator held at TLS 1.2 the same code
+// formats and processes the RFC 5246 handshake, plaintext Certificate and the
+// change_cipher_spec and Finished pair included.
 func TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", pki.resumptionPeerConfig(NewResumption(time.Now, true)))

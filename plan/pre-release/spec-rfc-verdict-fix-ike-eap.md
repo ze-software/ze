@@ -258,6 +258,7 @@ Progress by row (the gated MUST rows that lacked a test in one or both polaritie
 | 2.1.1-1 | both polarities, recorded | `TestEAPTLS13AuthenticatorAuthenticatesWithItsCertificate`, `TestEAPTLSAuthenticatorWithoutACertificateIsRefused` (`internal/core/eap/rfc9190_handshake_rules_test.go`) |
 | 2.1.2-2 | both, recorded | negative added on `TestEAPTLS13RefusesATicketPastTheSection57Lifetime` |
 | 2.1.3-2 | both, recorded | positive added on `TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth` (wire psk_key_exchange_modes is psk_dhe_ke alone), negative on `TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode` |
+| 2.1-8 | both, recorded | tags added on the two record-version units of the next row |
 | 2.1.4-1, 2.1.4-2 | both, recorded | `TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion`, `TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion` |
 | 2.1.4-3 | both, recorded | `TestEAPTLS13FatalErrorSendsATLSAlert`, `TestEAPTLS13CompletedExchangeCarriesNoAlert` |
 | 2.3-2, 2.3-3 | both, recorded | `TestRFC9190KeyMaterialIsOneFullLengthExport`, `TestRFC9190KeysAreNotAShorterExport` |

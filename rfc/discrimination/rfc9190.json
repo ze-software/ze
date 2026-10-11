@@ -57,6 +57,28 @@
       "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9190-2.1-8",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion",
+      "unit-sha": "1f54650251cf3350",
+      "claim-sha": "4d8f562cfbc98f4d",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::Process",
+      "producer-sha": "a7122cb1288ea14a",
+      "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.1-8",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion",
+      "unit-sha": "f29857a61b2cb153",
+      "claim-sha": "f293d8f497dec60d",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::Process",
+      "producer-sha": "a7122cb1288ea14a",
+      "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9190-2.1.1-1",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestEAPTLS13AuthenticatorAuthenticatesWithItsCertificate",
