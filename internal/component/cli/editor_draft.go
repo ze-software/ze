@@ -296,6 +296,7 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 
 	changeOps = append(changeOps, proposedOp)
 	changeOps = config.CoalesceRenameOps(changeOps)
+	rebaseSessionMemberOps(changeOps, e.session.ID, proposedOp.SourcePath(), proposedOp.DestinationPath())
 
 	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
 		return err

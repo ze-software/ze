@@ -110,34 +110,7 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 		conflicts = appendStructuralOpConflict(conflicts, committedTree, e.schema, myOps[i])
 	}
 	conflicts = append(conflicts, e.memberOpConflicts(committedTree, myOps, myEntries)...)
-	for _, se := range myEntries {
-		// Leaf-list member operations are idempotent and commutative:
-		// adding or removing one member never contests the whole leaf,
-		// so they skip stale detection (AC-7).
-		if se.Entry.Member != "" {
-			continue
-		}
-		pathParts := strings.Fields(se.Path)
-		myValue := se.Entry.Value
-
-		committedValue := getValueAtPath(committedTree, e.schema, pathParts)
-		isStale := myValue != committedValue &&
-			((se.Entry.Previous != "" && committedValue != se.Entry.Previous) ||
-				(se.Entry.Previous == "" && committedValue != ""))
-		if isStale {
-			// Three raw leaf values reach the operator's terminal here: what
-			// this session set, what the commit holds, and what was there
-			// before. The report still names the path, so the operator learns
-			// that the leaf is contested without reading a credential.
-			conflicts = append(conflicts, Conflict{
-				Path:          se.Path,
-				Type:          ConflictStale,
-				MyValue:       config.DisplayValueAtPath(e.schema, pathParts, myValue),
-				OtherValue:    config.DisplayValueAtPath(e.schema, pathParts, committedValue),
-				PreviousValue: config.DisplayValueAtPath(e.schema, pathParts, se.Entry.Previous),
-			})
-		}
-	}
+	conflicts = append(conflicts, e.entryStaleConflicts(committedTree, myOps, myEntries)...)
 
 	if len(conflicts) > 0 && !force {
 		return &CommitResult{Conflicts: conflicts}, nil
@@ -324,32 +297,7 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 		conflicts = appendStructuralOpConflict(conflicts, committedTree, e.schema, myOps[i])
 	}
 	conflicts = append(conflicts, e.memberOpConflicts(committedTree, myOps, myEntries)...)
-	for _, se := range myEntries {
-		// Member operations skip stale detection; see CommitSession.
-		if se.Entry.Member != "" {
-			continue
-		}
-		pathParts := strings.Fields(se.Path)
-		myValue := se.Entry.Value
-
-		committedValue := getValueAtPath(committedTree, e.schema, pathParts)
-		isStale := myValue != committedValue &&
-			((se.Entry.Previous != "" && committedValue != se.Entry.Previous) ||
-				(se.Entry.Previous == "" && committedValue != ""))
-		if isStale {
-			// Three raw leaf values reach the operator's terminal here: what
-			// this session set, what the commit holds, and what was there
-			// before. The report still names the path, so the operator learns
-			// that the leaf is contested without reading a credential.
-			conflicts = append(conflicts, Conflict{
-				Path:          se.Path,
-				Type:          ConflictStale,
-				MyValue:       config.DisplayValueAtPath(e.schema, pathParts, myValue),
-				OtherValue:    config.DisplayValueAtPath(e.schema, pathParts, committedValue),
-				PreviousValue: config.DisplayValueAtPath(e.schema, pathParts, se.Entry.Previous),
-			})
-		}
-	}
+	conflicts = append(conflicts, e.entryStaleConflicts(committedTree, myOps, myEntries)...)
 
 	if len(conflicts) > 0 && !force {
 		return &CommitResult{Conflicts: conflicts}, "", nil
@@ -667,6 +615,66 @@ func appendStructuralOpConflict(conflicts []Conflict, committedTree *config.Tree
 		conflicts = append(conflicts, *conflict)
 	}
 	return conflicts
+}
+
+// entryStaleConflicts answers a stale conflict for each whole-leaf entry of
+// this session whose committed value moved since the session read it: the
+// commit holds neither the value the entry replaced nor the value it sets.
+// Leaf-list member entries skip the check, because adding or removing one
+// member never contests the whole leaf (AC-7); member ops are judged by
+// memberOpConflicts. An entry below a list entry this session renamed lives
+// at the new key, which the committed tree does not hold yet, so its
+// committed value is read at the path the session's renames started from.
+func (e *Editor) entryStaleConflicts(committedTree *config.Tree, ops []config.StructuralOp, entries []config.SessionEntry) []Conflict {
+	var conflicts []Conflict
+	for _, se := range entries {
+		if se.Entry.Member != "" {
+			continue
+		}
+		pathParts := strings.Fields(se.Path)
+		myValue := se.Entry.Value
+
+		committedPath := strings.Fields(pathBeforeRenames(ops, se.Path))
+		committedValue := getValueAtPath(committedTree, e.schema, committedPath)
+		isStale := myValue != committedValue &&
+			((se.Entry.Previous != "" && committedValue != se.Entry.Previous) ||
+				(se.Entry.Previous == "" && committedValue != ""))
+		if !isStale {
+			continue
+		}
+		// Three raw leaf values reach the operator's terminal here: what
+		// this session set, what the commit holds, and what was there
+		// before. The report still names the path, so the operator learns
+		// that the leaf is contested without reading a credential.
+		conflicts = append(conflicts, Conflict{
+			Path:          se.Path,
+			Type:          ConflictStale,
+			MyValue:       config.DisplayValueAtPath(e.schema, pathParts, myValue),
+			OtherValue:    config.DisplayValueAtPath(e.schema, pathParts, committedValue),
+			PreviousValue: config.DisplayValueAtPath(e.schema, pathParts, se.Entry.Previous),
+		})
+	}
+	return conflicts
+}
+
+// pathBeforeRenames maps path, written against the session's view, back to
+// the path it names in the committed tree, by undoing the session's rename
+// ops from the last to the first. A path no rename moved comes back as is.
+func pathBeforeRenames(ops []config.StructuralOp, path string) string {
+	for i := len(ops) - 1; i >= 0; i-- {
+		if ops[i].Type != config.StructuralOpRename {
+			continue
+		}
+		target, source := ops[i].DestinationPath(), ops[i].SourcePath()
+		if path == target {
+			path = source
+			continue
+		}
+		if rest, ok := strings.CutPrefix(path, target+" "); ok {
+			path = source + " " + rest
+		}
+	}
+	return path
 }
 
 // memberOpConflicts replays the session's ops and entries on a copy of

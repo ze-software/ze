@@ -324,3 +324,70 @@ func TestLeafListSequencesAgree(t *testing.T) {
 	}
 	require.Empty(t, fails)
 }
+
+// TestRenameRebasesMemberOps proves that renaming the list entry above a
+// leaf-list moves this session's pending member ops with it.
+// VALIDATES: round-5 ISSUE 2; a member delete after the rename drops the
+// deactivate that named the member before it, and a deactivate of a committed
+// member made before the rename commits on the new path. Round-5 NOTE 4: a
+// whole-leaf entry under the renamed entry is judged against the committed
+// value at the old path.
+// PREVENTS: a false "member removed" conflict on the old path, and a false
+// stale conflict on the new path, which the committed tree does not hold.
+func TestRenameRebasesMemberOps(t *testing.T) {
+	eth8 := []string{"interface", "ethernet", "eth8", "unit", "0", "ipv4"}
+	cases := []struct {
+		name  string
+		edit  func(ed *Editor) error
+		state string
+	}{
+		{"deactivate an added member, rename, delete it", func(ed *Editor) error {
+			if err := ed.SetValue(ifaceIPv4Path, "address", "192.0.2.1/24 192.0.2.3/30"); err != nil {
+				return err
+			}
+			if _, err := ed.ApplyActivation(seqAddress.member("192.0.2.3/30"), false); err != nil {
+				return err
+			}
+			if err := ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", "eth8"); err != nil {
+				return err
+			}
+			return ed.DeleteByPath(append(append([]string{}, eth8...), "address", "192.0.2.3/30"))
+		}, "[192.0.2.1/24]"},
+		{"deactivate a committed member, rename", func(ed *Editor) error {
+			if _, err := ed.ApplyActivation(seqAddress.member("192.0.2.1/24"), false); err != nil {
+				return err
+			}
+			return ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", "eth8")
+		}, "[!192.0.2.1/24]"},
+		{"set the whole list, rename", func(ed *Editor) error {
+			if err := ed.SetValue(ifaceIPv4Path, "address", "192.0.2.1/24 192.0.2.3/30"); err != nil {
+				return err
+			}
+			return ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", "eth8")
+		}, "[192.0.2.1/24 192.0.2.3/30]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			list := seqAddress
+			list.parent = eth8
+			for _, candidate := range []bool{false, true} {
+				ed, _, configPath := newLoadSessionEditor(t, seqAddress.config(seqStart{"192.0.2.1/24", ""}))
+				require.NoError(t, tc.edit(ed))
+				require.Equal(t, tc.state, list.seqState(ed, ed.tree))
+				if candidate {
+					res, content, err := ed.CommitSessionCandidate(time.Now())
+					require.NoError(t, err)
+					require.Empty(t, res.Conflicts)
+					tree, _, perr := config.NewSetParser(ed.schema).ParseWithMeta(content)
+					require.NoError(t, perr)
+					require.Equal(t, tc.state, list.seqState(ed, tree))
+					continue
+				}
+				res, err := ed.CommitSession()
+				require.NoError(t, err)
+				require.Empty(t, res.Conflicts)
+				require.Equal(t, tc.state, list.seqState(ed, committedLoadTree(t, ed, configPath)))
+			}
+		})
+	}
+}

@@ -469,6 +469,31 @@ func dropSessionMemberOps(ops []config.StructuralOp, sessionID string, path []st
 	return kept
 }
 
+// rebaseSessionMemberOps moves this session's leaf-list member ops under the
+// renamed entry oldPath to newPath, in place, the way the rename rebases the
+// session's entries. Every later edit then names the list by its new path:
+// a member delete after the rename finds and drops the ops naming that
+// member, which it could not while they kept the old path. On replay a
+// rebased op meets no list before the rename, so it waits for the entries
+// (memberOpWaitsForEntries), which run after the rename.
+func rebaseSessionMemberOps(ops []config.StructuralOp, sessionID, oldPath, newPath string) {
+	for i := range ops {
+		if !isMemberOp(ops[i]) {
+			continue
+		}
+		if ops[i].SessionKey() != sessionID {
+			continue
+		}
+		if ops[i].ParentPath == oldPath {
+			ops[i].ParentPath = newPath
+			continue
+		}
+		if rest, ok := strings.CutPrefix(ops[i].ParentPath, oldPath+" "); ok {
+			ops[i].ParentPath = newPath + " " + rest
+		}
+	}
+}
+
 // isSessionMemberOp reports whether op is a member op of session sessionID on
 // the leaf-list key under parentPath.
 func isSessionMemberOp(op config.StructuralOp, sessionID, parentPath, key string) bool {
