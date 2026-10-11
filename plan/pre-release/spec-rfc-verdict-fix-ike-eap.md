@@ -253,6 +253,15 @@ Rejudge of the second fix round (2026-10-11, independent judge, stamped `mode re
 
 Mechanical: `./le rfc reseal` for any rfc4555 verdict whose `mobike_test.go` unit only shifted.
 
+Third fix round (2026-10-11, judge outcome of 8b73eae876):
+
+| Id | Done | Evidence | Still owed |
+|----|------|----------|------------|
+| RFC7296-2.21.4-6 | fixed in 87b04ed6cd: handleAuthResponse and handleEAPResponse drop an IKE_AUTH response with no SK payload instead of setting StateDead | new TestErrUnprotectedNotifyLeavesHalfOpenSA (tag 2.21.4-6 positive) feeds sendInvalidIKESPI bytes through routeInbound to StateAuthSent and StateEAPInProgress: red before the fix (state = dead in both subtests), green after; mutant record restoring StateDead in the handleAuthResponse drop | rejudge (STALE); RFC3748-4-5 rejudge too (STALE, it judged handleEAPResponse) |
+| RFC7296-3.1-11 | NOT done: the fix edits engineBuiltMessages in rfc7296_header_test.go, which feeds the tagged tests of 3.1-5, 3.1-6, 3.1-7 and 3.1-11, so it needs fresh owner words | the five header-flags writers are writeAuthHeaderWithMsgID (auth.go), encodeSAInitRequest (initiator.go), buildSAInitResponse and sendSAInitNotifyRaw (responder.go), sendInvalidIKESPI (notify_error.go) | owner approval, then sample sendSAInitNotifyRaw and sendInvalidIKESPI |
+
+Six revert records whose producer is handleAuthResponse were re-recorded after the fix: RFC3948-2.1-1, RFC4303-2.1-1 and RFC7296-2.21.2-2, both polarities each.
+
 Decision A is BLOCKED, not done: enrolling RFC 9190 gates its 33 MUST-level rows that carry no tag or one polarity, and the summary's Meta records the 2026-08-01 owner ruling that closed the annotation route. The handoff in the session state file names the choice.
 
 ### RFC 9190 enrolment: write the tests, then enrol (owner decision C, 2026-10-11)
