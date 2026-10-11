@@ -632,7 +632,7 @@
       "quote": "For interoperability, the management interface by which the key is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form.",
       "disposition": "mapped",
       "mapped-to": "RFC5880-6.7.3-7",
-      "reason": "The MD5 key management interface obligation, captured as RFC5880-6.7.3-7. The trailing hexadecimal clause is advisory and is declared as RFC5880-6.7.3-5's sibling row RFC5880-6.7.2-2."
+      "reason": "The MD5 key management interface obligation, captured as RFC5880-6.7.3-7. The trailing hexadecimal clause is advisory and is declared as its own SHOULD row RFC5880-6.7.3-14."
     },
     {
       "id": "6.7.3:7",

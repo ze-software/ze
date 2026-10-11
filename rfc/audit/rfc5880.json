@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-11",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -213,6 +213,14 @@
         "internal/component/bfd/rfc5880_test.go::TestRFC5880SimplePasswordManagementAcceptsASCIIStrings": "a612ba2366437119"
       },
       "verdict": "enforced"
+    },
+    "RFC5880-6.7.2-2": {
+      "code": {
+        "internal/component/bfd/config.go::parseAuthConfig": "e70e674e90c67142"
+      },
+      "note": "Recorded 2026-10-11 from independent review round 1, ISSUE 1. Confirmed at the producer: parseAuthConfig reads the secret leaf with stringField and stores []byte(secret) for every Auth Type, Simple Password included (config.go); the YANG leaf secret is type string with no hex form, so a binary Simple Password cannot be configured. The ASCII half of the sentence is met by the same string leaf; the hexadecimal SHOULD is the gap. The {gap} annotation is accurate; disclosed in Support remaining.",
+      "requirement_sha": "45be4b9793cfc582",
+      "verdict": "unimplemented"
     },
     "RFC5880-6.7.2-3": {
       "note": "Judge rejudge 2026-09-30 (phase 8: the Keyed SHA1 key-id units moved to RFC5880-6.7.4-10, row cites 6.7.2 only). Positive TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID asserts the selected password and Key ID on the signed wire. Negatives TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded (key id 4/6/255 with the right password, password changed in first/middle/last byte, ErrPasswordMismatch each, selected pair accepted) and TestRFC5880SimplePasswordSignerNeedsPassword (nil/empty password refused at NewSigner). Units unchanged; judgement unchanged.",
