@@ -680,11 +680,12 @@ the light of decision 4: they guard against wrong output on screen, nothing more
   `set` line marked inactive"; ISSUE 4 and NOTE 5 on config-editor.md),
   b7a882b75a (NOTE 3: the repeated-member deactivation refusal names why and
   the fix; NOTE 1: headless.go comment) and f14349b85e (ISSUE 5: the
-  `bracket-member-sequence-commit` .et). NOTE 2 settled by the owner on
+  `bracket-member-sequence-commit` .et), and 1df6ef4f97 (the modernize lint
+  finding in `pathBeforeRenames`). NOTE 2 settled by the owner on
   2026-10-11: "It should be when using the yang presentation the junos way but
   when using a command line format nop." `nop` is a `set` line marked inactive,
   so `nop <list> c` adds c deactivated (round 4's behaviour, kept). round 6
-  review owed over f14349b85e, owner authorised 2026-10-11 "Authorise round 6".
+  review owed over 1df6ef4f97, owner authorised 2026-10-11 "Authorise round 6".
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
