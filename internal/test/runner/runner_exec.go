@@ -813,8 +813,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				rec.Error = fmt.Errorf("close peer expect file: %w", err)
 				return false
 			}
+			// The block itself stays in stdinContent: the peer's linger setting
+			// is read from it below. Only stdinDest decides what is piped.
 			args = append(args, tmpFile.Name())
-			stdinContent = nil // Don't pipe to stdin
 		}
 
 		// A ze daemon needs its config as a FILE, so the `-` that IS the config
@@ -848,16 +849,17 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					return false
 				}
 			}
+			// The daemon opens the file; stdinDest says nothing is piped.
 			args = slices.Concat(args[:daemonCfgIdx], []string{zeVerbStart, tmpFile.Name()}, args[daemonCfgIdx+1:])
-			stdinContent = nil // The daemon opens the file; nothing is piped.
 		}
 
-		logger().Debug("executing command", "mode", cmd.Mode, "binary", binPath, "args", args, "stdin-piped", stdinContent != nil)
+		stdinPiped := stdinDest == stdinRoutePipe
+		logger().Debug("executing command", "mode", cmd.Mode, "binary", binPath, "args", args, "stdin-piped", stdinPiped)
 
 		// What RAN, in the report every reader already reads. A rewrite above
 		// changed argv, and until this step existed nothing said so
 		// (runner_exec_trace.go).
-		rec.recordExecStep(binPath, args, cmd.Stdin, stdinContent != nil)
+		rec.recordExecStep(binPath, args, cmd.Stdin, stdinPiped)
 
 		// Create command
 		proc := exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
@@ -944,7 +946,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		proc.Dir = r.childWorkingDirectory(binName, args, rec)
 
 		// Pipe the block, unless an arm above consumed it into a file.
-		if stdinContent != nil {
+		if stdinPiped {
 			proc.Stdin = strings.NewReader(string(stdinContent))
 		}
 

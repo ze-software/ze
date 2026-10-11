@@ -63,8 +63,10 @@ func isCheckPeerExec(exec string) bool {
 // option=linger:value=true. It reads the block with the peer's own parser
 // (peer.ParseExpect), so the runner and the peer cannot disagree about it. A
 // block that does not parse answers false: the peer refuses the same block at
-// startup and fails the test on its own. A peer fed from a file rather than a
-// stdin block also answers false, so the then=stop fence does not wait for it.
+// startup and fails the test on its own. The caller passes the .ci block
+// whether the runner pipes it or writes it to the file the peer's argv names
+// (stdinRoutePeerFile); a peer launched with no block answers false, so the
+// then=stop fence does not wait for it.
 func peerLingers(stdin []byte) bool {
 	if len(stdin) == 0 {
 		return false

@@ -329,10 +329,18 @@ func TestFailedAwaitSavesDialogue(t *testing.T) {
 		thenStop  bool
 		needle    string
 		wantError string
+		// peerExec is the peer's command line. Without a `-` the runner writes
+		// the block to a file and names it in the argv, the form every reload
+		// .ci uses; with `-` it pipes the block. Both MUST linger alike.
+		peerExec string
 	}{
-		{name: "plain", needle: "missing", wantError: "never contained"},
-		{name: "then-stop", thenStop: true, needle: "missing", wantError: "never contained"},
-		{name: "unfinished-linger", thenStop: true, needle: "daemon-start", wantError: "never completed"},
+		{name: "plain", needle: "missing", wantError: "never contained", peerExec: "le test peer -"},
+		{name: "then-stop", thenStop: true, needle: "missing", wantError: "never contained", peerExec: "le test peer -"},
+		{name: "unfinished-linger", thenStop: true, needle: "daemon-start", wantError: "never completed", peerExec: "le test peer -"},
+		// PREVENTS: the file arm cleared the block before linger was read, so a
+		// file-fed lingering peer was never waited for and the fence stopped the
+		// daemon while that peer still owed expectations.
+		{name: "unfinished-linger-file", thenStop: true, needle: "daemon-start", wantError: "never completed", peerExec: "le test peer"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			baseDir := t.TempDir()
@@ -369,7 +377,7 @@ while :; do sleep 0.01; done
 			rec.AwaitThenStop = tc.thenStop
 			rec.StdinBlocks = map[string][]byte{"peer": []byte("option=linger:value=true\n")}
 			rec.RunCommands = []RunCommand{
-				{Mode: modeBackground, Seq: 1, Exec: "le test peer -", Stdin: "peer"},
+				{Mode: modeBackground, Seq: 1, Exec: tc.peerExec, Stdin: "peer"},
 				{Mode: modeBackground, Seq: 2, Exec: "ze start", Ready: "daemon-start"},
 			}
 			saveDir := t.TempDir()
