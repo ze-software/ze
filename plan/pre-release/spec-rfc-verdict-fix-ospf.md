@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the OSPF group before any row edit, parent R-11) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-28 |
+| Updated | 2026-10-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -480,3 +480,77 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** tests + rows + verdicts + records + D-8 code + edited spec
 - [ ] **Commit B:** `remove plan/pre-release/spec-rfc-verdict-fix-ospf.md` only, in the same `./le commit create` script
+
+## Progress, 2026-10-11
+
+Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD on 2026-10-11. **Not ready for review: AC-C2 is open** (below). Status stays `in-progress`.
+
+## Implementation Summary
+
+### What Was Implemented
+- Verdict work in continuations 1 to 19, from `50094a5e6d` (2026-09-29) to `7488f60bc2` (c19, 2026-10-02), then `c797d66a9b`, `55581e8304`, `30b572216a` and `821aed75e3` (c18, rfc1071 and rfc2328 rows).
+- 130 verdicts in scope are newly `enforced` since `174862502f`, 115 of them moved from weak or wrong.
+
+### Bugs Found/Fixed (D-8, each with production code, all wire-visible)
+| Commit | Fix |
+|--------|-----|
+| `50094a5e6d` | NSSA: `translateNSSAV6` forwarding address handling |
+| `033720151f` | NSSA translator list (R31) |
+| `7335b407ef` | RFC 2328 Section 8.2: received packets accepted by source network (`acceptsArea`) |
+| `bec87a7d44` | RFC 5709 last-key handling; RFC 4552 11-3 interface open and registration (R32) |
+| `3c69504a4b`, `99046264fd`, `79ce425e26` | RFC 3623 GR; RFC 5250 Type-11 LSA accepted only from a reachable ASBR; Type-11 originator E-bit |
+| `2d206c22b5`, `790472c47f` | RFC 2328 13.3 flood age; RFC 7770 RI capabilities follow the flooding scope |
+| `7708c6b240` | RFC 7684 N-Flag across areas; RFC 8666 SID/Label sub-TLV |
+| `7488f60bc2` | RFC 2328 Section 13: a bad LS checksum discards that LSA and processing continues with the next |
+| `c797d66a9b` | an opaque LSA whose body is not 4-octet aligned is discarded |
+| `55581e8304`, `30b572216a` | RFC 8665: a zero-length SR-Algorithm TLV refused; PHP for mapping-server SIDs (Section 5) |
+
+### Deviations from Plan
+- None recorded.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| omission | the AC-C2 record sweep was never run for this child, unlike bfd (`66249a3391`) and ike-eap (`6b968f093b`) | 64 moved verdicts carry tagged units with no record | script over audit and record files, 2026-10-11 | open under AC-C2; a separate agent runs the sweep |
+
+## Implementation Audit
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-C1 | Done | the "Derived listing" filter at HEAD, 2026-10-11, returns one row, RFC3101-3.2-2 (weak) | owned by AC-3 of `plan/immediate/spec-ospf-nssa-translator-reachability.md` |
+| AC-C2 | **OPEN** | 118 tagged units (the `rfc/audit` test keys, 88 distinct test functions) across 64 of the newly enforced verdicts have no discrimination record. 33 are rfc2328, 11 rfc8665, 11 rfc3101, 9 rfc7684, 7 rfc3623, 6 rfc5443, the rest over 13 other stems | derived on 2026-10-11 by listing, for each verdict enforced at HEAD and not at `174862502f`, every tagged unit with no record of the same rid and unit in `rfc/discrimination/<stem>.json`; the list is in the session scratch file `ospf-ac-c2-unrecorded.tsv`. The sweep is not started here; a separate agent owns it |
+| AC-C3 | reviewer to confirm | 2026-10-11 lookup: every split-needed and narrowing row of this child is enforced, except four rows present in `rfc/short/` with no verdict and no annotation: RFC3101-2.2-1 (MAY), RFC5709-3.2-4, RFC7770-2.1-1, RFC7166-4.6-4 (SHOULD; rfc7166 has no audit file) | |
+| AC-C4 | Done | RFC3101-3.2-2 sits in its owning spec's AC | |
+| AC-C5 | Done | `./le rfc check` 2026-10-11: no violation in an OSPF stem (the three left are BGP's) | |
+| AC-C6 | reviewer to confirm | RFC3630-1-1 enforced | |
+| AC-C7 | **OPEN** | the R-7 table still shows RFC8362-2-1 `weak` with no re-judge date; rfc8362 is out of audit scope, so the re-judge is recorded in that table | |
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| AC-C1: the derived listing holds only "Blocked by" ids | ledger query | 1 row, RFC3101-3.2-2, in its owning spec's AC |
+| every resolved verdict proven and judged by a non-author | discrimination records + audit | NOT MET: 118 tagged units over 64 verdicts lack a record (AC-C2) |
+| D-8 fixes work against another implementation | interop | QUEUE.md (2026-10-02): `ospf-p2p-frr` and `ospf-broadcast-frr` PASS after c19 `7488f60bc2`; no log is committed. `ospf-opaque-frr`, `ospf-te-frr` and `ospf-ext-prefix-link-frr` fail identically at the `410c67f1d4` baseline on the Mac host (journal `assertion-reads-state-the-scheduler-owns.md`). `ospf-bfd-frr` and `ospfv3-bfd-frr` PASS, see the bfd child |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-C2 record sweep: 118 tagged units, 64 verdicts | never run | this spec; a separate agent |
+| AC-C7: RFC8362-2-1 re-judge | not done | this spec |
+| RFC3101-3.2-2 | producer defect | `plan/immediate/spec-ospf-nssa-translator-reachability.md` AC-3 |
+| interop for the D-8 fixes | the c19 runs cover only the fixes up to `7488f60bc2` and have no log; three scenarios fail at baseline on the Mac host. Owed, each with `INTEROP_SCENARIO=<name> ./le test integration interop` and its log kept: `ospf-p2p-frr`, `ospf-broadcast-frr` (8.2 source network, 13.3 flood age, per-LSA discard); `ospf-opaque-frr`, `ospf-ext-prefix-link-frr` (opaque alignment `c797d66a9b`, Type-11 `99046264fd`/`79ce425e26`), on a Linux host since they fail at baseline here; `ospf-te-frr`, `ospf-ri-frr` (RI scope `790472c47f`, `7708c6b240`); `ospf-sr-frr` (`55581e8304`, `30b572216a`); `ospf-auth-frr`, `ospf-accept-lifetime-frr` (RFC 5709 `bec87a7d44`); `ospf-gr-frr` (RFC 3623); `ospf-stub-nssa-frr`, `ospfv3-nssa-redist-frr` (NSSA `50094a5e6d`, `033720151f`) | this spec, before closure |
+| `./le verify worktree` | needs a quiet machine | this spec, before closure |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | |
+| `./le spec review check` | not run |
+| Rounds | |
+| Reviewer lenses used | |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
