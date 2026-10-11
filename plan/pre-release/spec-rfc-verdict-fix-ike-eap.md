@@ -265,6 +265,8 @@ Progress by row (the gated MUST rows that lacked a test in one or both polaritie
 | 5.6-1 | both, recorded | `TestEAPTLSAuthenticatorGrantsNoAccessToAPeerWithoutACertificate`, `TestEAPTLS13AuthenticatorGrantsAccessToTheCertificateItVerified` (`internal/core/eap/rfc9190_authorization_privacy_test.go`) |
 | 5.6-2 | both, recorded | positive `TestEAPTLS13AuthenticatorGrantsAccessToTheCertificateItVerified`, negative added on `TestEAPTLS13ResumptionRefusesARevokedClientChain` |
 | 5.8-1, 5.8-2, 5.8-3 | both, recorded | `TestEAPTLS13PeerIdentityCarriesNoPartOfTheUser`, `TestEAPTLS13PeerIdentityKeepsTheRealmApart`. The three sentences are conditional ("If anonymous NAIs are not used"); the tests show ze always sends an anonymous NAI, which the judge should weigh |
+| 2.4-1 | both, recorded | `TestEAPTLS13BothRolesMeetTheRFC8446MandatoryToImplementSet`, `TestEAPTLS13AuthenticatorAbortsAClientHelloWithoutSignatureAlgorithms` (`internal/core/eap/rfc9190_cipher_suites_test.go`) |
+| 2.4-2 | both, recorded | `TestEAPTLS13PeerOffersOnlySuitesWithConfidentiality`, `TestEAPTLSAuthenticatorRefusesSuitesWithoutConfidentiality` (replays ze's ClientHello offering only TLS_SHA256_SHA256 or TLS_RSA_WITH_NULL_SHA256) |
 | 2.1-2, 2.1-4, 2.1-6 | positive only, recorded | `TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth` |
 
 The rows still open, and what each needs, are in the per-spec session state handoff of 2026-10-11; rows move into the table above as they close.
