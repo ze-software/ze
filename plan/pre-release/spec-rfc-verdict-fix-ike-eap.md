@@ -132,6 +132,43 @@ None of this table's rows belong to this child.
 | `internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`, and `rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused` | RFC7296-2.9-1 | TS payload presence in a rekey answer, a neighbouring obligation; the verdict stays `enforced` on the other units | move the tags to the row that states the TS presence rule, or add it |
 | `internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector` | RFC4301-4.4.1-4 | direction mirroring, not administrator ordering; the verdict stays `enforced` on the ordering units | move the tag |
 
+### Row work outcomes, 2026-10-11 (Steps 11, 12 and 13, row side)
+
+Written by the author of these row changes, who judged no verdict. Every changed or new row below waits for an independent judge (list under "Verdicts owed to an independent judge"). Each correction is a dated paragraph in `rfc/corrections/<stem>.md`.
+
+| Row | Table | Outcome |
+|-----|-------|---------|
+| RFC4555-x-4 | split-needed | §3.6 half is now `RFC4555-3.6-2` [MAY] (INFORMATIONAL address update) and `RFC4555-3.6-3` [MAY] (in the same request as UPDATE_SA_ADDRESSES); positive tags on the new `TestMobikeUpdateCarriesItsAddressList`, revert records on `startMobikeRequest`. Ungated MAY rows: no negative, since Ze has one address and never sends ADDITIONAL_*_ADDRESS. Correction in `rfc/corrections/rfc4555.md` (new file) |
+| RFC4555-3.9-1 | narrowing | §4.2.6 data format is now `RFC4555-4.2.6-1` [MUST under D-3]; both polarities on the new `TestMobikeNoNATsDataIsTheSendTuple`, revert records on `noNATsAllowedPayload` (positive) and `noNATsAllowedMatches` (negative); listed in `unsourced-ids` of section 4.2.6 in `rfc/extraction/rfc4555.json` |
+| RFC3748-2.3-1 | narrowing | no row: dated correction in `rfc/corrections/rfc3748.md`. The "Unless ..." sentence has no keyword and binds a pass-through forwarding decision; Ze implements its methods locally and never forwards a remote peer's EAP |
+| RFC4303-3.4.4.1-1 | narrowing | step 3 padding SHOULD is now `RFC4303-3.4.4.1-2` [SHOULD] `{gap}`: Ze's Go does no ESP processing and nothing here shows Linux XFRM inspects the Padding bytes. Correction in `rfc/corrections/rfc4303.md` |
+| RFC4301-4.4.1-6 | narrowing, list-pointer | re-quoted from the "as follows:" lead-in to the SPD-S item, which its tagged units already assert; SPD-I and SPD-O stay -11 and -12. Correction in `rfc/corrections/rfc4301.md` |
+| RFC4301-4.4.1.1-1, RFC4301-6.2-2 | list-pointer | stand, dated correction each: both are `{gap}` rows; the per-item split comes with the work that closes the gap |
+| RFC4301-4.4.2.1-1, 5.1-1, 5.2-3 | list-pointer | resolved 2026-09-30 by earlier corrections (5.1-1 and 5.2-3 retired) |
+| RFC7296-3.1-8, 3.2-2, 3.2-4, 3.2-6, 2.21.4-4, 2.21.4-6, 3.5-3, 3.14-3 | fragment, sibling referent | widened to start at the subject or list-item head, through the sibling clause, as `RFC7296-2.10-2` was on 2026-09-30; each correction names the clause the row keeps |
+| RFC7296-3.16-1, 3.16-2, 3.1-9, 3.1-11 | fragment, no referent | widened to the list-item head; same id, level, tags |
+| RFC7296-2.10-2, 2.10-3, 2.5-7, 3.11-2 | fragment | resolved 2026-09-30 by earlier corrections |
+| RFC2759-x-8, x-9 | level over SHOULD | resolved 2026-09-28: both re-levelled SHOULD under the `RFC2759-x-8` correction |
+| RFC7296-2.6-1, 2.9-1, 2.23-3, 2.23-12, 2.4-1, 2.2-3, 1.2-1, 2.8-2; RFC4301-4.1-4, 7-1; RFC3748-4-2, 2-2, 4.2-1 | level, no keyword | reviewed under D-3: each states a normative protocol fact Ze must hold (a header layout, an exchange shape, a narrowing rule, the no-negotiated-lifetime rule behind 2.8-2's MUST NOT), so each keeps its level; no correction |
+| RFC7296-1.4-1 | level, no keyword | owner call owed: "Normally, the response ... will contain Delete payloads" reads as SHOULD; kept at MUST until the owner rules, because a demotion lowers what Ze owes |
+| RFC2759-x-3, x-10, x-12 | level, format definition | owner call owed (the parent requires it for format-definition rows): x-3 is the Value field layout, x-10 a test-vector line, x-12 a message-sequence diagram |
+| RFC9190-2.3-1 | R-7 | Method-Id half split into `RFC9190-2.3-4` [SHALL] `{gap}` (unsourced in the 2.3 section of `rfc/extraction/rfc9190.json`); `TestRFC9190MSKIsTheExportUnderTheRFCLabel` positive now carries a revert record on `exportEAPTLSKeys` |
+| RFC9190-2.1.2-2, 2.1.3-1, 5.7-1 | R-7 | row side unchanged; every tagged unit already carries a record; verdict owed |
+
+### Verdicts owed to an independent judge (2026-10-11)
+
+None of these was judged by its author. rfc9190 is not enrolled; `./le rfc audit-stamp` creates `rfc/audit/rfc9190.json` from a pending file, and a skeleton with empty verdicts is at `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/pending-audit-rfc9190.json`.
+
+| Stem | Ids | Route |
+|------|-----|-------|
+| rfc7296 | 3.1-8, 3.1-9, 3.1-11, 3.2-2, 3.2-4, 3.2-6, 2.21.4-4, 2.21.4-6, 3.5-3, 3.14-3, 3.16-1, 3.16-2 (STALE: text changed) | `audit-stamp mode rejudge` |
+| rfc4301 | 4.4.1-6 (STALE: text changed) | `audit-stamp mode rejudge` |
+| rfc4555 | 4.2.6-1, 3.6-2, 3.6-3 (new) | `audit-stamp` (mode new) |
+| rfc4303 | 3.4.4.1-2 (new `{gap}`) | `audit-stamp` (mode new) |
+| rfc9190 | 2.1.2-2, 2.1.3-1, 2.3-1, 5.7-1, 2.3-4 (new `{gap}`) | `audit-stamp` (mode new, creates the file) |
+
+Mechanical, not a judgement: appending two tests to `mobike_test.go` SHIFTED ten rfc4555 verdicts (x-1, x-2, 3.9-1, 3.7-1, 3.8-1, 3.8-2, 3.7-4, 3.7-5, 4.2.1-1, 4.2.5-1) whose units are byte-identical; `./le rfc reseal` re-stamps them when no other child holds uncommitted audit changes.
+
 ### Deferred items the parent's tables missed
 
 | Item | What is owed | Group |
@@ -260,8 +297,8 @@ The parent's Method table governs every phase and is not copied here. The rules 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | the parent's `mode rejudge` has landed before the first re-judge here | parent Implementation Steps 1 and 2 | a re-judge has no route but hand deletion, which P-2 bans | `./le rfc audit-stamp` help names `mode` | unvalidated |
-| A-2 | the blocked-by list is complete for this scope | the parent's code-defect and overlap tables, each id checked in `rfc/audit/` or the R-7 table on 2026-09-28 | the child cannot reach AC-C1 | each package's author agent names any verdict it cannot move without a producer fix another spec owns | unvalidated |
+| A-1 | the parent's `mode rejudge` has landed before the first re-judge here | parent Implementation Steps 1 and 2 | a re-judge has no route but hand deletion, which P-2 bans | `./le rfc audit-stamp` help names `mode` | confirmed 2026-10-11: the help prints `[mode <new\|rejudge>]` |
+| A-2 | the blocked-by list is complete for this scope | the parent's code-defect and overlap tables, each id checked in `rfc/audit/` or the R-7 table on 2026-09-28 | the child cannot reach AC-C1 | each package's author agent names any verdict it cannot move without a producer fix another spec owns | confirmed 2026-10-11: the derived listing at HEAD returns exactly the five blocked ids, each in its blocking spec's acceptance criteria (review N4) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -327,7 +364,13 @@ Inherited from the parent (AC-C1 to AC-C7), restated for the IKE/EAP group.
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| named when a D-8 fix is found | `test/interop/scenarios/` | IPsec interop (strongSwan, `internal/le/interoplab/ipsec`) for any D-8 fix; none is planned before a defect is found | the fixed behavior against another implementation | |
+| `eap-tls`, `eap-tls13`, `eap-mschapv2`, `responder-eap-tls13`, `responder-eap-tls13-revoked-client`, `responder-eap-mschapv2` | `test/interop-ipsec/scenarios/` | strongSwan | EAP fixes `48591f88d5`, `b57b47161d` accepted by a conforming peer (non-regression) | pass, 2026-10-11 |
+| `child-rekey`, `responder-raises-child-rekey`, `responder-ike-rekey`, `ike-rekey-retries-in-the-named-group` | `test/interop-ipsec/scenarios/` | strongSwan | rekey nonce fix `51bddc694e` (non-regression) | pass, 2026-10-11 |
+| `dataplane-readback` | `test/interop-ipsec/scenarios/` | strongSwan | SAD selector and lifetime fixes `320f4582c8`, `c548bebf6f`, `d24fc20179` (non-regression) | pass, 2026-10-11, after harness fix `cc27032d56` |
+| `natt-transport-inner-checksum`, `natt-tunnel-inner-checksum`, `real-nat-transport-ze-initiator`, `real-nat-transport-ze-responder`, `real-nat-tunnel-control` | `test/interop-ipsec/scenarios/` | strongSwan | NAT-T and RFC 3948 fixes `3b83ac7de1`, `e585f7d591` (non-regression) | pass, 2026-10-11 |
+| `psk-site-to-site`, `responder-psk` | `test/interop-ipsec/scenarios/` | strongSwan | SPI and transform fixes `cb4801b4cc`, `2fed107f98`, `db64c5ca7b`, `c648880564`, `8f1ef0ade3` (non-regression) | pass, 2026-10-11 |
+
+Logs: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop-ipsec/<name>.log`. No scenario was run red with its fix reverted, so these prove acceptance and non-regression; the discrimination of each fix is carried by its unit records.
 
 ## Files to Modify
 
@@ -505,7 +548,9 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 ## Mistake Log
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
-| none | | | | |
+| false claim | An earlier draft of the D-8 Goal Validation row said no IKE or EAP interop scenario exists | `test/interop-ipsec/scenarios/` holds 40 strongSwan scenarios, 18 of them covering the D-8 fixes | Running the interop suite for the Goal row | Row corrected 2026-10-11, the 18 scenarios run and logged |
+| over-claim | The D-8 interop row said each scenario "covers" a fix, though none was run red with the fix reverted | The runs prove acceptance and non-regression only; discrimination sits in the unit records | Review I1, 2026-10-11 | Row reworded 2026-10-11 |
+| unevidenced AC | AC-C3, AC-C6 and AC-C7 were marked Done while Steps 11 to 13 had not run | Five dropped obligations, nine fragment rows, three list-pointer rows and the RFC9190 split had no outcome | Review B1 to B3, 2026-10-11 | Steps run 2026-10-11, "Row work outcomes" table |
 
 ## Implementation Audit
 
@@ -514,18 +559,18 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 |-------|--------|-----------------|-------|
 | AC-C1 | Done | the "Derived listing" filter at HEAD, 2026-10-11, returns RFC3948-2.1-2 (wrong), RFC4301-4.4.2.1-3 (wrong), RFC5216-2.1.1-4 (wrong), RFC5216-2.1.1-5 (weak), RFC5216-2.1.2-1 (weak); four are in AC rows of `plan/immediate/spec-ike-eap-rfc-defects.md`, RFC4301-4.4.2.1-3 in AC-7 of `plan/spec-ipsec-lifetime-volume.md` | |
 | AC-C2 | Done | 137 verdicts moved to `enforced` since `174862502f`; every tagged unit carries a record except RFC4303-2.1-1's four units, which is the parent's cross-group verdict (parent AC-9), not this child's | judge independence per commit is in QUEUE.md and is the reviewer's to confirm |
-| AC-C3 | Done | split rows landed with the package phases; the reviewer re-walks the split table against `rfc/short/` | |
+| AC-C3 | Rows done, verdicts owed | "Row work outcomes, 2026-10-11": the five dropped obligations of review B1 are rows `RFC4555-3.6-2`, `-3.6-3`, `-4.2.6-1`, `RFC4303-3.4.4.1-2` and re-quoted `RFC4301-4.4.1-6`, or a dated correction (`RFC3748-2.3-1`) | the new rows' verdicts wait for an independent judge ("Verdicts owed") |
 | AC-C4 | Done | the five blocked verdicts sit in their owning specs' ACs | |
 | AC-C5 | Done | `./le rfc check` 2026-10-11: the rfc5216 file-name violation is gone and no violation names an ike-eap stem | |
-| AC-C6 | Done | tag fixes `1075b8992f` (RFC3948-4-1, RFC7296-3.1-3) | |
-| AC-C7 | see table | the "Un-enrolled R-7 rows" table above | reviewer to confirm each row's date |
+| AC-C6 | Rows done, verdicts owed | "Row work outcomes, 2026-10-11": every row of the row-quality table has an outcome; twelve RFC7296 rows and `RFC4301-4.4.1-6` widened or re-quoted with a dated correction each; mistagged units moved earlier (`1075b8992f` and the 2026-09-30 corrections) | thirteen STALE verdicts wait for an independent judge; four level rows wait for the owner (`RFC7296-1.4-1`, `RFC2759-x-3`, `x-10`, `x-12`) |
+| AC-C7 | Rows done, verdicts owed | `RFC9190-2.3-4` `{gap}` split from 2.3-1; `TestRFC9190MSKIsTheExportUnderTheRFCLabel` recorded; pending skeleton for `rfc/audit/rfc9190.json` written | 2.1.2-2, 2.1.3-1, 2.3-1, 5.7-1 and 2.3-4 wait for an independent judge, who creates the audit file through `audit-stamp` |
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | AC-C1: the derived listing holds only "Blocked by" ids | ledger query | 5 rows, each in an owning spec's AC |
 | every resolved verdict proven and judged by a non-author | discrimination records + audit | 0 unrecorded tagged units over 137 moved verdicts (RFC4303-2.1-1 is the parent's); `./le rfc check` clean for the ike-eap stems |
-| D-8 fixes work against another implementation | interop | DONE, 18 of 18 owed scenarios green against strongSwan. The D-8 commits each covers: EAP (`48591f88d5`, `b57b47161d`) `eap-tls`, `eap-tls13`, `eap-mschapv2`, `responder-eap-tls13`, `responder-eap-tls13-revoked-client`, `responder-eap-mschapv2`; rekey nonces (`51bddc694e`) `child-rekey`, `responder-raises-child-rekey`, `responder-ike-rekey`, `ike-rekey-retries-in-the-named-group`; SAD selector and lifetimes (`320f4582c8`, `c548bebf6f`, `d24fc20179`) `dataplane-readback`; NAT-T and RFC 3948 (`3b83ac7de1`, `e585f7d591`) `natt-transport-inner-checksum`, `natt-tunnel-inner-checksum`, `real-nat-transport-ze-initiator`, `real-nat-transport-ze-responder`, `real-nat-tunnel-control`; SPI and transform handling (`cb4801b4cc`, `2fed107f98`, `db64c5ca7b`, `c648880564`, `8f1ef0ade3`) `psk-site-to-site`, `responder-psk`. A conforming strongSwan never sends SPI 0 or an unknown transform attribute, so those two refusals stay proven by unit test only; the runs prove the fixes broke no conforming exchange. Second run, 2026-10-11 19:55 to 20:36, one QEMU guest at a time, over HEADs `0512529b57` to `f09ad6f51e` (the lab builds from the shared working tree, so the binary also carried other sessions' uncommitted BGP and CLI edits, none in IKE or IPsec code): the other 13 each print `── <name> ──`, `✓ PASS`, `PASS  1 scenario(s)`, `QEMU VM: PASS` in `<name>.log` under the same directory. Sixteen earlier attempts never reached strongSwan because another session's half-written edits did not compile at that moment (`<name>.build-break-<n>.log`, journaled in `plan/journal/concurrent-session-corruption.md`, 2026-10-11 row). `dataplane-readback` first failed on a harness defect, not a Ze one: its NOFILE probe read `/proc/1/task/1/children`, which exists only with `CONFIG_PROC_CHILDREN`, unset in Ze's runtime kernel that the QEMU guest boots (`FileNotFoundError`, `dataplane-readback.proc-children-1.log`). `unreadableDataplaneProbe` (`internal/le/interoplab/ipsec/helpers.go`) now finds tini's `ze` child through the parent pid in `/proc/<pid>/stat`, and the scenario passed with it. First run, 5 of 18 green on 2026-10-11 over HEAD `917da161f8`, each through `./le test qemu docker-lab lab 'test integration interop-ipsec' env 'IPSEC_INTEROP_SCENARIO=<name>'`, the darwin route (colima's daemon refused every scenario at the kernel probe: "unable to apply apparmor profile ... Load Ze's profile with: ./le setup docker-kernel apparmor confirm ze-kernel-probe", logs in `colima-refused/`). Each log below prints `── <name> ──`, `✓ PASS`, `PASS  1 scenario(s)`, `QEMU VM: PASS`: `eap-tls`, `eap-mschapv2`, `child-rekey`, `responder-raises-child-rekey`, `responder-ike-rekey` (logs `<name>.log` under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop-ipsec/`). `eap-mschapv2` passed on its second attempt; the first lost the guest SSH port race (`eap-mschapv2.port-race-flake-1.log`). No scenario failed on Ze's side in either run. The suite has 40 strongSwan scenarios under `test/interop-ipsec/scenarios/` (correction 2026-10-11: an earlier draft of this row said no IKE or EAP scenario exists, which was wrong) |
+| D-8 fixes work against another implementation | interop | 18 of 18 strongSwan scenarios accept Ze with the D-8 fixes (acceptance and non-regression; reworded 2026-10-11 after review I1). No scenario was run red with its fix reverted, so the discrimination of each fix is carried by its unit records, not by these runs. The scenarios exercising each D-8 commit: EAP (`48591f88d5`, `b57b47161d`) `eap-tls`, `eap-tls13`, `eap-mschapv2`, `responder-eap-tls13`, `responder-eap-tls13-revoked-client`, `responder-eap-mschapv2`; rekey nonces (`51bddc694e`) `child-rekey`, `responder-raises-child-rekey`, `responder-ike-rekey`, `ike-rekey-retries-in-the-named-group`; SAD selector and lifetimes (`320f4582c8`, `c548bebf6f`, `d24fc20179`) `dataplane-readback`; NAT-T and RFC 3948 (`3b83ac7de1`, `e585f7d591`) `natt-transport-inner-checksum`, `natt-tunnel-inner-checksum`, `real-nat-transport-ze-initiator`, `real-nat-transport-ze-responder`, `real-nat-tunnel-control`; SPI and transform handling (`cb4801b4cc`, `2fed107f98`, `db64c5ca7b`, `c648880564`, `8f1ef0ade3`) `psk-site-to-site`, `responder-psk`. A conforming strongSwan never sends SPI 0 or an unknown transform attribute, so those two refusals stay proven by unit test only; the runs prove the fixes broke no conforming exchange. Second run, 2026-10-11 19:55 to 20:36, one QEMU guest at a time, over HEADs `0512529b57` to `f09ad6f51e` (the lab builds from the shared working tree, so the binary also carried other sessions' uncommitted BGP and CLI edits, none in IKE or IPsec code): the other 13 each print `── <name> ──`, `✓ PASS`, `PASS  1 scenario(s)`, `QEMU VM: PASS` in `<name>.log` under the same directory. Sixteen earlier attempts never reached strongSwan because another session's half-written edits did not compile at that moment (`<name>.build-break-<n>.log`, journaled in `plan/journal/concurrent-session-corruption.md`, 2026-10-11 row). `dataplane-readback` first failed on a harness defect, not a Ze one: its NOFILE probe read `/proc/1/task/1/children`, which exists only with `CONFIG_PROC_CHILDREN`, unset in Ze's runtime kernel that the QEMU guest boots (`FileNotFoundError`, `dataplane-readback.proc-children-1.log`). `unreadableDataplaneProbe` (`internal/le/interoplab/ipsec/helpers.go`) now finds tini's `ze` child through the parent pid in `/proc/<pid>/stat`, and the scenario passed with it. First run, 5 of 18 green on 2026-10-11 over HEAD `917da161f8`, each through `./le test qemu docker-lab lab 'test integration interop-ipsec' env 'IPSEC_INTEROP_SCENARIO=<name>'`, the darwin route (colima's daemon refused every scenario at the kernel probe: "unable to apply apparmor profile ... Load Ze's profile with: ./le setup docker-kernel apparmor confirm ze-kernel-probe", logs in `colima-refused/`). Each log below prints `── <name> ──`, `✓ PASS`, `PASS  1 scenario(s)`, `QEMU VM: PASS`: `eap-tls`, `eap-mschapv2`, `child-rekey`, `responder-raises-child-rekey`, `responder-ike-rekey` (logs `<name>.log` under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop-ipsec/`). `eap-mschapv2` passed on its second attempt; the first lost the guest SSH port race (`eap-mschapv2.port-race-flake-1.log`). No scenario failed on Ze's side in either run. The suite has 40 strongSwan scenarios under `test/interop-ipsec/scenarios/` (correction 2026-10-11: an earlier draft of this row said no IKE or EAP scenario exists, which was wrong) |
 
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
