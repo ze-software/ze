@@ -323,60 +323,59 @@ func chaosRateFromEnv() float64 {
 // promotion follows acceptance by the reactor and every plugin.
 // CLI selectors retain the optional schemas that accepted the startup file.
 //
-// The reactor parameter is used to update dynamic groups on reload.
-func createReloadFunc(store storage.Storage, r *reactor.Reactor, cliPlugins []string) reactor.ReloadFunc {
-	return func(configPath string) ([]*reactor.PeerSettings, reactor.Globals, error) {
+// It applies nothing, the dynamic groups included: it returns them, and the
+// reload's journaled dynamic step installs them (reactor.ReloadFunc). A verify
+// or a budget estimate over a candidate therefore changes no dynamic peer.
+func createReloadFunc(store storage.Storage, cliPlugins []string) reactor.ReloadFunc {
+	return func(configPath string) ([]*reactor.PeerSettings, reactor.Globals, []*reactor.DynamicGroupConfig, error) {
 		data, err := storage.ReadReloadConfig(store, configPath)
 		if err != nil {
-			return nil, reactor.Globals{}, fmt.Errorf("read config %s: %w", configPath, err)
+			return nil, reactor.Globals{}, nil, fmt.Errorf("read config %s: %w", configPath, err)
 		}
 
 		// Use the daemon loader so hierarchical and set-format candidates take
 		// the same path. The web editor stages set commands.
 		loaded, err := config.LoadConfig(string(data), configPath, cliPlugins)
 		if err != nil {
-			return nil, reactor.Globals{}, fmt.Errorf("parse config: %w", err)
+			return nil, reactor.Globals{}, nil, fmt.Errorf("parse config: %w", err)
 		}
 		tree := loaded.Tree
 		schema, err := config.YANGSchema()
 		if err != nil {
-			return nil, reactor.Globals{}, fmt.Errorf("YANG schema: %w", err)
+			return nil, reactor.Globals{}, nil, fmt.Errorf("YANG schema: %w", err)
 		}
 
 		resolved, err := ResolveBGPTree(tree)
 		if err != nil {
-			return nil, reactor.Globals{}, fmt.Errorf("resolve BGP config: %w", err)
+			return nil, reactor.Globals{}, nil, fmt.Errorf("resolve BGP config: %w", err)
 		}
 		// The global router-id and local AS the reload applies to the reactor
 		// (applyGlobalsJournaled, ../reactor/reload_globals.go).
 		globals, err := reactor.GlobalsFromTree(resolved)
 		if err != nil {
-			return nil, reactor.Globals{}, err
+			return nil, reactor.Globals{}, nil, err
 		}
 		if err := refuseIncompletePeers(schema, resolved); err != nil {
-			return nil, reactor.Globals{}, err
+			return nil, reactor.Globals{}, nil, err
 		}
 
 		// Update redistribute rules on reload. A reload that cannot build them
 		// refuses, for the reason the initial load refuses: a nil evaluator
 		// disables every rule in the file.
 		if err := initRedistribute(tree); err != nil {
-			return nil, reactor.Globals{}, fmt.Errorf("redistribute config: %w", err)
+			return nil, reactor.Globals{}, nil, fmt.Errorf("redistribute config: %w", err)
 		}
 
 		// The builder prunes inactive nodes and resolves the tree, and it returns
-		// the dynamic groups from the same walk. SetDynamicGroups is the one
-		// place that reconciles the dynamic peer population against config
-		// (reactor_dynamic.go), so a reload MUST reach it even when the config
-		// declares no dynamic group at all: an emptied list is how a removed
-		// group's peers are torn down.
+		// the dynamic groups from the same walk. The groups are returned even
+		// when the config declares none: an empty list is how a removed group's
+		// peers are torn down by the reload's dynamic step.
 		peers, dynGroups, err := peersAndDynamicGroups(tree)
 		if err != nil {
-			return nil, reactor.Globals{}, err
+			return nil, reactor.Globals{}, nil, err
 		}
-		r.SetDynamicGroups(dynGroups)
 
-		return peers, globals, nil
+		return peers, globals, dynGroups, nil
 	}
 }
 

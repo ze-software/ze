@@ -237,5 +237,9 @@ EOF_CONF2
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peerA
 cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peerB
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=60s
+# Both peers linger (option=linger), so neither exits on its own: end the
+# test once the reload completed and both peers printed their success token
+# (docs/architecture/testing/ci-format.md, then=stop).
+await=stderr:contains=sighup reload complete:then=stop
 
 reject=stderr:pattern=peer restart required

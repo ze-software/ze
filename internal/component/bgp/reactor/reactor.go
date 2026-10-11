@@ -211,8 +211,16 @@ type PluginConfig = plugin.PluginConfig
 // The function MUST re-parse the config file and return full PeerSettings, so
 // reloaded peers have identical configuration to initially loaded peers. It
 // also returns the global defaults the file declares, which the reload applies
-// to the reactor itself (applyGlobalsJournaled, reactor_api.go).
-type ReloadFunc func(configPath string) ([]*PeerSettings, Globals, error)
+// to the reactor itself (applyGlobalsJournaled, reactor_api.go), and the
+// dynamic groups, which the reload's journaled dynamic step reconciles the
+// dynamic population against (reconcileDynamicGroupsJournaled,
+// reactor_dynamic.go).
+//
+// It MUST apply nothing. A verify, a budget estimate and an operation's
+// candidate lookup all call it over a candidate nobody has accepted yet, so
+// a ReloadFunc that installed what it read would change the running daemon
+// before the commit is decided.
+type ReloadFunc func(configPath string) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error)
 
 // Stats holds reactor statistics.
 type Stats struct {
@@ -837,11 +845,11 @@ func (r *Reactor) ReconcilePeersWithJournal(bgpTree map[string]any, j registry.C
 	}
 
 	a := &reactorAPIAdapter{r: r}
-	newPeers, globals, err := a.loadPeersFullOrTree(bgpTree)
+	loaded, err := a.loadPeersFullOrTree(bgpTree)
 	if err != nil {
 		return fmt.Errorf("load peers: %w", err)
 	}
-	return a.reconcilePeersJournaled(newPeers, globals, "apply config diff", j)
+	return a.reconcilePeersJournaled(loaded.peers, loaded.globals, loaded.groups, "apply config diff", j)
 }
 
 // emitCongestionEventBus emits a (bgp, congested) or (bgp, resumed) event
@@ -1855,7 +1863,7 @@ func (r *Reactor) newListenerFactory(port int) network.ListenerFactory {
 // closed by the cancel with nothing on the wire to say why (RFC 4271 Section
 // 8.2.2, ManualStop). All five call sites hold r.mu: startMultiListeners in this
 // file, AddPeer twice (reactor_peers.go, once for a new listener and once to
-// restart one whose MD5 peer set changed), SetDynamicGroups (reactor_dynamic.go,
+// restart one whose MD5 peer set changed), installDynamicGroupsLocked (reactor_dynamic.go,
 // for a group a reload added) and handleAddrAddedPayload
 // (reactor_iface.go). The last one is a netlink address-added event, which
 // arrives on the EventBus delivery goroutine and is not unsubscribed until

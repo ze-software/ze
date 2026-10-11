@@ -8,6 +8,7 @@ package reactor
 import (
 	"maps"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync/atomic"
 
@@ -221,43 +222,185 @@ func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) peerStop {
 	return peerStop{peer: peer, subcode: subcode}
 }
 
-// dynamicTemplateChanged reports whether a dynamic peer at addr would be built with
-// different settings from next than it was built with from old.
+// dynamicGroupsLoad is what one configuration load says about the dynamic
+// groups. A load that read them carries the set, an empty one included, and the
+// journaled dynamic step reconciles the population against it. A load that did
+// not read them (the tree route, which has no ReloadFunc) is
+// dynamicGroupsNotRead, and the step then leaves the group set and every dynamic
+// peer as they are.
 //
-// It compares what buildDynamicPeerSettings PRODUCES for that one address rather
-// than the two group configs, because that is what a running dynamic peer was built
-// from: a wider range or a raised max-peers changes the group and changes nothing
-// the peer holds, and tearing a session down for either would be the reload bounce
-// this comparison exists to avoid.
+// The zero value is dynamicGroupsNotRead on purpose, and that is a guard: it is
+// the one answer that changes nothing, so a caller that forgets to say what it
+// read cannot tear down a single dynamic peer. read, not a nil groups slice,
+// carries the difference, because an empty set the ReloadFunc returned is how
+// the config says "every group is gone".
+type dynamicGroupsLoad struct {
+	groups []*DynamicGroupConfig
+	read   bool
+}
+
+// dynamicGroupsNotRead is the answer of a load that read no dynamic group.
+var dynamicGroupsNotRead = dynamicGroupsLoad{}
+
+// dynamicGroupsReadAs is the answer of a load that read groups, empty included.
+func dynamicGroupsReadAs(groups []*DynamicGroupConfig) dynamicGroupsLoad {
+	return dynamicGroupsLoad{groups: groups, read: true}
+}
+
+// dynamicSwap is one dynamic peer the step keeps on its running session: next
+// is the next template built for the peer's address, with its filter chains
+// still unresolved, and apply the copier peerSettingsSwapPlan chose.
+type dynamicSwap struct {
+	peer  *Peer
+	next  *PeerSettings
+	apply settingsCopier
+}
+
+// reconcileDynamicGroupsJournaled is the reload's dynamic step, the first one
+// after the globals in reconcilePeersJournaled (reactor_api.go). A dynamic
+// peer's key is the AddrPort it connected from and no configuration names it,
+// so the peer diff skips every dynamic peer and this step reconciles them
+// instead.
 //
-// The running peer's own settings are NOT the comparison. resolveDynamicPeerSettings
-// rewrites PeerAS from the OPEN and resolves $remote_as / $remote_ip in the filter
-// chains at establishment, so a running dynamic peer differs from every template,
-// including the one it was built from.
+// Under r.mu it only plans (planDynamicGroupsLocked) and installs the new group
+// set. The stops and the swaps run after r.mu is released: a stop writes a
+// NOTIFICATION, and a swap is applyHotSwappableSettings, which takes r.mu itself
+// and delivers to plugins, and sync.RWMutex is not reentrant. A swap goes
+// through the configured peer's copier and ordered delivery, so a dynamic peer
+// gains a receive-only binding, a BFD opt-in or a filter chain the way a
+// configured peer does (owner, OQ-1 and OQ-2, option A).
 //
-// Any difference restarts the peer, a binding difference included. A
-// configured peer takes a receive-only binding change on its running session
-// through the ordered bind delivery (applyHotSwappableSettings); a dynamic peer
-// does not have that path yet, and delivering a binding without it would feed a
-// process with no session up before it and no catch-up in the direction it was
-// granted, so the dynamic peer fails closed.
+// The undo restores the previous group set, recounts, and undoes each swap
+// from the snapshot taken before it, the dyn* template pair included
+// (hotSwappableSnapshot). A dynamic peer the step removed is not rebuilt:
+// nothing names it, and its next connection is accepted under the restored
+// group.
+func (a *reactorAPIAdapter) reconcileDynamicGroupsJournaled(groups []*DynamicGroupConfig, label string, j configJournal) error {
+	r := a.r
+	var previous []*DynamicGroupConfig
+	var undone []dynamicSwap
+	return j.Record(
+		func() error {
+			r.mu.Lock()
+			previous = r.dynamicGroups
+			stops, swaps := r.planDynamicGroupsLocked(groups, label)
+			r.installDynamicGroupsLocked(groups)
+			r.mu.Unlock()
+
+			for _, stop := range stops {
+				stop.run()
+			}
+			for _, swap := range swaps {
+				before := swap.peer.hotSwappableSnapshot(swap.apply)
+				swap.peer.applyHotSwappableSettings(swap.next, swap.apply)
+				undone = append(undone, dynamicSwap{peer: swap.peer, next: before, apply: swap.apply})
+			}
+			return nil
+		},
+		func() error {
+			r.mu.Lock()
+			r.installDynamicGroupsLocked(previous)
+			r.mu.Unlock()
+			for _, swap := range slices.Backward(undone) {
+				swap.peer.applyHotSwappableSettings(swap.next, swap.apply)
+			}
+			return nil
+		},
+	)
+}
+
+// planDynamicGroupsLocked decides, for every dynamic peer, what the next group
+// set does to it: remove it (its group is gone, or no range covers it any more:
+// Cease subcode 3), restart it (peerSettingsSwapPlan names a field its session
+// cannot take: Cease subcode 6), swap it in place, or leave it alone. It removes
+// the peers it must from r.peers and returns their stops and the swaps, for the
+// caller to run with r.mu released.
 //
-// Fail closed: an absent old group or a template that no longer builds counts as
-// changed, so the peer restarts and the next connection is accepted under settings
-// that were actually derived from the new configuration.
-func (r *Reactor) dynamicTemplateChanged(old, next *DynamicGroupConfig, addr netip.Addr) bool {
-	if old == nil || next == nil {
-		return true
+// The plan compares what buildDynamicPeerSettings PRODUCES for the peer's
+// address from the old and the next template, never the running peer's own
+// settings: resolveDynamicPeerSettings rewrote PeerAS and the filter chains at
+// establishment, so the running peer differs from every template, including the
+// one it was built from. A wider range or a raised max-peers changes the group
+// and nothing the peer holds, so neither reaches the plan.
+//
+// The caller MUST hold r.mu for writing, and the old groups MUST still be
+// installed: removeDynamicPeer decrements the counter of the group it finds.
+func (r *Reactor) planDynamicGroupsLocked(groups []*DynamicGroupConfig, label string) ([]peerStop, []dynamicSwap) {
+	nextByName := make(map[string]*DynamicGroupConfig, len(groups))
+	for _, g := range groups {
+		nextByName[g.GroupName] = g
 	}
-	oldSettings, oldErr := r.buildDynamicPeerSettings(old, addr)
-	if oldErr != nil {
-		return true
+	oldByName := make(map[string]*DynamicGroupConfig, len(r.dynamicGroups))
+	for _, g := range r.dynamicGroups {
+		oldByName[g.GroupName] = g
 	}
-	nextSettings, nextErr := r.buildDynamicPeerSettings(next, addr)
-	if nextErr != nil {
-		return true
+
+	var removed, restarted []*Peer
+	var swaps []dynamicSwap
+	for _, peer := range r.peers {
+		settings := peer.Settings()
+		if !settings.IsDynamic {
+			continue
+		}
+		next, kept := nextByName[settings.GroupName]
+		if !kept {
+			removed = append(removed, peer)
+			continue
+		}
+		if !next.containsAddr(settings.Address) {
+			removed = append(removed, peer)
+			continue
+		}
+		oldBuilt, nextBuilt, reason := r.dynamicTemplatePair(oldByName[settings.GroupName], next, settings.Address)
+		if reason == "" && peerSettingsEqual(oldBuilt, nextBuilt) {
+			continue
+		}
+		var apply settingsCopier
+		if reason == "" {
+			apply, reason = peerSettingsSwapPlan(oldBuilt, nextBuilt, peer.currentSession())
+		}
+		if reason != "" {
+			reactorLogger().Info("dynamic peer restart required", "phase", label,
+				"peer", settings.Address, "group", settings.GroupName, "changed", reason)
+			restarted = append(restarted, peer)
+			continue
+		}
+		swaps = append(swaps, dynamicSwap{peer: peer, next: nextBuilt, apply: apply})
 	}
-	return !peerSettingsEqual(oldSettings, nextSettings)
+
+	// RFC 4486 Section 4: a peer the config no longer accepts is told "Peer
+	// De-configured", a restarted one "Other Configuration Change".
+	stops := make([]peerStop, 0, len(removed)+len(restarted))
+	for _, peer := range removed {
+		stops = append(stops, r.removeDynamicPeer(peer, message.NotifyCeasePeerDeconfigured))
+	}
+	for _, peer := range restarted {
+		stops = append(stops, r.removeDynamicPeer(peer, message.NotifyCeaseOtherConfigChange))
+	}
+	return stops, swaps
+}
+
+// dynamicTemplateUnbuildable is the restart reason for a dynamic peer whose old
+// group is gone or whose template no longer builds.
+const dynamicTemplateUnbuildable = "group template"
+
+// dynamicTemplatePair builds the settings a dynamic peer at addr gets from the
+// old and from the next template. It fails closed: an absent old group or a
+// template that no longer builds is a restart reason, so the next connection is
+// accepted under settings actually derived from the new configuration.
+func (r *Reactor) dynamicTemplatePair(old, next *DynamicGroupConfig, addr netip.Addr) (*PeerSettings, *PeerSettings, string) {
+	if old == nil {
+		return nil, nil, dynamicTemplateUnbuildable
+	}
+	oldBuilt, err := r.buildDynamicPeerSettings(old, addr)
+	if err != nil {
+		return nil, nil, dynamicTemplateUnbuildable
+	}
+	nextBuilt, err := r.buildDynamicPeerSettings(next, addr)
+	if err != nil {
+		return nil, nil, dynamicTemplateUnbuildable
+	}
+	return oldBuilt, nextBuilt, ""
 }
 
 // tryCreateDynamicPeer checks dynamic groups for the given address and creates a
@@ -300,95 +443,37 @@ func (r *Reactor) tryCreateDynamicPeer(addr netip.Addr) *Peer {
 	return peer
 }
 
-// SetDynamicGroups replaces the reactor's dynamic group configs.
+// SetDynamicGroups installs the reactor's dynamic group configs at load.
 //
-// Called during config load and reload. It is the ONE place that reconciles the
-// dynamic peer population against configuration, because a dynamic peer's key is
-// the AddrPort it connected from and no configuration ever names it: the peer diff
-// in reconcilePeersJournaled (reactor_api.go) skips every dynamic peer and relies
-// on this function instead.
-//
-// On reload it tears down a dynamic peer whose group was removed, whose address is
-// no longer in any of that group's ranges, or whose group template no longer builds
-// the settings the running session was accepted under. Every other dynamic peer is
-// left running, session included.
+// It reconciles nothing: the boot path calls it once, on a reactor with no
+// dynamic peer yet. A reload reaches the dynamic population through the
+// journaled dynamic step instead (reconcileDynamicGroupsJournaled), which
+// shares installDynamicGroupsLocked with this function.
 func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 	r.mu.Lock()
-	stops := r.setDynamicGroupsLocked(groups)
+	r.installDynamicGroupsLocked(groups)
 	r.mu.Unlock()
-
-	// After the unlock: a stop writes a NOTIFICATION, which may not run under
-	// the reactor lock.
-	for _, stop := range stops {
-		stop.run()
-	}
 }
 
-// setDynamicGroupsLocked is SetDynamicGroups under r.mu. It returns the stops
-// of the peers it removed, for the caller to run.
-func (r *Reactor) setDynamicGroupsLocked(groups []*DynamicGroupConfig) []peerStop {
-	old := r.dynamicGroups
-	var stops []peerStop
-
-	// Collect peers to remove BEFORE replacing the groups slice.
-	// removeDynamicPeer decrements ActivePeers on the current dynamicGroups;
-	// we must do this while the old groups are still installed.
-	if len(old) > 0 {
-		newByName := make(map[string]*DynamicGroupConfig, len(groups))
-		for _, g := range groups {
-			newByName[g.GroupName] = g
-		}
-		oldByName := make(map[string]*DynamicGroupConfig, len(old))
-		for _, g := range old {
-			oldByName[g.GroupName] = g
-		}
-
-		var toRemove []*Peer
-		// restart marks the peers whose group template changed. The others in
-		// toRemove left the config, and RFC 4486 Section 4 gives the two
-		// different Cease subcodes.
-		restart := make(map[*Peer]bool)
-		for _, peer := range r.peers {
-			settings := peer.Settings()
-			if !settings.IsDynamic {
-				continue
-			}
-			next, kept := newByName[settings.GroupName]
-			if !kept {
-				toRemove = append(toRemove, peer)
-				continue
-			}
-			if !next.containsAddr(settings.Address) {
-				toRemove = append(toRemove, peer)
-				continue
-			}
-			if r.dynamicTemplateChanged(oldByName[settings.GroupName], next, settings.Address) {
-				reactorLogger().Info("dynamic peer restart required",
-					"peer", settings.Address, "group", settings.GroupName, "changed", "group template")
-				toRemove = append(toRemove, peer)
-				restart[peer] = true
-				continue
-			}
-		}
-		for _, peer := range toRemove {
-			subcode := message.NotifyCeasePeerDeconfigured
-			if restart[peer] {
-				subcode = message.NotifyCeaseOtherConfigChange
-			}
-			stops = append(stops, r.removeDynamicPeer(peer, subcode))
-		}
-	}
-
-	// Now replace the groups. Surviving dynamic peers' counters were already
-	// accounted for on the old groups; the new groups start at zero.
-	// Transfer surviving peer counts to the new groups.
+// installDynamicGroupsLocked makes groups the reactor's dynamic group set,
+// recounts each group's ActivePeers from r.peers, and opens a listener for a
+// group that has none. The caller MUST hold r.mu for writing.
+//
+// The recount starts every group at zero, so it is right for a fresh group set
+// and for a previous one a journal undo puts back, whose counters the step's
+// removals already moved.
+func (r *Reactor) installDynamicGroupsLocked(groups []*DynamicGroupConfig) {
 	r.dynamicGroups = groups
+	for _, g := range groups {
+		g.ActivePeers.Store(0)
+	}
 	for _, peer := range r.peers {
-		if !peer.Settings().IsDynamic {
+		settings := peer.Settings()
+		if !settings.IsDynamic {
 			continue
 		}
 		for _, g := range groups {
-			if g.GroupName == peer.Settings().GroupName {
+			if g.GroupName == settings.GroupName {
 				g.ActivePeers.Add(1)
 				break
 			}
@@ -405,7 +490,7 @@ func (r *Reactor) setDynamicGroupsLocked(groups []*DynamicGroupConfig) []peerSto
 	// socket is the peer-removal path's decision (reactor_peers.go), and a group
 	// removal that shared the socket with a peer must not take it down.
 	if !r.running || r.stopping {
-		return stops
+		return
 	}
 	for _, dg := range groups {
 		s := dg.Settings
@@ -417,13 +502,13 @@ func (r *Reactor) setDynamicGroupsLocked(groups []*DynamicGroupConfig) []peerSto
 				"group", dg.GroupName, "address", s.LocalAddress, "error", err)
 		}
 	}
-	return stops
 }
 
 // resolveDynamicPeerSettings sets PeerAS from the OPEN message and resolves
-// config variables ($remote_as, $remote_ip) in static routes and filter chains.
-// Called in the Established callback before sendInitialRoutes. Idempotent:
-// resolves from the original unresolved templates stored on peer creation.
+// config variables ($remote_as, $remote_ip) in the filter chains. Called in the
+// Established callback before sendInitialRoutes. Idempotent: it resolves from
+// the unresolved template pair (dynImportFilters, dynExportFilters) that NewPeer
+// captured and a reload's dynamic swap replaces.
 func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	session.mu.RLock()
 	open := session.peerOpen
@@ -443,54 +528,91 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	remoteIP := p.settings.Address.String()
 	localAS := p.settings.LocalAS
 
-	// The filter pair is NOT in that population. ImportFilters and ExportFilters are two of
-	// the three hot-swappable fields, and applyHotSwappableSettings (peer_settings_apply.go)
-	// writes both from the config-reload goroutine, under p.mu, while this session runs. So
-	// both are read under p.mu here. The establishment goroutine is not their only writer,
-	// and a slice header is two words: an unlocked read can take the new pointer with the
-	// old length.
+	// The template pair has two writers: this function's reads, and a reload's
+	// dynamic swap, which writes it from the config-reload goroutine
+	// (applyHotSwappableSettings). Both touch it under p.mu only. resolveFilterVars
+	// allocates, so it runs with the lock released, and the publish then checks
+	// that the pair it resolved is still the installed one. A swap that landed in
+	// between bumped dynGeneration, and the chains resolved from the replaced pair
+	// are dropped and resolved again from the new one: a resolution never
+	// publishes chains built from a template a swap already replaced.
 	//
-	// The dyn* template capture below stays outside the lock. Those two fields are touched
-	// by this function alone, a peer has one session at a time, so resolveDynamicPeerSettings
-	// is never concurrent with itself. resolveFilterVars allocates and runs outside the lock
-	// for the same reason.
-	p.mu.RLock()
-	importFilters := p.settings.ImportFilters
-	exportFilters := p.settings.ExportFilters
-	p.mu.RUnlock()
+	// The loop ends on the first pass no swap interleaves with. Reloads are
+	// serialized, and each retry needs a whole reload's dynamic step to write the
+	// pair inside one resolveFilterVars call, so it is bounded by the reloads an
+	// operator issues during one establishment.
+	for {
+		p.mu.RLock()
+		generation := p.dynGeneration
+		importTemplate := p.dynImportFilters
+		exportTemplate := p.dynExportFilters
+		p.mu.RUnlock()
 
-	// Resolve from the original unresolved templates (set on first call, preserved across reconnections).
-	if p.dynImportFilters == nil && len(importFilters) > 0 {
-		p.dynImportFilters = importFilters
-	}
-	if p.dynExportFilters == nil && len(exportFilters) > 0 {
-		p.dynExportFilters = exportFilters
-	}
-	var newImport, newExport []filterapi.FilterRef
-	if p.dynImportFilters != nil {
-		newImport = resolveFilterVars(p.dynImportFilters, localAS, remoteAS, remoteIP)
-	}
-	if p.dynExportFilters != nil {
-		newExport = resolveFilterVars(p.dynExportFilters, localAS, remoteAS, remoteIP)
+		var newImport, newExport []filterapi.FilterRef
+		if importTemplate != nil {
+			newImport = resolveFilterVars(importTemplate, localAS, remoteAS, remoteIP)
+		}
+		if exportTemplate != nil {
+			newExport = resolveFilterVars(exportTemplate, localAS, remoteAS, remoteIP)
+		}
+
+		// Publish the three mutable settings fields under p.mu so cross-goroutine readers
+		// (the routerid_unique.go identifier claim, PeerInfo builders, API/plugin Settings
+		// snapshots, filter getters) observe consistent values via the
+		// PeerAS()/ImportFilters()/ExportFilters() accessors, never a torn slice header or
+		// an unsynchronized PeerAS.
+		p.mu.Lock()
+		if p.dynGeneration != generation {
+			p.mu.Unlock()
+			continue
+		}
+		p.settings.PeerAS = remoteAS
+		if newImport != nil {
+			p.settings.ImportFilters = newImport
+		}
+		if newExport != nil {
+			p.settings.ExportFilters = newExport
+		}
+		p.mu.Unlock()
+		break
 	}
 
-	// Publish the three mutable settings fields under p.mu so cross-goroutine readers
-	// (the routerid_unique.go identifier claim, PeerInfo builders, API/plugin Settings snapshots, filter
-	// getters) observe consistent values via the PeerAS()/ImportFilters()/ExportFilters()
-	// accessors — never a torn slice header or an unsynchronized PeerAS. refreshForwardFacts
-	// is called AFTER releasing p.mu because it re-acquires p.mu.RLock (peer_forward_facts.go)
-	// and RWMutex is not reentrant.
-	p.mu.Lock()
-	p.settings.PeerAS = remoteAS
-	if newImport != nil {
-		p.settings.ImportFilters = newImport
-	}
-	if newExport != nil {
-		p.settings.ExportFilters = newExport
-	}
-	p.mu.Unlock()
-
+	// refreshForwardFacts runs AFTER releasing p.mu because it re-acquires
+	// p.mu.RLock (peer_forward_facts.go) and RWMutex is not reentrant.
 	p.refreshForwardFacts()
+}
+
+// writeDynamicTemplateLocked is the dynamic half of a swap's write section
+// (applyHotSwappableSettings): it installs next's unresolved filter chains as
+// the peer's template pair, bumps dynGeneration so a resolution racing it starts
+// again (resolveDynamicPeerSettings), and, when the peer has learned its AS,
+// resolves the chains the copier just wrote against that AS.
+//
+// The AS is read here, under the write lock, and never at plan time: a peer
+// that established between the plan and this write would otherwise keep
+// unresolved chains. A peer that has not learned its AS keeps them unresolved,
+// the state createDynamicPeer leaves, and its establishment resolves them from
+// the new pair. This runs on the reload goroutine, not a hot path, so the
+// allocation under p.mu is accepted.
+//
+// The caller MUST hold p.mu for writing, and MUST have run the copier onto
+// p.settings first.
+func (p *Peer) writeDynamicTemplateLocked(next *PeerSettings) {
+	p.dynImportFilters = next.ImportFilters
+	p.dynExportFilters = next.ExportFilters
+	p.dynGeneration++
+	remoteAS := p.settings.PeerAS
+	if remoteAS == 0 {
+		return
+	}
+	localAS := p.settings.LocalAS
+	remoteIP := p.settings.Address.String()
+	if next.ImportFilters != nil {
+		p.settings.ImportFilters = resolveFilterVars(next.ImportFilters, localAS, remoteAS, remoteIP)
+	}
+	if next.ExportFilters != nil {
+		p.settings.ExportFilters = resolveFilterVars(next.ExportFilters, localAS, remoteAS, remoteIP)
+	}
 }
 
 // scheduleDynamicPeerCleanup starts a timer that removes a dynamic peer after

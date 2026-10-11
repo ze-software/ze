@@ -880,7 +880,7 @@ func (a *reactorAPIAdapter) Reload() error {
 	}
 
 	// Get new peer configs from config file.
-	newPeers, globals, err := reloadFn(configPath)
+	newPeers, globals, groups, err := reloadFn(configPath)
 	if err != nil {
 		if r.rmetrics != nil {
 			r.rmetrics.configReloadErrors.With("parse").Inc()
@@ -888,7 +888,7 @@ func (a *reactorAPIAdapter) Reload() error {
 		return fmt.Errorf("reload config: %w", err)
 	}
 
-	if err := a.reconcilePeers(newPeers, globals, "reload"); err != nil {
+	if err := a.reconcilePeers(newPeers, globals, dynamicGroupsReadAs(groups), "reload"); err != nil {
 		if r.rmetrics != nil {
 			r.rmetrics.configReloadErrors.With("apply").Inc()
 		}
@@ -900,7 +900,8 @@ func (a *reactorAPIAdapter) Reload() error {
 	return nil
 }
 
-// VerifyConfig validates peer settings without modifying reactor state.
+// VerifyConfig validates peer settings without modifying reactor state. The
+// load applies nothing, the dynamic groups included (ReloadFunc).
 // tree is the whole configuration tree, as SetConfigTree takes it. Peer
 // parsing goes through loadPeersFullOrTree.
 // Called by the reload coordinator during the verify phase.
@@ -909,7 +910,7 @@ func (a *reactorAPIAdapter) VerifyConfig(tree map[string]any) error {
 	if err != nil {
 		return err
 	}
-	if _, _, err := a.loadPeersFullOrTree(bgpTree); err != nil {
+	if _, err := a.loadPeersFullOrTree(bgpTree); err != nil {
 		return err
 	}
 	return nil
@@ -924,12 +925,12 @@ func (a *reactorAPIAdapter) ApplyConfigDiff(tree map[string]any) error {
 	if err != nil {
 		return fmt.Errorf("apply config diff: %w", err)
 	}
-	newPeers, globals, err := a.loadPeersFullOrTree(bgpTree)
+	loaded, err := a.loadPeersFullOrTree(bgpTree)
 	if err != nil {
 		return fmt.Errorf("apply config diff: %w", err)
 	}
 
-	return a.reconcilePeers(newPeers, globals, "apply config diff")
+	return a.reconcilePeers(loaded.peers, loaded.globals, loaded.groups, "apply config diff")
 }
 
 // configBGPBlock answers the bgp block of a whole configuration tree. A tree
@@ -957,8 +958,9 @@ func configBGPBlock(tree map[string]any) (map[string]any, error) {
 // parse, and patchRoutes after it (peersAndDynamicGroups, ../config/peers.go).
 // It is what populates every field, including YANG defaults, group inheritance
 // and static routes, and a PeerSettings missing them reads as a change to
-// peerSettingsEqual. It also refreshes the dynamic peer groups, which the tree
-// alone cannot do.
+// peerSettingsEqual. It also reads the dynamic peer groups, which the tree
+// alone cannot do, and installs none of them: the reconcile's journaled
+// dynamic step does (reconcileDynamicGroupsJournaled, reactor_dynamic.go).
 //
 // Every other reactor parses the bgp block it was handed, with none of that
 // around it. VerifyConfig and ApplyConfigDiff take the whole configuration
@@ -966,8 +968,10 @@ func configBGPBlock(tree map[string]any) (map[string]any, error) {
 // hands its bgp section (ReconcilePeersWithJournal, reactor.go). The only stage the two routes share is PeersFromTree (config.go), and
 // sharing it is what stops them disagreeing about how a peer's config is READ.
 // It does not make them equivalent, because they differ in what reaches the
-// parser and in what runs on the result.
-func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*PeerSettings, Globals, error) {
+// parser and in what runs on the result. The tree route reads no dynamic group,
+// so it answers dynamicGroupsNotRead, never an empty set: an empty set would
+// read as "the config dropped every group" and tear down every dynamic peer.
+func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) (loadedConfig, error) {
 	r := a.r
 
 	configPath := r.config.ConfigPath
@@ -976,18 +980,30 @@ func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*Peer
 	r.mu.RUnlock()
 
 	if reloadFn != nil && configPath != "" {
-		return reloadFn(configPath)
+		peers, globals, groups, err := reloadFn(configPath)
+		if err != nil {
+			return loadedConfig{}, err
+		}
+		return loadedConfig{peers: peers, globals: globals, groups: dynamicGroupsReadAs(groups)}, nil
 	}
 
 	globals, err := GlobalsFromTree(bgpTree)
 	if err != nil {
-		return nil, Globals{}, err
+		return loadedConfig{}, err
 	}
 	peers, err := PeersFromTree(bgpTree)
 	if err != nil {
-		return nil, Globals{}, err
+		return loadedConfig{}, err
 	}
-	return peers, globals, nil
+	return loadedConfig{peers: peers, globals: globals, groups: dynamicGroupsNotRead}, nil
+}
+
+// loadedConfig is one configuration load: the peers, the global defaults, and
+// what the load says about the dynamic groups (dynamicGroupsLoad).
+type loadedConfig struct {
+	peers   []*PeerSettings
+	globals Globals
+	groups  dynamicGroupsLoad
 }
 
 // configJournal records transactional apply/undo operations.
@@ -1002,9 +1018,9 @@ type configJournal interface {
 // stops removed/changed peers, adds new/changed peers.
 // Uses an internal journal for automatic rollback on failure.
 // The label parameter is used for log messages (e.g., "reload", "apply config diff").
-func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, globals Globals, label string) error {
+func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, globals Globals, groups dynamicGroupsLoad, label string) error {
 	j := &internalJournal{}
-	if err := a.reconcilePeersJournaled(newPeers, globals, label, j); err != nil {
+	if err := a.reconcilePeersJournaled(newPeers, globals, groups, label, j); err != nil {
 		if rollbackErrs := j.Rollback(); len(rollbackErrs) > 0 {
 			reactorLogger().Error(label+": rollback errors", "count", len(rollbackErrs))
 		}
@@ -1024,12 +1040,21 @@ func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, globals Glo
 // settings, which peerSettingsEqual reads as a change and peerSettingsSwapPlan
 // as a restart, so the new Identifier reaches that peer in a new OPEN. A peer
 // whose own router-id overrides the global keeps its settings and its session.
-func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, globals Globals, label string, j configJournal) error {
+func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, globals Globals, groups dynamicGroupsLoad, label string, j configJournal) error {
 	r := a.r
 
 	// RFC 4271 Section 4.2: the global BGP Identifier the reactor reports.
 	if err := a.applyGlobalsJournaled(globals, j); err != nil {
 		return err
+	}
+
+	// The dynamic population first, so the snapshot below holds only the
+	// dynamic peers the step kept. A load that read no group (the tree route)
+	// leaves the group set and every dynamic peer as they are.
+	if groups.read {
+		if err := a.reconcileDynamicGroupsJournaled(groups.groups, label, j); err != nil {
+			return err
+		}
 	}
 
 	// Build map of new peer settings for quick lookup.
@@ -1079,12 +1104,13 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 		// as "no longer configured" tore down every established dynamic session on
 		// every reload, including a reload that changed nothing about it.
 		//
-		// The dynamic population is reconciled by SetDynamicGroups instead
-		// (reactor_dynamic.go), which runs EARLIER in the same reload, from the
-		// ReloadFunc itself (createReloadFunc, bgp/config/loader_create.go). It
-		// removes the peers whose group is gone, whose address left every range, or
-		// whose group template changed. What reaches this loop is the population it
-		// decided to keep, so the answer here is to keep it.
+		// The dynamic population is reconciled by the journaled dynamic step
+		// instead (reconcileDynamicGroupsJournaled, reactor_dynamic.go), which ran
+		// at the top of this function, before the snapshot. It removed the peers
+		// whose group is gone or whose address left every range, restarted those
+		// whose template change a running session cannot take, and swapped the
+		// rest in place. What reaches this loop is the population it decided to
+		// keep, so the answer here is to keep it.
 		if currentPeers[key].IsDynamic {
 			if !exists {
 				continue
@@ -1094,10 +1120,8 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 			// swap: the running settings were resolved at establishment (PeerAS from
 			// the OPEN, $remote_as and $remote_ip in the filter chains,
 			// resolveDynamicPeerSettings), so they are not the template a config
-			// entry can be diffed against, and applyHotSwappableSettings must not run
-			// on a dynamic peer -- resolveDynamicPeerSettings writes two of the same
-			// fields from the establishment goroutine
-			// (plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md).
+			// entry can be diffed against: the diff would read every resolved chain
+			// and the learned AS as a change the operator made.
 			toRemove = append(toRemove, key)
 			toAdd = append(toAdd, newSettings)
 			reactorLogger().Info("dynamic peer replaced by configured peer", "phase", label, "peer", key)
@@ -1288,10 +1312,11 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 // peerDiffCount computes the number of peer changes (adds + removes) between
 // current peers and a new BGP config tree. Used for budget estimation.
 func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
-	newPeers, _, err := a.loadPeersFullOrTree(bgpTree)
+	loaded, err := a.loadPeersFullOrTree(bgpTree)
 	if err != nil {
 		return 0, err
 	}
+	newPeers := loaded.peers
 
 	newPeerSettings := make(map[netip.AddrPort]*PeerSettings)
 	for _, p := range newPeers {

@@ -45,7 +45,8 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 
 // peersAndDynamicGroups builds both peer populations a BGP config declares: the
 // statically configured peers, and the template every member of a dynamic group
-// is built from (Reactor.SetDynamicGroups).
+// is built from. Boot installs the groups with Reactor.SetDynamicGroups; a reload
+// hands them to the reactor's journaled dynamic step instead.
 //
 // ONE walk builds both, and that is the point. Every layer a statically
 // configured peer takes -- routes, filter chains, loop-detection defaults, the

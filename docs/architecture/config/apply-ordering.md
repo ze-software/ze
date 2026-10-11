@@ -467,6 +467,28 @@ back with a session and no routes.
 <!-- source: internal/component/bgp/reactor/operation.go -- runningPeerSettings -->
 <!-- source: internal/component/bgp/config/peers.go -- peersAndDynamicGroups -->
 
+**Verify applies no dynamic group.** The ReloadFunc returns the peers, the
+globals and the dynamic groups, and installs none of them, so verify and the
+budget estimate leave the running reactor as it was. A reactor built with no
+ReloadFunc (the tree route) reads no group at all, and answers "not read",
+which the dynamic step treats as "leave every dynamic peer as it is", never as
+"every group is gone".
+<!-- source: internal/component/bgp/config/loader_create.go -- createReloadFunc -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- dynamicGroupsLoad -->
+
+**Dynamic peers are reconciled by their own journaled step, the first one after
+the globals.** No configuration names a dynamic peer, so the peer diff skips it.
+The step compares what the old and the next template build for each dynamic
+peer's address: a peer whose group is gone or whose range no longer covers it is
+stopped with Cease subcode 3, a peer the swap plan cannot keep is stopped with
+Cease subcode 6, and the rest swap in place through the configured peer's
+copier. Its inverse reinstalls the previous group set and undoes the swaps in
+reverse order. It does not rebuild a dynamic peer the step stopped, which is the
+one exception to the remove-peer rule above: nothing names that peer, so it is
+accepted again under the restored group when it reconnects.
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- reconcileDynamicGroupsJournaled -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- planDynamicGroupsLocked -->
+
 **A modify-peer swaps the running session's settings in place where the change
 allows it.** The decision is `peerSettingsSwapPlan`, the same one the section
 apply's reconcile takes, so which path a reload travels does not decide whether

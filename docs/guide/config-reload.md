@@ -18,6 +18,10 @@ kill -HUP $(pidof ze)               # Direct signal
 | Peer removed | Session torn down with NOTIFICATION |
 | A peer `create bgp peer` built, which the file does not declare | Nothing: the peer keeps its session. `delete bgp peer` removes it, and `update bgp config` writes it into the file |
 | Peer settings changed | Session restarted with new config |
+| A dynamic group's template changed in a way a running session can take: a receive-only `attach process` binding, or a filter chain | Every running dynamic peer of the group keeps its session and takes the change in place. An import-chain edit applies to the routes received after the reload: a route the peer sent before it and that the new chain rejects stays in `show bgp adj-rib-in` until the peer sends it again |
+| A dynamic group's template changed in a way a running session cannot take | Each running dynamic peer of the group is torn down with NOTIFICATION Cease subcode 6 (Other Configuration Change) and is accepted under the new template when it reconnects |
+| A dynamic group removed, or its range no longer covers a running dynamic peer | That peer is torn down with NOTIFICATION Cease subcode 3 (Peer De-configured) |
+| A reload that fails after the dynamic groups were applied | The previous group set and every in-place change are restored. A dynamic peer the reload tore down is not rebuilt: it is accepted under the restored group when it reconnects |
 | Plugin config changed | Plugin reloaded |
 | Static routes changed | New routes announced, old withdrawn |
 | Capability changes | Session restarted to renegotiate |

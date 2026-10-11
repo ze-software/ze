@@ -187,8 +187,8 @@ func TestSetDynamicGroups(t *testing.T) {
 	r.mu.Unlock()
 	require.NoError(t, err)
 
-	// Remove the group via SetDynamicGroups.
-	r.SetDynamicGroups(nil)
+	// Remove the group through the reload's dynamic step.
+	reloadDynamicGroups(t, r)
 
 	// Dynamic peer should be gone.
 	r.mu.RLock()

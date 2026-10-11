@@ -532,11 +532,17 @@ type Peer struct {
 	// localAddrString caches settings.LocalAddress.String() for PeerInfo snapshots.
 	localAddrString string
 
-	// dynImportFilters/dynExportFilters store the original unresolved filter
-	// chains for dynamic peers. Captured on first Established transition so
-	// reconnections re-resolve from the template, not from stale resolved values.
+	// dynImportFilters/dynExportFilters hold a dynamic peer's unresolved filter
+	// chains, its group template's, so each establishment resolves $remote_as and
+	// $remote_ip from the template rather than from a chain an earlier session
+	// already resolved. NewPeer captures them before the peer starts, and a
+	// reload's dynamic swap replaces them (writeDynamicTemplateLocked). Both are
+	// read and written under p.mu only, and every write bumps dynGeneration, so
+	// resolveDynamicPeerSettings, which resolves with the lock released, can tell
+	// that the pair it resolved was replaced meanwhile.
 	dynImportFilters []filterapi.FilterRef
 	dynExportFilters []filterapi.FilterRef
+	dynGeneration    uint64
 
 	// Collision detection (RFC 4271 §6.8):
 	// When an incoming connection arrives while we're in OpenConfirm,
@@ -642,6 +648,15 @@ func NewPeer(settings *PeerSettings) *Peer {
 		localAddrString: settings.LocalAddress.String(),
 		history:         newFSMHistory(),
 		health:          newSessionHealth(addrStr, clk),
+	}
+
+	// A dynamic peer's template pair is captured here, before the peer starts,
+	// so no establishment and no reload swap ever sees it unset: the chains
+	// still carry $remote_as and $remote_ip, because buildDynamicPeerSettings
+	// copies them from the group template unresolved.
+	if settings.IsDynamic {
+		p.dynImportFilters = settings.ImportFilters
+		p.dynExportFilters = settings.ExportFilters
 	}
 
 	return p

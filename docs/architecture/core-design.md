@@ -2263,9 +2263,11 @@ binding that may send restarts, because the process can put routes into the
 session's initial routing update and the End-of-RIB barrier counts it
 (`ProcessBinding.MayPushRoutes`). A binding that receives the OPEN restarts,
 because only a new session produces an OPEN the process can be shown. A dynamic
-peer does not take the swap yet: `dynamicTemplateChanged` restarts it on any
-template difference, a binding included, until dynamic peers join the shared
-swap.
+peer takes the same swap. The reload's dynamic step
+(`reconcileDynamicGroupsJournaled`) builds the settings the old and the next
+template give the peer's address and hands that pair to `peerSettingsSwapPlan`,
+so a receive-only binding change on a dynamic group swaps on the running
+dynamic peers, and a change the session cannot take restarts them.
 
 The apply delivers a binding change in an order (`Peer.applyHotSwappableSettings`):
 

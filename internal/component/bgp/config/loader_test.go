@@ -1589,7 +1589,7 @@ set bgp peer beta session family ipv4/unicast prefix maximum 10000
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte(candidate), time.Now())
 	require.NoError(t, err)
 
-	peers, _, err := createReloadFunc(store, &reactor.Reactor{}, nil)(configPath)
+	peers, _, _, err := createReloadFunc(store, nil)(configPath)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
 	assert.Equal(t, netip.MustParseAddr("192.0.2.2"), peers[0].Address)
@@ -1682,7 +1682,7 @@ func TestReloadFuncRefusesIncompleteCandidate(t *testing.T) {
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte(candidate), time.Now())
 	require.NoError(t, err)
 
-	_, _, err = createReloadFunc(store, &reactor.Reactor{}, nil)(configPath)
+	_, _, _, err = createReloadFunc(store, nil)(configPath)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "incomplete peer definition")
 	assert.Contains(t, err.Error(), "broken:connection/remote/ip")

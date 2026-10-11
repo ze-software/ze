@@ -108,14 +108,14 @@ func newTakeoverReactor(t *testing.T) (*Reactor, *reactorAPIAdapter, *map[string
 	file := map[string]any{"bgp": takeoverGlobals()}
 	r.configTree = file
 	r.config.ConfigPath = "ze.conf"
-	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
+	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
 		bgp, _ := file["bgp"].(map[string]any)
 		peers, err := PeersFromTree(bgp)
 		if err != nil {
-			return nil, Globals{}, err
+			return nil, Globals{}, nil, err
 		}
 		globals, err := GlobalsFromTree(bgp)
-		return peers, globals, err
+		return peers, globals, nil, err
 	})
 	api := &reactorAPIAdapter{r: r}
 	return r, api, &file

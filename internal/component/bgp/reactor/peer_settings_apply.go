@@ -250,10 +250,20 @@ func (a *reactorAPIAdapter) swapPeerSettingsJournaled(swaps []peerSettingsSwap, 
 //
 // Reading them through p.mu matters: resolveDynamicPeerSettings writes two of the
 // same fields on the establishment goroutine.
+//
+// A dynamic peer's filter chains are snapshotted as its unresolved template
+// pair, not as the running resolved chains: the undo goes back through
+// applyHotSwappableSettings, which installs what it is given as the template
+// pair (writeDynamicTemplateLocked) and resolves it again, so a resolved chain
+// would end up as the template and the next establishment could not resolve it.
 func (p *Peer) hotSwappableSnapshot(copy settingsCopier) *PeerSettings {
 	previous := &PeerSettings{}
 	p.mu.RLock()
 	copy(previous, p.settings)
+	if p.settings.IsDynamic {
+		previous.ImportFilters = p.dynImportFilters
+		previous.ExportFilters = p.dynExportFilters
+	}
 	p.mu.RUnlock()
 	return previous
 }
@@ -347,6 +357,9 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	sameSession := p.session == session && (p.State() == PeerStateEstablished) == established
 	before := p.settings.StaticRoutes
 	copy(p.settings, next)
+	if p.settings.IsDynamic {
+		p.writeDynamicTemplateLocked(next)
+	}
 	after := p.settings.StaticRoutes
 	p.mu.Unlock()
 	if r != nil {

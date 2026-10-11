@@ -1,5 +1,5 @@
 // Related: reactor_api.go — reconcilePeersJournaled, the diff under test
-// Related: reactor_dynamic.go — SetDynamicGroups, which owns the dynamic population
+// Related: reactor_dynamic.go — reconcileDynamicGroupsJournaled, which owns the dynamic population
 package reactor
 
 import (
@@ -27,8 +27,8 @@ func newDynamicReloadReactor(t *testing.T, group *DynamicGroupConfig, addr netip
 
 	r := New(&Config{ConfigPath: configPath, ListenAddr: "127.0.0.1:0", Standalone: true})
 	r.dynamicGroups = []*DynamicGroupConfig{group}
-	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
-		return newPeers, Globals{}, nil
+	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
+		return newPeers, Globals{}, []*DynamicGroupConfig{group}, nil
 	})
 
 	r.mu.Lock()
@@ -216,8 +216,8 @@ func TestReloadNeverSwapsSettingsOntoADynamicPeer(t *testing.T) {
 	require.Empty(t, reason, "the fixture must be an entry the swap plan accepts")
 	require.NotNil(t, apply)
 
-	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
-		return []*PeerSettings{&swappableOnly}, Globals{}, nil
+	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
+		return []*PeerSettings{&swappableOnly}, Globals{}, []*DynamicGroupConfig{group}, nil
 	})
 	adapter := &reactorAPIAdapter{r: r}
 	require.NoError(t, adapter.Reload())
@@ -251,9 +251,9 @@ func TestPeerDiffCountIgnoresADynamicPeerTheConfigDoesNotName(t *testing.T) {
 // path that OWNS the dynamic population leaves an unchanged one alone.
 //
 // VALIDATES: reload case 1 at its owning layer. createReloadFunc
-// (bgp/config/loader_create.go) calls SetDynamicGroups on every reload with a
-// freshly built group, so "unchanged" means structurally equal rather than the
-// same pointer. A comparison that answered "changed" for a re-parse of the same
+// (bgp/config/loader_create.go) returns the groups on every reload, and the
+// dynamic step reconciles against them, each one a freshly built group, so
+// "unchanged" means structurally equal rather than the same pointer. A comparison that answered "changed" for a re-parse of the same
 // text would reintroduce the teardown this work removes, one layer down.
 //
 // DISCRIMINATION: object identity, and the group is rebuilt rather than reused.
@@ -261,7 +261,7 @@ func TestSetDynamicGroupsKeepsThePeerWhenTheTemplateIsUnchanged(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
 	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
 
-	r.SetDynamicGroups([]*DynamicGroupConfig{dynamicReloadGroup()})
+	reloadDynamicGroups(t, r, dynamicReloadGroup())
 
 	r.mu.RLock()
 	after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
@@ -275,11 +275,9 @@ func TestSetDynamicGroupsKeepsThePeerWhenTheTemplateIsUnchanged(t *testing.T) {
 
 // TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges covers reload case 2.
 //
-// VALIDATES: a changed template reaches the peer, by restart. The swap path is
-// unreachable here on purpose: a running dynamic peer's settings were rewritten
-// at establishment (resolveDynamicPeerSettings), so they are not the template
-// the new one can be compared against, and applyHotSwappableSettings must never
-// run on a dynamic peer.
+// VALIDATES: a template change a running session cannot take (a new BGP
+// Identifier goes out only in a new OPEN) reaches the peer by restart. A change
+// it can take swaps instead (TestDynamicFilterSwapResolvesAgainstLearnedAS).
 // PREVENTS: an operator's edit to a dynamic group being discarded for the life
 // of every session accepted under the old template.
 func TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges(t *testing.T) {
@@ -287,52 +285,14 @@ func TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges(t *testing.T) {
 	r, _ := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
 
 	changed := dynamicReloadGroup()
-	changed.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:in-strict"}}
-	r.SetDynamicGroups([]*DynamicGroupConfig{changed})
+	changed.Settings.RouterID = 0x0a0a0a0a
+	reloadDynamicGroups(t, r, changed)
 
 	r.mu.RLock()
 	after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
 	r.mu.RUnlock()
 
 	assert.Nil(t, after, "a changed group template must restart the sessions built from it")
-}
-
-// TestDynamicBindingChangeRestartsBeforeSharedSwap pins R-22, the Phase 2 rule
-// that dynamicTemplateChanged fails closed: once ProcessBinding.Derived is gone,
-// a dynamic group template that gains any binding, the kind the config builder
-// adds or the kind an operator types, restarts the dynamic peers built from it.
-// A dynamic peer has no ordered bind delivery until the shared swap replaces
-// this function, and delivering a binding without it would feed a process with
-// no up before it.
-//
-// Transient by design: deleted with dynamicTemplateChanged when the journaled
-// dynamic step lands, and replaced by TestDynamicTemplateReceiveOnlySwap.
-func TestDynamicBindingChangeRestartsBeforeSharedSwap(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		bind func(*testing.T, *PeerSettings)
-	}{
-		{"builder binding", func(t *testing.T, ps *PeerSettings) {
-			require.NoError(t, EnsureProcessBinding(ps, "bgp-rib", "update-received state", ""))
-		}},
-		{"operator binding", func(t *testing.T, ps *PeerSettings) {
-			ps.ProcessBindings = append(ps.ProcessBindings, operatorBinding(t, "monitor", "update-received state", ""))
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			addr := netip.MustParseAddr("185.1.69.42")
-			r, _ := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
-
-			changed := dynamicReloadGroup()
-			tc.bind(t, changed.Settings)
-			r.SetDynamicGroups([]*DynamicGroupConfig{changed})
-
-			r.mu.RLock()
-			after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
-			r.mu.RUnlock()
-			assert.Nil(t, after, "a template binding change must restart the dynamic peer until the shared swap exists")
-		})
-	}
 }
 
 // TestSetDynamicGroupsIgnoresChangesThePeerDoesNotHold keeps the restart narrow.
@@ -348,7 +308,7 @@ func TestSetDynamicGroupsIgnoresChangesThePeerDoesNotHold(t *testing.T) {
 	wider := newTestDynamicGroup("ix", []string{"185.1.0.0/16"}, 500)
 	wider.Settings.Connection = ConnectionPassive
 	wider.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}
-	r.SetDynamicGroups([]*DynamicGroupConfig{wider})
+	reloadDynamicGroups(t, r, wider)
 
 	r.mu.RLock()
 	after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
@@ -370,7 +330,7 @@ func TestSetDynamicGroupsRemovesThePeerWhenTheRangeNoLongerCoversIt(t *testing.T
 	narrowed := newTestDynamicGroup("ix", []string{"185.1.69.0/28"}, 100)
 	narrowed.Settings.Connection = ConnectionPassive
 	narrowed.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}
-	r.SetDynamicGroups([]*DynamicGroupConfig{narrowed})
+	reloadDynamicGroups(t, r, narrowed)
 
 	r.mu.RLock()
 	after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]

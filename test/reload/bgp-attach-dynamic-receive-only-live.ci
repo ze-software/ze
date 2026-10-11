@@ -6,7 +6,7 @@
 #                 session is the dynamic one the inbound connection creates.
 #                 The peer announces 192.168.1.0/24 right after its OPEN.
 # Live change:    the peer rewrites the config and sends SIGHUP once Ze's
-#                 End-of-RIB arrived. The new config adds an external process,
+#                 End-of-RIB arrived. The new config attaches an external process,
 #                 started by that reload, bound `receive [ update-received state ]`
 #                 in the group template.
 # Expected:       no NOTIFICATION and no second TCP connection; Ze sends one
@@ -49,10 +49,18 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 EOF_PEER
 
+# The process runs from boot, attached to no peer, so no event reaches it
+# until the reload attaches it. A reload does not start an external program a
+# config newly declares (unwired-feature journal, row of 2026-10-11), and the
+# attach, not the start, is what this test is about.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	internal bgp-rib {
 		use bgp-rib
+	}
+	external attach-live {
+		run "le test fixture plugin/attach-receive-only-live"
+		encoder json
 	}
 }
 

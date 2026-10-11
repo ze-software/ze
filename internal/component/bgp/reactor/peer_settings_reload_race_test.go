@@ -56,8 +56,8 @@ func TestReloadWhileReceivingNoRace(t *testing.T) {
 
 	r, peer := newSwapTestReactor(t, initial, initial)
 	// Replace the helper's fixed one-shot reload with the alternating one.
-	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
-		return []*PeerSettings{nextSettings()}, Globals{}, nil
+	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
+		return []*PeerSettings{nextSettings()}, Globals{}, nil, nil
 	})
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.refreshForwardFacts()

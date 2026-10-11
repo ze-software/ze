@@ -80,7 +80,7 @@ func TestReloadGlobalsRollback(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	j := &internalJournal{}
-	require.NoError(t, adapter.reconcilePeersJournaled(nil, Globals{RouterID: 0x02020202, LocalAS: 65100}, "test", j))
+	require.NoError(t, adapter.reconcilePeersJournaled(nil, Globals{RouterID: 0x02020202, LocalAS: 65100}, dynamicGroupsNotRead, "test", j))
 	assert.Equal(t, Globals{RouterID: 0x02020202, LocalAS: 65100}, r.globals())
 
 	assert.Empty(t, j.Rollback())
@@ -105,7 +105,7 @@ func TestReloadMovesInfoGauge(t *testing.T) {
 	require.NotNil(t, info, "ze_info must be registered")
 
 	j := &internalJournal{}
-	require.NoError(t, adapter.reconcilePeersJournaled(nil, Globals{RouterID: 0x02020202, LocalAS: 65100}, "test", j))
+	require.NoError(t, adapter.reconcilePeersJournaled(nil, Globals{RouterID: 0x02020202, LocalAS: 65100}, dynamicGroupsNotRead, "test", j))
 
 	reloaded := info.get("test", "2.2.2.2", "65100")
 	require.NotNil(t, reloaded, "ze_info must carry the reloaded router-id and local AS")
