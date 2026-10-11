@@ -6,6 +6,7 @@ package reactor
 
 import (
 	"net/netip"
+	"slices"
 	"sync"
 	"testing"
 
@@ -48,6 +49,9 @@ func establishDynamicPeer(t *testing.T, r *Reactor, peer *Peer) *bindRecorder {
 	session.mu.Unlock()
 	peer.mu.Lock()
 	peer.session = session
+	// The plugins were told the session is up (Peer.announceEstablished).
+	peer.upSession = session
+	peer.upPhase = sessionUpDelivered
 	peer.mu.Unlock()
 	peer.resolveDynamicPeerSettings(session)
 
@@ -214,13 +218,15 @@ func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 }
 
 // TestDynamicTemplateSwapRacesEstablishment proves the template pair is read
-// and written under p.mu, and that a resolution racing a swap never publishes a
-// chain built from the template the swap replaced. The race detector is the
-// first verdict, so the test is meant for -race; the closing assertion is the
-// second: once both writers stop, a last resolution leaves the chain resolved
-// from the template the last swap installed.
+// and written under p.mu while a resolution races a swap. The race detector is
+// the verdict, so the test is meant for -race. The closing assertion reads the
+// chain the race left, with no resolution after the writers stop: the last
+// swap resolved its own template, and every resolution that read an older one
+// was refused, so the chain is the last template's. A discriminating proof of
+// the refusal, which the race detector cannot see, is
+// TestDynamicResolutionRefusedAfterSwap.
 //
-// VALIDATES: dynGeneration makes a racing resolution start again.
+// VALIDATES: AC-21, no race between the swap and the establishment resolution.
 // PREVENTS: a resolution publishing chains from a replaced template.
 func TestDynamicTemplateSwapRacesEstablishment(t *testing.T) {
 	addr := netip.MustParseAddr("185.1.69.42")
@@ -250,9 +256,138 @@ func TestDynamicTemplateSwapRacesEstablishment(t *testing.T) {
 	close(stop)
 	wg.Wait()
 
-	peer.resolveDynamicPeerSettings(session)
 	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:b-65010"}}, peer.ImportFilters(),
 		"the chain must be resolved from the template the last swap installed")
+}
+
+// TestDynamicResolutionRefusedAfterSwap proves the generation check
+// deterministically: a resolution reads the template, a swap replaces it, and
+// the resolution's publish is refused, so the running chain stays the one the
+// swap resolved from the new template.
+//
+// Method: the two halves of one resolution pass are driven by hand, with the
+// swap through the reload's dynamic step between them.
+// VALIDATES: AC-21, publishDynamicResolution refuses a replaced template.
+// PREVENTS: chains built from the replaced template overwriting the new ones.
+func TestDynamicResolutionRefusedAfterSwap(t *testing.T) {
+	addr := netip.MustParseAddr("185.1.69.42")
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	establishDynamicPeer(t, r, peer)
+
+	read := peer.readDynamicTemplate()
+	stale := resolveFilterVars(read.importTemplate, peer.settings.LocalAS, uint32(dynamicPeerRemoteAS), addr.String())
+
+	swapped := dynamicReloadGroup()
+	swapped.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:b-$remote_as"}}
+	reloadDynamicGroups(t, r, swapped)
+
+	published := peer.publishDynamicResolution(read, uint32(dynamicPeerRemoteAS), stale, nil)
+	assert.False(t, published, "a resolution of the replaced template must be refused")
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:b-65010"}}, peer.ImportFilters(),
+		"the chain must stay the one resolved from the swapped template")
+}
+
+// TestDynamicTemplatesCapturedAtConstruction proves AC-21's capture: the
+// template pair is set from the group template when the peer is built, before
+// any establishment, so an establishment after a filter swap resolves the
+// swapped template and never the first one the peer was built with.
+//
+// VALIDATES: NewPeer captures dynImportFilters / dynExportFilters.
+// PREVENTS: a lazy capture on first resolution taking the running chain, or a
+// pre-swap template, as the template.
+func TestDynamicTemplatesCapturedAtConstruction(t *testing.T) {
+	addr := netip.MustParseAddr("185.1.69.44")
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+
+	read := peer.readDynamicTemplate()
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, read.importTemplate,
+		"the template pair is the group template from construction")
+
+	session := NewSession(peer.settings)
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+	swapped := dynamicReloadGroup()
+	swapped.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:swapped-$remote_as"}}
+	reloadDynamicGroups(t, r, swapped)
+
+	session.mu.Lock()
+	session.peerOpen = &message.Open{MyAS: dynamicPeerRemoteAS, BGPIdentifier: 0x0a0b0c0d}
+	session.mu.Unlock()
+	peer.resolveDynamicPeerSettings(session)
+	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:swapped-65010"}}, peer.ImportFilters(),
+		"establishment must resolve the swapped template")
+}
+
+// establishInsideApply returns a copier that runs copier and, on its first
+// call, which applyHotSwappableSettings makes in step 1 after reading the
+// session's up phase, brings the dynamic peer to Established the way the FSM
+// does: the OPEN, the published state, the resolution and the announced up.
+func establishInsideApply(peer *Peer, copier settingsCopier) settingsCopier {
+	calls := 0
+	return func(dst, src *PeerSettings) {
+		calls++
+		if calls == 1 {
+			session := peer.currentSession()
+			session.mu.Lock()
+			session.peerOpen = &message.Open{MyAS: dynamicPeerRemoteAS, BGPIdentifier: 0x0a0b0c0d}
+			session.mu.Unlock()
+			peer.state.Store(int32(PeerStateEstablished))
+			peer.sendingInitialRoutes.Store(1)
+			peer.resolveDynamicPeerSettings(session)
+			setUpPhase(peer, sessionUpDelivered)
+		}
+		copier(dst, src)
+	}
+}
+
+// TestDynamicFilterSwapRacingEstablishmentKeepsSession proves I8: a dynamic
+// peer reaching Established between the swap's plan and its write keeps its
+// session for a filter-only swap, with the chain resolved from the swapped
+// template, and restarts when the same swap gains a process, because the FSM
+// up it raced may have read either graph.
+//
+// Method: the swap is applied with a copier that establishes the peer inside
+// step 1, after the apply judged the session not yet up.
+func TestDynamicFilterSwapRacingEstablishmentKeepsSession(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		bind    bool
+		restart bool
+	}{
+		{"filter only", false, false},
+		{"gained process", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			addr := netip.MustParseAddr("185.1.69.45")
+			r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+			rec := establishDynamicPeer(t, r, peer)
+			session := peer.currentSession()
+			peer.state.Store(int32(PeerStateConnecting))
+			session.mu.Lock()
+			session.peerOpen = nil
+			session.mu.Unlock()
+			setUpPhase(peer, sessionUpUnspecified)
+
+			next := peer.settingsSnapshot()
+			next.ImportFilters = []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}
+			if tc.bind {
+				next.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
+			}
+			copier, reason := peerSettingsSwapPlan(peer.settingsSnapshot(), next, session)
+			require.Empty(t, reason, "the swap must be planned in place")
+			peer.applyHotSwappableSettings(next, establishInsideApply(peer, copier))
+
+			assert.True(t, peer.currentSession() == session, "the session object is kept")
+			assert.Equal(t, []filterapi.FilterRef{{Name: "policy:strict-65010"}}, peer.ImportFilters(),
+				"the chain is resolved from the swapped template")
+			assert.Empty(t, rec.recorded(), "no targeted up: the apply judged the session not yet up")
+			peer.mu.RLock()
+			queued := slices.ContainsFunc(peer.opQueue, func(op peerOp) bool { return op.Type == PeerOpTeardown })
+			peer.mu.RUnlock()
+			assert.Equal(t, tc.restart, queued, "a restart only when a process was gained")
+		})
+	}
 }
 
 // TestReloadFuncAppliesNoDynamicGroups proves AC-23: a verify, a budget

@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -509,4 +510,175 @@ func TestIdenticalOperatorBindingReplacingDerived(t *testing.T) {
 	peer.applyHotSwappableSettings(next, copier)
 	assert.Empty(t, rec.recorded())
 	assert.Empty(t, conn.written())
+}
+
+// graphUpObserver stands where the event dispatcher's observer stands, and
+// records at each FSM up the processes the published graph feeds the peer's
+// state event: the set onPeerStateChange reads at delivery time and sends the
+// up to.
+type graphUpObserver struct {
+	srv *pluginserver.Server
+
+	mu  sync.Mutex
+	fed [][]string
+}
+
+func (o *graphUpObserver) OnPeerEstablished(peer *Peer) {
+	fed := recv(o.srv.DeliveryGraph(), bgpevents.EventState, events.DirUnspecified, peer.settings.Address.String())
+	o.mu.Lock()
+	o.fed = append(o.fed, fed)
+	o.mu.Unlock()
+}
+
+func (o *graphUpObserver) OnPeerClosed(*Peer, string) {}
+
+// upsTo counts the ups name received: the targeted ones the recorder saw and
+// the FSM ones whose graph read fed it.
+func upsTo(name string, rec *bindRecorder, obs *graphUpObserver) int {
+	count := 0
+	for _, step := range rec.recorded() {
+		if step.event == "up" && slices.Contains(step.processes, name) {
+			count++
+		}
+	}
+	obs.mu.Lock()
+	defer obs.mu.Unlock()
+	for _, fed := range obs.fed {
+		if slices.Contains(fed, name) {
+			count++
+		}
+	}
+	return count
+}
+
+// setUpPhase moves the peer's up phase the way announceEstablished does.
+func setUpPhase(peer *Peer, phase sessionUpPhase) {
+	peer.mu.RLock()
+	session := peer.session
+	r := peer.reactor
+	peer.mu.RUnlock()
+	peer.markSessionUp(r, session, phase)
+}
+
+// TestAttachBeforeEstablishedUpIsOneUp proves AC-17's Established window: the
+// FSM published Established and has not yet told the plugins (setState runs
+// before announceEstablished). A reload attaching a process inside that
+// window must leave it exactly one up: the FSM's own, which reads the graph the
+// reload published, and no targeted one.
+//
+// Method: an Established session whose up phase is unspecified, the apply,
+// then announceEstablished with an observer reading the graph as the
+// dispatcher does. Red when the apply judges the session by State() alone.
+func TestAttachBeforeEstablishedUpIsOneUp(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, false, true)
+	srv, rec := newBindingReactor(t, peer, conn)
+	obs := &graphUpObserver{srv: srv}
+	peer.reactor.addPeerObserver(obs)
+	session := peer.session
+	setUpPhase(peer, sessionUpUnspecified)
+
+	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason)
+	peer.applyHotSwappableSettings(next, copier)
+	peer.announceEstablished(peer.reactor, session, nil)
+
+	assert.Equal(t, 1, upsTo("monitor", rec, obs), "the attached process is told up exactly once")
+	assert.Same(t, session, peer.session, "the session is kept")
+}
+
+// TestAttachWhileUpDeliveringRestarts proves the other half of the window: the
+// FSM up is being delivered, so nobody can say whether it read the graph
+// before or after the publish. The session restarts, and the attached process
+// was told nothing targeted.
+func TestAttachWhileUpDeliveringRestarts(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, false, true)
+	_, rec := newBindingReactor(t, peer, conn)
+	setUpPhase(peer, sessionUpDelivering)
+
+	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason)
+	peer.applyHotSwappableSettings(next, copier)
+
+	assert.Empty(t, rec.recorded(), "no targeted up while the FSM up is in flight")
+	assertTeardownQueued(t, peer)
+}
+
+// TestAttachWhileUpPhaseMovesRestarts proves the step-3 comparison: the FSM up
+// starts between step 1, which saw no up, and the publish. Its graph read is
+// then on either side of the publish, so the session restarts.
+//
+// Method: the copier's first call runs inside step 1, after the phase read,
+// and moves the phase there.
+func TestAttachWhileUpPhaseMovesRestarts(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, false, true)
+	_, rec := newBindingReactor(t, peer, conn)
+	setUpPhase(peer, sessionUpUnspecified)
+
+	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason)
+	calls := 0
+	moving := func(dst, src *PeerSettings) {
+		calls++
+		if calls == 1 {
+			setUpPhase(peer, sessionUpDelivering)
+		}
+		copier(dst, src)
+	}
+	peer.applyHotSwappableSettings(next, moving)
+
+	assert.Empty(t, rec.recorded(), "no targeted up: step 1 saw no up announced")
+	assertTeardownQueued(t, peer)
+}
+
+// TestDetachedProcessToldDownWhenSessionClosesAfterPublish proves the step-4
+// down for a detached process: the session was up at step 1 and closes after
+// the publish took the process's edge away, so the FSM down will not reach it.
+// The apply tells it down anyway.
+//
+// Method: the copier's second call runs inside step 3, after the session
+// check and before the publish, and moves the peer out of Established there.
+func TestDetachedProcessToldDownWhenSessionClosesAfterPublish(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, true, true)
+	peer.settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
+	_, rec := newBindingReactor(t, peer, conn)
+
+	next := withBindings(peer.settings)
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason, "removing a receive-only binding swaps")
+	calls := 0
+	closing := func(dst, src *PeerSettings) {
+		calls++
+		if calls == 2 {
+			peer.state.Store(int32(PeerStateConnecting))
+		}
+		copier(dst, src)
+	}
+	peer.applyHotSwappableSettings(next, closing)
+
+	var events []string
+	for _, step := range rec.recorded() {
+		events = append(events, step.event+":"+strings.Join(step.processes, ","))
+	}
+	assert.Equal(t, []string{"down:monitor"}, events, "the detached process is told down")
+}
+
+// assertTeardownQueued checks the apply restarted the session: the peer is
+// still sending its initial routes, so the teardown waits in its op queue.
+func assertTeardownQueued(t *testing.T, peer *Peer) {
+	t.Helper()
+	peer.mu.RLock()
+	defer peer.mu.RUnlock()
+	for _, op := range peer.opQueue {
+		if op.Type == PeerOpTeardown {
+			return
+		}
+	}
+	t.Fatal("the apply queued no session restart")
 }

@@ -349,6 +349,27 @@ registry name of a plugin loaded with `--plugin`.
 <!-- source: internal/component/cmd/show/show.go -- handleShowEventDelivery -->
 <!-- source: internal/component/bgp/reactor/delivery_graph.go -- deliveryPeersFromSettings -->
 
+### Attached to a running peer
+
+A reload can attach a plugin to a peer whose session is already up, through a
+receive-only `attach process` block ([config reload](config-reload.md)). The
+plugin then receives a `state up` for that peer with reason `attached`. That up
+does not start the session: the peer's initial routing update already went out,
+so the up carries no initial-replay token and holds back no End-of-RIB. A plugin
+that replays routes toward a peer when it comes up must skip that replay on an
+`attached` up, or it sends the peer routes it already holds. `bgp-rib`,
+`bgp-rr`, `bgp-rs`, `bgp-watchdog`, `redistribute-orchestrator` and
+`bgp-adj-rib-in` skip it. Routes the peer announced before the attach reach the
+plugin through the ROUTE-REFRESH Ze sends after the up.
+
+A reload that detaches a plugin sends it a `state down` for that peer alone,
+and the session stays up for every other plugin. The plugin drops what it holds
+for the peer. A plugin whose grant changed receives a down, then an `attached`
+up.
+
+<!-- source: pkg/plugin/rpc/enums.go -- ReasonAttached -->
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- bindProcesses, unbindProcesses -->
+
 
 ## Invocation Modes
 

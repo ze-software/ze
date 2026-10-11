@@ -2269,7 +2269,11 @@ template give the peer's address and hands that pair to `peerSettingsSwapPlan`,
 so a receive-only binding change on a dynamic group swaps on the running
 dynamic peers, and a change the session cannot take restarts them.
 
-The apply delivers a binding change in an order (`Peer.applyHotSwappableSettings`):
+The apply delivers a binding change in an order (`Peer.applyHotSwappableSettings`).
+It judges the session up only once the FSM's own `state up` returned
+(`Peer.announceEstablished` marks the session's up phase, under the reactor lock
+the republish holds): that up reads the delivery graph when it is delivered, so
+a process attached before it starts receives it and needs no second one.
 
 1. A process whose kept binding changed grant is detached first: the running
    list is written without it, the delivery graph republished, and the process
@@ -2283,12 +2287,15 @@ The apply delivers a binding change in an order (`Peer.applyHotSwappableSettings
    lacks the new edges, so no message of the session reaches a process before
    its up.
 3. The bindings are written and the graph republished. If the session is no
-   longer the one the up was about (it closed, or it reached Established inside
-   the window), the attached processes are told down again and the session
-   restarts: no process holds an up for a session that is gone, or two ups.
+   longer the one the up was about (it closed, or its up phase moved inside the
+   window), or the FSM up was being delivered when the apply began, the
+   attached processes are told down again and the session restarts: no process
+   holds an up for a session that is gone, or two ups.
 4. Processes that lost their binding are told the peer is down for them alone,
-   so they drop its routes while the others keep them, and each attached process
-   is caught up in the directions its grant covers (`Session.bindingCatchUp`).
+   whenever any up for the session may have reached them, including when the
+   session closed after the republish, so they drop its routes while the others
+   keep them. Each attached process is caught up in the directions its grant
+   covers (`Session.bindingCatchUp`).
 
 | The grant | The session | Catch-up |
 |-----------|-------------|----------|

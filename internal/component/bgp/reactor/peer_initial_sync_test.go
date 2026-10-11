@@ -63,6 +63,10 @@ func newInitialSyncPeer(t *testing.T, established bool, families ...family.Famil
 
 	peer.mu.Lock()
 	peer.session = session
+	// The peer is Established, so the plugins were told it is up
+	// (Peer.announceEstablished).
+	peer.upSession = session
+	peer.upPhase = sessionUpDelivered
 	peer.mu.Unlock()
 
 	// What setState does when it publishes Established: close the queueing gate

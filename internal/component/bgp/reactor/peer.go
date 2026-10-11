@@ -480,6 +480,13 @@ type Peer struct {
 	peerUpReadyOnce sync.Once     // Ensures the channel is closed only once
 	peerUpCount     atomic.Int32  // Deliveries acknowledged since session start
 
+	// How far the plugins were told that upSession is up (markSessionUp). Both
+	// are guarded by mu and written with the reactor's mu held as well, so a
+	// reload's graph publish, which holds the reactor's mu, is ordered against
+	// every phase change (applyHotSwappableSettings).
+	upSession *Session
+	upPhase   sessionUpPhase
+
 	// Goroutine control
 	ctx    context.Context
 	cancel context.CancelFunc

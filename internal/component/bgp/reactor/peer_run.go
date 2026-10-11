@@ -338,6 +338,10 @@ func (p *Peer) runOnce() error {
 		p.resetInitialSyncEOR()
 		p.mu.Lock()
 		p.session = nil
+		// The phase belongs to the session that ended. A reload compares the
+		// session pointer as well, so this write needs no reactor lock.
+		p.upSession = nil
+		p.upPhase = sessionUpUnspecified
 		p.mu.Unlock()
 	}()
 
@@ -519,9 +523,10 @@ func (p *Peer) runOnce() error {
 			p.mu.RLock()
 			reactor := p.reactor
 			p.mu.RUnlock()
+			// announceEstablished marks the phases a reload racing this
+			// delivery reads (applyHotSwappableSettings).
 			if reactor != nil {
-				reactor.notifyPeerEstablished(p)
-				reactor.notifyPeerNegotiated(p, neg)
+				p.announceEstablished(reactor, session, neg)
 			}
 
 			// Open a BFD session for this peer if the operator

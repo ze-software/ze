@@ -542,44 +542,70 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	// pair inside one resolveFilterVars call, so it is bounded by the reloads an
 	// operator issues during one establishment.
 	for {
-		p.mu.RLock()
-		generation := p.dynGeneration
-		importTemplate := p.dynImportFilters
-		exportTemplate := p.dynExportFilters
-		p.mu.RUnlock()
-
+		read := p.readDynamicTemplate()
 		var newImport, newExport []filterapi.FilterRef
-		if importTemplate != nil {
-			newImport = resolveFilterVars(importTemplate, localAS, remoteAS, remoteIP)
+		if read.importTemplate != nil {
+			newImport = resolveFilterVars(read.importTemplate, localAS, remoteAS, remoteIP)
 		}
-		if exportTemplate != nil {
-			newExport = resolveFilterVars(exportTemplate, localAS, remoteAS, remoteIP)
+		if read.exportTemplate != nil {
+			newExport = resolveFilterVars(read.exportTemplate, localAS, remoteAS, remoteIP)
 		}
-
-		// Publish the three mutable settings fields under p.mu so cross-goroutine readers
-		// (the routerid_unique.go identifier claim, PeerInfo builders, API/plugin Settings
-		// snapshots, filter getters) observe consistent values via the
-		// PeerAS()/ImportFilters()/ExportFilters() accessors, never a torn slice header or
-		// an unsynchronized PeerAS.
-		p.mu.Lock()
-		if p.dynGeneration != generation {
-			p.mu.Unlock()
-			continue
+		if p.publishDynamicResolution(read, remoteAS, newImport, newExport) {
+			break
 		}
-		p.settings.PeerAS = remoteAS
-		if newImport != nil {
-			p.settings.ImportFilters = newImport
-		}
-		if newExport != nil {
-			p.settings.ExportFilters = newExport
-		}
-		p.mu.Unlock()
-		break
 	}
 
 	// refreshForwardFacts runs AFTER releasing p.mu because it re-acquires
 	// p.mu.RLock (peer_forward_facts.go) and RWMutex is not reentrant.
 	p.refreshForwardFacts()
+}
+
+// dynamicTemplateRead is one read of a dynamic peer's unresolved template
+// pair, with the generation it was read at (Peer.readDynamicTemplate).
+type dynamicTemplateRead struct {
+	generation     uint64
+	importTemplate []filterapi.FilterRef
+	exportTemplate []filterapi.FilterRef
+}
+
+// readDynamicTemplate reads the template pair and its generation under p.mu.
+// The caller resolves it with the lock released and hands the result to
+// publishDynamicResolution with this read.
+func (p *Peer) readDynamicTemplate() dynamicTemplateRead {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return dynamicTemplateRead{
+		generation:     p.dynGeneration,
+		importTemplate: p.dynImportFilters,
+		exportTemplate: p.dynExportFilters,
+	}
+}
+
+// publishDynamicResolution publishes the AS learned from the OPEN and the
+// chains resolved from read, and reports whether it did. It publishes nothing
+// and returns false when a swap replaced the template pair since read
+// (writeDynamicTemplateLocked bumps dynGeneration): those chains were built
+// from a template the operator no longer has, and the caller resolves again.
+//
+// The three fields are written under p.mu so cross-goroutine readers (the
+// routerid_unique.go identifier claim, PeerInfo builders, API/plugin Settings
+// snapshots, filter getters) observe consistent values via the
+// PeerAS()/ImportFilters()/ExportFilters() accessors, never a torn slice header
+// or an unsynchronized PeerAS.
+func (p *Peer) publishDynamicResolution(read dynamicTemplateRead, remoteAS uint32, newImport, newExport []filterapi.FilterRef) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.dynGeneration != read.generation {
+		return false
+	}
+	p.settings.PeerAS = remoteAS
+	if newImport != nil {
+		p.settings.ImportFilters = newImport
+	}
+	if newExport != nil {
+		p.settings.ExportFilters = newExport
+	}
+	return true
 }
 
 // writeDynamicTemplateLocked is the dynamic half of a swap's write section

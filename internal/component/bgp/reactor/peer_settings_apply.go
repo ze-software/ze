@@ -312,12 +312,21 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	// it is up, and which processes the copy attaches and detaches. The copy runs
 	// onto a probe holding the running bindings, so it decides exactly as it
 	// will on the peer.
+	//
+	// The session counts as up only once the FSM's up returned
+	// (sessionUpDelivered): that up read the graph before the step-3 publish,
+	// so an attached process missed it and is owed a targeted one. Before the
+	// FSM up starts, it will read the published graph, so a targeted up would
+	// be a second one. While it is being delivered, nobody can say which graph
+	// it read, so an attach then restarts the session in step 4.
 	p.mu.RLock()
 	r := p.reactor
 	session := p.session
 	bindingsBefore := p.settings.ProcessBindings
+	announced := p.upPhaseLocked(session)
 	p.mu.RUnlock()
-	established := p.State() == PeerStateEstablished
+	stateUp := p.State() == PeerStateEstablished
+	established := stateUp && announced == sessionUpDelivered
 	probe := PeerSettings{ProcessBindings: bindingsBefore}
 	copy(&probe, next)
 	bindingsAfter := probe.ProcessBindings
@@ -354,7 +363,10 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 		r.mu.Lock()
 	}
 	p.mu.Lock()
-	sameSession := p.session == session && (p.State() == PeerStateEstablished) == established
+	// The phase is read under r.mu, which every phase change also holds, so a
+	// phase equal to step 1's did not move before this publish.
+	announcedAtWrite := p.upPhaseLocked(session)
+	sameSession := p.session == session && (p.State() == PeerStateEstablished) == stateUp && announcedAtWrite == announced
 	before := p.settings.StaticRoutes
 	copy(p.settings, next)
 	if p.settings.IsDynamic {
@@ -370,21 +382,28 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	}
 
 	// Step 4: the detached processes are told down, and the attached ones
-	// caught up. A session that closed, or reached Established, inside the
-	// window holds attached processes with a missing or a second up, so it
+	// caught up. A session whose up phase moved inside the window, or that
+	// closed, holds attached processes with a missing or a second up, so it
 	// restarts instead, after telling down the ones step 2 told up.
-	switch {
-	case len(gained) > 0 && !sameSession:
-		if established {
-			p.unbindProcesses(r, gained)
-			p.unbindProcesses(r, detached)
-		}
-		p.restartForBinding(gained, "session changed while processes were bound to it: restarting the session")
-	case p.State() == PeerStateEstablished:
+	//
+	// A detached process is told down whenever any up may have reached it: an
+	// FSM up that read the graph before the publish fed it, and the FSM down
+	// of a session closing after the publish no longer does. A second down is
+	// harmless, a missing one leaves it holding the session's routes. Only a
+	// session no up was announced for, at step 1 or at the publish, owes it
+	// nothing: its up reads the graph without the edge.
+	restart := len(gained) > 0 && (!sameSession || announced == sessionUpDelivering)
+	if restart && established {
+		p.unbindProcesses(r, gained)
+	}
+	if announced != sessionUpUnspecified || announcedAtWrite != sessionUpUnspecified {
 		p.unbindProcesses(r, detached)
-		if established {
-			p.catchUpBoundProcesses(bindingsAfter, gained)
-		}
+	}
+	switch {
+	case restart:
+		p.restartForBinding(gained, "session changed while processes were bound to it: restarting the session")
+	case established && p.State() == PeerStateEstablished:
+		p.catchUpBoundProcesses(bindingsAfter, gained)
 	}
 
 	p.refreshForwardFactsIfLive()

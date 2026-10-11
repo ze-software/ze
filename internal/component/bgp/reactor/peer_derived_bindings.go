@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -59,7 +60,13 @@ var routeFreeReceiveTypes = map[string]bool{
 // The OPEN refuses it because only a new session produces an OPEN the process
 // can be shown, and the wildcard grants the OPEN.
 func (b *ProcessBinding) receiveOnly() bool {
-	if b.SendAll || len(b.Send) > 0 || b.ReceiveAll {
+	if b.SendAll {
+		return false
+	}
+	if len(b.Send) > 0 {
+		return false
+	}
+	if b.ReceiveAll {
 		return false
 	}
 	return b.Receive[bgpevents.EventOpen] == events.DirUnspecified
@@ -319,6 +326,65 @@ func (p *Peer) writeBindings(r *Reactor, bindings []ProcessBinding) {
 	}
 }
 
+// sessionUpPhase is how far the plugins were told that one session is up. A
+// reload that attaches a process reads it to decide whether the process owes a
+// targeted up (Peer.applyHotSwappableSettings), because the FSM's own up reads
+// the delivery graph at delivery time (onPeerStateChange) and so reaches every
+// process whose edge was published before that read.
+type sessionUpPhase uint8
+
+const (
+	// sessionUpUnspecified: nothing told the plugins this session is up. The
+	// FSM up has not started, so it will read a graph published from here on.
+	sessionUpUnspecified sessionUpPhase = iota
+	// sessionUpDelivering: the FSM up is being delivered, and it reads the graph
+	// at a point no reader can place, so it may or may not see an edge
+	// published now.
+	sessionUpDelivering
+	// sessionUpDelivered: the FSM up returned, so it read the graph before
+	// anything published from here on.
+	sessionUpDelivered
+)
+
+// upPhaseLocked returns how far the plugins were told that session is up. A
+// session other than the one the phase was recorded for was told nothing.
+// The caller MUST hold p.mu.
+func (p *Peer) upPhaseLocked(session *Session) sessionUpPhase {
+	if session == nil {
+		return sessionUpUnspecified
+	}
+	if p.upSession != session {
+		return sessionUpUnspecified
+	}
+	return p.upPhase
+}
+
+// markSessionUp records how far the plugins were told that session is up. It
+// writes under r.mu as well as p.mu because the reload's graph publish holds
+// r.mu while it reads the phase (applyHotSwappableSettings step 3): a phase
+// that moves to sessionUpDelivering after that read moved after the publish,
+// so the FSM up it precedes reads the published graph.
+func (p *Peer) markSessionUp(r *Reactor, session *Session, phase sessionUpPhase) {
+	r.mu.Lock()
+	p.mu.Lock()
+	p.upSession = session
+	p.upPhase = phase
+	p.mu.Unlock()
+	r.mu.Unlock()
+}
+
+// announceEstablished tells the plugins that session reached Established: the
+// state up and the negotiated capabilities, each to the processes the delivery
+// graph feeds when it is read. The phase marks around the two deliveries are
+// what lets a reload racing them give each attached process exactly one up.
+// The caller MUST hold neither r.mu nor p.mu.
+func (p *Peer) announceEstablished(r *Reactor, session *Session, neg *capability.Negotiated) {
+	p.markSessionUp(r, session, sessionUpDelivering)
+	r.notifyPeerEstablished(p)
+	r.notifyPeerNegotiated(p, neg)
+	p.markSessionUp(r, session, sessionUpDelivered)
+}
+
 // bindProcesses tells the named processes, whose bindings bindings holds, that
 // the running session is up for them: a state up with reason
 // rpc.ReasonAttached to the ones granted the state event, then the negotiated
@@ -334,7 +400,10 @@ func (p *Peer) writeBindings(r *Reactor, bindings []ProcessBinding) {
 // session's messages away from a process that has not been told it is up.
 func (p *Peer) bindProcesses(r *Reactor, session *Session, bindings []ProcessBinding, names []string) {
 	sink := bindEventsOf(r)
-	if sink == nil || len(names) == 0 {
+	if sink == nil {
+		return
+	}
+	if len(names) == 0 {
 		return
 	}
 	stateNames := grantedProcesses(bindings, names, (*ProcessBinding).ReceivesPeerState)
@@ -368,7 +437,10 @@ func (p *Peer) bindProcesses(r *Reactor, session *Session, bindings []ProcessBin
 // process subscribed to state events.
 func (p *Peer) unbindProcesses(r *Reactor, names []string) {
 	sink := bindEventsOf(r)
-	if sink == nil || len(names) == 0 {
+	if sink == nil {
+		return
+	}
+	if len(names) == 0 {
 		return
 	}
 	info := establishedPeerInfo(p)
