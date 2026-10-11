@@ -517,6 +517,24 @@ Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scrat
 
 Tests: `TestAuthJoinRefusalNamesApplicableFix` (untagged) gained the pinned-no-profile case and two edited-profile cases (applied through `runtimeState.applyConfig`), plus release, retry and no-empty-interface assertions. Overlay reds: dropping the edited branch reddens exactly the two edited cases (`red-nobranch.log`); always printing the interface reddens all seven (`red-emptyiface.log`); the HEAD producer reddens all seven (`red.log`). `./le --name bfdr4 test bgp plugin --pattern bgp-bfd-auth`: 105 and 106 PASS (`ci-green.log`). Race with the gate tags over `bfd/...`, `static/...`, `test/fixture/...`: ok (`race.log`). No RFC-tagged test asserts the changed text.
 
+## Review round 5 fixes, 2026-10-11
+
+Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-rfc-verdict-bfd-r5.md` (0 BLOCKER, 4 ISSUE, 5 NOTE). Main-thread direction: the refusal is short (what differs, why, the one fix for the case, one pointer to `docs/guide/bfd.md` "Editing live" only where a release is the fix), and the release and retry detail lives in the guide alone. Evidence in `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/red-bfd-r6/`.
+
+| # | Finding | Fixed by | Evidence |
+|---|---------|----------|----------|
+| ISSUE 1 | `request peer <address> teardown` is refused (cease-subcode mandatory) | the commit that carries this row | the refusal no longer names any release command; the guide names `request peer <address> teardown 4` (Cease subcode 4, administrative reset) |
+| ISSUE 2 | OSPF retry omitted `reconcileBFD` | same commit | guide OSPF row: enabled again and committed (a Full neighbor asks at once), or the neighbor next reaches Full, and a refused interface asks again at any commit that changes the `ospf` config; `reconcileBFD` added to the source anchors |
+| ISSUE 3 | refusal 1,400 to 1,600 characters | same commit | `authReleaseHow`, `authRetryHow` and `ospfDisableHow` deleted; each case names one fix that changes only the refused client, except the edited-profile case, which names the release and the guide. Seven cases measure 323 to 372 characters (`print.log`); `TestAuthJoinRefusalNamesApplicableFix` asserts at most 400 and that only the edited cases point at the guide. `ErrAuthMismatch` shortened to "BFD authentication differs from the live session's". `.ci` and fixture spans follow |
+| ISSUE 4 | no test pinned `entry.authFrom = req.Profile` in `replaceAuth` | same commit | `engine.TestReviveRecordsTheRevivingProfile`, exact-key and shared revive of a released "open" session by "rekeyed": a "secure" request's refusal names "the session was built from bfd profile \"rekeyed\"", an "open" request gets the case-2 fix naming "rekeyed" and not the edited text. Overlay with the line removed: both subtests FAIL (`red-noauthfrom.log`) |
+| NOTE 1 | overlay reds predated the committed text | same commit | both reds rerun against this commit's `auth_join.go` with one change each: edited branch off reddens exactly the two edited cases (`red-noedited.log`); always printing the interface reddens all seven (`red-emptyiface.log`) |
+| NOTE 2 | strict BGP also released by `delete bgp peer`, and created peers | same commit | guide strict row names `delete bgp peer <address>` and `create bgp peer`; asks again when added back, at its first connection attempt, and a refused strict peer at each attempt |
+| NOTE 3 | static: any route change releases and re-asks; no-profile static next-hop is no client | same commit | guide static row "removed or changed", "added back, or at once when changed", row limited to a next-hop that names a profile; sharing table row 3 no longer names a static next-hop |
+| NOTE 4 | pinned asks again only at a commit changing the `bfd` section | same commit | guide pinned row says so, and that a refusal fails that commit's apply |
+| NOTE 5 | release order | same commit | guide: release the BGP peers last, tear a peer down again if it rejoined first |
+
+Tests: `TestAuthJoinRefusalNamesApplicableFix` and `TestReviveRecordsTheRevivingProfile` green. `./le --name bfdr6 test bgp plugin --pattern bgp-bfd-auth`: 105 and 106 PASS (`ci-green.log`). Race with the gate tags over `bfd/...`, `static/...`, `test/fixture/...`: ok (`race.log`). Scoped lint over `bfd/...` and `test/fixture/...`: no finding in a changed file (`lint.log`). `./le rfc check`: no rfc5880, rfc5881 or rfc5882 violation (`rfccheck.log`; the 17 are rfc4271, rfc4760 and rfc7296). No RFC-tagged test asserts the changed text.
+
 ## Review Gate
 
 | Field | Value |

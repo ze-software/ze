@@ -86,8 +86,7 @@ var ErrUnknownSession = errors.New("bfd: session no longer exists")
 // (RFC 5882 Section 4.4: clients of one remote system "MUST share a single BFD
 // session"), and the config change that resolves it. Every client logs that
 // text as its refusal; errors.Is matches this sentinel for each case.
-var ErrAuthMismatch = errors.New("this client's BFD authentication differs from that of the live " +
-	"session to the same neighbor")
+var ErrAuthMismatch = errors.New("BFD authentication differs from the live session's")
 
 // MetricsHook is the Loop-level notification channel for the BFD
 // plugin's Prometheus metrics. The engine calls the hook's methods

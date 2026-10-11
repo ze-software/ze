@@ -52,18 +52,18 @@ const authJoinEditedSection = `{"bfd":{"profile":{` +
 // TestAuthJoinRefusalNamesApplicableFix opens a session with the first
 // request, applies the edit config when the case has one, asks again with the
 // second, and checks the refusal: it matches engine.ErrAuthMismatch, says
-// why, carries the fix for the case it met, says when a fix takes effect, and
-// never carries a fix that case cannot apply. The OSPF cases are the reason
-// the fix is per case: with OSPF on either side, "give every client the same
-// auth block" cannot be done, so the refusal names dropping the auth block or
-// disabling bfd on the OSPF interface. The edited-profile cases are the
-// reason the refusal names the release: a live session keeps the
-// authentication it was built with, so naming the profile it was built from
-// cannot help once that profile changed.
+// why, carries the one fix for the case it met, never carries a fix that case
+// cannot apply, and stays short enough to read in a log line. The OSPF cases
+// are the reason the fix is per case: with OSPF on either side, "give every
+// client the same auth block" cannot be done. The edited-profile cases are
+// the reason the refusal names the release and the guide: a live session
+// keeps the authentication it was built with, so naming the profile it was
+// built from cannot help once that profile changed. Every other case fixes
+// the refused client only, so it points nowhere else.
 func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
-	const impossibleForOSPF = "on this client, or give"
-	const release = "a live session keeps the authentication it was built with until every client has released it"
-	const retry = "a refused client asks again when it next starts BFD"
+	const impossibleForOSPF = "or copy its auth block into"
+	const editingLive = `(docs/guide/bfd.md, "Editing live")`
+	const refusalCharsMax = 400
 	cases := []struct {
 		name    string
 		first   api.SessionRequest
@@ -77,9 +77,8 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			first:  ospfShapedRequest(),
 			second: bgpPeerSessionRequest("secure"),
 			want: []string{
-				"the live session runs no authentication but this client's bfd profile \"secure\" carries an auth block",
-				"to fix it, remove the auth block from this client's bfd profile \"secure\"",
-				"on every OSPF interface to this neighbor, set bfd { enabled false; } or delete its bfd block",
+				"the session runs none, bfd profile \"secure\" has an auth block",
+				"to fix it, remove the auth block from bfd profile \"secure\"",
 			},
 			without: impossibleForOSPF,
 		},
@@ -88,9 +87,9 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			first:  bgpPeerSessionRequest("secure"),
 			second: ospfShapedRequest(),
 			want: []string{
-				"the live session runs authentication but this client names no bfd profile",
-				"to fix it, remove the auth block from the other clients' bfd profiles for this neighbor",
-				"an OSPF interface, whose bfd block carries no authentication, can instead set bfd { enabled false; } or delete its bfd block",
+				"the session authenticates, this client names no bfd profile",
+				"to fix it, name bfd profile \"secure\" on this client, or set " +
+					"bfd { enabled false; } if it is an OSPF interface",
 			},
 			without: impossibleForOSPF,
 		},
@@ -99,9 +98,8 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			first:  bgpPeerSessionRequest("secure"),
 			second: pinnedNoProfileRequest(),
 			want: []string{
-				"the live session runs authentication but this client names no bfd profile",
-				"to fix it, remove the auth block from the other clients' bfd profiles for this neighbor",
-				"a pinned single-hop-session or multi-hop-session can instead name a bfd profile with the same auth { type; key-id; secret; } block",
+				"the session authenticates, this client names no bfd profile",
+				"to fix it, name bfd profile \"secure\" on this client",
 			},
 		},
 		{
@@ -109,8 +107,8 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			first:  bgpPeerSessionRequest("secure"),
 			second: bgpPeerSessionRequest("open"),
 			want: []string{
-				"this client's bfd profile \"open\" carries no auth block",
-				"to fix it, give bfd profile \"open\" the same auth { type; key-id; secret; } block",
+				"the session authenticates, bfd profile \"open\" has no auth block",
+				"to fix it, give bfd profile \"open\" the auth block of bfd profile \"secure\"",
 			},
 		},
 		{
@@ -118,8 +116,8 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			first:  bgpPeerSessionRequest("secure"),
 			second: bgpPeerSessionRequest("rekeyed"),
 			want: []string{
-				"this client's bfd profile \"rekeyed\" carries a different auth block from the live session's, which was built from bfd profile \"secure\"",
-				"to fix it, name bfd profile \"secure\" " + impossibleForOSPF,
+				"the session was built from bfd profile \"secure\", this client names \"rekeyed\"",
+				"to fix it, name bfd profile \"secure\" on this client, or copy its auth block into \"rekeyed\"",
 			},
 		},
 		{
@@ -128,9 +126,8 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			edit:   authJoinEditedSection,
 			second: bgpPeerSessionRequest("secure"),
 			want: []string{
-				"this client's bfd profile \"secure\" is the profile the live session's authentication was built from, and its auth block has changed since",
-				"to fix it, apply the edit by releasing the session from every client",
-				"run 'request peer <address> teardown' for each BGP peer",
+				"bfd profile \"secure\" changed after the session was built from it",
+				"to fix it, release the session from every client to apply the edit " + editingLive,
 			},
 			without: impossibleForOSPF,
 		},
@@ -140,10 +137,10 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			edit:   authJoinEditedSection,
 			second: bgpPeerSessionRequest("open"),
 			want: []string{
-				"this client's bfd profile \"open\" is the profile the live session's authentication was built from, and its auth block has changed since",
-				"to fix it, apply the edit by releasing the session from every client",
+				"bfd profile \"open\" changed after the session was built from it",
+				"to fix it, release the session from every client to apply the edit " + editingLive,
 			},
-			without: "remove the auth block from this client's",
+			without: "remove the auth block from",
 		},
 	}
 	for _, tc := range cases {
@@ -165,9 +162,8 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			text := err.Error()
 			want := append([]string{
 				engine.ErrAuthMismatch.Error(),
-				"every client of one remote system shares one BFD session (RFC 5882 Section 4.4)",
-				release,
-				retry,
+				"one session per neighbor runs one authentication (RFC 5882 Section 4.4), " +
+					"so this client runs without BFD",
 			}, tc.want...)
 			for _, w := range want {
 				if !strings.Contains(text, w) {
@@ -176,6 +172,12 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			}
 			if tc.without != "" && strings.Contains(text, tc.without) {
 				t.Errorf("refusal %q\nnames %q, which this case cannot apply", text, tc.without)
+			}
+			if tc.edit == "" && strings.Contains(text, editingLive) {
+				t.Errorf("refusal %q\npoints at the release guide, but its fix changes this client only", text)
+			}
+			if len(text) > refusalCharsMax {
+				t.Errorf("refusal is %d characters, want at most %d: %q", len(text), refusalCharsMax, text)
 			}
 			if strings.Contains(text, "interface \"\"") {
 				t.Errorf("refusal %q\nnames an empty interface", text)

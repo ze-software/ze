@@ -66,9 +66,9 @@ func joinAuthCheck(entry *sessionEntry, req api.SessionRequest, key api.Key) err
 		return nil
 	}
 	what, fix := authMismatchCase(entry.auth, entry.authFrom, req)
-	return fmt.Errorf("bfd: session to peer %s%s vrf %s: %w: %s; %s; to fix it, %s; %s; %s",
+	return fmt.Errorf("bfd: session to peer %s%s vrf %s: %w: %s; %s; to fix it, %s",
 		key.Peer, refusalInterface(key.Interface), key.VRF, ErrAuthMismatch, what,
-		authMismatchWhy, fix, authReleaseHow, authRetryHow)
+		authMismatchWhy, fix)
 }
 
 // refusalInterface names the interface a refusal's key carries, and nothing
@@ -82,103 +82,59 @@ func refusalInterface(name string) string {
 
 // authMismatchWhy says why a client whose authentication differs gets no
 // session, whichever side differs.
-const authMismatchWhy = "every client of one remote system shares one BFD session " +
-	"(RFC 5882 Section 4.4) that runs one authentication, so this client gets no BFD session"
-
-// authReleaseHow says when a profile edit reaches a live session, and how to
-// make it. Authentication is set only when a session is created or revived
-// (createSessionLocked, replaceAuth), and a config commit re-requests nothing
-// a client already holds: a pinned session is re-requested only for a key it
-// does not hold (applyPinned), and a BGP peer, a static route and an OSPF
-// interface ask only when they start BFD. So a fix that edits a profile a
-// client already holds the session under applies once every client has let
-// go, and each client lets go only through the change named here.
-const authReleaseHow = "a live session keeps the authentication it was built with until " +
-	"every client has released it, so an edit to another client's profile, or to the " +
-	"profile the session was built from, reaches it only then: remove each pinned " +
-	"single-hop-session or multi-hop-session to this neighbor and commit, run " +
-	"'request peer <address> teardown' for each BGP peer (a strict-mode peer releases " +
-	"only when it is removed from the config), remove each static route whose next-hop " +
-	"uses it, and set bfd { enabled false; } on each OSPF interface to it"
-
-// authRetryHow says when a refused client asks again, which is when a fix to
-// its own profile takes effect: each kind of client asks only when it starts
-// BFD (applyPinned, startBFDClient, setupBFDLocked, bfdNeighborFull).
-const authRetryHow = "a refused client asks again when it next starts BFD: a pinned session " +
-	"at the next commit, a strict-mode BGP peer at its next connection attempt, any other " +
-	"BGP peer when its session next reaches Established, a static route when it is removed " +
-	"and added back, and an OSPF interface when its neighbor next reaches Full"
-
-// ospfDisableHow is the change that takes an OSPF interface out of BFD: its
-// bfd block's enabled leaf, which defaults to false, so deleting the block
-// does the same.
-const ospfDisableHow = "set bfd { enabled false; } or delete its bfd block"
+const authMismatchWhy = "one session per neighbor runs one authentication " +
+	"(RFC 5882 Section 4.4), so this client runs without BFD"
 
 // authMismatchCase names what differs between the live session's
-// authentication and the request's, and the config change that resolves it.
-// The fix depends on which side runs authentication, because one kind of
-// client can never carry any: an OSPF interface's bfd block names no profile
-// and no auth block (ospf bfdRequestForNeighbor), so a fix that adds an auth
-// block to every client cannot apply when OSPF runs BFD to the neighbor. The
-// engine does not know which protocol a client is, so a case OSPF can reach
-// names the fix that works when one client is OSPF. The caller MUST have
+// authentication and the request's, and the one config change that resolves
+// it. The refusal stays short: when a change takes effect, and how each kind
+// of client releases a session, is in docs/guide/bfd.md "Editing live", which
+// the refusal names only where a release is the fix. The caller MUST have
 // found the two configurations different (sameAuth).
 //
+// Each fix but the edited-profile one changes only the refused client, so it
+// takes effect when that client next asks: a live session keeps the
+// authentication it was built with (it is set only in createSessionLocked and
+// replaceAuth), so a fix that edits another client's profile would wait for
+// every client to release the session.
+//
 // liveFrom names the profile the live session's authentication came from
-// (sessionEntry.authFrom). A client naming that same profile with different
-// authentication means the profile was edited after the session was built:
-// profiles resolve when a client asks (resolveProfile), so the one name
-// resolved to two auth blocks at two times. No fix to a profile helps then,
-// because the session keeps what it was built with, so the refusal names the
-// release that applies the edit.
+// (sessionEntry.authFrom). Authentication reaches a request only through a
+// profile (profileConfig.applyTo), so liveFrom is never empty when live is
+// not nil. A client naming that same profile with different authentication
+// means the profile was edited after the session was built: profiles resolve
+// when a client asks (resolveProfile), so the one name resolved to two auth
+// blocks at two times. Only a release by every client applies that edit.
+//
+// An OSPF interface's bfd block names no profile and no auth block (ospf
+// bfdRequestForNeighbor), and the engine does not know which protocol a
+// client is, so the no-profile case names the OSPF fix beside the profile one.
 func authMismatchCase(live *api.AuthSettings, liveFrom string, req api.SessionRequest) (what, fix string) {
 	if req.Profile != "" && req.Profile == liveFrom {
-		return "this client's " + clientProfile(req.Profile) + " is the profile the live " +
-				"session's authentication was built from, and its auth block has changed since",
-			"apply the edit by releasing the session from every client as below, so the next " +
-				"client to ask builds it from the profile as it is now"
+		return clientProfile(req.Profile) + " changed after the session was built from it",
+			"release the session from every client to apply the edit " +
+				"(docs/guide/bfd.md, \"Editing live\")"
 	}
 	if live == nil {
-		// The live session runs none. Its client may be an OSPF interface,
-		// which cannot take an auth block, so dropping this client's block
-		// is the fix that always works.
-		return "the live session runs no authentication but this client's " +
-				clientProfile(req.Profile) + " carries an auth block",
-			"remove the auth block from this client's " + clientProfile(req.Profile) +
-				", or give every other client of this neighbor a bfd profile with the same " +
-				"auth { type; key-id; secret; } block and, on every OSPF interface to this neighbor, " +
-				ospfDisableHow + ", because an OSPF interface's bfd block carries no authentication"
+		return "the session runs none, " + clientProfile(req.Profile) + " has an auth block",
+			"remove the auth block from " + clientProfile(req.Profile)
 	}
 	if req.Auth == nil {
 		if req.Profile != "" {
-			// A client that named a profile is not OSPF, so it can take
-			// the auth block.
-			return "the live session runs authentication but this client's " +
-					clientProfile(req.Profile) + " carries no auth block",
-				"give " + clientProfile(req.Profile) + " the same auth { type; key-id; secret; } " +
-					"block as the other clients of this neighbor, or remove the auth block from their profiles"
+			return "the session authenticates, " + clientProfile(req.Profile) + " has no auth block",
+				"give " + clientProfile(req.Profile) + " the auth block of " + clientProfile(liveFrom)
 		}
-		// No profile: an OSPF interface, or a BGP peer, static next-hop or
-		// pinned session that names none. Removing the other clients' auth
-		// block works for all four.
-		return "the live session runs authentication but this client names no bfd profile, " +
-				"so it runs none",
-			"remove the auth block from the other clients' bfd profiles for this neighbor; " +
-				"a BGP peer, a static next-hop or a pinned single-hop-session or " +
-				"multi-hop-session can instead name a bfd profile with the same " +
-				"auth { type; key-id; secret; } block, and an OSPF interface, whose bfd block " +
-				"carries no authentication, can instead " + ospfDisableHow
+		// No profile: an OSPF interface, or a BGP peer or pinned session
+		// that names none.
+		return "the session authenticates, this client names no bfd profile",
+			"name " + clientProfile(liveFrom) + " on this client, or set " +
+				"bfd { enabled false; } if it is an OSPF interface"
 	}
 	// Both run authentication, so both named a profile and neither is OSPF.
-	// The live session's profile may have been edited since it was built;
-	// naming it then meets the edited-profile branch above, which names the
-	// release.
-	return "this client's " + clientProfile(req.Profile) + " carries a different auth block " +
-			"from the live session's, which was built from " + clientProfile(liveFrom),
-		"name " + clientProfile(liveFrom) + " on this client, or give " +
-			clientProfile(req.Profile) + " the auth { type; key-id; secret; } block of " +
-			clientProfile(liveFrom) + ", or give every other client of this neighbor the " +
-			"auth block of " + clientProfile(req.Profile)
+	return "the session was built from " + clientProfile(liveFrom) + ", this client names " +
+			strconv.Quote(req.Profile),
+		"name " + clientProfile(liveFrom) + " on this client, or copy its auth block into " +
+			strconv.Quote(req.Profile)
 }
 
 // clientProfile names the profile a request resolved, for a refusal.
