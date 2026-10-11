@@ -736,6 +736,24 @@ the light of decision 4: they guard against wrong output on screen, nothing more
   all five flavors (web, cli, config, cmd/ze/hub, core/audit); race with gate
   tags over `web/...`, `cli/...`, `core/audit` ok; `bin/le test editor -a`
   177/177. round 9 review owed over 6e354e915e.
+- Round 9 (scratch `review-bracket-r9.md`, owner authorised: Thomas,
+  2026-10-11, "Authorise round 9"): 0 BLOCKER, 1 ISSUE, 3 NOTE. ISSUE 1: the
+  SSH path-discard row can name a kept change as dropped, because the SSH
+  editor's diff (`Editor.Diff`, `computeDiff`) has no path and compares lines
+  as sets; round 8's "exact for whole and path discards" holds for the web
+  only. Pre-existing, the bracket goal does not depend on it, so journaled in
+  `plan/journal/key-omits-a-fact-the-builder-uses.md` with NOTE 2 (SSH `show`
+  piped to `compare` understates pending changes) and the fix direction
+  (path-qualified SSH diffs from the session's pending changes, one renderer
+  shared with the web); `audit.DroppedDiff`'s doc and `docs/guide/audit.md`
+  narrowed to say so (2adb313e79). NOTE 1: `EditorManager.Diff` returns a
+  string, which deletes the unreachable after-diff branch in
+  `discardAuditDetail` and the other dead error branches (ef5a2c95b7). NOTE 3:
+  the quoted bracket member case (fa1c599be9). Gates: scoped lint 0 issues in
+  five flavors (web, core/audit, config, cmd/ze/hub); package tests with gate
+  tags over web, core/audit, cli, cmd/ze/hub ok, config the two known foreign
+  reds only. Review loop closed: round 9's only ISSUE is a pre-existing SSH
+  diff defect, journaled.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
