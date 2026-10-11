@@ -114,7 +114,7 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 		if result.completion != nil {
 			defer result.completion.TransportComplete()
 		}
-		if terminalAuditSucceeded(auditAction, result.output) {
+		if terminalAuditSucceeded(cmd, result) {
 			recordWebAudit(recorder, r, username, auditAction, auditDetail)
 		}
 
@@ -172,6 +172,10 @@ type terminalCommandResult struct {
 	mode       string
 	output     string
 	completion *plugin.RenderedResponse
+	// discarded is set by a discard that dropped changes, and only by it, so
+	// the audit row follows the editor's answer and never the output text: a
+	// refusal and a path discard each print their own line.
+	discarded bool
 }
 
 func executeTerminalCommand(ctx context.Context, schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, mode string, cmd cliCommand, raw string, dispatch CommandDispatcher) terminalCommandResult {
@@ -205,6 +209,20 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 		return result
 	case verbConfigure:
 		result.output = "already in config mode"
+		return result
+	case verbDiscard:
+		// Discard runs here, not in executeTerminalNav, because its success is
+		// what the audit row needs and the navigator answers text only. Every
+		// token is a config path token, so a pipe is a path segment that names
+		// no pending change, and the discard is refused.
+		answer, err := runWebDiscard(mgr, username, cmd.Args)
+		if err != nil {
+			var tb textbuf.Buffer
+			result.output = tb.Str("error: ").Err(err).String()
+			return result
+		}
+		result.output = answer
+		result.discarded = true
 		return result
 	}
 
@@ -293,12 +311,16 @@ func terminalAuditContext(mgr *EditorManager, username string, cmd cliCommand, r
 	return "", ""
 }
 
-func terminalAuditSucceeded(action, output string) bool {
-	switch action {
-	case audit.ActionConfigCommit:
-		return output == terminalOutputCommitSuccessful
-	case audit.ActionConfigDiscard:
-		return output == terminalOutputChangesDiscarded || strings.HasPrefix(output, "rolled back to ")
+// terminalAuditSucceeded reports whether the command terminalAuditContext
+// prepared a row for succeeded, so the row is owed.
+func terminalAuditSucceeded(cmd cliCommand, result terminalCommandResult) bool {
+	switch cmd.Verb {
+	case verbCommit:
+		return result.output == terminalOutputCommitSuccessful
+	case verbDiscard:
+		return result.discarded
+	case verbRollback:
+		return strings.HasPrefix(result.output, "rolled back to ")
 	}
 	return false
 }
@@ -321,7 +343,9 @@ func terminalFeedback(cmd cliCommand, output string) string {
 		}
 		return terminalOutputCommitSuccessful
 	case verbDiscard:
-		return terminalOutputChangesDiscarded
+		// The answer itself: a refusal, the path a path discard dropped, or
+		// every change. A fixed line would contradict the first two.
+		return output
 	case verbEdit:
 		return tb.Str("edit ").Join(cmd.Args, " ").String()
 	case verbUp:
@@ -408,13 +432,6 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		return nil, executeTerminalDelete(mgr, username, contextPath, cmd.Args)
 	case verbCommit:
 		return nil, executeTerminalCommit(mgr, username, cmd.Args)
-	case verbDiscard:
-		answer, err := runWebDiscard(mgr, username, cmd.Args)
-		if err != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
-		}
-		return nil, answer
 	case verbWho:
 		sessions := mgr.ActiveSessions()
 		if len(sessions) == 0 {
@@ -919,17 +936,26 @@ func runWebCommit(mgr *EditorManager, username string, args []string) (webCommit
 // naming no pending change is refused by EditorManager.DiscardPath, never
 // read as done.
 func runWebDiscard(mgr *EditorManager, username string, args []string) (string, error) {
-	if len(args) == 0 || (len(args) == 1 && args[0] == discardAll) {
-		if err := mgr.Discard(username); err != nil {
-			return "", err
-		}
-		return terminalOutputChangesDiscarded, nil
+	if len(args) == 0 {
+		return discardEveryChange(mgr, username)
+	}
+	if len(args) == 1 && args[0] == discardAll {
+		return discardEveryChange(mgr, username)
 	}
 	if err := mgr.DiscardPath(username, args); err != nil {
 		return "", err
 	}
 	var tb textbuf.Buffer
 	return tb.Str("discarded: ").Join(args, " ").String(), nil
+}
+
+// discardEveryChange reverts every pending change of username, the answer to
+// `discard` alone and to `discard all`.
+func discardEveryChange(mgr *EditorManager, username string) (string, error) {
+	if err := mgr.Discard(username); err != nil {
+		return "", err
+	}
+	return terminalOutputChangesDiscarded, nil
 }
 
 // formatCommitConflicts renders the conflicts that refused a commit.

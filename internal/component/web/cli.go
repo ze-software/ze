@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -206,6 +207,12 @@ func HandleCLICommand(mgr *EditorManager, schema *config.Schema, renderer *Rende
 // HandleCLICommandWithAuthorizer returns a POST handler for /cli that enforces
 // profile RBAC before integrated-mode config mutations.
 func HandleCLICommandWithAuthorizer(mgr *EditorManager, schema *config.Schema, renderer *Renderer, authorizer aaa.Authorizer) http.HandlerFunc {
+	return HandleCLICommandWithAuthorizerAndAudit(mgr, schema, renderer, authorizer, nil)
+}
+
+// HandleCLICommandWithAuthorizerAndAudit returns a POST handler for /cli that
+// enforces profile RBAC and records each successful discard in recorder.
+func HandleCLICommandWithAuthorizerAndAudit(mgr *EditorManager, schema *config.Schema, renderer *Renderer, authorizer aaa.Authorizer, recorder audit.Recorder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -262,7 +269,7 @@ func HandleCLICommandWithAuthorizer(mgr *EditorManager, schema *config.Schema, r
 			contextPath = adjustListContext(schema, contextPath)
 		}
 
-		dispatchCLICommand(w, r, cmd, contextPath, mgr, schema, renderer, username)
+		dispatchCLICommand(w, r, cmd, contextPath, mgr, schema, renderer, username, recorder)
 	}
 }
 
@@ -279,7 +286,7 @@ var knownCLIVerbs = map[string]bool{
 
 // dispatchCLICommand routes a parsed CLI command to the appropriate handler.
 // Returns an error notification for unrecognized verbs.
-func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, contextPath []string, mgr *EditorManager, schema *config.Schema, renderer *Renderer, username string) {
+func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, contextPath []string, mgr *EditorManager, schema *config.Schema, renderer *Renderer, username string, recorder audit.Recorder) {
 	if !knownCLIVerbs[cmd.Verb] {
 		writeCLINotification(w, renderer, "unknown command: "+cmd.Verb, "error")
 		return
@@ -301,7 +308,7 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	case verbCommit:
 		handleCLICommit(w, r, renderer, mgr, username, cmd.Args)
 	case verbDiscard:
-		handleCLIDiscard(w, r, renderer, mgr, username, cmd.Args)
+		handleCLIDiscard(w, r, renderer, mgr, username, cmd.Args, recorder)
 	case verbWho:
 		handleCLIWho(w, renderer, mgr)
 	case verbHelp:
@@ -512,12 +519,17 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer,
 }
 
 // handleCLIDiscard processes the "discard" verb: `discard` or `discard all`
-// reverts every change, `discard <path>` the changes at that path.
-func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, args []string) {
+// reverts every change, `discard <path>` the changes at that path. Each
+// successful discard is audited with the diff it dropped, as the terminal,
+// the Discard button and SSH record it.
+func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, args []string, recorder audit.Recorder) {
+	// An unreadable diff still owes the row: it records an empty detail.
+	detail, _ := mgr.Diff(username)
 	if _, err := runWebDiscard(mgr, username, args); err != nil {
 		writeCLINotification(w, renderer, "discard error: "+err.Error(), "error")
 		return
 	}
+	recordWebAudit(recorder, r, username, audit.ActionConfigDiscard, detail)
 
 	htmxRedirect(w, r, configEditPath)
 }

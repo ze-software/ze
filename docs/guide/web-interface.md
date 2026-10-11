@@ -304,7 +304,7 @@ In integrated mode, CLI commands update the page content directly:
 | `top` | Navigate to root |
 | `up` | Navigate one level up |
 | `commit now` | Commit pending changes. `commit now force` commits over another user's conflicting change and discards it from theirs (see the config editor guide). `commit` without a subcommand is refused with the list of subcommands. `commit confirmed <seconds>`, `commit accept`, `commit abort` and `commit verify` follow the config editor guide. A commit that validation refuses answers with the SSH editor's text, listing each error and warning; when only warnings block it, the answer names the forced form, and the CLI bar shows it as an error |
-| `discard` | Discard pending changes. `discard` alone or `discard all` drops every change; `discard <path>` drops only the changes at or under that path, the command a commit conflict's `fix:` line prints, and a path holding none of your pending changes is refused |
+| `discard` | Discard pending changes. `discard` alone or `discard all` drops every change; `discard <path>` drops only the changes at or under that path, the command a commit conflict's `fix:` line prints, and a path holding none of your pending changes is refused. The message line repeats the answer (the refusal, the path dropped, or `changes discarded`), and each discard that drops a change writes a `config-discard` audit record |
 | `help` | List available commands |
 
 The prompt shows the current context path: `ze[bgp peer]# `.

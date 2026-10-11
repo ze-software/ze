@@ -7,7 +7,7 @@ Ze keeps a local structured audit log for operator actions that change state or 
 | Action | Surfaces |
 |--------|----------|
 | `config-commit` | SSH/CLI config editor, web config editor, REST config sessions, gRPC config sessions |
-| `config-discard` | SSH/CLI config editor, web config editor, REST config sessions, gRPC config sessions |
+| `config-discard` | SSH/CLI config editor, web config editor (the Discard button, the web terminal and the CLI bar, `discard <path>` included), REST config sessions, gRPC config sessions |
 | `daemon-reload` | SIGHUP and `daemon reload` command dispatch |
 | `auth-fail` | SSH, web, REST, gRPC, MCP |
 
@@ -15,6 +15,8 @@ Each entry has `timestamp`, `actor`, `remote-addr`, `surface`, `action`, `detail
 
 <!-- source: internal/core/audit/audit.go -- Entry fields and action constants -->
 <!-- source: internal/component/web/handler_config.go -- web config audit recording -->
+<!-- source: internal/component/web/cli_terminal.go -- terminalAuditSucceeded -->
+<!-- source: internal/component/web/cli.go -- handleCLIDiscard -->
 <!-- source: internal/component/api/rest/server.go -- REST config and auth-fail audit recording -->
 <!-- source: internal/component/api/grpc/server.go -- gRPC config and auth-fail audit recording -->
 <!-- source: internal/component/mcp/audit.go -- MCP auth-fail audit recording -->

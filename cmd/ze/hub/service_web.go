@@ -522,7 +522,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	})
 
 	// CLI handlers: command execution, autocomplete, terminal mode.
-	cliHandler := zeweb.HandleCLICommandWithAuthorizer(editorMgr, schema, renderer, authorizer)
+	cliHandler := zeweb.HandleCLICommandWithAuthorizerAndAudit(editorMgr, schema, renderer, authorizer, recorder)
 	terminalHandler := zeweb.HandleCLITerminalWithDispatchAuthorizerAndAudit(editorMgr, schema, tree, dispatch, authorizer, recorder)
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
 	completeHandler := zeweb.HandleCLICompleteWithCommandCompleter(completer, commandCompleter, editorMgr, schema)
