@@ -30,8 +30,12 @@ import (
 // draft-ietf-idr-linklocal-capability: code 77, empty payload.
 const llnhCapCode = 77
 
-// modeDisable is the config value that suppresses capability advertisement.
-const modeDisable = "disable"
+// modeEnable and modeDisable are the two values of the link-local-nexthop
+// leaf (ze-link-local-nexthop.yang): advertise capability 77, or do not.
+const (
+	modeEnable  = "enable"
+	modeDisable = "disable"
+)
 
 // loggerPtr is the package-level logger, disabled by default.
 // Stored as atomic.Pointer to avoid data races when tests start
@@ -97,36 +101,56 @@ func runLLNHPlugin(conn net.Conn) int {
 	return 0
 }
 
-// isLLNHEnabled checks whether a capability map has link-local-nexthop enabled.
-// Returns (hasExplicit, enabled).
-func isLLNHEnabled(capMap map[string]any) (bool, bool) {
+// isLLNHEnabled reads the link-local-nexthop leaf of a capability map: whether
+// the map states the leaf, and whether it enables the capability. The YANG leaf
+// is an enumeration of enable and disable, so any other value came from a
+// builder that bypassed the schema. That value is an error, never a guess:
+// reading "not disable" as enable advertised capability 77 for the old presence
+// spelling "true" and for any typo.
+func isLLNHEnabled(capMap map[string]any) (explicit, enabled bool, err error) {
 	if capMap == nil {
-		return false, false
+		return false, false, nil
 	}
 	llnhVal, exists := capMap["link-local-nexthop"]
 	if !exists {
-		return false, false
+		return false, false, nil
 	}
-	if s, isStr := llnhVal.(string); isStr && s == modeDisable {
-		return true, false
+	mode, isStr := llnhVal.(string)
+	if !isStr {
+		return true, false, fmt.Errorf("link-local-nexthop holds %T, not enable or disable; "+
+			"write link-local-nexthop enable or link-local-nexthop disable", llnhVal)
 	}
-	return true, true
+	if mode == modeEnable {
+		return true, true, nil
+	}
+	if mode == modeDisable {
+		return true, false, nil
+	}
+	return true, false, fmt.Errorf("link-local-nexthop is %q, not enable or disable; "+
+		"write link-local-nexthop enable or link-local-nexthop disable", mode)
 }
 
 // llnhEnabledFor reports whether a peer advertises capability 77: its own
 // capability container decides, and the enclosing group's applies only when the
 // peer states none. Both the advertisement and the refusal read this one answer,
-// so they cannot disagree about which peer carries the capability.
-func llnhEnabledFor(peerMap, groupMap map[string]any) bool {
-	peerHasExplicit, peerEnabled := isLLNHEnabled(configjson.GetCapability(peerMap))
+// so they cannot disagree about which peer carries the capability. A leaf value
+// outside the enumeration is returned as the error, with no answer.
+func llnhEnabledFor(peerMap, groupMap map[string]any) (bool, error) {
+	peerHasExplicit, peerEnabled, err := isLLNHEnabled(configjson.GetCapability(peerMap))
+	if err != nil {
+		return false, err
+	}
 	if peerHasExplicit {
-		return peerEnabled
+		return peerEnabled, nil
 	}
 	if groupMap == nil {
-		return false
+		return false, nil
 	}
-	_, groupEnabled := isLLNHEnabled(configjson.GetCapability(groupMap))
-	return groupEnabled
+	_, groupEnabled, err := isLLNHEnabled(configjson.GetCapability(groupMap))
+	if err != nil {
+		return false, fmt.Errorf("group: %w", err)
+	}
+	return groupEnabled, nil
 }
 
 // refuseLinkLocalCapabilityWithoutAddressSections runs
@@ -169,7 +193,12 @@ func refuseLinkLocalCapabilityWithoutAddress(jsonStr string) error {
 		if refusal != nil {
 			return
 		}
-		if !llnhEnabledFor(peerMap, groupMap) {
+		enabled, err := llnhEnabledFor(peerMap, groupMap)
+		if err != nil {
+			refusal = fmt.Errorf("peer %s: session capability %w", peerName, err)
+			return
+		}
+		if !enabled {
 			return
 		}
 		if sessionLinkLocal(peerMap) != "" {
@@ -214,7 +243,15 @@ func extractLLNHCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	var caps []sdk.CapabilityDecl
 
 	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
-		if !llnhEnabledFor(peerMap, groupMap) {
+		enabled, err := llnhEnabledFor(peerMap, groupMap)
+		if err != nil {
+			// The caller's refusal pass returns this same error before this
+			// function runs, so this branch means that contract was broken.
+			// Declaring capability 77 would guess; declaring nothing is said here.
+			logger().Error("link-local-nexthop capability not declared", "peer", peerAddr, "error", err)
+			return
+		}
+		if !enabled {
 			return
 		}
 

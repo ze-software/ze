@@ -288,3 +288,42 @@ func TestExtractLLNHCapabilities_GroupPeerOverride(t *testing.T) {
 		t.Errorf("expected peer 10.0.0.2, got %v", caps[0].Peers)
 	}
 }
+
+// TestLLNHValueOutsideEnumRefused verifies a link-local-nexthop value the YANG
+// enumeration does not hold is refused, never read as enable.
+//
+// VALIDATES: a peer or group whose leaf holds a word other than enable or
+// disable, or a non-string, is refused naming the peer and the value, and no
+// capability 77 is declared for it.
+// PREVENTS: a builder that bypasses the schema (a "true" from the old presence
+// spelling, a map) advertising capability 77 because the value was not "disable".
+func TestLLNHValueOutsideEnumRefused(t *testing.T) {
+	cases := []struct {
+		name string
+		json string
+	}{
+		{"peer word", `{"bgp":{"peer":{"10.0.0.1":{"session":{"link-local":"fe80::1",
+			"capability":{"link-local-nexthop":"true"}}}}}}`},
+		{"peer map", `{"bgp":{"peer":{"10.0.0.1":{"session":{"link-local":"fe80::1",
+			"capability":{"link-local-nexthop":{}}}}}}}`},
+		{"group word", `{"bgp":{"group":{"transit":{
+			"session":{"link-local":"fe80::1","capability":{"link-local-nexthop":"yes"}},
+			"peer":{"10.0.0.1":{"peer-as":65002}}}}}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := refuseLinkLocalCapabilityWithoutAddress(tc.json)
+			if err == nil {
+				t.Fatal("expected a refusal, got nil")
+			}
+			for _, want := range []string{"10.0.0.1", "link-local-nexthop", "enable", "disable"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal %q does not name %q", err, want)
+				}
+			}
+			if caps := extractLLNHCapabilities(tc.json); len(caps) != 0 {
+				t.Errorf("expected no capability 77, got %v", caps)
+			}
+		})
+	}
+}
