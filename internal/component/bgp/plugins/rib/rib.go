@@ -1271,9 +1271,17 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	purgePeer := false
 
 	if isUp && !wasUp {
-		cameUp = true
 		delete(r.retainedPeers, peerAddr)
-		replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
+		// An attached up (rpc.ReasonAttached) is a reload attaching this
+		// process to a session that was already up. It is no new session: it
+		// carries no initial-replay token to answer, the peer was already sent
+		// what Ze advertises, and a receive-only attach grants no send. A replay
+		// here would answer a ready for session 0, which the engine refuses.
+		// The peer is still recorded up, so its later down purges its routes.
+		if se.Reason != rpc.ReasonAttached {
+			cameUp = true
+			replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
+		}
 	} else if !isUp && wasUp {
 		if r.retainedPeers[peerAddr] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
@@ -1331,9 +1339,12 @@ func (r *RIBManager) handleState(event *Event) {
 
 	if isUp && !wasUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
-		cameUp = true
+		// An attached up replays nothing, for handleStructuredState's reason.
 		delete(r.retainedPeers, peerAddr)
-		replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
+		if event.Reason != rpc.ReasonAttached {
+			cameUp = true
+			replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
+		}
 	} else if !isUp && wasUp {
 		// Peer went down - clear Adj-RIB-In unless retained for GR.
 		if r.retainedPeers[peerAddr] {
