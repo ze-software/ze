@@ -201,6 +201,38 @@ Mechanical, not a judgement: appending two tests to `mobike_test.go` SHIFTED ten
 
 Mechanical, not a judgement: deleting the x-10 and x-12 tags from `rfc2759_clause_test.go`, `rfc2759_failure_packet_test.go` and `rfc2759_mschapv2_test.go` SHIFTED seven rfc2759 verdicts (x-1, x-2, x-3, x-4, x-6, x-8, x-9) whose units are byte-identical; `./le rfc reseal` re-stamps them.
 
+### Fix round for the judge's findings (owner decisions A and B, 2026-10-11)
+
+Thomas, 2026-10-11: A "Enrol it (Recommended)" for RFC 9190; B "Approve the fixes (Recommended)" for the tagged tests the judge found weak or mis-claimed.
+
+| # | Finding | Fix |
+|---|---------|-----|
+| 1 | RFC7296-3.1-8, 3.1-11 receive test bypassed the dispatch | `TestXBitsIgnoredOnReceipt` drives every case through `PeerSession.handleResponderInbound` |
+| 2 | RFC7296-2.21.4-6 input carried no Notify; the negative sent a Delete | the input is the bytes `sendInvalidIKESPI` emits (one unprotected INVALID_IKE_SPI Notify, asserted), a sentinel shows no datagram answers it, and the negative sends the same Notify inside SK |
+| 3 | RFC7296-3.5-3 negative claimed ID_DER_ASN1_DN | the claim names ID_DER_ASN1_GN only and says why DN is not a refused type (RFC7296-4-4) |
+| 4 | RFC7296-3.14-3 positive claimed an unsent repeat IV | the claim names the three IVs it sends and points the repeat to the negative |
+| 5 | RFC4301-4.4.1-6 disposition tests | retagged to RFC4301-4.4.1-11 and -12, both polarities each |
+| 6 | RFC4555-4.2.6-1 type 16402 never pinned | literal 16402 asserted on the decoded notify; the IPv6-width negative is the packet's own tuple at 16 octets |
+| 7 | RFC4555-3.6-2, 3.6-3 | `{single-polarity: positive; ...}` on both rows |
+| 8 | RFC4303-3.4.4.1-2 `{gap}` named only XFRM | it names VPP (`vppBackend.InstallSA`, `vppSAFlags`) as well |
+| 9 | RFC9190-2.3-1 Method-Id half; 5.7-1 resumed path and peer role | `{partial: tested "Key_Material"; gap "Method-Id"; ...}` plus the new negative `TestRFC9190MSKIsNotThePreTLS13Derivation`; both 5.7 refusal tests assert the second exchange resumed; the peer role is tagged on `TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain`; `TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain` is tagged RFC9190-5.7-1 negative |
+| 10 | rfc7296 Meta claimed all rows MET and proven | the reason defers to `./le rfc check` and the audit file, and claims no row is met |
+
+Commits 2691e815b1 (IKE tests and records) and 0be0218ef1 (EAP tests, records, RFC9190-2.3-1 `{partial}`). Verdicts this round makes stale or newly owed, for an independent judge (the author judged none):
+
+| Stem | Ids | Mode |
+|------|-----|------|
+| rfc7296 | 3.1-8, 3.1-11, 2.21.4-6, 3.5-3, 3.14-3, and 3.14-6 if its unit fingerprint moved | rejudge |
+| rfc4301 | 4.4.1-6 (lost two units), 4.4.1-11, 4.4.1-12 (gained them) | rejudge |
+| rfc4555 | 4.2.6-1 | rejudge |
+| rfc4555 | 3.6-2, 3.6-3 (now `{single-polarity}`) | new |
+| rfc4303 | 3.4.4.1-2 (gap text names VPP) | rejudge |
+| rfc9190 | 2.1.2-2, 2.1.3-1, 2.3-1 (now `{partial}`, so the prepared `weak` entry is stale), 5.7-1 (tests changed), 2.3-4 | new, once the stem is enrolled |
+
+Mechanical: `./le rfc reseal` for any rfc4555 verdict whose `mobike_test.go` unit only shifted.
+
+Decision A is BLOCKED, not done: enrolling RFC 9190 gates its 33 MUST-level rows that carry no tag or one polarity, and the summary's Meta records the 2026-08-01 owner ruling that closed the annotation route. The handoff in the session state file names the choice.
+
 ### Deferred items the parent's tables missed
 
 | Item | What is owed | Group |
