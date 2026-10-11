@@ -1,0 +1,139 @@
+# Test: a commit that changes a RUNNING non-strict peer's BFD opt-in profile
+#       reopens its BFD session under the new profile and keeps the BGP session.
+# Initial config: one iBGP peer with a non-strict `connection bfd { profile fast }`
+#                 opt-in; the `bfd` root carries profiles fast and slow, so the
+#                 session to the peer exists under fast from the start and no
+#                 other client shares it.
+# Live change:    an SSH session editor load-merges the opt-in's profile as slow
+#                 and commits.
+# Expected:       one TCP connection; `show bfd sessions` lists the session to the
+#                 peer under profile slow.
+#
+# VALIDATES: spec-bgp-live-receive-binding-and-bfd-keep-session AC-15, first
+#            half (no other client): SSH commit -> peerSettingsSwapPlan ->
+#            applyHotSwappableSettings -> stopBFDClient then startBFDClient.
+# PREVENTS: a profile edit that resets the BGP session BFD protects, and one that
+#           keeps the session under the old profile's timers.
+#
+# Red until that spec's Phase 4: today a peer's BFD opt-in is a PeerSettings
+# field outside the hot-swap set, so the commit sends Cease subcode 6 and the
+# second connection is refused (tcp_connections=1). AC-15's shared-session
+# half (a static route's BFD sharing the session keeps its parameters, R-12) is
+# not asserted here.
+option=timeout:value=60s
+option=env:var=ze.bfd.test-parallel:value=true
+option=env:var=ze.log.bgp.reactor:value=debug
+# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+option=exclusive:group=bfd-ports
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+# EOR from ze, once: the commit does not restart the session
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=bgp-bfd-profile-edit-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bfd {
+    enabled true
+    profile fast {
+        detect-multiplier 3
+        desired-min-tx-us 50000
+        required-min-rx-us 50000
+    }
+    profile slow {
+        detect-multiplier 5
+        desired-min-tx-us 300000
+        required-min-rx-us 300000
+    }
+}
+
+plugin {
+    internal adj-rib-in {
+        use bgp-adj-rib-in
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+            bfd {
+                enabled true
+                mode single-hop
+                profile fast
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ]
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=bfd-profile-slow.conf:terminator=EOF_TOPIC
+bgp {
+    peer peer1 {
+        connection {
+            bfd {
+                profile slow
+            }
+        }
+    }
+}
+EOF_TOPIC
+
+tmpfs=bgp-bfd-profile-edit-live.script:terminator=EOF_SCRIPT
+cli show bfd sessions | yaml
+has peer: 127.0.0.1
+has profile: fast
+send load file absolute merge bfd-profile-slow.conf
+wait Configuration merged from
+send commit now
+wait Session committed:
+cli show bfd sessions | yaml
+has peer: 127.0.0.1
+has profile: slow
+has mode: single-hop
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start bgp-bfd-profile-edit-live.conf:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 bgp-bfd-profile-edit-live.conf bgp-bfd-profile-edit-live.script:timeout=60s
+expect=exit:code=0
