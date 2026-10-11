@@ -625,8 +625,8 @@
       "claim-sha": "4a8cf4df7be0a4e6",
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/register.go::setupBypass",
-      "producer-sha": "a1f576fd10bcc94f",
-      "break": "line 875: \"bc.MergePoint\" -\u003e \"cfg.RouterID\""
+      "producer-sha": "11d0dae138375907",
+      "break": "line 900: \"!bc.MergePoint.IsValid()\" -\u003e \"true\""
     },
     {
       "rid": "RFC4090-6.4-1",

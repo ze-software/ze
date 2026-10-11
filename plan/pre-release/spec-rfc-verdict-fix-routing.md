@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | verification |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the routing group before any row edit, parent R-11) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-28 |
+| Updated | 2026-10-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -464,3 +464,74 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** tests + rows + verdicts + records + D-8 code + edited spec
 - [ ] **Commit B:** `remove plan/pre-release/spec-rfc-verdict-fix-routing.md` only, in the same `./le commit create` script
+
+## Progress, 2026-10-11
+
+Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD on 2026-10-11. Implementation is finished; the spec waits for its independent `/ze-review`. It is not closed.
+
+## Implementation Summary
+
+### What Was Implemented
+- Verdict work across rsvpte, isis and ldp: `01345e4234` (rsvpte, continuations 1-3), `232e9f4392` (isis), `8ca6178596` and `e47919016b` (ldp, with 15 renewed records), the 22 LDP and 2 RFC2328 re-records `8ee7bc34c7`.
+- 2026-10-11: the RFC4090-6.2-1 positive record of `rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint` is re-recorded in `rfc/discrimination/rfc4090.json`. Its producer `rsvpte/register.go::setupBypass` changed in `ae7a5972a6` (bypass PATH carries a SESSION_ATTRIBUTE, spec-rsvpte-frr-backup-path-signaling), which made the old record producer-changed. The old break substituted the tunnel endpoint (`bc.MergePoint` -> `cfg.RouterID`); gomu no longer offers that mutant at the new line. The new break is line 900, `!bc.MergePoint.IsValid()` -> `true`: `setupBypass` returns before signaling, no bypass PATH is sent, and the unit goes red at its first assertion. This record proves the unit needs the bypass PATH to be sent. It does not prove that the unit's endpoint assertion discriminates, so it is a weaker record than the one it replaces, and the reviewer judges whether it suffices for the positive claim. Changing the claim or adding an endpoint-substitution record is an RFC-tagged change that needs the owner.
+
+### Bugs Found/Fixed (D-8, each with production code)
+| Commit | Fix | Wire-visible |
+|--------|-----|--------------|
+| `01345e4234` | RSVP-TE: RSB expiry; Implicit NULL label handling (`rsvpte`, `fib/kernel/mplsentry.go`) | yes |
+| `232e9f4392` | IS-IS P2P ReceiveHello applies the RFC 5303 Section 3.2 three-way state table (R39); RFC 5310 Section 3.5 auth failure logged at Warn (R41) | yes for R39; R41 is a log line only |
+| `0bde29b2db` (LDP half) | LDP active role answers an acceptable Initialization with KeepAlive | yes |
+| `8ca6178596` | LDP reports a session up only once the peer's KeepAlive makes it operational | yes (drives OSPF LDP-IGP sync) |
+| `e47919016b` | LDP enforces Initialization order: other messages in OPENSENT/OPENREC get a fatal Shutdown | yes |
+
+### Deviations from Plan
+- The RFC4090-6.2-1 positive record is a disabling break, not an endpoint substitution (above).
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| attribution | the 2026-10-11 notes said `7c25971594` moved the RFC4090-6.2-1 producer | `git log -- internal/plugins/rsvpte/register.go`: `ae7a5972a6` changed `setupBypass`; `7c25971594` touched the file later | re-check at the producer | recorded here with the right commit |
+
+## Implementation Audit
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-C1 | Done | the "Derived listing" filter at HEAD, 2026-10-11, returns five rows: RFC3209-4.6.1-2 (`plan/spec-rsvpte-ipv6-lsp-tunnel.md`), RFC4090-6-6 (`plan/immediate/spec-rsvpte-frr-link-protection-fallback.md`), RFC5036-3.4.4.1-1/-2 (`plan/spec-ldp-label-request-path.md`), and RFC9252-5-3 | RFC9252-5-3 shows only because its two units live in `fib/kernel/rfc9252_nexthop_srv6_linux_test.go`; it is owned by AC-7 of `plan/pre-release/spec-vpp-srv6-service-policy.md` (owner, 2026-10-02) and the BGP child, not this one |
+| AC-C2 | Done for this child's units | 123 verdicts in scope newly `enforced` since `174862502f`; every tagged unit in this child's packages carries a record (script over audit and record files, 2026-10-11) | the two unrecorded units in scope, `nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded` (RFC7752-3.3.2.3-1) and `nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits` (RFC9085-2.1.1-1), are BGP-package units the filter pulls in through isis units on the same verdicts; RFC905-x-3/-4 are the parent's (AC-9). Judge independence per commit is in QUEUE.md and is the reviewer's to confirm |
+| AC-C3 | reviewer to confirm | 2026-10-11 lookup of every split-needed and narrowing row: each is enforced, or carries a `{gap}`/`{not-applicable}` annotation or a dated correction (RFC2205-3.1-3, RFC3787-4-1, RFC3031-3.14-1) | two rows have no verdict and no annotation seen: RFC2205-3-13 (tagged in `rsvpte/rfc2205_resv_error_test.go`, no entry in `rfc/audit/rfc2205.json`) and RFC5305-3.1-1 (untagged). The reviewer settles both |
+| AC-C4 | Done | the four blocked verdicts sit in their owning specs' ACs | |
+| AC-C5 | Done | `./le rfc check` 2026-10-11 with the re-record in the tree: no violation in a routing stem (the three left are BGP's) | |
+| AC-C6 | Done | RFC5301-3-8 enforced | the reviewer re-reads `rfc/corrections/rfc5301.md` |
+| AC-C7 | N-A | no R-7 row belongs to this child | |
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| AC-C1: the derived listing holds only "Blocked by" ids | ledger query | 5 rows, each in an owning spec's AC (RFC9252-5-3 through spec-vpp-srv6-service-policy AC-7) |
+| every resolved verdict proven and judged by a non-author | discrimination records + audit | 0 unrecorded tagged units in this child's packages; `./le rfc check` clean for the routing stems |
+| D-8 fixes work against another implementation | interop | LDP: `ospf-ldp-sync-frr` PASS is claimed in the bodies of `8ca6178596` and `e47919016b`; no log is committed. RSVP-TE and IS-IS: no run is recorded for this child's fixes. The `interop-rsvpte` scenarios other specs ran on 2026-10-08/09 postdate `01345e4234`, but none asserts RSB expiry or Implicit NULL |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| RFC3209-4.6.1-2, RFC4090-6-6, RFC5036-3.4.4.1-1/-2 | producer defects or absent features | the specs named under AC-C1 |
+| RFC9252-5-3 | SRv6 service policy | `plan/pre-release/spec-vpp-srv6-service-policy.md` AC-7 |
+| interop for the IS-IS three-way fix (`232e9f4392`) | no run recorded | this spec, before closure: `INTEROP_SCENARIO=isis-p2p-frr ./le test integration interop`, log kept |
+| interop for the LDP fixes | PASS claimed, no log | this spec, before closure: `INTEROP_SCENARIO=ospf-ldp-sync-frr ./le test integration interop`, log kept |
+| interop for the RSVP-TE fixes (`01345e4234`) | no existing scenario asserts RSB expiry or Implicit NULL; the interop rule requires one | this spec, before closure: two new scenarios under `test/interop-rsvpte/scenarios/`, `egress-implicit-null-penultimate-pop` and `transit-resv-state-expires`, run with `RSVPTE_INTEROP_SCENARIO=<name> ./le test integration interop-rsvpte`, plus the existing eight as a regression run |
+| a discrimination record for the RFC4090-6.2-1 endpoint assertion | gomu offers no endpoint-substitution mutant at the new producer line; a hand-written break or a claim change touches an RFC-tagged unit | the owner decides; the reviewer flags it |
+| `./le verify worktree` | needs a quiet machine | this spec, before closure |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | |
+| `./le spec review check` | not run |
+| Rounds | |
+| Reviewer lenses used | |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
