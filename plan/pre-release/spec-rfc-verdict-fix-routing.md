@@ -314,7 +314,8 @@ Inherited from the parent (AC-C1 to AC-C7), restated for the routing group.
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| named when a D-8 fix is found | `test/interop/scenarios/` | IS-IS, LDP and RSVP-TE interop for any D-8 fix (FRR isisd, ldpd); none is planned before a defect is found | the fixed behavior against another implementation | |
+| `isis-p2p-frr`, `ospf-ldp-sync-frr` | `test/interop/scenarios/` | FRR isisd, ldpd | the IS-IS three-way and LDP fixes against another implementation | PASS 2026-10-11 at `1a0294116d` (Goal Validation) |
+| `egress-implicit-null-penultimate-pop`, `transit-resv-state-expires` (to write), and the existing eight | `test/interop-rsvpte/scenarios/` | freeRouter | the RSVP-TE fixes of `01345e4234` | not run (Work Not Done) |
 
 ## Files to Modify
 
@@ -511,16 +512,15 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 |------------------|---------------|-------------------|
 | AC-C1: the derived listing holds only "Blocked by" ids | ledger query | 5 rows, each in an owning spec's AC (RFC9252-5-3 through spec-vpp-srv6-service-policy AC-7) |
 | every resolved verdict proven and judged by a non-author | discrimination records + audit | 0 unrecorded tagged units in this child's packages; `./le rfc check` clean for the routing stems |
-| D-8 fixes work against another implementation | interop | LDP: `ospf-ldp-sync-frr` PASS is claimed in the bodies of `8ca6178596` and `e47919016b`; no log is committed. RSVP-TE and IS-IS: no run is recorded for this child's fixes. The `interop-rsvpte` scenarios other specs ran on 2026-10-08/09 postdate `01345e4234`, but none asserts RSB expiry or Implicit NULL |
+| D-8 fixes work against another implementation | interop | IS-IS and LDP: 2026-10-11, `isis-p2p-frr` and `ospf-ldp-sync-frr` PASS, each run alone in the Ze-kernel QEMU guest (`./le test qemu docker-lab lab 'test integration interop' env 'INTEROP_SCENARIO=<name>'`, guest kernel 7.2.9, docker-kernel check verdict pass) over a `git archive` export of `1a0294116d`, which contains `232e9f4392`, `8ca6178596` and `e47919016b`. Logs `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/isis-p2p-frr.log` and `ospf-ldp-sync-frr.log`, line 83 `interop: 1 passed, 0 failed`, line 84 `QEMU VM: PASS`. colima's daemon refuses every Ze lab (AppArmor `ze-kernel-probe` not applicable, MPLS absent on its 6.8 kernel), so the guest is the macOS route. RSVP-TE: NOT run. The eight existing `interop-rsvpte` scenarios were queued and stopped before any started (owner closing the laptop), and none asserts RSB expiry or Implicit NULL for `01345e4234` |
 
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | RFC3209-4.6.1-2, RFC4090-6-6, RFC5036-3.4.4.1-1/-2 | producer defects or absent features | the specs named under AC-C1 |
 | RFC9252-5-3 | SRv6 service policy | `plan/pre-release/spec-vpp-srv6-service-policy.md` AC-7 |
-| interop for the IS-IS three-way fix (`232e9f4392`) | no run recorded | this spec, before closure: `INTEROP_SCENARIO=isis-p2p-frr ./le test integration interop`, log kept |
-| interop for the LDP fixes | PASS claimed, no log | this spec, before closure: `INTEROP_SCENARIO=ospf-ldp-sync-frr ./le test integration interop`, log kept |
-| interop for the RSVP-TE fixes (`01345e4234`) | no existing scenario asserts RSB expiry or Implicit NULL; the interop rule requires one | this spec, before closure: two new scenarios under `test/interop-rsvpte/scenarios/`, `egress-implicit-null-penultimate-pop` and `transit-resv-state-expires`, run with `RSVPTE_INTEROP_SCENARIO=<name> ./le test integration interop-rsvpte`, plus the existing eight as a regression run |
+| interop for the IS-IS three-way fix (`232e9f4392`) and the LDP fixes | DONE 2026-10-11: `isis-p2p-frr` and `ospf-ldp-sync-frr` PASS at `1a0294116d`; evidence in Goal Validation | nothing owed |
+| interop for the RSVP-TE fixes (`01345e4234`) | no existing scenario asserts RSB expiry or Implicit NULL; the interop rule requires one. The eight existing scenarios were not run on 2026-10-11: queued behind a sibling's QEMU guest on port 2222 and stopped before any started. On macOS they run only in the guest: `./le test qemu docker-lab lab 'test integration interop-rsvpte' env 'RSVPTE_INTEROP_SCENARIO=<name>'`, one docker-lab run at a time (`freeRunSSHPort` cannot see a port QEMU holds, journal `parallel-copies-collide-on-a-deterministic-port.md`, 2026-10-11) | this spec, before closure: two new scenarios under `test/interop-rsvpte/scenarios/`, `egress-implicit-null-penultimate-pop` and `transit-resv-state-expires`, plus the existing eight as a regression run: `transit-loose-ero-expansion`, `plr-backup-path-to-egress-merge-point`, `transit-strict-hop-forwarded`, `transit-strict-hop-outside-refused`, `ingress-resv-error-relayed`, `transit-resv-tear-relayed`, `transit-resv-increase-refused-in-place`, `transit-ff-resv-unknown-sender` |
 | `./le verify worktree` | needs a quiet machine | this spec, before closure |
 
 ## Review Gate

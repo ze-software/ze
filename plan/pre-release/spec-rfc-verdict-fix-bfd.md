@@ -276,7 +276,7 @@ Inherited from the parent (AC-C1 to AC-C7), restated for the BFD group.
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| named when a D-8 fix is found | `test/interop/scenarios/` | BFD interop scenario for any D-8 fix (FRR bfdd); none is planned before a defect is found | the fixed behavior against another implementation | |
+| `bfd-frr`, `bfd-simple-password-bird`, `bgp-bfd-strict-frr`, `ospf-bfd-frr`, `ospfv3-bfd-frr` | `test/interop/scenarios/` | FRR bfdd, BIRD | the D-8 fixes (session state, AdminDown transmission, egress pinning, off-subnet refusal) against another implementation | PASS 2026-10-11 at `1a0294116d` (Goal Validation) |
 
 ## Files to Modify
 
@@ -479,13 +479,13 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 |------------------|---------------|-------------------|
 | AC-C1: the derived listing holds only "Blocked by" ids | ledger query | filter in "Derived listing" returns 0 rows at `c0d31c3660` |
 | every resolved verdict proven in both polarities and judged by a non-author | discrimination records + audit | 0 unrecorded tagged units over the 84 moved verdicts; `./le rfc check` clean for the four stems |
-| D-8 fixes work against another implementation | interop | handover QUEUE.md (2026-09-30): `bfd-simple-password-bird` PASS, `bgp-bfd-strict-frr` PASS, `ospf-bfd-frr` and `ospfv3-bfd-frr` PASS after `1c21de3153`. `bfd-frr` hit a docker timeout and was never re-run. The job (QUEUE.md line 168) started after `460ae9faf5`, the last BFD D-8 commit, so the runs postdate every fix. No log is committed, so each PASS is a claim, not evidence |
+| D-8 fixes work against another implementation | interop | 2026-10-11, all five PASS, each run alone in the Ze-kernel QEMU guest (`./le test qemu docker-lab lab 'test integration interop' env 'INTEROP_SCENARIO=<name>'`, guest kernel 7.2.9, `le setup docker-kernel check` verdict pass) over a `git archive` export of `1a0294116d`, which contains `460ae9faf5` and `1c21de3153`. Logs under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/interop/`: `bfd-frr.log` line 81, and `bfd-simple-password-bird.log`, `bgp-bfd-strict-frr.log`, `ospf-bfd-frr.log`, `ospfv3-bfd-frr.log` line 83, each `interop: 1 passed, 0 failed` followed by `QEMU VM: PASS`. `bfd-frr` passed for the first time. colima's daemon refuses every Ze lab (AppArmor `ze-kernel-probe` not applicable, MPLS absent on its 6.8 kernel: `bfd-frr.colima-refused.log`), so the guest is the macOS route `docs/architecture/testing/interop.md` names |
 
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | RFC5882-4.4-1 shared-session `joined` key | parent verdict, transferred by the owner 2026-10-11 | `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` AC-24 |
-| interop for the D-8 fixes, all wire-visible (session state, AdminDown transmission, egress pinning, off-subnet refusal) | `bfd-frr` hit a docker timeout on 2026-09-30 and never passed; the other four PASS claims have no committed log. Owed, each with `INTEROP_SCENARIO=<name> ./le test integration interop` and its log kept: `bfd-frr`, `bfd-simple-password-bird`, `bgp-bfd-strict-frr`, `ospf-bfd-frr`, `ospfv3-bfd-frr` | this spec, before closure (Review Gate) |
+| interop for the D-8 fixes | DONE 2026-10-11: all five scenarios PASS in the QEMU guest at `1a0294116d`; evidence in Goal Validation. Kept here only so the Review Gate reader sees it was owed | nothing owed |
 | `./le verify worktree` | needs a quiet machine; never green for this pass | this spec, before closure |
 
 ## Review Gate
