@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/6 |
 | Handoff | - |
 | Updated | 2026-10-11 |
 

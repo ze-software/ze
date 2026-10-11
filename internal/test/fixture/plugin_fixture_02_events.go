@@ -28,6 +28,7 @@ func init() {
 	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{eventState}, reloadKept02))
 	Register("plugin/attach-process-reload-added", eventObserver02("reload-added", []string{eventState}, reloadAdded02))
 	Register("plugin/attach-process-reload-trigger", reloadTrigger02)
+	Register("plugin/attach-receive-only-live", eventObserver02("attach-receive-only-live", []string{eventUpdate, eventState}, attachReceiveOnlyLive02))
 	Register("plugin/attach-process-runtime-subscribe", eventObserver02("runtime-subscribe", []string{eventState}, runtimeSubscribe02))
 	Register("plugin/attach-process-runtime-subscribe-trigger", runtimeSubscribeTrigger02)
 	Register("plugin/attach-process-send-permission", eventObserver02("send-permission-injector", []string{eventUpdate, eventState}, sendPermission02))
@@ -347,6 +348,53 @@ func reloadAdded02(ctx context.Context, plugin *sdk.Plugin, events <-chan string
 	}
 	requestShutdownAsync02(ctx, plugin)
 	return waitForShutdown02(ctx, shutdown, 15*time.Second)
+}
+
+// attachReceiveOnlyLive02 is the process a reload attaches, receive-only, to a
+// peer whose session is already up (test/reload/bgp-attach-receive-only-live.ci).
+//
+// Goal: the process is told the session is up, by a state up carrying reason
+// "attached" and no initial-replay token, before any UPDATE of that session
+// reaches it, and it then receives the route the peer announced BEFORE the
+// reload, which the peer re-sends on Ze's ROUTE-REFRESH. Method: refuse an
+// UPDATE that beats the attached up, and refuse an up with any other reason,
+// because an ordinary up is what a restarted session delivers.
+func attachReceiveOnlyLive02(ctx context.Context, _ *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
+	attached := false
+	for {
+		event, ok := nextEvent02(ctx, events, shutdown, 40*time.Second)
+		if !ok {
+			return fmt.Errorf("ATTACH-LIVE: attached up seen %t, and the route announced before the reload never arrived", attached)
+		}
+		body := eventBody02(event)
+		_, kind, _ := eventFacts02(event)
+		if kind == eventState {
+			state, _ := body["state"].(string)
+			if state != "up" {
+				return fmt.Errorf("ATTACH-LIVE: session went %q while the reload should keep it up: %.300s", state, event)
+			}
+			reason, _ := body["reason"].(string)
+			if reason != "attached" {
+				return fmt.Errorf("ATTACH-LIVE: up with reason %q, want \"attached\" (a restarted session's up): %.300s", reason, event)
+			}
+			if _, replay := body["initial-replay"]; replay {
+				return fmt.Errorf("ATTACH-LIVE: attached up carries an initial-replay token: %.300s", event)
+			}
+			attached = true
+			continue
+		}
+		if kind != eventUpdate {
+			continue
+		}
+		if !attached {
+			return fmt.Errorf("ATTACH-LIVE: UPDATE delivered before the attached up: %.300s", event)
+		}
+		if strings.Contains(event, "192.168.1.0/24") {
+			break
+		}
+	}
+	fmt.Fprintln(os.Stderr, "ATTACH-LIVE: attached up before the route the peer re-sent")
+	return waitForShutdown02(ctx, shutdown, 30*time.Second)
 }
 
 func eventIsUp02(raw string) bool {

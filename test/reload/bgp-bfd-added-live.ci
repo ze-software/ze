@@ -10,15 +10,20 @@
 #            configuration load-merged in the SSH editor and committed enables
 #            the feature on a daemon started without it.
 # PREVENTS: a commit that reports success while no BFD session is created,
-#           which the BFD topic recording would show as an empty table.
+#           which the BFD topic recording would show as an empty table, and a
+#           BFD enable that resets the BGP session it is meant to protect.
 #
-# The commit RESTARTS the BGP session, and the peer expects two connections.
-# A peer's BFD opt-in is a PeerSettings field outside the hot-swap set, so the
-# reload removes and re-adds the peer (docs/architecture/core-design.md,
-# section 18a). A non-strict peer opens its BFD session on entry to
-# Established, so the session appears once the second connection is up. With
-# tcp_connections=1 the second connection is refused and `show bfd sessions`
-# stays empty: observed on 2026-10-10.
+# The commit keeps the BGP session: one TCP connection (owner decision on
+# 2026-10-11, "yes like them", spec-bgp-live-receive-binding-and-bfd-keep-session
+# AC-5, wiring row 2: SSH commit -> peerSettingsSwapPlan ->
+# applyHotSwappableSettings -> startBFDClient). A non-strict opt-in is swapped
+# onto the running session and its BFD client opened there.
+#
+# Red until that spec's Phase 4: today a peer's BFD opt-in is a PeerSettings
+# field outside the hot-swap set (docs/architecture/core-design.md, section
+# 18a), so the reload sends Cease subcode 6 and re-adds the peer. The second
+# connection is refused and `show bfd sessions` stays empty (Cease observed on
+# 2026-10-10; the empty table with tcp_connections=1 again on 2026-10-11).
 #
 # No pre-commit read: before the commit `show bfd sessions` answers
 # "error: bfd: plugin not loaded" (the bfd plugin loads on its config root),
@@ -30,12 +35,11 @@ option=env:var=ze.bfd.test-parallel:value=true
 option=exclusive:group=bfd-ports
 
 stdin=peer:terminator=EOF_PEER
-option=tcp_connections:value=2
+option=tcp_connections:value=1
 option=timeout:value=50s
 option=linger:value=true
-# EOR from ze on the first session, and again after the commit restarts it
+# EOR from ze, once: the commit does not restart the session
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 tmpfs=bgp-bfd-added-live.conf:terminator=EOF_CONF
