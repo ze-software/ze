@@ -523,7 +523,8 @@ Tests: `TestAuthJoinRefusalNamesApplicableFix` (untagged) gained the pinned-no-p
 |-------|-------|
 | Artifact | |
 | `./le spec review check` | not run |
-| Rounds | |
+| Rounds | 5 so far (scratch `review-rfc-verdict-bfd.md`, `-r2` to `-r5`); round 6 owed |
+| Owner authorised | round 6: Thomas, 2026-10-11, "Authorise round 6" |
 | Reviewer lenses used | |
 
 ### Findings fixed
