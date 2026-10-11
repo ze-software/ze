@@ -31,6 +31,7 @@ type Event struct {
 	PeerAddr      string      // Peer address
 	PeerASN       uint32      // Peer ASN
 	State         string      // State for state events ("up", "down", "connected")
+	Reason        string      // State reason: why a session went down, or rpc.ReasonAttached on an attached up
 	InitialReplay uint64      // Captured peer-up session receipt; zero grants no readiness.
 	Open          *OpenInfo   // OPEN: decoded open data
 	AFI           family.AFI  // Refresh: AFI
@@ -366,7 +367,7 @@ func parseTextOpen(text string) *Event {
 }
 
 // parseTextState extracts state event data from text format.
-// Format: "peer <addr> remote as <n> state <state>".
+// Format: "peer <addr> remote as <n> state <state> [reason <reason>] [initial-replay <receipt>]".
 func parseTextState(text string) *Event {
 	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
 
@@ -401,6 +402,10 @@ func parseTextState(text string) *Event {
 		case "state":
 			if v, ok := s.Next(); ok {
 				event.State = v
+			}
+		case "reason":
+			if v, ok := s.Next(); ok {
+				event.Reason = v
 			}
 		case "initial-replay":
 			value, ok := s.Next()

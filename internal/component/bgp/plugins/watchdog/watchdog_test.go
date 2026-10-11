@@ -60,7 +60,7 @@ func TestParseStateEvent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addr, st, token := parseStateEvent(tt.input)
+			addr, st, _, token := parseStateEvent(tt.input)
 			if addr != tt.wantAddr {
 				t.Errorf("addr = %q, want %q", addr, tt.wantAddr)
 			}
@@ -90,7 +90,7 @@ func TestParseStateEventReplayToken(t *testing.T) {
 		{"truncated", "initial-replay", 0, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			peer, state, token := parseStateEvent("peer 192.0.2.1 remote as 65001 state up " + tc.input)
+			peer, state, _, token := parseStateEvent("peer 192.0.2.1 remote as 65001 state up " + tc.input)
 			if tc.valid {
 				if peer != "192.0.2.1" || state != "up" || token != tc.token {
 					t.Fatalf("parsed (%q, %q, %d), want peer up with token %d", peer, state, token, tc.token)

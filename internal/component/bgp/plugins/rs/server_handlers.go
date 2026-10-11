@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // errUnknownCommandMarker is the engine's ErrUnknownCommand text ("unknown
@@ -113,6 +114,10 @@ func (rs *routeServer) handleState(event *Event) {
 	}
 
 	if state == "up" {
+		if event.Reason == rpc.ReasonAttached {
+			rs.handleAttachedUp(peerAddr)
+			return
+		}
 		rs.handleStateUp(peerAddr, event.InitialReplay)
 		return
 	}
@@ -352,6 +357,31 @@ func (rs *routeServer) handleStateUp(peerAddr string, initialReplay uint64) {
 
 	// Spawn per-peer lifecycle goroutine for replay (not blocking event loop).
 	go rs.replayForPeer(peerAddr, gen, cut, initialReplay, done)
+}
+
+// handleAttachedUp records a peer up that a reload delivered when it attached
+// this plugin to a session already established (rpc.ReasonAttached). The
+// peer's initial routing update was sent without this plugin, so it is not this
+// plugin's to replay: no replay runs, no replay gate shuts, and no session ready
+// is signaled (an attached up carries no initial-replay receipt). The peer is
+// a forward source and target again from the current cut on, and the
+// generation increment stops any replay a previous up of this peer still runs.
+func (rs *routeServer) handleAttachedUp(peerAddr string) {
+	rs.mu.Lock()
+	peer := rs.peers[peerAddr]
+	if peer == nil {
+		peer = &PeerState{Address: peerAddr}
+		rs.peers[peerAddr] = peer
+	}
+	peer.Up = true
+	peer.StateSeen = true
+	peer.ForwardFrom = rs.seenMsgID
+	peer.ReplayGen++
+	peer.replayDone = nil
+	cut := peer.ForwardFrom
+	rs.mu.Unlock()
+
+	logger().Debug("peer state applied", "peer", peerAddr, "state", "up", "reason", rpc.ReasonAttached, "cut", cut)
 }
 
 // endReplay opens the replay gate of one peer-up replay. The replay goroutine

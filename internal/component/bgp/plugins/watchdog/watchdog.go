@@ -123,7 +123,7 @@ func runWatchdogPlugin(conn net.Conn) int {
 				continue
 			}
 			if se.State == rpc.SessionStateUp {
-				srv.handleStateUp(se.PeerAddress, se.InitialReplay)
+				srv.handlePeerUp(se.PeerAddress, se.Reason, se.InitialReplay)
 			} else if se.State != rpc.SessionStateUnspecified {
 				srv.handleStateDown(se.PeerAddress)
 			}
@@ -133,12 +133,12 @@ func runWatchdogPlugin(conn net.Conn) int {
 
 	// Fallback: handle text events for non-DirectBridge delivery (external plugins).
 	p.OnEvent(func(eventStr string) error {
-		peerAddr, state, initialReplay := parseStateEvent(eventStr)
+		peerAddr, state, reason, initialReplay := parseStateEvent(eventStr)
 		if peerAddr == "" {
 			return nil // Not a state event we care about
 		}
 		if state == "up" {
-			srv.handleStateUp(peerAddr, initialReplay)
+			srv.handlePeerUp(peerAddr, reason, initialReplay)
 		} else {
 			srv.handleStateDown(peerAddr)
 		}
@@ -164,41 +164,47 @@ func runWatchdogPlugin(conn net.Conn) int {
 	return 0
 }
 
-// parseStateEvent extracts peer address, state and replay token from a text state event.
-// Format: "peer 10.0.0.1 remote as 65001 state up initial-replay 42\n".
+// parseStateEvent extracts peer address, state, reason and replay token from a text state event.
+// Format: "peer 10.0.0.1 remote as 65001 state up [reason attached] initial-replay 42\n".
 // An unrecognized event or malformed token returns an empty peer address.
-func parseStateEvent(text string) (peerAddr, state string, initialReplay uint64) {
+func parseStateEvent(text string) (peerAddr, state, reason string, initialReplay uint64) {
 	fields := strings.Fields(strings.TrimRight(text, "\n"))
 	if len(fields) < 4 {
-		return "", "", 0
+		return "", "", "", 0
 	}
 	if fields[0] != "peer" {
-		return "", "", 0
+		return "", "", "", 0
 	}
 	for i := 2; i < len(fields); i++ {
 		switch fields[i] {
 		case "state":
 			i++
 			if i == len(fields) {
-				return "", "", 0
+				return "", "", "", 0
 			}
 			state = fields[i]
+		case "reason":
+			i++
+			if i == len(fields) {
+				return "", "", "", 0
+			}
+			reason = fields[i]
 		case "initial-replay":
 			i++
 			if i == len(fields) {
-				return "", "", 0
+				return "", "", "", 0
 			}
 			token, err := strconv.ParseUint(fields[i], 10, 64)
 			if err != nil {
-				return "", "", 0
+				return "", "", "", 0
 			}
 			initialReplay = token
 		}
 	}
 	if state == "" {
-		return "", "", 0
+		return "", "", "", 0
 	}
-	return fields[1], state, initialReplay
+	return fields[1], state, reason, initialReplay
 }
 
 // commandDecls names the commands this plugin serves and states what each

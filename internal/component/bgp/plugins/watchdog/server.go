@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // watchdogServer manages watchdog route pools and command dispatch.
@@ -271,11 +272,22 @@ func (s *watchdogServer) handleMEDOverride(pool *routePool, peer string, isUp bo
 	return statusDone, watchdogPeerResult{Peer: peer, Watchdog: name, Count: count}, nil
 }
 
-// handleStateUp handles a peer coming up (session established).
-// Sends all announced routes for the peer, and initializes state for
-// initially-announced routes that haven't been seen before.
-// Callers MUST pass the token captured from the peer-up event.
-func (s *watchdogServer) handleStateUp(peerAddr string, initialReplay uint64) {
+// handlePeerUp routes a peer-up event. An up carrying reason
+// rpc.ReasonAttached is a reload attaching this plugin to a session already
+// established: the peer's initial routing update was sent without this plugin,
+// so it is not this plugin's to resend, and such an up carries no initial-replay
+// receipt to report ready against. Every other up resends the announced routes.
+func (s *watchdogServer) handlePeerUp(peerAddr, reason string, initialReplay uint64) {
+	if reason == rpc.ReasonAttached {
+		s.markPeerUp(peerAddr)
+		return
+	}
+	s.handleStateUp(peerAddr, initialReplay)
+}
+
+// markPeerUp records the peer as up and returns its pools, nil when the
+// configuration gives it none.
+func (s *watchdogServer) markPeerUp(peerAddr string) *poolSet {
 	s.mu.Lock()
 	wasUp := s.peerUp[peerAddr]
 	s.peerUp[peerAddr] = true
@@ -287,7 +299,15 @@ func (s *watchdogServer) handleStateUp(peerAddr string, initialReplay uint64) {
 			m.peersUp.Inc()
 		}
 	}
+	return pools
+}
 
+// handleStateUp handles a peer coming up (session established).
+// Sends all announced routes for the peer, and initializes state for
+// initially-announced routes that haven't been seen before.
+// Callers MUST pass the token captured from the peer-up event.
+func (s *watchdogServer) handleStateUp(peerAddr string, initialReplay uint64) {
+	pools := s.markPeerUp(peerAddr)
 	if pools == nil {
 		s.signalReady(peerAddr, initialReplay)
 		return

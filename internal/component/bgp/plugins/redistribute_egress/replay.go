@@ -30,6 +30,7 @@ import (
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -122,6 +123,29 @@ var replayCoordPtr atomic.Pointer[replayCoordinator]
 func setReplayCoordinator(c *replayCoordinator) { replayCoordPtr.Store(c) }
 
 func getReplayCoordinator() *replayCoordinator { return replayCoordPtr.Load() }
+
+// onStateUp routes a peer-up event. An up carrying reason rpc.ReasonAttached
+// is a reload attaching this plugin to a session already established: the
+// peer's initial routing update was sent without this plugin, so it is not this
+// plugin's to replay. The peer is recorded up, so the next down then up is an
+// edge again, and no replay fires. Every other up goes to onPeerUp.
+func (c *replayCoordinator) onStateUp(bus ze.EventBus, peer, reason string) (uint64, bool) {
+	if reason == rpc.ReasonAttached {
+		c.markPeerUp(peer)
+		return 0, false
+	}
+	return c.onPeerUp(bus, peer)
+}
+
+// markPeerUp records the peer up without firing a replay.
+func (c *replayCoordinator) markPeerUp(peer string) {
+	if c == nil || peer == "" {
+		return
+	}
+	c.mu.Lock()
+	c.peerUp[peer] = true
+	c.mu.Unlock()
+}
 
 // onPeerUp handles a BGP peer establishment. On the down->up edge it allocates a
 // replayID, records replayID -> peer, and emits ReplayRequest{replayID} so

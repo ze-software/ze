@@ -20,7 +20,7 @@ import (
 func TestStateParserIgnoresReplayReceipt(t *testing.T) {
 	for _, state := range []string{"up", "down"} {
 		line := "peer 10.0.0.1 remote as 65001 state " + state + " initial-replay 18446744073709551615\n"
-		peer, got := parseStateEvent(line)
+		peer, got, _ := parseStateEvent(line)
 		if peer != "10.0.0.1" || got != state {
 			t.Fatalf("parsed (%q, %q), want (10.0.0.1, %q)", peer, got, state)
 		}

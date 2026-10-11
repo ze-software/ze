@@ -759,6 +759,7 @@ func parseStructuredState(se *rpc.StructuredEvent) *Event {
 		PeerAddr:      se.PeerAddress,
 		PeerASN:       se.PeerAS,
 		State:         se.State.String(),
+		Reason:        se.Reason,
 		InitialReplay: se.InitialReplay,
 	}
 }

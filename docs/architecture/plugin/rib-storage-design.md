@@ -111,8 +111,14 @@ message has its own unique ID. This does not depend on the optional Adj-RIB-In
 plugin. See [replay cursor](../bgp/replay-cursor.md).
 An up with reason `attached`, which a reload sends when it attaches a process to
 a session already up, carries no initial token: the session's initial routing
-update already went out. `bgp-adj-rib-in` and `bgp-rr` return before their
-peer-up replay on it.
+update already went out. Every plugin that acts toward the peer on up records
+the peer up and skips that action on it: `bgp-adj-rib-in`, `bgp-rr`, `bgp-rs`
+and `bgp-rib` start no replay and report no ready, `bgp-watchdog` resends no
+announced route, and `redistribute-orchestrator` fires no redistribute replay.
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleAttachedUp -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- handleStructuredState -->
+<!-- source: internal/component/bgp/plugins/watchdog/server.go -- handlePeerUp -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onStateUp -->
 The initial token remains valid while the peer-up replay fence is held, even
 after Ze's own EOR. Completion carries the same captured token to the actual
 readiness owner, including when no replay group was emitted; old work cannot

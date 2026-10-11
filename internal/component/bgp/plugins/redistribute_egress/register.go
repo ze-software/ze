@@ -90,7 +90,7 @@ func runPlugin(conn net.Conn) int {
 				continue
 			}
 			if se.State == rpc.SessionStateUp {
-				coord.onPeerUp(bus, se.PeerAddress)
+				coord.onStateUp(bus, se.PeerAddress, se.Reason)
 			} else if se.State != rpc.SessionStateUnspecified {
 				coord.onPeerDown(se.PeerAddress)
 			}
@@ -98,13 +98,13 @@ func runPlugin(conn net.Conn) int {
 		return nil
 	})
 	p.OnEvent(func(eventStr string) error {
-		peerAddr, state := parseStateEvent(eventStr)
+		peerAddr, state, reason := parseStateEvent(eventStr)
 		if peerAddr == "" {
 			return nil
 		}
 		bus := getEventBus()
 		if state == "up" {
-			coord.onPeerUp(bus, peerAddr)
+			coord.onStateUp(bus, peerAddr, reason)
 		} else {
 			coord.onPeerDown(peerAddr)
 		}
@@ -120,21 +120,28 @@ func runPlugin(conn net.Conn) int {
 	return 0
 }
 
-// parseStateEvent extracts the peer address and state from a text state event
+// parseStateEvent extracts the peer address, state and reason from a text state event
 // (the non-DirectBridge / external-plugin delivery path). Format:
-// "peer 10.0.0.1 remote as 65001 state up initial-replay 42\n".
+// "peer 10.0.0.1 remote as 65001 state up [reason attached] initial-replay 42\n".
 // It reads the value after state, not the final token; replay receipts are not
-// relevant to this non-readiness consumer. Unrecognized lines return ("", "").
-func parseStateEvent(text string) (peerAddr, state string) {
+// relevant to this non-readiness consumer. Unrecognized lines return ("", "", "").
+func parseStateEvent(text string) (peerAddr, state, reason string) {
 	fields := strings.Fields(strings.TrimRight(text, "\n"))
 	if len(fields) < 4 || fields[0] != "peer" {
-		return "", ""
+		return "", "", ""
 	}
-	addr := fields[1]
 	for i := 2; i < len(fields)-1; i++ {
-		if fields[i] == "state" {
-			return addr, fields[i+1]
+		switch fields[i] {
+		case "state":
+			i++
+			state = fields[i]
+		case "reason":
+			i++
+			reason = fields[i]
 		}
 	}
-	return "", ""
+	if state == "" {
+		return "", "", ""
+	}
+	return fields[1], state, reason
 }
