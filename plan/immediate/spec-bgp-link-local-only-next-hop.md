@@ -16,7 +16,10 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Prove what is left of `draft-ietf-idr-linklocal-capability` once the code that
 performs it exists: the re-read of three rows that used to rest on an
 unreachable form (AC-7), and an interop exchange of the 16-octet link-local
-next hop with another implementation (AC-8). Nothing else.
+next hop with another implementation (AC-8), where Ze relays a received
+link-local-only next hop unchanged. Ze originating its own link-local as the
+only next hop is out of scope and recorded as a gap (owner, 2026-10-11).
+Nothing else.
 
 Owner decision, 2026-10-11, on the round-2 design review's I5 ("the narrowed
 skeleton owns no open row"): "Rewrite to AC-7/AC-8". This spec was written on
@@ -68,6 +71,20 @@ dropped as already met by other work, and this spec keeps AC-7 and AC-8.
     `neighbor 172.30.0.2 capability link-local`, `ze.conf` `link-local
     fe80::be:ef:2`), because Ze refuses a link-local session address
     (`reactor_peers.go`, "link-local addresses not supported for local-address").
+  → Decision: AC-8 reuses this scenario's injector (`inject.msg`, `inject-args`,
+    a `peer injector` Ze dials with `accept false`), placed on the SAME link as
+    Ze and FRR, so the relayed link-local is a third-party next hop FRR can use
+    (round-4 I1).
+- [ ] `internal/core/bgp/attribute/nexthop_form.go` (`ValidateGlobalNextHop`),
+  `internal/component/bgp/reactor/session_connection.go` (`connectedLocalAddress`),
+  `internal/component/bgp/reactor/peer.go` (`canUseNextHopFor`)
+  → Constraint: Ze has no path that writes its OWN link-local as the only next
+    hop: next-hop self resolves to the IPv4 session address, refused for IPv6
+    unicast without extended next hop; an explicit `fe80::` next hop is refused
+    at every route-level entry point ("RFC 2545 Section 3"); the `session
+    link-local` leaf fills only the second address after a global. The only
+    producer of the 16-octet form is a relay of a received one with the next hop
+    unchanged (round-4 I1).
 
 ## Current Behavior (MANDATORY)
 
@@ -144,13 +161,13 @@ producers (round-3 N3).
 | ID | When | Then |
 |----|------|------|
 | AC-7 | `-5-1`, `-4-2` and `-4-8` are re-read against the producers the summary names | each row's tagged test is shown, by its discrimination record and by reading its body, to drive the form Ze now emits rather than rest on the form being unreachable; a test that does not is rewritten and re-recorded. For `-4-2` the re-read covers the D6 forms: a received link-local forwarded under next-hop auto and under unchanged, to a peer on the shared segment and to one more than one hop away. If a form regressed, the producer is fixed in this spec and the tagged test proves it (R-1); the row stays met. `./le rfc check` exits clean for the stem. `-6-1` and `-1-2` are not in this list |
-| AC-8 | The interop scenario `bgp-linklocal-only-next-hop-frr` runs: Ze and FRR on one shared link, the BGP session over IPv4 addresses on that link (single hop), the IPv6 unicast family negotiated with capability 77 on both sides, no global IPv6 address on the link, and Ze's `link-local` set to its address on that interface | Ze's UPDATE carries a 16-octet link-local Next Hop (capture asserted) and FRR installs the route through the shared interface, read from FRR's RIB and kernel. The receive direction, FRR's 16-octet link-local next hop installed by Ze with the session interface, is AC-3 of `plan/immediate/spec-bgp-unowned-rfc-rows.md` and its scenario `bgp-linklocal-capability-interface-frr`; this scenario does not repeat it. The revert, rebuild, red, restore, green walk is recorded |
+| AC-8 | The interop scenario `bgp-linklocal-only-next-hop-frr` runs: the injector (the `bgp-linklocal-only-multihop-withdraw-frr` pattern), Ze and FRR on one shared link, each BGP session over IPv4 addresses on that link (single hop), the IPv6 unicast family negotiated with capability 77 on both sessions, no global IPv6 address on the link, Ze relaying with `next-hop unchanged`; the injector announces a prefix whose MP_REACH Next Hop is 16 octets holding only the injector's own link-local on the shared interface (owner decision 2026-10-11, relay only) | Ze relays the route to FRR with that 16-octet link-local unchanged: the checker asserts the captured Next Hop field of Ze's UPDATE to FRR equals the injector's link-local, and FRR installs the route via that link-local through the shared interface, read from FRR's RIB and kernel. The receive direction, FRR's 16-octet link-local next hop installed by Ze with the session interface, is AC-3 of `plan/immediate/spec-bgp-unowned-rfc-rows.md` and its scenario `bgp-linklocal-capability-interface-frr`; this scenario does not repeat it. The revert, rebuild, red, restore, green walk is recorded |
 
 ## End-to-End User Stories
 
 | Story | Path |
 |-------|------|
-| An operator peers over an IPv4 session on a shared link, carries IPv6 unicast routes, and configures no global IPv6 address on the link | both speakers advertise 77; Ze sends a 16-octet link-local next hop and FRR installs a usable route through the link (`bgp-linklocal-only-next-hop-frr`); FRR's 16-octet link-local next hop is installed by Ze through the link (`bgp-linklocal-capability-interface-frr`, unowned-rows spec) |
+| An operator runs Ze as a route server or transit on a shared link with IPv4 sessions, carries IPv6 unicast routes, and configures no global IPv6 address on the link; a speaker on that link announces a route with only its link-local as next hop | every speaker advertises 77; Ze relays the route to the other speaker with that 16-octet link-local unchanged, and FRR installs a usable route via the announcing speaker through the link (`bgp-linklocal-only-next-hop-frr`); Ze advertising its own link-local as the only next hop is not offered (gap, owner decision 2026-10-11); FRR's 16-octet link-local next hop is installed by Ze through the link (`bgp-linklocal-capability-interface-frr`, unowned-rows spec) |
 
 ## 🧪 TDD Test Plan
 
@@ -164,12 +181,12 @@ producers (round-3 N3).
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-linklocal-only-next-hop-frr` | `test/interop/scenarios/bgp-linklocal-only-next-hop-frr` | FRR | AC-8: the 16-octet form Ze sends is accepted and installed by FRR | |
+| `bgp-linklocal-only-next-hop-frr` | `test/interop/scenarios/bgp-linklocal-only-next-hop-frr` | FRR | AC-8: the 16-octet link-local Ze relays unchanged from a speaker on the same link is accepted and installed by FRR | |
 | `bgp-linklocal-capability-interface-frr` (created by the unowned-rows spec) | `test/interop/scenarios/bgp-linklocal-capability-interface-frr` | FRR | AC-8 receive direction, by reference | |
 
 ## Files to Modify
 
-- `rfc/short/draft-ietf-idr-linklocal-capability.md`, `docs/features/rfc-status.md` - AC-7, only where the re-read corrects a claim
+- `rfc/short/draft-ietf-idr-linklocal-capability.md`, `docs/features/rfc-status.md` - AC-7, only where the re-read corrects a claim; and the origination gap (round-4 I1): the support-remaining line names Ze's own link-local as the only next hop as an implementation gap with the §4 item 2 MAY and the owner's 2026-10-11 decision, plus `excluded-kind: feature-out-of-scope` on any row conditional on it
 - `internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_*_test.go` - AC-7, only a test the re-read finds vacuous
 - `internal/component/bgp/reactor/forward_next_hop.go` - AC-7, only if the `-4-2` re-read finds a regression (R-1)
 - `internal/le/interoplab/bgp/check_special.go` - map entry for `bgp-linklocal-only-next-hop-frr`
@@ -237,6 +254,27 @@ producers (round-3 N3).
 - The receive direction is proven once, by the unowned-rows spec's
   `bgp-linklocal-capability-interface-frr`; a second scenario asserting the same
   install would be a second copy of one proof (round-3 I2).
+- AC-8 proves a relay, not origination (round-4 I1, owner 2026-10-11): the
+  only path in Ze that writes a 16-octet link-local next hop is a received one
+  passed through unchanged, so the scenario's producer is the injector on the
+  shared link and Ze's part is the relay. The draft permits that form as a
+  third-party next hop for an external peer: "Similarly, the speaker can use
+  the received Link-Local IPv6 address, provided that peer X is directly
+  attached." (§4, item 2).
+- Origination is an OPTIONAL feature recorded as a gap, not built here. The
+  draft's default arm for an external peer: "If the BGP speaker is one IP hop
+  away, the Link-Local IPv6 address SHOULD be included, and MAY be the only next
+  hop address in the next hop." (§4, item 2). Ze never makes its own link-local
+  the only next hop. The summary records it in its support-remaining line as an
+  implementation gap naming this scope decision, and any row whose obligation
+  is conditional on Ze sending its own link-local as the only next hop takes
+  `excluded-kind: feature-out-of-scope` with that quote, its MAY, and the
+  owner's words. A MUST that binds whether or not Ze offers the feature is never
+  relabeled: the AC-7 walk re-reads `-4-3` ("If the route is directly connected
+  to the speaker, ... the next hop MUST include its own Link-Local IPv6
+  address.", §4, item 1) for an internal peer on a link with no global address,
+  and if it binds there and Ze sends nothing, it is a counted conformance gap
+  reported to the owner, not an exclusion.
 - A `-4-2` regression is a defect fixed here, never a ledger move to `{gap}`:
   the gates refuse a tagged `{gap}`, and a met row that broke is a defect in an
   implemented capability (round-3 I1).
@@ -246,11 +284,16 @@ producers (round-3 N3).
 | Question | Owner's words | What it means here |
 |----------|---------------|--------------------|
 | Round-2 I5: the narrowed skeleton owns no open row; close it or rewrite it? | "Rewrite to AC-7/AC-8" | This spec keeps AC-7 and AC-8 only; the false claims about capability 77 and the seven rows are removed |
+| Round-4 I1: AC-8 names no path that produces Ze's own link-local as the only next hop; relay a received one, or build origination? | "Relay only, for now (Recommended)" | AC-8 is a relay from a speaker on the same link; origination is out of scope and recorded as an implementation gap with the draft's §4 MAY and this decision (Key Design Decisions) |
 
 ## Known Limitations
 
 - The draft is revision -06 and not yet an RFC. A later revision can change the
   wire format, and the summary records the revision the walk read.
+- Ze does not originate a link-local-only next hop: on a link with no global
+  IPv6 address it relays one it received and never advertises its own
+  (owner decision 2026-10-11, "Relay only, for now"; gap recorded in the
+  summary).
 
 ## RFC Documentation (Scope: protocol)
 
