@@ -366,15 +366,15 @@
       "verdict": "enforced"
     },
     "RFC7296-2.21.4-6": {
-      "note": "Re-judged 2026-10-11 by an independent judge; row widened to its subject 'A peer receiving such an unprotected Notify payload', kept clause 'MUST NOT change the state of any existing SAs' (RFC 7296 2.21.4). The input of TestErrUnprotectedNotifyChangesNoState is ntfRequest, a bare 28-octet header marked as a request with no payload at all, so it carries no Notify payload, let alone the INVALID_IKE_SPI response 'such' refers to. A receiver that acted on an unprotected Notify (for example tore down the SA on an unprotected INVALID_IKE_SPI response) would leave the unit green, because the payload-less header can be dropped before any notify handling (isolation fails). The negative's claim says the SAME notify inside a valid Encrypted payload reaches the handlers, but the body sends rtxIKEDelete, an IKE Delete: claim wider than its assertion. No discrimination record. The earlier enforced verdict was a byte-identity re-stamp, not a re-read.",
+      "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1). RFC 7296 2.21.4: \"A peer receiving such an unprotected Notify payload MUST NOT respond and MUST NOT change the state of any existing SAs.\" Fixed since the last verdict: the input is now the real INVALID_IKE_SPI response sendInvalidIKESPI writes (one unprotected Notify, asserted), a loopback sentinel proves no datagram answers it, and the negative carries an INVALID_IKE_SPI Notify inside SK rather than a Delete. Still weak, on isolation and on the negative's claim. The positive input has the R bit set and ps.pendingRekey is nil, so classifyInbound (msgid.go) returns inboundInvalid; in that arm (inbound.go) an INFORMATIONAL response that DOES authenticate only returns ownedOutcome{dpdResp: true} and changes no state, counter, outstanding flag or Child SA, and never sets peerAlive. So every assertion of the positive also holds for an authenticated copy of the same message: a break that let an unprotected message through decryptAndParse leaves the unit green (only dpdResp would move, which the test does not read). The negative's claim says the freeze is caused by the missing protection, but its input is a REQUEST at ExpectedMsgID (initiatorFlag, no R bit), which classifies inboundNewRequest; it changes the R bit and the classification together with the protection, so the control cannot attribute the freeze to protection. Claim wider than its assertion. Fix: give the SA an outstanding request (a DPD probe at requestMsgID with requestOutstanding true) and send the INVALID_IKE_SPI response at that Message ID; assert the unprotected copy leaves requestOutstanding set and draws no dpdResp, and the negative sends the same response inside SK and sees the window freed.",
       "requirement_sha": "b2827b9913e02df2",
       "tests": {
-        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState": "415b6ac964372bdc",
-        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState#2": "415b6ac964372bdc"
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState": "473ca3bec93a8dda",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState#2": "473ca3bec93a8dda"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState": "068fa25f50632492",
-        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState#2": "068fa25f50632492"
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState": "4458490c2bd82329",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState#2": "4458490c2bd82329"
       },
       "verdict": "weak"
     },
@@ -736,17 +736,17 @@
       "verdict": "enforced"
     },
     "RFC7296-3.1-11": {
-      "note": "Re-judged 2026-10-11 by an independent judge after the row was widened to the V item head. The send clause is enforced: TestBuiltMessagesClearXAndVBits refuses a set V bit on every engine-built message, and its #2 tag only shows the encoder can set V (an anti-vacuity control, not a violating input). The receive clause 'MUST ignore it in incoming messages' rests on the V-bit half of TestXBitsIgnoredOnReceipt, which calls handleSAInitRequest directly and so skips handleResponderInbound and the register.go dispatch; a break there that drops a message with V set stays green. No discrimination record. Fix as for RFC7296-3.1-8.",
+      "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1). RFC 7296 3.1: \"Implementations of IKEv2 MUST clear this bit when sending and MUST ignore it in incoming messages.\" The send clause is enforced: TestBuiltMessagesClearXAndVBits refuses a set V bit on every engine-built message, and its #2 tag only shows the encoder can set V (an anti-vacuity control). The receive clause rests on the V-bit half of TestXBitsIgnoredOnReceipt, which now runs through handleResponderInbound and asserts the same state and a version-2 response; that half is sound for handleResponderInbound and handleSAInitRequest. It still skips dispatchInbound and tryResponderSAInit (register.go), the first site that reads the flags octet of a fresh IKE_SA_INIT, so a break there that drops a message with V set stays green, and no established-SA or initiator-side message with V set is driven. Records on this unit are whole-body panics of handleResponderInbound. Fix as for RFC7296-3.1-8.",
       "requirement_sha": "55fd14988d802545",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "8d3fcb43ed2e4c94",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "8d3fcb43ed2e4c94",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "8d3fcb43ed2e4c94"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "ac7b876c3a1b1acb",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "ac7b876c3a1b1acb",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "ac7b876c3a1b1acb"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "12fb263d700767ed",
         "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "12fb263d700767ed",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "15de1868282682bf"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "2b7b7f6f831bea36"
       },
       "verdict": "weak"
     },
@@ -843,15 +843,15 @@
       "verdict": "enforced"
     },
     "RFC7296-3.1-8": {
-      "note": "Re-judged 2026-10-11 by an independent judge after the row was widened to its subject; this row keeps the receive clause 'MUST be ignored on receipt' (RFC 7296 3.1). The positive half of TestXBitsIgnoredOnReceipt sets the X bits and calls handleSAInitRequest directly, skipping handleResponderInbound and the register.go dispatch, which are the first places the flags octet is judged on the real receive path (responder.go handleResponderInbound tests Flags&FlagResponse). A break there that drops a message carrying any X bit, for example Flags&FlagResponse != 0 widened to Flags != 0, leaves this unit green; the test's own R-bit negative uses handleResponderInbound, so the two halves run different entry points. Only IKE_SA_INIT is exercised. No discrimination record. Fix: drive the X-bit message through handleResponderInbound (and an established-SA path) and record a mutant on its flags test.",
+      "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1). RFC 7296 3.1: \"'X' bits MUST be cleared when sending and MUST be ignored on receipt.\" This row's tests carry the receive clause (the send clause is RFC7296-3.1-7). TestXBitsIgnoredOnReceipt now drives the X-bit IKE_SA_INIT request through PeerSession.handleResponderInbound, so a drop on a set X bit in handleResponderInbound (responder.go tests Flags&FlagResponse) or in handleSAInitRequest turns it red, and its R-bit negative uses the same entry, so both halves now share one path. Still weak: on the wire a fresh IKE_SA_INIT reaches handleResponderInbound only through dispatchInbound and tryResponderSAInit (register.go), whose test pkt.Data[19]&wire.FlagResponse != 0 is the FIRST place the flags octet is judged, and the test builds its responder SA directly and never calls tryResponderSAInit. A break there that drops a request carrying any X bit (pkt.Data[19] != 0) leaves this unit green; the previous verdict named that dispatch and it was not driven. The established-SA path (handleOwnedInbound, inbound.go isResponse) and the initiator's response handling (fsm.go Flags&FlagResponse) are not exercised with X bits either. The discrimination records are whole-body panics of handleResponderInbound, which prove reachability, not the flags judgement. Fix: drive the noisy request through tryResponderSAInit as rfc7296_session_test.go does, and add an established-SA message and an initiator-side response with the X bits set.",
       "requirement_sha": "91f55639da1beab4",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "8d3fcb43ed2e4c94",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "8d3fcb43ed2e4c94"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "ac7b876c3a1b1acb",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "ac7b876c3a1b1acb"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "15de1868282682bf",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "15de1868282682bf"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "2b7b7f6f831bea36",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "2b7b7f6f831bea36"
       },
       "verdict": "weak"
     },
@@ -1017,14 +1017,14 @@
       "verdict": "enforced"
     },
     "RFC7296-3.14-3": {
-      "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Initialization Vector item head, kept clause 'recipients MUST accept any value' (RFC 7296 3.14); the sender clause is RFC7296-3.14-2. TestSKAcceptsAnyIVOnReceipt decrypts all-zero, all-ones and ascending IVs to the exact Delete payload; TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen decrypts a repeated IV and the previous final ciphertext block as IV, the inputs a policing recipient would refuse. Defect: the positive's claim names 'a repeat of an earlier IV', which its own body does not send (the sibling unit does). Revert records on decryptSKPayload are reach proofs.",
+      "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1); only the positive's claim comment changed. RFC 7296 3.14: \"Senders MUST select a new unpredictable IV for every message; recipients MUST accept any value.\" This row's tests carry the recipient clause (the sender clause is RFC7296-3.14-2). TestSKAcceptsAnyIVOnReceipt now claims the three IVs it sends (all-zero, all-ones, ascending) and decrypts each to the exact single Delete payload through decryptAndParse; its claim points the repeated IV to TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen, which decrypts a repeated IV and the previous final ciphertext block used as IV, the inputs a policing recipient would refuse. Claim and body now agree; the earlier defect is resolved. Revert records on auth.go::decryptSKPayload for both units.",
       "requirement_sha": "33c68dca6cc5c05e",
       "tests": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "19c5161b4c10330d",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "10094853fa461fff",
         "internal/component/ike/engine/rfc7296_iv_receive_test.go::TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen": "ec58910b762cef5e"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "adc200fefe87d241",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "8864d3535ed7acf9",
         "internal/component/ike/engine/rfc7296_iv_receive_test.go::TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen": "363b6244dcdef689"
       },
       "verdict": "enforced"
@@ -1043,19 +1043,19 @@
       "verdict": "enforced"
     },
     "RFC7296-3.14-6": {
-      "note": "Checksum over the encrypted message. Positive (TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage): the ICV Ze writes equals HMAC-SHA2-256-128 under SK_ai computed with crypto/hmac outside Ze over header, SK header, IV and ciphertext, and the peer accepts it. Negative (TestRFC7296ChecksumOverThePlaintextIsRefused): the ICV recomputed over header, IV and the plaintext (decrypted outside Ze) is refused by decryptAndParse, while the same construction over the ciphertext is accepted, so only the MAC input differs. Records: positive revert of engine/auth.go::buildSKMessageCBCWithMsgID, negative revert of crypto/cipher.go::VerifyIntegrity. CBC only: an AEAD transform carries no separate Integrity Checksum Data. The older round-trip and octet-flip units stay tagged and add nothing to discrimination.",
+      "note": "Re-judged 2026-10-11 by an independent judge because the unit TestSKAcceptsAnyIVOnReceipt moved; the move is a claim comment for RFC7296-3.14-3 only, and its RFC7296-3.14-6 negative claim and body are unchanged. RFC 7296 3.14: \"The checksum MUST be computed over the encrypted message.\" The proof rests on the dedicated pair: TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage recomputes HMAC-SHA2-256-128 under SK_ai outside Ze over header, SK header, IV and ciphertext and requires Ze's ICV to equal it, and TestRFC7296ChecksumOverThePlaintextIsRefused refuses an ICV computed over the plaintext while the same construction over the ciphertext is accepted. TestSKAcceptsAnyIVOnReceipt's negative (a flipped final ICV octet refused) and TestSKPaddingAlignsAndChecksumCoversCiphertext add integrity-refusal floors only; a plaintext-MAC implementation would also refuse a flipped octet, so those units alone would not discriminate the scope, but the pair above does.",
       "requirement_sha": "5439e1831480eefd",
       "tests": {
         "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage": "3ceaa9f84e99828e",
         "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumOverThePlaintextIsRefused": "3ceaa9f84e99828e",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "19c5161b4c10330d",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "19c5161b4c10330d",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "19c5161b4c10330d"
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "10094853fa461fff",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "10094853fa461fff",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "10094853fa461fff"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage": "b8795b1f309fc3ae",
         "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumOverThePlaintextIsRefused": "d9cd06dd50dcae62",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "adc200fefe87d241",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "8864d3535ed7acf9",
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "a1d95e7010770c80",
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "a1d95e7010770c80"
       },
@@ -1337,15 +1337,15 @@
       "verdict": "enforced"
     },
     "RFC7296-3.5-3": {
-      "note": "Re-judged 2026-10-11 by an independent judge; row widened to the whole sentence, kept clause 'MUST be configurable to accept all of these four types' (RFC 7296 3.5). TestRemoteIDAcceptsEveryMandatoryType configures remote-id and requires checkRemoteIdentity to accept ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR and an opaque ID_KEY_ID, each with an anti-vacuity refusal of a wrong value, so refusing any of the four fails. Defect: the negative TestRemoteIDRefusesTypesItCannotCompare claims ID_DER_ASN1_DN (9) and ID_DER_ASN1_GN are refused, but its body tests GN only, and a DN refusal would contradict RFC7296-4-4; the negative is a per-type control, not a violation of this clause. Claim wording owed. No discrimination record.",
+      "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1). RFC 7296 3.5: \"implementations MUST be configurable to send at least one of ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR, or ID_KEY_ID, and MUST be configurable to accept all of these four types.\" The send clause is proven under RFC7296-3.5-2 (buildIDPayload tests); this row's tests carry the accept clause. Positive TestRemoteIDAcceptsEveryMandatoryType (unchanged) requires checkRemoteIdentity to accept all four types under a configured remote-id, each with an anti-vacuity refusal of a wrong value, so refusing any of the four or short-circuiting on an empty remote-id fails. Negative TestRemoteIDRefusesTypesItCannotCompare: its claim now names ID_DER_ASN1_GN only, which is exactly what the body sends, and requires the not-comparable branch (\"cannot compare\") rather than a value mismatch, so a checker that accepts every type turns red; the earlier defect (claim naming ID_DER_ASN1_DN, which RFC7296-4-4 requires accepted) is resolved. Revert record on remote_id.go::assertedIdentity.",
       "requirement_sha": "6683d5ad08d09c46",
       "tests": {
-        "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDAcceptsEveryMandatoryType": "b51a9435fce862dd",
-        "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDRefusesTypesItCannotCompare": "b51a9435fce862dd"
+        "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDAcceptsEveryMandatoryType": "c4bea9bcd545e1b6",
+        "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDRefusesTypesItCannotCompare": "c4bea9bcd545e1b6"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDAcceptsEveryMandatoryType": "12232de186188625",
-        "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDRefusesTypesItCannotCompare": "ca88a74c148f6949"
+        "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDRefusesTypesItCannotCompare": "f901a09951b2bfb5"
       },
       "verdict": "enforced"
     },

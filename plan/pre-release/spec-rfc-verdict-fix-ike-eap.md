@@ -220,14 +220,21 @@ Thomas, 2026-10-11: A "Enrol it (Recommended)" for RFC 9190; B "Approve the fixe
 
 Commits 2691e815b1 (IKE tests and records) and 0be0218ef1 (EAP tests, records, RFC9190-2.3-1 `{partial}`). Verdicts this round makes stale or newly owed, for an independent judge (the author judged none):
 
-| Stem | Ids | Mode |
-|------|-----|------|
-| rfc7296 | 3.1-8, 3.1-11, 2.21.4-6, 3.5-3, 3.14-3, and 3.14-6 if its unit fingerprint moved | rejudge |
-| rfc4301 | 4.4.1-6 (lost two units), 4.4.1-11, 4.4.1-12 (gained them) | rejudge |
-| rfc4555 | 4.2.6-1 | rejudge |
-| rfc4555 | 3.6-2, 3.6-3 (now `{single-polarity}`) | new |
-| rfc4303 | 3.4.4.1-2 (gap text names VPP) | rejudge |
-| rfc9190 | 2.1.2-2, 2.1.3-1, 2.3-1 (now `{partial}`, so the prepared `weak` entry is stale), 5.7-1 (tests changed), 2.3-4 | new, once the stem is enrolled |
+| Stem | Ids | Mode | Verdict (independent judge, 2026-10-11) |
+|------|-----|------|-----------------------------------------|
+| rfc7296 | 3.1-8, 3.1-11, 2.21.4-6, 3.5-3, 3.14-3, and 3.14-6 if its unit fingerprint moved | rejudge | 3.1-8 weak, 3.1-11 weak, 2.21.4-6 weak; 3.5-3, 3.14-3, 3.14-6 enforced |
+| rfc4301 | 4.4.1-6 (lost two units), 4.4.1-11, 4.4.1-12 (gained them) | rejudge | all three enforced |
+| rfc4555 | 4.2.6-1 | rejudge | enforced |
+| rfc4555 | 3.6-2, 3.6-3 (now `{single-polarity}`) | new | both enforced |
+| rfc4303 | 3.4.4.1-2 (gap text names VPP) | rejudge | unimplemented (gap stands; code map now names vpp.go InstallSA and vppSAFlags) |
+| rfc9190 | 2.1.2-2, 2.1.3-1, 2.3-1 (now `{partial}`, so the prepared `weak` entry is stale), 5.7-1 (tests changed), 2.3-4 | new, once the stem is enrolled | not judged (not enrolled, owner decision pending) |
+
+Still weak after the fix round, with the reason recorded in `rfc/audit/rfc7296.json`:
+
+| Id | Why | Fix owed |
+|----|-----|----------|
+| RFC7296-3.1-8, 3.1-11 (receive clause) | The test enters at handleResponderInbound and never calls tryResponderSAInit (register.go), the first site that reads the flags octet of a fresh IKE_SA_INIT; no established-SA or initiator-side message carries X or V bits | Drive the noisy request through tryResponderSAInit, and add an established-SA message and an initiator-side response with the bits set |
+| RFC7296-2.21.4-6 | The input is a response with no pending exchange, so classifyInbound sends it to inboundInvalid, where an authenticated copy also changes no state; the negative flips the R bit as well as the protection, so it cannot attribute the freeze to protection | Give the SA an outstanding request, send the INVALID_IKE_SPI response at that Message ID, and send the same response inside SK as the negative |
 
 Mechanical: `./le rfc reseal` for any rfc4555 verdict whose `mobike_test.go` unit only shifted.
 

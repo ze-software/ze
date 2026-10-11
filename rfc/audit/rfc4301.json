@@ -153,32 +153,40 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.1-11": {
-      "note": "Independent source rejudgment against full RFC 4301 Section 4.4.1. The controlling lead-in is: \u2018The SPD MUST permit a user or administrator to specify policy entries as follows:\u2019 The complete assigned item is: \u2018SPD-I: For inbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded.\u2019 Read all three tagged units: internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector and internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry / TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy. The DISCARD case requires an inbound policy and exact remote-source/local-destination prefixes. The BYPASS positive additionally pins BYPASS and asymmetric source-any/destination-22 ports. Its distinct negative rejects outbound orientation and an inbound policy for an out-only entry. internal/component/ike/engine/spd_policy.go::spdPolicyParams selects directions, spdPolicyDirection reverses addresses and ports, and installSPDPolicies consumes the results through dp.InstallPolicy. The owned edit adds an unknown-direction panic to the test without weakening assertions or changing either tag claim. This is unit-level projection evidence, not execution of config commit or kernel packet delivery. The DISCARD unit itself does not assert action, protocol, ports or exact multiplicity, so those checks are not attributed to it. The canonical scope report marks its positive discrimination record unit-changed; parent must obtain a separate native recorder observation for this cover. No new execution is claimed.",
+      "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1) added the disposition pair. RFC 4301 4.4.1, under \"The SPD MUST permit a user or administrator to specify policy entries as follows:\": \"SPD-I: For inbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded.\" The engine units judged before (TestSPDPolicyMirrorsTheInboundSelector, TestRFC4301BypassReturnTrafficHasAnSPDIEntry, TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy) are unchanged and carry the selector half: the inbound entry holds the mirrored selectors of the traffic, never an unmirrored copy (records on spdPolicyParams). The added positive TestRFC4301SPDPermitsEachDispositionInEachDatabase carries the 'administrator can specify' half: bypass and discard with direction in and both parse through ParseIPsecConfig to the exact SPActionBypass/SPActionDiscard and SPDDirIn/SPDDirBoth; its claim names disposition and direction only, which is what it asserts. The added negative TestRFC4301SPDRefusesADispositionItDoesNotCarry refuses an absent action (not read as PROTECT, the SPAction zero value), protect, an unknown action and an unknown direction, each by its exact message. Revert records on ipsec/spd_policy.go::parseSPDPolicy for both.",
       "requirement_sha": "8d2219256c2659f6",
       "tests": {
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry": "070119884829e685",
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy": "070119884829e685",
-        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "cfb1c6b7c1879f57"
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "cfb1c6b7c1879f57",
+        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDPermitsEachDispositionInEachDatabase": "12c243c57454eddc",
+        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry": "12c243c57454eddc"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry": "7372c52891d30eba",
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy": "6c2b68f7af6d7814",
-        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "0f30f2fd85d41f71"
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "0f30f2fd85d41f71",
+        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDPermitsEachDispositionInEachDatabase": "01698e10b2d95285",
+        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry": "4e63f04515eb7afa"
       },
       "verdict": "enforced"
     },
     "RFC4301-4.4.1-12": {
-      "note": "Independent source rejudgment against full RFC 4301 Section 4.4.1. The controlling lead-in is: \u2018The SPD MUST permit a user or administrator to specify policy entries as follows:\u2019 The complete assigned item is: \u2018SPD-O: For outbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded.\u2019 Read all three tagged units: internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector and internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry / TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy. The DISCARD case requires an outbound policy and exact local-source/remote-destination prefixes. The BYPASS positive additionally checks BYPASS and source-22/destination-any ports. Its distinct negative rejects inbound orientation and an outbound policy for an in-only entry. internal/component/ike/engine/spd_policy.go::spdPolicyParams selects directions, spdPolicyDirection retains outbound orientation, and installSPDPolicies forwards each result to dp.InstallPolicy. The owned unknown-direction panic strengthens failure handling without changing either tag claim. These tests inspect builder results, not kernel installation or packet delivery; the DISCARD unit alone does not assert action, protocol, ports or exact multiplicity. Parent must renew this behavior-changed unit\u2019s positive record for this id separately from the -11 record. No test or recorder was executed by this judge.",
+      "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1) added the disposition pair. RFC 4301 4.4.1, under \"The SPD MUST permit a user or administrator to specify policy entries as follows:\": \"SPD-O: For outbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded.\" The engine units judged before (TestSPDPolicyMirrorsTheInboundSelector, TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry, TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy) are unchanged and carry the selector half (records on spdPolicyParams). The added positive TestRFC4301SPDPermitsEachDispositionInEachDatabase shows bypass and discard with direction out and both parse to the exact disposition and SPDDirOut/SPDDirBoth; its claim names disposition and direction only, which is what it asserts. The added negative TestRFC4301SPDRefusesADispositionItDoesNotCarry refuses an absent action, protect, an unknown action and an unknown direction by exact message. Revert records on ipsec/spd_policy.go::parseSPDPolicy for both.",
       "requirement_sha": "abf28dafe88ad9a2",
       "tests": {
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy": "070119884829e685",
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry": "070119884829e685",
-        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "cfb1c6b7c1879f57"
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "cfb1c6b7c1879f57",
+        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDPermitsEachDispositionInEachDatabase": "12c243c57454eddc",
+        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry": "12c243c57454eddc"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy": "af1ab69e40f5e049",
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry": "0ce4c4859b7fb73b",
-        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "0f30f2fd85d41f71"
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "0f30f2fd85d41f71",
+        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDPermitsEachDispositionInEachDatabase": "01698e10b2d95285",
+        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry": "4e63f04515eb7afa"
       },
       "verdict": "enforced"
     },
@@ -209,17 +217,13 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.1-6": {
-      "note": "Re-judged 2026-10-11 by an independent judge after the row was re-quoted to the SPD-S item under 'The SPD MUST permit a user or administrator to specify policy entries as follows:' (RFC 4301 4.4.1). TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection parses one site-to-site peer through ParseIPsecConfig and ValidateGroupRefs and reads back all three parts the item names: the selector prefixes, the SA creation controls (connection-type, remote address, esp-group) and the protection parameters (mode transport, aes256/sha256), each compared exactly. TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart refuses an undefined esp-group, mode beet, an unknown connection-type and a /33 selector, each naming the part. Revert records on parseSiteToSitePeer. Defect: TestRFC4301SPDPermitsEachDispositionInEachDatabase and TestRFC4301SPDRefusesADispositionItDoesNotCarry still carry RFC4301-4.4.1-6 tags whose claims are bypass and discard entries for SPD-I and SPD-O, which are RFC4301-4.4.1-11 and -12 after the re-quote; they prove nothing about an SPD-S entry and should be retagged.",
+      "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1) moved the two disposition tests off this row. RFC 4301 4.4.1, under \"The SPD MUST permit a user or administrator to specify policy entries as follows:\": \"SPD-S: For traffic that is to be protected using IPsec, the entry consists of the values of the selectors that apply to the traffic to be protected via AH or ESP, controls on how to create SAs based on these selectors, and the parameters needed to effect this protection (e.g., algorithms, modes, etc.).\" The row now carries only the SPD-S pair, both unchanged since the last read: TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection parses a site-to-site peer through ParseIPsecConfig and ValidateGroupRefs and reads back the selector prefixes, the SA creation controls (connection-type, remote address, esp-group) and the protection parameters (mode transport, aes256/sha256), each compared exactly; TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart refuses an undefined esp-group, mode beet, an unknown connection-type and a /33 selector, each naming the part. Revert records on config.go::parseSiteToSitePeer. The earlier defect (bypass/discard tests tagged here) is resolved.",
       "requirement_sha": "8e6e0c7efd99f448",
       "tests": {
-        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDPermitsEachDispositionInEachDatabase": "ae75f967654d5dea",
-        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry": "ae75f967654d5dea",
         "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection": "b227c917ca2c9cdf",
         "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart": "b227c917ca2c9cdf"
       },
       "units": {
-        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDPermitsEachDispositionInEachDatabase": "af771292a62fe375",
-        "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry": "583e8dfdd1f139cf",
         "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection": "b5a58e3f4fdacf58",
         "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart": "03e9d4d8cd61b7ed"
       },
