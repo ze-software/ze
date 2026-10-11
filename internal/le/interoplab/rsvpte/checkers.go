@@ -706,10 +706,68 @@ type ospfNeighbor struct {
 	State    string `json:"state"`
 }
 
+// routerLSAWithLinkOctets is the length of a router-LSA carrying the egress's
+// stub network and one more link (RFC 2328 Section A.4.2: a 20-octet header,
+// 4 octets of flags and link count, then 12 octets for each link without TOS).
+const routerLSAWithLinkOctets = 48
+
+// waitMergePointAttributed waits until the Ze PLR's database holds a router-LSA
+// from the freeRouter egress with its point-to-point link, whose Link Data is
+// the eth0 address 172.29.81.14 (RFC 2328 Section A.4.2). A Full adjacency is
+// not that proof: the egress re-originates its router-LSA after the adjacency
+// forms, and until it arrives the egress advertises its stub network alone, so
+// nothing ties 172.29.81.14 to 10.0.14.14 and the PLR rightly refuses the
+// merge point's RESV from that address. Cutting the link before then measures
+// the lab's timing, not Ze.
+func waitMergePointAttributed(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	command := []string{"ze", "cli", "-c", "show ospf database router", "--user", "interop", "--format", "json"}
+	environment := []interoplab.EnvironmentVariable{{Name: "ZE_SSH_PASSWORD", Value: "testpass"}}
+	last := ""
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: "Ze PLR holds the freeRouter egress's router-LSA with its point-to-point link"},
+		func(ctx context.Context) (bool, error) {
+			answer, err := lab.Query(ctx, peerTransit, command, environment)
+			if err != nil {
+				return false, err
+			}
+			last = answer
+			var database any
+			if err := json.Unmarshal([]byte(answer), &database); err != nil {
+				return false, fmt.Errorf("decode `show ospf database router` reply %q: %w", answer, err)
+			}
+			return egressRouterLSALinked(database), nil
+		},
+		func(linked bool) bool { return linked })
+	if err != nil {
+		return fmt.Errorf("%w; last `show ospf database router` answer: %s", err, last)
+	}
+	return nil
+}
+
+// egressRouterLSALinked walks the decoded `show ospf database router` reply for
+// the egress's router-LSA and reports whether it carries a link beside its stub.
+// The walk descends only Ze's own CLI reply, a structure a few levels deep.
+func egressRouterLSALinked(node any) bool {
+	switch value := node.(type) {
+	case []any:
+		return slices.ContainsFunc(value, egressRouterLSALinked)
+	case map[string]any:
+		if value["advertising-router"] == addressProtectedMP {
+			if length, ok := value["length"].(float64); ok && length >= routerLSAWithLinkOctets {
+				return true
+			}
+		}
+		for _, item := range value {
+			if egressRouterLSALinked(item) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // waitOSPFFull waits until the Ze PLR holds a Full OSPF adjacency with the
-// freeRouter egress. That adjacency is what attributes the egress's eth0
-// address to the merge point, so a backup RESV refused for want of it reads as
-// a lab failure here rather than as a Ze defect later.
+// freeRouter egress, the first condition for the database to attribute the
+// egress's eth0 address to the merge point (waitMergePointAttributed).
 func waitOSPFFull(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
 	command := []string{"ze", "cli", "-c", "show ospf neighbor", "--user", "interop", "--format", "json"}
 	environment := []interoplab.EnvironmentVariable{{Name: "ZE_SSH_PASSWORD", Value: "testpass"}}
@@ -777,6 +835,9 @@ func checkBackupPathToMP(ctx context.Context, lab interoplab.CheckerLab, timeout
 	if err := waitOSPFFull(ctx, lab, timeout); err != nil {
 		return err
 	}
+	if err := waitMergePointAttributed(ctx, lab, timeout); err != nil {
+		return err
+	}
 	early, err := lab.Query(ctx, peerEgress, []string{catCommand, captureFile}, nil)
 	if err != nil {
 		return err
@@ -786,6 +847,11 @@ func checkBackupPathToMP(ctx context.Context, lab interoplab.CheckerLab, timeout
 			return fmt.Errorf("freeRouter egress holds a backup PATH before the protected link failed:\n%s", message.text)
 		}
 	}
+	beforeCut, err := lab.Query(ctx, peerTransit, []string{catCommand, captureFile}, nil)
+	if err != nil {
+		return err
+	}
+	cutIndex := len(parseCapture(beforeCut))
 	if _, err := lab.Query(ctx, peerTransit, []string{"sh", "-c", "ip link set prot0 down && echo down"}, nil); err != nil {
 		return fmt.Errorf("take the protected link down: %w", err)
 	}
@@ -846,7 +912,71 @@ func checkBackupPathToMP(ctx context.Context, lab interoplab.CheckerLab, timeout
 			return protectedSessionTrace(ctx, lab, fmt.Errorf("the Ze PLR refused the merge point's RESV for its backup sender:\n%s", message.text))
 		}
 	}
+	// RFC 4090 Section 6.4.3: the PLR has "to start sending the control
+	// traffic for the protected LSP onto the bypass tunnel". The ingress keeps
+	// refreshing the PATH whose strict hop lies across the failed link, so the
+	// PLR MUST relay that refresh rather than refuse it with a PathErr.
+	var refusal *rsvpMessage
+	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: "Ze PLR handles the ingress's PATH refresh of the repaired LSP"},
+		func(ctx context.Context) (bool, error) {
+			capture, err := lab.Query(ctx, peerTransit, []string{catCommand, captureFile}, nil)
+			if err != nil {
+				return false, err
+			}
+			messages := parseCapture(capture)
+			var handled bool
+			handled, refusal = upstreamRefreshHandled(messages[min(cutIndex, len(messages)):])
+			return handled, nil
+		},
+		func(handled bool) bool { return handled })
+	if err != nil {
+		return protectedSessionTrace(ctx, lab, err)
+	}
+	if refusal != nil {
+		return protectedSessionTrace(ctx, lab, fmt.Errorf("the Ze PLR refused the ingress's PATH refresh of the repaired LSP:\n%s", refusal.text))
+	}
 	return nil
+}
+
+// upstreamRefreshesBeforeVerdict is how many of the ingress's PATH refreshes
+// of the protected LSP the PLR capture must hold after the cut before the
+// absence of a refusal counts. The scenario refreshes every 2 seconds and the
+// PLR answers a PATH in milliseconds, so a PathErr for the first refresh is
+// captured long before the last; the count does not rest on how the PLR's
+// timer-driven sends interleave with its packet handling.
+const upstreamRefreshesBeforeVerdict = 3
+
+// protectedLSP is the sender template tcpdump prints for the protected LSP the
+// ingress signals first, and refreshes after the PLR repairs it.
+const protectedLSP = "Tunnel Sender Address: " + addressZeIngress + ", LSP-ID: 0x0001"
+
+// upstreamRefreshHandled reads the PLR's capture from the moment the protected
+// link went down. It reports the refresh handled once the PLR refused a PATH of
+// the protected LSP with a Routing Problem PathErr, returning that refusal, or
+// once the capture holds upstreamRefreshesBeforeVerdict PATH refreshes of that
+// LSP from the ingress with no such refusal. Two other PathErrs are correct and
+// do not count: the Notify "Tunnel locally repaired" the PLR owes the ingress
+// for the protected LSP (RFC 4090 Section 6.5.1), and a Routing Problem for a
+// new LSP-ID the ingress signals over the same ERO, which holds no repair and
+// whose strict hop is no longer adjacent.
+func upstreamRefreshHandled(messages []rsvpMessage) (bool, *rsvpMessage) {
+	refreshes := 0
+	for index := range messages {
+		message := &messages[index]
+		if !strings.Contains(message.text, protectedTunnel) {
+			continue
+		}
+		if !strings.Contains(message.text, protectedLSP+"\n") {
+			continue
+		}
+		if isMessage(*message, addressZeTransit, "", "PathErr Message") && strings.Contains(message.text, "Routing Problem (24)") {
+			return true, message
+		}
+		if isMessage(*message, addressZeIngress, "", "Path Message") {
+			refreshes++
+		}
+	}
+	return refreshes >= upstreamRefreshesBeforeVerdict, nil
 }
 
 // protectedSessionTrace appends the last messages of the protected session each

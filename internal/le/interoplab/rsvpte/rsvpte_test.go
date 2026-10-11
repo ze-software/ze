@@ -1,12 +1,14 @@
 package rsvpte
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 )
 
 // captureSample is trimmed from the egress capture of a run of
@@ -260,5 +262,73 @@ func TestIsPop(t *testing.T) {
 	}
 	if isPop(other, "160") {
 		t.Errorf("a pop toward the ingress counted in %q", other)
+	}
+}
+
+// TestEgressRouterLSALinked proves the PLR check reads the egress's router-LSA
+// out of the reply Ze's `show ospf database router` produces, built here from
+// the producer's own snapshot types so a renamed JSON key fails the test. A
+// router-LSA carrying the stub alone (36 octets) is the state the lab cut the
+// link in; one more link (48 octets) is what attributes the egress's eth0
+// address, and another router's long LSA does not count.
+func TestEgressRouterLSALinked(t *testing.T) {
+	reply := func(lsas ...ospflsdb.LSASnapshot) any {
+		t.Helper()
+		encoded, err := json.Marshal([]any{ospflsdb.Snapshot{Areas: []ospflsdb.AreaSnapshot{{LSAs: lsas}}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decoded any
+		if err := json.Unmarshal(encoded, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		return decoded
+	}
+	plr := ospflsdb.LSASnapshot{Type: "router", AdvertisingRouter: "10.0.0.3", Length: 60}
+	stubOnly := ospflsdb.LSASnapshot{Type: "router", AdvertisingRouter: addressProtectedMP, Length: 36}
+	linked := ospflsdb.LSASnapshot{Type: "router", AdvertisingRouter: addressProtectedMP, Length: routerLSAWithLinkOctets}
+	if egressRouterLSALinked(reply(plr, stubOnly)) {
+		t.Error("an egress router-LSA with its stub alone counted as linked")
+	}
+	if egressRouterLSALinked(reply(plr)) {
+		t.Error("another router's router-LSA counted as the egress's")
+	}
+	if !egressRouterLSALinked(reply(plr, linked)) {
+		t.Error("the egress router-LSA with its point-to-point link was not found")
+	}
+}
+
+// TestUpstreamRefreshHandled proves the PLR check gives its verdict on the
+// ingress's PATH refresh of the protected LSP only after enough refreshes, and
+// that only a Routing Problem PathErr for that LSP is the refusal. The Notify
+// "Tunnel locally repaired" for it (RFC 4090 Section 6.5.1) and a Routing
+// Problem for a new LSP-ID, both captured in the green lab run, are not.
+func TestUpstreamRefreshHandled(t *testing.T) {
+	newLSP := "Tunnel Sender Address: " + addressZeIngress + ", LSP-ID: 0x0002\n"
+	refresh := rsvpMessage{source: addressZeIngress, target: addressProtectedMP, text: "RSVPv1 Path Message (1)\n" + protectedTunnel + "\n" + protectedLSP + "\n"}
+	notify := rsvpMessage{source: addressZeTransit, target: addressZeIngress, text: "RSVPv1 PathErr Message (3)\n" + protectedTunnel + "\nError Code: Notify Error (25)\n" + protectedLSP + "\n"}
+	refusal := rsvpMessage{source: addressZeTransit, target: addressZeIngress, text: "RSVPv1 PathErr Message (3)\n" + protectedTunnel + "\nError Code: Routing Problem (24)\n" + protectedLSP + "\n"}
+	newRefused := rsvpMessage{source: addressZeTransit, target: addressZeIngress, text: "RSVPv1 PathErr Message (3)\n" + protectedTunnel + "\nError Code: Routing Problem (24)\n" + newLSP}
+	otherTunnel := rsvpMessage{source: addressZeTransit, target: addressZeIngress, text: "RSVPv1 PathErr Message (3)\nTunnel ID: 0x0002\nError Code: Routing Problem (24)\n" + protectedLSP + "\n"}
+	handled, refused := upstreamRefreshHandled([]rsvpMessage{refresh, notify, otherTunnel, newRefused, refresh})
+	if handled {
+		t.Error("a verdict was given before enough refreshes")
+	}
+	if refused != nil {
+		t.Errorf("a PathErr that is not the refusal was taken as one: %q", refused.text)
+	}
+	handled, refused = upstreamRefreshHandled([]rsvpMessage{refresh, notify, refresh, newRefused, refresh})
+	if !handled {
+		t.Error("no verdict after the refreshes")
+	}
+	if refused != nil {
+		t.Errorf("a refusal was reported with none captured: %q", refused.text)
+	}
+	handled, refused = upstreamRefreshHandled([]rsvpMessage{refresh, refusal})
+	if !handled {
+		t.Error("the PLR's refusal gave no verdict")
+	}
+	if refused == nil {
+		t.Fatal("the PLR's Routing Problem PathErr for the protected LSP was not returned")
 	}
 }
