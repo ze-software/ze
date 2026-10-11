@@ -234,13 +234,13 @@ func TestYANGSchemaSyntaxHints(t *testing.T) {
 	capContainer, ok := cap.(*ContainerNode)
 	require.True(t, ok, "capability should be ContainerNode")
 
-	// route-refresh should be a presence ContainerNode (standard YANG, no ze:syntax)
-	rr := capContainer.Get("route-refresh")
+	// add-path should be a presence ContainerNode (standard YANG, no ze:syntax)
+	rr := capContainer.Get("add-path")
 	if rr != nil {
 		rrContainer, ok := rr.(*ContainerNode)
-		assert.True(t, ok, "route-refresh should be ContainerNode, got %T", rr)
+		assert.True(t, ok, "add-path should be ContainerNode, got %T", rr)
 		if ok {
-			assert.True(t, rrContainer.Presence, "route-refresh should have Presence=true")
+			assert.True(t, rrContainer.Presence, "add-path should have Presence=true")
 		}
 	}
 }
@@ -446,8 +446,8 @@ func TestYANGPresenceContainerDetected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Navigate to bgp -> peer -> session -> capability -> route-refresh
-	// After Phase 8 YANG changes, route-refresh should be a presence container
+	// Navigate to bgp -> peer -> session -> capability -> add-path
+	// After Phase 8 YANG changes, add-path should be a presence container
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode)
 	bgp, ok := bgpNode.(*ContainerNode)
@@ -465,12 +465,12 @@ func TestYANGPresenceContainerDetected(t *testing.T) {
 	capContainer, ok := cap.(*ContainerNode)
 	require.True(t, ok)
 
-	// route-refresh should be a ContainerNode with Presence=true
-	rr := capContainer.Get("route-refresh")
-	require.NotNil(t, rr, "route-refresh should exist")
+	// add-path should be a ContainerNode with Presence=true
+	rr := capContainer.Get("add-path")
+	require.NotNil(t, rr, "add-path should exist")
 	rrContainer, ok := rr.(*ContainerNode)
-	require.True(t, ok, "route-refresh should be ContainerNode, got %T", rr)
-	assert.True(t, rrContainer.Presence, "route-refresh should have Presence=true")
+	require.True(t, ok, "add-path should be ContainerNode, got %T", rr)
+	assert.True(t, rrContainer.Presence, "add-path should have Presence=true")
 }
 
 // TestPresenceContainerParsesAllForms verifies that a presence container
@@ -508,14 +508,14 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
                 remote 65001
             }
             capability {
-                route-refresh
+                add-path
             }
         }
     }
 }`,
 			checkTree: func(t *testing.T, cap *Tree) {
-				v, ok := cap.Get("route-refresh")
-				require.True(t, ok, "route-refresh should be set as value")
+				v, ok := cap.Get("add-path")
+				require.True(t, ok, "add-path should be set as value")
 				assert.Equal(t, "true", v, "flag form should store 'true'")
 			},
 		},
@@ -538,14 +538,14 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
                 remote 65001
             }
             capability {
-                route-refresh true
+                add-path true
             }
         }
     }
 }`,
 			checkTree: func(t *testing.T, cap *Tree) {
-				v, ok := cap.GetFlex("route-refresh")
-				require.True(t, ok, "route-refresh should be set")
+				v, ok := cap.GetFlex("add-path")
+				require.True(t, ok, "add-path should be set")
 				assert.Equal(t, "true", v)
 			},
 		},
@@ -642,7 +642,7 @@ func TestPresenceContainerSerializesAllForms(t *testing.T) {
                 remote 65001
             }
             capability {
-                route-refresh
+                add-path
             }
         }
     }
@@ -667,7 +667,7 @@ func TestPresenceContainerSerializesAllForms(t *testing.T) {
                 remote 65001
             }
             capability {
-                extended-message
+                extended-message enable
                 software-version
             }
         }
@@ -994,7 +994,7 @@ func TestParseInactivePrefixInsideListEntry(t *testing.T) {
                 remote 65001
             }
             inactive: capability {
-                route-refresh
+                route-refresh enable
             }
         }
     }

@@ -208,7 +208,7 @@ func TestModelCmdEditFromContext(t *testing.T) {
         remote 65001
       }
       capability {
-        route-refresh
+        route-refresh enable
       }
     }
   }

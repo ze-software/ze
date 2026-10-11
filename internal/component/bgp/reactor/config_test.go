@@ -404,7 +404,7 @@ func TestParsePeerCapabilities(t *testing.T) {
 			},
 			"capability": map[string]any{
 				"asn4":             "enable",
-				"extended-message": "true",
+				"extended-message": "enable",
 				"route-refresh":    "enable",
 			},
 		},
@@ -1804,10 +1804,11 @@ func TestParseCapabilityMode(t *testing.T) {
 }
 
 // TestParseCapabilityModeBackwardsCompat verifies the spellings parseCapMode
-// still meets: the capability-mode words on asn4, and true/false on a presence
-// capability, which the parser stores as "true" when written bare.
+// still meets: the capability-mode words, on asn4 and on extended-message. The
+// true/false spelling of a presence capability went with the presence
+// container on 2026-10-11 (TestCapabilityModeLeafRefusesOtherShapes refuses it).
 //
-// VALIDATES: mode words and true/false map to enable/disable correctly.
+// VALIDATES: the mode words map to enable/disable correctly.
 // PREVENTS: Breaking existing config files.
 func TestParseCapabilityModeBackwardsCompat(t *testing.T) {
 	tests := []struct {
@@ -1819,7 +1820,6 @@ func TestParseCapabilityModeBackwardsCompat(t *testing.T) {
 		{"asn4 require advertises", map[string]any{"asn4": "require"}, false, false},
 		{"asn4 disable", map[string]any{"asn4": "disable"}, true, false},
 		{"asn4 enable", map[string]any{"asn4": "enable"}, false, false},
-		{"extended-message true means enable", map[string]any{"extended-message": "true"}, false, true},
 		{"extended-message enable means enable", map[string]any{"extended-message": "enable"}, false, true},
 	}
 	for _, tt := range tests {

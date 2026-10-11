@@ -95,7 +95,7 @@ bgp {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}
 			capability {
-				link-local-nexthop
+				link-local-nexthop enable
 			}
 		}
 		behavior {
@@ -126,7 +126,7 @@ bgp {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}
 			capability {
-				link-local-nexthop
+				link-local-nexthop enable
 			}
 		}
 		behavior {

@@ -1568,7 +1568,7 @@ bgp {
         }
         router-id 1.2.3.4;
         local-as 65001;
-        capability { route-refresh; }
+        capability { route-refresh enable; }
     }
 }
 EOF_CONF

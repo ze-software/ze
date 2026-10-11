@@ -43,7 +43,7 @@ bgp {
             }
             capability {
                 graceful-restart
-                route-refresh
+                add-path
             }
         }
     }
@@ -69,8 +69,8 @@ bgp {
 	require.True(t, ok, "graceful-restart should exist")
 	require.Equal(t, "true", val)
 
-	val, ok = cap.Get("route-refresh")
-	require.True(t, ok, "route-refresh should exist")
+	val, ok = cap.Get("add-path")
+	require.True(t, ok, "add-path should exist")
 	require.Equal(t, "true", val)
 }
 

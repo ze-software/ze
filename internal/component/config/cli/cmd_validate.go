@@ -242,7 +242,8 @@ func runValidation(input, path string) *validationResult {
 		panic("BUG: unknown detected config format")
 	}
 	if err != nil {
-		result.addErrorLine("config-parse", err.Error(), extractLine(err.Error()))
+		line := extractLine(err.Error())
+		result.addErrorLine("config-parse", withoutLinePrefix(err.Error(), line), line)
 		return result
 	}
 
@@ -685,6 +686,18 @@ func diagsBySeverity(diags []diagnostic.Diagnostic, sev diagnostic.Severity) []d
 		}
 	}
 	return out
+}
+
+// withoutLinePrefix drops the leading "line N: " the parser writes, because
+// the diagnostic carries the line in its own field and every printer adds it
+// back: kept, the operator read "line 18: line 18: ...".
+func withoutLinePrefix(errMsg string, line int) string {
+	if line <= 0 {
+		return errMsg
+	}
+	var b textbuf.Buffer
+	prefix := b.Str("line ").Int(int64(line)).Str(": ").String()
+	return strings.TrimPrefix(errMsg, prefix)
 }
 
 func extractLine(errMsg string) int {

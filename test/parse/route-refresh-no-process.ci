@@ -17,7 +17,7 @@ bgp {
 			}
 			router-id 1.2.3.4
 			capability {
-				route-refresh
+				route-refresh enable
 			}
 		}
 	}

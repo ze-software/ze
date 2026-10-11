@@ -224,7 +224,7 @@ bgp {
                 remote 65001
             }
             capability {
-                route-refresh;
+                route-refresh enable;
             }
         }
         attach process rib { send [ update ]; }
@@ -1727,7 +1727,7 @@ bgp {
                 remote 65001
             }
             capability {
-                route-refresh;
+                route-refresh enable;
             }
         }
         attach process injector { send [ ` + sendList + ` ]; }

@@ -1,0 +1,250 @@
+# route-refresh and extended-message are capability-mode leaves, and
+# link-local-nexthop an enable/disable leaf (2026-10-11). They were presence
+# containers: `route-refresh;`, `route-refresh { }` and `route-refresh true`
+# were accepted, and the block spelling reached the reactor as a map that read
+# as "not configured", so the peer advertised nothing and nothing said so.
+#
+# VALIDATES: each old spelling is refused by `ze config validate`, and the
+#            refusal names the leaf, the words it takes, and the exact line
+#            that replaces it (leafValueFix, internal/component/config/parser.go).
+#            The parser's "line N:" is printed once (withoutLinePrefix,
+#            internal/component/config/cli/cmd_validate.go).
+# PREVENTS: an old spelling accepted again, or refused with a message that
+#           leaves the operator to guess the new one.
+#
+# The accepted counterpart is validated last, so this test fails if the
+# refusal ever widens into "capability rejected".
+
+stdin=rrbare:terminator=EOF_RRBARE
+bgp {
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh;
+			}
+		}
+	}
+}
+EOF_RRBARE
+
+stdin=rrblock:terminator=EOF_RRBLOCK
+bgp {
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh {
+				}
+			}
+		}
+	}
+}
+EOF_RRBLOCK
+
+stdin=rrtrue:terminator=EOF_RRTRUE
+bgp {
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh true
+			}
+		}
+	}
+}
+EOF_RRTRUE
+
+stdin=rrfalse:terminator=EOF_RRFALSE
+bgp {
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh false
+			}
+		}
+	}
+}
+EOF_RRFALSE
+
+stdin=embare:terminator=EOF_EMBARE
+bgp {
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				extended-message;
+			}
+		}
+	}
+}
+EOF_EMBARE
+
+stdin=llnhblock:terminator=EOF_LLNHBLOCK
+bgp {
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				link-local-nexthop {
+				}
+			}
+		}
+	}
+}
+EOF_LLNHBLOCK
+
+stdin=llnhrequire:terminator=EOF_LLNHREQUIRE
+bgp {
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				link-local-nexthop require
+			}
+		}
+	}
+}
+EOF_LLNHREQUIRE
+
+stdin=modes:terminator=EOF_MODES
+bgp {
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				route-refresh disable
+				extended-message enable
+			}
+		}
+	}
+}
+EOF_MODES
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=rrbare
+expect=exit:code=1
+expect=stdout:contains=route-refresh needs a value
+expect=stdout:contains=route-refresh enable;
+reject=stdout:pattern=line [0-9]+. line [0-9]+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=rrblock
+expect=exit:code=1
+expect=stdout:contains=route-refresh needs a value
+expect=stdout:contains=route-refresh enable;
+reject=stdout:pattern=line [0-9]+. line [0-9]+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=rrtrue
+expect=exit:code=1
+expect=stdout:contains=invalid value for route-refresh
+expect=stdout:contains=enable, disable, require, refuse
+expect=stdout:contains=route-refresh enable;
+reject=stdout:pattern=line [0-9]+. line [0-9]+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=rrfalse
+expect=exit:code=1
+expect=stdout:contains=invalid value for route-refresh
+expect=stdout:contains=route-refresh disable;
+reject=stdout:pattern=line [0-9]+. line [0-9]+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=embare
+expect=exit:code=1
+expect=stdout:contains=extended-message needs a value
+expect=stdout:contains=extended-message enable;
+reject=stdout:pattern=line [0-9]+. line [0-9]+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=llnhblock
+expect=exit:code=1
+expect=stdout:contains=link-local-nexthop needs a value
+expect=stdout:contains=link-local-nexthop enable;
+reject=stdout:pattern=line [0-9]+. line [0-9]+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=llnhrequire
+expect=exit:code=1
+expect=stdout:contains=invalid value for link-local-nexthop
+expect=stdout:contains=link-local-nexthop <enable|disable>;
+reject=stdout:pattern=line [0-9]+. line [0-9]+
+cmd=foreground:seq=8:exec=ze config validate -:stdin=modes
+expect=exit:code=0

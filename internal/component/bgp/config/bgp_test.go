@@ -312,7 +312,7 @@ bgp {
             }
             capability {
                 asn4 enable;
-                route-refresh;
+                route-refresh enable;
                 graceful-restart {
                     restart-time 120;
                 }

@@ -1,0 +1,108 @@
+# Test: enabling Route Refresh from the SSH editor advertises capability 2.
+# Initial config: one iBGP peer with no route-refresh, bound to bgp-rib with
+#                 `send [ update ]` (a Route Refresh peer needs a process that
+#                 may put routes on the wire, validatePeerProcessCaps).
+# Live change:    the SSH session editor types
+#                 `set bgp peer peer1 session capability route-refresh enable`
+#                 and commits.
+# Expected:       the commit lands; the capability change restarts the session
+#                 (NOTIFICATION Cease 6/6, RFC 4486 Section 4), and the second
+#                 session negotiates Route Refresh: `show bgp peer detail`
+#                 reports "route-refresh":true. ze-peer mirrors Ze's OPEN, so
+#                 the negotiated flag is true only when Ze's own OPEN carried
+#                 capability 2 (RFC 2918 Section 2).
+#
+# VALIDATES: route-refresh is one capability-mode leaf on every path: the
+#            file parser, the editor's set and commit, and the reactor
+#            consumer (capModeLeaf, config_capabilities.go).
+# PREVENTS: the defect fixed on 2026-10-11. route-refresh was a presence
+#           container: the editor refused `route-refresh enable` at commit with
+#           "unknown field: enable", and the container spelling `route-refresh { }`
+#           reached the reactor as a map that flexString read as "", so the
+#           peer advertised nothing and nothing said so.
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=50s
+# Keep the second session up so the observer can read what it negotiated.
+option=linger:value=true
+# Connection 1: no routes, EOR from ze.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# RFC 4486 Section 4: the capability change restarts the session with Cease (6),
+# subcode 6 "Other Configuration Change".
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
+# Connection 2: the restarted session, EOR from ze.
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=bgp-route-refresh-enabled-over-ssh.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+plugin {
+    internal bgp-rib {
+        use bgp-rib
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=bgp-route-refresh-enabled-over-ssh.script:terminator=EOF_SCRIPT
+cli show bgp peer detail peer1 | no-more | json compact
+has "negotiation-complete":true
+has "route-refresh":false
+send set bgp peer peer1 session capability route-refresh enable
+send commit now
+wait Session committed:
+cli show bgp peer detail peer1 | no-more | json compact
+has "route-refresh":true
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start bgp-route-refresh-enabled-over-ssh.conf:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 bgp-route-refresh-enabled-over-ssh.conf bgp-route-refresh-enabled-over-ssh.script:timeout=60s
+expect=exit:code=0

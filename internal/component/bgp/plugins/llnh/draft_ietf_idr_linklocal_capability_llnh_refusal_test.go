@@ -54,7 +54,7 @@ func llnhGroupConfig(groupExtra, peerExtra string) string {
 	return "bgp {\n\tgroup fabric {\n" +
 		"\t\tsession {\n\t\t\tfamily {\n\t\t\t\tipv6/unicast { }\n\t\t\t}\n" +
 		groupExtra +
-		"\t\t\tcapability {\n\t\t\t\tlink-local-nexthop\n\t\t\t}\n\t\t}\n" +
+		"\t\t\tcapability {\n\t\t\t\tlink-local-nexthop enable\n\t\t\t}\n\t\t}\n" +
 		"\t\tpeer peer1 {\n" +
 		"\t\t\tconnection {\n\t\t\t\tremote { ip 2001:db8:1::2; }\n\t\t\t\tlocal { ip 2001:db8:1::1; }\n\t\t\t}\n" +
 		"\t\t\tsession {\n\t\t\t\tasn { local 65001; remote 65001; }\n" + peerExtra + "\t\t\t}\n" +
@@ -62,7 +62,7 @@ func llnhGroupConfig(groupExtra, peerExtra string) string {
 }
 
 const (
-	llnhCapabilityOn   = "\t\t\t\tlink-local-nexthop\n"
+	llnhCapabilityOn   = "\t\t\t\tlink-local-nexthop enable\n"
 	llnhLinkLocalLeaf  = "\t\t\tlink-local fe80::1\n"
 	llnhLinkLocalInner = "\t\t\t\tlink-local fe80::1\n"
 )

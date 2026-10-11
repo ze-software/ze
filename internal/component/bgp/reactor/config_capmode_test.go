@@ -20,8 +20,8 @@ func capModeTree(capConfig map[string]any) map[string]any {
 }
 
 // TestCapabilityModeRefusesUnknownWord proves a mode word outside
-// enable/disable/require/refuse (plus true/false for a presence capability)
-// is an error at every site that reads one, and the error names the word.
+// enable/disable/require/refuse is an error at every site that reads one,
+// and the error names the word.
 // Until 2026-09-15 parseCapMode answered enable for a word it did not know,
 // so a typo advertised the capability with no line in the log.
 //
@@ -55,20 +55,37 @@ func TestCapabilityModeRefusesUnknownWord(t *testing.T) {
 	}
 }
 
-// TestCapabilityModeKeepsPresenceSpelling proves the true/false arm a bare
-// presence capability relies on survives the refusal above: the parser stores
-// `route-refresh;` as "true", and that word must still mean enable.
+// TestCapabilityModeLeafRefusesOtherShapes proves route-refresh and
+// extended-message are read as capability-mode leaves and nothing else. Until
+// 2026-10-11 both were presence containers read through flexString: the
+// editor's `route-refresh { }` reached the reactor as a map, flexString answered
+// "" for it, and the peer advertised no capability and logged nothing. The words
+// true and false belonged to that presence spelling and went with it.
 //
-// VALIDATES: "true" advertises route-refresh and "false" does not, with no error.
-// PREVENTS: the unknown-word refusal swallowing the presence spelling.
-func TestCapabilityModeKeepsPresenceSpelling(t *testing.T) {
-	ps, err := parsePeerFromTree("peer1", capModeTree(map[string]any{"route-refresh": "true"}), 65000, 0)
-	require.NoError(t, err)
-	require.True(t, hasRouteRefresh(ps), "route-refresh true must advertise")
+// VALIDATES: a map value, an empty value and the words true/false are refused,
+// naming the capability; each of the four modes is accepted; enable advertises
+// and refuse does not.
+// PREVENTS: a configured capability silently missing from the OPEN.
+func TestCapabilityModeLeafRefusesOtherShapes(t *testing.T) {
+	for _, name := range []string{"route-refresh", "extended-message"} {
+		for _, value := range []any{map[string]any{}, "true", "false", ""} {
+			_, err := parsePeerFromTree("peer1", capModeTree(map[string]any{name: value}), 65000, 0)
+			require.Error(t, err, "%s %#v must be refused", name, value)
+			require.Contains(t, err.Error(), name)
+		}
+		for _, mode := range []string{"enable", "disable", "require", "refuse"} {
+			_, err := parsePeerFromTree("peer1", capModeTree(map[string]any{name: mode}), 65000, 0)
+			require.NoError(t, err, "%s %s", name, mode)
+		}
+	}
 
-	ps, err = parsePeerFromTree("peer1", capModeTree(map[string]any{"route-refresh": "false"}), 65000, 0)
+	ps, err := parsePeerFromTree("peer1", capModeTree(map[string]any{"route-refresh": "enable"}), 65000, 0)
 	require.NoError(t, err)
-	require.False(t, hasRouteRefresh(ps), "route-refresh false must not advertise")
+	require.True(t, hasRouteRefresh(ps), "route-refresh enable must advertise")
+
+	ps, err = parsePeerFromTree("peer1", capModeTree(map[string]any{"route-refresh": "refuse"}), 65000, 0)
+	require.NoError(t, err)
+	require.False(t, hasRouteRefresh(ps), "route-refresh refuse must not advertise")
 }
 
 // hasRouteRefresh reports whether ps advertises the RFC 2918 route-refresh capability.

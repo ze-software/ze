@@ -138,6 +138,29 @@ func TestValidateExtractLine(t *testing.T) {
 	}
 }
 
+// TestValidateWithoutLinePrefix verifies the parser's own "line N: " prefix is
+// dropped once the line is held in the diagnostic's field.
+//
+// VALIDATES: the operator reads the line number once.
+// PREVENTS: "line 18: line 18: ..." in `ze config validate` output, which every
+// parse error printed until 2026-10-11.
+func TestValidateWithoutLinePrefix(t *testing.T) {
+	tests := []struct {
+		input string
+		line  int
+		want  string
+	}{
+		{"line 18: expected value", 18, "expected value"},
+		{"error at line 42: missing semicolon", 42, "error at line 42: missing semicolon"},
+		{"line 5: x", 0, "line 5: x"},
+	}
+
+	for _, tt := range tests {
+		got := withoutLinePrefix(tt.input, tt.line)
+		assert.Equal(t, tt.want, got, "withoutLinePrefix(%q, %d)", tt.input, tt.line)
+	}
+}
+
 // TestValidateResultValid verifies validation result for valid config.
 //
 // VALIDATES: Valid config produces Valid=true result.

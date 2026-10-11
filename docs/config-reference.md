@@ -138,8 +138,8 @@ Configured under `capability { }` at any inheritance level.
 | Capability | Config | Notes |
 |------------|--------|-------|
 | 4-byte ASN | `asn4 enable` | Mode enable (default), disable, require or refuse |
-| Route Refresh | `route-refresh` | RFC 2918 |
-| Extended Message | `extended-message` | RFC 8654, raises max message to 65535 bytes |
+| Route Refresh | `route-refresh enable` | RFC 2918; mode enable, disable, require or refuse; absent means not advertised |
+| Extended Message | `extended-message enable` | RFC 8654, raises max message to 65535 bytes; mode enable, disable, require or refuse |
 | Graceful Restart | `graceful-restart { restart-time 120; }` | RFC 4724 |
 | ADD-PATH | `add-path { direction send/receive; }` | RFC 7911, with optional `limit N` for PATHS-LIMIT |
 | Extended Next Hop | `nexthop { ipv4/unicast ipv6; }` | RFC 8950, per-family NH mapping |

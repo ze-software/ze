@@ -62,7 +62,7 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability {
-				route-refresh
+				route-refresh enable
 				graceful-restart disable
 			}
 		}

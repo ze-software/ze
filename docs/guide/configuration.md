@@ -67,7 +67,7 @@ bgp {
 
         capability {
             asn4 enable;
-            route-refresh;
+            route-refresh enable;
         }
 
         family {
@@ -923,8 +923,9 @@ Configured under `capability { }` at any inheritance level.
 | Capability | Config | Values |
 |------------|--------|--------|
 | 4-byte ASN | `asn4` | `enable` (default), `disable`, `require`, `refuse` |
-| Route Refresh | `route-refresh` | presence |
-| Extended Message | `extended-message` | presence |
+| Route Refresh | `route-refresh` | `enable`, `disable`, `require`, `refuse`; absent means not advertised |
+| Extended Message | `extended-message` | `enable`, `disable`, `require`, `refuse`; absent means not advertised |
+| Link-Local Next Hop | `link-local-nexthop` | `enable`, `disable` |
 | Graceful Restart | `graceful-restart { restart-time 120; }` | See [Graceful Restart guide](graceful-restart.md) |
 | ADD-PATH | `add-path send/receive` | See [ADD-PATH guide](add-path.md) |
 | Extended Next Hop | `nexthop { ipv4/unicast ipv6; }` | Per-family NH mapping |

@@ -768,13 +768,18 @@ The `direction` and `limit` on the container are inherited by all negotiated fam
 **Defaults:** ASN4 defaults to `enable`. All other capabilities are absent (opt-in) -- they only participate in negotiation when explicitly configured.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf asn4 default enable -->
 
-**Presence capabilities:** `route-refresh` and `extended-message` are presence
-containers, so a bare name (`route-refresh;`) means `enable`, and the value form
-also takes `true` as `enable` and `false` as `disable`. `asn4` is a
-`capability-mode` leaf and takes the four modes only: `asn4 true` is refused as
-an invalid enum. A mode word outside that vocabulary, on any capability, is a
-config error that names the word; the reactor never defaults it to `enable`.
-<!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseCapMode -->
+**Mode leaves:** `asn4`, `route-refresh` and `extended-message` are
+`capability-mode` leaves, written `route-refresh enable` in a file and
+`set ... capability route-refresh enable` in the editor. They take the four
+modes only: a bare name (`route-refresh;`), a block (`route-refresh { }`) and
+the words `true` and `false` are refused, at parse and at commit. A mode word
+outside that vocabulary, on any capability, is a config error that names the
+word; the reactor never defaults it to `enable`. `link-local-nexthop` is a leaf
+too, and takes `enable` or `disable` only, because its plugin enforces neither
+`require` nor `refuse`.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf route-refresh, leaf extended-message -->
+<!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseCapMode, capModeLeaf -->
+<!-- source: internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang -- leaf link-local-nexthop -->
 
 ### Family Section
 

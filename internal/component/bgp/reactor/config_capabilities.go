@@ -25,18 +25,16 @@ const (
 )
 
 // parseCapMode parses a capability mode string.
-// Accepts the four modes of the capability-mode enumeration (ze-bgp-conf.yang),
-// plus true/false: a presence capability written bare (route-refresh;) reaches
-// here as "true" because the parser stores presence as that word, and an empty
-// value is that same bare presence. Any other word is an error: the schema
-// refuses one before the tree reaches here, so a word this switch does not name
-// is a builder that bypassed the schema, and answering enable for it would
-// advertise a capability the operator never asked for (ai/rules/principles.md).
+// Accepts the four modes of the capability-mode enumeration (ze-bgp-conf.yang)
+// and nothing else. Any other word is an error: the schema refuses one before
+// the tree reaches here, so a word this switch does not name is a builder that
+// bypassed the schema, and answering enable for it would advertise a capability
+// the operator never asked for (ai/rules/principles.md).
 func parseCapMode(s string) (capMode, error) {
 	switch strings.ToLower(s) {
-	case "", valTrue, valEnable:
+	case valEnable:
 		return capModeEnable, nil
-	case valFalse, valDisable:
+	case valDisable:
 		return capModeDisable, nil
 	case valRequire:
 		return capModeRequire, nil
@@ -63,6 +61,28 @@ func applyCapMode(mode capMode, code capability.Code, ps *PeerSettings) {
 	}
 }
 
+// capModeLeaf reads the capability-mode leaf name from capMap. It answers
+// set=false when the leaf is absent, which means the capability is not
+// configured. A present value that is not one of the four mode words is an
+// error naming the capability, whatever its shape: until 2026-10-11 these
+// capabilities were presence containers read through flexString, which
+// answered "" for a container and so dropped the capability with no error.
+func capModeLeaf(capMap map[string]any, name string) (mode capMode, set bool, err error) {
+	raw, present := capMap[name]
+	if !present {
+		return capModeDisable, false, nil
+	}
+	word, isWord := raw.(string)
+	if !isWord {
+		return capModeDisable, false, fmt.Errorf("%s: capability mode must be one of enable, disable, require, refuse, got a %T", name, raw)
+	}
+	mode, err = parseCapMode(word)
+	if err != nil {
+		return capModeDisable, false, fmt.Errorf("%s: %w", name, err)
+	}
+	return mode, true, nil
+}
+
 // parseCapabilitiesFromTree parses capability configuration from the tree.
 // It returns an error naming the capability whose mode word is not one the
 // four-mode vocabulary names.
@@ -86,11 +106,11 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) error {
 	applyCapMode(asn4Mode, capability.CodeASN4, ps)
 
 	// RFC 8654: Extended Message Support (opt-in, absent = disabled).
-	if v := flexString(capMap, "extended-message"); v != "" {
-		extMsgMode, err := parseCapMode(v)
-		if err != nil {
-			return fmt.Errorf("extended-message: %w", err)
-		}
+	extMsgMode, extMsgSet, err := capModeLeaf(capMap, "extended-message")
+	if err != nil {
+		return err
+	}
+	if extMsgSet {
 		if extMsgMode.advertise() {
 			ps.Capabilities = append(ps.Capabilities, &capability.ExtendedMessage{})
 		}
@@ -100,11 +120,11 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) error {
 	// RFC 2918/7313: Route Refresh (opt-in, absent = disabled).
 	// Enforcement targets basic route-refresh (code 2) only.
 	// Enhanced route-refresh (code 70) is a separate capability not independently configurable.
-	if v := flexString(capMap, "route-refresh"); v != "" {
-		rrMode, err := parseCapMode(v)
-		if err != nil {
-			return fmt.Errorf("route-refresh: %w", err)
-		}
+	rrMode, rrSet, err := capModeLeaf(capMap, "route-refresh")
+	if err != nil {
+		return err
+	}
+	if rrSet {
 		if rrMode.advertise() {
 			ps.Capabilities = append(ps.Capabilities, &capability.RouteRefresh{}, &capability.EnhancedRouteRefresh{})
 		}

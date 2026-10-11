@@ -308,6 +308,10 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 
 	var value string
 	if tok.kind != tokenWord && tok.kind != tokenString {
+		if fix := leafValueFix(node, name, ""); fix != "" {
+			return p.errorf(tok, "%s needs a value, one of %s, and is not a block or a bare word\n  write: %s",
+				name, textbuf.Join(node.Enums, ", "), fix)
+		}
 		return p.errorf(tok, "expected value for %s, got %s", name, tok.kind)
 	}
 
@@ -328,6 +332,9 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 
 	// Validate value type and YANG restrictions (works on decoded plaintext too).
 	if err := ValidateLeafValue(node, value); err != nil {
+		if fix := leafValueFix(node, name, value); fix != "" {
+			return p.errorf(tok, "invalid value for %s: %v\n  write: %s", name, err, fix)
+		}
 		return p.errorf(tok, "invalid value for %s: %v", name, err)
 	}
 
@@ -461,6 +468,31 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 		return fmt.Errorf("%s: %w", name, err)
 	}
 	return nil
+}
+
+// leafValueFix answers the line that replaces an enumeration leaf written
+// without a usable value, or "" when the leaf is not an enumeration. Three
+// capabilities (route-refresh, extended-message, link-local-nexthop) were
+// presence containers until 2026-10-11 and accepted true and false: their old
+// bare, block and true spellings meant enable, and false meant disable, so the
+// fix names that word when the enumeration offers it. Any other value gets the
+// leaf with its words as a choice, because Ze cannot know which one was meant.
+func leafValueFix(node *LeafNode, name, given string) string {
+	if len(node.Enums) == 0 {
+		return ""
+	}
+	var b textbuf.Buffer
+	b.Str(name).Byte(' ')
+	switch {
+	case (given == "" || given == configTrue) && slices.Contains(node.Enums, "enable"):
+		b.Str("enable")
+	case given == configFalse && slices.Contains(node.Enums, "disable"):
+		b.Str("disable")
+	default:
+		b.Byte('<').Str(textbuf.Join(node.Enums, "|")).Byte('>')
+	}
+	b.Byte(';')
+	return b.String()
 }
 
 // parseUnknownField parses an unknown field as a string value.

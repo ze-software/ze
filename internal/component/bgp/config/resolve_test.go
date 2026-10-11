@@ -65,22 +65,22 @@ func TestDeepMergeMaps(t *testing.T) {
 				"capability": map[string]any{"asn4": "enable"},
 			},
 			src: map[string]any{
-				"capability": map[string]any{"route-refresh": "true"},
+				"capability": map[string]any{"route-refresh": "enable"},
 			},
 			want: map[string]any{
-				"capability": map[string]any{"asn4": "enable", "route-refresh": "true"},
+				"capability": map[string]any{"asn4": "enable", "route-refresh": "enable"},
 			},
 		},
 		{
 			name: "deep_override_in_container",
 			dst: map[string]any{
-				"capability": map[string]any{"asn4": "enable", "route-refresh": "false"},
+				"capability": map[string]any{"asn4": "enable", "route-refresh": "disable"},
 			},
 			src: map[string]any{
-				"capability": map[string]any{"route-refresh": "true"},
+				"capability": map[string]any{"route-refresh": "enable"},
 			},
 			want: map[string]any{
-				"capability": map[string]any{"asn4": "enable", "route-refresh": "true"},
+				"capability": map[string]any{"asn4": "enable", "route-refresh": "enable"},
 			},
 		},
 		{
@@ -211,7 +211,7 @@ func TestResolveBGPTree_DeepMergeCapabilities(t *testing.T) {
 
 	groupTree := config.NewTree()
 	groupCap := config.NewTree()
-	groupCap.Set("route-refresh", "true")
+	groupCap.Set("route-refresh", "enable")
 	groupTree.SetContainer("capability", groupCap)
 
 	peerTree := config.NewTree()
@@ -233,7 +233,7 @@ func TestResolveBGPTree_DeepMergeCapabilities(t *testing.T) {
 	peer := resolvedPeer(t, result, "peer1")
 	capMap, ok := peer["capability"].(map[string]any)
 	require.True(t, ok, "capability should be a map")
-	assert.Equal(t, "true", capMap["route-refresh"], "group capability merged")
+	assert.Equal(t, "enable", capMap["route-refresh"], "group capability merged")
 	assert.Equal(t, "enable", capMap["extended-message"], "peer capability merged")
 }
 

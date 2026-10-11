@@ -1023,11 +1023,11 @@ module ze-bgp-conf {
                     ze:help "4-byte ASN capability mode (RFC 6793): enable, disable, require or refuse.";
                 }
 
-                container route-refresh {
-                    presence "Route Refresh capability enabled";
+                leaf route-refresh {
+                    type capability-mode;
                     description "The capability lets the peer request a full re-advertisement of the routes, without a session
-                        teardown.";
-                    ze:help "Route Refresh capability (RFC 2918).";
+                        teardown. enable also advertises Enhanced Route Refresh (RFC 7313). Absent means not advertised.";
+                    ze:help "Route Refresh capability mode (RFC 2918): enable, disable, require or refuse.";
                 }
 
                 // NOTE: graceful-restart moved to GR plugin (ze-graceful-restart.yang)
@@ -1089,11 +1089,11 @@ module ze-bgp-conf {
                     }
                 }
 
-                container extended-message {
-                    presence "Extended Message capability enabled";
+                leaf extended-message {
+                    type capability-mode;
                     description "The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that
-                        carries many attributes needs it.";
-                    ze:help "Extended Message capability (RFC 8654).";
+                        carries many attributes needs it. Absent means not advertised.";
+                    ze:help "Extended Message capability mode (RFC 8654): enable, disable, require or refuse.";
                 }
 
                 list nexthop {

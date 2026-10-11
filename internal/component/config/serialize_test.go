@@ -186,7 +186,7 @@ func TestSerializeCapability(t *testing.T) {
             }
             capability {
                 asn4 enable
-                route-refresh true
+                route-refresh enable
                 graceful-restart {
                     restart-time 120
                 }
