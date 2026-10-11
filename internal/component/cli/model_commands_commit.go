@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -521,12 +522,14 @@ func (m *Model) cmdDiscardSession(args []string) (commandResult, error) {
 		path = args
 	}
 
-	detail := m.editor.Diff()
+	before := m.editor.Diff()
 	if err := m.editor.DiscardSessionPath(path); err != nil {
 		return commandResult{}, err
 	}
 	m.searchCache = "" // tree changed, invalidate cached set-view
-	m.recordConfigDiscard(detail)
+	// The row names what the discard dropped: a path discard keeps the
+	// changes outside its path, and those MUST NOT read as discarded.
+	m.recordConfigDiscard(audit.DroppedDiff(before, m.editor.Diff()))
 
 	msg := "Session changes discarded"
 	if len(path) > 0 {

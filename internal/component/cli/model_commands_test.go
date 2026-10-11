@@ -1097,6 +1097,40 @@ func TestCLIConfigRollbackAuditRecord(t *testing.T) {
 	assert.Contains(t, entries[0].Detail, "rollback ")
 }
 
+// TestCLIConfigDiscardPathAuditRecord proves that an SSH `discard <path>` in
+// session mode audits only the change it dropped: the row names the dropped
+// ASN and not the router-id change the discard kept. It drives
+// cmdDiscardSession on a session editor holding two changes.
+// VALIDATES: round-8 ISSUE 1, the SSH surface.
+// PREVENTS: the row naming a change the path discard kept, which the next
+// commit then applies.
+func TestCLIConfigDiscardPathAuditRecord(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+	ed.SetSession(NewEditSession("alice", "ssh"))
+	require.NoError(t, ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8"))
+	require.NoError(t, ed.SetValue([]string{"bgp", "session", "asn"}, "local", "65099"))
+
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
+	require.NoError(t, err)
+	model.SetAuditRecorder(recorder, audit.SSH, "alice", "192.0.2.10:2222")
+
+	_, err = model.cmdDiscardSession(strings.Fields("bgp session asn local"))
+	require.NoError(t, err)
+	assert.Contains(t, ed.Diff(), "5.6.7.8", "the path discard keeps the router-id change")
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
+	require.Len(t, entries, 1)
+	assert.Equal(t, audit.SSH, entries[0].Surface)
+	assert.Contains(t, entries[0].Detail, "65099", "the row carries the change the discard dropped")
+	assert.NotContains(t, entries[0].Detail, "5.6.7.8", "the row never names the change the discard kept")
+}
+
 // TestSetThroughList verifies set with full path through a list from root context.
 //
 // VALIDATES: spec-editor-2 AC-1: "set bgp peer 1.1.1.1 timer receive-hold-time 90" from root.

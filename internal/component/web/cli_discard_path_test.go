@@ -86,7 +86,8 @@ func TestWebTerminalDiscardPath(t *testing.T) {
 // handler with a memory recorder and counts the rows after each command.
 // VALIDATES: round-7 BLOCKER 1.
 // PREVENTS: a path discard bypassing the audit trail that SSH's
-// recordConfigDiscard writes for the same command.
+// recordConfigDiscard writes for the same command, and the row naming a
+// change the path discard kept (round-8 ISSUE 1).
 func TestWebTerminalDiscardPathAudited(t *testing.T) {
 	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 	recorder, err := audit.NewMemory(100)
@@ -106,6 +107,7 @@ func TestWebTerminalDiscardPathAudited(t *testing.T) {
 	assert.Equal(t, "testuser", entries[0].Actor)
 	assert.Equal(t, audit.Web, entries[0].Surface)
 	assert.Contains(t, entries[0].Detail, "changed", "the row carries the diff the discard dropped")
+	assert.NotContains(t, entries[0].Detail, "10.0.0.2", "the row never names the router-id change the path discard kept")
 
 	runTerminalCommand(t, handler, "discard")
 	require.Len(t, rows(), 2, "a successful discard is audited")
@@ -118,6 +120,7 @@ func TestWebTerminalDiscardPathAudited(t *testing.T) {
 // VALIDATES: round-7 NOTE 4.
 // PREVENTS: the CLI bar discarding changes with no audit row, while the
 // terminal, the Discard button and SSH record the same command.
+// PREVENTS: the row naming a change the path discard kept (round-8 ISSUE 1).
 func TestWebCLIBarDiscardAudited(t *testing.T) {
 	mgr, schema, _, _ := setupCLITerminalYANGTest(t)
 	renderer, err := NewRenderer()
@@ -143,6 +146,7 @@ func TestWebCLIBarDiscardAudited(t *testing.T) {
 	assert.Equal(t, "testuser", entries[0].Actor)
 	assert.Equal(t, audit.Web, entries[0].Surface)
 	assert.Contains(t, entries[0].Detail, "changed", "the row carries the diff the discard dropped")
+	assert.NotContains(t, entries[0].Detail, "10.0.0.2", "the row never names the router-id change the path discard kept")
 
 	run("discard all")
 	require.Equal(t, 0, mgr.ChangeCount("testuser"))
@@ -208,4 +212,25 @@ func TestWebCommitButtonMemberConflictFixLine(t *testing.T) {
 	body := rec.Body.String()
 	assert.Contains(t, body, "member removed", "the commit met no member conflict, so this case proves nothing")
 	assert.Contains(t, body, strings.TrimSpace(memberConflictFix))
+}
+
+// TestWebTerminalDiscardRefusesPipe proves that `discard | match x` in the
+// web terminal is refused by name, drops nothing and writes no audit row. It
+// runs the piped discard over one pending change and checks the answer, the
+// change count and the recorder.
+// VALIDATES: round-8 NOTE 2.
+// PREVENTS: the refusal naming the pipe as a config path the operator never
+// typed ("you have no pending change at this path").
+func TestWebTerminalDiscardRefusesPipe(t *testing.T) {
+	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "10.0.0.2"))
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, recorder)
+
+	resp := runTerminalCommand(t, handler, "discard | match x")
+	assert.Contains(t, resp.Output, "discard takes no pipe")
+	assert.NotContains(t, resp.Output, "no pending change at this path")
+	assert.Equal(t, 1, mgr.ChangeCount("testuser"), "a refused discard drops nothing")
+	assert.Empty(t, recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard}), "a refused discard is not audited")
 }

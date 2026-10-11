@@ -524,14 +524,31 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer,
 // the Discard button and SSH record it.
 func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, args []string, recorder audit.Recorder) {
 	// An unreadable diff still owes the row: it records an empty detail.
-	detail, _ := mgr.Diff(username)
+	before, _ := mgr.Diff(username)
 	if _, err := runWebDiscard(mgr, username, args); err != nil {
 		writeCLINotification(w, renderer, "discard error: "+err.Error(), "error")
 		return
 	}
-	recordWebAudit(recorder, r, username, audit.ActionConfigDiscard, detail)
+	recordWebAudit(recorder, r, username, audit.ActionConfigDiscard, discardAuditDetail(mgr, username, before))
 
 	htmxRedirect(w, r, configEditPath)
+}
+
+// discardAuditDetail answers the config-discard detail of a discard that
+// succeeded: the part of before, the user's diff read just ahead of it, that
+// the discard dropped (audit.DroppedDiff). A path discard keeps the changes
+// outside its path, and the row MUST NOT name those as dropped. The terminal
+// and the CLI bar both call it. MUST be called after the discard succeeded.
+func discardAuditDetail(mgr *EditorManager, username, before string) string {
+	after, err := mgr.Diff(username)
+	if err != nil {
+		// What the discard kept is unknown, so the row says so rather than
+		// presenting every change it read before as dropped.
+		var tb textbuf.Buffer
+		return tb.Str(before).Str("(the diff after the discard was unreadable, so this lists every change pending before it: ").
+			Str(err.Error()).Str(")\n").String()
+	}
+	return audit.DroppedDiff(before, after)
 }
 
 // adjustListContext corrects the web URL path for CLI use.

@@ -6,6 +6,7 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -115,6 +116,10 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 			defer result.completion.TransportComplete()
 		}
 		if terminalAuditSucceeded(cmd, result) {
+			if cmd.Verb == verbDiscard {
+				// The row names what the discard dropped, never a change it kept.
+				auditDetail = discardAuditDetail(mgr, username, auditDetail)
+			}
 			recordWebAudit(recorder, r, username, auditAction, auditDetail)
 		}
 
@@ -213,8 +218,7 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 	case verbDiscard:
 		// Discard runs here, not in executeTerminalNav, because its success is
 		// what the audit row needs and the navigator answers text only. Every
-		// token is a config path token, so a pipe is a path segment that names
-		// no pending change, and the discard is refused.
+		// token is a config path token; runWebDiscard refuses a pipe by name.
 		answer, err := runWebDiscard(mgr, username, cmd.Args)
 		if err != nil {
 			var tb textbuf.Buffer
@@ -928,14 +932,24 @@ func runWebCommit(mgr *EditorManager, username string, args []string) (webCommit
 	return mgr.runCommit(username, req)
 }
 
+// errDiscardPipe refuses `discard ... | <filter>`: discard prints no output a
+// filter could act on, so the pipe would be read as a path segment and the
+// refusal would name a path the operator never typed.
+var errDiscardPipe = errors.New("discard takes no pipe: it prints no output to filter; " +
+	"run `discard <path>` to drop the changes at a path, or `discard` to drop them all")
+
 // runWebDiscard runs one discard for the terminal and the CLI bar alike.
 // With no argument, or `all`, it reverts every pending change; with a path it
 // drops only the changes at or under that path, the command a commit
 // conflict's fix line prints. Its segments are config tokens, a member such
 // as 192.0.2.2/30 included, so they are not checked as URL segments: a path
 // naming no pending change is refused by EditorManager.DiscardPath, never
-// read as done.
+// read as done. A pipe is refused first: discard prints nothing to filter, and
+// a refusal naming `|` as a path would send the operator looking for one.
 func runWebDiscard(mgr *EditorManager, username string, args []string) (string, error) {
+	if cli.FindPipeIndex(args) >= 0 {
+		return "", errDiscardPipe
+	}
 	if len(args) == 0 {
 		return discardEveryChange(mgr, username)
 	}

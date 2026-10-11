@@ -7,14 +7,21 @@ Ze keeps a local structured audit log for operator actions that change state or 
 | Action | Surfaces |
 |--------|----------|
 | `config-commit` | SSH/CLI config editor, web config editor, REST config sessions, gRPC config sessions |
-| `config-discard` | SSH/CLI config editor, web config editor (the Discard button, the web terminal and the CLI bar, `discard <path>` included), REST config sessions, gRPC config sessions |
+| `config-discard` | SSH/CLI config editor, web config editor (the Discard button, the web terminal and the CLI bar, `discard <path>` included), REST config sessions, gRPC config sessions. A `rollback` in the SSH editor or the web terminal also writes one |
+| `config-download` | web `GET /config/download` |
+| `config-upload` | web `POST /config/upload`, once the uploaded config is applied |
 | `daemon-reload` | SIGHUP and `daemon reload` command dispatch |
 | `auth-fail` | SSH, web, REST, gRPC, MCP |
 
 Each entry has `timestamp`, `actor`, `remote-addr`, `surface`, `action`, `detail`, and `outcome` fields. `detail` carries the config diff for commit and discard records when Ze has one.
 
+A discard record's `detail` lists only the changes that discard dropped. `discard <path>` keeps your changes outside that path, so they are not in its record, and they appear in the commit record that later applies them. A whole discard run with nothing pending still writes a record, with an empty `detail`, on every surface, so the trail shows every discard an operator ran. A rollback record's `detail` is the rollback itself (the command in the web terminal, `rollback <backup>` in the SSH editor), a download record's is the file name, and an upload record's is `uploaded configuration`.
+
 <!-- source: internal/core/audit/audit.go -- Entry fields and action constants -->
-<!-- source: internal/component/web/handler_config.go -- web config audit recording -->
+<!-- source: internal/component/web/handler_config_commit.go -- Discard button and commit audit recording -->
+<!-- source: internal/component/web/handler_config_transfer.go -- config-download and config-upload audit recording -->
+<!-- source: internal/core/audit/dropped.go -- DroppedDiff -->
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdDiscardSession, cmdRollback -->
 <!-- source: internal/component/web/cli_terminal.go -- terminalAuditSucceeded -->
 <!-- source: internal/component/web/cli.go -- handleCLIDiscard -->
 <!-- source: internal/component/api/rest/server.go -- REST config and auth-fail audit recording -->
