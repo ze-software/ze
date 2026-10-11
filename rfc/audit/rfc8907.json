@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-10",
+  "audited": "2026-10-11",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -280,15 +280,13 @@
       "verdict": "enforced"
     },
     "RFC8907-4.3-3": {
-      "note": "Rejudged 2026-09-29. Positive TestRFC8907ServerClosureOfPooledConnectionIsAccommodated (closure between sessions) and new TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated (server reads session 3's request on the established single-connect TCP, closes unanswered; session 3 must PASS on a fresh TCP, counts [3,1]) both go red if the client fails a session after the closure; producer sendReceive pooled retry. The negative-tagged TestRFC8907ClosureOnFreshDialIsNotRetried still asserts a neighbouring property (fresh-dial closure not retried) and is mistagged; it adds nothing to this row and should be retagged.",
+      "note": "Rejudged 2026-10-11 by the author of the tag change, NOT an independent judge: an independent judge must confirm this verdict. Owner decision 2026-10-11, \"Drop the tag, re-judge\": the mistagged TestRFC8907ClosureOnFreshDialIsNotRetried lost its negative tag and its record, because a closure on the fresh dial happens before any session is established on that TCP. RFC 8907 Section 4.3: \"The client MUST accommodate such closures on a TCP session even after Single Connection Mode has been established.\" Remaining evidence: positive TestRFC8907ServerClosureOfPooledConnectionIsAccommodated (server closes the pooled TCP between sessions; the next session must PASS and the server must see a second connection carrying one request) and negative TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated (server reads session 3's request on the established single-connect TCP and closes unanswered; session 3 must PASS, counts [3,1]). Both assertions fail for a client that fails the session after the closure or does not redial. Limit: both discrimination records are revert halts of sendReceive, which prove the units run the pooled send path, not a break of the retry alone.",
       "requirement_sha": "1acd59d07e0a92f9",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClosureOnFreshDialIsNotRetried": "e11e46852e75f681",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ServerClosureOfPooledConnectionIsAccommodated": "e11e46852e75f681",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ServerClosureOfPooledConnectionIsAccommodated": "7c6845571ca0fb19",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated": "879b13e19509fb75"
       },
       "units": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClosureOnFreshDialIsNotRetried": "d8ed71650cabc88b",
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ServerClosureOfPooledConnectionIsAccommodated": "d90b80cd13c69610",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated": "f9bde66d9e84471a"
       },

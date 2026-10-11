@@ -454,17 +454,6 @@
     },
     {
       "rid": "RFC8907-4.3-3",
-      "polarity": "negative",
-      "unit": "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClosureOnFreshDialIsNotRetried",
-      "unit-sha": "4648e2e9c01dd9e1",
-      "claim-sha": "f751bdebfb8608e9",
-      "route": "revert",
-      "producer": "internal/component/tacacs/client.go::trySend",
-      "producer-sha": "521ecbc2921e4804",
-      "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC8907-4.3-3",
       "polarity": "positive",
       "unit": "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ServerClosureOfPooledConnectionIsAccommodated",
       "unit-sha": "40377b2356224301",

@@ -291,7 +291,7 @@ func TestRFC8907ServerClosureOfPooledConnectionIsAccommodated(t *testing.T) {
 	require.Len(t, srv.requestsOn(1), 1)
 }
 
-// RFC requirement: RFC8907-4.3-3 negative — a closure on the fresh dial itself is surfaced as an error after one connection: the client does not dial a second time.
+// A closure on the fresh dial is an error after one connection, with no redial; untagged (owner 2026-10-11): RFC8907-4.3-3 binds an established single-connect TCP.
 func TestRFC8907ClosureOnFreshDialIsNotRetried(t *testing.T) {
 	srv := newSessionServer(t, sessionKey, true)
 	srv.dropBeforeReply = true

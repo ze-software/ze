@@ -228,8 +228,8 @@ The parent's Method table governs every phase and is not copied here. The rules 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | the parent's `mode rejudge` has landed before the first re-judge here | parent Implementation Steps 1 and 2 | a re-judge has no route but hand deletion, which P-2 bans | `./le rfc audit-stamp` help names `mode` | unvalidated |
-| A-2 | the blocked-by list is complete for this scope | the parent's code-defect and overlap tables, each id checked in `rfc/audit/` or the R-7 table on 2026-09-28 | the child cannot reach AC-C1 | each package's author agent names any verdict it cannot move without a producer fix another spec owns | unvalidated |
+| A-1 | the parent's `mode rejudge` has landed before the first re-judge here | parent Implementation Steps 1 and 2 | a re-judge has no route but hand deletion, which P-2 bans | `./le rfc audit-stamp` help names `mode` | validated 2026-10-11: `./le rfc audit-stamp` takes `mode rejudge` (round-1 review NOTE-3) |
+| A-2 | the blocked-by list is complete for this scope | the parent's code-defect and overlap tables, each id checked in `rfc/audit/` or the R-7 table on 2026-09-28 | the child cannot reach AC-C1 | each package's author agent names any verdict it cannot move without a producer fix another spec owns | validated 2026-10-11: the derived listing gives exactly the 3 blocked ids, RFC2866-5.5-1, RFC3579-3.3-2 and RFC5176-2.3-2 (round-1 review NOTE-3) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -452,17 +452,17 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 ### What Was Implemented
 - 34 commits since 2026-09-28 touch this child's thirteen `rfc/audit/<stem>.json` files; the last author/judge pairs are `4e55b63ea6` (RFC1994-4.2-5, RFC5176-3-1 re-judged) and `b3c573f601` (RFC1332-2.1-1).
 - 2026-10-11: `internal/component/l2tp/ppp/rfc1661_transition_cells_test.go` (landed untagged in the wip commit `af69577952`) carries `// RFC naming: untagged -- ...`. RFC 1661 Section 4.1 is the transition table and holds no MUST, SHOULD or REQUIRED (checked in `rfc/full/rfc1661.txt`), and `rfc/short/rfc1661.md` has no 4.1 row, so there is no requirement to tag; a tag would also need a discrimination record. Test bodies unchanged; `go test -run TestRFC1661 ./internal/component/l2tp/ppp/` passes.
+- 2026-10-11, round-1 review ISSUE-1 (RFC 2869 Section 5.2, Acct-Output-Gigawords): `rfc/short/rfc2869.md` gains `RFC2869-5.2-1` [MUST], the verbatim Section 5.2 sentence ("This attribute indicates how many times the Acct-Output-Octets counter has wrapped around 2^32 in the course of delivering this service, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update."), at the level `RFC2869-x-2` uses. Two new tagged tests in `internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go`: positive `TestRFC2869OutputGigawordsOnInterimUpdate` (Interim-Update, transmit counter three wraps plus 200: Acct-Output-Gigawords 3, Acct-Output-Octets 200) and negative `TestRFC2869OutputGigawordsAbsentOnStart`. Records by `./le rfc discriminate-record`, route revert: the positive over `acct.go::splitGigawords`, the negative over `acct.go::buildAcctPacket` (the same producer the other buildAcctPacket negatives use), each observed red naming its unit. `rfc/extraction/rfc2869.json` Section 5.2 declares `RFC2869-5.2-1` in `unsourced-ids`, and Section 5.1's stale "five gated Gigawords rows" now says one row, `RFC2869-x-2`, is left after the retirements. No exclusion was added, so the sign-off is not re-signed. The verdict is NOT stamped: the author of the row and the tags cannot judge it, so an independent `/ze-rfc-audit rfc2869` judge owes it.
+- 2026-10-11, owner decision on RFC8907-4.3-3 (round-1 review ISSUE-5): "Drop the tag, re-judge". `TestRFC8907ClosureOnFreshDialIsNotRetried` lost its negative tag (its body is unchanged, and a one-line comment says why it is untagged), and its record in `rfc/discrimination/rfc8907.json` was removed. The verdict was re-stamped with `./le rfc audit-stamp ... mode rejudge` as `enforced` on the two remaining units, `TestRFC8907ServerClosureOfPooledConnectionIsAccommodated` (positive) and `TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated` (negative). The tooling does not tell an author's verdict from a judge's, so its note says it was made by the author of the tag change and an independent judge must confirm it.
 
 ### Bugs Found/Fixed (D-8, each with production code)
 | Commit | Fix |
 |--------|-----|
-| `a4ec232873` | PPPoE server (RFC 2516) |
 | `0cc6cb1b22` | RADIUS CoA value checks and atomic apply (RFC 5176) |
 | `60817da535`, `c7fd516b4d` | L2TP RFC 2661 fixes; 4.1-3 unknown M=1 AVP, 7.1-1 out-of-state SCCRQ/SCCRP |
 | `aaebde365c`, `f6c11e93f1` | PPP session fixes; tlf on Stopped |
 | `9793ba4da8` | PPPoE client answers CHAP re-challenge in network phase |
 | `1870461d15`, `189db75308`, `10b1ef1ebb` | RADIUS Framed-Protocol, NAS identity (RFC3579-3-1), EAP header and Framed-IP |
-| `35299852fc` | PPPoE/RADIUS (2866 5.13, 2516) |
 | `8c68fcf514`, `4e55b63ea6` | CoA 504 on SessionNotRemovable and on service stop; L2TP idle SCCRP |
 
 ### Deviations from Plan
@@ -483,7 +483,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | AC-C3 | Done | rfc5176 split rows `8c68fcf514`, RFC1994-4.2-5 row `4e55b63ea6`, RFC2866 table split `10b1ef1ebb` | reviewer to re-walk the split table |
 | AC-C4 | Done | the three blocked verdicts are in `spec-radius-rfc-defects` | |
 | AC-C5 | Done | `./le rfc check` 2026-10-11: the rfc1661 file-name violation is gone and no violation names an access stem | |
-| AC-C6 | Done | corrections in `8c68fcf514` (4 corrections, 3 rfc5176 correction sites) | |
+| AC-C6 | N-A | the parent's row-quality and mistagged-unit tables hold no row of the access stems | RFC2759-x-8/x-9 belong to `spec-rfc-verdict-fix-ike-eap`; the `8c68fcf514` corrections cited here before are AC-C3's evidence (round-1 review NOTE-1) |
 | AC-C7 | N-A | no R-7 row belongs to this child | the Linux-only RFC2866-4.1-1 `.ci` record the handover listed as owed landed in `dd09cdd4ff` |
 
 ## Goal Validation (BLOCKING)
@@ -497,8 +497,8 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 | producer defects (P-3) | `plan/immediate/spec-radius-rfc-defects.md` |
-| interop run of the l2tp, pppoe and radius suites over the D-8 fixes | never run for this pass | this spec, before closure |
-| `./le verify worktree` | needs a quiet machine | this spec, before closure |
+| OPEN GATE: interop over the wire-visible D-8 fixes | no run after the D-8 commits is recorded, and the existing scenarios are happy paths (round-1 review ISSUE-2 to ISSUE-4) | this spec, before closure, worked separately. The gate needs the new named scenarios `l2tp-unknown-mandatory-avp-xl2tpd`, `pppoe-chap-rechallenge-ze-client`, `pppoe-peer-terminate-ze-ac`, `radius-coa-disconnect-freeradius` and `l2tp-radius-framed-protocol-reject`, each with a recorded forced red; a pass over HEAD of the existing `01-ppp-ipv4`, `03-ze-lac-xl2tpd-lns`, `04-radius-acct-attrs`, `01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client` and `radius-admin-eap-freeradius`; and every run's log kept |
+| OPEN GATE: `./le verify worktree` | `./le verify status check` (2026-10-11) prints STALE: the last verify failed (exit=1, at 2026-10-05T10:05:53Z), and the run needs a quiet machine | this spec, before closure, worked separately. The gate needs one `./le verify worktree` run over a HEAD that carries this child's commits, on a machine running no other test, VM or Docker lab, that exits 0 so `./le verify status check` reports FRESH |
 
 ## Review Gate
 
