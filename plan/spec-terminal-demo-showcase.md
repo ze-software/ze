@@ -709,7 +709,17 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 - Round 7 (scratch `review-bracket-r7.md`): 1 BLOCKER (a web-terminal path
   discard writes no audit record), 1 ISSUE (terminal feedback always reads
   "changes discarded"), 4 NOTE; gates green (editor 177/177, lint 0). Round 8
-  owner authorised: Thomas, 2026-10-11, "Authorise round 8".
+  owner authorised: Thomas, 2026-10-11, "Authorise round 8". Fixed in
+  e16724f894 (web: BLOCKER 1, ISSUE 1, NOTE 4; discard success is a result
+  flag, both web discards audit, feedback is the answer) and 760b106f44
+  (config: NOTE 3 test, which found the annotated view dropping a plain
+  leaf-list's `inactive: <leaf> <member>` lines, fixed). NOTE 1 journalled in
+  `plan/journal/format-cannot-hold-a-state-the-tree-holds.md`, the web commit
+  audit sibling in `guard-added-to-one-half-of-a-pair.md`; NOTE 2 is owner
+  semantics. Red via `go test -overlay` for each test. Gates: race with gate
+  tags `cli/...` ok, `web/...` ok, `config/...` the two known foreign reds
+  only; `bin/le test editor -a` 177/177. Scoped lint not run (subagent
+  budget), owed. round 8 review owed over 760b106f44.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
