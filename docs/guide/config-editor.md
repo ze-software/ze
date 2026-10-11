@@ -303,8 +303,11 @@ the whole list and then one `inactive: address <member>` statement for it
 (`nop <path> <member>` in `set` form, as for any leaf-list), so a save, a
 commit and a reload all keep it deactivated. You can deactivate a member your
 session has just added: `commit now` applies that deactivation after the `set`
-that adds the member. Setting a bracket leaf-list whole keeps a deactivated
-member the new list does not name, still deactivated; `delete address <member>`
+that adds the member. Setting a bracket leaf-list whole keeps every
+deactivated member deactivated: one the new list names stays deactivated in
+its new place, and one the new list does not name is kept, still deactivated,
+after the members the list names.
+`delete address <member>`
 removes that one member, deactivated or not, and leaves the rest of the list,
 and an earlier `deactivate` or `insert` of it goes with it, so adding,
 deactivating and then deleting a member commits as if it was never added.
@@ -312,10 +315,12 @@ Setting the list whole replaces your session's earlier member changes to it:
 a member you deleted and then list again stays in the list, and an `insert`
 position gives way to the order the new list states. When another commit has
 removed a member you deactivate, or the member an `insert` is placed against,
-`commit` reports a conflict on that path rather than failing; a reference
-member your own session adds is no conflict.
+`commit` reports a conflict on that path rather than failing. A reference
+member your own session adds, by a `set` or by an earlier `insert`, is no
+conflict, and neither is a deactivated reference, which holds its place in the
+list.
 <!-- source: internal/component/cli/editor_leaflist.go -- writeThroughDeleteMember, replaceSessionMembers, dropSessionMemberOps -->
-<!-- source: internal/component/cli/editor_commit.go -- appendStructuralOpConflict, insertRefStaleConflict, memberToggleStaleConflict, sessionEntriesTree -->
+<!-- source: internal/component/cli/editor_commit.go -- appendStructuralOpConflict, memberOpConflicts, memberOpStaleConflict -->
 <!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue, storeLeaf, DeleteByPath -->
 <!-- source: internal/component/cli/editor_draft.go -- applyStructuralOpsAroundEntries, memberOpWaitsForEntries -->
 <!-- source: internal/component/config/serialize.go -- serializeBracketLeafList -->

@@ -255,8 +255,11 @@ same `deactivate <path>` / `activate <path>` commands while editing.
 The mechanism is engine-level: every YANG node is deactivatable, no
 schema annotation is required.
 
-In the **set / single-line format**, the `nop` keyword replaces `set`
-on a deactivated line. "nop" means "no operation": the config entry
+In the **set / single-line format**, `nop` is a `set` line marked
+inactive, the Junos way: the keyword replaces `set` on a deactivated
+line, where the hierarchical format writes the `inactive:` prefix. So
+`nop <leaf-list> <member>` adds the member deactivated, as the `set`
+line would add it active. "nop" means "no operation": the config entry
 exists in the file but produces no operational effect. Toggling
 activation is a 3-byte in-place edit (`set` <-> `nop`):
 
