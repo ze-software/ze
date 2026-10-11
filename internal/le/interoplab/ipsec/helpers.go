@@ -1538,8 +1538,17 @@ before = get("/metrics")
 http.sealed = True
 if http.sock is None:
     raise RuntimeError("exporter did not preserve the warmed HTTP connection")
-children = open("/proc/1/task/1/children").read().split()
-pids = [int(pid) for pid in children if os.path.basename(os.readlink("/proc/" + pid + "/exe")) == "ze"]
+# /proc/<pid>/task/<tid>/children exists only with CONFIG_PROC_CHILDREN, which
+# Ze's runtime kernel (the QEMU docker-lab guest) does not set, so tini's
+# children are found by the parent pid every kernel publishes in /proc/<pid>/stat.
+def tini_child(pid):
+    try:
+        with open("/proc/" + pid + "/stat") as stat:
+            fields = stat.read().rsplit(")", 1)[1].split()
+        return fields[1] == "1" and os.path.basename(os.readlink("/proc/" + pid + "/exe")) == "ze"
+    except (FileNotFoundError, ProcessLookupError):
+        return False
+pids = [int(pid) for pid in os.listdir("/proc") if pid.isdigit() and tini_child(pid)]
 if len(pids) != 1:
     raise RuntimeError("expected one Ze child of tini, found %r" % pids)
 pid = pids[0]

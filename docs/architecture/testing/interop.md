@@ -1412,6 +1412,9 @@ the peer and interface-label series.
 An unreadable observation is induced inside the Ze scenario container by
 temporarily setting only the daemon's soft `RLIMIT_NOFILE` to zero. The netlink
 package's default handle opens a socket for each XFRM dump. A Python helper
+finds the daemon as the one `ze` process whose parent pid in `/proc/<pid>/stat`
+is tini, because `/proc/<pid>/task/<tid>/children` exists only with
+`CONFIG_PROC_CHILDREN`, which Ze's runtime kernel does not set. The helper
 opens and warms an HTTP connection before changing the limit, scrapes that same
 connection until both dataplane metric families have no series, and restores
 the original limit in `finally`. Reconnection is refused during the fault.
