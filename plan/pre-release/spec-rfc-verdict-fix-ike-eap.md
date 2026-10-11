@@ -262,6 +262,9 @@ Progress by row (the gated MUST rows that lacked a test in one or both polaritie
 | 2.1.4-3 | both, recorded | `TestEAPTLS13FatalErrorSendsATLSAlert`, `TestEAPTLS13CompletedExchangeCarriesNoAlert` |
 | 2.3-2, 2.3-3 | both, recorded | `TestRFC9190KeyMaterialIsOneFullLengthExport`, `TestRFC9190KeysAreNotAShorterExport` |
 | 5.7-4 | both, recorded | positive on `TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey`, negative on `TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain` |
+| 5.6-1 | both, recorded | `TestEAPTLSAuthenticatorGrantsNoAccessToAPeerWithoutACertificate`, `TestEAPTLS13AuthenticatorGrantsAccessToTheCertificateItVerified` (`internal/core/eap/rfc9190_authorization_privacy_test.go`) |
+| 5.6-2 | both, recorded | positive `TestEAPTLS13AuthenticatorGrantsAccessToTheCertificateItVerified`, negative added on `TestEAPTLS13ResumptionRefusesARevokedClientChain` |
+| 5.8-1, 5.8-2, 5.8-3 | both, recorded | `TestEAPTLS13PeerIdentityCarriesNoPartOfTheUser`, `TestEAPTLS13PeerIdentityKeepsTheRealmApart`. The three sentences are conditional ("If anonymous NAIs are not used"); the tests show ze always sends an anonymous NAI, which the judge should weigh |
 | 2.1-2, 2.1-4, 2.1-6 | positive only, recorded | `TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth` |
 
 The rows still open, and what each needs, are in the per-spec session state handoff of 2026-10-11; rows move into the table above as they close.

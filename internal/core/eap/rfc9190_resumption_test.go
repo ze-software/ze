@@ -240,6 +240,11 @@ func TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain(t *testing.T) {
 // RFC requirement: RFC9190-5.7-3 positive -- enough data was cached during the
 // initial full handshake to make the authorization decision at resumption: the
 // revocation gate names a certificate that this exchange never saw presented.
+//
+// RFC requirement: RFC9190-5.6-2 negative -- a resumed session is not granted
+// what the original session's credentials no longer carry: once the client
+// certificate the original session verified is revoked, the resumption that
+// would have re-granted its access is refused.
 func TestEAPTLS13ResumptionRefusesARevokedClientChain(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	server := NewResumption(time.Now, true)

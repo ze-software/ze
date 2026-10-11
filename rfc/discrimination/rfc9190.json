@@ -1025,6 +1025,50 @@
       "break": "body of fetchCertificateStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9190-5.6-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_authorization_privacy_test.go::TestEAPTLS13AuthenticatorGrantsAccessToTheCertificateItVerified",
+      "unit-sha": "2523d8279bf74db2",
+      "claim-sha": "b18b265a2d2e0c5e",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "6a89e2148a8dd067",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.6-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_authorization_privacy_test.go::TestEAPTLSAuthenticatorGrantsNoAccessToAPeerWithoutACertificate",
+      "unit-sha": "41823c137a52a33f",
+      "claim-sha": "5f99028825a32072",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "6a89e2148a8dd067",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.6-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_authorization_privacy_test.go::TestEAPTLS13AuthenticatorGrantsAccessToTheCertificateItVerified",
+      "unit-sha": "2523d8279bf74db2",
+      "claim-sha": "9f97068d78a68b95",
+      "route": "revert",
+      "producer": "internal/core/eap/resumption.go::TicketKeys",
+      "producer-sha": "c7e047f9231e686f",
+      "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.6-2",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedClientChain",
+      "unit-sha": "97437617c113a6ce",
+      "claim-sha": "fa4605004658d433",
+      "route": "revert",
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9190-5.7-1",
       "polarity": "negative",
       "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey",
@@ -1210,6 +1254,72 @@
       "producer": "internal/core/eap/revocation.go::checkChainRevocation",
       "producer-sha": "bc6548ee07f24385",
       "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.8-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_authorization_privacy_test.go::TestEAPTLS13PeerIdentityCarriesNoPartOfTheUser",
+      "unit-sha": "e6a2cf2a552ef516",
+      "claim-sha": "8d5aaea1e8dd0219",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::anonymousNAI",
+      "producer-sha": "861bfe2b4a5852b7",
+      "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.8-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_authorization_privacy_test.go::TestEAPTLS13PeerIdentityKeepsTheRealmApart",
+      "unit-sha": "16ed9d8bbdeba6a8",
+      "claim-sha": "47451b2c88b36c9a",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::anonymousNAI",
+      "producer-sha": "861bfe2b4a5852b7",
+      "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.8-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_authorization_privacy_test.go::TestEAPTLS13PeerIdentityCarriesNoPartOfTheUser",
+      "unit-sha": "e6a2cf2a552ef516",
+      "claim-sha": "f69401c56e945af9",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::anonymousNAI",
+      "producer-sha": "861bfe2b4a5852b7",
+      "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.8-2",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_authorization_privacy_test.go::TestEAPTLS13PeerIdentityKeepsTheRealmApart",
+      "unit-sha": "16ed9d8bbdeba6a8",
+      "claim-sha": "3a9af97d4b03fb6c",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::anonymousNAI",
+      "producer-sha": "861bfe2b4a5852b7",
+      "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.8-3",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_authorization_privacy_test.go::TestEAPTLS13PeerIdentityCarriesNoPartOfTheUser",
+      "unit-sha": "e6a2cf2a552ef516",
+      "claim-sha": "03fa728b323a9c5e",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::anonymousNAI",
+      "producer-sha": "861bfe2b4a5852b7",
+      "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.8-3",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_authorization_privacy_test.go::TestEAPTLS13PeerIdentityKeepsTheRealmApart",
+      "unit-sha": "16ed9d8bbdeba6a8",
+      "claim-sha": "31e9ea11cf14bf51",
+      "route": "revert",
+      "producer": "internal/core/eap/nai.go::anonymousNAI",
+      "producer-sha": "861bfe2b4a5852b7",
+      "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
