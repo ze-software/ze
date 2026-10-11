@@ -742,6 +742,20 @@ func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []st
 		inactiveSet[m] = true
 	}
 	emitted := make(map[string]bool, len(bare))
+	// A member delete whose member the list still holds was followed by a
+	// re-add of that member (`delete import a`, then `insert import a`), so
+	// it goes first: written after the list, it would read back as removing
+	// the member the list holds.
+	deletedFirst := make(map[string]bool)
+	for i := range entries {
+		e := entries[i]
+		if e.Member == "" || e.Value != "" || multiValueIndex(items, e.Member) < 0 {
+			continue
+		}
+		writeMetaPrefix(b, e)
+		b.Str("delete ").Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(e.Member)).Byte('\n')
+		deletedFirst[e.Member] = true
+	}
 	for _, member := range bare {
 		if e := findMemberAddEntry(entries, member); e != nil {
 			writeMetaPrefix(b, *e)
@@ -761,6 +775,9 @@ func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []st
 	for i := range entries {
 		e := entries[i]
 		if e.Member == "" || (e.Value != "" && emitted[e.Member]) {
+			continue
+		}
+		if e.Value == "" && deletedFirst[e.Member] {
 			continue
 		}
 		if e.Value != "" && multiValueIndex(bare, e.Member) >= 0 {

@@ -106,10 +106,10 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 
 	// Check for stale conflicts (committed changed since editing).
 	var conflicts []Conflict
-	entriesTree := e.sessionEntriesTree(committedTree, myOps, myEntries)
 	for i := range myOps {
-		conflicts = appendStructuralOpConflict(conflicts, committedTree, entriesTree, e.schema, myOps[i])
+		conflicts = appendStructuralOpConflict(conflicts, committedTree, e.schema, myOps[i])
 	}
+	conflicts = append(conflicts, e.memberOpConflicts(committedTree, myOps, myEntries)...)
 	for _, se := range myEntries {
 		// Leaf-list member operations are idempotent and commutative:
 		// adding or removing one member never contests the whole leaf,
@@ -148,7 +148,7 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 		_, err := e.applyCommitEntries(committedTree, myEntries)
 		return err
 	}
-	if err := e.applyStructuralOpsAroundEntries(committedTree, myOps, applyEntries, false); err != nil {
+	if err := e.applyStructuralOpsAroundEntries(committedTree, myOps, applyEntries, false, nil); err != nil {
 		return nil, err
 	}
 	applied := len(myEntries) + len(myOps)
@@ -320,10 +320,10 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 	}
 
 	var conflicts []Conflict
-	entriesTree := e.sessionEntriesTree(committedTree, myOps, myEntries)
 	for i := range myOps {
-		conflicts = appendStructuralOpConflict(conflicts, committedTree, entriesTree, e.schema, myOps[i])
+		conflicts = appendStructuralOpConflict(conflicts, committedTree, e.schema, myOps[i])
 	}
+	conflicts = append(conflicts, e.memberOpConflicts(committedTree, myOps, myEntries)...)
 	for _, se := range myEntries {
 		// Member operations skip stale detection; see CommitSession.
 		if se.Entry.Member != "" {
@@ -359,7 +359,7 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 		_, err := e.applyCommitEntries(committedTree, myEntries)
 		return err
 	}
-	if err := e.applyStructuralOpsAroundEntries(committedTree, myOps, applyEntries, false); err != nil {
+	if err := e.applyStructuralOpsAroundEntries(committedTree, myOps, applyEntries, false, nil); err != nil {
 		return nil, "", err
 	}
 	applied := len(myEntries) + len(myOps)
@@ -635,7 +635,7 @@ func (e *Editor) reloadSessionView(guard storage.WriteGuard) error {
 		}
 		return nil
 	}
-	if err := e.applyStructuralOpsAroundEntries(baseTree, changeOps, applyEntries, true); err != nil {
+	if err := e.applyStructuralOpsAroundEntries(baseTree, changeOps, applyEntries, true, nil); err != nil {
 		return fmt.Errorf("reload %w", err)
 	}
 
@@ -656,42 +656,54 @@ func (e *Editor) reloadSessionView(guard storage.WriteGuard) error {
 }
 
 // appendStructuralOpConflict appends the stale conflict (if any) for one
-// structural op against the freshly parsed committed tree. Rename ops check
-// source/destination keys; member ops check the member, or for an ordered
-// insert its before/after reference. Other op types have no commit-time
-// staleness to detect. entriesTree is the committed tree with the session's
-// entries applied, or nil when the session holds no member op.
-func appendStructuralOpConflict(conflicts []Conflict, committedTree, entriesTree *config.Tree, schema *config.Schema, op config.StructuralOp) []Conflict {
-	var conflict *Conflict
-	//exhaustive:ignore // Only rename and member operations have independent stale checks.
-	switch op.Type {
-	case config.StructuralOpRename:
-		conflict = renameStaleConflict(committedTree, schema, op)
-	case config.StructuralOpInsertMember:
-		conflict = insertRefStaleConflict(committedTree, entriesTree, schema, op)
-	case config.StructuralOpDeactivateMember, config.StructuralOpActivateMember:
-		conflict = memberToggleStaleConflict(committedTree, entriesTree, schema, op)
+// rename op against the freshly parsed committed tree: its source and
+// destination keys. Member ops are judged by memberOpConflicts, and other op
+// types have no commit-time staleness to detect.
+func appendStructuralOpConflict(conflicts []Conflict, committedTree *config.Tree, schema *config.Schema, op config.StructuralOp) []Conflict {
+	if op.Type != config.StructuralOpRename {
+		return conflicts
 	}
-	if conflict != nil {
+	if conflict := renameStaleConflict(committedTree, schema, op); conflict != nil {
 		conflicts = append(conflicts, *conflict)
 	}
 	return conflicts
 }
 
-// sessionEntriesTree answers a copy of committedTree with the session's
-// entries applied, the tree a member op held back for those entries
-// (applyStructuralOpsAroundEntries) meets. It answers nil when no op is a
-// member op, as no check reads it then, and when the entries do not apply:
-// the commit's own apply then reports that error.
-func (e *Editor) sessionEntriesTree(committedTree *config.Tree, ops []config.StructuralOp, entries []config.SessionEntry) *config.Tree {
+// memberOpConflicts replays the session's ops and entries on a copy of
+// committedTree, in the order the commit applies them
+// (applyStructuralOpsAroundEntries), and answers a stale conflict for each
+// member op that finds, at its turn, no member to toggle or no reference to
+// insert beside: a concurrent commit removed it. Judging each op on the tree
+// it will really meet is what lets a member the session added, by an entry or
+// by an earlier insert, count as present. Without this pre-scan the apply
+// step would abort the whole commit with a raw `"member" not found` error
+// instead of returning a resolvable conflict. A replay that fails for another
+// reason stops here, and the commit's own apply reports that error.
+func (e *Editor) memberOpConflicts(committedTree *config.Tree, ops []config.StructuralOp, entries []config.SessionEntry) []Conflict {
 	if !slices.ContainsFunc(ops, isMemberOp) {
 		return nil
 	}
 	tree := committedTree.Clone()
-	if _, err := e.applyCommitEntries(tree, entries); err != nil {
-		return nil
+	var conflicts []Conflict
+	check := func(tree *config.Tree, op config.StructuralOp) bool {
+		if !isMemberOp(op) {
+			return true
+		}
+		conflict := memberOpStaleConflict(tree, e.schema, op)
+		if conflict == nil {
+			return true
+		}
+		conflicts = append(conflicts, *conflict)
+		return false
 	}
-	return tree
+	applyEntries := func() error {
+		_, err := e.applyCommitEntries(tree, entries)
+		return err
+	}
+	if err := e.applyStructuralOpsAroundEntries(tree, ops, applyEntries, false, check); err != nil {
+		return conflicts
+	}
+	return conflicts
 }
 
 // isMemberOp reports whether op names one leaf-list member.
@@ -704,78 +716,50 @@ func isMemberOp(op config.StructuralOp) bool {
 	return false
 }
 
-// memberOpTrees answers the trees a member op can apply to: the committed
-// tree, where it applies before the session's entries, and the tree after
-// them, where it applies when held back. entriesTree may be nil.
-func memberOpTrees(committedTree, entriesTree *config.Tree, schema *config.Schema, op config.StructuralOp) []*config.Tree {
-	var targets []*config.Tree
-	for _, tree := range []*config.Tree{committedTree, entriesTree} {
-		if tree == nil {
-			continue
-		}
-		if target := walkPath(tree, schema, strings.Fields(op.ParentPath)); target != nil {
-			targets = append(targets, target)
+// memberOpStaleConflict answers the stale conflict for one member op about to
+// apply to tree, or nil when it applies. A deactivated reference is a member
+// that holds its place in the list, so an insert beside it applies, as it does
+// in the view. A member already present makes an insert a no-op, so its
+// reference does not matter then.
+func memberOpStaleConflict(tree *config.Tree, schema *config.Schema, op config.StructuralOp) *Conflict {
+	change := op.PendingChange()
+	target := walkPath(tree, schema, strings.Fields(op.ParentPath))
+	if target == nil {
+		return &Conflict{
+			Path:       change.Path,
+			Type:       ConflictStale,
+			MyValue:    change.Summary(schema),
+			OtherValue: "path removed",
 		}
 	}
-	return targets
-}
-
-// insertRefStaleConflict reports a stale conflict when an ordered insert's
-// before/after reference member exists (in active form) neither in the
-// committed tree nor after the session's own entries: removed or deactivated
-// by a concurrent commit. A reference the session's entries add is no
-// conflict, as the insert waits for those entries. Without this pre-scan the
-// apply step would abort the whole commit with a raw `"ref" not found` error
-// instead of returning a resolvable conflict.
-func insertRefStaleConflict(committedTree, entriesTree *config.Tree, schema *config.Schema, op config.StructuralOp) *Conflict {
+	present, _ := target.MultiValueMemberState(op.ListName, op.NewKey)
+	if op.Type != config.StructuralOpInsertMember {
+		if present {
+			return nil
+		}
+		return &Conflict{
+			Path:          change.Path,
+			Type:          ConflictStale,
+			MyValue:       change.Summary(schema),
+			OtherValue:    "member removed",
+			PreviousValue: op.NewKey,
+		}
+	}
+	if present {
+		return nil
+	}
 	if op.Position != config.InsertBefore && op.Position != config.InsertAfter {
 		return nil
 	}
-	targets := memberOpTrees(committedTree, entriesTree, schema, op)
-	if len(targets) == 0 {
-		return &Conflict{
-			Path:       op.PendingChange().Path,
-			Type:       ConflictStale,
-			MyValue:    op.PendingChange().Summary(schema),
-			OtherValue: "insert target path missing",
-		}
-	}
-	for _, target := range targets {
-		// Member already present: applyMemberOp treats the insert as already
-		// applied, so the missing reference never matters.
-		if target.HasMultiValueMember(op.ListName, op.NewKey) {
-			return nil
-		}
-		if present, inactive := target.MultiValueMemberState(op.ListName, op.OldKey); present && !inactive {
-			return nil
-		}
+	if refPresent, _ := target.MultiValueMemberState(op.ListName, op.OldKey); refPresent {
+		return nil
 	}
 	return &Conflict{
-		Path:          op.PendingChange().Path,
+		Path:          change.Path,
 		Type:          ConflictStale,
-		MyValue:       op.PendingChange().Summary(schema),
+		MyValue:       change.Summary(schema),
 		OtherValue:    "insert reference removed",
 		PreviousValue: op.OldKey,
-	}
-}
-
-// memberToggleStaleConflict reports a stale conflict when the member a
-// deactivate or an activate names exists neither in the committed tree nor
-// after the session's own entries: a concurrent commit removed it. Without
-// this pre-scan the apply step would abort the whole commit with a raw
-// `"member" not found` error instead of returning a resolvable conflict.
-func memberToggleStaleConflict(committedTree, entriesTree *config.Tree, schema *config.Schema, op config.StructuralOp) *Conflict {
-	for _, target := range memberOpTrees(committedTree, entriesTree, schema, op) {
-		if present, _ := target.MultiValueMemberState(op.ListName, op.NewKey); present {
-			return nil
-		}
-	}
-	return &Conflict{
-		Path:          op.PendingChange().Path,
-		Type:          ConflictStale,
-		MyValue:       op.PendingChange().Summary(schema),
-		OtherValue:    "member removed",
-		PreviousValue: op.NewKey,
 	}
 }
 

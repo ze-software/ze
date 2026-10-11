@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // writeThroughSetMember implements the write-through protocol for adding one
@@ -37,6 +38,42 @@ func (e *Editor) writeThroughSetMember(path []string, key, member string) error 
 	changeTree, changeMeta, changeOps, err := e.openChangeFile(guard, changePath)
 	if err != nil {
 		return err
+	}
+
+	// The member goes in as an insert at the end, as the view shows it, in
+	// two cases. A member this session deleted and the committed tree holds:
+	// an add-member entry would replace the delete entry, and the commit would
+	// find the committed member, deactivated or in its old place, and leave it
+	// there. And any member once the session holds an insert on the list:
+	// every replay applies ops before entries, so an entry would land ahead
+	// of the inserts the operator typed before it (addedMembersAsInserts).
+	if e.addsMemberAsInsert(guard, changeMeta, changeOps, path, key, member) {
+		target := walkPath(e.tree, e.schema, path)
+		if target == nil {
+			return errPathNotFound
+		}
+		if present, _ := target.MultiValueMemberState(key, member); present {
+			return nil // Already a member: add-member changes nothing.
+		}
+		if err := target.InsertMultiValue(key, member, config.InsertLast, ""); err != nil {
+			return err
+		}
+		changeOps = append(changeOps, config.StructuralOp{
+			Type:       config.StructuralOpInsertMember,
+			User:       e.session.User,
+			Source:     e.session.Origin,
+			Time:       e.session.StartTime,
+			ParentPath: strings.Join(path, " "),
+			ListName:   key,
+			NewKey:     member,
+			Position:   config.InsertLast,
+		})
+		if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+			return err
+		}
+		e.dirty.Store(true)
+		e.draftSaved = false
+		return nil
 	}
 
 	changeTarget, err := e.walkOrCreateIn(changeTree, path)
@@ -68,6 +105,52 @@ func (e *Editor) writeThroughSetMember(path []string, key, member string) error 
 	e.dirty.Store(true)
 	e.draftSaved = false
 	return nil
+}
+
+// addsMemberAsInsert reports whether `set` of member on the plain leaf-list
+// key under path is recorded as an insert at the end rather than an
+// add-member entry; writeThroughSetMember says why.
+func (e *Editor) addsMemberAsInsert(guard storage.WriteGuard, changeMeta *config.MetaTree, changeOps []config.StructuralOp, path []string, key, member string) bool {
+	parentPath := strings.Join(path, " ")
+	for i := range changeOps {
+		if changeOps[i].Type == config.StructuralOpInsertMember && isSessionMemberOp(changeOps[i], e.session.ID, parentPath, key) {
+			return true
+		}
+	}
+	if !e.sessionDeletesMember(changeMeta, path, key, member) {
+		return false
+	}
+	return e.committedHoldsMember(guard, path, key, member)
+}
+
+// sessionDeletesMember reports whether changeMeta holds this session's
+// member delete of member on the leaf-list key under path.
+func (e *Editor) sessionDeletesMember(changeMeta *config.MetaTree, path []string, key, member string) bool {
+	meta := walkMetaReadOnly(changeMeta, e.schema, path)
+	if meta == nil {
+		return false
+	}
+	for _, entry := range meta.GetAllEntries(key) {
+		if entry.SessionKey() == e.session.ID && entry.Member == member && entry.Value == "" {
+			return true
+		}
+	}
+	return false
+}
+
+// committedHoldsMember reports whether the committed tree holds member, in
+// any state, in the leaf-list key under path.
+func (e *Editor) committedHoldsMember(guard storage.WriteGuard, path []string, key, member string) bool {
+	committedTree := e.readCommittedTree(guard)
+	if committedTree == nil {
+		return false
+	}
+	target := walkPath(committedTree, e.schema, path)
+	if target == nil {
+		return false
+	}
+	present, _ := target.MultiValueMemberState(key, member)
+	return present
 }
 
 // writeThroughDeleteMember implements the write-through protocol for removing
@@ -185,6 +268,9 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 	if err != nil {
 		return err
 	}
+	if opType == config.StructuralOpInsertMember && e.isValueOrArrayLeaf(path, leafListName) {
+		changeOps = e.addedMembersAsInserts(changeTree, changeMeta, changeOps, path, leafListName)
+	}
 	changeOps = append(changeOps, config.StructuralOp{
 		Type:       opType,
 		User:       e.session.User,
@@ -204,6 +290,41 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 	e.dirty.Store(true)
 	e.draftSaved = false
 	return nil
+}
+
+// addedMembersAsInserts turns this session's add-member entries on the plain
+// leaf-list key under path into inserts at the end, in the order they were
+// added, ahead of an insert about to be recorded. Every replay applies ops
+// before entries, so an insert recorded after a `set` would otherwise land
+// ahead of the member that `set` appended in the view. As ops they keep the
+// order the operator typed. The entries leave the change metadata and the
+// in-memory metadata both, and the members leave the change tree, where
+// they would read back as add-member lines.
+func (e *Editor) addedMembersAsInserts(changeTree *config.Tree, changeMeta *config.MetaTree, changeOps []config.StructuralOp, path []string, key string) []config.StructuralOp {
+	added := func(entry config.MetaEntry) bool { return entry.Value != "" }
+	removed := walkOrCreateMeta(changeMeta, e.schema, path).RemoveSessionMemberEntries(key, e.session.ID, added)
+	if len(removed) == 0 {
+		return changeOps
+	}
+	walkOrCreateMeta(e.meta, e.schema, path).RemoveSessionMemberEntries(key, e.session.ID, added)
+	changeTarget := walkPath(changeTree, e.schema, path)
+	parentPath := strings.Join(path, " ")
+	for _, entry := range removed {
+		if changeTarget != nil {
+			changeTarget.RemoveMultiValueMember(key, entry.Member)
+		}
+		changeOps = append(changeOps, config.StructuralOp{
+			Type:       config.StructuralOpInsertMember,
+			User:       e.session.User,
+			Source:     e.session.Origin,
+			Time:       e.session.StartTime,
+			ParentPath: parentPath,
+			ListName:   key,
+			NewKey:     entry.Member,
+			Position:   config.InsertLast,
+		})
+	}
+	return changeOps
 }
 
 // replaceSessionMembers prepares a whole-leaf set of the bracket leaf-list key
@@ -287,6 +408,50 @@ func (e *Editor) replaceSessionMembers(changeMeta *config.MetaTree, changeOps []
 		}
 	}
 	return value, changeOps, dropEntry
+}
+
+// sessionSetsWholeLeaf reports whether this session holds a whole-leaf entry,
+// a `set` of the whole list, on the bracket leaf-list key under path.
+func (e *Editor) sessionSetsWholeLeaf(path []string, key string) bool {
+	if e.bracketLeafList(path, key) == nil {
+		return false
+	}
+	meta := walkMetaReadOnly(e.meta, e.schema, path)
+	if meta == nil {
+		return false
+	}
+	for _, entry := range meta.GetAllEntries(key) {
+		if entry.SessionKey() == e.session.ID && entry.Member == "" && entry.Value != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// rewriteWholeLeaf records a member edit of the bracket leaf-list key under
+// path, made after this session set the whole list, as a new whole list: the
+// view's members once edit has run on a copy, or a whole-leaf delete when none
+// is left. It is the counterpart of replaceSessionMembers. A member entry or
+// op recorded beside the whole-leaf entry would replay before it everywhere
+// the session is replayed, and the whole list would then undo it.
+func (e *Editor) rewriteWholeLeaf(path []string, key string, edit func(*config.Tree) error) error {
+	target := walkPath(e.tree, e.schema, path)
+	if target == nil {
+		return errPathNotFound
+	}
+	probe := target.Clone()
+	if err := edit(probe); err != nil {
+		return err
+	}
+	states := probe.GetMultiValuesState(key)
+	if len(states) == 0 {
+		return e.writeThroughDelete(path, key)
+	}
+	members := make([]string, 0, len(states))
+	for _, state := range states {
+		members = append(members, state.Value)
+	}
+	return e.writeThroughSet(path, key, config.JoinLeafListMembers(members))
 }
 
 // dropSessionMemberOps answers ops without the member ops (insert, deactivate,

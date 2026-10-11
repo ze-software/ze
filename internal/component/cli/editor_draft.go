@@ -193,10 +193,14 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	}
 
 	// Create the parent path in the change tree so the serializer can navigate
-	// to the metadata node. The leaf itself is NOT set (it's a delete).
-	if _, walkErr := e.walkOrCreateIn(changeTree, path); walkErr != nil {
+	// to the metadata node. The leaf itself is NOT set (it's a delete), and a
+	// value this session set earlier goes: left in the change tree, it would
+	// be written as a set beside the delete and replayed in its place.
+	changeTarget, walkErr := e.walkOrCreateIn(changeTree, path)
+	if walkErr != nil {
 		return fmt.Errorf("write-through delete change path: %w", walkErr)
 	}
+	changeTarget.Delete(key)
 
 	// Record delete metadata in change file. The serializer emits "delete" lines
 	// for metadata entries without corresponding tree values.
@@ -550,6 +554,13 @@ func (e *Editor) SaveDraft() error {
 			leafName := pathParts[len(pathParts)-1]
 			parentPath := pathParts[:len(pathParts)-1]
 
+			// The parent goes into the draft even when the entry deletes its
+			// last leaf, or one the committed tree no longer holds: the
+			// serializer writes the entry's line at its parent, and without the
+			// parent the draft would lose the entry.
+			if _, err := e.walkOrCreateIn(baseTree, parentPath); err != nil {
+				return fmt.Errorf("save apply %s: %w", se.Path, err)
+			}
 			if err := e.applySessionEntryToTree(baseTree, parentPath, leafName, se.Entry); err != nil {
 				return fmt.Errorf("save apply %s: %w", se.Path, err)
 			}
@@ -560,7 +571,7 @@ func (e *Editor) SaveDraft() error {
 		}
 		return nil
 	}
-	if err := e.applyStructuralOpsAroundEntries(baseTree, myOps, applyEntries, true); err != nil {
+	if err := e.applyStructuralOpsAroundEntries(baseTree, myOps, applyEntries, true, nil); err != nil {
 		return fmt.Errorf("save %w", err)
 	}
 
@@ -683,38 +694,68 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 }
 
 // applyStructuralOpsAroundEntries applies a session's structural ops, and its
-// entries through applyEntries, to tree in the one order that lets each find what it names. Every op
-// goes first, as a rename or a delete reshapes the paths the entries name,
-// except a member op whose member is not in the tree yet: it names a member one
-// of the session's own entries adds (`set address [ a b ]`, then `deactivate
-// address b`), so it is held back and applied after the entries, in recorded
-// order. A member op cannot wait for every entry: a member the session
-// deactivated and then deleted must be deactivated before the delete entry
-// removes it. The change file records no order between an op and an entry,
-// both carry the session start time, so presence decides.
-func (e *Editor) applyStructuralOpsAroundEntries(tree *config.Tree, ops []config.StructuralOp, applyEntries func() error, allowAlreadyApplied bool) error {
+// entries through applyEntries, to tree in the one order that lets each find
+// what it names. Every op goes first, as a rename or a delete reshapes the
+// paths the entries name, except a member op memberOpWaitsForEntries holds
+// back, and every later member op on the same list: those are applied after
+// the entries, in recorded order. The change
+// file records no order between an op and an entry, both carry the session
+// start time, so presence decides.
+//
+// check, when not nil, sees each op against the tree it is about to apply to,
+// and an op it answers false for is skipped. The commit pre-scan
+// (memberOpConflicts) replays the commit's order on a copy through it.
+func (e *Editor) applyStructuralOpsAroundEntries(tree *config.Tree, ops []config.StructuralOp, applyEntries func() error, allowAlreadyApplied bool, check func(*config.Tree, config.StructuralOp) bool) error {
+	apply := func(op config.StructuralOp) error {
+		if check != nil && !check(tree, op) {
+			return nil
+		}
+		if err := applyStructuralOps(tree, e.schema, []config.StructuralOp{op}, allowAlreadyApplied); err != nil {
+			return fmt.Errorf("apply structural ops: %w", err)
+		}
+		return nil
+	}
 	var held []config.StructuralOp
+	heldLists := map[string]bool{}
 	for i := range ops {
-		if memberOpWaitsForEntries(tree, e.schema, ops[i]) {
+		// Once one member op on a list waits, every later one on that list
+		// waits too, so the list's ops keep the order the operator typed.
+		list := ops[i].ParentPath + "\x00" + ops[i].ListName
+		if isMemberOp(ops[i]) && heldLists[list] {
 			held = append(held, ops[i])
 			continue
 		}
-		if err := applyStructuralOps(tree, e.schema, ops[i:i+1], allowAlreadyApplied); err != nil {
-			return fmt.Errorf("apply structural ops: %w", err)
+		if memberOpWaitsForEntries(tree, e.schema, ops[i]) {
+			heldLists[list] = true
+			held = append(held, ops[i])
+			continue
+		}
+		if err := apply(ops[i]); err != nil {
+			return err
 		}
 	}
 	if err := applyEntries(); err != nil {
 		return err
 	}
-	if err := applyStructuralOps(tree, e.schema, held, allowAlreadyApplied); err != nil {
-		return fmt.Errorf("apply structural ops: %w", err)
+	for i := range held {
+		if err := apply(held[i]); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-// memberOpWaitsForEntries reports whether a member op names a member, or for a
-// positional insert a reference member, that tree does not hold yet. Any other
-// op never waits.
+// memberOpWaitsForEntries reports whether a member op must wait for the
+// session's entries. A deactivate or an activate waits when its member is not
+// in tree yet: one of the session's own entries adds it (`set address [ a b ]`,
+// then `deactivate address b`). It cannot wait for every entry, as a member
+// the session deactivated and then deleted must be deactivated before the
+// delete entry removes it. An insert waits when its member is already in tree,
+// where it would do nothing now: the member is there only until the session's
+// delete entry removes it (`delete address a`, then `insert address a before
+// b`), and after the entries the insert puts it back where the operator asked.
+// A positional insert also waits when its reference is not in tree yet. Any
+// other op never waits.
 func memberOpWaitsForEntries(tree *config.Tree, schema *config.Schema, op config.StructuralOp) bool {
 	//exhaustive:ignore // Only the three member ops can name a member an entry adds.
 	switch op.Type {
@@ -726,12 +767,15 @@ func memberOpWaitsForEntries(tree *config.Tree, schema *config.Schema, op config
 		present, _ := target.MultiValueMemberState(op.ListName, op.NewKey)
 		return !present
 	case config.StructuralOpInsertMember:
-		if op.Position != config.InsertBefore && op.Position != config.InsertAfter {
-			return false
-		}
 		target := walkPath(tree, schema, strings.Fields(op.ParentPath))
 		if target == nil {
 			return true
+		}
+		if present, _ := target.MultiValueMemberState(op.ListName, op.NewKey); present {
+			return true
+		}
+		if op.Position != config.InsertBefore && op.Position != config.InsertAfter {
+			return false
 		}
 		present, _ := target.MultiValueMemberState(op.ListName, op.OldKey)
 		return !present
@@ -806,12 +850,13 @@ func applyMemberOp(tree *config.Tree, schema *config.Schema, op config.Structura
 		}
 		if allowAlreadyApplied &&
 			(op.Position == config.InsertBefore || op.Position == config.InsertAfter) {
-			// Replay onto a base whose reference member was removed (or
-			// deactivated) concurrently: keep the member by appending so
-			// the draft never loses data. The commit pre-scan
-			// (insertRefStaleConflict) surfaces the lost position to the
-			// user as a stale conflict.
-			if refPresent, refInactive := target.MultiValueMemberState(op.ListName, op.OldKey); !refPresent || refInactive {
+			// Replay onto a base whose reference member was removed
+			// concurrently: keep the member by appending so the draft never
+			// loses data. The commit pre-scan (memberOpConflicts) surfaces
+			// the lost position to the user as a stale conflict. A
+			// deactivated reference still holds its place in the list, so
+			// the insert goes beside it, as in the view.
+			if refPresent, _ := target.MultiValueMemberState(op.ListName, op.OldKey); !refPresent {
 				return target.InsertMultiValue(op.ListName, op.NewKey, config.InsertLast, "")
 			}
 		}
@@ -1138,8 +1183,16 @@ func pathHasPrefix(path, prefix string) bool {
 func (e *Editor) readDraftOrConfig(guard storage.WriteGuard, draftPath string) (*config.Tree, *config.MetaTree, error) {
 	data, err := guard.ReadFile(draftPath)
 	if errors.Is(err, fs.ErrNotExist) {
-		// No draft: clone the in-memory tree and start with empty metadata.
-		return e.tree.Clone(), config.NewMetaTree(), nil
+		// No draft: start from the committed tree, with empty metadata. The
+		// session's changes are replayed onto it, the same replay the commit
+		// runs. The view already holds those changes, and replaying them onto
+		// it applies each twice, which a delete followed by a re-add of the
+		// same member does not survive.
+		committed := e.readCommittedTree(guard)
+		if committed == nil {
+			return nil, nil, fmt.Errorf("%s does not read or parse, so there is no base to save onto; fix the file, then save again", e.originalPath)
+		}
+		return committed, config.NewMetaTree(), nil
 	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("read draft %s: %w", draftPath, err)

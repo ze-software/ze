@@ -257,6 +257,12 @@ func (e *Editor) setLeafListMember(path []string, key, member string) error {
 // add-member set). Returns an error if the member is not present.
 func (e *Editor) deleteLeafListValue(path []string, leafListName, value string) error {
 	if e.session != nil {
+		if e.deletesActiveMemberOfWholeSet(path, leafListName, value) {
+			return e.rewriteWholeLeaf(path, leafListName, func(t *config.Tree) error {
+				t.RemoveMultiValueMember(leafListName, value)
+				return nil
+			})
+		}
 		return e.writeThroughDeleteMember(path, leafListName, value)
 	}
 	var target *config.Tree
@@ -273,6 +279,26 @@ func (e *Editor) deleteLeafListValue(path []string, leafListName, value string) 
 	}
 	e.dirty.Store(true)
 	return nil
+}
+
+// deletesActiveMemberOfWholeSet reports whether deleting member from the
+// leaf-list key under path edits a whole list this session set, so the delete
+// is recorded as a new whole list (rewriteWholeLeaf). A deactivated member
+// keeps its member delete: a whole list keeps a deactivated member it does not
+// name, so leaving it out of the list would not remove it.
+func (e *Editor) deletesActiveMemberOfWholeSet(path []string, key, member string) bool {
+	if !e.sessionSetsWholeLeaf(path, key) {
+		return false
+	}
+	target := walkPath(e.tree, e.schema, path)
+	if target == nil {
+		return false
+	}
+	present, inactive := target.MultiValueMemberState(key, member)
+	if !present {
+		return false
+	}
+	return !inactive
 }
 
 // DeleteValue removes a leaf value at the given path in the tree.
@@ -724,6 +750,11 @@ func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey, dstKey str
 // reference value for before/after.
 func (e *Editor) InsertLeafListValue(path []string, leafListName, value, position, ref string) error {
 	if e.session != nil {
+		if e.sessionSetsWholeLeaf(path, leafListName) {
+			return e.rewriteWholeLeaf(path, leafListName, func(t *config.Tree) error {
+				return t.InsertMultiValue(leafListName, value, position, ref)
+			})
+		}
 		return e.writeThroughMemberOp(path, config.StructuralOpInsertMember, leafListName, value, position, ref)
 	}
 	var target *config.Tree
