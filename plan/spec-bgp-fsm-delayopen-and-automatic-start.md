@@ -26,6 +26,16 @@ Row numbers are the numbers the rows had in the parent spec.
 |---|--------|-------------------|-------|--------------------|
 | 6 | `RFC4271-8.2.2-13` | RFC 4271 §8.2.2 (Active) | gap: OPTIONAL feature absent, owner IN | No DelayOpen, so Active never holds a connection and the Event 18 action list is reached by no layer |
 | 7 | `RFC4271-8.2.2-20` | RFC 4271 §8.2.2 (Idle) | gap: optional event absent, owner IN | No Event 3; automatic restart is Event 6, which keeps the ConnectRetryCounter |
+| 6s | draft-ietf-idr-bgp-bfd-strict-mode §8.3.5, §8.4.5 (and the sub-state branches of §8.3.1, §8.4.1) | draft, Connect and Active | gap: reachable only with DelayOpen, owner IN | `ConnectDelayOpenBfdUpPending` and `ActiveDelayOpenBfdUpPending` are undeclared, and four comments plus two pages call them unreachable because Ze has no DelayOpenTimer |
+
+Row 6s exists because row 6 makes the two strict-mode sub-states reachable: with
+`timer delay-open` set on a peer whose `connection bfd { strict true }` is enabled,
+an OPEN received while the DelayOpenTimer runs (Event 20) enters the draft's
+revised Event 20 clause. On 2026-10-11 the owner, asked whether to implement them or
+refuse `delay-open` together with `bfd strict`, answered: "Implement them". The
+draft's Section 8 carries no RFC 2119 keyword (`rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md`,
+Notes), so 6s adds behaviour and tests but no MUST-level requirement row; AC-9
+says what the ledger gains instead.
 
 The class column follows `ai/rules/rfc-compliance.md`: "a capability Ze does not
 provide is an implementation gap". The owner scoped both in, so both are
@@ -43,6 +53,15 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
 |---|-------|---------|
 | 6 | "If the local system receives a TcpConnectionFails event (Event 18), the local system: - restarts the ConnectRetryTimer (with the initial value), - stops and clears the DelayOpenTimer (sets the value to zero), - releases all BGP resource, - increments the ConnectRetryCounter by 1," and §8.2.1.3: "If the flag indicating support for an optional timer (DelayOpen or DampPeerOscillations) cannot be set to TRUE, the timers and events supporting that option do not have to be supported." | `rfc/full/rfc4271.txt` §8.2.2 Active, §8.2.1.3 |
 | 7 | "In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero," and §8.1.2 Event 3 "Status: Optional, depending on local system" | `rfc/full/rfc4271.txt` §8.2.2 Idle, §8.1.2 |
+| 6 (Connect, Event 16/17) | "If the DelayOpen attribute is set to TRUE, the local system: - stops the ConnectRetryTimer (if running) and sets the ConnectRetryTimer to zero, - sets the DelayOpenTimer to the initial value, and - stays in the Connect state." | `rfc/full/rfc4271.txt` §8.2.2 Connect, lines 3070-3086 |
+| 6 (Connect, Event 12) | "If the DelayOpenTimer_Expires event (Event 12) occurs in the Connect state, the local system: - sends an OPEN message to its peer, - sets the HoldTimer to a large value, and - changes its state to OpenSent." | §8.2.2 Connect, lines 3054-3060 |
+| 6 (Connect, Event 18) | "If the DelayOpenTimer is running, the local system: - restarts the ConnectRetryTimer with the initial value, - stops the DelayOpenTimer and resets its value to zero, - continues to listen for a connection that may be initiated by the remote BGP peer, and - changes its state to Active." | §8.2.2 Connect, lines 3104-3115 |
+| 6 (Connect and Active, Event 20) | "If an OPEN message is received while the DelayOpenTimer is running (Event 20), the local system: - stops the ConnectRetryTimer (if running) and sets the ConnectRetryTimer to zero, - completes the BGP initialization, - stops and clears the DelayOpenTimer (sets the value to zero), - sends an OPEN message, - sends a KEEPALIVE message, ... - and changes its state to OpenConfirm." (Active words it "If an OPEN message is received and the DelayOpenTimer is running") | §8.2.2 Connect lines 3127-3150, Active lines 3378-3395 |
+| 6 (Connect and Active, Event 24) | "If the DelayOpenTimer is running, the local system: - stops the ConnectRetryTimer (if running) and sets the ConnectRetryTimer to zero, - stops and resets the DelayOpenTimer (sets to zero), - releases all BGP resources, - drops the TCP connection, and - changes its state to Idle." | §8.2.2 Connect lines 3188-3207, Active lines 3440-3452 |
+| 6 (Active, Event 16/17) | "If the DelayOpen attribute is set to TRUE, the local system: - stops the ConnectRetryTimer and sets the ConnectRetryTimer to zero, - sets the DelayOpenTimer to the initial value (DelayOpenTime), and - stays in the Active state." | §8.2.2 Active, lines 3326-3338 |
+| 6 (Active, Event 12) | "If the local system receives a DelayOpenTimer_Expires event (Event 12), the local system: - sets the ConnectRetryTimer to zero, - stops and clears the DelayOpenTimer (set to zero), - completes the BGP initialization, - sends the OPEN message to its peer, - sets its HoldTimer to a large value, and - changes its state to OpenSent." | §8.2.2 Active, lines 3292-3305 |
+| 6s (§8.3.5 new text) | "If the FSM is NOT in the ConnectDelayOpenBfdUpPending, the local system: ... - sends an OPEN message, - If BfdEnabled is TRUE, and BfdStrictNegotiated is TRUE, and bfd.SessionState is neither Up nor AdminDown, - DOES NOT send a KEEPALIVE message, ... - stays in the Connect state (enters ConnectDelayOpenBfdUpPending)." and "If the FSM is in the ConnectDelayOpenBfdUpPending sub-state, the reception of a second OPEN message is a FSM error." | `rfc/drafts/draft-ietf-idr-bgp-bfd-strict-mode.txt` §8.3.5, lines 548-610; §8.4.5 is the Active copy, lines 720-830 |
+| 6s (§8.3.1 sub-state branch) | "If the FSM is in the ConnectDelayOpenBfdUpPending sub-state, the local system: - sends a KEEPALIVE message, - if the HoldTimer initial value is non-zero, - starts the KeepaliveTimer with the initial value and - resets the BfdHoldTimer value to zero, - and changes its state to OpenConfirm (leaves ConnectDelayOpenBfdUpPending)." | draft §8.3.1, lines 424-441; §8.4.1 is the Active copy, lines 642-659 |
 
 ### How FRR and BIRD handle it
 
@@ -50,6 +69,8 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
 |---|------|------|
 | 6 | DelayOpen implemented (`bgpd/bgp_fsm.c`, `bgp_delayopen_timer`); configured per neighbor as `neighbor X timers delayopen (1-240)` (`bgpd/bgp_vty.c` line 8204) | No DelayOpen; restart pacing is `error_delay_time_min/max` backoff (`proto/bgp/bgp.c` around line 1018), the same shape as Ze's Event 6 |
 | 7 | No RFC ConnectRetryCounter tracked; FRR counts `peer->dropped` | No RFC ConnectRetryCounter |
+| 6 (Event 18 in Active) | The FSM table maps TCP_connection_open_failed in Active to `bgp_ignore`, so FRR performs none of the four Event 18 actions; Receive_OPEN_message in Connect and Active goes to `bgp_fsm_open` and OpenConfirm, and DelayOpen_timer_expired to `bgp_fsm_delayopen_timer_expire` and OpenSent (`bgpd/bgp_fsm.c` around lines 2655-2690) | N-A |
+| 6s | FRR has no BFD strict mode (`bgp-bfd-strict-frr` README: FRR 10.3.1 implements neither) | No BFD strict mode |
 
 ## Required Reading
 
@@ -58,8 +79,20 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
   → Constraint: rows 6 and 7 are IN (owner, 2026-10-11), so this page changes with the FSM phase: DelayOpen, the DelayOpenTimer and Event 3 move from "not implemented" to implemented, in the same commit as the FSM code
 - [ ] `docs/architecture/testing/interop.md` - scenario naming and the revert-and-red walk
   → Constraint: `bgp-delayopen-frr` is named (no numeric prefix) and owes a recorded red with the fix reverted and the artifact rebuilt
+- [ ] `docs/architecture/core-design.md` - the design page the reactor files this spec edits declare (peer run loop, session lifecycle, config parse)
+  → Constraint: if it describes the reconnect loop's start events or the OPEN timing, it changes with rows 6 and 7
+- [ ] `docs/architecture/behavior/fsm-active.md` - the Active event table
+  → Constraint: line 47 says `EventTCPConnectionFails` is "not generated in production: Active holds no connection, because without DelayOpen ..." and that "RFC4271-8.2.2-13 carries `{feature-declined}`"; the second half is already stale (R53(a) made the row `{gap}`) and the first goes false with row 6. Rewritten with the DelayOpen phase
+- [ ] `docs/architecture/behavior/fsm-connect.md` - the Connect event table
+  → Constraint: gains the DelayOpen arms of Events 12, 16/17, 18, 20 and 24 with the DelayOpen phase
+- [ ] `docs/architecture/behavior/fsm.md` "The two BFD strict-mode sub-states" (lines 217-223)
+  → Constraint: says the two DelayOpen sub-states are entered only by Event 20 "and ze implements no DelayOpenTimer"; rewritten with row 6s to declare all four sub-states
 
 ### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md` - enrolment reason, support coverage, Notes
+  → Constraint (row 6s): `rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md` lines 14 and 20 state that `ConnectDelayOpenBfdUpPending` and `ActiveDelayOpenBfdUpPending` "are unreachable and undeclared" because Ze implements no DelayOpenTimer; its Notes (line 99) record that Section 8 "carries no RFC 2119 keyword at all", so the two sections owe no requirement row and the enrolment reason and support coverage prose change instead
+- [ ] `rfc/drafts/draft-ietf-idr-bgp-bfd-strict-mode.txt` - §8.3.1, §8.3.3, §8.3.4, §8.3.5, §8.4.1, §8.4.3, §8.4.4, §8.4.5
+  → Constraint: in either DelayOpen sub-state the BfdHoldTimerExpires (§8.3.3) and BfdStrictConfigChanged (§8.3.4) arms Ze already runs for Connect and Active apply unchanged, because the state is still Connect or Active; only §8.3.1/§8.4.1 (sub-state branch) and §8.3.5/§8.4.5 (Event 20) carry sub-state-specific actions
 - [ ] `rfc/short/rfc4271.md` - rows 8.2.2-13 (line 811), 8.2.2-20 (line 805)
   → Constraint: main-thread rulings R47(a) and R53(a) (`plan/handover/rfc-verdict-test-fix-pass/RULINGS.md`) hold 8.2.2-20 as a counted gap because Ze has an automatic start, and 8.2.2-13 as a `{gap}` stamped unimplemented because the gate refused `{feature-declined}` beside existing tags. Both are now implemented (owner: IN), so both rows lose `{gap}` and owe tags in both polarities; R50 found the HEAD-tagged 8.2.2-13 units drive a synthetic Event 18 no real Peer reached, so those tags are re-pointed at a test that reaches Active with DelayOpen through a real Peer
 
@@ -73,6 +106,12 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
 - [ ] `internal/component/bgp/fsm/fsm.go`, `internal/component/bgp/fsm/state.go` - Event 6 implemented as the reactor's exponential backoff (state.go line 162); Events 3 and DelayOpen absent by recorded design (fsm.go header lines 16-18, 77)
 - [ ] `internal/component/bgp/reactor/session.go` - line 1006-1011 fires Event 6 for an automatic restart
 - [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - grouping `peer-fields`, container `timer` (`receive-hold-time`, `send-hold-time`, `keepalive`, `connect-retry`); no DelayOpen leaf
+- [ ] `internal/component/bgp/reactor/peer_run.go` - the reconnect loop: `delay` is reset to `reconnectMin` after `runOnce` returns nil (a session that ran), on `ErrTeardown`, and on `inboundNotify`, and doubled after any other error; around line 379 the first cycle after the operator's start fires Event 1 (`session.Start`) and every later cycle Event 6 (`session.startDamped`), chosen by the `operatorStarted` swap
+- [ ] `internal/component/bgp/fsm/fsm.go` lines 380-388 - Events 1 and 4 are conflated: one arm resets the counter and goes to Active when `passive` is set, Connect otherwise
+- [ ] `internal/component/bgp/reactor/config.go` around line 244 (timer container parse), `internal/component/bgp/reactor/peer_settings.go` around line 69 (timer defaults, YANG as source of truth)
+- [ ] `internal/component/bgp/reactor/session_connection.go` `connectionEstablished` (line 328) fires Event 17 at line 413 and the OPEN follows through `session_negotiate.go` `sendOpen` (line 130): the OPEN is sent immediately after the TCP connection today
+- [ ] `internal/component/bgp/reactor/session_bfd_strict.go` - `advanceAfterOpen`, `handleBFDEvent`, `raiseBFDHoldTimerExpired`: the wire half of the strict-mode OpenSent sub-states, which row 6s extends to the Connect and Active sub-states
+- [ ] Comments that call the DelayOpen sub-states unreachable, all false after row 6s: `fsm/fsm.go` header lines 11 and 77, `EnterBfdUpPending` comment lines 232-240, the Connect BFD arm lines 503-512, the BfdHoldTimerExpires arm lines 531-532, the Event 24 arm lines 557-558 and 656, the Active sub-state arm lines 664-669; `fsm/state.go` lines 274-277; `fsm/timer.go` line 61; test comments `fsm/bfd_strict_test.go` line 274, `fsm/rfc4271_connect_any_other_event_test.go` line 48, `fsm/rfc4271_connect_retry_test.go` lines 320, 367, 396
 
 **Behavior to preserve:**
 - Event 6 backoff semantics and `TestRFC4271ConnectRetryCounterSurvivesDampedStart`.
@@ -88,8 +127,9 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
 
 ### Transformation Path
 1. Config parse of `timer delay-open` into the peer settings.
-2. The reactor's run loop picks Event 3 or Event 6 from the backoff state on an automatic restart (row 7).
-3. The FSM runs the DelayOpenTimer in Connect and Active, holding Ze's OPEN until the peer's OPEN or expiry (row 6).
+2. The reactor's run loop (`peer_run.go`) picks the start event for each cycle (row 7). The predicate is concrete: Event 3 fires on the first cycle after a cycle whose session reached Established (the `runOnce` that returned nil, where the loop already resets `delay` to `reconnectMin`); Event 6 fires on every other automatic cycle, including the one `inboundNotify` restarts and the one after `ErrTeardown` of a session that never reached Established, because neither proves the previous attempt succeeded; Event 1 stays the operator's start. "Reached Established" is read from the cycle that just ended, not from a timer.
+3. The FSM runs the DelayOpenTimer in Connect and Active: on Event 16/17 with DelayOpen TRUE the reactor holds the connection without calling `sendOpen` until Event 20 (peer OPEN) or Event 12 (timer expiry) (row 6).
+4. On Event 20 with `connection bfd { strict true }` negotiated and BFD neither Up nor AdminDown, the reactor sends the OPEN, withholds the KEEPALIVE and the FSM records the Connect or Active DelayOpen sub-state; a BfdUp, BfdAdminDown or BfdDisabled event then sends the KEEPALIVE and moves to OpenConfirm (row 6s). The same `advanceAfterOpen` decision that holds OpenSent today makes the call, so the strict-mode test is declared once.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -99,7 +139,8 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
 
 ### Integration Points
 - `ze-bgp-conf.yang` grouping `peer-fields` - the new leaf reaches peer, group and bgp levels.
-- `session.go` automatic restart - the Event 3 / Event 6 choice.
+- `peer_run.go` start-event choice (around line 379) - the Event 3 / Event 6 choice; `session.go` `Start` / `startDamped` gain the Event 3 entry.
+- `session_bfd_strict.go` `advanceAfterOpen` - the KEEPALIVE-withholding decision, now also called from the Event 20 path (row 6s).
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -121,7 +162,8 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Row 7 changes restart pacing: zeroing the counter on Event 3 hides oscillation the counter used to show | a flapping peer restarts faster after the change | Event 3 only when the backoff is not damping; a damped restart keeps Event 6 and its counter (AC-2) |
+| R-1 | Row 7 changes restart pacing: zeroing the counter on Event 3 hides oscillation the counter used to show | a flapping peer restarts faster after the change | Event 3 only on the cycle after a session that reached Established; every cycle after a failed attempt keeps Event 6 and its counter (AC-2) |
+| R-3 | Row 6s holds a session in Connect or Active with an OPEN sent and no KEEPALIVE | a session stuck before OpenConfirm with BFD Down | The HoldTimer (reset to the negotiated value) or the BfdHoldTimer (hold time zero) bounds the wait, AC-7 |
 | R-2 | Row 6 delays Ze's OPEN; a peer that also waits never establishes | a session stuck in Active or Connect | The DelayOpenTimer always expires and Ze then sends its OPEN; the interop scenario sets DelayOpen on both sides |
 
 ## Blast Radius
@@ -130,14 +172,16 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
 |----------|--------|
 | What breaks if this is wrong? | Row 6: session establishment timing with `timer delay-open` set (OPEN held, Event 18 in Active). Row 7: restart pacing and the ConnectRetryCounter |
 | How is it reverted? | Each row lands as its own commit, revertible alone |
-| Who else touches this path? | `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (ledger rows, the R50 re-pointed tags), `plan/immediate/spec-bgp-open-session-rfc-defects.md` (OPEN and session handling) |
+| Who else touches this path? | `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (ledger rows, the R50 re-pointed tags), `plan/immediate/spec-bgp-open-session-rfc-defects.md` (OPEN and session handling), `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` (BFD strict-mode and session work in flight on 2026-10-11; row 6s edits `session_bfd_strict.go` and the strict-mode FSM arms it may also touch, so this spec's row 6s phase starts after that spec lands or coordinates file by file) |
+| Row 6s | A peer with `bfd strict` and `delay-open` both set: wrong sub-state handling holds the session in Connect or Active until the BfdHoldTimer or the HoldTimer ends it |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | Config `bgp peer <address> timer delay-open 5`, peer connects | → | FSM DelayOpenTimer, OPEN held, Event 18 in Active | `test/plugin/bgp-delay-open.ci` |
-| Peer session restarts automatically with no oscillation | → | FSM Event 3 zeroes ConnectRetryCounter | `TestRFC4271AutomaticStartEvent3ZeroesCounter` (`internal/component/bgp/reactor/`, through a real `Peer`; not wire-visible) |
+| An established peer session ends (peer NOTIFICATION, hold expiry, or `peer <address> clear` / session reset) and the reconnect loop restarts it | → | FSM Event 3 zeroes ConnectRetryCounter | `TestRFC4271AutomaticStartEvent3ZeroesCounter` (`internal/component/bgp/reactor/`, through a real `Peer`; Event 3 is not wire-visible, so a Go test through the run loop is the entry point a user reaches by resetting an established session) |
+| Config `timer delay-open 5` plus `connection bfd { strict true }` on a peer whose BFD session is Down, peer sends its OPEN | → | Connect/Active DelayOpen BFD sub-state, KEEPALIVE withheld until BfdUp | `test/plugin/bgp-delay-open-bfd-strict.ci` (lab BFD speaker, the shape `bgp-bfd-strict-speaker` uses) |
 
 ## Acceptance Criteria
 
@@ -146,9 +190,23 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 (row 6) | `bgp peer <address> timer delay-open <seconds>` is set (owner: IN) | The DelayOpen attribute is TRUE and Ze holds its OPEN after the TCP connection until the peer's OPEN arrives or the DelayOpenTimer expires (RFC 4271 §8.2.2 Connect and Active); `0`, the default, leaves DelayOpen FALSE and today's behavior unchanged. A TcpConnectionFails (Event 18) in Active, reached through a real `Peer` with DelayOpen running, restarts the ConnectRetryTimer, stops and clears the DelayOpenTimer, releases the connection's resources and increments the ConnectRetryCounter, the four quoted actions. A value outside the leaf's range is refused at commit with the leaf, the range and the fix |
-| AC-2 (row 7) | Ze restarts a peer session automatically and the peer has not been oscillating (owner: IN) | The FSM receives Event 3 (AutomaticStart) and the ConnectRetryCounter is set to zero; a restart while the backoff is damping keeps today's Event 6 behavior and keeps the counter (`TestRFC4271ConnectRetryCounterSurvivesDampedStart` stays green). The choice between Event 3 and Event 6 is read from the backoff state, never from a second timer |
+| AC-1 (row 6, config) | `bgp peer <address> timer delay-open <seconds>` | 1..240 sets the DelayOpen attribute TRUE and DelayOpenTime to the value; `0`, the default, leaves DelayOpen FALSE and every existing FSM test and the OPEN timing unchanged. A value outside the range is refused at commit with the leaf, the range and the fix |
+| AC-1a (row 6, Event 16/17) | DelayOpen TRUE, TCP connection succeeds in Connect (Ze dialled) or Active (Ze accepted), through a real `Peer` | The ConnectRetryTimer is stopped and zero, the DelayOpenTimer runs with DelayOpenTime, no OPEN is written to the connection, the state stays Connect or Active (the two quoted clauses) |
+| AC-1b (row 6, Event 12) | DelayOpen TRUE, the DelayOpenTimer expires with no peer OPEN, in Connect and in Active | Ze sends its OPEN, sets the HoldTimer to a large value, and moves to OpenSent; in Active it also zeroes the ConnectRetryTimer and clears the DelayOpenTimer (the two quoted clauses) |
+| AC-1c (row 6, Event 20) | DelayOpen TRUE, the peer's OPEN arrives while the DelayOpenTimer runs, in Connect and in Active, BFD strict not negotiated | ConnectRetryTimer zero, DelayOpenTimer cleared, Ze sends its OPEN then a KEEPALIVE, the KeepaliveTimer and HoldTimer follow the negotiated hold time (or both reset when it is zero), and the state is OpenConfirm with no stop in OpenSent |
+| AC-1d (row 6, Event 18 in Connect) | DelayOpen TRUE, the held connection fails in Connect while the DelayOpenTimer runs | The ConnectRetryTimer restarts with its initial value, the DelayOpenTimer is cleared, Ze keeps listening, and the state is Active |
+| AC-1e (row 6, Event 18 in Active, the ledger row) | DelayOpen TRUE, the held connection fails in Active while the DelayOpenTimer runs, reached through a real `Peer` | The four quoted actions: the ConnectRetryTimer restarts with its initial value, the DelayOpenTimer is cleared, the connection's resources are released, the ConnectRetryCounter rises by 1; the state is Idle. Negative polarity: with DelayOpen FALSE no Event 18 reaches Active (today's path) |
+| AC-1f (row 6, Event 24) | DelayOpen TRUE, a NOTIFICATION with a version error arrives while the DelayOpenTimer runs, in Connect and in Active | ConnectRetryTimer zero, DelayOpenTimer cleared, resources released, connection dropped, state Idle, and the ConnectRetryCounter is NOT incremented (the DelayOpenTimer-running clause carries no increment; the not-running clause Ze runs today keeps its increment) |
+| AC-1g (row 6, the other-events arm) | DelayOpen TRUE, any other event of Connect's or Active's catch-all list while the DelayOpenTimer runs | The DelayOpenTimer is stopped and reset in the same arm that already stops the ConnectRetryTimer, then today's actions |
+| AC-2 (row 7) | A peer session that reached Established ends and the reconnect loop starts the next cycle | The FSM receives Event 3 (AutomaticStart) and the ConnectRetryCounter is zero. Negative polarity: the cycle after a failed attempt (no Established), including the cycle `inboundNotify` restarts, fires Event 6 and keeps the counter (`TestRFC4271ConnectRetryCounterSurvivesDampedStart` stays green). The operator's first start stays Event 1. The predicate is the Established flag of the cycle that just ended, never a second timer |
+| AC-2p (row 7, passive) | The same, on a peer with `connection passive` | Ze fires Event 3 and the FSM goes to Active, following the existing Event 1/Event 4 conflation in `fsm.go` (one arm, `passive` chooses Connect or Active), extended to Event 3 and Event 5 in the same arm; the arm's comment states the conflation. The counter is zero |
 | AC-3 (ledger) | Each row once its AC is met | The row in `rfc/short/rfc4271.md` loses `{gap}`, carries tags in both polarities, the HEAD-tagged 8.2.2-13 units are re-pointed at the real-`Peer` test (R50), and each carries a discrimination record (`./le rfc discriminate-record`); `./le rfc check` exits clean for `rfc4271` |
+| AC-4 (row 6s, enter) | DelayOpen TRUE, `connection bfd { strict true }` negotiated, BFD neither Up nor AdminDown, the peer's OPEN arrives while the DelayOpenTimer runs, in Connect and in Active | Ze sends its OPEN and NO KEEPALIVE; with a non-zero HoldTimer initial value the KeepaliveTimer is not started and the HoldTimer is reset to the negotiated value; with zero the KeepaliveTimer and HoldTimer reset and the BfdHoldTimer starts with BfdHoldTime; the state stays Connect or Active and the FSM reports `ConnectDelayOpenBfdUpPending` or `ActiveDelayOpenBfdUpPending` (§8.3.5, §8.4.5) |
+| AC-5 (row 6s, leave) | In either DelayOpen sub-state, BfdUp, BfdAdminDown or BfdDisabled arrives | Ze sends a KEEPALIVE, with a non-zero HoldTimer starts the KeepaliveTimer and zeroes the BfdHoldTimer, and moves to OpenConfirm, leaving the sub-state (§8.3.1, §8.4.1 first branch). Outside the sub-state the same events keep today's "stays in the Connect/Active state" |
+| AC-6 (row 6s, second OPEN) | In either DelayOpen sub-state a second OPEN arrives | Ze sends a NOTIFICATION with Finite State Machine Error, zeroes the ConnectRetryTimer, releases resources, drops the connection, increments the ConnectRetryCounter and goes to Idle (§8.3.5, §8.4.5 new text) |
+| AC-7 (row 6s, timers and config change) | In either DelayOpen sub-state the BfdHoldTimer expires, or `bfd strict` changes | Today's Connect and Active arms run unchanged: Cease / BFD Down and Idle (§8.3.3, §8.4.3), or drop and Idle with the counter zero (§8.3.4, §8.4.4); the sub-state is cleared on every transition out |
+| AC-8 (row 6s, strict-mode path refusal) | `EnterBfdUpPending` or its Connect/Active sibling is called in a state the draft does not allow | It returns the error it returns today for an OpenSent sub-state outside OpenSent; the Connect/Active sub-states are accepted only in Connect and Active with the DelayOpenTimer just cleared by Event 20 |
+| AC-9 (row 6s, ledger and comments) | Row 6s landed | `rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md` lines 14 and 20 no longer call the sub-states unreachable and name the producing functions; no requirement row is added because §8 carries no RFC 2119 keyword (its Notes); every comment and page listed in Current Behavior and the Documentation checklist that calls the sub-states unreachable is rewritten in the same commit; `./le rfc check` exits clean for the draft stem |
 
 ## End-to-End User Stories
 
@@ -163,7 +221,11 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 |------|------|-----------|--------|
 | `TestRFC4271DelayOpenHoldsOpen` | `internal/component/bgp/fsm/` | AC-1: OPEN held until peer OPEN or timer expiry; 0 leaves DelayOpen off | |
 | `TestRFC4271ActiveEvent18WithDelayOpen` | `internal/component/bgp/reactor/` | AC-1: Event 18 in Active through a real `Peer`, four actions, both polarities | |
-| `TestRFC4271AutomaticStartEvent3ZeroesCounter` | `internal/component/bgp/reactor/` | AC-2 both polarities (undamped zeroes, damped keeps) | |
+| `TestRFC4271AutomaticStartEvent3ZeroesCounter` | `internal/component/bgp/reactor/` | AC-2 both polarities (after Established zeroes; after a failed attempt and after `inboundNotify` keeps), AC-2p passive goes to Active | |
+| `TestRFC4271DelayOpenEventsConnect`, `TestRFC4271DelayOpenEventsActive` | `internal/component/bgp/fsm/` | AC-1a, AC-1b, AC-1c, AC-1d, AC-1f, AC-1g: one subtest per event, the quoted actions as assertions | |
+| `TestRFC4271DelayOpenHeldConnectionWritesNoOpen` | `internal/component/bgp/reactor/` | AC-1a: no OPEN bytes on the wire while the DelayOpenTimer runs, through a real `Peer` | |
+| `TestDraftBFDStrictDelayOpenSubStates` | `internal/component/bgp/fsm/bfd_strict_test.go` | AC-4, AC-5, AC-6, AC-7, AC-8 in Connect and in Active | |
+| `TestDraftBFDStrictDelayOpenWithholdsKeepalive` | `internal/component/bgp/reactor/` | AC-4, AC-5 wire half: OPEN sent, no KEEPALIVE until BfdUp, through a real `Peer` | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -173,7 +235,8 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-delay-open` | `test/plugin/` | AC-1 | |
+| `bgp-delay-open` | `test/plugin/` | AC-1, AC-1a, AC-1b, AC-1c | |
+| `bgp-delay-open-bfd-strict` | `test/plugin/` | AC-4, AC-5 | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -183,7 +246,14 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 Row 7 is not wire-visible; its proof is the reactor unit test through a real `Peer`. The scenario owes the revert, rebuild, red, restore, green walk with the red recorded.
 
 ## Files to Modify
-- `internal/component/bgp/fsm/fsm.go`, `internal/component/bgp/fsm/state.go`, `internal/component/bgp/reactor/session.go` - rows 6, 7 (the fsm.go header comment that records DelayOpen and Event 3 as absent changes with the code)
+- `internal/component/bgp/fsm/fsm.go`, `internal/component/bgp/fsm/state.go`, `internal/component/bgp/fsm/timer.go`, `internal/component/bgp/reactor/session.go` - rows 6, 7, 6s (the fsm.go header comment that records DelayOpen and Event 3 as absent changes with the code; every comment listed in Current Behavior that calls the DelayOpen sub-states unreachable is rewritten; the DelayOpenTimer joins the timers in timer.go; state.go declares the two Connect/Active sub-states)
+- `internal/component/bgp/reactor/peer_run.go` - row 7: the start-event choice around line 379 reads the Established flag of the cycle that ended
+- `internal/component/bgp/reactor/config.go` (timer container parse, around line 244), `internal/component/bgp/reactor/peer_settings.go` (timer setting and default, around line 69) - row 6
+- `internal/component/bgp/reactor/session_connection.go`, `internal/component/bgp/reactor/session_negotiate.go` - row 6: `connectionEstablished` holds the OPEN when DelayOpen is TRUE; `sendOpen` runs on Event 20 or Event 12
+- `internal/component/bgp/reactor/session_bfd_strict.go` - row 6s: `advanceAfterOpen` and `handleBFDEvent` extended to the Connect and Active DelayOpen sub-states
+- Test comments listed in Current Behavior (`fsm/bfd_strict_test.go`, `fsm/rfc4271_connect_any_other_event_test.go`, `fsm/rfc4271_connect_retry_test.go`) - their "no DelayOpenTimer" sentences become false
+- `internal/le/interoplab/bgp/check_special.go` - map entry for `bgp-delayopen-frr`
+- `rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md` - AC-9
 - `internal/component/bgp/yang/ze-bgp-conf.yang` - row 6: grouping `peer-fields`, container `timer`, new leaf `delay-open` (uint16 seconds, range `0 | 1..240`, default 0 = DelayOpen FALSE), so `bgp peer <address> timer delay-open <seconds>` and the group and bgp levels through the grouping
 - `docs/architecture/behavior/fsm.md` - rows 6, 7
 - `rfc/short/rfc4271.md` - AC-3
@@ -191,6 +261,8 @@ Row 7 is not wire-visible; its proof is the reactor unit test through a real `Pe
 ## Files to Create
 - `test/plugin/bgp-delay-open.ci`
 - `test/interop/scenarios/bgp-delayopen-frr/`
+- `test/plugin/bgp-delay-open-bfd-strict.ci`
+- `internal/le/interoplab/bgp/check_delayopen.go` (and its `_test.go`) - the `bgp-delayopen-frr` checker: parses the capture and asserts Ze's OPEN follows FRR's OPEN, or follows the TCP handshake by at least DelayOpenTime when FRR holds too
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -219,10 +291,10 @@ Row 7 is not wire-visible; its proof is the reactor unit test through a real `Pe
 | 6 | Has a user guide page? | Yes | `docs/guide/bgp-peering.md` if it describes session timers |
 | 7 | Wire format changed? | No | the OPEN is unchanged; only its timing |
 | 8 | Plugin SDK/protocol changed? | No | none |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4271.md` and `docs/features/rfc-status.md` (generated by `./le rfc index-update`) |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4271.md`, `rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md` (row 6s), and `docs/features/rfc-status.md` (generated by `./le rfc index-update`) |
 | 10 | Test infrastructure changed? | No | none |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` if it lists DelayOpen |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/behavior/fsm.md` (rows 6, 7 implemented) |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/behavior/fsm.md` (rows 6, 7 implemented; "The two BFD strict-mode sub-states" becomes all four, row 6s), `docs/architecture/behavior/fsm-active.md` (line 47 Event 18 row and the Event 12, 16/17, 20, 24 DelayOpen arms), `docs/architecture/behavior/fsm-connect.md` (the Connect DelayOpen arms), each edited in the phase whose code makes it wrong |
 | 13 | Route metadata keys added/changed? | No | none |
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
@@ -233,7 +305,8 @@ Row 7 is not wire-visible; its proof is the reactor unit test through a real `Pe
 
 1. **Phase: Wiring** -- `bgp-delay-open.ci` and the Event 3 reactor test written and red.
 2. **Phase: DelayOpen (row 6)** -- YANG leaf, config, DelayOpenTimer in Connect and Active, Event 18 in Active; `fsm.md` edited. Own commit.
-3. **Phase: Event 3 (row 7)** -- the automatic restart picks Event 3 or Event 6 from the backoff state. Own commit.
+3. **Phase: Event 3 (row 7)** -- the automatic restart picks Event 3 or Event 6 from the Established flag of the cycle that ended; passive peers through the Event 1/4 arm. Own commit.
+3a. **Phase: strict-mode DelayOpen sub-states (row 6s)** -- after the DelayOpen phase: declare the two sub-states, extend `advanceAfterOpen` and `handleBFDEvent`, rewrite every comment and page listed in Current Behavior, edit the strict-mode summary prose (AC-9). Own commit.
 4. **Phase: interop** -- `bgp-delayopen-frr` with the recorded red.
 5. **Phase: ledger** -- AC-3, discrimination records, `./le rfc check` clean for `rfc4271`.
 
@@ -277,6 +350,7 @@ Row 7 is not wire-visible; its proof is the reactor unit test through a real `Pe
 |----------|---------------|--------------------|
 | Row 6: scope DelayOpen in, or decline it? | IN | AC-1: a `timer delay-open` leaf, the DelayOpenTimer, and `bgp-delayopen-frr` |
 | Row 7: add Event 3, or record Event 6 as Ze's automatic start by design? | IN | AC-2: Event 3 when the backoff is not damping |
+| DelayOpen with `bfd strict`: implement the two strict-mode DelayOpen sub-states (draft §8.3.5, §8.4.5), or refuse `delay-open` together with `bfd strict` at commit? (raised by the independent design review, B1) | "Implement them" | Row 6s and AC-4 to AC-9: `ConnectDelayOpenBfdUpPending` and `ActiveDelayOpenBfdUpPending` are declared and implemented, and every comment and page that calls them unreachable is corrected |
 | One spec or several? | "Split into three" | This spec owns rows 6 and 7; the defects stay in `plan/immediate/spec-bgp-unowned-rfc-rows.md`, EPE is `plan/spec-bgp-epe-peer-segments-and-srv6-peernode.md` |
 
 ## Open Questions (owner)
@@ -290,6 +364,10 @@ None open.
 |----------|------------------------|-----------|
 | `delay-open` range 0 or 1..240, 0 meaning off | A separate enable leaf | FRR's range; one leaf carries both the attribute and the timer |
 | Event 3 vs Event 6 read from the backoff state | A second restart timer | Ze already decides damping there; a second timer would be a second declaration of the same fact |
+| Event 3 predicate: the cycle that just ended reached Established | "The peer has not been oscillating", which Ze keeps as no state; the backoff delay value | The reconnect loop already resets the delay on exactly that outcome (`runOnce` nil); `inboundNotify` also resets the delay without proving a session ran, so the delay value alone would misfire Event 3 there |
+| Passive peers take Event 3 through the existing Event 1/4 conflation | A distinct Event 5 path | `fsm.go` already serves Events 1 and 4 from one arm with `passive` choosing the next state; adding Event 3/5 to that arm keeps one declaration, and the arm's comment names the conflation |
+| Event 18 in Active follows the RFC's four actions | FRR's `bgp_ignore` for TCP_connection_open_failed in Active | The row is RFC4271-8.2.2-13; FRR is laxer than the RFC here and the RFC outranks the peer implementation |
+| Row 6s implemented, not refused (owner, 2026-10-11) | Refuse `delay-open` with `bfd strict` at commit | Owner decision; the strict-mode decision (`advanceAfterOpen`) is reused so the "BFD neither Up nor AdminDown" test lives in one place |
 
 ## Known Limitations
 - None beyond the FRR/BIRD comparison: BIRD has no DelayOpen, so the interop proof is against FRR only.
@@ -315,7 +393,7 @@ the quotes in the Task section.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-3 all demonstrated
+- [ ] AC-1, AC-1a..AC-1g, AC-2, AC-2p, AC-3..AC-9 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes
