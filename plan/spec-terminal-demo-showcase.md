@@ -657,6 +657,24 @@ the light of decision 4: they guard against wrong output on screen, nothing more
   set and deactivate the whole leaf (owner-directed). NOTE 2: journal row in
   `plan/journal/index-key-derived-from-mutable-field.md`. round 5 review owed
   over <sha>.
+- Round-5 review (scratch `review-bracket-r5.md`), partly fixed in 6b95932a8b.
+  `TestLeafListSequencesAgree` (`editor_leaflist_sequence_test.go`) is the
+  permanent form of the review's fuzzer: 14 named and 80 seeded sequences over
+  the bracket `address` list and the plain `bgp filter import` list, comparing
+  the view with SaveDraft, the draft file, reload and both commit paths. Red at
+  HEAD on 15 of 94 sequences (scratch `brk5/red.json`), green now, and green on
+  three 314-sequence sweeps (seeds 77, 13, 99). Fixed: BLOCKER 1 and ISSUE 1
+  (the pre-scan replays the commit order on a copy; a deactivated reference is
+  valid), BLOCKER 2 (member edits after a whole set rewrite the whole-leaf
+  entry), BLOCKER 3 (an insert of a present member waits for the entries) and
+  three siblings the sweeps found. Open: ISSUE 2 (draft code and test parked in
+  scratch `brk5/issue2-*.txt`; its first case also hits NOTE 4), ISSUE 3-5,
+  NOTES 1, 3, 4, 5, and the gates. NOTE 2 settled by the owner on 2026-10-11:
+  "It should be when using the yang presentation the junos way but when using a
+  command line format nop." `nop` is a `set` line marked inactive, so
+  `nop <list> c` adds c deactivated (round 4's behaviour, kept); syntax.md is
+  still to state it in those terms. Round 6 review owed over the commit that
+  closes the remaining findings, owner authorised 2026-10-11 "Authorise round 6".
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
