@@ -855,6 +855,7 @@ func checkBackupPathToMP(ctx context.Context, lab interoplab.CheckerLab, timeout
 	if _, err := lab.Query(ctx, peerTransit, []string{"sh", "-c", "ip link set prot0 down && echo down"}, nil); err != nil {
 		return fmt.Errorf("take the protected link down: %w", err)
 	}
+	cutAt := time.Now()
 	backup, err := waitMessage(ctx, lab, peerEgress, "freeRouter egress receives the PLR's backup PATH", timeout, isBackupPath)
 	if err != nil {
 		return err
@@ -882,19 +883,7 @@ func checkBackupPathToMP(ctx context.Context, lab interoplab.CheckerLab, timeout
 		return strings.Contains(message.text, "Label Object") && senderIs(message.text, addressZeTransit) && strings.Contains(message.text, protectedTunnel)
 	}
 	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: "Ze PLR receives two labeled RESVs from the merge point for its backup sender"},
-		func(ctx context.Context) (int, error) {
-			capture, err := lab.Query(ctx, peerTransit, []string{catCommand, captureFile}, nil)
-			if err != nil {
-				return 0, err
-			}
-			count := 0
-			for _, message := range parseCapture(capture) {
-				if answers(message) {
-					count++
-				}
-			}
-			return count, nil
-		},
+		func(ctx context.Context) (int, error) { return countCaptured(ctx, lab, peerTransit, answers) },
 		func(count int) bool { return count >= 2 })
 	if err != nil {
 		return protectedSessionTrace(ctx, lab, err)
@@ -935,7 +924,77 @@ func checkBackupPathToMP(ctx context.Context, lab interoplab.CheckerLab, timeout
 	if refusal != nil {
 		return protectedSessionTrace(ctx, lab, fmt.Errorf("the Ze PLR refused the ingress's PATH refresh of the repaired LSP:\n%s", refusal.text))
 	}
+	// No refusal is an absence, and a PLR that dropped the refresh in silence
+	// leaves one too: its own timer keeps sending the backup PATH until the
+	// protected PSB expires. So the repair MUST still run after that state's
+	// lifetime has passed: the egress receives a further backup PATH, and the
+	// PLR a further labeled RESV from the merge point.
+	if err := repairOutlivesProtectedState(ctx, lab, cutAt, answers, timeout); err != nil {
+		return protectedSessionTrace(ctx, lab, err)
+	}
 	return nil
+}
+
+// protectedStateLifetime bounds how long the PLR keeps the protected LSP's PSB
+// with no ingress refresh. RFC 2205 Section 3.7: "To avoid premature loss of
+// state, L must satisfy L >= (K + 0.5)*1.5*R, where K is a small integer." and
+// "Currently K = 3 is suggested as the default." The scenario's ingress
+// refreshes every 2 seconds (R, ingress.conf refresh-period), so L is 10.5
+// seconds; Ze's own expiry, refresh-period times refresh-multiplier 3 in
+// transit.conf, is 6 seconds and falls inside it.
+const protectedStateLifetime = time.Duration((3 + 0.5) * 1.5 * 2 * float64(time.Second))
+
+// repairOutlivesProtectedState waits until protectedStateLifetime has passed
+// since the protected link went down, then requires a backup PATH at the
+// egress and a labeled RESV from the merge point at the PLR that the captures
+// did not hold at that moment. A PLR whose protected PSB expired stops both.
+func repairOutlivesProtectedState(ctx context.Context, lab interoplab.CheckerLab, cutAt time.Time, answers func(rsvpMessage) bool, timeout time.Duration) error {
+	wait := time.NewTimer(time.Until(cutAt.Add(protectedStateLifetime)))
+	defer wait.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-wait.C:
+	}
+	paths, err := countCaptured(ctx, lab, peerEgress, isBackupPath)
+	if err != nil {
+		return err
+	}
+	resvs, err := countCaptured(ctx, lab, peerTransit, answers)
+	if err != nil {
+		return err
+	}
+	for _, step := range []struct {
+		peer, description string
+		match             func(rsvpMessage) bool
+		seen              int
+	}{
+		{peerEgress, "freeRouter egress still receives the PLR's backup PATH after the protected PSB's lifetime", isBackupPath, paths},
+		{peerTransit, "Ze PLR still receives the merge point's labeled RESV after the protected PSB's lifetime", answers, resvs},
+	} {
+		_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: step.description},
+			func(ctx context.Context) (int, error) { return countCaptured(ctx, lab, step.peer, step.match) },
+			func(count int) bool { return count > step.seen })
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// countCaptured answers how many messages in peer's capture match.
+func countCaptured(ctx context.Context, lab interoplab.CheckerLab, peer string, match func(rsvpMessage) bool) (int, error) {
+	capture, err := lab.Query(ctx, peer, []string{catCommand, captureFile}, nil)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, message := range parseCapture(capture) {
+		if match(message) {
+			count++
+		}
+	}
+	return count, nil
 }
 
 // upstreamRefreshesBeforeVerdict is how many of the ingress's PATH refreshes
