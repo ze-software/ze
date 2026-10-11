@@ -66,6 +66,14 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 		return err
 	}
 
+	committedTree := e.readCommittedTree(guard)
+
+	// A whole bracket leaf-list replaces this session's member changes to it.
+	var replacedEntry func(config.MetaEntry) bool
+	if e.bracketLeafList(path, key) != nil {
+		value, changeOps, replacedEntry = e.replaceSessionMembers(changeMeta, changeOps, committedTree, path, key, value)
+	}
+
 	// Apply the set to the change tree.
 	changeTarget, err := e.walkOrCreateIn(changeTree, path)
 	if err != nil {
@@ -78,7 +86,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 
 	// Read committed value for Previous field.
 	previous := ""
-	if committedTree := e.readCommittedTree(guard); committedTree != nil {
+	if committedTree != nil {
 		previous = getValueAtPath(committedTree, e.schema, metaPath)
 	}
 
@@ -102,6 +110,9 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	target, _ := e.walkOrCreateIn(e.tree, path)
 	e.storeLeaf(target, path, key, value)
 	metaTarget := walkOrCreateMeta(e.meta, e.schema, path)
+	if replacedEntry != nil {
+		metaTarget.RemoveSessionMemberEntries(key, e.session.ID, replacedEntry)
+	}
 	metaTarget.SetEntry(key, entry)
 
 	e.dirty.Store(true)

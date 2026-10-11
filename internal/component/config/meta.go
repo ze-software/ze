@@ -145,6 +145,32 @@ func (mt *MetaTree) RemoveSessionEntry(name, sessionID string) {
 	}
 }
 
+// RemoveSessionMemberEntries removes the leaf-list member entries (Member
+// set) of one session from a leaf that drop selects, and answers them in their
+// stored order. The session's whole-leaf entry and every other session's
+// entries stay. A whole-leaf set calls it, because the list it writes replaces
+// what those member entries added or deleted. If no entries remain, the key is
+// deleted.
+func (mt *MetaTree) RemoveSessionMemberEntries(name, sessionID string, drop func(MetaEntry) bool) []MetaEntry {
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
+
+	var kept, removed []MetaEntry
+	for _, e := range mt.entries[name] {
+		if e.SessionKey() == sessionID && e.Member != "" && drop(e) {
+			removed = append(removed, e)
+			continue
+		}
+		kept = append(kept, e)
+	}
+	if len(kept) == 0 {
+		delete(mt.entries, name)
+	} else {
+		mt.entries[name] = kept
+	}
+	return removed
+}
+
 // GetAllEntries returns all metadata entries for a leaf.
 // Multiple entries exist when different sessions have pending changes at the same path.
 func (mt *MetaTree) GetAllEntries(name string) []MetaEntry {

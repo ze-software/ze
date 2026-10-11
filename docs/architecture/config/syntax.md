@@ -76,6 +76,29 @@ as-path [ 65001 65002 65003 ];                 # bracket list
 
 Both forms are equivalent for a single item: `community 65001:100;` and `community [ 65001:100 ];` produce the same result.
 
+A container written as two blocks merges into one, and a leaf-list both
+blocks set keeps the members of both, as repeated statements in one block do
+(RFC 7950 Section 7.7). A set keeps one copy of each member. An ordered
+leaf-list (`ze:ordered`) keeps every copy, in order. A member deactivated in
+either block stays deactivated:
+
+```
+filter { import [ a b ]; inactive: import b; }
+filter { import [ b c ]; }     # import is [ a b c ], b deactivated
+```
+
+An ordered leaf-list whose merged members repeat a deactivated member is
+refused, because the deactivation marks a value and cannot say which copy it
+means. The error names the leaf, the member and the fix:
+
+```
+seq: deactivated member "b" is listed 2 times once the repeated blocks are merged;
+seq is an ordered list that keeps repeated members, so ze cannot tell which copy
+is deactivated. Fix: write the seq list once, in one block, or remove the line
+"inactive: seq b;"
+```
+<!-- source: internal/component/config/tree.go -- mergeFrom, checkMergedRepeatsLocked, keepsRepeats -->
+
 ### Container (block)
 
 ```
@@ -242,7 +265,7 @@ path form, and the parser takes their spelling from `command.Verbs` rather than
 writing the words again, so renaming a verb renames the file keyword with it.
 `nop` and `inactive` belong to this format alone and the verb registry holds
 neither.
-<!-- source: internal/component/config/setparser.go -- cmdNop, cmdSet, cmdDelete, parseNop, nopBracketMember, bracketMembers, isMemberLeafList -->
+<!-- source: internal/component/config/setparser.go -- cmdNop, cmdSet, cmdDelete, parseNop, nopBracketMember, setBracketLine, bracketMembers, isMemberLeafList -->
 <!-- source: internal/component/config/serialize_set.go -- writeInactiveMemberLines -->
 <!-- source: internal/component/command/verbs.go -- VerbSet, VerbDelete -->
 
@@ -262,8 +285,12 @@ nop system name-server 1.1.1.1
 
 A bracket leaf-list sets the whole list on one line, every member listed,
 and follows it with one `nop <path> <member>` line per deactivated member.
-A `nop` line that names a list, or a value that is not yet a member,
-deactivates the whole leaf instead:
+A `nop` line that names one value is always one member: written before the
+list line, or naming a value the list does not hold yet, it adds the member
+deactivated, and a later list line that names the member keeps it
+deactivated. A later list line still replaces the members, so it drops a
+member it does not name. Only a `nop` line that names a list in brackets
+(`nop <path> [ ... ]`) deactivates the whole leaf:
 
 ```
 set interface ethernet eth0 unit 0 ipv4 address [ 192.0.2.1/24 192.0.2.3/30 ]

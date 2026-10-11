@@ -299,7 +299,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			return nil // structural-only: no value to set
 		}
 		// A member deactivation is not a value of the leaf: no metadata.
-		if handled, err := p.nopBracketMember(tree, name, tokens); handled {
+		if handled, err := p.nopBracketMember(tree, bracket, name, tokens); handled {
 			return err
 		}
 		// Each token is one member, a quoted one included, as walkAndSet
@@ -312,7 +312,9 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		// Members plus the scalar mirror, as walkAndSet stores them. A later
 		// line for the same leaf replaces an earlier one: a committed file
 		// carries a leaf's earlier value as its own line, before the current.
-		tree.SetSlice(name, items)
+		if err := setBracketLine(tree, name, items); err != nil {
+			return fmt.Errorf("line %d: %s: %w", lineNum, name, err)
+		}
 		if hasMetadata {
 			entry.Value = JoinLeafListMembers(items)
 			meta.SetEntry(name, entry)

@@ -42,8 +42,9 @@ func TestDeactivatedMemberOneSpellingPerFormat(t *testing.T) {
 // whole-leaf meaning.
 //
 // VALIDATES: `inactive items b` after the list line deactivates b; `nop items
-// [ a b ]` deactivates the whole leaf; `nop items c`, c not a member, reads as
-// the whole leaf set to c and deactivated; in both set parsers.
+// [ a b ]` deactivates the whole leaf; `nop items c`, c not a member yet,
+// reads as the member c added deactivated, never as the whole leaf (round-4
+// NOTE 3: a member nop stays a member nop); in both set parsers.
 // PREVENTS: reading the new member spelling breaking an older file.
 func TestBracketMemberLegacySpellingsRead(t *testing.T) {
 	schema := NewSchema()
@@ -68,8 +69,8 @@ func TestBracketMemberLegacySpellingsRead(t *testing.T) {
 
 		tree, err = parse("nop items c\n")
 		require.NoError(t, err, name)
-		assert.Equal(t, []MemberState{{Value: "c"}}, tree.GetMultiValuesState("items"), name)
-		assert.True(t, tree.IsLeafInactive("items"), name)
+		assert.Equal(t, []MemberState{{Value: "c", Inactive: true}}, tree.GetMultiValuesState("items"), name)
+		assert.False(t, tree.IsLeafInactive("items"), name)
 	}
 }
 
@@ -119,7 +120,11 @@ func TestMergeRefusesRepeatedDeactivatedMember(t *testing.T) {
 
 	_, err := NewParser(schema).Parse("box {\n\tseq [ 1 2 ];\n\tinactive: seq 2;\n}\nbox {\n\tseq [ 2 ];\n}\n")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `seq: the blocks merged repeat deactivated member "2" 2 times`)
+	// The refusal names the problem, why, and the exact fix
+	// (ai/rules/user-facing-errors.md).
+	assert.Contains(t, err.Error(), `seq: deactivated member "2" is listed 2 times once the repeated blocks are merged; `+
+		`seq is an ordered list that keeps repeated members, so ze cannot tell which copy is deactivated. `+
+		`Fix: write the seq list once, in one block, or remove the line "inactive: seq 2;"`)
 
 	_, err = NewParser(schema).Parse("box {\n\tseq [ 1 ];\n}\nbox {\n\tseq [ 2 ];\n\tinactive: seq 2;\n}\n")
 	require.NoError(t, err, "a marker on a member the merge does not repeat stays allowed")

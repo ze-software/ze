@@ -695,10 +695,10 @@ func (t *Tree) checkMergedRepeatsLocked(other *Tree, schema ChildProvider) error
 		for _, marks := range []map[string]bool{t.inactiveMembers[k], other.inactiveMembers[k]} {
 			for member := range marks {
 				if n := multiValueOccurrences(merged, member); n > 1 {
-					return fmt.Errorf("%s: the blocks merged repeat deactivated member %q %d times; "+
-						"deactivation is ambiguous for a repeated member of an ordered leaf-list, "+
-						"so write the %s list in one block, without the inactive: statement for %q",
-						k, member, n, k, member)
+					return fmt.Errorf("%s: deactivated member %q is listed %d times once the repeated blocks are merged; "+
+						"%s is an ordered list that keeps repeated members, so ze cannot tell which copy is deactivated. "+
+						"Fix: write the %s list once, in one block, or remove the line \"inactive: %s %s;\"",
+						k, member, n, k, k, k, member)
 				}
 			}
 		}

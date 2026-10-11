@@ -57,7 +57,10 @@ type headlessModel struct {
 	editor  *cli.Editor
 	store   storage.Storage
 	pending []<-chan tea.Msg // timer commands that exceeded the processing deadline
-	tmpDir  string           // temp directory for file expectations
+	// typing is true while the commands of one typed character are processed:
+	// they go straight to pending instead of the slow-path wait (sendMsg).
+	typing bool
+	tmpDir string // temp directory for file expectations
 }
 
 // newHeadlessModel creates a headless model from a config file path, reading
@@ -223,8 +226,17 @@ func (hm *headlessModel) sendMsg(msg tea.Msg) error {
 	}
 	hm.model = model
 
-	// Process any commands that return messages
+	// A typed character answers with the model's validation debounce, a
+	// 100ms tea.Tick that the model ignores unless it is the last keystroke's.
+	// Waiting for that tick on each character made typing cost 100ms a
+	// character, so a session test with three long commands took 24s. The
+	// character's commands go to pending instead, as the real program runs
+	// them beside the next keystroke, and every expectation still drains them
+	// first through settleWait.
+	key, isKey := msg.(tea.KeyPressMsg)
+	hm.typing = isKey && key.Text != ""
 	hm.processCmd(cmd)
+	hm.typing = false
 
 	return nil
 }
@@ -270,6 +282,12 @@ func (hm *headlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 			return
 		default: // non-blocking check: continue yielding if not ready yet
 		}
+	}
+
+	// A typed character's commands never block the next keystroke (sendMsg).
+	if hm.typing {
+		hm.pending = append(hm.pending, done)
+		return
 	}
 
 	// Slow path: wait for state-mutating commands (set, save, commit, load).

@@ -10,6 +10,7 @@ package config
 import (
 	"bufio"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -291,7 +292,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
 		}
-		if handled, err := p.nopBracketMember(tree, name, tokens); handled {
+		if handled, err := p.nopBracketMember(tree, bracket, name, tokens); handled {
 			return err
 		}
 		// Each token is one member, a quoted one included, as the hierarchical
@@ -304,8 +305,10 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		// fills (storeBracketLeafList), so a set-format load hands the editor
 		// a leaf-list it merges member by member exactly as a hierarchical
 		// one. A set line states the whole list, so a later line for the same
-		// leaf replaces an earlier one, as it always has in this format.
-		tree.SetSlice(name, items)
+		// leaf replaces an earlier one.
+		if err := setBracketLine(tree, name, items); err != nil {
+			return fmt.Errorf("line %d: %s: %w", lineNum, name, err)
+		}
 		return nil
 	}
 
@@ -408,22 +411,57 @@ func (p *SetParser) parseNop(tree *Tree, tokens []string, lineNum int) error {
 
 // nopBracketMember handles `nop <path> <member>` on a bracket leaf-list, the
 // set-format spelling of one deactivated member, as for a plain leaf-list. The
-// serializer writes it after the line that sets the whole list, so the member
-// is there: it is deactivated and the list is left as it is. It answers false
-// for any other line, which then takes the whole-leaf meaning: the value is the
-// list, and markNopInactive deactivates the leaf.
-func (p *SetParser) nopBracketMember(tree *Tree, name string, tokens []string) (bool, error) {
+// serializer writes it after the line that sets the whole list, where the
+// member is there and is deactivated. A line written before the list line, or
+// naming a value the list does not hold yet, is still one member: the member
+// is added deactivated, and a later list line that names it keeps it
+// deactivated (setBracketLine). It answers false for any other line, which
+// then takes the whole-leaf meaning: the value is the list, written in
+// brackets or as the legacy joined value, and markNopInactive deactivates the
+// leaf.
+func (p *SetParser) nopBracketMember(tree *Tree, bracket *BracketLeafListNode, name string, tokens []string) (bool, error) {
 	if !p.nopLine || len(tokens) != 1 || tokens[0] == "[" {
 		return false, nil
 	}
 	present, inactive := tree.MultiValueMemberState(name, tokens[0])
-	if !present {
-		return false, nil
-	}
 	if inactive {
 		return true, nil
 	}
+	if !present {
+		// An invalid value, or a joined value that holds several members,
+		// is left to the list path, which reports or reads it.
+		items, err := bracketMembers(bracket, tokens)
+		if err != nil {
+			return false, nil //nolint:nilerr // The list path reports the error with its line number.
+		}
+		if len(items) != 1 {
+			return false, nil
+		}
+		tree.AddMultiValueMember(name, items[0])
+	}
 	return true, tree.DeactivateMultiValue(name, tokens[0])
+}
+
+// setBracketLine stores the members a bracket leaf-list's set line states. The
+// line states the whole list, so it replaces the members an earlier line
+// stored, as it always has in this format, but a member a `nop <path>
+// <member>` line deactivated stays deactivated while the new list names it:
+// the member line says which member is deactivated, whichever line comes
+// first.
+func setBracketLine(tree *Tree, name string, items []string) error {
+	var deactivated []string
+	for _, state := range tree.GetMultiValuesState(name) {
+		if state.Inactive && slices.Contains(items, state.Value) {
+			deactivated = append(deactivated, state.Value)
+		}
+	}
+	tree.SetSlice(name, items)
+	for _, member := range deactivated {
+		if err := tree.DeactivateMultiValue(name, member); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // markNopInactive walks the schema path and marks the terminal node

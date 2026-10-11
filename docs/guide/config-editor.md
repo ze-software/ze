@@ -294,7 +294,17 @@ commit and a reload all keep it deactivated. You can deactivate a member your
 session has just added: `commit now` applies that deactivation after the `set`
 that adds the member. Setting a bracket leaf-list whole keeps a deactivated
 member the new list does not name, still deactivated; `delete address <member>`
-removes that one member, deactivated or not, and leaves the rest of the list.
+removes that one member, deactivated or not, and leaves the rest of the list,
+and an earlier `deactivate` or `insert` of it goes with it, so adding,
+deactivating and then deleting a member commits as if it was never added.
+Setting the list whole replaces your session's earlier member changes to it:
+a member you deleted and then list again stays in the list, and an `insert`
+position gives way to the order the new list states. When another commit has
+removed a member you deactivate, or the member an `insert` is placed against,
+`commit` reports a conflict on that path rather than failing; a reference
+member your own session adds is no conflict.
+<!-- source: internal/component/cli/editor_leaflist.go -- writeThroughDeleteMember, replaceSessionMembers, dropSessionMemberOps -->
+<!-- source: internal/component/cli/editor_commit.go -- appendStructuralOpConflict, insertRefStaleConflict, memberToggleStaleConflict, sessionEntriesTree -->
 <!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue, storeLeaf, DeleteByPath -->
 <!-- source: internal/component/cli/editor_draft.go -- applyStructuralOpsAroundEntries, memberOpWaitsForEntries -->
 <!-- source: internal/component/config/serialize.go -- serializeBracketLeafList -->

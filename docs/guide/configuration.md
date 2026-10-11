@@ -19,6 +19,17 @@ Ze uses a JUNOS-like hierarchical configuration format.
 <!-- source: internal/component/config/tokenizer.go -- tokenizer.scan -->
 
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
+
+A block written twice, such as two `filter { ... }` blocks, is read as one.
+A list both blocks set, such as `import [ a b ]` and then `import [ b c ]`,
+holds the members of both: `[ a b c ]`. An ordered list keeps every copy in
+order, so it can hold a member twice. A member deactivated with `inactive:` in
+either block stays deactivated. Ze refuses the file when an ordered list ends
+up holding a deactivated member more than once, because it cannot tell which
+copy you meant to deactivate. Write that list once, in one block, or remove
+its `inactive:` line. The rules and the error text are in
+[the configuration syntax reference](../architecture/config/syntax.md#leaf-list-single-or-multiple-values).
+<!-- source: internal/component/config/tree.go -- mergeFrom, checkMergedRepeatsLocked -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema; internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 
 A plugin that registers no schema at build time has its schema selected at
