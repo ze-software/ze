@@ -1763,3 +1763,94 @@ func TestMobikeRekeyErrorKeepsExchangeType(t *testing.T) {
 		mbOnlyNotify(t, mbDecrypt(t, f.peer, answer.Data), wire.NotifyUnexpectedNATDetected, nil)
 	}
 }
+
+// TestMobikeUpdateCarriesItsAddressList checks that Ze's address update is an
+// INFORMATIONAL request that carries the address list beside UPDATE_SA_ADDRESSES.
+// Ze has one address, so the list is NO_ADDITIONAL_ADDRESSES. The test drives the
+// real IKE_AUTH handshake, starts an update and decrypts what the responder reads.
+//
+// RFC 4555 Section 3.6: "This information can be updated by sending an
+// INFORMATIONAL exchange request message that contains either one or more
+// ADDITIONAL_IP4_ADDRESS/ADDITIONAL_IP6_ADDRESS notifications or the
+// NO_ADDITIONAL_ADDRESSES notification." and "The initiator MAY include these
+// notifications in the same request as UPDATE_SA_ADDRESSES."
+//
+// RFC requirement: RFC4555-3.6-2 positive -- the update is an INFORMATIONAL
+// request and it carries NO_ADDITIONAL_ADDRESSES.
+// RFC requirement: RFC4555-3.6-3 positive -- NO_ADDITIONAL_ADDRESSES rides in the
+// same request as UPDATE_SA_ADDRESSES.
+func TestMobikeUpdateCarriesItsAddressList(t *testing.T) {
+	ini, resp, _, iniTr, respTr := mbAuthHandshake(t, "", nil, nil, false, false, false)
+	ps := &PeerSession{peerName: ini.PeerName}
+	if err := ps.startMobikeRequest(ini, iniTr, true, slogutil.DiscardLogger()); err != nil {
+		t.Fatal(err)
+	}
+	request := mbReceive(t, respTr)
+	header := parseMsg(t, request.Data).Header
+	if header.ExchangeType != wire.ExchangeInformational {
+		t.Fatalf("address update exchange type = %d, want INFORMATIONAL", header.ExchangeType)
+	}
+	if header.Flags&wire.FlagResponse != 0 {
+		t.Fatal("address update was sent as a response")
+	}
+	inner := mbDecrypt(t, resp, request.Data)
+	mbRequireNotify(t, inner, wire.NotifyUpdateSAAddresses)
+	mbRequireNotify(t, inner, wire.NotifyNoAdditionalAddresses)
+}
+
+// TestMobikeNoNATsDataIsTheSendTuple checks the NO_NATS_ALLOWED notification data
+// on both sides. The sender's data, read off a real update, is the packet's source
+// address, destination address, source port and destination port, 12 octets for
+// IPv4. The receiver's matcher refuses data that names any other tuple.
+//
+// RFC 4555 Section 4.2.6: "The notification data contains the IP addresses and
+// ports from/to which the packet was sent."
+//
+// RFC requirement: RFC4555-4.2.6-1 positive -- the update's NO_NATS_ALLOWED data is
+// the 12-octet IPv4 tuple the responder received the packet on, field by field.
+// RFC requirement: RFC4555-4.2.6-1 negative -- data naming another source or
+// destination address, the ports swapped, one port changed, or the IPv6 width is
+// refused as not the packet's tuple.
+func TestMobikeNoNATsDataIsTheSendTuple(t *testing.T) {
+	ini, resp, _, iniTr, respTr := mbAuthHandshake(t, "prohibit", nil, nil, false, false, false)
+	ps := &PeerSession{peerName: ini.PeerName}
+	if err := ps.startMobikeRequest(ini, iniTr, true, slogutil.DiscardLogger()); err != nil {
+		t.Fatal(err)
+	}
+	request := mbReceive(t, respTr)
+	source, destination := request.RemoteAddr, nttPeerAddr(t, respTr)
+	notification := mbRequireNotify(t, mbDecrypt(t, resp, request.Data), wire.NotifyNoNATsAllowed)
+	data := notification.NotificationData
+	if len(data) != 12 {
+		t.Fatalf("IPv4 NO_NATS_ALLOWED data is %d octets, want 12", len(data))
+	}
+	if !net.IP(data[0:4]).Equal(source.IP) || !net.IP(data[4:8]).Equal(destination.IP) {
+		t.Fatalf("data addresses %v -> %v, packet sent %v -> %v",
+			net.IP(data[0:4]), net.IP(data[4:8]), source.IP, destination.IP)
+	}
+	if int(binary.BigEndian.Uint16(data[8:])) != source.Port || int(binary.BigEndian.Uint16(data[10:])) != destination.Port {
+		t.Fatalf("data ports %x, packet sent %d -> %d", data[8:12], source.Port, destination.Port)
+	}
+	if !noNATsAllowedMatches(notification, source, destination) {
+		t.Fatal("the receiver refused the packet's own tuple")
+	}
+
+	changedPort := &net.UDPAddr{IP: source.IP, Port: source.Port + 1}
+	v6 := &net.UDPAddr{IP: net.ParseIP("2001:db8::1"), Port: source.Port}
+	v6Peer := &net.UDPAddr{IP: net.ParseIP("2001:db8::2"), Port: destination.Port}
+	for name, wrong := range map[string][]byte{
+		"source address changed": mbNoNATs(&net.UDPAddr{IP: net.IPv4(192, 0, 2, 9), Port: source.Port},
+			destination),
+		"destination address changed": mbNoNATs(source,
+			&net.UDPAddr{IP: net.IPv4(192, 0, 2, 9), Port: destination.Port}),
+		"ports swapped": mbNoNATs(&net.UDPAddr{IP: source.IP, Port: destination.Port},
+			&net.UDPAddr{IP: destination.IP, Port: source.Port}),
+		"source port changed": mbNoNATs(changedPort, destination),
+		"IPv6 width":          mbNoNATs(v6, v6Peer),
+	} {
+		forged := &wire.PayloadNotify{NotifyMsgType: wire.NotifyNoNATsAllowed, NotificationData: wrong}
+		if noNATsAllowedMatches(forged, source, destination) {
+			t.Errorf("%s: data that is not the packet's tuple was accepted", name)
+		}
+	}
+}

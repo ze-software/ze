@@ -170,7 +170,11 @@
     {
       "id": "4.2.6",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4555-4.2.6-1"
+      ],
+      "reason": "Row RFC4555-4.2.6-1 (added 2026-10-11) is read from the indicative sentence \"The notification data contains the IP addresses and ports from/to which the packet was sent.\", which carries no keyword; the section 3.9 responder check RFC4555-3.9-3 compares exactly these fields."
     },
     {
       "id": "5",
