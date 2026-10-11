@@ -281,12 +281,15 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 	}
 
 	dir := getBaseDir()
-	cfg, err := LoadConfig(ConfigPath(dir, name))
+	cfgPath := ConfigPath(dir, name)
+	cfg, err := LoadConfig(cfgPath)
 	if err != nil {
 		return isoBuildInput{}, err
 	}
+	// Validate names the field; the file it lives in is added here, as
+	// buildOne and runKernel do, so the refusal says which file to edit.
 	if err := cfg.Validate(); err != nil {
-		return isoBuildInput{}, err
+		return isoBuildInput{}, fmt.Errorf("%s: %w", cfgPath, err)
 	}
 
 	imgPath, err := resolveImagePath(dir, name, opts.imageFile)

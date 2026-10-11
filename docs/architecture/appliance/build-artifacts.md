@@ -74,9 +74,10 @@ architecture Ze builds no kernel for at all (`kernelbuilder.SupportedArches`,
 the arches the Docker backend names a platform for) never reaches a host's
 cache or builder. `ze appliance kernel --arch` refuses it first, ending with
 `ze appliance kernel --target <target> --arch <host>`; the appliance config's
-`image.arch` is refused when the config is validated, which both
-`ze appliance build <name>` and `ze appliance kernel <name>` do before they
-read the arch, each naming the config file and ending with the
+`image.arch` is refused when the config is validated, which
+`ze appliance build <name>`, `ze appliance kernel <name>`,
+`ze appliance iso <name>` and `ze appliance init <name> --config <file>` do
+before they read the arch, each naming the config file and ending with the
 `"image": {"arch": "<host>"}` line to set; and `./le build gokrazy`, whose
 `GOARCH` arrives unchecked, is refused by `runtimeKernelReachable` before the
 cache is asked, ending with the `GOARCH=<host>` command. Each refusal names
@@ -86,6 +87,8 @@ architecture is declared once, `kernelbuilder.HostArch`, and the arch check
 (`kernelbuilder.CheckArch`) runs before the installer firmware is fetched. A cold cache that cannot build on this
 host, for example with no network for the kernel.org tarball, fails with the
 cache path and the command that fills it here.
+<!-- source: internal/appliance/cmd_iso.go -- resolveISOInput -->
+<!-- source: internal/appliance/cmd_init.go -- runInit -->
 <!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel, runtimeKernelReachable --> The image's kernel package is assembled from the cache entry,
 never from `tmp/kernel/build`, which every resolver call rewrites.
 

@@ -15,7 +15,8 @@ import (
 // operator to a host of that arch: none exists that could build it. Each
 // refusal names the arches Ze builds and ends with a fix for this host's arch.
 //
-// VALIDATES: round-4 NOTE 1, round-5 ISSUE 2, round-6 ISSUE 1.
+// VALIDATES: round-4 NOTE 1, round-5 ISSUE 2, round-6 ISSUE 1, round-7
+// ISSUE 1 (iso) and NOTE 1 (init --config).
 // PREVENTS: "build it on a riscv64 host", advice no host can follow, and an
 // arch refusal with no fix.
 func TestUnsupportedArchRefusedBeforeAnyHost(t *testing.T) {
@@ -62,6 +63,26 @@ func TestUnsupportedArchRefusedBeforeAnyHost(t *testing.T) {
 		t.Errorf("runKernel(lab) with image.arch %s = %d, want %d", unsupported, code, exitError)
 	}
 
+	// ze appliance iso lab: the ISO reads the same config, so its refusal
+	// names the same field and file.
+	var iso string
+	if _, err := buildISO("lab", isoOptions{}); err != nil {
+		iso = err.Error()
+	} else {
+		t.Fatalf("buildISO with image.arch %s succeeded, want the unsupported-arch refusal", unsupported)
+	}
+
+	// ze appliance init fresh --config <file>: the arch comes from the file
+	// the operator passed, so the refusal names that file.
+	initConfig := filepath.Join(t.TempDir(), "input.json")
+	if err := saveConfig(initConfig, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	initRefusal := captureStderr(t, func() { code = runInit([]string{"--config", initConfig, "fresh"}) })
+	if code != exitError {
+		t.Errorf("runInit(--config) with image.arch %s = %d, want %d", unsupported, code, exitError)
+	}
+
 	// GOARCH=riscv64 ./le build gokrazy reaches runtimeKernelReachable unchecked.
 	reach := runtimeKernelReachable(unsupported)
 	if foreign, ok := errors.AsType[*foreignArchKernelError](reach); !ok || !foreign.unsupported {
@@ -69,7 +90,9 @@ func TestUnsupportedArchRefusedBeforeAnyHost(t *testing.T) {
 	}
 	gokrazy := GokrazyRuntimeKernelReachable(unsupported, []string{"overwrite"}).Error()
 
-	refusals := map[string]string{"kernel": kernel, "named": named, "image": image, "gokrazy": gokrazy}
+	refusals := map[string]string{
+		"kernel": kernel, "named": named, "image": image, "iso": iso, "init": initRefusal, "gokrazy": gokrazy,
+	}
 	for caller, refusal := range refusals {
 		if !strings.Contains(refusal, "Ze builds kernels for amd64 and arm64 only") {
 			t.Errorf("%s refusal does not say the arch is unsupported:\n%s", caller, refusal)
@@ -105,6 +128,21 @@ func TestUnsupportedArchRefusedBeforeAnyHost(t *testing.T) {
 	}
 	if got, want := lastLine(named), `"image": {"arch": "`+host+`"}`; got != want {
 		t.Errorf("named kernel refusal ends %q, want %q", got, want)
+	}
+	configRefusals := []struct{ caller, refusal, file string }{
+		{"iso", iso, ConfigPath(baseDir, "lab")},
+		{"init", initRefusal, initConfig},
+	}
+	for _, c := range configRefusals {
+		if !strings.Contains(c.refusal, `image.arch "riscv64" names an architecture Ze builds no kernel for`) {
+			t.Errorf("%s refusal does not name the config field:\n%s", c.caller, c.refusal)
+		}
+		if !strings.Contains(c.refusal, c.file) {
+			t.Errorf("%s refusal does not name the config file %s:\n%s", c.caller, c.file, c.refusal)
+		}
+		if got, want := lastLine(c.refusal), `"image": {"arch": "`+host+`"}`; got != want {
+			t.Errorf("%s refusal ends %q, want %q", c.caller, got, want)
+		}
 	}
 	if got, want := lastLine(gokrazy), "GOARCH="+host+" ./le build gokrazy overwrite"; got != want {
 		t.Errorf("gokrazy refusal ends %q, want %q", got, want)

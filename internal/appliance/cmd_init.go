@@ -108,7 +108,12 @@ func runInit(args []string) int {
 		}
 	}
 
+	// Validate names the field. With --config the field lives in the file the
+	// operator passed, so the refusal names that file to edit.
 	if err := cfg.Validate(); err != nil {
+		if *configFile != "" {
+			err = fmt.Errorf("%s: %w", *configFile, err)
+		}
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}

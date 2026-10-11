@@ -27,7 +27,6 @@ const (
 	vmMemoryMin       = 9216
 	vmMemoryMax       = 12288
 	bootTimeout       = 120 * time.Second
-	buildTimeout      = 4 * time.Hour
 	bootstrapTimeout  = 180 * time.Second
 	sshTimeout        = 60 * time.Second
 	bootstrapAttempts = 5
@@ -35,6 +34,10 @@ const (
 	// its own, so its last stderr line is read, before it is killed.
 	qemuExitGrace = 5 * time.Second
 )
+
+// buildTimeout bounds the kernel build inside the build VM, from the ssh that
+// starts it to its exit. It is a variable only so a test can expire it.
+var buildTimeout = 4 * time.Hour
 
 // hostProbeTimeout bounds each question the host is asked before a build
 // (`-accel help`, the accelerator probe, `docker info`): ze doctor asks them
@@ -347,6 +350,15 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 	buildCtx, cancel := context.WithTimeout(ctx, buildTimeout)
 	defer cancel()
 	if err := sshRun(buildCtx, port, guestBuildCommand(req, workerRel, shares), req); err != nil {
+		// sshRun ends in "signal: killed" whenever buildCtx ends, which reads
+		// as a compile failure. The caller's stop is named first, then this
+		// stage's own limit, and only then is the error the build's own.
+		if ctx.Err() != nil {
+			return errBuildStopped(ctx.Err(), "while it built the kernel", qemuBinary(req.Arch), args)
+		}
+		if buildCtx.Err() != nil {
+			return errBuildTimedOut(buildCtx.Err(), qemuBinary(req.Arch), args, stopQEMU())
+		}
 		return fmt.Errorf("kernel build failed: %w%s", err, qemuSaid(stopQEMU()))
 	}
 	fmt.Fprintln(req.Stderr, ">>> kernel build complete") //nolint:errcheck // progress output
@@ -476,18 +488,27 @@ func errBootFailed(ctxErr error, binary string, args []string, stderr string, st
 }
 
 // errBuildStopped reports a build VM wait that ended because the build's own
-// context did, at stage (before its login prompt, while it set up SSH). A
-// canceled build is reported as canceled, never as a guest that failed. A build
-// out of the time its caller gave it ends with the QEMU command that boots the
-// same VM: a VM still in an early stage by then is stuck, and its console shows
-// where.
+// context did, at stage (before its login prompt, while it set up SSH, while
+// it built the kernel). A canceled build is reported as canceled, never as a
+// guest that failed. A build out of the time its caller gave it ends with the
+// QEMU command that boots the same VM, whose console shows where it stalls.
 func errBuildStopped(ctxErr error, stage, binary string, args []string) error {
 	if errors.Is(ctxErr, context.Canceled) {
 		return fmt.Errorf("the build VM was stopped %s: the kernel build was canceled (%w)", stage, ctxErr)
 	}
 	return fmt.Errorf("the build VM was stopped %s: the kernel build ran out of the time its caller gave it (%w), "+
-		"so the VM is stuck there; run the same QEMU command by hand and watch the console to see where:\n%s %s",
+		"with the VM still at that stage; run the same QEMU command by hand and watch the console to see where it stalls:\n%s %s",
 		stage, ctxErr, binary, shellJoin(args))
+}
+
+// errBuildTimedOut reports a kernel build in the build VM that ran past
+// buildTimeout, with what QEMU wrote and the command that boots the same VM,
+// so the operator can log in on its console and see where the build stalls.
+func errBuildTimedOut(ctxErr error, binary string, args []string, stderr string) error {
+	return fmt.Errorf("the kernel build in the build VM did not finish within %s, the limit Ze gives one build (%w), "+
+		"so the build stalled or this host is too slow for it%s\n"+
+		"run the same QEMU command by hand, log in as root on its console, and watch the build with top to see where it stalls:\n%s %s",
+		buildTimeout, ctxErr, qemuSaid(stderr), binary, shellJoin(args))
 }
 
 // errSSHNeverAnswered reports a build VM that reached its login prompt but

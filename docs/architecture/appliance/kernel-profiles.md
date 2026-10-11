@@ -45,11 +45,19 @@ and either way with its exact command line, to run by hand. A failure after
 login (SSH never answers, the build fails) carries QEMU's stderr when it wrote
 any; SSH that never answers ends with the QEMU command that boots the same VM,
 to log in on its console and run `sshd -d`. A probe stopped because the build
-was canceled says so, rather than reporting a hung QEMU or Docker daemon. An arm64 kernel is built on the Mac and an amd64 kernel on the
+was canceled says so, rather than reporting a hung QEMU or Docker daemon. A
+build stopped once QEMU is running names the stage the VM had reached (before
+its login prompt, after it, while it set up SSH, while it built the kernel),
+says whether the build was canceled or ran out of its caller's time, and in the
+second case ends with the QEMU command; it is never reported as a guest that
+failed or a kernel that failed to compile. The kernel build in the VM has its
+own limit, `buildTimeout` (4 hours): a build past it says it did not finish
+within that limit and ends with the QEMU command, to log in on its console and
+watch where it stalls. An arm64 kernel is built on the Mac and an amd64 kernel on the
 Linux host.
 
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build, validateRequest -->
-<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed, errBuildStopped, errBuildTimedOut, buildTimeout -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 `ze appliance kernel` selects the profile and architecture, validates the

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -128,5 +130,96 @@ func TestStoppedAfterLoginPromptNamesTheStage(t *testing.T) {
 				t.Errorf("a build stopped after its login prompt does not name the stage:\n%v", err)
 			}
 		})
+	}
+}
+
+// TestStoppedDuringGuestBuildNamesTheStage proves a build stopped while the
+// kernel compiles in the build VM is named as the build stopping at that
+// stage, and that the stage's own buildTimeout is named as a timeout ending
+// with the QEMU command, never as "kernel build failed: signal: killed", which
+// reads as a compile failure. The fake QEMU prints the login prompt and
+// SSHD_READY at once; the fake ssh answers the readiness probe and sleeps on
+// the build command, so every stop lands in sshRun under buildCtx, about 4 s
+// in. The kernel tarball is cached so nothing is downloaded.
+//
+// VALIDATES: round-7 ISSUE 2.
+// PREVENTS: an operator who pressed Ctrl-C, or whose build ran past
+// buildTimeout, told the kernel failed to compile, with no next step.
+func TestStoppedDuringGuestBuildNamesTheStage(t *testing.T) {
+	cases := []struct {
+		name    string
+		context func() (context.Context, context.CancelFunc)
+		limit   time.Duration
+		want    error
+		say     string
+	}{
+		{"canceled", func() (context.Context, context.CancelFunc) {
+			ctx, cancel := context.WithCancel(context.Background())
+			stop := time.AfterFunc(6*time.Second, cancel)
+			return ctx, func() { stop.Stop(); cancel() }
+		}, time.Hour, context.Canceled, "stopped while it built the kernel: the kernel build was canceled"},
+		{"caller deadline", func() (context.Context, context.CancelFunc) {
+			return context.WithTimeout(context.Background(), 6*time.Second)
+		}, time.Hour, context.DeadlineExceeded, "stopped while it built the kernel: the kernel build ran out of the time its caller gave it"},
+		{"build timeout", func() (context.Context, context.CancelFunc) {
+			return context.WithCancel(context.Background())
+		}, time.Second, context.DeadlineExceeded, "the kernel build in the build VM did not finish within 1s, the limit Ze gives one build"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeQEMU(t, "echo login:\necho SSHD_READY\nexec sleep 60\n")
+			fakeGuestBuildSSH(t)
+			limit := buildTimeout
+			buildTimeout = tc.limit
+			defer func() { buildTimeout = limit }()
+			req := Request{Root: t.TempDir(), Arch: "amd64", Version: "6.1.1", Profile: "p", OutputDir: "out", Stderr: os.Stderr, Stdout: os.Stderr}
+			cacheKernelTarball(t, req)
+			ctx, cancel := tc.context()
+			defer cancel()
+			err := runQEMUBuild(ctx, req, "alpine.iso", "worker", "kvm")
+			if err == nil {
+				t.Fatal("a build stopped during the guest build was reported as a build")
+			}
+			if !errors.Is(err, tc.want) || !strings.Contains(err.Error(), tc.say) {
+				t.Errorf("a build stopped during the guest build does not name the stop, want %q (%v):\n%v", tc.say, tc.want, err)
+			}
+			if strings.Contains(err.Error(), "kernel build failed") || strings.Contains(err.Error(), "signal: killed") {
+				t.Errorf("a stopped build is reported as a compile failure:\n%v", err)
+			}
+			if errors.Is(tc.want, context.DeadlineExceeded) {
+				lines := strings.Split(err.Error(), "\n")
+				if last := lines[len(lines)-1]; !strings.HasPrefix(last, "qemu-system-x86_64 ") || !strings.Contains(last, "alpine.iso") {
+					t.Errorf("a build out of time does not end with the QEMU command on its own line:\n%v", err)
+				}
+			}
+		})
+	}
+}
+
+// fakeGuestBuildSSH puts an ssh beside the fake QEMU that answers the
+// readiness probe (`true`) at once and sleeps on any other command, so the
+// guest build never ends on its own.
+func fakeGuestBuildSSH(t *testing.T) {
+	t.Helper()
+	qemu, err := exec.LookPath("qemu-system-x86_64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\ncase \" $* \" in *\" true \") exit 0 ;; esac\nexec sleep 60\n"
+	if err := os.WriteFile(filepath.Join(filepath.Dir(qemu), "ssh"), []byte(script), 0o755); err != nil { //nolint:gosec // test executable
+		t.Fatal(err)
+	}
+}
+
+// cacheKernelTarball writes the kernel tarball where runQEMUBuild looks for
+// it, so the build reaches the guest build without a download.
+func cacheKernelTarball(t *testing.T, req Request) {
+	t.Helper()
+	build := filepath.Join(req.Root, "tmp", backendQEMU, "build", alpineArch(req.Arch))
+	if err := os.MkdirAll(build, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(build, kernelTarballName(req.Version)), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
