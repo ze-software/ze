@@ -720,6 +720,22 @@ the light of decision 4: they guard against wrong output on screen, nothing more
   tags `cli/...` ok, `web/...` ok, `config/...` the two known foreign reds
   only; `bin/le test editor -a` 177/177. Scoped lint not run (subagent
   budget), owed. round 8 review owed over 760b106f44.
+- Round 8 (scratch `review-bracket-r8.md`): 0 BLOCKER, 1 ISSUE (a successful
+  `discard <path>` audited the whole session diff, kept changes included, on
+  the web terminal, the CLI bar and SSH), 4 NOTE. Fixed in ba6337b156: one
+  shared `audit.DroppedDiff` (before-diff minus after-diff, counted lines,
+  exact for whole and path discards) called by the terminal and CLI bar
+  through `discardAuditDetail` and by SSH's `cmdDiscardSession`; NOTE 2 a
+  piped discard is refused by name (`errDiscardPipe`); NOTE 1 documented (a
+  whole discard with nothing pending writes an empty-detail row on every
+  surface); NOTE 3 audit.md anchors and the rollback, config-download and
+  config-upload rows, read at their producers. NOTE 4 in 6e354e915e (the
+  member-only shapes in the annotated test, whole flag asserted as built).
+  Red via `go test -overlay` with the HEAD producers for the two web audit
+  tests, the new SSH test and the pipe test. Gates: scoped lint 0 issues in
+  all five flavors (web, cli, config, cmd/ze/hub, core/audit); race with gate
+  tags over `web/...`, `cli/...`, `core/audit` ok; `bin/le test editor -a`
+  177/177. round 9 review owed over 6e354e915e.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
