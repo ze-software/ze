@@ -503,24 +503,27 @@ which names the peer, interface and VRF, says that this client's BFD
 authentication differs from the live session's and which side runs
 authentication, explains that every client of one remote system shares one
 BFD session (RFC 5882 Section 4.4) so the client gets no BFD session, and
-gives the fix for that case. A BGP peer then runs without BFD (a strict-mode
-peer is held down), a static route's next-hop runs without BFD, and an OSPF
-neighbor runs on its hello and dead timers. Two profiles with the same auth
-block under different names share the session.
+gives the fix for that case, then says when a fix takes effect (see "Editing
+live"). A BGP peer then runs without BFD (a strict-mode peer is held down), a
+static route's next-hop runs without BFD, and an OSPF neighbor runs on its
+hello and dead timers. Two profiles with the same auth block under different
+names share the session.
 
 OSPF BFD runs unauthenticated: an OSPF interface's `bfd` block takes timers
-only, with no profile and no auth block. When OSPF runs BFD to a neighbor
-that a BGP peer, a static next-hop or a pinned session also watches, the
-shared session runs no authentication, so those clients' profiles carry no
-auth block either, or OSPF's `bfd` is disabled on that interface. The
-refusal names the fix that applies:
+only, with no profile and no auth block. OSPF can share a session with a BGP
+peer, a static next-hop or a pinned session to the same neighbor only when
+that session runs no authentication, so those clients' profiles carry no
+auth block either; otherwise take OSPF out of BFD on that interface with
+`bfd { enabled false; }` or by deleting its `bfd` block. The refusal names the
+fix that applies:
 
 | Live session | Refused client | Fix the error names |
 |--------------|----------------|---------------------|
-| No authentication | Profile with an auth block | Remove the auth block from this client's profile, or give every other client a profile with the same auth block and disable `bfd` on any OSPF interface to the neighbor |
+| No authentication | Profile with an auth block | Remove the auth block from this client's profile, or give every other client a profile with the same auth block and set `bfd { enabled false; }` on every OSPF interface to the neighbor |
 | Authentication | Profile with no auth block | Give this client's profile the same `auth { type; key-id; secret; }` block, or remove the auth block from the other clients' profiles |
-| Authentication | No profile (an OSPF interface, or a BGP peer or static next-hop naming none) | Remove the auth block from the other clients' profiles; a BGP peer or static next-hop can instead name a profile with the same auth block, and an OSPF interface can instead disable `bfd` |
-| Authentication | Profile with a different auth block | Name the same bfd profile on every client of the neighbor, or give their profiles the same auth block |
+| Authentication | No profile (an OSPF interface, or a BGP peer, static next-hop or pinned session naming none) | Remove the auth block from the other clients' profiles; a BGP peer, static next-hop or pinned session can instead name a profile with the same auth block, and an OSPF interface can instead set `bfd { enabled false; }` |
+| Authentication | Profile with a different auth block | Name the profile the live session was built from on this client, or give this client's profile that profile's auth block, or give every other client this client's auth block |
+| Either | The profile the live session was built from, edited since | Release the session from every client (see "Editing live"), so the next client to ask builds it from the edited profile |
 <!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase -->
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession -->
 <!-- source: internal/component/bgp/reactor/peer_bfd.go -- startBFDClient -->
@@ -544,10 +547,36 @@ profile fast-link {
 operator@router# commit
 ```
 
-On `commit`, the plugin receives a diff section via `OnConfigure` and
-reconfigures affected sessions in place. Profile changes propagate to
-every session that references the profile via an in-band Poll/Final
-sequence without a session flap.
+On `commit`, the plugin receives the new `bfd` section and applies it.
+A new pinned session starts, a removed one is released, and a change to a
+pinned session's `shutdown` leaf takes effect at once. A profile edit does
+not reach a session that is already running: a live session keeps the
+timers and authentication it was built with until every client has
+released it. The edit applies to sessions created after the commit. A
+released session that a client revives inside its Detection Time takes that
+client's authentication as the profile holds it then, and its timers too when
+the client asks for the session's exact key.
+
+To make a profile edit take effect on a running session now, release it from
+every client that holds it, then let them ask again:
+
+| Client | Releases the session when | Asks again when |
+|--------|---------------------------|-----------------|
+| Pinned `single-hop-session` or `multi-hop-session` | It is removed from the config and committed | It is added back and committed |
+| BGP peer | Its session leaves Established, for instance after `request peer <address> teardown` | Its session next reaches Established |
+| Strict-mode BGP peer | It is removed from the config | Its next connection attempt |
+| Static route next-hop | The route is removed | The route is added back |
+| OSPF interface | `bfd { enabled false; }` is set on it, or its `bfd` block is deleted | BFD is enabled again and the neighbor reaches Full |
+
+A client refused because its authentication differs from the live
+session's asks again at the same moments, so a fix to its own profile
+takes effect then.
+<!-- source: internal/component/bfd/bfd.go -- applyPinned -->
+<!-- source: internal/component/bfd/engine/engine.go -- EnsureSession, reviveReleasedLocked, createSessionLocked -->
+<!-- source: internal/component/bfd/engine/auth_join.go -- authReleaseHow, authRetryHow -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- startBFDClient and stopBFDClient callers -->
+<!-- source: internal/plugins/static/inject.go -- setupBFDLocked, releaseBFDLocked -->
+<!-- source: internal/plugins/ospf/bfd_client.go -- bfdNeighborFull, startBFDSession -->
 
 ## Observing state
 

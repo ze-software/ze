@@ -30,5 +30,7 @@ expect=stderr:contains=bfd strict-mode EnsureSession failed; peer is held down
 expect=stderr:contains=BFD authentication differs from that of the live session to the same neighbor: the live session runs no authentication but this client's bfd profile
 expect=stderr:contains=every client of one remote system shares one BFD session (RFC 5882 Section 4.4)
 expect=stderr:contains=to fix it, remove the auth block from this client's bfd profile
-expect=stderr:contains=or give every other client of this neighbor a bfd profile with the same auth { type; key-id; secret; } block and disable bfd on any OSPF interface to this neighbor, because an OSPF interface's bfd block carries no authentication
+expect=stderr:contains=or give every other client of this neighbor a bfd profile with the same auth { type; key-id; secret; } block and, on every OSPF interface to this neighbor, set bfd { enabled false; } or delete its bfd block, because an OSPF interface's bfd block carries no authentication
+expect=stderr:contains=a live session keeps the authentication it was built with until every client has released it
+expect=stderr:contains=a refused client asks again when it next starts BFD
 reject=stderr:contains=bfd session shared

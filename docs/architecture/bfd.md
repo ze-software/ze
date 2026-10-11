@@ -175,7 +175,12 @@ request's authentication. Each client logs the refusal; `docs/guide/bfd.md`,
 `ErrAuthMismatch` with the case it met and the fix for that case
 (`authMismatchCase`). The engine does not know which protocol a client is, and
 an OSPF client never carries a profile or authentication, so each case OSPF can
-reach names a fix that still applies when OSPF shares the session.
+reach names a fix that still applies when OSPF shares the session. The entry
+records which profile its authentication came from (`sessionEntry.authFrom`,
+set at creation and by every `replaceAuth`), so a client that names that same
+profile with different authentication is told the profile was edited since the
+session was built, and that only a release by every client applies the edit:
+nothing re-requests a session a client already holds on a config commit.
 
 <!-- source: internal/component/bfd/api/session_identity.go -- Canonical, canonicalMultiHop -->
 <!-- source: internal/component/bfd/transport/udp.go -- ingressInterface -->
@@ -272,7 +277,8 @@ timing parameters and its last receive time ("This preserves timing parameters
 in case the session flaps", §6.8.1), and takes the new request's role, Detect
 Mult, configured intervals and authentication (`Machine.Reconfigure`). A
 changed Required Min RX Interval starts a Poll Sequence (§6.8.3). A client that
-joins it through RFC 5882 §4.4 sharing revives it with the parameters it had.
+joins it through RFC 5882 §4.4 sharing revives it with the timers it had and
+the joining client's authentication (`sharedAuthLocked`).
 Sharing counts live sessions first (`sharedEntryLocked`): a released session is
 joined only when no live session matches the request, so a session kept for
 its Detection Time never makes a request that matches one live session

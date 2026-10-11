@@ -143,8 +143,10 @@ const (
 		"(RFC 5882 Section 4.4) that runs one authentication, so this client gets no BFD session; " +
 		"to fix it, remove the auth block from this client's bfd profile "
 	logBFDAuthJoinRefusedFix = ", or give every other client of this neighbor a bfd profile with the same " +
-		"auth { type; key-id; secret; } block and disable bfd on any OSPF interface to this neighbor, " +
-		"because an OSPF interface's bfd block carries no authentication"
+		"auth { type; key-id; secret; } block and, on every OSPF interface to this neighbor, " +
+		"set bfd { enabled false; } or delete its bfd block, because an OSPF interface's bfd block " +
+		"carries no authentication; a live session keeps the authentication it was built with " +
+		"until every client has released it"
 )
 
 func bgpBFDAuthJoinRefused03(ctx context.Context, _ []string) error {

@@ -502,6 +502,21 @@ Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scrat
 
 Owed after ISSUE 2: the test change stales the RFC5882-10.2-1 audit verdict (`./le rfc check`: "STALE audit verdict ... func-scoped", reseal refuses it). A judge who did not author the change re-reads rfc5882 with `/ze-rfc-audit` and stamps with `./le rfc audit-stamp mode rejudge`.
 
+## Review round 4 fixes, 2026-10-11
+
+Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-rfc-verdict-bfd-r4.md` (0 BLOCKER, 1 ISSUE, 5 NOTE). Owner decision (Thomas, 2026-10-11, "Apply live, in keep-session (Recommended)"): making a profile edit reach a live session is built in `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` Phase 4; this spec makes the guide and the refusal true today (route B of the ISSUE). Evidence in `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/red-bfd-r5/`.
+
+| # | Finding | Fixed by | Evidence |
+|---|---------|----------|----------|
+| ISSUE 1 | fixes the refusal named never took effect; "Editing live" promised in-place propagation | the commit that carries this row | `sessionEntry.authFrom` records the profile the auth came from (create and every `replaceAuth`); `authMismatchCase` gains the edited-profile branch (same profile name, different auth: release from every client); every refusal ends with `authReleaseHow` (how each client releases) and `authRetryHow` (when a refused client asks again); case 4 names the session's source profile instead of "the same bfd profile". `docs/guide/bfd.md` "Editing live" rewritten with a release/ask-again table per client; `docs/architecture/bfd.md` names `authFrom` and corrects the shared-revive sentence |
+| NOTE 1 | stale `entry.profile` on shared revive | journal row | `plan/journal/field-carries-two-meanings.md`, 2026-10-11; the refusal does not read `profile` |
+| NOTE 2 | OSPF fix named no leaf | same commit | `ospfDisableHow`: `bfd { enabled false; }` or delete the block (`ze-ospf-conf.yang` default false) |
+| NOTE 3 | case 3 omitted a pinned session with no profile | same commit | case 3 text and guide table name the pinned single-hop-session or multi-hop-session |
+| NOTE 4 | guide stated "the shared session runs no authentication" as a fact | same commit | reworded as the condition under which OSPF can share |
+| NOTE 5 | `interface ""` in the refusal | same commit | `refusalInterface` omits it |
+
+Tests: `TestAuthJoinRefusalNamesApplicableFix` (untagged) gained the pinned-no-profile case and two edited-profile cases (applied through `runtimeState.applyConfig`), plus release, retry and no-empty-interface assertions. Overlay reds: dropping the edited branch reddens exactly the two edited cases (`red-nobranch.log`); always printing the interface reddens all seven (`red-emptyiface.log`); the HEAD producer reddens all seven (`red.log`). `./le --name bfdr4 test bgp plugin --pattern bgp-bfd-auth`: 105 and 106 PASS (`ci-green.log`). Race with the gate tags over `bfd/...`, `static/...`, `test/fixture/...`: ok (`race.log`). No RFC-tagged test asserts the changed text.
+
 ## Review Gate
 
 | Field | Value |

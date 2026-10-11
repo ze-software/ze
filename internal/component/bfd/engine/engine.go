@@ -162,7 +162,13 @@ type sessionEntry struct {
 	// auth is the authentication configuration the session was built with,
 	// nil for none. A live session refuses a join whose configuration differs
 	// (joinAuthCheck), so every client of the session runs with this one.
-	auth      *api.AuthSettings
+	auth *api.AuthSettings
+	// authFrom names the profile of the request that set auth: the one that
+	// created the session, or the last to revive it (replaceAuth). It is not
+	// profile, which a shared revive leaves naming the creator's. A refused
+	// join reads it to tell an edited profile from a different one
+	// (authMismatchCase).
+	authFrom  string
 	createdAt time.Time
 	// lastChange is when the session entered lastState, or the zero time when
 	// it has never left the state it was created in. It answers the snapshot's
@@ -610,6 +616,7 @@ func (l *Loop) createSessionLocked(req api.SessionRequest, key api.Key, discr ui
 	entry := &sessionEntry{
 		machine:   m,
 		profile:   req.Profile,
+		authFrom:  req.Profile,
 		createdAt: l.clk.Now(),
 		lastState: packet.StateDown,
 		joined:    key,
