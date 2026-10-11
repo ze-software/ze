@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-01 |
+| Updated | 2026-10-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -33,29 +33,38 @@ Found by the extraction walk of 2026-09-01
 `Supported` until that day and now reads `Partial` (`7c3cc15ed`), which
 discloses the gap without owing it to anybody. This spec owes it.
 
+Narrowed 2026-10-11. Two of the draft's rows are NOT this spec's:
+`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2` (a Link-Local next hop strictly
+associated with an interface) and `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1`
+(a malformed Next Hop field treated as withdrawn). The owner placed both in
+`plan/immediate/spec-bgp-unowned-rfc-rows.md` (its rows 3 and 4) on 2026-10-11,
+so each row has one owner. This spec reuses what that one builds: the session
+interface carried with a received Link-Local next hop, and the 32-octet shape
+check.
+
 ## Required Reading
 
-- `internal/component/bgp/plugins/llnh/llnh.go` — `extractLLNHCapabilities`
+- `internal/component/bgp/plugins/llnh/llnh.go` - `extractLLNHCapabilities`
   → Constraint: the advertisement exists and is config-driven. Nothing else in
     the draft does.
-- `internal/core/bgp/capability/capability.go` — `parseCapability`
+- `internal/core/bgp/capability/capability.go` - `parseCapability`
   → Decision: code 77 needs a case and a negotiated-state field the reactor can
     branch on. Everything downstream depends on that one answer existing.
-- `internal/component/bgp/reactor/link_scope.go` — `linkScope.linkLocalNextHop`,
+- `internal/component/bgp/reactor/link_scope.go` - `linkScope.linkLocalNextHop`,
   `applyLinkLocalNextHop`
   → Constraint: these emit the RFC 2545 forms only, a 16-octet GLOBAL address or
     the 32-octet global-then-link-local pair. The draft's form is a 16-octet
     LINK-LOCAL, which no producer emits.
-- `internal/core/bgp/attribute/nexthop_form.go` — `ValidateGlobalNextHop`
+- `internal/core/bgp/attribute/nexthop_form.go` - `ValidateGlobalNextHop`
   → Constraint: it refuses a link-local address in the first slot, so the send
     path actively rejects the draft's encoding today.
-- `internal/core/bgp/attribute/mpnlri.go` — `parseNextHops`
+- `internal/core/bgp/attribute/mpnlri.go` - `parseNextHops`
   → Constraint: no `fe80::/10` test. A 16-octet link-local next hop is read as a
     Global IPv6 next hop, so nothing downstream can tell them apart.
-- `internal/component/bgp/reactor/peer_forward_facts.go` — `precomputeNextHop`
+- `internal/component/bgp/reactor/peer_forward_facts.go` - `precomputeNextHop`
   → Constraint: it settles a next hop from config for every IPv6 peer, so the
     draft's "no next hop remains" outcome is unreachable and no code decides it.
-- `internal/component/bgp/plugins/rr/` — the whole package
+- `internal/component/bgp/plugins/rr/` - the whole package
   → Constraint: it holds no link-local or `fe80` reference at all, so §4's two
     route-reflector rules have no producer.
 - `rfc/short/draft-ietf-idr-linklocal-capability.md` and
@@ -85,15 +94,20 @@ MUST-level obligations have no producer:
 | `-4-4`, `-4-7`, `-4-9` | 4 | Three treat-as-withdraw outcomes when no eligible next hop remains | same unreachable-antecedent as `-4-1` |
 | `-4-5`, `-4-6` | 4 | A Route Reflector must not reflect a link-local-only next hop off-segment, and must next-hop-self or withhold | `internal/component/bgp/plugins/rr` names neither |
 
-Three more are met VACUOUSLY and must not be recorded as met once the feature
+Two more are met VACUOUSLY and must not be recorded as met once the feature
 exists: `-5-1` (Ze never emits the form the draft forbids off-negotiation),
-`-6-1` (`parseNextHops` refuses every IPv6 length but 16 and 32 with
-`ErrInvalidNextHopLen`), and `-4-2`/`-4-8` (`peerOnLink`, set from
+and `-4-2`/`-4-8` (`peerOnLink`, set from
 `network.SharesSubnet`, gates the link-local append). Corrected 2026-09-27:
 that gate covers only Ze's own link-local under next-hop self or explicit. A
 received link-local forwarded under next-hop auto or unchanged is not gated,
 so `-4-2` is unmet today, not vacuous; the defect is D6 of
-`plan/immediate/spec-bgp-update-propagation-rfc-defects.md`.
+`plan/immediate/spec-bgp-update-propagation-rfc-defects.md`. Corrected
+2026-10-11: this list used to name `-6-1` as vacuously met because
+`parseNextHops` refuses every IPv6 length but 16 and 32. That covers the length
+only. On a capability-77 session no receive producer checks that an admitted
+32-octet field is a Global followed by a Link-Local, so `-6-1` is unmet (its
+`{gap}` in `rfc/short/draft-ietf-idr-linklocal-capability.md` says so), and it is
+row 4 of `plan/immediate/spec-bgp-unowned-rfc-rows.md`, not this spec's.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -131,7 +145,7 @@ exists and carries one more fact.
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | Capability 77 negotiated state can be carried where the reactor already reads negotiated capabilities | the same shape serves ASN4, Add-Path and Extended Next Hop | the encode and receive paths need a new channel each | AC-1 | unvalidated |
 | A-2 | An interop peer implementing the draft exists to test against | FRR and BIRD are already in `test/interop/scenarios/` | the wire behavior is proven only against Ze itself, which `ai/rules/interop-and-goal-validation.md` refuses | AC-8 | unvalidated |
-| A-3 | The three vacuously-met rows stay met once the form is emitted | each rests on Ze never producing the form | a fix creates the very case they assume away | AC-7 | unvalidated |
+| A-3 | The vacuously-met rows (`-5-1`, `-4-8`) stay met once the form is emitted | each rests on Ze never producing the form | a fix creates the very case they assume away | AC-7 | unvalidated |
 
 | ID | Risk | Mitigation |
 |----|------|-----------|
@@ -162,10 +176,10 @@ so every IPv6 peer is in scope even where the capability is off.
 | AC-3 | The capability IS negotiated and only a link-local address is available | the Next Hop field is 16 octets and holds the link-local address, per `-3-1` |
 | AC-4 | No eligible IPv6 next hop remains after the §4 procedures | the route is not advertised, per `-4-1`, `-4-4`, `-4-7` and `-4-9` |
 | AC-5 | A Route Reflector holds a route with a link-local-only next hop | it is withheld from a client off the segment, and next-hop-self or withheld for all others, per `-4-5` and `-4-6` |
-| AC-6 | A route arrives with a link-local-only next hop | it is classified as such and treated as unusable for forwarding, per `-4-13` |
-| AC-7 | `-5-1`, `-6-1`, `-4-2` and `-4-8` are re-read after the feature exists | each is still met, and each carries a test rather than resting on the form being unreachable |
+| AC-6 | A route arrives with a link-local-only next hop on a session with no known interface | it is classified as such and treated as unusable for forwarding, per `-4-13`. This is the no-interface case: with a known session interface the route is installed through that interface, which `-1-2` (row 3 of `plan/immediate/spec-bgp-unowned-rfc-rows.md`) builds and owns, and AC-6 reuses its withdraw arm rather than adding a second |
+| AC-7 | `-5-1`, `-4-2` and `-4-8` are re-read after the feature exists | each is still met, and each carries a test rather than resting on the form being unreachable. `-6-1` is not in this list: it is unmet today and owned by `plan/immediate/spec-bgp-unowned-rfc-rows.md` |
 | AC-8 | The interop scenario runs | Ze exchanges a link-local-only next hop with a peer daemon that implements the draft |
-| AC-9 | `./le rfc check` is run | no violation names `draft-ietf-idr-linklocal-capability`, and its `docs/features/rfc-status.md` row states what is now true |
+| AC-9 | `./le rfc check` is run | no violation names a `draft-ietf-idr-linklocal-capability` row this spec owns (every row but `-1-2` and `-6-1`), and its `docs/features/rfc-status.md` row states what is now true |
 
 ## End-to-End User Stories
 
@@ -195,12 +209,12 @@ so every IPv6 peer is in scope even where the capability is off.
 
 ## Files to Modify
 
-- `internal/core/bgp/capability/capability.go` — a case for code 77
-- `internal/core/bgp/attribute/mpnlri.go` — `fe80::/10` classification on receive
-- `internal/core/bgp/attribute/nexthop_form.go` — permit the link-local-only form when negotiated
-- `internal/component/bgp/reactor/link_scope.go` — emit the 16-octet form
-- `internal/component/bgp/reactor/peer_forward_facts.go` — let "no next hop" be an outcome
-- `internal/component/bgp/plugins/rr/` — the two reflector rules
+- `internal/core/bgp/capability/capability.go` - a case for code 77
+- `internal/core/bgp/attribute/mpnlri.go` - `fe80::/10` classification on receive
+- `internal/core/bgp/attribute/nexthop_form.go` - permit the link-local-only form when negotiated
+- `internal/component/bgp/reactor/link_scope.go` - emit the 16-octet form
+- `internal/component/bgp/reactor/peer_forward_facts.go` - let "no next hop" be an outcome
+- `internal/component/bgp/plugins/rr/` - the two reflector rules
 - `rfc/short/draft-ietf-idr-linklocal-capability.md`, `docs/features/rfc-status.md`
 
 ## Files to Create
@@ -225,7 +239,7 @@ so every IPv6 peer is in scope even where the capability is off.
   `ai/rules/principles.md` calls a feature that registers itself and does
   nothing. A peer that trusts the advertisement gets no benefit and no error.
 - Every obligation is conditional on negotiation, so nothing here changes a
-  session with a peer that does not implement the draft — except step 2, which
+  session with a peer that does not implement the draft, except step 2, which
   is why it is sequenced early and alone.
 
 ## Key Design Decisions
@@ -241,7 +255,8 @@ so every IPv6 peer is in scope even where the capability is off.
 ## RFC Documentation (Scope: protocol)
 
 `rfc/short/draft-ietf-idr-linklocal-capability.md` carries the 13 gated rows and
-is the checklist this spec closes. `rfc/drafts/draft-ietf-idr-linklocal-capability.txt`
+is the checklist this spec closes, less `-1-2` and `-6-1`, which
+`plan/immediate/spec-bgp-unowned-rfc-rows.md` closes. `rfc/drafts/draft-ietf-idr-linklocal-capability.txt`
 is the authority; the summary is derived and is never the evidence.
 
 ## Checklist
