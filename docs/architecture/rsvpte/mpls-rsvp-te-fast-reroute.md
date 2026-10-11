@@ -92,11 +92,14 @@ The upstream node keeps refreshing the PATH it always sent, whose next strict
 hop may lie across the failed link. A refresh that names the route the PLR
 accepted before the failure keeps that selection and is relayed through the
 bypass. It is not resolved again, because routing without the failed link
-would refuse the strict hop and let the repaired state expire. A refresh with a
-different ERO is resolved as a new route request.
+would refuse the strict hop and let the repaired state expire. The PLR keeps
+the received ERO, after the subobjects naming itself, in the PSB when it
+accepts the PATH, and a refresh qualifies only when its own ERO, read the same
+way, is identical. A refresh with any other ERO, a shorter one included, is
+resolved as a new route request.
 
 <!-- source: internal/plugins/rsvpte/frr.go -- repairedPathSelection -->
-<!-- source: internal/plugins/rsvpte/engine.go -- handlePath -->
+<!-- source: internal/plugins/rsvpte/engine.go -- handlePath, handlePathTransit -->
 
 The bypass's own PATH continues to refresh along its configured explicit route.
 Only the repaired sender uses the bypass's private forwarding context. Holding

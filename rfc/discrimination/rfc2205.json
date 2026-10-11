@@ -86,7 +86,7 @@
       "claim-sha": "9d49134fa66f001b",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePath",
-      "producer-sha": "8d5ab1c05bf5aa96",
+      "producer-sha": "74cd7424a48c1a00",
       "break": "body of handlePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "e48a4a38a2305aa8",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePath",
-      "producer-sha": "8d5ab1c05bf5aa96",
+      "producer-sha": "74cd7424a48c1a00",
       "break": "body of handlePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "1c6627fd60ff57bf",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePath",
-      "producer-sha": "8d5ab1c05bf5aa96",
+      "producer-sha": "74cd7424a48c1a00",
       "break": "body of handlePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

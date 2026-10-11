@@ -670,10 +670,11 @@ func (e *engine) bypassPathMTU(key *lspKey) uint32 {
 // is refused as a Bad strict node, the PSB stops being refreshed, and the repair
 // is withdrawn when it times out.
 //
-// Only a refresh naming the route already accepted qualifies. The stored ERO is
-// either the received hops after this node or, when resolution replaced the
-// current abstract node with the adjacent hop, one such hop followed by them.
-// Any other ERO is a new route request and gets ordinary resolution.
+// Only a refresh naming the route already accepted qualifies: its ERO after the
+// subobjects naming this node MUST equal the PSB's ReceivedERO, the same view of
+// the PATH that was accepted. The resolved ERO is no key for this, because
+// resolution may drop a hop or prepend the adjacent one. Any other ERO is a new
+// route request and gets ordinary resolution.
 func (e *engine) repairedPathSelection(msg *ParsedMessage) (pathSelection, bool) {
 	// The ERO checks resolveReceivedPath makes before any routing still apply:
 	// an empty ERO, or one whose first subobject is not this node, is refused
@@ -688,7 +689,6 @@ func (e *engine) repairedPathSelection(msg *ParsedMessage) (pathSelection, bool)
 	if !ok {
 		return pathSelection{}, false
 	}
-	received := e.remainingERO(msg.ERO)
 	lsp.mu.Lock()
 	defer lsp.mu.Unlock()
 	if !lsp.ProtectionInUse {
@@ -697,11 +697,7 @@ func (e *engine) repairedPathSelection(msg *ParsedMessage) (pathSelection, bool)
 	if lsp.PSB == nil {
 		return pathSelection{}, false
 	}
-	stored := lsp.PSB.ERO
-	if len(stored) == len(received)+1 {
-		stored = stored[1:]
-	}
-	if !slices.Equal(stored, received) {
+	if !slices.Equal(lsp.PSB.ReceivedERO, e.remainingERO(msg.ERO)) {
 		return pathSelection{}, false
 	}
 	return pathSelection{Route: lsp.PSB.Route, ERO: lsp.PSB.ERO}, true

@@ -64,7 +64,7 @@
       "claim-sha": "222d151675961476",
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/engine.go::handlePath",
-      "producer-sha": "8d5ab1c05bf5aa96",
+      "producer-sha": "74cd7424a48c1a00",
       "break": "line 452: \"!msg.HasLabelRequest\" -\u003e \"false\""
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "8f7367d8794937fd",
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/engine.go::handlePath",
-      "producer-sha": "8d5ab1c05bf5aa96",
+      "producer-sha": "74cd7424a48c1a00",
       "break": "line 452: \"!msg.HasLabelRequest\" -\u003e \"false\""
     },
     {

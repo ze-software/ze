@@ -99,6 +99,11 @@ type pathStateBlock struct {
 	SenderTemplate senderTemplateIPv4
 	Hop            rsvpHop
 	ERO            []eroHop
+	// ReceivedERO is the received ERO after the subobjects naming this node, as
+	// a transit node accepted it, before resolution rewrote it into ERO. It is
+	// what an upstream refresh of a repaired LSP must repeat exactly to keep the
+	// pre-failure selection (repairedPathSelection).
+	ReceivedERO []eroHop
 	// RRO holds the PATH route including this node, ready for relay. RecordRoute
 	// distinguishes a request whose RRO overflowed from a PATH with no request.
 	RRO           []rroEntry

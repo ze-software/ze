@@ -717,6 +717,28 @@
       "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4090-6.4.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/rfc4090_repair_refresh_test.go::TestRepairedLSPChangedEROResolvedAgain",
+      "unit-sha": "023e6ab9a642e49a",
+      "claim-sha": "d39007e835a1ab19",
+      "route": "mutant",
+      "producer": "internal/plugins/rsvpte/frr.go::repairedPathSelection",
+      "producer-sha": "febff016919cc4df",
+      "break": "line 700: \"!slices.Equal(lsp.PSB.ReceivedERO, e.remainingERO(msg.ERO))\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC4090-6.4.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/rfc4090_repair_refresh_test.go::TestRepairedLSPKeepsUpstreamRefresh",
+      "unit-sha": "ac62d29cce5e83ef",
+      "claim-sha": "a6ceac2e48db6cec",
+      "route": "mutant",
+      "producer": "internal/plugins/rsvpte/frr.go::repairedPathSelection",
+      "producer-sha": "febff016919cc4df",
+      "break": "line 700: \"!slices.Equal(lsp.PSB.ReceivedERO, e.remainingERO(msg.ERO))\" -\u003e \"true\""
+    },
+    {
       "rid": "RFC4090-6.5-1",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown",

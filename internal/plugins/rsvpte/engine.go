@@ -673,6 +673,7 @@ func (e *engine) handlePathTransit(src netip.Addr, msg *ParsedMessage, selected 
 	previous := lsp.PSB
 	lsp.PSB = receivedPathState(msg, previous)
 	lsp.PSB.ERO, lsp.PSB.RRO = rem, rro
+	lsp.PSB.ReceivedERO = e.remainingERO(msg.ERO)
 	lsp.PSB.Protection, lsp.PSB.SessionAttr = pr, sessionAttr
 	lsp.PSB.Route = selected.Route
 	lsp.PSB.Adspec = bytes.Clone(msg.AdspecRaw)
