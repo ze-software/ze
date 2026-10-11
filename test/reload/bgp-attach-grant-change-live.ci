@@ -1,34 +1,37 @@
-# Test: a reload that changes the grant of a KEPT receive-only bgp-rib binding on
+# Test: a reload that changes the grant of a KEPT receive-only bgp-rs binding on
 #       a running peer keeps both sessions and moves that peer's routes through
-#       bgp-rib as a down then an up, which a second peer sees on its wire.
+#       bgp-rs as a down then an up, which a second peer sees on its wire.
 # Initial config: peer A (127.0.0.1, eBGP AS 65001, Route Refresh negotiated)
-#                 bound to bgp-rib `receive [ update-received state ]`, plus
-#                 bgp-adj-rib-in `send [ update ]` so Route Refresh has a process
-#                 that may put routes on the wire (validatePeerProcessCaps), and
-#                 unchanged in both configs. Peer B (127.0.0.2, iBGP) bound to
-#                 bgp-rib `receive [ update-received state ] send [ update ]`. A announces 10.0.0.0/24, which
-#                 bgp-rib selects and sends to B.
+#                 bound to bgp-rs `receive [ update-received state ]`, a
+#                 receive-only binding: A is a route source for the route
+#                 server and never a destination. bgp-adj-rib-in on A keeps
+#                 `send [ update ]` so Route Refresh has a process that may put
+#                 routes on the wire (validatePeerProcessCaps), and is unchanged
+#                 in both configs. Peer B (127.0.0.2, iBGP) bound to bgp-rs
+#                 `receive [ update-received state open-received refresh ]
+#                 send [ update ]`, the route server's documented grant. A
+#                 announces 10.0.0.0/24, which bgp-rs forwards to B.
 # Live change:    A's peer rewrites the config and sends SIGHUP once Ze's
-#                 End-of-RIB arrived. The new config changes ONLY A's bgp-rib
-#                 grant, to `receive [ update-received state eor ]`.
+#                 End-of-RIB arrived. The new config changes ONLY A's bgp-rs
+#                 grant, to `receive [ update-received state refresh ]`.
 # Expected:       one TCP connection to A and one to B; Ze sends A one
 #                 ROUTE-REFRESH for ipv4/unicast and A re-sends; B's wire shows
-#                 10.0.0.0/24 announced, withdrawn (bgp-rib dropped A on the
-#                 targeted down, R-5) and announced again (A's re-sent route
-#                 after the targeted up).
+#                 10.0.0.0/24 announced, withdrawn (bgp-rs dropped A on the
+#                 targeted down, rs handleStateDown, R-5) and announced again
+#                 (A's re-sent route, forwarded after the targeted up).
 #
 # VALIDATES: spec-bgp-live-receive-binding-and-bfd-keep-session AC-8 (wiring
 #            row "intermediate republish, targeted down, targeted up, republish,
-#            ROUTE-REFRESH").
-# PREVENTS: a grant change on a kept binding that resets A, and one that swaps
-#           the grant without telling bgp-rib, which would leave B holding a
-#           route bgp-rib never re-learned under the new grant.
+#            ROUTE-REFRESH") and the downstream churn R-5 names.
+# PREVENTS: a grant change on a kept binding that resets A, one that swaps the
+#           grant without telling bgp-rs (B would see no withdraw and no
+#           re-announce), and an attached up that bgp-rs answers with a replay.
 #
-# Red until that spec's Phase 2: today any operator binding change restarts A.
-# A's peer then reads NOTIFICATION Cease subcode 6 where it expects the
-# ROUTE-REFRESH, and its second connection is refused (tcp_connections=1).
+# bgp-rib is not the forwarder: it forwards nothing from one peer to another
+# (its best changes go to the rib event bus, and its Adj-RIB-Out fills only from
+# sent events another process produces). bgp-rs is the plugin that does.
 # AC-8's "no other process receives either" (the targeted down and up reach
-# bgp-rib only) is that spec's unit test TestOnPeerBoundTargetsNamedProcesses.
+# bgp-rs only) is that spec's unit test TestOnPeerBoundTargetsNamedProcesses.
 option=timeout:value=60s
 option=env:var=ze.log.bgp.reactor:value=debug
 
@@ -57,9 +60,9 @@ option=timeout:value=50s
 option=linger:value=true
 # Both test peers mirror Ze's router-id plus one; give B its own (RFC 6286).
 option=open:value=router-id:id=1.2.3.6
-# A's route, selected by bgp-rib.
+# A's route, forwarded by bgp-rs.
 expect=bgp:conn=1:seq=1:contains=180A0000
-# The targeted down: bgp-rib withdraws A's route (UPDATE, withdrawn 10.0.0.0/24).
+# The targeted down: bgp-rs withdraws A's route (UPDATE, withdrawn 10.0.0.0/24).
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
 # The targeted up and A's re-sent route: announced again.
 expect=bgp:conn=1:seq=3:contains=180A0000
@@ -67,8 +70,8 @@ EOF_PEERB
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	internal bgp-rib {
-		use bgp-rib
+	internal bgp-rs {
+		use bgp-rs
 	}
 	internal adj-rib-in {
 		use bgp-adj-rib-in
@@ -103,13 +106,13 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process bgp-rib {
+		attach process bgp-rs {
 			receive [ update-received state ]
 		}
 		# Route Refresh needs a process that may put routes on the wire
 		# (validatePeerProcessCaps). Bound in both configs, so it never changes.
 		attach process adj-rib-in {
-			receive [ state ]
+			receive [ update-received state ]
 			send [ update ]
 		}
 	}
@@ -139,21 +142,22 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		# AIGP selection needs bgp-rib to receive update-received and
-		# state from every peer.
-		attach process bgp-rib {
-			receive [ update-received state ]
+		attach process bgp-rs {
+			receive [ update-received state open-received refresh ]
 			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }
 EOF_CONF
 
-# The second config: A's bgp-rib grant is the ONLY difference.
+# The second config: A's bgp-rs grant is the ONLY difference.
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
-	internal bgp-rib {
-		use bgp-rib
+	internal bgp-rs {
+		use bgp-rs
 	}
 	internal adj-rib-in {
 		use bgp-adj-rib-in
@@ -188,13 +192,13 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process bgp-rib {
-			receive [ update-received state eor ]
+		attach process bgp-rs {
+			receive [ update-received state refresh ]
 		}
 		# Route Refresh needs a process that may put routes on the wire
 		# (validatePeerProcessCaps). Bound in both configs, so it never changes.
 		attach process adj-rib-in {
-			receive [ state ]
+			receive [ update-received state ]
 			send [ update ]
 		}
 	}
@@ -224,11 +228,12 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		# AIGP selection needs bgp-rib to receive update-received and
-		# state from every peer.
-		attach process bgp-rib {
-			receive [ update-received state ]
+		attach process bgp-rs {
+			receive [ update-received state open-received refresh ]
 			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

@@ -2301,8 +2301,12 @@ The apply delivers a binding change in an order (`Peer.applyHotSwappableSettings
 The plan asks this question first, and the apply asks it again after the
 republish, because the peer can announce its first route, or this speaker
 advertise one, in between. A plugin-registered receive type counts as carrying
-routes. A changed grant on a route-consuming process withdraws and re-learns
-that peer's routes downstream, because the down makes the process drop them.
+routes. A changed grant on a route-consuming process makes it drop that peer's
+routes on the down and re-learn them as the ROUTE-REFRESH re-sends them. Where
+that process forwards between peers (`bgp-rs`, `bgp-rr`), the other peers see
+the routes withdrawn and announced again; `bgp-rib` forwards nothing between
+peers, so its own purge reaches no other session.
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, handleAttachedUp -->
 
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- receiveOnly, receiveBindingsDeliverable, Session.bindingCatchUp, Peer.bindProcesses, Peer.catchUpBoundProcesses -->
 <!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- applyHotSwappableSettings -->
