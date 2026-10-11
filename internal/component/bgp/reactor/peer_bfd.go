@@ -535,8 +535,8 @@ func (r *Reactor) VerifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) 
 // by bfdRequestFor, so the mode checked is the mode the session would use.
 //
 // An EBGP peer whose BFD session runs unauthenticated is accepted with one Warn
-// per check naming the peer (RFC 5882 Section 10.2), and the profile when it
-// names one. A peer that names no profile runs unauthenticated: bfdRequestFor
+// per check naming the peer (RFC 5882 Section 10.2), the profile when it names
+// one, and in its fix attribute the auth block that resolves it. A peer that names no profile runs unauthenticated: bfdRequestFor
 // sets no Auth, and resolveProfile in the bfd plugin applies no profile, so no
 // auth block reaches the session.
 func verifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) error {
@@ -573,11 +573,15 @@ func verifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) error {
 		}
 		if req.Profile == "" {
 			peerLogger().Warn("bfd session of an EBGP peer names no profile, so it has no authentication; RFC 5882 Section 10.2 recommends BFD authentication",
-				"peer", s.Address)
+				"peer", s.Address,
+				"fix", "define bfd { profile <name> { auth { type keyed-sha1; key-id <0-255>; secret <secret>; } } } "+
+					"with the type, key-id and secret the neighbor uses, then set connection { bfd { profile <name>; } } on this peer")
 			continue
 		}
 		peerLogger().Warn("bfd profile of an EBGP peer has no authentication; RFC 5882 Section 10.2 recommends BFD authentication",
-			"peer", s.Address, "profile", req.Profile)
+			"peer", s.Address, "profile", req.Profile,
+			"fix", "add auth { type keyed-sha1; key-id <0-255>; secret <secret>; } under bfd { profile "+req.Profile+" { } } "+
+				"with the type, key-id and secret the neighbor uses, or name an authenticated profile in this peer's connection { bfd { profile <name>; } }")
 	}
 	return nil
 }

@@ -231,9 +231,14 @@ authentication, never brings the session Up, so a strict-mode peer stays out
 of Established. A peer that names no profile, or a profile with no `auth`
 block, runs its BFD session unauthenticated, which the SHOULD permits. When an
 EBGP peer enables BFD and names a profile with no `auth` block, the commit is
-accepted and Ze logs one warning naming the peer and the profile. When an EBGP
-peer enables BFD and names no profile, the commit is accepted and Ze logs one
-warning naming the peer, with no profile. An IBGP peer, a profile with an
+accepted and Ze logs one warning naming the peer and the profile. Its `fix`
+field gives the `auth { type ...; key-id ...; secret ...; }` block to add under
+that `bfd profile`, or the alternative of naming an authenticated profile in
+the peer's `connection { bfd { profile <name>; } }`. When an EBGP peer enables
+BFD and names no profile, the commit is accepted and Ze logs one warning naming
+the peer, with no profile. Its `fix` field gives the profile with an `auth`
+block to define and the `connection { bfd { profile <name>; } }` line that
+names it. An IBGP peer, a profile with an
 `auth` block, and a static next-hop's `bfd-profile` draw no warning, because
 the recommendation covers the BFD session of an EBGP peer only.
 <!-- source: internal/component/bgp/reactor/peer_bfd.go — verifyPeerBFDProfiles warns for an EBGP peer's unauthenticated or absent profile -->
