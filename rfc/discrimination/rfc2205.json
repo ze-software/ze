@@ -834,7 +834,7 @@
       "claim-sha": "b897041a0c2e0575",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathTransit",
-      "producer-sha": "788a4dae08c389de",
+      "producer-sha": "b8b21c73a27e6a8e",
       "break": "body of handlePathTransit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

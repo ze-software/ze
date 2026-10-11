@@ -174,7 +174,7 @@
       "claim-sha": "be8b8d4a5e27097f",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathTransit",
-      "producer-sha": "788a4dae08c389de",
+      "producer-sha": "b8b21c73a27e6a8e",
       "break": "body of handlePathTransit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,8 +449,8 @@
       "claim-sha": "1e6c3a1b460364b2",
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathTransit",
-      "producer-sha": "788a4dae08c389de",
-      "break": "line 630: \"!msg.HasRRO \u0026\u0026 lsp.RSB != nil\" -\u003e \"false\""
+      "producer-sha": "b8b21c73a27e6a8e",
+      "break": "line 666: \"!msg.HasRRO \u0026\u0026 lsp.RSB != nil\" -\u003e \"false\""
     },
     {
       "rid": "RFC3209-4.6.1-1",
@@ -504,7 +504,7 @@
       "claim-sha": "9b08b4a2928d6acf",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathTransit",
-      "producer-sha": "788a4dae08c389de",
+      "producer-sha": "b8b21c73a27e6a8e",
       "break": "body of handlePathTransit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
