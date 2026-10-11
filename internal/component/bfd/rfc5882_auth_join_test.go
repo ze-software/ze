@@ -36,14 +36,19 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// authJoinSection defines five profiles. "secure" and "secure-twin" carry the
+// authJoinSection defines seven profiles. "secure" and "secure-twin" carry the
 // same Keyed SHA1 auth block under two names; "rekeyed" differs from "secure"
-// only in its key ID, "resecret" only in its secret; "open" carries none.
+// only in its key ID, "resecret" only in its secret, "md5" only in its Auth
+// Type (Keyed MD5, neither meticulous); "meticulous" names Meticulous Keyed
+// SHA1, which differs from "secure" in both its Auth Type and its Meticulous
+// flag; "open" carries none.
 const authJoinSection = `{"bfd":{"profile":{` +
 	`"secure":{"auth":{"type":"keyed-sha1","key-id":"7","secret":"JOIN-SECRET"}},` +
 	`"secure-twin":{"auth":{"type":"keyed-sha1","key-id":"7","secret":"JOIN-SECRET"}},` +
 	`"rekeyed":{"auth":{"type":"keyed-sha1","key-id":"8","secret":"JOIN-SECRET"}},` +
 	`"resecret":{"auth":{"type":"keyed-sha1","key-id":"7","secret":"OTHER-SECRET"}},` +
+	`"md5":{"auth":{"type":"keyed-md5","key-id":"7","secret":"JOIN-SECRET"}},` +
+	`"meticulous":{"auth":{"type":"meticulous-keyed-sha1","key-id":"7","secret":"JOIN-SECRET"}},` +
 	`"open":{}}}}`
 
 // authJoinFixture applies authJoinSection, runs the single-hop loop over one
@@ -128,6 +133,10 @@ type authJoinCase struct {
 	name, first, second string
 	// firstAuth says whether the first profile carries an auth block.
 	firstAuth bool
+	// flipMeticulous makes the second request carry the authentication
+	// "second" resolves to with only its Meticulous flag inverted, under no
+	// profile (authJoinSecondRequest).
+	flipMeticulous bool
 }
 
 // authJoinRefusedCases are the pairs whose effective authentication differs.
@@ -136,6 +145,38 @@ var authJoinRefusedCases = []authJoinCase{
 	{name: "no auth then auth", first: "open", second: "secure", firstAuth: false},
 	{name: "different key id", first: "secure", second: "rekeyed", firstAuth: true},
 	{name: "different secret", first: "secure", second: "resecret", firstAuth: true},
+	{name: "different auth type", first: "secure", second: "md5", firstAuth: true},
+	{name: "keyed then meticulous", first: "secure", second: "meticulous", firstAuth: true},
+	{name: "different meticulous flag", first: "secure", second: "secure", firstAuth: true, flipMeticulous: true},
+}
+
+// authJoinSecondRequest builds the second client's request for tc. A case
+// that names a profile asks for it, as a protocol client does. A
+// flipMeticulous case resolves tc.second, inverts only the Meticulous flag of
+// its authentication, and sends that request under no profile, which
+// pluginService.EnsureSession passes through unresolved. No profile can
+// express that difference: authTypeFromEnum gives each meticulous enum its own
+// wire Auth Type, so a profile differing in Meticulous differs in Type too, and
+// the Type comparison alone would refuse it.
+func authJoinSecondRequest(t *testing.T, svc *pluginService, tc authJoinCase) api.SessionRequest {
+	t.Helper()
+	if !tc.flipMeticulous {
+		return bgpPeerSessionRequest(tc.second)
+	}
+	runtimeStateGuard.Lock()
+	resolved, err := resolveProfile(bgpPeerSessionRequest(tc.second), svc.state.cfg.profiles)
+	runtimeStateGuard.Unlock()
+	if err != nil {
+		t.Fatalf("resolveProfile(%q): %v", tc.second, err)
+	}
+	if resolved.Auth == nil {
+		t.Fatalf("profile %q resolves to no authentication, want one to flip", tc.second)
+	}
+	flipped := *resolved.Auth
+	flipped.Meticulous = !flipped.Meticulous
+	resolved.Auth = &flipped
+	resolved.Profile = ""
+	return resolved
 }
 
 // RFC requirement: RFC5882-10.2-1 negative -- "BFD authentication SHOULD be
@@ -143,7 +184,11 @@ var authJoinRefusedCases = []authJoinCase{
 // system 192.0.2.1 that a first client's session already runs to, under a
 // profile whose authentication differs from the session's: authenticated then
 // unauthenticated, unauthenticated then authenticated, a different key ID, a
-// different secret. The request is refused with engine.ErrAuthMismatch and an
+// different secret, a different Auth Type alone (Keyed MD5 against Keyed SHA1),
+// Keyed SHA1 then Meticulous Keyed SHA1, and the Meticulous flag alone (the
+// first profile's authentication with only that flag inverted, carried under
+// no profile because no profile can express it). Each of the four fields
+// sameAuth compares is the only difference in at least one case. The request is refused with engine.ErrAuthMismatch and an
 // error naming the peer, whether it names the session's local address (the
 // exact key) or leaves it unset (the shared join), the loop still holds one
 // session, and the first session's next Control packet carries the
@@ -164,16 +209,16 @@ func TestRFC5882AuthJoinDifferentAuthRefused(t *testing.T) {
 					t.Fatalf("EnsureSession(%q): %v", tc.first, err)
 				}
 
-				req := bgpPeerSessionRequest(tc.second)
+				req := authJoinSecondRequest(t, svc, tc)
 				if !arm.local {
 					req.Local = netip.Addr{}
 				}
 				h, err := svc.EnsureSession(req)
 				if err == nil {
-					t.Fatalf("EnsureSession(%q) joined session %v, want refusal", tc.second, h.Key())
+					t.Fatalf("EnsureSession(second, %s) joined session %v, want refusal", tc.name, h.Key())
 				}
 				if !errors.Is(err, engine.ErrAuthMismatch) {
-					t.Fatalf("EnsureSession(%q) error = %v, want engine.ErrAuthMismatch", tc.second, err)
+					t.Fatalf("EnsureSession(second, %s) error = %v, want engine.ErrAuthMismatch", tc.name, err)
 				}
 				if !strings.Contains(err.Error(), bgpPeerAddr.String()) {
 					t.Errorf("error %q does not name the peer %s", err, bgpPeerAddr)

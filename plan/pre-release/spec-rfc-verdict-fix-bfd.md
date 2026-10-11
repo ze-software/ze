@@ -488,6 +488,20 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | interop for the D-8 fixes | DONE 2026-10-11: all five scenarios PASS in the QEMU guest at `1a0294116d`; evidence in Goal Validation. Kept here only so the Review Gate reader sees it was owed | nothing owed |
 | `./le verify worktree` | needs a quiet machine; never green for this pass | this spec, before closure |
 
+## Review round 1 fixes, 2026-10-11
+
+Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-rfc-verdict-bfd.md` (0 BLOCKER, 5 ISSUE). The Review Gate below stays open for an independent re-review.
+
+| # | Finding | Fixed by | Evidence |
+|---|---------|----------|----------|
+| ISSUE 1 | RFC5880-6.7.2-2 hex password SHOULD unrecorded | `d5d22258ef` | `{gap}` annotation and `unimplemented` verdict in `rfc/short/rfc5880.md` and `rfc/audit/rfc5880.json`; extraction site `6.7.3:6` reason corrected |
+| ISSUE 2 | `sameAuth` Type and Meticulous comparisons untested | the commit that carries this row | `TestRFC5882AuthJoinDifferentAuthRefused` gained three cases on both arms: `md5` (Keyed MD5 against Keyed SHA1, Type the only difference), `meticulous` (Keyed SHA1 then Meticulous Keyed SHA1, owner-named), and the first profile's auth with only Meticulous inverted, sent under no profile because `authTypeFromEnum` ties Meticulous to its own wire Auth Type. Overlay red, `go test -overlay`: removing `a.Type != b.Type` reddens only `different_auth_type/{exact_key,shared_join}`; removing `a.Meticulous != b.Meticulous` reddens only `different_meticulous_flag/{exact_key,shared_join}`; green with neither. Negative record re-written by `./le rfc discriminate-record` (revert of `joinAuthCheck`), owner approval in `tmp/commit-rfc-approved-d1987d95.md` |
+| ISSUE 3 | the two RFC 5882 Section 10.2 warnings named no fix | `3e6e76a6de` | `peer_bfd.go` messages name the `auth` block and the authenticated-profile route; `docs/guide/bfd.md` and the discrimination record follow |
+| ISSUE 4 | no `.ci` drove the warning or the join refusal through ze | `e64da01079` | `test/plugin/bgp-bfd-auth-ebgp-warn.ci`, `test/plugin/bgp-bfd-auth-join-refused.ci` |
+| ISSUE 5 | `./le verify worktree` not met | owed | whole-tree gate, run by the main thread or a fresh agent on a quiet tree |
+
+Owed after ISSUE 2: the test change stales the RFC5882-10.2-1 audit verdict (`./le rfc check`: "STALE audit verdict ... func-scoped", reseal refuses it). A judge who did not author the change re-reads rfc5882 with `/ze-rfc-audit` and stamps with `./le rfc audit-stamp mode rejudge`.
+
 ## Review Gate
 
 | Field | Value |
