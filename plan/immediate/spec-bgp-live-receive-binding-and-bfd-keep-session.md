@@ -63,8 +63,12 @@ The goal, stated as the rule the reload follows afterwards:
    can be shown.
 4. A non-strict BFD opt-in (`connection bfd` with `strict false`) is added, removed,
    suspended, resumed or edited on the running session of a configured peer: the
-   BFD client opens or closes, and the BGP session stays up. For a dynamic peer
-   the owner decides (Open owner question OQ-1).
+   BFD client opens or closes, and the BGP session stays up. The same holds for a
+   dynamic peer whose group template gains, loses or edits the opt-in. The owner
+   decided on 2026-10-11, answering OQ-1, in these words: "A: yes, design it".
+   A dynamic peer therefore goes through the same swap as a configured peer: the
+   same plan, the same copier, the same ordered delivery, and the same reload
+   journal, so a rolled-back reload undoes a dynamic swap (Phase 3).
 5. A change that involves strict mode on either side still restarts, because
    strict mode changes the OPEN (capability 74) and the OpenConfirm gate
    (draft-ietf-idr-bgp-bfd-strict-mode Sections 6 and 8).
@@ -97,6 +101,10 @@ The goal, stated as the rule the reload follows afterwards:
   → Decision: edited in Phase 2: an `attached` up carries no initial token and triggers no peer-up replay.
 - [ ] `docs/architecture/behavior/fsm.md` (declared by `session_bfd_strict.go`) - the six BFD strict-mode events
   → Decision: no edit. No FSM event or transition changes: Event 35 is still raised only on the restart branch, and moving the opt-in reads behind an accessor changes no behaviour the page describes.
+- [ ] `docs/architecture/config/apply-ordering.md` (declared by `loader_create.go`, `reactor/operation.go`, `reactor.go`) - "`verify -> execute -> commit` with rollback, not best-effort apply" and "A modify-peer swaps the running session's settings in place"
+  → Decision: edited in Phase 3: verify parses the candidate's dynamic groups and applies none of them; the dynamic population is reconciled by the first journaled step of the BGP apply, a dynamic peer's template change swaps in place under the modify-peer rule, and the step's inverse restores the previous group set and undoes each dynamic swap, while a dynamic peer the step removed comes back only when it reconnects (R-15).
+- [ ] `docs/architecture/config/syntax.md` (declared by `reactor_dynamic.go`, `reactor_api.go`) - the paragraph on a group's blocks reaching the peers a dynamic group creates (source anchor `buildDynamicPeerSettings`)
+  → Decision: no edit expected: the page describes how a dynamic peer inherits its group's blocks, which `buildDynamicPeerSettings` keeps doing; it makes no claim about reload. Re-checked in Phase 3 against the anchor run of Documentation row 16.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc6811.md` - origin validation on newly available data
@@ -136,9 +144,13 @@ The goal, stated as the rule the reload follows afterwards:
   → Constraint (B2): `deliverPeerState` computes `UnheldRoles` over the procs it is handed, and arms the peer-up barrier (`countPeerUpBarrier` then `SetPeerUpBarrier`) for any barrier-declaring plugin among them. Called with only the gained processes mid-session, it would (a) report `bgp-peer-up-replay` unheld because its holder is not in that set, so `adj-rib-in` would self-replay toward the peer (`adj_rib_in/rib.go`, `replayDrivenElsewhere`), be refused by a receive-only binding and log "peer-up replay failed"; (b) re-arm the barrier for `bgp-rs` after the End-of-RIB already went. `establishedPeerInfo` fills `InitialReplay` from `initialReplayToken`, which is non-zero while the initial update is owed, so a reload during initial sync would let `adj-rib-in` and `rr` report session-ready for an update they never saw.
   → Decision: the targeted up carries `InitialReplay` 0, arms no barrier, computes its unheld roles over the FULL fed set (the processes the published graph feeds this peer's state plus the gained ones), and carries a new session reason, `attached` (a constant beside `ReasonPeerRemoved` in `pkg/plugin/rpc/enums.go`). A plugin that runs a peer-up replay toward the peer skips the replay on that reason, because the binding that delivered it grants no send type and every UPDATE it built would be refused. Two members are verified at the producer: `adj_rib_in/rib.go` (relays the replay routes on up unless `replayDrivenElsewhere`) and `rr/rr.go` (starts `replayForPeer` on every up). The other candidates, files that handle `SessionStateUp` and mention replay, are `rib/rib.go`, `watchdog/watchdog.go`, `bmp/bmp_events.go` and `redistribute_egress/register.go`; the implementer reads each up handler, plus `rs`, and records which of them send toward the peer on up. `deliverPeerState` gains the knob that turns the barrier off rather than a second delivery function.
   → Decision (NOTE 5): a gained process granted `negotiated` receives the running session's negotiated event AFTER its up, the order the FSM uses (`notifyPeerEstablished` then `notifyPeerNegotiated`, `peer_run.go`).
-- [ ] `internal/component/bgp/reactor/reactor_dynamic.go` `dynamicTemplateChanged` - a dynamic peer's template diff
-  → Constraint: it calls `onlyDerivedFeedsDiffer` and `derivedFeedsDeliverable` directly; the renamed predicate reaches dynamic peers through the same calls, so a dynamic group's receive-only attach change also stays up, through the same ordered bind delivery as a configured peer (I1, I2).
-  → Constraint (I7): BFD on a dynamic peer has no design yet. `setDynamicGroupsLocked` writes a dynamic peer's bindings directly (`peer.settings.ProcessBindings = feeds`), outside the settings copier and the reload journal, and the reconcile loop in `reactor_api.go` states `applyHotSwappableSettings` must not run on a dynamic peer because `resolveDynamicPeerSettings` writes settings from the establishment goroutine (`plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md`). Any other template change, a BFD opt-in included, restarts the dynamic peer today (`dynamicTemplateChanged`). The BFD half of AC-9 waits on the open owner question below.
+- [ ] `internal/component/bgp/reactor/reactor_dynamic.go` `dynamicTemplateChanged`, `setDynamicGroupsLocked`, `SetDynamicGroups`, `resolveDynamicPeerSettings`, `createDynamicPeer` - a dynamic peer's template diff, its direct binding write, and its establishment-time resolution
+  → Constraint: `dynamicTemplateChanged` builds the old and the next template settings for the peer's address (`buildDynamicPeerSettings`, both unresolved) and calls `onlyDerivedFeedsDiffer` and `derivedFeedsDeliverable` directly; any other difference restarts the peer. Phase 3 replaces it with `peerSettingsSwapPlan` over the same two template-built settings (no-layering), so the plan, its copier and its restart reason are the configured peer's.
+  → Constraint (I7, read at the producer 2026-10-11): `setDynamicGroupsLocked` writes a dynamic peer's bindings directly (`peer.settings.ProcessBindings = feeds`, under `peer.mu` but outside the copier and with no undo), republishes the graph under `r.mu`, then `SetDynamicGroups` catches up after the unlock: the publish-then-catch-up order I1 names.
+  → Constraint (read at the producer 2026-10-11): `resolveDynamicPeerSettings` already reads `p.settings.ImportFilters` and `ExportFilters` under `p.mu.RLock` and writes `PeerAS` and both resolved chains under `p.mu`. That is the fix of the deferral row the reconcile comment still cites (`reactor_api.go`, the dynamic branch of `reconcilePeersJournaled`, naming `plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md`); the row was closed on 2026-08-29 against `TestDynamicPeerSettingsFilterReadRacesTheReload` (`reactor_dynamic_race_test.go`), and the file went with `plan/deferrals/` in `6fb9cd8814` on 2026-09-05. What is STILL unlocked is the template pair `p.dynImportFilters` / `p.dynExportFilters`: captured from the running chains on the first establishment and read for every later one, with no lock, under the comment "Those two fields are touched by this function alone". The moment a dynamic swap writes a new template, that claim is false, and the capture can also latch a chain the reload already replaced. Phase 3 captures the pair at construction and moves every later read and write under `p.mu`.
+  → Constraint (read at the producer 2026-10-11): `createReloadFunc` (`bgp/config/loader_create.go`) calls `r.SetDynamicGroups(dynGroups)` from inside the ReloadFunc. Every caller of the ReloadFunc therefore APPLIES the candidate's dynamic groups: `loadPeersFullOrTree` (`reactor_api.go`), reached from `VerifyConfig` (documented "without modifying reactor state"), `ApplyConfigDiff`, `peerDiffCount` (the budget estimate) and `ReconcilePeersWithJournal`; and `peerSettingsFromReloadConfig` (`operation.go`). A verify of a candidate that drops a dynamic group tears that group's peers down before the commit is decided, and nothing records an undo. Phase 3 makes the ReloadFunc return the groups and apply nothing.
+  → Constraint: the dynamic apply runs before the peer reconcile today and keeps that order, as the first journaled step after the globals in `reconcilePeersJournaled`, so the reconcile loop's dynamic branch still sees the population the dynamic step decided to keep.
+  → Constraint: `TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges` (`reactor_api_dynamic_reload_test.go`) pins a restart for a template whose import chain changed, and `TestReloadNeverSwapsSettingsOntoADynamicPeer` pins the restart when a configured entry replaces a dynamic peer. The first flips under the single copier (a filter edit becomes a swap, OQ-2) and is replaced by a test of the new rule; the second is a different branch (a configured entry naming the address) and stays as it is.
 - [ ] `internal/component/bgp/reactor/peer_bfd.go` - `bfdStrict`, `startBFDClient`, `stopBFDClient`, `bfdRequestFor`, `runBFDSubscriber`
   → Constraint: `startBFDClient` is idempotent and returns early on a nil or disabled opt-in; `stopBFDClient` is idempotent. The live swap calls them; it adds no third way to open or close a BFD client.
   → Constraint: `startBFDClient` with no published service (`api.GetService() == nil`) logs a warning and leaves a non-strict peer without BFD. In a commit that adds the `bfd` root AND the opt-in, the bfd plugin publishes its service in `OnStarted` (`internal/component/bfd/bfd.go`, `api.SetService`), so the order of the plugin start and the BGP apply decides whether the swap finds a service (A-4).
@@ -169,7 +181,7 @@ The goal, stated as the rule the reload follows afterwards:
 - BFD half: a non-strict opt-in on both sides of the diff (nil, disabled, or enabled-non-strict) joins the swap set; the apply opens or closes the BFD client with the existing idempotent functions. Strict on either side restarts.
 - `PeerSettings.BFD` must move to locked access (every reader listed under `session_bfd_strict.go` above) before it can be written live.
 - A bfd plugin started by the same commit may not be ready when the BGP apply runs (A-4). If so the fix is the transaction's apply order, never a service watcher: boot behaviour is out of scope (main-thread decision on I6).
-- BFD on a dynamic peer: owner question open (AC-9).
+- Dynamic peers (owner, OQ-1: "A: yes, design it"): the plan runs over the old and next template-built settings, the copier and the ordered delivery are the configured peer's, the template's `$remote_as` / `$remote_ip` chains are resolved against the running peer before the copier sees them, the `dyn*` template pair is captured at construction and touched only under `p.mu`, the ReloadFunc applies nothing, and the dynamic step is the first journaled step of the reconcile.
 - FRR and BIRD both keep the session for both changes; their behaviour is described above.
 
 ## Current Behavior (MANDATORY)
@@ -190,6 +202,9 @@ The goal, stated as the rule the reload follows afterwards:
 - [ ] `internal/component/bgp/plugins/rib/rib_bestchange.go` `emitPurgedWithdraws` - a down for a peer re-elects and withdraws that peer's routes from the other peers
 - [ ] `internal/component/bgp/reactor/session_bfd_strict.go`, `reactor_api.go` - the rest of the unlocked `PeerSettings.BFD` readers; Event 35 only on the restart branch
 - [ ] `internal/component/bfd/bfd.go` `EnsureSession`; `internal/component/bfd/engine/engine.go` `EnsureSession`, `reviveReleasedLocked` - refusal before config apply; profile edits on shared sessions
+- [ ] `internal/component/bgp/config/loader_create.go` `createReloadFunc` - applies the candidate's dynamic groups from inside the ReloadFunc
+- [ ] `internal/component/bgp/reactor/reactor_api.go` `loadPeersFullOrTree`, `VerifyConfig`, `peerDiffCount`, `reconcilePeersJournaled`; `operation.go` `peerSettingsFromReloadConfig` - every caller of the ReloadFunc, and the journal the dynamic step joins
+- [ ] `internal/component/bgp/reactor/reactor_api_dynamic_reload_test.go`, `reactor_dynamic_race_test.go` - the tests that pin today's dynamic reload rule and the filter-pair lock
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - The restart branch: one log line naming every field that forced it, Cease subcode 6 (or 3 for a removed peer), and the fail-closed default for any unclassified field.
@@ -205,26 +220,33 @@ The goal, stated as the rule the reload follows afterwards:
 - A gained receive-only process receives a targeted session-up (reason `attached`, then negotiated if granted) before the delivery graph feeds it anything.
 - The catch-up runs only for a route-bearing grant, and covers the sent direction (`hasAdvertised`) as well as the received one.
 - `ProcessBinding.Derived` is deleted.
-- A non-strict BFD opt-in change is swapped live on a configured peer; the BFD client opens or closes on the running session. A dynamic peer's BFD opt-in change keeps restarting until the owner answers the open question.
+- A non-strict BFD opt-in change is swapped live on a configured peer and on a dynamic peer (through its group template); the BFD client opens or closes on the running session.
+- A dynamic peer's template change is planned by `peerSettingsSwapPlan` and applied through the configured peer's copier and ordered delivery, instead of `dynamicTemplateChanged` restarting on anything but a derived feed. Under OQ-2 option A this also swaps the template's other hot-swappable fields (filter chains, `PrefixUpdated`, static routes) instead of restarting.
+- The ReloadFunc returns the candidate's dynamic groups and applies nothing; a verify, a diff count or an operation lookup no longer changes the dynamic population.
+- The dynamic step is recorded in the reload journal; a rolled-back reload restores the previous group set and undoes every dynamic swap.
+- The `dyn*` filter templates are captured when the dynamic peer is built and read or written only under `p.mu`.
 - A plugin that replays toward a peer on up skips the replay on an `attached` up.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A config commit (SSH editor `commit`, `ze config` apply, or SIGHUP reload) carrying a changed `bgp peer <name> attach process <p>` block or `bgp peer <name> connection bfd` block, and possibly a new `bfd` root.
-- Format at entry: the resolved BGP tree, parsed into `PeerSettings` (`parseProcessBindingsFromTree`, the BFD block parser in `config.go`).
+- A config commit (SSH editor `commit`, `ze config` apply, or SIGHUP reload) carrying a changed `bgp peer <name> attach process <p>` block or `bgp peer <name> connection bfd` block, or the same blocks changed in a dynamic group's template, and possibly a new `bfd` root.
+- Format at entry: the resolved BGP tree, parsed into `PeerSettings` (`parseProcessBindingsFromTree`, the BFD block parser in `config.go`) and into `DynamicGroupConfig` templates (`peersAndDynamicGroups`, `bgp/config/peers.go`).
 
 ### Transformation Path
-1. Config transaction: verify (`VerifyPeerBFDProfiles` for a BFD profile name), then apply; plugins named by a new root or a new `attach`/receive type start during the transaction.
-2. Reactor reconcile (`reconcilePeersJournaled`, `reactor_api.go`): per peer, `peerSettingsSwapPlan(current, next, session)` returns a copier or a restart reason.
-3. Swap: `swapPeerSettingsJournaled` records the undo from the running peer, then `applyHotSwappableSettings` runs the ordered bind delivery below. The dynamic path (`SetDynamicGroups`) runs the same steps through the same helper, so neither caller republishes before the up.
+1. Config transaction: verify (`VerifyPeerBFDProfiles` for a BFD profile name), then apply; plugins named by a new root or a new `attach`/receive type start during the transaction. The ReloadFunc returns the peers, the globals AND the dynamic groups, and applies none of them, so verify and the budget estimate change nothing.
+2. Reactor reconcile (`reconcilePeersJournaled`, `reactor_api.go`), after the globals:
+   1. Dynamic step, journaled, first. Under r.mu, for every dynamic peer: removed when its group is gone or its range no longer covers it (Cease subcode 3, as today); otherwise `peerSettingsSwapPlan(oldTemplateBuilt, nextTemplateBuilt, session)`, where both sides come from `buildDynamicPeerSettings` for the peer's address, exactly the inputs `dynamicTemplateChanged` uses today. A restart reason restarts the peer (Cease subcode 6) and logs the reason, as for a configured peer. A swap goes to step 3 with a "next" whose variable-bearing members are prepared for the running peer: the next template's filter chains resolved with `resolveFilterVars` against the peer's learned `PeerAS` and address when the peer has learned its AS, and left unresolved otherwise (the state `createDynamicPeer` leaves before establishment); the next template's unresolved chains travel beside it, for the `dyn*` pair. The group set is then replaced and the `ActivePeers` counts recomputed from `r.peers`, as today. The step's journal undo restores the previous group set, recounts, and undoes each dynamic swap through the configured peer's undo (step 3) with the `dyn*` pair restored in the same `p.mu` section. A dynamic peer the step removed is not rebuilt by the undo, because nothing names it: its next connection is accepted under the restored group. The stops and the catch-ups run after r.mu is released, as `SetDynamicGroups` runs them today.
+   2. Configured peers: per peer, `peerSettingsSwapPlan(current, next, session)` returns a copier or a restart reason.
+3. Swap: `swapPeerSettingsJournaled` records the undo from the running peer, then `applyHotSwappableSettings` runs the ordered bind delivery below. The dynamic step calls the same two functions; for a dynamic peer the undo snapshot also holds the `dyn*` pair, and the copier's write section also writes the next unresolved chains into the `dyn*` pair. Neither caller republishes before the up, and the dynamic step adds no second copier and no second delivery order.
    1. Under p.mu, read the current session S and whether the peer is Established on it; compute gained and lost from the running bindings and next. No write yet.
    2. Locks released: when S is Established and the gained list is not empty, deliver the targeted up (reason `attached`, `InitialReplay` 0, no barrier, unheld roles over the full fed set), then the targeted negotiated to the gained processes granted it. Delivery is synchronous (`deliverPeerState` waits for each result), so every gained process has acknowledged its up before step 3. The graph still lacks the gained edges, so no UPDATE reaches them.
    3. Take r.mu then p.mu. Check that the peer's current session is still S and that its Established state is the one step 1 saw. If yes: write the copied fields, republish the graph when bindings changed, release. If no (S closed, or the peer reached Established inside the window): write and republish all the same, release, deliver a targeted down to the gained processes that step 2 told up (so none holds an up with no down), and restart the session with Cease subcode 6. That window is a reload racing an FSM transition, rare, and a restart is the answer that leaves no process with a double or a missing up (I2).
    4. Locks released: targeted down to the lost processes (`OnPeerUnbound`), then the catch-up for the gained processes whose grant carries routes, re-decided now: sent direction, `hasAdvertised` true restarts; received direction, `feedCatchUp` gives nothing, one ROUTE-REFRESH per negotiated family, or restart.
    5. A kept binding with a changed grant is lost-then-gained for that one process, and its edge must be absent from the graph while it is told down and then up, or a live UPDATE could reach it between the two. So, before step 2, the apply writes the running binding list with that process's binding left out (under r.mu then p.mu, the same write discipline), republishes, releases the locks and delivers the targeted down to it; from step 2 on it is a gained process. The journal's undo is the snapshot taken before the apply, so a rollback never restores the intermediate list. With S not Established at step 1 the process gets no targeted down or up: the FSM's own up reaches it later through the graph.
    6. With S not Established at step 1 and still not Established at step 3, no targeted up is delivered: the graph carries the edge before the FSM's up, which reaches the gained process like any other.
-4. BFD transition, after the binding steps, locks released: opt-in gained or edited and the peer Established: `stopBFDClient` (when one is open and the request changed) then `startBFDClient`; opt-in lost or suspended: `stopBFDClient`.
+4. BFD transition, after the binding steps, locks released, for a configured and a dynamic peer alike: opt-in gained or edited and the peer Established: `stopBFDClient` (when one is open and the request changed) then `startBFDClient`; opt-in lost or suspended: `stopBFDClient`.
+   - Establishment racing a dynamic swap: `resolveDynamicPeerSettings` reads the `dyn*` pair under `p.mu`, resolves with the lock released (it allocates), and publishes under `p.mu` only when the pair is still the one it read (a template generation on the peer, bumped by every `dyn*` write); otherwise it resolves again from the new pair. A resolution never publishes chains built from a template a swap already replaced.
 5. Restart branch unchanged: the peer is removed and re-added with a Cease subcode 6.
 
 ### Boundaries Crossed
@@ -239,7 +261,9 @@ The goal, stated as the rule the reload follows afterwards:
 - `hotSwappableSettings` - gains the BFD field (conditional on non-strict both sides) and the widened binding predicate.
 - `peerSettingsSwapPlan` - unchanged structure; the neutralization now covers the new members.
 - `EventDispatcher` - gains the targeted up (`OnPeerBound`), sibling of `OnPeerUnbound`; `deliverPeerState` gains the barrier knob, not a second delivery function.
-- `SetDynamicGroups` - uses the same ordered bind delivery as `applyHotSwappableSettings`.
+- `SetDynamicGroups` - kept for the initial load only (no journal at boot); the reload reaches the dynamic population through the journaled dynamic step of `reconcilePeersJournaled`, which uses `peerSettingsSwapPlan`, `swapPeerSettingsJournaled` and `applyHotSwappableSettings`. `dynamicTemplateChanged` is deleted.
+- `ReloadFunc` (`reactor.go`) - returns the dynamic groups beside the peers and globals; `createReloadFunc` stops calling `SetDynamicGroups`.
+- `resolveDynamicPeerSettings` / `createDynamicPeer` - the `dyn*` pair is captured at construction and touched only under `p.mu`, with the generation check above.
 - `Peer.startBFDClient` / `stopBFDClient` - called from the apply as well as from the FSM callback.
 - `reactorAPIAdapter.swapPeerSettingsJournaled` - the undo covers the BFD field and its client transition.
 
@@ -264,6 +288,8 @@ The goal, stated as the rule the reload follows afterwards:
 | A-4 | In a commit that STARTS the bfd plugin (adds the `bfd` root) and adds the opt-in, the bfd plugin has published its service AND applied its config before the BGP apply runs | `api.SetService` runs in the bfd plugin's `OnStarted` (`internal/component/bfd/bfd.go`); `EnsureSession` refuses with `errBfdNotConfigured` until the config is applied. For a bfd plugin already running, `test/reload/bgp-bfd-profile-reload-peer-and-profile.ci` already proves bfd applies before bgp asks; the newly started case is not read | the swapped peer stays without BFD: a nil-service warning or an `errBfdNotConfigured` refusal in the log, `show bfd sessions` empty. The fix is then the transaction's apply order for a newly started plugin that bgp reads (`WantsConfig`), the guarantee the existing `.ci` proves for a running one; never a service watcher, because a watcher would also change boot behaviour, which the main thread removed from scope (I6) | Phase 3 first step: run `bgp-bfd-added-live.ci` with the swap and no other change, and record whether `startBFDClient` met a nil service or `EnsureSession` refused | unvalidated |
 | A-7 | The FSM's own `state up` for a session reads the delivery graph after `State()` reports Established, so a graph published before the transition carries the gained edge to that up, and one published after it does not need to | `peer_run.go` sets Established then calls `notifyPeerEstablished`; `onPeerStateChange` reads `PeerScopedProcs` at delivery time (`events.go`) | the step 3 check in Data Flow could pass while the FSM's up went out without the gained edge, leaving the process with no up | `TestBindRacesEstablished` (unit, `-race`): drive the transition inside the window and assert exactly one up per gained process or a restart | unvalidated |
 | A-5 | `stopBFDClient` -> `ReleaseSession` on the last reference behaves as on today's Established exit (RFC 5882 Section 8 AdminDown handling is the BFD plugin's) | the same function is the non-strict exit path today | a live removal could make the remote BGP speaker tear down on BFD Down | AC-6 interop: FRR keeps BGP Established after Ze removes the opt-in | unvalidated |
+| A-8 | `resolveDynamicPeerSettings` is the only writer of a dynamic peer's settings outside the reload goroutine, and the only reader of the `dyn*` pair | grep of `dynImportFilters` / `dynExportFilters` under `internal/component/bgp/reactor/` (2026-10-11): `peer.go` declares them, `reactor_dynamic.go` `resolveDynamicPeerSettings` is the only reader and writer | a second writer would race the swap's `dyn*` write the generation check does not cover | Phase 3 first step: repeat the grep, plus every write to `p.settings.` reached from the establishment goroutine, and record the list in the spec | unvalidated |
+| A-9 | No caller of the ReloadFunc relies on its applying the dynamic groups, other than the reload that then reconciles | callers read 2026-10-11: `loadPeersFullOrTree` (from `VerifyConfig`, `ApplyConfigDiff`, `peerDiffCount`, `ReconcilePeersWithJournal`) and `peerSettingsFromReloadConfig`; test fakes in `internal/component/bgp/reactor/*_test.go` and `bgp/config/*_test.go` | a path that today gets its dynamic groups installed as a side effect would stop getting them: the boot path (`loader_create.go`, which calls `SetDynamicGroups` itself) and `ApplyConfigDiff` (which parses and then reconciles nothing) are the two to check | Phase 3: grep every `reloadFunc` / `ReloadFunc` caller and record what each does with the groups | unvalidated |
 | A-6 | FRR, as the interop peer, answers ROUTE-REFRESH and keeps `connectionsEstablished` unchanged across a Ze reload that sends one | FRR `peer_on_policy_change` and RFC 2918 support; the `rtr-stayrtr` checker reads the same counter | the continuity check would be measuring something else | AC-7 scenario run, counter read before and after | unvalidated |
 
 ### Risks
@@ -280,35 +306,51 @@ The goal, stated as the rule the reload follows afterwards:
 | R-12 | A non-strict profile edit on a BFD session shared with another client (static route, OSPF) keeps the session's old parameters (`Acquire` ignores the new request, `engine.go`) | `show bfd sessions` still shows the old timers after a profile edit | the BFD plugin's existing sharing rule (RFC 5882 Section 4.4), unchanged by this spec; documented in `docs/guide/bfd.md` beside the live-edit paragraph; AC-15 asserts the unshared case takes the new profile |
 | R-6 | Existing functional tests expect two connections for a receive-only attach change and now fail | `attach-process-reload.ci` red | update their expectations and comments in the same change (listed in Files to Modify); `attach-process-runtime-subscribe.ci` gains `open-received` and keeps two connections |
 | R-7 | The rollback undo of a BFD swap leaves a BFD client open or closed against the restored settings | after a rolled-back commit, `show bfd sessions` disagrees with the config | the undo goes through the same copier and the same BFD transition step as the apply; a unit test rolls back a swap and checks the client state |
+| R-13 | A dynamic swap writes the new templates while the establishment goroutine resolves the old ones, and the resolution then publishes chains built from the replaced template | a dynamic peer filtering with the previous group policy after a reload that raced its establishment | the `dyn*` pair is captured at construction and touched only under `p.mu`; `resolveDynamicPeerSettings` publishes only when the template generation it read is still current, and resolves again otherwise (Data Flow step 4); `TestDynamicTemplateSwapRacesEstablishment` under `-race` |
+| R-14 | The copier writes a dynamic peer's template chains unresolved onto a running, resolved peer | `$remote_as` in a running peer's filter chain after a dynamic reload | the dynamic step prepares "next" with the chains resolved against the running peer's learned AS and address before the copier runs (Data Flow step 2.1); `TestDynamicFilterSwapResolvesAgainstLearnedAS` |
+| R-15 | A rollback cannot rebuild a dynamic peer the dynamic step removed, because no configuration names it | after a rolled-back reload that dropped a dynamic group, the group's peers are gone until they reconnect | accepted and documented: the undo restores the group set, so the next connection is accepted under the previous template; a configured peer's undo also restarts it (re-add). `TestFailingReloadRollsBackDynamicSwap` asserts the group set and the swapped peers; `docs/guide/config-reload.md` states the removed-peer case |
+| R-16 | Making the ReloadFunc side-effect free leaves a path without its dynamic groups (A-9) | a dynamic group present in config with no listener or no peers accepted after a commit | A-9's grep; the boot path keeps its own `SetDynamicGroups` call; `test/reload/reload-dynamic-peer-survives.ci` stays green |
+| R-17 | The verify-time teardown this spec removes was hiding a test that passed only because verify had already applied the groups | a dynamic reload test going red once verify stops applying | each such red is read at the producer; a test that relied on verify applying is wrong about what it asserts and is corrected, never weakened |
 | R-8 | A peer without Route Refresh that already announced routes still restarts when RPKI is attached live | two connections against such a peer | intended: the catch-up rule is unchanged and documented; the AC-3 test uses a peer that advertises Route Refresh, and AC-10 pins the restart for one that does not |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | a consumer process holds an incomplete view of a peer (missing routes, missing or doubled up, a partial copy of what Ze sent), a plugin replays toward a peer it may not send to, or a BFD client is left open or closed against the config; at worst a session left running where it should have restarted |
+| What breaks if this is wrong? | a consumer process holds an incomplete view of a peer (missing routes, missing or doubled up, a partial copy of what Ze sent), a plugin replays toward a peer it may not send to, or a BFD client is left open or closed against the config; at worst a session left running where it should have restarted. On the dynamic path: a dynamic peer filtering with an unresolved or a replaced template (R-13, R-14), a rolled-back reload leaving a dynamic swap in place, or a dynamic group missing its listener because the ReloadFunc no longer installs it (R-16). Every dynamic peer of every group is on this path, so an IXP route server is the deployment that meets a defect first |
 | What changes even when it is right? | a changed grant on a kept route-consuming binding (`bgp-rib`, `bgp-rr`) withdraws that peer's routes from every other peer on the targeted down and re-announces them as the ROUTE-REFRESH re-sends them (R-5). The other sessions stay up; their routes from this peer flap once. Today the same edit restarts this peer and flaps the same routes |
+| What changes even when it is right, on the dynamic path? | a verify, a budget estimate or an operation lookup over a candidate no longer tears down dynamic peers before the commit is decided; a dynamic template edit to a BFD opt-in or a receive-only binding (and, under OQ-2 option A, to a filter chain, `PrefixUpdated` or static routes) keeps the dynamic sessions up instead of restarting every peer of the group |
 | How is it reverted? | single commit revert; no config migration, no wire format change |
-| Who else touches this path? | `plan/immediate/spec-bgp-reload-rich-peer-no-bounce.md` (reload equality for rich peers, same `peerSettingsEqual` decision), `plan/spec-terminal-demo-showcase.md` (RPKI and BFD topics wait on this), BFD strict-mode reload work (`bgp-bfd-strict-reload-speaker`) |
+| Who else touches this path? | `plan/immediate/spec-bgp-reload-rich-peer-no-bounce.md` (reload equality for rich peers, same `peerSettingsEqual` decision), `plan/spec-terminal-demo-showcase.md` (RPKI and BFD topics wait on this), BFD strict-mode reload work (`bgp-bfd-strict-reload-speaker`), `plan/spec-bgp-remote-as-auto.md` (plans to reuse `resolveDynamicPeerSettings` for static peers: the `dyn*` capture at construction and the generation check change the function it reuses), and every test that installs a ReloadFunc (the signature gains the dynamic groups) |
+
+## Owner decisions
+
+**OQ-1, BFD on dynamic peers (AC-9): answered 2026-10-11, option A.** The
+owner's words: "A: yes, design it". A dynamic peer's non-strict BFD opt-in
+change, made through its group template, keeps the session up like a configured
+peer's. The design is Phase 3 (dynamic peers join the shared swap) followed by
+Phase 4 (the BFD opt-in, which then reaches both kinds of peer through the one
+copier). Option B (keep restarting, as BIRD effectively does by running no BFD
+for a dynamic instance) is not taken.
 
 ## Open owner question
 
-**OQ-1, BFD on dynamic peers (AC-9).** A dynamic peer's group template can gain,
-lose or edit a non-strict `connection bfd` opt-in. Today that restarts every
-dynamic peer of the group, and this spec has no design that keeps them up: the
-dynamic path writes a dynamic peer's settings directly, outside the settings
-copier and the reload journal (`setDynamicGroupsLocked`, `reactor_dynamic.go`),
-so it has no rollback, and `applyHotSwappableSettings` must not run on a dynamic
-peer because `resolveDynamicPeerSettings` writes settings from the establishment
-goroutine (`plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md`).
+**OQ-2, the rest of the hot-swappable set on dynamic peers.** OQ-1's answer
+routes a dynamic peer through the configured peer's plan and copier. The copier
+is a subtraction from the whole struct (`hotSwappableSettings`), so it delivers
+every member it covers, not only BFD and the bindings: a dynamic group's edit to
+its filter chains, `PrefixUpdated` or static routes would also keep the dynamic
+sessions up, where today it restarts them
+(`TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges` pins that restart).
+That widens what OQ-1 asked for, so it is the owner's to decide.
 
 | Option | What it means | What it costs |
 |--------|---------------|---------------|
-| A: design it in this spec | the dynamic path gains the BFD transition, an undo in the reload journal, and the locked access the deferral asks for, so a dynamic peer's BFD opt-in change keeps the session like a configured peer's | one more implementation phase in this spec: fixing the deferral's unlocked read first, journaling dynamic swaps (today they have no rollback at all), and a dynamic-peer rollback test; the spec grows by roughly the BFD half again |
-| B: drop BFD from AC-9 | a dynamic peer's BFD opt-in change keeps restarting that dynamic peer, documented as a known limitation; the receive-only binding half of AC-9 stays | no code; one Known Limitations line and one sentence in `docs/guide/bfd.md`. BIRD has no live BFD change on dynamic BGP either: it does not run BFD for a dynamic instance at all (`bgp_update_bfd` returns early for one) |
+| A (recommended): one copier, whole swap set | a dynamic peer swaps exactly what a configured peer swaps; filter chains are resolved against the running peer before the copier sees them (R-14) | the pinning test is replaced by `TestDynamicFilterSwapResolvesAgainstLearnedAS`; AC-22 and its `.ci` are added; no second list anywhere |
+| B: BFD and receive-only bindings only | the dynamic step refuses (restarts) when the plan's copier would deliver any member `resolveDynamicPeerSettings` rewrites at establishment, or any member other than the two OQ-1 named | a dynamic-only exclusion set beside the copier, which is a second declaration of the swap set and needs its own check against `hotSwappableSettings`; AC-22 becomes "restarts, as today" |
 
-Which do you want? Until the owner answers, the BFD half of AC-9 is marked
-pending and is neither implemented nor dropped.
+Until the owner answers, Phase 3 is designed for option A, and AC-22 is
+marked pending. Option B changes Phase 3's dynamic step and AC-22 only.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -321,7 +363,10 @@ pending and is neither implemented nor dropped.
 | SIGHUP reload changing a kept receive-only grant, with a second peer watching | → | intermediate republish, targeted down, targeted up, republish, ROUTE-REFRESH | `test/reload/bgp-attach-grant-change-live.ci` |
 | SIGHUP reload adding a receive-only binding on a peer without Route Refresh | → | `feedCatchUp` impossible -> restart branch | `test/reload/bgp-attach-no-route-refresh-restarts.ci` |
 | SIGHUP reload adding `receive [ update-sent state ]` after Ze advertised | → | sent-direction arm (`hasAdvertised`) -> restart | `test/reload/bgp-attach-sent-direction-restarts.ci` |
-| SIGHUP reload against FRR | → | the same swap, observed by a foreign speaker | interop `bgp-attach-receive-only-live-frr`, `bgp-bfd-enable-live-frr` |
+| SIGHUP reload adding, then a second reload removing, a non-strict `connection bfd` in a dynamic group's template | → | journaled dynamic step -> `peerSettingsSwapPlan` -> `applyHotSwappableSettings` -> `startBFDClient` / `stopBFDClient` | `test/reload/bgp-bfd-dynamic-toggle-live.ci` |
+| SIGHUP reload adding a receive-only attach block to a dynamic group's template | → | journaled dynamic step -> ordered bind delivery -> targeted up | `test/reload/bgp-attach-dynamic-receive-only-live.ci` |
+| SIGHUP reload changing a dynamic group's import chain that uses `$remote_as` (OQ-2 option A) | → | dynamic step resolves next against the learned AS -> copier | `test/reload/bgp-dynamic-filter-swap-live.ci` |
+| SIGHUP reload against FRR | → | the same swap, observed by a foreign speaker | interop `bgp-attach-receive-only-live-frr`, `bgp-bfd-enable-live-frr`, `bgp-bfd-dynamic-enable-live-frr` |
 
 ## Acceptance Criteria
 
@@ -335,7 +380,7 @@ pending and is neither implemented nor dropped.
 | AC-6 | A running non-strict peer with an open BFD session; a commit removes the opt-in (or sets `enabled false`) | one TCP connection; `show bfd sessions` no longer lists the peer's session; the BGP session stays Established |
 | AC-7 | A running peer whose opt-in changes between non-strict and strict, in either direction, or whose strict `hold-time`/`hold-down` changes | the peer restarts, and the restart log line names `BFD` |
 | AC-8 | Peer A (Route Refresh advertised) announced a route that `bgp-rib` selects and sends to peer B; a SIGHUP reload changes A's kept `bgp-rib` binding grant (for example `[ update-received ]` to `[ update-received state ]`) | one TCP connection to A and one to B; the process receives a targeted down then a targeted up (reason `attached`) for A, and no UPDATE between them; no other process receives either; Ze sends A one ROUTE-REFRESH per negotiated family; B's wire shows A's route withdrawn and then announced again (R-5) |
-| AC-9 | A dynamic peer whose group template gains a receive-only attach block | the dynamic peer's session stays up and the change is delivered, as for a configured peer. **BFD part pending OQ-1:** a non-strict BFD opt-in gained by the template either keeps the session (option A) or keeps restarting it, documented (option B) |
+| AC-9 | A dynamic peer whose group template gains a receive-only attach block (SIGHUP reload) | one TCP connection; the gained process receives the targeted up (reason `attached`) before any UPDATE of that session, through the same ordered bind delivery as a configured peer; the restart reason, when a dynamic change does restart, is logged by field name as for a configured peer |
 | AC-10 | A running peer that did NOT advertise Route Refresh and announced routes; a SIGHUP reload adds a receive-only binding granting `update-received` | the peer restarts (Cease subcode 6), unchanged from today; the restart log line names `ProcessBindings` |
 | AC-11 | A swapped reload (receive-only attach and BFD opt-in) that the transaction rolls back | the binding set and the BFD client return to their pre-commit state with no restart |
 | AC-12 | Interop: FRR peer Established with Ze; Ze is reloaded with a receive-only attach, then with a non-strict BFD opt-in, then with the opt-in's profile edited (different transmit interval), then with the opt-in removed | FRR's `connectionsEstablished` for the Ze neighbor is unchanged after each reload; after the BFD reload FRR `show bfd peers` lists Ze's session Up; after the profile edit the session is still Up and FRR reports Ze's new transmit interval; after the removal FRR's BGP session to Ze is still Established (A-5) |
@@ -345,6 +390,11 @@ pending and is neither implemented nor dropped.
 | AC-16 | A gained receive-only binding for `adj-rib-in` on a peer, mid-session, on a daemon with no `bgp-peer-up-replay` claimant, and a reload during that peer's initial sync | the targeted up carries `InitialReplay` 0 and reason `attached`; `adj-rib-in` sends nothing toward the peer and logs no "peer-up replay failed"; no peer-up barrier is armed (`SetPeerUpBarrier` not called) |
 | AC-17 | A reload that adds a receive-only binding while the peer is in OpenConfirm and reaches Established inside the apply window | the gained process receives exactly one `state up` for that session, or the session restarts; never two ups and never routes without an up |
 | AC-18 | An operator `attach process` block identical in grant to the derived binding it replaces (the config builder no longer adds its own) | no restart and no targeted down or up: `ProcessBinding.Derived` no longer exists to make the two differ |
+| AC-19 | An Established dynamic peer; a SIGHUP reload adds a non-strict `connection bfd { profile <p> }` to its group's template (with the `bfd` root), then a second reload removes it | one TCP connection for the whole test; after the first reload `show bfd sessions` lists the single-hop session to the dynamic peer under `<p>`; after the second it lists none; the BGP session stays Established throughout. The same template change between non-strict and strict restarts the dynamic peer with a log line naming `BFD` (AC-7's rule) |
+| AC-20 | A reload that swaps a dynamic peer (template gains a receive-only binding and a non-strict BFD opt-in) and whose later configured-peer step fails, so the journal rolls back | the dynamic peer is still the same `*Peer` on the same session; its bindings, its BFD client, its `dyn*` pair and the reactor's group set are the pre-reload ones; the gained process received a targeted down for the rolled-back binding; no Cease is sent |
+| AC-21 | `resolveDynamicPeerSettings` running on the establishment goroutine while a dynamic swap writes a new template pair, under `-race` | no race report; the chains the peer publishes are built from the template that is current when they are published, never from the replaced one; `dynImportFilters` / `dynExportFilters` are set at construction, and no read or write of them happens outside `p.mu` (the unlocked capture is gone) |
+| AC-22 | **Pending OQ-2.** An Established dynamic peer whose group template's import chain (written with `$remote_as`) changes, by SIGHUP reload | option A: one TCP connection; the running chain is the new template resolved with the peer's learned AS, and the routes it receives are filtered by it. Option B: the dynamic peer restarts with a log line naming `ImportFilters` |
+| AC-23 | A dynamic peer Established under group G; `VerifyConfig`, `peerDiffCount`, and an operation's candidate lookup (`peerSettingsFromReloadConfig`) each run over a candidate that drops G | after each call the dynamic peer is still the same `*Peer` on the same session and the reactor's group set still holds G; only the journaled reconcile applies the candidate's groups |
 
 ## End-to-End User Stories
 
@@ -354,6 +404,7 @@ pending and is neither implemented nor dropped.
 | 2 | enables BFD on a live peer | SSH editor -> commit -> bfd plugin start -> reconcile -> swap -> `startBFDClient` | `test/reload/bgp-bfd-added-live.ci` |
 | 3 | attaches a monitoring process to a live peer | SIGHUP -> reconcile -> swap -> targeted up -> ROUTE-REFRESH -> peer re-sends -> process | `test/reload/bgp-attach-receive-only-live.ci` |
 | 4 | does the same against FRR | SIGHUP -> swap -> FRR keeps its session | interop `bgp-attach-receive-only-live-frr`, `bgp-bfd-enable-live-frr` |
+| 5 | an IXP operator enables, then disables, BFD on a dynamic group | SIGHUP -> journaled dynamic step -> swap -> `startBFDClient`, then `stopBFDClient` | `test/reload/bgp-bfd-dynamic-toggle-live.ci`, interop `bgp-bfd-dynamic-enable-live-frr` |
 
 ## 🧪 TDD Test Plan
 
@@ -370,7 +421,14 @@ pending and is neither implemented nor dropped.
 | `TestBFDSwapOpensAndClosesClient` | same | apply opens the client on an Established peer and closes it on removal (fake `api.Service`) | |
 | `TestBFDSwapRacesEstablishedStart` | same | R-1/R-2 under `-race`: swap concurrent with `startBFDClient`, one handle | |
 | `TestBFDSwapRollbackRestoresClient` | `internal/component/bgp/reactor/peer_settings_apply_test.go` | AC-11 | |
-| `TestDynamicTemplateReceiveOnlySwap` | `internal/component/bgp/reactor/reactor_dynamic_test.go` | AC-9 binding half, through the same ordered bind delivery (up before republish); the BFD half's test is named after OQ-1 is answered | |
+| `TestDynamicTemplateReceiveOnlySwap` | `internal/component/bgp/reactor/reactor_dynamic_test.go` | AC-9: a dynamic template's receive-only attach swaps through `applyHotSwappableSettings` (up acknowledged before the graph carries the edge) | |
+| `TestDynamicNonStrictBFDOptInSwaps` | `internal/component/bgp/reactor/reactor_dynamic_test.go` | AC-19 at the reactor: template nil -> non-strict opens the client on the Established dynamic peer, non-strict -> nil closes it (fake `api.Service`), same `*Peer` | |
+| `TestDynamicStrictBFDChangeRestarts` | same | AC-19 strict half: the restart reason names `BFD` | |
+| `TestFailingReloadRollsBackDynamicSwap` | `internal/component/bgp/reactor/reactor_api_dynamic_reload_test.go` | AC-20: `reconcilePeersJournaled` with a dynamic swap and a later step that fails; `Rollback` restores bindings, BFD client (fake service refcount), `dyn*` pair and group set, no Cease | |
+| `TestDynamicTemplateSwapRacesEstablishment` | `internal/component/bgp/reactor/reactor_dynamic_race_test.go`, under `-race` | AC-21, R-13: `resolveDynamicPeerSettings` in a loop against a dynamic swap loop writing alternating templates; no race report, and every published chain resolves the template current at publication | |
+| `TestDynamicTemplatesCapturedAtConstruction` | same | AC-21: `createDynamicPeer` sets the `dyn*` pair from the template before the peer starts; an establishment after a filter swap resolves the swapped template, not the first one seen | |
+| `TestDynamicFilterSwapResolvesAgainstLearnedAS` | `internal/component/bgp/reactor/reactor_api_dynamic_reload_test.go` | AC-22 (OQ-2 option A), R-14: replaces `TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges`; same `*Peer`, running chain resolved, `dyn*` pair holds the unresolved new template. Under option B the old test stays and this row is dropped | |
+| `TestReloadFuncAppliesNoDynamicGroups` | same | AC-23: `VerifyConfig`, `peerDiffCount` and `peerSettingsFromReloadConfig` over a candidate dropping the group leave the peer and the group set untouched | |
 | `TestOnPeerBoundTargetsNamedProcesses` | `internal/component/bgp/server/events_test.go` (or the file holding `onPeerUnbound` tests) | targeted up reaches only the named processes, reason `attached`, then `negotiated` only when granted and after the up | |
 | `TestPeerBoundCarriesNoReplayOrBarrier` | same | AC-16: `InitialReplay` 0, no `SetPeerUpBarrier`, unheld roles computed over the full fed set (a `bgp-peer-up-replay` holder in the fed set but not in the gained set is reported held) | |
 | `TestAdjRIBInSkipsReplayOnAttachedUp` | `internal/component/bgp/plugins/adj_rib_in/rib_test.go` | AC-16: an `attached` up relays nothing; an ordinary up still replays | |
@@ -402,14 +460,19 @@ pending and is neither implemented nor dropped.
 | `bgp-bfd-profile-edit-live` | `test/reload/bgp-bfd-profile-edit-live.ci` (new; one connection, the BFD session reopened under the new profile) | AC-15 | |
 | `attach-process-runtime-subscribe` | `test/plugin/attach-process-runtime-subscribe.ci` (unchanged count: gains `open-received`; comment updated to name the OPEN rule) | AC-2 | |
 | `bgp-rpki-added-live` | `test/reload/bgp-rpki-added-live.ci` (unchanged; its PREVENTS comment updated) | pre-bound shape stays green | |
+| `bgp-bfd-dynamic-toggle-live` | `test/reload/bgp-bfd-dynamic-toggle-live.ci` (new; SIGHUP twice; the peer connects into a dynamic range; `tcp_connections=1`; `show bfd sessions` checked after each reload) | AC-19 | |
+| `bgp-attach-dynamic-receive-only-live` | `test/reload/bgp-attach-dynamic-receive-only-live.ci` (new; SIGHUP; external process started by the reload sees `state up` reason `attached` before any UPDATE; one connection) | AC-9 | |
+| `bgp-dynamic-filter-swap-live` | `test/reload/bgp-dynamic-filter-swap-live.ci` (new; SIGHUP; a `$remote_as` import chain changes; one connection; a route the new chain rejects is gone from `show bgp adj-rib-in` accepted view). Option A of OQ-2 only | AC-22 | |
+| `reload-dynamic-peer-survives` | `test/reload/reload-dynamic-peer-survives.ci` (unchanged, kept green: the ReloadFunc no longer installs the groups, R-16) | regression | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `bgp-attach-receive-only-live-frr` | `test/interop/scenarios/bgp-attach-receive-only-live-frr/` (`ze.conf`, `ze-reload.conf`, `frr.conf`) | FRR | AC-12 first half: a receive-only attach reload keeps FRR's `connectionsEstablished` unchanged; FRR receives a ROUTE-REFRESH and re-sends | |
 | `bgp-bfd-enable-live-frr` | `test/interop/scenarios/bgp-bfd-enable-live-frr/` | FRR (bgpd + bfdd) | AC-12 second half: BFD opt-in added, its profile edited, then removed by reload; BGP stays on one session; FRR `show bfd peers` Up after the add and after the edit, with Ze's new transmit interval | |
+| `bgp-bfd-dynamic-enable-live-frr` | `test/interop/scenarios/bgp-bfd-dynamic-enable-live-frr/` | FRR (bgpd + bfdd), connecting into a Ze dynamic range | AC-19 against a foreign speaker: Ze's dynamic group template gains the non-strict opt-in, then loses it, by reload; FRR's `connectionsEstablished` unchanged after each; FRR `show bfd peers` Up after the add | |
 
-Each scenario's red phase is recorded per `ai/rules/interop-and-goal-validation.md`: revert the swap (restore `derivedFeedsOnly` with its `Derived` condition, or drop BFD from the copier), rebuild the Ze image, observe the counter advance (red), restore, observe green.
+Each scenario's red phase is recorded per `ai/rules/interop-and-goal-validation.md`: revert the swap (restore `derivedFeedsOnly` with its `Derived` condition, or drop BFD from the copier; for the dynamic scenario, make the dynamic step restart on any template difference, as `dynamicTemplateChanged` did), rebuild the Ze image, observe the counter advance (red), restore, observe green.
 
 ## Files to Modify
 - `internal/component/bgp/reactor/peer_derived_bindings.go` - predicate widened and renamed; catch-up widened (route-bearing grants only, sent-direction arm on `hasAdvertised`); the ordered bind delivery (up acknowledged before the edge is published, session check, intermediate publish for a changed grant); comments rewritten (stale-comments rule)
@@ -418,9 +481,15 @@ Each scenario's red phase is recorded per `ai/rules/interop-and-goal-validation.
 - `internal/component/bgp/reactor/config.go` - `EnsureProcessBinding` stops setting `Derived`; its comment no longer calls the result a distinct kind of binding
 - `internal/component/bgp/reactor/peer_bfd.go` - locked accessor for the opt-in; every reader moved to it; a transition helper reusing `startBFDClient`/`stopBFDClient`
 - `internal/component/bgp/reactor/session_bfd_strict.go` - `applyBFDStrictNegotiation` and `raiseBFDStrictConfigChanged` read the opt-in through the locked accessor (I5)
-- `internal/component/bgp/reactor/peer.go` - `Peer.Settings` immutability comment names `BFD` as a mutable field
-- `internal/component/bgp/reactor/reactor_dynamic.go` - `SetDynamicGroups` / `setDynamicGroupsLocked` use the ordered bind delivery instead of publish-then-catch-up (I1, I2); the BFD half waits on OQ-1
-- `internal/component/bgp/reactor/reactor_api.go` - the peer summary's `BFDEnabled` reads the locked accessor (I5); the dispatcher interface gains the targeted up, if the interface lives here
+- `internal/component/bgp/reactor/peer.go` - `Peer.Settings` immutability comment names `BFD` as a mutable field (the `dyn*` edits are listed below)
+- `internal/component/bgp/reactor/reactor_dynamic.go` - `dynamicTemplateChanged` deleted; the reload's dynamic reconcile (remove, restart, swap through `peerSettingsSwapPlan` / `swapPeerSettingsJournaled` / `applyHotSwappableSettings`, with "next" resolved against the running peer) becomes the journaled dynamic step; `SetDynamicGroups` keeps only the group install the boot path needs, shared with the dynamic step; `createDynamicPeer` captures the `dyn*` pair; `resolveDynamicPeerSettings` reads and writes the pair under `p.mu` with the generation check, and its "touched by this function alone" comment is rewritten (stale-comments rule)
+- `internal/component/bgp/reactor/peer.go` - the `dyn*` pair's comment names its two writers and its lock; the template generation field beside it
+- `internal/component/bgp/reactor/reactor.go` - `ReloadFunc` returns the dynamic groups; `ReconcilePeersWithJournal` passes them to the reconcile
+- `internal/component/bgp/config/loader_create.go` - `createReloadFunc` returns the groups and stops calling `SetDynamicGroups`; the boot path's call stays
+- `internal/component/bgp/reactor/operation.go` - `peerSettingsFromReloadConfig` takes the new ReloadFunc result and ignores the groups
+- `internal/component/bgp/reactor/reactor_api.go` - the peer summary's `BFDEnabled` reads the locked accessor (I5); the dispatcher interface gains the targeted up, if the interface lives here; `loadPeersFullOrTree` returns the groups; `reconcilePeersJournaled` runs the journaled dynamic step first after the globals; the dynamic branch's comment loses its citation of the deleted `plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md` and names the reason that still holds (a configured entry replacing a dynamic peer restarts because the running settings were resolved at establishment)
+- `internal/component/bgp/reactor/reactor_api_dynamic_reload_test.go` - `TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges` replaced by `TestDynamicFilterSwapResolvesAgainstLearnedAS` (OQ-2 option A: a change of the behaviour under test by owner decision, not a weakening); the other `TestSetDynamicGroups*` tests move to the dynamic step's entry point; the new rollback and ReloadFunc tests
+- every test that installs a ReloadFunc (`reload_test.go`, `peer_settings_swap_test.go`, `peer_settings_reload_race_test.go`, `operation_test.go`, `peer_metrics_cleanup_test.go`, `reactor_metrics_behavioral_test.go`, `reactor_peers_takeover_test.go`, `reactor_api_dynamic_reload_test.go`; `bgp/config/loader_test.go`, `asn_notation_reload_test.go`) - the new signature
 - `internal/component/bgp/server/event_dispatcher.go`, `internal/component/bgp/server/events.go` - `OnPeerBound`: targeted up (reason `attached`, `InitialReplay` 0, barrier off, unheld roles over the full fed set) and negotiated to named processes; `deliverPeerState` gains the barrier knob
 - `pkg/plugin/rpc/enums.go` - the `attached` session reason beside `ReasonPeerRemoved`
 - `internal/component/bgp/plugins/adj_rib_in/rib.go`, `internal/component/bgp/plugins/rr/rr.go`, and every further plugin the up-handler audit finds replaying toward the peer - skip the replay on an `attached` up
@@ -430,7 +499,8 @@ Each scenario's red phase is recorded per `ai/rules/interop-and-goal-validation.
 - `test/plugin/attach-process-reload.ci` - one connection, comment
 - `test/plugin/attach-process-runtime-subscribe.ci` - comment names the OPEN rule as the restart cause
 - `internal/le/interoplab/bgp/` - checkers for the two scenarios (register file plus bespoke bodies and pure predicates)
-- `docs/architecture/core-design.md` section 18a - the new rule, the ordered bind delivery, the sent-direction catch-up, the downstream flap of a changed grant (R-5), the BFD member
+- `docs/architecture/core-design.md` section 18a - the new rule, the ordered bind delivery, the sent-direction catch-up, the downstream flap of a changed grant (R-5), the BFD member; the sentence "A dynamic peer takes the same rule through its group template (`dynamicTemplateChanged`)" rewritten for the journaled dynamic step
+- `docs/architecture/config/apply-ordering.md` - verify applies no dynamic group; the journaled dynamic step and its inverse (R-15)
 - `docs/architecture/api/process-protocol.md` - the `attached` up (Documentation row 8)
 - `docs/architecture/api/ipc_protocol.md` - "State events" and the text format: an up can carry reason `attached`
 - `docs/architecture/plugin/rib-storage-design.md` - an `attached` up triggers no peer-up replay
@@ -452,6 +522,10 @@ Each scenario's red phase is recorded per `ai/rules/interop-and-goal-validation.
 - `test/reload/bgp-bfd-profile-edit-live.ci` - AC-15
 - `test/interop/scenarios/bgp-attach-receive-only-live-frr/` - AC-12
 - `test/interop/scenarios/bgp-bfd-enable-live-frr/` - AC-12
+- `test/reload/bgp-bfd-dynamic-toggle-live.ci` - AC-19
+- `test/reload/bgp-attach-dynamic-receive-only-live.ci` - AC-9
+- `test/reload/bgp-dynamic-filter-swap-live.ci` - AC-22 (OQ-2 option A only)
+- `test/interop/scenarios/bgp-bfd-dynamic-enable-live-frr/` - AC-19 interop
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -488,7 +562,7 @@ Each scenario's red phase is recorded per `ai/rules/interop-and-goal-validation.
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | event types unchanged |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | run `./le spec citation anchors spec plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md`; at least core-design 18a (source anchors on `peer_settings_apply.go`, `peer_derived_bindings.go`) |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/rpki.md` troubleshooting row (line 597) and binding paragraph (line 241): say the attach takes effect without a session reset; `docs/guide/bfd.md` line 195 paragraph: both entry points, the live edit on a shared session (R-12), and the OQ-1 outcome for dynamic peers |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/rpki.md` troubleshooting row (line 597) and binding paragraph (line 241): say the attach takes effect without a session reset; `docs/guide/bfd.md` line 195 paragraph: both entry points, the live edit on a shared session (R-12), and that a dynamic group's opt-in change keeps its peers' sessions (OQ-1, option A); `docs/guide/config-reload.md`: rows for a dynamic group template change (swap like a configured peer; a removed or out-of-range dynamic peer still ends with Cease subcode 3) and for a rolled-back reload that had removed dynamic peers (R-15) |
 
 ## Implementation Steps
 
@@ -496,17 +570,23 @@ Each scenario's red phase is recorded per `ai/rules/interop-and-goal-validation.
    - Tests: `bgp-rpki-attach-live`, `bgp-bfd-added-live` at one connection, `bgp-attach-receive-only-live`
    - Files: the three `.ci` files
    - Verify: each fails because the second TCP connection is refused (the restart), not for a fixture reason
-   - The wiring phase also writes `bgp-attach-grant-change-live`, `bgp-attach-no-route-refresh-restarts` (green today, kept green), `bgp-attach-sent-direction-restarts` (green today, kept green) and `bgp-bfd-profile-edit-live`
-2. **Phase: receive-only bindings** -- widen the predicate, delete `Derived`, route-bearing and sent-direction catch-up, the ordered bind delivery (up acknowledged before the edge is published, session check, intermediate publish for a changed grant) on both the configured and the dynamic path, the `attached` reason and the plugins that skip replay on it
-   - Tests: `TestOperatorReceiveOnlyBindingSwaps`, `TestOperatorSendOrOpenBindingStillRestarts`, `TestChangedReceiveGrantIsDownThenUp`, `TestGainedReceiveOnlyBindingGetsUpBeforeRefresh`, `TestReceiveOnlyGainWithoutRouteRefreshRestarts`, `TestSentDirectionGrantNeedsNothingAdvertised`, `TestRouteFreeGrantNeedsNoCatchUp`, `TestUpAcknowledgedBeforeGraphEdge`, `TestBindRacesEstablished`, `TestIdenticalOperatorBindingReplacingDerived`, `TestOnPeerBoundTargetsNamedProcesses`, `TestPeerBoundCarriesNoReplayOrBarrier`, `TestAdjRIBInSkipsReplayOnAttachedUp`, `TestRRSkipsReplayOnAttachedUp`, `TestDynamicTemplateReceiveOnlySwap`
-   - Files: `peer_derived_bindings.go`, `peer_settings_apply.go`, `peer_settings.go`, `config.go`, `event_dispatcher.go`, `events.go`, `reactor_dynamic.go`, `pkg/plugin/rpc/enums.go`, `adj_rib_in/rib.go`, `rr/rr.go` and the audit's further plugins
+   - The wiring phase also writes `bgp-attach-grant-change-live`, `bgp-attach-no-route-refresh-restarts` (green today, kept green), `bgp-attach-sent-direction-restarts` (green today, kept green), `bgp-bfd-profile-edit-live`, and the three dynamic entry tests `bgp-bfd-dynamic-toggle-live`, `bgp-attach-dynamic-receive-only-live` and `bgp-dynamic-filter-swap-live` (each red today on the second connection a dynamic restart causes)
+2. **Phase: receive-only bindings (configured peers)** -- widen the predicate, delete `Derived`, route-bearing and sent-direction catch-up, the ordered bind delivery (up acknowledged before the edge is published, session check, intermediate publish for a changed grant) in `applyHotSwappableSettings`, the `attached` reason and the plugins that skip replay on it. The dynamic path is left on `dynamicTemplateChanged` until Phase 3 deletes it, so this phase writes no dynamic delivery code that Phase 3 would replace; the renamed predicate reaches `dynamicTemplateChanged` through its existing calls in the meantime
+   - Tests: `TestOperatorReceiveOnlyBindingSwaps`, `TestOperatorSendOrOpenBindingStillRestarts`, `TestChangedReceiveGrantIsDownThenUp`, `TestGainedReceiveOnlyBindingGetsUpBeforeRefresh`, `TestReceiveOnlyGainWithoutRouteRefreshRestarts`, `TestSentDirectionGrantNeedsNothingAdvertised`, `TestRouteFreeGrantNeedsNoCatchUp`, `TestUpAcknowledgedBeforeGraphEdge`, `TestBindRacesEstablished`, `TestIdenticalOperatorBindingReplacingDerived`, `TestOnPeerBoundTargetsNamedProcesses`, `TestPeerBoundCarriesNoReplayOrBarrier`, `TestAdjRIBInSkipsReplayOnAttachedUp`, `TestRRSkipsReplayOnAttachedUp`
+   - Files: `peer_derived_bindings.go`, `peer_settings_apply.go`, `peer_settings.go`, `config.go`, `event_dispatcher.go`, `events.go`, `pkg/plugin/rpc/enums.go`, `adj_rib_in/rib.go`, `rr/rr.go` and the audit's further plugins
    - Verify: first record the up-handler audit (which plugins replay toward the peer on up); unit tests red then green; `bgp-rpki-attach-live`, `bgp-attach-receive-only-live`, `bgp-attach-grant-change-live` green; A-1, A-2 and A-7 validated and recorded; section 18a, `process-protocol.md`, `ipc_protocol.md` and `rib-storage-design.md` edited in this phase
-3. **Phase: BFD opt-in** -- locked accessor and every reader moved to it, BFD in the copier when non-strict both sides, transition after lock release, rollback
-   - Tests: `TestNonStrictBFDOptInSwaps`, `TestStrictBFDChangeRestarts`, `TestBFDSwapOpensAndClosesClient`, `TestBFDSwapRacesEstablishedStart`, `TestBFDSwapRacesStrictNegotiation`, `TestNonStrictBFDProfileEditReopens`, `TestBFDSwapRollbackRestoresClient`
-   - Files: `peer_bfd.go`, `session_bfd_strict.go`, `reactor_api.go`, `peer_settings_apply.go`, `peer.go`; `reactor_dynamic.go` only if OQ-1 is answered with option A
-   - Verify: first record A-4 (a bfd plugin started by the same commit is ready, service and config, before the BGP apply, or not); if not, fix the transaction's apply order, never a watcher; `bgp-bfd-added-live`, `bgp-bfd-removed-live`, `bgp-bfd-profile-edit-live` green; `docs/guide/bfd.md`, `docs/guide/config-reload.md` and `features/bfd-liveness-detection.md` edited in this phase
-4. **Phase: existing tests and docs** -- `attach-process-reload.ci`, `attach-process-runtime-subscribe.ci`, `bgp-rpki-added-live.ci` comments, `features/configuration-reload.md`, `docs/guide/rpki.md`
-5. **Phase: interop** -- both FRR scenarios with checkers, red phase recorded by reverting each half and rebuilding the image
+3. **Phase: dynamic peers join the shared swap (OQ-1 option A)** -- runs before the BFD phase, so the BFD member reaches dynamic peers through the copier with no dynamic-specific BFD code. In this order, each step red then green:
+   1. The unlocked template pair: validate A-8 by grep and record it; `createDynamicPeer` captures `dynImportFilters` / `dynExportFilters` from the template before the peer starts; `resolveDynamicPeerSettings` reads and writes them only under `p.mu`, resolves with the lock released, and publishes only when the template generation is unchanged (Data Flow step 4); the "touched by this function alone" comment is rewritten. Tests: `TestDynamicTemplatesCapturedAtConstruction`, `TestDynamicTemplateSwapRacesEstablishment` (red under `-race` with the capture left unlocked and a swap writer in place), `TestDynamicPeerSettingsFilterReadRacesTheReload` kept green.
+   2. The side-effect-free ReloadFunc: validate A-9 by grep and record it; `ReloadFunc` returns the groups, `createReloadFunc` stops calling `SetDynamicGroups`, every caller and test fake takes the new signature. Test: `TestReloadFuncAppliesNoDynamicGroups` (red today: verify tears the peer down).
+   3. The journaled dynamic step: `reconcilePeersJournaled` runs it first after the globals; removal and range checks as today; `peerSettingsSwapPlan` over the two template-built settings replaces `dynamicTemplateChanged` (deleted); a swap goes through `swapPeerSettingsJournaled` and `applyHotSwappableSettings` with "next" resolved against the running peer and the `dyn*` pair in the undo snapshot; the group install shared with the boot path's `SetDynamicGroups`. Tests: `TestDynamicTemplateReceiveOnlySwap`, `TestFailingReloadRollsBackDynamicSwap`, `TestDynamicFilterSwapResolvesAgainstLearnedAS` (OQ-2 option A; it replaces `TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges`), the remaining `TestSetDynamicGroups*` tests moved to the step's entry point and kept green.
+   - Files: `reactor_dynamic.go`, `peer.go`, `reactor.go`, `reactor_api.go`, `operation.go`, `bgp/config/loader_create.go`, the ReloadFunc test fakes, `reactor_api_dynamic_reload_test.go`, `reactor_dynamic_race_test.go`, `reactor_dynamic_test.go`
+   - Verify: `bgp-attach-dynamic-receive-only-live`, `bgp-dynamic-filter-swap-live` (option A) and `reload-dynamic-peer-survives` green; A-8, A-9 recorded; `docs/architecture/config/apply-ordering.md`, the dynamic sentence of section 18a, and the dynamic rows of `docs/guide/config-reload.md` edited in this phase
+4. **Phase: BFD opt-in (configured and dynamic peers)** -- locked accessor and every reader moved to it, BFD in the copier when non-strict both sides, transition after lock release, rollback. Dynamic peers take it through the Phase 3 step; no dynamic-only BFD path is written
+   - Tests: `TestNonStrictBFDOptInSwaps`, `TestStrictBFDChangeRestarts`, `TestBFDSwapOpensAndClosesClient`, `TestBFDSwapRacesEstablishedStart`, `TestBFDSwapRacesStrictNegotiation`, `TestNonStrictBFDProfileEditReopens`, `TestBFDSwapRollbackRestoresClient`, `TestDynamicNonStrictBFDOptInSwaps`, `TestDynamicStrictBFDChangeRestarts`; `TestFailingReloadRollsBackDynamicSwap` extended with the BFD opt-in (AC-20)
+   - Files: `peer_bfd.go`, `session_bfd_strict.go`, `reactor_api.go`, `peer_settings_apply.go`, `peer.go`
+   - Verify: first record A-4 (a bfd plugin started by the same commit is ready, service and config, before the BGP apply, or not); if not, fix the transaction's apply order, never a watcher; `bgp-bfd-added-live`, `bgp-bfd-removed-live`, `bgp-bfd-profile-edit-live`, `bgp-bfd-dynamic-toggle-live` green; `docs/guide/bfd.md`, `docs/guide/config-reload.md` and `features/bfd-liveness-detection.md` edited in this phase
+5. **Phase: existing tests and docs** -- `attach-process-reload.ci`, `attach-process-runtime-subscribe.ci`, `bgp-rpki-added-live.ci` comments, `features/configuration-reload.md`, `docs/guide/rpki.md`
+6. **Phase: interop** -- the three FRR scenarios with checkers, red phase recorded by reverting each half and rebuilding the image
    - Verify: `INTEROP_SCENARIO=<name> ./le test integration interop` green for each, red recorded with the swap reverted
 
 ### Critical Review Checklist
@@ -518,7 +598,8 @@ Each scenario's red phase is recorded per `ai/rules/interop-and-goal-validation.
 | Correctness | the targeted up carries reason `attached`, `InitialReplay` 0, arms no barrier, and its unheld roles come from the full fed set |
 | Correctness | a binding judged swappable is always delivered: decision and apply share one copier, the BFD transition reads what the copier wrote |
 | Data flow | the reactor reaches BFD only through `bfd/api`; no plugin learns a reload happened except through the targeted events |
-| Rule: no-layering | `derivedFeedsOnly` is replaced, not kept beside the new predicate |
+| Rule: no-layering | `derivedFeedsOnly` is replaced, not kept beside the new predicate; `dynamicTemplateChanged` is deleted, not kept beside the dynamic step; `SetDynamicGroups` keeps no reconcile logic once the dynamic step owns it |
+| Correctness (dynamic) | no ReloadFunc caller changes the running population; the dynamic step is recorded in the journal before it applies; no `dyn*` access outside `p.mu`; the copier never writes an unresolved `$remote_as` chain onto a peer that has learned its AS |
 | Rule: stale-comments | the long comments in `peer_settings_apply.go` and `peer_derived_bindings.go`, and every `.ci` header that says an attach or BFD change restarts, are rewritten |
 | Rule: goroutine-lifecycle | no new goroutine per peer or per reload; the BFD subscriber goroutine is the existing one started by `startBFDClient` |
 
@@ -568,6 +649,11 @@ Each scenario's red phase is recorded per `ai/rules/interop-and-goal-validation.
 | Targeted up carries reason `attached`, `InitialReplay` 0, no barrier, unheld roles over the full fed set; replaying plugins skip on `attached` | reuse the establishment up unchanged | the establishment up starts an initial routing update: replay toward the peer, barrier, readiness token. None of that belongs mid-session, and a receive-only binding cannot send the replay anyway (B2) |
 | A grant covering updates Ze sent swaps only while Ze has advertised nothing; otherwise restart | ignore the sent direction (today); replay Ze's Adj-RIB-Out to the process | ignoring it leaves the process a partial copy (B1); a synthetic replay of sent UPDATEs is a fabricated event the process cannot tell from the wire, the same reason an `open` grant restarts |
 | A changed grant is delivered with the process's edge removed from the graph between its down and its up | down and up with the edge in place | with the edge in place a live UPDATE can land between the down and the up |
+| A dynamic peer's template change goes through the configured peer's plan, copier, ordered delivery and journal (owner, OQ-1: "A: yes, design it") | keep `dynamicTemplateChanged` and add a BFD arm to it; journal only the BFD part | a second diff beside `peerSettingsSwapPlan` is the layering the swap set's single copier exists to prevent, and a partial journal leaves the bindings it already writes with no undo |
+| The plan compares the old and next TEMPLATE-built settings; "next" is resolved against the running peer before the copier runs | compare the running (resolved) settings with the next template | the running settings carry the learned `PeerAS` and resolved chains, so every comparison would report a change; the template pair is what `dynamicTemplateChanged` already compares |
+| The `dyn*` template pair is captured at construction and touched only under `p.mu`, with a generation check on publication | keep the first-establishment latch; hold `p.mu` across `resolveFilterVars` | the latch can capture a chain a reload already replaced, and its "touched by this function alone" claim stops being true once a swap writes the pair; holding the lock across an allocating resolution is what the current code deliberately avoids |
+| The ReloadFunc returns the dynamic groups and applies nothing; the dynamic step is the first journaled step of `reconcilePeersJournaled` | journal the `SetDynamicGroups` call where it is, inside the ReloadFunc | the ReloadFunc also runs at verify, at budget estimation and at an operation's candidate lookup, none of which may change the running population; a journal entry recorded at verify would undo a commit that never happened |
+| A rolled-back dynamic step restores the group set and undoes swaps, and does not rebuild a removed dynamic peer | rebuild the removed peer from its old settings | no configuration names a dynamic peer and no connection exists to rebuild it on; the restored group accepts its next connection, which is what a dynamic peer's lifecycle already is |
 | Delete `ProcessBinding.Derived` | keep it as information | once the predicate ignores it, it is write-only and still makes `reflect.DeepEqual` report a change for identical grants (I11); no-layering |
 
 ## Known Limitations
@@ -577,7 +663,25 @@ Each scenario's red phase is recorded per `ai/rules/interop-and-goal-validation.
 - A grant that covers updates Ze sent (`update-sent`, bare `update`, `*`) still restarts once Ze has advertised on the session (AC-13): Ze cannot re-send its own UPDATEs to a new consumer without fabricating them.
 - Changing the grant of a route-consuming process (`bgp-rib`, `bgp-rr`) flaps that peer's routes once on the other sessions (R-5), instead of restarting this peer.
 - A BFD profile edit on a session another client shares keeps the session's current parameters (R-12), the BFD plugin's sharing rule.
-- BFD on dynamic peers: decided by OQ-1.
+- A rolled-back reload that had removed dynamic peers (group dropped, range narrowed) does not bring them back; they return when they reconnect, under the restored group (R-15).
+- Under OQ-2 option B, a dynamic group's filter-chain, `PrefixUpdated` or static-route edit keeps restarting its peers (AC-22).
+
+## Work Inherited From a Deferral Row
+
+`plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md` (recorded
+2026-08-08, read from `6fb9cd8814^`): "the dynamic-peer resolver reads the shared
+settings struct unlocked, on a sole-writer claim the reload swap falsified". Its
+row was closed on 2026-08-29 for the filter pair, which
+`resolveDynamicPeerSettings` now reads under `p.mu.RLock`
+(`TestDynamicPeerSettingsFilterReadRacesTheReload`), and the file went with the
+whole directory on 2026-09-05. Its "Next step" asked a second question that the
+closure did not answer: whether the `dyn*` template capture moves under `p.mu`
+or is captured once at construction, with the sole-writer comment corrected
+either way. That half is still open in the tree, and the dynamic swap this spec
+adds is exactly the second writer that would falsify the comment. Phase 3
+step 1 answers it (both: captured at construction, then touched only under
+`p.mu`), and this spec retires the row. The reconcile comment in `reactor_api.go`
+that still cites the deleted file is rewritten in the same phase.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -600,7 +704,7 @@ The new catch-up call site carries `// RFC 2918 Section 4` (the quote stays on `
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-18 all demonstrated (AC-9's BFD half as OQ-1 decides)
+- [ ] AC-1..AC-23 all demonstrated (AC-22 in the form OQ-2 decides)
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes
