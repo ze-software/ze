@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
@@ -470,6 +470,7 @@ Defects land first, each in its own commit, so no defect waits on another.
 | Row 1: where does the locator's originator come from, given sysrib holds no originating router (review B1)? | "Yes, IS-IS resolver" | A `locatororigin` registry in `internal/core/`, filled by the IS-IS plugin from the LSDB (TLV 27 locator, TLV 140 address); BGP never imports IS-IS (Design resolutions, B1) |
 | Rows 3 and 4: owned here or by `plan/immediate/spec-bgp-link-local-only-next-hop.md`? | placed in this spec | Owned here; that skeleton excludes `-1-2` and `-6-1` and points at this spec (Design resolutions, I2) |
 | Round-2 I5: the narrowed linklocal skeleton owns no open row; close it or rewrite it? | "Rewrite to AC-7/AC-8" | `plan/immediate/spec-bgp-link-local-only-next-hop.md` is rewritten to its AC-7 re-reads and AC-8 interop only, in its own commit; rows `-1-2` and `-6-1` stay here |
+| Approve the design after the round-5 design review (0 BLOCKER, I1 folded in 4fd32decbc)? (Thomas, 2026-10-11) | "Approve" | Status moves from `design` to `ready`, so `/ze-implement` may claim it |
 | One spec or several? | "Split into three" | This spec keeps the defects and row 9; `plan/spec-bgp-fsm-delayopen-and-automatic-start.md` takes rows 6-7; `plan/spec-bgp-epe-peer-segments-and-srv6-peernode.md` takes rows 8, 11, 12 |
 
 ## Open Questions (owner)
