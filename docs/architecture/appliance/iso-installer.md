@@ -45,8 +45,10 @@ removable medium and runs the installer again.
 resolution tries both names.
 
 **The two ISO tools share a 10-minute limit (`isoBuildTimeout`).** A tool that
-fails or runs out of it is named with its exact command line. The command
-reads the staging directory, which the build removes, so to run it by hand,
+fails or runs out of it is named with its exact command line, the tool path
+and every argument quoted for a shell, so a path with a space runs as written.
+The limit is worded as every build limit is (`kernelbuilder.LimitWords`). The
+command reads the staging directory, which the build removes, so to run it by hand,
 run `ze appliance iso --keep-staging` first.
 
 <!-- source: internal/appliance/cmd_iso.go -- isoBuildTimeout, runISOBuilder, isoToolFailed -->

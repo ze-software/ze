@@ -18,7 +18,7 @@ import (
 type buildLimit struct{ limit time.Duration }
 
 func (l buildLimit) Error() string {
-	return "the " + limitWords(l.limit) + " limit Ze gives one kernel build"
+	return "the " + LimitWords(l.limit) + " limit Ze gives one kernel build"
 }
 
 // WithBuildLimit answers a context that ends after limit, the limit Ze gives
@@ -29,11 +29,17 @@ func WithBuildLimit(parent context.Context, limit time.Duration) (context.Contex
 	return context.WithTimeoutCause(parent, limit, buildLimit{limit: limit})
 }
 
-// limitWords writes a whole number of hours as "2-hour", the way an operator
-// reads a limit, and any other duration in Go's own form.
-func limitWords(limit time.Duration) string {
+// LimitWords writes a limit the way an operator reads one: a whole number of
+// hours as "2-hour", a whole number of minutes as "10-minute", and any other
+// duration in Go's own form ("300ms"). It is the one formatter for every limit
+// a build step names (the kernel build here, the firmware download and the ISO
+// tools in internal/appliance), so the three never word a limit differently.
+func LimitWords(limit time.Duration) string {
 	if limit >= time.Hour && limit%time.Hour == 0 {
 		return strconv.Itoa(int(limit/time.Hour)) + "-hour"
+	}
+	if limit >= time.Minute && limit%time.Minute == 0 {
+		return strconv.Itoa(int(limit/time.Minute)) + "-minute"
 	}
 	return limit.String()
 }
@@ -79,9 +85,10 @@ type buildStopped struct{ report error }
 func (s *buildStopped) Error() string { return s.report.Error() }
 func (s *buildStopped) Unwrap() error { return s.report }
 
-// stopReport answers err as Build reports it. A step that ended because ctx
-// did and named the stop itself (errBuildStopped) is answered as it is. Any
-// other step that returned under a stop returned what its library said:
+// stopReport answers err as Build reports it, for SelectBuilder's error and
+// for every backend error alike. A step that ended because ctx did and named
+// the stop itself (errBuildStopped) is answered as it is. Any other step that
+// returned under a stop returned what its library said:
 // net/http answers context.Cause(ctx), so under Ze's limit the whole error
 // would be the limit's own noun phrase, and exec answers "signal: killed".
 // That error is kept as evidence after the stop is named, so no stop is ever

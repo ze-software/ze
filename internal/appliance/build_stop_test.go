@@ -34,7 +34,13 @@ func TestISOToolFailureNamesTheTool(t *testing.T) {
 			old := isoBuildTimeout
 			isoBuildTimeout = 300 * time.Millisecond
 			t.Cleanup(func() { isoBuildTimeout = old })
-			grub := filepath.Join(t.TempDir(), "grub-mkstandalone")
+			// A directory with a space: the command line quotes the tool
+			// path (shellArg), or it does not run as written.
+			grubDir := filepath.Join(t.TempDir(), "iso tools")
+			if err := os.MkdirAll(grubDir, 0o750); err != nil {
+				t.Fatal(err)
+			}
+			grub := filepath.Join(grubDir, "grub-mkstandalone")
 			if err := os.WriteFile(grub, []byte(tc.script), 0o755); err != nil { //nolint:gosec // test script must be executable
 				t.Fatal(err)
 			}
@@ -55,7 +61,7 @@ func TestISOToolFailureNamesTheTool(t *testing.T) {
 				t.Errorf("an ISO tool out of time is reported as killed:\n%v", err)
 			}
 			lines := strings.Split(err.Error(), "\n")
-			if last := lines[len(lines)-1]; !strings.HasPrefix(last, grub+" -O x86_64-efi ") {
+			if last := lines[len(lines)-1]; !strings.HasPrefix(last, shellArg(grub)+" -O x86_64-efi ") || !strings.HasPrefix(last, "'") {
 				t.Errorf("the ISO tool failure does not end with its command line:\n%v", err)
 			}
 		})
@@ -93,7 +99,7 @@ func TestFirmwareDownloadNamesTheFetch(t *testing.T) {
 	defer cancel()
 	<-ctx.Done()
 	err = firmwareDownloadFailed(ctx, url, dest, ctx.Err())
-	if !errors.Is(err, context.DeadlineExceeded) || !strings.Contains(err.Error(), "did not finish within the 10m0s limit Ze gives one firmware download") {
+	if !errors.Is(err, context.DeadlineExceeded) || !strings.Contains(err.Error(), "did not finish within the 10-minute limit Ze gives one firmware download") {
 		t.Errorf("a firmware download out of time does not name the limit:\n%v", err)
 	}
 	lines = strings.Split(err.Error(), "\n")

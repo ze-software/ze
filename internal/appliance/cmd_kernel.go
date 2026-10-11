@@ -724,7 +724,7 @@ func firmwareDownloadFailed(ctx context.Context, rawURL, destPath string, err er
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return fmt.Errorf("the download did not finish within the %s limit Ze gives one firmware download (%w); "+
 			"check that this host reaches %s, or fetch it by hand to where the build looks for it:\n%s",
-			downloadTimeout, ctx.Err(), rawURL, fetch.String())
+			kernelbuilder.LimitWords(downloadTimeout), ctx.Err(), rawURL, fetch.String())
 	}
 	return fmt.Errorf("the download from %s failed (%w); check that this host reaches it, "+
 		"or fetch it by hand to where the build looks for it:\n%s", rawURL, err, fetch.String())

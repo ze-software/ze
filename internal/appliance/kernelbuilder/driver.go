@@ -78,7 +78,9 @@ func Build(ctx context.Context, req Request) error {
 	}
 	backend, err := SelectBuilder(ctx, req.Builder, req.Arch)
 	if err != nil {
-		return err
+		// The accelerator probe runs a host command (sysctl on a Mac), which
+		// a stop ends with exec's error, so the stop is named here as well.
+		return stopReport(ctx, err)
 	}
 	fmt.Fprintf(req.Stdout, ">>> building %s kernel: version=%s arch=%s profile=%s builder=%s\n", req.Target, req.Version, req.Arch, req.Profile, backend) //nolint:errcheck // progress output
 	switch backend {
@@ -91,7 +93,8 @@ func Build(ctx context.Context, req Request) error {
 	}
 	if err != nil {
 		// A step that returned under a stop without naming it is named here
-		// (stopReport), so no stop reaches the operator as a library's error.
+		// (stopReport), so no stop reaches the operator as a library's error
+		// alone: the library's error stays, as the evidence of the step.
 		return stopReport(ctx, err)
 	}
 	if err := writeProvenance(req.OutputDir, req, backend); err != nil {

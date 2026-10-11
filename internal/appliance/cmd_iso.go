@@ -837,19 +837,21 @@ func runISOBuilder(call isoBuilderCall) error {
 }
 
 // isoToolFailed names an ISO tool that failed or ran out of isoBuildTimeout,
-// with its command line: exec's own error ("signal: killed", "exit status 1")
-// says neither which tool nor what to do. The command reads files in the
-// staging directory, which the build removes unless --keep-staging keeps it.
+// with its command line, the tool path and every argument quoted for a shell
+// (shellArg) so the line runs as written: exec's own error ("signal: killed",
+// "exit status 1") says neither which tool nor what to do. The command reads
+// files in the staging directory, which the build removes unless
+// --keep-staging keeps it.
 func isoToolFailed(ctx context.Context, tool, path string, args []string, err error) error {
 	var cmd textbuf.Buffer
-	cmd.Str(path)
+	cmd.Str(shellArg(path))
 	for _, arg := range args {
 		cmd.Byte(' ').Str(shellArg(arg))
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return fmt.Errorf("%s did not finish within the %s limit Ze gives the ISO tools (%w); its output above shows how far it got. "+
 			"Run ze appliance iso again with --keep-staging, then run the same command by hand with that run's staging directory:\n%s",
-			tool, isoBuildTimeout, ctx.Err(), cmd.String())
+			tool, kernelbuilder.LimitWords(isoBuildTimeout), ctx.Err(), cmd.String())
 	}
 	return fmt.Errorf("%s failed (%w); its output above says why. "+
 		"Run ze appliance iso again with --keep-staging, then run the same command by hand with that run's staging directory:\n%s",

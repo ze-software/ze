@@ -143,3 +143,23 @@ func TestBuildLimitNamesHours(t *testing.T) {
 		t.Errorf("buildLimit(120m) = %q, want %q", got, want)
 	}
 }
+
+// TestLimitWordsIsOneWording proves the one limit formatter writes hours,
+// minutes and anything shorter the way the kernel, firmware and ISO reports
+// print them.
+//
+// VALIDATES: round-10 NOTE 3 (one wording for every limit).
+// PREVENTS: "the 2-hour limit" beside "the 10m0s limit" in the same build.
+func TestLimitWordsIsOneWording(t *testing.T) {
+	for limit, want := range map[time.Duration]string{
+		2 * time.Hour:          "2-hour",
+		10 * time.Minute:       "10-minute",
+		90 * time.Minute:       "90-minute",
+		300 * time.Millisecond: "300ms",
+		90 * time.Second:       "1m30s",
+	} {
+		if got := LimitWords(limit); got != want {
+			t.Errorf("LimitWords(%v) = %q, want %q", limit, got, want)
+		}
+	}
+}
