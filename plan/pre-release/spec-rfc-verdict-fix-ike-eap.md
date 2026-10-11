@@ -262,6 +262,8 @@ Third fix round (2026-10-11, judge outcome of 8b73eae876):
 
 Six revert records whose producer is handleAuthResponse were re-recorded after the fix: RFC3948-2.1-1, RFC4303-2.1-1 and RFC7296-2.21.2-2, both polarities each.
 
+RFC7296-3.1-11 send claim, closed without touching the tagged sample (2026-10-11): a new file `internal/component/ike/engine/rfc7296_header_notify_writers_test.go` carries two units tagged `RFC7296-3.1-11 positive`. TestSAInitNotifiesClearXAndVBits drives sendSAInitNotifyRaw through sendCookieChallenge (COOKIE) and sendSAInitNotify (NO_PROPOSAL_CHOSEN, INVALID_KE_PAYLOAD); TestInvalidIKESPIClearsXAndVBits drives sendInvalidIKESPI through answerOutOfSA, once with a request carrying the V bit and every X bit. Each parses the datagram the peer read and asserts V and X clear. Mutant records: `wire.FlagResponse` -> `wire.FlagResponse | wire.FlagVersion` in the header literal of sendSAInitNotifyRaw (`responder.go`) and of sendInvalidIKESPI (`notify_error.go`), each observed red. `rfc7296_header_test.go` and engineBuiltMessages are unchanged. Verdict owed: RFC7296-3.1-11 rejudge (STALE), by an independent judge.
+
 Decision A is BLOCKED, not done: enrolling RFC 9190 gates its 33 MUST-level rows that carry no tag or one polarity, and the summary's Meta records the 2026-08-01 owner ruling that closed the annotation route. The handoff in the session state file names the choice.
 
 ### RFC 9190 enrolment: write the tests, then enrol (owner decision C, 2026-10-11)
