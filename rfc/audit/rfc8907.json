@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-11",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -57,7 +58,7 @@
       "requirement_sha": "2a470d0bf3c37d00",
       "tests": {
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907SharedKeyIsNotTruncated": "226ab125232efc32",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907LongSharedKeysAuthenticate": "e11e46852e75f681",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907LongSharedKeysAuthenticate": "7c6845571ca0fb19",
         "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907SharedSecretConfigBuildAndDisplay": "2f7cb9ed0258662a"
       },
       "units": {
@@ -231,8 +232,8 @@
       "note": "(a) forbidden: a session's first packet with a seq_no other than 1, or accepting a reply that does not follow it. (b) TestRFC8907FirstPacketCarriesSequenceOne requires requests[0].SeqNo == 1 on each new connection; TestRFC8907ReplyReusingSequenceOneIsRefused requires a reply carrying seq_no 1 to fail Authenticate and validateResponseHeader to report \"sequence mismatch\". The increment clause is descriptive (\"will\").",
       "requirement_sha": "9dddf97ed6ff5487",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FirstPacketCarriesSequenceOne": "e11e46852e75f681",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ReplyReusingSequenceOneIsRefused": "e11e46852e75f681"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FirstPacketCarriesSequenceOne": "7c6845571ca0fb19",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ReplyReusingSequenceOneIsRefused": "7c6845571ca0fb19"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FirstPacketCarriesSequenceOne": "42989b62de993626",
@@ -257,8 +258,8 @@
       "note": "(a) forbidden: a second packet on a connection before the server echoed single-connect. (b) TestRFC8907NoSecondPacketWithoutSingleConnect (no echo) requires two connections and requestsOn(0) of length 1; TestRFC8907SecondSessionReusesEstablishedConnection (echo) requires one connection carrying two requests.",
       "requirement_sha": "56c52463e08cc11b",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect": "e11e46852e75f681",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907SecondSessionReusesEstablishedConnection": "e11e46852e75f681"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect": "7c6845571ca0fb19",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907SecondSessionReusesEstablishedConnection": "7c6845571ca0fb19"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect": "84f1f5833569bca9",
@@ -270,8 +271,8 @@
       "note": "(a) forbidden: acting on the single-connect flag after the second packet, by leaving the pool when a later reply clears it or by re-signalling it. (b) TestRFC8907FlagClearedOnLaterReplyIsIgnored requires one connection carrying three requests although replies after the first clear the flag; TestRFC8907ClientDoesNotResignalSingleConnect requires requests[1].Flags and requests[2].Flags == 0.",
       "requirement_sha": "3c8fcc03a13867e6",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect": "e11e46852e75f681",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FlagClearedOnLaterReplyIsIgnored": "e11e46852e75f681"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect": "7c6845571ca0fb19",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FlagClearedOnLaterReplyIsIgnored": "7c6845571ca0fb19"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect": "02fbdde1b4fee6b6",
@@ -309,8 +310,8 @@
       "note": "(a) forbidden: a new session on a single-connect connection after a reply on it failed validation. (b) TestRFC8907NoNewSessionOnBrokenPooledConnection (session_id corrupted on the second reply) requires two connections and requestsOn(0) of length 2, so a third request on the broken TCP goes red; TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions requires one connection carrying three requests.",
       "requirement_sha": "49d9554c1456aa8b",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions": "e11e46852e75f681",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoNewSessionOnBrokenPooledConnection": "e11e46852e75f681"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions": "7c6845571ca0fb19",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoNewSessionOnBrokenPooledConnection": "7c6845571ca0fb19"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions": "ce96ac9ea5991686",
@@ -322,8 +323,8 @@
       "note": "(a) forbidden: leaving the broken single-connect connection open. (b) TestRFC8907BrokenPooledConnectionIsClosed requires waitClosed on the server side of the broken TCP; TestRFC8907HealthyPooledConnectionStaysOpen requires isClosed false after three healthy sessions.",
       "requirement_sha": "09815f2df724ee46",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907BrokenPooledConnectionIsClosed": "e11e46852e75f681",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionStaysOpen": "e11e46852e75f681"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907BrokenPooledConnectionIsClosed": "7c6845571ca0fb19",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionStaysOpen": "7c6845571ca0fb19"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907BrokenPooledConnectionIsClosed": "9af7ecbd19df93a0",
@@ -363,8 +364,8 @@
       "note": "(a) forbidden: a PAP login with more than one START/REPLY, including a CONTINUE. (b) TestRFC8907PAPExchangeIsOneStartOneReply requires exactly one authentication request on the connection; TestRFC8907PAPClientSendsNoContinue replies GETPASS and requires an error, a nil reply and requestsOn(0) of length 1.",
       "requirement_sha": "f1deb70a7310aa5f",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue": "e11e46852e75f681",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPExchangeIsOneStartOneReply": "e11e46852e75f681"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue": "7c6845571ca0fb19",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPExchangeIsOneStartOneReply": "7c6845571ca0fb19"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue": "60b1b9aff69b3fad",

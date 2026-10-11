@@ -163,7 +163,7 @@
       "claim-sha": "f157c9ddcb7f3026",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/llnh/llnh.go::refuseLinkLocalCapabilityWithoutAddress",
-      "producer-sha": "9292de51331844fb",
+      "producer-sha": "0b42783d90aab5e1",
       "break": "body of refuseLinkLocalCapabilityWithoutAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +174,7 @@
       "claim-sha": "4b9c985045d8a275",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/llnh/llnh.go::refuseLinkLocalCapabilityWithoutAddress",
-      "producer-sha": "9292de51331844fb",
+      "producer-sha": "0b42783d90aab5e1",
       "break": "body of refuseLinkLocalCapabilityWithoutAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
