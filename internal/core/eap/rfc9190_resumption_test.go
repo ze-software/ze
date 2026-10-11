@@ -189,6 +189,11 @@ func TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems(t *testing.T) {
 // full handshake is REEVALUATED when the information behind it changed: the
 // chain was unrevoked when the ticket was issued and is revoked when it is
 // redeemed, and the second exchange fails where the first succeeded.
+//
+// RFC requirement: RFC9190-5.7-1 positive for the peer role -- the peer's
+// authorization of a resumed session is based on the authenticator chain it
+// cached at the initial full handshake: the second exchange is a resumed one, so
+// no certificate is on the wire, and the peer refuses it on the cached chain.
 func TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	server := NewResumption(time.Now, true)
@@ -210,6 +215,9 @@ func TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain(t *testing.T) {
 
 	if second.peerErr == nil && second.peerDone {
 		t.Fatalf("the peer accepted a resumed session whose cached authenticator certificate is revoked (resumed=%v)", peer.Resumed())
+	}
+	if !peer.Resumed() {
+		t.Fatal("the second exchange ran a full handshake, so the refusal was not made on the cached chain")
 	}
 }
 
@@ -252,6 +260,11 @@ func TestEAPTLS13ResumptionRefusesARevokedClientChain(t *testing.T) {
 	if second.peerDone {
 		t.Fatal("the peer completed a resumed session the authenticator should have refused")
 	}
+	// The authenticator's own record, because the peer's handshake is still open
+	// after the refusal and its connection state is not readable.
+	if !second.sess.Resumed() {
+		t.Fatal("the authenticator ran a full handshake, so the refusal was not made on the cached chain")
+	}
 }
 
 // TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain is the negative polarity
@@ -264,6 +277,12 @@ func TestEAPTLS13ResumptionRefusesARevokedClientChain(t *testing.T) {
 //
 // RFC requirement: RFC9190-5.7-6 negative -- nothing behind the initial
 // decision changed, so no reevaluation refuses the resumption.
+//
+// RFC requirement: RFC9190-5.7-1 negative -- a resumed session whose cached
+// chain nothing has revoked is authorized on that cached data: both ends report
+// the second exchange resumed, so no certificate was re-presented, and it
+// completes. The refusals above are caused by the cached chain, not by a gate
+// that refuses every resumption.
 func TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	server := NewResumption(time.Now, true)

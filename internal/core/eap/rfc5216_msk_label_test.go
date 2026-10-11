@@ -191,3 +191,41 @@ func TestRFC9190MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
 		t.Fatal("the TLS exporter ignored the context; this fixture cannot see a wrong Type octet")
 	}
 }
+
+// TestRFC9190MSKIsNotThePreTLS13Derivation is the negative of the test above:
+// a TLS 1.3 session does not fall back to the derivation RFC 5216 defines for
+// earlier versions, and does not drop the Type octet from the export context.
+//
+// RFC requirement: RFC9190-2.3-1 negative -- over a TLS 1.3 session neither
+// side's MSK is the export under the RFC 5216 label "client EAP encryption", nor
+// the export under "EXPORTER_EAP_TLS_Key_Material" with no context, so a session
+// that took either derivation would be refused by this test.
+func TestRFC9190MSKIsNotThePreTLS13Derivation(t *testing.T) {
+	method, peer, serverMSK, peerMSK := mskLabelHandshake(t, tls.VersionTLS13)
+
+	for name, cs := range map[string]tls.ConnectionState{
+		"authenticator": method.conn.ConnectionState(),
+		"peer":          peer.tlsConn.ConnectionState(),
+	} {
+		msk := serverMSK
+		if name == "peer" {
+			msk = peerMSK
+		}
+		for _, wrong := range []struct {
+			label   string
+			context []byte
+		}{
+			{"client EAP encryption", nil},
+			{"EXPORTER_EAP_TLS_Key_Material", nil},
+		} {
+			got, err := exportFrom(cs)(wrong.label, wrong.context, 128)
+			if err != nil {
+				t.Fatalf("%s: export under %q: %v", name, wrong.label, err)
+			}
+			if [64]byte(got[:64]) == msk {
+				t.Errorf("%s MSK is the export under %q with context %x, a derivation RFC 9190 Section 2.3 replaces for TLS 1.3",
+					name, wrong.label, wrong.context)
+			}
+		}
+	}
+}

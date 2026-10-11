@@ -300,6 +300,17 @@
     },
     {
       "rid": "RFC9190-2.3-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc5216_msk_label_test.go::TestRFC9190MSKIsNotThePreTLS13Derivation",
+      "unit-sha": "c50854abee45a243",
+      "claim-sha": "8959d205d24aca0f",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
+      "producer-sha": "98b4d1240b3a48b9",
+      "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-2.3-1",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_msk_label_test.go::TestRFC9190MSKIsTheExportUnderTheRFCLabel",
       "unit-sha": "25d58d7b36c767ae",
@@ -828,9 +839,31 @@
     },
     {
       "rid": "RFC9190-5.7-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain",
+      "unit-sha": "1da8618372822a15",
+      "claim-sha": "0ac9026369a4a0a1",
+      "route": "revert",
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain",
+      "unit-sha": "c356f001cc267a1d",
+      "claim-sha": "01d3e029c22b9373",
+      "route": "revert",
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9190-5.7-1",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedClientChain",
-      "unit-sha": "9d58a499b224a892",
+      "unit-sha": "97437617c113a6ce",
       "claim-sha": "35cb94c3ada28271",
       "route": "revert",
       "producer": "internal/core/eap/revocation.go::checkChainRevocation",
@@ -866,26 +899,26 @@
       "unit-sha": "1da8618372822a15",
       "claim-sha": "494e50c32430eb99",
       "route": "revert",
-      "producer": "internal/core/eap/peer_chain.go::rebuildResumedChains",
-      "producer-sha": "cdfc0917c1f27ecd",
-      "break": "body of rebuildResumedChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9190-5.7-2",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain",
-      "unit-sha": "ff0ef45632508ece",
+      "unit-sha": "c356f001cc267a1d",
       "claim-sha": "54f58fbb18e61d89",
       "route": "revert",
-      "producer": "internal/core/eap/peer_chain.go::rebuildResumedChains",
-      "producer-sha": "cdfc0917c1f27ecd",
-      "break": "body of rebuildResumedChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9190-5.7-3",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedClientChain",
-      "unit-sha": "9d58a499b224a892",
+      "unit-sha": "97437617c113a6ce",
       "claim-sha": "13c20a629a76d5bb",
       "route": "revert",
       "producer": "internal/core/eap/revocation.go::checkChainRevocation",
@@ -943,20 +976,20 @@
       "unit-sha": "1da8618372822a15",
       "claim-sha": "479368149f8b542f",
       "route": "revert",
-      "producer": "internal/core/eap/peer_chain.go::rebuildResumedChains",
-      "producer-sha": "cdfc0917c1f27ecd",
-      "break": "body of rebuildResumedChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9190-5.7-6",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain",
-      "unit-sha": "ff0ef45632508ece",
+      "unit-sha": "c356f001cc267a1d",
       "claim-sha": "aa41cc42ff835adf",
       "route": "revert",
-      "producer": "internal/core/eap/peer_chain.go::rebuildResumedChains",
-      "producer-sha": "cdfc0917c1f27ecd",
-      "break": "body of rebuildResumedChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+      "producer-sha": "bc6548ee07f24385",
+      "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
