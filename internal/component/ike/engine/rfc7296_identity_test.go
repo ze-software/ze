@@ -186,13 +186,13 @@ func TestRemoteIDAcceptsEveryMandatoryType(t *testing.T) {
 }
 
 // RFC requirement: RFC7296-3.5-3 negative -- acceptance is a property of the four types
-// and not of a check that accepts everything. ID_DER_ASN1_DN (9) and ID_DER_ASN1_GN (10)
-// are refused by the not-comparable branch of assertedIdentity rather than by a value
-// mismatch. The refusal names the types Ze can compare.
+// and not of a check that accepts everything. ID_DER_ASN1_GN (10), a type outside the
+// four, is refused by the not-comparable branch of assertedIdentity rather than by a
+// value mismatch.
 //
-// Section 4 of RFC 7296 requires PKIX acceptance where the ID is ID_DER_ASN1_DN
-// (RFC7296-4-4). That is a different obligation on a different surface, and it is proven
-// separately. ID_DER_ASN1_GN is required by neither.
+// ID_DER_ASN1_DN (9) is deliberately not used here. Section 4 of RFC 7296 requires PKIX
+// acceptance where the ID is ID_DER_ASN1_DN (RFC7296-4-4), and Ze accepts it there, so
+// it is no example of a refused type. ID_DER_ASN1_GN is required by neither row.
 func TestRemoteIDRefusesTypesItCannotCompare(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

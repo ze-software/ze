@@ -193,7 +193,8 @@ func TestSKSelectsFreshIVPerMessage(t *testing.T) {
 
 // RFC requirement: RFC7296-3.14-3 positive -- the receive path accepts any IV value. decryptSKPayload
 // takes the IV from the message rather than from local state (auth.go:639-682). A peer that
-// sends an all-zero IV, an all-ones IV, or a repeat of an earlier IV is decrypted correctly.
+// sends an all-zero IV, an all-ones IV or an ascending-octet IV is decrypted correctly. A
+// repeat of an earlier IV is the negative's case, in rfc7296_iv_receive_test.go.
 // RFC requirement: RFC7296-3.14-6 negative -- the checksum is verified over the encrypted
 // message on receipt: a CBC message with a legal IV and its last checksum octet flipped is
 // refused by decryptAndParse.

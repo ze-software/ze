@@ -283,15 +283,15 @@ func TestErrUnprotectedMessageDrawsNoCachedResponse(t *testing.T) {
 }
 
 // VALIDATES: an unprotected message changes no IKE SA or Child SA state.
-// RFC requirement: RFC7296-2.21.4-6 positive -- each state mutation on an established
-// SA sits behind decryptAndParse.
-// The one pre-authentication branch reads only the response cache.
-// An unprotected datagram therefore leaves four things untouched: the state, both
-// message-ID counters, the outstanding-request flag, and the Child SA.
-// It does not reset the dead-peer timer either.
-// RFC requirement: RFC7296-2.21.4-6 negative -- the SAME notify delivered inside a
-// valid Encrypted payload DOES reach the handlers and DOES credit liveness. So the
-// freeze above is caused by the missing protection and not by notifies being inert.
+// RFC requirement: RFC7296-2.21.4-6 positive -- an unprotected INVALID_IKE_SPI Notify,
+// the exact bytes sendInvalidIKESPI writes for a request naming this SA's SPIs, is
+// delivered to the established SA's owner. No datagram answers it, and it leaves five
+// things untouched: the state, both message-ID counters, the outstanding-request flag
+// and the Child SA. It does not reset the dead-peer timer either.
+// RFC requirement: RFC7296-2.21.4-6 negative -- the SAME INVALID_IKE_SPI Notify
+// delivered inside a valid Encrypted payload DOES reach the handlers and DOES credit
+// liveness. So the freeze above is caused by the missing protection and not by
+// notifies being inert.
 // This row governs the UNPROTECTED message. RFC7296-2.21.4-7 governs the protected
 // INFORMATIONAL notify, and the two look identical unless the scope is named.
 func TestErrUnprotectedNotifyChangesNoState(t *testing.T) {
@@ -307,8 +307,32 @@ func TestErrUnprotectedNotifyChangesNoState(t *testing.T) {
 	beforeState, beforeExpected, beforeNext := resp.State, resp.ExpectedMsgID, resp.NextMsgID
 	beforeOutstanding := resp.requestOutstanding
 
-	forged := ntfRequest(resp.InitiatorSPI, resp.ResponderSPI, wire.ExchangeInformational, resp.ExpectedMsgID, false)
+	// The input is a real unprotected INVALID_IKE_SPI: what Ze's own out-of-SA emitter
+	// writes when a datagram naming these SPIs reaches a node that does not know them.
+	forged := ntfEmit(t, ntfRequest(resp.InitiatorSPI, resp.ResponderSPI, wire.ExchangeInformational, resp.ExpectedMsgID, false), false)
+	if forged == nil {
+		t.Fatal("the out-of-SA emitter wrote no INVALID_IKE_SPI to use as input")
+	}
+	var forgedMsg wire.Message
+	if err := forgedMsg.ReadFrom(forged); err != nil {
+		t.Fatalf("the INVALID_IKE_SPI input does not parse: %v", err)
+	}
+	if len(forgedMsg.Payloads) != 1 {
+		t.Fatalf("the input carries %d payloads, want one unprotected Notify", len(forgedMsg.Payloads))
+	}
+	if n, ok := forgedMsg.Payloads[0].Payload.(*wire.PayloadNotify); !ok || n.NotifyMsgType != wire.NotifyInvalidIKESPI {
+		t.Fatalf("the input payload is %T, want an unprotected INVALID_IKE_SPI Notify", forgedMsg.Payloads[0].Payload)
+	}
 	out := ps.handleOwnedInbound(resp, transport.Packet{Data: forged}, myTr, nil, log)
+
+	// MUST NOT respond. One socket keeps send order on loopback, so a sentinel that
+	// arrives first proves the owner wrote nothing toward the peer.
+	if err := myTr.Send(rtxSentinel, link.remote); err != nil {
+		t.Fatalf("send sentinel: %v", err)
+	}
+	if got := rtxRecv(t, link.peerTr); !bytes.Equal(got, rtxSentinel) {
+		t.Errorf("the unprotected notify drew a %d-octet datagram before the sentinel; it MUST NOT be answered", len(got))
+	}
 
 	if out.peerAlive {
 		t.Error("an unprotected message credited peer liveness, so it reset the dead-peer timer")
@@ -329,8 +353,13 @@ func TestErrUnprotectedNotifyChangesNoState(t *testing.T) {
 		t.Error("the Child SA was replaced")
 	}
 
-	// Negative. The same INFORMATIONAL inside a valid SK payload does reach the handler.
-	real := rtxIKEDelete(t, ini, resp.ExpectedMsgID)
+	// Negative. The same INVALID_IKE_SPI Notify inside a valid SK payload does reach
+	// the handler.
+	inner := []wire.PayloadEntry{{Payload: &wire.PayloadNotify{NotifyMsgType: wire.NotifyInvalidIKESPI}}}
+	real, err := buildEncryptedMessageEx(ini, inner, resp.ExpectedMsgID, wire.ExchangeInformational, initiatorFlag(ini))
+	if err != nil {
+		t.Fatalf("build protected INVALID_IKE_SPI: %v", err)
+	}
 	protected := ps.handleOwnedInbound(resp, transport.Packet{Data: real}, myTr, nil, log)
 	if !protected.peerAlive {
 		t.Error("a protected INFORMATIONAL did not reach the handler, so the freeze above proves nothing")

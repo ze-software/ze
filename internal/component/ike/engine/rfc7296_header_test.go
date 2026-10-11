@@ -439,7 +439,10 @@ func TestXBitsIgnoredOnReceipt(t *testing.T) {
 		if err != nil {
 			t.Fatalf("newResponderSA: %v", err)
 		}
-		handleSAInitRequest(resp, parseMsg(t, req), req, nil, nil, log)
+		// Through the responder's dispatch, where the flags octet is judged, so a
+		// drop on a set X or V bit there turns this red.
+		ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: testIKEGroup(), espGroup: testESPGroup()}
+		ps.handleResponderInbound(resp, parseMsg(t, req), transport.Packet{Data: req}, nil, log)
 		return resp
 	}
 

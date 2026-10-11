@@ -1806,11 +1806,14 @@ func TestMobikeUpdateCarriesItsAddressList(t *testing.T) {
 // RFC 4555 Section 4.2.6: "The notification data contains the IP addresses and
 // ports from/to which the packet was sent."
 //
-// RFC requirement: RFC4555-4.2.6-1 positive -- the update's NO_NATS_ALLOWED data is
-// the 12-octet IPv4 tuple the responder received the packet on, field by field.
+// RFC requirement: RFC4555-4.2.6-1 positive -- the update's NO_NATS_ALLOWED notify
+// decodes with Notify Message Type 16402, compared to the literal and not to the
+// constant the producer writes, and its data is the 12-octet IPv4 tuple the responder
+// received the packet on, field by field.
 // RFC requirement: RFC4555-4.2.6-1 negative -- data naming another source or
-// destination address, the ports swapped, one port changed, or the IPv6 width is
-// refused as not the packet's tuple.
+// destination address, the ports swapped, one port changed, or the packet's own
+// addresses and ports written at the 16-octet IPv6 width is refused as not the
+// packet's tuple.
 func TestMobikeNoNATsDataIsTheSendTuple(t *testing.T) {
 	ini, resp, _, iniTr, respTr := mbAuthHandshake(t, "prohibit", nil, nil, false, false, false)
 	ps := &PeerSession{peerName: ini.PeerName}
@@ -1820,6 +1823,11 @@ func TestMobikeNoNATsDataIsTheSendTuple(t *testing.T) {
 	request := mbReceive(t, respTr)
 	source, destination := request.RemoteAddr, nttPeerAddr(t, respTr)
 	notification := mbRequireNotify(t, mbDecrypt(t, resp, request.Data), wire.NotifyNoNATsAllowed)
+	// RFC 4555 Section 4.2.6: "The Notify Message Type for this message is 16402."
+	// The literal, so a wrong shared constant cannot agree with itself.
+	if notification.NotifyMsgType != 16402 {
+		t.Fatalf("NO_NATS_ALLOWED was sent as Notify Message Type %d, want 16402", notification.NotifyMsgType)
+	}
 	data := notification.NotificationData
 	if len(data) != 12 {
 		t.Fatalf("IPv4 NO_NATS_ALLOWED data is %d octets, want 12", len(data))
@@ -1836,8 +1844,12 @@ func TestMobikeNoNATsDataIsTheSendTuple(t *testing.T) {
 	}
 
 	changedPort := &net.UDPAddr{IP: source.IP, Port: source.Port + 1}
-	v6 := &net.UDPAddr{IP: net.ParseIP("2001:db8::1"), Port: source.Port}
-	v6Peer := &net.UDPAddr{IP: net.ParseIP("2001:db8::2"), Port: destination.Port}
+	// Only the width differs: the packet's own addresses in their 16-octet form, and
+	// its own ports.
+	ipv6Width := make([]byte, 0, 36)
+	ipv6Width = append(ipv6Width, source.IP.To16()...)
+	ipv6Width = append(ipv6Width, destination.IP.To16()...)
+	ipv6Width = append(ipv6Width, data[8:12]...)
 	for name, wrong := range map[string][]byte{
 		"source address changed": mbNoNATs(&net.UDPAddr{IP: net.IPv4(192, 0, 2, 9), Port: source.Port},
 			destination),
@@ -1846,7 +1858,7 @@ func TestMobikeNoNATsDataIsTheSendTuple(t *testing.T) {
 		"ports swapped": mbNoNATs(&net.UDPAddr{IP: source.IP, Port: destination.Port},
 			&net.UDPAddr{IP: destination.IP, Port: source.Port}),
 		"source port changed": mbNoNATs(changedPort, destination),
-		"IPv6 width":          mbNoNATs(v6, v6Peer),
+		"IPv6 width":          ipv6Width,
 	} {
 		forged := &wire.PayloadNotify{NotifyMsgType: wire.NotifyNoNATsAllowed, NotificationData: wrong}
 		if noNATsAllowedMatches(forged, source, destination) {

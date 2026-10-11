@@ -27,12 +27,14 @@ func rfc4301Entry(t *testing.T, name string, leaves map[string]string) (SPDPolic
 	return p, nil
 }
 
-// VALIDATES: RFC4301-4.4.1-6. The administrator can write a DISCARD and a BYPASS entry in
-// each half of the database the section names, SPD-I, SPD-O and both, and each reaches
-// the typed model with the disposition and the direction as written. PROTECT is the third
-// disposition, written under a site-to-site peer and carried by its Child SA.
+// VALIDATES: RFC4301-4.4.1-11 and RFC4301-4.4.1-12. The administrator can write a
+// DISCARD and a BYPASS entry in each half of the database the section names, SPD-I,
+// SPD-O and both, and each reaches the typed model with the disposition and the direction
+// as written. PROTECT is the third disposition, an SPD-S entry written under a
+// site-to-site peer and carried by its Child SA (RFC4301-4.4.1-6, rfc4301_spd_s_test.go).
 // PREVENTS: a disposition or a half of the database no configuration can reach.
-// RFC requirement: RFC4301-4.4.1-6 positive -- a bypass and a discard entry can each be written for SPD-I, SPD-O and both.
+// RFC requirement: RFC4301-4.4.1-11 positive -- a bypass and a discard entry can each be written for SPD-I (direction in, and both) and reach the model with that disposition and direction.
+// RFC requirement: RFC4301-4.4.1-12 positive -- a bypass and a discard entry can each be written for SPD-O (direction out, and both) and reach the model with that disposition and direction.
 func TestRFC4301SPDPermitsEachDispositionInEachDatabase(t *testing.T) {
 	for _, tc := range []struct {
 		action    string
@@ -62,12 +64,13 @@ func TestRFC4301SPDPermitsEachDispositionInEachDatabase(t *testing.T) {
 	}
 }
 
-// VALIDATES: RFC4301-4.4.1-6. A disposition or a direction outside the vocabulary is
+// VALIDATES: RFC4301-4.4.1-11 and RFC4301-4.4.1-12. A disposition or a direction outside the vocabulary is
 // refused, and an entry without a disposition is refused rather than read as PROTECT,
 // which is the SPAction zero value.
 // PREVENTS: an operator entry silently becoming a PROTECT with no transform behind it,
 // or a direction the database has no half for.
-// RFC requirement: RFC4301-4.4.1-6 negative -- an absent or unknown disposition and an unknown direction are refused.
+// RFC requirement: RFC4301-4.4.1-11 negative -- an SPD-I bypass or discard entry needs a disposition from its vocabulary: an absent or unknown disposition and an unknown direction are refused.
+// RFC requirement: RFC4301-4.4.1-12 negative -- an SPD-O bypass or discard entry needs a disposition from its vocabulary: an absent or unknown disposition and an unknown direction are refused.
 func TestRFC4301SPDRefusesADispositionItDoesNotCarry(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
