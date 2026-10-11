@@ -660,6 +660,53 @@ func (e *engine) bypassPathMTU(key *lspKey) uint32 {
 	return bypass.RSB.PathMTU
 }
 
+// repairedPathSelection answers an upstream PATH refresh for an LSP this PLR
+// holds under local repair with the downstream selection it accepted before the
+// failure. RFC 4090 Section 6.4.3: "When the PLR detects a link or/and node
+// failure condition, it has to reroute the data traffic onto the bypass tunnel
+// and to start sending the control traffic for the protected LSP onto the
+// bypass tunnel." The refresh is that control traffic. Resolving its ERO again
+// asks routing that no longer holds the failed link, so a strict hop across it
+// is refused as a Bad strict node, the PSB stops being refreshed, and the repair
+// is withdrawn when it times out.
+//
+// Only a refresh naming the route already accepted qualifies. The stored ERO is
+// either the received hops after this node or, when resolution replaced the
+// current abstract node with the adjacent hop, one such hop followed by them.
+// Any other ERO is a new route request and gets ordinary resolution.
+func (e *engine) repairedPathSelection(msg *ParsedMessage) (pathSelection, bool) {
+	// The ERO checks resolveReceivedPath makes before any routing still apply:
+	// an empty ERO, or one whose first subobject is not this node, is refused
+	// there and never counts as a refresh here.
+	if msg.HasERO && len(msg.ERO) == 0 {
+		return pathSelection{}, false
+	}
+	if msg.HasERO && !e.isLocalPrefix(msg.ERO[0].Address) {
+		return pathSelection{}, false
+	}
+	lsp, ok := e.table.Get(keyFromMessage(msg))
+	if !ok {
+		return pathSelection{}, false
+	}
+	received := e.remainingERO(msg.ERO)
+	lsp.mu.Lock()
+	defer lsp.mu.Unlock()
+	if !lsp.ProtectionInUse {
+		return pathSelection{}, false
+	}
+	if lsp.PSB == nil {
+		return pathSelection{}, false
+	}
+	stored := lsp.PSB.ERO
+	if len(stored) == len(received)+1 {
+		stored = stored[1:]
+	}
+	if !slices.Equal(stored, received) {
+		return pathSelection{}, false
+	}
+	return pathSelection{Route: lsp.PSB.Route, ERO: lsp.PSB.ERO}, true
+}
+
 // repairedLSP resolves the PLR's backup FILTER_SPEC back to its protected LSP.
 // SESSION and LSP_ID stay unchanged; the backup sender is the PLR itself.
 func (e *engine) repairedLSP(key lspKey, src netip.Addr) (*LSP, bool) {

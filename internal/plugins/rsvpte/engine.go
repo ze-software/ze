@@ -457,11 +457,17 @@ func (e *engine) handlePath(src netip.Addr, msg *ParsedMessage) {
 		e.sendPathErr(src, msg, ErrCodePolicyControlFailure, 0)
 		return
 	}
-	selected, err := e.resolveReceivedPath(msg)
-	if err != nil {
-		e.log.Warn("rsvp-te: explicit route rejected", "error", err)
-		e.sendPathErr(src, msg, ErrCodeRoutingProblem, selected.ErrorValue)
-		return
+	// RFC 4090 Section 6.4.3: a refresh of an LSP under local repair keeps the
+	// selection made before the failure instead of resolving it again.
+	selected, repaired := e.repairedPathSelection(msg)
+	if !repaired {
+		var err error
+		selected, err = e.resolveReceivedPath(msg)
+		if err != nil {
+			e.log.Warn("rsvp-te: explicit route rejected", "error", err)
+			e.sendPathErr(src, msg, ErrCodeRoutingProblem, selected.ErrorValue)
+			return
+		}
 	}
 	// A path MTU under the floor would reach a push route as a metric that can
 	// livelock a stock kernel's IPv4 fragmentation (mplsfib.PathMTUMinimum), so

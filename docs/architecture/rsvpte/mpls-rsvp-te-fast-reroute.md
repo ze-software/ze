@@ -88,6 +88,16 @@ removes the failed node from a node-protection ERO. The backup clears the three
 protection-desired SESSION_ATTRIBUTE bits and does not request another repair.
 The original PSB is retained for upstream signaling.
 
+The upstream node keeps refreshing the PATH it always sent, whose next strict
+hop may lie across the failed link. A refresh that names the route the PLR
+accepted before the failure keeps that selection and is relayed through the
+bypass. It is not resolved again, because routing without the failed link
+would refuse the strict hop and let the repaired state expire. A refresh with a
+different ERO is resolved as a new route request.
+
+<!-- source: internal/plugins/rsvpte/frr.go -- repairedPathSelection -->
+<!-- source: internal/plugins/rsvpte/engine.go -- handlePath -->
+
 The bypass's own PATH continues to refresh along its configured explicit route.
 Only the repaired sender uses the bypass's private forwarding context. Holding
 all outgoing PATH messages during repair would also stop the refreshes that keep
