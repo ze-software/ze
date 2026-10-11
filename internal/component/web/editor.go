@@ -6,6 +6,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -352,6 +353,46 @@ func (m *EditorManager) Discard(username string) error {
 	m.mu.Unlock()
 
 	return nil
+}
+
+// DiscardPath drops the user's pending changes at or under path and keeps the
+// rest, as `discard <path>` does in the SSH editor; it is the command a
+// commit conflict's fix line names. A path that holds none of the user's
+// pending changes is refused rather than read as success, because the
+// operator then believes a change went that is still pending.
+func (m *EditorManager) DiscardPath(username string, path []string) error {
+	m.mu.RLock()
+	us, ok := m.sessions[username]
+	m.mu.RUnlock()
+
+	if !ok {
+		return discardPathNothingPending(path)
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	sid := us.editor.SessionID()
+	if sid == "" {
+		return discardPathNothingPending(path)
+	}
+	before := len(us.editor.PendingChanges(sid))
+	if err := us.editor.DiscardSessionPath(path); err != nil {
+		return fmt.Errorf("discard for %s: %w", username, err)
+	}
+	if len(us.editor.PendingChanges(sid)) == before {
+		return discardPathNothingPending(path)
+	}
+	return nil
+}
+
+// discardPathNothingPending answers a `discard <path>` that named no pending
+// change: what is wrong, and the commands that show and drop what is pending.
+func discardPathNothingPending(path []string) error {
+	var tb textbuf.Buffer
+	tb.Str("discard ").Join(path, " ").Str(": you have no pending change at this path; ").
+		Str("`compare` lists your pending changes, `discard <path>` drops the ones at a path it shows, and `discard` alone drops them all")
+	return errors.New(tb.String())
 }
 
 // Diff returns a textual diff of the user's pending changes, with every secret

@@ -139,21 +139,18 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 	}
 
 	if len(answer.conflicts) > 0 {
-		var msg textbuf.Buffer
-		msg.Str("Commit conflicts:\n")
-
-		for _, c := range answer.conflicts {
-			msg.Str("  ").Str(c.Path).Str(": want ").Quoted(c.MyValue).Str(", other (").Str(c.OtherUser).Str(") has ").Quoted(c.OtherValue).Byte('\n')
-		}
+		// One renderer for every web surface, so the Commit button prints
+		// each conflict's fix line as the terminal and the CLI bar do.
+		msg := formatCommitConflicts("Commit conflicts:\n", answer.conflicts)
 
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
-			writeCommitModal(w, renderer, msg.String(), mgr.ChangeCount(username))
+			writeCommitModal(w, renderer, msg, mgr.ChangeCount(username))
 			return
 		}
 
 		layoutData := LayoutData{
 			Title:            "Commit Conflicts",
-			NotificationHTML: renderer.renderComponent("notification_pre", notificationPre(msg.String())),
+			NotificationHTML: renderer.renderComponent("notification_pre", notificationPre(msg)),
 			ActiveUI:         uiModeTokenFinder,
 		}
 

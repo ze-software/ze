@@ -56,6 +56,7 @@ const (
 	verbUp         = "up"
 	verbCommit     = command.VerbCommit
 	verbDiscard    = "discard"
+	discardAll     = "all"
 	verbHelp       = "help"
 	verbWho        = "who"
 	verbCompare    = "compare"
@@ -300,11 +301,11 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	case verbCommit:
 		handleCLICommit(w, r, renderer, mgr, username, cmd.Args)
 	case verbDiscard:
-		handleCLIDiscard(w, r, renderer, mgr, username)
+		handleCLIDiscard(w, r, renderer, mgr, username, cmd.Args)
 	case verbWho:
 		handleCLIWho(w, renderer, mgr)
 	case verbHelp:
-		writeCLINotification(w, renderer, "commands: edit, set, delete, show, top, up, commit now, discard, who, help", "info")
+		writeCLINotification(w, renderer, "commands: edit, set, delete, show, top, up, commit now, discard [path|all], who, help", "info")
 	}
 }
 
@@ -510,9 +511,10 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer,
 	htmxRedirect(w, r, configEditPath)
 }
 
-// handleCLIDiscard processes the "discard" verb.
-func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string) {
-	if err := mgr.Discard(username); err != nil {
+// handleCLIDiscard processes the "discard" verb: `discard` or `discard all`
+// reverts every change, `discard <path>` the changes at that path.
+func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, args []string) {
+	if _, err := runWebDiscard(mgr, username, args); err != nil {
 		writeCLINotification(w, renderer, "discard error: "+err.Error(), "error")
 		return
 	}

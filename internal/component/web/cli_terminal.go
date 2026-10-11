@@ -409,11 +409,12 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 	case verbCommit:
 		return nil, executeTerminalCommit(mgr, username, cmd.Args)
 	case verbDiscard:
-		if err := mgr.Discard(username); err != nil {
+		answer, err := runWebDiscard(mgr, username, cmd.Args)
+		if err != nil {
 			var tb textbuf.Buffer
 			return nil, tb.Str("error: ").Err(err).String()
 		}
-		return nil, terminalOutputChangesDiscarded
+		return nil, answer
 	case verbWho:
 		sessions := mgr.ActiveSessions()
 		if len(sessions) == 0 {
@@ -552,7 +553,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
   compare              Show diff vs original
   commit now           Apply changes
   commit accept|abort  Keep or revert a pending confirmed commit
-  discard              Revert all changes
+  discard [path|all]   Revert the changes at path, or all changes
   save                 Save draft
   history              List backups
   rollback <N>         Restore backup N
@@ -908,6 +909,27 @@ func runWebCommit(mgr *EditorManager, username string, args []string) (webCommit
 		return webCommitAnswer{}, err
 	}
 	return mgr.runCommit(username, req)
+}
+
+// runWebDiscard runs one discard for the terminal and the CLI bar alike.
+// With no argument, or `all`, it reverts every pending change; with a path it
+// drops only the changes at or under that path, the command a commit
+// conflict's fix line prints. Its segments are config tokens, a member such
+// as 192.0.2.2/30 included, so they are not checked as URL segments: a path
+// naming no pending change is refused by EditorManager.DiscardPath, never
+// read as done.
+func runWebDiscard(mgr *EditorManager, username string, args []string) (string, error) {
+	if len(args) == 0 || (len(args) == 1 && args[0] == discardAll) {
+		if err := mgr.Discard(username); err != nil {
+			return "", err
+		}
+		return terminalOutputChangesDiscarded, nil
+	}
+	if err := mgr.DiscardPath(username, args); err != nil {
+		return "", err
+	}
+	var tb textbuf.Buffer
+	return tb.Str("discarded: ").Join(args, " ").String(), nil
 }
 
 // formatCommitConflicts renders the conflicts that refused a commit.

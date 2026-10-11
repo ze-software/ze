@@ -110,14 +110,28 @@ tell them.
 <!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest -->
 
 A STALE conflict on a leaf-list member names the change as you made it,
-`deactivate <path> <member>`, `activate <path> <member>` or the insert, and
-follows it with a `fix:` line. When the commit no longer holds the member, the
-line names `discard <path> <member>`, which drops that one change and leaves
-your other edits to the list pending; adding the member back resolves it too.
-The closing "Re-set conflicting values to resolve." is printed only when a
-contested leaf value is among the conflicts.
-<!-- source: internal/component/cli/editor_commit.go -- memberOpStaleConflict, memberOpFix -->
+`deactivate <path> <member>`, `activate <path> <member>` or
+`insert <path> <member> <position> [<reference>]`, and follows it with a
+`fix:` line. When the commit no longer holds the member, the line names
+`discard <path> <member>`, which drops your changes to that one member and
+leaves your other edits pending, a rename of the entry above the list
+included; adding the member back resolves it too. An insert refused for its
+reference is reported once: its `discard` also drops a later deactivate or
+activate of the member it inserted. The SSH editor, `commit confirmed`, the
+web terminal, the web CLI bar and the web editor's Commit button all print the
+`fix:` line, and `discard <path>` works on each of them: in the web terminal
+and the CLI bar, `discard` alone or `discard all` drops every change, and a
+path holding none of your pending changes is refused with the command that
+lists them. The closing "Re-set conflicting values to resolve." is printed
+only when a contested leaf value is among the conflicts. A leaf you set or
+delete below an entry you renamed is judged against the committed value at
+the old name, so a rename followed by an edit commits with no conflict when
+nobody else committed.
+<!-- source: internal/component/cli/editor_commit.go -- memberOpStaleConflict, memberOpFix, insertSummary, memberOpConflicts, structuralOpUnderDiscard, committedPathOf -->
 <!-- source: internal/component/cli/model_commands_commit.go -- commitConflictsText -->
+<!-- source: internal/component/web/cli_terminal.go -- runWebDiscard, formatCommitConflicts -->
+<!-- source: internal/component/web/editor.go -- EditorManager.DiscardPath -->
+<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
 <!-- source: internal/component/config/change_file.go -- PendingChange.Summary -->
 <!-- source: internal/component/config/confirm/confirm.go -- ErrPending -->
 
