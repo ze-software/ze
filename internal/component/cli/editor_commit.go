@@ -661,11 +661,11 @@ func (e *Editor) entryStaleConflicts(committedTree *config.Tree, ops []config.St
 // the path it names in the committed tree, by undoing the session's rename
 // ops from the last to the first. A path no rename moved comes back as is.
 func pathBeforeRenames(ops []config.StructuralOp, path string) string {
-	for i := len(ops) - 1; i >= 0; i-- {
-		if ops[i].Type != config.StructuralOpRename {
+	for _, op := range slices.Backward(ops) {
+		if op.Type != config.StructuralOpRename {
 			continue
 		}
-		target, source := ops[i].DestinationPath(), ops[i].SourcePath()
+		target, source := op.DestinationPath(), op.SourcePath()
 		if path == target {
 			path = source
 			continue
