@@ -110,14 +110,15 @@ func (n *WindowNotices) pushDiscardNotice(user string) {
 }
 
 // send renders line in the config-change banner, which the page's SSE client
-// already swaps into the notification bar, and sends it to user alone. It
-// answers whether every stream of user took it.
-func (n *WindowNotices) send(user, line string) bool {
+// already swaps into the notification bar, and sends it to user alone. No
+// caller acts on a stream that did not take it, so the broker's answer is not
+// returned.
+func (n *WindowNotices) send(user, line string) {
 	banner, ok := renderNotice(user, line)
 	if !ok {
-		return false
+		return
 	}
-	return n.broker.SendTo(user, "config-change", banner)
+	n.broker.SendTo(user, "config-change", banner)
 }
 
 // renderNotice renders line in the config-change banner; a failed render is
