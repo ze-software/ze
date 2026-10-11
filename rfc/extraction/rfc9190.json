@@ -127,7 +127,11 @@
     {
       "id": "2.3",
       "sites": 3,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9190-2.3-4"
+      ],
+      "reason": "Row RFC9190-2.3-4 (split 2026-10-11 from RFC9190-2.3-1, whose site 2.3:1 carries the SHALL) quotes the Method-Id and Session-Id definitions, which carry no keyword of their own; it is a gap row."
     },
     {
       "id": "2.4",

@@ -299,6 +299,17 @@
       "break": "body of reassemble replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9190-2.3-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc5216_msk_label_test.go::TestRFC9190MSKIsTheExportUnderTheRFCLabel",
+      "unit-sha": "25d58d7b36c767ae",
+      "claim-sha": "941020c5f1c7e848",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
+      "producer-sha": "98b4d1240b3a48b9",
+      "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9190-2.5-1",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication",
