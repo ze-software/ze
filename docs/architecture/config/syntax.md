@@ -239,15 +239,17 @@ leaf line and is declared inactive by a follow-up `inactive: <leaf>
 <member>` statement (above: `no-self-as` stays listed, marked
 inactive). Both kinds of leaf-list write it this way: a plain one
 (`name-server 8.8.8.8 1.1.1.1;`) and a bracket one (`address [ ... ];`).
-For a plain leaf-list the member statement only has this meaning when the
-value is already an active member; otherwise `inactive: <leaf>
-<values...>` keeps its whole-leaf meaning. For a bracket leaf-list,
-`inactive: <leaf> [ ... ];` is the whole leaf, and `inactive: <leaf>
-<member>;` MUST name a member the list line already holds: any other
-member is refused with an error that says to write it in the list first.
+`inactive: <leaf> <member>;` with one bare value is the hierarchical
+spelling of the set format's `nop <leaf> <member>` (below), on both kinds:
+it deactivates the member, and a member the list does not hold yet is
+added, deactivated. `inactive: <leaf> [ ... ];` is the whole leaf, so a
+whole inactive leaf-list is written in brackets even when it holds one
+member.
 The internal
 `inactive:<member>` token never appears in serialized output -- it
 would fail per-item type validation (e.g. `ip-address`) on reparse.
+<!-- source: internal/component/config/parser.go -- parseNodeInactive, parseInactiveValueOrArray, parseInactiveBracketMember -->
+<!-- source: internal/component/config/serialize.go -- serializeNode -->
 
 The CLI verbs `ze config deactivate <file> <path>` and `ze config
 activate <file> <path>` add and remove the prefix. The TUI accepts the

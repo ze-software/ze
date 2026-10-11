@@ -393,10 +393,10 @@ func TestHierarchicalDeactivatedMemberRoundTrip(t *testing.T) {
 		"member deactivation must not deactivate the whole leaf")
 }
 
-// TestHierarchicalWholeLeafInactiveStillWorks: the pre-existing whole-leaf
-// form `inactive: <leaf> <values...>` keeps its meaning when the leaf was
-// not previously populated (member deactivation only triggers for a single
-// bare value already present in the leaf).
+// TestHierarchicalWholeLeafInactiveStillWorks: the whole-leaf form
+// `inactive: <leaf> [ <values...> ]` keeps its meaning. A single bare value is
+// one member, as `nop` is in set format (owner decision 2026-10-11), and
+// TestHierarchicalInactiveMemberLikeNop covers it.
 //
 // VALIDATES: whole-leaf deactivation syntax is unchanged.
 // PREVENTS: the member-aware inactive: parse path hijacking whole-leaf form.
@@ -409,7 +409,6 @@ func TestHierarchicalWholeLeafInactiveStillWorks(t *testing.T) {
 		want  []string
 	}{
 		{"bracket form", "system {\n\tinactive: name-server [ 9.9.9.9 8.8.8.8 ]\n}\n", []string{"9.9.9.9", "8.8.8.8"}},
-		{"single value", "system {\n\tinactive: name-server 9.9.9.9\n}\n", []string{"9.9.9.9"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tree, err := NewParser(schema).Parse(tc.input)

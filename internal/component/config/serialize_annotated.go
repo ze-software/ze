@@ -266,7 +266,9 @@ func serializeAnnotatedTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 				b.Str("inactive: ")
 			}
 			b.Str(name)
-			if len(items) == 1 {
+			// A whole inactive leaf keeps its brackets even for one member:
+			// `inactive: <leaf> <member>` is a member statement, like `nop`.
+			if len(items) == 1 && !tree.inactiveValues[name] {
 				b.Str(" ")
 				b.Str(quoteIfNeeded(items[0]))
 			} else {

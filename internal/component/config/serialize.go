@@ -306,7 +306,9 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 				b.Str("inactive: ")
 			}
 			b.Str(name)
-			if len(bare) == 1 {
+			// A whole inactive leaf keeps its brackets even for one member:
+			// `inactive: <leaf> <member>` is a member statement, like `nop`.
+			if len(bare) == 1 && !tree.inactiveValues[name] {
 				b.Str(" ")
 				b.Str(quoteIfNeeded(bare[0]))
 				b.Str("\n")

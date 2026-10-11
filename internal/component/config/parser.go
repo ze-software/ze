@@ -135,19 +135,20 @@ func (p *Parser) parseBody(unknown string, known []string, lookup func(name stri
 
 // parseNodeInactive parses one statement that carried the "inactive:"
 // prefix. Leaf-lists support member-level deactivation --
-// `inactive: <leaf-list> <member>` where <member> is already a member of
-// the parsed leaf marks just that member (the form the serializer writes
-// for deactivated members); a bracket leaf-list takes this form whenever no
-// '[' follows its name. Every other
-// shape parses normally and the whole node is marked inactive.
+// `inactive: <leaf-list> <member>` is the hierarchical spelling of the set
+// format's `nop <leaf-list> <member>`: it deactivates <member>, adding it
+// deactivated when the list does not hold it yet (the form the serializer
+// writes for deactivated members); a bracket leaf-list takes this form
+// whenever no '[' follows its name. Every other shape parses normally and
+// the whole node is marked inactive.
 // Shared by parseRoot, parseContainer, and parseListFieldBlock.
 func (p *Parser) parseNodeInactive(tree *Tree, name string, node Node, line int) error {
 	if vn, ok := node.(*ValueOrArrayNode); ok {
 		return p.parseInactiveValueOrArray(tree, name, vn, line)
 	}
-	if _, ok := node.(*BracketLeafListNode); ok {
+	if bn, ok := node.(*BracketLeafListNode); ok {
 		if tok := p.tok.peek(); tok.kind != tokenLBracket {
-			return p.parseInactiveBracketMember(tree, name)
+			return p.parseInactiveBracketMember(tree, name, bn)
 		}
 	}
 	if err := p.parseNode(tree, name, node); err != nil {
@@ -158,22 +159,31 @@ func (p *Parser) parseNodeInactive(tree *Tree, name string, node Node, line int)
 }
 
 // parseInactiveValueOrArray handles `inactive: <leaf-list> ...` statements.
-// A single bare value naming an existing active member deactivates only
-// that member. Any other shape (bracket form, multiple values, member not
-// yet present) keeps the whole-leaf semantics: the items replace the leaf
-// content and the leaf itself is marked inactive.
+// A single bare value is one member, as `nop <leaf-list> <member>` is in set
+// format (owner decision 2026-10-11): an active member is deactivated, a
+// deactivated one stays so, and a value the list does not hold is added
+// deactivated. The bracket form and multiple values keep the whole-leaf
+// semantics: the items replace the leaf content and the leaf itself is
+// marked inactive.
 func (p *Parser) parseInactiveValueOrArray(tree *Tree, name string, node *ValueOrArrayNode, line int) error {
 	items, bracket, tok, err := p.collectValueOrArrayItems(name)
 	if err != nil {
 		return err
 	}
 	if !bracket && len(items) == 1 {
-		if present, inactive := tree.MultiValueMemberState(name, items[0]); present && !inactive {
-			if err := tree.DeactivateMultiValue(name, items[0]); err != nil {
-				return p.errorf(tok, "deactivate member %s %s: %v", name, items[0], err)
-			}
+		present, inactive := tree.MultiValueMemberState(name, items[0])
+		if inactive {
 			return nil
 		}
+		if !present {
+			if err := p.storeValueOrArray(tree, name, node, items, tok); err != nil {
+				return err
+			}
+		}
+		if err := tree.DeactivateMultiValue(name, items[0]); err != nil {
+			return p.errorf(tok, "deactivate member %s %s: %v", name, items[0], err)
+		}
+		return nil
 	}
 	if err := p.storeValueOrArray(tree, name, node, items, tok); err != nil {
 		return err
@@ -184,10 +194,11 @@ func (p *Parser) parseInactiveValueOrArray(tree *Tree, name string, node *ValueO
 
 // parseInactiveBracketMember handles `inactive: <leaf-list> <member>;` for a
 // bracket leaf-list, the statement the serializer writes after the list for
-// each deactivated member: the member MUST already be in the list, because the
-// list line states every member. `inactive: <leaf-list> [ ... ];` is the whole
-// leaf and does not come here.
-func (p *Parser) parseInactiveBracketMember(tree *Tree, name string) error {
+// each deactivated member. Like `nop <leaf-list> <member>` in set format, it
+// adds a member the list does not hold, deactivated (owner decision
+// 2026-10-11). `inactive: <leaf-list> [ ... ];` is the whole leaf and does not
+// come here.
+func (p *Parser) parseInactiveBracketMember(tree *Tree, name string, node *BracketLeafListNode) error {
 	tok := p.tok.peek()
 	if tok.kind != tokenWord && tok.kind != tokenString {
 		return p.errorf(tok, "expected '[' or a member after inactive: %s, got %s", name, tok.kind)
@@ -198,8 +209,15 @@ func (p *Parser) parseInactiveBracketMember(tree *Tree, name string) error {
 		return p.errorf(end, "expected ';' after inactive: %s %s, got %s", name, member, end.kind)
 	}
 	p.tok.next()
-	if present, _ := tree.MultiValueMemberState(name, member); !present {
-		return p.errorf(tok, "inactive: %s %s names no member of %s; write the member in the %s [ ... ] list first", name, member, name, name)
+	present, inactive := tree.MultiValueMemberState(name, member)
+	if inactive {
+		return nil
+	}
+	if !present {
+		if err := validateValuePatterns(node.Type, node.Patterns, member); err != nil {
+			return p.errorf(tok, "invalid value for %s: %v", name, err)
+		}
+		tree.AddMultiValueMember(name, member)
 	}
 	if err := tree.DeactivateMultiValue(name, member); err != nil {
 		return p.errorf(tok, "deactivate member %s %s: %v", name, member, err)
