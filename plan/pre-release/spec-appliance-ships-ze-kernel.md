@@ -557,11 +557,11 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 
 | Field | Value |
 |-------|-------|
-| Artifact | round 1: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r1-appliance-ships-ze-kernel.md` (0 BLOCKER, 6 ISSUE, 8 NOTE); every finding fixed or recorded below; ready for independent review round 2 |
+| Artifact | latest: round 6 over f5648a798d, 466fe5a94e, 4de8913046, 9990605cb9 (0 BLOCKER, 1 ISSUE, 3 NOTE; mutation evidence in `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/r6mut/`), every finding fixed in "Round 6 fixes"; ready for independent review round 7 over b8490bde67. Earlier rounds: round 1 `scratch/review-r1-appliance-ships-ze-kernel.md` (0 BLOCKER, 6 ISSUE, 8 NOTE), rounds 2 to 5 in the Rounds row |
 | `./le spec review check` | not run |
-| Rounds | 2 (round 1 preceded by a partial pass the owner interrupted, whose ISSUE is row 1 below); round 2 artifact `scratch/review-r2-appliance-ships-ze-kernel.md` (0 BLOCKER, 3 ISSUE, 6 NOTE), fixes in "Round 2 fixes"; round 3 artifact `scratch/review-r3-appliance-ships-ze-kernel.md` (0 BLOCKER, 4 ISSUE, 9 NOTE) over dc501faa9f, 5ffef6eedc, 248d1ed071, 8949969c96, 9bcaef2d4e, fixes in "Round 3 fixes"; round 4 over 590760235b, e308e4cdb2, b3f4b0c3bb (1 BLOCKER, 5 NOTE, findings and mutation evidence in `scratch/r4mut/`), fixes in "Round 4 fixes"; round 5 over 2182b2c521 (0 BLOCKER, 2 ISSUE, 4 NOTE, mutation evidence in `scratch/r5mut/`), fixes in "Round 5 fixes"; round 6 owed over f5648a798d, 466fe5a94e, 4de8913046, 9990605cb9 |
-| Rounds reason | round 5 found two product defects: the unsupported-arch refusals of `ze appliance kernel --arch` and of `image.arch` carried a hardcoded list and no fix, so the round-4 refusals were unreachable from either entry point (ISSUE 2); and a cancel during the QEMU SSH bootstrap was reported as "SSH never answered" (NOTE 2). Round 5 also found the key guard's known-gap list incomplete (ISSUE 1) |
-| Owner authorised | round 6: Thomas, 2026-10-11, "Authorise round 6" |
+| Rounds | 2 (round 1 preceded by a partial pass the owner interrupted, whose ISSUE is row 1 below); round 2 artifact `scratch/review-r2-appliance-ships-ze-kernel.md` (0 BLOCKER, 3 ISSUE, 6 NOTE), fixes in "Round 2 fixes"; round 3 artifact `scratch/review-r3-appliance-ships-ze-kernel.md` (0 BLOCKER, 4 ISSUE, 9 NOTE) over dc501faa9f, 5ffef6eedc, 248d1ed071, 8949969c96, 9bcaef2d4e, fixes in "Round 3 fixes"; round 4 over 590760235b, e308e4cdb2, b3f4b0c3bb (1 BLOCKER, 5 NOTE, findings and mutation evidence in `scratch/r4mut/`), fixes in "Round 4 fixes"; round 5 over 2182b2c521 (0 BLOCKER, 2 ISSUE, 4 NOTE, mutation evidence in `scratch/r5mut/`), fixes in "Round 5 fixes"; round 6 over f5648a798d, 466fe5a94e, 4de8913046, 9990605cb9 (0 BLOCKER, 1 ISSUE, 3 NOTE, mutation evidence in `scratch/r6mut/`), fixes in "Round 6 fixes"; round 7 owed over b8490bde67 |
+| Rounds reason | round 5 found two product defects: the unsupported-arch refusals of `ze appliance kernel --arch` and of `image.arch` carried a hardcoded list and no fix, so the round-4 refusals were unreachable from either entry point (ISSUE 2); and a cancel during the QEMU SSH bootstrap was reported as "SSH never answered" (NOTE 2). Round 5 also found the key guard's known-gap list incomplete (ISSUE 1). Round 6 found one product defect: `ze appliance kernel <name>` took an unsupported `image.arch` from a config it never validated, and refused it as an `--arch` the operator never typed, with a fix that dropped the name and never named the config file (ISSUE 1); and a stop in either pause after the QEMU login prompt was reported as a bare context error (NOTE 1) |
+| Owner authorised | round 6: Thomas, 2026-10-11, "Authorise round 6"; round 7: Thomas, 2026-10-11, "Authorise round 7" |
 | Reviewer lenses used | round 1: logic+wiring (resolver to image), supply chain (digest pin, notice), cache safety |
 
 ### Round 1 fixes
@@ -675,6 +675,20 @@ Review over 2182b2c521: 0 BLOCKER, 2 ISSUE, 4 NOTE. Mutation evidence `tmp/sessi
 `go test -race` with the gate tags over `./internal/appliance/... ./internal/le/build/gokrazy/...`: all four packages ok (`scratch/r5fix/gate.log`). Owed to the main thread: scoped lint over the same packages; two runs produced no plan because other sessions' source edits changed the lint inputs mid-planning (`scratch/r5fix/lint.log`, `lint2.log`).
 
 Ready for independent review round 6, over f5648a798d, 466fe5a94e, 4de8913046, 9990605cb9.
+
+### Round 6 fixes
+Review over f5648a798d, 466fe5a94e, 4de8913046, 9990605cb9: 0 BLOCKER, 1 ISSUE, 3 NOTE. Mutation evidence `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/r6mut/`. No fix touches `recipe.go`, `worker.go`, `tools/kernel-builder/`, `internal/core/textbuf` or `internal/core/tmplink`; `qemu.go` is host-side and not in `kernelbuilder.BuildSources`, so the cache key does not move.
+
+| Finding | Fixed by | What changed |
+|---------|----------|--------------|
+| ISSUE 1 (`ze appliance kernel <name>` refused an unsupported `image.arch` as `--arch`, with a fix that dropped the name and never named the config file) | b8490bde67 | `runKernel` calls `applianceConfig.Validate` after `LoadConfig`, the one declaration of the arch check `ze appliance build` already runs; the refusal names `image.arch` and `ConfigPath(dir, name)` and ends with the `"image": {"arch": "<host>"}` line. `buildOne` now names the config file too (the sibling path). `TestUnsupportedArchRefusedBeforeAnyHost` drives `runKernel([]string{"lab"})` and asserts the field, the file and the last line, for both entry points; red against HEAD's `cmd_kernel.go` under `-overlay` |
+| NOTE 1 (the 1 s and 3 s pauses after `login:` returned a bare `ctx.Err()`) | b8490bde67 | both return `errBuildStopped(ctx.Err(), "after its login prompt", ...)`; `TestStoppedAfterLoginPromptNamesTheStage` stops the build in each pause, red against HEAD's `qemu.go` under `-overlay` |
+| NOTE 2 (`cliErrorf` wrote refusals to stdout) | b8490bde67 | `cliErrorf` writes to stderr (`ai/rules/cli.md`); `captureStdout` removed, its one use now `captureStderr` (row in `test/weakened/d1987d95.md`); no `.ci` test reads this output from stdout |
+| NOTE 3 (the Artifact row described round 1 only) | this spec commit | the Artifact row names the latest round and points at the earlier ones |
+
+`go test -race` with the gate tags over `./internal/appliance/... ./internal/le/build/gokrazy/...`: all four packages ok. Scoped lint (`./le go lint run scope ./internal/appliance/`): 0 issues on darwin and linux-integration, 2026-10-11.
+
+Ready for independent review round 7, over b8490bde67.
 
 ## Pre-Commit Verification
 
