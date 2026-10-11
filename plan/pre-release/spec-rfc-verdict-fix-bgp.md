@@ -340,7 +340,7 @@ checkpoint `f3b2eb3c65`; their stored enforced verdicts are not pending judgment
 - RFC9494-5-2 is a `{gap}` with no verdict in `rfc/audit/rfc9494.json`, so it is not in the derived listing and not a blocked verdict; owner ruling 8 (e) homes it in `spec-bgp-llgr-per-family-config` AC-6.
 - RFC8277-2.5-3 is a `{gap}` with no weak or wrong verdict; `spec-bgp-addpath-best-path-per-prefix` AC-6 owns it.
 - RFC9494-4.3-2 has no verdict in `rfc/audit/rfc9494.json`. RFC9494-4.3-3 remains `weak` and is listed above. The graceful-restart spec owns both producer defects.
-- RFC9252-5-2 is `unimplemented`, not weak or wrong.
+- RFC9252-5-2 is `unimplemented`, not weak or wrong. Owner: `plan/immediate/spec-srv6-bestpath-resolvability.md` (noted 2026-10-11).
 - RFC2545 now has explicit Section3 rows and remains part of this child's current proof work; the old "no row" description is obsolete. The BMP spec retains its AC-4/AC-5 acceptance ownership. The committing spec also renews records changed by the shared `peerDownFor` repair (R-6 of the parent).
 - RFC 9830 Section 2.4.2 D2 (the BSID label width) has no row; its producer change stales the srpolicy records the same way.
 - RFC9012-13-17 and RFC9012-4.2-1 have no current audit verdict. Their absent header-construction and MAC-consumption behavior, plus Section 3.7 consumer behavior and Section 15 tunnel traffic filtering, belong to `plan/spec-bgp-tunnel-encapsulation-consumption.md` AC-2/AC-3/AC-4/AC-6. They retain explicit gaps and receive no conformance credit. Existing receive defects and proof debt under RFC9012-13-10/12/13/14 remain here; RFC 9830 ownership is unchanged.
@@ -980,6 +980,14 @@ additional rows was established by this reconciliation. Main must preserve
 their scope dispositions before closure, not invent owners or implement absent
 features. RFC7606-5.1-1 also remains canonically unimplemented; its recorded
 MP attribute-ordering deviation is not an optional-feature exemption.
+
+Owners, 2026-10-11 (owner decision: "10 give it a spec"). MUP3.3.6-4/-5,
+link-local1-2/6-1, RFC2545-3-6, RFC4271-8.2.2-13/-20, RFC9086-7-2,
+RFC9830-2.4.2-12 and RFC7606-5.1-1 are owned by
+`plan/immediate/spec-bgp-unowned-rfc-rows.md` (AC-1 to AC-10, one per row, and
+AC-11 for the ledger). RFC9252-5-2 already had an owner this reconciliation did
+not name: `plan/immediate/spec-srv6-bestpath-resolvability.md`. This child
+implements none of them; their dispositions are that spec's Open Questions.
 
 
 
