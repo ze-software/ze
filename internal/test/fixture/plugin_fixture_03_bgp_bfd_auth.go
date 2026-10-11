@@ -58,7 +58,7 @@ bgp {
 
 // logBFDAuthEBGPWarn is the warning verifyPeerBFDProfiles writes
 // (internal/component/bgp/reactor/peer_bfd.go).
-const logBFDAuthEBGPWarn = "bfd profile of an EBGP peer has no authentication; RFC 5882 Section 10.2 recommends BFD authentication"
+const logBFDAuthEBGPWarn = "bfd profile of an EBGP peer has no authentication; RFC 5882 Section 10.2 recommends BFD authentication" //nolint:gosec // G101: a log line naming missing authentication, no credential
 
 // logBFDAuthEBGPFix is the start of that warning's fix attribute, with the
 // profile name the peer configured.
