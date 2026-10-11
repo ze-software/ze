@@ -31,7 +31,7 @@
       "claim-sha": "7800a10bab583d76",
       "route": "revert",
       "producer": "internal/component/bfd/engine/engine.go::EnsureSession",
-      "producer-sha": "0547e78d5acde32d",
+      "producer-sha": "be658bb3f8294a42",
       "break": "body of EnsureSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

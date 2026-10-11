@@ -17,10 +17,12 @@ import (
 	"github.com/ze-software/ze/internal/component/bfd/session"
 )
 
-// ProfileAuth answers what the config applied now makes of profile name: the
-// authentication it resolves to, nil for none, and whether that config defines
-// name at all. The bfd plugin supplies it (SetProfileAuth), so the engine reads
-// the profile table without importing the config.
+// ProfileAuth answers what the config applied now makes of profile name for
+// the loop it is installed on: the authentication it resolves to, nil for
+// none, and whether a client of that loop may name it, which needs the config
+// to define it and to permit it for the loop's hop mode. The bfd plugin
+// supplies it (SetProfileAuth), so the engine reads the profile table without
+// importing the config.
 type ProfileAuth func(name string) (auth *api.AuthSettings, defined bool)
 
 // SetProfileAuth installs the profile lookup a refused join reads to tell
@@ -94,7 +96,8 @@ func joinAuthCheck(entry *sessionEntry, req api.SessionRequest, key api.Key, pro
 // authentication came from, still resolves to that authentication. Only then
 // may a refusal send a client to it: a profile edited or removed since would
 // give the client an authentication the session does not run, or a name the
-// commit refuses as undefined. The false answer is a guard: no recorded
+// commit refuses, as undefined or as one the session's hop mode may not use
+// (ProfileAuth answers not defined for that). The false answer is a guard: no recorded
 // profile, or no lookup installed, cannot show the profile is unchanged, so
 // the refusal falls to the release, which applies whatever the profile holds.
 func sourceCurrent(profiles ProfileAuth, live *api.AuthSettings, liveFrom string) bool {

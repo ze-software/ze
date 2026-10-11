@@ -134,7 +134,7 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 	}
 	loop := engine.NewLoopWithEcho(tr, echoTr, clock.RealClock{})
 	attachMetricsHook(loop)
-	loop.SetProfileAuth(r.profileAuth)
+	loop.SetProfileAuth(r.profileAuthFor(key.mode))
 	if startErr := loop.Start(); startErr != nil {
 		if stopErr := tr.Stop(); stopErr != nil {
 			logger().Debug("bfd udp stop after failed start", "err", stopErr)
@@ -160,24 +160,33 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 	return loop, nil
 }
 
-// profileAuth answers the engine's profile lookup (engine.ProfileAuth) from
-// the config applied now: the authentication profile name resolves to, through
-// the applyTo every client request goes through, and whether that config
-// defines name. The engine calls it from Loop.EnsureSession, which both of its
-// callers (pluginService.EnsureSession and applyPinned) reach holding
+// profileAuthFor returns the engine's profile lookup (engine.ProfileAuth) for
+// the loop that runs mode sessions, answered from the config applied now: the
+// authentication profile name resolves to, through the applyTo every client
+// request goes through, and whether a client of that loop may name it. The
+// engine calls the lookup from Loop.EnsureSession, which both of its callers
+// (pluginService.EnsureSession and applyPinned) reach holding
 // runtimeStateGuard, the lock r.cfg is written under; it MUST NOT be called
 // without that lock held.
-func (r *runtimeState) profileAuth(name string) (*api.AuthSettings, bool) {
-	if r.cfg == nil {
-		return nil, false
+func (r *runtimeState) profileAuthFor(mode api.HopMode) engine.ProfileAuth {
+	return func(name string) (*api.AuthSettings, bool) {
+		if r.cfg == nil {
+			return nil, false
+		}
+		p, ok := r.cfg.profiles[name]
+		if !ok {
+			return nil, false
+		}
+		// A profile this mode may not use is no fix for a session of the
+		// loop: the commit refuses it for the client (permitsMode), so the
+		// answer is the one for a profile the config does not define.
+		if err := p.permitsMode(mode); err != nil {
+			return nil, false
+		}
+		var req api.SessionRequest
+		p.applyTo(&req)
+		return req.Auth, true
 	}
-	p, ok := r.cfg.profiles[name]
-	if !ok {
-		return nil, false
-	}
-	var req api.SessionRequest
-	p.applyTo(&req)
-	return req.Auth, true
 }
 
 // stopAll tears down every running loop and forgets every pinned handle.

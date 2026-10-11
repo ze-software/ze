@@ -548,18 +548,42 @@ Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scrat
 | NOTE 3 | "so this client runs without BFD" loose for strict BGP and pinned | same commit | refusal says "so this client gets no BFD session"; guide names per client what follows (BGP runs without BFD, strict held down, static runs without BFD, pinned fails the commit's apply, OSPF on hello and dead timers) |
 | NOTE 4 | non-edited refusals do not say when the fix applies | within the owner's direction | recorded only |
 
-Refusal lengths 331 to 396 characters (cap 400). `./le rfc discriminate-record` re-recorded the RFC5882-10.2-1 negative (producer `joinAuthCheck` changed; unit byte-identical, observed red). `./le rfc check`: nothing for rfc5880, rfc5881 or rfc5882. No RFC-tagged test asserts the changed text.
+Refusal lengths 331 to 396 characters (cap 400). `./le rfc discriminate-record` re-recorded the RFC5882-10.2-1 negative (producer `joinAuthCheck` changed; unit byte-identical, observed red). That claim of a clean `./le rfc check` was false: the commit also changed `engine.go::EnsureSession`, so three records with that producer were producer-changed (round 7 ISSUE 1, `rfccheck-r7-review.log`, exit 2, RFC5881-2-2 negative and RFC5882-4.4-1 both polarities). Round 7 re-recorded them; see below. No RFC-tagged test asserts the changed text.
+
+## Review round 7 fixes, 2026-10-11
+
+Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-rfc-verdict-bfd-r7.md` (0 BLOCKER, 1 ISSUE, 3 NOTE).
+
+| # | Finding | Fixed by | Evidence |
+|---|---------|----------|----------|
+| ISSUE 1 | three discrimination records with producer `engine.go::EnsureSession` stale after `600419411d` | the commit that carries this row | `./le rfc discriminate-record ... route revert producer internal/component/bfd/engine/engine.go::EnsureSession` for RFC5881-2-2 negative (`TestRFC5881SamePeerCoalesces`), RFC5882-4.4-1 negative (`TestBFDDistinctSessionsDifferentKey`) and RFC5882-4.4-1 positive (`TestBFDSharedSessionSameKey`); each observed its unit's `--- FAIL` under the panic break; only `producer-sha` moved (`0547e78d5acde32d` to `be658bb3f8294a42`). `./le rfc check` after: no rfc5880, rfc5881 or rfc5882 line (`rfccheck-r8.log`, exit 2 on 12 foreign violations: RFC2545, RFC9086, RFC9190, RFC9252, RFC9514) |
+| NOTE 1 | guide "No authentication" row omitted a removed source profile | same commit | `docs/guide/bfd.md` row: "has since gained an auth block, been removed, or set an option the session's hop mode refuses" |
+| NOTE 2 | `profileAuth` ignored `permitsMode` | same commit | `runtimeState.profileAuthFor(mode)` replaces `profileAuth`: `loopFor` installs it with the loop's hop mode, and a profile that mode may not use answers not defined, so `sourceCurrent` is false and the refusal names the release. `TestAuthJoinRefusalNamesApplicableFix` case "keeps its auth but gains passive, another profile asks": red before the fix (the refusal named `bfd profile "secure"`), green after. Guide last table row and `docs/architecture/bfd.md` say so |
+| NOTE 3 | release alternative not named for a live-none session | owner's view only | recorded only |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | |
-| `./le spec review check` | not run |
-| Rounds | 6 so far (scratch `review-rfc-verdict-bfd.md`, `-r2` to `-r6`); round 7 owed |
+| Artifact | `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-rfc-verdict-bfd.md`, `review-rfc-verdict-bfd-r2.md` to `review-rfc-verdict-bfd-r7.md` |
+| `./le spec review check` | 2026-10-11: BLOCKED, no independent-review artifact at `tmp/review/rfc-verdict-fix-bfd-5620b26f-603e-4d57-826d-6ef92b7fcd64.md`; owed: `./le spec review record` by the reviewer of the round-7 fix commit |
+| Rounds | 7 (scratch `review-rfc-verdict-bfd.md`, `-r2` to `-r7`). Round 7's only ISSUE was the mechanical re-record of three discrimination records, fixed in the commit that carries this table, with its NOTE 1 and NOTE 2 |
 | Owner authorised | round 6: Thomas, 2026-10-11, "Authorise round 6"; round 7: Thomas, 2026-10-11, "Authorise round 7" |
-| Reviewer lenses used | |
+| Reviewer lenses used | RFC text, discrimination records and `./le rfc check`, user-facing refusal text, guide against code, lock order, overlay reds, functional `.ci` |
+| Open | round-1 ISSUE 5, `./le verify worktree`: owed, run by the main thread or a fresh agent on a quiet tree |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| R1-1 | ISSUE | RFC5880-6.7.2-2 hex password SHOULD unrecorded | `rfc/short/rfc5880.md`, `rfc/audit/rfc5880.json` | `d5d22258ef` |
+| R1-2 | ISSUE | `sameAuth` Type and Meticulous comparisons untested | `engine/auth_join.go::sameAuth` | `ef70c19e79`, re-judged `332ee2903a` |
+| R1-3 | ISSUE | RFC 5882 Section 10.2 warnings named no fix | `bgp/reactor/peer_bfd.go` | `3e6e76a6de` |
+| R1-4 | ISSUE | no `.ci` drove the warning or the join refusal | `test/plugin/bgp-bfd-auth-*.ci` | `e64da01079`, `f09ad6f51e` |
+| R1-5 | ISSUE | `./le verify worktree` not met | whole tree | OPEN |
+| R2-A | ISSUE | no-profile Warn's `fix` attribute asserted by nothing | `peer_bfd.go::verifyPeerBFDProfiles` | `9acec85447` |
+| R2-B | ISSUE | auth-join refusal named no fix | `engine/auth_join.go` | `20f413e184` |
+| R3-1 | ISSUE | refusal's fix impossible when one client is OSPF | `engine/auth_join.go::authMismatchCase` | `d48bb913de` |
+| R4-1 | ISSUE | fixes the refusal named never took effect; "Editing live" promised in-place propagation | `engine/auth_join.go`, `docs/guide/bfd.md` | `d6f31cd7dc` |
+| R5-1 to R5-4 | ISSUE | release command refused; OSPF retry omitted; refusal too long; `authFrom` unpinned | `engine/auth_join.go`, `docs/guide/bfd.md` | `9b0f42eee2` |
+| R6-1, R6-2 | ISSUE | fixes edited a shared profile; refusal named a stale profile | `engine/auth_join.go`, `bfd.go::loopFor` | `600419411d` |
+| R7-1 | ISSUE | three `EnsureSession` records producer-changed | `rfc/discrimination/rfc5881.json`, `rfc5882.json` | the commit that carries this row |

@@ -183,10 +183,11 @@ session was built, and that only a release by every client applies the edit:
 nothing re-requests a session a client already holds on a config commit. The
 engine also asks the bfd plugin whether that profile still resolves to the
 session's authentication, through the `engine.ProfileAuth` lookup each loop
-gets from `loopFor` (`runtimeState.profileAuth`, read under the lock every
-`EnsureSession` caller holds), so it never imports the config. Only while it
-does may a refusal name it; once it is edited or removed, every refusal names
-the release. No fix a refusal names edits a profile, because an edit reaches
+gets from `loopFor` (`runtimeState.profileAuthFor`, built for the loop's hop
+mode and read under the lock every `EnsureSession` caller holds), so it never
+imports the config. Only while it does, and while the loop's hop mode may still
+use it (`permitsMode`), may a refusal name it; once it is edited, removed, or
+made one the mode refuses, every refusal names the release. No fix a refusal names edits a profile, because an edit reaches
 every client naming that profile, on any neighbor.
 
 <!-- source: internal/component/bfd/api/session_identity.go -- Canonical, canonicalMultiHop -->
@@ -194,7 +195,7 @@ every client naming that profile, on any neighbor.
 <!-- source: internal/component/bfd/session_identity.go -- connectedLinks, vrfMembership -->
 <!-- source: internal/component/bfd/engine/engine.go -- sharedEntryLocked, sharesSession -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent, SetProfileAuth, sharedAuthLocked, replaceAuth -->
-<!-- source: internal/component/bfd/bfd.go -- loopFor, runtimeState.profileAuth -->
+<!-- source: internal/component/bfd/bfd.go -- loopFor, runtimeState.profileAuthFor -->
 
 ### Discriminator allocation
 

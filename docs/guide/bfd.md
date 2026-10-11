@@ -526,18 +526,18 @@ where only a release by every client helps:
 
 | Live session | Refused client | Fix the error names |
 |--------------|----------------|---------------------|
-| No authentication | Profile with an auth block | Name the profile the session was built from, or another profile with no auth block, on this client. When no client's profile built the session (an OSPF interface or a pinned session naming none), or that profile has gained an auth block since, the error names only the second |
+| No authentication | Profile with an auth block | Name the profile the session was built from, or another profile with no auth block, on this client. When no client's profile built the session (an OSPF interface or a pinned session naming none), or that profile has since gained an auth block, been removed, or set an option the session's hop mode refuses, the error names only the second |
 | Authentication | Profile with no auth block | Name the profile the session was built from on this client, or copy that profile's auth block into a profile only this client names |
 | Authentication | No profile (an OSPF interface, or a BGP peer or pinned session naming none) | Name the profile the session was built from on this client, or, on an OSPF interface, set `bfd { enabled false; }` |
 | Authentication | Profile with a different auth block | Name the profile the session was built from on this client, or copy that profile's auth block into a profile only this client names |
 | Either | The profile the live session was built from, edited since | Release the session from every client (see "Editing live"), so the next client to ask builds it from the edited profile |
-| Authentication | Any client, while the profile the session was built from has been edited or removed since | Release the session from every client (see "Editing live"). The error never names that profile then: copying it, or naming it, would give the client an authentication the session does not run, or a name the commit refuses |
+| Authentication | Any client, while the profile the session was built from has been edited or removed since, or now sets an option the session's hop mode refuses (`passive` on single-hop, `echo` on multi-hop) | Release the session from every client (see "Editing live"). The error never names that profile then: copying it, or naming it, would give the client an authentication the session does not run, or a name the commit refuses |
 
 The other way round, changing every other client to match the refused one,
 also works, but a live session keeps its authentication until every client has
 released it, so it needs the release in "Editing live" too.
 <!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent -->
-<!-- source: internal/component/bfd/bfd.go -- profileAuth, loopFor -->
+<!-- source: internal/component/bfd/bfd.go -- profileAuthFor, loopFor -->
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession -->
 <!-- source: internal/component/bgp/reactor/peer_bfd.go -- startBFDClient -->
 <!-- source: internal/plugins/static/inject.go -- setupBFDLocked -->

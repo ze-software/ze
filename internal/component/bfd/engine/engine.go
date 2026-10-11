@@ -121,8 +121,9 @@ type Loop struct {
 	byDiscr   map[uint32]*sessionEntry
 	byKey     map[firstPacketKey]*sessionEntry
 	nextDiscr uint32
-	// profileAuth resolves a profile name in the config applied now
-	// (SetProfileAuth), nil when none is installed. Guarded by mu.
+	// profileAuth resolves a profile name in the config applied now, for
+	// this loop's hop mode (SetProfileAuth), nil when none is installed.
+	// Guarded by mu.
 	profileAuth ProfileAuth
 
 	subsMu      sync.Mutex

@@ -57,6 +57,15 @@ const authJoinSecureRemovedSection = `{"bfd":{"profile":{` +
 	`"rekeyed":{"auth":{"type":"keyed-sha1","key-id":"8","secret":"JOIN-SECRET"}},` +
 	`"open":{}}}}`
 
+// authJoinSecurePassiveSection is authJoinSection after an operator sets
+// passive on profile "secure" and leaves its auth block alone. A single-hop
+// client can no longer name it (permitsMode, RFC 5881 Section 3), so a
+// refusal on a single-hop session MUST NOT send the client there.
+const authJoinSecurePassiveSection = `{"bfd":{"profile":{` +
+	`"secure":{"passive":"true","auth":{"type":"keyed-sha1","key-id":"7","secret":"JOIN-SECRET"}},` +
+	`"rekeyed":{"auth":{"type":"keyed-sha1","key-id":"8","secret":"JOIN-SECRET"}},` +
+	`"open":{}}}}`
+
 // TestAuthJoinRefusalNamesApplicableFix opens a session with the first
 // request, applies the edit config when the case has one, asks again with the
 // second, and checks the refusal: it matches engine.ErrAuthMismatch, says
@@ -202,6 +211,17 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			without: "name bfd profile \"secure\"",
 		},
 		{
+			name:   "the profile the session was built from keeps its auth but gains passive, another profile asks",
+			first:  bgpPeerSessionRequest("secure"),
+			edit:   authJoinSecurePassiveSection,
+			second: bgpPeerSessionRequest("rekeyed"),
+			want: []string{
+				"the session's bfd profile \"secure\" changed or was removed since",
+				releaseFix,
+			},
+			without: "name bfd profile \"secure\"",
+		},
+		{
 			name:   "the profile the session was built from is edited, ospf asks",
 			first:  bgpPeerSessionRequest("secure"),
 			edit:   authJoinEditedSection,
@@ -229,7 +249,7 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			svc, loop, _ := authJoinFixture(t)
 			// As loopFor does for every loop it creates: the refusal reads
 			// the applied config through it (engine.ProfileAuth).
-			loop.SetProfileAuth(svc.state.profileAuth)
+			loop.SetProfileAuth(svc.state.profileAuthFor(api.SingleHop))
 			if _, err := svc.EnsureSession(tc.first); err != nil {
 				t.Fatalf("EnsureSession(first): %v", err)
 			}
