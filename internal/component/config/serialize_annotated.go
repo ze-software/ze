@@ -260,6 +260,10 @@ func serializeAnnotatedTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 	case *ValueOrArrayNode:
 		// Direct access: caller holds tree.mu.RLock via serializeAnnotatedTree.
 		if items := tree.multiValues[name]; len(items) > 0 {
+			// Same form as the plain hierarchical serializer: bare members
+			// plus one `inactive: <leaf> <member>` line per deactivated
+			// member, never the internal "inactive:" prefix.
+			bare, inactiveMembers := splitInactiveMembers(items, tree.inactiveMembers[name])
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			b.Str(prefix)
 			if tree.inactiveValues[name] {
@@ -268,12 +272,12 @@ func serializeAnnotatedTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 			b.Str(name)
 			// A whole inactive leaf keeps its brackets even for one member:
 			// `inactive: <leaf> <member>` is a member statement, like `nop`.
-			if len(items) == 1 && !tree.inactiveValues[name] {
+			if len(bare) == 1 && !tree.inactiveValues[name] {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(items[0]))
+				b.Str(quoteIfNeeded(bare[0]))
 			} else {
 				b.Str(" [ ")
-				for i, item := range items {
+				for i, item := range bare {
 					if i > 0 {
 						b.Str(" ")
 					}
@@ -282,6 +286,15 @@ func serializeAnnotatedTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 				b.Str(" ]")
 			}
 			b.Str("\n")
+			for _, member := range inactiveMembers {
+				writeAnnotatedLeafGutter(b, meta, name, columns)
+				b.Str(prefix)
+				b.Str("inactive: ")
+				b.Str(name)
+				b.Str(" ")
+				b.Str(quoteIfNeeded(member))
+				b.Str("\n")
+			}
 		}
 
 	case *ContainerNode:

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,4 +75,60 @@ func TestHierarchicalInactiveMemberRoundTrips(t *testing.T) {
 	require.NotNil(t, ws, out)
 	assert.True(t, ws.IsLeafInactive("name-server"), "whole-leaf inactive must survive the round-trip:\n%s", out)
 	assert.Equal(t, []MemberState{{Value: "9.9.9.9"}}, ws.GetMultiValuesState("name-server"), out)
+}
+
+// TestInactiveLeafListBlameAndAnnotatedMatchSerialize: the blame and the
+// annotated views print every inactive leaf-list shape exactly as the
+// hierarchical serializer does, so a whole inactive leaf of one member keeps
+// its brackets there too. It serializes each shape three ways and compares
+// the blame and annotated lines, each with its empty gutter removed, to
+// Serialize, then reparses the annotated text.
+//
+// VALIDATES: round-7 NOTE 3, the bracket branch in serialize_blame.go and
+// serialize_annotated.go.
+// PREVENTS: the blame or annotated view printing `inactive: <leaf> <member>`
+// for a whole inactive leaf, which reads back as one inactive member.
+func TestInactiveLeafListBlameAndAnnotatedMatchSerialize(t *testing.T) {
+	schema := NewSchema()
+	schema.Define("c", Container(Field("items", BracketLeafList(TypeString)), Field("plain", ValueOrArray(TypeString))))
+	cases := []struct {
+		name, leaf, hier, line string
+	}{
+		{"plain whole one", "plain", "c {\n inactive: plain [ a ];\n}\n", "\tinactive: plain [ a ]"},
+		{"plain whole one plus member", "plain", "c {\n inactive: plain [ a ];\n inactive: plain x;\n}\n", "\tinactive: plain x"},
+		{"plain whole all members inactive", "plain", "c {\n inactive: plain [ a ];\n inactive: plain a;\n}\n", "\tinactive: plain [ a ]"},
+		{"bracket whole one", "items", "c {\n inactive: items [ a ];\n}\n", "\tinactive: items [ a ]"},
+		{"bracket whole one plus member", "items", "c {\n inactive: items [ a ];\n inactive: items x;\n}\n", "\tinactive: items x"},
+		{"bracket whole all members inactive", "items", "c {\n inactive: items [ a ];\n inactive: items a;\n}\n", "\tinactive: items [ a ]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tree, err := NewParser(schema).Parse(tc.hier)
+			require.NoError(t, err)
+			want := Serialize(tree, schema)
+			require.Contains(t, strings.Split(want, "\n"), tc.line, "the shape under test was not built:\n%s", want)
+
+			blame := strings.Split(SerializeBlame(tree, NewMetaTree(), schema), "\n")
+			for i, line := range blame {
+				blame[i] = strings.TrimLeft(line, " ")
+			}
+			assert.Equal(t, want, strings.Join(blame, "\n"), "blame differs from Serialize")
+
+			// A column is enabled, because with none SerializeAnnotatedTree
+			// returns Serialize itself and the annotated branch never runs.
+			lines := strings.Split(SerializeAnnotatedTree(tree, NewMetaTree(), schema, ShowColumns{Author: true}), "\n")
+			for i, line := range lines {
+				lines[i] = strings.TrimLeft(line, " ")
+			}
+			annotated := strings.Join(lines, "\n")
+			assert.Equal(t, want, annotated, "annotated differs from Serialize")
+			again, err := NewParser(schema).Parse(annotated)
+			require.NoError(t, err, annotated)
+			c := again.GetContainer("c")
+			require.NotNil(t, c, annotated)
+			orig := tree.GetContainer("c")
+			assert.True(t, c.IsLeafInactive(tc.leaf), "the whole leaf must read back inactive:\n%s", annotated)
+			assert.Equal(t, orig.GetMultiValuesState(tc.leaf), c.GetMultiValuesState(tc.leaf), annotated)
+		})
+	}
 }
