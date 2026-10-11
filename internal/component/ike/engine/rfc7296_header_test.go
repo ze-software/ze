@@ -414,75 +414,135 @@ func TestResponseBitMatchesDirection(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7296-3.1-8 positive -- the receive path ignores the X bits. An IKE_SA_INIT
-// request whose five X bits are all set is processed exactly as the same request with them
-// clear. Header.ReadFrom stores the octet (header.go:53-70), and every consumer tests only
-// FlagResponse or FlagInitiator.
-// RFC requirement: RFC7296-3.1-11 negative -- the receive path ignores the V bit as well. A set V bit
-// changes no decision, so a peer that announces a higher major version capability is still
-// answered under version 2.
+// VALIDATES: a set X or V bit changes no receive decision, on each of the three sites that
+// read the flags octet. The fresh IKE_SA_INIT request enters at tryResponderSAInit, the
+// function dispatchInbound calls for a datagram with no SA, and the first site that reads
+// pkt.Data[19]. The protected INFORMATIONAL request enters at handleOwnedInbound, which
+// derives isResponse from the flags of an established SA's traffic. The IKE_SA_INIT
+// response enters at handleInbound, the initiator's state machine, which tests the R bit
+// before it hands the response on.
+// RFC requirement: RFC7296-3.1-8 positive -- the receive path ignores the X bits. An
+// IKE_SA_INIT request with all five X bits set creates one responder SA in
+// sa-init-received and draws a response, as the clean request does. A protected
+// INFORMATIONAL request with them set is answered and advances the expected Message ID.
+// An IKE_SA_INIT response with them set moves the initiator to auth-sent.
+// RFC requirement: RFC7296-3.1-11 negative -- the receive path ignores the V bit as well.
+// The same three messages with the V bit set reach the same three outcomes, and the
+// responder's answer to the fresh request still carries major version 2.
 //
-// RFC requirement: RFC7296-3.1-8 negative -- the tolerance is scoped to the X bits. A set R bit, which
-// is not an X bit, DOES change how the same message is treated.
+// RFC requirement: RFC7296-3.1-8 negative -- the tolerance is scoped to the X bits. The
+// same IKE_SA_INIT request with the R bit set, which is not an X bit, is refused by
+// tryResponderSAInit and creates no SA.
 func TestXBitsIgnoredOnReceipt(t *testing.T) {
 	log := slogutil.DiscardLogger()
-	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "xbit-psk")
+	flagBits := []struct {
+		name string
+		mask uint8
+	}{{"every X bit", xBitMask}, {"the V bit", wire.FlagVersion}}
 
-	run := func(mutate func([]byte)) *SA {
+	// The fresh request, through the dispatch entry for a datagram that names no SA.
+	fresh := func(mutate func([]byte)) (bool, *SATable, *SA) {
+		ps, table := sesRespondPeer(t)
+		iniPeer, _ := responderTestPeers(ipsec.AuthPreSharedSecret, "k")
 		ini, err := newInitiatorSA("ze", iniPeer, testIKEGroup(), testESPGroup())
 		if err != nil {
 			t.Fatalf("newInitiatorSA: %v", err)
 		}
 		req := buildSAInitRequest(ini, testIKEGroup())
 		mutate(req)
+		pkt := transport.Packet{
+			Data:       req,
+			RemoteAddr: &net.UDPAddr{IP: net.ParseIP("10.0.0.1"), Port: 500},
+		}
+		var iSPI, rSPI [8]byte
+		copy(iSPI[:], ini.InitiatorSPI[:])
+		consumed := tryResponderSAInit(pkt, iSPI, rSPI, table, nil, log)
+		return consumed, table, ps.getSA()
+	}
+
+	consumed, table, clean := fresh(func([]byte) {})
+	if !consumed || table.Len() != 1 || clean == nil || clean.State != StateSAInitReceived {
+		t.Fatalf("baseline: consumed=%v SAs=%d; the clean IKE_SA_INIT did not reach sa-init-received",
+			consumed, table.Len())
+	}
+
+	for _, bit := range flagBits {
+		consumed, table, resp := fresh(func(raw []byte) { raw[19] |= bit.mask })
+		if !consumed || table.Len() != 1 {
+			t.Errorf("an IKE_SA_INIT with %s set: consumed=%v SAs=%d, want true and 1; it "+
+				"must be accepted as the clean request is", bit.name, consumed, table.Len())
+			continue
+		}
+		if resp == nil || resp.State != StateSAInitReceived {
+			t.Errorf("an IKE_SA_INIT with %s set did not reach sa-init-received", bit.name)
+			continue
+		}
+		if len(resp.LastSentMsg) <= wire.HeaderLen {
+			t.Errorf("no response was built for an IKE_SA_INIT with %s set", bit.name)
+			continue
+		}
+		if resp.LastSentMsg[17]>>4 != 2 {
+			t.Errorf("an IKE_SA_INIT with %s set drew a response of major version %d, want 2",
+				bit.name, resp.LastSentMsg[17]>>4)
+		}
+	}
+
+	// An established SA. The flags travel inside the integrity check, so they are set
+	// before the ICV is computed, as a peer that sets them would.
+	link := errLink(t)
+	for _, bit := range flagBits {
+		msgID := link.resp.ExpectedMsgID
+		req, err := buildEncryptedMessageEx(link.ini, nil, msgID, wire.ExchangeInformational,
+			initiatorFlag(link.ini)|bit.mask)
+		if err != nil {
+			t.Fatalf("build INFORMATIONAL with %s: %v", bit.name, err)
+		}
+		out := link.ps.handleOwnedInbound(link.resp, transport.Packet{Data: req}, link.myTr, nil, log)
+		if !out.peerAlive {
+			t.Errorf("a protected INFORMATIONAL request with %s set was not processed", bit.name)
+		}
+		if link.resp.ExpectedMsgID == msgID {
+			t.Errorf("a protected INFORMATIONAL request with %s set left ExpectedMsgID at %d",
+				bit.name, msgID)
+		}
+		if rtxRecv(t, link.peerTr) == nil {
+			t.Errorf("a protected INFORMATIONAL request with %s set drew no response", bit.name)
+		}
+	}
+
+	// The initiator's side. The responder's IKE_SA_INIT response carries the bits.
+	for _, bit := range flagBits {
+		iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "xbit-psk")
+		ikeTable := NewSATable()
+		ini, err := newInitiatorSA("ze", iniPeer, testIKEGroup(), testESPGroup())
+		if err != nil {
+			t.Fatalf("newInitiatorSA: %v", err)
+		}
+		ikeTable.Insert(ini)
+		req := buildSAInitRequest(ini, testIKEGroup())
+		ini.InitiatorSAInitMsg = req
+		ini.State = StateSAInitSent
 		resp, err := newResponderSA("ze", respPeer, testIKEGroup(), testESPGroup(), ini.InitiatorSPI)
 		if err != nil {
 			t.Fatalf("newResponderSA: %v", err)
 		}
-		// Through the responder's dispatch, where the flags octet is judged, so a
-		// drop on a set X or V bit there turns this red.
-		ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: testIKEGroup(), espGroup: testESPGroup()}
-		ps.handleResponderInbound(resp, parseMsg(t, req), transport.Packet{Data: req}, nil, log)
-		return resp
-	}
-
-	clean := run(func([]byte) {})
-	if clean.State != StateSAInitReceived {
-		t.Fatalf("baseline responder state = %v, want sa-init-received", clean.State)
-	}
-
-	noisy := run(func(raw []byte) { raw[19] |= xBitMask })
-	if noisy.State != clean.State {
-		t.Errorf("responder state = %v with every X bit set, want %v; the X bits must be "+
-			"ignored on receipt", noisy.State, clean.State)
-	}
-	if len(noisy.LastSentMsg) == 0 {
-		t.Error("no response was built for a request with the X bits set")
-	}
-
-	vSet := run(func(raw []byte) { raw[19] |= wire.FlagVersion })
-	if vSet.State != clean.State {
-		t.Errorf("responder state = %v with the V bit set, want %v; the V bit must be ignored "+
-			"in incoming messages", vSet.State, clean.State)
-	}
-	if len(vSet.LastSentMsg) > wire.HeaderLen && vSet.LastSentMsg[17]>>4 != 2 {
-		t.Error("the V bit changed the version of the response; it must be ignored")
+		handleSAInitRequest(resp, parseMsg(t, req), req, nil, nil, log)
+		answer := append([]byte(nil), resp.LastSentMsg...)
+		if len(answer) <= wire.HeaderLen {
+			t.Fatal("the responder built no IKE_SA_INIT response")
+		}
+		answer[19] |= bit.mask
+		handleInbound(ini, transport.Packet{Data: answer}, ikeTable, nil, log)
+		if ini.State != StateAuthSent {
+			t.Errorf("initiator state = %v after an IKE_SA_INIT response with %s set, want "+
+				"auth-sent", ini.State, bit.name)
+		}
 	}
 
 	// Negative: the R bit is not an X bit and is not ignored.
-	ini, err := newInitiatorSA("ze", iniPeer, testIKEGroup(), testESPGroup())
-	if err != nil {
-		t.Fatalf("newInitiatorSA: %v", err)
-	}
-	req := buildSAInitRequest(ini, testIKEGroup())
-	req[19] |= wire.FlagResponse
-	resp, err := newResponderSA("ze", respPeer, testIKEGroup(), testESPGroup(), ini.InitiatorSPI)
-	if err != nil {
-		t.Fatalf("newResponderSA: %v", err)
-	}
-	ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: testIKEGroup(), espGroup: testESPGroup()}
-	ps.handleResponderInbound(resp, parseMsg(t, req), transport.Packet{Data: req}, nil, log)
-	if resp.State == StateSAInitReceived {
-		t.Error("setting the R bit changed nothing; a bit that is not an X bit must not be ignored")
+	consumed, table, _ = fresh(func(raw []byte) { raw[19] |= wire.FlagResponse })
+	if consumed || table.Len() != 0 {
+		t.Errorf("an IKE_SA_INIT with the R bit set: consumed=%v SAs=%d, want false and 0; a "+
+			"bit that is not an X bit must not be ignored", consumed, table.Len())
 	}
 }

@@ -282,16 +282,22 @@ func TestErrUnprotectedMessageDrawsNoCachedResponse(t *testing.T) {
 	}
 }
 
-// VALIDATES: an unprotected message changes no IKE SA or Child SA state.
-// RFC requirement: RFC7296-2.21.4-6 positive -- an unprotected INVALID_IKE_SPI Notify,
-// the exact bytes sendInvalidIKESPI writes for a request naming this SA's SPIs, is
-// delivered to the established SA's owner. No datagram answers it, and it leaves five
-// things untouched: the state, both message-ID counters, the outstanding-request flag
-// and the Child SA. It does not reset the dead-peer timer either.
-// RFC requirement: RFC7296-2.21.4-6 negative -- the SAME INVALID_IKE_SPI Notify
-// delivered inside a valid Encrypted payload DOES reach the handlers and DOES credit
-// liveness. So the freeze above is caused by the missing protection and not by
-// notifies being inert.
+// VALIDATES: an unprotected INVALID_IKE_SPI response changes no IKE SA or Child SA state,
+// even when it carries the Message ID of a request the SA has outstanding.
+// Method: the established responder SA sends a DPD probe through sendDPD, so it holds
+// the one request window at the probe's Message ID. The test then delivers the exact
+// bytes sendInvalidIKESPI writes for that probe: a response (R bit set) at that Message
+// ID with an unprotected INVALID_IKE_SPI Notify. Both inputs are responses at the same
+// Message ID, so the two differ in protection alone.
+// RFC requirement: RFC7296-2.21.4-6 positive -- the unprotected response draws no
+// datagram before a sentinel. It leaves the request window held at the probe's Message
+// ID, returns no DPD answer and no liveness credit, and leaves the state, both
+// message-ID counters and the Child SA untouched.
+// RFC requirement: RFC7296-2.21.4-6 negative -- the SAME INVALID_IKE_SPI Notify, with the
+// same R bit and the same Message ID, delivered inside a valid Encrypted payload IS
+// accepted: handleOwnedInbound returns it as the DPD answer at the probe's Message ID
+// and releases the request window. So the freeze above is caused by the missing
+// protection, not by the direction bit or by a Message ID nothing awaits.
 // This row governs the UNPROTECTED message. RFC7296-2.21.4-7 governs the protected
 // INFORMATIONAL notify, and the two look identical unless the scope is named.
 func TestErrUnprotectedNotifyChangesNoState(t *testing.T) {
@@ -304,18 +310,35 @@ func TestErrUnprotectedNotifyChangesNoState(t *testing.T) {
 
 	child := &ChildSA{InboundSPI: 0xAB, OutboundSPI: 0xCD}
 	ps.setChildSA(child)
+
+	// The outstanding request: a DPD probe the peer has not answered yet.
+	probe := &dpdState{}
+	sendDPD(resp, myTr, probe, log)
+	if rtxRecv(t, link.peerTr) == nil {
+		t.Fatal("the DPD probe never reached the peer")
+	}
+	if !resp.requestOutstanding || !probe.awaitReply {
+		t.Fatal("the DPD probe left no request outstanding, so there is nothing to answer")
+	}
+	msgID := probe.probeMsgID
+	if resp.requestMsgID != msgID {
+		t.Fatalf("the request window is held at %d, want the probe's %d", resp.requestMsgID, msgID)
+	}
 	beforeState, beforeExpected, beforeNext := resp.State, resp.ExpectedMsgID, resp.NextMsgID
-	beforeOutstanding := resp.requestOutstanding
 
 	// The input is a real unprotected INVALID_IKE_SPI: what Ze's own out-of-SA emitter
-	// writes when a datagram naming these SPIs reaches a node that does not know them.
-	forged := ntfEmit(t, ntfRequest(resp.InitiatorSPI, resp.ResponderSPI, wire.ExchangeInformational, resp.ExpectedMsgID, false), false)
+	// writes when the probe reaches a node that does not know these SPIs.
+	forged := ntfEmit(t, ntfRequest(resp.InitiatorSPI, resp.ResponderSPI, wire.ExchangeInformational, msgID, false), false)
 	if forged == nil {
 		t.Fatal("the out-of-SA emitter wrote no INVALID_IKE_SPI to use as input")
 	}
 	var forgedMsg wire.Message
 	if err := forgedMsg.ReadFrom(forged); err != nil {
 		t.Fatalf("the INVALID_IKE_SPI input does not parse: %v", err)
+	}
+	if forgedMsg.Header.Flags&wire.FlagResponse == 0 || forgedMsg.Header.MessageID != msgID {
+		t.Fatalf("the input is flags %#x at Message ID %d, want a response at the probe's %d",
+			forgedMsg.Header.Flags, forgedMsg.Header.MessageID, msgID)
 	}
 	if len(forgedMsg.Payloads) != 1 {
 		t.Fatalf("the input carries %d payloads, want one unprotected Notify", len(forgedMsg.Payloads))
@@ -334,8 +357,15 @@ func TestErrUnprotectedNotifyChangesNoState(t *testing.T) {
 		t.Errorf("the unprotected notify drew a %d-octet datagram before the sentinel; it MUST NOT be answered", len(got))
 	}
 
+	if out.dpdResp {
+		t.Errorf("the unprotected response was taken as the DPD answer at Message ID %d", out.dpdRespMsgID)
+	}
 	if out.peerAlive {
 		t.Error("an unprotected message credited peer liveness, so it reset the dead-peer timer")
+	}
+	if !resp.requestOutstanding || resp.requestMsgID != msgID {
+		t.Errorf("the request window moved (outstanding=%v at %d), want it held at %d",
+			resp.requestOutstanding, resp.requestMsgID, msgID)
 	}
 	if resp.State != beforeState {
 		t.Errorf("state = %v, want the unchanged %v", resp.State, beforeState)
@@ -346,23 +376,25 @@ func TestErrUnprotectedNotifyChangesNoState(t *testing.T) {
 	if resp.NextMsgID != beforeNext {
 		t.Errorf("NextMsgID = %d, want the unchanged %d", resp.NextMsgID, beforeNext)
 	}
-	if resp.requestOutstanding != beforeOutstanding {
-		t.Error("the outstanding-request flag moved")
-	}
 	if ps.getChildSA() != child {
 		t.Error("the Child SA was replaced")
 	}
 
-	// Negative. The same INVALID_IKE_SPI Notify inside a valid SK payload does reach
-	// the handler.
+	// Negative. The same response, R bit and Message ID included, inside a valid SK
+	// payload is accepted as the answer to the probe.
 	inner := []wire.PayloadEntry{{Payload: &wire.PayloadNotify{NotifyMsgType: wire.NotifyInvalidIKESPI}}}
-	real, err := buildEncryptedMessageEx(ini, inner, resp.ExpectedMsgID, wire.ExchangeInformational, initiatorFlag(ini))
+	real, err := buildEncryptedMessageEx(ini, inner, msgID, wire.ExchangeInformational,
+		initiatorFlag(ini)|wire.FlagResponse)
 	if err != nil {
 		t.Fatalf("build protected INVALID_IKE_SPI: %v", err)
 	}
 	protected := ps.handleOwnedInbound(resp, transport.Packet{Data: real}, myTr, nil, log)
-	if !protected.peerAlive {
-		t.Error("a protected INFORMATIONAL did not reach the handler, so the freeze above proves nothing")
+	if !protected.dpdResp || protected.dpdRespMsgID != msgID {
+		t.Errorf("the protected response gave dpdResp=%v at %d, want the DPD answer at %d; "+
+			"without it the freeze above proves nothing", protected.dpdResp, protected.dpdRespMsgID, msgID)
+	}
+	if resp.requestOutstanding {
+		t.Error("the protected response left the request window held")
 	}
 }
 

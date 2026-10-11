@@ -830,23 +830,23 @@
       "rid": "RFC7296-2.21.4-6",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState",
-      "unit-sha": "f0df105bf6bea9ac",
-      "claim-sha": "e6fe033f65f40aa8",
-      "route": "revert",
+      "unit-sha": "727423193cb23143",
+      "claim-sha": "b0053531d727eb3b",
+      "route": "mutant",
       "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
       "producer-sha": "08f9f0eec1855c93",
-      "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "break": "line 137: \"err == nil\" -\u003e \"err == nil || err != nil\""
     },
     {
       "rid": "RFC7296-2.21.4-6",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState",
-      "unit-sha": "f0df105bf6bea9ac",
-      "claim-sha": "7a37cd809b4a152b",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
-      "producer-sha": "16e89dc41a6d249a",
-      "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "unit-sha": "727423193cb23143",
+      "claim-sha": "ecc0e0f7aaa0de7d",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+      "producer-sha": "08f9f0eec1855c93",
+      "break": "line 137: \"err == nil\" -\u003e \"err == nil \u0026\u0026 err != nil\""
     },
     {
       "rid": "RFC7296-2.21.4-7",
@@ -1578,12 +1578,12 @@
       "rid": "RFC7296-3.1-11",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt",
-      "unit-sha": "41b0c5363ceaba4d",
-      "claim-sha": "8dd1505df409b46b",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/responder.go::handleResponderInbound",
-      "producer-sha": "12d94c65a350be00",
-      "break": "body of handleResponderInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "unit-sha": "dabaa3cbdab52a99",
+      "claim-sha": "250e0546936e1d44",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+      "producer-sha": "20be1f2568547369",
+      "break": "line 774: \"pkt.Data[19]\u0026wire.FlagResponse != 0\" -\u003e \"pkt.Data[19]\u0026^wire.FlagInitiator != 0\""
     },
     {
       "rid": "RFC7296-3.1-12",
@@ -1754,23 +1754,23 @@
       "rid": "RFC7296-3.1-8",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt",
-      "unit-sha": "41b0c5363ceaba4d",
-      "claim-sha": "b5ff3cf5facceb20",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/responder.go::handleResponderInbound",
-      "producer-sha": "12d94c65a350be00",
-      "break": "body of handleResponderInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "unit-sha": "dabaa3cbdab52a99",
+      "claim-sha": "197c4dbfaf8e3454",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+      "producer-sha": "20be1f2568547369",
+      "break": "line 774: \"pkt.Data[19]\u0026wire.FlagResponse != 0\" -\u003e \"pkt.Data[19]\u0026^wire.FlagInitiator != 0\""
     },
     {
       "rid": "RFC7296-3.1-8",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt",
-      "unit-sha": "41b0c5363ceaba4d",
-      "claim-sha": "b69b5dc7d2c17c86",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/responder.go::handleResponderInbound",
-      "producer-sha": "12d94c65a350be00",
-      "break": "body of handleResponderInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "unit-sha": "dabaa3cbdab52a99",
+      "claim-sha": "a7e6b779f371e998",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+      "producer-sha": "20be1f2568547369",
+      "break": "line 774: \"pkt.Data[19]\u0026wire.FlagResponse != 0\" -\u003e \"false\""
     },
     {
       "rid": "RFC7296-3.1-9",
