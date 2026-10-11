@@ -1,0 +1,3 @@
+# Every RESV this egress originates distributes Implicit NULL (label 3), as a
+# penultimate-hop-popping egress does, in place of the label it allocated.
+FREERTR_ZE_RESV_IMPLICIT_NULL=1

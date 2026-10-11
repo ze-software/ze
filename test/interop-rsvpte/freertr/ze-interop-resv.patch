@@ -31,7 +31,7 @@ diff -ru a/src/org/freertr/pack/packRsvp.java b/src/org/freertr/pack/packRsvp.ja
 diff -ru a/src/org/freertr/rtr/rtrRsvpIface.java b/src/org/freertr/rtr/rtrRsvpIface.java
 --- a/src/org/freertr/rtr/rtrRsvpIface.java
 +++ b/src/org/freertr/rtr/rtrRsvpIface.java
-@@ -28,6 +28,36 @@
+@@ -28,6 +28,41 @@
  public class rtrRsvpIface implements ipPrt {
  
      /**
@@ -45,6 +45,8 @@ diff -ru a/src/org/freertr/rtr/rtrRsvpIface.java b/src/org/freertr/rtr/rtrRsvpIf
 +     * FLOWSPEC rate (bytes/s) raised in place, same session and sender.
 +     * FREERTR_ZE_RESV_FF_EXTRA_SENDER=1 sends fixed-filter RESVs carrying a
 +     * second flow descriptor for a sender that has no path state.
++     * FREERTR_ZE_RESV_IMPLICIT_NULL=1 distributes Implicit NULL (label 3)
++     * in place of the label this node allocated, as a PHP egress does.
 +     *
 +     * @param pck packet to alter
 +     */
@@ -62,13 +64,16 @@ diff -ru a/src/org/freertr/rtr/rtrRsvpIface.java b/src/org/freertr/rtr/rtrRsvpIf
 +            pck.styleVal = 10;
 +            pck.zeExtraSender = true;
 +        }
++        if (System.getenv("FREERTR_ZE_RESV_IMPLICIT_NULL") != null) {
++            pck.labelVal = 3;
++        }
 +    }
 +
 +    /**
       * counter
       */
      public counter cntr = new counter();
-@@ -266,6 +296,7 @@
+@@ -266,6 +301,7 @@
                          pckRvp.hopAdr = ntry.srcIfc.addr.copyBytes();
                          pckRvp.styleVal = 18;
                          pckRvp.labelVal = ntry.locLab.label;

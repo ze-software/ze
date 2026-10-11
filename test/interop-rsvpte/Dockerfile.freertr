@@ -13,11 +13,12 @@ WORKDIR /src/freertr
 RUN curl --fail --location --output /tmp/source.tar.gz \
     https://codeload.github.com/mc36/freeRtr/tar.gz/6c295d8ae79c834ef631d3d21d373c335fb05328 \
     && tar -xzf /tmp/source.tar.gz --strip-components=1
-# The one source change: freertr/ze-interop-resv.patch adds two test knobs to
+# The one source change: freertr/ze-interop-resv.patch adds three test knobs to
 # the RESV an egress originates, each off unless its environment variable is
-# set (FREERTR_ZE_RESV_RATE_AT, FREERTR_ZE_RESV_FF_EXTRA_SENDER). The unpatched
-# jar has no way to raise a reservation in place or to name a sender it has no
-# path for, which the scenarios proving Ze's reaction to both need.
+# set (FREERTR_ZE_RESV_RATE_AT, FREERTR_ZE_RESV_FF_EXTRA_SENDER,
+# FREERTR_ZE_RESV_IMPLICIT_NULL). The unpatched jar has no way to raise a
+# reservation in place, to name a sender it has no path for, or to distribute
+# Implicit NULL, which the scenarios proving Ze's reaction to each need.
 COPY freertr/ze-interop-resv.patch /tmp/ze-interop-resv.patch
 RUN patch -p1 < /tmp/ze-interop-resv.patch
 # Upstream src/compiler.txt selects --release 21 and compiles router.java's

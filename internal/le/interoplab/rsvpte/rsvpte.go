@@ -73,6 +73,8 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioIncreaseInPlace: checker(checkIncreaseInPlace, timeout),
 		scenarioFFUnknownSender: checker(checkFFUnknownSender, timeout),
 		scenarioBackupPathToMP:  checker(checkBackupPathToMP, timeout),
+		scenarioImplicitNullPop: checker(checkImplicitNullPop, timeout),
+		scenarioResvExpires:     checker(checkResvStateExpires, timeout),
 	}
 }
 

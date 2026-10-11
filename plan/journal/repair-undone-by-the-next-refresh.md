@@ -1,0 +1,5 @@
+# A local repair is undone by the next upstream refresh
+
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-11 | spec-rfc-verdict-fix-routing | `resolveReceivedPath` (`internal/plugins/rsvpte/routing.go`) at a Ze PLR whose protected LSP is locally repaired | `plr-backup-path-to-egress-merge-point` FAIL: the ingress PATH refresh carries a strict ERO hop across the failed link, the PLR rejects it (PathErr 24/2) and sends ResvErr 4 to the merge point, withdrawing the repair (RFC 4090 Section 6.4.3) | being fixed in this spec |

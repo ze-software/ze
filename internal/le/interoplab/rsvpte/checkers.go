@@ -27,6 +27,13 @@ const (
 	scenarioIncreaseInPlace = "transit-resv-increase-refused-in-place"
 	scenarioFFUnknownSender = "transit-ff-resv-unknown-sender"
 	scenarioBackupPathToMP  = "plr-backup-path-to-egress-merge-point"
+	scenarioImplicitNullPop = "egress-implicit-null-penultimate-pop"
+	scenarioResvExpires     = "transit-resv-state-expires"
+
+	// labelImplicitNull is how tcpdump prints the LABEL object value 3, the
+	// Implicit NULL label (RFC 3032 Section 2.1), which the patched egress of
+	// egress-implicit-null-penultimate-pop distributes.
+	labelImplicitNull = "3"
 
 	// raisedRate is how tcpdump prints the FLOWSPEC rate the patched egress
 	// asks once in transit-resv-increase-refused-in-place: 125000000 bytes/s
@@ -38,6 +45,13 @@ const (
 	// egress originates a RESV only when a PATH arrives, so its second RESV
 	// follows the ingress's first refresh by up to this long.
 	freeRtrRefresh = 120 * time.Second
+
+	// freeRtrResvLifetime is how long the Ze transit of
+	// transit-resv-state-expires keeps a reservation nobody refreshes: the
+	// freeRouter egress's RESV carries TIME_VALUES of freeRtrRefresh, and Ze
+	// times the RSB out after that period times its refresh-multiplier, 3 in
+	// that scenario's transit.conf (RFC 2205 Section 3.7).
+	freeRtrResvLifetime = 3 * freeRtrRefresh
 
 	captureFile = "/run/fr/rsvp.txt"
 	// catCommand reads a peer's capture file.
@@ -515,6 +529,149 @@ func checkFFUnknownSender(ctx context.Context, lab interoplab.CheckerLab, timeou
 		if isMessage(message, addressZeTransit, addressFreeRtrEgress, "ResvErr Message") && slices.Contains(lspIDs(message.text), known) {
 			return fmt.Errorf("a ResvErr names the known sender %s:\n%s", known, message.text)
 		}
+	}
+	return nil
+}
+
+// checkImplicitNullPop proves RFC 3032 Section 2.1 at a Ze transit that is the
+// penultimate hop: freeRouter ingress, Ze transit, patched freeRouter egress.
+// Every RESV the egress sends distributes Implicit NULL (label 3). Ze MUST
+// relay a RESV carrying a label of its own to the ingress, and MUST pop that
+// label toward the egress rather than swap it for 3: its MPLS table holds the
+// label via the egress with no outgoing label.
+func checkImplicitNullPop(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	// The positive control: the stimulus crossed the wire. Without it a pop
+	// would read the same as an egress that distributed an ordinary label.
+	if _, err := waitMessage(ctx, lab, peerTransit, "Ze transit receives the egress's Implicit NULL RESV", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressFreeRtrEgress, addressZeTransit, "Resv Message") &&
+			slices.Equal(resvLabels(message.text), []string{labelImplicitNull})
+	}); err != nil {
+		return err
+	}
+	relayed, err := waitMessage(ctx, lab, peerIngress, "ingress receives Ze's labeled RESV", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressZeTransit, addressFreeRtrIngress, "Resv Message") && len(resvLabels(message.text)) == 1
+	})
+	if err != nil {
+		return err
+	}
+	inLabel := resvLabels(relayed.text)[0]
+	if inLabel == labelImplicitNull {
+		return fmt.Errorf("the Ze transit relayed Implicit NULL upstream instead of a label it popped:\n%s", relayed.text)
+	}
+	last := ""
+	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: "Ze installs a pop of label " + inLabel + " toward the egress"},
+		func(ctx context.Context) (bool, error) {
+			table, err := lab.Query(ctx, peerTransit, []string{"ip", "-f", "mpls", "route", "show"}, nil)
+			if err != nil {
+				return false, err
+			}
+			last = table
+			return isPop(table, inLabel), nil
+		},
+		func(popped bool) bool { return popped })
+	if err != nil {
+		return fmt.Errorf("%w; last MPLS table at the Ze transit:\n%s", err, last)
+	}
+	return nil
+}
+
+// isPop reports whether an `ip -f mpls route show` table forwards inLabel
+// toward the freeRouter egress with no outgoing label: iproute2 prints a swap
+// as "<in> as to <out> via inet <hop>" and a pop as "<in> via inet <hop>".
+func isPop(table, inLabel string) bool {
+	for line := range strings.SplitSeq(table, "\n") {
+		label, rest, found := strings.Cut(strings.TrimSpace(line), " ")
+		if !found {
+			continue
+		}
+		if label != inLabel {
+			continue
+		}
+		if strings.Contains(rest, "as to") {
+			return false
+		}
+		return strings.Contains(rest, "via inet "+addressFreeRtrEgress)
+	}
+	return false
+}
+
+// resvLabels answers the values of a message's LABEL object, in order.
+// tcpdump prints each value indented under the object header as "Label: N";
+// the header itself reads "Class-Type: Label (1)", so it never matches.
+func resvLabels(text string) []string {
+	lines := strings.Split(text, "\n")
+	for index, line := range lines {
+		if !strings.Contains(line, "Label Object") {
+			continue
+		}
+		var labels []string
+		for _, sub := range lines[index+1:] {
+			if strings.Contains(sub, "Object (") {
+				break
+			}
+			if _, value, found := strings.Cut(sub, "Label: "); found {
+				labels = append(labels, strings.TrimSpace(value))
+			}
+		}
+		return labels
+	}
+	return nil
+}
+
+// checkResvStateExpires proves RFC 2205 Sections 2.3 and 3.1.6 at a Ze transit
+// between two freeRouters: freeRouter ingress, Ze transit, freeRouter egress.
+// Once the LSP is up the egress's freeRouter is frozen, so no RESV refreshes
+// the reservation Ze holds while the ingress keeps its path state refreshed.
+// Ze MUST time the reservation out: it MUST send the ingress a ResvTear, and
+// MUST withdraw the swap the reservation installed.
+func checkResvStateExpires(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	if _, err := waitMessage(ctx, lab, peerIngress, "ingress receives Ze's labeled RESV", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressZeTransit, addressFreeRtrIngress, "Resv Message") && strings.Contains(message.text, "Label Object")
+	}); err != nil {
+		return err
+	}
+	if err := waitSwap(ctx, lab, timeout); err != nil {
+		return err
+	}
+	// Before the freeze no ResvTear may exist, or the one found later could
+	// have come from something other than the expiry.
+	early, err := lab.Query(ctx, peerIngress, []string{catCommand, captureFile}, nil)
+	if err != nil {
+		return err
+	}
+	for _, message := range parseCapture(early) {
+		if isMessage(message, addressZeTransit, addressFreeRtrIngress, "ResvTear Message") {
+			return fmt.Errorf("the Ze transit sent a ResvTear while the egress still refreshed its RESV:\n%s", message.text)
+		}
+	}
+	if _, err := lab.Query(ctx, peerEgress, []string{"sh", "-c", "kill -STOP $(pidof java) && echo frozen"}, nil); err != nil {
+		return fmt.Errorf("freeze the freeRouter egress: %w", err)
+	}
+	if _, err := waitMessage(ctx, lab, peerIngress, "freeRouter ingress receives the Ze transit's ResvTear", timeout+freeRtrResvLifetime, func(message rsvpMessage) bool {
+		return isMessage(message, addressZeTransit, addressFreeRtrIngress, "ResvTear Message")
+	}); err != nil {
+		return err
+	}
+	// The withdrawn table can be empty, and Query refuses empty output, so the
+	// probe prints a marker after the table: the marker is the positive
+	// evidence that the read ran, which the absent swap alone cannot be.
+	const tableEnd = "end-of-mpls-table"
+	last := ""
+	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: "Ze withdraws the expired reservation's swap"},
+		func(ctx context.Context) (bool, error) {
+			table, err := lab.Query(ctx, peerTransit, []string{"sh", "-c", "ip -f mpls route show && echo " + tableEnd}, nil)
+			if err != nil {
+				return false, err
+			}
+			last = table
+			if !strings.Contains(table, tableEnd) {
+				return false, nil
+			}
+			return !strings.Contains(table, "via inet "+addressFreeRtrEgress), nil
+		},
+		func(withdrawn bool) bool { return withdrawn })
+	if err != nil {
+		return fmt.Errorf("%w; last MPLS table at the Ze transit:\n%s", err, last)
 	}
 	return nil
 }

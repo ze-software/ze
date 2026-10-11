@@ -87,7 +87,7 @@ func TestParseCaptureLabeled(t *testing.T) {
 // VALIDATES: every scenario directory has a checker and the catalog resolves
 // through Discover. PREVENTS: a scenario directory the runner would refuse.
 func TestScenarioCatalog(t *testing.T) {
-	if got := ScenarioNames(); !slices.Equal(got, []string{scenarioResvErrRelayed, scenarioBackupPathToMP, scenarioFFUnknownSender, scenarioLooseExpansion, scenarioIncreaseInPlace, scenarioResvTearRelayed, scenarioStrictForwarded, scenarioStrictRefused}) {
+	if got := ScenarioNames(); !slices.Equal(got, []string{scenarioImplicitNullPop, scenarioResvErrRelayed, scenarioBackupPathToMP, scenarioFFUnknownSender, scenarioLooseExpansion, scenarioIncreaseInPlace, scenarioResvExpires, scenarioResvTearRelayed, scenarioStrictForwarded, scenarioStrictRefused}) {
 		t.Fatalf("scenario names %q", got)
 	}
 }
@@ -225,5 +225,40 @@ func TestSenderIs(t *testing.T) {
 		if senderIs(text, "172.29.81.") {
 			t.Errorf("a prefix of the sender matched in %q", text)
 		}
+	}
+}
+
+// TestResvLabels proves the checker reads the LABEL object's value as tcpdump
+// prints it (print-rsvp.c, "Label: %u" under the object header) and nothing
+// from another object, so egress-implicit-null-penultimate-pop can tell
+// Implicit NULL from an ordinary label.
+func TestResvLabels(t *testing.T) {
+	text := "\t  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8\n\t    Label: 3\n" +
+		"\t  Record Route Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12\n\t    Label: 99\n"
+	if got := resvLabels(text); !slices.Equal(got, []string{labelImplicitNull}) {
+		t.Fatalf("resvLabels %q, want [3]", got)
+	}
+	if got := resvLabels("\t  Session Object (1)\n"); got != nil {
+		t.Fatalf("a message with no LABEL object answered %q", got)
+	}
+}
+
+// TestIsPop proves the checker tells a pop from a swap in iproute2's MPLS
+// table, and that a pop of another label, or toward another hop, does not count.
+func TestIsPop(t *testing.T) {
+	pop := "16 via inet 172.29.81.14 dev eth0 \n"
+	swap := "16 as to 3 via inet 172.29.81.14 dev eth0 \n"
+	other := "17 via inet 172.29.81.14 dev eth0 \n160 via inet 172.29.81.12 dev eth0 \n"
+	if !isPop(pop, "16") {
+		t.Errorf("pop of 16 not found in %q", pop)
+	}
+	if isPop(swap, "16") {
+		t.Errorf("a swap counted as a pop in %q", swap)
+	}
+	if isPop(other, "16") {
+		t.Errorf("another label or hop counted as the pop of 16 in %q", other)
+	}
+	if isPop(other, "160") {
+		t.Errorf("a pop toward the ingress counted in %q", other)
 	}
 }

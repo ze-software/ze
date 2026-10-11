@@ -8,7 +8,7 @@ License: https://creativecommons.org/licenses/by-sa/4.0/
 The build modifies the upstream Java sources with one patch,
 freertr/ze-interop-resv.patch (exported as /peer/ze-interop-resv.patch). It
 changes src/org/freertr/pack/packRsvp.java and
-src/org/freertr/rtr/rtrRsvpIface.java to add two test-only RESV knobs, each
+src/org/freertr/rtr/rtrRsvpIface.java to add three test-only RESV knobs, each
 inactive unless its environment variable is set. misc/iface/tapInt.c and
 misc/iface/rawInt.c are unmodified. The compiler and packaging commands are in
 Dockerfile.freertr. The exported source.tar.gz contains the original,

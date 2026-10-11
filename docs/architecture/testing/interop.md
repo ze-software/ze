@@ -1229,6 +1229,8 @@ logs as sent counts for nothing until the peer's capture holds it.
 | `transit-resv-tear-relayed` | Ze ingress, freeRouter relay, Ze transit, Ze egress. Once the LSP is up the egress is frozen with `SIGSTOP`, so the transit's reservation times out while its path state is refreshed; the transit sends a ResvTear upstream, and the Ze ingress captures it as freeRouter relays it (RFC 2205 Section 3.1.6) |
 | `transit-resv-increase-refused-in-place` | freeRouter ingress, Ze transit, patched freeRouter egress. The ingress tunnel signals 10 Mbit/s (`bandwidth 10000`) and the transit's `eth0` reserves 100 Mbit/s. The egress's second RESV, answering the ingress's first PATH refresh (freeRouter refreshes every 120 s), raises its reservation in place to 1 Gbit/s, same session, sender and LSP-ID. The transit captures that RESV, and the egress captures Ze's ResvErr naming the transit, Error Code 1 value 2, ERROR_SPEC flags `0x01` (InPlace). The transit's swap stays installed and the ingress never receives the raised rate (RFC 2205 Section 3.1.8) |
 | `transit-ff-resv-unknown-sender` | freeRouter ingress, Ze transit, patched freeRouter egress. Every RESV the egress sends is fixed-filter, with a second flow descriptor naming LSP-ID+1 of the same sender, which never signalled a PATH. The egress captures one ResvErr from the transit naming only that LSP-ID, Error Code 4 No sender information, and no ResvErr naming the real sender. The ingress receives a labelled RESV naming only the real sender, and the transit holds its swap (RFC 2205 Section 3.1.8) |
+| `egress-implicit-null-penultimate-pop` | freeRouter ingress, Ze transit, patched freeRouter egress. Every RESV the egress sends distributes Implicit NULL, label 3, so Ze is the penultimate hop. The transit captures that RESV, the ingress receives Ze's RESV carrying a label Ze allocated, not 3, and Ze's MPLS table pops that label toward `.14` with no outgoing label: no `as to` (RFC 3032 Section 2.1) |
+| `transit-resv-state-expires` | freeRouter ingress, Ze transit, freeRouter egress. Once the LSP is up and Ze holds its swap via `.14`, the checker freezes the egress's Java process with `SIGSTOP`, so no RESV refreshes Ze's reservation while the ingress keeps refreshing the path. The ingress captures a ResvTear from Ze, none of which existed before the freeze, and Ze's MPLS table drops the swap via `.14` (RFC 2205 Sections 2.3 and 3.1.6). The freeRouter egress advertises its fixed 120-second refresh period in the RESV's TIME_VALUES, so Ze, with refresh-multiplier 3, times the reservation out about six minutes after the freeze, and the checker waits that long |
 
 The checker compares the ERROR_SPEC code and value as the numbers tcpdump
 prints in parentheses, because tcpdump names no code for every value: it prints
@@ -1249,8 +1251,9 @@ originates, not that freeRouter enforces strict hops or originates ResvErr,
 ResvTear or PathErr itself.
 
 The image is built with one patch, `test/interop-rsvpte/freertr/ze-interop-resv.patch`,
-because the pinned jar can neither raise a reservation in place nor name a
-sender it has no path for. The patch adds two knobs to the RESV a freeRouter
+because the pinned jar can neither raise a reservation in place, name a
+sender it has no path for, nor distribute Implicit NULL as an egress
+(`rtrRsvpIface` always sends the label it allocated). The patch adds three knobs to the RESV a freeRouter
 egress originates, each off unless its environment variable is set, so every
 scenario that sets neither runs the upstream behavior. A scenario sets them in
 `<role>-env.txt`, one `NAME=value` per line, which the lab passes to that
@@ -1258,7 +1261,8 @@ freeRouter container and refuses when a line is not `NAME=value`.
 `FREERTR_ZE_RESV_RATE_AT=n:rate` sends only the n-th RESV with its FLOWSPEC
 rate (bytes per second) raised; `FREERTR_ZE_RESV_FF_EXTRA_SENDER=1` makes every
 RESV fixed-filter and appends a second flow descriptor (FLOWSPEC, FILTER_SPEC
-with LSP-ID+1, LABEL).
+with LSP-ID+1, LABEL); `FREERTR_ZE_RESV_IMPLICIT_NULL=1` puts label 3 in the
+LABEL object of every RESV in place of the allocated label.
 
 Two scenarios depend on objects RFC 2205 makes optional and freeRouter's parser
 requires. `packRsvp.parseDatPatErr` refuses a PathErr without an ADSPEC, which
@@ -1274,7 +1278,7 @@ capture held Ze's message and freeRouter never relayed it.
 <!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- the suite, its topology and its MPLS preflight -->
 <!-- source: internal/le/interoplab/rsvpte/checkers.go -- every observation, read from a peer's capture -->
 <!-- source: test/interop-rsvpte/run-freertr.sh -- freeRouter on eth0 through rawInt.bin -->
-<!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the two test-only RESV knobs -->
+<!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the three test-only RESV knobs -->
 <!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- freeRtrEnvironment reads <role>-env.txt -->
 
 ### Typed checker operations
