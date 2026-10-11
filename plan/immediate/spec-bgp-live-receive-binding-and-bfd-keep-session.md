@@ -12,7 +12,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | 2/6 |
 | Handoff | - |
 | Updated | 2026-10-11 |
 
@@ -330,6 +330,7 @@ Phase 1 validation, 2026-10-11 (grep of the tree at b095791c0a, plus the Phase 1
   → Constraint (A-9, holds by grep, and the side effect is real): `createReloadFunc` (`config/loader_create.go`) calls `r.SetDynamicGroups(dynGroups)`, and the boot path in the same file calls it itself. The ReloadFunc's callers are `reactorAPIAdapter.Reload` and `loadPeersFullOrTree` (`reactor_api.go`; the latter reached from `VerifyConfig` and `ApplyConfigDiff`) and `peerSettingsFromReloadConfig` (`operation.go`). So a `VerifyConfig` or an operation's candidate lookup installs the candidate's dynamic groups today, which is AC-23's defect.
   → Decision (Phase 1 harness): `reload/live-stages` (`internal/test/fixture/reload_fixture_live_stages.go`) is a new external-plugin fixture that runs reloads and reads from inside the daemon, so a test can read `show bfd sessions` between two SIGHUP reloads. The dynamic tests use it with the clean-shutdown Cease (subcode 2) as the continuity carrier of `reload-dynamic-peer-survives.ci`.
   → Constraint (dynamic filter race, journal row 2026-10-11 in `plan/journal/false-synchronization-claim.md`): a dynamic session can establish before `bgp-filter-prefix` connects and its first UPDATE is rejected by `on-error=reject`; `bgp-dynamic-filter-swap-live` re-sends its route after Ze's End-of-RIB.
+  → Decision (AC-3 entry test, Phase 1 complete): `bgp-rpki-attach-live` waited on Route Refresh being reachable from the SSH editor, which `1f2dd73052` fixed (`route-refresh` is now a `capability-mode` leaf). Run 2026-10-11 through a freshly built `bin/le-lrb/le`: the editor commit lands ("Session committed: 7 change(s) applied and reloaded"), the OPEN carries capability 2, and the peer reads NOTIFICATION Cease 6/6 where the ROUTE-REFRESH is expected, so it is red for the restart, not for a fixture reason. All 10 Phase 1 entry tests are now committed; Phase 2 starts next.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

@@ -1,0 +1,157 @@
+# Test: binding RPKI to a RUNNING peer and enabling validation in one SSH commit
+#       keeps the session, and the routes received before the commit carry
+#       their RFC 6811 states.
+# Initial config: one iBGP peer that negotiates Route Refresh, bound to
+#                 bgp-adj-rib-in and bgp-rib, NOT to bgp-rpki, and no
+#                 `bgp rpki` block. The peer announces Valid, Invalid and
+#                 NotFound prefixes, installed unvalidated.
+# Live change:    an SSH session editor load-merges the RTR cache, the policy
+#                 AND `attach process bgp-rpki { receive [ update-received state ] }`
+#                 on the peer (the D-6 shape of spec-terminal-demo-showcase), and
+#                 commits.
+# Expected:       one TCP connection and no NOTIFICATION from Ze; Ze asks the
+#                 peer for its routes again with one ROUTE-REFRESH for
+#                 ipv4/unicast (the gained bgp-rpki feed carries routes the
+#                 peer already sent); `show bgp adj-rib-in` shows the routes
+#                 received before the commit at validation-state 1, 2 and 3.
+#
+# VALIDATES: spec-bgp-live-receive-binding-and-bfd-keep-session AC-3 (wiring
+#            row 1): SSH commit -> reconcilePeersJournaled ->
+#            peerSettingsSwapPlan -> applyHotSwappableSettings -> targeted up
+#            and catch-up.
+# PREVENTS: an operator receive-only attach that resets the session, the
+#           behaviour FRR and BIRD do not have (owner decision "yes like them").
+#
+# The peer does not re-send after the ROUTE-REFRESH: the states come from
+# bgp-rpki re-validating the routes Adj-RIB-In retained (RFC 6811 Section 4),
+# so the refresh is asserted on the wire and the states in the table.
+#
+# Red until that spec's Phase 2: today the operator attach restarts the peer.
+# The peer reads a NOTIFICATION Cease subcode 6 where it expects the
+# ROUTE-REFRESH, and the second connection is refused (tcp_connections=1).
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=update:value=send-route:prefix=9.43.0.0/24:origin-as=65001:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.43.0.0/24:origin-as=65001:next-hop=10.0.0.1
+option=update:value=send-route:prefix=11.43.0.0/24:origin-as=65001:next-hop=10.0.0.1
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# RFC 2918 Section 3: ROUTE-REFRESH, AFI 1, reserved 0, SAFI 1, sent by the
+# commit because bgp-rpki gained a feed of routes this peer already sent.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+EOF_PEER
+
+tmpfs=bgp-rpki-attach-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+plugin {
+    internal adj-rib-in {
+        use bgp-adj-rib-in
+    }
+    internal bgp-rib {
+        use bgp-rib
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                route-refresh enable
+            }
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ]
+        }
+        # Route Refresh needs a process that may put routes on the wire
+        # (validatePeerProcessCaps). Bound before and after the commit.
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=rpki-cache.conf:terminator=EOF_CACHE
+bgp {
+    rpki {
+        cache-server 127.0.0.1 {
+            trusted-network true
+            port $PORT3
+        }
+        validation-timeout 5
+        action {
+            invalid reject
+            not-found accept
+        }
+    }
+    peer peer1 {
+        attach process bgp-rpki {
+            receive [ update-received state ]
+        }
+    }
+}
+EOF_CACHE
+
+tmpfs=bgp-rpki-attach-live.script:terminator=EOF_SCRIPT
+cli show bgp adj-rib-in | no-more | yaml
+has 10.43.0.0/24
+lacks validation-state: 3
+send load file absolute merge rpki-cache.conf
+wait Configuration merged from
+send commit now
+wait Session committed:
+cli show bgp rpki status | yaml
+has vrp-count-ipv4: 2
+cli show bgp adj-rib-in | no-more | yaml
+has validation-state: 3
+has validation-state: 1
+has validation-state: 2
+EOF_SCRIPT
+
+# VRPs: 9.43.0.0/24 by AS 65001 (Valid); 10.43.0.0/24 by AS 65099 (Invalid for
+# origin 65001); 11.43.0.0/24 has no ROA (NotFound).
+cmd=background:seq=1:exec=le test rtr-mock --port $PORT3 --vrp 9.43.0.0/24,24,65001 --vrp 10.43.0.0/24,24,65099:ready=le test rtr-mock: listening on
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze start bgp-rpki-attach-live.conf:timeout=60s
+cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT2 bgp-rpki-attach-live.conf bgp-rpki-attach-live.script:timeout=60s
+expect=exit:code=0
