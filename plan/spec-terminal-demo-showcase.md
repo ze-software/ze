@@ -686,6 +686,11 @@ the light of decision 4: they guard against wrong output on screen, nothing more
   when using a command line format nop." `nop` is a `set` line marked inactive,
   so `nop <list> c` adds c deactivated (round 4's behaviour, kept). round 6
   review owed over 1df6ef4f97, owner authorised 2026-10-11 "Authorise round 6".
+- Round 6 (scratch `review-bracket-r6.md`): 3 BLOCKER, 4 ISSUE, 6 NOTE; fixes
+  in progress. Round 7 owner authorised: Thomas, 2026-10-11, "Authorise round
+  7". Owner decision on the round-6 `inactive:` NOTE, Thomas, 2026-10-11, "Same
+  as nop": hierarchical `inactive: <list> x` adds x as an inactive member on
+  both leaf-list kinds, exactly as set-format `nop <list> x` does.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
