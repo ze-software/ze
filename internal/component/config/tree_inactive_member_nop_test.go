@@ -87,7 +87,8 @@ func TestHierarchicalInactiveMemberRoundTrips(t *testing.T) {
 // the whole-leaf flag survive.
 //
 // VALIDATES: round-7 NOTE 3, the bracket branch in serialize_blame.go and
-// serialize_annotated.go; round-8 NOTE 4, the member-only shapes.
+// serialize_annotated.go; round-8 NOTE 4, the member-only shapes; round-9
+// NOTE 3, the quoted member for the bracket kind.
 // PREVENTS: the blame or annotated view printing `inactive: <leaf> <member>`
 // for a whole inactive leaf, which reads back as one inactive member.
 func TestInactiveLeafListBlameAndAnnotatedMatchSerialize(t *testing.T) {
@@ -108,6 +109,7 @@ func TestInactiveLeafListBlameAndAnnotatedMatchSerialize(t *testing.T) {
 		{"plain member quoted", "plain", "c {\n plain [ a \"b c\" ];\n inactive: plain \"b c\";\n}\n", "\tinactive: plain \"b c\"", false},
 		{"bracket member one of two", "items", "c {\n items [ a b ];\n inactive: items b;\n}\n", "\tinactive: items b", false},
 		{"bracket member only one", "items", "c {\n items [ a ];\n inactive: items a;\n}\n", "\tinactive: items a", false},
+		{"bracket member quoted", "items", "c {\n items [ a \"b c\" ];\n inactive: items \"b c\";\n}\n", "\tinactive: items \"b c\"", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
