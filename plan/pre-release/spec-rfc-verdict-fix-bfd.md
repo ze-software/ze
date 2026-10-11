@@ -542,7 +542,7 @@ Tests: `TestAuthJoinRefusalNamesApplicableFix` and `TestReviveRecordsTheReviving
 | Artifact | |
 | `./le spec review check` | not run |
 | Rounds | 5 so far (scratch `review-rfc-verdict-bfd.md`, `-r2` to `-r5`); round 6 owed |
-| Owner authorised | round 6: Thomas, 2026-10-11, "Authorise round 6" |
+| Owner authorised | round 6: Thomas, 2026-10-11, "Authorise round 6"; round 7: Thomas, 2026-10-11, "Authorise round 7" |
 | Reviewer lenses used | |
 
 ### Findings fixed
