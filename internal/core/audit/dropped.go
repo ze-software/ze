@@ -16,11 +16,18 @@ import (
 // a row that listed those would tell the operator a change was dropped that
 // the next commit then applies.
 //
-// The subtraction is exact for every discard. A whole discard leaves no
-// pending change, so after is empty and the answer is before. A path discard
-// leaves each kept change rendering the same lines it rendered before, so only
-// the dropped change's lines go missing. Lines are counted, not set: a line
-// that before holds twice and after once was dropped once.
+// A whole discard is always exact: it leaves no pending change, so after is
+// empty and the answer is before. A path discard is exact only when every
+// diff line names the path of the change it renders, as the web's
+// EditorManager.Diff does: each kept change then renders the same lines it
+// rendered before, so only the dropped change's lines go missing. Lines are
+// counted, not set: a line that before holds twice and after once was dropped
+// once.
+//
+// The SSH editor's diff (cli Editor.Diff, computeDiff) carries no path and
+// compares lines as sets, so two places holding the same text collapse into
+// one line, and the SSH path-discard row can name a kept change as dropped.
+// The journal class key-omits-a-fact-the-builder-uses records it.
 //
 // Both diffs are line-oriented text; a line's trailing newline is not part of
 // its identity, so a last line with no newline still matches.
