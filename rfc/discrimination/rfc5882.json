@@ -9,7 +9,7 @@
       "claim-sha": "187eede5b88bf3db",
       "route": "revert",
       "producer": "internal/component/bfd/engine/auth_join.go::joinAuthCheck",
-      "producer-sha": "e6c1e5234d12dcfb",
+      "producer-sha": "7e06e593474f182d",
       "break": "body of joinAuthCheck replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
