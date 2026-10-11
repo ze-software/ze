@@ -223,6 +223,17 @@ nothing: no state, no Message ID, no timer, no notification. RFC 7296 Section
 contents. Until 2026-09-29 the parse error set `StateDead`, so one bad EAP Length
 ended the IKE SA.
 
+**An unprotected IKE_AUTH response is dropped, and the half-open SA lives.**
+RFC 7296 Section 2.21.4 states: "A peer receiving such an unprotected Notify
+payload MUST NOT respond and MUST NOT change the state of any existing SAs."
+`handleAuthResponse` and `handleEAPResponse` drop an IKE_AUTH response that
+carries no SK payload, such as the INVALID_IKE_SPI a node that lost the SPIs
+sends, and send nothing. The SA keeps its state and its retransmission
+schedule. Until 2026-10-11 both set `StateDead`, so one forged datagram carrying
+the two SPIs ended an initiator's handshake. `TestErrUnprotectedNotifyLeavesHalfOpenSA`
+delivers the bytes `sendInvalidIKESPI` writes through `routeInbound`.
+
+<!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse, handleEAPResponse -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- eapMessageDiscarded -->
 <!-- source: internal/component/ike/wire/payload_eap.go -- ErrEAPLengthExceedsData -->
 

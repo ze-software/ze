@@ -849,6 +849,17 @@
       "break": "line 137: \"err == nil\" -\u003e \"err == nil \u0026\u0026 err != nil\""
     },
     {
+      "rid": "RFC7296-2.21.4-6",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_unprotected_notify_handshake_test.go::TestErrUnprotectedNotifyLeavesHalfOpenSA",
+      "unit-sha": "1324778c1a2f8ca6",
+      "claim-sha": "c837bbb7645b8be9",
+      "route": "mutant",
+      "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
+      "producer-sha": "635a0b46e416abd2",
+      "break": "line 767: \"return\" -\u003e \"sa.State = StateDead; return\""
+    },
+    {
       "rid": "RFC7296-2.21.4-7",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState",

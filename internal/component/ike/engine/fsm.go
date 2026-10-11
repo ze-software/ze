@@ -756,9 +756,14 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 			skPayload = sk
 		}
 	}
+	// An IKE_AUTH response with no SK payload is unprotected, so nothing ties it to
+	// the peer. One carrying the SPIs is what a node that lost them answers with, and
+	// what anyone who saw the SPIs can forge. It is dropped, and the SA keeps its
+	// state and its retransmission, as handleOwnedInbound does for an established SA.
+	// RFC 7296 Section 2.21.4: "A peer receiving such an unprotected Notify payload
+	// MUST NOT respond and MUST NOT change the state of any existing SAs."
 	if skPayload == nil {
-		log.Warn("ike: AUTH response has no SK payload", "peer", sa.PeerName)
-		sa.State = StateDead
+		log.Debug("ike: AUTH response has no SK payload, dropped", "peer", sa.PeerName)
 		return
 	}
 
@@ -1081,9 +1086,14 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 			skPayload = sk
 		}
 	}
+	// An IKE_AUTH response with no SK payload is unprotected, so nothing ties it to
+	// the peer. One carrying the SPIs is what a node that lost them answers with, and
+	// what anyone who saw the SPIs can forge. It is dropped, and the SA keeps its
+	// state and its retransmission, as handleOwnedInbound does for an established SA.
+	// RFC 7296 Section 2.21.4: "A peer receiving such an unprotected Notify payload
+	// MUST NOT respond and MUST NOT change the state of any existing SAs."
 	if skPayload == nil {
-		log.Warn("ike: EAP response has no SK payload", "peer", sa.PeerName)
-		sa.State = StateDead
+		log.Debug("ike: EAP response has no SK payload, dropped", "peer", sa.PeerName)
 		return
 	}
 
