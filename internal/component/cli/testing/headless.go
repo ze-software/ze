@@ -232,7 +232,12 @@ func (hm *headlessModel) sendMsg(msg tea.Msg) error {
 	// character, so a session test with three long commands took 24s. The
 	// character's commands go to pending instead, as the real program runs
 	// them beside the next keystroke, and every expectation still drains them
-	// first through settleWait.
+	// first through settleWait. One difference stays: the last keystroke's
+	// tick now runs after the Enter that follows it, so it validates the tree
+	// the command left, which the real program does not do when the operator
+	// pauses over 100ms before Enter. A .et that asserts validation after a
+	// command therefore passes even when the command itself never asks to
+	// revalidate; such a test has to prove the command's own revalidate.
 	key, isKey := msg.(tea.KeyPressMsg)
 	hm.typing = isKey && key.Text != ""
 	hm.processCmd(cmd)

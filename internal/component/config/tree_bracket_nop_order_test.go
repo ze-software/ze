@@ -75,3 +75,21 @@ func TestSetFormatMemberNopBeforeListLine(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, tree.GetContainer("c").IsLeafInactive("items"))
 }
+
+// TestSetFormatMemberNopOnRepeatedOrderedMember proves that a member nop on an
+// ordered bracket leaf-list whose list line repeats the member is refused with
+// the fix, since the deactivation marks a member by its value.
+// VALIDATES: round-5 NOTE 3; the refusal setBracketLine makes reachable names
+// the problem, why, and the fix (ai/rules/user-facing-errors.md).
+// PREVENTS: an operator told only that the deactivation is ambiguous.
+func TestSetFormatMemberNopOnRepeatedOrderedMember(t *testing.T) {
+	seq := BracketLeafList(TypeString)
+	seq.Ordered = true
+	schema := NewSchema()
+	schema.Define("c", Container(Field("items", seq)))
+
+	_, err := NewSetParser(schema).Parse("nop c items b\nset c items [ a b b ]\n")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `cannot deactivate "b" in items: it appears 2 times, and items is an ordered list that keeps repeated members, `+
+		`so ze cannot tell which copy to deactivate. Fix: list "b" once in items, or deactivate the whole items leaf`)
+}

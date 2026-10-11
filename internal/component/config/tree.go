@@ -1136,7 +1136,9 @@ func (t *Tree) DeactivateMultiValue(name, value string) error {
 	// there the operator must edit the whole list, not one ambiguous copy. Fail
 	// closed so a stray inactive: on a duplicate cannot silently blank the sequence.
 	if n := multiValueOccurrences(t.multiValues[name], value); n > 1 {
-		return fmt.Errorf("cannot deactivate %q in %s: it appears %d times; deactivation is ambiguous for a repeated member of an ordered leaf-list", value, name, n)
+		return fmt.Errorf("cannot deactivate %q in %s: it appears %d times, and %s is an ordered list that keeps repeated members, "+
+			"so ze cannot tell which copy to deactivate. Fix: list %q once in %s, or deactivate the whole %s leaf",
+			value, name, n, name, value, name, name)
 	}
 	if t.inactiveMembers[name][value] {
 		return fmt.Errorf("%q is already deactivated in %s", value, name)
