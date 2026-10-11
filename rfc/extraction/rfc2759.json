@@ -56,9 +56,8 @@
       "id": "6",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Failure Packet. The C= field rule is site 6:1. The error-code table, the retry flag and the <msg> text are indicative. One lowercase advisory sits here that the summary does not declare, 'implementations should deal with codes not on this list gracefully', and it binds a reader of a Failure packet; ze's IKEv2 EAP path never parses one. RFC2759-x-12 is read from the 691 ERROR_AUTHENTICATION_FAILURE entry together with the flow in section 9.1.3, and RFC2759-x-13 from 'For MS-CHAP-V2, this value SHOULD always be 3'.",
+      "reason": "Failure Packet. The C= field rule is site 6:1. The error-code table, the retry flag and the <msg> text are indicative. One lowercase advisory sits here that the summary does not declare, 'implementations should deal with codes not on this list gracefully', and it binds a reader of a Failure packet; ze's IKEv2 EAP path never parses one. RFC2759-x-13 is read from 'For MS-CHAP-V2, this value SHOULD always be 3'.",
       "unsourced-ids": [
-        "RFC2759-x-12",
         "RFC2759-x-13"
       ]
     },
@@ -93,10 +92,7 @@
       "id": "8.3",
       "sites": 0,
       "disposition": "walked",
-      "reason": "NtPasswordHash(). MD4 over the password, with the comment 'Only the password is hashed without including any terminating 0'. RFC2759-x-4's sibling RFC2759-x-10 is read here: the UTF-16LE encoding is stated by the declared input type '0-to-256-unicode-char Password' and pinned by the worked vector in section 9.2, where the password 'clientPass' appears as 63 00 6C 00 69 00 ... with no terminator. Neither statement is a keyword site.",
-      "unsourced-ids": [
-        "RFC2759-x-10"
-      ]
+      "reason": "NtPasswordHash(). MD4 over the password, with the comment 'Only the password is hashed without including any terminating 0'. The UTF-16LE encoding is stated by the declared input type '0-to-256-unicode-char Password' and pinned by the worked vector in section 9.2, where the password 'clientPass' appears as 63 00 6C 00 69 00 ... with no terminator. Neither statement is a keyword site. The row once read from them, RFC2759-x-10, was retired on 2026-10-11 by owner decision as example data."
     },
     {
       "id": "8.4",
@@ -186,7 +182,7 @@
       "id": "9.1.3",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Failed authentication with no retry allowed. The flow diagram showing Failure (E=691 R=0) followed by an authenticator disconnect. RFC2759-x-12 is read from it together with the section 6 error table."
+      "reason": "Failed authentication with no retry allowed. The flow diagram showing Failure (E=691 R=0) followed by an authenticator disconnect. Example data, no obligation: the row once read from it, RFC2759-x-12, was retired on 2026-10-11 by owner decision."
     },
     {
       "id": "9.1.4",
@@ -216,7 +212,7 @@
       "id": "9.2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-10 and RFC2759-x-4 tests drive (internal/core/eap/mschapv2_test.go)."
+      "reason": "Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-4 tests and the password-hash known-answer tests drive (internal/core/eap/rfc2759_clause_test.go, internal/core/eap/rfc2759_mschapv2_test.go)."
     },
     {
       "id": "9.3",

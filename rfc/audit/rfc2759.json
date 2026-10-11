@@ -22,40 +22,6 @@
       },
       "verdict": "enforced"
     },
-    "RFC2759-x-10": {
-      "note": "Positive: ntPasswordHash(\"clientPass\") equals the Section 9.2 PasswordHash vector and the MD4 of the exact 9.2 unicode octets. Negative: ntPasswordHash(\"\u00e9\") is the MD4 of E9 00, not of the UTF-8 C3 A9, exercising the producer. The 0-to-256-unicode-char label is a parameter type with no behaviour to assert.",
-      "requirement_sha": "69da8fa59cbe7e91",
-      "tests": {
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector": "55d5252092ae8516",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector#2": "55d5252092ae8516",
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash": "e9ded5ee76d0ba58",
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash#2": "e9ded5ee76d0ba58"
-      },
-      "units": {
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector": "969273ecc59765df",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector#2": "969273ecc59765df",
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash": "454f054bac0ff10a",
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash#2": "454f054bac0ff10a"
-      },
-      "verdict": "enforced"
-    },
-    "RFC2759-x-12": {
-      "note": "Positive: a wrong password draws an MS-CHAPv2 Failure whose E= is 691 and R= is 0 (both fields read), and the peer's answer draws EAP-Failure (the disconnect). Negative: a verified NT-Response ends in EAP-Success, so the Failure is the verdict, not a constant.",
-      "requirement_sha": "aff45259ce2b526f",
-      "tests": {
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry": "55d5252092ae8516",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry#2": "55d5252092ae8516",
-        "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759AuthenticatorAcceptsMatchingNTResponse": "6fbd0fd95c351d96",
-        "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759AuthenticatorRefusesWithErrorCode691": "6fbd0fd95c351d96"
-      },
-      "units": {
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry": "584b1823e1e46abe",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry#2": "584b1823e1e46abe",
-        "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759AuthenticatorAcceptsMatchingNTResponse": "36d240c2173f8e81",
-        "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759AuthenticatorRefusesWithErrorCode691": "f1ee5b23c07020d4"
-      },
-      "verdict": "enforced"
-    },
     "RFC2759-x-2": {
       "note": "Sender: the Flags octet ze's peer emits is 0 (td[53]). Receiver: Flags 1 on a fresh authenticator copy is refused through Process.",
       "requirement_sha": "20cb4974db9bb488",

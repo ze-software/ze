@@ -101,7 +101,7 @@ func failureField(message, prefix string) (string, bool) {
 // error code (need not be 10 digits) corresponding to one of those listed below",
 // among which "691 ERROR_AUTHENTICATION_FAILURE".
 //
-// RFC requirement: RFC2759-x-12 positive -- a mismatched NT-Response makes the
+// Example behavior, not a requirement: a mismatched NT-Response makes the
 // authenticator send an MS-CHAPv2 Failure whose E= field is 691, and the session
 // is terminated with no MSK (eap_mschapv2.go sendFailure, eap.go finalRequest).
 func TestRFC2759AuthenticatorRefusesWithErrorCode691(t *testing.T) {
@@ -168,7 +168,7 @@ func TestRFC2759AuthenticatorRefusesWithErrorCode691(t *testing.T) {
 // packet whose Message field "contains a 42-octet authenticator response string
 // and a printable message".
 //
-// RFC requirement: RFC2759-x-12 negative -- an NT-Response the authenticator
+// Example behavior, not a requirement: an NT-Response the authenticator
 // verifies produces the Success packet and no E=691 Failure, and the session is
 // not terminated (eap_mschapv2.go handleResponse).
 func TestRFC2759AuthenticatorAcceptsMatchingNTResponse(t *testing.T) {

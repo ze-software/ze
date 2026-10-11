@@ -158,7 +158,7 @@ func TestRFC2759NTResponseUsesTheBareUserName(t *testing.T) {
 
 // TestRFC2759PasswordHashVector checks the Section 9.2 intermediate values.
 func TestRFC2759PasswordHashVector(t *testing.T) {
-	// RFC requirement: RFC2759-x-10 positive -- RFC 2759 Section 9.2:
+	// Test vector, not a requirement: RFC 2759 Section 9.2 example data,
 	// "0-to-256-unicode-char Password: 63 00 6C 00 69 00 65 00 6E 00 74 00 50 00
 	// 61 00 73 00 73 00". ntPasswordHash hashes "clientPass" as those UTF-16LE
 	// octets: its result is the MD4 of them and the Section 9.2 PasswordHash
@@ -173,7 +173,7 @@ func TestRFC2759PasswordHashVector(t *testing.T) {
 		t.Fatal("PasswordHash is not the MD4 of the Section 9.2 unicode octets")
 	}
 
-	// RFC requirement: RFC2759-x-10 negative -- a character outside ASCII is
+	// A character outside ASCII is
 	// hashed as its 2-octet unicode unit, not as its UTF-8 octets: "é" hashes as
 	// E9 00, and the UTF-8 C3 A9 would give another hash.
 	accent := ntPasswordHash("é")
@@ -235,7 +235,7 @@ func TestRFC2759AuthenticatorChallengeComesFromCryptoRand(t *testing.T) {
 // TestRFC2759FailureInvitesNoRetry reads the R= field of the Failure the
 // authenticator sends for a wrong password.
 func TestRFC2759FailureInvitesNoRetry(t *testing.T) {
-	// RFC requirement: RFC2759-x-12 positive -- RFC 2759 Section 9.1.3: "Peer
+	// Test vector, not a requirement: RFC 2759 Section 9.1.3 example flow, "Peer
 	// Response/Challenge -> <- Failure (E=691 R=0) (Authenticator disconnects)".
 	// The Failure carries E=691 and R=0, and the exchange ends in EAP-Failure
 	// after the peer's answer.
@@ -252,7 +252,7 @@ func TestRFC2759FailureInvitesNoRetry(t *testing.T) {
 		t.Fatalf("the answer to the Failure drew %v, want EAP-Failure", final)
 	}
 
-	// RFC requirement: RFC2759-x-12 negative -- a verified NT-Response draws no
+	// A verified NT-Response draws no
 	// Failure: the same exchange with one password ends in EAP-Success.
 	flight := driveClauseFlight(t, "TestPassword", "TestPassword")
 	if flight.last.Code != CodeSuccess {

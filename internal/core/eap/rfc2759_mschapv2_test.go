@@ -26,16 +26,16 @@ func TestMD4Empty(t *testing.T) {
 
 func TestNtPasswordHash(t *testing.T) {
 	// Well-known: NtPasswordHash("Password") = a4f49c406510bdcab6824ee7c30fd852.
-	// RFC requirement: RFC2759-x-10 positive -- the known-answer vector matches only when
-	// the password is MD4-hashed over its UTF-16LE encoding, as NtPasswordHash does.
+	// Known-answer vector: it matches only when the password is MD4-hashed over its
+	// UTF-16LE encoding, as RFC 2759 Section 8.3 NtPasswordHash does.
 	got := ntPasswordHash("Password")
 	want := mustHex16("a4f49c406510bdcab6824ee7c30fd852")
 	if got != want {
 		t.Fatalf("NtPasswordHash: got %x, want %x", got, want)
 	}
 
-	// RFC requirement: RFC2759-x-10 negative -- MD4 over the UTF-8 (raw ASCII) bytes of the
-	// same password produces a different hash, so the vector falsifies a UTF-8 encoding.
+	// MD4 over the UTF-8 (raw ASCII) bytes of the same password produces a different
+	// hash, so the vector falsifies a UTF-8 encoding.
 	utf8Hash := md4Sum([]byte("Password"))
 	if utf8Hash == want {
 		t.Fatalf("UTF-8 MD4 must not match the UTF-16LE NtPasswordHash vector: %x", utf8Hash)

@@ -150,8 +150,8 @@ Written by the author of these row changes, who judged no verdict. Every changed
 | RFC7296-2.10-2, 2.10-3, 2.5-7, 3.11-2 | fragment | resolved 2026-09-30 by earlier corrections |
 | RFC2759-x-8, x-9 | level over SHOULD | resolved 2026-09-28: both re-levelled SHOULD under the `RFC2759-x-8` correction |
 | RFC7296-2.6-1, 2.9-1, 2.23-3, 2.23-12, 2.4-1, 2.2-3, 1.2-1, 2.8-2; RFC4301-4.1-4, 7-1; RFC3748-4-2, 2-2, 4.2-1 | level, no keyword | reviewed under D-3: each states a normative protocol fact Ze must hold (a header layout, an exchange shape, a narrowing rule, the no-negotiated-lifetime rule behind 2.8-2's MUST NOT), so each keeps its level; no correction |
-| RFC7296-1.4-1 | level, no keyword | owner call owed: "Normally, the response ... will contain Delete payloads" reads as SHOULD; kept at MUST until the owner rules, because a demotion lowers what Ze owes |
-| RFC2759-x-3, x-10, x-12 | level, format definition | owner call owed (the parent requires it for format-definition rows): x-3 is the Value field layout, x-10 a test-vector line, x-12 a message-sequence diagram |
+| RFC7296-1.4-1 | level, no keyword | owner ruled 2026-10-11 ("SHOULD (Recommended)"): re-levelled SHOULD, same id, quote and tags; `Correction 2026-10-11` paragraph in `rfc/corrections/rfc7296.md`. `./le rfc check` does not report its audit verdict stale |
+| RFC2759-x-3, x-10, x-12 | level, format definition | owner ruled 2026-10-11 ("x-3 MUST, retire x-10/x-12 (Recommended)"): x-3 stays MUST, unchanged. x-10 (§9.2 password octets) and x-12 (§9.1.3 example flow) retired by two `Retired 2026-10-11` paragraphs in `rfc/corrections/rfc2759.md`; their eight tags deleted (no row states the obligation), the five tests kept as vectors under `./le rfc approve` rows quoting the owner; their eight discrimination records, two audit verdicts and two `unsourced-ids` entries in `rfc/extraction/rfc2759.json` dropped |
 | RFC9190-2.3-1 | R-7 | Method-Id half split into `RFC9190-2.3-4` [SHALL] `{gap}` (unsourced in the 2.3 section of `rfc/extraction/rfc9190.json`); `TestRFC9190MSKIsTheExportUnderTheRFCLabel` positive now carries a revert record on `exportEAPTLSKeys` |
 | RFC9190-2.1.2-2, 2.1.3-1, 5.7-1 | R-7 | row side unchanged; every tagged unit already carries a record; verdict owed |
 
@@ -168,6 +168,8 @@ None of these was judged by its author. rfc9190 is not enrolled; `./le rfc audit
 | rfc9190 | 2.1.2-2, 2.1.3-1, 2.3-1, 5.7-1, 2.3-4 (new `{gap}`) | `audit-stamp` (mode new, creates the file) |
 
 Mechanical, not a judgement: appending two tests to `mobike_test.go` SHIFTED ten rfc4555 verdicts (x-1, x-2, 3.9-1, 3.7-1, 3.8-1, 3.8-2, 3.7-4, 3.7-5, 4.2.1-1, 4.2.5-1) whose units are byte-identical; `./le rfc reseal` re-stamps them when no other child holds uncommitted audit changes.
+
+Mechanical, not a judgement: deleting the x-10 and x-12 tags from `rfc2759_clause_test.go`, `rfc2759_failure_packet_test.go` and `rfc2759_mschapv2_test.go` SHIFTED seven rfc2759 verdicts (x-1, x-2, x-3, x-4, x-6, x-8, x-9) whose units are byte-identical; `./le rfc reseal` re-stamps them.
 
 ### Deferred items the parent's tables missed
 
