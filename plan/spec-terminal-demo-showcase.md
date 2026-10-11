@@ -706,6 +706,10 @@ the light of decision 4: they guard against wrong output on screen, nothing more
   `discard` help is journalled in
   `plan/journal/help-text-describes-superseded-behaviour.md`. round 7 review
   owed over c2b81d1403, owner authorised 2026-10-11 "Authorise round 7".
+- Round 7 (scratch `review-bracket-r7.md`): 1 BLOCKER (a web-terminal path
+  discard writes no audit record), 1 ISSUE (terminal feedback always reads
+  "changes discarded"), 4 NOTE; gates green (editor 177/177, lint 0). Round 8
+  owner authorised: Thomas, 2026-10-11, "Authorise round 8".
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
