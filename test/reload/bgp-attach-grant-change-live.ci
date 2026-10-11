@@ -29,7 +29,13 @@
 #
 # bgp-rib is not the forwarder: it forwards nothing from one peer to another
 # (its best changes go to the rib event bus, and its Adj-RIB-Out fills only from
-# sent events another process produces). bgp-rs is the plugin that does.
+# sent events another process produces). bgp-rs is the plugin that does. It is
+# still bound on both peers with both directions, because bgp-rs withdraws a
+# departed source through the RIB's source-DOWN recovery, which answers from
+# what Ze SENT each destination (rib_recovery.go recoveryRoutes): with no RIB
+# binding on B nothing is withdrawn (journal silent-fall-through.md).
+# Whichever session comes up first, B holds A's route once before the reload:
+# forwarded if B is up, replayed through bgp-adj-rib-in if it is not.
 # AC-8's "no other process receives either" (the targeted down and up reach
 # bgp-rs only) is that spec's unit test TestOnPeerBoundTargetsNamedProcesses.
 option=timeout:value=60s
@@ -115,6 +121,13 @@ bgp {
 			receive [ update-received state ]
 			send [ update ]
 		}
+		# bgp-rs withdraws through the RIB's source-DOWN recovery, which reads
+		# what Ze sent each destination (rib_recovery.go recoveryRoutes): the
+		# RIB needs both directions on every peer. Unchanged in both configs.
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
 	}
 	peer peerB {
 		connection {
@@ -146,8 +159,19 @@ bgp {
 			receive [ update-received state open-received refresh ]
 			send [ update ]
 		}
+		# bgp-rs replays the routes B missed through bgp-adj-rib-in when B
+		# comes up after A announced (request bgp adj-rib-in replay), and that
+		# replay puts routes on B's wire, so it needs the send grant.
 		attach process adj-rib-in {
 			receive [ update-received state ]
+			send [ update ]
+		}
+		# bgp-rs withdraws through the RIB's source-DOWN recovery, which reads
+		# what Ze sent each destination (rib_recovery.go recoveryRoutes): the
+		# RIB needs both directions on every peer. Unchanged in both configs.
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
 		}
 	}
 }
@@ -201,6 +225,13 @@ bgp {
 			receive [ update-received state ]
 			send [ update ]
 		}
+		# bgp-rs withdraws through the RIB's source-DOWN recovery, which reads
+		# what Ze sent each destination (rib_recovery.go recoveryRoutes): the
+		# RIB needs both directions on every peer. Unchanged in both configs.
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
 	}
 	peer peerB {
 		connection {
@@ -232,8 +263,19 @@ bgp {
 			receive [ update-received state open-received refresh ]
 			send [ update ]
 		}
+		# bgp-rs replays the routes B missed through bgp-adj-rib-in when B
+		# comes up after A announced (request bgp adj-rib-in replay), and that
+		# replay puts routes on B's wire, so it needs the send grant.
 		attach process adj-rib-in {
 			receive [ update-received state ]
+			send [ update ]
+		}
+		# bgp-rs withdraws through the RIB's source-DOWN recovery, which reads
+		# what Ze sent each destination (rib_recovery.go recoveryRoutes): the
+		# RIB needs both directions on every peer. Unchanged in both configs.
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
 		}
 	}
 }
