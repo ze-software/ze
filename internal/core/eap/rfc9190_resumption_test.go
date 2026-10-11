@@ -283,6 +283,10 @@ func TestEAPTLS13ResumptionRefusesARevokedClientChain(t *testing.T) {
 // the second exchange resumed, so no certificate was re-presented, and it
 // completes. The refusals above are caused by the cached chain, not by a gate
 // that refuses every resumption.
+//
+// RFC requirement: RFC9190-5.7-4 negative -- the prohibition is over cached data
+// that cannot be retrieved securely, and only that: a ticket sealed under the
+// peering's own key opens, and the exchange resumes on both ends.
 func TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	server := NewResumption(time.Now, true)

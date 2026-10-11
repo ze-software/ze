@@ -236,9 +236,35 @@ Still weak after the fix round, with the reason recorded in `rfc/audit/rfc7296.j
 | RFC7296-3.1-8, 3.1-11 (receive clause) | The test enters at handleResponderInbound and never calls tryResponderSAInit (register.go), the first site that reads the flags octet of a fresh IKE_SA_INIT; no established-SA or initiator-side message carries X or V bits | Drive the noisy request through tryResponderSAInit, and add an established-SA message and an initiator-side response with the bits set |
 | RFC7296-2.21.4-6 | The input is a response with no pending exchange, so classifyInbound sends it to inboundInvalid, where an authenticated copy also changes no state; the negative flips the R bit as well as the protection, so it cannot attribute the freeze to protection | Give the SA an outstanding request, send the INVALID_IKE_SPI response at that Message ID, and send the same response inside SK as the negative |
 
+Second fix round (2026-10-11, owner approval "Approve the fixes (Recommended)"). TestXBitsIgnoredOnReceipt now drives the fresh request through tryResponderSAInit, an X/V-bit protected INFORMATIONAL through handleOwnedInbound, and an X/V-bit IKE_SA_INIT response through handleInbound. TestErrUnprotectedNotifyChangesNoState now holds a DPD probe outstanding and sends the unprotected and the SK-protected INVALID_IKE_SPI response at the probe's Message ID. Fresh mutant-route records break the flags check at register.go tryResponderSAInit (3.1-8 both polarities, 3.1-11 negative) and the decrypt condition in the inboundInvalid arm of handleOwnedInbound (2.21.4-6 both polarities). Verdicts owed to an independent judge (the author judged none):
+
+| Stem | Ids | Mode |
+|------|-----|------|
+| rfc7296 | 3.1-8, 3.1-11, 2.21.4-6 (STALE) | rejudge |
+| rfc7296 | 2.21.2-1, 2.21.2-2, 2.21.4-7, 3.10.1-1, 3.10.1-3, 3.1-3, 3.1-4, 3.1-7, 3.1-9, 3.1-12 (SHIFTED only) | `./le rfc reseal` |
+
 Mechanical: `./le rfc reseal` for any rfc4555 verdict whose `mobike_test.go` unit only shifted.
 
 Decision A is BLOCKED, not done: enrolling RFC 9190 gates its 33 MUST-level rows that carry no tag or one polarity, and the summary's Meta records the 2026-08-01 owner ruling that closed the annotation route. The handoff in the session state file names the choice.
+
+### RFC 9190 enrolment: write the tests, then enrol (owner decision C, 2026-10-11)
+
+Thomas, 2026-10-11: "Write the tests, then enrol (Recommended)". Before RFC 9190 is enrolled, every gated MUST row in `rfc/short/rfc9190.md` gets real tests in both polarities through the real entry point, each proven by `./le rfc discriminate-record`. An annotation is used only where it is TRUE and the gate doc allows it: `{gap}` only where Ze genuinely does not implement the obligation, `{single-polarity}` only where no negative can exist. The 2026-08-01 owner ruling recorded in the summary's Meta closed annotations as a way to skip tests, and it stands. A row Ze does not implement is recorded as a gap and listed for the owner's scope decision, never built. Enrolment flips to `enrolled` in a final commit, and only once `./le rfc check` would show zero rfc9190 violations.
+
+Progress by row (the gated MUST rows that lacked a test in one or both polarities on 2026-10-11: 32, plus the `{gap}` row 2.3-4):
+
+| Row | State | Units |
+|-----|-------|-------|
+| 2.1.1-1 | both polarities, recorded | `TestEAPTLS13AuthenticatorAuthenticatesWithItsCertificate`, `TestEAPTLSAuthenticatorWithoutACertificateIsRefused` (`internal/core/eap/rfc9190_handshake_rules_test.go`) |
+| 2.1.2-2 | both, recorded | negative added on `TestEAPTLS13RefusesATicketPastTheSection57Lifetime` |
+| 2.1.3-2 | both, recorded | positive added on `TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth` (wire psk_key_exchange_modes is psk_dhe_ke alone), negative on `TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode` |
+| 2.1.4-1, 2.1.4-2 | both, recorded | `TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion`, `TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion` |
+| 2.1.4-3 | both, recorded | `TestEAPTLS13FatalErrorSendsATLSAlert`, `TestEAPTLS13CompletedExchangeCarriesNoAlert` |
+| 2.3-2, 2.3-3 | both, recorded | `TestRFC9190KeyMaterialIsOneFullLengthExport`, `TestRFC9190KeysAreNotAShorterExport` |
+| 5.7-4 | both, recorded | positive on `TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey`, negative on `TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain` |
+| 2.1-2, 2.1-4, 2.1-6 | positive only, recorded | `TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth` |
+
+The rows still open, and what each needs, are in the per-spec session state handoff of 2026-10-11; rows move into the table above as they close.
 
 ### Deferred items the parent's tables missed
 

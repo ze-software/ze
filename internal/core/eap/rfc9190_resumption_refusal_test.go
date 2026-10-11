@@ -62,6 +62,11 @@ func driveResumingExchangeAt(t *testing.T, pki *eapTLSPKI, server, peerStore *Re
 // exactly the conversation it got before tickets existed: ONE application_data
 // record in the closing EAP-Request, the RFC 9190 Section 2.5 indication, and
 // nothing beside it.
+//
+// RFC requirement: RFC9190-2.1.3-2 negative -- "The "psk_dh_ke" key exchange
+// mode MUST be used for resumption". A client that does not offer psk_dhe_ke is
+// issued no ticket, so no resumption under another mode can follow from this
+// authenticator.
 func TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
@@ -91,6 +96,12 @@ func TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode(t *testing.T) {
 // based on cached data from the initial full handshake, and a ticket the
 // authenticator cannot decrypt carries no such data. It runs the full handshake
 // rather than authorizing on nothing.
+//
+// RFC requirement: RFC9190-5.7-4 positive -- "If cached data cannot be retrieved
+// securely, resumption MUST NOT be done". The cached data travels inside the
+// ticket, sealed under the issuing peering's ticket key; an authenticator holding
+// another peering's key cannot open it, and neither end reports the exchange
+// resumed.
 func TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peerStore := NewResumption(time.Now, true)
@@ -119,6 +130,11 @@ func TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey(t *testing.T) {
 // RFC requirement: RFC9190-5.7-5 negative -- the ceiling is enforced on the
 // redeeming side too: at 604800 seconds and one second the ticket is refused,
 // and the exchange falls back to a full handshake instead of failing.
+//
+// RFC requirement: RFC9190-2.1.2-2 negative -- the 604800-second ceiling binds
+// the tickets the authenticator issued: one presented a second past it is not
+// honoured, so no ticket of ze's outlives the limit whatever the peer does with
+// it.
 func TestEAPTLS13RefusesATicketPastTheSection57Lifetime(t *testing.T) {
 	pki := newEAPTLSPKIValidFor(t, resumptionPKIValidity)
 	server := NewResumption(time.Now, true)
