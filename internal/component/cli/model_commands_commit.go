@@ -6,6 +6,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"time"
 
@@ -449,21 +450,8 @@ func (m *Model) runCommitSession(req contract.CommitRequest) (commandResult, boo
 	}
 
 	if len(commitResult.Conflicts) > 0 {
-		var b textbuf.Buffer
-		b.Str("Commit blocked by conflicts:\n")
-		for _, c := range commitResult.Conflicts {
-			switch c.Type {
-			case ConflictLive:
-				b.Str("  LIVE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", ").Str(c.OtherUser).Byte('=').Str(c.OtherValue).Byte('\n')
-			case ConflictStale:
-				b.Str("  STALE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", committed=").Str(c.OtherValue).Str(" (was ").Str(c.PreviousValue).Str(")\n")
-			default:
-				panic("BUG: invalid commit conflict type")
-			}
-		}
-		b.Str("Re-set conflicting values to resolve.")
 		return commandResult{
-			output:        b.String(),
+			output:        commitConflictsText(commitResult.Conflicts),
 			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(commitResult.Conflicts)), " conflict(s)"),
 		}, false, nil
 	}
@@ -601,6 +589,33 @@ func formatIssueList(issues []ConfigValidationError) string {
 		} else {
 			b.Str("  ").Str(e.Message).Byte('\n')
 		}
+	}
+	return b.String()
+}
+
+// commitConflictsText renders the conflicts that refused a session commit:
+// one line per conflict, then the fix of each conflict that carries one. A
+// conflict with no Fix of its own is a contested value, and setting the value
+// again is its resolution, so the closing line names that only when one such
+// conflict is present.
+func commitConflictsText(conflicts []Conflict) string {
+	var b textbuf.Buffer
+	b.Str("Commit blocked by conflicts:\n")
+	for _, c := range conflicts {
+		switch c.Type {
+		case ConflictLive:
+			b.Str("  LIVE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", ").Str(c.OtherUser).Byte('=').Str(c.OtherValue).Byte('\n')
+		case ConflictStale:
+			b.Str("  STALE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", committed=").Str(c.OtherValue).Str(" (was ").Str(c.PreviousValue).Str(")\n")
+		default:
+			panic("BUG: invalid commit conflict type")
+		}
+		if c.Fix != "" {
+			b.Str("    fix: ").Str(c.Fix).Byte('\n')
+		}
+	}
+	if slices.ContainsFunc(conflicts, func(c Conflict) bool { return c.Fix == "" }) {
+		b.Str("Re-set conflicting values to resolve.")
 	}
 	return b.String()
 }

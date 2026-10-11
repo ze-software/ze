@@ -916,6 +916,9 @@ func formatCommitConflicts(heading string, conflicts []contract.Conflict) string
 	msg.Str(heading)
 	for _, c := range conflicts {
 		msg.Str("  ").Str(c.Path).Str(": want ").Quoted(c.MyValue).Str(", other (").Str(c.OtherUser).Str(") has ").Quoted(c.OtherValue).Byte('\n')
+		if c.Fix != "" {
+			msg.Str("    fix: ").Str(c.Fix).Byte('\n')
+		}
 	}
 	return msg.String()
 }

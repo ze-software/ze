@@ -738,6 +738,7 @@ func memberOpStaleConflict(tree *config.Tree, schema *config.Schema, op config.S
 			Type:       ConflictStale,
 			MyValue:    change.Summary(schema),
 			OtherValue: "path removed",
+			Fix:        memberOpFix(change.Path, op.NewKey, "drops the change; the commit no longer holds the path"),
 		}
 	}
 	present, _ := target.MultiValueMemberState(op.ListName, op.NewKey)
@@ -751,6 +752,7 @@ func memberOpStaleConflict(tree *config.Tree, schema *config.Schema, op config.S
 			MyValue:       change.Summary(schema),
 			OtherValue:    "member removed",
 			PreviousValue: op.NewKey,
+			Fix:           memberOpFix(change.Path, op.NewKey, "drops the toggle, or add the member back before you commit"),
 		}
 	}
 	if present {
@@ -768,7 +770,16 @@ func memberOpStaleConflict(tree *config.Tree, schema *config.Schema, op config.S
 		MyValue:       change.Summary(schema),
 		OtherValue:    "insert reference removed",
 		PreviousValue: op.OldKey,
+		Fix:           memberOpFix(change.Path, op.NewKey, "drops the insert; then insert the member beside one the commit holds"),
 	}
+}
+
+// memberOpFix answers the resolution of a stale member op: the discard
+// command that drops exactly this op, since a member op's discard path is the
+// leaf-list path and the member, followed by what that does.
+func memberOpFix(path, member, effect string) string {
+	var tb textbuf.Buffer
+	return tb.Str("discard ").Str(path).Byte(' ').Str(member).Byte(' ').Str(effect).String()
 }
 
 func renameStaleConflict(committedTree *config.Tree, schema *config.Schema, op config.StructuralOp) *Conflict {

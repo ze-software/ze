@@ -58,6 +58,10 @@ type Conflict struct {
 	OtherUser     string
 	OtherValue    string
 	PreviousValue string
+	// Fix is the command that resolves this conflict, when one command does.
+	// Empty means the operator re-sets the contested value, the resolution
+	// every whole-leaf conflict shares.
+	Fix string
 }
 
 // CommitResult holds the outcome of a config commit.

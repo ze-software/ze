@@ -108,6 +108,17 @@ tell them.
 <!-- source: internal/component/cli/model.go -- handleDraftPoll, draftPollInterval -->
 <!-- source: internal/component/web/editor.go -- EditorManager.commit -->
 <!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest -->
+
+A STALE conflict on a leaf-list member names the change as you made it,
+`deactivate <path> <member>`, `activate <path> <member>` or the insert, and
+follows it with a `fix:` line. When the commit no longer holds the member, the
+line names `discard <path> <member>`, which drops that one change and leaves
+your other edits to the list pending; adding the member back resolves it too.
+The closing "Re-set conflicting values to resolve." is printed only when a
+contested leaf value is among the conflicts.
+<!-- source: internal/component/cli/editor_commit.go -- memberOpStaleConflict, memberOpFix -->
+<!-- source: internal/component/cli/model_commands_commit.go -- commitConflictsText -->
+<!-- source: internal/component/config/change_file.go -- PendingChange.Summary -->
 <!-- source: internal/component/config/confirm/confirm.go -- ErrPending -->
 
 `commit now` reaches the same reload as `ze signal reload`. Which configuration

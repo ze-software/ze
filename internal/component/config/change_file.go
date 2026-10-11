@@ -284,10 +284,15 @@ func (pc PendingChange) Summary(schema *Schema) string {
 	case PendingChangeCopy:
 		return tb.Str("copy ").Str(pc.OldPath).Str(" to ").Str(pc.NewPath).String()
 	case PendingChangeDeactivate, PendingChangeActivate:
+		tb.Str(string(pc.Kind)).Byte(' ').Str(pc.Path)
 		if pc.Member == "" {
 			// A leaf or path toggle carries no value: the path is the change.
-			return tb.Str(string(pc.Kind)).Byte(' ').Str(pc.Path).String()
+			return tb.String()
 		}
+		// A member toggle names the member it flips. A deactivation carries
+		// no Value, so the set form below would print an empty one.
+		member := DisplayValueAtPath(schema, strings.Fields(pc.Path), pc.Member)
+		return tb.Byte(' ').Str(member).String()
 	case "", PendingChangeSet:
 	default:
 		panic("BUG: invalid pending change kind")

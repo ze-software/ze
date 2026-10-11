@@ -114,6 +114,9 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 			b.Str("Commit blocked by conflicts:\n")
 			for _, c := range commitResult.Conflicts {
 				b.Str("  ").Str(c.Path).Str(": ").Str(c.MyValue).Byte('\n')
+				if c.Fix != "" {
+					b.Str("    fix: ").Str(c.Fix).Byte('\n')
+				}
 			}
 			return commandResult{output: b.String()}, nil
 		}

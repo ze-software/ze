@@ -265,8 +265,11 @@ func TestCoalesceRenameOpsSkipsDeleteOps(t *testing.T) {
 	assert.Equal(t, StructuralOpDeleteEntry, result[1].Type)
 }
 
-// TestPendingChangeSummaryPreservesSetStyleFallback exercises member deactivation
-// and the valid zero kind. Both retain set-style display and masking.
+// TestPendingChangeSummaryPreservesSetStyleFallback exercises the member
+// toggles and the valid zero kind. A member toggle names its verb and its
+// member (round-5 ISSUE 3: it printed "set <path> " with an empty value), and
+// the zero kind keeps the set-style display. Both mask the value when no
+// schema can tell a credential from an address.
 func TestPendingChangeSummaryPreservesSetStyleFallback(t *testing.T) {
 	op := StructuralOp{
 		Type:       StructuralOpDeactivateMember,
@@ -275,8 +278,12 @@ func TestPendingChangeSummaryPreservesSetStyleFallback(t *testing.T) {
 		NewKey:     "192.0.2.1",
 	}
 	change := op.PendingChange()
-	if got := change.Summary(nil); got != "set system name-server " {
-		t.Fatalf("deactivation summary = %q, want existing set-style display", got)
+	if got := change.Summary(nil); got != "deactivate system name-server "+SecretDataPlaceholder {
+		t.Fatalf("deactivation summary = %q, want the verb and the masked member", got)
+	}
+	op.Type = StructuralOpActivateMember
+	if got := op.PendingChange().Summary(nil); got != "activate system name-server "+SecretDataPlaceholder {
+		t.Fatalf("activation summary = %q, want the verb and the masked member", got)
 	}
 
 	change.Kind = ""

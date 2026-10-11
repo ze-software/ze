@@ -199,7 +199,7 @@ func TestInsertAfterSessionAddedReference(t *testing.T) {
 // deactivated member a concurrent commit removed answers a stale conflict, on
 // both commit paths.
 // VALIDATES: round-4 NOTE 1; member deactivate and activate ops have a
-// pre-scan.
+// pre-scan. Round-5 ISSUE 3: the conflict names the toggle and its fix.
 // PREVENTS: the commit failing with a raw `"192.0.2.2/30" not found` error.
 func TestDeactivateMemberRemovedConcurrently(t *testing.T) {
 	for _, candidate := range []bool{false, true} {
@@ -220,5 +220,22 @@ func TestDeactivateMemberRemovedConcurrently(t *testing.T) {
 		assert.Equal(t, strings.Join(bracketAddressPath, " "), c.Path)
 		assert.Equal(t, "member removed", c.OtherValue)
 		assert.Equal(t, "192.0.2.2/30", c.PreviousValue)
+		// Round-5 ISSUE 3: the report names the toggle and the command
+		// that resolves it, never "set <path> " and a re-set instruction.
+		path := strings.Join(bracketAddressPath, " ")
+		assert.Equal(t, "deactivate "+path+" 192.0.2.2/30", c.MyValue)
+		text := commitConflictsText(res.Conflicts)
+		assert.Contains(t, text, "  STALE "+path+": you=deactivate "+path+" 192.0.2.2/30, committed=member removed (was 192.0.2.2/30)\n")
+		assert.Contains(t, text, "    fix: discard "+path+" 192.0.2.2/30 drops the toggle")
+		assert.NotContains(t, text, "Re-set conflicting values")
+		// The named fix resolves it: the discard drops the toggle alone.
+		require.NoError(t, ed.DiscardSessionPath(strings.Fields(path+" 192.0.2.2/30")))
+		if candidate {
+			res, _, err = ed.CommitSessionCandidate(time.Now())
+		} else {
+			res, err = ed.CommitSession()
+		}
+		require.NoError(t, err, "candidate=%v", candidate)
+		assert.Empty(t, res.Conflicts, "candidate=%v", candidate)
 	}
 }
