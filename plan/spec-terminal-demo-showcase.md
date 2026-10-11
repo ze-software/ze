@@ -427,6 +427,10 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 | `bracket-member-deactivate-commit` | `test/editor/session/bracket-member-deactivate-commit.et` | Round-3 BLOCKERS 1-2 through the editor: a member added and deactivated in one session commits, is written `nop <path> <member>`, reloads deactivated after a restart, and `delete <leaf> <member>` then removes it alone. Round-4 ISSUE 2: it took 24.6 s because the headless harness waited for the 100 ms validation debounce on every typed character; a typed character's commands now go to pending and every expectation drains them first, so it takes 1.4 s (2.57 s under the probe) and the editor suite 17.5 s, from about 165 s. The old harness times out at 10 s on it. Not weakened: the 8 `.et` files asserting validation errors or warnings (`validation/{error-display,hold-time-invalid-one,hold-time-rfc4271,hold-time-above-max,peer-as-required}`, `commands/errors-semantic`, `pipe/errors-pipe-match`, `lifecycle/commit-blocked-errors`) read the load-time validation, and all 8 go red under the new harness with -overlay discarding the validator's output in `NewModel` and `runValidation` | pass |
 | `TestCommitAddDeactivateDeleteNewMember`, `TestWholeSetAfterMemberDeleteKeepsMember`, `TestWholeSetAfterMemberOpsMatchesView`, `TestInsertAfterSessionAddedReference`, `TestDeactivateMemberRemovedConcurrently` | `internal/component/cli/editor_bracket_round4_test.go` | Round-4 BLOCKERS 1-2, ISSUE 1 and NOTE 1: a member the session adds, deactivates and deletes commits as never added, directly and after SaveDraft; a whole-leaf set after member ops writes what the session view shows on SaveDraft and on both commit paths, a deactivated member it keeps stays deactivated and a committed deactivated member deleted and listed again commits active; an insert whose reference the session itself added commits with no stale conflict; a deactivate whose member a concurrent commit removed answers a stale conflict, not a raw `not found`. All five red against HEAD with -overlay (round-4 scratch `brk4/overlay-red.json`) | pass |
 | `TestSetFormatMemberNopBeforeListLine`, `TestBracketMemberLegacySpellingsRead` (changed), `TestMergeRefusesRepeatedDeactivatedMember` (changed) | `internal/component/config/tree_bracket_nop_order_test.go`, `internal/component/config/tree_bracket_spelling_test.go` | Round-4 NOTE 3 and ISSUE 3: `nop <path> <member>` stays a member deactivation whichever line comes first, in both set formats, a nop naming a value the list lacks adds it deactivated, a later list line keeps a nop-deactivated member it names and drops one it does not, and the text reads back the same; `nop items c` with c absent now reads as the member c deactivated, not the whole leaf; the repeated-member refusal names the problem, why and the fix. All three red against HEAD with the same overlay | pass |
+| `TestLeafListSequencesAgree` | `internal/component/cli/editor_leaflist_sequence_test.go` | Round-5 BLOCKERS 1-3 and ISSUE 1: 14 named and 80 seeded member sequences over the bracket `address` list and the plain `bgp filter import` list; the view, SaveDraft, the draft file, a reload and both commit paths agree. Red at HEAD on 15 of 94 sequences (scratch `brk5/red.json`) | pass (6b95932a8b) |
+| `TestRenameRebasesMemberOps` | `internal/component/cli/editor_leaflist_sequence_test.go` | Round-5 ISSUE 2 and NOTE 4: after a rename, the session's member ops follow the new path, and a whole-leaf entry under the renamed path raises no false stale conflict. 3 cases, red at HEAD with -overlay (scratch `brk6/red.json`) | pass (e21852d248) |
+| `TestSetFormatMemberNopOnRepeatedOrderedMember` | `internal/component/config/tree_bracket_nop_order_test.go` | Round-5 NOTE 3: a member `nop` naming a member an ordered sequence repeats is refused with the problem, why and the fix. Red against HEAD tree.go with -overlay (scratch `brk6/red4.json`) | pass (b7a882b75a) |
+| `bracket-member-sequence-commit` | `test/editor/session/bracket-member-sequence-commit.et` | Round-5 ISSUE 5: the round-4 and round-5 member sequences on eth7, eth8 and eth9 typed in one session, one commit, the committed file and a reload checked. Red against the pre-fix editor and serializer with -overlay (scratch `brk5/red.json`): at step 39 the committed file lacks `set interface ethernet eth9 unit 0 ipv4 address [ 192.0.2.1/24 192.0.2.2/30 ]` | pass (f14349b85e) |
 | `TestBuildDiffSectionsFilesAChangedAncestorUnderItsDeclaredRoot` | `internal/component/plugin/server/reload_test.go` | The Changed arm of d789fb00d2's declared-root pass: an ancestor whose value changed gives the nested root an add, a removal or a change by which side holds it. Red with -overlay when the both-sides arm files an add | pass |
 | one `.ci` per further topic found not to enable on a live commit | `test/reload/<topic>-added-live.ci` | AC-2: named when the Work Plan step 1 probe finds the defect; none exists yet because none is proven | |
 | topic and showcase validators | `./le site terminal-demo` validate mode, Linux renderer container | AC-2, AC-3, AC-4, AC-11: the recording's claims hold against the live lab | |
@@ -667,14 +671,20 @@ the light of decision 4: they guard against wrong output on screen, nothing more
   (the pre-scan replays the commit order on a copy; a deactivated reference is
   valid), BLOCKER 2 (member edits after a whole set rewrite the whole-leaf
   entry), BLOCKER 3 (an insert of a present member waits for the entries) and
-  three siblings the sweeps found. Open: ISSUE 2 (draft code and test parked in
-  scratch `brk5/issue2-*.txt`; its first case also hits NOTE 4), ISSUE 3-5,
-  NOTES 1, 3, 4, 5, and the gates. NOTE 2 settled by the owner on 2026-10-11:
-  "It should be when using the yang presentation the junos way but when using a
-  command line format nop." `nop` is a `set` line marked inactive, so
-  `nop <list> c` adds c deactivated (round 4's behaviour, kept); syntax.md is
-  still to state it in those terms. Round 6 review owed over the commit that
-  closes the remaining findings, owner authorised 2026-10-11 "Authorise round 6".
+  three siblings the sweeps found. The rest closed in e21852d248 (ISSUE 2: a
+  rename rebases the session's member ops; NOTE 4: the whole-leaf stale check
+  reads the committed value at the pre-rename path, on both commit paths),
+  98fccdac81 (ISSUE 3: a member conflict names its `deactivate` or `activate`
+  toggle and a `fix:` line with the `discard` that clears it, over SSH, the
+  model and the web terminal), e738d25667 (NOTE 2: syntax.md states "`nop` is a
+  `set` line marked inactive"; ISSUE 4 and NOTE 5 on config-editor.md),
+  b7a882b75a (NOTE 3: the repeated-member deactivation refusal names why and
+  the fix; NOTE 1: headless.go comment) and f14349b85e (ISSUE 5: the
+  `bracket-member-sequence-commit` .et). NOTE 2 settled by the owner on
+  2026-10-11: "It should be when using the yang presentation the junos way but
+  when using a command line format nop." `nop` is a `set` line marked inactive,
+  so `nop <list> c` adds c deactivated (round 4's behaviour, kept). round 6
+  review owed over f14349b85e, owner authorised 2026-10-11 "Authorise round 6".
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
