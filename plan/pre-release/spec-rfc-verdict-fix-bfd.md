@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | verification |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the BFD group before any row edit, parent R-11) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-28 |
+| Updated | 2026-10-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -421,3 +421,82 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** tests + rows + verdicts + records + D-8 code + edited spec
 - [ ] **Commit B:** `remove plan/pre-release/spec-rfc-verdict-fix-bfd.md` only, in the same `./le commit create` script
+
+## Progress, 2026-10-11
+
+Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD `c0d31c3660` on 2026-10-11. Implementation is finished; the spec waits for its independent `/ze-review`. It is not closed.
+
+## Implementation Summary
+
+### What Was Implemented
+- 25 commits since 2026-09-28 touch `rfc/audit/rfc588[0-3].json` (`git log --since=2026-09-28 -- rfc/audit/rfc5880.json rfc/audit/rfc5881.json rfc/audit/rfc5882.json rfc/audit/rfc5883.json`), from `246dbae78c` (auth verdict fixes) to `1248bf9d3d` (P-4 owner ruling) and the AC-C2 record sweep `66249a3391`.
+- Verdict state at HEAD: rfc5880 100 enforced and 2 unimplemented, rfc5881 15 enforced, rfc5882 5 enforced and 1 weak (RFC5882-4.4-1, the parent's, see below), rfc5883 5 enforced.
+- Split rows (AC-C3): `7faf23a2b7` added the RFC5880 §6.7.3/§6.7.4 split rows and the RFC5882 SHOULD rows (RFC5882-4.2.2.1-1/-2, 4.2.2.2-1, 10.2-1); RFC5883-5-2 retired in `b86ff37e11`.
+- Row quality (AC-C6): RFC5880-4.1-1 carries its dated correction in `rfc/corrections/rfc5880.md`.
+
+### Bugs Found/Fixed (D-8, each with production code)
+| Commit | Fix |
+|--------|-----|
+| `ac27529c11`, `65f29eba17` | session/engine RFC 5880 fixes; session revival and sharing |
+| `0bde29b2db` | multi-hop BFD sessions shared across clients |
+| `c48b1585fd` | RFC5881-6-1 egress pinning (netns) |
+| `637aa9c186`, `ff834590e3` | RFC5881-6-2 off-subnet refusal, IPv4 link-local |
+| `380aa13f83`, `a0ad32312b` | AdminDown handling; AdminDown sent for 3x Detection Time (RFC5880-6.8.16-2/-3) |
+| `460ae9faf5`, `dfb07c0c7d` | a join with differing authentication refused; EBGP peer with unauthenticated BFD profile warned (RFC5882-10.2-1, RFC5880-6.7.4-9) |
+
+### Documentation Updates
+- `docs/architecture/bfd-client.md` and the two OSPF BFD interop scenario configs, `1c21de3153`.
+
+### Deviations from Plan
+- RFC5882-4.4-1 was never this child's (constraint under Required Reading, parent AC-9). Owner decision 2026-10-11: it is transferred to AC-24 of `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` (Phase 4, step 1), which owns the `internal/component/bfd/engine/engine.go` fix. Recorded in the parent's AC-9 and AC-11. This child holds no row for it.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | the first `own` filter named only rfc5882 | an untagged weak rfc5880 row (RFC5880-6.7.4-9) was invisible to it | Correction 2026-09-30 in the Task | filter widened; row fixed in `dfb07c0c7d` |
+
+## Implementation Audit
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-C1 | Done | the "Derived listing" filter run on 2026-10-11 at HEAD returns no row | "Blocked by" is empty, so nothing moves to another spec |
+| AC-C2 | Done | 84 verdicts moved to `enforced` since `174862502f` (the child specs' creation); every tagged unit of each carries a record in `rfc/discrimination/rfc588[0-3].json` (script over audit and record files, 2026-10-11: 0 unrecorded) | sweep `66249a3391`; judge independence per commit is in QUEUE.md and is the reviewer's to confirm |
+| AC-C3 | Done | split rows `7faf23a2b7`; RFC5880-6.7.3-11 is one of them; RFC5883-5-2 retired `b86ff37e11` | |
+| AC-C4 | Done | no code-defect spec owns a BFD row ("Blocked by") | |
+| AC-C5 | Done | `./le rfc check` 2026-10-11: no violation in rfc5880..5883 | |
+| AC-C6 | Done | RFC5880-4.1-1 dated correction in `rfc/corrections/rfc5880.md` | |
+| AC-C7 | N-A | no R-7 row belongs to this child | |
+
+### Assumptions
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `./le rfc audit-stamp` takes `mode rejudge` (parent AC-1) and every BFD re-judge went through it |
+| A-2 | confirmed | AC-C1 listing is empty |
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| AC-C1: the derived listing holds only "Blocked by" ids | ledger query | filter in "Derived listing" returns 0 rows at `c0d31c3660` |
+| every resolved verdict proven in both polarities and judged by a non-author | discrimination records + audit | 0 unrecorded tagged units over the 84 moved verdicts; `./le rfc check` clean for the four stems |
+| D-8 fixes work against another implementation | interop | handover QUEUE.md (2026-09-30): `bfd-simple-password-bird` PASS, `bgp-bfd-strict-frr` PASS, `ospf-bfd-frr` and `ospfv3-bfd-frr` PASS after `1c21de3153`. `bfd-frr` hit a docker timeout and was never re-run. The job (QUEUE.md line 168) started after `460ae9faf5`, the last BFD D-8 commit, so the runs postdate every fix. No log is committed, so each PASS is a claim, not evidence |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| RFC5882-4.4-1 shared-session `joined` key | parent verdict, transferred by the owner 2026-10-11 | `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` AC-24 |
+| interop for the D-8 fixes, all wire-visible (session state, AdminDown transmission, egress pinning, off-subnet refusal) | `bfd-frr` hit a docker timeout on 2026-09-30 and never passed; the other four PASS claims have no committed log. Owed, each with `INTEROP_SCENARIO=<name> ./le test integration interop` and its log kept: `bfd-frr`, `bfd-simple-password-bird`, `bgp-bfd-strict-frr`, `ospf-bfd-frr`, `ospfv3-bfd-frr` | this spec, before closure (Review Gate) |
+| `./le verify worktree` | needs a quiet machine; never green for this pass | this spec, before closure |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | |
+| `./le spec review check` | not run |
+| Rounds | |
+| Reviewer lenses used | |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
