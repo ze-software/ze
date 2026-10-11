@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-29",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,8 +10,8 @@
       "note": "Sender: the Response Value ze's peer emits has 8 zero Reserved octets (td[21:29]). Receiver: each of the 8 Reserved octets set to 1, each on a fresh copy of the authenticator at the Challenge, is refused through mschapv2Method.Process, so a check of the first octet only goes red.",
       "requirement_sha": "19a1b76c694f295d",
       "tests": {
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "55d5252092ae8516",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "56143b27bc08b27f",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "56143b27bc08b27f",
         "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
         "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
       },
@@ -26,8 +27,8 @@
       "note": "Sender: the Flags octet ze's peer emits is 0 (td[53]). Receiver: Flags 1 on a fresh authenticator copy is refused through Process.",
       "requirement_sha": "20cb4974db9bb488",
       "tests": {
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "55d5252092ae8516",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "56143b27bc08b27f",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "56143b27bc08b27f",
         "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
         "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
       },
@@ -43,8 +44,8 @@
       "note": "The layout ze's peer emits is read field by field: Value-Size 49, octets 0-15 equal the peer's Peer-Challenge, octets 24-47 the NT-Response over the authenticator's real Start challenge, Name after the 49 octets. Negative: Value-Size 48 and 50 each refused on a fresh copy.",
       "requirement_sha": "3fde78ac00f0df11",
       "tests": {
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "55d5252092ae8516",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "56143b27bc08b27f",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "56143b27bc08b27f",
         "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
         "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
       },
@@ -60,10 +61,10 @@
       "note": "Real path both roles: with Name DOMAIN\\user the peer sends the full Name and an NT-Response equal to the one over the bare 'user', and the authenticator accepts it; the same Response with the NT-Response computed over the domain-qualified Name is refused through Process. Removing stripDomain from either side goes red.",
       "requirement_sha": "02f4794e4a13dbac",
       "tests": {
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName": "55d5252092ae8516",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName#2": "55d5252092ae8516",
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix": "e9ded5ee76d0ba58",
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix#2": "e9ded5ee76d0ba58"
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName": "56143b27bc08b27f",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName#2": "56143b27bc08b27f",
+        "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix": "60da2d6f7920809a",
+        "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix#2": "60da2d6f7920809a"
       },
       "units": {
         "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName": "47d95975b41d25ae",
@@ -88,8 +89,8 @@
       "note": "Clauses: present, exactly 32 octets, ASCII hex. Sender: TestRFC2759FailureCarriesFreshChallenge fails if Ze Failure has no C= (failureField !ok), len!=32, or a non-hex digit. Receiver negative: TestRFC2759PeerRefusesFailureWithoutConformantChallenge feeds absent, short (30), long (34), non-hex and empty C= and requires errors.Is(errFailureChallenge), no ack, no success; the conformant control is read as a refusal, so the cases discriminate.",
       "requirement_sha": "b985db2132624a64",
       "tests": {
-        "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759FailureCarriesFreshChallenge": "6fbd0fd95c351d96",
-        "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759PeerRefusesFailureWithoutConformantChallenge": "6fbd0fd95c351d96"
+        "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759FailureCarriesFreshChallenge": "12c25bc8eda93116",
+        "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759PeerRefusesFailureWithoutConformantChallenge": "12c25bc8eda93116"
       },
       "units": {
         "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759FailureCarriesFreshChallenge": "d9b9996fc5ad7a17",
@@ -114,7 +115,7 @@
       "note": "Row re-levelled MUST->SHOULD (only keyword in the span is SHOULD; correction 2026-09-28 in rfc/corrections/rfc2759.md). Single-polarity positive: with crypto/rand.Reader substituted, the Challenge from mschapv2Method.Start carries Value-Size 16 and exactly the substituted octets, so a math/rand or time-seeded source goes red.",
       "requirement_sha": "8771a5d9ef574e84",
       "tests": {
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759AuthenticatorChallengeComesFromCryptoRand": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759AuthenticatorChallengeComesFromCryptoRand": "56143b27bc08b27f",
         "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "f08fabdb1765636f"
       },
       "units": {
@@ -128,7 +129,7 @@
       "requirement_sha": "b35159574d13d7a6",
       "tests": {
         "internal/core/eap/peer_test.go::TestMSCHAPv2PeerChallengeRandom16": "93404fe1a5065a94",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerChallengeEntersTheNTResponse": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerChallengeEntersTheNTResponse": "56143b27bc08b27f",
         "internal/core/eap/rfc2759_peer_challenge_test.go::TestRFC2759PeerChallengeComesFromCryptoRand": "c59064ad278415f3"
       },
       "units": {
