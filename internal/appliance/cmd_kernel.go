@@ -688,7 +688,7 @@ func downloadFirmwareBlob(rawURL, destPath string) error {
 	}
 	resp, err := http.DefaultClient.Do(req) //nolint:bodyclose // closed below
 	if err != nil {
-		return err
+		return firmwareDownloadFailed(ctx, rawURL, destPath, err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // HTTP response
 	if resp.StatusCode != 200 {
@@ -704,12 +704,30 @@ func downloadFirmwareBlob(rawURL, destPath string) error {
 	}()
 	if _, err := io.Copy(tmp, resp.Body); err != nil {
 		tmp.Close() //nolint:errcheck // cleanup
-		return err
+		return firmwareDownloadFailed(ctx, rawURL, destPath, err)
 	}
 	if err := tmp.Close(); err != nil {
 		return err
 	}
 	return os.Rename(tmpPath, destPath)
+}
+
+// firmwareDownloadFailed names a firmware download that failed or ran out of
+// downloadTimeout, with the fetch to run by hand: net/http's own error is a
+// URL and "context deadline exceeded" at best. ensureFirmware skips a blob
+// already at destPath, so one fetched there by hand is the next build's. The
+// fetch goes to a .part file first, so a curl cut short leaves no partial blob.
+func firmwareDownloadFailed(ctx context.Context, rawURL, destPath string, err error) error {
+	var fetch textbuf.Buffer
+	fetch.Str("curl -fL -o ").Str(shellArg(destPath + ".part")).Byte(' ').Str(shellArg(rawURL)).
+		Str(" && mv ").Str(shellArg(destPath + ".part")).Byte(' ').Str(shellArg(destPath))
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return fmt.Errorf("the download did not finish within the %s limit Ze gives one firmware download (%w); "+
+			"check that this host reaches %s, or fetch it by hand to where the build looks for it:\n%s",
+			downloadTimeout, ctx.Err(), rawURL, fetch.String())
+	}
+	return fmt.Errorf("the download from %s failed (%w); check that this host reaches it, "+
+		"or fetch it by hand to where the build looks for it:\n%s", rawURL, err, fetch.String())
 }
 
 // cliErrorf writes a refusal to stderr, where a CLI error belongs

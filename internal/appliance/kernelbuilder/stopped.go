@@ -38,7 +38,8 @@ func limitWords(limit time.Duration) string {
 	return limit.String()
 }
 
-// errBuildStopped reports a build step that ended because ctx did. The caller
+// errBuildStopped reports a build step that ended because ctx did, for a
+// step whose stop leaves nothing running (errBuildStoppedLeaving). The caller
 // MUST check ctx.Err() first: the step's own error ("signal: killed") reads as
 // a failed step, and it is not one. stopped names what stopped and when ("the
 // build VM was stopped while it set up SSH"). A canceled build is reported as
@@ -47,12 +48,51 @@ func limitWords(limit time.Duration) string {
 // build out of a deadline its caller set says so; both end with next, the
 // step's own next step, on lines of their own.
 func errBuildStopped(ctx context.Context, stopped, next string) error {
+	return errBuildStoppedLeaving(ctx, stopped, next, "")
+}
+
+// errBuildStoppedLeaving is errBuildStopped for a step whose stop can leave
+// work running that the next build trips over (the kernel container, which a
+// stop of the Docker CLI does not stop). left says what is left and how to
+// clear it. It is cleanup, not a retry, so it is printed on every branch,
+// after next, a canceled build included.
+func errBuildStoppedLeaving(ctx context.Context, stopped, next, left string) error {
+	cleanup := ""
+	if left != "" {
+		cleanup = "\n" + left
+	}
 	ctxErr := ctx.Err()
 	if errors.Is(ctxErr, context.Canceled) {
-		return fmt.Errorf("%s: the kernel build was canceled (%w)", stopped, ctxErr)
+		return &buildStopped{fmt.Errorf("%s: the kernel build was canceled (%w)%s", stopped, ctxErr, cleanup)}
 	}
 	if limit, ok := errors.AsType[buildLimit](context.Cause(ctx)); ok {
-		return fmt.Errorf("%s: the kernel build did not finish within %s (%w)\n%s", stopped, limit.Error(), ctxErr, next)
+		return &buildStopped{fmt.Errorf("%s: the kernel build did not finish within %s (%w)\n%s%s", stopped, limit.Error(), ctxErr, next, cleanup)}
 	}
-	return fmt.Errorf("%s: the kernel build ran out of the time its caller gave it (%w)\n%s", stopped, ctxErr, next)
+	return &buildStopped{fmt.Errorf("%s: the kernel build ran out of the time its caller gave it (%w)\n%s%s", stopped, ctxErr, next, cleanup)}
+}
+
+// buildStopped is the report errBuildStoppedLeaving writes. Build reads the
+// type to tell a step that named its own stop from one that returned the raw
+// error its library gave (stopReport).
+type buildStopped struct{ report error }
+
+func (s *buildStopped) Error() string { return s.report.Error() }
+func (s *buildStopped) Unwrap() error { return s.report }
+
+// stopReport answers err as Build reports it. A step that ended because ctx
+// did and named the stop itself (errBuildStopped) is answered as it is. Any
+// other step that returned under a stop returned what its library said:
+// net/http answers context.Cause(ctx), so under Ze's limit the whole error
+// would be the limit's own noun phrase, and exec answers "signal: killed".
+// That error is kept as evidence after the stop is named, so no stop is ever
+// reported by its cause marker alone.
+func stopReport(ctx context.Context, err error) error {
+	if ctx.Err() == nil {
+		return err
+	}
+	if _, named := errors.AsType[*buildStopped](err); named {
+		return err
+	}
+	return errBuildStopped(ctx, "the kernel build was stopped part way (its last step said: "+err.Error()+")",
+		"the build output above shows the last step it reached")
 }

@@ -28,9 +28,12 @@ import (
 
 const (
 	defaultISOInitrd = "build/initrd/initrd.img.gz"
-	isoBuildTimeout  = 10 * time.Minute
 	isoMediaIDBytes  = 16
 )
+
+// isoBuildTimeout is the limit Ze gives the two ISO tools together (GRUB's
+// EFI builder, then xorriso). A variable only so a test can expire it.
+var isoBuildTimeout = 10 * time.Minute
 
 var isoTargetRe = regexp.MustCompile(`^/dev/(sd[a-z]+|vd[a-z]+|xvd[a-z]+|hd[a-z]+|nvme[0-9]+n[0-9]+|mmcblk[0-9]+)$`)
 
@@ -810,14 +813,12 @@ func runISOBuilder(call isoBuilderCall) error {
 		return fmt.Errorf("create EFI staging: %w", err)
 	}
 	efiBinaryPath := filepath.Join(efiDir, call.EFIBootFile)
-	grubCmd := exec.CommandContext(ctx, call.GRUBPath, "-O", call.GRUBTarget, "-o", efiBinaryPath, "boot/grub/grub.cfg="+cfgPath) //nolint:gosec // controlled argv
+	grubArgs := []string{"-O", call.GRUBTarget, "-o", efiBinaryPath, "boot/grub/grub.cfg=" + cfgPath}
+	grubCmd := exec.CommandContext(ctx, call.GRUBPath, grubArgs...) //nolint:gosec // controlled argv
 	grubCmd.Stdout = os.Stderr
 	grubCmd.Stderr = os.Stderr
 	if err := grubCmd.Run(); err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return errors.New("GRUB EFI builder timed out")
-		}
-		return err
+		return isoToolFailed(ctx, "the GRUB EFI builder", call.GRUBPath, grubArgs, err)
 	}
 
 	efiImagePath := filepath.Join(efiDir, "efiboot.img")
@@ -825,16 +826,34 @@ func runISOBuilder(call isoBuilderCall) error {
 		return err
 	}
 
-	xorrisoCmd := exec.CommandContext(ctx, call.XorrisoPath, "-as", "mkisofs", "-R", "-J", "-o", call.OutputPath, "-eltorito-alt-boot", "-e", "EFI/BOOT/efiboot.img", "-no-emul-boot", call.StagingDir) //nolint:gosec // controlled argv
+	xorrisoArgs := []string{"-as", "mkisofs", "-R", "-J", "-o", call.OutputPath, "-eltorito-alt-boot", "-e", "EFI/BOOT/efiboot.img", "-no-emul-boot", call.StagingDir}
+	xorrisoCmd := exec.CommandContext(ctx, call.XorrisoPath, xorrisoArgs...) //nolint:gosec // controlled argv
 	xorrisoCmd.Stdout = os.Stderr
 	xorrisoCmd.Stderr = os.Stderr
 	if err := xorrisoCmd.Run(); err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return errors.New("xorriso timed out")
-		}
-		return err
+		return isoToolFailed(ctx, "xorriso", call.XorrisoPath, xorrisoArgs, err)
 	}
 	return nil
+}
+
+// isoToolFailed names an ISO tool that failed or ran out of isoBuildTimeout,
+// with its command line: exec's own error ("signal: killed", "exit status 1")
+// says neither which tool nor what to do. The command reads files in the
+// staging directory, which the build removes unless --keep-staging keeps it.
+func isoToolFailed(ctx context.Context, tool, path string, args []string, err error) error {
+	var cmd textbuf.Buffer
+	cmd.Str(path)
+	for _, arg := range args {
+		cmd.Byte(' ').Str(shellArg(arg))
+	}
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return fmt.Errorf("%s did not finish within the %s limit Ze gives the ISO tools (%w); its output above shows how far it got. "+
+			"Run ze appliance iso again with --keep-staging, then run the same command by hand with that run's staging directory:\n%s",
+			tool, isoBuildTimeout, ctx.Err(), cmd.String())
+	}
+	return fmt.Errorf("%s failed (%w); its output above says why. "+
+		"Run ze appliance iso again with --keep-staging, then run the same command by hand with that run's staging directory:\n%s",
+		tool, err, cmd.String())
 }
 
 func createEFIBootImage(imagePath, efiBootFile, efiBinaryPath string) error {

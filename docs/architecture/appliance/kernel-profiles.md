@@ -55,24 +55,34 @@ reported as a failed step or as a kernel that failed to compile:
 
 | Why it stopped | What the error says |
 |----------------|---------------------|
-| Canceled (Ctrl-C) | the step, and that the build was canceled. No next step: the operator stopped it |
+| Canceled (Ctrl-C) | the step, and that the build was canceled. No next step: the operator stopped it. A step that can leave work running still says how to clear it |
 | Ze's limit | the step, that the build did not finish within the 2-hour limit Ze gives one kernel build, then the step's next step |
 | A deadline that a caller of the package set | the step, that the build ran out of the time its caller gave it, then the step's next step |
 
 | Step | Next step when it runs out of time |
 |------|------------------------------------|
+| The QEMU backend downloads the Alpine ISO's checksum, or the Alpine ISO | `curl -fL -o /dev/null <url>`, to check that the host reaches the mirror and how fast |
 | Docker builds the builder image | the same `docker build` command, to run by hand |
-| The kernel container builds the kernel | `docker ps --filter ancestor=<image>`: the stop kills the Docker CLI, not the container, which can still be compiling |
+| The kernel container builds the kernel | the build output above. On every stop, a Ctrl-C included, it then gives `docker ps --filter ancestor=<image>`: the stop kills the Docker CLI, not the container, which can still be compiling and still holds the build volumes the next build mounts |
 | Go compiles the QEMU kernel worker | the same Go command, with its `GOOS` and `GOARCH`, to run from the repository root |
 | The build VM boots, logs in, or sets up SSH | the QEMU command that boots the same VM to the same stage |
-| The build VM builds the kernel | the build output above, and `ssh -t ... -p <port> root@localhost top` to watch the next build, with the port that run prints on its `>>> booting Alpine VM` line. The QEMU command alone boots a VM with no build in it, so it is not offered here |
+| The host downloads the kernel tarball for the build VM | the `curl` command that fetches it by hand to the path the next build reads it from, through a `.part` file, so a fetch cut short leaves no partial tarball |
+| The build VM builds the kernel | the build output above, and `ssh -t <options> -p <port> root@localhost top` to watch the next build, with the options the build logs in with (`sshClientOptions`) and the port that run prints on its `>>> booting Alpine VM` line. The QEMU command alone boots a VM with no build in it, so it is not offered here |
+| Any other step | `Build` names the stop itself, with what the step said as evidence and the build output above as the next step (`stopReport`), so no stop is reported as a library's error alone |
+
+A download has no limit of its own, only the build's 2 hours: a stalled mirror
+is reported when the build runs out of them, at the download step, with its URL.
+The i915 firmware blobs of the `hardware-kms` profile are fetched before the
+build starts, each within 10 minutes (`downloadTimeout`). A firmware download
+that fails or runs out of that time names its URL and gives the `curl` command
+that fetches the blob by hand to where the next run looks for it.
 
 An arm64 kernel is built on the Mac and an amd64 kernel on the Linux host.
 
-<!-- source: internal/appliance/cmd_kernel.go -- kernelBuildTimeout, defaultKernelBuild -->
-<!-- source: internal/appliance/kernelbuilder/stopped.go -- WithBuildLimit, buildLimit, errBuildStopped -->
+<!-- source: internal/appliance/cmd_kernel.go -- kernelBuildTimeout, defaultKernelBuild, downloadFirmwareBlob, firmwareDownloadFailed -->
+<!-- source: internal/appliance/kernelbuilder/stopped.go -- WithBuildLimit, buildLimit, errBuildStopped, errBuildStoppedLeaving, stopReport -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build, validateRequest, runDocker, containerFailure -->
-<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed, buildGuestWorker, qemuNextStep, guestBuildNextStep -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed, buildGuestWorker, qemuNextStep, guestBuildNextStep, sshClientOptions, ensureAlpineISO, downloadNextStep, fetchKernelTarball, tarballNextStep -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 `ze appliance kernel` selects the profile and architecture, validates the

@@ -75,9 +75,10 @@ func TestDockerStopNamesTheStep(t *testing.T) {
 		call  int
 		stage string
 		next  string
+		left  string
 	}{
-		{"builder image", 1, "Docker was stopped while it built the kernel builder image", "docker 'build' "},
-		{"kernel container", 2, "the kernel container was stopped while it built the kernel", "docker ps --filter ancestor=fixture"},
+		{"builder image", 1, "Docker was stopped while it built the kernel builder image", "docker 'build' ", ""},
+		{"kernel container", 2, "the kernel container was stopped while it built the kernel", "docker ps --filter ancestor=fixture", "docker ps --filter ancestor=fixture"},
 	}
 	for _, step := range steps {
 		for _, tc := range stopCases() {
@@ -96,7 +97,18 @@ func TestDockerStopNamesTheStep(t *testing.T) {
 				}
 				ctx, cancel := tc.context()
 				defer cancel()
-				checkStopped(t, runDocker(ctx, req), tc, step.stage, step.next)
+				err := runDocker(ctx, req)
+				checkStopped(t, err, tc, step.stage, step.next)
+				// The container outlives the Docker CLI whatever stopped the
+				// build, so the line that finds it ends every case, a Ctrl-C
+				// included (round-9 ISSUE 2).
+				if step.left == "" || err == nil {
+					return
+				}
+				lines := strings.Split(err.Error(), "\n")
+				if last := lines[len(lines)-1]; !strings.HasPrefix(last, step.left) {
+					t.Errorf("a stopped kernel container does not end with %q, so a container still compiling goes unnamed:\n%v", step.left, err)
+				}
 			})
 		}
 	}

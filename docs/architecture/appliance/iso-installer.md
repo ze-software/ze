@@ -44,6 +44,13 @@ removable medium and runs the installer again.
 **`grub-mkstandalone` is `grub2-mkstandalone` on Fedora and RHEL.** The builder
 resolution tries both names.
 
+**The two ISO tools share a 10-minute limit (`isoBuildTimeout`).** A tool that
+fails or runs out of it is named with its exact command line. The command
+reads the staging directory, which the build removes, so to run it by hand,
+run `ze appliance iso --keep-staging` first.
+
+<!-- source: internal/appliance/cmd_iso.go -- isoBuildTimeout, runISOBuilder, isoToolFailed -->
+
 **Names embedded in the GRUB kernel command line must survive two parsers.** A
 dedicated regex accepts `[a-zA-Z0-9._-]+` only, so spaces, quotes, and shell
 metacharacters cannot reach the bootloader.

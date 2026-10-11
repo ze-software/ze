@@ -90,7 +90,9 @@ func Build(ctx context.Context, req Request) error {
 		return fmt.Errorf("BUG: selected unsupported kernel builder %q", backend)
 	}
 	if err != nil {
-		return err
+		// A step that returned under a stop without naming it is named here
+		// (stopReport), so no stop reaches the operator as a library's error.
+		return stopReport(ctx, err)
 	}
 	if err := writeProvenance(req.OutputDir, req, backend); err != nil {
 		return err
@@ -302,12 +304,15 @@ func runDocker(ctx context.Context, req Request) error {
 // containerFailure names why `docker run` of the kernel container failed. A
 // stop ends it with "signal: killed", which reads as a failed kernel compile,
 // so the stop is named first. The stop kills the Docker CLI, not the
-// container, so the container may still be compiling.
+// container, so the container may still be compiling, whatever stopped the
+// build: the line that finds it is printed on a Ctrl-C too
+// (errBuildStoppedLeaving).
 func containerFailure(ctx context.Context, req Request, buildErr error) error {
 	if ctx.Err() != nil {
-		return errBuildStopped(ctx, "the kernel container was stopped while it built the kernel",
-			"the build output above shows the last step it reached. Docker may still run the container, "+
-				"which holds the build volumes the next build mounts; list it, then stop it with docker stop <id>:\n"+
+		return errBuildStoppedLeaving(ctx, "the kernel container was stopped while it built the kernel",
+			"the build output above shows the last step it reached.",
+			"Docker may still run the container, which holds the build volumes the next build mounts; "+
+				"list it, then stop it with docker stop <id>:\n"+
 				"docker ps --filter ancestor="+req.Image)
 	}
 	return fmt.Errorf("kernel container failed: %w", buildErr)

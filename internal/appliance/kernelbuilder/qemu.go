@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -99,14 +100,23 @@ func ensureAlpineISO(ctx context.Context, arch string) (string, error) {
 		_ = os.Remove(sidecar)
 	}
 	url := fmt.Sprintf("%s/v%s/releases/%s/%s", alpineReleaseBaseURL, alpineVersion, arch, name)
+	// net/http answers context.Cause(ctx) when the build stops, so under
+	// Ze's limit its error would be the limit's own noun phrase, with no
+	// step; the stop is named first, with the download to try by hand.
 	expected, err := fetchPublishedChecksum(ctx, url+".sha256")
 	if err != nil {
+		if ctx.Err() != nil {
+			return "", errBuildStopped(ctx, "the Alpine ISO checksum download was stopped", downloadNextStep(url+".sha256"))
+		}
 		return "", err
 	}
 	part := iso + ".part"
 	_ = os.Remove(part)
 	if err := downloadFile(ctx, url, part); err != nil {
 		_ = os.Remove(part)
+		if ctx.Err() != nil {
+			return "", errBuildStopped(ctx, "the Alpine ISO download was stopped", downloadNextStep(url))
+		}
 		return "", err
 	}
 	actual, err := fileSHA256(part)
@@ -126,6 +136,27 @@ func ensureAlpineISO(ctx context.Context, arch string) (string, error) {
 		return "", fmt.Errorf("write Alpine ISO checksum: %w", err)
 	}
 	return iso, nil
+}
+
+// downloadNextStep is the next step for a download a stop cut short: the
+// same URL fetched by curl shows whether this host reaches it, and how fast.
+// A download has no limit of its own, only Ze's one limit on the whole build
+// (WithBuildLimit), so a stalled server is reported here, with its URL,
+// rather than by a second limit.
+func downloadNextStep(url string) string {
+	return "check that this host can download it, and how fast, then run the build again:\n" +
+		"curl -fL -o /dev/null " + shellJoin([]string{url})
+}
+
+// tarballNextStep is the next step for the kernel tarball download a stop cut
+// short. runQEMUBuild uses a tarball already in the build directory without
+// downloading it, so one fetched by hand to that path is the next build's.
+// The fetch goes to a .part file first, so a curl cut short leaves no partial
+// tarball for the next build to take as whole.
+func tarballNextStep(url, tarball string) string {
+	return "fetch it by hand to where the next build looks for it:\n" +
+		"curl -fL -o " + shellJoin([]string{tarball + ".part", url}) +
+		" && mv " + shellJoin([]string{tarball + ".part", tarball})
 }
 
 func fetchPublishedChecksum(ctx context.Context, url string) (string, error) {
@@ -174,8 +205,11 @@ func downloadFile(ctx context.Context, url, path string) error {
 	}
 	_, copyErr := io.Copy(out, response.Body)
 	closeErr := out.Close()
-	if copyErr != nil || closeErr != nil {
-		return errors.Join(copyErr, closeErr)
+	if copyErr != nil {
+		return fmt.Errorf("download %s: %w", url, errors.Join(copyErr, closeErr))
+	}
+	if closeErr != nil {
+		return fmt.Errorf("write %s: %w", path, closeErr)
 	}
 	return nil
 }
@@ -344,9 +378,8 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		fmt.Fprintf(req.Stderr, "  %s cached on host\n", filepath.Base(tarball)) //nolint:errcheck // progress output
 	} else {
 		fmt.Fprintf(req.Stderr, "  downloading %s on host...\n", filepath.Base(tarball)) //nolint:errcheck // progress output
-		if err := downloadFile(ctx, kernelTarballURL(req.Version), tarball); err != nil {
-			_ = os.Remove(tarball)
-			return fmt.Errorf("kernel tarball download failed: %w", err)
+		if err := fetchKernelTarball(ctx, kernelTarballURL(req.Version), tarball); err != nil {
+			return err
 		}
 	}
 	fmt.Fprintf(req.Stderr, "  building kernel (version=%s, arch=%s, profile=%s)...\n", req.Version, req.Arch, req.Profile) //nolint:errcheck // progress output
@@ -355,11 +388,27 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		// compile failure, so the stop is named first and only then is the
 		// error the build's own.
 		if ctx.Err() != nil {
-			return errBuildStopped(ctx, "the build VM was stopped while it built the kernel", guestBuildNextStep)
+			return errBuildStopped(ctx, "the build VM was stopped while it built the kernel", guestBuildNextStep())
 		}
 		return fmt.Errorf("kernel build failed: %w%s", err, qemuSaid(stopQEMU()))
 	}
 	fmt.Fprintln(req.Stderr, ">>> kernel build complete") //nolint:errcheck // progress output
+	return nil
+}
+
+// fetchKernelTarball downloads the kernel tarball from url to tarball, on the
+// host, for the build VM to read. A failed download leaves no file behind,
+// since runQEMUBuild takes any file at tarball as the tarball.
+func fetchKernelTarball(ctx context.Context, url, tarball string) error {
+	if err := downloadFile(ctx, url, tarball); err != nil {
+		_ = os.Remove(tarball)
+		// net/http answers context.Cause(ctx), so the stop is named first
+		// (ensureAlpineISO).
+		if ctx.Err() != nil {
+			return errBuildStopped(ctx, "the kernel tarball download was stopped", tarballNextStep(url, tarball))
+		}
+		return fmt.Errorf("kernel tarball download failed: %w", err)
+	}
 	return nil
 }
 
@@ -496,12 +545,15 @@ func qemuNextStep(binary string, args []string) string {
 // guestBuildNextStep is the next step for a build VM stopped while the kernel
 // built. The QEMU command alone boots a bare Alpine VM with no sshd and no
 // build, so it cannot show this stage; ssh into a running build can. The
-// options match sshOptions, and runQEMUBuild prints the port, which is new for
-// each run, on its ">>> booting Alpine VM" line.
-const guestBuildNextStep = "the build output above shows the last step it reached. " +
-	"To watch the next build while it runs, log in to its build VM with the ssh port " +
-	"its \">>> booting Alpine VM\" line prints, and run top:\n" +
-	"ssh -t -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p <port> root@localhost top"
+// options are sshClientOptions, the ones the build itself logs in with, and
+// runQEMUBuild prints the port, which is new for each run, on its
+// ">>> booting Alpine VM" line.
+func guestBuildNextStep() string {
+	return "the build output above shows the last step it reached. " +
+		"To watch the next build while it runs, log in to its build VM with the ssh port " +
+		"its \">>> booting Alpine VM\" line prints, and run top:\n" +
+		"ssh -t " + strings.Join(sshClientOptions, " ") + " -p <port> root@localhost top"
+}
 
 // errSSHNeverAnswered reports a build VM that reached its login prompt but
 // whose sshd never answered, with what QEMU wrote and the command that boots
@@ -553,7 +605,8 @@ func availableAccelerators(ctx context.Context, binary string) (map[string]bool,
 	result := make(map[string]bool)
 	output, err := exec.CommandContext(ctx, binary, "-accel", "help").Output()
 	if err != nil && errors.Is(ctx.Err(), context.Canceled) {
-		return nil, fmt.Errorf("%s -accel help stopped: the kernel build was canceled (%w)", binary, ctx.Err())
+		// Canceled, so errBuildStopped prints no next step.
+		return nil, errBuildStopped(ctx, binary+" -accel help was stopped", "")
 	}
 	if err != nil && ctx.Err() != nil {
 		return nil, fmt.Errorf("%s -accel help did not answer within %s, so QEMU cannot say which accelerators it has and the kernel build cannot start; run it by hand to see where it stops:\n%s -accel help", binary, hostProbeTimeout, binary)
@@ -641,8 +694,12 @@ func vmMemoryMiB(ctx context.Context) int {
 	return quarter
 }
 
+// sshClientOptions are the ssh options the build logs in to its VM with,
+// declared once so the advice guestBuildNextStep prints is the same login.
+var sshClientOptions = []string{"-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "PreferredAuthentications=none", "-o", "LogLevel=ERROR"}
+
 func sshOptions(port int) []string {
-	return []string{"-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "PreferredAuthentications=none", "-o", "LogLevel=ERROR", "-p", strconv.Itoa(port)}
+	return append(slices.Clone(sshClientOptions), "-p", strconv.Itoa(port))
 }
 func waitForSSH(ctx context.Context, port int, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
