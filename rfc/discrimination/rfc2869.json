@@ -90,6 +90,28 @@
       "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2869-5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go::TestRFC2869OutputGigawordsAbsentOnStart",
+      "unit-sha": "9275d445a0bd0bc0",
+      "claim-sha": "30e623ace366d6a8",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+      "producer-sha": "95509f5b3525dc3f",
+      "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2869-5.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go::TestRFC2869OutputGigawordsOnInterimUpdate",
+      "unit-sha": "5585d498d4bf9480",
+      "claim-sha": "fb12a40fa47bc667",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/acct.go::splitGigawords",
+      "producer-sha": "a9f69038475b05ba",
+      "break": "body of splitGigawords replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2869-x-2",
       "polarity": "positive",
       "unit": "internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go::TestBuildAcctPacketGigawords",
