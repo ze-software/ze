@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-11",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -122,6 +122,19 @@
         "internal/component/ike/engine/rfc4555_cookie2_test.go::TestRFC4555Cookie2IsTheRandomSourceOutput": "315651b31a6123f2"
       },
       "verdict": "enforced"
+    },
+    "RFC4555-4.2.6-1": {
+      "note": "Judged 2026-10-11 by an independent judge. RFC 4555 4.2.6: 'The Notify Message Type for this message is 16402.  The notification data contains the IP addresses and ports from/to which the packet was sent.' The data clause is enforced: TestMobikeNoNATsDataIsTheSendTuple decrypts a real update and requires the 12-octet IPv4 data to equal the received packet's source address, destination address, source port and destination port field by field, and requires noNATsAllowedMatches to refuse a changed source or destination address, swapped ports and a changed port (revert records on noNATsAllowedPayload and noNATsAllowedMatches). The type clause is not: the test finds the notification through wire.NotifyNoNATsAllowed, the same constant the producer writes, and no test anywhere pins that constant to 16402 (payload_notify.go), so a wrong code passes. The 'IPv6 width' negative case also changes both addresses, so it does not isolate the width. Fix: assert the type octets equal 16402, or narrow the row to the data sentence.",
+      "requirement_sha": "11c0b4de2a5d71e7",
+      "tests": {
+        "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple": "0057d52d09f91e4b",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple#2": "0057d52d09f91e4b"
+      },
+      "units": {
+        "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple": "3bffc75c5ed97eae",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple#2": "3bffc75c5ed97eae"
+      },
+      "verdict": "weak"
     },
     "RFC4555-x-1": {
       "note": "Re-judged 2026-09-30 (independent judge). Clause: the MOBIKE_SUPPORTED offer is in IKE_AUTH, and with several IKE_AUTH exchanges in the message carrying the SA payload. rfc4555_mobike_offer_test.go::TestRFC4555EAPOfferRidesTheIKEAuthMessageCarryingSA drives an EAP initiator: the first IKE_AUTH request (SA, no AUTH) decrypted off the wire carries MOBIKE_SUPPORTED, the later buildEAPResponse request carries neither SA nor the offer, and the peer's answer then enables MOBIKE. TestRFC4555NoOwnOfferNoMOBIKE is the negative for THIS row: an initiator whose own IKE_AUTH carried no offer (never built, or no migrating dataplane, checked off the wire) does not enable MOBIKE on the peer's offer (acceptMobikeOffer gates on mobike.offered). Revert records observed red on mobike.go::mobikeAuthOffer and ::acceptMobikeOffer. Single-exchange placement for both roles stays on TestMobikeAuthNegotiation. The responder's multi-exchange case is not driven end to end; its only offer site is buildAuthResponse (responder.go), the SA-carrying final response, after the SA payload unconditionally, the same builder TestMobikeAuthNegotiation asserts.",

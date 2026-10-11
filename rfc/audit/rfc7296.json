@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-10",
+  "audited": "2026-10-11",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -79,7 +79,7 @@
       "verdict": "enforced"
     },
     "RFC7296-1.4-1": {
-      "note": "Child SA Delete response carries a Delete naming the paired inbound SPI; IKE SA Delete draws an empty response",
+      "note": "Re-judged 2026-10-11 by an independent judge after the owner moved the level from MUST to SHOULD (970ea021d8); quote unchanged. RFC 7296 1.4.1: 'Normally, the response in the INFORMATIONAL exchange will contain Delete payloads for the paired SAs going in the other direction.' TestDelResponseCarriesThePairedDelete sends a Child SA Delete naming ze's outbound SPI and requires the response to carry one ESP Delete naming the paired inbound SPI and not the deleted one, so an empty or echoing response fails; that is the recommended behavior at either level. TestDelIKEDeleteDrawsAnEmptyResponse (IKE SA Delete draws an empty response, per the same paragraph) is a scoping control rather than a violating input, and the crossing-Delete exception is proven under RFC7296-1.4.1-4 and -7. The lower level asks less, so the proof still covers it. No discrimination record.",
       "requirement_sha": "70583a75d4a84af9",
       "tests": {
         "internal/component/ike/engine/rfc7296_delete_test.go::TestDelIKEDeleteDrawsAnEmptyResponse": "7748979df6c29890",
@@ -349,8 +349,8 @@
       "verdict": "enforced"
     },
     "RFC7296-2.21.4-4": {
-      "note": "answer holds exactly one INVALID_IKE_SPI Notify with empty SPI and data",
-      "requirement_sha": "3588193f7dd78275",
+      "note": "Re-judged 2026-10-11 by an independent judge; row widened to its subject, kept clause 'MUST contain an INVALID_IKE_SPI Notify payload' (RFC 7296 2.21.4). TestNtfOutOfSAAnswersWithInvalidIKESPI parses the emitted answer and requires exactly one payload, a Notify of type INVALID_IKE_SPI with an empty SPI and no data, so a wrong type, a missing Notify or an extra payload fails; ipsec-error-notify-no-loop.ci asserts the same through the real UDP path. The negatives (an IKE_SA_INIT to an unknown SPI draws nothing) are controls on the emitter's guard rather than violating inputs. No discrimination record.",
+      "requirement_sha": "caa14f78e936e131",
       "tests": {
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
@@ -366,8 +366,8 @@
       "verdict": "enforced"
     },
     "RFC7296-2.21.4-6": {
-      "note": "unprotected notify leaves state, counters, child SA and DPD timer untouched; same notify protected reaches handlers Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit is byte-identical to the judged one (git diff 2d57003d45..HEAD touches only other functions, a const block, and new functions appended to the file), so the verdict stands unchanged.",
-      "requirement_sha": "c54e327cae6c7e7c",
+      "note": "Re-judged 2026-10-11 by an independent judge; row widened to its subject 'A peer receiving such an unprotected Notify payload', kept clause 'MUST NOT change the state of any existing SAs' (RFC 7296 2.21.4). The input of TestErrUnprotectedNotifyChangesNoState is ntfRequest, a bare 28-octet header marked as a request with no payload at all, so it carries no Notify payload, let alone the INVALID_IKE_SPI response 'such' refers to. A receiver that acted on an unprotected Notify (for example tore down the SA on an unprotected INVALID_IKE_SPI response) would leave the unit green, because the payload-less header can be dropped before any notify handling (isolation fails). The negative's claim says the SAME notify inside a valid Encrypted payload reaches the handlers, but the body sends rtxIKEDelete, an IKE Delete: claim wider than its assertion. No discrimination record. The earlier enforced verdict was a byte-identity re-stamp, not a re-read.",
+      "requirement_sha": "b2827b9913e02df2",
       "tests": {
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState": "415b6ac964372bdc",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState#2": "415b6ac964372bdc"
@@ -376,7 +376,7 @@
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState": "068fa25f50632492",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState#2": "068fa25f50632492"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-2.21.4-7": {
       "note": "Re-judged 2026-09-30 (independent judge) after the row was narrowed to the MUST NOT sentence, verbatim at RFC 7296 Section 2.21.4: \"The recipient MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions.\" The SHOULD-send sentence is RFC7296-2.21.4-8 {gap}. TestErrProtectedInformationalNotifyChangesNoState: a protected INFORMATIONAL carrying INVALID_SELECTORS (the kind of notify a node sends after a suspicious ESP packet) is answered, leaves the IKE SA state unchanged and the Child SA in place; control: the same exchange carrying a Delete does change state. Revert records observed red on inbound.go::handleInformationalOwned. Limit: the Child SA check is pointer identity, so an in-place mutation of the Child SA would not be seen; handleInformationalOwned acts on Delete and MOBIKE notifies only. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit is byte-identical to the judged one (git diff 2d57003d45..HEAD touches only other functions, a const block, and new functions appended to the file), so the verdict stands unchanged.",
@@ -736,8 +736,8 @@
       "verdict": "enforced"
     },
     "RFC7296-3.1-11": {
-      "note": "V bit clear on every built message; set V bit on receipt changes nothing",
-      "requirement_sha": "10244e09703cee9f",
+      "note": "Re-judged 2026-10-11 by an independent judge after the row was widened to the V item head. The send clause is enforced: TestBuiltMessagesClearXAndVBits refuses a set V bit on every engine-built message, and its #2 tag only shows the encoder can set V (an anti-vacuity control, not a violating input). The receive clause 'MUST ignore it in incoming messages' rests on the V-bit half of TestXBitsIgnoredOnReceipt, which calls handleSAInitRequest directly and so skips handleResponderInbound and the register.go dispatch; a break there that drops a message with V set stays green. No discrimination record. Fix as for RFC7296-3.1-8.",
+      "requirement_sha": "55fd14988d802545",
       "tests": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "8d3fcb43ed2e4c94",
         "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "8d3fcb43ed2e4c94",
@@ -748,7 +748,7 @@
         "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "12fb263d700767ed",
         "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "15de1868282682bf"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.1-12": {
       "note": "TestNrsResponseNeverDrawsAResponse drives the responder handshake, out-of-SA admission (with a matching source so the flag is the only difference), INFORMATIONAL and CREATE_CHILD_SA paths: a message marked as a response builds and sends nothing, the same message with the flag clear is answered. TestNrsInformationalHandlerRefusesAResponse takes handleInformationalOwned at its own entry point, both ways. TestResponseBitMatchesDirection's moved negative repeats the handshake arm (R-set IKE_SA_INIT leaves the responder idle, the clear one reaches sa-init-received). The Section 2.21.2 exception is not exercised here.",
@@ -843,8 +843,8 @@
       "verdict": "enforced"
     },
     "RFC7296-3.1-8": {
-      "note": "IKE_SA_INIT with all X bits set is processed as the clean one; R bit set changes treatment",
-      "requirement_sha": "a80d7400e445d775",
+      "note": "Re-judged 2026-10-11 by an independent judge after the row was widened to its subject; this row keeps the receive clause 'MUST be ignored on receipt' (RFC 7296 3.1). The positive half of TestXBitsIgnoredOnReceipt sets the X bits and calls handleSAInitRequest directly, skipping handleResponderInbound and the register.go dispatch, which are the first places the flags octet is judged on the real receive path (responder.go handleResponderInbound tests Flags&FlagResponse). A break there that drops a message carrying any X bit, for example Flags&FlagResponse != 0 widened to Flags != 0, leaves this unit green; the test's own R-bit negative uses handleResponderInbound, so the two halves run different entry points. Only IKE_SA_INIT is exercised. No discrimination record. Fix: drive the X-bit message through handleResponderInbound (and an established-SA path) and record a mutant on its flags test.",
+      "requirement_sha": "91f55639da1beab4",
       "tests": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "8d3fcb43ed2e4c94",
         "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "8d3fcb43ed2e4c94"
@@ -853,11 +853,11 @@
         "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "15de1868282682bf",
         "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "15de1868282682bf"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.1-9": {
-      "note": "Positive: TestResponseBitMatchesDirection asserts the exact R bit on every engine-built request and response. Negative (ruling R1 a, receive side): TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear feeds the initiator's handleInbound the responder's real IKE_SA_INIT answer with only the R bit cleared (stays StateSAInitSent), then the untouched answer (advances), so the refusal is the R bit's doing. The old responder-side negative moved to RFC7296-3.1-12, which it proves. Record: whole-producer revert of fsm.go::handleInbound (reach); isolation by the one-bit difference.",
-      "requirement_sha": "501ace8bd2b37543",
+      "note": "Re-judged 2026-10-11 by an independent judge after the row was widened to the R item head. Whole sentence 'This bit MUST be cleared in all request messages and MUST be set in all responses' (RFC 7296 3.1). TestResponseBitMatchesDirection compares the R bit for equality with isResponse on every engine-built message, so a request with R set or a response with R clear fails. TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear feeds handleInbound the responder's real IKE_SA_INIT answer with only the R bit cleared (state stays sa-init-sent), then the untouched answer (advances): isolation by a one-bit difference. Revert records on buildSAInitResponse and handleInbound are reach proofs only.",
+      "requirement_sha": "3da8ab4be8c5a5dd",
       "tests": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "8d3fcb43ed2e4c94",
         "internal/component/ike/engine/rfc7296_response_bit_receive_test.go::TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear": "27be632153608b49"
@@ -1017,8 +1017,8 @@
       "verdict": "enforced"
     },
     "RFC7296-3.14-3": {
-      "note": "Positive: TestSKAcceptsAnyIVOnReceipt decrypts all-zero, all-ones and ascending IVs. Negative (ruling R1 b, no refusal path exists): TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen decrypts a message reusing the previous IV and one whose IV is the previous message's final ciphertext block, the IVs a recipient that policed the sender's rule would refuse; such a break leaves the positive green and turns this unit red. The checksum-corruption negative moved to RFC7296-3.14-6. The row is still the fragment \"recipients MUST accept any value\".",
-      "requirement_sha": "94d965b11c7d747c",
+      "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Initialization Vector item head, kept clause 'recipients MUST accept any value' (RFC 7296 3.14); the sender clause is RFC7296-3.14-2. TestSKAcceptsAnyIVOnReceipt decrypts all-zero, all-ones and ascending IVs to the exact Delete payload; TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen decrypts a repeated IV and the previous final ciphertext block as IV, the inputs a policing recipient would refuse. Defect: the positive's claim names 'a repeat of an earlier IV', which its own body does not send (the sibling unit does). Revert records on decryptSKPayload are reach proofs.",
+      "requirement_sha": "33c68dca6cc5c05e",
       "tests": {
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "19c5161b4c10330d",
         "internal/component/ike/engine/rfc7296_iv_receive_test.go::TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen": "ec58910b762cef5e"
@@ -1076,8 +1076,8 @@
       "verdict": "enforced"
     },
     "RFC7296-3.16-1": {
-      "note": "EAP peer copies request Identifier into each response over three rounds with unrelated ids",
-      "requirement_sha": "11df6aca1d35a9e9",
+      "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Identifier item head, obligation 'In a response message, this octet MUST be set to match the identifier in the corresponding request' (RFC 7296 3.16). TestEapfmtResponseIdentifierMatchesRequest drives the EAP peer through Identity, MS-CHAPv2 Challenge and Success with identifiers 200, 7 and 91 and requires each response to echo exactly, so a constant or a counter fails. Peer methods other than MS-CHAPv2 are not sampled. No discrimination record.",
+      "requirement_sha": "051672a5c9c5758c",
       "tests": {
         "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest": "a7ebbbf496930178",
         "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest#2": "a7ebbbf496930178"
@@ -1089,8 +1089,8 @@
       "verdict": "enforced"
     },
     "RFC7296-3.16-2": {
-      "note": "PayloadEAP EAP Length equals Payload Length minus four across five body sizes",
-      "requirement_sha": "c39cc88bca2af3f9",
+      "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Length item head, obligation 'MUST be four less than the Payload Length of the encapsulating payload' (RFC 7296 3.16). TestEapfmtEAPLengthIsFourLessThanPayloadLength reads both lengths off the encoded IKE payload for five body sizes and requires eapLen == payloadLen-4 and eapLen == 4+size, refusing a repeated or copied length; the decoder recovers every data octet. Send side only; no test feeds a received EAP payload whose lengths disagree. No discrimination record.",
+      "requirement_sha": "58b49b583238a11f",
       "tests": {
         "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength": "7d14d8da7a50965e",
         "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength#2": "7d14d8da7a50965e"
@@ -1115,8 +1115,8 @@
       "verdict": "enforced"
     },
     "RFC7296-3.2-2": {
-      "note": "critical Nonce parsed like uncritical at outer and inner chain; critical unknown type refused",
-      "requirement_sha": "40026ea9f3a6767f",
+      "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Critical item head, kept clause 'MUST be ignored by the recipient if the recipient understands the payload type code' (RFC 7296 3.2). TestCriticalBitIgnoredForKnownType (Message.ReadFrom, outer chain) and TestInnerChainIgnoresCriticalOnKnownType (ParsePayloadChain, inner chain) parse a critical Nonce to the same *PayloadNonce and data with no error, so a parser that refused or altered a critical known payload fails. The negatives (critical unknown type refused with ErrUnsupportedCrit) are scoping controls showing the bit is read, not violations of this clause. One known type (Nonce) is sampled; chain.go consults Critical only in the unknown-payload branch. No discrimination record.",
+      "requirement_sha": "164ed6cc1fa7db85",
       "tests": {
         "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainIgnoresCriticalOnKnownType": "b59b31b934d5e2ea",
         "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainIgnoresCriticalOnKnownType#2": "b59b31b934d5e2ea",
@@ -1145,8 +1145,8 @@
       "verdict": "enforced"
     },
     "RFC7296-3.2-4": {
-      "note": "sweep of engine-built outer and inner chains plus a source walk refusing any Critical write in engine",
-      "requirement_sha": "d716a0267551ee3c",
+      "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Critical item head, kept clause 'MUST be set to zero for payload types defined in this document' (RFC 7296 3.2). TestDefinedPayloadTypesAreSentUncritical sweeps the outer and inner chains of every engine-built message and fails on any defined type with Critical set, with a non-vacuity floor; TestEngineSourceNeverSetsTheCriticalField walks the engine source and refuses a literal or assigned Critical, proven against fixtures. The #2 tag (encoder writes 0x80 when asked) is an expressibility control, not a violating input. No discrimination record.",
+      "requirement_sha": "68e0b474a947e070",
       "tests": {
         "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical": "9b98dffef0326303",
         "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical#2": "9b98dffef0326303",
@@ -1173,8 +1173,8 @@
       "verdict": "enforced"
     },
     "RFC7296-3.2-6": {
-      "note": "one bit on the wire; recipient rejects the whole message with ErrUnsupportedCrit",
-      "requirement_sha": "87d740a06368b9bf",
+      "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Critical item head, kept clause 'MUST be set to one if the sender wants the recipient to reject this entire message if it does not understand the payload type' (RFC 7296 3.2). TestCritSenderOneBitRequestsWholeMessageRejection asserts the encoded bit is 0x80 when the sender chose rejection and that ReadFrom then rejects the whole message (ErrUnsupportedCrit, zero payloads, the payload type named); the negative asserts the bit is clear and the message accepted when the sender did not choose it. The obligation is met at the wire encoder; no engine path wants a rejection (RFC7296-3.2-4). No discrimination record.",
+      "requirement_sha": "ace57143a1ce7f1d",
       "tests": {
         "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection": "02e1b5b1293a3513",
         "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection#2": "02e1b5b1293a3513"
@@ -1337,8 +1337,8 @@
       "verdict": "enforced"
     },
     "RFC7296-3.5-3": {
-      "note": "Re-read 2026-09-27. Forbidden: refusing ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR or ID_KEY_ID under configuration. TestRemoteIDAcceptsEveryMandatoryType fails if checkRemoteIdentity refuses any of the four with a matching remote-id, and (anti-vacuity) if it accepts a wrong one. TestRemoteIDRefusesTypesItCannotCompare shows acceptance is per-type; its comment names ID_DER_ASN1_DN as refused but the body tests only ID_DER_ASN1_GN (stale comment).",
-      "requirement_sha": "0ea86e2fed69f691",
+      "note": "Re-judged 2026-10-11 by an independent judge; row widened to the whole sentence, kept clause 'MUST be configurable to accept all of these four types' (RFC 7296 3.5). TestRemoteIDAcceptsEveryMandatoryType configures remote-id and requires checkRemoteIdentity to accept ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR and an opaque ID_KEY_ID, each with an anti-vacuity refusal of a wrong value, so refusing any of the four fails. Defect: the negative TestRemoteIDRefusesTypesItCannotCompare claims ID_DER_ASN1_DN (9) and ID_DER_ASN1_GN are refused, but its body tests GN only, and a DN refusal would contradict RFC7296-4-4; the negative is a per-type control, not a violation of this clause. Claim wording owed. No discrimination record.",
+      "requirement_sha": "6683d5ad08d09c46",
       "tests": {
         "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDAcceptsEveryMandatoryType": "b51a9435fce862dd",
         "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDRefusesTypesItCannotCompare": "b51a9435fce862dd"

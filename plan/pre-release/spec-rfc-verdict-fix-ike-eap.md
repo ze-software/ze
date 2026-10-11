@@ -167,6 +167,36 @@ None of these was judged by its author. rfc9190 is not enrolled; `./le rfc audit
 | rfc4303 | 3.4.4.1-2 (new `{gap}`) | `audit-stamp` (mode new) |
 | rfc9190 | 2.1.2-2, 2.1.3-1, 2.3-1, 5.7-1, 2.3-4 (new `{gap}`) | `audit-stamp` (mode new, creates the file) |
 
+Judged 2026-10-11 by an independent judge (author of none of the rows or tests). Each note in `rfc/audit/<stem>.json` quotes the RFC and names the units read.
+
+| Id | Verdict | Stamped | Reason |
+|----|---------|---------|--------|
+| RFC7296-3.1-8 | weak | yes | the X-bit positive calls `handleSAInitRequest` directly, skipping `handleResponderInbound` and the dispatch where the flags octet is judged, so a drop-on-X-bit break there stays green |
+| RFC7296-3.1-9 | enforced | yes | exact R-bit equality on every built message; receive negative isolated by a one-bit difference |
+| RFC7296-3.1-11 | weak | yes | send clause enforced; the receive clause has the same dispatcher bypass as 3.1-8 |
+| RFC7296-3.2-2 | enforced | yes | critical Nonce parses identically at outer and inner chain |
+| RFC7296-3.2-4 | enforced | yes | built-chain sweep plus engine source walk |
+| RFC7296-3.2-6 | enforced | yes | sender choice reaches the wire as 0x80 and draws a whole-message rejection; clear otherwise |
+| RFC7296-2.21.4-4 | enforced | yes | exactly one INVALID_IKE_SPI Notify asserted, unit and `.ci` |
+| RFC7296-2.21.4-6 | weak | yes | the input is a payload-less request header, not an unprotected Notify; negative claims the same notify but sends an IKE Delete |
+| RFC7296-3.5-3 | enforced | yes | all four types accepted with anti-vacuity; negative claim names ID_DER_ASN1_DN, body tests GN only (defect) |
+| RFC7296-3.14-3 | enforced | yes | five IV shapes accepted across the pair; positive claim names a repeat its body does not send (defect) |
+| RFC7296-3.16-1 | enforced | yes | identifier echoed exactly over 200, 7, 91 |
+| RFC7296-3.16-2 | enforced | yes | eapLen == payloadLen-4 over five sizes |
+| RFC7296-1.4-1 | enforced (re-judged at SHOULD) | yes | owner moved MUST to SHOULD in 970ea021d8; the paired-Delete response is asserted exactly, and the lower level asks less |
+| RFC4301-4.4.1-6 | enforced | yes | the SPD-S pair reads back all three parts; the two disposition tests still tag this row with SPD-I/SPD-O claims (defect: retag to -11/-12) |
+| RFC4555-4.2.6-1 | weak | yes | data clause enforced; the type 16402 the row quotes is never pinned (test and producer share `wire.NotifyNoNATsAllowed`) |
+| RFC4555-3.6-2 | enforced in substance | no | positive discriminates, but a MAY row with no negative and no `{single-polarity}` cannot hold `enforced`; the row owes `{single-polarity: positive; ...}` |
+| RFC4555-3.6-3 | enforced in substance | no | same as 3.6-2 |
+| RFC4303-3.4.4.1-2 | unimplemented | yes | Ze's Go does no ESP decryption; `xfrmStateFromParams` asks for no padding check; the `{gap}` should also name the VPP backend |
+| RFC9190-2.1.2-2 | enforced in substance | no | not enrolled; also positive only: crypto/tls fixes the lifetime at 7 days (`serverHandshakeStateTLS13.sendSessionTickets`) and the Go client refuses longer (`clientHandshakeStateTLS13` ticket handling, `maxSessionTicketLifetime`) |
+| RFC9190-2.1.3-1 | enforced | no (not enrolled) | TLS 1.3 pinned, both ends resume on the second exchange |
+| RFC9190-2.3-1 | weak | no (not enrolled) | Key_Material half exact; the Method-Id half the row still quotes has no producer and no `{partial}` |
+| RFC9190-5.7-1 | weak | no (not enrolled) | resumed path not asserted; peer role untested; negative proves ticket-key isolation |
+| RFC9190-2.3-4 | unimplemented | no (not enrolled) | no non-test code exports EXPORTER_EAP_TLS_Method-Id |
+
+`./le rfc audit-stamp` refuses `rfc9190`: "'rfc9190' is not an enrolled stem", so the sentence above about it creating the file is wrong. The judged rfc9190 entries are in `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/new-rfc9190.json`, ready to stamp once the owner enrols the stem.
+
 Mechanical, not a judgement: appending two tests to `mobike_test.go` SHIFTED ten rfc4555 verdicts (x-1, x-2, 3.9-1, 3.7-1, 3.8-1, 3.8-2, 3.7-4, 3.7-5, 4.2.1-1, 4.2.5-1) whose units are byte-identical; `./le rfc reseal` re-stamps them when no other child holds uncommitted audit changes.
 
 Mechanical, not a judgement: deleting the x-10 and x-12 tags from `rfc2759_clause_test.go`, `rfc2759_failure_packet_test.go` and `rfc2759_mschapv2_test.go` SHIFTED seven rfc2759 verdicts (x-1, x-2, x-3, x-4, x-6, x-8, x-9) whose units are byte-identical; `./le rfc reseal` re-stamps them.

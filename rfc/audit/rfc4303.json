@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-10",
+  "audited": "2026-10-11",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -168,6 +168,14 @@
         "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "171cce460fcbce06"
       },
       "verdict": "enforced"
+    },
+    "RFC4303-3.4.4.1-2": {
+      "code": {
+        "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "82c928a10be6b083"
+      },
+      "note": "Judged 2026-10-11 by an independent judge. RFC 4303 3.4.4.1 step 3: 'If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer.' Ze's Go performs no ESP decryption: xfrmStateFromParams builds the netlink XfrmState the kernel decrypts with, and it carries no attribute that asks for the Padding bytes to be checked (XFRM has none). Nothing in the repository shows Linux XFRM or the VPP backend inspecting the padding values, so the {gap} stands. The annotation names only Linux XFRM; the VPP backend (dataplane/vpp_policy.go) also installs SAs and should be named. No test tags the row.",
+      "requirement_sha": "dea07385ec5c5f6a",
+      "verdict": "unimplemented"
     }
   },
   "rfc": "rfc4303"
