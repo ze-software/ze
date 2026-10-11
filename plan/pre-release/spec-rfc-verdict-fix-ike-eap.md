@@ -291,6 +291,8 @@ Progress by row (the gated MUST rows that lacked a test in one or both polaritie
 | 2.1.2-4 | positive recorded, `{single-polarity: positive}` naming Go crypto/tls | `TestEAPTLS13PeerOffersNoEarlyDataFromATicketThatPermitsIt` (also asserts `tlsClientConfig` offers no ALPN, the config fact crypto/tls's 0-RTT offer turns on) |
 | 2.1.1-2 | both, recorded | `TestEAPTLS13PSKIsUsedToResumeATicketTheAuthenticatorIssued`, `TestEAPTLS13PSKTheAuthenticatorDidNotIssueIsNotUsed` (the ServerHello pre_shared_key read off a replay) |
 | 2.1.8-4 | both, recorded | negative `TestEAPTLS13PeerHoldingACertificateSendsIt` |
+| 2.1.8-1 | both, recorded | negative `TestEAPTLS13AuthenticatorRefusesAnAnonymousPeerWithARevokedCertificate` (`internal/core/eap/rfc9190_cached_authorization_test.go`), break `checkChainRevocation` |
+| 5.7-3 | both, recorded | negative `TestEAPTLS13ResumptionAuthorizesOnTheCachedChain` |
 | 5.6-1, 5.6-2 | `{feature-declined}`, tags removed, records deleted | conditional on "When peer authentication is not used"; ze always requires and verifies a client certificate (`newTLSMethod`). The tests stay as evidence, untagged |
 | 5.8-1, 5.8-2, 5.8-3 | `{feature-declined}`, tags removed, records deleted | conditional on "If anonymous NAIs are not used"; ze always sends an anonymous NAI (`anonymousNAI`). The tests stay as evidence, untagged |
 
