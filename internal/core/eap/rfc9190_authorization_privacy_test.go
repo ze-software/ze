@@ -1,6 +1,7 @@
 // Design: docs/architecture/ike/ipsec-14-responder.md -- the authenticator's EAP-TLS method
 // Detail: docs/architecture/ike/ipsec-11-interop-eap.md -- the peer's Identity Response
 // RFC: rfc/short/rfc9190.md -- EAP-TLS authorization and privacy (Sections 5.6, 5.8)
+// RFC naming: untagged -- RFC9190-5.6-1, 5.6-2 and 5.8-1..3 are {feature-declined}: ze always requires a client certificate and always sends an anonymous NAI, so these tests are kept as evidence of what ze does instead
 //
 // VALIDATES: ze's authenticator grants nothing to a peer it did not authenticate
 // with a certificate, and a resumed session carries exactly the client identity
@@ -38,7 +39,7 @@ func serverPeerLeafName(t *testing.T, fl *eapTLSFlight) string {
 // authenticator's own TLS configuration against a client that sends an empty
 // certificate_list.
 //
-// RFC requirement: RFC9190-5.6-1 positive -- "When peer authentication is not
+// Kept as evidence for a declined feature (RFC9190-5.6-1, positive side) -- "When peer authentication is not
 // used, EAP-TLS server implementations MUST take care to limit network access
 // appropriately for unauthenticated peers". Ze limits it to nothing: the
 // authenticator refuses the handshake, so no key material exists from which the
@@ -64,12 +65,12 @@ func TestEAPTLSAuthenticatorGrantsNoAccessToAPeerWithoutACertificate(t *testing.
 // and a resumed exchange through the authenticator Session and reads which
 // client the authenticator holds for each.
 //
-// RFC requirement: RFC9190-5.6-1 negative -- the limit is on UNAUTHENTICATED
+// Kept as evidence for a declined feature (RFC9190-5.6-1, negative side) -- the limit is on UNAUTHENTICATED
 // peers: a peer that authenticates with a certificate the authenticator verified
 // concludes with EAP-Success and an MSK, so the refusal above is not a refusal
 // of every peer.
 //
-// RFC requirement: RFC9190-5.6-2 positive -- "implementations MUST use
+// Kept as evidence for a declined feature (RFC9190-5.6-2, positive side) -- "implementations MUST use
 // resumption with caution to ensure that a resumed session is not granted more
 // privilege than was intended for the original session". The resumed session
 // authenticates as the same client certificate the original one verified, and
@@ -107,15 +108,15 @@ func TestEAPTLS13AuthenticatorGrantsAccessToTheCertificateItVerified(t *testing.
 // it sends), so the test asserts that the condition never arises, and that what
 // is sent has every property the three sentences ask of the alternative.
 //
-// RFC requirement: RFC9190-5.8-1 positive -- "it is computationally infeasible
+// Kept as evidence for a declined feature (RFC9190-5.8-1, positive side) -- "it is computationally infeasible
 // for an attacker to differentiate two identities belonging to the same user
 // from two identities belonging to different users in the same realm": two users
 // of example.com send the same octets.
 //
-// RFC requirement: RFC9190-5.8-2 positive -- the identity includes no substring
+// Kept as evidence for a declined feature (RFC9190-5.8-2, positive side) -- the identity includes no substring
 // of either username.
 //
-// RFC requirement: RFC9190-5.8-3 positive -- no per-user mapping exists, fixed
+// Kept as evidence for a declined feature (RFC9190-5.8-3, positive side) -- no per-user mapping exists, fixed
 // or otherwise: the identity is the anonymous NAI "@realm", which depends on the
 // realm alone.
 func TestEAPTLS13PeerIdentityCarriesNoPartOfTheUser(t *testing.T) {
@@ -137,16 +138,16 @@ func TestEAPTLS13PeerIdentityCarriesNoPartOfTheUser(t *testing.T) {
 
 // TestEAPTLS13PeerIdentityKeepsTheRealmApart is the negative of the test above.
 //
-// RFC requirement: RFC9190-5.8-1 negative -- the property is scoped to "users in
+// Kept as evidence for a declined feature (RFC9190-5.8-1, negative side) -- the property is scoped to "users in
 // the same realm": users of two realms send two identities, so the equality
 // above comes from dropping the username and not from a peer that sends one
 // constant whatever it is given.
 //
-// RFC requirement: RFC9190-5.8-2 negative -- the realm is not a substring that
+// Kept as evidence for a declined feature (RFC9190-5.8-2, negative side) -- the realm is not a substring that
 // relates the identity to a user, and it is kept: the identity is exactly
 // "@" and the realm, nothing removed and nothing added.
 //
-// RFC requirement: RFC9190-5.8-3 negative -- what the identity does depend on is
+// Kept as evidence for a declined feature (RFC9190-5.8-3, negative side) -- what the identity does depend on is
 // the realm, so a change of realm changes it on the next authentication.
 func TestEAPTLS13PeerIdentityKeepsTheRealmApart(t *testing.T) {
 	_, first := driveEAPTLS13Identity(t, "alice@example.com")

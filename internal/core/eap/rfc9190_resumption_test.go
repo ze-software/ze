@@ -241,7 +241,7 @@ func TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain(t *testing.T) {
 // initial full handshake to make the authorization decision at resumption: the
 // revocation gate names a certificate that this exchange never saw presented.
 //
-// RFC requirement: RFC9190-5.6-2 negative -- a resumed session is not granted
+// Kept as evidence for a declined feature (RFC9190-5.6-2, negative side) -- a resumed session is not granted
 // what the original session's credentials no longer carry: once the client
 // certificate the original session verified is revoked, the resumption that
 // would have re-granted its access is refused.

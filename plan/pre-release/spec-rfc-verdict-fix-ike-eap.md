@@ -285,7 +285,16 @@ Progress by row (the gated MUST rows that lacked a test in one or both polaritie
 | 5.8-1, 5.8-2, 5.8-3 | both, recorded | `TestEAPTLS13PeerIdentityCarriesNoPartOfTheUser`, `TestEAPTLS13PeerIdentityKeepsTheRealmApart`. The three sentences are conditional ("If anonymous NAIs are not used"); the tests show ze always sends an anonymous NAI, which the judge should weigh |
 | 2.4-1 | both, recorded | `TestEAPTLS13BothRolesMeetTheRFC8446MandatoryToImplementSet`, `TestEAPTLS13AuthenticatorAbortsAClientHelloWithoutSignatureAlgorithms` (`internal/core/eap/rfc9190_cipher_suites_test.go`) |
 | 2.4-2 | both, recorded | `TestEAPTLS13PeerOffersOnlySuitesWithConfidentiality`, `TestEAPTLSAuthenticatorRefusesSuitesWithoutConfidentiality` (replays ze's ClientHello offering only TLS_SHA256_SHA256 or TLS_RSA_WITH_NULL_SHA256) |
-| 2.1-2, 2.1-4, 2.1-6 | positive only, recorded | `TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth` |
+| 2.1-2 | both, recorded | positive as before; negative `TestEAPTLS13AuthenticatorRefusesAClientHelloOfferingEarlyData` (`internal/core/eap/rfc9190_tls_layer_test.go`) |
+| 2.1-3, 2.1-5, 2.1-7, 2.1.2-3 | positive recorded, `{single-polarity: positive}` naming Go crypto/tls | `TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest` asserts the tls.Config `newTLSMethod` builds and decrypts the authenticator's records with the test client's key log |
+| 2.1-4, 2.1-6 | positive recorded, `{single-polarity: positive}` naming Go crypto/tls | `TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth` |
+| 2.1.2-4 | positive recorded, `{single-polarity: positive}` naming Go crypto/tls | `TestEAPTLS13PeerOffersNoEarlyDataFromATicketThatPermitsIt` (also asserts `tlsClientConfig` offers no ALPN, the config fact crypto/tls's 0-RTT offer turns on) |
+| 2.1.1-2 | both, recorded | `TestEAPTLS13PSKIsUsedToResumeATicketTheAuthenticatorIssued`, `TestEAPTLS13PSKTheAuthenticatorDidNotIssueIsNotUsed` (the ServerHello pre_shared_key read off a replay) |
+| 2.1.8-4 | both, recorded | negative `TestEAPTLS13PeerHoldingACertificateSendsIt` |
+| 5.6-1, 5.6-2 | `{feature-declined}`, tags removed, records deleted | conditional on "When peer authentication is not used"; ze always requires and verifies a client certificate (`newTLSMethod`). The tests stay as evidence, untagged |
+| 5.8-1, 5.8-2, 5.8-3 | `{feature-declined}`, tags removed, records deleted | conditional on "If anonymous NAIs are not used"; ze always sends an anonymous NAI (`anonymousNAI`). The tests stay as evidence, untagged |
+
+Thomas, 2026-10-11, "Test Ze's TLS config + name Go TLS (Recommended)": for rows Go crypto/tls enforces with no Ze setting, the tests assert the configuration Ze hands to crypto/tls and each row names Go crypto/tls as the layer that performs it. The gate doc refuses `{lower-layer}` beside a tagged test (`check_core.go`, "the annotation is stale"), so these rows name Go crypto/tls in a `{single-polarity: positive; ...}` annotation, used only where no input to Ze can produce the violation a negative test would need. The positive is tagged and recorded. Discrimination for these rows is a revert of the producer that builds the config: the mutant route needs a gomu report (`./le rfc discriminate ... report <path>`), which no run in this session produced.
 
 The rows still open, and what each needs, are in the per-spec session state handoff of 2026-10-11; rows move into the table above as they close.
 
