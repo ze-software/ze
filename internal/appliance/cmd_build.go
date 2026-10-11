@@ -157,7 +157,11 @@ func buildOne(name string) int {
 		// any other invalid field) is rejected here rather than baked into an
 		// image or silently clamped at boot (AC-4, AC-7). init validates too,
 		// but build is reachable on directories created by other means.
-		err = cfg.Validate()
+		// Validate names the field; the file it lives in is added here,
+		// as runKernel does, so the refusal says which file to edit.
+		if verr := cfg.Validate(); verr != nil {
+			err = fmt.Errorf("%s: %w", ConfigPath(dir, name), verr)
+		}
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

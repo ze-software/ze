@@ -95,3 +95,38 @@ func TestCanceledSSHSetupIsNotAnSSHFailure(t *testing.T) {
 		t.Errorf("a canceled build is reported as an SSH failure:\n%v", err)
 	}
 }
+
+// TestStoppedAfterLoginPromptNamesTheStage proves a build stopped in either
+// pause between the login prompt and the first bootstrap is reported as the
+// build stopping after its login prompt, never as a bare context error. The
+// fake QEMU answers the prompt at once; runQEMUBuild then pauses 1 s, sends
+// root, and pauses 3 s, so a stop at 300 ms lands in the first pause and one
+// at 2 s in the second.
+//
+// VALIDATES: round-6 NOTE 1.
+// PREVENTS: "context canceled" with no stage and no next step.
+func TestStoppedAfterLoginPromptNamesTheStage(t *testing.T) {
+	cases := []struct {
+		name  string
+		after time.Duration
+	}{
+		{"first pause", 300 * time.Millisecond},
+		{"second pause", 2 * time.Second},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeQEMU(t, "echo login:\nexec sleep 30\n")
+			req := Request{Root: t.TempDir(), Arch: "amd64", OutputDir: "out", Stderr: os.Stderr}
+			ctx, cancel := context.WithCancel(context.Background())
+			stop := time.AfterFunc(tc.after, cancel)
+			defer stop.Stop()
+			err := runQEMUBuild(ctx, req, "alpine.iso", "worker", "kvm")
+			if err == nil {
+				t.Fatal("a build stopped after its login prompt was reported as a build")
+			}
+			if !errors.Is(err, context.Canceled) || !strings.Contains(err.Error(), "stopped after its login prompt: the kernel build was canceled") {
+				t.Errorf("a build stopped after its login prompt does not name the stage:\n%v", err)
+			}
+		})
+	}
+}

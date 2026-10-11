@@ -221,9 +221,18 @@ func runKernel(args []string) int {
 	if fs.NArg() > 0 {
 		name := fs.Arg(0)
 		dir := getBaseDir()
-		cfg, err := LoadConfig(ConfigPath(dir, name))
+		cfgPath := ConfigPath(dir, name)
+		cfg, err := LoadConfig(cfgPath)
 		if err != nil {
 			cliErrorf("load appliance %q config: %v", name, err)
+			return exitError
+		}
+		// LoadConfig only decodes. Validate refuses an image.arch Ze builds
+		// no kernel for, naming the config field and ending with the line to
+		// set in the file, so the --arch refusal below is reached only by an
+		// arch the operator typed.
+		if err := cfg.Validate(); err != nil {
+			cliErrorf("appliance %q config %s: %v", name, cfgPath, err)
 			return exitError
 		}
 		if arch == "" {
@@ -694,6 +703,8 @@ func downloadFirmwareBlob(rawURL, destPath string) error {
 	return os.Rename(tmpPath, destPath)
 }
 
+// cliErrorf writes a refusal to stderr, where a CLI error belongs
+// (ai/rules/cli.md), so stdout carries only the command's answer.
 func cliErrorf(format string, args ...any) {
-	fmt.Fprintf(os.Stdout, "error: %s\n", fmt.Sprintf(format, args...)) //nolint:errcheck // CLI output
+	fmt.Fprintf(os.Stderr, "error: %s\n", fmt.Sprintf(format, args...)) //nolint:errcheck // CLI output
 }

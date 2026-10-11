@@ -74,7 +74,9 @@ architecture Ze builds no kernel for at all (`kernelbuilder.SupportedArches`,
 the arches the Docker backend names a platform for) never reaches a host's
 cache or builder. `ze appliance kernel --arch` refuses it first, ending with
 `ze appliance kernel --target <target> --arch <host>`; the appliance config's
-`image.arch` is refused when the config is validated, ending with the
+`image.arch` is refused when the config is validated, which both
+`ze appliance build <name>` and `ze appliance kernel <name>` do before they
+read the arch, each naming the config file and ending with the
 `"image": {"arch": "<host>"}` line to set; and `./le build gokrazy`, whose
 `GOARCH` arrives unchecked, is refused by `runtimeKernelReachable` before the
 cache is asked, ending with the `GOARCH=<host>` command. Each refusal names

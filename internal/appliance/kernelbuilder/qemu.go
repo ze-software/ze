@@ -292,14 +292,16 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string
 		said := stopQEMU()
 		return errBootFailed(ctx.Err(), qemuBinary(req.Arch), args, said, cmd.ProcessState)
 	}
+	// A wait the build's own context ends here is the build stopping after
+	// the guest booted, so it is named as such, with the QEMU command.
 	if !sleepContext(ctx, time.Second) {
-		return ctx.Err()
+		return errBuildStopped(ctx.Err(), "after its login prompt", qemuBinary(req.Arch), args)
 	}
 	if err := sendConsole(stdin, "root"); err != nil {
 		return err
 	}
 	if !sleepContext(ctx, 3*time.Second) {
-		return ctx.Err()
+		return errBuildStopped(ctx.Err(), "after its login prompt", qemuBinary(req.Arch), args)
 	}
 	bootstrap := "setup-interfaces -a 2>/dev/null; ifup eth0 2>/dev/null; ifup lo 2>/dev/null; echo nameserver 8.8.8.8 > /etc/resolv.conf; apk add --no-cache openssh; echo PermitRootLogin yes >> /etc/ssh/sshd_config; echo PermitEmptyPasswords yes >> /etc/ssh/sshd_config; passwd -d root; ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N '' 2>/dev/null; ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N '' 2>/dev/null; /usr/sbin/sshd; echo SSHD_READY"
 	ready := false
