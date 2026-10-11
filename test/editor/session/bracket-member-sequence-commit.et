@@ -1,0 +1,115 @@
+# Test: Bracket leaf-list member edits in one session commit as the view shows them
+# VALIDATES: round-4 and round-5 member sequences typed in ONE session with a
+#            single commit, through the editor: add, deactivate and delete of
+#            a new member (it is never added); delete then re-insert of a
+#            committed member (it stays, in its place); delete then a whole set
+#            that lists the member again, then an insert after the whole set
+#            (the insert keeps its place); a whole set then a delete of its
+#            last member (the leaf goes)
+# PREVENTS: the commit, the saved draft or the reload disagreeing with the
+#           view: a deleted member coming back, a re-inserted member lost, an
+#           insert overwritten by the whole-leaf line, a deleted last member
+#           left in the file
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+}
+interface {
+	backend netlink;
+	ethernet eth7 {
+		unit 0 {
+			description seven;
+			ipv4 {
+				address [ 203.0.113.1/24 203.0.113.2/24 ];
+			}
+		}
+	}
+	ethernet eth8 {
+		unit 0 {
+			description eight;
+			ipv4 {
+				address [ 198.51.100.1/24 ];
+			}
+		}
+	}
+	ethernet eth9 {
+		unit 0 {
+			description nine;
+			ipv4 {
+				address [ 192.0.2.1/24 192.0.2.2/30 ];
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=ssh
+
+# eth9: add 192.0.2.3/30, deactivate it, delete it: it was never added.
+input=type:text=set interface ethernet eth9 unit 0 ipv4 address "192.0.2.1/24 192.0.2.2/30 192.0.2.3/30"
+input=enter
+expect=error:none
+input=type:text=deactivate interface ethernet eth9 unit 0 ipv4 address 192.0.2.3/30
+input=enter
+expect=error:none
+input=type:text=delete interface ethernet eth9 unit 0 ipv4 address 192.0.2.3/30
+input=enter
+expect=error:none
+
+# eth9: delete a committed member, insert it back before the other one, then
+# deactivate the other one.
+input=type:text=delete interface ethernet eth9 unit 0 ipv4 address 192.0.2.1/24
+input=enter
+expect=error:none
+input=type:text=insert interface ethernet eth9 unit 0 ipv4 address 192.0.2.1/24 before 192.0.2.2/30
+input=enter
+expect=error:none
+input=type:text=deactivate interface ethernet eth9 unit 0 ipv4 address 192.0.2.2/30
+input=enter
+expect=error:none
+
+# eth8: delete the committed member, set the list whole naming it again, then
+# insert a member first.
+input=type:text=delete interface ethernet eth8 unit 0 ipv4 address 198.51.100.1/24
+input=enter
+expect=error:none
+input=type:text=set interface ethernet eth8 unit 0 ipv4 address "198.51.100.1/24 198.51.100.3/24"
+input=enter
+expect=error:none
+input=type:text=insert interface ethernet eth8 unit 0 ipv4 address 198.51.100.4/24 first
+input=enter
+expect=error:none
+
+# eth7: set the list whole to one member, then delete that member.
+input=type:text=set interface ethernet eth7 unit 0 ipv4 address 203.0.113.2/24
+input=enter
+expect=error:none
+input=type:text=delete interface ethernet eth7 unit 0 ipv4 address 203.0.113.2/24
+input=enter
+expect=error:none
+
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=status:contains=applied
+expect=dirty:false
+expect=key:path=file/active/test.conf:contains=set interface ethernet eth9 unit 0 ipv4 address [ 192.0.2.1/24 192.0.2.2/30 ]
+expect=key:path=file/active/test.conf:contains=nop interface ethernet eth9 unit 0 ipv4 address 192.0.2.2/30
+expect=key:path=file/active/test.conf:contains=set interface ethernet eth8 unit 0 ipv4 address [ 198.51.100.4/24 198.51.100.1/24 198.51.100.3/24 ]
+
+# The committed file keeps earlier values as their own history lines, so the
+# absences are proven by what a fresh editor reads back from it.
+restart=editor
+expect=content:contains=192.0.2.1/24
+expect=content:not-contains=192.0.2.3/30
+expect=content:contains=198.51.100.4/24
+expect=content:not-contains=203.0.113.1/24
+expect=content:not-contains=203.0.113.2/24
