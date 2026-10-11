@@ -568,7 +568,7 @@ Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scrat
 | Artifact | `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-rfc-verdict-bfd.md`, `review-rfc-verdict-bfd-r2.md` to `review-rfc-verdict-bfd-r7.md` |
 | `./le spec review check` | 2026-10-11: BLOCKED, no independent-review artifact at `tmp/review/rfc-verdict-fix-bfd-5620b26f-603e-4d57-826d-6ef92b7fcd64.md`; owed: `./le spec review record` by the reviewer of the round-7 fix commit |
 | Rounds | 7 (scratch `review-rfc-verdict-bfd.md`, `-r2` to `-r7`). Round 7's only ISSUE was the mechanical re-record of three discrimination records, fixed in the commit that carries this table, with its NOTE 1 and NOTE 2 |
-| Owner authorised | round 6: Thomas, 2026-10-11, "Authorise round 6"; round 7: Thomas, 2026-10-11, "Authorise round 7" |
+| Owner authorised | round 6: Thomas, 2026-10-11, "Authorise round 6"; round 7: Thomas, 2026-10-11, "Authorise round 7"; round 8: Thomas, 2026-10-11, "Authorise round 8" |
 | Reviewer lenses used | RFC text, discrimination records and `./le rfc check`, user-facing refusal text, guide against code, lock order, overlay reds, functional `.ci` |
 | Open | round-1 ISSUE 5, `./le verify worktree`: owed, run by the main thread or a fresh agent on a quiet tree |
 
