@@ -81,15 +81,13 @@ var ErrUnknownSession = errors.New("bfd: session no longer exists")
 
 // ErrAuthMismatch is returned when a request would join a session whose
 // authentication configuration differs from the request's (EnsureSession).
-// One BFD session carries one authentication configuration. Every client
-// logs this text as its refusal, so it says what differs, why that refuses
-// the client (RFC 5882 Section 4.4: clients of one remote system "MUST share
-// a single BFD session"), and the config change that resolves it.
+// One BFD session carries one authentication configuration. joinAuthCheck
+// wraps it with the case it met: what differs, why that refuses the client
+// (RFC 5882 Section 4.4: clients of one remote system "MUST share a single BFD
+// session"), and the config change that resolves it. Every client logs that
+// text as its refusal; errors.Is matches this sentinel for each case.
 var ErrAuthMismatch = errors.New("this client's BFD authentication differs from that of the live " +
-	"session to the same neighbor, and every client of one remote system shares one BFD session " +
-	"(RFC 5882 Section 4.4) that runs one authentication, so this client gets no BFD session; " +
-	"to fix it, name the same bfd profile on every client of this neighbor, " +
-	"or give their profiles the same auth { type; key-id; secret; } block")
+	"session to the same neighbor")
 
 // MetricsHook is the Loop-level notification channel for the BFD
 // plugin's Prometheus metrics. The engine calls the hook's methods

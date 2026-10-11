@@ -500,20 +500,32 @@ or secret, or authentication where the session has none, or none where it
 has some) is refused rather than joined: the session keeps the
 authentication it was built with, and the refused client logs the error,
 which names the peer, interface and VRF, says that this client's BFD
-authentication differs from the live session's, explains that every client
-of one remote system shares one BFD session (RFC 5882 Section 4.4) so the
-client gets no BFD session, and gives the fix: name the same bfd profile on
-every client of that neighbor, or give their profiles the same
-`auth { type; key-id; secret; }` block. A BGP peer then runs without BFD (a strict-mode peer
-is held down), a static route's next-hop runs without BFD, and an OSPF
-neighbor runs on its hello and dead timers. Two profiles with the same
-auth block under different names share the session. Give every client of
-one remote system profiles with the same auth block.
-<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck -->
+authentication differs from the live session's and which side runs
+authentication, explains that every client of one remote system shares one
+BFD session (RFC 5882 Section 4.4) so the client gets no BFD session, and
+gives the fix for that case. A BGP peer then runs without BFD (a strict-mode
+peer is held down), a static route's next-hop runs without BFD, and an OSPF
+neighbor runs on its hello and dead timers. Two profiles with the same auth
+block under different names share the session.
+
+OSPF BFD runs unauthenticated: an OSPF interface's `bfd` block takes timers
+only, with no profile and no auth block. When OSPF runs BFD to a neighbor
+that a BGP peer, a static next-hop or a pinned session also watches, the
+shared session runs no authentication, so those clients' profiles carry no
+auth block either, or OSPF's `bfd` is disabled on that interface. The
+refusal names the fix that applies:
+
+| Live session | Refused client | Fix the error names |
+|--------------|----------------|---------------------|
+| No authentication | Profile with an auth block | Remove the auth block from this client's profile, or give every other client a profile with the same auth block and disable `bfd` on any OSPF interface to the neighbor |
+| Authentication | Profile with no auth block | Give this client's profile the same `auth { type; key-id; secret; }` block, or remove the auth block from the other clients' profiles |
+| Authentication | No profile (an OSPF interface, or a BGP peer or static next-hop naming none) | Remove the auth block from the other clients' profiles; a BGP peer or static next-hop can instead name a profile with the same auth block, and an OSPF interface can instead disable `bfd` |
+| Authentication | Profile with a different auth block | Name the same bfd profile on every client of the neighbor, or give their profiles the same auth block |
+<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase -->
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession -->
 <!-- source: internal/component/bgp/reactor/peer_bfd.go -- startBFDClient -->
 <!-- source: internal/plugins/static/inject.go -- setupBFDLocked -->
-<!-- source: internal/plugins/ospf/bfd_client.go -- startBFDSession -->
+<!-- source: internal/plugins/ospf/bfd_client.go -- startBFDSession, bfdRequestForNeighbor -->
 
 ## Editing live
 

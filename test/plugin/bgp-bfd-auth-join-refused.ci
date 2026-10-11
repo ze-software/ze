@@ -8,8 +8,10 @@
 #            secure (Keyed SHA1). The peer's EnsureSession is refused with an
 #            error that says the authentication differs, why (every client of
 #            one remote system shares one BFD session, RFC 5882 Section 4.4),
-#            and the fix (the same bfd profile, or the same auth block), and
-#            the session is not shared.
+#            and a fix that works even when OSPF, whose bfd block carries no
+#            authentication, shares the session (drop this client's auth block,
+#            or give every other client the same one and disable bfd on any
+#            OSPF interface to the neighbor), and the session is not shared.
 # PREVENTS:  a client that asked for BFD authentication running on a session
 #            that has none, with no word to the operator.
 #
@@ -25,7 +27,8 @@ option=exclusive:group=bfd-ports
 cmd=foreground:seq=1:exec=le test fixture plugin/bgp-bfd-auth-join-refused:timeout=30s
 expect=exit:code=0
 expect=stderr:contains=bfd strict-mode EnsureSession failed; peer is held down
-expect=stderr:contains=BFD authentication differs from that of the live session to the same neighbor
+expect=stderr:contains=BFD authentication differs from that of the live session to the same neighbor: the live session runs no authentication but this client's bfd profile
 expect=stderr:contains=every client of one remote system shares one BFD session (RFC 5882 Section 4.4)
-expect=stderr:contains=to fix it, name the same bfd profile on every client of this neighbor, or give their profiles the same auth { type; key-id; secret; } block
+expect=stderr:contains=to fix it, remove the auth block from this client's bfd profile
+expect=stderr:contains=or give every other client of this neighbor a bfd profile with the same auth { type; key-id; secret; } block and disable bfd on any OSPF interface to this neighbor, because an OSPF interface's bfd block carries no authentication
 reject=stderr:contains=bfd session shared

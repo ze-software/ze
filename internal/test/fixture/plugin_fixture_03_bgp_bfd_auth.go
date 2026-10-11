@@ -130,18 +130,27 @@ bgp {
 }
 `
 
-// logBFDAuthJoinRefused is engine.ErrAuthMismatch's text, which the refused
-// client's log line carries (internal/component/bfd/engine/engine.go): what
-// differs, why the client is refused, and the config change that fixes it.
-const logBFDAuthJoinRefused = "this client's BFD authentication differs from that of the live " +
-	"session to the same neighbor, and every client of one remote system shares one BFD session " +
-	"(RFC 5882 Section 4.4) that runs one authentication, so this client gets no BFD session; " +
-	"to fix it, name the same bfd profile on every client of this neighbor, " +
-	"or give their profiles the same auth { type; key-id; secret; } block"
+// The refused client's log line carries the refusal joinAuthCheck builds
+// (internal/component/bfd/engine/auth_join.go, authMismatchCase) for a live
+// session that runs no authentication: what differs, why the client is
+// refused, and the fix that also works when OSPF shares the session. The
+// three spans stop short of the quoted profile name, which the log handler
+// escapes.
+const (
+	logBFDAuthJoinRefused = "this client's BFD authentication differs from that of the live " +
+		"session to the same neighbor: the live session runs no authentication but this client's bfd profile "
+	logBFDAuthJoinRefusedWhy = "every client of one remote system shares one BFD session " +
+		"(RFC 5882 Section 4.4) that runs one authentication, so this client gets no BFD session; " +
+		"to fix it, remove the auth block from this client's bfd profile "
+	logBFDAuthJoinRefusedFix = ", or give every other client of this neighbor a bfd profile with the same " +
+		"auth { type; key-id; secret; } block and disable bfd on any OSPF interface to this neighbor, " +
+		"because an OSPF interface's bfd block carries no authentication"
+)
 
 func bgpBFDAuthJoinRefused03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bgpBFDAuthJoinRefusedConfig03,
-		[]string{logBFDRunning, logBFDPinnedSessionCreated, "bfd strict-mode EnsureSession failed; peer is held down", logBFDAuthJoinRefused},
+		[]string{logBFDRunning, logBFDPinnedSessionCreated, "bfd strict-mode EnsureSession failed; peer is held down",
+			logBFDAuthJoinRefused, logBFDAuthJoinRefusedWhy, logBFDAuthJoinRefusedFix},
 		[]string{logRejectInvalidBFD, "bfd session shared", logBFDSessionOpenedForPeer},
 		20*time.Second, map[string]string{envLogBFD: logLevelDebug, envLogBGP: logLevelDebug})
 }

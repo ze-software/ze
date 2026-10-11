@@ -171,13 +171,17 @@ session rather than a second one, and it never runs on an authentication it did
 not ask for (RFC 5880 §6.7, RFC 5882 §10.2). A released session holds no client,
 so a request that revives it, by its exact key or by a shared join, gives it the
 request's authentication. Each client logs the refusal; `docs/guide/bfd.md`,
-"Session sharing", says what each one then does.
+"Session sharing", says what each one then does. `joinAuthCheck` wraps
+`ErrAuthMismatch` with the case it met and the fix for that case
+(`authMismatchCase`). The engine does not know which protocol a client is, and
+an OSPF client never carries a profile or authentication, so each case OSPF can
+reach names a fix that still applies when OSPF shares the session.
 
 <!-- source: internal/component/bfd/api/session_identity.go -- Canonical, canonicalMultiHop -->
 <!-- source: internal/component/bfd/transport/udp.go -- ingressInterface -->
 <!-- source: internal/component/bfd/session_identity.go -- connectedLinks, vrfMembership -->
 <!-- source: internal/component/bfd/engine/engine.go -- sharedEntryLocked, sharesSession -->
-<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, sharedAuthLocked, replaceAuth -->
+<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sharedAuthLocked, replaceAuth -->
 
 ### Discriminator allocation
 
