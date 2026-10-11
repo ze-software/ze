@@ -623,10 +623,10 @@
       "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint",
       "unit-sha": "ea8bb78609e1179e",
       "claim-sha": "4a8cf4df7be0a4e6",
-      "route": "mutant",
-      "producer": "internal/plugins/rsvpte/register.go::setupBypass",
-      "producer-sha": "11d0dae138375907",
-      "break": "line 900: \"!bc.MergePoint.IsValid()\" -\u003e \"true\""
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/register.go::bypassSession",
+      "producer-sha": "e7ba0d6de27e4bdc",
+      "break": "body of bypassSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-6.4-1",

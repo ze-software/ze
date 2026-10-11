@@ -910,11 +910,7 @@ func setupBypass(log *slog.Logger, lspTable *lspTable, bc bypassConfig, cfg rsvp
 	lsp.Role = RoleIngress
 	lsp.IsBypass = true
 	lsp.PSB = &pathStateBlock{
-		Session: sessionIPv4{
-			TunnelEndpoint: bc.MergePoint,
-			TunnelID:       key.TunnelID,
-			ExtTunnelID:    key.ExtTunnelID,
-		},
+		Session:        bypassSession(bc, key),
 		SenderTemplate: senderTemplateIPv4{SenderAddr: cfg.RouterID, LSPID: 1},
 		ERO:            bc.ERO,
 		RRO:            []rroEntry{{Type: RROSubIPv4, Address: cfg.RouterID}},
@@ -937,6 +933,21 @@ func setupBypass(log *slog.Logger, lspTable *lspTable, bc bypassConfig, cfg rsvp
 		}
 	}
 	log.Info("rsvp-te: bypass configured", "name", bc.Name, "merge-point", bc.MergePoint, "node-protection", bc.NodeProtection)
+}
+
+// bypassSession answers the SESSION object a bypass LSP's PATH carries.
+//
+// RFC 4090 Section 6.2: "For bypass tunnels (Section 7), the destination MUST
+// be the address of the MP." The tunnel endpoint is therefore the merge point,
+// so the bypass terminates where the protected LSP rejoins its path. It is a
+// function of its own so a break of the endpoint reaches the bypass SESSION
+// alone, not the rest of the path state.
+func bypassSession(bc bypassConfig, key lspKey) sessionIPv4 {
+	return sessionIPv4{
+		TunnelEndpoint: bc.MergePoint,
+		TunnelID:       key.TunnelID,
+		ExtTunnelID:    key.ExtTunnelID,
+	}
 }
 
 // bypassSessionAttr encodes the SESSION_ATTRIBUTE a bypass LSP's PATH carries:

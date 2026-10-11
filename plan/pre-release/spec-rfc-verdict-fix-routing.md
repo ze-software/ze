@@ -474,6 +474,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 ### What Was Implemented
 - Verdict work across rsvpte, isis and ldp: `01345e4234` (rsvpte, continuations 1-3), `232e9f4392` (isis), `8ca6178596` and `e47919016b` (ldp, with 15 renewed records), the 22 LDP and 2 RFC2328 re-records `8ee7bc34c7`.
 - 2026-10-11: the RFC4090-6.2-1 positive record of `rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint` is re-recorded in `rfc/discrimination/rfc4090.json`. Its producer `rsvpte/register.go::setupBypass` changed in `ae7a5972a6` (bypass PATH carries a SESSION_ATTRIBUTE, spec-rsvpte-frr-backup-path-signaling), which made the old record producer-changed. The old break substituted the tunnel endpoint (`bc.MergePoint` -> `cfg.RouterID`); gomu no longer offers that mutant at the new line. The new break is line 900, `!bc.MergePoint.IsValid()` -> `true`: `setupBypass` returns before signaling, no bypass PATH is sent, and the unit goes red at its first assertion. This record proves the unit needs the bypass PATH to be sent. It does not prove that the unit's endpoint assertion discriminates, so it is a weaker record than the one it replaces, and the reviewer judges whether it suffices for the positive claim. Changing the claim or adding an endpoint-substitution record is an RFC-tagged change that needs the owner.
+- 2026-10-11, owner decision on RFC4090-6.2-1: "Hand-written break". The SESSION object of the bypass PATH, whose `TunnelEndpoint` is the merge point, moved out of `setupBypass` into its own producer `rsvpte/register.go::bypassSession`, which carries the RFC 4090 Section 6.2 quote ("For bypass tunnels (Section 7), the destination MUST be the address of the MP."). The positive record was re-written by `./le rfc discriminate-record ... route revert producer internal/plugins/rsvpte/register.go::bypassSession`: the body of `bypassSession` replaced by the recorder's halt, observed red as `--- FAIL: TestRFC4090BypassDestinationIsMergePoint` with the halt raised from `bypassSession` called at `setupBypass`. The record now names the code that sets the endpoint, not the merge-point validity guard. The tag's claim ("the PATH that signals a bypass tunnel carries the merge point's address as the SESSION tunnel endpoint") is unchanged: the unit asserts `path.Session.TunnelEndpoint` and the IP destination equal the merge point, so the claim states no more than the body checks. A revert halt proves the unit runs the endpoint producer; it is not an assertion-level substitution, which gomu does not offer for a struct literal.
 
 ### Bugs Found/Fixed (D-8, each with production code)
 | Commit | Fix | Wire-visible |
@@ -485,7 +486,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | `e47919016b` | LDP enforces Initialization order: other messages in OPENSENT/OPENREC get a fatal Shutdown | yes |
 
 ### Deviations from Plan
-- The RFC4090-6.2-1 positive record is a disabling break, not an endpoint substitution (above).
+- The RFC4090-6.2-1 positive record is a hand-written revert of the endpoint producer `bypassSession` (owner, 2026-10-11, "Hand-written break"), not a gomu endpoint substitution (above).
 
 ## Mistake Log
 | Kind | What happened | What was true instead | How discovered | Action |
@@ -520,7 +521,6 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | interop for the IS-IS three-way fix (`232e9f4392`) | no run recorded | this spec, before closure: `INTEROP_SCENARIO=isis-p2p-frr ./le test integration interop`, log kept |
 | interop for the LDP fixes | PASS claimed, no log | this spec, before closure: `INTEROP_SCENARIO=ospf-ldp-sync-frr ./le test integration interop`, log kept |
 | interop for the RSVP-TE fixes (`01345e4234`) | no existing scenario asserts RSB expiry or Implicit NULL; the interop rule requires one | this spec, before closure: two new scenarios under `test/interop-rsvpte/scenarios/`, `egress-implicit-null-penultimate-pop` and `transit-resv-state-expires`, run with `RSVPTE_INTEROP_SCENARIO=<name> ./le test integration interop-rsvpte`, plus the existing eight as a regression run |
-| a discrimination record for the RFC4090-6.2-1 endpoint assertion | gomu offers no endpoint-substitution mutant at the new producer line; a hand-written break or a claim change touches an RFC-tagged unit | the owner decides; the reviewer flags it |
 | `./le verify worktree` | needs a quiet machine | this spec, before closure |
 
 ## Review Gate
