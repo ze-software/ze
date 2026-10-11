@@ -24,6 +24,8 @@ func init() {
 	Register("plugin/bfd-sessions-show", observe03("bfd-sessions-show-test", bfdSessionsShow03))
 	Register("plugin/bfd-transport-stage2", bfdTransportStage203)
 	Register("plugin/bgp-bfd-opt-in", bgpBFDOptIn03)
+	Register("plugin/bgp-bfd-auth-ebgp-warn", bgpBFDAuthEBGPWarn03)
+	Register("plugin/bgp-bfd-auth-join-refused", bgpBFDAuthJoinRefused03)
 	Register("plugin/bgp-bfd-strict", bgpBFDStrict03)
 	Register("plugin/bgp-bfd-multi-hop-pinned-shared", bgpBFDMultiHopPinnedShared03)
 	Register("plugin/bgp-bfd-strict-pinned", bgpBFDStrictPinned03)

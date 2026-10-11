@@ -1,0 +1,22 @@
+# Test: an EBGP peer whose BFD profile has no auth block boots with a warning that names the fix
+#
+# VALIDATES: RFC 5882 Section 10.2 -- "BFD authentication SHOULD be used and
+#            is strongly encouraged." An EBGP peer that enables BFD under the
+#            profile fast, which has no auth block, is accepted (the SHOULD
+#            permits it), and BGP's commit check logs one warning naming the
+#            peer and the profile, with a fix attribute giving the auth block
+#            to add under bfd profile fast.
+# PREVENTS:  an EBGP peer running unauthenticated BFD with nothing said, and a
+#            warning that leaves the operator to find the fix.
+#
+# Method: a native Go fixture boots ze with the config and waits for the
+# warning, its fix attribute, the peer and the profile on stderr.
+
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+option=exclusive:group=bfd-ports
+
+cmd=foreground:seq=1:exec=le test fixture plugin/bgp-bfd-auth-ebgp-warn:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=bfd profile of an EBGP peer has no authentication
+expect=stderr:contains=fix="add auth { type keyed-sha1; key-id <0-255>; secret <secret>; } under bfd { profile fast { } }
