@@ -120,7 +120,7 @@ func (e *Editor) addsMemberAsInsert(guard storage.WriteGuard, changeMeta *config
 	if !e.sessionDeletesMember(changeMeta, path, key, member) {
 		return false
 	}
-	return e.committedHoldsMember(guard, path, key, member)
+	return e.committedHoldsMember(guard, changeOps, path, key, member)
 }
 
 // sessionDeletesMember reports whether changeMeta holds this session's
@@ -139,13 +139,14 @@ func (e *Editor) sessionDeletesMember(changeMeta *config.MetaTree, path []string
 }
 
 // committedHoldsMember reports whether the committed tree holds member, in
-// any state, in the leaf-list key under path.
-func (e *Editor) committedHoldsMember(guard storage.WriteGuard, path []string, key, member string) bool {
+// any state, in the leaf-list key under path, read where the session's
+// renames (changeOps) started from.
+func (e *Editor) committedHoldsMember(guard storage.WriteGuard, changeOps []config.StructuralOp, path []string, key, member string) bool {
 	committedTree := e.readCommittedTree(guard)
 	if committedTree == nil {
 		return false
 	}
-	target := walkPath(committedTree, e.schema, path)
+	target := walkPath(committedTree, e.schema, committedPathOf(changeOps, path))
 	if target == nil {
 		return false
 	}
@@ -363,9 +364,11 @@ func (e *Editor) replaceSessionMembers(changeMeta *config.MetaTree, changeOps []
 		value = config.JoinLeafListMembers(items)
 	}
 
+	// The committed list is read where the session's renames started from,
+	// since the committed tree does not hold the renamed entry yet.
 	var committed *config.Tree
 	if committedTree != nil {
-		committed = walkPath(committedTree, e.schema, path)
+		committed = walkPath(committedTree, e.schema, committedPathOf(changeOps, path))
 	}
 	committedHolds := func(member string) bool {
 		if committed == nil {

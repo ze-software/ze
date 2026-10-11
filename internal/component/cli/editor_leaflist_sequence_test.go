@@ -64,6 +64,10 @@ var seqAddress = seqList{
 	parent:   ifaceIPv4Path,
 	key:      "address",
 	universe: []string{"192.0.2.1/24", "192.0.2.2/30", "192.0.2.3/30", "192.0.2.4/30"},
+	// The bracket list keeps the order its members are written and inserted
+	// in, and an insert position is visible to the operator, so the views are
+	// compared in order: a sorted comparison could not see an order defect.
+	ordered:  true,
 	setWhole: true,
 	starts: []seqStart{
 		{"192.0.2.1/24 192.0.2.2/30", ""},

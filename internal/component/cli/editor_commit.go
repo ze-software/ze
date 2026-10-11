@@ -507,7 +507,7 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 		}
 		filteredOps := changeOps[:0]
 		for i := range changeOps {
-			if changeOps[i].SessionKey() != e.session.ID || !structuralOpMatchesPath(changeOps[i], pathPrefix) {
+			if changeOps[i].SessionKey() != e.session.ID || !structuralOpUnderDiscard(changeOps[i], pathPrefix) {
 				filteredOps = append(filteredOps, changeOps[i])
 			}
 		}
@@ -634,8 +634,7 @@ func (e *Editor) entryStaleConflicts(committedTree *config.Tree, ops []config.St
 		pathParts := strings.Fields(se.Path)
 		myValue := se.Entry.Value
 
-		committedPath := strings.Fields(pathBeforeRenames(ops, se.Path))
-		committedValue := getValueAtPath(committedTree, e.schema, committedPath)
+		committedValue := getValueAtPath(committedTree, e.schema, committedPathOf(ops, pathParts))
 		isStale := myValue != committedValue &&
 			((se.Entry.Previous != "" && committedValue != se.Entry.Previous) ||
 				(se.Entry.Previous == "" && committedValue != ""))
@@ -655,6 +654,15 @@ func (e *Editor) entryStaleConflicts(committedTree *config.Tree, ops []config.St
 		})
 	}
 	return conflicts
+}
+
+// committedPathOf answers path, written against the session's view, as the
+// path it names in the committed tree (pathBeforeRenames). Every read of a
+// committed value for this session's entry goes through it, so the value the
+// entry records as Previous and the value the commit check compares come from
+// one path.
+func committedPathOf(ops []config.StructuralOp, path []string) []string {
+	return strings.Fields(pathBeforeRenames(ops, strings.Join(path, " ")))
 }
 
 // pathBeforeRenames maps path, written against the session's view, back to
@@ -693,6 +701,11 @@ func (e *Editor) memberOpConflicts(committedTree *config.Tree, ops []config.Stru
 	}
 	tree := committedTree.Clone()
 	var conflicts []Conflict
+	// refusedInserts holds the member path of each insert refused so far. A
+	// later toggle of that member finds it absent only because its insert was
+	// refused, and the insert's fix already drops the toggle with it (one
+	// discard path names both), so it reports no second conflict.
+	var refusedInserts []string
 	check := func(tree *config.Tree, op config.StructuralOp) bool {
 		if !isMemberOp(op) {
 			return true
@@ -700,6 +713,12 @@ func (e *Editor) memberOpConflicts(committedTree *config.Tree, ops []config.Stru
 		conflict := memberOpStaleConflict(tree, e.schema, op)
 		if conflict == nil {
 			return true
+		}
+		if slices.Contains(refusedInserts, op.SourcePath()) {
+			return false
+		}
+		if op.Type == config.StructuralOpInsertMember {
+			refusedInserts = append(refusedInserts, op.SourcePath())
 		}
 		conflicts = append(conflicts, *conflict)
 		return false
@@ -767,11 +786,24 @@ func memberOpStaleConflict(tree *config.Tree, schema *config.Schema, op config.S
 	return &Conflict{
 		Path:          change.Path,
 		Type:          ConflictStale,
-		MyValue:       change.Summary(schema),
+		MyValue:       insertSummary(change.Path, op),
 		OtherValue:    "insert reference removed",
 		PreviousValue: op.OldKey,
-		Fix:           memberOpFix(change.Path, op.NewKey, "drops the insert; then insert the member beside one the commit holds"),
+		Fix:           memberOpFix(change.Path, op.NewKey, "drops the insert and your other changes to that member; then insert it beside one the commit holds"),
 	}
+}
+
+// insertSummary answers an insert member op as the operator typed it,
+// `insert <path> <member> <position> [<reference>]`. The pending-change form
+// of an insert is a set of the member, which on a bracket leaf-list reads as
+// replacing the whole list, so a conflict on an insert names the insert.
+func insertSummary(path string, op config.StructuralOp) string {
+	var tb textbuf.Buffer
+	tb.Str("insert ").Str(path).Byte(' ').Str(op.NewKey).Byte(' ').Str(op.Position)
+	if op.Position == config.InsertBefore || op.Position == config.InsertAfter {
+		tb.Byte(' ').Str(op.OldKey)
+	}
+	return tb.String()
 }
 
 // memberOpFix answers the resolution of a stale member op: the discard
@@ -813,8 +845,16 @@ func renameStaleConflict(committedTree *config.Tree, schema *config.Schema, op c
 	return nil
 }
 
-func structuralOpMatchesPath(op config.StructuralOp, pathPrefix string) bool {
-	return pathOverlaps(op.SourcePath(), pathPrefix) || pathOverlaps(op.DestinationPath(), pathPrefix)
+// structuralOpUnderDiscard reports whether a `discard <pathPrefix>` drops op:
+// only when one of op's own paths lies at or under the prefix. The reverse
+// containment does not count: a rename of the entry above the discarded path
+// is another change the session still holds, and dropping it would move the
+// session's remaining edits back to the old key.
+func structuralOpUnderDiscard(op config.StructuralOp, pathPrefix string) bool {
+	if pathHasPrefix(op.SourcePath(), pathPrefix) {
+		return true
+	}
+	return pathHasPrefix(op.DestinationPath(), pathPrefix)
 }
 
 // DisconnectSession removes another user's change file.

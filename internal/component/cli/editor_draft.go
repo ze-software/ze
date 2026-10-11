@@ -84,10 +84,12 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	// Build the YANG path for metadata recording.
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
 
-	// Read committed value for Previous field.
+	// Read committed value for Previous field, at the path the session's
+	// renames started from: the commit check (entryStaleConflicts) reads the
+	// committed value there, and the two must name one path.
 	previous := ""
 	if committedTree != nil {
-		previous = getValueAtPath(committedTree, e.schema, metaPath)
+		previous = getValueAtPath(committedTree, e.schema, committedPathOf(changeOps, metaPath))
 	}
 
 	// Record metadata in change file.
@@ -185,11 +187,12 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 		return err
 	}
 
-	// Read committed value for Previous field.
+	// Read committed value for Previous field, at the path the session's
+	// renames started from, as writeThroughSet does.
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
 	previous := ""
 	if committedTree := e.readCommittedTree(guard); committedTree != nil {
-		previous = getValueAtPath(committedTree, e.schema, metaPath)
+		previous = getValueAtPath(committedTree, e.schema, committedPathOf(changeOps, metaPath))
 	}
 
 	// Create the parent path in the change tree so the serializer can navigate

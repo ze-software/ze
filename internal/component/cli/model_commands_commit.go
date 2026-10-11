@@ -606,7 +606,11 @@ func commitConflictsText(conflicts []Conflict) string {
 		case ConflictLive:
 			b.Str("  LIVE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", ").Str(c.OtherUser).Byte('=').Str(c.OtherValue).Byte('\n')
 		case ConflictStale:
-			b.Str("  STALE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", committed=").Str(c.OtherValue).Str(" (was ").Str(c.PreviousValue).Str(")\n")
+			b.Str("  STALE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", committed=").Str(c.OtherValue)
+			if c.PreviousValue != "" {
+				b.Str(" (was ").Str(c.PreviousValue).Byte(')')
+			}
+			b.Byte('\n')
 		default:
 			panic("BUG: invalid commit conflict type")
 		}

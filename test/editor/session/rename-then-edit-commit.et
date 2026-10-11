@@ -1,0 +1,74 @@
+# Test: A leaf edited below an entry renamed in the same session commits clean
+# VALIDATES: round-6 BLOCKER 1 through the editor: rename eth9 to eth8, set its
+#            description, set its bracket address list, delete eth7's renamed
+#            description, then commit with nobody else committing; the commit
+#            applies and the file holds the new names and values
+# PREVENTS: a false STALE conflict ("you=moved, committed=nine (was )") on a
+#           leaf below a renamed entry, because the entry recorded its previous
+#           value at the new path, which the committed config does not hold
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+}
+interface {
+	backend netlink;
+	ethernet eth7 {
+		unit 0 {
+			description seven;
+			ipv4 {
+				address [ 203.0.113.1/24 ];
+			}
+		}
+	}
+	ethernet eth9 {
+		unit 0 {
+			description nine;
+			ipv4 {
+				address [ 192.0.2.1/24 ];
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=ssh
+
+input=type:text=rename interface ethernet eth9 to eth8
+input=enter
+expect=error:none
+input=type:text=set interface ethernet eth8 unit 0 description moved
+input=enter
+expect=error:none
+input=type:text=set interface ethernet eth8 unit 0 ipv4 address 192.0.2.3/30
+input=enter
+expect=error:none
+input=type:text=rename interface ethernet eth7 to eth6
+input=enter
+expect=error:none
+input=type:text=delete interface ethernet eth6 unit 0 description
+input=enter
+expect=error:none
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=status:contains=applied
+expect=dirty:false
+expect=key:path=file/active/test.conf:contains=set interface ethernet eth8 unit 0 description moved
+expect=key:path=file/active/test.conf:contains=set interface ethernet eth8 unit 0 ipv4 address [ 192.0.2.3/30 ]
+# The committed file keeps earlier values as their own history lines, so the
+# absences are proven by what a fresh editor reads back from it.
+restart=editor
+expect=content:contains=eth8
+expect=content:contains=eth6
+expect=content:not-contains=eth9
+expect=content:not-contains=eth7
+expect=content:not-contains=seven
+expect=content:not-contains=192.0.2.1/24
