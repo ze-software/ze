@@ -230,7 +230,7 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 - the WireGuard, L2TP and PPPoE owning packages - their enrolments
 - `internal/le/interoplab/lab.go`, `internal/le/interoplab/docker.go` - the check after `Preflight`
 - `internal/le/test/deployment/`, `internal/le/site/terminaldemo/render.go` - call the same check
-- `internal/le/setup/setup.go` - `docker-kernel install` action (Linux hosts only, D-6) and a setup check that runs the same probe
+- `internal/le/setup/dockerkernel/dockerkernel.go` - `docker-kernel install` action (Linux hosts only, D-6) and a setup check that runs the same probe
 - `internal/le/test/qemu/` - the one "Docker lab inside the Ze-kernel guest" path the Mac and the nightly share (D-6)
 - `internal/core/diagnostic/codes.go` - codes for each new enrolment
 - `.github/workflows/evidence-nightly.yml` - the four Docker jobs inside the QEMU guest

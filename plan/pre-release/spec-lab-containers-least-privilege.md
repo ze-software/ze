@@ -115,7 +115,7 @@ Goals.
 | No duplicated functionality (extends existing, does not recreate) | Yes | profiles use `kernelcap.DockerDefaultProfile` and `ProcSysWriteDenies` |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | tooling argv |
 | Registration over hardcoding, outbound | Yes | a profile registers from the lab's `register_apparmor.go` |
-| Registration over hardcoding, inbound | Yes | `dockerkernel_apparmor.go` iterates `AppArmorProfileNames()`; no list names the new profiles |
+| Registration over hardcoding, inbound | Yes | `internal/le/setup/dockerkernel/dockerkernel_apparmor.go` iterates `AppArmorProfileNames()`; no list names the new profiles |
 
 ## Risks & Assumptions
 
@@ -154,7 +154,7 @@ Goals.
 | `./le test integration interop-rsvpte` | → | `zePeer`, `mplsPreflight` | `TestRSVPTELabPeersRunWithoutPrivilege`, `TestRSVPTEPreflightRunsWithoutPrivilege` (`internal/le/interoplab/rsvpte/privilege_test.go`) |
 | `./le test deployment l2tp-test` | → | `L2TP.containerArgs` | `TestL2TPDeploymentContainerRunsWithoutPrivilege` (`internal/le/test/deployment/privilege_test.go`) |
 | `./le test deployment vpp-iface-test` | → | `vppIface.containerArgs` | `TestVPPDeploymentContainerRunsWithoutPrivilege` (same file) |
-| `./le setup docker-kernel apparmor confirm <name>` | → | `appArmorLoadConfirmed` over the registry | existing `internal/le/setup/dockerkernel_apparmor_test.go`, which iterates every registered profile |
+| `./le setup docker-kernel apparmor confirm <name>` | → | `appArmorLoadConfirmed` over the registry | existing `internal/le/setup/dockerkernel/dockerkernel_apparmor_test.go`, which iterates every registered profile |
 
 ## Acceptance Criteria
 
