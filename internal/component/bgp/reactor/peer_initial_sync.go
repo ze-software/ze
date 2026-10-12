@@ -170,11 +170,18 @@ func (p *Peer) sendInitialRoutes() {
 		op := p.opQueue[processed]
 		switch op.Type {
 		case PeerOpTeardown:
+			processed++
+			// A teardown that names a session ends that session only: a
+			// restart decided for an earlier session is dropped here rather
+			// than ending this one. A nil TeardownSession is peer-level.
+			if op.TeardownSession != nil && op.TeardownSession != p.session {
+				routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
+				continue
+			}
 			teardownSubcode = op.Subcode
 			teardownMsg = op.Message
 			teardownAutomatic = op.Automatic
 			hasTeardown = true
-			processed++
 
 		case PeerOpAnnounce:
 			// Send route, splitting if needed.
@@ -590,10 +597,15 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 			}
 
 		case PeerOpTeardown:
+			finalProcessed++
+			// A teardown of an earlier session is dropped, as in the main drain.
+			if op.TeardownSession != nil && op.TeardownSession != p.session {
+				routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
+				continue
+			}
 			// Teardown should not appear here — teardown is handled in the main
 			// drain loop, which returns early.
 			routesLogger().Error("unexpected teardown in the closing drain queue", "peer", addr)
-			finalProcessed++
 		default:
 			panic("BUG: invalid queued peer operation")
 		}

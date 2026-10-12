@@ -705,7 +705,9 @@ func TestDetachedProcessToldDownWhenSessionClosesAfterPublish(t *testing.T) {
 // the targeted up (step 2), so its graph read lands before the step-3 publish
 // with no sleep. An observer reads the graph as the dispatcher's down does.
 // The cases differ in how far the close got before the publish: only marked,
-// cleared as runOnce's defer clears it, or replaced by the next session.
+// cleared as runOnce's defer clears it, replaced by the next session, or
+// replaced by a next session whose FSM up already read the graph without the
+// process, which must restart that session and no other.
 // Red when nothing marks the session closing before that read, or when the
 // apply restarts a session that is no longer the one step 1 judged.
 //
@@ -714,13 +716,15 @@ func TestDetachedProcessToldDownWhenSessionClosesAfterPublish(t *testing.T) {
 // and a Cease sent to the session that follows.
 func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		next func() *Session // the session the defer leaves, nil for none
-		gone bool            // runOnce's defer ran before the publish
+		name   string
+		next   func() *Session // the session the defer leaves, nil for none
+		gone   bool            // runOnce's defer ran before the publish
+		nextUp bool            // the next session's FSM up already ran
 	}{
 		{name: "marked"},
 		{name: "cleared", gone: true},
 		{name: "replaced", gone: true, next: func() *Session { return &Session{} }},
+		{name: "replaced-up", gone: true, next: func() *Session { return &Session{} }, nextUp: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
@@ -729,6 +733,7 @@ func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
 			obs := &graphUpObserver{srv: srv}
 			peer.reactor.addPeerObserver(obs)
 			session := peer.session
+			var successor *Session
 			rec.onBind = func() {
 				peer.announceClosed(peer.reactor, session, "connection lost")
 				if !tc.gone {
@@ -738,11 +743,17 @@ func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
 				peer.mu.Lock()
 				peer.session = nil
 				if tc.next != nil {
-					peer.session = tc.next()
+					successor = tc.next()
+					peer.session = successor
 				}
 				peer.upSession = nil
 				peer.upPhase = sessionUpUnspecified
 				peer.mu.Unlock()
+				if tc.nextUp {
+					// The next session's FSM up read the graph before the
+					// publish, without the attached process's edge.
+					setUpPhase(peer, sessionUpDelivered)
+				}
 			}
 
 			next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
@@ -752,12 +763,82 @@ func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
 
 			require.Equal(t, 1, upsTo("monitor", rec, obs), "the attached process was told up once")
 			assert.Equal(t, 1, downsTo("monitor", rec, obs), "and down once for the session that closed")
+			assert.Empty(t, bgpFrames(t, conn.written()), "a closing session is sent no ROUTE-REFRESH")
 			peer.mu.RLock()
 			defer peer.mu.RUnlock()
+			var teardowns []*Session
 			for _, op := range peer.opQueue {
-				assert.NotEqual(t, PeerOpTeardown, op.Type, "neither the closing session nor the next one is restarted")
+				if op.Type == PeerOpTeardown {
+					teardowns = append(teardowns, op.TeardownSession)
+				}
 			}
-			assert.Empty(t, bgpFrames(t, conn.written()), "a closing session is sent no ROUTE-REFRESH")
+			if !tc.nextUp {
+				assert.Empty(t, teardowns, "neither the closing session nor the next one is restarted")
+				return
+			}
+			// The next session's up missed the process, so only a restart of
+			// THAT session gives it an up: the one after reads the published
+			// graph.
+			require.Len(t, teardowns, 1, "the next session is restarted")
+			assert.Same(t, successor, teardowns[0], "the restart is for the next session, not one after it")
+		})
+	}
+}
+
+// TestQueuedRestartDoesNotEndTheNextSession proves a binding restart reaches
+// only the session it was decided for. A restart decided while the initial
+// routing update runs waits in the op queue, and the queue outlives the
+// session, so the next session's drain would otherwise send its Cease.
+//
+// Method: one peer, two Established sessions on recording connections. The
+// restart is asked for one session while another may be the peer's by the
+// time it is asked or drained; sendInitialRoutes then drains on the peer's
+// session, and the wire says whether a NOTIFICATION left.
+//
+// VALIDATES: restartForBinding's target and the drain's TeardownSession check.
+// PREVENTS: a Cease on a session that did nothing to earn it.
+func TestQueuedRestartDoesNotEndTheNextSession(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		askAfterSwap  bool // the restart is asked after the next session replaced the first
+		forNext       bool // the restart is for the next session
+		notifications int
+	}{
+		{name: "queued-for-earlier", notifications: 0},
+		{name: "asked-for-earlier", askAfterSwap: true, notifications: 0},
+		{name: "for-current", askAfterSwap: true, forNext: true, notifications: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			first := peer.session
+			other, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			next := other.session
+			target := first
+			if tc.forNext {
+				target = next
+			}
+			swap := func() {
+				peer.mu.Lock()
+				peer.session = next
+				peer.mu.Unlock()
+			}
+			if tc.askAfterSwap {
+				swap()
+				peer.restartForBinding(target, []string{"monitor"}, "test restart")
+			} else {
+				peer.restartForBinding(target, []string{"monitor"}, "test restart")
+				swap()
+			}
+
+			peer.sendInitialRoutes()
+
+			notifications := 0
+			for _, frame := range bgpFrames(t, conn.written()) {
+				if frame[18] == 3 {
+					notifications++
+				}
+			}
+			assert.Equal(t, tc.notifications, notifications, "NOTIFICATIONs on the next session's wire")
 		})
 	}
 }

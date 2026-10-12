@@ -2291,12 +2291,18 @@ a process attached before it starts receives it and needs no second one.
    closing (`Peer.announceClosed`) under that lock BEFORE its FSM down reads
    the graph, so a down that read the graph without the new edges always
    leaves the mark for this read to see. If the session is marked closing, or
-   is gone (the peer's run cleared it, or published the next session, which
-   also clears the mark), the attached processes are told down again and
-   nothing else is done: the session is going away on its own, so it is not
-   caught up, and nothing is restarted, because a teardown queued then would
-   be drained by the next session, which would read a Cease it did nothing to
-   earn. Otherwise, if the session's up phase moved inside the window, its
+   is gone and nothing has started announcing its successor (the peer's run
+   cleared it, or published a next session whose FSM up has not begun or which
+   is itself closing), the attached processes are told down again and nothing
+   else is done: the session is going away on its own, so it is not caught
+   up, and nothing is restarted, because the successor reads its edges from
+   the graph just published. If the session is gone and its successor's FSM up
+   has already started, that up read the graph without the new edges, so the
+   attached processes are told down again and the successor restarts. The
+   restart names the successor: its teardown ends that session only, and a
+   teardown still queued when a later session holds the peer is dropped by
+   the drain, so a restart never ends the session after the one it was
+   decided for. Otherwise, if the session's up phase moved inside the window, its
    Established state changed without a close, or the FSM up was being
    delivered when the apply began, the attached processes are told down again
    and the session restarts. A session published when the apply found none

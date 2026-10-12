@@ -491,7 +491,7 @@ func (p *Peer) catchUpBoundProcesses(bindings []ProcessBinding, gained []string)
 		case feedCatchUpRouteRefresh:
 			refresh = true
 		case feedCatchUpUnspecified, feedCatchUpImpossible:
-			p.restartForBinding(gained, "process bound without the routes the session already carried: restarting the session")
+			p.restartForBinding(session, gained, "process bound without the routes the session already carried: restarting the session")
 			return
 		default:
 			panic("BUG: invalid binding catch-up outcome")
@@ -502,13 +502,17 @@ func (p *Peer) catchUpBoundProcesses(bindings []ProcessBinding, gained []string)
 	}
 }
 
-// restartForBinding ends the session because a binding change could not be
+// restartForBinding ends target because a binding change could not be
 // delivered to it in place: a new session is the one way every consumer holds
-// the same routes and sees one up.
-func (p *Peer) restartForBinding(processes []string, why string) {
+// the same routes and sees one up. It ends target only, never the session
+// after it, so a nil target, or one the peer has already left, ends nothing.
+func (p *Peer) restartForBinding(target *Session, processes []string, why string) {
+	if target == nil {
+		return
+	}
 	peerLogger().Warn(why, "peer", p.settings.Address, "processes", processes)
 	// RFC 4486 Section 4: subcode 6 "Other Configuration Change".
-	if err := p.Teardown(message.NotifyCeaseOtherConfigChange, ""); err != nil {
+	if err := p.teardownOf(target, message.NotifyCeaseOtherConfigChange, "", false); err != nil {
 		peerLogger().Warn("binding change: session restart not queued",
 			"peer", p.settings.Address, "error", err)
 	}

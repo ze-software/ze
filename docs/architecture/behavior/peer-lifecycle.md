@@ -57,7 +57,7 @@ The peer state transitions are driven from `peer_run.go`:
 | `Peer.Start()` | Begin the peer goroutine with a background context. |
 | `Peer.StartWithContext(ctx)` | Begin the peer goroutine with a caller-supplied context. Once-only; calling again while running is a no-op. |
 | `Peer.Stop()` | Cancel the peer context. The run loop notices at the next select and unwinds cleanly via `cleanup()`. |
-| `Peer.Teardown(subcode, msg)` | Send Cease NOTIFICATION to the current session. If `sendInitialRoutes` is in flight, queues the teardown via `opQueue` so routes and EoR are flushed first. Returns `ErrOpQueueFull` if the queue is saturated. |
+| `Peer.Teardown(subcode, msg)` | Send Cease NOTIFICATION to the current session. If `sendInitialRoutes` is in flight, queues the teardown via `opQueue` so routes and EoR are flushed first. Returns `ErrOpQueueFull` if the queue is saturated. This is a peer-level teardown. A reload's binding restart uses `teardownOf` with the session it decided on instead: it does nothing once the peer has left that session, and the drain drops it if still queued when a later session holds the peer. |
 | `Peer.acceptConnection(conn)` | Hand an incoming TCP connection to the current session via `session.Accept`. Used by the reactor's inbound dispatch for passive peers that already have a live session. |
 | `Peer.setInboundConnection(conn)` | Store an inbound connection while the peer has no session. Wakes the run loop via a buffered `inboundNotify` channel so backoff can be cut short. |
 | `Peer.setPendingConnection(conn)` / `resolvePendingCollision(open, wire)` / `clearPendingConnection()` | Collision resolution per RFC 4271 §6.8; a winner transfers to the next session's inbound slot. See below. |

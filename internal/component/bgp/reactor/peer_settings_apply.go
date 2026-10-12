@@ -366,13 +366,23 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	// The phase is read under r.mu, which every phase change also holds, so a
 	// phase equal to step 1's did not move before this publish.
 	announcedAtWrite := p.upPhaseLocked(session)
-	sameSession := p.session == session && (p.State() == PeerStateEstablished) == stateUp && announcedAtWrite == announced
+	current := p.session
+	currentPhase := p.upPhaseLocked(current)
+	sameSession := current == session && (p.State() == PeerStateEstablished) == stateUp && announcedAtWrite == announced
 	// The step-1 session is going away on its own once its close is marked,
 	// and is gone once runOnce's defer replaced it, which also clears the
 	// mark. Either way its FSM down read the graph after the mark, so a
-	// process this apply tells up may have missed it. A session step 1 did
-	// not have is not closing: one published since then still restarts.
-	closing := announcedAtWrite == sessionUpClosing || (session != nil && p.session != session)
+	// process this apply tells up may have missed it.
+	//
+	// What holds the peer now decides whether anything restarts. No session,
+	// or a successor whose up has not started or is already closing, reads its
+	// edges from the graph published below, so the step-1 session's departure
+	// is the whole story: closing. A successor whose up started read the graph
+	// before this publish and lacks the new edge, so it is not closing: it
+	// restarts below, and the restart names it. A session step 1 did not have
+	// is not closing either: one published since then still restarts.
+	successorUnannounced := currentPhase == sessionUpUnspecified || currentPhase == sessionUpClosing
+	closing := announcedAtWrite == sessionUpClosing || (session != nil && current != session && successorUnannounced)
 	before := p.settings.StaticRoutes
 	copy(p.settings, next)
 	if p.settings.IsDynamic {
@@ -395,10 +405,15 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	// A session closing or gone at the publish (Peer.announceClosed, then
 	// runOnce's defer) is going away on its own: its FSM down read the graph
 	// after the mark, on either side of the publish, so it may have missed
-	// the attached processes. The ones step 2 told up are told down here, and
-	// nothing is restarted: a teardown queued now would be drained by the next
-	// session, or tear down one already published, which reads its edges from
-	// the published graph. Nothing is caught up either.
+	// the attached processes. The ones step 2 told up are told down here.
+	// When nothing holds the peer, or its successor's up has not started, no
+	// session is restarted: the successor reads its edges from the published
+	// graph. Nothing is caught up either.
+	//
+	// A successor whose up started before the publish fed the processes it
+	// knew of without the new edge, so it restarts like a session whose phase
+	// moved. The restart names that successor: the teardown ends it only, and
+	// a queued one is dropped by the drain if a later session holds the peer.
 	//
 	// A detached process is told down whenever any up may have reached it: an
 	// FSM up that read the graph before the publish fed it, and the FSM down
@@ -417,7 +432,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	case closing:
 		// Going away on its own: no restart and no catch-up.
 	case restart:
-		p.restartForBinding(gained, "session changed while processes were bound to it: restarting the session")
+		p.restartForBinding(current, gained, "session changed while processes were bound to it: restarting the session")
 	case established && p.State() == PeerStateEstablished:
 		p.catchUpBoundProcesses(bindingsAfter, gained)
 	}

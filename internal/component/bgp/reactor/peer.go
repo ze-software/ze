@@ -162,6 +162,12 @@ type peerOp struct {
 	// waited for End-of-RIB is not thereby an operator's decision.
 	Automatic bool // For PeerOpTeardown
 
+	// TeardownSession is the session a teardown ends, or nil for a peer-level
+	// teardown that ends whichever session drains it. The queue outlives a
+	// session, and a restart decided for one session must not end the next, so
+	// the drain drops a teardown whose session is no longer the peer's.
+	TeardownSession *Session // For PeerOpTeardown
+
 	// Marker is a whole BoRR or EoRR ROUTE-REFRESH message, and MarkerSession
 	// the session it was answered on. The queue outlives a session, and a
 	// marker belongs to the refresh of the session that asked for it, so the
@@ -1948,15 +1954,32 @@ func (p *Peer) teardownAutomatic(subcode uint8, shutdownMsg string) error {
 }
 
 func (p *Peer) teardown(subcode uint8, shutdownMsg string, automatic bool) error {
+	return p.teardownOf(nil, subcode, shutdownMsg, automatic)
+}
+
+// teardownOf is teardown for one session. A nil target is a peer-level teardown
+// and ends whichever session holds the peer, or the next one if it is queued.
+// A non-nil target ends that session only: when the peer has already moved to
+// another session it returns nil and does nothing, and the queued form carries
+// the target so the drain drops it once a later session holds the peer. A
+// restart decided for one session therefore never ends the session after it.
+func (p *Peer) teardownOf(target *Session, subcode uint8, shutdownMsg string, automatic bool) error {
 	p.mu.Lock()
 	session := p.session
+	if target != nil && session != target {
+		p.mu.Unlock()
+		peerLogger().Debug("teardown of an earlier session dropped", "peer", p.settings.Address)
+		return nil
+	}
 
 	// If sendInitialRoutes is pending (1) or running (2), queue the teardown
 	// so it can send EOR before executing the teardown. This ensures proper
 	// BGP protocol sequencing: routes + EOR + NOTIFICATION.
 	if p.sendingInitialRoutes.Load() != 0 {
 		if len(p.opQueue) < p.opQueueMax {
-			p.opQueue = append(p.opQueue, peerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg, Automatic: automatic})
+			p.opQueue = append(p.opQueue, peerOp{
+				Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg, Automatic: automatic, TeardownSession: target,
+			})
 			p.mu.Unlock()
 			return nil
 		}
