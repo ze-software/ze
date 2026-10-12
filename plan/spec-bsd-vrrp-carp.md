@@ -18,16 +18,20 @@ and procfs ARP sysctls (`dataplane_linux.go`); off Linux `dataplane_other.go` ma
 the dataplane no-ops because the whole path is unreachable (no macvlan, no raw
 sockets). The BSD systems ship carp(4) in the kernel, and carp uses IP protocol 112,
 the same protocol number as VRRP, so a host running both sees each other's
-advertisements. This spec decides how VRRP works on FreeBSD and OpenBSD:
+advertisements. This spec decides how VRRP works on FreeBSD and OpenBSD.
 
-| Option | Notes |
-|--------|-------|
-| Ze VRRP over raw proto 112 | Needs a virtual-MAC mechanism without macvlan (interface `lladdr` alias or promiscuous answer), and must coexist with carp on the same segment |
-| Configure carp(4) from Ze | carp is not VRRP on the wire (RFC 5798 interop lost); acceptable only as an explicit BSD-only feature |
-| Refuse VRRP on BSD | Honest default until one of the above is chosen |
+**Owner decision, 2026-10-12:** "CARP vs VRRP - two different protocols, you
+should be able to use one or the other on the interface (if/when we add CARP
+support)". So:
 
-The owner chooses; the recommendation is to refuse by name until a design is
-approved, since carp is not wire-compatible with VRRP peers.
+| Protocol | Shape |
+|----------|-------|
+| VRRP | Ze's VRRP over raw proto 112 on every OS that can carry it; on BSD it needs a virtual-MAC mechanism without macvlan (interface `lladdr` alias or promiscuous answer) |
+| CARP | A separate protocol, configured from Ze through carp(4) where the kernel has it; not VRRP on the wire, never presented as VRRP |
+| Per interface | An interface runs VRRP or CARP, never both: the config refuses a second one on the same interface with an error naming the one already there |
+
+CARP support itself is not yet in scope ("if/when we add CARP support"): until it
+is, a CARP request is refused by name, and VRRP on BSD follows the VRRP row.
 
 ## Required Reading
 
