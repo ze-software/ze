@@ -7,7 +7,7 @@
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the BFD group before any row edit, parent R-11) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-11 |
+| Updated | 2026-10-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -424,7 +424,7 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 
 ## Progress, 2026-10-11
 
-Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD `c0d31c3660` on 2026-10-11. Implementation is finished; the spec waits for its independent `/ze-review`. It is not closed.
+Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD `c0d31c3660` on 2026-10-11. Implementation is finished. 2026-10-12: the independent review loop ended clean at round 8 and the spec closes (Review Gate, Pre-Commit Verification).
 
 ## Implementation Summary
 
@@ -486,7 +486,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 |-------------------|-----|---------------------------|
 | RFC5882-4.4-1 shared-session `joined` key | parent verdict, transferred by the owner 2026-10-11 | `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` AC-24 |
 | interop for the D-8 fixes | DONE 2026-10-11: all five scenarios PASS in the QEMU guest at `1a0294116d`; evidence in Goal Validation. Kept here only so the Review Gate reader sees it was owed | nothing owed |
-| `./le verify worktree` | needs a quiet machine; never green for this pass | this spec, before closure |
+| `./le verify worktree` | DONE 2026-10-12: the full gate ran over HEAD `a7798ff530` (logs `tmp/verify-worktree-logs/20261012T074519.479667000Z-p32652-r1-a7798ff530bb/full-603307227/`). It exited red, and no red is this spec's: every `internal/component/bfd` package passed the plain and race unit passes, `./le rfc check` names no rfc5880-5883 row, and the BFD `.ci` files pass (Pre-Commit Verification). The reds are named in commit A's body | nothing owed |
 
 ## Review round 1 fixes, 2026-10-11
 
@@ -498,7 +498,7 @@ Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scrat
 | ISSUE 2 | `sameAuth` Type and Meticulous comparisons untested | the commit that carries this row | `TestRFC5882AuthJoinDifferentAuthRefused` gained three cases on both arms: `md5` (Keyed MD5 against Keyed SHA1, Type the only difference), `meticulous` (Keyed SHA1 then Meticulous Keyed SHA1, owner-named), and the first profile's auth with only Meticulous inverted, sent under no profile because `authTypeFromEnum` ties Meticulous to its own wire Auth Type. Overlay red, `go test -overlay`: removing `a.Type != b.Type` reddens only `different_auth_type/{exact_key,shared_join}`; removing `a.Meticulous != b.Meticulous` reddens only `different_meticulous_flag/{exact_key,shared_join}`; green with neither. Negative record re-written by `./le rfc discriminate-record` (revert of `joinAuthCheck`), owner approval in `tmp/commit-rfc-approved-d1987d95.md` |
 | ISSUE 3 | the two RFC 5882 Section 10.2 warnings named no fix | `3e6e76a6de` | `peer_bfd.go` messages name the `auth` block and the authenticated-profile route; `docs/guide/bfd.md` and the discrimination record follow |
 | ISSUE 4 | no `.ci` drove the warning or the join refusal through ze | `e64da01079` | `test/plugin/bgp-bfd-auth-ebgp-warn.ci`, `test/plugin/bgp-bfd-auth-join-refused.ci` |
-| ISSUE 5 | `./le verify worktree` not met | owed | whole-tree gate, run by the main thread or a fresh agent on a quiet tree |
+| ISSUE 5 | `./le verify worktree` not met | the 2026-10-12 run over `a7798ff530` | red, with no red in this spec's packages or stems (Work Not Done) |
 
 Owed after ISSUE 2: the test change stales the RFC5882-10.2-1 audit verdict (`./le rfc check`: "STALE audit verdict ... func-scoped", reseal refuses it). A judge who did not author the change re-reads rfc5882 with `/ze-rfc-audit` and stamps with `./le rfc audit-stamp mode rejudge`.
 
@@ -565,12 +565,12 @@ Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scrat
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-rfc-verdict-bfd.md`, `review-rfc-verdict-bfd-r2.md` to `review-rfc-verdict-bfd-r7.md` |
-| `./le spec review check` | 2026-10-11: BLOCKED, no independent-review artifact at `tmp/review/rfc-verdict-fix-bfd-5620b26f-603e-4d57-826d-6ef92b7fcd64.md`; owed: `./le spec review record` by the reviewer of the round-7 fix commit |
-| Rounds | 7 (scratch `review-rfc-verdict-bfd.md`, `-r2` to `-r7`). Round 7's only ISSUE was the mechanical re-record of three discrimination records, fixed in the commit that carries this table, with its NOTE 1 and NOTE 2 |
+| Artifact | `tmp/review/rfc-verdict-fix-bfd-5620b26f-603e-4d57-826d-6ef92b7fcd64.md` (verdict=clean, rounds=8, 10 files, round 8 over `1dd041c7ae`); earlier rounds in session scratch `review-rfc-verdict-bfd.md`, `review-rfc-verdict-bfd-r2.md` to `review-rfc-verdict-bfd-r7.md` |
+| `./le spec review check` | 2026-10-12: `review_gate: OK (0 code files, clean, hashes match tmp/review/rfc-verdict-fix-bfd-5620b26f-603e-4d57-826d-6ef92b7fcd64.md)` |
+| Rounds | 8. Round 7's only ISSUE was the mechanical re-record of three discrimination records, fixed with its NOTE 1 and NOTE 2. Round 8 found 0 BLOCKER, 0 ISSUE, 3 NOTE (loopFor wiring proven by reading only; one long line in `docs/architecture/bfd.md`; spec wording of the round-7 evidence cell) |
 | Owner authorised | round 6: Thomas, 2026-10-11, "Authorise round 6"; round 7: Thomas, 2026-10-11, "Authorise round 7"; round 8: Thomas, 2026-10-11, "Authorise round 8" |
 | Reviewer lenses used | RFC text, discrimination records and `./le rfc check`, user-facing refusal text, guide against code, lock order, overlay reds, functional `.ci` |
-| Open | round-1 ISSUE 5, `./le verify worktree`: owed, run by the main thread or a fresh agent on a quiet tree |
+| Open | none. Round-1 ISSUE 5 (`./le verify worktree`) was met by the 2026-10-12 run over `a7798ff530` (Work Not Done) |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -579,7 +579,7 @@ Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scrat
 | R1-2 | ISSUE | `sameAuth` Type and Meticulous comparisons untested | `engine/auth_join.go::sameAuth` | `ef70c19e79`, re-judged `332ee2903a` |
 | R1-3 | ISSUE | RFC 5882 Section 10.2 warnings named no fix | `bgp/reactor/peer_bfd.go` | `3e6e76a6de` |
 | R1-4 | ISSUE | no `.ci` drove the warning or the join refusal | `test/plugin/bgp-bfd-auth-*.ci` | `e64da01079`, `f09ad6f51e` |
-| R1-5 | ISSUE | `./le verify worktree` not met | whole tree | OPEN |
+| R1-5 | ISSUE | `./le verify worktree` not met | whole tree | the 2026-10-12 run over `a7798ff530`; no red in this spec's scope |
 | R2-A | ISSUE | no-profile Warn's `fix` attribute asserted by nothing | `peer_bfd.go::verifyPeerBFDProfiles` | `9acec85447` |
 | R2-B | ISSUE | auth-join refusal named no fix | `engine/auth_join.go` | `20f413e184` |
 | R3-1 | ISSUE | refusal's fix impossible when one client is OSPF | `engine/auth_join.go::authMismatchCase` | `d48bb913de` |
@@ -587,3 +587,41 @@ Findings from `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scrat
 | R5-1 to R5-4 | ISSUE | release command refused; OSPF retry omitted; refusal too long; `authFrom` unpinned | `engine/auth_join.go`, `docs/guide/bfd.md` | `9b0f42eee2` |
 | R6-1, R6-2 | ISSUE | fixes edited a shared profile; refusal named a stale profile | `engine/auth_join.go`, `bfd.go::loopFor` | `600419411d` |
 | R7-1 | ISSUE | three `EnsureSession` records producer-changed | `rfc/discrimination/rfc5881.json`, `rfc5882.json` | the commit that carries this row |
+
+## Pre-Commit Verification
+
+Re-run 2026-10-12 at HEAD `57a0a928e9` during closure.
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/bgp-bfd-auth-ebgp-warn.ci`, `test/plugin/bgp-bfd-auth-join-refused.ci` | yes | `ls test/plugin/` lists both (round-1 ISSUE 4); "Files to Create" plans none |
+| `rfc/audit/rfc588[0-3].json`, `rfc/discrimination/rfc588[0-3].json` | yes | read by `./le rfc check` below |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-C1 | derived listing holds only "Blocked by" ids | the "Derived listing" jq filter run 2026-10-12 prints 0 rows |
+| AC-C2, AC-C3, AC-C6 | moved verdicts recorded, split rows judged, RFC5880-4.1-1 corrected | `./le rfc check` 2026-10-12 (scratch `rfccheck-close.txt`): 12 violations, all in rfc2545, rfc4271, rfc4724, rfc4760 and rfc5187; none in rfc5880-5883 |
+| AC-C4 | no foreign defect declared | Work Not Done names RFC5882-4.4-1 as owned by the keep-session spec AC-24 |
+| AC-C5 | no stale verdict in this child's stems | same `./le rfc check` run: no rfc5880-5883 line |
+| AC-C7 | no R-7 row | unchanged, N-A |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` over rfc5880-5883 | `TestCheckAuditRatchetSeesTipCommit` | `go test ./internal/le/rfc/ -run TestCheckAuditRatchetSeesTipCommit` ok 2026-10-12 |
+| BFD auth warning and join refusal through ze | `test/plugin/bgp-bfd-auth-ebgp-warn.ci`, `bgp-bfd-auth-join-refused.ci` | `./le test bgp plugin` over the 24 BFD `.ci` files 2026-10-12: pass 21/21, 3 skipped (bfd-echo-handshake, static-bfd-profile-undefined-boot, storage-bfd-restart are Linux-only: `option=needs-linux` or a darwin skip in the file); log scratch `bfd-ci-close.log` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `./le rfc audit-stamp` takes `mode rejudge`; every BFD re-judge went through it (Implementation Audit) |
+| A-2 | confirmed | AC-C1 listing is empty |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/bfd.md` refusal and "No authentication" rows | round 8 read them against `runtimeState.profileAuthFor` and `authMismatchCase` (artifact) | yes |
+| `docs/architecture/bfd.md` profile lookup | names `profileAuthFor` and `permitsMode`, anchor updated (round 8) | yes |
+| RFC status (#9) | rfc5880-5883 rows changed only through `rfc/short`, `rfc/audit`, `rfc/discrimination`; `./le rfc check` names none | yes |
