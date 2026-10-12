@@ -884,6 +884,28 @@ This carrier does not test disabling validation or rejecting a reload transactio
 <!-- source: internal/le/interoplab/bgp/check_rpki_reload.go -- checkRPKIPolicyReload -->
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- queryFRRSessionGeneration, waitFRRNewSession -->
 
+### Live BFD profile edit
+
+The `bgp-bfd-profile-edit-live-frr` scenario is the `bfd-frr` lab plus a
+reload. Ze's BGP peer opts into BFD under profile `fast` at 300ms and detect
+multiplier 3; `ze-reload.conf` edits that profile to 200ms and multiplier 5 and
+changes nothing else. Once FRR's BFD session is up at 300ms, the checker reloads
+Ze through SIGHUP (`applyZeReload`, the same reload `rtr-stayrtr` drives) while
+that session is Up. FRR must then report `remote-transmit-interval` 200,
+`remote-receive-interval` 200 and `remote-detect-multiplier` 5 in
+`show bfd peer <ze> json`, which it reads from Ze's packets. RFC 5880 Section
+6.8.3 makes that change a Poll Sequence on an Up session.
+
+Continuity compares four values read before and after the reload. Both BFD
+discriminators (`id`, and `remote-id`, Ze's discriminator) must stay the same,
+so the session was not rebuilt. The `session-down` counter of
+`show bfd peer <ze> counters json` must not move, so no flap went unseen
+between two samples. FRR's BGP `connectionsEstablished` must not move either.
+FRR's own intervals stay at the bfdd defaults throughout, so the remote fields
+are the only ones the reload can change.
+<!-- source: internal/le/interoplab/bgp/check_bfd_profile_edit.go -- checkBFDProfileEditLive, requireBFDProfileEditContinuity -->
+<!-- source: test/interop/scenarios/bgp-bfd-profile-edit-live-frr/ -- ze.conf, ze-reload.conf, frr.conf -->
+
 ### RPKI route retention
 
 `INTEROP_SCENARIO=rpki-frr ./le test integration interop` runs FRR as the BGP

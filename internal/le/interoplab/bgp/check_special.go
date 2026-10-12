@@ -35,6 +35,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	ospfVirtualLinkScenario:                    checkOSPFVirtualLink,
 	ospfv3VirtualLinkScenario:                  checkOSPFVirtualLink,
 	"bfd-frr":                                  checkBFDFailover,
+	bfdProfileEditScenario:                     checkBFDProfileEditLive,
 	"frr-software-version":                     checkSoftwareVersionFRR,
 	"show-rib-under-frr-load":                  checkShowRIBUnderFRRLoad,
 	"bgp-addpath-rail-agreement-speaker":       checkAddPathRailAgreement,

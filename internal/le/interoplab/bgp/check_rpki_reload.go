@@ -105,7 +105,7 @@ func checkRPKIPolicyReload(ctx context.Context, check *interoplab.CheckContext) 
 		{"accept retained Invalid", zeMountedReloadConfig, true},
 		{"restore rejection", zeMountedConfig, false},
 	} {
-		if err := applyRPKIReload(ctx, check.Lab, phase.config); err != nil {
+		if err := applyZeReload(ctx, check.Lab, phase.config); err != nil {
 			return fmt.Errorf("%s: %w", phase.name, err)
 		}
 		if _, err := waitRPKIReloadPhase(ctx, check, phase.name, phase.accepted, original); err != nil {
@@ -130,7 +130,11 @@ func queryRPKIReloadJSON(ctx context.Context, lab interoplab.CheckerLab, command
 	return nil
 }
 
-func applyRPKIReload(ctx context.Context, lab interoplab.CheckerLab, config string) error {
+// applyZeReload replaces ze's running config with config, a file mounted in
+// ze's container (zeMountedReloadConfig or zeMountedConfig), sends SIGHUP, and
+// waits until `show reload-status` reports exactly one more generation with
+// outcome "applied". Every scenario carrying ze-reload.conf reloads through it.
+func applyZeReload(ctx context.Context, lab interoplab.CheckerLab, config string) error {
 	type reloadStatus struct {
 		Generation *uint64 `json:"generation"`
 		Outcome    string  `json:"last-outcome"`
