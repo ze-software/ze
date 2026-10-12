@@ -187,7 +187,8 @@ func (m *Machine) ApplyTimers(req api.SessionRequest) {
 // received any BFD packets for that session. A system taking the Passive role
 // MUST NOT begin sending BFD packets for a particular session until it has
 // received a BFD packet for that session, and thus has learned the remote
-// system's discriminator value."
+// system's discriminator value." This method switches the session between
+// the two roles.
 func (m *Machine) ApplyRole(passive bool) {
 	m.configReq.Passive = passive
 	m.role = RoleActive
@@ -219,7 +220,8 @@ func (m *Machine) ApplyRole(passive bool) {
 // the transmission requirements detailed in section 6.8.9)." and "If it is
 // desired to enable or disable the looping back of received BFD Echo packets,
 // this MAY be done at any time by changing the value of Required Min Echo RX
-// Interval to zero or nonzero in outgoing BFD Control packets."
+// Interval to zero or nonzero in outgoing BFD Control packets." This method
+// does both, at the moment the edit is applied.
 func (m *Machine) ApplyEcho(desiredMinEchoTxUs uint32) {
 	m.configReq.DesiredMinEchoTxInterval = desiredMinEchoTxUs
 	m.vars.DesiredMinEchoTxInterval = desiredMinEchoTxUs

@@ -69,16 +69,16 @@ type bfdClient struct {
 	// session whose subscriber nothing would ever stop.
 	starting bool
 
-	// cancelled says a stopBFDClient ran while a start was in flight: the
+	// canceled says a stopBFDClient ran while a start was in flight: the
 	// start found nothing to stop, so the start MUST release the session
 	// it opened instead of storing it. Written under mu.
-	cancelled bool
+	canceled bool
 
 	// restart says a startBFDClient declined while a start was in flight,
 	// so the start in flight MUST open again, from the opt-in as it is then,
-	// when a stop cancelled it. A reload stops and then starts
+	// when a stop canceled it. A reload stops and then starts
 	// (Peer.applyBFDOptInChange): its start declines, and without this the
-	// cancelled start would leave the peer with no session for the new
+	// canceled start would leave the peer with no session for the new
 	// opt-in. A stop clears it, since a stop with no start after it asks for
 	// no session. Written under mu.
 	restart bool
@@ -261,13 +261,13 @@ type openedBFD struct {
 
 // openBFDSession is one pass of startBFDClient: it reads the opt-in, asks the
 // BFD service for the session and subscribes, and stores all of it in one
-// critical section unless a stop ran while it asked (bfdClient.cancelled). A
-// cancelled pass releases what it opened and answers again when a start
+// critical section unless a stop ran while it asked (bfdClient.canceled). A
+// canceled pass releases what it opened and answers again when a start
 // declined meanwhile (bfdClient.restart). It answers nil when it stored
 // nothing, and clears starting then. The caller MUST have claimed starting.
 func (p *Peer) openBFDSession() (*openedBFD, bool) {
 	p.bfd.mu.Lock()
-	p.bfd.cancelled = false
+	p.bfd.canceled = false
 	p.bfd.restart = false
 	p.bfd.mu.Unlock()
 
@@ -297,7 +297,7 @@ func (p *Peer) openBFDSession() (*openedBFD, bool) {
 	}
 
 	p.bfd.mu.Lock()
-	if p.bfd.cancelled {
+	if p.bfd.canceled {
 		again := p.bfd.restart
 		if !again {
 			p.bfd.starting = false
@@ -307,7 +307,7 @@ func (p *Peer) openBFDSession() (*openedBFD, bool) {
 			handle.Unsubscribe(opened.sub)
 			// RFC 5882 Section 8
 			if releaseErr := svc.ReleaseSession(handle); releaseErr != nil {
-				peerLogger().Debug("bfd ReleaseSession of a cancelled start failed",
+				peerLogger().Debug("bfd ReleaseSession of a canceled start failed",
 					"peer", p.settings.Address, "err", releaseErr)
 			}
 		}
@@ -579,7 +579,7 @@ func (p *Peer) stopBFDClient() {
 	if p.bfd.starting {
 		// A start in flight has no handle to stop yet: it releases what it
 		// opens instead (openBFDSession).
-		p.bfd.cancelled = true
+		p.bfd.canceled = true
 		p.bfd.restart = false
 	}
 	svc := p.bfd.svc
