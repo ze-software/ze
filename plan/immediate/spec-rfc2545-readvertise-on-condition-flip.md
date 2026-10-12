@@ -59,17 +59,24 @@ egress next-hop decision this spec's condition feeds (round-9 B1 on
 three parts, one per route source, each scoped to one peer and one family
 with no End-of-RIB: forwarded routes, sent or withheld, through the forward
 rail over adj-rib-in's stored copy (`request bgp adj-rib-in replay` with a
-new family argument and a `wait` argument, relayed by `RelayStoredRoute`,
+new family argument and no `wait` argument, relayed by `RelayStoredRoute`,
 which applies `applyFactsNextHop` and the egress pair trimming per
 destination). Because adj-rib-in trails the live forward rail and every
 relayed route passes the forwarding fence as part of an initial update,
-that relay runs under a per-peer re-send hold on live forwards, with a cut
-read from the reactor's message ID after the hold is up and adj-rib-in
-building nothing until it has ingested up to that cut, so a route replaced
-or withdrawn during the pass ends as the live rail left it; the routes go
-in ascending message-ID order so that, without ADD-PATH, the live rail's
-last write per prefix is also the pass's (round-10 B1, I1 on
-`spec-bgp-link-local-only-next-hop`). API routes go through
+that relay runs under one per-peer re-send hold on live forwards for the
+whole pass, with a cut taken after the hold is up from the sources'
+received-UPDATE IDs (`receiveCut`), never the shared message counter, and
+the relay starts only after each source's publication reaches it and
+adj-rib-in's process has applied every prior event (`drainRecoverySources`,
+`DrainEventsApplied`, the calls relay recovery already makes), both waits
+sharing one 2 s budget and holding no lock, so a route replaced or
+withdrawn during the pass ends as the live rail left it; the routes go in
+ascending message-ID order, and the pass promises the per-source current
+stored route, not the live rail's choice among sources for UPDATEs
+received concurrently (a Known Limitation); a forked adj-rib-in refuses
+the family replay, so it gets no forwarded re-send and the worker logs a
+Warn naming the fix (that spec's R-9) (round-10 B1, I1 and round-11 B1,
+I1, I2, N1 on `spec-bgp-link-local-only-next-hop`). API routes go through
 `outboundResend` restricted to entries with `ribOutEntry.LocalOrigin` set
 and `ribOutEntry.ConfigStatic` clear (round-10 I2),
 replaying a `next-hop self` entry as `self` from a new `ribOutEntry` marker
@@ -82,14 +89,18 @@ event, run on a long-lived reactor worker rather than on the EventBus
 goroutine. This spec reuses that path, and adds
 only its own trigger: an RFC 2545 Section 3 condition flip.
 
-**Open, 2026-10-12 (round 12 on `spec-bgp-link-local-only-next-hop`):** the
-re-send shape is an owner question there (Owner decisions, "Round 12:
-re-send shape"): end the affected session with a Cease, subcode 6, so its
-initial send carries the new next hop, or keep the in-place re-send above.
-The Cease would also answer this spec's flip with a session reset, which is
-a different act from the B-16 ruling's "re-advertise the affected
-prefixes", so the owner's answer there decides this spec's AC-1 and AC-2
-too. Until then the paragraph above stands as round 11 left it.
+**Resolved, 2026-10-12 (round 12 on `spec-bgp-link-local-only-next-hop`,
+c166bb9f72):** the re-send shape is B, the in-place re-send above, with no
+session reset (that spec's Owner decisions, "Round 12: re-send shape"). It
+follows from two standing owner decisions: "match bird and frr behaviour",
+following FRR where they differ, and re-advertise on change, decided from
+RFC 4271 Section 9.2 and FRR's per-peer re-announce (round-7 I3 there).
+FRR re-announces in place (`bgp_announce_route` per AFI/SAFI from
+`bgp_interface_address_add` and `bgp_interface_address_delete`, "we do not
+want the peering to bounce") and BIRD does neither, so FRR decides. Option
+A, a Cease with subcode 6, is not taken. The B-16 ruling's "re-advertise
+the affected prefixes" holds unchanged here, and AC-1 and AC-2 re-advertise
+in place on that path.
 
 ## Required Reading
 
@@ -144,7 +155,7 @@ too. Until then the paragraph above stands as round 11 left it.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | iface component ↔ BGP reactor | interface address event payload | No |
-| reactor ↔ route sources | the re-advertise `spec-bgp-link-local-only-next-hop` designs: the forward rail over adj-rib-in's stored routes (`RelayStoredRoute`), under its re-send hold and ingest cut (round-10 B1), RIB `outboundResend` for `LocalOrigin` entries that are not `ConfigStatic` with `self` replayed as `self` (round-10 I2), and the config-route re-send under `staticMu`; each re-runs the egress next-hop decision | No |
+| reactor ↔ route sources | the re-advertise `spec-bgp-link-local-only-next-hop` designs: the forward rail over adj-rib-in's stored routes (`RelayStoredRoute`), under its one per-peer re-send hold, its cut from the sources' `receiveCut`, and its publication and applied-event waits (round-10 B1, round-11 B1), RIB `outboundResend` for `LocalOrigin` entries that are not `ConfigStatic` with `self` replayed as `self` (round-10 I2), and the config-route re-send under `staticMu`; each re-runs the egress next-hop decision | No |
 
 ### Integration Points
 - `peer.refreshForwardFactsIfLiveFrom` (`peer_forward_facts.go`), also the settings-apply path
@@ -190,8 +201,8 @@ too. Until then the paragraph above stands as round 11 left it.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | the shared-subnet condition goes from true to false | the prefixes it governs are re-advertised with a next hop the peer can resolve |
-| AC-2 | the condition goes from false to true | the prefixes it governs are re-advertised in one pass, with the link-local appended after the global, through the same path as AC-1 (RFC 4271 Section 9.2; amended 2026-10-12 to agree with `spec-bgp-link-local-only-next-hop` AC-17, which re-advertises on every change of Ze's own next hop). The link-local is the egress's answer on the re-send, never a recorded one: the forward rail's pair trimming decides it for a forwarded route, `linkLocalNextHopFor` for an API route replayed as `self` or as its explicit global, and the same call for a config route; a replay of a recorded address with `nhop set` is not the path (re-checked after round-9 B1, N4) |
+| AC-1 | the shared-subnet condition goes from true to false | the prefixes it governs are re-advertised in place, with no session reset, with a next hop the peer can resolve, through `spec-bgp-link-local-only-next-hop`'s re-advertise path (its Key Design Decisions, "Re-advertise", option B of its round-12 owner decision) |
+| AC-2 | the condition goes from false to true | the prefixes it governs are re-advertised in place in one pass, with no session reset, with the link-local appended after the global, through the same path as AC-1 (RFC 4271 Section 9.2; amended 2026-10-12 to agree with `spec-bgp-link-local-only-next-hop` AC-17, which re-advertises on every change of Ze's own next hop). The link-local is the egress's answer on the re-send, never a recorded one: the forward rail's pair trimming decides it for a forwarded route, `linkLocalNextHopFor` for an API route replayed as `self` or as its explicit global, and the same call for a config route; a replay of a recorded address with `nhop set` is not the path (re-checked after round-9 B1, N4) |
 | AC-3 | an interface burst delivers several address events with one resulting table | one re-advertisement, not one per event |
 
 ## End-to-End User Stories
@@ -268,9 +279,15 @@ obligation, so the comment must say which document each line answers to.
   `spec-bgp-link-local-only-next-hop` Known Limitations: it re-sends every
   stored route of the family from every source and every locally
   originated entry for a peer whose condition flipped; without ADD-PATH a
-  prefix several sources hold is written once per source in arrival order,
-  the live rail's last write landing last; and live forwards to that peer
-  wait behind the pass (round-10 I1, B1).
+  prefix several sources hold is written once per source in ascending
+  message-ID order, which matches the live rail's last write only for
+  UPDATEs received one after another, never for UPDATEs received
+  concurrently; and live forwards to that peer wait behind the pass, up to
+  the 2 s publication and applied-event budget plus the relay, for all its
+  families under one hold (round-10 I1, B1; round-11 I1, N1).
+- A forked `bgp-adj-rib-in` stores MsgID 0, so the family replay refuses
+  there and forwarded routes are not re-sent; the worker logs a Warn naming
+  in-process `bgp-adj-rib-in` as the fix (that spec's R-9, round-11 I2).
 - Where `bgp-adj-rib-in` is not loaded, or the destination's `send update`
   attachment does not name it, forwarded routes are not re-sent
   (`filterPermittedPeers`; that spec's R-8, round-10 N1).
