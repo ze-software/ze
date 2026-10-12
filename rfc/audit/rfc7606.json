@@ -501,12 +501,12 @@
       "verdict": "enforced"
     },
     "RFC7606-5.3-2": {
-      "note": "NLRILastPrefixExactlyFitsAccepted provides the exact-boundary positive; InvalidWithdrawnNLRI uses a legal /24 with only two prefix octets, isolating the last-prefix overrun from the greater-than-32 rule and requiring session reset; CoalescedMalformedNLRIBoundaries additionally checks original physical-message boundaries with and without ADD-PATH and Extended Message so adjoining messages cannot repair a truncated NLRI",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. NLRILastPrefixExactlyFitsAccepted provides the exact-boundary positive; InvalidWithdrawnNLRI uses a legal /24 with only two prefix octets, isolating the last-prefix overrun from the greater-than-32 rule and requiring session reset; CoalescedMalformedNLRIBoundaries additionally checks original physical-message boundaries with and without ADD-PATH and Extended Message so adjoining messages cannot repair a truncated NLRI",
       "requirement_sha": "396ea44eb89f135b",
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRILastPrefixExactlyFitsAccepted": "669936946251c215",
-        "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries": "36c9b89b0d58845c",
-        "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries#2": "36c9b89b0d58845c",
+        "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries": "72daee8a89edb6c5",
+        "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries#2": "72daee8a89edb6c5",
         "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "00ea84393819df2b"
       },
       "units": {
