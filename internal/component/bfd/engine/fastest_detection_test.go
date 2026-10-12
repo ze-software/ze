@@ -279,3 +279,37 @@ func TestReprofileAppliesPassive(t *testing.T) {
 		t.Fatal("after the edit to passive: the session with no remote discriminator still transmits")
 	}
 }
+
+// TestFastestRequestTieIsOrderFree ranks requests equal in both Detection
+// Times and the profile name, which differ only in what the session takes
+// from the chosen one besides the timers (the role, the echo interval) or in
+// the client's key. The answer is the same whichever client joined first.
+// MUTATION: fasterRequest answering false on a full tie keeps the first
+// client, so one order of each pair goes red.
+func TestFastestRequestTieIsOrderFree(t *testing.T) {
+	passive := timedReq("p", 100_000, 3)
+	passive.Passive = true
+	echo := timedReq("p", 100_000, 3)
+	echo.DesiredMinEchoTxInterval = 50_000
+	pinned := timedReq("p", 100_000, 3)
+	pinned.Local = netip.MustParseAddr("192.0.2.200")
+	cases := []struct {
+		name  string
+		a, b  api.SessionRequest
+		check func(api.SessionRequest) bool
+	}{
+		{"active before passive", timedReq("p", 100_000, 3), passive, func(r api.SessionRequest) bool { return !r.Passive }},
+		{"echo before no echo", timedReq("p", 100_000, 3), echo, func(r api.SessionRequest) bool { return r.DesiredMinEchoTxInterval == 50_000 }},
+		{"smaller local address first", timedReq("p", 100_000, 3), pinned, func(r api.SessionRequest) bool { return r.Local == pinned.Local }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, order := range [][]api.SessionRequest{{tc.a, tc.b}, {tc.b, tc.a}} {
+				clients := []*sessionClient{{key: order[0].Key(), req: order[0]}, {key: order[1].Key(), req: order[1]}}
+				if got := fastestRequest(clients); !tc.check(got) {
+					t.Fatalf("join order %+v chose %+v", order, got)
+				}
+			}
+		})
+	}
+}

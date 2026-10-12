@@ -335,9 +335,9 @@ func retimeLocked(entry *sessionEntry) {
 // Time: the smallest Detect Mult times Required Min RX Interval, which is the
 // Detection Time a remote system using the same parameters gives this end
 // (RFC 5880 Section 6.8.4). A tie goes to the smaller Detect Mult times
-// Desired Min TX Interval, the remote system's Detection Time of this end, and
-// then to the profile name, so the answer is the same whatever order the
-// clients joined in. A zero field reads as the default the session machine
+// Desired Min TX Interval, the remote system's Detection Time of this end,
+// then to the profile name, then to fasterTie, so the answer is the same
+// whatever order the clients joined in. A zero field reads as the default the session machine
 // gives it (session.RequestTimers). clients MUST NOT be empty.
 func fastestRequest(clients []*sessionClient) api.SessionRequest {
 	best := clients[0].req
@@ -364,7 +364,38 @@ func fasterRequest(candidate, incumbent api.SessionRequest) bool {
 	if candidateTx != incumbentTx {
 		return candidateTx < incumbentTx
 	}
-	return candidate.Profile < incumbent.Profile
+	if candidate.Profile != incumbent.Profile {
+		return candidate.Profile < incumbent.Profile
+	}
+	return fasterTie(candidate, incumbent)
+}
+
+// fasterTie orders two requests equal in both Detection Times and the profile
+// name, so the session's role and echo interval (retimeLocked) never depend on
+// which client joined first: an active client before a passive one, since it
+// brings the session up without waiting for the neighbor; then echo before
+// none and a shorter echo interval before a longer one, since echo detects
+// sooner; then the client's key, local address first and interface second.
+// Two requests equal in all of these give the session the same timers, role
+// and echo interval, so either answer is the same session.
+func fasterTie(candidate, incumbent api.SessionRequest) bool {
+	if candidate.Passive != incumbent.Passive {
+		return !candidate.Passive
+	}
+	candidateEcho, incumbentEcho := candidate.DesiredMinEchoTxInterval, incumbent.DesiredMinEchoTxInterval
+	if candidateEcho != incumbentEcho {
+		if candidateEcho == 0 {
+			return false
+		}
+		if incumbentEcho == 0 {
+			return true
+		}
+		return candidateEcho < incumbentEcho
+	}
+	if c := candidate.Local.Compare(incumbent.Local); c != 0 {
+		return c < 0
+	}
+	return candidate.Interface < incumbent.Interface
 }
 
 // reviveLocked brings a released entry (ReleaseSession) back for a client that

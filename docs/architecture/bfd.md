@@ -170,7 +170,9 @@ where the conformance ledger reads them.
 One session carries one authentication configuration and one set of timers.
 The timers are those of the client whose request gives the shortest Detection
 Time: the smallest Detect Mult times Required Min RX, then the smallest Detect
-Mult times Desired Min TX, then the profile name, so the order clients joined
+Mult times Desired Min TX, then the profile name, then an active client before
+a passive one, echo before none and the shorter echo interval, and last the
+client's local address and interface (`fasterTie`), so the order clients joined
 in never decides. They are recomputed whenever a client joins, leaves or edits
 its request (`retimeLocked`, owner decision of 2026-10-12 after RFC 5882 §4.1:
 "It is generally useful to choose the parameters resulting in the shortest
@@ -225,7 +227,7 @@ every client naming that profile, on any neighbor.
 <!-- source: internal/component/bfd/transport/udp.go -- ingressInterface -->
 <!-- source: internal/component/bfd/session_identity.go -- connectedLinks, vrfMembership -->
 <!-- source: internal/component/bfd/engine/shared_session.go -- sharedEntryLocked, sharesSession, joinedKey -->
-<!-- source: internal/component/bfd/engine/shared_session.go -- retimeLocked, fastestRequest, UpdateSession, Reprofile, reprofileEntryLocked -->
+<!-- source: internal/component/bfd/engine/shared_session.go -- retimeLocked, fastestRequest, fasterTie, UpdateSession, Reprofile, reprofileEntryLocked -->
 <!-- source: internal/component/bfd/bfd.go -- reprofileClients -->
 <!-- source: internal/component/bfd/session/timers.go -- ApplyTimers, ApplyRole, ApplyEcho, applyPendingTimersLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent, SetProfileAuth, sharedAuthLocked, replaceAuth -->
