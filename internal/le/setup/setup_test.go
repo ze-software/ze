@@ -247,11 +247,16 @@ func TestTheStaticcheckPinIsCarriedIntoTheInstall(t *testing.T) {
 			"the vendored package so it links the x/tools go.mod requires", found[0].GoInstall)
 	}
 	repo := &Setup{Root: filepath.Join("..", "..", "..")}
-	if got := repo.goModRequire("honnef.co/go/tools"); got != StaticcheckModuleVersion {
+	if got := repo.goModRequire("honnef.co/go/tools"); got != staticcheckModuleVersion {
 		t.Errorf("go.mod requires honnef.co/go/tools %q, but the probe pins release %q, "+
-			"which is module %q", got, StaticcheckVersion, StaticcheckModuleVersion)
+			"which is module %q", got, StaticcheckVersion, staticcheckModuleVersion)
 	}
 }
+
+// staticcheckModuleVersion is the honnef.co/go/tools module version that
+// prints StaticcheckVersion. go.mod requires exactly this version, and the
+// install builds it from the vendor tree.
+const staticcheckModuleVersion = "v0.8.1"
 
 func TestOnlyThePinnedStaticcheckCounts(t *testing.T) {
 	pinned := "staticcheck " + StaticcheckVersion

@@ -18,13 +18,9 @@ import "runtime"
 // failure. 2026.1 reads to export data version 2 and Go 1.27 writes version 4,
 // so raising the Go directive in go.mod raises this constant with it. The
 // release is built from the vendored honnef.co/go/tools that go.mod requires,
-// so this constant moves with that require and StaticcheckModuleVersion.
+// so this constant moves with that require. staticcheckModuleVersion in
+// setup_test.go names the module version and proves go.mod requires it.
 const StaticcheckVersion = "2026.2.1"
-
-// StaticcheckModuleVersion is the honnef.co/go/tools module version that
-// prints StaticcheckVersion. go.mod requires exactly this version, and the
-// install builds it from the vendor tree.
-const StaticcheckModuleVersion = "v0.8.1"
 
 // GolangCIVersion is the one release of golangci-lint this repository runs.
 // The linter type-checks with its own copy of go/types, so a release older
