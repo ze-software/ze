@@ -58,7 +58,7 @@ func (generator *protoGenerator) run() (protoGenerateReport, error) {
 		{filepath.Join(binDir, "protoc-gen-go-grpc"), "google.golang.org/grpc/cmd/protoc-gen-go-grpc"},
 	} {
 		result := shell.Run(Cmd{
-			Argv: []string{"go", "build", "-mod=vendor", "-o", tool.output, tool.packagePath},
+			Argv: []string{"go", "build", vendorFlag, "-o", tool.output, tool.packagePath},
 			Dir:  generator.Root,
 			Env:  environment,
 		})

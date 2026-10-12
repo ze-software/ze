@@ -53,6 +53,10 @@ const (
 	installSubcommand = installVerb
 )
 
+// vendorFlag makes the go command build a pinned tool from the root vendor
+// tree, so the build never reaches the network.
+const vendorFlag = "-mod=vendor"
+
 // Installer puts tools on the machine and records what it did during the
 // current run.
 //
@@ -119,7 +123,7 @@ func (i *Installer) goInstall(tool Tool, target string) bool {
 	argv := []string{toolGo, installSubcommand, target}
 	dir := i.setup.Root
 	if target == goplsTarget || target == govulncheckTarget || target == staticcheckTarget {
-		argv = []string{toolGo, installSubcommand, "-mod=vendor", target}
+		argv = []string{toolGo, installSubcommand, vendorFlag, target}
 	}
 	var tb textbuf.Buffer
 	i.report.Note(tb.Str("  CGO_ENABLED=0 ").Join(argv, " ").String())

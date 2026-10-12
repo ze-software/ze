@@ -179,7 +179,7 @@ func (s *claudeServerSetup) toolEnvironment() []string {
 // cannot read the export data the go.mod toolchain writes.
 func (s *claudeServerSetup) installStaticcheck(report *claudeServerReport) error {
 	argv := []string{sudoBin, "-u", s.User, envBin, "CGO_ENABLED=0", s.goBinary(),
-		"-C", s.repositoryPath(), installVerb, "-mod=vendor", staticcheckTarget}
+		"-C", s.repositoryPath(), installVerb, vendorFlag, staticcheckTarget}
 	if err := s.run(report, "install staticcheck", Cmd{Argv: argv}); err != nil {
 		return err
 	}
