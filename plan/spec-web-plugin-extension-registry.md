@@ -311,16 +311,16 @@ Minimum spec slices expected after the registry foundation:
 | Slice | Spec name | Primary dependencies to declare |
 |-------|-----------|----------------------------------|
 | Workbench registry foundation | `plan/spec-web-plugin-extension-registry.md` | `internal/component/web`, `WebRoute`, editor/session/commit path |
-| BGP workbench | `plan/spec-web-workbench-bgp.md` | BGP config YANG, BGP command handlers, live peer/session state APIs |
-| Interface workbench | `plan/spec-web-workbench-interfaces.md` | iface config YANG, netlink/interface state, counters, packet capture tools |
-| IP and routes workbench | `plan/spec-web-workbench-ip-routes.md` | address config, kernel/FIB route state, route table caps/pagination |
-| Firewall and policy workbench | `plan/spec-web-workbench-firewall-policy.md` | firewall config, applied backend snapshot, counters/logs, rule insertion APIs |
-| L2TP workbench | `plan/spec-web-workbench-l2tp.md` | L2TP config, session snapshot, disconnect/clear commands, CQM data |
-| Services/system workbench | `plan/spec-web-workbench-system-services.md` | service YANG roots, users/authz, host resources, hardware inventory |
-| Tools/logs/dashboard | `plan/spec-web-workbench-tools-logs-dashboard.md` | command dispatcher, event broker, health registry, log/event APIs |
-| Command palette | `plan/spec-web-workbench-command-palette.md` | registry snapshot, command tree, safe diagnostics, config object indexing |
-| Related job dock | `plan/spec-web-workbench-related-job-dock.md` | `ze:related`, command dispatcher, output caps, streaming/job lifecycle API |
-| Table state | `plan/spec-web-workbench-table-state.md` | shared table component, query parsing, server-side sort/filter/page support |
+| BGP workbench | `spec-web-workbench-bgp` | BGP config YANG, BGP command handlers, live peer/session state APIs |
+| Interface workbench | `spec-web-workbench-interfaces` | iface config YANG, netlink/interface state, counters, packet capture tools |
+| IP and routes workbench | `spec-web-workbench-ip-routes` | address config, kernel/FIB route state, route table caps/pagination |
+| Firewall and policy workbench | `spec-web-workbench-firewall-policy` | firewall config, applied backend snapshot, counters/logs, rule insertion APIs |
+| L2TP workbench | `spec-web-workbench-l2tp` | L2TP config, session snapshot, disconnect/clear commands, CQM data |
+| Services/system workbench | `spec-web-workbench-system-services` | service YANG roots, users/authz, host resources, hardware inventory |
+| Tools/logs/dashboard | `spec-web-workbench-tools-logs-dashboard` | command dispatcher, event broker, health registry, log/event APIs |
+| Command palette | `spec-web-workbench-command-palette` | registry snapshot, command tree, safe diagnostics, config object indexing |
+| Related job dock | `spec-web-workbench-related-job-dock` | `ze:related`, command dispatcher, output caps, streaming/job lifecycle API |
+| Table state | `spec-web-workbench-table-state` | shared table component, query parsing, server-side sort/filter/page support |
 
 Every slice spec must list:
 
