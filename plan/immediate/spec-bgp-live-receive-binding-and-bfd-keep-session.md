@@ -386,6 +386,11 @@ Phase 2/3 review fixes, 2026-10-12 (review `scratch/review-keep-session-p23.md`)
 
 ## Owner decisions
 
+**Owner authorised: review round 7 of the I5 change set (adds 8c52fc34d4).**
+Thomas, 2026-10-12, answering "Authorise review round 7 of the keep-session race
+fix?": "Authorise (Recommended)". Round 6 closed B3 and found I2 (End-of-RIB sent
+to a session that replaced the teardown's target), fixed in 8c52fc34d4.
+
 **Owner authorised: review round 6 of the I5 change set (eb5323da8d, 85ce246f55,
 5606f5d7d1 and the B3/I1 drain fix).** Thomas, 2026-10-12: "authorise round 6".
 Round 5 closed B2 and found B3 (a teardown queued during the closing drain is
