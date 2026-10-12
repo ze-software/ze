@@ -68,6 +68,63 @@ func TestATreeThatWasNotReadIsAnError(t *testing.T) {
 	}
 }
 
+// VALIDATES: a same-package helper declared in a sibling file is judged with
+// that file's assertion imports, so a test whose own file imports only
+// "testing" is credited when the helper asserts through testify, and still
+// flagged when the sibling helper asserts nothing.
+// PREVENTS: judging the helper's testify call against the caller's file, which
+// imports no testify package, and reporting a real test as asserting nothing.
+func TestASiblingFileHelperIsJudgedWithItsOwnImports(t *testing.T) {
+	dir := t.TempDir()
+	for _, root := range testRoots {
+		if err := os.MkdirAll(filepath.Join(dir, root), 0o750); err != nil {
+			t.Fatalf("create %s: %v", root, err)
+		}
+	}
+	pkg := filepath.Join(dir, "internal", "x")
+	if err := os.MkdirAll(pkg, 0o750); err != nil {
+		t.Fatalf("create package dir: %v", err)
+	}
+	// Scan reads the tag universe from the feature manifest, so the fixture
+	// tree carries this checkout's copy.
+	tree, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("locate the checkout: %v", err)
+	}
+	manifest, err := os.ReadFile(filepath.Join(tree, "feature-gates.txt"))
+	if err != nil {
+		t.Fatalf("read the feature manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "feature-gates.txt"), manifest, 0o600); err != nil {
+		t.Fatalf("write the feature manifest: %v", err)
+	}
+	files := map[string]string{
+		"helper_test.go": "package x\n\nimport (\n\t\"testing\"\n\n\t\"github.com/stretchr/testify/require\"\n)\n\n" +
+			"func requireRefused(t *testing.T, err error) {\n\tt.Helper()\n\trequire.Error(t, err)\n}\n\n" +
+			"func inert(t *testing.T, err error) {\n\tt.Helper()\n\tt.Log(err)\n}\n",
+		"caller_test.go": "package x\n\nimport (\n\t\"errors\"\n\t\"testing\"\n)\n\n" +
+			"func TestCredited(t *testing.T) {\n\trequireRefused(t, errors.New(\"x\"))\n}\n\n" +
+			"func TestFlagged(t *testing.T) {\n\tinert(t, errors.New(\"x\"))\n}\n",
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(pkg, name), []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+
+	result, err := Scan(dir, WorkingTree)
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	var names []string
+	for _, finding := range result.AssertNothing {
+		names = append(names, finding.Test)
+	}
+	if len(result.AssertNothing) != 1 || !strings.Contains(strings.Join(names, " "), "TestFlagged") {
+		t.Errorf("assert-nothing findings %q, want exactly TestFlagged", names)
+	}
+}
+
 // VALIDATES: the ratchet DENIES when a count exceeds its floor, and passes when
 // it does not.
 // PREVENTS: the enforcement path that could never fail. A verdict is what the

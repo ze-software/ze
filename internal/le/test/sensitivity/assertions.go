@@ -91,6 +91,18 @@ func hasEscape(fn *ast.FuncDecl, file *ast.File) bool {
 // both `foo` and `foo_test`, and each may declare a helper of the same name.
 type pkgKey string
 
+// pkgHelper is one function packageFuncs indexed, with the assertion-library
+// aliases and the imports of the file that declares it. A test file that
+// imports only "testing" may call a helper in a sibling file that asserts
+// through testify's require, and the caller's file names no `require`: judging
+// the helper's body against the caller's aliases reported that test as
+// asserting nothing (eleven yang tests on 2026-10-12).
+type pkgHelper struct {
+	decl    *ast.FuncDecl
+	aliases map[string]bool
+	imports map[string]string
+}
+
 // packageFuncs indexes top-level functions and methods PER PACKAGE, so a helper
 // named `check` in `foo_test` never shadows a different `check` in `foo`.
 //
@@ -105,8 +117,11 @@ type pkgKey string
 // deliberate over-approximation): a table-driven test whose case struct carries
 // `func (c tcase) check(t *testing.T)` asserts for real, and treating that as a
 // failure path is the safe direction for a ratchet.
-func packageFuncs(parsed map[string]*ast.File, order []string) map[pkgKey]map[string]*ast.FuncDecl {
-	out := map[pkgKey]map[string]*ast.FuncDecl{}
+//
+// Each helper carries the assertion aliases and imports of the file that
+// declares it, because its body is judged in that file's scope (pkgHelper).
+func packageFuncs(parsed map[string]*ast.File, order []string) map[pkgKey]map[string]pkgHelper {
+	out := map[pkgKey]map[string]pkgHelper{}
 	for _, name := range order {
 		file := parsed[name]
 		if file == nil {
@@ -114,15 +129,16 @@ func packageFuncs(parsed map[string]*ast.File, order []string) map[pkgKey]map[st
 		}
 		key := pkgKey(file.Name.Name)
 		if out[key] == nil {
-			out[key] = map[string]*ast.FuncDecl{}
+			out[key] = map[string]pkgHelper{}
 		}
+		aliases, imports := assertAliases(file), fileImports(file)
 		for _, decl := range file.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
 			if !ok || fn.Body == nil {
 				continue
 			}
 			if _, seen := out[key][fn.Name.Name]; !seen {
-				out[key][fn.Name.Name] = fn
+				out[key][fn.Name.Name] = pkgHelper{decl: fn, aliases: aliases, imports: imports}
 			}
 		}
 	}
@@ -371,7 +387,7 @@ func (p *pkgIndex) funcs(importPath string) map[string]crossHelper {
 // followed across the package boundary), the identifiers bound to a testing
 // value, and the lazily-parsed index those cross-package lookups read.
 type scope struct {
-	pkgFuncs map[string]*ast.FuncDecl
+	pkgFuncs map[string]pkgHelper
 	aliases  map[string]bool
 	imports  map[string]string
 	testing  map[string]bool
@@ -380,6 +396,15 @@ type scope struct {
 
 // withTesting answers a copy whose testing identifiers also hold extra, leaving
 // the receiver untouched so a sibling branch of the walk is unaffected.
+// inHelperFile is the scope a same-package helper's body is judged in: the
+// aliases and imports of the helper's own file, plus the testing identifiers
+// its parameters bind.
+func (s scope) inHelperFile(helper pkgHelper) scope {
+	s.aliases = helper.aliases
+	s.imports = helper.imports
+	return s.withTesting(testingIdents(helper.decl))
+}
+
 func (s scope) withTesting(extra map[string]bool) scope {
 	s.testing = union(s.testing, extra)
 	return s
@@ -439,7 +464,7 @@ func callCanFail(call *ast.CallExpr, sc scope, depth int) bool {
 		}
 		if depth > 0 {
 			if helper, known := sc.pkgFuncs[fun.Name]; known &&
-				canFail(helper.Body, sc.withTesting(testingIdents(helper)), depth-1) {
+				canFail(helper.decl.Body, sc.inHelperFile(helper), depth-1) {
 				return true
 			}
 		}
@@ -474,7 +499,7 @@ func selectorCanFail(fun *ast.SelectorExpr, sc scope, depth int) bool {
 	// A method on a local value (`c.check(t)` on a table case) is a real
 	// assertion site; follow it by name.
 	if helper, known := sc.pkgFuncs[fun.Sel.Name]; known &&
-		canFail(helper.Body, sc.withTesting(testingIdents(helper)), depth-1) {
+		canFail(helper.decl.Body, sc.inHelperFile(helper), depth-1) {
 		return true
 	}
 	if !isIdent {
