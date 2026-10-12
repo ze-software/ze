@@ -221,21 +221,23 @@ func TestRFC7606DiagnosticWireAndMPNLRI(t *testing.T) {
 					case "legacy":
 					case "ipv4":
 						// RFC 4760 Sections 3 and 4: independently listed reach and unreach.
-						attrs = append(attrs, 0x80, 14, 13, 0, 1, 1, 4, 192, 0, 2, 254, 0, 24, 198, 51, 100)
-						attrs = append(attrs, 0x80, 15, 7, 0, 1, 1, 24, 203, 0, 113)
+						attrs = append(attrs,
+							0x80, 14, 13, 0, 1, 1, 4, 192, 0, 2, 254, 0, 24, 198, 51, 100,
+							0x80, 15, 7, 0, 1, 1, 24, 203, 0, 113)
 						wantReach = []any{"198.51.100.0/24"}
 						wantUnreach = []any{"203.0.113.0/24"}
 					case "ipv6":
 						attrs = append(attrs, 0x80, 14, 26, 0, 2, 1, 16,
 							0x20, 1, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-							0, 32, 0x20, 1, 0x0d, 0xb8)
-						attrs = append(attrs, 0x80, 15, 10, 0, 2, 1, 48, 0x20, 1, 0x0d, 0xb8, 0, 1)
+							0, 32, 0x20, 1, 0x0d, 0xb8,
+							0x80, 15, 10, 0, 2, 1, 48, 0x20, 1, 0x0d, 0xb8, 0, 1)
 						wantReach = []any{"2001:db8::/32"}
 						wantUnreach = []any{"2001:db8:1::/48"}
 					case "typed":
-						registerTypeLenRecognizer(t, evpnFam, 1, 5)
-						attrs = append(attrs, 0x80, 14, 12, 0, 25, 70, 4, 192, 0, 2, 254, 0, 99, 1, 0xaa)
-						attrs = append(attrs, 0x80, 15, 6, 0, 25, 70, 200, 1, 0xbb)
+						registerTypeLenRecognizer(t, evpnFam, 5)
+						attrs = append(attrs,
+							0x80, 14, 12, 0, 25, 70, 4, 192, 0, 2, 254, 0, 99, 1, 0xaa,
+							0x80, 15, 6, 0, 25, 70, 200, 1, 0xbb)
 						wantReach = []any{"afi=25/safi=70/nlri=6301aa"}
 						wantUnreach = []any{"afi=25/safi=70/nlri=c801bb"}
 					}
@@ -255,7 +257,7 @@ func TestRFC7606DiagnosticWireAndMPNLRI(t *testing.T) {
 					require.Equal(t, fsm.StateEstablished, s.State())
 					require.NotEmpty(t, capture.all())
 					var records []map[string]any
-					for _, line := range strings.Split(strings.TrimSpace(logbuf.String()), "\n") {
+					for line := range strings.SplitSeq(strings.TrimSpace(logbuf.String()), "\n") {
 						var record map[string]any
 						require.NoError(t, json.Unmarshal([]byte(line), &record))
 						if record["msg"] == "RFC 7606 diagnostics" {
@@ -309,7 +311,7 @@ func TestRFC7606DiagnosticWireAndMPNLRI(t *testing.T) {
 				require.Equal(t, makeUpdateBody([]byte{24, 198, 51, 100}, nil, nil), capture.all()[1])
 				require.Equal(t, makeUpdateBody([]byte{0}, nil, nil), capture.all()[2])
 				var records []map[string]any
-				for _, line := range strings.Split(strings.TrimSpace(logbuf.String()), "\n") {
+				for line := range strings.SplitSeq(strings.TrimSpace(logbuf.String()), "\n") {
 					var record map[string]any
 					require.NoError(t, json.Unmarshal([]byte(line), &record))
 					if record["msg"] == "RFC 7606 diagnostics" {
@@ -437,8 +439,9 @@ func TestRFC7606DiagnosticWireAndMPNLRI(t *testing.T) {
 			attrs[12] = 0xeb
 			// RFC 7606 Section 7.7 discards this seven-octet AGGREGATOR.
 			// The single value is large enough for an in-place tombstone.
-			attrs = append(attrs, 0xc0, 7, 7, 0, 0, 0xfd, 0xea, 192, 0, 2)
-			attrs = append(attrs, 0xc0, 100, 1, 0xaa)
+			attrs = append(attrs,
+				0xc0, 7, 7, 0, 0, 0xfd, 0xea, 192, 0, 2,
+				0xc0, 100, 1, 0xaa)
 			frame := buildUpdateMsg(receivedUpdateBody(attrs, []byte{24, 198, 51, 100}))
 			// RFC 7606 Sections 7.2 and 6: both errors describe the same
 			// received message, not the first error's ATTR_TOMBSTONE rewrite.
@@ -446,7 +449,7 @@ func TestRFC7606DiagnosticWireAndMPNLRI(t *testing.T) {
 			require.Equal(t, fsm.StateEstablished, s.State())
 			require.Equal(t, [][]byte{makeUpdateBody([]byte{24, 198, 51, 100}, nil, nil)}, capture.all())
 			var records []map[string]any
-			for _, line := range strings.Split(strings.TrimSpace(logbuf.String()), "\n") {
+			for line := range strings.SplitSeq(strings.TrimSpace(logbuf.String()), "\n") {
 				var record map[string]any
 				require.NoError(t, json.Unmarshal([]byte(line), &record))
 				if record["msg"] == "RFC 7606 diagnostics" {
@@ -481,7 +484,7 @@ func TestRFC7606DiagnosticWireAndMPNLRI(t *testing.T) {
 		require.Equal(t, fsm.StateEstablished, s.State())
 		require.Len(t, capture.all(), 1)
 		var records []map[string]any
-		for _, line := range strings.Split(strings.TrimSpace(logbuf.String()), "\n") {
+		for line := range strings.SplitSeq(strings.TrimSpace(logbuf.String()), "\n") {
 			var record map[string]any
 			require.NoError(t, json.Unmarshal([]byte(line), &record))
 			if record["msg"] == "RFC 7606 diagnostics" {
@@ -746,7 +749,7 @@ func TestReceiveAdmissionSurvivesIdleTransition(t *testing.T) {
 			stacks := make([]byte, 1<<20)
 			require.Eventually(t, func() bool {
 				n := runtime.Stack(stacks, true)
-				for _, stack := range strings.Split(string(stacks[:n]), "\n\n") {
+				for stack := range strings.SplitSeq(string(stacks[:n]), "\n\n") {
 					if strings.Contains(stack, "(*Session).processMessage(") &&
 						strings.Contains(stack, "sync.(*RWMutex).RLock(") &&
 						(strings.Contains(stack, "(*Session).processValidatedMessage(") ||

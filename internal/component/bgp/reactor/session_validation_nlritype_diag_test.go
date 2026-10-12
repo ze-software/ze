@@ -26,7 +26,7 @@ import (
 // Section 5.4 rewrite runs before this point, and a log of ze's own output would answer a
 // different question from the one Section 6 asks.
 func TestRFC7606Section54EmptiedUpdateStillLogsSection6(t *testing.T) {
-	registerTypeLenRecognizer(t, evpnFam, 1, 5)
+	registerTypeLenRecognizer(t, evpnFam, 5)
 	buf := captureSessionLog(t, slog.LevelDebug)
 	s := nlriTypeTestSession()
 

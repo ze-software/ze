@@ -546,19 +546,26 @@ func TestDefaultOriginateRawGuardIgnoresMalformedRef(t *testing.T) {
 	assert.Empty(t, info.gotPlugin, "no lookup should happen on a malformed ref")
 }
 
+// The local endpoint and link-local address every default-originate fixture
+// shares; each test varies only the peer address against them.
+const (
+	defaultOriginateLocalAddress = "2001:db8:1::1"
+	defaultOriginateLinkLocal    = "fe80::1"
+)
+
 // newDefaultOriginatePeer returns a peer with IPv6 default-originate enabled and
 // an Established session recording what reaches the wire.
 //
 // peerAddr decides the peer half of RFC 2545 Section 3's condition, and
-// localAddress is both the session's local endpoint and the default route's next
-// hop (defaultRouteForAFI, peer_initial_sync.go).
-func newDefaultOriginatePeer(t *testing.T, peerAddr, localAddress, linkLocal string) (*Peer, *recordingConn) {
+// defaultOriginateLocalAddress is both the session's local endpoint and the
+// default route's next hop (defaultRouteForAFI, peer_initial_sync.go).
+func newDefaultOriginatePeer(t *testing.T, peerAddr string) (*Peer, *recordingConn) {
 	t.Helper()
 	settings := &PeerSettings{
 		Connection:       ConnectionBoth,
 		Address:          netip.MustParseAddr(peerAddr),
-		LocalAddress:     netip.MustParseAddr(localAddress),
-		LinkLocal:        netip.MustParseAddr(linkLocal),
+		LocalAddress:     netip.MustParseAddr(defaultOriginateLocalAddress),
+		LinkLocal:        netip.MustParseAddr(defaultOriginateLinkLocal),
 		LocalAS:          65000,
 		PeerAS:           65001,
 		RouterID:         0x01020301,
@@ -640,7 +647,7 @@ var defaultRouteNLRI = []byte{0x00}
 // supplies the scope predicate without depending on host interface provisioning
 // or claiming third-party entity-adjacency proof.
 func TestDefaultOriginateAppendsLinkLocalWhenSection3Holds(t *testing.T) {
-	peer, conn := newDefaultOriginatePeer(t, "2001:db8:1::2", "2001:db8:1::1", "fe80::1")
+	peer, conn := newDefaultOriginatePeer(t, "2001:db8:1::2")
 	peer.refreshLinkScopeFrom([]netip.Prefix{
 		netip.MustParsePrefix("2001:db8:1::/64"),
 	})
@@ -664,7 +671,7 @@ func TestDefaultOriginateAppendsLinkLocalWhenSection3Holds(t *testing.T) {
 // second address. Without this row an encoder that always appended would pass the
 // positive test above.
 func TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink(t *testing.T) {
-	peer, conn := newDefaultOriginatePeer(t, "2001:db8:dead:beef::2", "2001:db8:1::1", "fe80::1")
+	peer, conn := newDefaultOriginatePeer(t, "2001:db8:dead:beef::2")
 	peer.refreshLinkScopeFrom([]netip.Prefix{
 		netip.MustParsePrefix("2001:db8:1::/64"),
 	})
@@ -706,7 +713,7 @@ func TestDefaultOriginateRefusesUnusableIPv6NextHop(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// The recipient differs from every candidate next hop: peer-own
 			// withholding must not hide a malformed announcement.
-			peer, conn := newDefaultOriginatePeer(t, "2001:db8:2::2", "2001:db8:1::1", "fe80::1")
+			peer, conn := newDefaultOriginatePeer(t, "2001:db8:2::2")
 			peer.settings.LocalAddress = tc.local
 			peer.refreshLinkScopeFrom(nil)
 

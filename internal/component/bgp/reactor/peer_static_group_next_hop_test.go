@@ -75,7 +75,7 @@ func TestStaticGroupedResolvedNextHopWire(t *testing.T) {
 					&capability.ASN4{ASN: peer.settings.LocalAS},
 					&capability.Multiprotocol{AFI: tc.fam.AFI, SAFI: tc.fam.SAFI},
 					&capability.ExtendedNextHop{Families: []capability.ExtendedNextHopFamily{{
-						NLRIAFI: capability.AFIIPv4, NLRISAFI: capability.SAFI(tc.fam.SAFI), NextHopAFI: capability.AFIIPv6,
+						NLRIAFI: capability.AFIIPv4, NLRISAFI: tc.fam.SAFI, NextHopAFI: capability.AFIIPv6,
 					}}},
 				}
 				neg := capability.Negotiate(caps, caps, capability.PeerIdentity{

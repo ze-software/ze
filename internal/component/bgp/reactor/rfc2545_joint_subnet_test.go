@@ -3,6 +3,7 @@ package reactor
 
 import (
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -52,7 +53,7 @@ func TestRFC2545JointSubnetWriter(t *testing.T) {
 					})
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 					global := netip.MustParseAddr(tc.global).AsSlice()
-					pair := append(global[:len(global):len(global)], netip.MustParseAddr("fe80::9").AsSlice()...)
+					pair := slices.Concat(global, netip.MustParseAddr("fe80::9").AsSlice())
 					raw := mustHex(t, "3020010db85701")
 					// RFC 2545 Section 3: inspect the effective field at the final writer.
 					updates := rfc2545ReceiveForward(t, f, rail, buildUpdatePayload(mixedAttrs(mixedReach(1, pair, raw)), nil))

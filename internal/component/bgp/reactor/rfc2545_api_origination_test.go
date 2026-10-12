@@ -115,8 +115,7 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 		cases = append(cases, testCase{name: "link-local-unnegotiated", nextHop: netip.MustParseAddr("fe80::1")})
 	}
 	if postPolicy {
-		cases = append(cases, testCase{name: "mixed-invalid-ipv6-valid-ipv4", nextHop: netip.MustParseAddr("::1"), mixed: true})
-		cases = append(cases,
+		cases = append(cases, testCase{name: "mixed-invalid-ipv6-valid-ipv4", nextHop: netip.MustParseAddr("::1"), mixed: true},
 			testCase{name: "vpn-shaped-24-octet-unicast", nextHop: netip.MustParseAddr("2001:db8:1::1"),
 				wireOnlyHop: "000000000000000020010db8000100000000000000000001"},
 			testCase{name: "vpn-shaped-48-octet-unicast", nextHop: netip.MustParseAddr("2001:db8:1::1"),
@@ -256,7 +255,8 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 					}
 				}
 			}
-			if rail == "queued" {
+			switch {
+			case rail == "queued":
 				if err != nil {
 					t.Fatalf("queue admission failed: %v", err)
 				}
@@ -276,11 +276,11 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 				if len(peer.opQueue) != 0 {
 					t.Errorf("queued operations = %d after drain, want 0", len(peer.opQueue))
 				}
-			} else if accepted {
+			case accepted:
 				if err != nil {
 					t.Errorf("valid API announcement failed: %v", err)
 				}
-			} else if rail == "batch" {
+			case rail == "batch":
 				wantErr := errAnnounceNextHopUnencodable
 				if postPolicy {
 					wantErr = message.ErrUnicastNextHopUnusable
@@ -454,9 +454,9 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 				peer.wakeForwardOverflow()
 				pool.Stop()
 			})
-			for _, batch := range []bgptypes.NLRIBatch{first, later} {
+			for _, batch := range []*bgptypes.NLRIBatch{&first, &later} {
 				// This API acknowledges queuing, not eventual policy admission.
-				if err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()); err != nil {
+				if err := api.AnnounceNLRIBatch(t.Context(), selector.All(), *batch, plugin.OperatorSender()); err != nil {
 					t.Fatalf("maintenance replacement was not queued: %v", err)
 				}
 			}

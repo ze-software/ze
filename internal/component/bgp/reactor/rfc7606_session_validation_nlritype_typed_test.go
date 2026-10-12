@@ -35,8 +35,8 @@ func mupWireNLRI(routeType uint16, body ...byte) []byte {
 }
 
 // registerTypeLenRecognizer installs the ruling the MVPN plugin's init() installs: the route
-// type is the first octet after any RFC 7911 path identifier, and lo..hi is the implemented
-// range. The reactor package does not import the plugin, so the test states the ruling
+// type is the first octet after any RFC 7911 path identifier, and 1..hi is the implemented
+// range: both families number their route types from 1. The reactor package does not import the plugin, so the test states the ruling
 // itself, exactly as registerEVPNRecognizer does.
 //
 // The stand-in is the RULING only. Everything under it is the real thing: the family's
@@ -49,7 +49,7 @@ func mupWireNLRI(routeType uint16, body ...byte) []byte {
 // test files, and a teardown that left the registry empty would make a later test find no
 // recognizer for a family the daemon really rules on, so its filter would do nothing and
 // the test would pass proving nothing.
-func registerTypeLenRecognizer(t *testing.T, fam family.Family, lo, hi byte) {
+func registerTypeLenRecognizer(t *testing.T, fam family.Family, hi byte) {
 	t.Helper()
 	t.Cleanup(nlritype.SnapshotForTest())
 	require.NoError(t, nlritype.Register(fam, func(nlriBytes []byte, addPath bool) bool {
@@ -60,7 +60,7 @@ func registerTypeLenRecognizer(t *testing.T, fam family.Family, lo, hi byte) {
 		if off >= len(nlriBytes) {
 			return false
 		}
-		return nlriBytes[off] >= lo && nlriBytes[off] <= hi
+		return nlriBytes[off] >= 1 && nlriBytes[off] <= hi
 	}))
 }
 
@@ -97,7 +97,7 @@ func registerMUPRecognizer(t *testing.T) {
 // RFC requirement: RFC7606-5.4-1 positive -- an MCAST-VPN route whose type ze does not implement is discarded at ingress, exactly as an EVPN one is.
 func TestRFC7606Section54DiscardsUnrecognizedMVPNType(t *testing.T) {
 	// RFC 6514 Section 4 defines route types 1..7, so 8 and above are unrecognized.
-	registerTypeLenRecognizer(t, mvpnFam, 1, 7)
+	registerTypeLenRecognizer(t, mvpnFam, 7)
 	s := nlriTypeTestSession()
 
 	keep := evpnWireNLRI(7, 0xaa) // Source Tree Join; same [type][len][body] envelope
@@ -158,7 +158,7 @@ func TestRFC7606Section54DiscardsUnrecognizedMUPType(t *testing.T) {
 //
 // RFC requirement: RFC7606-5.4-1 positive -- an unrecognized NLRI type is discarded even when the same UPDATE is treated as a withdrawal, so it is never relayed inside the synthesized MP_UNREACH.
 func TestRFC7606Section54FiltersTreatAsWithdrawSynthesis(t *testing.T) {
-	registerTypeLenRecognizer(t, evpnFam, 1, 5)
+	registerTypeLenRecognizer(t, evpnFam, 5)
 	s := nlriTypeTestSession()
 
 	keep := evpnWireNLRI(2, 0xaa)

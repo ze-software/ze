@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -389,14 +390,14 @@ func TestRFC8654ExtendedDuplicateAttributes(t *testing.T) {
 				data, _ := io.ReadAll(client)
 				answers <- data
 			}()
-			kept := append(fatalLengthAnnouncement().PathAttributes, 0xc0, 99, 2, 0xaa, 0xbb)
+			kept := slices.Concat(fatalLengthAnnouncement().PathAttributes, []byte{0xc0, 99, 2, 0xaa, 0xbb})
 			// RFC 4271 Section 9: "If an optional transitive attribute is
 			// unrecognized, the Partial bit (the third high-order bit) in the
 			// attribute flags octet is set to 1, and the attribute is retained
 			// for propagation to other BGP speakers."
 			// publishBase runs after keep-first; retain exact flags in the oracle
 			// rather than either expecting the input C0 or masking flag changes.
-			published := append(fatalLengthAnnouncement().PathAttributes, 0xe0, 99, 2, 0xaa, 0xbb)
+			published := slices.Concat(fatalLengthAnnouncement().PathAttributes, []byte{0xe0, 99, 2, 0xaa, 0xbb})
 			nlri := ipv4Slash24s(1100)
 			for _, duplicate := range []bool{false, true} {
 				attrs := append([]byte(nil), kept...)
@@ -455,7 +456,7 @@ func TestRFC8654ExtendedDuplicateMPResets(t *testing.T) {
 		t.Run(strconv.Itoa(int(mp[1])), func(t *testing.T) {
 			session, client, capture, cleanup := setupCapturingSession(t, 65002, true, false)
 			defer cleanup()
-			attrs := append(fatalLengthAnnouncement().PathAttributes, mp...)
+			attrs := slices.Concat(fatalLengthAnnouncement().PathAttributes, mp)
 			nlri := ipv4Slash24s(1100)
 			answers := make(chan []byte, 1)
 			go func() {

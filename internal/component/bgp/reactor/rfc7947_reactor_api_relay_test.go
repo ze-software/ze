@@ -581,7 +581,7 @@ func relayBodyNLRI(t *testing.T, body []byte) []byte {
 // carries. buildFwdBody hands a SAME-context destination raw wire bodies and a
 // cross-context one a re-encoded message.Update, so a test that asserts on NLRI
 // framing must read whichever form its destination received.
-func relayDispatchedNLRI(t *testing.T, item fwdItem) []byte {
+func relayDispatchedNLRI(t *testing.T, item *fwdItem) []byte {
 	t.Helper()
 	if len(item.rawBodies) > 0 {
 		return relayBodyNLRI(t, item.rawBodies[0])
@@ -724,7 +724,7 @@ func TestRelayAddPathRoundTrip(t *testing.T) {
 
 			item := relayDispatchedItemFor(t, api, dispatched, mu, done,
 				storedAddPathRoute(sourcePathID))
-			nlri := relayDispatchedNLRI(t, item)
+			nlri := relayDispatchedNLRI(t, &item)
 
 			if !tc.destAddPath {
 				assert.Equal(t, "180a0000", hex.EncodeToString(nlri),
@@ -817,7 +817,7 @@ func TestRelayCoalescesARunIntoTheMessageTheSourceSent(t *testing.T) {
 	mu.Unlock()
 	require.Len(t, items, 1, "three prefixes sharing one attribute block are ONE UPDATE, as the source sent them")
 	assert.Equal(t, "180a0000180a0100180a0200",
-		hex.EncodeToString(relayDispatchedNLRI(t, items[0])),
+		hex.EncodeToString(relayDispatchedNLRI(t, &items[0])),
 		"the NLRI section carries every prefix of the run, in the order it was stored")
 }
 
@@ -857,7 +857,7 @@ func TestRelaySplitsARunOnAChangeOfAttributes(t *testing.T) {
 
 	var carried []string
 	for _, item := range items {
-		carried = append(carried, hex.EncodeToString(relayDispatchedNLRI(t, item)))
+		carried = append(carried, hex.EncodeToString(relayDispatchedNLRI(t, &item)))
 	}
 	assert.ElementsMatch(t, []string{"180a0000", "180a0100"}, carried,
 		"each attribute block carries only its own prefix")
@@ -933,7 +933,8 @@ func TestRelayAddPathZeroPathIDIsRelayed(t *testing.T) {
 	api, _, dispatched, mu, done := relayFixture(t)
 	src := relayAddPathContexts(t, api, true, true)
 
-	nlri := relayDispatchedNLRI(t, relayDispatchedItemFor(t, api, dispatched, mu, done, storedAddPathRoute(0)))
+	item := relayDispatchedItemFor(t, api, dispatched, mu, done, storedAddPathRoute(0))
+	nlri := relayDispatchedNLRI(t, &item)
 
 	require.Len(t, nlri, relayPathIDLen+4, "identifier 0 is encoded, not omitted")
 	assert.Equal(t, "180a0000", hex.EncodeToString(nlri[relayPathIDLen:]),
@@ -974,7 +975,7 @@ func TestRelayStoredRouteRefusesUnrecordedFraming(t *testing.T) {
 		relayAddPathContexts(t, api, false, false)
 
 		item := relayDispatchedItemFor(t, api, dispatched, mu, done, storedIPv4Route("10.0.0.1"))
-		assert.Equal(t, "180a0000", hex.EncodeToString(relayDispatchedNLRI(t, item)),
+		assert.Equal(t, "180a0000", hex.EncodeToString(relayDispatchedNLRI(t, &item)),
 			"a source that declares no ADD-PATH has one framing, so the marker is not consulted")
 	})
 }

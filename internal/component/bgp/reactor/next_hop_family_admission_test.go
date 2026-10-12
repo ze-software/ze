@@ -84,7 +84,7 @@ func TestFamilyNextHopOriginationAdmission(t *testing.T) {
 							caps = append(caps, &capability.LinkLocalNextHop{})
 						}
 						if fc.extended && !tc.noCap5 {
-							safi := capability.SAFI(fc.fam.SAFI)
+							safi := fc.fam.SAFI
 							if tc.wrongCap5 {
 								safi = capability.SAFIVPN
 							}
@@ -261,7 +261,7 @@ func TestFamilyNextHopForwardAdmission(t *testing.T) {
 							&capability.ASN4{ASN: peer.settings.LocalAS},
 							&capability.Multiprotocol{AFI: fc.fam.AFI, SAFI: fc.fam.SAFI},
 							&capability.Multiprotocol{AFI: 1, SAFI: 1},
-							&capability.ExtendedNextHop{Families: []capability.ExtendedNextHopFamily{{NLRIAFI: 1, NLRISAFI: capability.SAFI(fc.fam.SAFI), NextHopAFI: 2}}},
+							&capability.ExtendedNextHop{Families: []capability.ExtendedNextHopFamily{{NLRIAFI: 1, NLRISAFI: fc.fam.SAFI, NextHopAFI: 2}}},
 						}
 						neg := capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: peer.settings.LocalAS, PeerASN: peer.settings.PeerAS})
 						peer.session.negotiated = neg

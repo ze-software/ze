@@ -123,8 +123,9 @@ func TestRFC7311ReceivedRecursiveAIGPChangeReachesWire(t *testing.T) {
 				// and MED. Only the first AIGP TLV's uint64 value changes.
 				attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xea, 0x40, 3, 4}
 				attrs = append(attrs, nextHop.AsSlice()...)
-				attrs = append(attrs, 0x80, 4, 4, 0, 0, 0, 19)
-				attrs = append(attrs, 0x80, byte(attribute.AttrAIGP), 11)
+				attrs = append(attrs,
+					0x80, 4, 4, 0, 0, 0, 19,
+					0x80, byte(attribute.AttrAIGP), 11)
 				var tlv [11]byte
 				attribute.WriteAIGPMetric(tlv[:], 0, metric)
 				attrs = append(attrs, tlv[:]...)

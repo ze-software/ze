@@ -130,7 +130,7 @@ func TestRFC8669CleanPrefixSIDNoDiscardDiagnostic(t *testing.T) {
 // original UPDATE, including its header. The logger has no session-id field;
 // body identity ties each record to the IBGP receive fixture, not other sessions
 // writing concurrently through the process-global synchronized capture.
-// RFC 8669 Section 6: "When discarding an attribute, a BGP speaker SHOULD log an error for further analysis."
+// RFC 8669 Section 6: "When discarding an attribute, a BGP speaker SHOULD log an error for further analysis".
 func rfc8669DiscardDiagnosticLines(output string, received []byte) []string {
 	// RFC 7606 Section 6: match the complete original UPDATE, not rewritten bytes.
 	wire := "update-wire-hex=" + hex.EncodeToString(buildUpdateMsg(received))
@@ -149,7 +149,7 @@ func rfc8669DiscardDiagnosticLines(output string, received []byte) []string {
 // rfc8669DiscardRoutePreserved checks the original labeled announcement and
 // every non-discarded fixture attribute, without mistaking a withdrawal for
 // route preservation. ATTR_TOMBSTONE bookkeeping is intentionally not constrained.
-// RFC 7606 Section 2: "In this approach, the malformed attribute MUST be discarded and the UPDATE message continues to be processed."
+// RFC 7606 Section 2: "In this approach, the malformed attribute MUST be discarded and the UPDATE message continues to be processed".
 func rfc8669DiscardRoutePreserved(t *testing.T, received, published []byte) {
 	t.Helper()
 	original := rfc8669PathAttrs(t, received)

@@ -400,7 +400,7 @@ func TestRFC8654ExtendedTwoFamilyWithdrawalRecovery(t *testing.T) {
 	for i, route := range routes {
 		var mp [64]byte
 		n := writeMPReach(mp[:], 0, route.fam, route.hop, route.raw)
-		attrs := append(fatalLengthAnnouncement().PathAttributes, mp[:n]...)
+		attrs := slices.Concat(fatalLengthAnnouncement().PathAttributes, mp[:n])
 		announcements[i] = receivedUpdateBody(attrs, nil)
 		source.send(t, buildUpdateMsg(announcements[i]))
 	}

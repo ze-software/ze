@@ -64,7 +64,7 @@ const (
 // Only the external plugin transport is replaced: it transforms the raw request
 // supplied by policyFilterFunc, never a precomputed output or a callback echo.
 // RFC 9012 Section 11: "In addition, any BGP speaker that understands the attribute
-// MUST be able to filter the attribute from outgoing BGP UPDATE messages."
+// MUST be able to filter the attribute from outgoing BGP UPDATE messages".
 func teSessionFilterRoundTrip(t *testing.T, filtered int) {
 	t.Helper()
 	// RFC 9012 Sections 2 and 13: a valid received tunnel with one endpoint.
@@ -191,7 +191,7 @@ func (teSessionFilterTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy {
 // CallFilterUpdate removes only attribute 23 from the raw UPDATE supplied by the
 // real policy request. Rebuilding owns new bytes, as an external plugin would.
 // RFC 9012 Section 11: "In addition, any BGP speaker that understands the attribute
-// MUST be able to filter the attribute from outgoing BGP UPDATE messages."
+// MUST be able to filter the attribute from outgoing BGP UPDATE messages".
 func (teSessionFilterTransport) CallFilterUpdate(_ context.Context, pluginName string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
 	if pluginName != teSessionFilterPlugin {
 		return nil, fmt.Errorf("unexpected filter plugin %q", pluginName)
@@ -234,7 +234,7 @@ func (teSessionFilterTransport) CallFilterUpdate(_ context.Context, pluginName s
 // teSessionFilterAssertBody compares complete attribute encodings, including the
 // original attribute-23 header, not only decoded tunnel values. The only normal
 // export addition is mandatory IBGP LOCAL_PREF; even attribute 16 stays unchanged.
-// RFC 9012 Section 11: "This filtering SHOULD be possible on a per-BGP-session basis."
+// RFC 9012 Section 11: "This filtering SHOULD be possible on a per-BGP-session basis".
 func teSessionFilterAssertBody(t *testing.T, got, original []byte, filtered bool) {
 	t.Helper()
 	before, err := wire.ParseUpdateSections(original)
@@ -297,7 +297,7 @@ func teSessionFilterAttributes(t *testing.T, attrs []byte) map[attribute.Attribu
 
 // teSessionFilterDownstream observes processMessage's received-route consumer,
 // after the real socket writer, and requires an accepted UPDATE rather than TAW.
-// RFC 9012 Section 11: "This filtering SHOULD be possible on a per-BGP-session basis."
+// RFC 9012 Section 11: "This filtering SHOULD be possible on a per-BGP-session basis".
 func teSessionFilterDownstream(t *testing.T, sent, original []byte, filtered bool) {
 	t.Helper()
 	downstream, _ := tePropagationPeer(t, "192.0.2.9", 65001, family.IPv4Unicast)

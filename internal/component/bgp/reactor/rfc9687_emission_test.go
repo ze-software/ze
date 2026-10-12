@@ -77,7 +77,7 @@ func TestRFC9687SuppressedAttemptsDoNotRestartSendHold(t *testing.T) {
 			s, conn, clock := rfc9687EmissionSession(t)
 			update := &message.Update{
 				PathAttributes: []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x40, 3, 4, 192, 0, 2, 99},
-				NLRI: []byte{24, 198, 51, 100},
+				NLRI:           []byte{24, 198, 51, 100},
 			}
 			route := bgptypes.RouteSpec{Prefix: netip.MustParsePrefix("198.51.100.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.99"))}
 			peer := NewPeer(s.settings)

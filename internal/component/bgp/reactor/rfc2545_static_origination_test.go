@@ -110,7 +110,7 @@ func TestStaticOriginateIPv6NextHopAdmission(t *testing.T) {
 						}
 						caps = append(caps, &capability.ExtendedNextHop{
 							Families: []capability.ExtendedNextHopFamily{{
-								NLRIAFI: capability.AFI(fam.AFI), NLRISAFI: capability.SAFI(fam.SAFI), NextHopAFI: nhAFI,
+								NLRIAFI: fam.AFI, NLRISAFI: fam.SAFI, NextHopAFI: nhAFI,
 							}},
 						})
 					}
@@ -134,7 +134,7 @@ func TestStaticOriginateIPv6NextHopAdmission(t *testing.T) {
 	}
 
 	t.Run("default-auto-global", func(t *testing.T) {
-		peer, conn := newDefaultOriginatePeer(t, "2001:db8:2::2", "2001:db8:1::1", "fe80::1")
+		peer, conn := newDefaultOriginatePeer(t, "2001:db8:2::2")
 		peer.settings.LocalAddress = netip.Addr{}
 		peer.currentSession().transport.Store(&sessionTransport{local: netip.MustParseAddr("2001:db8:1::1")})
 		peer.refreshLinkScopeFrom(nil)
