@@ -197,12 +197,20 @@ func TestCacheConcurrent(t *testing.T) {
 			defer wg.Done()
 			key := "domain" + string(rune('0'+n)) + ".com"
 			c.put(key, 1, []string{"1.2.3.4"}, 300)
-			c.get(key, 1)
+			first, ok := c.get(key, 1)
+			assert.True(t, ok, "%s: first put must be readable", key)
+			assert.Equal(t, []string{"1.2.3.4"}, first, "%s: first put", key)
 			c.put(key, 1, []string{"5.6.7.8"}, 300)
-			c.get(key, 1)
+			second, ok := c.get(key, 1)
+			assert.True(t, ok, "%s: overwrite must be readable", key)
+			assert.Equal(t, []string{"5.6.7.8"}, second, "%s: overwrite", key)
 		}(i)
 	}
 	wg.Wait()
+	c.mu.Lock()
+	count := len(c.entries)
+	c.mu.Unlock()
+	assert.Equal(t, 10, count, "one entry per name after concurrent overwrites")
 }
 
 // TestRFC2181_CacheReplacesRRSetNoMerge verifies that a second response for a

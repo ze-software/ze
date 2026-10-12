@@ -411,6 +411,10 @@ func TestOSPFLSDBSync(t *testing.T) {
 }
 
 func TestOSPFFloodingFunctional(t *testing.T) {
-	t.Run("flood", TestOSPFFloodOutOtherInterfaces)
-	t.Run("purge", TestOSPFLSDBAgeToPurge)
+	if !t.Run("flood", TestOSPFFloodOutOtherInterfaces) {
+		t.Error("flooding out the other interfaces failed")
+	}
+	if !t.Run("purge", TestOSPFLSDBAgeToPurge) {
+		t.Error("aging an LSA to a purge failed")
+	}
 }

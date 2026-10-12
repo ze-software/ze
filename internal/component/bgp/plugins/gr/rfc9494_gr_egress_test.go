@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -627,6 +628,9 @@ func TestLLGREgressFilter_ConcurrentAccess(t *testing.T) {
 	setEgressState(state)
 	defer setEgressState(nil)
 
+	// Every concurrent call must reach the same verdict a lone call does for
+	// an LLGR-capable peer: accepted, not withdrawn, no mods.
+	var advertised atomic.Int32
 	var wg sync.WaitGroup
 	for range 100 {
 		wg.Go(func() {
@@ -634,8 +638,19 @@ func TestLLGREgressFilter_ConcurrentAccess(t *testing.T) {
 			dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 64501, LocalAS: 64500}
 			var mods filterapi.ModAccumulator
 			meta := map[string]any{"stale": uint8(2)}
-			LLGREgressFilter(src, dest, nil, meta, &mods)
+			if !LLGREgressFilter(src, dest, nil, meta, &mods) {
+				return
+			}
+			if mods.IsWithdraw() {
+				return
+			}
+			if mods.Len() != 0 {
+				return
+			}
+			advertised.Add(1)
 		})
 	}
 	wg.Wait()
+	assert.Equal(t, int32(100), advertised.Load(),
+		"every concurrent call must advertise the stale route unchanged to the LLGR-capable peer")
 }

@@ -22,10 +22,22 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
 )
 
+// VALIDATES: under CAP_NET_RAW the production backend opens its raw OSPF
+// socket on a real veth and closes it cleanly.
 func TestOSPFTransportRawSocketCap(t *testing.T) {
 	if !rawSocketAvailable() {
 		t.Skip("CAP_NET_RAW unavailable")
 	}
+	loadIfaceBackend(t)
+	withVethPeerNamespace(t, func(lab ospfVethLab) {
+		h, err := NewBackend().OpenInterface(lab.nameA, nil)
+		if err != nil {
+			t.Fatalf("OpenInterface(%s): %v", lab.nameA, err)
+		}
+		if cerr := h.Close(); cerr != nil {
+			t.Errorf("Close: %v", cerr)
+		}
+	})
 }
 
 // RFC requirement: RFC2328-4.4-1 positive -- the production backend selects the

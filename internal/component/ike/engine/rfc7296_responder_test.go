@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -132,13 +133,27 @@ func TestSetGetSAConcurrent(t *testing.T) {
 			ps.setSA(nil)
 		}
 	}()
+	var torn atomic.Int32
 	go func() {
 		defer wg.Done()
 		for range 2000 {
-			_ = ps.getSA()
+			got := ps.getSA()
+			if got == nil {
+				continue
+			}
+			if got != sa {
+				torn.Add(1)
+			}
 		}
 	}()
 	wg.Wait()
+	if n := torn.Load(); n != 0 {
+		t.Fatalf("getSA returned an SA that was never set %d times", n)
+	}
+	ps.setSA(sa)
+	if got := ps.getSA(); got != sa {
+		t.Fatalf("getSA after setSA = %p, want %p", got, sa)
+	}
 }
 
 // VALIDATES: review Finding 4 (ISSUE). setPendingIKESwap clears the key material of a

@@ -154,7 +154,10 @@ func TestDispatchBatchEmpty(t *testing.T) {
 		aspaCache: newASPACache(),
 		stopCh:    make(chan struct{}),
 	}
-	rp.dispatchBatch(nil)
+	// rp.plugin is nil, so reaching BatchValidate panics: the empty guard is
+	// what keeps an empty batch from dispatching at all.
+	assert.NotPanics(t, func() { rp.dispatchBatch(nil) }, "an empty batch must not dispatch")
+	assert.NotPanics(t, func() { rp.dispatchBatch([]validationRequest{}) }, "an empty batch must not dispatch")
 }
 
 // TestWorkerShutdownCompletes verifies the worker goroutine exits

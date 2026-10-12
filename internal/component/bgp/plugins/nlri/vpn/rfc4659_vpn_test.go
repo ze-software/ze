@@ -387,16 +387,20 @@ func TestParseVPNShortData(t *testing.T) {
 
 // TestSetVPNLogger verifies logger configuration.
 //
-// VALIDATES: SetVPNLogger accepts logger without panic.
-// PREVENTS: Nil logger causing panic.
+// VALIDATES: setVPNLogger installs a given logger and ignores nil, keeping
+// the logger already installed.
+// PREVENTS: Nil logger replacing the package logger and panicking the next log.
+// Not parallel: it swaps the package-level logger and restores it.
 func TestSetVPNLogger(t *testing.T) {
-	t.Parallel()
-	// Should not panic with nil
-	setVPNLogger(nil)
+	previous := vpnLogger
+	t.Cleanup(func() { vpnLogger = previous })
 
-	// Should accept valid logger
-	logger := slog.Default()
+	logger := slog.New(slog.DiscardHandler)
 	setVPNLogger(logger)
+	assert.Same(t, logger, vpnLogger, "a non-nil logger must be installed")
+
+	setVPNLogger(nil)
+	assert.Same(t, logger, vpnLogger, "nil must keep the installed logger")
 }
 
 // TestGetVPNYANG verifies YANG schema getter.

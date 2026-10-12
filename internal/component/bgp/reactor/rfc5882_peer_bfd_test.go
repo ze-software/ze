@@ -182,8 +182,23 @@ func TestBFDClient_NilService(t *testing.T) {
 
 	// Should not panic and should not block.
 	p.startBFDClient()
+	p.bfd.mu.Lock()
+	handle, starting := p.bfd.handle, p.bfd.starting
+	p.bfd.mu.Unlock()
+	if handle != nil {
+		t.Fatalf("BFD handle = %v after a nil service, want none", handle)
+	}
+	if starting {
+		t.Fatal("starting left set after a nil service; the next start would be refused")
+	}
 	// stopBFDClient is a no-op when startBFDClient didn't open a session.
 	p.stopBFDClient()
+	p.bfd.mu.Lock()
+	handle = p.bfd.handle
+	p.bfd.mu.Unlock()
+	if handle != nil {
+		t.Fatalf("BFD handle = %v after stop, want none", handle)
+	}
 }
 
 // VALIDATES: startBFDClient calls EnsureSession with a SessionRequest

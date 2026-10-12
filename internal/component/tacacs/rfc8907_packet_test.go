@@ -82,8 +82,10 @@ func TestEncryptEmptyKey(t *testing.T) {
 // VALIDATES: encryption with empty body is a no-op.
 // PREVENTS: panic on empty body.
 func TestEncryptEmptyBody(t *testing.T) {
-	Encrypt(nil, 0x1234, []byte("key"), 0xC0, 1)
-	Encrypt([]byte{}, 0x1234, []byte("key"), 0xC0, 1)
+	assert.NotPanics(t, func() { Encrypt(nil, 0x1234, []byte("key"), 0xC0, 1) }, "nil body")
+	empty := []byte{}
+	assert.NotPanics(t, func() { Encrypt(empty, 0x1234, []byte("key"), 0xC0, 1) }, "empty body")
+	assert.Empty(t, empty, "an empty body stays empty")
 }
 
 // VALIDATES: different keys produce different ciphertext.

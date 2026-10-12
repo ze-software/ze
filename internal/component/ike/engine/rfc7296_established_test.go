@@ -79,21 +79,13 @@ func TestRouteInboundNoStateRace(t *testing.T) {
 	sa := testSA()
 	sa.State = StateEstablished
 
-	ps := &PeerSession{peerName: sa.PeerName, inbound: make(chan transport.Packet, inboundQueueDepth)}
+	// The queue holds every packet the dispatch loop sends, so none is dropped
+	// and the count below is exact.
+	const packets = 1000
+	ps := &PeerSession{peerName: sa.PeerName, inbound: make(chan transport.Packet, packets)}
 	ps.ownedSA.Store(sa)
 	setActivePeers(map[string]*PeerSession{sa.PeerName: ps})
 	t.Cleanup(func() { setActivePeers(nil) })
-
-	done := make(chan struct{})
-	go func() { // drain the owner queue so routeInbound never blocks
-		for {
-			select {
-			case <-ps.inbound:
-			case <-done:
-				return
-			}
-		}
-	}()
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -106,12 +98,15 @@ func TestRouteInboundNoStateRace(t *testing.T) {
 	}()
 	go func() { // dispatch goroutine routes packets
 		defer wg.Done()
-		for range 1000 {
+		for range packets {
 			routeInbound(sa, transport.Packet{Data: []byte("x")}, table, nil, log)
 		}
 	}()
 	wg.Wait()
-	close(done)
+	if got := len(ps.inbound); got != packets {
+		t.Fatalf("owner queue holds %d packets, want %d: routeInbound must hand every "+
+			"packet of the owned SA to its owner loop whatever sa.State reads", got, packets)
+	}
 }
 
 // VALIDATES: an authenticated INFORMATIONAL response that matches no pending
