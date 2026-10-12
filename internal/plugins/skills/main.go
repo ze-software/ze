@@ -59,7 +59,10 @@ func showSkill(validated command.ValidatedArgs) int {
 // wantsHelp reports whether the operator asked for the usage page.
 func wantsHelp(args []string) bool {
 	for _, a := range args {
-		if a == "-h" || a == "--help" {
+		if a == "-h" {
+			return true
+		}
+		if a == "--help" {
 			return true
 		}
 	}

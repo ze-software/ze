@@ -284,7 +284,11 @@ type openedBFD struct {
 // canceled and restart.
 func (p *Peer) openBFDSession() (*openedBFD, bool) {
 	cfg, req := p.bfdOptIn()
-	if cfg == nil || !cfg.Enabled {
+	if cfg == nil {
+		p.endBFDStart()
+		return nil, false
+	}
+	if !cfg.Enabled {
 		p.endBFDStart()
 		return nil, false
 	}

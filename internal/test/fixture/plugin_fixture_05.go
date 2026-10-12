@@ -884,7 +884,13 @@ func p05DriveRESTCommits(ctx context.Context, port int) error {
 	// Owner decision 2026-10-12, "wait its turn": the second commit queues
 	// behind the active one, then applies as its own commit.
 	secondResult := commit(second)
-	if secondResult.err != nil || secondResult.status >= 400 || secondResult.response["status"] != statusCommitted {
+	if secondResult.err != nil {
+		return fmt.Errorf("second commit did not wait its turn and commit: status=%d response=%v body=%s: %w", secondResult.status, secondResult.response, secondResult.body, secondResult.err)
+	}
+	if secondResult.status >= 400 {
+		return fmt.Errorf("second commit did not wait its turn and commit: status=%d response=%v body=%s: %w", secondResult.status, secondResult.response, secondResult.body, secondResult.err)
+	}
+	if secondResult.response["status"] != statusCommitted {
 		return fmt.Errorf("second commit did not wait its turn and commit: status=%d response=%v body=%s: %w", secondResult.status, secondResult.response, secondResult.body, secondResult.err)
 	}
 	var firstResult commitResult
@@ -907,7 +913,10 @@ func p05DriveRESTCommits(ctx context.Context, port int) error {
 	if err != nil {
 		return err
 	}
-	if !strings.Contains(string(active), "router-id 10.0.0.3") || strings.Contains(string(active), "router-id 10.0.0.2") {
+	if !strings.Contains(string(active), "router-id 10.0.0.3") {
+		return fmt.Errorf("active config after queued commits was not the second commit's:\n%s", active)
+	}
+	if strings.Contains(string(active), "router-id 10.0.0.2") {
 		return fmt.Errorf("active config after queued commits was not the second commit's:\n%s", active)
 	}
 	const marker = "OK: concurrent commits applied one after the other, in order\n"

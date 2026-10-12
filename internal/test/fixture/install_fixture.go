@@ -1553,7 +1553,10 @@ func queryMutatedKernelCache(ctx context.Context, ze, root, rel string) (string,
 	}
 	changed, queryErr := queryKernelCache(ctx, ze, root, "runtime", "amd64", "runtime")
 	restoreErr := os.WriteFile(path, original, info.Mode().Perm())
-	if queryErr != nil || restoreErr != nil {
+	if queryErr != nil {
+		return "", errors.Join(queryErr, restoreErr)
+	}
+	if restoreErr != nil {
 		return "", errors.Join(queryErr, restoreErr)
 	}
 	return changed, nil
