@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-11",
+  "audited": "2026-10-12",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -100,21 +100,20 @@
       "verdict": "enforced"
     },
     "RFC2918-4-3": {
-      "code": {},
-      "note": "Independent re-judge after 1f2dd73052. Reread RFC 2918 Section 4: 'Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy.' The only change to test/plugin/refresh-config-static.ci is the capability spelling `route-refresh` to `route-refresh enable`; the session still negotiates the capability, and every expect/action line is byte-identical. The test still requires the exact configured UPDATE (ORIGIN IGP, NEXT_HOP 10.0.0.1, LOCAL_PREF 100, NLRI 192.168.1.0/24) at seq=1, sends a ROUTE-REFRESH for AFI 1 SAFI 1 subtype 0, and requires BoRR, the identical UPDATE, then EoRR at seq=3. Producer read at handleRefreshStructured (rib_structured.go): subtype 0 for an up peer collects collectRibOutRoutes(peer, fam) and sends them between borr and eorr; the config route reaches that Adj-RIB-Out through handleSentStructured, whose panic break the re-recorded discrimination record (917da161f8) shows turns this .ci red at the seq=3 UPDATE expect. The Go carriers and their clause attribution are unchanged from the prior verdict. No new execution is claimed.",
+      "note": "Re-judged 2026-10-12 (independent auditor) after owner-approved lint-only edits in 96ec49327b and 4e731b2d96; the row text is unchanged and each changed unit was re-read diff by diff. TestRFC2918ConfigStaticRetainedForRefresh now checks the RawMessage type assertion with Fatalf before setting SourceLocal, where it would have panicked; the success path and every assertion are unchanged. Verdict stands. Independent re-judge after 1f2dd73052. Reread RFC 2918 Section 4: 'Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy.' The only change to test/plugin/refresh-config-static.ci is the capability spelling `route-refresh` to `route-refresh enable`; the session still negotiates the capability, and every expect/action line is byte-identical. The test still requires the exact configured UPDATE (ORIGIN IGP, NEXT_HOP 10.0.0.1, LOCAL_PREF 100, NLRI 192.168.1.0/24) at seq=1, sends a ROUTE-REFRESH for AFI 1 SAFI 1 subtype 0, and requires BoRR, the identical UPDATE, then EoRR at seq=3. Producer read at handleRefreshStructured (rib_structured.go): subtype 0 for an up peer collects collectRibOutRoutes(peer, fam) and sends them between borr and eorr; the config route reaches that Adj-RIB-Out through handleSentStructured, whose panic break the re-recorded discrimination record (917da161f8) shows turns this .ci red at the seq=3 UPDATE expect. The Go carriers and their clause attribution are unchanged from the prior verdict. No new execution is claimed.",
       "requirement_sha": "b02d09aa24b01702",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh": "8b23689eaaa6c583",
-        "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer": "8b23689eaaa6c583",
-        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "1d7ca9d150330551",
-        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "1d7ca9d150330551",
+        "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh": "68bcded138b8992f",
+        "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer": "68bcded138b8992f",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "b9ca4f18c8a7a7f4",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "b9ca4f18c8a7a7f4",
         "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy": "a1864244f4e6e0c3",
         "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy#2": "a1864244f4e6e0c3",
         "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin": "a1864244f4e6e0c3",
         "test/plugin/refresh-config-static.ci": "a2b5d76bb0117d75"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh": "310e362cfe26412c",
+        "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh": "adae4ae89f89e1cb",
         "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer": "5a750a8e400fa6c6",
         "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "01df5e87fd409338",
         "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "4c887e880b608592",
