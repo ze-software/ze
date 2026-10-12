@@ -74,6 +74,7 @@ func init() {
 	Register("static/static-reload-empty-section-withdraws", staticReloadEmpty)
 	Register("static/static-reload-remove-setup", staticSetup("zens0", "192.168.1.2/24", "10.0.0.100/24"))
 	Register("static/static-reload-remove", staticReloadRemove)
+	Register("static/static-bfd-shared-session-widens-setup", staticBFDSharedSetup)
 	Register("static/static-show-setup", staticSetup("zens4", "10.0.0.100/24"))
 	Register("static/static-show", staticShow)
 	Register("static/static-table-interface-setup", staticTableInterfaceSetup)

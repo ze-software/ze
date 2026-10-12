@@ -22,6 +22,19 @@ func staticSetup(iface string, addresses ...string) Driver {
 	}
 }
 
+// staticBFDSharedSetup gives two dummy links one subnet, 198.18.91.0/24, so
+// the static next-hop 198.18.91.9 sits on two connected links. api.SessionRequest.Canonical then derives neither a
+// link nor a local address for the next-hop's single-hop BFD request, and the
+// static route is the unpinned client test/reload/static-bfd-shared-session-widens.ci
+// needs. On a single link the request would take that link's address and be
+// pinned from the start. Each pinned client names one link's address.
+func staticBFDSharedSetup(ctx context.Context, args []string) error {
+	if err := staticSetup("zebfa", "198.18.91.1/24")(ctx, args); err != nil {
+		return err
+	}
+	return staticSetup("zebfb", "198.18.91.2/24")(ctx, args)
+}
+
 func routesOutput(ctx context.Context) string {
 	out, _ := netfilterCommandOutput(ctx, "ip", "route", "show", "table", "all")
 	return out
