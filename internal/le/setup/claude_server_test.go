@@ -271,7 +271,7 @@ func TestClaudeServerSetupSucceedsNativelyAndIsSafeToRepeat(t *testing.T) {
 					return Result{Argv: cmd.Argv, Out: "staticcheck " + StaticcheckVersion + " (0.8.1)\n"}
 				}
 				return Result{Argv: cmd.Argv, Code: 1, Err: "missing"}
-			case strings.Contains(line, "honnef.co/go/tools/cmd/staticcheck@"):
+			case strings.Contains(line, "install -mod=vendor honnef.co/go/tools/cmd/staticcheck"):
 				states["staticcheck"] = true
 			case line == "goimports --help":
 				if states["goimports"] {
@@ -352,7 +352,9 @@ func TestClaudeServerSetupSucceedsNativelyAndIsSafeToRepeat(t *testing.T) {
 		"apt-get update -qq",
 		"apt-get install -y -qq build-essential git curl wget jq unzip mosh",
 		"go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@" + GolangCIVersion,
-		"sudo -u alice env CGO_ENABLED=0 " + filepath.Join(goRoot, "bin", "go") + " install " + staticcheckTarget,
+		"sudo -u alice env CGO_ENABLED=0 " + filepath.Join(goRoot, "bin", "go") + " -C " +
+			filepath.Join(home, "Code", "github.com", "ze-software", "ze", "main") +
+			" install -mod=vendor " + staticcheckTarget,
 		"sudo -u alice env CGO_ENABLED=0 " + filepath.Join(goRoot, "bin", "go") + " install " + goimportsTarget,
 		"apt-get install -y -qq nodejs",
 		"npm install -g @anthropic-ai/claude-code",

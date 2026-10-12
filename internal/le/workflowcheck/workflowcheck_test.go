@@ -230,11 +230,8 @@ func nativeActionsIn(source string) []string {
 
 // lineAfter answers the rest of the line that holds offset.
 func lineAfter(source string, offset int) string {
-	rest := source[offset:]
-	if end := strings.IndexByte(rest, '\n'); end >= 0 {
-		return rest[:end]
-	}
-	return rest
+	line, _, _ := strings.Cut(source[offset:], "\n")
+	return line
 }
 
 // nestedLeActions answers the actions of the le command line that command's
@@ -489,7 +486,7 @@ func TestVerifyInstallsPinnedNativeTools(t *testing.T) {
 	source := stripComments(workflowSource(t, "verify.yml"))
 	for _, command := range []string{
 		"github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1",
-		"honnef.co/go/tools/cmd/staticcheck@2026.2.1",
+		"go install -mod=vendor honnef.co/go/tools/cmd/staticcheck\n",
 		"golang.org/x/vuln/cmd/govulncheck@v1.4.0",
 	} {
 		if strings.Count(source, command) != 1 {
@@ -523,7 +520,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 	}) {
 		t.Errorf("%s must leave VM evidence other than the Docker labs to qemu-nightly.yml: %v", name, actions)
 	}
-	// Every interop lab stages a ze that enrols every kernel capability, so
+	// Every interop lab stages a ze that enrolls every kernel capability, so
 	// each one is refused on the hosted runner's kernel and runs in the guest:
 	// radius included, because interoplab.Suite.Run checks the staged ze's
 	// Docker kernel for every suite whatever the lab itself needs.

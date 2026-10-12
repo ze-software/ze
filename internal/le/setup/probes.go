@@ -13,10 +13,11 @@
 //	            Therefore, a PATH-based probe reported the tools as missing
 //	            although the build used them. Setup then reported pending forever.
 //
-//	staticcheck must be one exact VERSION, and must be BUILT with a Go at
-//	            least as new as go.mod asks for. A different version on PATH
-//	            runs but disagrees. This result is worse than an absent tool.
-//	            An older build toolchain is worse still: the analyser cannot
+//	staticcheck must be one exact VERSION, and must be BUILT with a Go
+//	            and linked against an x/tools at least as new as go.mod
+//	            asks for. A different version on PATH runs but disagrees.
+//	            This result is worse than an absent tool. An older build
+//	            toolchain or x/tools is worse still: the analyser cannot
 //	            read the export data the local Go writes, so it reports
 //	            hundreds of import failures that read as source defects in
 //	            files that are correct.
@@ -33,6 +34,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/mod/semver"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -93,7 +96,8 @@ func (s *Setup) probeStaticcheck(tool Tool) bool {
 }
 
 // staticcheckBuiltNewEnough reports whether the staticcheck binary was built
-// with a Go at least as new as the one go.mod asks for.
+// with a Go at least as new as the one go.mod asks for, and linked against an
+// x/tools at least as new as the one go.mod requires.
 //
 // The analyser reads the export data the local Go writes. A binary built with
 // an older Go cannot, and says so per import rather than once: every file that
@@ -102,17 +106,35 @@ func (s *Setup) probeStaticcheck(tool Tool) bool {
 // correct, so the run reads as a source defect in someone else's package and
 // the tool is the last thing suspected.
 //
-// A build newer than the directive is fine. Only older is refused.
+// The Go stamp alone is not enough. The export data reader is x/tools code, so
+// a binary built by the current Go from staticcheck's own module graph links
+// an older x/tools and fails the same way: `go install ...@2026.2.1` built with
+// go1.27.2 linked x/tools v0.44.1, which cannot read export data version 5.
+//
+// A build newer than go.mod is fine. Only older is refused.
 func (s *Setup) staticcheckBuiltNewEnough(path string) bool {
+	built, linked := s.staticcheckBuildStamp(path)
 	want := s.goDirective()
+	if !stampNotOlder(built, want, version.Compare) {
+		return false
+	}
+	return stampNotOlder(linked, s.goModRequire(xToolsModule), semver.Compare)
+}
+
+// xToolsModule is the module whose export data reader staticcheck links.
+const xToolsModule = "golang.org/x/tools"
+
+// stampNotOlder reports whether built is at least want under compare. An empty
+// want has nothing to hold the build to, and an empty built is an unreadable
+// stamp, which is not evidence of staleness.
+func stampNotOlder(built, want string, compare func(string, string) int) bool {
 	if want == "" {
-		return true // no directive to hold it to
+		return true
 	}
-	built := s.goBuildVersion(path)
 	if built == "" {
-		return true // an unreadable build stamp is not evidence of staleness
+		return true
 	}
-	return version.Compare(built, want) >= 0
+	return compare(built, want) >= 0
 }
 
 // goDirective returns the go.mod `go` line as a version string ("go1.27.0"), or
@@ -132,28 +154,70 @@ func (s *Setup) goDirective() string {
 	return ""
 }
 
-// goBuildVersion returns the Go version a binary was built with, read from its
-// own build stamp with `go version -m`, or empty when it cannot be read.
+// goModRequire returns the version go.mod requires for module ("v0.50.0"), or
+// empty when go.mod cannot be read or does not require it. It reads both the
+// block form and the single-line `require module version` form.
+func (s *Setup) goModRequire(module string) string {
+	body, err := os.ReadFile(filepath.Join(s.Root, "go.mod"))
+	if err != nil {
+		return ""
+	}
+	for line := range strings.Lines(string(body)) {
+		fields := strings.Fields(line)
+		if len(fields) >= 3 && fields[0] == "require" {
+			fields = fields[1:]
+		}
+		if len(fields) < 2 {
+			continue
+		}
+		if fields[0] != module {
+			continue
+		}
+		if !semver.IsValid(fields[1]) {
+			continue
+		}
+		return fields[1]
+	}
+	return ""
+}
+
+// staticcheckBuildStamp returns the Go version a binary was built with and the
+// x/tools version it links, both read from its own build stamp with
+// `go version -m`. Either is empty when it cannot be read.
 //
-// The first line is "<path>: goX.Y.Z". Later lines carry the module table.
-func (s *Setup) goBuildVersion(path string) string {
+// The first line is "<path>: goX.Y.Z". Later lines carry the module table, one
+// "dep<TAB>module<TAB>version" line per linked module.
+func (s *Setup) staticcheckBuildStamp(path string) (built, linked string) {
 	result := s.Shell.Run(Cmd{
 		Argv:    []string{"go", "version", "-m", path},
 		Timeout: staticcheckProbeTimeout,
 	})
 	if !result.OK() {
-		return ""
+		return "", ""
 	}
-	first, _, _ := strings.Cut(result.Out, "\n")
-	_, stamp, ok := strings.Cut(first, ": ")
-	if !ok {
-		return ""
+	first, rest, _ := strings.Cut(result.Out, "\n")
+	if _, stamp, ok := strings.Cut(first, ": "); ok {
+		stamp = strings.TrimSpace(stamp)
+		if version.IsValid(stamp) {
+			built = stamp
+		}
 	}
-	stamp = strings.TrimSpace(stamp)
-	if !version.IsValid(stamp) {
-		return ""
+	for line := range strings.Lines(rest) {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		if fields[0] != "dep" {
+			continue
+		}
+		if fields[1] != xToolsModule {
+			continue
+		}
+		if semver.IsValid(fields[2]) {
+			linked = fields[2]
+		}
 	}
-	return stamp
+	return built, linked
 }
 
 // staticcheckVersionMatches reports whether a `staticcheck -version` line names

@@ -16,8 +16,15 @@ import "runtime"
 // release built against an x/tools older than the ambient Go toolchain cannot
 // decode that toolchain's export data and reports every package as an import
 // failure. 2026.1 reads to export data version 2 and Go 1.27 writes version 4,
-// so raising the Go directive in go.mod raises this constant with it.
+// so raising the Go directive in go.mod raises this constant with it. The
+// release is built from the vendored honnef.co/go/tools that go.mod requires,
+// so this constant moves with that require and StaticcheckModuleVersion.
 const StaticcheckVersion = "2026.2.1"
+
+// StaticcheckModuleVersion is the honnef.co/go/tools module version that
+// prints StaticcheckVersion. go.mod requires exactly this version, and the
+// install builds it from the vendor tree.
+const StaticcheckModuleVersion = "v0.8.1"
 
 // GolangCIVersion is the one release of golangci-lint this repository runs.
 // The linter type-checks with its own copy of go/types, so a release older
@@ -193,9 +200,13 @@ const grubNote = "no first-party Homebrew formula; macOS skips (ISO builds are L
 // The pinned `go install` targets.
 const golangciTarget = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@" + GolangCIVersion
 
-// staticcheckTarget names the same release the probe checks the running binary
-// against, so a bump moves both at once.
-const staticcheckTarget = "honnef.co/go/tools/cmd/staticcheck@" + StaticcheckVersion
+// staticcheckTarget is pinned by tools.go and vendored, so it builds from the
+// vendor tree like gopls, against the x/tools go.mod requires. An `@version`
+// install resolves staticcheck's own module graph instead, whose older x/tools
+// cannot read the export data the go.mod toolchain writes, and every package
+// then reports as an import failure. The release is the honnef.co/go/tools
+// require in go.mod, and StaticcheckVersion is the string that release prints.
+const staticcheckTarget = "honnef.co/go/tools/cmd/staticcheck"
 
 const goimportsTarget = "golang.org/x/tools/cmd/goimports@latest"
 const goplsTarget = "golang.org/x/tools/gopls"

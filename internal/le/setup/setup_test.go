@@ -240,8 +240,16 @@ func TestTheStaticcheckPinIsCarriedIntoTheInstall(t *testing.T) {
 	if len(found) != 1 {
 		t.Fatalf("staticcheck occurs %d times in the required table", len(found))
 	}
-	if !strings.HasSuffix(found[0].GoInstall, StaticcheckVersion) {
-		t.Errorf("the install target %q does not carry the pin %q", found[0].GoInstall, StaticcheckVersion)
+	// The install builds the vendored package, so the pin travels through the
+	// repository's go.mod require rather than an @version suffix.
+	if strings.Contains(found[0].GoInstall, "@") {
+		t.Errorf("the install target %q resolves its own module graph; it must build "+
+			"the vendored package so it links the x/tools go.mod requires", found[0].GoInstall)
+	}
+	repo := &Setup{Root: filepath.Join("..", "..", "..")}
+	if got := repo.goModRequire("honnef.co/go/tools"); got != StaticcheckModuleVersion {
+		t.Errorf("go.mod requires honnef.co/go/tools %q, but the probe pins release %q, "+
+			"which is module %q", got, StaticcheckVersion, StaticcheckModuleVersion)
 	}
 }
 

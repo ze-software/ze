@@ -83,7 +83,10 @@ var platformEntry = env.MustRegister(env.EnvEntry{
 // internal/le/verify/evidence/evidence.go handed it to bash.
 //
 // It installs what the gate needs, clones the read-only mount into a writable
-// path, checks that the CLONE is clean too, and runs the gate there. The clone
+// path, checks that the CLONE is clean too, and runs the gate there.
+// Staticcheck is built from the clone's vendor tree after that check, so it
+// links the x/tools go.mod requires; an @version install would link its own
+// older x/tools, which cannot read the toolchain's export data. The clone
 // is what makes the evidence about the commit rather than about the mount: a
 // build in place would write into the developer's tree, and a gate reading its
 // own artifacts is not a gate.
@@ -100,7 +103,6 @@ apt-get update
 apt-get install -y --no-install-recommends build-essential git iputils-ping iproute2 iptables nftables util-linux
 export PATH="/go/bin:/usr/local/go/bin:$PATH"
 CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
-CGO_ENABLED=0 go install honnef.co/go/tools/cmd/staticcheck@2026.2.1
 
 git config --global --add safe.directory /host
 git clone --no-local /host /work/src
@@ -110,6 +112,7 @@ if [ -n "$(git status --porcelain)" ]; then
     git status --short >&2
     exit 1
 fi
+CGO_ENABLED=0 go install -mod=vendor honnef.co/go/tools/cmd/staticcheck
 
 ./le verify current mode full
 `

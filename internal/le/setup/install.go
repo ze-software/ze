@@ -109,8 +109,8 @@ func (i *Installer) fail(tool Tool, result Result) bool {
 	return false
 }
 
-// goInstall builds and installs a Go tool. The pinned gopls and govulncheck
-// packages are built from the root vendor tree; versioned standalone tools
+// goInstall builds and installs a Go tool. The pinned gopls, govulncheck and
+// staticcheck packages are built from the root vendor tree; versioned standalone tools
 // retain their explicit module target.
 func (i *Installer) goInstall(tool Tool, target string) bool {
 	if !i.setup.Shell.Present(toolGo) {
@@ -118,7 +118,7 @@ func (i *Installer) goInstall(tool Tool, target string) bool {
 	}
 	argv := []string{toolGo, installSubcommand, target}
 	dir := i.setup.Root
-	if target == goplsTarget || target == govulncheckTarget {
+	if target == goplsTarget || target == govulncheckTarget || target == staticcheckTarget {
 		argv = []string{toolGo, installSubcommand, "-mod=vendor", target}
 	}
 	var tb textbuf.Buffer

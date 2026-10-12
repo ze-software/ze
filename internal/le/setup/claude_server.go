@@ -156,6 +156,41 @@ func (s *claudeServerSetup) repositoryPath() string {
 	return filepath.Join(s.Paths.Home, "Code", "github.com", "ze-software", "ze", "main")
 }
 
+// goPath answers the GOPATH this setup creates inside the account.
+func (s *claudeServerSetup) goPath() string {
+	return filepath.Join(s.Paths.Home, "go")
+}
+
+// toolEnvironment answers the environment the Go tools are probed under: the
+// installed toolchain and the account's GOPATH bin directory on PATH.
+func (s *claudeServerSetup) toolEnvironment() []string {
+	gopath := s.goPath()
+	return replaceEnvironment(os.Environ(), map[string]string{
+		"CGO_ENABLED": "0",
+		"GOPATH":      gopath,
+		"PATH":        "/usr/local/go/bin:" + filepath.Join(gopath, "bin") + ":" + os.Getenv("PATH"),
+	})
+}
+
+// installStaticcheck builds staticcheck from the clone's vendor tree, so it
+// links the x/tools the repository's go.mod requires (see staticcheckTarget).
+// It runs after the clone because the vendor tree is the pin: an @version
+// install outside the module links staticcheck's own older x/tools, which
+// cannot read the export data the go.mod toolchain writes.
+func (s *claudeServerSetup) installStaticcheck(report *claudeServerReport) error {
+	argv := []string{sudoBin, "-u", s.User, envBin, "CGO_ENABLED=0", s.goBinary(),
+		"-C", s.repositoryPath(), installVerb, "-mod=vendor", staticcheckTarget}
+	if err := s.run(report, "install staticcheck", Cmd{Argv: argv}); err != nil {
+		return err
+	}
+	result := s.Shell.Run(Cmd{Argv: []string{toolStaticcheck, versionArgument}, Env: s.toolEnvironment()})
+	if !result.OK() {
+		return fmt.Errorf("verify staticcheck: %s", result.complaint())
+	}
+	report.add(toolStaticcheck, "installed", strings.TrimSpace(result.Out))
+	return nil
+}
+
 // goBinary answers the go command inside the installed toolchain.
 func (s *claudeServerSetup) goBinary() string {
 	return filepath.Join(s.Paths.GoRoot, "bin", "go")
@@ -210,6 +245,9 @@ func (s *claudeServerSetup) setup() (*claudeServerReport, int, error) {
 		return report, 1, err
 	}
 	if err := s.cloneRepository(report); err != nil {
+		return report, 1, err
+	}
+	if err := s.installStaticcheck(report); err != nil {
 		return report, 1, err
 	}
 	s.verify(report)
@@ -319,15 +357,11 @@ func (s *claudeServerSetup) installGo(report *claudeServerReport) error {
 
 func (s *claudeServerSetup) installGoTools(report *claudeServerReport) error {
 	report.add("", "section", "--- Installing Go tools ---")
-	gopath := filepath.Join(s.Paths.Home, "go")
+	gopath := s.goPath()
 	if err := s.run(report, "create GOPATH", Cmd{Argv: []string{sudoBin, "-u", s.User, "mkdir", "-p", filepath.Join(gopath, "bin")}}); err != nil {
 		return err
 	}
-	environment := replaceEnvironment(os.Environ(), map[string]string{
-		"CGO_ENABLED": "0",
-		"GOPATH":      gopath,
-		"PATH":        "/usr/local/go/bin:" + filepath.Join(gopath, "bin") + ":" + os.Getenv("PATH"),
-	})
+	environment := s.toolEnvironment()
 	lint := s.Shell.Run(Cmd{Argv: []string{toolGolangCI, versionFlag}, Env: environment})
 	if lint.OK() {
 		report.add(toolGolangCI, "present", "already installed: "+firstLine(lint.Out))
@@ -342,15 +376,6 @@ func (s *claudeServerSetup) installGoTools(report *claudeServerReport) error {
 		report.add(toolGolangCI, "installed", GolangCIVersion)
 	}
 	goBinary := s.goBinary()
-	staticcheck := []string{sudoBin, "-u", s.User, envBin, "CGO_ENABLED=0", goBinary, installVerb, staticcheckTarget}
-	if err := s.run(report, "install staticcheck", Cmd{Argv: staticcheck}); err != nil {
-		return err
-	}
-	result := s.Shell.Run(Cmd{Argv: []string{"staticcheck", versionArgument}, Env: environment})
-	if !result.OK() {
-		return fmt.Errorf("verify staticcheck: %s", result.complaint())
-	}
-	report.add("staticcheck", "installed", strings.TrimSpace(result.Out))
 	goimports := s.Shell.Run(Cmd{Argv: []string{toolGoimports, "--help"}, Env: environment})
 	if goimports.OK() {
 		report.add(toolGoimports, "present", "already installed")
