@@ -40,11 +40,14 @@ func (g *configTxGate) applied() {
 }
 
 // committed records that the open apply, if any, is permanent: no rollback
-// can undo it any more.
-func (g *configTxGate) committed() {
+// can undo it any more. It reports whether an apply was open, so the plugin's
+// commit handler runs only for a transaction the plugin applied in.
+func (g *configTxGate) committed() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	owed := g.open
 	g.open = false
+	return owed
 }
 
 // rollbackOwed reports whether a `config-rollback` has an apply to undo, and

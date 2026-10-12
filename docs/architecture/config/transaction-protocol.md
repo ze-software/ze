@@ -843,6 +843,15 @@ The SDK exposes transaction participation through callbacks:
 | `OnConfigVerify` | Verify | Yes for all participants. Returns estimated apply duration. |
 | `OnConfigApply` | Apply | Yes for all participants. |
 | `OnConfigRollback` | Rollback | Optional (plugins that can undo) |
+| `OnConfigCommitted` | Completion | Optional (plugins that defer a step a rollback could not undo until the commit) |
+
+`OnConfigCommitted` runs under the same gate as `OnConfigRollback`: only while
+an apply this plugin accepted is open, so never for a transaction the plugin did
+not apply in, never after a rollback, and once per commit. The BFD plugin uses
+it to stop its loops on a disable only once nothing can roll the disable back
+(`docs/architecture/bfd.md`).
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigCommitted -->
+<!-- source: pkg/plugin/sdk/config_tx_gate.go -- committed -->
 
 Plugins that do not implement `OnConfigRollback` cannot undo. If such a plugin's
 apply succeeds but another plugin triggers rollback, the engine logs a warning.

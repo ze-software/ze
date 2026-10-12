@@ -66,6 +66,10 @@ type ConfigApplyHandler func([]ConfigDiffSection) error
 // ConfigRollbackHandler handles config rollback in the transaction protocol.
 type ConfigRollbackHandler func(txID string) error
 
+// ConfigCommittedHandler handles the commit of a transaction the plugin
+// applied in: no rollback can undo that apply any more.
+type ConfigCommittedHandler func(txID string) error
+
 // ConfigOperationDecomposeHandler handles operation decomposition.
 type ConfigOperationDecomposeHandler func(ConfigOperationDecomposeInput) (*ConfigOperationDecomposeOutput, error)
 
@@ -492,6 +496,31 @@ func (p *Plugin) configApplyCallback(fn ConfigApplyHandler) callbackHandler {
 		}
 		p.configTx.applied()
 		return marshalStatusOK(nil)
+	}
+}
+
+// OnConfigCommitted sets the handler for the commit of a transaction
+// (transaction protocol). It runs only when this plugin accepted a
+// config-apply that is neither committed nor rolled back, as the rollback
+// handler does, so it is where a plugin performs a step of its apply that a
+// rollback could not undo, such as tearing down state other components hold
+// handles into. Without a handler, a commit only closes the rollback gate.
+func (p *Plugin) OnConfigCommitted(fn ConfigCommittedHandler) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackConfigCommitted] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input struct {
+			TransactionID string `json:"transaction-id"`
+		}
+		if params != nil {
+			if err := json.Unmarshal(params, &input); err != nil {
+				return nil, fmt.Errorf("unmarshal config-committed: %w", err)
+			}
+		}
+		if !p.configTx.committed() {
+			return nil, nil
+		}
+		return nil, fn(input.TransactionID)
 	}
 }
 

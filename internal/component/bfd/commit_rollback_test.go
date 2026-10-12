@@ -142,3 +142,118 @@ func TestConfigRollbackRestoresPreviousConfig(t *testing.T) {
 		t.Fatalf("EnsureSession(secure) after a second rollback: %v, want the session left on key-id 7", err)
 	}
 }
+
+// disabledSection turns the plugin off: bfd > enabled false.
+const disabledSection = `{"bfd":{"enabled":"false"}}`
+
+// subscriptionClosed drains what sub holds and reports whether it is closed.
+// A stopped loop closes every subscription before Stop returns, so a
+// subscription still open once drained belongs to a running loop.
+func subscriptionClosed(sub <-chan api.StateChange) bool {
+	for {
+		select {
+		case _, ok := <-sub:
+			if !ok {
+				return true
+			}
+		default:
+			return false
+		}
+	}
+}
+
+// TestDisableRolledBackKeepsProtocolClientSession commits bfd > enabled false
+// while a BGP client holds a session, then rolls the transaction back as the
+// engine does when another participant's apply fails. The client's
+// subscription stays open, so it still learns the session's state, and a
+// second client joins the same session. While the disable was applied, no
+// client got a session.
+// MUTATION: stopping the loops when the disable is applied closes the
+// client's subscription, and the rollback starts loops the client holds no
+// handle into, so this goes red.
+func TestDisableRolledBackKeepsProtocolClientSession(t *testing.T) {
+	svc, loop, _ := authJoinFixture(t)
+	loop.SetProfileAuth(svc.state.profileAuthFor(api.SingleHop))
+	client, err := svc.EnsureSession(bgpPeerSessionRequest("secure"))
+	if err != nil {
+		t.Fatalf("EnsureSession(secure): %v", err)
+	}
+	sub := client.Subscribe()
+
+	if err := commitAuthJoinEdit(t, svc, disabledSection); err != nil {
+		t.Fatalf("commit(disable): %v", err)
+	}
+	if _, err := svc.EnsureSession(bgpPeerSessionRequest("secure")); !errors.Is(err, errBfdDisabled) {
+		t.Fatalf("EnsureSession while disabled = %v, want errBfdDisabled", err)
+	}
+
+	runtimeStateGuard.Lock()
+	err = svc.state.rollbackConfig()
+	runtimeStateGuard.Unlock()
+	if err != nil {
+		t.Fatalf("rollbackConfig: %v", err)
+	}
+
+	if subscriptionClosed(sub) {
+		t.Fatal("the client's subscription closed across a rolled-back disable, want it open")
+	}
+	if _, err := svc.EnsureSession(bgpPeerSessionRequest("secure")); err != nil {
+		t.Fatalf("EnsureSession(secure) after the rollback: %v, want a join", err)
+	}
+}
+
+// TestDisableCommittedStopsLoops commits bfd > enabled false and then the
+// transaction's commit: the client's subscription is open until the commit
+// and closed after it.
+// MUTATION: a commit that leaves the deferred stop undone keeps the loop
+// running for a disabled plugin, so this goes red.
+func TestDisableCommittedStopsLoops(t *testing.T) {
+	svc, loop, _ := authJoinFixture(t)
+	loop.SetProfileAuth(svc.state.profileAuthFor(api.SingleHop))
+	client, err := svc.EnsureSession(bgpPeerSessionRequest("secure"))
+	if err != nil {
+		t.Fatalf("EnsureSession(secure): %v", err)
+	}
+	sub := client.Subscribe()
+
+	if err := commitAuthJoinEdit(t, svc, disabledSection); err != nil {
+		t.Fatalf("commit(disable): %v", err)
+	}
+	if subscriptionClosed(sub) {
+		t.Fatal("the subscription closed before the transaction committed")
+	}
+
+	runtimeStateGuard.Lock()
+	svc.state.committedConfig()
+	runtimeStateGuard.Unlock()
+
+	if !subscriptionClosed(sub) {
+		t.Fatal("the subscription is open after the disable committed, want the loop stopped")
+	}
+}
+
+// TestDeferredStopRunsAtNextApply commits bfd > enabled false, gets no commit
+// signal, and applies the next transaction: the disable's transaction
+// committed, so its stop runs before the next apply.
+// MUTATION: a next apply that forgets the deferred stop leaves the disabled
+// config's loop running, so this goes red.
+func TestDeferredStopRunsAtNextApply(t *testing.T) {
+	svc, loop, _ := authJoinFixture(t)
+	loop.SetProfileAuth(svc.state.profileAuthFor(api.SingleHop))
+	client, err := svc.EnsureSession(bgpPeerSessionRequest("secure"))
+	if err != nil {
+		t.Fatalf("EnsureSession(secure): %v", err)
+	}
+	sub := client.Subscribe()
+
+	if err := commitAuthJoinEdit(t, svc, disabledSection); err != nil {
+		t.Fatalf("commit(disable): %v", err)
+	}
+	if err := commitAuthJoinEdit(t, svc, disabledSection); err != nil {
+		t.Fatalf("commit(disable) again: %v", err)
+	}
+
+	if !subscriptionClosed(sub) {
+		t.Fatal("the subscription is open after the next apply, want the deferred stop run")
+	}
+}

@@ -202,7 +202,15 @@ undoes itself (`runtimeState.commitConfig`): it applies the config the plugin
 ran before, which unpublishes the refused profiles and returns every client to
 the request it held. An accepted apply keeps that config for
 `runtimeState.rollbackConfig`, the plugin's `OnConfigRollback` handler, which
-runs when another participant's apply fails. A client whose authentication differs from a live session's (Auth Type, Key
+runs when another participant's apply fails. A commit that sets `bfd { enabled
+false; }` is published at once, so no client gets a new session, but the loops
+keep running until the transaction commits (`OnConfigCommitted`,
+`runtimeState.committedConfig`). Stopping a loop closes the subscription of every
+protocol client holding a session on it, and a BGP peer or static route asks
+again only at its next Established or route change, so a disable rolled back
+after its loops stopped would have left those clients without BFD. A stop still
+deferred when the next apply arrives belongs to a transaction that committed,
+and runs before that apply. A client whose authentication differs from a live session's (Auth Type, Key
 ID, Meticulous flag or secret, or authentication on one side only) is refused
 with `ErrAuthMismatch` at both join arms (`joinAuthCheck`), so it gets no
 session rather than a second one, and it never runs on an authentication it did
@@ -235,7 +243,8 @@ every client naming that profile, on any neighbor.
 <!-- source: internal/component/bfd/engine/shared_session.go -- sharedEntryLocked, sharesSession, joinedKey -->
 <!-- source: internal/component/bfd/engine/shared_session.go -- retimeLocked, fastestRequest, fasterTie, UpdateSession, Reprofile, reprofileEntryLocked -->
 <!-- source: internal/component/bfd/bfd.go -- reprofileClients -->
-<!-- source: internal/component/bfd/config_tx.go -- commitConfig, rollbackConfig -->
+<!-- source: internal/component/bfd/config_tx.go -- commitConfig, rollbackConfig, committedConfig, settleDeferredStop -->
+<!-- test: internal/component/bfd/commit_rollback_test.go TestDisableRolledBackKeepsProtocolClientSession -->
 <!-- source: internal/component/bfd/session/timers.go -- ApplyTimers, ApplyRole, ApplyEcho, applyPendingTimersLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent, SetProfileAuth, sharedAuthLocked, replaceAuth -->
 <!-- source: internal/component/bfd/bfd.go -- loopFor, runtimeState.profileAuthFor -->

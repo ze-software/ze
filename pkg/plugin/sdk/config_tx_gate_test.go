@@ -126,3 +126,75 @@ func TestConfigRollbackOwedOnlyForUncommittedApply(t *testing.T) {
 		t.Fatal("plugin did not exit")
 	}
 }
+
+// TestConfigCommittedRunsOnlyForOpenApply drives a plugin with a commit
+// handler through the engine's callback RPCs.
+//
+// VALIDATES: the commit handler runs for a transaction the plugin accepted an
+// apply in, and not for one it never applied in, nor for one that rolled
+// back, nor twice for one commit.
+// PREVENTS: a plugin performing a deferred, irreversible step of an apply
+// that was rolled back, or of an apply that belongs to another transaction.
+func TestConfigCommittedRunsOnlyForOpenApply(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+	var mu sync.Mutex
+	var committed []string
+	p.OnConfigApply(func([]ConfigDiffSection) error { return nil })
+	p.OnConfigRollback(func(string) error { return nil })
+	p.OnConfigCommitted(func(txID string) error {
+		mu.Lock()
+		defer mu.Unlock()
+		committed = append(committed, txID)
+		return nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+	completeStartup(t, ctx, engine)
+
+	apply := func() {
+		t.Helper()
+		input := struct {
+			Sections []ConfigDiffSection `json:"sections"`
+		}{Sections: []ConfigDiffSection{{Root: "test"}}}
+		require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:config-apply", input))
+	}
+	txCall := func(method, txID string) {
+		t.Helper()
+		input := struct {
+			TransactionID string `json:"transaction-id"`
+		}{TransactionID: txID}
+		_, err := engine.mux.CallRPC(ctx, method, input)
+		require.NoError(t, err)
+	}
+
+	apply()
+	txCall("ze-plugin-callback:config-committed", "tx-1")
+	txCall("ze-plugin-callback:config-committed", "tx-1")
+	txCall("ze-plugin-callback:config-committed", "tx-2")
+	apply()
+	txCall("ze-plugin-callback:config-rollback", "tx-3")
+	txCall("ze-plugin-callback:config-committed", "tx-3")
+
+	mu.Lock()
+	got := append([]string(nil), committed...)
+	mu.Unlock()
+	assert.Equal(t, []string{"tx-1"}, got, "the commit handler runs once, for the one committed apply")
+
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}))
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}

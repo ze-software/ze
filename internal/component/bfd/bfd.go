@@ -210,9 +210,11 @@ func (r *runtimeState) stopAll() {
 // stops every session it holds; an enabled one starts and stops the pinned
 // sessions cfg names.
 //
-// Startup and reload read bfd > enabled here and nowhere else, so the master
-// switch cannot mean one thing on the first apply and another on the second.
-// The caller MUST hold runtimeStateGuard.
+// Startup and reload read bfd > enabled here, so the master switch cannot
+// mean one thing on the first apply and another on the second. The one other
+// reader is commitConfig, which applies a disable the same way but defers its
+// stopAll to the commit of the transaction. The caller MUST hold
+// runtimeStateGuard.
 func (r *runtimeState) applyConfig(cfg *pluginConfig) error {
 	if !cfg.enabled {
 		r.stopAll()
@@ -899,6 +901,15 @@ func RunBFDPlugin(conn net.Conn) int {
 		log.Info("bfd plugin reloaded",
 			"profiles", len(cfg.profiles),
 			"pinned-sessions", len(cfg.sessions))
+		return nil
+	})
+
+	// Every participant applied: a disable this plugin accepted stops its
+	// loops now (runtimeState.committedConfig).
+	p.OnConfigCommitted(func(_ string) error {
+		runtimeStateGuard.Lock()
+		defer runtimeStateGuard.Unlock()
+		state.committedConfig()
 		return nil
 	})
 
