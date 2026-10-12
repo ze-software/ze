@@ -495,13 +495,14 @@ func TestAHomepageInputNoPageCanBeMadeFromIsRefused(t *testing.T) {
 // lost leaves its content off the page with nothing to notice, which is the
 // shape of the defect this whole spec exists to fix.
 func TestTheTemplateAndTheProducerAgreeAboutEverySlot(t *testing.T) {
-	// Fourteen since 2026-09-21, when 02b164de51 rewrote the RFC proof card
-	// again and deleted {rfc_walked} from the template and from the producer
-	// together. It left this pin at fifteen, the count 5fc257bde3 set on
-	// 2026-09-09 when it deleted {rfc_gated_must}.
+	// Eighteen since 2026-10-10, when 7b1b2b6cd6 made the hero derive from its
+	// manifest entry: {hero_demo_file}, {hero_demo}, {hero_demo_title},
+	// {hero_demo_transcript} and {tour_demo_href} joined the template, filled by
+	// homeHeroSlots. It left this pin at fourteen, the count 02b164de51 set on
+	// 2026-09-21 when it deleted {rfc_walked}.
 	names := homeSlotPattern.FindAllString(homeTemplate, -1)
-	if len(names) != 14 {
-		t.Errorf("the homepage template has %d slots, want 14: %v", len(names), names)
+	if len(names) != 18 {
+		t.Errorf("the homepage template has %d slots, want 18: %v", len(names), names)
 	}
 	pairs := make([]string, 0, 2*len(names))
 	for _, name := range names {
