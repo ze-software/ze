@@ -1627,7 +1627,10 @@ not hold Ze's own marker (owner ruling, 2026-09-18).
    default-originate, the peer-up barrier, then the family routes.
 8. **drainAndCloseQueueGate:** the opQueue is drained and new work no longer
    joins the engine's initial-sync queue. The separate live-forward replay fence
-   remains held until its named reporters finish.
+   remains held until its named reporters finish. A teardown queued during this
+   drain's sends stops it as it stops the first drain (`runQueuedTeardown`:
+   End-of-RIB, then the NOTIFICATION, then the gate opens), and steps 9 and 10
+   do not run. A teardown that names an earlier session is dropped.
 9. **End-of-RIB, then the marker fact clears:** one marker per negotiated
    family, then `initialSyncEOROwed` goes false. The peer does NOT wait for the
    processes in step 5 first. A process that creates routes is treated like a
@@ -1713,8 +1716,10 @@ barrier cover every route-pushing binding without widening that window.
 
 ```go
 // In sendInitialRoutes(), once the routes this goroutine owns are on the wire.
-p.drainAndCloseQueueGate(addr, opMaxMsgSize) // Queueing gate closes HERE.
-p.wakeForwardOverflow()                      // Parked forwarded UPDATEs go out.
+if p.drainAndCloseQueueGate(addr, opMaxMsgSize) { // Queueing gate closes HERE.
+	return // A queued teardown ended the session.
+}
+p.wakeForwardOverflow() // Parked forwarded UPDATEs go out.
 
 // No wait for the reports of step 5. A route-creating process is a peer for
 // this decision, and Ze does not hold its own marker for a peer's.

@@ -146,9 +146,7 @@ func (p *Peer) sendInitialRoutes() {
 	// shouldQueue() in the announce/withdraw paths, ensures strict insertion order:
 	// routes arriving while this loop runs are queued (not sent directly) and
 	// processed here in FIFO order.
-	var teardownSubcode uint8
-	var teardownMsg string
-	teardownAutomatic := false
+	var teardown peerOp
 	hasTeardown := false
 
 	// Pre-compute max message size for size checking in PeerOpAnnounce
@@ -178,9 +176,7 @@ func (p *Peer) sendInitialRoutes() {
 				routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
 				continue
 			}
-			teardownSubcode = op.Subcode
-			teardownMsg = op.Message
-			teardownAutomatic = op.Automatic
+			teardown = op
 			hasTeardown = true
 
 		case PeerOpAnnounce:
@@ -289,55 +285,8 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	// If teardown was in queue, send EOR first, then execute teardown.
-	// EOR must be sent BEFORE NOTIFICATION per RFC 4724 Section 4.
 	if hasTeardown {
-		// Send EOR for ALL negotiated families before teardown.
-		//
-		// eorSent counts frames that reached the socket, never attempts: a failed
-		// send leaves the counter alone so `eor-sent` stays usable as the
-		// "end-of-RIB is on the wire" barrier (peer_stats.go incrEORSent). One
-		// error here is session-level (ErrNotConnected / ErrInvalidState / a write
-		// error), so the remaining families would fail identically -- stop, the
-		// same way the queue drain above stops on a connection error.
-		for _, fam := range nc.Families() {
-			if err := p.SendUpdate(message.BuildEOR(fam)); err != nil {
-				routesLogger().Warn("end-of-rib send failed",
-					"peer", addr, "family", fam, "phase", "teardown", "error", err)
-				break
-			}
-			p.incrEORSent()
-			routesLogger().Debug("sent EOR (before teardown)", "peer", addr, "family", fam)
-		}
-
-		routesLogger().Debug("executing queued teardown", "peer", addr, "subcode", teardownSubcode)
-		p.mu.RLock()
-		session := p.session
-		p.mu.RUnlock()
-		if session != nil {
-			// Set state to Connecting BEFORE Teardown to avoid race condition:
-			// Teardown closes TCP, peer immediately reconnects, but if peer.State()
-			// still shows Established, the new connection is rejected by collision check.
-			// The FSM callback will also set this, but may fire too late.
-			p.setState(PeerStateConnecting)
-			if err := sessionTeardown(session, teardownSubcode, teardownMsg, teardownAutomatic); err != nil {
-				routesLogger().Debug("teardown error", "peer", addr, "error", err)
-			}
-		}
-		// Clear remaining opQueue: these routes were never sent, so they have
-		// no sent history for the mandatory RIB to restore on reconnect.
-		p.mu.Lock()
-		queueLocked = true
-		if len(p.opQueue) > 0 {
-			routesLogger().Debug("clearing unsent queue items after teardown", "peer", addr, "count", len(p.opQueue))
-			p.opQueue = p.opQueue[:0]
-		}
-		// Clear both facts under mutex for teardown path too: the markers above
-		// are the only ones this session gets.
-		p.sendingInitialRoutes.Store(0)
-		p.initialSyncEOROwed.Store(false)
-		p.mu.Unlock()
-		queueLocked = false
-		p.wakeForwardOverflow()
+		p.runQueuedTeardown(addr, teardown)
 		return // Don't send family-specific routes after teardown
 	}
 
@@ -390,7 +339,9 @@ func (p *Peer) sendInitialRoutes() {
 	// empty and only then clear the flag: an op appended between the last drain
 	// and the clear would otherwise sit in a queue nothing will drain, because
 	// this goroutine is the only drainer.
-	p.drainAndCloseQueueGate(addr, opMaxMsgSize)
+	if p.drainAndCloseQueueGate(addr, opMaxMsgSize) {
+		return // A queued teardown ended the session: no End-of-RIB phase.
+	}
 
 	// The initial sync no longer owns the wire order, so the forwarded UPDATEs
 	// parked behind it may go out.
@@ -497,9 +448,15 @@ func (p *Peer) sendInitialRoutes() {
 // re-reads len(p.opQueue) each pass for the reason the main drain does: a send
 // runs unlocked, so a concurrent QueueAnnounce can append while it runs.
 //
+// A teardown for the current session, or a peer-level one, stops the drain as
+// it stops the main one: runQueuedTeardown sends the End-of-RIB, tears the
+// session down and opens the gate, and drainAndCloseQueueGate reports true so
+// the caller sends nothing more. A teardown queues here whenever it is asked
+// for during one of this drain's unlocked sends.
+//
 // Called with p.mu NOT held. addr and opMaxMsgSize are the caller's, so the peer
 // address is formatted once per sync rather than once per operation.
-func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
+func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown bool) {
 	p.mu.Lock()
 	queueLocked := true
 	// As in the first drain, unwind MUST unlock p.mu only while this drainer
@@ -603,9 +560,10 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 				routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
 				continue
 			}
-			// Teardown should not appear here — teardown is handled in the main
-			// drain loop, which returns early.
-			routesLogger().Error("unexpected teardown in the closing drain queue", "peer", addr)
+			p.mu.Unlock()
+			queueLocked = false
+			p.runQueuedTeardown(addr, op)
+			return true
 		default:
 			panic("BUG: invalid queued peer operation")
 		}
@@ -615,6 +573,73 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 		routesLogger().Debug("drained queued ops before the end-of-rib", "peer", addr, "count", finalProcessed)
 	}
 	p.sendingInitialRoutes.Store(0)
+	return false
+}
+
+// runQueuedTeardown carries out a teardown an opQueue drain took off the queue:
+// End-of-RIB for every negotiated family, then the Cease NOTIFICATION, then the
+// queue is cleared and the queueing gate opened. Both drains call it, so a
+// teardown queued during either one ends the session the same way.
+//
+// The drain checked op's target when it dequeued it, but the End-of-RIB sends
+// run in between and the peer can move to another session meanwhile. A
+// teardown that names a session therefore ends it only if it still holds the
+// peer; otherwise nothing is torn down, and the queue and the gate are left to
+// the initial sync of the session that holds the peer now.
+//
+// Called with p.mu NOT held.
+func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
+	// EOR must be sent BEFORE NOTIFICATION per RFC 4724 Section 4.
+	//
+	// eorSent counts frames that reached the socket, never attempts: a failed
+	// send leaves the counter alone so `eor-sent` stays usable as the
+	// "end-of-RIB is on the wire" barrier (peer_stats.go incrEORSent). One
+	// error here is session-level (ErrNotConnected / ErrInvalidState / a write
+	// error), so the remaining families would fail identically -- stop, the
+	// same way the queue drain stops on a connection error.
+	if nc := p.negotiated.Load(); nc != nil {
+		for _, fam := range nc.Families() {
+			if err := p.SendUpdate(message.BuildEOR(fam)); err != nil {
+				routesLogger().Warn("end-of-rib send failed",
+					"peer", addr, "family", fam, "phase", "teardown", "error", err)
+				break
+			}
+			p.incrEORSent()
+			routesLogger().Debug("sent EOR (before teardown)", "peer", addr, "family", fam)
+		}
+	}
+
+	routesLogger().Debug("executing queued teardown", "peer", addr, "subcode", op.Subcode)
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+	if op.TeardownSession != nil && op.TeardownSession != session {
+		routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
+		return
+	}
+	if session != nil {
+		// Set state to Connecting BEFORE Teardown to avoid race condition:
+		// Teardown closes TCP, peer immediately reconnects, but if peer.State()
+		// still shows Established, the new connection is rejected by collision check.
+		// The FSM callback will also set this, but may fire too late.
+		p.setState(PeerStateConnecting)
+		if err := sessionTeardown(session, op.Subcode, op.Message, op.Automatic); err != nil {
+			routesLogger().Debug("teardown error", "peer", addr, "error", err)
+		}
+	}
+	// Clear remaining opQueue: these routes were never sent, so they have
+	// no sent history for the mandatory RIB to restore on reconnect.
+	p.mu.Lock()
+	if len(p.opQueue) > 0 {
+		routesLogger().Debug("clearing unsent queue items after teardown", "peer", addr, "count", len(p.opQueue))
+		p.opQueue = p.opQueue[:0]
+	}
+	// Clear both facts under mutex for teardown path too: the markers sent
+	// above are the only ones this session gets.
+	p.sendingInitialRoutes.Store(0)
+	p.initialSyncEOROwed.Store(false)
+	p.mu.Unlock()
+	p.wakeForwardOverflow()
 }
 
 // sendUpdateDirect is the default send callback when writeMu is not held.
