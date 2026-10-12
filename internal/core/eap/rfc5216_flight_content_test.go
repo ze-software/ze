@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- EAP-TLS (RFC 5216)
-// RFC: rfc/short/rfc5216.md -- Sections 2.1.1, 2.1.3, 2.4, 3, 5.3 and 5.4: what each flight carries
+// RFC: rfc/short/rfc5216.md -- Sections 2.1.1, 2.1.2, 2.1.3, 2.4, 3, 5.3 and 5.4: what each flight carries
 // Related: rfc5216_success_flight_test.go -- driveEAPTLSFlight and the record decoder
 // Related: rfc9190_resumption_test.go -- the resumption stores and their peer config
 //
@@ -10,14 +10,17 @@
 // carrying a message too many or too few fails whatever the config says.
 //
 // VALIDATES: the TLS 1.2 full-handshake flights of Section 2.1.1; the peer's
-// TLS 1.2 resumed flight of Section 2.1.1 and its ciphersuite; the
-// authenticator ending the conversation after its EAP-Failure; null compression
+// TLS 1.2 resumed flight of Section 2.1.1 against a server that resumes; the
+// authenticator answering a TLS 1.2 ticket with a full handshake (Section
+// 2.1.2, owner ruling 2026-09-29); the authenticator ending the conversation after its EAP-Failure; null compression
 // both ways; the reserved flag bits a sender writes; the server chain without
 // its root; the peer refusing a revoked server certificate over TLS 1.2.
 // PREVENTS: a server flight without its certificate or with a message after
 // server_hello_done; a peer flight missing certificate, certificate_verify or
 // client_key_exchange; a resumed peer flight carrying a full handshake; an
-// authenticator that keeps answering after EAP-Failure; negotiated compression.
+// authenticator that resumes TLS 1.2, where crypto/tls would send a
+// NewSessionTicket after server_hello; an authenticator that keeps answering
+// after EAP-Failure; negotiated compression.
 
 package eap
 
@@ -155,11 +158,13 @@ func clientHelloCompression(t *testing.T, body []byte) (int, []byte) {
 }
 
 // tls12Exchange drives one TLS 1.2 EAP-TLS conversation over the two stores
-// and answers the flight and the reassembled messages of each side.
-func tls12Exchange(t *testing.T, pki *eapTLSPKI, server, peerStore *Resumption) (*eapTLSFlight, *PeerSession, [][]byte, [][]byte) {
+// and answers the flight and the reassembled messages of each side. tune, when
+// not nil, reaches the authenticator's own tls.Config before the handshake
+// (driveTunedEAPTLSFlight).
+func tls12Exchange(t *testing.T, pki *eapTLSPKI, server, peerStore *Resumption, tune func(*tls.Config)) (*eapTLSFlight, *PeerSession, [][]byte, [][]byte) {
 	t.Helper()
 	peer := NewPeerSessionTLS("eap-tls-client", pki.resumptionPeerConfig(peerStore))
-	fl := driveEAPTLSFlight(t, pki.serverConfigResuming(server), peer, tls.VersionTLS12, eapTLS13Rounds)
+	fl := driveTunedEAPTLSFlight(t, pki.serverConfigResuming(server), peer, tls.VersionTLS12, eapTLS13Rounds, tune)
 	requireCompleted(t, fl, "the TLS 1.2 exchange")
 	return fl, peer, eapTLSMessages(t, fl.serverSent), eapTLSMessages(t, fl.peerSent)
 }
@@ -168,7 +173,7 @@ func tls12Exchange(t *testing.T, pki *eapTLSPKI, server, peerStore *Resumption) 
 // peer's second flight of one full TLS 1.2 handshake.
 func fullTLS12Flights(t *testing.T, pki *eapTLSPKI) (clientHello, serverFlight, peerFlight tlsFlight, fl *eapTLSFlight) {
 	t.Helper()
-	fl, _, server, peer := tls12Exchange(t, pki, NewResumption(time.Now, true), NewResumption(time.Now, true))
+	fl, _, server, peer := tls12Exchange(t, pki, NewResumption(time.Now, true), NewResumption(time.Now, true), nil)
 	if len(server) < 1 || len(peer) < 2 {
 		t.Fatalf("the exchange carried %d server and %d peer messages", len(server), len(peer))
 	}
@@ -381,49 +386,129 @@ func TestRFC5216SendersWriteZeroReservedFlagBits(t *testing.T) {
 	}
 }
 
-// resumedTLS12Flights drives two TLS 1.2 conversations over one pair of stores
-// and answers the first ServerHello body, the resuming server flight and the
-// peer's answer to it.
-func resumedTLS12Flights(t *testing.T) (firstHello []byte, resumed, answer tlsFlight) {
+// clientHelloTicket answers the session_ticket extension of a ClientHello body,
+// nil when it carries none (RFC 5077 Section 3.2, extension type 35). An empty
+// one asks for a ticket and offers none.
+func clientHelloTicket(t *testing.T, body []byte) []byte {
 	t.Helper()
-	pki := newEAPTLSPKI(t)
-	server, peerStore := NewResumption(time.Now, true), NewResumption(time.Now, true)
-
-	_, _, firstServer, _ := tls12Exchange(t, pki, server, peerStore)
-	firstHello = parseTLSFlight(t, firstServer[0]).bodies[tlsHSServerHello]
-
-	_, peer, secondServer, secondPeer := tls12Exchange(t, pki, server, peerStore)
-	if !peer.Resumed() {
-		t.Fatal("the second TLS 1.2 conversation did not resume")
+	const sessionTicketExtension = 35
+	at, methods := clientHelloCompression(t, body)
+	at += 1 + len(methods)
+	if at+2 > len(body) {
+		return nil
 	}
-	if len(secondPeer) < 2 {
-		t.Fatalf("the resumed conversation carried %d peer messages", len(secondPeer))
+	end := at + 2 + int(binary.BigEndian.Uint16(body[at:at+2]))
+	if end > len(body) {
+		t.Fatalf("the ClientHello extensions overrun its body of %d octets", len(body))
 	}
-	resumed = parseTLSFlight(t, secondServer[0])
-	if len(resumed.types) == 0 || resumed.types[0] != tlsHSServerHello {
-		t.Fatalf("the resuming server flight carries %v, want a ServerHello first", resumed.types)
+	for off := at + 2; off+4 <= end; {
+		kind := binary.BigEndian.Uint16(body[off : off+2])
+		size := int(binary.BigEndian.Uint16(body[off+2 : off+4]))
+		if off+4+size > end {
+			t.Fatalf("a ClientHello extension overruns its block at offset %d", off)
+		}
+		if kind == sessionTicketExtension {
+			return body[off+4 : off+4+size]
+		}
+		off += 4 + size
 	}
-	return firstHello, resumed, parseTLSFlight(t, secondPeer[1])
+	return nil
 }
 
-// TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished drives two TLS
-// 1.2 conversations over one pair of stores and reads the peer's resumed
-// flight and the resumed ciphersuite.
+// ticketedTLS12Attempt drives one more TLS 1.2 conversation over stores an
+// earlier conversation filled, and answers the peer, the server's first flight
+// and the peer's answer to it. It fails unless the peer's ClientHello offers
+// the ticket it holds, so a conversation that does not resume is the server's
+// choice and never a peer that had nothing to offer. tune reaches the
+// authenticator's tls.Config as in tls12Exchange.
+func ticketedTLS12Attempt(t *testing.T, pki *eapTLSPKI, server, peerStore *Resumption, tune func(*tls.Config)) (*PeerSession, tlsFlight, tlsFlight) {
+	t.Helper()
+	_, peer, serverSent, peerSent := tls12Exchange(t, pki, server, peerStore, tune)
+	if len(serverSent) < 1 || len(peerSent) < 2 {
+		t.Fatalf("the conversation carried %d server and %d peer messages", len(serverSent), len(peerSent))
+	}
+	hello := parseTLSFlight(t, peerSent[0])
+	if len(clientHelloTicket(t, hello.bodies[tlsHSClientHello])) == 0 {
+		t.Fatal("the peer's ClientHello offers no session ticket, so the conversation could not have resumed")
+	}
+	flight := parseTLSFlight(t, serverSent[0])
+	if len(flight.types) == 0 || flight.types[0] != tlsHSServerHello {
+		t.Fatalf("the server flight carries %v, want a ServerHello first", flight.types)
+	}
+	return peer, flight, parseTLSFlight(t, peerSent[1])
+}
+
+// stockTLS12Resumption removes ze's UnwrapSession from the authenticator's
+// tls.Config, so crypto/tls redeems a TLS 1.2 ticket with its default
+// decryption: a test server that resumes TLS 1.2 sessions, which ze's own
+// authenticator never does (redeemTLS13Only, resumption.go).
+func stockTLS12Resumption(cfg *tls.Config) { cfg.UnwrapSession = nil }
+
+// TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake hands the peer
+// a TLS 1.2 ticket in one conversation and offers it to ze's authenticator in
+// the next.
 //
-// RFC requirement: RFC5216-2.1.1-10 positive -- the peer answers the resuming
-// server_hello with change_cipher_spec and one sealed finished record, and no
-// plaintext handshake message.
+// RFC requirement: RFC5216-2.1.2-1 positive -- ze's authenticator never resumes
+// a TLS 1.2 session, so it never owes the resumed flight: offered the ticket,
+// it does not resume, and its flight after server_hello is the full one,
+// certificate through server_hello_done, with no change_cipher_spec.
+func TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake(t *testing.T) {
+	pki := newEAPTLSPKI(t)
+	server, peerStore := NewResumption(time.Now, true), NewResumption(time.Now, true)
+	tls12Exchange(t, pki, server, peerStore, nil)
+
+	peer, flight, _ := ticketedTLS12Attempt(t, pki, server, peerStore, nil)
+	if peer.Resumed() {
+		t.Fatal("the authenticator resumed a TLS 1.2 session")
+	}
+	if flight.ccs {
+		t.Fatalf("the server flight sends change_cipher_spec after handshake types %v", flight.types)
+	}
+	if !bytes.Contains(flight.types, []byte{tlsHSCertificate}) {
+		t.Fatalf("the server flight carries handshake types %v, with no certificate", flight.types)
+	}
+	if last := flight.types[len(flight.types)-1]; last != tlsHSServerHelloDone {
+		t.Fatalf("the server flight carries handshake types %v, want server_hello_done last", flight.types)
+	}
+}
+
+// TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished runs the peer
+// against a test server that resumes TLS 1.2 (stockTLS12Resumption), then
+// offers the ticket to ze's own authenticator.
 //
-// RFC requirement: RFC5216-2.1.1-5 positive -- the resumed ServerHello selects
-// the ciphersuite the first conversation established.
+// RFC requirement: RFC5216-2.1.1-10 positive -- the test server resumes, and
+// ze's peer answers the resuming server_hello with change_cipher_spec and one
+// sealed finished record, and no plaintext handshake message.
+//
+// RFC requirement: RFC5216-2.1.1-5 positive -- ze's authenticator matches no
+// TLS 1.2 session, so no ciphersuite of a matched session is in play: offered
+// the ticket, its conversation does not resume and its server_hello is
+// followed by a full handshake, not change_cipher_spec.
 func TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished(t *testing.T) {
-	firstHello, resumed, answer := resumedTLS12Flights(t)
-	firstSuite, _ := serverHelloSuite(t, firstHello)
+	pki := newEAPTLSPKI(t)
+	server, peerStore := NewResumption(time.Now, true), NewResumption(time.Now, true)
+	_, _, first, _ := tls12Exchange(t, pki, server, peerStore, stockTLS12Resumption)
+	firstSuite, _ := serverHelloSuite(t, parseTLSFlight(t, first[0]).bodies[tlsHSServerHello])
+
+	// The harness check that the test server resumed the session the first
+	// conversation established, under its ciphersuite.
+	peer, resumed, answer := ticketedTLS12Attempt(t, pki, server, peerStore, stockTLS12Resumption)
+	if !peer.Resumed() {
+		t.Fatal("the peer did not resume against a server that redeems TLS 1.2 tickets")
+	}
+	if suite, _ := serverHelloSuite(t, resumed.bodies[tlsHSServerHello]); suite != firstSuite {
+		t.Fatalf("the test server resumed under suite %#04x, the session was established under %#04x", suite, firstSuite)
+	}
 	if len(answer.types) != 0 || !answer.ccs || !bytes.Equal(answer.afterCCS, []byte{tlsContentHandshake}) {
 		t.Fatalf("the peer answered the resuming server_hello with %v, ccs %v, then %v", answer.types, answer.ccs, answer.afterCCS)
 	}
-	if suite, _ := serverHelloSuite(t, resumed.bodies[tlsHSServerHello]); suite != firstSuite {
-		t.Fatalf("the resumed ServerHello selects suite %#04x, the session was established under %#04x", suite, firstSuite)
+
+	refused, flight, _ := ticketedTLS12Attempt(t, pki, server, peerStore, nil)
+	if refused.Resumed() {
+		t.Fatal("ze's authenticator matched a TLS 1.2 session")
+	}
+	if flight.ccs || !bytes.Contains(flight.types, []byte{tlsHSCertificate}) {
+		t.Fatalf("ze's authenticator answered the ticket with handshake types %v, ccs %v; want a full handshake", flight.types, flight.ccs)
 	}
 }
 

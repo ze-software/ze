@@ -504,7 +504,13 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 	// handshake Section 5.7 asks for, where an error out of VerifyConnection
 	// would send a fatal bad_certificate alert instead (refuseResumption,
 	// resumption.go).
-	if !config.Resumption.Enabled() {
+	//
+	// With resumption on, the authenticator still matches no TLS 1.2 session
+	// (redeemTLS13Only, resumption.go): crypto/tls cannot send the resumed TLS
+	// 1.2 flight RFC 5216 Section 2.1.2 demands.
+	if config.Resumption.Enabled() {
+		tlsCfg.UnwrapSession = authenticatorTickets{cfg: tlsCfg}.redeemTLS13Only
+	} else {
 		tlsCfg.UnwrapSession = refuseResumption
 	}
 

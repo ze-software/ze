@@ -285,3 +285,34 @@ func refuseResumption(_ []byte, _ tls.ConnectionState) (*tls.SessionState, error
 	//nolint:nilnil // crypto/tls defines (nil, nil) as "this identity names no session"
 	return nil, nil
 }
+
+// authenticatorTickets carries the tls.Config whose ticket keys an
+// authenticator with resumption on redeems tickets under. Its redeemTLS13Only
+// is that authenticator's tls.Config.UnwrapSession.
+type authenticatorTickets struct {
+	cfg *tls.Config
+}
+
+// redeemTLS13Only redeems a TLS 1.3 ticket under the authenticator's ticket
+// keys and matches no TLS 1.2 session (owner ruling 2026-09-29).
+//
+// crypto/tls renews the ticket on every TLS 1.2 resumption ("We always send a
+// new session ticket", serverHandshakeState.doResumeHandshake,
+// crypto/tls/handshake_server.go), so a NewSessionTicket would follow
+// server_hello and the resumed flight would break Section 2.1.2. Refused, the
+// ticket costs the peer a full handshake, which RFC 9190 Section 5.7 allows:
+// "the EAP-TLS server MAY choose to require a full handshake". TLS 1.3
+// resumption follows RFC 9190 Section 2.1.3 and is unaffected.
+//
+// crypto/tls calls it with the negotiated version already in cs, for TLS 1.2
+// (serverHandshakeState.checkForResumption) and for TLS 1.3 alike.
+func (a authenticatorTickets) redeemTLS13Only(identity []byte, cs tls.ConnectionState) (*tls.SessionState, error) {
+	// RFC 5216 Section 2.1.2: "If the EAP server is resuming a previously
+	// established session, then it MUST include only a TLS change_cipher_spec
+	// message and a TLS finished handshake message after the server_hello
+	// message."
+	if cs.Version == tls.VersionTLS12 {
+		return refuseResumption(identity, cs)
+	}
+	return a.cfg.DecryptTicket(identity, cs)
+}

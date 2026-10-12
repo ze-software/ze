@@ -109,6 +109,13 @@ assignment.
   session from `tls.Config.UnwrapSession`, which crypto/tls turns into a full
   handshake. Refusing from `VerifyConnection` would send a fatal alert where
   Section 5.7 asks for the full handshake.
+- RFC 5216 Section 2.1.2 allows only change_cipher_spec and finished after a
+  resuming TLS 1.2 server_hello, and crypto/tls always sends a NewSessionTicket
+  there. So with `session-resumption true` the authenticator still answers no
+  session for a TLS 1.2 ticket, and only a TLS 1.3 ticket resumes (owner
+  ruling, 2026-09-29).
+
+<!-- source: internal/core/eap/resumption.go -- authenticatorTickets.redeemTLS13Only -->
 
 ## Decisions
 
@@ -150,8 +157,8 @@ does it as a peer (`eap.CheckCertificateStatus`).
 
 **Resumption is one operator setting for both roles.** The `session-resumption`
 leaf sits in the peer's `authentication` container, defaults to true, and gates
-accepting a resumed session as the authenticator and offering a ticket as the
-peer. It never gates issuing one. `parseSessionResumption` writes the default
+accepting a resumed TLS 1.3 session as the authenticator (a TLS 1.2 session is
+never accepted) and offering a ticket as the peer. It never gates issuing one. `parseSessionResumption` writes the default
 rather than leaving it to the Go zero value, because `config.Tree.Get` answers
 "absent" for a leaf the operator never set.
 

@@ -2,7 +2,8 @@
 // drives the RFC 5216 Section 2.1.1 and 2.1.2 handshake flights from (owner ruling
 // 2026-08-31: a requirement met through a lower layer still carries a test asserting
 // what Ze installs). The authenticator installs its certificate, demands and verifies
-// the peer's, and holds session ticket keys it can redeem; the peer installs its
+// the peer's, holds session ticket keys it can redeem, and installs its own
+// UnwrapSession (redeemTLS13Only, which matches no TLS 1.2 session); the peer installs its
 // certificate, its chain check and, when resumption is on, the session cache that
 // lets it offer a resumed session.
 // PREVENTS: a role that would start a flight it cannot complete: an authenticator
@@ -33,11 +34,11 @@ func authenticatorTLSConfigForTest(t *testing.T, cfg MethodConfig) *tls.Config {
 }
 
 // RFC requirement: RFC5216-2.1.1-4 positive -- the authenticator installs redeemable session ticket keys and leaves session tickets enabled, so a new session can be established under an identity it chose.
-// RFC requirement: RFC5216-2.1.1-5 positive -- the authenticator installs no UnwrapSession refusal when resumption is on, so a matching session is redeemed under the ciphersuite crypto/tls recorded in the ticket.
+// RFC requirement: RFC5216-2.1.1-5 positive -- the authenticator installs its own UnwrapSession when resumption is on, so crypto/tls's default ticket decryption, which would match a TLS 1.2 session, is not the one that runs.
 // RFC requirement: RFC5216-2.1.1-6 positive -- the authenticator installs exactly one certificate, the server_certificate of every full handshake.
 // RFC requirement: RFC5216-2.1.1-9 positive -- the authenticator demands and verifies the peer certificate, and the peer installs exactly one certificate to send in that flight.
 // RFC requirement: RFC5216-2.1.1-10 positive -- the peer installs a session cache when resumption is on, which is what lets it offer a resumed session and send only the resumed flight.
-// RFC requirement: RFC5216-2.1.2-1 positive -- the authenticator installs the ticket keys and no refusal, so a resumed session is answered with the resumed flight.
+// RFC requirement: RFC5216-2.1.2-1 positive -- the authenticator installs its own UnwrapSession when resumption is on, the hook through which it refuses a TLS 1.2 session; the flight it then sends is asserted by TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake.
 func TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 
@@ -51,8 +52,8 @@ func TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry(t *testing.T) {
 	if server.SessionTicketsDisabled {
 		t.Error("authenticator disabled session tickets, so no session it establishes could be resumed")
 	}
-	if server.UnwrapSession != nil {
-		t.Error("authenticator installs a resumption refusal while resumption is on")
+	if server.UnwrapSession == nil {
+		t.Error("authenticator installs no UnwrapSession while resumption is on, so crypto/tls would resume a TLS 1.2 session")
 	}
 	if server.MinVersion != tls.VersionTLS12 {
 		t.Errorf("authenticator MinVersion %s, want TLS 1.2", tls.VersionName(server.MinVersion))
