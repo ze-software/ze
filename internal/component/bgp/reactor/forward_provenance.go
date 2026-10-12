@@ -70,7 +70,7 @@ func (p *fwdProvenance) release() {
 // writePath returns the source path before ADD-PATH identifiers were stripped
 // or regenerated. RFC 7911 Section 5: "If a BGP speaker receives a message
 // to withdraw a prefix with a Path Identifier not seen before, it SHOULD
-// silently ignore it."
+// silently ignore it".
 func (item *fwdItem) writePath(fam family.Family, _ []byte, withdraw, multiprotocol bool, occurrence int) (adjOutPath, error) {
 	if item.authority == adjOutExpected {
 		return adjOutPath{revision: item.expectedMessage}, nil
@@ -226,7 +226,7 @@ func prepareFwdProvenance(item *fwdItem, original, transformed *wireu.WireUpdate
 // fwdProvenancePaths uses registered native framing, including withdrawal-only
 // label Compatibility encodings. RFC 8277 Section 2.4: "Upon transmission,
 // the Compatibility field SHOULD be set to 0x800000." "Upon reception, the
-// value of the Compatibility field MUST be ignored."
+// value of the Compatibility field MUST be ignored".
 func fwdProvenancePaths(data []byte, fam family.Family, ctx *bgpctx.EncodingContext, withdraw bool, visit func([]byte, uint32, bool) error) error {
 	split := nlrisplit.Get(fam)
 	if withdraw {
@@ -261,7 +261,7 @@ func fwdProvenancePaths(data []byte, fam family.Family, ctx *bgpctx.EncodingCont
 // fwdBodySections borrows RFC 4271 Section 4.3 fields without allocating a
 // parsed UPDATE. "The UPDATE message always includes the fixed-size BGP
 // header, and also includes the other fields, as shown below (note, some of
-// the shown fields may not be present in every UPDATE message):"
+// the shown fields may not be present in every UPDATE message)".
 func fwdBodySections(body []byte, visit func([]byte, family.Family, bool, bool) error) error {
 	if len(body) < 4 {
 		return fmt.Errorf("forward ownership: truncated UPDATE")

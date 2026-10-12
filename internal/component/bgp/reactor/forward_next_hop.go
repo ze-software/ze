@@ -596,6 +596,9 @@ const (
 	withholdInvalidWidth                        // wire field length is not valid for IPv6 unicast
 )
 
+// rfc2545Section3 names the section a withheld IPv6 next hop violates.
+const rfc2545Section3 = "RFC 2545 Section 3"
+
 // withholdGateText is the operator log line and the governing document of each
 // gate, indexed by the gate.
 var withholdGateText = [...]struct{ message, rfc string }{
@@ -605,9 +608,9 @@ var withholdGateText = [...]struct{ message, rfc string }{
 	withholdLinkLocalOnlyOffLink:   {"withholding route: its next hop is link-local-only and this peer is more than one IP hop away", "draft-ietf-idr-linklocal-capability Section 4"},
 	withholdNoExtendedNextHop:      {"withholding route: its IPv6 next hop for IPv4 NLRI needs the Extended Next Hop capability this peer did not negotiate", "RFC 8950 Section 4"},
 	withholdLinkLocalOnlyRefused:   {"withholding route: its next hop is link-local-only and this peer did not negotiate the Link-Local Next Hop capability", "draft-ietf-idr-linklocal-capability Section 2"},
-	withholdUnusableGlobal:         {"withholding route: its IPv6 global next-hop slot has no usable global address", "RFC 2545 Section 3"},
-	withholdInvalidPair:            {"withholding route: its IPv6 next-hop pair has a non-link-local second address", "RFC 2545 Section 3"},
-	withholdInvalidWidth:           {"withholding route: its next-hop wire length is invalid for IPv6 unicast", "RFC 2545 Section 3"},
+	withholdUnusableGlobal:         {"withholding route: its IPv6 global next-hop slot has no usable global address", rfc2545Section3},
+	withholdInvalidPair:            {"withholding route: its IPv6 next-hop pair has a non-link-local second address", rfc2545Section3},
+	withholdInvalidWidth:           {"withholding route: its next-hop wire length is invalid for IPv6 unicast", rfc2545Section3},
 }
 
 // warn logs the suppression. draft-ietf-idr-linklocal-capability Section 4 asks

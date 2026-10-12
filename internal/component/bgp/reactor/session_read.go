@@ -515,7 +515,7 @@ func (s *Session) collapseASPathFamily(wireUpdate *wireu.WireUpdate, validation 
 }
 
 // logAS4Discards records the existing reconciliation's nonfatal decisions.
-// RFC 6793 Section 6: "The error SHOULD be logged locally for analysis."
+// RFC 6793 Section 6: "The error SHOULD be logged locally for analysis".
 func (s *Session) logAS4Discards(discards []attribute.ASPathDiscard) {
 	for _, discard := range discards {
 		sessionLogger().Warn("discarded a received AS4 attribute",

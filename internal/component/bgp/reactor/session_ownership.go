@@ -122,7 +122,7 @@ func (w *adjOutWrite) release() {
 // RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
 // MUST be ignored." RFC 7911 Section 3: "In order to carry the Path Identifier
 // in an UPDATE message, the NLRI encoding MUST be extended by prepending the
-// Path Identifier field, which is of four octets."
+// Path Identifier field, which is of four octets".
 func (w *adjOutWrite) key(fam family.Family, raw []byte, withdraw bool) (adjOutKey, error) {
 	key := adjOutKey{addPath: w.encoding.AddPathFor(fam)}
 	id := uint32(0)
@@ -151,7 +151,7 @@ func (w *adjOutWrite) sourceBound() bool {
 // current message ID and source session generation: retained GR paths remain
 // withdrawable by the same source on its new session.
 // RFC 7911 Section 5: "If a BGP speaker receives a message to withdraw a
-// prefix with a Path Identifier not seen before, it SHOULD silently ignore it."
+// prefix with a Path Identifier not seen before, it SHOULD silently ignore it".
 func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotocol bool, occurrence int, sig adjRIBOutSignature, readable bool) (bool, error) {
 	key, err := w.key(fam, raw, withdraw)
 	if err != nil {
@@ -288,7 +288,7 @@ func (w *adjOutWrite) section(dst, data []byte, fam family.Family, withdraw, mul
 // filter first runs without a destination; unchanged bodies need no copy. A
 // second pass materializes only a changed body into caller-owned pooled storage.
 // RFC 4760 Section 4: "An UPDATE message that contains the MP_UNREACH_NLRI is
-// not required to carry any other path attributes."
+// not required to carry any other path attributes".
 func (w *adjOutWrite) filter(dst, body []byte) (int, error) {
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
@@ -378,10 +378,10 @@ func (w *adjOutWrite) filter(dst, body []byte) (int, error) {
 		paths += count
 		n += count
 		if dst != nil {
-			if flags&attribute.FlagExtLength != 0 {
-				binary.BigEndian.PutUint16(dst[outStart+2:], uint16(off+count))
-			} else {
+			if flags&attribute.FlagExtLength == 0 {
 				dst[outStart+2] = byte(off + count)
+			} else {
+				binary.BigEndian.PutUint16(dst[outStart+2:], uint16(off+count))
 			}
 		}
 		start = end
@@ -410,7 +410,7 @@ func adjOutSlice(dst []byte, off int) []byte {
 // Adj-RIB-In will be updated with this route as follows: if the NLRI of the
 // new route is identical to the one the route currently has stored in the
 // Adj-RIB-In, then the new route SHALL replace the older route in the
-// Adj-RIB-In, thus implicitly withdrawing the older route from service."
+// Adj-RIB-In, thus implicitly withdrawing the older route from service".
 func (w *adjOutWrite) record(body []byte) error {
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
@@ -439,7 +439,7 @@ func (w *adjOutWrite) record(body []byte) error {
 			if cause != nil {
 				return cause
 			}
-			if cause = w.recordSection(value[off:], attrs, fam, !reach); cause != nil {
+			if cause := w.recordSection(value[off:], attrs, fam, !reach); cause != nil {
 				return cause
 			}
 		}

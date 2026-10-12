@@ -540,7 +540,7 @@ func (s *Session) rfc7606DiagnosticsWithWire(event string, wu *wireu.WireUpdate,
 // mpDiagnosticNLRI lists every framed MP NLRI, including unknown typed routes.
 // RFC 7606 Section 6: "At a minimum, such facilities must include logging
 // an error listing the NLRI involved and containing the entire
-// malformed UPDATE message when such an attribute is detected."
+// malformed UPDATE message when such an attribute is detected".
 func mpDiagnosticNLRI(code attribute.AttributeCode, value []byte, ctx *bgpctx.EncodingContext) []string {
 	start, ok := message.MPNLRIStart(uint8(code), value)
 	if !ok {

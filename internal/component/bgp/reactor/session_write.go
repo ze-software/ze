@@ -455,7 +455,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		extended := false
 		if s.negotiated != nil {
 			extended = s.negotiated.ExtendedNextHopAFI(capability.Family{
-				AFI: capability.AFI(nextHop.mpFamily.AFI), SAFI: capability.SAFI(nextHop.mpFamily.SAFI),
+				AFI: nextHop.mpFamily.AFI, SAFI: nextHop.mpFamily.SAFI,
 			}) == capability.AFIIPv6
 		}
 		if profile.ExtendedIPv6 && nextHop.mpIPv6 && !extended {
@@ -601,7 +601,7 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 // opaque bytes; its caller MUST flush and retire the Session before returning.
 // RFC 4271 Section 4.3: "An UPDATE message is used to advertise feasible routes
 // that share common path attributes to a peer, or to withdraw multiple
-// unfeasible routes from service (see 3.1)."
+// unfeasible routes from service (see 3.1)".
 func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result error) {
 	if s.writeFailed != nil {
 		return false, s.writeFailed

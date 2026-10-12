@@ -140,7 +140,7 @@ func stripAIGPBody(dst, body []byte) ([]byte, error) {
 // not fit a wire buffer before splitting. The caller MUST provide len(attrs)
 // writable bytes in dst; the result MUST be consumed before dst is reused.
 // RFC 7311 Section 3.3: "The AIGP attribute MUST NOT be sent on any BGP session
-// for which AIGP_SESSION is disabled."
+// for which AIGP_SESSION is disabled".
 func stripAIGPAttributes(dst, attrs []byte) []byte {
 	written := 0
 	it := attribute.NewAttrIterator(attrs)
