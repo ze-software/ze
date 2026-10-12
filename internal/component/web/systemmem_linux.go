@@ -4,13 +4,23 @@
 
 package web
 
-import "github.com/ze-software/ze/internal/component/host"
+import (
+	"errors"
+	"fmt"
 
-func totalSystemMemory() uint64 {
+	"github.com/ze-software/ze/internal/component/host"
+)
+
+// totalSystemMemory answers the physical memory of the host in bytes, from the
+// host component's memory detector.
+func totalSystemMemory() (uint64, error) {
 	d := &host.Detector{}
 	m, err := d.DetectMemory()
-	if err != nil || m == nil {
-		return 0
+	if err != nil {
+		return 0, fmt.Errorf("detect memory: %w", err)
 	}
-	return m.TotalBytes
+	if m == nil {
+		return 0, errors.New("detect memory: no memory information returned")
+	}
+	return m.TotalBytes, nil
 }

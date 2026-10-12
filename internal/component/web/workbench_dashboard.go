@@ -105,8 +105,10 @@ func buildSystemPanel(tree *config.Tree) DashboardSystemPanel {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
-	memTotal := ""
-	if sysBytes := totalSystemMemory(); sysBytes > 0 {
+	// A host whose memory cannot be read shows "unknown", never a blank or a
+	// zero that reads as a measurement.
+	memTotal := "unknown"
+	if sysBytes, err := totalSystemMemory(); err == nil {
 		memTotal = formatBytes(sysBytes)
 	}
 
