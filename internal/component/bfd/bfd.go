@@ -83,6 +83,9 @@ type runtimeState struct {
 	pinned         map[api.Key]api.SessionHandle
 	cfg            *pluginConfig
 	captureEnabled bool
+	// undo is what a rollback of the open config transaction restores, nil
+	// when no rollback is owed (commitConfig, rollbackConfig).
+	undo *configUndo
 }
 
 func newRuntimeState() *runtimeState {
@@ -230,11 +233,11 @@ func (r *runtimeState) applyConfig(cfg *pluginConfig) error {
 //
 // cfg is published before the sessions change, because loopFor and the
 // loop's profile lookup (profileAuthFor) read it while this apply opens and
-// joins sessions, and it stays published when a session refuses the edit:
-// the commit holds it, and a client that asks after every client released
-// the refusing session builds it from the edited profile (docs/guide/bfd.md,
-// "Editing live"). So no client a commit removes may fail this apply: a
-// client naming a profile cfg deleted keeps its request (reprofileClients).
+// joins sessions. A refused apply is undone by its caller (commitConfig),
+// which applies the config that ran before, so cfg is not left published by
+// a commit the transaction refused. No client a commit removes may fail this
+// apply: a client naming a profile cfg deleted keeps its request
+// (reprofileClients).
 func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 
 	// A pinned session is a client like any other, so its key goes through
@@ -880,12 +883,13 @@ func RunBFDPlugin(conn net.Conn) int {
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		cfg := pendingCfg
 		pendingCfg = nil
-		if cfg == nil {
-			return nil
-		}
 		runtimeStateGuard.Lock()
 		defer runtimeStateGuard.Unlock()
-		if err := state.applyConfig(cfg); err != nil {
+		if cfg == nil {
+			state.dropUndo()
+			return nil
+		}
+		if err := state.commitConfig(cfg); err != nil {
 			return fmt.Errorf("bfd: apply: %w", err)
 		}
 		if !cfg.enabled {
@@ -895,6 +899,18 @@ func RunBFDPlugin(conn net.Conn) int {
 		log.Info("bfd plugin reloaded",
 			"profiles", len(cfg.profiles),
 			"pinned-sessions", len(cfg.sessions))
+		return nil
+	})
+
+	// Another participant's apply failed after this one was accepted: the
+	// running config is the one before the transaction again.
+	p.OnConfigRollback(func(_ string) error {
+		runtimeStateGuard.Lock()
+		defer runtimeStateGuard.Unlock()
+		if err := state.rollbackConfig(); err != nil {
+			return fmt.Errorf("bfd: rollback: %w", err)
+		}
+		log.Info("bfd config rolled back")
 		return nil
 	})
 

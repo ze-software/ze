@@ -69,6 +69,7 @@ func TestReprofileRefusalBesideNoProfileClient(t *testing.T) {
 		"keeps the settings it ran before this commit",
 		`restore the previous auth block of bfd profile "p"`,
 		"set bfd { enabled false; }",
+		"or first commit a change that releases a client naming no bfd profile, then commit this edit",
 	}, []string{"both profiles", "gets no BFD session"})
 }
 

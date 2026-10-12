@@ -266,7 +266,21 @@ const authEditRefusedWhy = "one session per neighbor runs one authentication " +
 // does not know which protocol a client is, so the fix that names a profile
 // on that client carries the OSPF alternative beside it, as the join refusal
 // does (authMismatchCase).
+//
+// Every answer ends with the route that needs no auth block changed: release
+// the other client in an earlier commit, then commit the edit. A refused
+// commit is not applied at all (bfd commitConfig), so the release cannot ride
+// in the edit's own commit when the other client is a BGP peer: the BGP
+// reconcile runs after every plugin's apply (docs/guide/bfd.md, "Editing
+// live").
 func authEditFix(edited, holder string) string {
+	return authEditConfigFix(edited, holder) + ", or first commit a change that releases " +
+		describeClientProfile(holder) + ", then commit this edit (docs/guide/bfd.md, \"Editing live\")"
+}
+
+// authEditConfigFix is the change to the clients' bfd config that lets a
+// refused edit through in the same commit, for authEditFix.
+func authEditConfigFix(edited, holder string) string {
 	if edited == "" {
 		if holder == "" {
 			// Two clients naming no profile both run without

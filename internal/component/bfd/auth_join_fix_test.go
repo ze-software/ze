@@ -19,7 +19,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/engine"
-	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // ospfShapedRequest is the request an OSPF interface's bfd block produces
@@ -82,13 +81,12 @@ const authJoinSecurePassiveSection = `{"bfd":{"profile":{` +
 // that edits a named profile reaches every client naming it, on any neighbor,
 // so no case may name one. The edited and removed cases are the reason the
 // refusal names the release and the guide. A profile edit reaches a live
-// session (reprofileClients), except where another client of the session
-// relies on the authentication it runs: the edit is then refused for that
-// session (editRefused), and the session keeps what it was built with. A
-// profile removed with the client that named it (dropFirst, as a pinned
-// session and its profile deleted together) leaves the session running that
-// profile's authentication for the clients still holding it. Either way,
-// naming or copying the profile cannot match the session. Every other case
+// session (reprofileClients), and a commit whose edit another client of the
+// session refuses is not applied at all (commitConfig), so a profile differs
+// from the session built from it only once every client naming it has let go
+// (dropFirst) before the edit or removal is committed: the clients still
+// holding the session run what it was built with. Naming or copying the
+// profile then cannot match the session. Every other case
 // fixes the refused client only, so it points nowhere else.
 func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 	const impossibleForOSPF = "or copy its auth block into"
@@ -107,12 +105,9 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 		// dropFirst releases first before the edit.
 		dropFirst bool
 		edit      string
-		// editRefused is set when the edit cannot reach the session, because
-		// holder relies on the authentication it runs.
-		editRefused bool
-		second      api.SessionRequest
-		want        []string
-		without     string
+		second    api.SessionRequest
+		want      []string
+		without   string
 	}{
 		{
 			name:   "ospf holds the session, authenticated bgp joins",
@@ -174,12 +169,12 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			},
 		},
 		{
-			name:        "the profile the session was built from is edited, then asked for again",
-			first:       bgpPeerSessionRequest("secure"),
-			holder:      bgpPeerSessionRequest("secure-twin"),
-			edit:        authJoinEditedSection,
-			editRefused: true,
-			second:      bgpPeerSessionRequest("secure"),
+			name:      "the profile the session was built from is edited, then asked for again",
+			first:     bgpPeerSessionRequest("secure"),
+			holder:    bgpPeerSessionRequest("secure-twin"),
+			edit:      authJoinEditedSection,
+			dropFirst: true,
+			second:    bgpPeerSessionRequest("secure"),
 			want: []string{
 				"bfd profile \"secure\" changed after the session was built from it",
 				releaseFix,
@@ -187,12 +182,12 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			without: impossibleForOSPF,
 		},
 		{
-			name:        "an unauthenticated profile the session was built from gains an auth block",
-			first:       bgpPeerSessionRequest("open"),
-			holder:      ospfShapedRequest(),
-			edit:        authJoinEditedSection,
-			editRefused: true,
-			second:      bgpPeerSessionRequest("open"),
+			name:      "an unauthenticated profile the session was built from gains an auth block",
+			first:     bgpPeerSessionRequest("open"),
+			holder:    ospfShapedRequest(),
+			edit:      authJoinEditedSection,
+			dropFirst: true,
+			second:    bgpPeerSessionRequest("open"),
 			want: []string{
 				"bfd profile \"open\" changed after the session was built from it",
 				releaseFix,
@@ -200,12 +195,12 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			without: "name a bfd profile with no auth block",
 		},
 		{
-			name:        "the profile the session was built from is edited, another profile asks",
-			first:       bgpPeerSessionRequest("secure"),
-			holder:      bgpPeerSessionRequest("secure-twin"),
-			edit:        authJoinEditedSection,
-			editRefused: true,
-			second:      bgpPeerSessionRequest("rekeyed"),
+			name:      "the profile the session was built from is edited, another profile asks",
+			first:     bgpPeerSessionRequest("secure"),
+			holder:    bgpPeerSessionRequest("secure-twin"),
+			edit:      authJoinEditedSection,
+			dropFirst: true,
+			second:    bgpPeerSessionRequest("rekeyed"),
 			want: []string{
 				"the session's bfd profile \"secure\" changed or was removed since",
 				releaseFix,
@@ -252,12 +247,12 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			without: "name bfd profile \"secure\"",
 		},
 		{
-			name:        "the profile the session was built from is edited, ospf asks",
-			first:       bgpPeerSessionRequest("secure"),
-			holder:      bgpPeerSessionRequest("secure-twin"),
-			edit:        authJoinEditedSection,
-			editRefused: true,
-			second:      ospfShapedRequest(),
+			name:      "the profile the session was built from is edited, ospf asks",
+			first:     bgpPeerSessionRequest("secure"),
+			holder:    bgpPeerSessionRequest("secure-twin"),
+			edit:      authJoinEditedSection,
+			dropFirst: true,
+			second:    ospfShapedRequest(),
 			want: []string{
 				"the session's bfd profile \"secure\" changed or was removed since",
 				releaseFix,
@@ -265,12 +260,12 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			without: "name bfd profile \"secure\"",
 		},
 		{
-			name:        "an unauthenticated profile the session was built from gains an auth block, another profile asks",
-			first:       bgpPeerSessionRequest("open"),
-			holder:      ospfShapedRequest(),
-			edit:        authJoinEditedSection,
-			editRefused: true,
-			second:      bgpPeerSessionRequest("rekeyed"),
+			name:      "an unauthenticated profile the session was built from gains an auth block, another profile asks",
+			first:     bgpPeerSessionRequest("open"),
+			holder:    ospfShapedRequest(),
+			edit:      authJoinEditedSection,
+			dropFirst: true,
+			second:    bgpPeerSessionRequest("rekeyed"),
 			want: []string{
 				"the session runs none, bfd profile \"rekeyed\" has an auth block",
 				"to fix it, name a bfd profile with no auth block on this client",
@@ -298,12 +293,10 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 					t.Fatalf("ReleaseSession(first): %v", releaseErr)
 				}
 			}
-			if tc.editRefused {
-				if editErr := applyAuthJoinEditErr(t, svc, tc.edit); !errors.Is(editErr, engine.ErrAuthMismatch) {
-					t.Fatalf("applyConfig(edit) = %v, want the edit refused with ErrAuthMismatch", editErr)
+			if tc.edit != "" {
+				if editErr := commitAuthJoinEdit(t, svc, tc.edit); editErr != nil {
+					t.Fatalf("commit(edit): %v", editErr)
 				}
-			} else if tc.edit != "" {
-				applyAuthJoinEdit(t, svc, tc.edit)
 			}
 			h, err := svc.EnsureSession(tc.second)
 			if err == nil {
@@ -343,36 +336,4 @@ func TestAuthJoinRefusalNamesApplicableFix(t *testing.T) {
 			t.Logf("refusal (%d characters): %s", len(text), text)
 		})
 	}
-}
-
-// applyAuthJoinEdit commits section to svc the way a config reload does
-// (runtimeState.applyConfig), so the next request resolves its profile from
-// the edited config.
-func applyAuthJoinEdit(t *testing.T, svc *pluginService, section string) {
-	t.Helper()
-
-	cfg, err := parseSections([]sdk.ConfigSection{{Root: configRoot, Data: section}})
-	if err != nil {
-		t.Fatalf("parseSections(edit): %v", err)
-	}
-	runtimeStateGuard.Lock()
-	err = svc.state.applyConfig(cfg)
-	runtimeStateGuard.Unlock()
-	if err != nil {
-		t.Fatalf("applyConfig(edit): %v", err)
-	}
-}
-
-// applyAuthJoinEditErr commits section as applyAuthJoinEdit does, for an edit
-// the apply refuses, and answers applyConfig's error.
-func applyAuthJoinEditErr(t *testing.T, svc *pluginService, section string) error {
-	t.Helper()
-
-	cfg, err := parseSections([]sdk.ConfigSection{{Root: configRoot, Data: section}})
-	if err != nil {
-		t.Fatalf("parseSections(edit): %v", err)
-	}
-	runtimeStateGuard.Lock()
-	defer runtimeStateGuard.Unlock()
-	return svc.state.applyConfig(cfg)
 }

@@ -196,7 +196,13 @@ authentication, the session keeps every request and its authentication, and the
 apply fails with `ErrAuthMismatch` naming the two profiles. A pinned session
 also takes its whole new request through `Loop.UpdateSession`, which refuses a
 change of authentication while another client of the session, naming another
-profile or none, runs the current one. A client whose authentication differs from a live session's (Auth Type, Key
+profile or none, runs the current one. A commit is all or nothing, and the
+engine sends no rollback to a plugin whose own apply failed, so a failed apply
+undoes itself (`runtimeState.commitConfig`): it applies the config the plugin
+ran before, which unpublishes the refused profiles and returns every client to
+the request it held. An accepted apply keeps that config for
+`runtimeState.rollbackConfig`, the plugin's `OnConfigRollback` handler, which
+runs when another participant's apply fails. A client whose authentication differs from a live session's (Auth Type, Key
 ID, Meticulous flag or secret, or authentication on one side only) is refused
 with `ErrAuthMismatch` at both join arms (`joinAuthCheck`), so it gets no
 session rather than a second one, and it never runs on an authentication it did
@@ -212,8 +218,8 @@ records which profile its authentication came from (`sessionEntry.authFrom`,
 set at creation and by every `replaceAuth`), so a client that names that same
 profile with different authentication is told the profile was edited since the
 session was built, and that only a release by every client applies the edit:
-the session refused that edit, or the profile left with the pinned session that
-named it. The
+the profile was edited or removed after every client naming it had released
+the session, since an edit a client of the session refuses is not applied. The
 engine also asks the bfd plugin whether that profile still resolves to the
 session's authentication, through the `engine.ProfileAuth` lookup each loop
 gets from `loopFor` (`runtimeState.profileAuthFor`, built for the loop's hop
@@ -229,6 +235,7 @@ every client naming that profile, on any neighbor.
 <!-- source: internal/component/bfd/engine/shared_session.go -- sharedEntryLocked, sharesSession, joinedKey -->
 <!-- source: internal/component/bfd/engine/shared_session.go -- retimeLocked, fastestRequest, fasterTie, UpdateSession, Reprofile, reprofileEntryLocked -->
 <!-- source: internal/component/bfd/bfd.go -- reprofileClients -->
+<!-- source: internal/component/bfd/config_tx.go -- commitConfig, rollbackConfig -->
 <!-- source: internal/component/bfd/session/timers.go -- ApplyTimers, ApplyRole, ApplyEcho, applyPendingTimersLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent, SetProfileAuth, sharedAuthLocked, replaceAuth -->
 <!-- source: internal/component/bfd/bfd.go -- loopFor, runtimeState.profileAuthFor -->
