@@ -322,6 +322,9 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeSourceAssets(t, source)
+	// The last published artifact is found beside the main checkout, which Git
+	// names, so the repository is a real one.
+	roadmapGit(t, root, "init", "-q")
 	if err := os.MkdirAll(filepath.Join(output, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -366,6 +369,56 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 	}
 	if info, err := os.Stat(filepath.Join(output, ".git")); err != nil || !info.IsDir() {
 		t.Fatalf("artifact repository metadata was removed: %v", err)
+	}
+}
+
+// VALIDATES: a build run from a linked worktree seeds from the Pages checkout
+// beside the MAIN checkout, and still writes its default output beside the
+// worktree.
+// PREVENTS: TestBuildRendersEveryPublishedRoute going red in the verify
+// worktree under tmp/verify-worktree, where nothing sits beside the worktree,
+// so the build found no demo media to lay down.
+// METHOD: a main checkout with a gh-pages sibling holding one demo file, and a
+// linked worktree nested inside the main checkout as the verify worktree is.
+func TestALinkedWorktreeSeedsFromTheMainCheckoutsPagesTree(t *testing.T) {
+	parent := t.TempDir()
+	checkout := filepath.Join(parent, "main")
+	writeSourceAssets(t, filepath.Join(checkout, "website"))
+	roadmapGit(t, checkout, "init", "-q")
+	commitSiteFixture(t, checkout)
+	published := filepath.Join(parent, "gh-pages")
+	writeFixtureFile(t, filepath.Join(published, "assets", "demos", "hero.cast"), "{}\n")
+	worktree := filepath.Join(checkout, "tmp", "verify-worktree", "fixture")
+	roadmapGit(t, checkout, "worktree", "add", "-q", "--detach", worktree)
+
+	paths, err := resolvePaths(worktree, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(checkout, "tmp", "verify-worktree", "gh-pages"); paths.Output != want {
+		t.Errorf("default output %s, want %s beside the worktree", paths.Output, want)
+	}
+	got, err := lastPublished(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == "" {
+		t.Fatalf("a linked worktree found no last published artifact; want %s", published)
+	}
+	same, err := sameDirectory(got, published)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !same {
+		t.Fatalf("a linked worktree seeds from %s, want the main checkout's sibling %s", got, published)
+	}
+	previous, release, err := snapshotArtifact(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	if _, err := os.Stat(filepath.Join(previous, "assets", "demos", "hero.cast")); err != nil {
+		t.Fatalf("the seed lacks the published demo media: %v", err)
 	}
 }
 

@@ -215,10 +215,18 @@ func publishable(name string) bool {
 }
 
 // lastPublished names the directory holding the artifact as it was last
-// published: the Pages checkout beside the repository, which a default build
-// also writes into. An empty name means there is no previous artifact.
+// published: the Pages checkout beside the repository's MAIN checkout. A
+// default build run from the main checkout also writes into it. A linked
+// worktree, such as the verify worktree under tmp/verify-worktree, has nothing
+// beside it, so it reads the main checkout's Pages tree to seed its build and
+// never writes there: the default output stays beside the worktree. An empty
+// name means there is no previous artifact.
 func lastPublished(paths Paths) (string, error) {
-	published := filepath.Join(filepath.Dir(paths.Repository), "gh-pages")
+	checkout, err := mainCheckout(paths.Repository)
+	if err != nil {
+		return "", err
+	}
+	published := filepath.Join(filepath.Dir(checkout), "gh-pages")
 	info, err := os.Stat(published)
 	if os.IsNotExist(err) {
 		return "", nil
@@ -230,6 +238,45 @@ func lastPublished(paths Paths) (string, error) {
 		return "", fmt.Errorf("site artifact is not a directory: %s", published)
 	}
 	return published, nil
+}
+
+// mainCheckout names the directory of the repository's main checkout, which
+// is the repository itself unless it is a linked worktree. Git keeps one
+// common directory for every worktree of a repository: the main checkout's
+// .git, or the bare repository itself, whose siblings are the checkouts.
+func mainCheckout(repository string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), sourceListTimeout)
+	defer cancel()
+	command := exec.CommandContext(ctx, "git", "rev-parse", "--path-format=absolute", "--git-common-dir")
+	command.Dir = repository
+	output, err := command.Output()
+	if err != nil {
+		return "", fmt.Errorf("locate the main checkout of %s, beside which the last published site lives: "+
+			"git rev-parse --git-common-dir: %w; run ./le site build from inside a git checkout", repository, err)
+	}
+	common := filepath.Clean(strings.TrimSpace(string(output)))
+	if filepath.Base(common) == gitMetadataDir {
+		return filepath.Dir(common), nil
+	}
+	return common, nil
+}
+
+// sameDirectory reports whether two names reach one directory. Git answers
+// symlink-resolved paths, so a textual comparison would call a temp directory
+// under /var and the same one under /private/var two places.
+func sameDirectory(first, second string) (bool, error) {
+	firstInfo, err := os.Stat(first)
+	if err != nil {
+		return false, err
+	}
+	secondInfo, err := os.Stat(second)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return os.SameFile(firstInfo, secondInfo), nil
 }
 
 // snapshotArtifact answers a readable copy of the last published artifact and
@@ -244,7 +291,11 @@ func snapshotArtifact(paths Paths) (string, func(), error) {
 	if err != nil || published == "" {
 		return "", release, err
 	}
-	if filepath.Clean(published) != filepath.Clean(paths.Output) {
+	same, err := sameDirectory(published, paths.Output)
+	if err != nil {
+		return "", release, fmt.Errorf("compare the site output with the last published artifact: %w", err)
+	}
+	if !same {
 		return published, release, nil
 	}
 	snapshot, err := os.MkdirTemp(filepath.Dir(paths.Output), ".site-artifact-")

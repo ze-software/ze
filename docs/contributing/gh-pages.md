@@ -15,6 +15,12 @@ into every page that replays a demo. So one directory answers what the site
 serves and what the pages name. A build that rewrites the artifact keeps the
 media, because it lays the last published artifact down before any page is
 rendered. `TERMINAL_DEMO_OUTPUT` moves a render to another root.
+The last published artifact is the `gh-pages` checkout beside the MAIN
+checkout, which Git names through `git rev-parse --git-common-dir`. A build run
+from a linked worktree, such as the verify worktree under `tmp/verify-worktree`,
+reads that tree to seed itself and never writes into it: its default output
+stays beside the worktree.
+<!-- source: internal/le/site/build.go -- lastPublished, mainCheckout -->
 <!-- source: internal/le/site/demo.go -- (*demoCatalog).assetRoot -->
 <!-- source: internal/le/site/terminaldemo/actions.go -- renderEngine -->
 
