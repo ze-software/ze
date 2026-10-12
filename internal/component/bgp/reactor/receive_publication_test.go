@@ -40,11 +40,9 @@ func TestReceivePublicationBroadcast(t *testing.T) {
 			results := make(chan error, 2)
 			for range 2 {
 				waiting := &receiveWaitContext{Context: ctx, entered: make(chan struct{})}
-				workers.Add(1)
-				go func() {
-					defer workers.Done()
+				workers.Go(func() {
 					results <- cut.wait(waiting)
-				}()
+				})
 				select {
 				case <-waiting.entered:
 				case <-ctx.Done():

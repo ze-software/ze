@@ -1341,22 +1341,13 @@ func (s *Session) noteAdvertised(reachable bool) {
 	s.advertised.Store(true)
 }
 
-// updateIsReachable reports whether this UPDATE makes a destination reachable.
+// bodyIsReachable reports whether a flat UPDATE body, the form the forwarding
+// rails write, makes a destination reachable.
 //
 // RFC 4271 Section 4.3 carries an IPv4 unicast advertisement in the Network
 // Layer Reachability Information field. RFC 4760 Section 3 carries every other
 // family's in MP_REACH_NLRI. An UPDATE with neither carries only withdrawals,
 // or is the End-of-RIB marker of RFC 4724 Section 2.
-func updateIsReachable(update *message.Update) bool {
-	if len(update.NLRI) > 0 {
-		return true
-	}
-	_, _, _, found := attribute.AttrFind(update.PathAttributes, attribute.AttrMPReachNLRI)
-	return found
-}
-
-// bodyIsReachable asks updateIsReachable's question of a flat UPDATE body, which
-// is the form the forwarding rails write.
 //
 // A body it cannot parse answers FALSE. The state it feeds only ever PERMITS a
 // withdrawal, so an unreadable body leaves the withdrawal withheld and named

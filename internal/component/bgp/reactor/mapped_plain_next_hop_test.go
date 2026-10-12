@@ -159,13 +159,14 @@ func TestMappedPlainNextHopOrigination(t *testing.T) {
 						case "default", "configured", "grouped-configured":
 							peer.sendingInitialRoutes.Store(1)
 							peer.initialSyncEOROwed.Store(true)
-							if rail == "default" {
+							switch {
+							case rail == "default":
 								peer.settings.DefaultOriginate = map[string]bool{fam.String(): true}
 								peer.settings.LocalAddress = hop
-							} else if safi == 1 {
+							case safi == 1:
 								peer.settings.GroupUpdates = rail == "grouped-configured"
 								peer.settings.StaticRoutes = []StaticRoute{{Prefix: prefix, NextHop: bgptypes.NewNextHopExplicit(hop)}}
-							} else {
+							default:
 								peer.settings.PluginRoutes = []PluginRoute{{Family: fam.String(), IsIPv6: true, NLRI: mustHex(t, raw), NextHop: hop, Group: rail == "grouped-configured"}}
 							}
 							peer.sendInitialRoutes()
@@ -272,7 +273,10 @@ func TestMappedPlainNextHopForwarding(t *testing.T) {
 						if !rewrite && tc.name == "native-four-octets" {
 							// The shared forwarding helper requires an intact announcement,
 							// but RFC 7606 Section 7.11 forbids publishing this UPDATE.
-							sourceConn := f.source.session.conn.(*recordingConn)
+							sourceConn, ok := f.source.session.conn.(*recordingConn)
+							if !ok {
+								t.Fatalf("source session conn is %T, want *recordingConn", f.source.session.conn)
+							}
 							publications := 0
 							f.source.session.onMessageReceived = func(_ netip.Addr, typ msgtype.MessageType, _ []byte,
 								_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,

@@ -313,7 +313,7 @@ func ownershipLivePrefixes(t *testing.T, field []byte) []netip.Prefix {
 // feasible IPv4 fields. Each invocation sends a new UPDATE on the source TCP
 // connection; no cached message ID or ownership state is supplied by the test.
 // RFC 4271 Section 4.3: "An UPDATE message MAY simultaneously advertise a
-// feasible route and withdraw multiple unfeasible routes from service."
+// feasible route and withdraw multiple unfeasible routes from service".
 func ownershipLiveSend(t *testing.T, peer *lowLivePeer, withdrawn []netip.Prefix, attrs []byte, announced ...netip.Prefix) {
 	t.Helper()
 	update := &message.Update{

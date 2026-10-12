@@ -562,7 +562,7 @@ func mpDiagnosticNLRI(code attribute.AttributeCode, value []byte, ctx *bgpctx.En
 	if code == attribute.AttrMPUnreachNLRI {
 		split = nlrisplit.GetWithdraw(fam)
 	}
-	var out []string
+	out := make([]string, 0, 1)
 	var tb textbuf.Buffer
 	consumed := 0
 	if split != nil {

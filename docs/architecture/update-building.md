@@ -823,7 +823,7 @@ The message names no route, so it does not arm the connection either: a second w
 The answer is a WARNING and never a failure. The command did what it asked for, so `send bgp <selector> update text ... nlri <family> del <nlri>` still answers `done` with the reason in its warnings. A zero UPDATE count with a bare `done` and no reason is the silent no-op this rail exists to avoid.
 
 ExaBGP has the same asymmetry, reached another way: `include_withdraw` starts False for each session and becomes True only when the first update pass exhausts, and its packing layer drops every withdrawn NLRI while it is False. `api-fast` is the recording: the withdrawal its first burst writes never reaches the wire, and the one its second burst writes does.
-<!-- source: internal/component/bgp/reactor/session_write.go -- Session.advertised, noteAdvertised, updateIsReachable -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- Session.advertised, noteAdvertised, bodyIsReachable -->
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- withdrawBatchFromPeers, buildWithheldWithdrawUpdate, logWithdrawWithheld -->
 
 ### What a Withdrawal Carries

@@ -38,7 +38,7 @@ func ownershipWriterPeer(t *testing.T) (*Peer, *recordingConn, *Peer) {
 // ownershipWriterUpdate borrows valid UPDATE sections for a synchronous send.
 // RFC 4271 Section 4.3: "An UPDATE message is used to advertise feasible routes
 // that share common path attributes to a peer, or to withdraw multiple
-// unfeasible routes from service (see 3.1)."
+// unfeasible routes from service (see 3.1)".
 func ownershipWriterUpdate(t *testing.T, body []byte) *message.Update {
 	t.Helper()
 	sec, err := wire.ParseUpdateSections(body)

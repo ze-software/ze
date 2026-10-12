@@ -202,16 +202,17 @@ func (receiver *ownershipPublicationReceiver) open() {
 func (receiver *ownershipPublicationReceiver) OnMessageBatchReceived(peer *plugin.PeerInfo, messages []bgptypes.RawMessage) []int {
 	if peer.Address == receiver.source {
 		for i := range messages {
-			if bytes.Equal(messages[i].RawBytes, []byte{0, 4, 24, 203, 0, 114, 0, 0}) {
-				receiver.forwarded.Store(messages[i].ReactorForwarded)
-				receiver.messageID = messages[i].MessageID
-				close(receiver.entered)
-				<-receiver.release
-				if receiver.fail {
-					panic("BUG: injected received batch publication failure")
-				}
-				break
+			if !bytes.Equal(messages[i].RawBytes, []byte{0, 4, 24, 203, 0, 114, 0, 0}) {
+				continue
 			}
+			receiver.forwarded.Store(messages[i].ReactorForwarded)
+			receiver.messageID = messages[i].MessageID
+			close(receiver.entered)
+			<-receiver.release
+			if receiver.fail {
+				panic("BUG: injected received batch publication failure")
+			}
+			break
 		}
 	}
 	return receiver.MessageReceiver.OnMessageBatchReceived(peer, messages)

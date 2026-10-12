@@ -16,7 +16,7 @@ import (
 // later advertisements fence the entire worker output, not just its first frame.
 // RFC 4724 Section 2: "For any other address family, it is an UPDATE message
 // that contains only the MP_UNREACH_NLRI attribute [BGP-MP] with no withdrawn
-// routes for that <AFI, SAFI>."
+// routes for that <AFI, SAFI>".
 func TestForwardEmptyMPUnreachRecipient(t *testing.T) {
 	for _, name := range []string{"same-context", "cross-context"} {
 		t.Run(name, func(t *testing.T) {

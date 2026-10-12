@@ -22,13 +22,13 @@ func TestForwardASOverrideComposition(t *testing.T) {
 	for _, fast := range []bool{false, true} {
 		for _, asn4 := range []bool{false, true} {
 			for _, tc := range []struct {
-				name   string
-				rs     bool
-				target uint32
-				prepend bool
+				name      string
+				rs        bool
+				target    uint32
+				prepend   bool
 				generated bool
-				policy []uint32
-				want   []uint32
+				policy    []uint32
+				want      []uint32
 			}{
 				{name: "ordinary", target: 65002, want: []uint32{65000, 65001, 65000}},
 				{name: "rs-client", rs: true, target: 65002, want: []uint32{65001, 65000}},

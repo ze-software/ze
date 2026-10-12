@@ -132,7 +132,7 @@ func (s *Session) prepareRFC7606FirstAS(body []byte, v *rfc7606Validation) {
 // malformedRFC7606Envelope records an unlocatable UPDATE without closing it yet.
 // RFC 7606 Section 3(j): "If this is not possible, the procedures of [RFC4271]
 // and/or [RFC4760] continue to apply, meaning that the 'session reset' approach
-// (or the 'AFI/SAFI disable' approach) MUST be followed."
+// (or the 'AFI/SAFI disable' approach) MUST be followed".
 func malformedRFC7606Envelope(description string) rfc7606Validation {
 	return rfc7606Validation{result: &message.RFC7606ValidationResult{
 		Action: message.RFC7606ActionSessionReset, Description: description,
@@ -149,7 +149,7 @@ func (s *Session) validateRFC7606IPv4(field []byte) *message.RFC7606ValidationRe
 }
 
 // validateRFC7606Attrs uses the message validator and session receive policies.
-// RFC 7606 Section 3(h): "Otherwise, the approach with the strongest action MUST be used."
+// RFC 7606 Section 3(h): "Otherwise, the approach with the strongest action MUST be used".
 func (s *Session) validateRFC7606Attrs(pathAttrs []byte, hasNLRI bool) *message.RFC7606ValidationResult {
 	recvCtx := bgpctx.Registry.Get(s.recvCtxID)
 	addPathFor := func(afi uint16, safi uint8) bool {

@@ -63,7 +63,7 @@ func TestCandidateDeclaringACreatedPeersAddressUnderAnotherName(t *testing.T) {
 	declaringBGP["peer"] = map[string]any{"edge": edge}
 	declaring := map[string]any{"bgp": declaringBGP}
 
-	*file = declaring
+	file.tree = declaring
 	ops := reloadThroughOperations(t, api, declaring)
 	require.Len(t, ops, 2, "the takeover is one removal and one creation: %v", ops)
 	assert.Equal(t, configop.RemovePeer, ops[0].Type)
@@ -82,8 +82,8 @@ func TestCandidateDeclaringACreatedPeersAddressUnderAnotherName(t *testing.T) {
 	assert.Contains(t, peers, "edge", "the running configuration holds the operator's entry")
 	assert.NotContains(t, peers, "peer-192.0.2.7", "and not the created one")
 
-	*file = map[string]any{"bgp": takeoverGlobals()}
-	ops = reloadThroughOperations(t, api, *file)
+	file.tree = map[string]any{"bgp": takeoverGlobals()}
+	ops = reloadThroughOperations(t, api, file.tree)
 	require.Len(t, ops, 1, "dropping the declaration is one removal: %v", ops)
 	assert.Equal(t, configop.RemovePeer, ops[0].Type)
 	assert.Equal(t, "edge", ops[0].Params.Peer)
@@ -96,20 +96,24 @@ func TestCandidateDeclaringACreatedPeersAddressUnderAnotherName(t *testing.T) {
 	assert.NotContains(t, bgp, "peer", "and its entry leaves the running configuration")
 }
 
+// takeoverFile is the config file a takeover reactor reloads. The test replaces
+// tree before each reload, and the reload function reads it.
+type takeoverFile struct{ tree map[string]any }
+
 // newTakeoverReactor answers a reactor running a file that declares no peer,
 // whose reloads read that file through the config loader the way the daemon's
 // do, and the file itself for the test to replace before each reload.
-func newTakeoverReactor(t *testing.T) (*Reactor, *reactorAPIAdapter, *map[string]any) {
+func newTakeoverReactor(t *testing.T) (*Reactor, *reactorAPIAdapter, *takeoverFile) {
 	t.Helper()
 	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
 	// The file the daemon runs: the globals, and no peer yet. A reload reads
 	// the file through the config loader, which names each peer after its
 	// list key (PeersFromTree), and the candidate is what the file holds.
-	file := map[string]any{"bgp": takeoverGlobals()}
-	r.configTree = file
+	file := &takeoverFile{tree: map[string]any{"bgp": takeoverGlobals()}}
+	r.configTree = file.tree
 	r.config.ConfigPath = "ze.conf"
 	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
-		bgp, _ := file["bgp"].(map[string]any)
+		bgp, _ := file.tree["bgp"].(map[string]any)
 		peers, err := PeersFromTree(bgp)
 		if err != nil {
 			return nil, Globals{}, nil, err
@@ -118,7 +122,7 @@ func newTakeoverReactor(t *testing.T) (*Reactor, *reactorAPIAdapter, *map[string
 		return peers, globals, nil, err
 	})
 	api := &reactorAPIAdapter{r: r}
-	return r, api, &file
+	return r, api, file
 }
 
 // takeoverGlobals answers the bgp block of the file the test daemon runs,
@@ -222,11 +226,11 @@ func TestCompensatedTakeoverMarksTheCreatedPeerAgain(t *testing.T) {
 	declaringBGP["router-id"] = "10.0.0.2"
 	declaring := map[string]any{"bgp": declaringBGP}
 	before := api.ReloadRunning(declaring)
-	*file = declaring
+	file.tree = declaring
 	reloadThroughOperations(t, api, declaring)
 	require.Empty(t, api.CreatedPeers(), "the commit declaring the peer takes it over")
 
-	*file = map[string]any{"bgp": takeoverGlobals()}
+	file.tree = map[string]any{"bgp": takeoverGlobals()}
 	require.NoError(t, api.RestoreCreatedPeers(before, created))
 	require.NoError(t, api.ApplyConfigDiff(before))
 	_, held := r.findPeerByAddr(addr)
@@ -235,7 +239,7 @@ func TestCompensatedTakeoverMarksTheCreatedPeerAgain(t *testing.T) {
 	require.NoError(t, api.RestoreCreatedPeers(before, created))
 	assert.Equal(t, created, api.CreatedPeers(), "undoing the commit marks the peer created again")
 
-	ops := reloadThroughOperations(t, api, *file)
+	ops := reloadThroughOperations(t, api, file.tree)
 	assert.Empty(t, ops, "the next reload plans nothing for the created peer")
 	_, held = r.findPeerByAddr(addr)
 	assert.True(t, held, "and leaves it running")
@@ -288,7 +292,7 @@ func TestCompensatedRenameTakeoverRebuildsTheCreatedPeer(t *testing.T) {
 	declaringBGP["peer"] = map[string]any{"edge": edge}
 	declaring := map[string]any{"bgp": declaringBGP}
 	before := api.ReloadRunning(declaring)
-	*file = declaring
+	file.tree = declaring
 	reloadThroughOperations(t, api, declaring)
 	require.Empty(t, api.CreatedPeers(), "the commit declaring the address takes the peer over")
 	r.mu.RLock()
@@ -296,7 +300,7 @@ func TestCompensatedRenameTakeoverRebuildsTheCreatedPeer(t *testing.T) {
 	r.mu.RUnlock()
 	require.Equal(t, []string{"edge"}, running, "under the operator's name")
 
-	*file = map[string]any{"bgp": takeoverGlobals()}
+	file.tree = map[string]any{"bgp": takeoverGlobals()}
 	require.NoError(t, api.RestoreCreatedPeers(before, created))
 	require.Empty(t, api.CreatedPeers(), "the peer at the address is not the one the mark named")
 	require.NoError(t, api.ApplyConfigDiff(before))
@@ -312,7 +316,7 @@ func TestCompensatedRenameTakeoverRebuildsTheCreatedPeer(t *testing.T) {
 	assert.Contains(t, peers, "peer-192.0.2.7", "the running configuration holds the created entry")
 	assert.NotContains(t, peers, "edge", "and not the operator's")
 
-	ops := reloadThroughOperations(t, api, *file)
+	ops := reloadThroughOperations(t, api, file.tree)
 	assert.Empty(t, ops, "the next reload plans nothing for the created peer")
 	r.mu.RLock()
 	running = r.peersAt(addr)
