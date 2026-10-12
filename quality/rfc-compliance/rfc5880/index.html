@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5880 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5880 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5880 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 gated MUST-level requirements, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>10.8%</strong><b>12 of 111 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>102</strong><b>of 111 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>103</strong><b>of 111 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 111 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -219,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>14</td>
+<td>15</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -237,7 +237,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>286</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>102</td>
+<td>103</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>228</td>
@@ -267,8 +267,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>Fourteen MUST and SHOULD gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5880.md" target="_blank" rel="noopener"><code>rfc/short/rfc5880.md</code></a>, twelve of them at MUST level: Demand mode is not driven -- bfd.DemandMode has no writer and the stored remote D bit is never read, so no Poll is raised on a D-bit or content change and periodic transmission is never suppressed (<a href="#rfc5880-6.6-2"><code>RFC5880-6.6-2</code></a>, 6.6-3, 6.8.6-14, 6.8.7-7, 6.8.17-1); periodic transmission also continues when bfd.RemoteMinRxInterval is zero (<a href="#rfc5880-6.8.7-6"><code>RFC5880-6.8.7-6</code></a>); a reduced bfd.RequiredMinRxInterval enters the Detection Time at once instead of at Poll termination (<a href="#rfc5880-6.8.3-4"><code>RFC5880-6.8.3-4</code></a>); bfd.XmitAuthSeq starts at zero rather than a random value and bfd.AuthSeqKnown is never cleared after twice the Detection Time (<a href="#rfc5880-6.8.1-11"><code>RFC5880-6.8.1-11</code></a>, 6.8.1-13); there is no forwarding-plane-reset hook, so diagnostic 4 has no producer (<a href="#rfc5880-6.8.15-1"><code>RFC5880-6.8.15-1</code></a>); and no congestion-control mechanism governs the transmit rate (<a href="#rfc5880-7-1"><code>RFC5880-7-1</code></a>, 7-2).</p>
-<p class="rfc-prose"><strong>The two SHOULD gaps:</strong> the key management accepts no hexadecimal form for a Keyed MD5 or Keyed SHA1 key (<a href="#rfc5880-6.7.3-14"><code>RFC5880-6.7.3-14</code></a>, 6.7.4-8). Final-packet rate limiting is absent by design and annotated not-applicable. IPv6 transport coverage is tracked with BFD.</p>
+<p>Fifteen MUST and SHOULD gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5880.md" target="_blank" rel="noopener"><code>rfc/short/rfc5880.md</code></a>, twelve of them at MUST level: Demand mode is not driven -- bfd.DemandMode has no writer and the stored remote D bit is never read, so no Poll is raised on a D-bit or content change and periodic transmission is never suppressed (<a href="#rfc5880-6.6-2"><code>RFC5880-6.6-2</code></a>, 6.6-3, 6.8.6-14, 6.8.7-7, 6.8.17-1); periodic transmission also continues when bfd.RemoteMinRxInterval is zero (<a href="#rfc5880-6.8.7-6"><code>RFC5880-6.8.7-6</code></a>); a reduced bfd.RequiredMinRxInterval enters the Detection Time at once instead of at Poll termination (<a href="#rfc5880-6.8.3-4"><code>RFC5880-6.8.3-4</code></a>); bfd.XmitAuthSeq starts at zero rather than a random value and bfd.AuthSeqKnown is never cleared after twice the Detection Time (<a href="#rfc5880-6.8.1-11"><code>RFC5880-6.8.1-11</code></a>, 6.8.1-13); there is no forwarding-plane-reset hook, so diagnostic 4 has no producer (<a href="#rfc5880-6.8.15-1"><code>RFC5880-6.8.15-1</code></a>); and no congestion-control mechanism governs the transmit rate (<a href="#rfc5880-7-1"><code>RFC5880-7-1</code></a>, 7-2).</p>
+<p class="rfc-prose"><strong>The three SHOULD gaps:</strong> the password and key management accepts no hexadecimal form for a Simple Password, a Keyed MD5 key or a Keyed SHA1 key (<a href="#rfc5880-6.7.2-2"><code>RFC5880-6.7.2-2</code></a>, 6.7.3-14, 6.7.4-8). Final-packet rate limiting is absent by design and annotated not-applicable. IPv6 transport coverage is tracked with BFD.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -1245,7 +1245,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5880-6.7.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> parseAuthConfig reads the secret leaf as a string and uses its bytes as the password (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Simple Password cannot be configured</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.3-5">RFC5880-6.7.3-5</code></td><td colspan="3"><span class="rfc-subject">bfd.XmitAuthSeq SHOULD be incremented when the session state changes, or when the transmitted BFD Control packet carries different contents than the previously transmitted packet. (§6.7.3)</span></td></tr>
 <tr><td></td>
@@ -1700,6 +1700,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="#rfc5880-7-2"><code>RFC5880-7-2</code></a> When BFD is used across multiple hops, a congestion control mechanism MUST be implemented, and when congestion is detected, the BFD implementation MUST reduce the amount of traffic it generates. (§7)</td>
 <td>{gap}, no test</td>
 <td>the same rate producer (internal/component/bfd/engine/loop.go:197-200) is the only authority over generated traffic and nothing reduces it in response to detected congestion</td>
+</tr>
+<tr><td><a href="#rfc5880-6.7.2-2"><code>RFC5880-6.7.2-2</code></a> the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.2)</td>
+<td>{gap}</td>
+<td>parseAuthConfig reads the secret leaf as a string and uses its bytes as the password (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Simple Password cannot be configured</td>
 </tr>
 <tr><td><a href="#rfc5880-6.7.3-14"><code>RFC5880-6.7.3-14</code></a> SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.3)</td>
 <td>{gap}</td>
@@ -3612,6 +3616,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc5880-6.7.2-2"><code>RFC5880-6.7.2-2</code></a></h3>
+<p>the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.2)</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Recorded 2026-10-11 from independent review round 1, ISSUE 1. Confirmed at the producer: parseAuthConfig reads the secret leaf with stringField and stores []byte(secret) for every Auth Type, Simple Password included (config.go); the YANG leaf secret is type string with no hex form, so a binary Simple Password cannot be configured. The ASCII half of the sentence is met by the same string leaf; the hexadecimal SHOULD is the gap. The {gap} annotation is accurate; disclosed in Support remaining.</p>
+<p>No test carries RFC5880-6.7.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.7.4-9"><code>RFC5880-6.7.4-9</code></a></h3>
 <p>bfd.XmitAuthSeq SHOULD be incremented when the session state changes, or when the transmitted BFD Control packet carries different contents than the previously transmitted packet. (§6.7.4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (re-judge, independent of the author). Row is the Keyed SHA1 §6.7.4 SHOULD, quoted verbatim (rfc5880.txt 1409). engine/rfc5880_xmit_auth_seq_test.go drives a Keyed SHA1 session through the real transmit path (Loop.tick periodic, Loop.handleInbound Final) and parses the Sequence Number of every transmitted packet. + AdvancesOnStateAndContentChange: state clause (Down-&gt;Init-&gt;Up, preconditions pin the transmitted states, each seq differs) and contents clause (Final with F set, Up, then periodic with F clear, Up: seq differs). - AdvancesForAnOutOfTimerFinal (R1b: forces the producer input toward the violation): the Final sent from handleInbound at the same instant as the previous periodic packet carries a new seq, and every differing consecutive pair carries distinct seqs. Records revert AdvanceAuthSeq (+) and sendLocked (-), observed red; author&#39;s targeted overlays (advance only after periodic / only on timer) each red only their own unit, so the two units are not one assertion wearing two hats. MD5 twin 6.7.3-5 not covered here.</p>
@@ -4715,7 +4723,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

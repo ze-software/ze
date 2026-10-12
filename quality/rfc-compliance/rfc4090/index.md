@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 96.9% | 31 of 32 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 32 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 32 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 32 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 89.8% | 79 of 88 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 97.0% | 32 of 33 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 33 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 33 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 33 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 91.1% | 82 of 90 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,11 +22,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 32 | of 40 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 32 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 32 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 32 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 32 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 33 | of 41 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 33 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 33 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 33 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 33 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -34,10 +34,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 3.1% | 1 of 32 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 37 | of 32 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| No test at all | 3.0% | 1 of 33 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 38 | of 33 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 8 shares marked as a part above are the whole of the 32 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 33 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -62,17 +62,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 40 |
-| Gated MUST-level | 32 |
+| Requirements | 41 |
+| Gated MUST-level | 33 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 2 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 88 |
-| Tagged units | 88 |
-| Recorded audit verdicts | 37 |
-| Discrimination records | 80 |
+| Test tags | 90 |
+| Tagged units | 90 |
+| Recorded audit verdicts | 38 |
+| Discrimination records | 82 |
 | Summary | `rfc/short/rfc4090.md` |
 | Requirement shard | `rfc/requirements/rfc4090.md` |
 | RFC text | `rfc/full/rfc4090.txt` |
@@ -97,16 +97,16 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 31 | one part of the gated population |
+| Positive and negative tests | 32 | one part of the gated population |
 | Annotated (including scoped evidence) | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **32** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **33** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (31):** [`RFC4090-4.1-1`](#rfc4090-4.1-1), [`RFC4090-4.3-1`](#rfc4090-4.3-1), [`RFC4090-4.4-1`](#rfc4090-4.4-1), [`RFC4090-4.4-2`](#rfc4090-4.4-2), [`RFC4090-4.4-3`](#rfc4090-4.4-3), [`RFC4090-3.2-1`](#rfc4090-3.2-1), [`RFC4090-4.2-1`](#rfc4090-4.2-1), [`RFC4090-4.1-3`](#rfc4090-4.1-3), [`RFC4090-4.4-6`](#rfc4090-4.4-6), [`RFC4090-4.4-7`](#rfc4090-4.4-7), [`RFC4090-5-1`](#rfc4090-5-1), [`RFC4090-5-2`](#rfc4090-5-2), [`RFC4090-5-3`](#rfc4090-5-3), [`RFC4090-5-4`](#rfc4090-5-4), [`RFC4090-6-1`](#rfc4090-6-1), [`RFC4090-6-2`](#rfc4090-6-2), [`RFC4090-6-3`](#rfc4090-6-3), [`RFC4090-6-4`](#rfc4090-6-4), [`RFC4090-6-5`](#rfc4090-6-5), [`RFC4090-6-6`](#rfc4090-6-6), [`RFC4090-6-7`](#rfc4090-6-7), [`RFC4090-6.1-1`](#rfc4090-6.1-1), [`RFC4090-6.2-1`](#rfc4090-6.2-1), [`RFC4090-6.4-1`](#rfc4090-6.4-1), [`RFC4090-6.4-2`](#rfc4090-6.4-2), [`RFC4090-6.4.3-1`](#rfc4090-6.4.3-1), [`RFC4090-6.4-3`](#rfc4090-6.4-3), [`RFC4090-7.1-1`](#rfc4090-7.1-1), [`RFC4090-7.1-2`](#rfc4090-7.1-2), [`RFC4090-7.2-1`](#rfc4090-7.2-1), [`RFC4090-7.2-2`](#rfc4090-7.2-2)
+**Positive and negative tests (32):** [`RFC4090-4.1-1`](#rfc4090-4.1-1), [`RFC4090-4.3-1`](#rfc4090-4.3-1), [`RFC4090-4.4-1`](#rfc4090-4.4-1), [`RFC4090-4.4-2`](#rfc4090-4.4-2), [`RFC4090-4.4-3`](#rfc4090-4.4-3), [`RFC4090-3.2-1`](#rfc4090-3.2-1), [`RFC4090-4.2-1`](#rfc4090-4.2-1), [`RFC4090-4.1-3`](#rfc4090-4.1-3), [`RFC4090-4.4-6`](#rfc4090-4.4-6), [`RFC4090-4.4-7`](#rfc4090-4.4-7), [`RFC4090-5-1`](#rfc4090-5-1), [`RFC4090-5-2`](#rfc4090-5-2), [`RFC4090-5-3`](#rfc4090-5-3), [`RFC4090-5-4`](#rfc4090-5-4), [`RFC4090-6-1`](#rfc4090-6-1), [`RFC4090-6-2`](#rfc4090-6-2), [`RFC4090-6-3`](#rfc4090-6-3), [`RFC4090-6-4`](#rfc4090-6-4), [`RFC4090-6-5`](#rfc4090-6-5), [`RFC4090-6-6`](#rfc4090-6-6), [`RFC4090-6-7`](#rfc4090-6-7), [`RFC4090-6.1-1`](#rfc4090-6.1-1), [`RFC4090-6.2-1`](#rfc4090-6.2-1), [`RFC4090-6.4-1`](#rfc4090-6.4-1), [`RFC4090-6.4-2`](#rfc4090-6.4-2), [`RFC4090-6.4.3-1`](#rfc4090-6.4.3-1), [`RFC4090-6.4.3-2`](#rfc4090-6.4.3-2), [`RFC4090-6.4-3`](#rfc4090-6.4-3), [`RFC4090-7.1-1`](#rfc4090-7.1-1), [`RFC4090-7.1-2`](#rfc4090-7.1-2), [`RFC4090-7.2-1`](#rfc4090-7.2-1), [`RFC4090-7.2-2`](#rfc4090-7.2-2)
 
 **Annotated (including scoped evidence) (1):** [`RFC4090-4.4-5`](#rfc4090-4.4-5)
 
@@ -149,6 +149,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 | `RFC4090-6.4-1` | The RSVP_HOP object MUST contain an IP source address belonging to the PLR. (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L144). **negative:** `unit/verify` [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L281) |
 | `RFC4090-6.4-2` | The PLR MUST generate an EXPLICIT_ROUTE object toward the egress. (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L145). **negative:** `unit/verify` [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L282) |
 | `RFC4090-6.4.3-1` | When the PLR detects a link or/and node failure condition, it has to reroute the data traffic onto the bypass tunnel (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestRFC4090FailureSwitchesToBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L341). **negative:** `unit/verify` [`TestRFC4090FailureSwitchesToBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L342) |
+| `RFC4090-6.4.3-2` | to start sending the control traffic for the protected LSP onto the bypass tunnel (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestRepairedLSPKeepsUpstreamRefresh`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_repair_refresh_test.go#L22). **negative:** `unit/verify` [`TestRepairedLSPChangedEROResolvedAgain`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_repair_refresh_test.go#L86) |
 | `RFC4090-6.4-3` | More specifically, the PLR MUST: - remove all the sub-objects proceeding the first address belonging to the MP, and - replace this first MP address with an IP address of the MP. (§6.4.4) | MUST | 6.4.4 | **positive:** `unit/verify` [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L146). **negative:** `unit/verify` [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L283) |
 | `RFC4090-7.1-1` | If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP. (§7.1.1) | MUST | 7.1.1 | **positive:** `unit/verify` [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L147). **negative:** `unit/verify` [`TestRFC4090DifferentPathsDoNotMerge`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L298) |
 | `RFC4090-7.1-2` | Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically. (§7.1.1) | MUST | 7.1.1 | **positive:** `unit/verify` [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L148). **negative:** `unit/verify` [`TestRFC4090DifferentPathsDoNotMerge`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L299) |
@@ -505,7 +506,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. bypa
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4090BypassDestinationIsMergePoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L364) | unit/verify | mutant, verified |
-| positive | [`TestRFC4090BypassDestinationIsMergePoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L363) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4090BypassDestinationIsMergePoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L363) | unit/verify | revert, verified |
 
 ### [`RFC4090-6.4-1`](#rfc4090-6.4-1)
 
@@ -539,6 +540,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 |---|---|---|---|
 | negative | [`TestRFC4090FailureSwitchesToBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L342) | unit/verify | revert, verified |
 | positive | [`TestRFC4090FailureSwitchesToBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L341) | unit/verify | revert, verified |
+
+### [`RFC4090-6.4.3-2`](#rfc4090-6.4.3-2)
+
+to start sending the control traffic for the protected LSP onto the bypass tunnel (§6.4.3)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-12 by an independent judge (authored none of 9114a04414, 27be2c4a3c) against rfc/full/rfc4090.txt Section 6.4.3: "When the PLR detects a link or/and node failure condition, it has to reroute the data traffic onto the bypass tunnel and to start sending the control traffic for the protected LSP onto the bypass tunnel." Row text is a verbatim span of that sentence. Producer read: frr.go::repairedPathSelection (exact compare of PSB.ReceivedERO, set on every transit acceptance in engine.go::handlePathTransit, with remainingERO of the refresh), engine.go::handlePath (a repaired selection skips resolveReceivedPath) and handlePathTransit (repaired -> sendPath, which takes the bypass). Positive TestRepairedLSPKeepsUpstreamRefresh: after the link-down repair and native routing moved off the failed link, an ingress PATH refresh naming the accepted route draws no PathErr, is relayed exactly once with the bypass's TableID and the PLR's sender, the repair stays in use, and the MP's RESV for the PLR sender is accepted with the [5000 24000] stack. It goes red if control traffic is refused, dropped, or sent off the bypass. Negative TestRepairedLSPChangedEROResolvedAgain: a refresh whose ERO no longer passes the merge point (first downstream hop dropped, or another strict hop) is not relayed on the bypass and is resolved again to PathErr 24/2. That is a violation of this row, not only a neighbour: the bypass ends at the MP and Section 6.4.4 builds the backup ERO from the first address belonging to the MP, so a route that no longer names the MP is not the protected LSP's control traffic. Case 1 also discriminates the replaced one-hop length heuristic. Both records are mutants on frr.go line 700 (true/false) from a hand-written one-mutant report whose file, line and original text match HEAD; the recorder applies the break by overlay and refuses an unobserved red, and the logic predicts both reds (true: refusal reddens the positive's NotEqual PathErr; false: case 1 relays a PATH). Scope note: the immediate backup PATH at repair (tryLocalRepair's sendPath) is not observed by these units, which count only after the repair; it is asserted by the RFC4090-6.4-1/6.4-2 units in rfc4090_frr_bypass_test.go and by TestSelectedBypassCarriesAllProtectedControl, and with it removed control traffic still reaches the bypass at the next refresh. The RFC's "has to" carries the [MUST] class row RFC4090-6.4.3-1 already uses.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRepairedLSPChangedEROResolvedAgain`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_repair_refresh_test.go#L86) | unit/verify | mutant, verified |
+| positive | [`TestRepairedLSPKeepsUpstreamRefresh`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_repair_refresh_test.go#L22) | unit/verify | mutant, verified |
 
 ### [`RFC4090-6.4-3`](#rfc4090-6.4-3)
 

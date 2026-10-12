@@ -72,7 +72,7 @@ Ze is Go, and Go code leans on packages. 52 direct dependencies, read straight f
 | --- | --- | --- |
 | `golang.org/x/crypto` | `v0.57.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
 | `golang.org/x/mod` | `v0.41.0` | Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy. |
-| `golang.org/x/net` | `v0.59.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
+| `golang.org/x/net` | `v0.60.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
 | `golang.org/x/sync` | `v0.23.0` | errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure. |
 | `golang.org/x/sys` | `v0.48.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
 | `golang.org/x/term` | `v0.46.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |

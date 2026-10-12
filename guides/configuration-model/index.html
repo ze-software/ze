@@ -221,6 +221,16 @@
 </table>
 <!-- source: internal/component/config/tokenizer.go -- tokenizer.scan -->
 <p>Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.</p>
+<p>A block written twice, such as two <code>filter { ... }</code> blocks, is read as one.
+A list both blocks set, such as <code>import [ a b ]</code> and then <code>import [ b c ]</code>,
+holds the members of both: <code>[ a b c ]</code>. An ordered list keeps every copy in
+order, so it can hold a member twice. A member deactivated with <code>inactive:</code> in
+either block stays deactivated. Ze refuses the file when an ordered list ends
+up holding a deactivated member more than once, because it cannot tell which
+copy you meant to deactivate. Write that list once, in one block, or remove
+its <code>inactive:</code> line. The rules and the error text are in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md#leaf-list-single-or-multiple-values" target="_blank" rel="noopener">the configuration syntax reference</a>.</p>
+<!-- source: internal/component/config/tree.go -- mergeFrom, checkMergedRepeatsLocked -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema; internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 <p>A plugin that registers no schema at build time has its schema selected at
 startup with <code>--plugin</code>, for example <code>ze --plugin ze.&lt;name&gt; ...</code>. The schemas of
@@ -253,7 +263,7 @@ bgp {
 
         capability {
             asn4 enable;
-            route-refresh;
+            route-refresh enable;
         }
 
         family {
@@ -1191,12 +1201,17 @@ the exemption does nothing, and Ze logs that at configure time naming the peer.<
 <tr>
 <td>Route Refresh</td>
 <td><code>route-refresh</code></td>
-<td>presence</td>
+<td><code>enable</code>, <code>disable</code>, <code>require</code>, <code>refuse</code>; absent means not advertised</td>
 </tr>
 <tr>
 <td>Extended Message</td>
 <td><code>extended-message</code></td>
-<td>presence</td>
+<td><code>enable</code>, <code>disable</code>, <code>require</code>, <code>refuse</code>; absent means not advertised</td>
+</tr>
+<tr>
+<td>Link-Local Next Hop</td>
+<td><code>link-local-nexthop</code></td>
+<td><code>enable</code>, <code>disable</code></td>
 </tr>
 <tr>
 <td>Graceful Restart</td>
@@ -5203,7 +5218,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

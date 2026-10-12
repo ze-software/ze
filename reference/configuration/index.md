@@ -657,8 +657,12 @@ A peer inherits from its group defaults. A group inherits from this global level
           - `enable`: Advertise the capability; no enforcement
           - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
           - `require`: Advertise the capability; refuse the session when the peer does not offer it
-        - **extended-message** `container`: Extended Message capability (RFC 8654).
-          The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that carries many attributes needs it.
+        - **extended-message** `capability-mode`: Extended Message capability mode (RFC 8654): enable, disable, require or refuse.
+          The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that carries many attributes needs it. Absent means not advertised.
+          - `disable`: Do not advertise the capability; no enforcement
+          - `enable`: Advertise the capability; no enforcement
+          - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
+          - `require`: Advertise the capability; refuse the session when the peer does not offer it
         - **graceful-restart** `container`: Graceful Restart capability configuration.
           The container carries presence, so writing it makes Ze send the Graceful Restart capability, code 64, to this peer. Ze names every address family the peer carries in that capability, unless the family container below narrows the set, so the peer retains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The families are the ones the session negotiates, so they include what the peer inherits from its group and exclude any family entry written 'mode disable'. The Forwarding State bit of each family is set at connection time rather than here: it says the routes were still being forwarded while Ze was down, which is true when Ze restarted and the forwarding plane kept them. A container on the peer replaces the container on the group rather than adding to it.
           - **family** `container`: Address families Ze names in the Graceful Restart capability.
@@ -675,8 +679,10 @@ A peer inherits from its group defaults. A group inherits from this global level
             The capability carries host and domain as two separate strings, and Ze joins neither. Ze writes the domain after the host, with its own 1-byte length, which is why 255 bytes is the limit.
           - **host** `string`: System hostname (max 255 bytes).
             Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the limit. Ze does not read the hostname of the box, so an empty leaf sends an empty string.
-        - **link-local-nexthop** `container`: Link-local next-hop capability.
-          The capability advertises that ze accepts IPv6 link-local next-hops in MP_REACH_NLRI (RFC 2545 Section 3). Requires session link-local on the peer or its group: the configuration is refused without it, because ze must send its own link-local address once the capability is negotiated (draft-ietf-idr-linklocal-capability Section 4).
+        - **link-local-nexthop** `enumeration`: Link-local next-hop capability: enable or disable.
+          The capability advertises that ze accepts IPv6 link-local next-hops in MP_REACH_NLRI (RFC 2545 Section 3). Requires session link-local on the peer or its group: the configuration is refused without it, because ze must send its own link-local address once the capability is negotiated (draft-ietf-idr-linklocal-capability Section 4). Only enable and disable: the plugin enforces neither require nor refuse, so the schema does not offer them. A peer's value overrides its group's; absent on both means not advertised.
+          - `disable`: Do not advertise the capability, overriding the group
+          - `enable`: Advertise the capability
         - **nexthop <family>** `list`: Extended Next Hop capability (RFC 8950)
           The list key is the NLRI family, and nhafi is the next-hop AFI. The pair lets an IPv4 route carry an IPv6 next hop, so an IPv6-only session can hold IPv4 reachability.
           - **mode** `capability-mode`: Extended next hop negotiation mode
@@ -689,8 +695,12 @@ A peer inherits from its group defaults. A group inherits from this global level
             Ze reads ipv4 and ipv6 alone, and it skips an entry that names another value.
             - `ipv4`: IPv4 (AFI 1)
             - `ipv6`: IPv6 (AFI 2)
-        - **route-refresh** `container`: Route Refresh capability (RFC 2918).
-          The capability lets the peer request a full re-advertisement of the routes, without a session teardown.
+        - **route-refresh** `capability-mode`: Route Refresh capability mode (RFC 2918): enable, disable, require or refuse.
+          The capability lets the peer request a full re-advertisement of the routes, without a session teardown. enable also advertises Enhanced Route Refresh (RFC 7313). Absent means not advertised.
+          - `disable`: Do not advertise the capability; no enforcement
+          - `enable`: Advertise the capability; no enforcement
+          - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
+          - `require`: Advertise the capability; refuse the session when the peer does not offer it
         - **software-version** `container`: Software Version capability (code 75).
           The container carries presence, so writing it makes Ze send the capability of draft-abraitis-bgp-version-capability to this peer. The version is the fixed string Ze/0.1.0, and the encoding leaf chooses how it is framed. A container on the peer replaces the container on the group rather than adding to it.
           - **encoding** `enumeration`: Capability Value framing: draft, or legacy for FRR and ExaBGP.
@@ -970,8 +980,12 @@ A peer inherits from its group defaults. A group inherits from this global level
         - `enable`: Advertise the capability; no enforcement
         - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
         - `require`: Advertise the capability; refuse the session when the peer does not offer it
-      - **extended-message** `container`: Extended Message capability (RFC 8654).
-        The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that carries many attributes needs it.
+      - **extended-message** `capability-mode`: Extended Message capability mode (RFC 8654): enable, disable, require or refuse.
+        The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that carries many attributes needs it. Absent means not advertised.
+        - `disable`: Do not advertise the capability; no enforcement
+        - `enable`: Advertise the capability; no enforcement
+        - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
+        - `require`: Advertise the capability; refuse the session when the peer does not offer it
       - **graceful-restart** `container`: Graceful Restart capability configuration.
         The container carries presence, so writing it makes Ze send the Graceful Restart capability, code 64, to this peer. Ze names every address family the peer carries in that capability, unless the family container below narrows the set, so the peer retains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The families are the ones the session negotiates, so they include what the peer inherits from its group and exclude any family entry written 'mode disable'. The Forwarding State bit of each family is set at connection time rather than here: it says the routes were still being forwarded while Ze was down, which is true when Ze restarted and the forwarding plane kept them. A container on the peer replaces the container on the group rather than adding to it.
         - **family** `container`: Address families Ze names in the Graceful Restart capability.
@@ -988,8 +1002,10 @@ A peer inherits from its group defaults. A group inherits from this global level
           The capability carries host and domain as two separate strings, and Ze joins neither. Ze writes the domain after the host, with its own 1-byte length, which is why 255 bytes is the limit.
         - **host** `string`: System hostname (max 255 bytes).
           Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the limit. Ze does not read the hostname of the box, so an empty leaf sends an empty string.
-      - **link-local-nexthop** `container`: Link-local next-hop capability.
-        The capability advertises that ze accepts IPv6 link-local next-hops in MP_REACH_NLRI (RFC 2545 Section 3). Requires session link-local on the peer or its group: the configuration is refused without it, because ze must send its own link-local address once the capability is negotiated (draft-ietf-idr-linklocal-capability Section 4).
+      - **link-local-nexthop** `enumeration`: Link-local next-hop capability: enable or disable.
+        The capability advertises that ze accepts IPv6 link-local next-hops in MP_REACH_NLRI (RFC 2545 Section 3). Requires session link-local on the peer or its group: the configuration is refused without it, because ze must send its own link-local address once the capability is negotiated (draft-ietf-idr-linklocal-capability Section 4). Only enable and disable: the plugin enforces neither require nor refuse, so the schema does not offer them. A peer's value overrides its group's; absent on both means not advertised.
+        - `disable`: Do not advertise the capability, overriding the group
+        - `enable`: Advertise the capability
       - **nexthop <family>** `list`: Extended Next Hop capability (RFC 8950)
         The list key is the NLRI family, and nhafi is the next-hop AFI. The pair lets an IPv4 route carry an IPv6 next hop, so an IPv6-only session can hold IPv4 reachability.
         - **mode** `capability-mode`: Extended next hop negotiation mode
@@ -1002,8 +1018,12 @@ A peer inherits from its group defaults. A group inherits from this global level
           Ze reads ipv4 and ipv6 alone, and it skips an entry that names another value.
           - `ipv4`: IPv4 (AFI 1)
           - `ipv6`: IPv6 (AFI 2)
-      - **route-refresh** `container`: Route Refresh capability (RFC 2918).
-        The capability lets the peer request a full re-advertisement of the routes, without a session teardown.
+      - **route-refresh** `capability-mode`: Route Refresh capability mode (RFC 2918): enable, disable, require or refuse.
+        The capability lets the peer request a full re-advertisement of the routes, without a session teardown. enable also advertises Enhanced Route Refresh (RFC 7313). Absent means not advertised.
+        - `disable`: Do not advertise the capability; no enforcement
+        - `enable`: Advertise the capability; no enforcement
+        - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
+        - `require`: Advertise the capability; refuse the session when the peer does not offer it
       - **software-version** `container`: Software Version capability (code 75).
         The container carries presence, so writing it makes Ze send the capability of draft-abraitis-bgp-version-capability to this peer. The version is the fixed string Ze/0.1.0, and the encoding leaf chooses how it is framed. A container on the peer replaces the container on the group rather than adding to it.
         - **encoding** `enumeration`: Capability Value framing: draft, or legacy for FRR and ExaBGP.
@@ -1482,8 +1502,12 @@ A peer inherits from its group defaults. A group inherits from this global level
         - `enable`: Advertise the capability; no enforcement
         - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
         - `require`: Advertise the capability; refuse the session when the peer does not offer it
-      - **extended-message** `container`: Extended Message capability (RFC 8654).
-        The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that carries many attributes needs it.
+      - **extended-message** `capability-mode`: Extended Message capability mode (RFC 8654): enable, disable, require or refuse.
+        The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that carries many attributes needs it. Absent means not advertised.
+        - `disable`: Do not advertise the capability; no enforcement
+        - `enable`: Advertise the capability; no enforcement
+        - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
+        - `require`: Advertise the capability; refuse the session when the peer does not offer it
       - **graceful-restart** `container`: Graceful Restart capability configuration.
         The container carries presence, so writing it makes Ze send the Graceful Restart capability, code 64, to this peer. Ze names every address family the peer carries in that capability, unless the family container below narrows the set, so the peer retains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The families are the ones the session negotiates, so they include what the peer inherits from its group and exclude any family entry written 'mode disable'. The Forwarding State bit of each family is set at connection time rather than here: it says the routes were still being forwarded while Ze was down, which is true when Ze restarted and the forwarding plane kept them. A container on the peer replaces the container on the group rather than adding to it.
         - **family** `container`: Address families Ze names in the Graceful Restart capability.
@@ -1500,8 +1524,10 @@ A peer inherits from its group defaults. A group inherits from this global level
           The capability carries host and domain as two separate strings, and Ze joins neither. Ze writes the domain after the host, with its own 1-byte length, which is why 255 bytes is the limit.
         - **host** `string`: System hostname (max 255 bytes).
           Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the limit. Ze does not read the hostname of the box, so an empty leaf sends an empty string.
-      - **link-local-nexthop** `container`: Link-local next-hop capability.
-        The capability advertises that ze accepts IPv6 link-local next-hops in MP_REACH_NLRI (RFC 2545 Section 3). Requires session link-local on the peer or its group: the configuration is refused without it, because ze must send its own link-local address once the capability is negotiated (draft-ietf-idr-linklocal-capability Section 4).
+      - **link-local-nexthop** `enumeration`: Link-local next-hop capability: enable or disable.
+        The capability advertises that ze accepts IPv6 link-local next-hops in MP_REACH_NLRI (RFC 2545 Section 3). Requires session link-local on the peer or its group: the configuration is refused without it, because ze must send its own link-local address once the capability is negotiated (draft-ietf-idr-linklocal-capability Section 4). Only enable and disable: the plugin enforces neither require nor refuse, so the schema does not offer them. A peer's value overrides its group's; absent on both means not advertised.
+        - `disable`: Do not advertise the capability, overriding the group
+        - `enable`: Advertise the capability
       - **nexthop <family>** `list`: Extended Next Hop capability (RFC 8950)
         The list key is the NLRI family, and nhafi is the next-hop AFI. The pair lets an IPv4 route carry an IPv6 next hop, so an IPv6-only session can hold IPv4 reachability.
         - **mode** `capability-mode`: Extended next hop negotiation mode
@@ -1514,8 +1540,12 @@ A peer inherits from its group defaults. A group inherits from this global level
           Ze reads ipv4 and ipv6 alone, and it skips an entry that names another value.
           - `ipv4`: IPv4 (AFI 1)
           - `ipv6`: IPv6 (AFI 2)
-      - **route-refresh** `container`: Route Refresh capability (RFC 2918).
-        The capability lets the peer request a full re-advertisement of the routes, without a session teardown.
+      - **route-refresh** `capability-mode`: Route Refresh capability mode (RFC 2918): enable, disable, require or refuse.
+        The capability lets the peer request a full re-advertisement of the routes, without a session teardown. enable also advertises Enhanced Route Refresh (RFC 7313). Absent means not advertised.
+        - `disable`: Do not advertise the capability; no enforcement
+        - `enable`: Advertise the capability; no enforcement
+        - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
+        - `require`: Advertise the capability; refuse the session when the peer does not offer it
       - **software-version** `container`: Software Version capability (code 75).
         The container carries presence, so writing it makes Ze send the capability of draft-abraitis-bgp-version-capability to this peer. The version is the fixed string Ze/0.1.0, and the encoding leaf chooses how it is framed. A container on the peer replaces the container on the group rather than adding to it.
         - **encoding** `enumeration`: Capability Value framing: draft, or legacy for FRR and ExaBGP.
@@ -7126,9 +7156,9 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
       - **transport-required** `boolean`: Delete the SA when the peer declines transport mode.
         Whether a peer that declines transport mode is unacceptable. RFC 7296 Section 1.3.1: 'If the responder declines the request, the Child SA will be established in tunnel mode. If this is unacceptable to the initiator, the initiator MUST delete the SA.' Only the operator knows whether it is unacceptable, so this leaf carries that decision. When it is true and the response omits USE_TRANSPORT_MODE, Ze deletes the SA rather than run a tunnel-mode Child SA the operator did not ask for. When it is false the SA stays up in tunnel mode, which is the safe default. It applies only when mode is transport.
       - **vti** `container`: Virtual Tunnel Interface binding.
-        The interface itself is declared under interfaces xfrm, where the if-id leaf carries the identifier a bound security association must match. Ze joins the two nowhere, so every Child SA is installed with if_id 0.
+        The interface itself is declared under interfaces xfrm, where the if-id leaf carries the identifier a bound security association must match. Ze reads that if-id through the name under bind and installs this peer's Child SAs with it.
         - **bind** `string`: VTI interface name to bind this peer's traffic to.
-          Route-based IPsec encrypts the traffic the routing table forwards into the named XFRM interface. Commit refuses a name beside mode transport, because an XFRM interface carries tunnel-mode encapsulation. No code maps the name to the if-id of that interface today. The Child SA is installed with if_id 0, and the binding carries no traffic.
+          Route-based IPsec encrypts the traffic the routing table forwards into the named XFRM interface. Commit refuses a name beside mode transport, because an XFRM interface carries tunnel-mode encapsulation. Ze installs the Child SA with the if-id of the named interface. A name that is not an XFRM interface, or one whose if-id is 0, refuses the Child SA, so the tunnel stays down rather than coming up unbound.
   - **unmatched** `enumeration`: Disposition of traffic no SPD entry matches: discard or bypass.
     The disposition of the catch-all entry Ze installs last in the Security Policy Database, in every direction and for both address families. RFC 4301 Section 5: 'If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded.' The catch-all is that policy, so a packet no other entry names always meets one. The default is bypass, because a router's own control plane (BGP, SSH, DNS) crosses the IPsec boundary in the clear, and a default of discard would stop it the moment vpn ipsec was configured. Set discard to get the disposition the RFC names, and write a bypass entry under policy for every flow that must still cross in the clear. The IKE control plane keeps its own bypass at order 100 either way.
     - `bypass`: Pass traffic no SPD entry matches in the clear.

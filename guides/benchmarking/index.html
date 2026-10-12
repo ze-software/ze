@@ -271,7 +271,14 @@ a pause. Longer delays give the DUT time to settle between measurements.</p>
 </tr>
 </tbody>
 </table>
+<p>The Ze DUT runs on the Docker daemon's kernel, so a run that tests it first
+builds <code>test/interop/ze-linux</code>, the ze the image carries, for the daemon's
+architecture, then checks that kernel with it and refuses one that lacks any
+feature Ze enrolls, naming each. The check and its
+routes are in <code>docs/architecture/testing/interop.md</code>, "The Docker host kernel
+check".</p>
 <!-- source: internal/test/perfrunner/run.go -- native Docker benchmark runner -->
+<!-- source: internal/le/perf/bench.go -- Bench.Run -->
 <!-- source: test/interop/Dockerfile.rustbgpd -- rustbgpd Docker image -->
 <pre><code class="language-bash"># Build every DUT image, measure every DUT, and record the run.
 ./le perf run
@@ -532,7 +539,7 @@ routes, which the regression checker always flags.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

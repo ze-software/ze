@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4090 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 32 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 33 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4090 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 32 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 33 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4090 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 32 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 33 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,28 +117,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>96.9%</strong><b>31 of 32 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>89.8%</strong><b>79 of 88 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>97.0%</strong><b>32 of 33 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 33 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 33 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 33 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>91.1%</strong><b>82 of 90 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>32</strong><b>of 40 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 32 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>33</strong><b>of 41 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 33 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 33 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 33 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 33 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>3.1%</strong><b>1 of 32 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>37</strong><b>of 32 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>3.0%</strong><b>1 of 33 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>38</strong><b>of 33 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 8 shares marked as a part above are the whole of the 32 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 33 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -210,10 +210,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>40</td>
+<td>41</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>32</td>
+<td>33</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>88</td>
+<td>90</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>88</td>
+<td>90</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>37</td>
+<td>38</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>80</td>
+<td>82</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4090.md</code></td>
@@ -273,7 +273,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>31</strong></td>
+<td><strong>32</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
@@ -300,11 +300,11 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>32</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>33</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (31):</strong> <a href="#rfc4090-4.1-1"><code>RFC4090-4.1-1</code></a>, <a href="#rfc4090-4.3-1"><code>RFC4090-4.3-1</code></a>, <a href="#rfc4090-4.4-1"><code>RFC4090-4.4-1</code></a>, <a href="#rfc4090-4.4-2"><code>RFC4090-4.4-2</code></a>, <a href="#rfc4090-4.4-3"><code>RFC4090-4.4-3</code></a>, <a href="#rfc4090-3.2-1"><code>RFC4090-3.2-1</code></a>, <a href="#rfc4090-4.2-1"><code>RFC4090-4.2-1</code></a>, <a href="#rfc4090-4.1-3"><code>RFC4090-4.1-3</code></a>, <a href="#rfc4090-4.4-6"><code>RFC4090-4.4-6</code></a>, <a href="#rfc4090-4.4-7"><code>RFC4090-4.4-7</code></a>, <a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a>, <a href="#rfc4090-5-2"><code>RFC4090-5-2</code></a>, <a href="#rfc4090-5-3"><code>RFC4090-5-3</code></a>, <a href="#rfc4090-5-4"><code>RFC4090-5-4</code></a>, <a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a>, <a href="#rfc4090-6-2"><code>RFC4090-6-2</code></a>, <a href="#rfc4090-6-3"><code>RFC4090-6-3</code></a>, <a href="#rfc4090-6-4"><code>RFC4090-6-4</code></a>, <a href="#rfc4090-6-5"><code>RFC4090-6-5</code></a>, <a href="#rfc4090-6-6"><code>RFC4090-6-6</code></a>, <a href="#rfc4090-6-7"><code>RFC4090-6-7</code></a>, <a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a>, <a href="#rfc4090-6.2-1"><code>RFC4090-6.2-1</code></a>, <a href="#rfc4090-6.4-1"><code>RFC4090-6.4-1</code></a>, <a href="#rfc4090-6.4-2"><code>RFC4090-6.4-2</code></a>, <a href="#rfc4090-6.4.3-1"><code>RFC4090-6.4.3-1</code></a>, <a href="#rfc4090-6.4-3"><code>RFC4090-6.4-3</code></a>, <a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a>, <a href="#rfc4090-7.1-2"><code>RFC4090-7.1-2</code></a>, <a href="#rfc4090-7.2-1"><code>RFC4090-7.2-1</code></a>, <a href="#rfc4090-7.2-2"><code>RFC4090-7.2-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (32):</strong> <a href="#rfc4090-4.1-1"><code>RFC4090-4.1-1</code></a>, <a href="#rfc4090-4.3-1"><code>RFC4090-4.3-1</code></a>, <a href="#rfc4090-4.4-1"><code>RFC4090-4.4-1</code></a>, <a href="#rfc4090-4.4-2"><code>RFC4090-4.4-2</code></a>, <a href="#rfc4090-4.4-3"><code>RFC4090-4.4-3</code></a>, <a href="#rfc4090-3.2-1"><code>RFC4090-3.2-1</code></a>, <a href="#rfc4090-4.2-1"><code>RFC4090-4.2-1</code></a>, <a href="#rfc4090-4.1-3"><code>RFC4090-4.1-3</code></a>, <a href="#rfc4090-4.4-6"><code>RFC4090-4.4-6</code></a>, <a href="#rfc4090-4.4-7"><code>RFC4090-4.4-7</code></a>, <a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a>, <a href="#rfc4090-5-2"><code>RFC4090-5-2</code></a>, <a href="#rfc4090-5-3"><code>RFC4090-5-3</code></a>, <a href="#rfc4090-5-4"><code>RFC4090-5-4</code></a>, <a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a>, <a href="#rfc4090-6-2"><code>RFC4090-6-2</code></a>, <a href="#rfc4090-6-3"><code>RFC4090-6-3</code></a>, <a href="#rfc4090-6-4"><code>RFC4090-6-4</code></a>, <a href="#rfc4090-6-5"><code>RFC4090-6-5</code></a>, <a href="#rfc4090-6-6"><code>RFC4090-6-6</code></a>, <a href="#rfc4090-6-7"><code>RFC4090-6-7</code></a>, <a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a>, <a href="#rfc4090-6.2-1"><code>RFC4090-6.2-1</code></a>, <a href="#rfc4090-6.4-1"><code>RFC4090-6.4-1</code></a>, <a href="#rfc4090-6.4-2"><code>RFC4090-6.4-2</code></a>, <a href="#rfc4090-6.4.3-1"><code>RFC4090-6.4.3-1</code></a>, <a href="#rfc4090-6.4.3-2"><code>RFC4090-6.4.3-2</code></a>, <a href="#rfc4090-6.4-3"><code>RFC4090-6.4-3</code></a>, <a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a>, <a href="#rfc4090-7.1-2"><code>RFC4090-7.1-2</code></a>, <a href="#rfc4090-7.2-1"><code>RFC4090-7.2-1</code></a>, <a href="#rfc4090-7.2-2"><code>RFC4090-7.2-2</code></a></p>
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc4090-4.4-5"><code>RFC4090-4.4-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -639,6 +639,15 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.4.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L341" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090FailureSwitchesToBackup</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L342" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090FailureSwitchesToBackup</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.4.3-2">RFC4090-6.4.3-2</code></td><td colspan="3"><span class="rfc-subject">to start sending the control traffic for the protected LSP onto the bypass tunnel (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.4.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_repair_refresh_test.go#L22" title="internal/plugins/rsvpte/rfc4090_repair_refresh_test.go" target="_blank" rel="noopener"><code>TestRepairedLSPKeepsUpstreamRefresh</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_repair_refresh_test.go#L86" title="internal/plugins/rsvpte/rfc4090_repair_refresh_test.go" target="_blank" rel="noopener"><code>TestRepairedLSPChangedEROResolvedAgain</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.4-3">RFC4090-6.4-3</code></td><td colspan="3"><span class="rfc-subject">More specifically, the PLR MUST: - remove all the sub-objects proceeding the first address belonging to the MP, and - replace this first MP address with an IP address of the MP. (§6.4.4)</span></td></tr>
@@ -1358,7 +1367,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L363" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090BypassDestinationIsMergePoint</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1419,6 +1428,26 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L341" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090FailureSwitchesToBackup</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc4090-6.4.3-2"><code>RFC4090-6.4.3-2</code></a></h3>
+<p>to start sending the control traffic for the protected LSP onto the bypass tunnel (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-10-12 by an independent judge (authored none of 9114a04414, 27be2c4a3c) against rfc/full/rfc4090.txt Section 6.4.3: &#34;When the PLR detects a link or/and node failure condition, it has to reroute the data traffic onto the bypass tunnel and to start sending the control traffic for the protected LSP onto the bypass tunnel.&#34; Row text is a verbatim span of that sentence. Producer read: frr.go::repairedPathSelection (exact compare of PSB.ReceivedERO, set on every transit acceptance in engine.go::handlePathTransit, with remainingERO of the refresh), engine.go::handlePath (a repaired selection skips resolveReceivedPath) and handlePathTransit (repaired -&gt; sendPath, which takes the bypass). Positive TestRepairedLSPKeepsUpstreamRefresh: after the link-down repair and native routing moved off the failed link, an ingress PATH refresh naming the accepted route draws no PathErr, is relayed exactly once with the bypass&#39;s TableID and the PLR&#39;s sender, the repair stays in use, and the MP&#39;s RESV for the PLR sender is accepted with the [5000 24000] stack. It goes red if control traffic is refused, dropped, or sent off the bypass. Negative TestRepairedLSPChangedEROResolvedAgain: a refresh whose ERO no longer passes the merge point (first downstream hop dropped, or another strict hop) is not relayed on the bypass and is resolved again to PathErr 24/2. That is a violation of this row, not only a neighbour: the bypass ends at the MP and Section 6.4.4 builds the backup ERO from the first address belonging to the MP, so a route that no longer names the MP is not the protected LSP&#39;s control traffic. Case 1 also discriminates the replaced one-hop length heuristic. Both records are mutants on frr.go line 700 (true/false) from a hand-written one-mutant report whose file, line and original text match HEAD; the recorder applies the break by overlay and refuses an unobserved red, and the logic predicts both reds (true: refusal reddens the positive&#39;s NotEqual PathErr; false: case 1 relays a PATH). Scope note: the immediate backup PATH at repair (tryLocalRepair&#39;s sendPath) is not observed by these units, which count only after the repair; it is asserted by the RFC4090-6.4-1/6.4-2 units in rfc4090_frr_bypass_test.go and by TestSelectedBypassCarriesAllProtectedControl, and with it removed control traffic still reaches the bypass at the next refresh. The RFC&#39;s &#34;has to&#34; carries the [MUST] class row RFC4090-6.4.3-1 already uses.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_repair_refresh_test.go#L86" title="internal/plugins/rsvpte/rfc4090_repair_refresh_test.go" target="_blank" rel="noopener"><code>TestRepairedLSPChangedEROResolvedAgain</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_repair_refresh_test.go#L22" title="internal/plugins/rsvpte/rfc4090_repair_refresh_test.go" target="_blank" rel="noopener"><code>TestRepairedLSPKeepsUpstreamRefresh</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1994,7 +2023,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

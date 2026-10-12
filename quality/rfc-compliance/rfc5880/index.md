@@ -35,7 +35,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 10.8% | 12 of 111 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 102 | of 111 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 103 | of 111 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 111 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -65,13 +65,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 137 |
 | Gated MUST-level | 111 |
 | Not applicable, so out of scope | 1 |
-| Declared gaps | 14 |
+| Declared gaps | 15 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 286 |
 | Tagged units | 286 |
-| Recorded audit verdicts | 102 |
+| Recorded audit verdicts | 103 |
 | Discrimination records | 228 |
 | Summary | `rfc/short/rfc5880.md` |
 | Requirement shard | `rfc/requirements/rfc5880.md` |
@@ -93,9 +93,9 @@ Enrolled: Bidirectional Forwarding Detection (BFD)
 
 **What the ledger says remains**
 
-Fourteen MUST and SHOULD gaps, gated in [`rfc/short/rfc5880.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5880.md), twelve of them at MUST level: Demand mode is not driven -- bfd.DemandMode has no writer and the stored remote D bit is never read, so no Poll is raised on a D-bit or content change and periodic transmission is never suppressed ([`RFC5880-6.6-2`](#rfc5880-6.6-2), 6.6-3, 6.8.6-14, 6.8.7-7, 6.8.17-1); periodic transmission also continues when bfd.RemoteMinRxInterval is zero ([`RFC5880-6.8.7-6`](#rfc5880-6.8.7-6)); a reduced bfd.RequiredMinRxInterval enters the Detection Time at once instead of at Poll termination ([`RFC5880-6.8.3-4`](#rfc5880-6.8.3-4)); bfd.XmitAuthSeq starts at zero rather than a random value and bfd.AuthSeqKnown is never cleared after twice the Detection Time ([`RFC5880-6.8.1-11`](#rfc5880-6.8.1-11), 6.8.1-13); there is no forwarding-plane-reset hook, so diagnostic 4 has no producer ([`RFC5880-6.8.15-1`](#rfc5880-6.8.15-1)); and no congestion-control mechanism governs the transmit rate ([`RFC5880-7-1`](#rfc5880-7-1), 7-2).
+Fifteen MUST and SHOULD gaps, gated in [`rfc/short/rfc5880.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5880.md), twelve of them at MUST level: Demand mode is not driven -- bfd.DemandMode has no writer and the stored remote D bit is never read, so no Poll is raised on a D-bit or content change and periodic transmission is never suppressed ([`RFC5880-6.6-2`](#rfc5880-6.6-2), 6.6-3, 6.8.6-14, 6.8.7-7, 6.8.17-1); periodic transmission also continues when bfd.RemoteMinRxInterval is zero ([`RFC5880-6.8.7-6`](#rfc5880-6.8.7-6)); a reduced bfd.RequiredMinRxInterval enters the Detection Time at once instead of at Poll termination ([`RFC5880-6.8.3-4`](#rfc5880-6.8.3-4)); bfd.XmitAuthSeq starts at zero rather than a random value and bfd.AuthSeqKnown is never cleared after twice the Detection Time ([`RFC5880-6.8.1-11`](#rfc5880-6.8.1-11), 6.8.1-13); there is no forwarding-plane-reset hook, so diagnostic 4 has no producer ([`RFC5880-6.8.15-1`](#rfc5880-6.8.15-1)); and no congestion-control mechanism governs the transmit rate ([`RFC5880-7-1`](#rfc5880-7-1), 7-2).
 
-- **The two SHOULD gaps:** the key management accepts no hexadecimal form for a Keyed MD5 or Keyed SHA1 key ([`RFC5880-6.7.3-14`](#rfc5880-6.7.3-14), 6.7.4-8). Final-packet rate limiting is absent by design and annotated not-applicable. IPv6 transport coverage is tracked with BFD.
+- **The three SHOULD gaps:** the password and key management accepts no hexadecimal form for a Simple Password, a Keyed MD5 key or a Keyed SHA1 key ([`RFC5880-6.7.2-2`](#rfc5880-6.7.2-2), 6.7.3-14, 6.7.4-8). Final-packet rate limiting is absent by design and annotated not-applicable. IPv6 transport coverage is tracked with BFD.
 
 ## Coverage
 
@@ -212,7 +212,7 @@ Fourteen MUST and SHOULD gaps, gated in [`rfc/short/rfc5880.md`](https://github.
 | `RFC5880-6.8.7-9` | A BFD Control packet SHOULD be transmitted during the interval between periodic Control packet transmissions when the contents of that packet would differ from that in the previously transmitted packet (other than the Poll and Final bits) in order to more rapidly communicate a change in state. (§6.8.7) | SHOULD | 6.8.7 - Transmitting BFD Control Packets | **positive:** no positive test. **negative:** no negative test |
 | `RFC5880-6.7.1-1` | In order to avoid security risks, implementations using this method SHOULD only allow the authentication state to be changed at most once without some form of intervention (so that authentication cannot be turned on and off repeatedly simply based on the receipt of BFD Control packets from remote systems). (§6.7.1) | SHOULD | 6.7.1 - Enabling and Disabling Authentication | **positive:** no positive test. **negative:** no negative test |
 | `RFC5880-6.7.1-2` | Unless it is desired to enable or disable authentication, an implementation SHOULD NOT allow the authentication state to change based on the receipt of BFD Control packets. (§6.7.1) | SHOULD NOT | 6.7.1 - Enabling and Disabling Authentication | **positive:** no positive test. **negative:** no negative test |
-| `RFC5880-6.7.2-2` | the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.2) | SHOULD | 6.7.2 - Simple Password Authentication | **positive:** no positive test. **negative:** no negative test |
+| `RFC5880-6.7.2-2` | the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.2) | SHOULD | 6.7.2 - Simple Password Authentication | **positive:** no positive test. **negative:** no negative test. **{gap}:** parseAuthConfig reads the secret leaf as a string and uses its bytes as the password (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Simple Password cannot be configured |
 | `RFC5880-6.7.3-5` | bfd.XmitAuthSeq SHOULD be incremented when the session state changes, or when the transmitted BFD Control packet carries different contents than the previously transmitted packet. (§6.7.3) | SHOULD | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** no positive test. **negative:** no negative test |
 | `RFC5880-6.7.4-9` | bfd.XmitAuthSeq SHOULD be incremented when the session state changes, or when the transmitted BFD Control packet carries different contents than the previously transmitted packet. (§6.7.4) | SHOULD | 6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication | **positive:** `unit/verify` [`TestRFC5880XmitAuthSeqAdvancesOnStateAndContentChange`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_xmit_auth_seq_test.go#L144). **negative:** `unit/verify` [`TestRFC5880XmitAuthSeqAdvancesForAnOutOfTimerFinal`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_xmit_auth_seq_test.go#L194) |
 | `RFC5880-6.7.3-14` | SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.3) | SHOULD | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** no positive test. **negative:** no negative test. **{gap}:** parseAuthConfig reads the secret leaf as a string and uses its bytes as the key (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Keyed MD5 key cannot be configured |
@@ -272,6 +272,7 @@ Fourteen MUST and SHOULD gaps, gated in [`rfc/short/rfc5880.md`](https://github.
 | [`RFC5880-6.8.15-1`](#rfc5880-6.8.15-1) When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down. (§6.8.15) | {gap}, no test | packet.DiagForwardingPlaneReset (internal/component/bfd/packet/diag.go:21) has no producer, and the only external state-forcing entry points are AdminDown and AdminEnable (internal/component/bfd/session/fsm.go:180,192), which move the session to AdminDown or Down carrying the caller's diagnostic and are never called with code 4 |
 | [`RFC5880-7-1`](#rfc5880-7-1) When BFD is used across multiple hops, a congestion control mechanism MUST be implemented (§7) | {gap}, no test | the transmit rate is derived solely from TransmitInterval plus jitter (internal/component/bfd/engine/loop.go:197-200) with no congestion-feedback input, and no congestion-control producer exists anywhere under internal/component/bfd |
 | [`RFC5880-7-2`](#rfc5880-7-2) When BFD is used across multiple hops, a congestion control mechanism MUST be implemented, and when congestion is detected, the BFD implementation MUST reduce the amount of traffic it generates. (§7) | {gap}, no test | the same rate producer (internal/component/bfd/engine/loop.go:197-200) is the only authority over generated traffic and nothing reduces it in response to detected congestion |
+| [`RFC5880-6.7.2-2`](#rfc5880-6.7.2-2) the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.2) | {gap} | parseAuthConfig reads the secret leaf as a string and uses its bytes as the password (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Simple Password cannot be configured |
 | [`RFC5880-6.7.3-14`](#rfc5880-6.7.3-14) SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.3) | {gap} | parseAuthConfig reads the secret leaf as a string and uses its bytes as the key (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Keyed MD5 key cannot be configured |
 | [`RFC5880-6.7.4-8`](#rfc5880-6.7.4-8) SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.4) | {gap} | parseAuthConfig reads the secret leaf as a string and uses its bytes as the key (internal/component/bfd/config.go:299); no hexadecimal form is parsed, so a binary Keyed SHA1 key cannot be configured |
 | [`RFC5880-6.8.17-1`](#rfc5880-6.8.17-1) If Demand mode is active on the remote system (the local system is not transmitting periodic BFD Control packets), a Poll Sequence MUST be initiated to ensure that the diagnostic code is transmitted. (§6.8.17) | {gap}, no test | packet.DiagConcatPathDown (internal/component/bfd/packet/diag.go:23) has no producer and the remote Demand state stored at internal/component/bfd/session/fsm.go:58 is never read, so a concatenated-path failure neither sets the diagnostic nor initiates a Poll Sequence |
@@ -1269,6 +1270,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 |---|---|---|---|
 | positive | [`TestRFC5880ReservedByteZeroedOnTransmit`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_keyed_test.go#L121) | unit/verify | revert, verified |
 | positive | [`TestRFC5880KeyedMD5SectionHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L91) | unit/verify | revert, verified |
+
+### [`RFC5880-6.7.2-2`](#rfc5880-6.7.2-2)
+
+the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form. (§6.7.2)
+
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Recorded 2026-10-11 from independent review round 1, ISSUE 1. Confirmed at the producer: parseAuthConfig reads the secret leaf with stringField and stores []byte(secret) for every Auth Type, Simple Password included (config.go); the YANG leaf secret is type string with no hex form, so a binary Simple Password cannot be configured. The ASCII half of the sentence is met by the same string leaf; the hexadecimal SHOULD is the gap. The {gap} annotation is accurate; disclosed in Support remaining.
+
+No test carries RFC5880-6.7.2-2, so no unit is bound to it.
 
 ### [`RFC5880-6.7.4-9`](#rfc5880-6.7.4-9)
 

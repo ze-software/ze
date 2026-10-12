@@ -786,6 +786,25 @@ the config, then rejects any required symbol that is not built in. Docker and
 QEMU are native backends of the same Go driver. Output is cached by target,
 architecture, profile, config, and kernel version.
 
+A kernel is built only on a host of its own architecture: an arm64 kernel on an
+arm64 machine (a Mac), an amd64 kernel on an amd64 machine. A request for the
+other architecture is refused before any backend starts, naming the host's
+architecture and where to build it, because a build under CPU emulation runs
+for hours and fails late. For the same reason the QEMU backend runs only under
+a hardware accelerator, `hvf` on macOS or `kvm` on Linux, and refuses rather
+than fall back to the `tcg` emulator. When QEMU itself is missing or fails to
+start, the error says so and shows QEMU's own message; install or repair QEMU,
+then check that `qemu-system-<arch> -accel help` lists `hvf` or `kvm`. That
+listing shows what QEMU was built with, not what this host can use, so the
+build also checks the host: on Linux, `/dev/kvm` must open for your user
+(when the refusal is a permission error, `sudo usermod -aG kvm $USER`, then
+log in again; any other error points at the kernel log); on macOS,
+`sysctl kern.hv_support` must print `1`. Each of these questions is bounded at
+fifteen seconds, so a hung QEMU or Docker daemon is reported, not waited on.
+`ze doctor` reports the same condition.
+
+<!-- source: internal/appliance/kernelbuilder/driver.go -- validateRequest, hostGOARCH -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators -->
 <!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
 <!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->

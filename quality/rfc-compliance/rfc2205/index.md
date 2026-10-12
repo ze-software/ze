@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 8.0% | 6 of 75 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 75 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 75 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 91.8% | 78 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 88.2% | 75 of 85 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -702,7 +702,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2205ResvErrWrongStyleNotRouted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L368) | unit/verify | revert, verified |
-| positive | [`TestRFC2205ResvErrCarriesErrorAndRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L339) | unit/verify | revert, verified |
+| positive | [`TestRFC2205ResvErrCarriesErrorAndRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L339) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC2205-3-20`](#rfc2205-3-20)
 
@@ -712,8 +712,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205FailedFirstReservationNotInPlace`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L420) | unit/verify | revert, verified |
-| positive | [`TestRFC2205FailedIncreaseLeavesReservationInPlace`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L384) | unit/verify | revert, verified |
+| negative | [`TestRFC2205FailedFirstReservationNotInPlace`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L420) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2205FailedIncreaseLeavesReservationInPlace`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L384) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC2205-3-21`](#rfc2205-3-21)
 

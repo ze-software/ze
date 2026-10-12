@@ -70,7 +70,15 @@
 </tr>
 <tr>
 <td><code>config-discard</code></td>
-<td>SSH/CLI config editor, web config editor, REST config sessions, gRPC config sessions</td>
+<td>SSH/CLI config editor, web config editor (the Discard button, the web terminal and the CLI bar, <code>discard &lt;path&gt;</code> included), REST config sessions, gRPC config sessions. A <code>rollback</code> in the SSH editor or the web terminal also writes one</td>
+</tr>
+<tr>
+<td><code>config-download</code></td>
+<td>web <code>GET /config/download</code></td>
+</tr>
+<tr>
+<td><code>config-upload</code></td>
+<td>web <code>POST /config/upload</code>, once the uploaded config is applied</td>
 </tr>
 <tr>
 <td><code>daemon-reload</code></td>
@@ -83,8 +91,14 @@
 </tbody>
 </table>
 <p>Each entry has <code>timestamp</code>, <code>actor</code>, <code>remote-addr</code>, <code>surface</code>, <code>action</code>, <code>detail</code>, and <code>outcome</code> fields. <code>detail</code> carries the config diff for commit and discard records when Ze has one.</p>
+<p>A discard record's <code>detail</code> lists only the changes that discard dropped. <code>discard &lt;path&gt;</code> keeps your changes outside that path, so they are not in its record, and they appear in the commit record that later applies them. One exception: the SSH editor's diff lines carry no path, so when two places hold the same pending line (two peers both changed to the same hold time, say) and <code>discard &lt;path&gt;</code> drops one of them, the SSH record can also name the line you kept. The web records are exact. A whole discard run with nothing pending still writes a record, with an empty <code>detail</code>, on every surface, so the trail shows every discard an operator ran. A rollback record's <code>detail</code> is the rollback itself (the command in the web terminal, <code>rollback &lt;backup&gt;</code> in the SSH editor), a download record's is the file name, and an upload record's is <code>uploaded configuration</code>.</p>
 <!-- source: internal/core/audit/audit.go -- Entry fields and action constants -->
-<!-- source: internal/component/web/handler_config.go -- web config audit recording -->
+<!-- source: internal/component/web/handler_config_commit.go -- Discard button and commit audit recording -->
+<!-- source: internal/component/web/handler_config_transfer.go -- config-download and config-upload audit recording -->
+<!-- source: internal/core/audit/dropped.go -- DroppedDiff -->
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdDiscardSession, cmdRollback -->
+<!-- source: internal/component/web/cli_terminal.go -- terminalAuditSucceeded -->
+<!-- source: internal/component/web/cli.go -- handleCLIDiscard -->
 <!-- source: internal/component/api/rest/server.go -- REST config and auth-fail audit recording -->
 <!-- source: internal/component/api/grpc/server.go -- gRPC config and auth-fail audit recording -->
 <!-- source: internal/component/mcp/audit.go -- MCP auth-fail audit recording -->
@@ -151,7 +165,7 @@ ze show audit since 2026-05-24T10:00:00Z until 2026-05-24T11:00:00Z
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

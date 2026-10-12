@@ -11,11 +11,10 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **13 / 171** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Tests with no reachable failure call | Q1 | **135 / 35114 (floor 126)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
-| Test files that expect a specific error | Q2 | **1993 / 5592** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
+| Test files that expect a specific error | Q2 | **2059 / 5727** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
 | Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-5 further metric(s) are within threshold and are listed in full below.
+6 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -23,7 +22,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**135 / 35114 (floor 126)** (attention)
+**114 / 35654 (floor 126)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -40,7 +39,7 @@ These execute code and pass unconditionally. Breaking the code under test would 
 | internal/component/bgp/plugins/bmp/route_action_test.go | TestProcessRouteMonitoring_ShortUpdate_Skipped |
 | internal/component/bgp/plugins/filter_irr/filter_irr_test.go | TestRefreshSwapsAtomically |
 | internal/component/bgp/plugins/filter_irr/filter_irr_test.go | TestRefreshASNStoreFieldRace |
-| internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go | TestLLGREgressFilter_ConcurrentAccess |
+| internal/component/bgp/plugins/healthcheck/hooks_test.go | TestHookFailureNoEffect |
 
 ### time.sleep() calls in .ci tests
 
@@ -64,7 +63,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### Test files that expect a specific error
 
-**1993 / 5592** (attention)
+**2059 / 5727** (attention)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -77,11 +76,11 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 | internal/core/rib | 0 | 14 | 0.0 |
 | internal/core/stats | 0 | 5 | 0.0 |
 | internal/le/hookruntime | 0 | 9 | 0.0 |
-| internal/plugins/completion | 0 | 7 | 0.0 |
+| internal/plugins/completion | 0 | 8 | 0.0 |
 | internal/component/sysrib | 2 | 28 | 7.1 |
 | internal/component/lg | 2 | 25 | 8.0 |
+| internal/component/doctor | 2 | 23 | 8.7 |
 | internal/chaos/peer | 1 | 11 | 9.1 |
-| internal/component/doctor | 2 | 21 | 9.5 |
 
 ### RFC MUST requirements proven by test, over the RFCs ze implements
 
@@ -106,9 +105,9 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**35148 test functions** (ok)
+**35689 test functions** (ok)
 
-5592 Go test files, 88 fuzz targets, 137 benchmarks, 2168 .ci scenarios, 172 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+5727 Go test files, 88 fuzz targets, 137 benchmarks, 2220 .ci scenarios, 177 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
@@ -123,7 +122,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 652 | 34 | 129 | 35 |
+| 2026 | 656 | 34 | 129 | 35 |
 
 ## Integrity
 

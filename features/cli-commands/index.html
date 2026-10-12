@@ -83,7 +83,7 @@ command below it. <code>show interface</code> is registered at two words and tak
 interface name, so <code>brief</code>, <code>scan</code>, <code>type</code>, <code>errors</code>, <code>rate</code>, and the two
 <code>name &lt;name&gt; ...</code> forms all go to the daemon rather than being read as interface
 names.</p>
-<!-- source: internal/component/command/registry/registry.go -- LookupLocal prefix refusal -->
+<!-- source: internal/component/command/local.go -- LookupLocal prefix refusal -->
 <h3 id="peer-selectors-on-a-destructive-command">Peer selectors on a destructive command</h3>
 <p>One resolver answers the peer selector for every peer-scoped command. It accepts
 a name, an address, an ASN (<code>as65001</code>), or a prefix, so a selector that works on
@@ -116,7 +116,8 @@ container's name. That name is the word the operator types the value after, so
 <code>send bgp &lt;selector&gt; unicast &lt;prefix&gt;</code> binds the selector and leaves the
 prefix to the handler. The shape-based fallback stays for a command that
 anchors nothing, and both refuse ambiguity: two candidates name none.</p>
-<!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens, anchoredDef, implicitSelectorDef -->
+<!-- source: internal/component/plugin/server/command.go -- matchCommandTokens, anchoredDef, implicitSelectorDef -->
+<!-- source: internal/component/command/argbind.go -- ValidateArgs, positionalDef -->
 <!-- source: internal/component/config/yang/command.go -- appendAnchored -->
 <h3 id="a-command-declares-what-its-answer-holds">A command declares what its answer holds</h3>
 <p>A command declares whether its answer holds rows or one document, and which of
@@ -389,7 +390,7 @@ ze&gt; monitor bgp
 The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the next column, use the arrow keys to select a peer, and press Enter for live session details. Press Escape to return and &#34;q&#34; to leave the dashboard.</code></pre>
   </details>
 </figure>
-<p><strong>Commit confirmed:</strong> The editor supports <code>commit confirmed &lt;seconds&gt;</code> for safe remote changes. The config is applied immediately but auto-reverts if <code>confirm</code> is not issued within the timeout window (1-3600 seconds). Use <code>confirm abort</code> to revert manually. Modeled after Junos commit confirmed.</p>
+<p><strong>Commit confirmed:</strong> The editor supports <code>commit confirmed &lt;seconds&gt;</code> for safe remote changes. The config is applied immediately but auto-reverts if <code>commit accept</code> is not issued within the timeout window (1-3600 seconds). Use <code>commit abort</code> to revert manually. A plain commit is <code>commit now</code>; <code>commit verify</code> validates without applying. Modeled after Junos commit confirmed.</p>
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
 <p><strong>Command history persistence:</strong> Both <code>ze config edit</code> and <code>ze cli</code> persist command history to the <code>database/</code> store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).</p>
 <!-- source: internal/component/cli/history.go -- History type -->
@@ -465,7 +466,7 @@ The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the n
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

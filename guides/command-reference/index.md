@@ -333,7 +333,7 @@ across, and a capture with no BGP in it exits non-zero naming what it examined.
 An IPv4 unicast route needs an IPv4 `next-hop`. `encode` refuses any other
 next hop, and exits 1 with an error that names the requirement, rather than
 print an UPDATE whose NLRI has no NEXT_HOP attribute.
-<!-- source: internal/component/bgp/message/update_build.go -- checkInlineNextHop -->
+<!-- source: internal/component/bgp/message/update_build.go -- checkUnicastNextHop -->
 
 ### ze show warnings / ze show errors
 
@@ -599,7 +599,7 @@ The commands work without a running Ze daemon. Every field returned by `ze show 
 
 
 <!-- source: internal/plugins/host-cmd/cmd/show_host.go -- online `show host *` RPCs -->
-<!-- source: internal/plugins/host/host.go -- RunShow offline fallback (registry.RegisterOfflineFallback) -->
+<!-- source: internal/plugins/host/host.go -- RunShow offline fallback (command.MustRegisterOfflineFallback in register.go) -->
 <!-- source: internal/component/host/inventory.go -- Inventory struct and types -->
 
 Online (daemon) and offline (fallback) paths share the same detection library, so
@@ -720,7 +720,7 @@ stable hardware identity.
 and `ze show interface <name>` are served in-process.** `show interface` is a
 local handler registered at two words
 (internal/component/iface/cli/register.go), and its own arguments are an
-interface name, not a keyword. registry.LookupLocal refuses it for any argv that
+interface name, not a keyword. command.LookupLocal refuses it for any argv that
 reaches a declared command below it, so `brief`, `scan`, `type`, `errors`,
 `rate` and the two `name ...` forms are answered by the daemon. Before that rule
 existed, all seven reached the in-process handler and were read as interface
@@ -1828,7 +1828,7 @@ Three `ze doctor` checks report the same facts with stable diagnostic codes:
 <!-- source: internal/plugins/crashes/register.go -- their registration -->
 
 <!-- source: internal/plugins/crashes/cmd/register.go -- online show crashes RPC -->
-<!-- source: internal/plugins/crashes/register.go -- offline fallback (registry.RegisterOfflineFallback) -->
+<!-- source: internal/plugins/crashes/register.go -- offline fallback (command.MustRegisterOfflineFallback) -->
 
 <!-- source: internal/plugins/crashes/cmd/show.go -- show crashes command -->
 <!-- source: internal/plugins/crashes/crashes.go -- crash storage commands -->

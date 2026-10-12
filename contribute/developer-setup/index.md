@@ -124,7 +124,7 @@ of the two is absent.
 | `protobuf` (`protoc`) | Protocol buffer compiler |
 | `jq` | JSON processing |
 | `golangci-lint` | Go linter (via `go install`) |
-| `staticcheck` | Feature-tag structural type checker, pinned to 2026.2.1 (via `go install`) |
+| `staticcheck` | Feature-tag structural type checker, pinned to 2026.2.1 (honnef.co/go/tools v0.8.1 in `go.mod`, built from the vendor tree with `go install -mod=vendor` so it links the x/tools `go.mod` requires) |
 | `goimports` | Go import formatter (via `go install`) |
 | `gopls` | Go language server behind the agent LSP tool (via `go install`) |
 | `govulncheck` | Dependency vulnerability scanner for the verification gate, built from the vendored copy (via `go install`) |
@@ -193,6 +193,46 @@ The target and its checked feature population are documented in
   `brew install e2fsprogs`.
 - **grub** has no first-party Homebrew formula. ISO builds require Linux or
   a container (colima/docker). The setup action skips grub on macOS.
+
+### Docker labs
+
+A Docker lab runs Ze in containers, so the kernel it tests is the Docker host's,
+and that kernel has to carry every feature Ze enrolls. A lab is never judged on a
+kernel that lacks one.
+
+- **macOS:** the labs run inside the Alpine QEMU guest booted on Ze's own arm64
+  runtime kernel under HVF, never in colima or Docker Desktop, whose Linux VMs
+  lack features Ze enrolls. Build the kernel cache entry once with
+  `./le build host-driver` and then
+  `./ze-host appliance kernel --target runtime --arch arm64` (the `./ze`
+  wrapper builds without `appliance`), then run a lab as
+  `./le test qemu docker-lab lab "test integration interop-ipsec"`. With no
+  `lab` the action stops after the guest's Docker kernel check.
+- **Linux:** the labs run on the host's own Docker, on a kernel that carries
+  every registered feature. `./le setup docker-kernel check` asks the
+  Docker daemon in hand and names each missing feature. It cross-builds the
+  linux `ze` it probes with for the daemon's architecture
+  (`tmp/qemu/linux-<arch>/ze`); `ze <path>` names another, which must be a
+  linux executable for that architecture.
+  `./le setup docker-kernel install` puts Ze's cached runtime kernel under
+  `/boot` and makes it GRUB's default, one stated `sudo` step at a time. It
+  needs `GRUB_DEFAULT=saved` in `/etc/default/grub`, never reboots, and refuses
+  on macOS. When the daemon applies AppArmor (Ubuntu's default), the check runs its
+  probe under Ze's `ze-kernel-probe` profile, because Docker's `docker-default`
+  denies what the probe does; `./le setup docker-kernel apparmor confirm
+  ze-kernel-probe` installs and loads it, one stated `sudo` step at a time. The
+  lab peers that write their network sysctls while they run (the VRRP
+  scenarios' ze, strongSwan in some IPsec scenarios) run under the one generic
+  profile `ze-lab-net-sysctl` the same way, loaded with
+  `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl`; the action with no
+  `confirm` lists every profile and the steps each one runs.
+
+`docs/architecture/testing/qemu-integration.md`, "Docker labs in the Ze-kernel
+guest", is the guest path; the scheduled nightly runs the same path on amd64
+under KVM (`docs/architecture/testing/ci-workflows.md`).
+
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, dockerLabKernel -->
+<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
 
 <!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
 <!-- source: internal/le/setup/actions.go -- Answer -->

@@ -195,6 +195,7 @@ proof. Diagnostic collection has a cancellation-independent fifteen-second bound
 | Requirement | Used By | Notes |
 |-------------|---------|-------|
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
+| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs, `TestVPPSRv6ServiceRoute`, the terminal-demo render and validate mode, the `./le perf` ze DUT, `./le verify evidence release-candidate` | Checked before any image build or container start; see "The Docker host kernel check" |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
@@ -210,7 +211,8 @@ Run the focused service-route proof through native admission:
   -run '^TestVPPSRv6ServiceRoute$' -v
 ```
 
-This test reuses the deployment VPP image, privileged container, build recipes,
+This test reuses the deployment VPP image, its container (`NET_ADMIN`,
+`/dev/net/tun` and `/dev/vhost-net`, never `--privileged`), build recipes,
 sockets, and staged Ze configuration. It does not replace the legacy
 `./le test deployment vpp-test` population. Docker, Go, a VPP image with the
 SRv6 API and AF_PACKET plugin, and a Docker kernel with veth support are required.
@@ -314,8 +316,10 @@ via each daemon's native CLI.
 ### How It Works
 
 The native `internal/le/interoplab/bgp` package discovers scenario directories in
-`test/interop/scenarios/`. For each scenario, the shared `interoplab.Suite`
-engine:
+`test/interop/scenarios/`. Before any scenario, the shared `interoplab.Suite`
+engine runs the lab's preflight (which stages ze), checks the Docker daemon's
+kernel with that ze ("The Docker host kernel check" below), and builds the
+images. For each scenario it then:
 
 1. Creates an isolated Docker network.
 2. Starts Ze and the peer daemons declared by the scenario's config files.
@@ -323,6 +327,222 @@ engine:
 4. Runs the scenario's typed checker from the package-local BGP registry.
 5. Tears down every container and network, including after setup or checker failure.
 <!-- source: internal/le/interoplab/lab.go -- suite lifecycle -->
+
+### The Docker host kernel check
+
+A container runs on the Docker daemon's kernel, so a kernel feature Ze needs and
+that kernel lacks fails scenarios for a fact about the host. `mobike-initiator`
+and `mobike-responder` showed the cost: on a 6.8 kernel they spent fifteen
+minutes and reported two protocol failures that were the missing
+`XFRM_MSG_MIGRATE_STATE`. Every Docker run that runs Ze therefore checks the
+daemon's kernel first, and refuses a kernel that lacks any feature. The owner's
+ruling is that a wrong kernel "should not be possible - fail": there is no skip,
+no warning mode and no exemption.
+
+The required set is not listed in le. `Suite.Run` starts the ze the lab staged
+for the daemon's architecture (`Suite.StagedZe`, from `StagedZePath`) in a
+throwaway container and reads its answer:
+
+```bash
+docker run --rm --cap-add NET_ADMIN --cap-add SYS_ADMIN --network none \
+  -v <staged ze>:/ze:ro alpine:3.21 /ze doctor --json kernel-capabilities
+```
+
+`ze doctor kernel-capabilities` probes every capability a package enrolls in
+`internal/component/kernelcap`, with configuration ignored
+(`docs/architecture/doctor-and-health-checks.md`). A capability enrolled later
+is required of every Docker host with no le change. `NET_ADMIN` lets the
+netlink probes ask; `SYS_ADMIN` lets the xfrm-interface probe unshare a network
+namespace. Without it that row reads `unknown`, which also refuses.
+
+On a daemon whose `docker info` security options list `name=apparmor`, the
+probe container runs under Ze's AppArmor profile instead of `docker-default`
+(`--security-opt apparmor=ze-kernel-probe`): docker-default denies the MPLS
+transit MTU probe's mount and its `/proc/sys` write, and that row would read
+`denied` (owner D-7: the host is set up for Ze, never unconfined). On a Linux
+client whose `/sys/kernel/security/apparmor/profiles` lacks the profile, the
+check refuses before any container starts and names
+`./le setup docker-kernel apparmor confirm ze-kernel-probe`. An unreadable list
+(apparmorfs refuses it to a reader without policy-view privilege, such as a
+non-root user) is never read as "loaded": the probe runs, and
+when runc answers "unable to apply apparmor profile" the check refuses with the
+same command rather than reporting an unreadable answer. Both refusals also name
+the daemon's kernel release and the kernel route below, because the profile lets
+the probe answer and adds no kernel feature: a stock kernel may still lack some
+(MOBIKE's xfrm migrate, for example), and the operator reads the whole path in
+one run. A security
+options query that fails or prints no JSON refuses, because the argv depends on
+it. Ze's own kernel carries no AppArmor, so the QEMU guest's daemon lists none
+and the guest route is unchanged.
+
+<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, kernelProbeArgv -->
+
+The probe is the first container to run under a Ze profile, and the same rule
+holds for every lab container: one that needs more than docker-default grants
+runs under a Ze profile that grants exactly that, never `apparmor=unconfined`.
+Each profile registers in `interoplab` (`RegisterAppArmorProfile`, from a lab's
+`register_apparmor.go`) with its name, what runs under it, what docker-default
+denies it, its text and the command to run once it is loaded. A peer names its
+profile in `PeerConfig.AppArmorProfile`. On a daemon that applies AppArmor the
+container starts with `--security-opt apparmor=<name>`; on a Linux client whose
+profile list lacks it, the lab refuses before the container starts, naming
+`./le setup docker-kernel apparmor confirm <name>`; where that list is
+unreadable the container runs, and when runc answers "unable to apply apparmor
+profile" the lab refuses naming the same command (`labAppArmorUnapplied`); on a
+daemon that applies no AppArmor the option is left out. `ze-kernel-probe` parses with `apparmor_parser -Q`
+4.0.1 (Ubuntu 24.04).
+
+A lab peer runs with no more than its daemon needs, never `--privileged`
+(`plan/pre-release/spec-lab-containers-least-privilege.md`). A sysctl set once
+before the daemon starts is a `--sysctl` argument, written by Docker into the
+peer's own network namespace. A sysctl written while the peer runs takes
+`interoplab.NetSysctlWriteArguments` (`systempaths=unconfined`) together with
+the generic profile `ze-lab-net-sysctl`, which is docker-default with every
+`/proc/sys` write denied outside `net/` and every mount denied; any lab names it,
+none defines its own copy (owner, 2026-10-10: one shared profile granting only
+what the labs together need). The VRRP scenarios' ze (any scenario carrying
+`keepalived.conf`) is such a peer: once it knows its interface VRRP writes the
+per-device knobs under `net/ipv4/conf/` and `net/ipv6/conf/` and the
+namespace-wide `net/ipv4/conf/all/rp_filter` and
+`net/ipv4/icmp_errors_use_inbound_ifaddr` (`applyDataplaneSysctls`,
+`internal/plugins/vrrp/dataplane_linux.go`), and
+`TestVRRPWritesOnlyLabGrantedSysctls` records every write it makes and checks
+the profile grants each. In the IPsec lab the NAT box, strongSwan and ze hold
+`NET_ADMIN`; the NAT box sets its three sysctls through `--sysctl`; strongSwan
+runs under `ze-lab-net-sysctl` only in a scenario whose `scenarioCheckers`
+entry sets `writesPeerSysctl` (`internal/le/interoplab/ipsec/checkers.go`),
+because its checker cuts strongSwan's reassembly marks at run time;
+`TestOnlyCheckersThatWritePeerSysctlsAreFlagged` reads the source and refuses
+a checker that reaches `dropFragmentsAtPeer` without the flag, or the flag
+without the write. In the L2TP lab ze and the xl2tpd LAC hold `NET_ADMIN` and
+`--device /dev/ppp`, and the preflight probes with the same grants and loads no
+module, so it passes only where the peers can run. The PPPoE lab grants ze,
+accel-ppp and the pppd client the same two, its preflight probes the same way,
+and no PPPoE image installs `kmod` or runs `modprobe`.
+
+<!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing, labAppArmorUnapplied -->
+<!-- source: internal/le/interoplab/apparmor_netsysctl.go -- NetSysctlAppArmorProfileName, NetSysctlGranted -->
+<!-- source: internal/plugins/vrrp/dataplane_linux.go -- applyDataplaneSysctls -->
+
+The check runs after the preflight, because it needs the staged ze, and before
+the first image build, so a refused host costs no build and counts no scenario.
+It refuses when:
+
+| Answer | Refusal names |
+|--------|---------------|
+| a row is `absent`, `unknown` or `denied` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6), its command on a line of its own: on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot; inside the Docker lab's QEMU guest, which exports `ZE_DOCKER_LAB_GUEST=1` before its check, the appliance kernel's own fix instead (add the options to `gokrazy/kernel/runtime.config` and `runtime.require`, then rebuild the kernel cache entry on the host with `./le build host-driver` and `./ze-host appliance kernel --target runtime --arch <arch>`); elsewhere the refused run's own le words inside the Ze-kernel QEMU guest, `./le test qemu docker-lab lab '<the words>'` printed with the words filled in, followed by `env '<NAME=value>'` with each scenario selector variable the suite declared to `ReadEnvironment` and the run set (`IPSEC_INTEROP_SCENARIO=mobike-responder`, for example), so the guest reruns the one scenario rather than the whole suite; or `./le test qemu docker-lab` (boot and check only) when the process is not le or a word or an assignment holds white space or a quote. A `denied` row adds, on a daemon applying AppArmor, `./le setup docker-kernel apparmor confirm ze-kernel-probe`; on any other daemon it says the policy the row names must grant the probe its steps, and under SELinux names `sudo ausearch -m avc -ts recent` to read the denial |
+| the container fails, or prints no JSON | the command it ran, its exit code, stdout and stderr |
+| the answer holds no row | the command it ran |
+| every row is `present` but the probe exits non-zero or answers `ready` false | the command it ran, its exit code and the `ready` it read: the producer's verdict and its rows disagree, so the answer is unread, never a pass |
+| the suite names no staged ze | `Suite.StagedZe` |
+
+The refusal is the suite's setup error: `interop: setup: <reason>`, exit 1. The
+`docker-l2tp-ppp-test` and `docker-pppoe-accel-test` deployment proofs run the
+L2TP and PPPoE suites, so they reach the same check. A suite with no kernel
+module of its own, such as the FreeRADIUS admin-login suite, is checked too:
+the owner's rule is about the host, not about the scenario.
+
+The `l2tp-test`, `vpp-test` and `vpp-iface-test` deployment proofs run no suite,
+and neither does `TestVPPSRv6ServiceRoute` (build tag `integration`), which
+prepares its daemon through the step `vpp-iface-test` uses. Each cross-compiles its own daemon to `tmp/evidence/bin/ze-linux-<arch>`, and
+`buildCheckedDaemon` runs the same check with that binary right after the build,
+before the proof inspects or pulls its peer image and before its first
+container, so a refused host downloads and starts nothing. With
+`NO_BUILD=1` the proof skips the build and probes with the daemon already at
+that path, and refuses by name when there is none.
+
+The terminal-demo render (`le site terminal-demo render` and `render-all`) and
+the renderer's `validate` mode run Ze in validator and recorder containers, so
+both make the same check, through one shared preflight, with the demo binary
+(`tmp/terminal-demos/bin/ze`) after confirming that binary exists and before the
+renderer image is inspected or any container starts.
+
+`./le perf run` and `./le perf evidence-record` run the ze DUT in a container,
+so a run that tests the ze DUT (every DUT, or `ze` named) first cross-compiles
+the ze the DUT image carries, `test/interop/ze-linux` (the path the BGP lab
+declares, through the BGP lab's own staging), then makes the same check with it
+before the benchmark starts. A build alone, or a run of other DUTs only, starts
+no ze, stages nothing and does not check.
+
+Every route refuses a staged ze path that holds no file, or holds a directory,
+naming the path, before any docker command runs. Docker answers a bind mount of
+a missing path by creating a root-owned directory there, which a later staging
+then cannot replace. A missing file names, on a line of its own, the run's own
+le words again: `env -u NO_BUILD ./le <words>` when the run skipped its build,
+`./le <words>` otherwise (perf stages without `NO_BUILD`).
+<!-- source: internal/le/perf/bench.go -- Bench.Run, runsZe, stageZe, stagedZe -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- checkDockerKernel, stagedZeMissing, stageZeAgain -->
+
+`./le verify evidence release-candidate` runs the whole verify gate, Ze's
+functional tests included, inside a container on the daemon's kernel. After the
+clean-tree check and before the container starts, it cross-compiles a linux ze
+for the daemon's architecture into `tmp/verify-evidence/ze-linux`, which git
+ignores so the tree stays clean, and makes the same check with it. The
+container never runs `--privileged`: it holds one `--cap-add` for each
+capability the `option=needs-linux:caps=` vocabulary names and one `--device`
+for each node a production path reached by a test opens (`/dev/ppp`, opened by
+`ppp.DevPPPSetup`), read from the runner's own tables
+(`runner.ContainerCapsDockerNames`, `runner.ContainerDevicePaths`), and keeps
+Docker's default seccomp and AppArmor profiles. A test declares no device:
+`TestContainerDevicesCoverWhatPPPOpens` reads the L2TP sources for every
+`/dev` node they open and checks the table holds exactly those. A token added
+to either table reaches the container with no other edit. `sys-time` is left out:
+a container shares the Docker host's clock, so a verify run must not set it,
+and the NTP restore test skips there through its own caps gate. A container
+never loads a kernel module, so a Docker host without one of those nodes makes
+Docker refuse the start; the run then answers an error naming the node and the
+host command that creates it (`sudo modprobe ppp_generic` for `/dev/ppp`)
+rather than a bare exit code.
+<!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, Runner.dockerArgs, deviceRefusal, dockerKernel, kernelZeRel -->
+<!-- source: internal/test/runner/caps.go -- capsRequired, capDockerName, capsAltersHost, ContainerCapsDockerNames -->
+<!-- source: internal/test/runner/devices.go -- containerDevices, ContainerDevicePaths, DeviceHostModule -->
+
+`./le setup docker-kernel check` asks the daemon in hand the same question. With
+no `ze` it cross-builds `tmp/qemu/linux-<arch>/ze` for the daemon's architecture
+(`docker version`'s server arch) through `BuildLinuxZe`, the producer
+`./le test qemu docker-lab` uses; `ze <path>` names another. Either way the file
+must be an ELF executable for that architecture, or the check refuses before any
+container runs, naming the path, what it is instead (a directory, not ELF,
+another machine), and the build route. `./le setup docker-kernel apparmor` is Linux-only:
+it refuses where `/sys/module/apparmor/parameters/enabled` does not read `Y` or
+`apparmor_parser` is absent, installs the registered profile named after
+`confirm` as `/etc/apparmor.d/<name>` (so it loads again at boot) and loads it
+with `apparmor_parser -r -W`; without `confirm` naming a registered profile it
+prints the two `sudo` steps of every registered profile, runs none, and names
+the command that loads each. `./le setup docker-kernel install` is the Linux
+route: it installs the cached runtime kernel for the host's architecture under
+`/boot` and `/lib/modules`, rebuilds the initramfs and the GRUB menu with the
+Debian tools, and saves the new entry as GRUB's default by its title. It
+refuses before any step unless `GRUB_DEFAULT=saved`, and unless the cached
+release ends with the `CONFIG_LOCALVERSION` suffix its config declares (`-ze`,
+so never a bare upstream release another kernel could own). Without
+`confirm <release>` it prints the steps and runs none, because passwordless
+sudo asks nothing: `./le setup docker-kernel install confirm 7.2.9-ze`. A
+reinstall replaces: it removes `/lib/modules/<release>` and
+`/boot/initrd.img-<release>` before writing them again, so `cp -a` never nests
+the new modules inside the old tree. It prints each `sudo` step before it runs
+it, and never reboots. Off Linux it refuses and names the guest
+route, `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).
+<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- BuildLinuxZe, GuestZeRel -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute -->
+
+To ask a host by hand, stage ze with any lab once and run the command above.
+`TestDockerKernelCheckOnThisHost` (build tag `integration`) does that against
+the daemon this machine uses: it stages ze, starts the probe container and
+nothing else, and judges the verdict against the rows it read. On colima's
+`6.8.0-117-generic` (2026-10-10) the check refuses `ipsec-mobike`, `l2tp`,
+`l2tp-ppp` and `mpls` as absent and `mpls-transit-mtu` as unknown.
+
+```bash
+./le job run label kernel-host command go test -tags integration -count=1 \
+  -run '^TestDockerKernelCheckOnThisHost$' ./internal/le/interoplab/
+```
+<!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernel, checkDockerKernel, StagedZePath -->
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.StagedZe -->
+<!-- source: internal/le/test/deployment/daemonkernel.go -- buildCheckedDaemon -->
+<!-- source: internal/le/test/deployment/vppiface.go -- vppIface.prepareDaemon -->
+<!-- source: internal/le/site/terminaldemo/render.go -- Engine.preflightContainers, Engine.validationCheckAll, Engine.validateAndRender, Engine.checkKernel -->
 
 Each local image build also creates a unique, run-owned tag. This keeps its
 image ID available when another build replaces the shared cache tag.
@@ -350,6 +570,42 @@ Run order is lexical by scenario directory name and no scenario depends on it.
 The rule and its reasoning live in `ai/rules/interop-and-goal-validation.md`,
 which is always-on, so a spec author planning a scenario meets it without
 opening this page.
+
+### The exact grant-set check
+
+Each lab's privilege test (`TestL2TPLabPeersRunWithoutPrivilege` and its
+PPPoE, IPsec and RSVP-TE siblings, the deployment proofs' container tests and
+the release-candidate container test) compares a container's whole grant set
+with the set its daemon needs, through `internal/le/interoplab/grantcheck`. A
+check that only looked for the wanted grants would pass a container that also
+held `--cap-add ALL` or `--privileged`; comparing the whole set fails on any
+extra.
+
+`grantcheck.Parse` reads a `docker run` argv, or a lab peer's extra arguments,
+in every spelling Docker reads (`--flag value`, `--flag=value`, a short flag
+with its value joined or separate, combined short booleans). A flag that can
+widen what the container may do fills one list: capabilities, devices,
+security options, sysctls, host namespaces, networks, device cgroup rules,
+mounts, or other grants (`--user`, `--volumes-from`, `--runtime` and the like).
+`--privileged` counts in any spelling Docker reads as true. A flag classified
+as no grant (`--name`, `--env`, `--rm`...) is skipped. Every other flag is
+unclassified, and `grantcheck.Problems` reports each one whatever the wanted
+set, so a flag nobody classified fails the check rather than passing unread:
+classifying it is an edit to `grantFlags` or `nonGrantFlags`. A leading
+`docker` is skipped, reading stops at `--` or at the image, and an argv that
+opens with any other word is refused, because reading would stop there before
+a single flag.
+
+`grantcheck.ParsePeer` adds a lab peer's declared capabilities, its AppArmor
+profile and its mounts. A read-only mount of a file whose source, symlinks
+resolved, lies strictly inside the checkout or the system temporary directory
+(`grantcheck.StagedRoots`) is the lab staging its daemon's own config and is no
+grant. A writable mount, a directory, a unix socket, a root itself, a source
+whose symlinks do not resolve, or a source anywhere else is a mount grant the
+want must name. Every lab mounts files only, and a directory is refused because
+what it holds, a socket included, reaches the container unread.
+
+<!-- source: internal/le/interoplab/grantcheck/grantcheck.go -- Grants, Parse, ParsePeer, Problems, StagedRoots, stagedInside, resolvePath -->
 
 ### Container Addresses
 
@@ -726,7 +982,9 @@ tunnel, a stale direction, or a one-way success does not satisfy the scenario.
 
 The Docker host must support `XFRM_MSG_MIGRATE_STATE`. A kernel without atomic live
 ESP migration cannot run this scenario: Ze does not negotiate MOBIKE there. The
-checker does not convert that missing prerequisite into a pass.
+checker does not convert that missing prerequisite into a pass, and the suite
+does not reach it on such a kernel: the Docker host kernel check refuses the
+run first, naming `ipsec-mobike (CONFIG_XFRM_MIGRATE)`.
 
 <!-- source: internal/le/interoplab/ipsec/mobike.go -- checkMOBIKEInitiator, checkMOBIKEResponder -->
 
@@ -867,7 +1125,9 @@ for the `l2tp_ppp` or `pppol2tp` kernel module and refuses to run without it,
 which is correct for a suite that carries PPP sessions. Admin login is ze's SSH
 listener, a UDP socket and a RADIUS server, so this lab declares no preflight
 beyond its own ze cross-compile, mounts no module tree, asks for no capability
-and runs nothing privileged. `TestSuiteNeedsNoKernelModule` holds that.
+and runs nothing privileged. `TestSuiteNeedsNoKernelModule` holds that. The
+Docker host kernel check still applies: it is a rule about the host, so a
+kernel without PPPoL2TP refuses this suite as it refuses every other.
 
 Every checker reads BOTH sides. Ze's log saying `source=radius` is not enough on
 its own, because a login the local bcrypt backend satisfied produces a line of
@@ -925,8 +1185,8 @@ as evidence.
 `internal/le/interoplab/rsvpte/` puts up to four nodes on one Docker segment,
 `172.29.81.0/24`, in four roles: `ingress` (host 2), `transit` (3), `egress`
 (4) and `relay` (5). A scenario directory decides which implementation fills
-each role by the files it carries: `<role>.conf` with `<role>-setup.sh` makes
-the role a Ze node answering on the container address `.<host>`, and
+each role by the files it carries: `<role>.conf` makes the role a Ze node
+answering on the container address `.<host>`, and
 `<role>-hw.txt` with `<role>-sw.txt` makes it a freeRouter node answering on
 its own address `.<10+host>`. A role with neither file is absent. Nodes start
 downstream first, so the first PATH meets nodes that already listen. The
@@ -940,11 +1200,20 @@ because freeRouter's `packRsvp.parseDatPatReq` refuses a PATH without
 SESSION_ATTRIBUTE and Ze emits that object only for a protected tunnel and a
 bypass. A third shape puts Ze at the point of local repair: Ze ingress, Ze
 PLR, freeRouter relay on the bypass, freeRouter egress as the merge point. Each freeRouter owns its own IPv4 stack
-and MAC: `test/interop-rsvpte/run-freertr.sh` makes the container's `eth0`
+and MAC: its container command (`freeRtrScript`) makes the container's `eth0`
 promiscuous and joins it to the jar through the upstream `rawInt.bin`, so the
-suite needs Docker and privileged containers, never host root, a TAP device or
-a network namespace. Ze's container is privileged because it programs MPLS
-labels; the preflight loads `mpls_router` and refuses a host kernel without it.
+suite needs Docker alone, never host root, a TAP device or a network namespace,
+and no container runs privileged: a freeRouter holds `NET_ADMIN` and `NET_RAW`.
+A Ze node holds `NET_ADMIN` to program MPLS labels and VLANs. Its container
+command (`zeNodeScript`) creates the VLANs and adds the routes the role's
+optional `<role>-net.txt` declares, one `vlan <name> id <1-4094> address
+<address/length>` or `route <prefix> via <gateway>` per line, and a line of any
+other shape refuses the run. The command writes its MPLS sysctls at run time
+(one names a VLAN it creates first), so it runs under `ze-lab-net-sysctl` with
+`/proc/sys` writable. No scenario carries a shell script: the commands are
+built in Go from those typed lines. The preflight
+reads `/proc/sys/net/mpls/platform_labels` with no grant, loads no module, and
+refuses a host kernel without MPLS routing with the host command that loads it.
 
 Every assertion reads what a peer received. Every container, Ze or freeRouter,
 runs `tcpdump -vvv` on its `eth0` into `/run/fr/rsvp.txt`, RSVP and every
@@ -955,13 +1224,15 @@ logs as sent counts for nothing until the peer's capture holds it.
 | Scenario | What the peers observe |
 |----------|------------------------|
 | `transit-loose-ero-expansion` | freeRouter ingress, Ze transit, freeRouter egress. The ingress names Ze and the egress loopback as loose hops and prepends its own next hop, Ze, as a strict subobject (`ipFwdTab.fillRsvpFrst`), so it signals `[Ze strict, Ze loose, egress loopback loose]`. Ze's native route to the loopback runs through `.14`, which no subobject names, so the PATH the egress captures carries `.14` ahead of the still-loose loopback (RFC 3209 Section 4.3.4.1 steps 5 and 6). The ingress captures Ze's RESV with a label, and Ze's MPLS table holds a swap via `.14` |
-| `plr-backup-path-to-egress-merge-point` | Ze ingress, Ze PLR, freeRouter relay `.15`, freeRouter egress `.14`. The ingress asks facility protection for a tunnel whose protected hop is the PLR's `prot0`, VLAN 100 to the egress at `10.0.14.14`; the PLR's configured bypass runs untagged through the relay and merges at that egress. Before the fault the egress holds no backup PATH. The checker takes `prot0` down, and the egress captures, through the bypass, a PATH whose sender and RSVP_HOP are the PLR and whose ERO is `10.0.14.14` alone; the PLR captures at least two labelled RESVs from the egress naming its own sender and answers none with a ResvErr (RFC 4090 Sections 6.1 and 6.4). The egress answers from its `eth0` address `.14`, not from `10.0.14.14`, and Ze accepts an alternate merge-point source only when a live native IGP database attributes it to the same node, so the PLR and the egress run OSPF on `eth0` (freeRouter router-id `10.0.14.14`) and the checker waits for a Full adjacency, read through `show ospf neighbor` on the PLR, before it takes `prot0` down. freeRouter is the merge point only as an egress: it keys the backup PATH by sender and LSP-ID as a new LSP, and has no transit merge |
+| `plr-backup-path-to-egress-merge-point` | Ze ingress, Ze PLR, freeRouter relay `.15`, freeRouter egress `.14`. The ingress asks facility protection for a tunnel whose protected hop is the PLR's `prot0`, VLAN 100 to the egress at `10.0.14.14`; the PLR's configured bypass runs untagged through the relay and merges at that egress. Before the fault the egress holds no backup PATH. The checker takes `prot0` down, and the egress captures, through the bypass, a PATH whose sender and RSVP_HOP are the PLR and whose ERO is `10.0.14.14` alone; the PLR captures at least two labelled RESVs from the egress naming its own sender and answers none with a ResvErr (RFC 4090 Sections 6.1 and 6.4). The egress answers from its `eth0` address `.14`, not from `10.0.14.14`, and Ze accepts an alternate merge-point source only when a live native IGP database attributes it to the same node, so the PLR and the egress run OSPF on `eth0` (freeRouter router-id `10.0.14.14`) and the checker waits for a Full adjacency, read through `show ospf neighbor` on the PLR, and then for the egress's router-LSA to carry its point-to-point link (48 octets or more in `show ospf database router`), before it takes `prot0` down: the egress re-originates that LSA after the adjacency forms, and until it arrives nothing ties `.14` to `10.0.14.14`. After the cut the ingress keeps refreshing its PATH, whose ERO still names `10.0.14.14` strict across the failed link; the PLR relays it through the bypass, and the checker fails on a Routing Problem PathErr for the protected LSP-ID 1 within three refreshes (RFC 4090 Section 6.4.3). The Notify `Tunnel locally repaired` for LSP-ID 1 and a Routing Problem for a new LSP-ID the ingress signals over the same ERO are correct and do not count. Because a PLR that dropped the refresh in silence would send no PathErr either, the checker then waits until the protected PSB's lifetime has passed since the cut (10.5 seconds, RFC 2205 Section 3.7 with K = 3 and the ingress's 2-second refresh) and requires a further backup PATH at the egress and a further labelled RESV from the merge point at the PLR. freeRouter is the merge point only as an egress: it keys the backup PATH by sender and LSP-ID as a new LSP, and has no transit merge |
 | `transit-strict-hop-forwarded` | Ze ingress, freeRouter relay `.15`, Ze transit, freeRouter egress `.14`. The Ze ingress names every hop strict. The PATH the egress captures from Ze carries the ERO shortened to strict `.14` alone, the Ze ingress captures a labelled RESV relayed by freeRouter, and the Ze transit holds a swap via `.14` |
 | `transit-strict-hop-outside-refused` | Ze ingress, freeRouter relay, Ze transit. The last strict hop's native route at the transit runs through a node outside both abstract nodes, so the transit sends PathErr Routing Problem / Bad strict node (24/2) and never forwards the PATH (RFC 3209 Section 4.3.3.1). The Ze ingress captures that PathErr as freeRouter relays it, naming the transit as the error node |
 | `ingress-resv-error-relayed` | Ze ingress, freeRouter relay, Ze egress. The ingress interface reserves less than the tunnel asks, so the ingress refuses the RESV freeRouter relays and sends a ResvErr naming itself, Error Code 1 Admission Control failure, value 2. The Ze egress captures that ResvErr from freeRouter with the error node, code and value intact (RFC 2205 Sections 2.5 and 3.1.8) |
 | `transit-resv-tear-relayed` | Ze ingress, freeRouter relay, Ze transit, Ze egress. Once the LSP is up the egress is frozen with `SIGSTOP`, so the transit's reservation times out while its path state is refreshed; the transit sends a ResvTear upstream, and the Ze ingress captures it as freeRouter relays it (RFC 2205 Section 3.1.6) |
 | `transit-resv-increase-refused-in-place` | freeRouter ingress, Ze transit, patched freeRouter egress. The ingress tunnel signals 10 Mbit/s (`bandwidth 10000`) and the transit's `eth0` reserves 100 Mbit/s. The egress's second RESV, answering the ingress's first PATH refresh (freeRouter refreshes every 120 s), raises its reservation in place to 1 Gbit/s, same session, sender and LSP-ID. The transit captures that RESV, and the egress captures Ze's ResvErr naming the transit, Error Code 1 value 2, ERROR_SPEC flags `0x01` (InPlace). The transit's swap stays installed and the ingress never receives the raised rate (RFC 2205 Section 3.1.8) |
 | `transit-ff-resv-unknown-sender` | freeRouter ingress, Ze transit, patched freeRouter egress. Every RESV the egress sends is fixed-filter, with a second flow descriptor naming LSP-ID+1 of the same sender, which never signalled a PATH. The egress captures one ResvErr from the transit naming only that LSP-ID, Error Code 4 No sender information, and no ResvErr naming the real sender. The ingress receives a labelled RESV naming only the real sender, and the transit holds its swap (RFC 2205 Section 3.1.8) |
+| `egress-implicit-null-penultimate-pop` | freeRouter ingress, Ze transit, patched freeRouter egress. Every RESV the egress sends distributes Implicit NULL, label 3, so Ze is the penultimate hop. The transit captures that RESV, the ingress receives Ze's RESV carrying a label Ze allocated, not 3, and Ze's MPLS table pops that label toward `.14` with no outgoing label: no `as to` (RFC 3032 Section 2.1) |
+| `transit-resv-state-expires` | freeRouter ingress, Ze transit, freeRouter egress. Once the LSP is up and Ze holds its swap via `.14`, the checker freezes the egress's Java process with `SIGSTOP`, so no RESV refreshes Ze's reservation while the ingress keeps refreshing the path. The ingress captures a ResvTear from Ze, none of which existed before the freeze, and Ze's MPLS table drops the swap via `.14` (RFC 2205 Sections 2.3 and 3.1.6). The freeRouter egress advertises its fixed 120-second refresh period in the RESV's TIME_VALUES, so Ze, with refresh-multiplier 3, times the reservation out about six minutes after the freeze, and the checker waits that long |
 
 The checker compares the ERROR_SPEC code and value as the numbers tcpdump
 prints in parentheses, because tcpdump names no code for every value: it prints
@@ -982,8 +1253,9 @@ originates, not that freeRouter enforces strict hops or originates ResvErr,
 ResvTear or PathErr itself.
 
 The image is built with one patch, `test/interop-rsvpte/freertr/ze-interop-resv.patch`,
-because the pinned jar can neither raise a reservation in place nor name a
-sender it has no path for. The patch adds two knobs to the RESV a freeRouter
+because the pinned jar can neither raise a reservation in place, name a
+sender it has no path for, nor distribute Implicit NULL as an egress
+(`rtrRsvpIface` always sends the label it allocated). The patch adds three knobs to the RESV a freeRouter
 egress originates, each off unless its environment variable is set, so every
 scenario that sets neither runs the upstream behavior. A scenario sets them in
 `<role>-env.txt`, one `NAME=value` per line, which the lab passes to that
@@ -991,7 +1263,8 @@ freeRouter container and refuses when a line is not `NAME=value`.
 `FREERTR_ZE_RESV_RATE_AT=n:rate` sends only the n-th RESV with its FLOWSPEC
 rate (bytes per second) raised; `FREERTR_ZE_RESV_FF_EXTRA_SENDER=1` makes every
 RESV fixed-filter and appends a second flow descriptor (FLOWSPEC, FILTER_SPEC
-with LSP-ID+1, LABEL).
+with LSP-ID+1, LABEL); `FREERTR_ZE_RESV_IMPLICIT_NULL=1` puts label 3 in the
+LABEL object of every RESV in place of the allocated label.
 
 Two scenarios depend on objects RFC 2205 makes optional and freeRouter's parser
 requires. `packRsvp.parseDatPatErr` refuses a PathErr without an ADSPEC, which
@@ -1006,8 +1279,8 @@ capture held Ze's message and freeRouter never relayed it.
 
 <!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- the suite, its topology and its MPLS preflight -->
 <!-- source: internal/le/interoplab/rsvpte/checkers.go -- every observation, read from a peer's capture -->
-<!-- source: test/interop-rsvpte/run-freertr.sh -- freeRouter on eth0 through rawInt.bin -->
-<!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the two test-only RESV knobs -->
+<!-- source: internal/le/interoplab/rsvpte/zenode.go -- freeRtrScript, zeNodeScript, readZeNodeNet -->
+<!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the three test-only RESV knobs -->
 <!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- freeRtrEnvironment reads <role>-env.txt -->
 
 ### Typed checker operations
@@ -1145,6 +1418,9 @@ the peer and interface-label series.
 An unreadable observation is induced inside the Ze scenario container by
 temporarily setting only the daemon's soft `RLIMIT_NOFILE` to zero. The netlink
 package's default handle opens a socket for each XFRM dump. A Python helper
+finds the daemon as the one `ze` process whose parent pid in `/proc/<pid>/stat`
+is tini, because `/proc/<pid>/task/<tid>/children` exists only with
+`CONFIG_PROC_CHILDREN`, which Ze's runtime kernel does not set. The helper
 opens and warms an HTTP connection before changing the limit, scrapes that same
 connection until both dataplane metric families have no series, and restores
 the original limit in `finally`. Reconnection is refused during the fault.

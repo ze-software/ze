@@ -1,5 +1,82 @@
 [
   {
+    "slug": "2026-10-05",
+    "intro": "A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and IKEv2. Several changes need a look before upgrading, listed first.\n\nThe release queue closed the week at 202 required work items and 224 nice-to-have, against 213 and 221 at the start. 12 required items joined and 23 left. Most of those that left were behaviour that shipped earlier and gained its end-to-end proof this week. The additions are the appliance kernel, live BGP reconfiguration and gaps the RFC checking found. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "RSVP-TE",
+        "category": "routing",
+        "key": "RSVP-TE"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
+      },
+      {
+        "label": "Config Editor",
+        "category": "operate",
+        "key": "Config Editor"
+      },
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "API",
+        "category": "automate",
+        "key": "API"
+      },
+      {
+        "label": "YANG",
+        "category": "operate",
+        "key": "YANG"
+      },
+      {
+        "label": "Appliance",
+        "category": "platform",
+        "key": "Appliance"
+      },
+      {
+        "label": "Kernel",
+        "category": "platform",
+        "key": "Kernel"
+      },
+      {
+        "label": "Looking Glass",
+        "category": "observe",
+        "key": "Looking Glass"
+      },
+      {
+        "label": "Diagnostics",
+        "category": "observe",
+        "key": "Diagnostics"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
     "slug": "2026-09-28",
     "intro": "A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes, graceful restart, BFD, OSPF flooding and LDP sessions. Five changes need a look before upgrading, listed in their own section.\n\nThe release queue closed the week at 213 required work items and 221 nice-to-have, against 191 and 219 at the start. 24 items joined and none left. Eleven of the required additions are defects found this week, and seven more split the RFC fix work by area. The rest are update authenticity, an SRv6 forwarding path and two tooling items. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/",
     "is_draft": false,

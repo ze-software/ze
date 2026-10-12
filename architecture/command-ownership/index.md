@@ -120,7 +120,7 @@ The codegen (`internal/le/plugin/imports.Write`) scans the directory tree for:
 
 - Packages containing `yang.RegisterModule` calls -> adds to `all.go` schema imports
 - Packages containing `pluginserver.RegisterRPCs` calls -> adds to `all.go` RPC imports
-- Packages calling a `command/registry` registrar -> adds to `all.go` CLI command imports
+- Packages calling a `command` or `command/registry` registrar, resolved through the file's imports -> adds to `all.go` CLI command imports
 - `yang/` directories containing `.yang` files -> generates `embed.go` + `register.go`
 
 Because discovery is directory-based, copying a plugin folder in (or deleting it)
@@ -129,8 +129,8 @@ and re-running codegen is all that's needed to wire (or unwire) the plugin.
 ### The CLI command owner
 
 A package whose `init()` calls `registry.MustRegisterRootHandler`,
-`registry.RegisterRoot`, `registry.MustRegisterLocal` or any other
-`command/registry` registrar owns a command, and nothing else in the product
+`registry.RegisterRoot`, `command.MustRegisterLocal` or any other
+`command/registry` or `command` registrar owns a command, and nothing else in the product
 imports it. Without a blank import it compiles, links nowhere and registers
 nothing: `ze <command>` answers "unknown command" while the build, the lint and
 every gate stay green. `./le plugin imports check` reports such a package, and
@@ -227,7 +227,10 @@ func init() {
 The package must be blank-imported (directly or transitively) from
 `internal/component/plugin/all/all.go`. The codegen scans for packages
 containing `pluginserver.RegisterRPCs` or `yang.RegisterModule` calls, or a
-`command/registry` registrar call, and generates the import list.
+`command` or `command/registry` registrar call, and generates the import list.
+A registrar call counts when its qualifier names an import of one of those two
+packages (under any alias, or unqualified through a dot import); the two
+declaring packages are never owners themselves.
 
 ## What the Removal Test Forbids
 

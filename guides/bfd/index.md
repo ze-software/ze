@@ -231,9 +231,14 @@ authentication, never brings the session Up, so a strict-mode peer stays out
 of Established. A peer that names no profile, or a profile with no `auth`
 block, runs its BFD session unauthenticated, which the SHOULD permits. When an
 EBGP peer enables BFD and names a profile with no `auth` block, the commit is
-accepted and Ze logs one warning naming the peer and the profile. When an EBGP
-peer enables BFD and names no profile, the commit is accepted and Ze logs one
-warning naming the peer, with no profile. An IBGP peer, a profile with an
+accepted and Ze logs one warning naming the peer and the profile. Its `fix`
+field gives the `auth { type ...; key-id ...; secret ...; }` block to add under
+that `bfd profile`, or the alternative of naming an authenticated profile in
+the peer's `connection { bfd { profile <name>; } }`. When an EBGP peer enables
+BFD and names no profile, the commit is accepted and Ze logs one warning naming
+the peer, with no profile. Its `fix` field gives the profile with an `auth`
+block to define and the `connection { bfd { profile <name>; } }` line that
+names it. An IBGP peer, a profile with an
 `auth` block, and a static next-hop's `bfd-profile` draw no warning, because
 the recommendation covers the BFD session of an EBGP peer only.
 <!-- source: internal/component/bgp/reactor/peer_bfd.go — verifyPeerBFDProfiles warns for an EBGP peer's unauthenticated or absent profile -->
@@ -494,17 +499,49 @@ profile resolves to a different authentication (another Auth Type, Key ID
 or secret, or authentication where the session has none, or none where it
 has some) is refused rather than joined: the session keeps the
 authentication it was built with, and the refused client logs the error,
-which names the peer, interface and VRF and says that the authentication
-configurations differ. A BGP peer then runs without BFD (a strict-mode peer
-is held down), a static route's next-hop runs without BFD, and an OSPF
-neighbor runs on its hello and dead timers. Two profiles with the same
-auth block under different names share the session. Give every client of
-one remote system profiles with the same auth block.
-<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck -->
+which names the peer, interface and VRF, says what differs, explains that one
+session per neighbor runs one authentication (RFC 5882 Section 4.4) so the
+client gets no BFD session, and gives the one fix for that case. A BGP peer
+then runs without BFD, a strict-mode BGP peer is held down, a static route's
+next-hop runs without BFD, a pinned session fails the apply of the commit that
+asked for it, and an OSPF neighbor runs on its hello and dead timers. Two
+profiles with the same auth block under different names share the session.
+
+OSPF BFD runs unauthenticated: an OSPF interface's `bfd` block takes timers
+only, with no profile and no auth block. OSPF can share a session with a BGP
+peer, a static next-hop or a pinned session to the same neighbor only when
+that session runs no authentication, so those clients' profiles carry no
+auth block either; otherwise take OSPF out of BFD on that interface with
+`bfd { enabled false; }` or by deleting its `bfd` block.
+
+No fix the error names edits a profile. An edit to a profile reaches every
+client that names it, on any neighbor, at that client's next ask: removing the
+auth block from a profile many BGP peers share, to fix one refused peer, would
+drop authentication for all of them. Each fix instead names a profile on the
+refused client, or copies an auth block into a profile only that client names,
+so it changes the refused client alone and takes effect when that client next
+asks for the session (see "Editing live"). The exceptions are a profile the
+session was built from that was edited or removed after the session was built,
+where only a release by every client helps:
+
+| Live session | Refused client | Fix the error names |
+|--------------|----------------|---------------------|
+| No authentication | Profile with an auth block | Name the profile the session was built from, or another profile with no auth block, on this client. When no client's profile built the session (an OSPF interface or a pinned session naming none), or that profile has since gained an auth block, been removed, or set an option the session's hop mode refuses, the error names only the second |
+| Authentication | Profile with no auth block | Name the profile the session was built from on this client, or copy that profile's auth block into a profile only this client names |
+| Authentication | No profile (an OSPF interface, or a BGP peer or pinned session naming none) | Name the profile the session was built from on this client, or, on an OSPF interface, set `bfd { enabled false; }` |
+| Authentication | Profile with a different auth block | Name the profile the session was built from on this client, or copy that profile's auth block into a profile only this client names |
+| Either | The profile the live session was built from, edited since | Release the session from every client (see "Editing live"), so the next client to ask builds it from the edited profile |
+| Authentication | Any client, while the profile the session was built from has been edited or removed since, or now sets an option the session's hop mode refuses (`passive` on single-hop, `echo` on multi-hop) | Release the session from every client (see "Editing live"). The error never names that profile then: copying it, or naming it, would give the client an authentication the session does not run, or a name the commit refuses |
+
+The other way round, changing every other client to match the refused one,
+also works, but a live session keeps its authentication until every client has
+released it, so it needs the release in "Editing live" too.
+<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent -->
+<!-- source: internal/component/bfd/bfd.go -- profileAuthFor, loopFor -->
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession -->
 <!-- source: internal/component/bgp/reactor/peer_bfd.go -- startBFDClient -->
 <!-- source: internal/plugins/static/inject.go -- setupBFDLocked -->
-<!-- source: internal/plugins/ospf/bfd_client.go -- startBFDSession -->
+<!-- source: internal/plugins/ospf/bfd_client.go -- startBFDSession, bfdRequestForNeighbor -->
 
 ## Editing live
 
@@ -523,10 +560,44 @@ profile fast-link {
 operator@router# commit
 ```
 
-On `commit`, the plugin receives a diff section via `OnConfigure` and
-reconfigures affected sessions in place. Profile changes propagate to
-every session that references the profile via an in-band Poll/Final
-sequence without a session flap.
+On `commit`, the plugin receives the new `bfd` section and applies it.
+A new pinned session starts, a removed one is released, and a change to a
+pinned session's `shutdown` leaf takes effect at once. A profile edit does
+not reach a session that is already running: a live session keeps the
+timers and authentication it was built with until every client has
+released it. The edit applies to sessions created after the commit. A
+released session that a client revives inside its Detection Time takes that
+client's authentication as the profile holds it then, and its timers too when
+the client asks for the session's exact key.
+
+To make a profile edit take effect on a running session now, release it from
+every client that holds it, then let them ask again:
+
+| Client | Releases the session when | Asks again when |
+|--------|---------------------------|-----------------|
+| Pinned `single-hop-session` or `multi-hop-session` | It is removed from the config and committed | It is added back and committed. A refused pinned session asks again at each commit that changes the `bfd` section, and its refusal fails that commit's apply |
+| BGP peer | Its session leaves Established, for instance after `request peer <address> teardown 4` (Cease subcode 4, administrative reset) | Its session next reaches Established, which a torn-down peer reaches again by itself |
+| Strict-mode BGP peer | It is removed from the config, or deleted at runtime with `delete bgp peer <address>` (the only way for a peer made by `create bgp peer`) | It is added back, at its first connection attempt. A refused strict-mode peer asks again at each connection attempt |
+| Static route next-hop that names a profile | Its route is removed or changed | Its route is added back, or at once when it was changed |
+| OSPF interface | `bfd { enabled false; }` is set on it, or its `bfd` block is deleted, and committed | BFD is enabled again and committed (a neighbor already Full asks at once), or the neighbor next reaches Full. A refused interface also asks again at any commit that changes the `ospf` config |
+
+Release the BGP peers last. A non-strict peer that is torn down reconnects by
+itself, and can join the old session again before the other clients have let
+go of it; if that happens, tear it down again once they have.
+
+A client refused because its authentication differs from the live
+session's asks again at the same moments, so a fix to its own config
+takes effect then.
+<!-- source: internal/component/bfd/bfd.go -- applyPinned -->
+<!-- source: internal/component/bfd/engine/engine.go -- EnsureSession, reviveReleasedLocked, createSessionLocked -->
+<!-- source: internal/component/bfd/engine/auth_join.go -- authMismatchCase -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- startBFDClient and stopBFDClient callers -->
+<!-- source: internal/plugins/static/inject.go -- setupBFDLocked, releaseBFDLocked -->
+<!-- source: internal/plugins/ospf/bfd_client.go -- bfdNeighborFull, startBFDSession, reconcileBFD -->
+<!-- source: internal/plugins/ospf/instance.go -- reconcileBFD caller on every ospf apply -->
+<!-- source: internal/plugins/static/inject.go -- applyRouteLocked -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- teardown cease-subcode -->
+<!-- source: internal/component/plugin/server/reload_compensation.go -- reloadConfigSections -->
 
 ## Observing state
 

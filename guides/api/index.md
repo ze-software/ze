@@ -203,6 +203,11 @@ Sessions are owned by the authenticated user. Another user cannot access a
 session they did not create (returns 403 Forbidden). Idle sessions expire
 after 30 minutes.
 
+While a `commit confirmed` window is open, a session commit is refused for
+every user with the window's refusal naming its owner and the seconds left,
+and the session stays open for a retry once the window is accepted or
+aborted (`config-editor.md`, "Commit Confirmed").
+
 No-auth REST/gRPC callers cannot create config sessions. Configure a token or
 per-user authentication for API-driven config changes.
 

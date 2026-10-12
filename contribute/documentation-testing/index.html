@@ -259,7 +259,7 @@ FAILED: 30 problem(s)
 <ul>
 <li>YANG declares a command but no Go code registered an RPC or local handler -&gt; dead command</li>
 <li>RPC handler registered but YANG doesn't declare it -&gt; command unreachable from CLI</li>
-<li>A local handler (<code>registry.MustRegisterLocal*</code>) whose path no YANG command node declares -&gt; command missing from the tree</li>
+<li>A local handler (<code>command.MustRegisterLocal*</code>) whose path no YANG command node declares -&gt; command missing from the tree</li>
 <li>An rpc whose published wire method no handler serves -&gt; <code>ze schema methods</code> and <code>ze help ai --json</code> publish a method the daemon answers with "unknown method". The method is the one <code>yang.PublishedRPCs</code> gives it: the <code>ze:command</code> method of the node whose <code>ze:rpc</code> points at it. An rpc no node points at, and that declares no <code>ze:method</code>, is published under no name and is named as "(no ze:command node points at it)". The row names the wire method, the rpc and the module</li>
 <li>A wire method under a prefix its package does not own -&gt; two subsystems can then spell one method, and the clash is found only when the daemon refuses to start (<code>ErrWireMethodHeld</code>). The prefix a package owns is <code>pluginserver.OwnerPrefix</code> of the package that called <code>RegisterRPCs</code>: <code>ze-</code> and the directory directly under <code>internal/component/</code> or <code>internal/plugins/</code>, <code>-cmd</code> dropped (<code>docs/architecture/api/wire-format.md</code>, "Method Naming"). The row names the method, the registering package and the prefix it owns; rename the method in the <code>ze:command</code> node and the <code>WireMethod</code> literal together. A node no builtin handler serves is judged by the package that called <code>RegisterModule</code> for its module, and its row names that module</li>
 </ul>
@@ -719,7 +719,7 @@ command validation, and changed-file wiring</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

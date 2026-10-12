@@ -933,6 +933,10 @@ entries. The <code>DiscoverInterfaces</code> function enumerates interfaces via 
 (netlink on Linux, stdlib on other platforms) and classifies each by Ze type: ethernet,
 bridge, veth, dummy, or loopback. On Linux, the netlink <code>device</code> type maps to ethernet
 (except <code>lo</code>, which maps to loopback). Results are sorted by type then name.</p>
+<p>A managed client (<code>ze init --managed</code>) and an appliance seed (<code>ze init --seed</code>) skip
+discovery and write no initial config: the managed client takes its first config from
+its hub, and the appliance discovers on the device at first boot.</p>
+<!-- source: internal/plugins/init/main.go -- runInit -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces, infoToZeType -->
 <p>The generated config uses descriptive names as YANG list keys (the OS interface name at
 discovery time). The MAC address serves as the physical binding between configuration and
@@ -2323,7 +2327,7 @@ under exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

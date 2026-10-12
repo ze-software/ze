@@ -372,7 +372,7 @@ Encoding.</p>
 <p>On any other session the route is left out of the announcement toward that peer
 and the skip is logged, which is what Section 4 asks for when no conformant next
 hop is left: "the BGP route MUST not be advertised to its peer". Enable it with
-<code>session capability link-local-nexthop</code> on the peer or its group, together with
+<code>session capability link-local-nexthop enable</code> on the peer or its group, together with
 <code>session link-local &lt;fe80::...&gt;</code> on the peer or the group: ze refuses the
 capability without that address, at commit and at startup, because the draft
 requires a directly connected route's next hop to include ze's own Link-Local.</p>
@@ -556,7 +556,7 @@ ships a Python launcher or helper.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

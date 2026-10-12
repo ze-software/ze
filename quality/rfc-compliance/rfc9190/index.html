@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9190 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 52 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 26 with no test." />
+        <meta name="description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 53 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 3 with no test." />
         <meta property="og:title" content="RFC 9190 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 52 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 26 with no test." />
+        <meta property="og:description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 53 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 3 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9190 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 52 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 26 with no test." />
+        <meta name="twitter:description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 53 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 3 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,27 +117,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>36.5%</strong><b>19 of 52 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 52 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 52 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>90.5%</strong><b>86 of 95 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>67.9%</strong><b>36 of 53 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>13.2%</strong><b>7 of 53 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>94.1%</strong><b>127 of 135 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>52</strong><b>of 95 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every share below reads what the summary records rather than what the gate enforces</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 52 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 52 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 52 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 52 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>53</strong><b>of 96 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every share below reads what the summary records rather than what the gate enforces</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>5</strong><b>of 53 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>9.4%</strong><b>5 of 53 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>One polarity, unexcused</span><strong>13.5%</strong><b>7 of 52 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>50.0%</strong><b>26 of 52 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>1.9%</strong><b>1 of 53 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>7.5%</strong><b>4 of 53 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 8 shares marked as a part above are the whole of the 52 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 53 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -161,11 +161,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
 </tr>
 <tr><td>One polarity, unexcused</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>Partial proof; remaining gap</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
@@ -209,37 +209,37 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Not enrolled (backlog)</td>
 </tr>
 <tr><td>Requirements</td>
-<td>95</td>
+<td>96</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>52</td>
+<td>53</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>26</td>
+<td>3</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>95</td>
+<td>135</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>95</td>
+<td>135</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>86</td>
+<td>127</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9190.md</code></td>
@@ -266,23 +266,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>19</strong></td>
+<td><strong>36</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>0</strong></td>
+<td><strong>14</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
-<td><strong>7</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>26</strong></td>
+<td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -293,13 +293,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>52</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>53</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (19):</strong> <a href="#rfc9190-1-1"><code>RFC9190-1-1</code></a>, <a href="#rfc9190-2.1.2-1"><code>RFC9190-2.1.2-1</code></a>, <a href="#rfc9190-2.1.3-1"><code>RFC9190-2.1.3-1</code></a>, <a href="#rfc9190-2.1.8-2"><code>RFC9190-2.1.8-2</code></a>, <a href="#rfc9190-2.1.8-3"><code>RFC9190-2.1.8-3</code></a>, <a href="#rfc9190-2.1.9-1"><code>RFC9190-2.1.9-1</code></a>, <a href="#rfc9190-2.1.9-2"><code>RFC9190-2.1.9-2</code></a>, <a href="#rfc9190-2.5-1"><code>RFC9190-2.5-1</code></a>, <a href="#rfc9190-2.5-2"><code>RFC9190-2.5-2</code></a>, <a href="#rfc9190-5.4-1"><code>RFC9190-5.4-1</code></a>, <a href="#rfc9190-5.4-2"><code>RFC9190-5.4-2</code></a>, <a href="#rfc9190-5.4-3"><code>RFC9190-5.4-3</code></a>, <a href="#rfc9190-5.4-4"><code>RFC9190-5.4-4</code></a>, <a href="#rfc9190-5.4-5"><code>RFC9190-5.4-5</code></a>, <a href="#rfc9190-5.7-1"><code>RFC9190-5.7-1</code></a>, <a href="#rfc9190-5.7-2"><code>RFC9190-5.7-2</code></a>, <a href="#rfc9190-5.7-5"><code>RFC9190-5.7-5</code></a>, <a href="#rfc9190-5.7-6"><code>RFC9190-5.7-6</code></a>, <a href="#rfc9190-5.10-1"><code>RFC9190-5.10-1</code></a></p>
-<p class="rfc-id-list"><strong>One polarity only (7):</strong> <a href="#rfc9190-2.1.2-2"><code>RFC9190-2.1.2-2</code></a>, <a href="#rfc9190-2.1.2-3"><code>RFC9190-2.1.2-3</code></a>, <a href="#rfc9190-2.1.3-2"><code>RFC9190-2.1.3-2</code></a>, <a href="#rfc9190-2.1.8-1"><code>RFC9190-2.1.8-1</code></a>, <a href="#rfc9190-2.1.8-4"><code>RFC9190-2.1.8-4</code></a>, <a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a>, <a href="#rfc9190-5.7-3"><code>RFC9190-5.7-3</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (26):</strong> <a href="#rfc9190-2.1-2"><code>RFC9190-2.1-2</code></a>, <a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a>, <a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a>, <a href="#rfc9190-2.1-5"><code>RFC9190-2.1-5</code></a>, <a href="#rfc9190-2.1-6"><code>RFC9190-2.1-6</code></a>, <a href="#rfc9190-2.1-7"><code>RFC9190-2.1-7</code></a>, <a href="#rfc9190-2.1-8"><code>RFC9190-2.1-8</code></a>, <a href="#rfc9190-2.1.1-1"><code>RFC9190-2.1.1-1</code></a>, <a href="#rfc9190-2.1.1-2"><code>RFC9190-2.1.1-2</code></a>, <a href="#rfc9190-2.1.2-4"><code>RFC9190-2.1.2-4</code></a>, <a href="#rfc9190-2.1.4-1"><code>RFC9190-2.1.4-1</code></a>, <a href="#rfc9190-2.1.4-2"><code>RFC9190-2.1.4-2</code></a>, <a href="#rfc9190-2.1.4-3"><code>RFC9190-2.1.4-3</code></a>, <a href="#rfc9190-2.2-1"><code>RFC9190-2.2-1</code></a>, <a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a>, <a href="#rfc9190-2.3-3"><code>RFC9190-2.3-3</code></a>, <a href="#rfc9190-2.4-1"><code>RFC9190-2.4-1</code></a>, <a href="#rfc9190-2.4-2"><code>RFC9190-2.4-2</code></a>, <a href="#rfc9190-5.6-1"><code>RFC9190-5.6-1</code></a>, <a href="#rfc9190-5.6-2"><code>RFC9190-5.6-2</code></a>, <a href="#rfc9190-5.6-3"><code>RFC9190-5.6-3</code></a>, <a href="#rfc9190-5.6-4"><code>RFC9190-5.6-4</code></a>, <a href="#rfc9190-5.7-4"><code>RFC9190-5.7-4</code></a>, <a href="#rfc9190-5.8-1"><code>RFC9190-5.8-1</code></a>, <a href="#rfc9190-5.8-2"><code>RFC9190-5.8-2</code></a>, <a href="#rfc9190-5.8-3"><code>RFC9190-5.8-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (36):</strong> <a href="#rfc9190-1-1"><code>RFC9190-1-1</code></a>, <a href="#rfc9190-2.1-2"><code>RFC9190-2.1-2</code></a>, <a href="#rfc9190-2.1-8"><code>RFC9190-2.1-8</code></a>, <a href="#rfc9190-2.1.1-1"><code>RFC9190-2.1.1-1</code></a>, <a href="#rfc9190-2.1.1-2"><code>RFC9190-2.1.1-2</code></a>, <a href="#rfc9190-2.1.2-1"><code>RFC9190-2.1.2-1</code></a>, <a href="#rfc9190-2.1.2-2"><code>RFC9190-2.1.2-2</code></a>, <a href="#rfc9190-2.1.3-1"><code>RFC9190-2.1.3-1</code></a>, <a href="#rfc9190-2.1.3-2"><code>RFC9190-2.1.3-2</code></a>, <a href="#rfc9190-2.1.4-1"><code>RFC9190-2.1.4-1</code></a>, <a href="#rfc9190-2.1.4-2"><code>RFC9190-2.1.4-2</code></a>, <a href="#rfc9190-2.1.4-3"><code>RFC9190-2.1.4-3</code></a>, <a href="#rfc9190-2.1.8-1"><code>RFC9190-2.1.8-1</code></a>, <a href="#rfc9190-2.1.8-2"><code>RFC9190-2.1.8-2</code></a>, <a href="#rfc9190-2.1.8-3"><code>RFC9190-2.1.8-3</code></a>, <a href="#rfc9190-2.1.8-4"><code>RFC9190-2.1.8-4</code></a>, <a href="#rfc9190-2.1.9-1"><code>RFC9190-2.1.9-1</code></a>, <a href="#rfc9190-2.1.9-2"><code>RFC9190-2.1.9-2</code></a>, <a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a>, <a href="#rfc9190-2.3-3"><code>RFC9190-2.3-3</code></a>, <a href="#rfc9190-2.4-1"><code>RFC9190-2.4-1</code></a>, <a href="#rfc9190-2.4-2"><code>RFC9190-2.4-2</code></a>, <a href="#rfc9190-2.5-1"><code>RFC9190-2.5-1</code></a>, <a href="#rfc9190-2.5-2"><code>RFC9190-2.5-2</code></a>, <a href="#rfc9190-5.4-1"><code>RFC9190-5.4-1</code></a>, <a href="#rfc9190-5.4-2"><code>RFC9190-5.4-2</code></a>, <a href="#rfc9190-5.4-3"><code>RFC9190-5.4-3</code></a>, <a href="#rfc9190-5.4-4"><code>RFC9190-5.4-4</code></a>, <a href="#rfc9190-5.4-5"><code>RFC9190-5.4-5</code></a>, <a href="#rfc9190-5.7-1"><code>RFC9190-5.7-1</code></a>, <a href="#rfc9190-5.7-2"><code>RFC9190-5.7-2</code></a>, <a href="#rfc9190-5.7-3"><code>RFC9190-5.7-3</code></a>, <a href="#rfc9190-5.7-4"><code>RFC9190-5.7-4</code></a>, <a href="#rfc9190-5.7-5"><code>RFC9190-5.7-5</code></a>, <a href="#rfc9190-5.7-6"><code>RFC9190-5.7-6</code></a>, <a href="#rfc9190-5.10-1"><code>RFC9190-5.10-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (14):</strong> <a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a>, <a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a>, <a href="#rfc9190-2.1-5"><code>RFC9190-2.1-5</code></a>, <a href="#rfc9190-2.1-6"><code>RFC9190-2.1-6</code></a>, <a href="#rfc9190-2.1-7"><code>RFC9190-2.1-7</code></a>, <a href="#rfc9190-2.1.2-3"><code>RFC9190-2.1.2-3</code></a>, <a href="#rfc9190-2.1.2-4"><code>RFC9190-2.1.2-4</code></a>, <a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a>, <a href="#rfc9190-2.3-4"><code>RFC9190-2.3-4</code></a>, <a href="#rfc9190-5.6-1"><code>RFC9190-5.6-1</code></a>, <a href="#rfc9190-5.6-2"><code>RFC9190-5.6-2</code></a>, <a href="#rfc9190-5.8-1"><code>RFC9190-5.8-1</code></a>, <a href="#rfc9190-5.8-2"><code>RFC9190-5.8-2</code></a>, <a href="#rfc9190-5.8-3"><code>RFC9190-5.8-3</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (3):</strong> <a href="#rfc9190-2.2-1"><code>RFC9190-2.2-1</code></a>, <a href="#rfc9190-5.6-3"><code>RFC9190-5.6-3</code></a>, <a href="#rfc9190-5.6-4"><code>RFC9190-5.6-4</code></a></p>
+<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -320,8 +321,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L145" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L430" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorRefusesAClientHelloOfferingEarlyData</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-3">RFC9190-2.1-3</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS servers MUST NOT send an early_data extension (§2.1)</span></td></tr>
@@ -329,53 +330,53 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L317" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> Go crypto/tls performs this: it writes early_data into EncryptedExtensions only on a QUIC connection (serverHandshakeStateTLS13), and ze runs it over the EAP-TLS stream transport with the tls.Config internal/core/eap/eap_tls.go::newTLSMethod builds, so no input to ze&#39;s authenticator yields the extension a negative would need; the positive asserts that config and decrypts the EncryptedExtensions; owner decision 2026-10-11, &#34;Test Ze&#39;s TLS config + name Go TLS&#34;</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-4">RFC9190-2.1-4</code></td><td colspan="3"><span class="rfc-subject">clients MUST NOT send an EndOfEarlyData message (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L149" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> Go crypto/tls performs this: it sends EndOfEarlyData only after a server accepted early data, which it offers only on QUIC and only with a matching ALPN, and the tls.Config internal/core/eap/peer.go::tlsClientConfig builds offers neither, so no input to ze&#39;s peer yields the message a negative would need; owner decision 2026-10-11, &#34;Test Ze&#39;s TLS config + name Go TLS&#34;</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-5">RFC9190-2.1-5</code></td><td colspan="3"><span class="rfc-subject">Post-handshake authentication MUST NOT be used in EAP-TLS (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L321" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> Go crypto/tls performs this: it has no post-handshake authentication in either role, so no input to ze yields the exchange a negative would need; the positive asserts the in-handshake client-certificate demand internal/core/eap/eap_tls.go::newTLSMethod installs and decrypts the records after the server Finished; owner decision 2026-10-11, &#34;Test Ze&#39;s TLS config + name Go TLS&#34;</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-6">RFC9190-2.1-6</code></td><td colspan="3"><span class="rfc-subject">Clients MUST NOT send a &#34;post_handshake_auth&#34; extension (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L154" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> Go crypto/tls performs this: its client has no post_handshake_auth extension to send, so no input to the peer built by internal/core/eap/peer.go::tlsClientConfig yields one for a negative; owner decision 2026-10-11, &#34;Test Ze&#39;s TLS config + name Go TLS&#34;</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-7">RFC9190-2.1-7</code></td><td colspan="3"><span class="rfc-subject">Servers MUST NOT request post-handshake client authentication (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L326" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> Go crypto/tls performs this: its server has no post-handshake CertificateRequest, so no input to the authenticator built by internal/core/eap/eap_tls.go::newTLSMethod yields one for a negative; the positive decrypts every record after the server Finished; owner decision 2026-10-11, &#34;Test Ze&#39;s TLS config + name Go TLS&#34;</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-8">RFC9190-2.1-8</code></td><td colspan="3"><span class="rfc-subject">When EAP-TLS is used with TLS version 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L307" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L345" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-1">RFC9190-2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server MUST authenticate with a certificate (§2.1.1)</span></td></tr>
@@ -383,8 +384,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L206" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorAuthenticatesWithItsCertificate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L232" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorWithoutACertificateIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-2">RFC9190-2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Pre-Shared Key (PSK) authentication SHALL NOT be used except for resumption. (§2.1.1)</span></td></tr>
@@ -392,8 +393,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL NOT</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L612" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PSKIsUsedToResumeATicketTheAuthenticatorIssued</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L642" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PSKTheAuthenticatorDidNotIssueIsNotUsed</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.2-1">RFC9190-2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">To enable resumption when using EAP-TLS with TLS 1.3, the EAP-TLS server MUST send one or more post-handshake NewSessionTicket messages (each associated with a PSK, a PSK identity, a ticket lifetime, and other parameters) in the initial authentication. (§2.1.2)</span></td></tr>
@@ -403,7 +404,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L105" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L60" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L327" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L355" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.2-2">RFC9190-2.1.2-2</code></td><td colspan="3"><span class="rfc-subject">Note that TLS 1.3 [RFC8446] limits the ticket lifetime to a maximum of 604800 seconds (7 days) and EAP-TLS servers MUST respect this upper limit when issuing tickets. (§2.1.2)</span></td></tr>
@@ -412,7 +413,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L110" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L134" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesATicketPastTheSection57Lifetime</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.2-3">RFC9190-2.1.2-3</code></td><td colspan="3"><span class="rfc-subject">The NewSessionTicket message MUST NOT include an &#34;early_data&#34; extension (§2.1.2)</span></td></tr>
@@ -420,18 +421,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L330" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L117" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> Go crypto/tls performs this: it writes max_early_data into a NewSessionTicket only on a QUIC connection, and ze runs the authenticator built by internal/core/eap/eap_tls.go::newTLSMethod over the EAP-TLS stream transport, so no input yields the extension a negative would need; owner decision 2026-10-11, &#34;Test Ze&#39;s TLS config + name Go TLS&#34;</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.2-4">RFC9190-2.1.2-4</code></td><td colspan="3"><span class="rfc-subject">If the &#34;early_data&#34; extension is received, then it MUST be ignored (§2.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L459" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerOffersNoEarlyDataFromATicketThatPermitsIt</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> Go crypto/tls performs this: it records early-data permission from a NewSessionTicket only on QUIC and offers 0-RTT only with the ALPN the ticket was issued for, and the tls.Config internal/core/eap/peer.go::tlsClientConfig builds offers none, so no input to ze&#39;s peer yields early data for a negative; owner decision 2026-10-11, &#34;Test Ze&#39;s TLS config + name Go TLS&#34;</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-1">RFC9190-2.1.3-1</code></td><td colspan="3"><span class="rfc-subject">When EAP-TLS is used with TLS version 1.3, EAP-TLS SHALL use a resumption mechanism compatible with version 1.3 of TLS. (§2.1.3)</span></td></tr>
 <tr><td></td>
@@ -439,7 +441,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L121" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L332" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L360" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-2">RFC9190-2.1.3-2</code></td><td colspan="3"><span class="rfc-subject">The &#34;psk_dh_ke&#34; key exchange mode MUST be used for resumption unless the deployment has a local requirement to allow configuration of other mechanisms (§2.1.3)</span></td></tr>
@@ -448,7 +450,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.1.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L125" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L158" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L66" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.4-1">RFC9190-2.1.4-1</code></td><td colspan="3"><span class="rfc-subject">If the EAP-TLS peer authenticates successfully, the EAP-TLS server MUST send an EAP-Request packet with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</span></td></tr>
@@ -456,8 +459,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L295" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L335" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.4-2">RFC9190-2.1.4-2</code></td><td colspan="3"><span class="rfc-subject">If the EAP-TLS server authenticates successfully, the EAP-TLS peer MUST send an EAP-Response message with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</span></td></tr>
@@ -465,8 +468,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L301" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L341" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.4-3">RFC9190-2.1.4-3</code></td><td colspan="3"><span class="rfc-subject">Whenever an implementation encounters a fatal error condition, it MUST send an appropriate TLS Error alert (§2.1.4)</span></td></tr>
@@ -474,8 +477,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L377" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13FatalErrorSendsATLSAlert</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L456" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletedExchangeCarriesNoAlert</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-1">RFC9190-2.1.8-1</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peer and server implementations supporting TLS 1.3 MUST support anonymous Network Access Identifiers (§2.1.8)</span></td></tr>
@@ -484,7 +487,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.1.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L259" title="internal/core/eap/rfc9190_nai_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorAcceptsAnAnonymousNAI</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cached_authorization_test.go#L24" title="internal/core/eap/rfc9190_cached_authorization_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorRefusesAnAnonymousPeerWithARevokedCertificate</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-2">RFC9190-2.1.8-2</code></td><td colspan="3"><span class="rfc-subject">A client supporting TLS 1.3 MUST NOT send its username (or any other permanent identifiers) in cleartext in the Identity Response (or any message used instead of the Identity Response). (§2.1.8)</span></td></tr>
@@ -512,7 +515,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.1.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.8-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L362" title="internal/core/eap/rfc9190_nai_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L518" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerHoldingACertificateSendsIt</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-1">RFC9190-2.1.9-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST NOT set the L bit in unfragmented messages (§2.1.9)</span></td></tr>
@@ -548,16 +551,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L158" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC9190MSKIsTheExportUnderTheRFCLabel</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L199" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC9190MSKIsNotThePreTLS13Derivation</code></a></span></div>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;Key_Material&#34;; gap &#34;Method-Id&#34;; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.3-2">RFC9190-2.3-2</code></td><td colspan="3"><span class="rfc-subject">Note that the key derivation MUST use the length values given above. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L503" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestRFC9190KeyMaterialIsOneFullLengthExport</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L531" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestRFC9190KeysAreNotAShorterExport</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.3-3">RFC9190-2.3-3</code></td><td colspan="3"><span class="rfc-subject">If an implementation intends to use only a part of the output of the TLS-Exporter function, then it MUST ask for the full output and then only use the desired part. (§2.3)</span></td></tr>
@@ -565,17 +568,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L508" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestRFC9190KeyMaterialIsOneFullLengthExport</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L535" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestRFC9190KeysAreNotAShorterExport</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.3-4">RFC9190-2.3-4</code></td><td colspan="3"><span class="rfc-subject">Method-Id = TLS-Exporter(&#34;EXPORTER_EAP_TLS_Method-Id&#34;, Type, 64) Session-Id = Type || Method-Id (§2.3)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> split 2026-10-11 from RFC9190-2.3-1, whose SHALL names Key_Material and Method-Id together; Ze derives only Key_Material (internal/core/eap/eap_tls.go::exportEAPTLSKeys), and no non-test code exports EXPORTER_EAP_TLS_Method-Id or builds a Session-Id; implementing it needs the owner&#39;s scope</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.4-1">RFC9190-2.4-1</code></td><td colspan="3"><span class="rfc-subject">When EAP-TLS is used with TLS version 1.3, the EAP-TLS peers and EAP- TLS servers MUST comply with the compliance requirements (mandatory- to-implement cipher suites, signature algorithms, key exchange algorithms, extensions, etc.) defined in Section 9 of [RFC8446]. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L203" title="internal/core/eap/rfc9190_cipher_suites_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13BothRolesMeetTheRFC8446MandatoryToImplementSet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L248" title="internal/core/eap/rfc9190_cipher_suites_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorAbortsAClientHelloWithoutSignatureAlgorithms</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.4-2">RFC9190-2.4-2</code></td><td colspan="3"><span class="rfc-subject">In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be supported (§2.4)</span></td></tr>
@@ -583,8 +595,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L50" title="internal/core/eap/rfc9190_cipher_suites_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerOffersOnlySuitesWithConfidentiality</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L109" title="internal/core/eap/rfc9190_cipher_suites_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorRefusesSuitesWithoutConfidentiality</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.5-1">RFC9190-2.5-1</code></td><td colspan="3"><span class="rfc-subject">To provide a protected success result indication and to decrease the uncertainty for the EAP-TLS peer, the following procedure MUST be followed: When an EAP-TLS server has successfully processed the TLS client Finished and sent its last handshake message (Finished or a post- handshake message), it sends an encrypted TLS record with application data 0x00. The encrypted TLS record with application data 0x00 is a protected success result indication, as defined in [RFC3748]. After sending an EAP-Request that contains the protected success result indication, the EAP-TLS server must not send any more EAP-Requests and may only send an EAP-Success. (§2.5)</span></td></tr>
@@ -592,12 +604,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L369" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L397" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L156" title="internal/core/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13SendsProtectedSuccessIndication</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L289" title="internal/core/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12SendsNoProtectedSuccessIndication</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L254" title="internal/core/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusedClientGetsNoSuccessIndication</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L377" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L383" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L390" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L396" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.5-2">RFC9190-2.5-2</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server MUST NOT send an encrypted TLS record with application data 0x00 before it has successfully processed the client Finished and sent its last handshake message (§2.5)</span></td></tr>
@@ -622,8 +634,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L206" title="internal/core/eap/rfc9190_revocation_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesAnUncheckableChain</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L323" title="internal/core/eap/rfc9190_revocation_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12CompletesWithNoRevocationList</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L297" title="internal/core/eap/rfc9190_revocation_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesWithAnUnrevokedChain</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L209" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionStillNeedsARevocationSource</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L420" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13RevokedClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L225" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionStillNeedsARevocationSource</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L433" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13RevokedClient</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-2">RFC9190-5.4-2</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests (OCSP stapling) as specified in [RFC6066] and Section 4.4.2.1 of [RFC8446]. (§5.4)</span></td></tr>
@@ -681,7 +693,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;Some deployments may permit no peer authentication for some or all connections.&#34;; ze permits none: internal/core/eap/eap_tls.go::newTLSMethod sets ClientAuth to RequireAndVerifyClientCert on every session and the operator has no leaf that lowers it, so the condition &#34;When peer authentication is not used&#34; is never true</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-2">RFC9190-5.6-2</code></td><td colspan="3"><span class="rfc-subject">implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</span></td></tr>
 <tr><td></td>
@@ -690,7 +702,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.6-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;Some deployments may permit no peer authentication for some or all connections.&#34;; the sentence carrying this MUST opens &#34;When peer authentication is not used&#34;, and internal/core/eap/eap_tls.go::newTLSMethod requires and verifies a client certificate on every session; resumption authorization itself is held by RFC9190-5.7-1 and RFC9190-5.7-2</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-3">RFC9190-5.6-3</code></td><td colspan="3"><span class="rfc-subject">Authorization and accounting MUST be based on authenticated information such as information in the certificate or the PSK identity and cached data provisioned for resumption as described in Section 5.7. (§5.6)</span></td></tr>
 <tr><td></td>
@@ -715,8 +727,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L227" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedClientChain</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L90" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L193" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L235" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedClientChain</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L286" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L95" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-2">RFC9190-5.7-2</code></td><td colspan="3"><span class="rfc-subject">Any security policies for authorization MUST be followed also for resumption (§5.7)</span></td></tr>
@@ -724,10 +738,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L246" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerRefusesAResumptionItCannotRebuildAChainFor</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L262" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerRefusesAResumptionItCannotRebuildAChainFor</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L183" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L261" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L176" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesAResumptionAgainstAReplacedTrustAnchor</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L279" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L192" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesAResumptionAgainstAReplacedTrustAnchor</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-3">RFC9190-5.7-3</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server or EAP client MUST cache data during the initial full handshake sufficient to allow authorization decisions to be made during resumption (§5.7)</span></td></tr>
@@ -735,8 +749,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L232" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedClientChain</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L240" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedClientChain</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cached_authorization_test.go#L54" title="internal/core/eap/rfc9190_cached_authorization_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionAuthorizesOnTheCachedChain</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-4">RFC9190-5.7-4</code></td><td colspan="3"><span class="rfc-subject">If cached data cannot be retrieved securely, resumption MUST NOT be done (§5.7)</span></td></tr>
@@ -744,8 +758,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L100" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L292" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-5">RFC9190-5.7-5</code></td><td colspan="3"><span class="rfc-subject">As suggested in [RFC8446], EAP-TLS peers MUST NOT store resumption PSKs or tickets (and associated cached data) for longer than 604800 seconds (7 days) regardless of the PSK or ticket lifetime. (§5.7)</span></td></tr>
@@ -753,9 +767,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L285" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L119" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesATicketPastTheSection57Lifetime</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L290" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L313" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L130" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesATicketPastTheSection57Lifetime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L318" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-6">RFC9190-5.7-6</code></td><td colspan="3"><span class="rfc-subject">If any authorization, accounting, or policy decisions were made with information that has changed between the initial full handshake and resumption, and if change may lead to a different decision, such decisions MUST be reevaluated. (§5.7)</span></td></tr>
@@ -763,9 +777,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L143" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesAResumptionWhoseCachedCertificateExpired</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L159" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesAResumptionWhoseCachedCertificateExpired</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L188" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L265" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L283" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-1">RFC9190-5.8-1</code></td><td colspan="3"><span class="rfc-subject">If anonymous NAIs are not used, the privacy-friendly identifiers need to be generated with care. The identities MUST be generated in a cryptographically secure way so that it is computationally infeasible for an attacker to differentiate two identities belonging to the same user from two identities belonging to different users in the same realm. (§5.8)</span></td></tr>
@@ -775,7 +789,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;it is RECOMMENDED to omit the username (i.e., the NAI is @realm)&#34;; ze always sends an anonymous NAI: internal/core/eap/nai.go::anonymousNAI composes @realm or the fixed username and nothing else, so the condition &#34;If anonymous NAIs are not used&#34; is never true and ze builds no privacy-friendly username</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-2">RFC9190-5.8-2</code></td><td colspan="3"><span class="rfc-subject">Note that the privacy-friendly usernames also MUST NOT include substrings that can be used to relate the identity to a specific user. (§5.8)</span></td></tr>
 <tr><td></td>
@@ -784,7 +798,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.8-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;it is RECOMMENDED to omit the username (i.e., the NAI is @realm)&#34;; the privacy-friendly usernames of this paragraph are the identifiers used when anonymous NAIs are not, and internal/core/eap/nai.go::anonymousNAI composes only @realm or the fixed username</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-3">RFC9190-5.8-3</code></td><td colspan="3"><span class="rfc-subject">Similarly, privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications. (§5.8)</span></td></tr>
 <tr><td></td>
@@ -793,7 +807,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.8-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;it is RECOMMENDED to omit the username (i.e., the NAI is @realm)&#34;; the privacy-friendly usernames of this paragraph are the identifiers used when anonymous NAIs are not, and internal/core/eap/nai.go::anonymousNAI composes only @realm or the fixed username</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.10-1">RFC9190-5.10-1</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS implementations MUST mitigate known attacks (§5.10)</span></td></tr>
 <tr><td></td>
@@ -1217,85 +1231,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc9190-2.1-2"><code>RFC9190-2.1-2</code></a> * Early Data MUST NOT be used in EAP-TLS. (§2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a> EAP-TLS servers MUST NOT send an early_data extension (§2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a> clients MUST NOT send an EndOfEarlyData message (§2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1-5"><code>RFC9190-2.1-5</code></a> Post-handshake authentication MUST NOT be used in EAP-TLS (§2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1-6"><code>RFC9190-2.1-6</code></a> Clients MUST NOT send a &#34;post_handshake_auth&#34; extension (§2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1-7"><code>RFC9190-2.1-7</code></a> Servers MUST NOT request post-handshake client authentication (§2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1-8"><code>RFC9190-2.1-8</code></a> When EAP-TLS is used with TLS version 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS. (§2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1.1-1"><code>RFC9190-2.1.1-1</code></a> The EAP-TLS server MUST authenticate with a certificate (§2.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1.1-2"><code>RFC9190-2.1.1-2</code></a> Pre-Shared Key (PSK) authentication SHALL NOT be used except for resumption. (§2.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1.2-4"><code>RFC9190-2.1.2-4</code></a> If the &#34;early_data&#34; extension is received, then it MUST be ignored (§2.1.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1.4-1"><code>RFC9190-2.1.4-1</code></a> If the EAP-TLS peer authenticates successfully, the EAP-TLS server MUST send an EAP-Request packet with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1.4-2"><code>RFC9190-2.1.4-2</code></a> If the EAP-TLS server authenticates successfully, the EAP-TLS peer MUST send an EAP-Response message with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.1.4-3"><code>RFC9190-2.1.4-3</code></a> Whenever an implementation encounters a fatal error condition, it MUST send an appropriate TLS Error alert (§2.1.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc9190-2.2-1"><code>RFC9190-2.2-1</code></a> Unauthenticated information MUST NOT be used for accounting purposes or to give authorization (§2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a> Note that the key derivation MUST use the length values given above. (§2.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<tr><td><a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a> When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3)</td>
+<td>{partial}, Partial proof; remaining gap</td>
+<td>tested &#34;Key_Material&#34;; gap &#34;Method-Id&#34;; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys</td>
 </tr>
-<tr><td><a href="#rfc9190-2.3-3"><code>RFC9190-2.3-3</code></a> If an implementation intends to use only a part of the output of the TLS-Exporter function, then it MUST ask for the full output and then only use the desired part. (§2.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.4-1"><code>RFC9190-2.4-1</code></a> When EAP-TLS is used with TLS version 1.3, the EAP-TLS peers and EAP- TLS servers MUST comply with the compliance requirements (mandatory- to-implement cipher suites, signature algorithms, key exchange algorithms, extensions, etc.) defined in Section 9 of [RFC8446]. (§2.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9190-2.4-2"><code>RFC9190-2.4-2</code></a> In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be supported (§2.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<tr><td><a href="#rfc9190-2.3-4"><code>RFC9190-2.3-4</code></a> Method-Id = TLS-Exporter(&#34;EXPORTER_EAP_TLS_Method-Id&#34;, Type, 64) Session-Id = Type || Method-Id (§2.3)</td>
+<td>{gap}, no test</td>
+<td>split 2026-10-11 from RFC9190-2.3-1, whose SHALL names Key_Material and Method-Id together; Ze derives only Key_Material (internal/core/eap/eap_tls.go::exportEAPTLSKeys), and no non-test code exports EXPORTER_EAP_TLS_Method-Id or builds a Session-Id; implementing it needs the owner&#39;s scope</td>
 </tr>
 <tr><td><a href="#rfc9190-5.6-1"><code>RFC9190-5.6-1</code></a> When peer authentication is not used, EAP-TLS server implementations MUST take care to limit network access appropriately for unauthenticated peers (§5.6)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;Some deployments may permit no peer authentication for some or all connections.&#34;; ze permits none: internal/core/eap/eap_tls.go::newTLSMethod sets ClientAuth to RequireAndVerifyClientCert on every session and the operator has no leaf that lowers it, so the condition &#34;When peer authentication is not used&#34; is never true</td>
 </tr>
 <tr><td><a href="#rfc9190-5.6-2"><code>RFC9190-5.6-2</code></a> implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;Some deployments may permit no peer authentication for some or all connections.&#34;; the sentence carrying this MUST opens &#34;When peer authentication is not used&#34;, and internal/core/eap/eap_tls.go::newTLSMethod requires and verifies a client certificate on every session; resumption authorization itself is held by RFC9190-5.7-1 and RFC9190-5.7-2</td>
 </tr>
 <tr><td><a href="#rfc9190-5.6-3"><code>RFC9190-5.6-3</code></a> Authorization and accounting MUST be based on authenticated information such as information in the certificate or the PSK identity and cached data provisioned for resumption as described in Section 5.7. (§5.6)</td>
 <td>no test</td>
@@ -1305,21 +1259,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc9190-5.7-4"><code>RFC9190-5.7-4</code></a> If cached data cannot be retrieved securely, resumption MUST NOT be done (§5.7)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc9190-5.8-1"><code>RFC9190-5.8-1</code></a> If anonymous NAIs are not used, the privacy-friendly identifiers need to be generated with care. The identities MUST be generated in a cryptographically secure way so that it is computationally infeasible for an attacker to differentiate two identities belonging to the same user from two identities belonging to different users in the same realm. (§5.8)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;it is RECOMMENDED to omit the username (i.e., the NAI is @realm)&#34;; ze always sends an anonymous NAI: internal/core/eap/nai.go::anonymousNAI composes @realm or the fixed username and nothing else, so the condition &#34;If anonymous NAIs are not used&#34; is never true and ze builds no privacy-friendly username</td>
 </tr>
 <tr><td><a href="#rfc9190-5.8-2"><code>RFC9190-5.8-2</code></a> Note that the privacy-friendly usernames also MUST NOT include substrings that can be used to relate the identity to a specific user. (§5.8)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;it is RECOMMENDED to omit the username (i.e., the NAI is @realm)&#34;; the privacy-friendly usernames of this paragraph are the identifiers used when anonymous NAIs are not, and internal/core/eap/nai.go::anonymousNAI composes only @realm or the fixed username</td>
 </tr>
 <tr><td><a href="#rfc9190-5.8-3"><code>RFC9190-5.8-3</code></a> Similarly, privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications. (§5.8)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;it is RECOMMENDED to omit the username (i.e., the NAI is @realm)&#34;; the privacy-friendly usernames of this paragraph are the identifiers used when anonymous NAIs are not, and internal/core/eap/nai.go::anonymousNAI composes only @realm or the fixed username</td>
 </tr>
 </tbody>
 </table>
@@ -1350,39 +1300,158 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc9190-2.1-2"><code>RFC9190-2.1-2</code></a></h3>
 <p>* Early Data MUST NOT be used in EAP-TLS. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L430" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorRefusesAClientHelloOfferingEarlyData</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L145" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a></h3>
 <p>EAP-TLS servers MUST NOT send an early_data extension (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L317" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a></h3>
 <p>clients MUST NOT send an EndOfEarlyData message (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L149" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1-5"><code>RFC9190-2.1-5</code></a></h3>
 <p>Post-handshake authentication MUST NOT be used in EAP-TLS (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L321" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1-6"><code>RFC9190-2.1-6</code></a></h3>
 <p>Clients MUST NOT send a &#34;post_handshake_auth&#34; extension (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L154" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1-7"><code>RFC9190-2.1-7</code></a></h3>
 <p>Servers MUST NOT request post-handshake client authentication (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L326" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1-8"><code>RFC9190-2.1-8</code></a></h3>
 <p>When EAP-TLS is used with TLS version 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1-8, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L345" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L307" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1.1-1"><code>RFC9190-2.1.1-1</code></a></h3>
 <p>The EAP-TLS server MUST authenticate with a certificate (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L232" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorWithoutACertificateIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L206" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorAuthenticatesWithItsCertificate</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1.1-2"><code>RFC9190-2.1.1-2</code></a></h3>
 <p>Pre-Shared Key (PSK) authentication SHALL NOT be used except for resumption. (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L642" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PSKTheAuthenticatorDidNotIssueIsNotUsed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L612" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PSKIsUsedToResumeATicketTheAuthenticatorIssued</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1.2-1"><code>RFC9190-2.1.2-1</code></a></h3>
 <p>To enable resumption when using EAP-TLS with TLS 1.3, the EAP-TLS server MUST send one or more post-handshake NewSessionTicket messages (each associated with a PSK, a PSK identity, a ticket lifetime, and other parameters) in the initial authentication. (§2.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1396,7 +1465,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L327" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L355" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1415,6 +1484,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L134" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesATicketPastTheSection57Lifetime</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L110" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems</code></a></td>
 <td>unit/verify</td>
@@ -1435,13 +1509,29 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L330" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9190-2.1.2-4"><code>RFC9190-2.1.2-4</code></a></h3>
 <p>If the &#34;early_data&#34; extension is received, then it MUST be ignored (§2.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1.2-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L459" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerOffersNoEarlyDataFromATicketThatPermitsIt</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1.3-1"><code>RFC9190-2.1.3-1</code></a></h3>
 <p>When EAP-TLS is used with TLS version 1.3, EAP-TLS SHALL use a resumption mechanism compatible with version 1.3 of TLS. (§2.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1450,7 +1540,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L332" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L360" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1469,6 +1559,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L66" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L158" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L125" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems</code></a></td>
 <td>unit/verify</td>
@@ -1480,15 +1580,63 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc9190-2.1.4-1"><code>RFC9190-2.1.4-1</code></a></h3>
 <p>If the EAP-TLS peer authenticates successfully, the EAP-TLS server MUST send an EAP-Request packet with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1.4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L335" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L295" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1.4-2"><code>RFC9190-2.1.4-2</code></a></h3>
 <p>If the EAP-TLS server authenticates successfully, the EAP-TLS peer MUST send an EAP-Response message with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1.4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L341" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L301" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1.4-3"><code>RFC9190-2.1.4-3</code></a></h3>
 <p>Whenever an implementation encounters a fatal error condition, it MUST send an appropriate TLS Error alert (§2.1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.1.4-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L456" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletedExchangeCarriesNoAlert</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L377" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13FatalErrorSendsATLSAlert</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.1.8-1"><code>RFC9190-2.1.8-1</code></a></h3>
 <p>EAP-TLS peer and server implementations supporting TLS 1.3 MUST support anonymous Network Access Identifiers (§2.1.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1496,6 +1644,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cached_authorization_test.go#L24" title="internal/core/eap/rfc9190_cached_authorization_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorRefusesAnAnonymousPeerWithARevokedCertificate</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L259" title="internal/core/eap/rfc9190_nai_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorAcceptsAnAnonymousNAI</code></a></td>
 <td>unit/verify</td>
@@ -1556,6 +1709,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L518" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerHoldingACertificateSendsIt</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L362" title="internal/core/eap/rfc9190_nai_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal</code></a></td>
 <td>unit/verify</td>
@@ -1610,15 +1768,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC9190-2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a></h3>
 <p>When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3)</p>
+<p>Scoped tag-claim records only: tested &#34;Key_Material&#34;; gap &#34;Method-Id&#34;; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys; zero whole-requirement credit.</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L199" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC9190MSKIsNotThePreTLS13Derivation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L158" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC9190MSKIsTheExportUnderTheRFCLabel</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1626,19 +1790,87 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a></h3>
 <p>Note that the key derivation MUST use the length values given above. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.3-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L531" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestRFC9190KeysAreNotAShorterExport</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L503" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestRFC9190KeyMaterialIsOneFullLengthExport</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.3-3"><code>RFC9190-2.3-3</code></a></h3>
 <p>If an implementation intends to use only a part of the output of the TLS-Exporter function, then it MUST ask for the full output and then only use the desired part. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.3-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L535" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestRFC9190KeysAreNotAShorterExport</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L508" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestRFC9190KeyMaterialIsOneFullLengthExport</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9190-2.3-4"><code>RFC9190-2.3-4</code></a></h3>
+<p>Method-Id = TLS-Exporter(&#34;EXPORTER_EAP_TLS_Method-Id&#34;, Type, 64) Session-Id = Type || Method-Id (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9190-2.4-1"><code>RFC9190-2.4-1</code></a></h3>
 <p>When EAP-TLS is used with TLS version 1.3, the EAP-TLS peers and EAP- TLS servers MUST comply with the compliance requirements (mandatory- to-implement cipher suites, signature algorithms, key exchange algorithms, extensions, etc.) defined in Section 9 of [RFC8446]. (§2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L248" title="internal/core/eap/rfc9190_cipher_suites_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorAbortsAClientHelloWithoutSignatureAlgorithms</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L203" title="internal/core/eap/rfc9190_cipher_suites_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13BothRolesMeetTheRFC8446MandatoryToImplementSet</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.4-2"><code>RFC9190-2.4-2</code></a></h3>
 <p>In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be supported (§2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-2.4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L109" title="internal/core/eap/rfc9190_cipher_suites_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorRefusesSuitesWithoutConfidentiality</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L50" title="internal/core/eap/rfc9190_cipher_suites_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerOffersOnlySuitesWithConfidentiality</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-2.5-1"><code>RFC9190-2.5-1</code></a></h3>
 <p>To provide a protected success result indication and to decrease the uncertainty for the EAP-TLS peer, the following procedure MUST be followed: When an EAP-TLS server has successfully processed the TLS client Finished and sent its last handshake message (Finished or a post- handshake message), it sends an encrypted TLS record with application data 0x00. The encrypted TLS record with application data 0x00 is a protected success result indication, as defined in [RFC3748]. After sending an EAP-Request that contains the protected success result indication, the EAP-TLS server must not send any more EAP-Requests and may only send an EAP-Success. (§2.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1657,12 +1889,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L383" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L396" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L369" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L397" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1672,7 +1904,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L377" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L390" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -1707,7 +1939,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L209" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionStillNeedsARevocationSource</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L225" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionStillNeedsARevocationSource</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1752,7 +1984,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L420" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13RevokedClient</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L433" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13RevokedClient</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -1923,12 +2155,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L90" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L95" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L286" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L227" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedClientChain</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L193" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L235" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedClientChain</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1943,17 +2185,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L176" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesAResumptionAgainstAReplacedTrustAnchor</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L192" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesAResumptionAgainstAReplacedTrustAnchor</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L261" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L279" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L246" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerRefusesAResumptionItCannotRebuildAChainFor</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L262" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerRefusesAResumptionItCannotRebuildAChainFor</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1972,8 +2214,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cached_authorization_test.go#L54" title="internal/core/eap/rfc9190_cached_authorization_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionAuthorizesOnTheCachedChain</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L232" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedClientChain</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L240" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionRefusesARevokedClientChain</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1983,7 +2230,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc9190-5.7-4"><code>RFC9190-5.7-4</code></a></h3>
 <p>If cached data cannot be retrieved securely, resumption MUST NOT be done (§5.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9190-5.7-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L292" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L100" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9190-5.7-5"><code>RFC9190-5.7-5</code></a></h3>
 <p>As suggested in [RFC8446], EAP-TLS peers MUST NOT store resumption PSKs or tickets (and associated cached data) for longer than 604800 seconds (7 days) regardless of the PSK or ticket lifetime. (§5.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1992,17 +2255,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L119" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesATicketPastTheSection57Lifetime</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L130" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesATicketPastTheSection57Lifetime</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L290" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L318" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L285" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L313" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2017,12 +2280,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L265" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L283" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L143" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesAResumptionWhoseCachedCertificateExpired</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L159" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesAResumptionWhoseCachedCertificateExpired</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2324,7 +2587,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>3</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Row RFC9190-2.3-4 (split 2026-10-11 from RFC9190-2.3-1, whose site 2.3:1 carries the SHALL) quotes the Method-Id and Session-Id definitions, which carry no keyword of their own; it is a gap row.</td>
 </tr>
 <tr><td><code>2.4</code></td>
 <td>not stated</td>
@@ -2510,7 +2773,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

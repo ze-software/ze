@@ -131,14 +131,14 @@ handler with the family.
 The client-side lookup carries the same rule, and the two are separate because they
 read different registries. Neither is derived from the other.
 <!-- source: internal/component/plugin/server/command.go -- matchBuiltinTokens, longerCommandPath, isCommandPath -->
-<!-- source: internal/component/command/registry/registry.go -- LookupLocal -->
+<!-- source: internal/component/command/local.go -- LookupLocal -->
 
 ### Offline fallback (read-only commands without a daemon)
 
 Some read-only `show` commands must work with **no daemon reachable** — `show crashes`
 (you inspect a crash precisely when the daemon has died) and `show host` (hardware
 inventory before the daemon is up). Their owner registers an in-process handler with
-`registry.RegisterOfflineFallback(path, handler)`. The CLI serves the command from the
+`command.MustRegisterOfflineFallback(path, handler)` from its `init()`. The CLI serves the command from the
 daemon when it is reachable and calls the fallback **only after a connection failure**,
 so the fallback never shadows the daemon. Because `cmdutil.RunCommand` rejects commands
 absent from the CLI binary's tree before reaching the daemon path, it makes an exception
@@ -150,7 +150,7 @@ identity to one call on each side: both build their rows from
 the answer cannot vary with the health of the box being diagnosed.
 <!-- source: internal/core/crashlog/list.go -- CrashListFields, the one row builder -->
 <!-- source: internal/plugins/crashes/readiness.go -- Readiness, the one readiness answer -->
-<!-- source: internal/component/command/registry/registry.go -- RegisterOfflineFallback, LookupOfflineFallback -->
+<!-- source: internal/component/command/local.go -- RegisterOfflineFallback, MustRegisterOfflineFallback, LookupOfflineFallback -->
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
 
@@ -163,8 +163,8 @@ command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
 `| yaml` and `| table` be three renderings of one payload. The handler
 (`command.LocalDataHandler`) takes the `command.ValidatedArgs` the validator
 returned, never a token slice, and reads `Tokens()` or `Positional(leaf)`. The
-data-handler registry lives in package `command` rather than in the
-local-handler registry, because that registry cannot import `command` and so
+data-handler and local-handler registries live in package `command` rather than
+in `command/registry`, because that package cannot import `command` and so
 cannot name the value.
 
 The handler returns a payload AND an exit code, and the two are independent. The
@@ -191,11 +191,13 @@ The handler runs on the value `ValidateArgs` returned, never on the raw words.
 
 `ze <verb>` does not pass through `ServeLocal`: it runs the plain local handler
 that `command.RegisterLocalData` builds from the same data handler and registers
-in the local-handler registry. That handler runs the same judgment first
-(`command.ValidateModelArgs`) and hands the data handler the value it got, so
-`ze show env get <key>` and `ze cli -c "show env get <key>"` refuse the same
-values with the same message.
+in the local-handler registry. The judgment happens before that handler runs:
+`command.InvokeLocal`, which every `ze <verb>` route calls with the path it
+matched, runs `command.ValidateModelArgs` and hands the plain handler the value
+it got, which passes it to the data handler, so `ze show env get <key>` and
+`ze cli -c "show env get <key>"` refuse the same values with the same message.
 <!-- source: internal/component/command/local_data.go -- RegisterLocalData, plainLocalData, ValidateModelArgs -->
+<!-- source: internal/component/command/local.go -- InvokeLocal -->
 
 An `le` tool registers through the same call (`leroot.Register`), and `le`'s
 own dispatcher (`leroot.Run`) is a route too: an `le` tool declares no
@@ -641,11 +643,24 @@ show bgp peer <selector> statistics   # Show specific peer statistics
 show bgp peer <selector> history      # Show FSM transition history
 request peer <selector> teardown [<cease-subcode>]  # Disconnect peer
 create bgp peer <address> asn <asn> [...]  # Add a peer to the running daemon
-delete bgp peer <name>             # Remove dynamic peer
+delete bgp peer <name>             # Stop a peer, configured or created, and remove it from the running set
 update bgp config                  # Write the running peer set to the config file
 request peer <sel> flush           # Wait for forward pool to drain (barrier)
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
+
+`create bgp peer` (`ze-bgp:peer-create`) and `delete bgp peer`
+(`ze-bgp:peer-delete`) change the running peer set and never write the
+configuration file. A commit or a reload whose configuration does not declare a
+created peer keeps it running: the reload leaves the created peers the
+candidate does not name out of the running tree it compares against, so the
+diff plans no removal, and carries them into the tree that replaces it.
+`update bgp config` (`ze-bgp:peer-save`) takes no selector and makes the file state the whole running set: a created peer is
+written in, and a configured peer that was deleted is taken out.
+<!-- source: internal/component/bgp/plugins/cmd/peer/create.go -- handleBgpPeerCreate -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleBgpPeerDelete -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- reactorAPIAdapter.ReloadRunning -->
 
 ### Cache Commands (Ze)
 
@@ -1479,11 +1494,11 @@ model through `command.ValidateModelArgs`.
 |-------|-------|-------------|
 | R1 daemon dispatcher | `Dispatcher.Dispatch` | the matched command's `ArgDefs`, inline selectors pre-matched |
 | R2 in-process local data (`ze cli -c`) | `command.ServeLocal` | the model, by path |
-| R3 the plain handler `RegisterLocalData` builds | `command.plainLocalData` | the model, through `command.ValidateModelArgs` |
+| R3 the plain handler `RegisterLocalData` builds | the R6 and R7 routes that run it | the model, through `command.InvokeLocal` |
 | R4 RPC wrapper | `Server.wrapHandler` | the model, the params' selector pre-matched |
 | R5 ensure-exists steps | `wrapWithEnsureChain` | the ancestor node's `ArgDefs`, the dispatcher's selectors pre-matched |
-| R6 `ze <verb>` local handlers | `cmd/ze` dispatch, `cmdutil.matchLocalHandler` | the model, through `registry.ValidateLocalArgs` |
-| R7 offline fallback | `client.runOfflineFallback` | the model, through `registry.ValidateLocalArgs` |
+| R6 `ze <verb>` local handlers | `cmd/ze` dispatch (`invokeRootLocalHandler`, `dispatchHelp`), `cmdutil.invokeLocalHandler` | the model, through `command.InvokeLocal` |
+| R7 offline fallback | `client.runOfflineFallback` | the model, through `command.InvokeLocal` |
 | R8 streaming (`monitor ...`) | `GetStreamingHandlerForCommand` | the model, by the streaming prefix |
 | R9 plugin process and forked subsystem | `Dispatcher.routeToProcess`, `Dispatcher.dispatchSubsystem` | the model, by the plugin's command, the dispatcher's selectors pre-matched |
 
@@ -1493,22 +1508,36 @@ declares an argument is also served by a builtin, which judges first (R1);
 `test/ui/cli-argument-refused-plugin-route.ci` reaches R9 alone through a test
 plugin serving `show config cat`, which no daemon builtin serves.
 
-The local-handler registry cannot import `command`, so `RegisterArgDefSource`
-installs the judgment there too (`registry.RegisterLocalArgCheck`) for R6 and
-R7; a process that installed none refuses both.
+R6 and R7 run their handler through `command.InvokeLocal(path, handler, args)`,
+which judges the tokens with `ValidateModelArgs` and runs the handler on the
+value it returned; a process that registered no definition source refuses both.
 
-A streaming handler (`pluginserver.StreamingHandler`) and a data handler
-(`command.LocalDataHandler`) take the `command.ValidatedArgs` itself, so no route
-can declare or invoke one with a token slice: R8 hands a streaming handler the
-value `GetStreamingHandlerForCommand` answered, R2 and R3 hand a data handler
-the value they judged, and the handler reads `Tokens()` or `Positional(leaf)`. A
-test that calls a handler directly builds its value with `commandtest.Args`,
-which goes through `ValidateArgs`. The other handler types still take a token
-slice, and their routes pass `ValidatedArgs.Tokens()`.
+Every handler type takes the `command.ValidatedArgs` itself: a daemon handler
+(`pluginserver.Handler`, which is also the type of an ensure-exists step's
+creation and rollback handlers), a streaming handler
+(`pluginserver.StreamingHandler`), a data handler (`command.LocalDataHandler`)
+and a local handler or offline fallback (`command.LocalHandler`). No route can
+declare or invoke one with a token slice: R1 hands a daemon handler the value
+`Dispatch` judged, R4 the value `wrapHandler` judged, R5 hands an ensure step
+and its rollback the value judged against the ancestor's definitions, R8 hands
+a streaming handler the value `GetStreamingHandlerForCommand` answered, R2
+hands a data handler the value it judged, R6 and R7 hand a local handler, and
+through it the plain form of a data handler (R3), the value `InvokeLocal`
+judged, and the handler reads `Tokens()` or `Positional(leaf)`. A handler that
+passes part of its tokens on (the `update` command hands the words after the
+encoding to that encoding's parser) passes a token slice to a helper that is
+not a handler type. A test that calls a handler directly builds its value with
+`commandtest.Args`, which goes through `ValidateArgs` with no definitions, so
+the tokens it is given come back unjudged. Product code calling it would be a
+bypass, and the ruleguard rule `commandtestInTestsOnly` refuses a call to
+`commandtest.Args` or `commandtest.Must` outside a `_test.go` file.
+<!-- source: internal/component/plugin/server/command.go -- Handler -->
+<!-- source: internal/component/plugin/server/ensure.go -- EnsureStep, wrapWithEnsureChain -->
 <!-- source: internal/component/command/argbind.go -- ValidatedArgs, MissingArgumentError, ValidateArgs -->
 <!-- source: internal/component/command/local_data.go -- ValidateModelArgs, RegisterArgDefSource, LocalDataHandler -->
+<!-- source: internal/component/command/local.go -- LocalHandler, InvokeLocal, LookupLocal, LookupOfflineFallback -->
 <!-- source: internal/component/command/commandtest/commandtest.go -- Args -->
-<!-- source: internal/component/command/registry/registry.go -- ValidateLocalArgs, RegisterLocalArgCheck -->
+<!-- source: .golangci/ruleguard/modern.go -- commandtestInTestsOnly -->
 <!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, routeToProcess, dispatchSubsystem -->
 <!-- source: internal/component/plugin/server/server.go -- wrapHandler -->
 <!-- source: internal/component/plugin/server/ensure.go -- wrapWithEnsureChain -->
@@ -1629,7 +1658,7 @@ compile, wrapping `ErrUncompilablePattern`, so no argument is ever built with
 its pattern missing. The error names the module, the leaf, leaf-list,
 typedef or deviation the pattern restricts, the source location, and the reason, which
 quotes the pattern.
-<!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef, compilePatterns -->
+<!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef, compiledPatterns.compiled -->
 <!-- source: internal/component/command/argvalidate.go -- validateString -->
 <!-- source: internal/component/config/yang/loader.go -- checkPatterns, modulePatternErrors -->
 
@@ -1892,7 +1921,7 @@ surfaces.
 | The published CLI reference row | `internal/le/site` `writeCommandRow`, `commandMirrorDescription` | `ShortHelp` |
 | The published per-command detail page | `internal/le/site` `equivalentZeCard`, `equivalentDetailMirror` | `ShortHelp` as the lede, `Description` as the Description body |
 | The `llms.txt` command line | `internal/le/site` `writeLLMSCommands` | `ShortHelp`, whole and with no character budget |
-| An offline local command in any of the rows above | `registry.ListLocal`, merged by `collectCommands` and by `clicatalog.Collect` | `Meta.ShortHelp` and `Meta.Description`, in place of the node's two texts |
+| An offline local command in any of the rows above | `command.ListLocal`, merged by `collectCommands` and by `clicatalog.Collect` | `Meta.ShortHelp` and `Meta.Description`, in place of the node's two texts |
 
 The machine surfaces carry the same pair. `commandMeta`
 (`cmd/ze/hub/command_meta.go`) holds both halves for the API and MCP listers.
@@ -1915,7 +1944,8 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/aihelp/aihelp.go -- RPC, Build -->
 <!-- source: internal/core/helpfmt/helpfmt.go -- Page, (*Page).WriteTo -->
 <!-- source: cmd/ze/help_command.go -- commandEntry, printCommandTable, printCommandVerbose -->
-<!-- source: internal/component/command/registry/registry.go -- Meta, ListLocal -->
+<!-- source: internal/component/command/registry/registry.go -- Meta -->
+<!-- source: internal/component/command/local.go -- ListLocal -->
 <!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
 <!-- source: internal/plugins/completion/words.go -- writeCompletionRecord -->
 <!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox, (Model).warningText -->

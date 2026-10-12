@@ -156,9 +156,9 @@ Cluster ID defaults to Router ID per RFC 4456 Section 7.
 | Capability | Config Key | Values |
 |------------|-----------|--------|
 | 4-byte ASN | `asn4` | enable / disable / require / refuse (default enable) |
-| Route Refresh | `route-refresh` | true / false |
+| Route Refresh | `route-refresh` | enable / disable / require / refuse; absent means not advertised |
 | ADD-PATH | `add-path` | Per-family send/receive/both |
-| Extended Message | `extended-message` | true / false |
+| Extended Message | `extended-message` | enable / disable / require / refuse; absent means not advertised |
 | Extended Next Hop | `nexthop` | Per-family AFI mapping |
 | Graceful Restart | `graceful-restart` | restart-time (0-4095s), long-lived-stale-time (0-16777215s) |
 | Role | `role` | provider / rs / rs-client / customer / peer |

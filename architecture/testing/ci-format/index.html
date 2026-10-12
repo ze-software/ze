@@ -815,7 +815,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <tr>
 <td><code>needs-linux</code></td>
 <td><code>[caps=&lt;tok&gt;[,&lt;tok&gt;]]</code></td>
-<td>Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through <code>./le test qemu all-tests</code>. <code>caps=</code> declares required capabilities such as <code>net-admin</code>, <code>net-raw</code>, <code>bpf</code>, and <code>sys-time</code>; an unavailable capability produces a visible skip.</td>
+<td>Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through <code>./le test qemu all-tests</code>. <code>caps=</code> declares required capabilities such as <code>net-admin</code>, <code>net-raw</code>, <code>bpf</code>, and <code>sys-time</code>; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty <code>caps=</code> is refused on every host.</td>
 </tr>
 <tr>
 <td><code>needs-path</code></td>
@@ -3166,7 +3166,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

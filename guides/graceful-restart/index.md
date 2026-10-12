@@ -358,7 +358,7 @@ sent labeled routes keep their wire labels. Received generation and route
 identity establish ownership; inbound and outbound ADD-PATH identifiers are
 not assumed equal. Replay feedback cannot recreate deleted ownership or replace
 the current locally decorated attributes.
-<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- reconcileSentSourceLocked, attachSentCommunity -->
+<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- withdrawRemovedSentLocked, attachSentSourceCommunityLocked, attachSentCommunity -->
 
 State and End-of-RIB events run in reverse implementation-dependency order:
 `bgp-gr` precedes `bgp-rib`, including when either is loaded under an operator

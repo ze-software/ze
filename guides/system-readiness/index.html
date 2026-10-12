@@ -77,8 +77,19 @@
 Add <code>--json</code> for machine-readable output with stable diagnostic codes.</p>
 <pre><code>ze doctor
 ze doctor --json
-ze doctor --json /path/to/config.conf
+ze doctor --json config /path/to/config.conf
+ze doctor --json kernel-capabilities
 </code></pre>
+<p>With no argument, <code>ze doctor</code> checks the active config in the store. <code>config &lt;file&gt;</code> names a config file to check instead, and <code>config -</code> reads it from
+stdin. The file is always the value of the <code>config</code> keyword: a bare path such as
+<code>ze doctor router.conf</code> is refused with an error that names
+<code>ze doctor config &lt;file&gt;</code>.</p>
+<!-- source: internal/component/doctor/doctor.go -- Run, refuseDoctorArgs -->
+<p><code>ze doctor kernel-capabilities</code> asks a different question: it probes every
+kernel feature Ze enrolls, whatever the configuration uses, prints one row per
+feature (subsystem, <code>CONFIG_</code> symbol, state, reason) and exits 0 only when every
+row is <code>present</code>. It is how a host is checked before it runs Ze's Docker labs.</p>
+<!-- source: internal/component/doctor/kernel_capabilities.go -- writeKernelCapabilities -->
 <p>Each check produces a diagnostic with a code (e.g., <code>doctor-config-reference</code>),
 severity (<code>error</code> or <code>warning</code>), and message. Use <code>ze explain &lt;code&gt;</code> for
 remediation guidance.</p>
@@ -526,7 +537,7 @@ is present and emits the registered code.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

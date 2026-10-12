@@ -982,6 +982,24 @@ fragments to <code>internal/appliance/kernelbuilder</code>. The worker merges an
 the config, then rejects any required symbol that is not built in. Docker and
 QEMU are native backends of the same Go driver. Output is cached by target,
 architecture, profile, config, and kernel version.</p>
+<p>A kernel is built only on a host of its own architecture: an arm64 kernel on an
+arm64 machine (a Mac), an amd64 kernel on an amd64 machine. A request for the
+other architecture is refused before any backend starts, naming the host's
+architecture and where to build it, because a build under CPU emulation runs
+for hours and fails late. For the same reason the QEMU backend runs only under
+a hardware accelerator, <code>hvf</code> on macOS or <code>kvm</code> on Linux, and refuses rather
+than fall back to the <code>tcg</code> emulator. When QEMU itself is missing or fails to
+start, the error says so and shows QEMU's own message; install or repair QEMU,
+then check that <code>qemu-system-&lt;arch&gt; -accel help</code> lists <code>hvf</code> or <code>kvm</code>. That
+listing shows what QEMU was built with, not what this host can use, so the
+build also checks the host: on Linux, <code>/dev/kvm</code> must open for your user
+(when the refusal is a permission error, <code>sudo usermod -aG kvm $USER</code>, then
+log in again; any other error points at the kernel log); on macOS,
+<code>sysctl kern.hv_support</code> must print <code>1</code>. Each of these questions is bounded at
+fifteen seconds, so a hung QEMU or Docker daemon is reported, not waited on.
+<code>ze doctor</code> reports the same condition.</p>
+<!-- source: internal/appliance/kernelbuilder/driver.go -- validateRequest, hostGOARCH -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators -->
 <!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
 <!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
@@ -1110,7 +1128,7 @@ real network and <code>ze install remote</code> on port 80.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

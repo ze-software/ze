@@ -20,8 +20,8 @@ command history.
 Three more surfaces reach the same editor against a running daemon. An SSH
 session opens in configuration mode. The web interface gives each authenticated
 user an editor of their own. The console of `ze start --cli` opens at the
-operational prompt, where `configure` enters configuration mode. A `commit` from
-any of the three reloads the daemon.
+operational prompt, where `configure` enters configuration mode. A `commit now`
+from any of the three reloads the daemon.
 <!-- source: cmd/ze/hub/session_editor.go -- newSessionEditor, attachedConsoleEditor -->
 <!-- source: internal/component/cli/model_keys.go -- handleEnter, the configure arm -->
 
@@ -38,10 +38,12 @@ any of the three reloads the daemon.
 | `show \| compare` | Diff against committed config; shows only the parts that differ |
 | `show \| errors` | Validation issues |
 | `show \| history` | List rollback revisions |
-| `commit` | Save changes and notify daemon |
+| `commit now` | Save changes and notify daemon |
+| `commit now force` | Commit even though validation reports warnings (never errors) |
 | `commit confirmed <N>` | Commit with N-second auto-revert window (1-3600) |
-| `confirm` | Make a pending confirmed commit permanent |
-| `confirm abort` | Roll back a pending confirmed commit immediately |
+| `commit accept` | Make a pending confirmed commit permanent |
+| `commit abort` | Roll back a pending confirmed commit immediately |
+| `commit verify` | Validate the candidate and apply nothing |
 | `rollback <N>` | Restore revision N |
 | `top` | Navigate to config root |
 | `up` | Navigate up one level |
@@ -49,7 +51,91 @@ any of the three reloads the daemon.
 | `exit` | Exit editor |
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
 
-`commit` reaches the same reload as `ze signal reload`. Which configuration
+`commit` always takes a subcommand: a bare `commit`, a bare `force`, or an
+unknown word is refused with the list of subcommands, so a typo never applies a
+configuration. `force` is a modifier that only follows `commit now` or
+`commit confirmed <seconds>`. While a confirmed commit is pending, `commit now`
+and a second `commit confirmed` are refused: answer the window first with
+`commit accept` or `commit abort`. The SSH editor, `ze config edit` and the web
+terminal share this grammar.
+With nothing pending, the SSH editor and the web terminal answer `commit now`
+with "no changes to commit" and apply nothing, and `commit confirmed <seconds>`
+with "no changes to commit: no confirmed commit was opened", because a window
+over no change would revert nothing.
+<!-- source: internal/component/cli/contract/commit.go -- NothingToCommit -->
+<!-- source: internal/component/cli/contract/commit.go -- ParseCommit, commitSubcommands -->
+
+A commit that validation refuses says so on the status line: how many errors
+and warnings block it, then each one. When only warnings block it, the line
+names the forced form of what you typed (`commit now force`, or
+`commit confirmed <seconds> force`), and a forced commit reports how many
+warnings it skipped. `force` never commits over an error. `commit verify`
+gives the same list and applies nothing. The configuration stays on screen with
+each issue marked. The web terminal and the web CLI bar run the same validation
+and answer with the same text, the CLI bar as an error notification, and a
+refused commit leaves your changes pending there too.
+<!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal, WithSkippedWarnings, cmdCommitVerify -->
+<!-- source: internal/component/cli/contract/commit.go -- ForcedCommand -->
+<!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
+<!-- source: internal/component/web/cli.go -- handleCLICommit -->
+
+In the SSH editor and the web terminal, `commit now` is refused when your
+change conflicts with another user's pending change (LIVE) or with a value
+committed since you made it (STALE). `commit now force` applies your change
+anyway. Each other user's pending change that it overrides is removed from that
+user's change file, or from the shared draft when they already ran `save`, and
+nothing else of theirs is touched. Their next commit does not bring it back. Every
+editor session of theirs, SSH or web, reports "Your change at <path> was
+discarded by <you>'s forced commit" once: an SSH session at its next check for
+changes by other sessions (every two seconds, or when they next connect), a web
+session in the notification bar of each open page within a second, or when a
+page next opens if none was open, and again at the next second for a page whose
+event stream was too full to take it. From then on each session shows the
+committed value in place of theirs, and `show | changes` there no longer lists
+it. A notice does not expire with time: it stays on disk until each session of
+theirs has shown it, so a web session with no page open is told when its page
+opens. A session they open later is told only of discards no session of theirs
+has reported yet. The log keeps their 64 newest discards. Validation errors
+still block a forced commit. When the commit applies but the discard fails, for
+example because a file could not be written, the answer says the commit applied
+and adds the warning "commit applied, but the changes it overrode were not
+discarded and stay pending for their owners", with the cause, so you know to
+tell them.
+<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, overriddenNotDiscarded, PendingDiscardNotice, AckDiscardNotice, startDiscardNotice, discardNoticeLinesMax -->
+<!-- source: internal/component/web/window_notices.go -- WindowNotices.push, pushDiscardNotice -->
+<!-- source: internal/component/web/sse.go -- EventBroker.SendNotice -->
+<!-- source: internal/component/cli/editor_commit.go -- reloadSessionView -->
+<!-- source: internal/component/cli/model.go -- handleDraftPoll, draftPollInterval -->
+<!-- source: internal/component/web/editor.go -- EditorManager.commit -->
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest -->
+
+A STALE conflict on a leaf-list member names the change as you made it,
+`deactivate <path> <member>`, `activate <path> <member>` or
+`insert <path> <member> <position> [<reference>]`, and follows it with a
+`fix:` line. When the commit no longer holds the member, the line names
+`discard <path> <member>`, which drops your changes to that one member and
+leaves your other edits pending, a rename of the entry above the list
+included; adding the member back resolves it too. An insert refused for its
+reference is reported once: its `discard` also drops a later deactivate or
+activate of the member it inserted. The SSH editor, `commit confirmed`, the
+web terminal, the web CLI bar and the web editor's Commit button all print the
+`fix:` line, and `discard <path>` works on each of them: in the web terminal
+and the CLI bar, `discard` alone or `discard all` drops every change, and a
+path holding none of your pending changes is refused with the command that
+lists them. The closing "Re-set conflicting values to resolve." is printed
+only when a contested leaf value is among the conflicts. A leaf you set or
+delete below an entry you renamed is judged against the committed value at
+the old name, so a rename followed by an edit commits with no conflict when
+nobody else committed.
+<!-- source: internal/component/cli/editor_commit.go -- memberOpStaleConflict, memberOpFix, insertSummary, memberOpConflicts, structuralOpUnderDiscard, committedPathOf -->
+<!-- source: internal/component/cli/model_commands_commit.go -- commitConflictsText -->
+<!-- source: internal/component/web/cli_terminal.go -- runWebDiscard, formatCommitConflicts -->
+<!-- source: internal/component/web/editor.go -- EditorManager.DiscardPath -->
+<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
+<!-- source: internal/component/config/change_file.go -- PendingChange.Summary -->
+<!-- source: internal/component/config/confirm/confirm.go -- ErrPending -->
+
+`commit now` reaches the same reload as `ze signal reload`. Which configuration
 changes stop a session, and in what order, is in
 [The order of a commit](https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md#the-order-of-a-commit).
 
@@ -93,10 +179,19 @@ clear, so the operator still reads which leaf was written.
 ### Commands run one at a time, in order
 
 The config commands of one session run serially, in the order the operator
-entered them. Pasting a block of `set` lines followed by `commit` over SSH lands
+entered them. Pasting a block of `set` lines followed by `commit now` over SSH lands
 every `set` before the `commit` reads the draft. Nothing is dropped and no
-command is refused for arriving while another is in flight.
+command is refused for arriving while another is in flight. A command starts
+only once the answer of the one before it is on screen, so answers appear in
+the same order: `commit abort` typed straight after `commit confirmed` always
+ends with the abort's answer. While a command is in flight, the status line's
+two-second look at a confirmed-commit window waits, so a session's own accept
+or abort is never reported as another session's. When the session ends with
+commands still queued, because the SSH client went away or the operator left,
+those commands are dropped unrun: a command that no operator will ever see the
+answer of does not change the draft.
 <!-- source: internal/component/cli/model_commands.go -- dispatchQueue -->
+<!-- source: internal/component/cli/model.go -- handleDraftPoll -->
 
 ## Other Config Subcommands
 
@@ -147,7 +242,7 @@ non-zero. Without a terminal, including when the input is stdin, it asks nothing
 and refuses, naming `--yes`; `--yes` confirms in advance. A replaced config is
 committed as a new active version and the previous one becomes its rollback, so
 `ze config rollback` restores it.
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, confirmImportReplace, importOne -->
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, cmdImportConfirm -->
 <!-- source: internal/component/config/storage/restore.go -- RestoreConfig -->
 
 ## Editing Modes
@@ -206,28 +301,87 @@ edit must be reconciled before a competing daemon commit can succeed. Bare
 <!-- source: internal/component/cli/editor.go -- NewLooseFileEditor, NewEditorWithStorage -->
 <!-- source: internal/component/cli/editor_commands.go -- Save -->
 
-Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:
-
-<!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode, errCopyNotSupportedInSessionMode, errDeactivateNotSupportedInSessionMode, errActivateNotSupportedInSessionMode -->
-<!-- source: internal/component/cli/model_commands.go -- errCommitConfirmedNotYetSupportedIn -->
-<!-- source: internal/component/cli/model_commands_commit.go -- errCommitForceNotYetSupportedIn -->
-
-| Blocked command | Reason |
-|-----------------|--------|
-| `load` | Replaces tree without generating per-leaf change entries |
-| `copy` | Creates structure without write-through |
-| `deactivate` on a leaf or a path | Requires metadata write-through |
-| `activate` on a leaf or a path | Requires metadata write-through |
-| `commit confirmed` | Needs session-aware rollback |
-| `commit force` | Needs session-aware rollback |
+In a session editor, `commit confirmed <seconds>` runs through the daemon's
+confirmed-commit window (see [Commit Confirmed](#commit-confirmed)). A session
+editor of a configuration the daemon does not run has no such window, and
+refuses it with "commit confirmed needs a daemon that runs this configuration
+from its store"; `commit now` still works there. The web editor of
+`ze start --web-only` has no daemon and answers the same way.
+<!-- source: internal/component/cli/commit_window.go -- errCommitConfirmedNeedsDaemon, WindowCommit.Run -->
 
 `insert` is supported in session mode: `InsertLeafListValue` routes through
 `writeThroughMemberOp`, and so do `deactivate` and `activate` when they name a
-leaf-list member rather than a leaf or a path.
-<!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue -->
+leaf-list member rather than a leaf or a path. A deactivated member stays in
+its leaf-list, bracket ones such as `address [ ... ]` included: the file writes
+the whole list and then one `inactive: address <member>` statement for it
+(`nop <path> <member>` in `set` form, as for any leaf-list), so a save, a
+commit and a reload all keep it deactivated. You can deactivate a member your
+session has just added: `commit now` applies that deactivation after the `set`
+that adds the member. Setting a bracket leaf-list whole keeps every
+deactivated member deactivated: one the new list names stays deactivated in
+its new place, and one the new list does not name is kept, still deactivated,
+after the members the list names.
+`delete address <member>`
+removes that one member, deactivated or not, and leaves the rest of the list,
+and an earlier `deactivate` or `insert` of it goes with it, so adding,
+deactivating and then deleting a member commits as if it was never added.
+Setting the list whole replaces your session's earlier member changes to it:
+a member you deleted and then list again stays in the list, and an `insert`
+position gives way to the order the new list states. When another commit has
+removed a member you deactivate, or the member an `insert` is placed against,
+`commit` reports a conflict on that path rather than failing. A reference
+member your own session adds, by a `set` or by an earlier `insert`, is no
+conflict, and neither is a deactivated reference, which holds its place in the
+list.
+<!-- source: internal/component/cli/editor_leaflist.go -- writeThroughDeleteMember, replaceSessionMembers, dropSessionMemberOps -->
+<!-- source: internal/component/cli/editor_commit.go -- appendStructuralOpConflict, memberOpConflicts, memberOpStaleConflict -->
+<!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue, storeLeaf, DeleteByPath -->
+<!-- source: internal/component/cli/editor_draft.go -- applyStructuralOpsAroundEntries, memberOpWaitsForEntries -->
+<!-- source: internal/component/config/serialize.go -- serializeBracketLeafList -->
+<!-- source: internal/component/config/tree.go -- SetLeafListMembers -->
 <!-- source: internal/component/cli/editor_leaflist.go -- writeThroughMemberOp -->
 
-Use file mode (`ze config edit -f`) for these operations.
+`copy`, and `deactivate` or `activate` on a leaf or a path, are supported in
+session mode too. Each records one structural op in your change file
+(`copy-entry`, `deactivate-leaf`, `activate-leaf`, `deactivate-path`,
+`activate-path`), shows as one change in `show | changes`, and is applied by
+`commit now` before your leaf edits. `copy` never overwrites: a destination that
+exists is refused, so delete it first.
+<!-- source: internal/component/cli/editor_draft.go -- writeThroughCopy, writeThroughToggle, writeThroughStructuralOp, applyToggleOp -->
+
+`load` works in session mode and in file mode through one path. The input,
+from a file or pasted after `load terminal ...` and ended with Ctrl-D, is
+parsed against the schema first: at the root it may be hierarchical or `set`
+lines, and a `relative` load takes a hierarchical body checked against the
+children of your current context, so a key that node does not hold is refused
+by name. A `merge` then applies each leaf, leaf-list member, list entry and
+inactive marker the input carries that the configuration does not already hold,
+and a leaf both name takes the loaded value while every leaf the input omits is
+kept; a `replace` also deletes what the node holds and the input omits, scoped to the
+context for a `relative` load. A bracket leaf-list such as
+`address [ 192.0.2.1/24 ]` or `virtual-address [ 203.0.113.1 ]` is written as
+one value, the way a typed `set` writes it: a `merge` adds the loaded members
+the configuration lacks to the ones it holds, and a member you deactivated
+stays deactivated, while a `replace`, and an ordered sequence whose repeats
+matter, take the loaded members as they are; a `replace` takes their inactive
+markers too. In session mode each applied difference is one
+tracked change, the same entry a typed `set` or `delete` records, so a leaf
+equal to its current value records nothing and `show | changes` lists exactly
+what the load changed.
+
+A load is all or nothing. A parse error, a refused entry, or a failed write of
+the change file leaves the candidate exactly as it was, and the error says
+`load refused, candidate unchanged`. In session mode the load holds the change
+file's lock for its whole run, reads the change file and the committed
+configuration once, applies every difference in memory, and writes the change
+file once, at the end, so its cost grows with the size of the input rather than
+with its square.
+<!-- source: internal/component/cli/model_load.go -- cmdLoadNew, applyLoad -->
+<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace, load, loadStage, loadBracketLeafList -->
+<!-- source: internal/component/cli/editor_draft.go -- openChangeFile, writeChangeFile, readCommittedTree -->
+<!-- source: internal/component/config/parser.go -- ParseAt -->
+
+Use file mode (`ze config edit -f`) for the blocked operations above.
 
 | Feature | File mode | Session mode | Backup mode |
 |---------|-----------|--------------|-------------|
@@ -277,23 +431,93 @@ from configuration mode behind `run `, and the keys are in the
 
 ## Commit Confirmed
 
-`commit confirmed <seconds>` writes the configuration and notifies the daemon, but starts a countdown timer. If `confirm` is not issued before the timer expires, the configuration automatically reverts to the previous version. This prevents lockouts when making changes remotely -- if a bad config breaks connectivity, the auto-revert restores access.
+`commit confirmed <seconds>` writes the configuration and notifies the daemon, but starts a countdown timer. If `commit accept` is not issued before the timer expires, the configuration automatically reverts to the previous version. This prevents lockouts when making changes remotely -- if a bad config breaks connectivity, the auto-revert restores access.
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed, handleConfirmCountdown, rollbackConfirmed -->
 
 | Step | What happens |
 |------|-------------|
 | `commit confirmed 60` | Config saved, daemon notified, 60-second timer starts |
 | Verify the change works | BGP sessions come up, routes propagate, etc. |
-| `confirm` | Timer stops, config is permanent |
-| *or* `confirm abort` | Config reverts immediately |
+| `commit accept` | Timer stops, config is permanent |
+| *or* `commit abort` | Config reverts immediately |
 | *or* timer expires | Config reverts automatically |
 
 The seconds parameter accepts values from 1 to 3600 (one hour).
 
+In an SSH session editor or the web editor of the daemon's own
+configuration, the daemon owns the window, not your session. Both editors
+commit through the same window code, so the rules below hold for a web user
+too, from the web terminal, the CLI bar and the "Review & Commit" button.
+While a window is open, the config writers outside the editors' commit are refused
+for every user, its owner included, with the same "A confirmed commit by <user>
+is pending" refusal, because the revert would wipe what they wrote: a REST,
+gRPC or gNMI config session commit, `request data restore` of the daemon's
+config, `update bgp config`, the web raw-source editor, a config push from the
+managed hub, which the hub receives as the error in its acknowledgement, and
+`rollback <N>` in a session editor (SSH or web terminal), which writes the file
+directly. `ze config rollback <N> <file>` from the shell runs outside the
+daemon and needs the store to itself, so a running daemon refuses it as busy.
+With the daemon stopped, it reads the window's record in the store: a daemon
+that stopped during a window reverts that window when it starts, so the
+rollback is refused, and the refusal names `ze start <file>` to start the
+daemon and revert the window first. The owner's
+`rollback <N>` refusal points to `commit abort`, which reverts the window and
+lets the rollback run. Accept or abort the window first. Closing or losing the session leaves the countdown
+running, and the revert still happens at the deadline. The window belongs to
+the user who opened it: from any session as that user, `commit accept` and
+`commit abort` answer it, and the status line shows "Confirm within <N>s or
+auto-revert". Every other user's `commit now`, `commit confirmed`,
+`commit accept` and `commit abort` are refused while it is open, and their
+status line shows "A confirmed commit by <user> is pending:
+<N>s left." A session that saw the window open reports how it closed: a
+timeout says "Timeout: configuration automatically rolled back", and an accept
+or abort from another of your sessions says the window "was closed by another
+session". A web user with a page open sees the same lines in the
+notification bar, refreshed every second over the page's live-update stream:
+the countdown or whose window is pending, and how a window ended unless the
+web user closed it themselves. Inside your own window, `commit confirmed <seconds> force` applies
+your new changes and restarts the countdown at `<seconds>`; the revert still
+restores the configuration from before the first commit.
+
+File mode (`ze config edit -f`) keeps the countdown in the editor itself
+rather than in a daemon. Inside that window, `commit now` and a plain
+`commit confirmed` are refused as in a session editor, and
+`commit confirmed <seconds> force` takes the same nested form: the new changes
+apply, the countdown restarts at `<seconds>`, and an abort or a timeout restores
+the backup the first commit recorded.
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, cmdCommitConfirmedNested -->
+
+The open window is recorded in the store before the commit applies, so no
+commit is ever applied without its revert: a record that cannot be saved
+refuses the commit and applies nothing. If the daemon stops while the window
+is open, even just after the commit applied, the next start reverts it before
+the configuration is read, so the daemon boots the configuration from before
+the unconfirmed commit.
+
+If the revert at the deadline fails, the window stays open and its record
+stays in the store. The daemon logs each failure and retries with a doubling
+wait, from one second up to one minute, eight attempts in all. Every SSH
+session's status line says the revert failed, with the error and when the next
+retry runs, and every other user's commit is refused with the same error,
+because a commit made meanwhile would be wiped by the revert that later
+succeeds. The owner may run `commit abort` to retry the revert at once, or
+`commit accept` to keep the configuration and close the window. Once the
+retries are spent, the window waits for one of those two, or for a restart,
+which reverts from the record. The countdown never shows a negative number.
+<!-- source: internal/component/config/confirm/confirm.go -- Window, Confirmed, RecoverOnStart -->
+<!-- source: internal/component/config/confirm/store.go -- StoreRecorder, WriteOutsideRecorded -->
+<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackImpl -->
+<!-- source: internal/component/cli/commit_window.go -- WindowCommit.Run -->
+<!-- source: internal/component/cli/model_commit_window.go -- cmdCommitWindowRequest, pollDaemonWindow, WindowWatch.Poll -->
+<!-- source: internal/component/web/window_notices.go -- WindowNotices -->
+<!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
+<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
+<!-- source: cmd/ze/hub/confirm_window.go -- startConfirmWindow, recoverConfirmWindow -->
+
 The revert restores the rollback revision the commit records, so `commit
 confirmed` needs config history. An editor without one, such as
 `ze config edit -f` on a file whose folder holds no store, refuses before it
-writes the file and names `ze init`; a plain `commit` still works there.
+writes the file and names `ze init`; `commit now` still works there.
 
 ### Demo: Watch an unconfirmed change roll back
 

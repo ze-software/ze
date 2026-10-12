@@ -149,7 +149,7 @@ sudo dnf install -y e2fsprogs qemu-system-x86       # Fedora
 <p>The build needs <code>mkfs.ext4</code>, <code>debugfs</code>, and <code>e2fsck</code> from e2fsprogs. The native
 builder resolves each tool independently from the Homebrew keg, standard sbin
 directories, and <code>PATH</code>.</p>
-<!-- source: internal/appliance/cmd_build.go -- resolveE2FSTool -->
+<!-- source: internal/appliance/cmd_build.go -- ResolveE2FSTool -->
 <p>For appliance ISO creation, install <code>grub-mkstandalone</code> (or <code>grub2-mkstandalone</code>)
 plus <code>xorriso</code>.
 <code>ze appliance iso</code> checks those tools before it stages an ISO.</p>
@@ -170,7 +170,7 @@ first-party script is required.</p>
 <!-- source: gokrazy/ze/builddir/github.com/gokrazy/gokrazy/go.mod -- pinned gokrazy version -->
 <h2 id="runtime-kernel-requirements">Runtime Kernel Requirements</h2>
 <p>The runtime kernel is pinned by two manifests, <code>gokrazy/kernel/kernel.require</code>
-and <code>gokrazy/kernel/runtime.require</code>, holding 59 symbols between them. Each is
+and <code>gokrazy/kernel/runtime.require</code>. Each is
 checked against the resolved config after the build, and <code>enforce_required_symbols</code>
 accepts <code>=y</code> alone. A Kconfig answer of <code>m</code> therefore fails the BUILD rather than
 shipping an appliance where a feature Ze accepts in config cannot work. A module
@@ -216,10 +216,15 @@ Alpine's own modules, built for another version.</p>
 <td><code>DUMMY</code>, <code>VETH</code>, <code>MACVLAN</code>, <code>VLAN_8021Q</code>, <code>INET_ESP</code>, <code>INET6_ESP</code>, <code>XFRM_STATISTICS</code>, <code>HUGETLBFS</code>, <code>BPF_SYSCALL</code>, <code>BPF_JIT</code></td>
 <td>Interface creation, IPsec, VPP hugepages, and the eBPF surfaces</td>
 </tr>
+<tr>
+<td>IPsec and WireGuard</td>
+<td><code>XFRM_USER</code>, <code>XFRM_INTERFACE</code>, <code>XFRM_MIGRATE</code>, <code>INET_AH</code>, <code>INET6_AH</code>, <code>WIREGUARD</code>, <code>CRYPTO_CBC</code>, <code>CRYPTO_DES</code>, <code>CRYPTO_NULL</code>, <code>CRYPTO_GCM</code>, <code>CRYPTO_CHACHA20POLY1305</code>, <code>CRYPTO_SHA1</code>, <code>CRYPTO_SHA256</code>, <code>CRYPTO_SHA512</code></td>
+<td>Every SA install (XFRM netlink), route-based IPsec, MOBIKE, OSPFv3 authentication, WireGuard links, and one symbol for each ESP transform Ze can install, so every cipher Ze accepts in config is carried by the kernel</td>
+</tr>
 </tbody>
 </table>
-<p><code>CONFIG_NET_UDP_TUNNEL</code>, <code>CONFIG_WIREGUARD</code> and <code>CONFIG_TUN</code> are <code>=y</code> in the
-config fragment and are not pinned in a manifest.</p>
+<p><code>CONFIG_NET_UDP_TUNNEL</code> and <code>CONFIG_TUN</code> are <code>=y</code> in the config fragment and
+are not pinned in a manifest.</p>
 <!-- source: gokrazy/kernel/runtime.require -- runtime requirements -->
 <!-- source: gokrazy/kernel/kernel.require -- base requirements -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- enforceRequiredSymbols -->
@@ -227,21 +232,30 @@ config fragment and are not pinned in a manifest.</p>
 <p>Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance runtime
 kernel: <code>CONFIG_PPP</code>, <code>CONFIG_PPPOL2TP</code>, <code>CONFIG_L2TP</code>, and
 <code>CONFIG_L2TP_V3</code>. The shared runtime proof kernel also keeps <code>CONFIG_PPPOE</code>
-built in for PPPoE evidence. The pinned upstream gokrazy kernel is not assumed
-to provide these options.
-Build the repo-local runtime kernel when these capabilities are required:</p>
+built in for PPPoE evidence. The appliance image boots this kernel, so every
+image carries these options. To fill the cache before a build, on an amd64
+host:</p>
 <pre><code class="language-bash">ze appliance kernel --target runtime --arch amd64
 </code></pre>
-<p>Select the QEMU builder or arm64 explicitly when needed:</p>
+<p>A kernel is built only on a host of its own architecture, so the arm64 kernel
+is built on an arm64 host (a Mac, for example). Select the QEMU builder there
+when Docker is absent:</p>
 <pre><code class="language-bash">ze appliance kernel --target runtime --arch arm64 --builder qemu
 </code></pre>
-<p>These commands build the kernel artifact; they do not select it for
-<code>ze appliance build</code>, which retains the pinned upstream kernel. A custom kernel
-package is selected explicitly through <code>ze.gok.kernel-package</code> when using
-<code>./le build gokrazy</code> with a repository-local <code>--parent_dir</code>. The deployment
-proof below resolves and supplies its package through that explicit route.</p>
+<p>On a host of the other architecture both commands are refused before anything
+starts. To build an image for another architecture, build it on a host of that
+architecture, or set <code>image.arch</code> to the host's in the appliance's config file;
+the refusal names that file and ends with the build command to run.
+<code>./le build gokrazy</code> with <code>GOARCH</code> naming another architecture is refused the
+same way, and ends with the same command run with <code>GOARCH</code> set to the host's.
+This is the kernel every appliance image boots, and no other kernel can reach
+an image. <code>ze appliance build</code> and <code>./le build gokrazy</code> resolve it for the
+image's architecture themselves: from the cache when an entry is there, else by
+building it, so these commands only fill the cache ahead of a build. A cold
+cache makes the first image build about 30 minutes longer, and it needs network
+access to kernel.org and Docker or QEMU on a host of the image's architecture.</p>
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
-<!-- source: internal/le/test/deployment/gokrazyimage.go -- buildGokrazyImage -->
+<!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 <p><code>ze appliance kernel</code> calls the Go driver in
 <code>internal/appliance/kernelbuilder</code>. The driver reads
 <code>internal/appliance/kernel.version</code>, selects Docker or QEMU, resolves the
@@ -261,9 +275,9 @@ appliance config is left unchanged. It disables IPv6CP in that proof image
 because the current static L2TP pool is IPv4-only. Set
 <code>ZE_GOKRAZY_SKIP_BUILD=1</code> to run against an existing <code>tmp/gokrazy/ze.img</code> that
 was already built with the L2TP proof template, the proof runtime environment,
-and an L2TP-capable kernel: skip-build bypasses the proof's own kernel
-resolution, and an image on the pinned rtr7 kernel (which has no l2tp support)
-crash-loops at first boot instead of serving.</p>
+and an L2TP-capable kernel: skip-build bypasses the proof's check of the
+runtime kernel cache, and an image whose kernel lacks PPPoL2TP crash-loops at
+first boot instead of serving.</p>
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
 <!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
 <!-- source: internal/le/test/deployment/actions.go -- Answer -->
@@ -466,8 +480,8 @@ remains beside it for recovery.</p>
       github.com/ze-software/ze/
         go.mod            # ze dependency pins + relative replace directive
         go.sum
-      github.com/rtr7/kernel/
-        go.mod, go.sum    # linux kernel version pin
+      ze.invalid/kernel/
+        go.mod            # requires ze's runtime kernel, replaced per build
       github.com/gokrazy/gokrazy/
         go.mod, go.sum    # gokrazy init system version pin
         cmd/dhcp/         # DHCP client
@@ -493,14 +507,20 @@ copy, and the copy is deleted afterwards.</p>
 builds in one checkout use separate prepared instances.</p>
 <!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
 <!-- source: internal/appliance/instance/prepare.go -- Prepare -->
-<p>Kernel selection is explicit, not inferred from a previous kernel build.
-<code>ze appliance build</code> keeps the pinned <code>github.com/rtr7/kernel</code>.
-For a custom kernel package, <code>./le build gokrazy</code> reads
-<code>ze.gok.kernel-package</code> and passes it to instance preparation. Only that
-explicit replacement is written into the prepared copy; it does not change
-the checked-in pin or later builds that omit the setting.</p>
+<p>The image boots ze's own runtime kernel and no other. <code>config.json</code> names
+<code>ze.invalid/kernel</code> as its <code>KernelPackage</code>, a path under a reserved domain that
+never resolves on its own. Each build resolves the runtime kernel for the image's
+architecture (the cache entry, else a native build), assembles a gokrazy kernel
+package from that cache entry inside the prepared copy, and replaces the kernel
+module's require to point at it. The package carries the kernel, its modules and
+a <code>cmdline.txt</code> naming <code>root=/dev/sda2</code>, which gokrazy rewrites to the image's
+root partition UUID before it appends the instance's extra kernel arguments. It
+also carries an empty <code>config.txt</code>, the Raspberry Pi bootloader file gokrazy
+reads from every kernel package and no ze target uses. Preparation with no resolved kernel is refused,
+so <code>gok</code> never fetches a kernel. No setting selects another kernel package.</p>
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
-<!-- source: internal/appliance/instance/prepare.go -- replaceKernel -->
+<!-- source: internal/appliance/instance/prepare.go -- Prepare, replaceKernel -->
+<!-- source: internal/appliance/instance/kernelpkg.go -- assembleKernelPackage, KernelModule -->
 <h2 id="build-host-command">Build-host command</h2>
 <p>Appliance build commands (<code>ze appliance</code>) and PXE provisioning
 (<code>ze install remote</code>) are registered in the Ze binary. Build it from the
@@ -781,7 +801,7 @@ artifacts automatically:</p>
 <pre><code>ze appliance iso --check
 ze appliance kernel lab
 ze appliance kernel --profile hardware lab
-ze appliance kernel --builder qemu --arch arm64 lab
+ze appliance kernel --builder qemu --arch arm64 lab    # a build needs an arm64 host
 ze appliance kernel --target runtime
 ze appliance initrd
 ze appliance iso lab
@@ -1009,7 +1029,7 @@ config was saved. If the window completes, the active config hash is written to
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

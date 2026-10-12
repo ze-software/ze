@@ -70,9 +70,13 @@ implementations. Ze acts as a client against
 <li><a href="#relationship-to-other-evidence">Relationship to other evidence</a></li>
 </ol></nav>
 <h2 id="overview">Overview</h2>
-<p>Each scenario runs privileged containers on an isolated bridge because PPPoE
-uses Ethernet discovery and session frames (EtherTypes 0x8863 and 0x8864). The
-host kernel must provide <code>/dev/ppp</code> and the <code>pppoe</code> pppox module.</p>
+<p>Each scenario runs its containers on an isolated bridge because PPPoE uses
+Ethernet discovery and session frames (EtherTypes 0x8863 and 0x8864). No
+container runs privileged: Ze, accel-ppp and the pppd client each hold
+<code>NET_ADMIN</code> and the host's <code>/dev/ppp</code> device, and the discovery sockets use the
+<code>NET_RAW</code> Docker grants by default. The host kernel must provide <code>/dev/ppp</code> and
+the <code>pppoe</code> pppox module, built in or loaded by the host: no container loads a
+kernel module.</p>
 <p>The client scenario requires PADI/PADO/PADR/PADS discovery, LCP, CHAP-MD5,
 IPCP, one kernel <code>pppN</code> interface, traffic to the access concentrator, the
 accel-ppp session view, and clean teardown. The access-concentrator scenario
@@ -108,7 +112,12 @@ internal/le/interoplab/pppoe/
 entrypoint command. There are no separate runner or entrypoint scripts.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <p>The native preflight probes <code>/dev/ppp</code> and the <code>pppoe</code> module from a temporary
-privileged container. It exits non-zero when either is absent, and setting
+container that holds the peers' grants and nothing more. It exits non-zero when
+either is absent, names what is missing, and prints the host command that loads
+it:</p>
+<pre><code>sudo modprobe -a ppp_generic pppoe
+</code></pre>
+<p>Ze's kernel builds both in, so <code>./le test qemu docker-lab</code> needs neither. Setting
 <code>ZE_PPPOE_SKIP_KERNEL_PROBE</code> or <code>ze.pppoe.skip-kernel-probe</code> causes an immediate
 refusal.</p>
 <p>The probe decides whether Docker can carry the proof. Docker Desktop on macOS
@@ -304,7 +313,7 @@ missing wire evidence rather than passing vacuously.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

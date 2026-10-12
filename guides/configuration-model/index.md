@@ -16,6 +16,17 @@ Ze uses a JUNOS-like hierarchical configuration format.
 <!-- source: internal/component/config/tokenizer.go -- tokenizer.scan -->
 
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
+
+A block written twice, such as two `filter { ... }` blocks, is read as one.
+A list both blocks set, such as `import [ a b ]` and then `import [ b c ]`,
+holds the members of both: `[ a b c ]`. An ordered list keeps every copy in
+order, so it can hold a member twice. A member deactivated with `inactive:` in
+either block stays deactivated. Ze refuses the file when an ordered list ends
+up holding a deactivated member more than once, because it cannot tell which
+copy you meant to deactivate. Write that list once, in one block, or remove
+its `inactive:` line. The rules and the error text are in
+[the configuration syntax reference](https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md#leaf-list-single-or-multiple-values).
+<!-- source: internal/component/config/tree.go -- mergeFrom, checkMergedRepeatsLocked -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema; internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 
 A plugin that registers no schema at build time has its schema selected at
@@ -53,7 +64,7 @@ bgp {
 
         capability {
             asn4 enable;
-            route-refresh;
+            route-refresh enable;
         }
 
         family {
@@ -909,8 +920,9 @@ Configured under `capability { }` at any inheritance level.
 | Capability | Config | Values |
 |------------|--------|--------|
 | 4-byte ASN | `asn4` | `enable` (default), `disable`, `require`, `refuse` |
-| Route Refresh | `route-refresh` | presence |
-| Extended Message | `extended-message` | presence |
+| Route Refresh | `route-refresh` | `enable`, `disable`, `require`, `refuse`; absent means not advertised |
+| Extended Message | `extended-message` | `enable`, `disable`, `require`, `refuse`; absent means not advertised |
+| Link-Local Next Hop | `link-local-nexthop` | `enable`, `disable` |
 | Graceful Restart | `graceful-restart { restart-time 120; }` | See [Graceful Restart guide](../graceful-restart/index.md) |
 | ADD-PATH | `add-path send/receive` | See [ADD-PATH guide](../add-path/index.md) |
 | Extended Next Hop | `nexthop { ipv4/unicast ipv6; }` | Per-family NH mapping |

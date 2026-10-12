@@ -504,8 +504,8 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <td>Navigate to a config path</td>
 </tr>
 <tr>
-<td><code>set &lt;leaf&gt; &lt;value&gt;</code></td>
-<td>Set a value at the current context path</td>
+<td><code>set [path] &lt;leaf&gt; &lt;value&gt;</code></td>
+<td>Set a value under the current context path. The last token is the value and the one before it the leaf, as in the SSH CLI; quote a value that holds spaces</td>
 </tr>
 <tr>
 <td><code>delete &lt;leaf&gt;</code></td>
@@ -524,12 +524,12 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <td>Navigate one level up</td>
 </tr>
 <tr>
-<td><code>commit</code></td>
-<td>Commit pending changes</td>
+<td><code>commit now</code></td>
+<td>Commit pending changes. <code>commit now force</code> commits over another user's conflicting change and discards it from theirs (see the config editor guide). <code>commit</code> without a subcommand is refused with the list of subcommands. <code>commit confirmed &lt;seconds&gt;</code>, <code>commit accept</code>, <code>commit abort</code> and <code>commit verify</code> follow the config editor guide. A commit that validation refuses answers with the SSH editor's text, listing each error and warning; when only warnings block it, the answer names the forced form, and the CLI bar shows it as an error</td>
 </tr>
 <tr>
 <td><code>discard</code></td>
-<td>Discard pending changes</td>
+<td>Discard pending changes. <code>discard</code> alone or <code>discard all</code> drops every change; <code>discard &lt;path&gt;</code> drops only the changes at or under that path, the command a commit conflict's <code>fix:</code> line prints, and a path holding none of your pending changes is refused, as is a pipe (`discard</td>
 </tr>
 <tr>
 <td><code>help</code></td>
@@ -539,17 +539,31 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 </table>
 <p>The prompt shows the current context path: <code>ze[bgp peer]# </code>.</p>
 <!-- source: internal/component/web/cli.go -- formatCLIPrompt, dispatchCLICommand -->
+<!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
+<!-- source: internal/component/web/cli.go -- handleCLICommit -->
 <h3 id="terminal-mode">Terminal Mode</h3>
-<p>Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo.</p>
-<!-- source: internal/component/web/cli_terminal.go -- HandleCLITerminalWithDispatchAuthorizerAndAudit, executeTerminalCommand -->
+<p>Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo. <code>set</code> reads its line the way the integrated mode does. <code>deactivate &lt;path&gt;</code> and <code>activate &lt;path&gt;</code> take a leaf, a leaf-list value, a container or a list entry, and answer as the SSH editor does ("Deactivated bgp router-id"). <code>errors</code> lists this session's pending changes, one line each: <code>+ copy</code>, <code>~ deactivate</code>, <code>~ activate</code>, <code>+</code>/<code>-</code> for a set or a delete.</p>
+<!-- source: internal/component/web/cli_terminal.go -- HandleCLITerminalWithDispatchAuthorizerAndAudit, executeTerminalCommand, executeTerminalSet -->
+<!-- source: internal/component/web/cli.go -- splitSetArgs -->
+<!-- source: internal/component/cli/editor_activation.go -- ApplyActivation -->
+<!-- source: internal/component/web/editor.go -- EditorManager.Diff -->
 <h3 id="tab-completion">Tab Completion</h3>
 <p>The CLI bar provides tab completion via a JSON endpoint at <code>/cli/complete</code>. Completions are context-aware: when at <code>/show/bgp/peer/london/</code>, typing <code>set </code> + Tab suggests <code>remote</code>, <code>local</code>, <code>timer</code> (children of the peer entry), not root-level items. For YANG union types that include an enum (e.g., <code>local/ip</code> accepting an IP address or <code>auto</code>), the enum values are offered as completions.</p>
 <!-- source: internal/component/web/cli.go -- HandleCLIComplete -->
 <!-- source: internal/component/cli/completer.go -- valueCompletions, Yunion handling -->
 <h2 id="live-updates">Live Updates</h2>
 <p>The web interface uses Server-Sent Events (SSE) to notify connected browsers when configuration changes are committed by any user. A notification banner appears with the username and a "Refresh" button.</p>
-<!-- source: internal/component/web/sse.go -- EventBroker, BroadcastConfigChange -->
-<p>Connect to the SSE stream at <code>/events</code> (requires authentication). The broker supports up to 100 concurrent SSE clients. Slow clients that fall behind have events dropped rather than blocking other clients.</p>
+<!-- source: internal/component/web/sse.go -- EventBroker, BroadcastConfigChange, SendTo -->
+<p>The same stream carries, to each user alone, what the SSH editor's status
+line would show that user: the countdown of a <code>commit confirmed</code> window, or
+whose window is pending, how a window ended, and that another user's forced
+commit discarded one of your changes. They arrive as <code>config-change</code> events,
+so they use the same banner. While a user's own commit is in flight, the
+window news for that user waits, so a user's own <code>commit accept</code> or
+<code>commit abort</code> is never reported as closed by another session. See "Commit
+Confirmed" in <code>config-editor.md</code>.</p>
+<!-- source: internal/component/web/window_notices.go -- WindowNotices, pollWindow -->
+<p>Connect to the SSE stream at <code>/events</code> (requires authentication). Each stream is registered under its user. The broker supports up to 100 concurrent SSE clients. Slow clients that fall behind have events dropped rather than blocking other clients.</p>
 <h3 id="event-format">Event Format</h3>
 <p>Events use the standard SSE wire format:</p>
 <pre><code>event: config-change
@@ -563,7 +577,7 @@ data: &lt;html-fragment&gt;
 <!-- source: internal/component/web/component_command_form.templ -- commandForm -->
 <p>Admin command results are displayed as titled cards showing the command name, output text, and success/error styling.</p>
 <h2 id="resilience">Resilience</h2>
-<p><strong>Corrupt change files:</strong> If a per-user change file in the live store is unparseable (e.g., from a previous bug), it is automatically discarded with a warning log. The user can continue editing without manual intervention.</p>
+<p><strong>Corrupt change files:</strong> If a per-user change file in the live store does not parse, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (<code>discard</code>) to start again.</p>
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
 <p><strong>Asset caching:</strong> Static assets (<code>/assets/</code>) are served with <code>Cache-Control: no-cache, must-revalidate</code> so browsers always pick up changes after binary updates without requiring a hard refresh.</p>
 <!-- source: internal/component/web/render.go -- AssetHandler -->
@@ -609,7 +623,7 @@ data: &lt;html-fragment&gt;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

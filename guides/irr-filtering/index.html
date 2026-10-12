@@ -55,6 +55,7 @@
 <li><a href="#complete-example">Complete example</a></li>
 <li><a href="#add-it-to-an-existing-stored-configuration">Add it to an existing stored configuration</a></li>
 <li><a href="#choose-the-as-set">Choose the AS-SET</a></li>
+<li><a href="#changing-irr-settings-on-a-running-router">Changing IRR settings on a running router</a></li>
 <li><a href="#verify-before-carrying-traffic">Verify before carrying traffic</a></li>
 <li><a href="#refresh-and-failure-behavior">Refresh and failure behavior</a></li>
 <li><a href="#local-demonstration">Local demonstration</a></li>
@@ -160,6 +161,13 @@ $ sudo systemctl start ze.service
     }
 }
 </code></pre>
+<h2 id="changing-irr-settings-on-a-running-router">Changing IRR settings on a running router</h2>
+<p>A commit that changes a peer's <code>as-set</code>, the IRR <code>server</code>, or a peer's
+<code>import [ bgp-filter-irr:&lt;asn&gt; ]</code> takes effect on the running filter. A changed
+as-set does not inherit the list of the old one: the next UPDATE from that peer
+waits a few seconds for the new set to resolve, then is filtered against it.</p>
+<!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- irrConfigTx.apply -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleConfigure -->
 <h2 id="verify-before-carrying-traffic">Verify before carrying traffic</h2>
 <p>After committing the configuration and establishing the BGP session, check the generated list:</p>
 <pre><code class="language-console">$ ze cli -c 'show bgp irr | no-more'
@@ -376,7 +384,7 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

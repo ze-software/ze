@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-10-05 - Ze</title>
+        <meta name="description" content="A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and IKEv2. Several changes need a look before upgrading, listed first. The release queue closed " />
+        <meta property="og:title" content="Week of 2026-10-05 - Ze" />
+        <meta property="og:description" content="A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and IKEv2. Several changes need a look before upgrading, listed first. The release queue closed " />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-10-05 - Ze" />
+        <meta name="twitter:description" content="A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and IKEv2. Several changes need a look before upgrading, listed first. The release queue closed " />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-10-05/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-10-05/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Weekly update</span>
+    <h1 id="post-title">Week of 2026-10-05</h1>
+    <p>A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and IKEv2. Several changes need a look before upgrading, listed first.</p>
+<p>The release queue closed the week at 202 required work items and 224 nice-to-have, against 213 and 221 at the start. 12 required items joined and 23 left. Most of those that left were behaviour that shipped earlier and gained its end-to-end proof this week. The additions are the appliance kernel, live BGP reconfiguration and gaps the RFC checking found. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/</p>
+</div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="⚠️ Changes to check">
+                        <div class="md-content">
+                            <h2>⚠️ Changes to check</h2>
+                            <ul>
+<li>Config editor: <code>commit</code> is now <code>commit now</code>, with <code>commit confirmed &lt;seconds&gt;</code>, <code>commit accept</code>, <code>commit abort</code> and <code>commit verify</code>. A bare <code>commit</code> is refused and names the form to type.</li>
+<li>API: the method names were reorganised by owner, for example <code>ze-show:ospf-neighbors</code> is now <code>ze-ospf:show-neighbors</code>. Scripts that call methods by name need updating. <code>ze help ai --json</code> lists the current set.</li>
+<li>BGP: the <code>bgp-persist</code> plugin is gone. Bind <code>bgp-rib</code> instead, as described in the plugins guide. Sent-route history no longer survives a restart.</li>
+<li>BGP: <code>route-refresh</code> and <code>extended-message</code> take <code>enable</code>, <code>disable</code>, <code>require</code> or <code>refuse</code>. The old bare and <code>{ }</code> spellings are refused, and <code>ze config validate</code> prints the new one.</li>
+<li>Commands and YANG modules are checked more strictly: an argument outside its declared length or pattern is refused, and so is a plugin module with a misspelt extension.</li>
+<li><code>commit-revisions</code> pruning now works. The default file name never matched before, so an archive over the limit will be trimmed on upgrade.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Configuration">
+                        <div class="md-content">
+                            <h2>🛠️ Configuration</h2>
+                            <p>New:</p>
+<ul>
+<li>The daemon now owns the <code>commit confirmed</code> window. It survives a restart and is rolled back at boot if it was never accepted. While it is open, other users and every other writer (REST, gNMI, the web editor, rollback) are told who holds it and for how long.</li>
+<li><code>ze doctor kernel-capabilities</code> lists what the running kernel supports for L2TP, PPPoE, WireGuard and IPsec.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li><code>commit confirmed</code> without config history wrote the change permanently. It now refuses and points at <code>ze init</code>.</li>
+<li><code>ze signal stop</code> over SSH left the daemon running.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Routing">
+                        <div class="md-content">
+                            <h2>🛰️ Routing</h2>
+                            <p>New:</p>
+<ul>
+<li>Administrative distance now lives in the Loc-RIB under <code>rib { distance { } }</code>. Changing it re-ranks installed routes, and the FIB follows.</li>
+<li><code>ze_bgp_open_rejected_bad_peer_as_total</code> counts OPENs refused for AS 0 or an unexpected peer AS (RFC 7607, RFC 4271 Section 6.2).</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>Adding a receive-only process, such as RPKI, to an established BGP peer no longer resets the session when the peer supports route refresh.</li>
+<li>Changes to the IRR filter took effect only after a restart.</li>
+<li>Peers made with <code>create bgp peer</code> were lost on the next reload, and a removed peer's routes stayed in the RIB.</li>
+<li>The looking glass showed an empty best-routes table, and counted routes sent to a peer as learned from it.</li>
+<li>RSVP-TE refuses a path MTU below what an MPLS packet needs, which could hang a stock kernel. A repaired LSP now stays on its bypass when refreshed (RFC 4090 Section 6.4.3).</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="💿 Appliance and VPN">
+                        <div class="md-content">
+                            <h2>💿 Appliance and VPN</h2>
+                            <ul>
+<li>The appliance now boots only Ze's own kernel, Linux 7.2.9, with WireGuard and every IPsec transform built in. Each image carries the kernel's GPL source notice.</li>
+<li>IKEv2: a refused Child SA no longer tears down the IKE SA. Ze keeps it and retries the Child SA later (RFC 7296 Section 2.21.2).</li>
+<li>IKEv2: a refused rekey was resent every second until the SA expired. It now waits, and never re-offers a group the peer refused.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📚 Standards programme">
+                        <div class="md-content">
+                            <h2>📚 Standards programme</h2>
+                            <p>Ze is being checked against every RFC it implements, one MUST at a time. The work continues.</p>
+<p>175 RFCs are on the list. Of 6,452 requirements, 4,524 are MUST-level and 4,147 are checked. 218 still owe a test, down from 248 last week. Each test is also being read again against the RFC sentence it checks. Fixes from that second reading are finished for four of its eight areas and are being checked: https://ze-software.net/quality/rfc-compliance/</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔭 Coming up">
+                        <div class="md-content">
+                            <h2>🔭 Coming up</h2>
+                            <p>Under way:</p>
+<ul>
+<li>Fixing the remaining defects the second reading found in BGP and OSPF.</li>
+<li>Finishing the appliance kernel: VPN support proven on a running image, and the test hosts booting the same kernel.</li>
+<li>Enabling BFD on an established BGP peer without resetting the session, as FRR and BIRD do.</li>
+<li>Deeper route decision and FIB programming, and a third round of hot-path performance work.</li>
+</ul>
+<p>Ready to start:</p>
+<ul>
+<li>BGP DelayOpen and automatic start (RFC 4271 Section 8).</li>
+<li>BGP EPE peer segments and SRv6 PeerNode SIDs (RFC 9086, RFC 9514).</li>
+<li>A choice of when a fetched IRR change takes effect: at once, on a schedule, or only when the operator applies it.</li>
+</ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

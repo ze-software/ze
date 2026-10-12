@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 13 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 20.0% | 8 of 40 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 100.0% | 14 of 14 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 14 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 14 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 14 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0.0% | 0 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 27.3% | 12 of 44 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,13 +23,13 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 13 | of 23 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 13 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 13 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 14 | of 26 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 14 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 14 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 14 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 14 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 8 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -54,17 +54,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 23 |
-| Gated MUST-level | 13 |
+| Requirements | 26 |
+| Gated MUST-level | 14 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 40 |
-| Tagged units | 40 |
-| Recorded audit verdicts | 10 |
-| Discrimination records | 8 |
+| Test tags | 44 |
+| Tagged units | 44 |
+| Recorded audit verdicts | 13 |
+| Discrimination records | 12 |
 | Summary | `rfc/short/rfc4555.md` |
 | Requirement shard | `rfc/requirements/rfc4555.md` |
 | RFC text | `rfc/full/rfc4555.txt` |
@@ -96,16 +96,16 @@ Atomic migration requires Linux 7.2's API and CONFIG_XFRM_MIGRATE in the applian
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 13 | one part of the gated population |
+| Positive and negative tests | 14 | one part of the gated population |
 | Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **14** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (13):** [`RFC4555-x-1`](#rfc4555-x-1), [`RFC4555-x-2`](#rfc4555-x-2), [`RFC4555-3.9-1`](#rfc4555-3.9-1), [`RFC4555-3.7-1`](#rfc4555-3.7-1), [`RFC4555-3.8-1`](#rfc4555-3.8-1), [`RFC4555-3.8-2`](#rfc4555-3.8-2), [`RFC4555-3.6-1`](#rfc4555-3.6-1), [`RFC4555-3.7-4`](#rfc4555-3.7-4), [`RFC4555-3.7-5`](#rfc4555-3.7-5), [`RFC4555-3.9-3`](#rfc4555-3.9-3), [`RFC4555-3.9-4`](#rfc4555-3.9-4), [`RFC4555-4.2.1-1`](#rfc4555-4.2.1-1), [`RFC4555-4.2.5-1`](#rfc4555-4.2.5-1)
+**Positive and negative tests (14):** [`RFC4555-x-1`](#rfc4555-x-1), [`RFC4555-x-2`](#rfc4555-x-2), [`RFC4555-3.9-1`](#rfc4555-3.9-1), [`RFC4555-3.7-1`](#rfc4555-3.7-1), [`RFC4555-3.8-1`](#rfc4555-3.8-1), [`RFC4555-3.8-2`](#rfc4555-3.8-2), [`RFC4555-3.6-1`](#rfc4555-3.6-1), [`RFC4555-3.7-4`](#rfc4555-3.7-4), [`RFC4555-3.7-5`](#rfc4555-3.7-5), [`RFC4555-3.9-3`](#rfc4555-3.9-3), [`RFC4555-3.9-4`](#rfc4555-3.9-4), [`RFC4555-4.2.6-1`](#rfc4555-4.2.6-1), [`RFC4555-4.2.1-1`](#rfc4555-4.2.1-1), [`RFC4555-4.2.5-1`](#rfc4555-4.2.5-1)
 
 ## Requirements
 
@@ -122,6 +122,7 @@ Atomic migration requires Linux 7.2's API and CONFIG_XFRM_MIGRATE in the applian
 | `RFC4555-3.7-5` | If the values do not match, the IKE_SA MUST be closed. (§3.7) | MUST | 3.7 | **positive:** `unit/verify` [`TestMobikeChangedPathStillChecksCookie2`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1000). **positive:** `unit/verify` [`TestMobikeCookie2ResponseControlsMigration`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L278). **negative:** `unit/verify` [`TestMobikeCookie2ResponseControlsMigration`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L280) |
 | `RFC4555-3.9-3` | The exchange responder MUST verify that the contents of the NO_NATS_ALLOWED notification match the addresses in the IP header (NAT Prohibition, Section 3.9) | MUST | 3.9 | **positive:** `unit/verify` [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L393). **positive:** `unit/verify` [`TestMobikeNoNATsIPv6Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L507). **positive:** `unit/verify` [`TestMobikeNoNATsUpdateWaitsForRoutability`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L805). **negative:** `unit/verify` [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L394). **negative:** `unit/verify` [`TestMobikeNoNATsIPv6Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L508) |
 | `RFC4555-3.9-4` | If an UNEXPECTED_NAT_DETECTED notification is sent, the exchange responder MUST NOT use the contents of the NO_NATS_ALLOWED notification for any other purpose than possibly logging the information for troubleshooting purposes (NAT Prohibition, Section 3.9) | MUST NOT | 3.9 | **positive:** `unit/verify` [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L396). **positive:** `unit/verify` [`TestMobikeNoNATsReplyUsesReceivedDestination`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L468). **negative:** `unit/verify` [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L398). **negative:** `unit/verify` [`TestMobikeNoNATsUpdateWaitsForRoutability`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L807) |
+| `RFC4555-4.2.6-1` | The Notify Message Type for this message is 16402. The notification data contains the IP addresses and ports from/to which the packet was sent. (§4.2.6) | MUST | 4.2.6 | **positive:** `unit/verify` [`TestMobikeNoNATsDataIsTheSendTuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1809). **negative:** `unit/verify` [`TestMobikeNoNATsDataIsTheSendTuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1813) |
 | `RFC4555-4.2.1-1` | The notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received. (Payload Formats, Section 4.2.1) | MUST | 4.2.1 | **positive:** `unit/verify` [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L647). **negative:** `unit/verify` [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L649) |
 | `RFC4555-4.2.5-1` | The data associated with this notification MUST be between 8 and 64 octets in length (inclusive), and MUST be chosen by the exchange initiator in a way that is unpredictable to the exchange responder. (§4.2.5) | MUST | 4.2.5 | **positive:** `unit/verify` [`TestMobikeAdvertisementAfterSourceChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L544). **positive:** `unit/verify` [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L232). **positive:** `unit/verify` [`TestRFC4555Cookie2IsTheRandomSourceOutput`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4555_cookie2_test.go#L50). **negative:** `unit/verify` [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L233) |
 | `RFC4555-3.7-2` | By default, this "return routability check" SHOULD be performed. (§3.7) | SHOULD | 3.7 | **positive:** no positive test. **negative:** no negative test |
@@ -132,6 +133,8 @@ Atomic migration requires Linux 7.2's API and CONFIG_XFRM_MIGRATE in the applian
 | `RFC4555-3.12-2` | If they do not, such packets SHOULD NOT be used as evidence that the peer is able to communicate with this node and or that the peer has received all address updates. (§3.12) | SHOULD NOT | 3.12 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4555-x-3` | In particular, simply storing the (remote tunnel header IP address, remote SPI) pair in the SPD cache is not sufficient, since the pair does not always uniquely identify a single SAD entry. (§A.1) | SHOULD NOT | A.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4555-x-4` | Both the initiator and responder MAY include one or more ADDITIONAL_IP4_ADDRESS and/or ADDITIONAL_IP6_ADDRESS notifications in the IKE_AUTH exchange (in case of multiple IKE_AUTH exchanges, in the message containing the SA payload). (§3.4) | MAY | 3.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4555-3.6-2` | This information can be updated by sending an INFORMATIONAL exchange request message that contains either one or more ADDITIONAL_IP4_ADDRESS/ADDITIONAL_IP6_ADDRESS notifications or the NO_ADDITIONAL_ADDRESSES notification. (§3.6) | MAY | 3.6 | **positive:** `unit/verify` [`TestMobikeUpdateCarriesItsAddressList`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1778). **negative:** no negative test. **{single-polarity}:** a MAY that permits the update to carry its address list, so the one observable is that Ze's INFORMATIONAL update carries NO_ADDITIONAL_ADDRESSES (internal/component/ike/engine/mobike_test.go TestMobikeUpdateCarriesItsAddressList); an update without the list is also permitted, so there is no violating input for a negative to refuse |
+| `RFC4555-3.6-3` | The initiator MAY include these notifications in the same request as UPDATE_SA_ADDRESSES. (§3.6) | MAY | 3.6 | **positive:** `unit/verify` [`TestMobikeUpdateCarriesItsAddressList`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1780). **negative:** no negative test. **{single-polarity}:** a MAY that permits the address notifications to ride in the UPDATE_SA_ADDRESSES request, so the one observable is that Ze sends NO_ADDITIONAL_ADDRESSES in that same request (internal/component/ike/engine/mobike_test.go TestMobikeUpdateCarriesItsAddressList); sending them in a separate request is also permitted, so there is no violating input for a negative to refuse |
 | `RFC4555-3.7-3` | In environments where the peer is expected to be well-behaved (many corporate VPNs, for instance), or the address can be verified by some other means (e.g., a certificate issued by an authority trusted for this purpose), the return routability check MAY be omitted. (§3.7) | MAY | 3.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4555-3.8-4` | When MOBIKE is in use, the dynamic updates (specified in [IKEv2], Section 2.23), where the peer address and port are updated from the last valid authenticated packet, work in a slightly different fashion.  The host not behind a NAT MUST NOT use these dynamic updates for IKEv2 packets, but MAY use them for ESP packets. (§3.8) | MAY | 3.8 | **positive:** no positive test. **negative:** no negative test |
 
@@ -276,6 +279,17 @@ Audit verdict: not audited: no reader has judged these tests
 | positive | [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L396) | unit/verify | unproven |
 | positive | [`TestMobikeNoNATsReplyUsesReceivedDestination`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L468) | unit/verify | unproven |
 
+### [`RFC4555-4.2.6-1`](#rfc4555-4.2.6-1)
+
+The Notify Message Type for this message is 16402. The notification data contains the IP addresses and ports from/to which the packet was sent. (§4.2.6)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1). RFC 4555 4.2.6: "The Notify Message Type for this message is 16402.  The notification data contains the IP addresses and ports from/to which the packet was sent." Type clause, now enforced: TestMobikeNoNATsDataIsTheSendTuple decrypts the NO_NATS_ALLOWED notify off a real update and requires NotifyMsgType == 16402 as a literal, so a wrong shared wire.NotifyNoNATsAllowed constant is red (mbRequireNotify finds the notify by the constant, then the literal disagrees) and a producer writing another type is red at mbRequireNotify. Data clause: the 12-octet IPv4 data equals the received packet's source address, destination address, source port and destination port field by field, and noNATsAllowedMatches accepts that tuple. Negative: noNATsAllowedMatches refuses a changed source address, a changed destination address, swapped ports, a changed source port, and now the packet's own addresses and ports written at the 16-octet width; because net.IP.Equal treats the IPv4-mapped form as equal, the length test is the only thing that refuses that last case, so it isolates the width. Revert records on mobike.go::noNATsAllowedPayload (positive) and noNATsAllowedMatches (negative). Both defects of the earlier weak verdict are resolved.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeNoNATsDataIsTheSendTuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1813) | unit/verify | revert, verified |
+| positive | [`TestMobikeNoNATsDataIsTheSendTuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1809) | unit/verify | revert, verified |
+
 ### [`RFC4555-4.2.1-1`](#rfc4555-4.2.1-1)
 
 The notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received. (Payload Formats, Section 4.2.1)
@@ -299,6 +313,26 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Leng
 | positive | [`TestMobikeAdvertisementAfterSourceChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L544) | unit/verify | revert, verified |
 | positive | [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L232) | unit/verify | revert, verified |
 | positive | [`TestRFC4555Cookie2IsTheRandomSourceOutput`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4555_cookie2_test.go#L50) | unit/verify | revert, verified |
+
+### [`RFC4555-3.6-2`](#rfc4555-3.6-2)
+
+This information can be updated by sending an INFORMATIONAL exchange request message that contains either one or more ADDITIONAL_IP4_ADDRESS/ADDITIONAL_IP6_ADDRESS notifications or the NO_ADDITIONAL_ADDRESSES notification. (§3.6)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-11 by an independent judge. RFC 4555 3.6: "This information can be updated by sending an INFORMATIONAL exchange request message that contains either one or more ADDITIONAL_IP4_ADDRESS/ADDITIONAL_IP6_ADDRESS notifications or the NO_ADDITIONAL_ADDRESSES notification." The sentence permits a way to update the list and obliges nothing when no update is sent, so the {single-polarity: positive} annotation holds: no input is a violation for a negative to refuse. TestMobikeUpdateCarriesItsAddressList drives a real IKE_AUTH handshake, starts an update with startMobikeRequest, and requires the datagram the responder reads to be an INFORMATIONAL request (exchange type, R bit clear) whose decrypted chain carries NO_ADDITIONAL_ADDRESSES. Revert record on mobike.go::startMobikeRequest. Residual, not a finding: the 'either ... or' is not asserted as exclusive (no check that no ADDITIONAL_IP4/6_ADDRESS rides beside NO_ADDITIONAL_ADDRESSES); the producer (mobike.go) writes only NO_ADDITIONAL_ADDRESSES today.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestMobikeUpdateCarriesItsAddressList`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1778) | unit/verify | revert, verified |
+
+### [`RFC4555-3.6-3`](#rfc4555-3.6-3)
+
+The initiator MAY include these notifications in the same request as UPDATE_SA_ADDRESSES. (§3.6)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-11 by an independent judge. RFC 4555 3.6: "The initiator MAY include these notifications in the same request as UPDATE_SA_ADDRESSES." A MAY whose alternative (a separate request) is also permitted, so the {single-polarity: positive} annotation holds. TestMobikeUpdateCarriesItsAddressList requires both UPDATE_SA_ADDRESSES and NO_ADDITIONAL_ADDRESSES in the decrypted chain of the one INFORMATIONAL request startMobikeRequest sends, so dropping the address notification from that request turns it red. Revert record on mobike.go::startMobikeRequest.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestMobikeUpdateCarriesItsAddressList`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1780) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 
@@ -351,7 +385,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Leng
 | `4.2.3` | not stated | 0 | walked | not stated |
 | `4.2.4` | not stated | 0 | walked | not stated |
 | `4.2.5` | not stated | 2 | walked | not stated |
-| `4.2.6` | not stated | 0 | walked | not stated |
+| `4.2.6` | not stated | 0 | walked | Row RFC4555-4.2.6-1 (added 2026-10-11) is read from the indicative sentence "The notification data contains the IP addresses and ports from/to which the packet was sent.", which carries no keyword; the section 3.9 responder check RFC4555-3.9-3 compares exactly these fields. |
 | `5` | not stated | 0 | walked | not stated |
 | `5.1` | not stated | 0 | walked | not stated |
 | `5.2` | not stated | 0 | walked | not stated |

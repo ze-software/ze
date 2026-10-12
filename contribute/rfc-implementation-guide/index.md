@@ -595,6 +595,11 @@ The scanner includes command tests under `cmd/`, including tests of daemon liste
 | `internal/le/interoplab/l2tp/*.go` | `interop` | `./le test deployment docker-l2tp-ppp-test` | same derivation |
 | `internal/le/interoplab/pppoe/*.go` | `interop` | `./le test deployment docker-pppoe-accel-test` | same derivation |
 
+A scheduled workflow names a runner directly, or as the lab of a wrapper whose
+action table declares a `le-words` keyword: `./le test qemu docker-lab lab
+"test integration interop"` credits `test integration interop` as well as
+`docker-lab` (`workflowNestedLe` in `internal/le/rfc/carriers.go`).
+
 The four legacy trees under `test/interop*/` carry the same interop kinds through
 `legacyInteropCarriers`, keyed on a `/check.py` suffix.
 

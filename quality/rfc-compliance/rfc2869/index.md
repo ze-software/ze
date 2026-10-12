@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 7 of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 7 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 7 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 50.0% | 9 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 100.0% | 8 of 8 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 8 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 8 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 8 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0.0% | 0 of 8 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 55.0% | 11 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,13 +23,13 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 7 | of 10 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 7 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 8 | of 11 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 8 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 8 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 8 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 8 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 8 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -54,17 +54,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Supported for subscriber access |
 | Enrolment | Enrolled |
-| Requirements | 10 |
-| Gated MUST-level | 7 |
+| Requirements | 11 |
+| Gated MUST-level | 8 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 18 |
-| Tagged units | 18 |
-| Recorded audit verdicts | 5 |
-| Discrimination records | 9 |
+| Test tags | 20 |
+| Tagged units | 20 |
+| Recorded audit verdicts | 6 |
+| Discrimination records | 11 |
 | Summary | `rfc/short/rfc2869.md` |
 | Requirement shard | `rfc/requirements/rfc2869.md` |
 | RFC text | `rfc/full/rfc2869.txt` |
@@ -89,16 +89,16 @@ Scoped to subscriber access.
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 7 | one part of the gated population |
+| Positive and negative tests | 8 | one part of the gated population |
 | Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **7** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **8** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (7):** [`RFC2869-1.1-1`](#rfc2869-1.1-1), [`RFC2869-1.1-2`](#rfc2869-1.1-2), [`RFC2869-2.1-1`](#rfc2869-2.1-1), [`RFC2869-2.1-2`](#rfc2869-2.1-2), [`RFC2869-5.19-1`](#rfc2869-5.19-1), [`RFC2869-x-2`](#rfc2869-x-2), [`RFC2869-5.14-1`](#rfc2869-5.14-1)
+**Positive and negative tests (8):** [`RFC2869-1.1-1`](#rfc2869-1.1-1), [`RFC2869-1.1-2`](#rfc2869-1.1-2), [`RFC2869-2.1-1`](#rfc2869-2.1-1), [`RFC2869-2.1-2`](#rfc2869-2.1-2), [`RFC2869-5.19-1`](#rfc2869-5.19-1), [`RFC2869-x-2`](#rfc2869-x-2), [`RFC2869-5.2-1`](#rfc2869-5.2-1), [`RFC2869-5.14-1`](#rfc2869-5.14-1)
 
 ## Requirements
 
@@ -111,6 +111,7 @@ Scoped to subscriber access.
 | `RFC2869-2.1-3` | It is also possible to statically configure an interim value on the NAS itself. (§2.1) | MAY | 2.1 - RADIUS support for Interim Accounting Updates | **positive:** no positive test. **negative:** no negative test |
 | `RFC2869-5.19-1` | An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes. (§5.19 Note 1) | MUST NOT | 5.19 | **positive:** `unit/verify` [`TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L137). **positive:** `unit/verify` [`TestRFC2869EAPOnlyAccessRequestIsSent`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L51). **negative:** `unit/verify` [`TestRFC2869AccessRequestCarriesOneKindOfCredential`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L169). **negative:** `unit/verify` [`TestRFC2869EAPBesideAnotherCredentialIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L67) |
 | `RFC2869-x-2` | This attribute indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim- Update. (§5.1) | MUST | 5.1 - Acct-Input-Gigawords | **positive:** `unit/verify` [`TestBuildAcctPacketGigawords`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go#L321). **negative:** `unit/verify` [`TestRFC2869GigawordsAbsentOnStart`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go#L21) |
+| `RFC2869-5.2-1` | This attribute indicates how many times the Acct-Output-Octets counter has wrapped around 2^32 in the course of delivering this service, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update. (§5.2) | MUST | 5.2 - Acct-Output-Gigawords | **positive:** `unit/verify` [`TestRFC2869OutputGigawordsOnInterimUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L25). **negative:** `unit/verify` [`TestRFC2869OutputGigawordsAbsentOnStart`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L55) |
 | `RFC2869-5.14-1` | A RADIUS Client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent. (§5.14) | MUST | 5.14 - Message-Authenticator | **positive:** `unit/verify` [`TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_test.go#L153). **positive:** `unit/verify` [`TestRFC2869RejectAndChallengeWithValidMessageAuthenticatorAreDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_codes_test.go#L54). **negative:** `unit/verify` [`TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_test.go#L185). **negative:** `unit/verify` [`TestRFC2869RejectAndChallengeWithWrongMessageAuthenticatorAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_codes_test.go#L89) |
 | `RFC2869-5.17-1` | Either NAS-Port or NAS-Port-Id SHOULD be present in an Access- Request packet, if the NAS differentiates among its ports. (§5.17) | SHOULD | 5.17 - NAS-Port-Id | **positive:** no positive test. **negative:** no negative test |
 | `RFC2869-x-7` | If the server wishes to receive interim accounting messages for the given user it must include the Acct-Interim-Interval RADIUS attribute in the message, which indicates the interval in seconds between interim messages. (§2.1) | MAY | 2.1 - RADIUS support for Interim Accounting Updates | **positive:** no positive test. **negative:** no negative test |
@@ -191,6 +192,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestRFC2869GigawordsAbsentOnStart`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go#L21) | unit/verify | unproven |
 | positive | [`TestBuildAcctPacketGigawords`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go#L321) | unit/verify | revert, verified |
 
+### [`RFC2869-5.2-1`](#rfc2869-5.2-1)
+
+This attribute indicates how many times the Acct-Output-Octets counter has wrapped around 2^32 in the course of delivering this service, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update. (§5.2)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent judgment 2026-10-11 (judge did not author a0a101e5ad). RFC 2869 Section 5.2: "This attribute indicates how many times the Acct-Output-Octets counter has wrapped around 2^32 in the course of delivering this service, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update." Positive TestRFC2869OutputGigawordsOnInterimUpdate stubs TxBytes at 3*2^32+200 and requires exact Acct-Output-Octets 200 and Acct-Output-Gigawords 3 on an Interim-Update built by buildAcctPacket: a wrong split (splitGigawords) or a missing attribute fails it. Negative TestRFC2869OutputGigawordsAbsentOnStart builds a Start over the same wrapped counter and requires no attribute 53. Isolation holds: counterDelta is stateless over the session baseline (zero here), so if the Stop/Interim-Update guard in buildAcctPacket admitted Start, the delta would carry 3 gigawords and the attribute would appear; the negative is not passing because counters are unavailable. buildAcctPacket's only callers are the Start, Stop and Interim-Update senders, so Start is the only disallowed status the producer can reach. Stop, also permitted, is untested here but is not an obligation. Both clauses (wrap-count value, presence restricted to Stop/Interim-Update) are asserted exactly. Verdict enforced.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2869OutputGigawordsAbsentOnStart`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L55) | unit/verify | revert, verified |
+| positive | [`TestRFC2869OutputGigawordsOnInterimUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L25) | unit/verify | revert, verified |
+
 ### [`RFC2869-5.14-1`](#rfc2869-5.14-1)
 
 A RADIUS Client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent. (§5.14)
@@ -239,8 +251,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. All 
 | `3` | Packet Format | 0 | walked | Packet Format. One sentence: identical to RFC 2865 and RFC 2866. |
 | `4` | Packet Types | 0 | walked | Packet Types. Identical to RFC 2865 and RFC 2866, and points at the Table of Attributes. |
 | `5` | Attributes | 3 | walked | Attributes. The attribute type list and the five data types. The section states that 'A summary of the attribute format is the same as in RFC 2865 [1] but is included here for ease of reference', so its three capitalised MUSTs restate RFC 2865 Section 5. |
-| `5.1` | Acct-Input-Gigawords | 0 | walked | Acct-Input-Gigawords. Defines type 52 and says the attribute 'indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update'. Indicative prose with no capitalised keyword, which is why the site scan sees nothing here. The five gated Gigawords rows in rfc/short/rfc2869.md were all read from this sentence and its identically worded twin in Section 5.2, so they are declared unsourced here. |
-| `5.2` | Acct-Output-Gigawords | 0 | walked | Acct-Output-Gigawords. Defines type 53 in wording identical to Section 5.1 with Acct-Output-Octets substituted. The five gated rows it shares with Section 5.1 are declared unsourced on Section 5.1 rather than twice. |
+| `5.1` | Acct-Input-Gigawords | 0 | walked | Acct-Input-Gigawords. Defines type 52 and says the attribute 'indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update'. Indicative prose with no capitalised keyword, which is why the site scan sees nothing here. One gated row is read from this sentence, RFC2869-x-2, so it is declared unsourced here. Four earlier Gigawords rows (x-1, x-3, x-4, x-5) were retired in rfc/corrections/rfc2869.md. |
+| `5.2` | Acct-Output-Gigawords | 0 | walked | Acct-Output-Gigawords. Defines type 53 in wording identical to Section 5.1 with Acct-Output-Octets substituted: the attribute 'indicates how many times the Acct-Output-Octets counter has wrapped around 2^32 in the course of delivering this service, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update'. Indicative prose with no capitalised keyword, so the site scan sees nothing here. Its own gated row, RFC2869-5.2-1 (added 2026-10-11), quotes that sentence and is declared unsourced here. |
 | `5.3` | Event-Timestamp | 0 | walked | Event-Timestamp. Defines type 55 as the time the event occurred. No obligation. |
 | `5.4` | ARAP-Password | 0 | walked | ARAP-Password. Defines type 70. Ze implements no ARAP. |
 | `5.5` | ARAP-Features | 0 | walked | ARAP-Features. Defines type 71. Ze implements no ARAP. |

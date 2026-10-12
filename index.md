@@ -6,7 +6,7 @@ Ze speaks [**BGP**](https://ze-software.net/guides/bgp-peering/), [**ISIS**](htt
 
 It is built on a configuration and protocol engine that runs as a [**daemon**](https://ze-software.net/architecture/) or [**immutable appliance**](https://ze-software.net/guides/appliance/).
 
-**Live BGP dashboard** Replayable Ze terminal lab [Read transcript](https://ze-software.net/demos/terminal/#live-bgp-dashboard) [**Why Ze exists** Learn how Ze came to be.](https://ze-software.net/project/why-ze/) [**Watch a demo** Discover the web interface.](https://ze-software.net/demos/terminal/#web-configuration-commit) [**Search the site**Docs and commands.](https://ze-software.net/search/) [**Join Discord**Ask questions, get help.](https://discord.gg/T8s7CjPDne) [![Zeledon, the Ze bird mascot](https://ze-software.net/assets/zeledon.svg)](https://ze-software.net/zeledon/)
+**Operate BGP from the live dashboard** Replayable Ze terminal lab [Read transcript](https://ze-software.net/features/cli-commands/#runtime-interaction) [**Why Ze exists** Learn how Ze came to be.](https://ze-software.net/project/why-ze/) [**Watch a demo** Discover the web interface.](https://ze-software.net/features/web-interface/#browser-configuration-workflow) [**Search the site**Docs and commands.](https://ze-software.net/search/) [**Join Discord**Ask questions, get help.](https://discord.gg/T8s7CjPDne) [![Zeledon, the Ze bird mascot](https://ze-software.net/assets/zeledon.svg)](https://ze-software.net/zeledon/)
 
 Expected initial release: Q4 2026.
  No stable release yet.
@@ -23,9 +23,9 @@ Ze generates command, configuration and support reference data from the code and
 
  Recently shipped
 
-### [Week of 2026-09-28](https://ze-software.net/project/changes/2026-09-28/)
+### [Week of 2026-10-05](https://ze-software.net/project/changes/2026-10-05/)
 
-A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes…
+A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and…
 
  RFC compliance progress
 
@@ -37,7 +37,7 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**35,100+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**35,600+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
@@ -49,7 +49,7 @@ Every homepage number links to the page where you can inspect the test layer, tr
 - 2,593 checked with a test
 - 64.6% done
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,100+ end to end tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,200+ end to end tests**
 
 - Peering, sessions, updates
 - Editor, commits, reloads
@@ -225,6 +225,16 @@ Weekly updates come from git history and Discord's `ze-news`. They stay specific
 
  01
 
+Week of 2026-10-05
+
+### [A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and IKEv2. Several changes need a look before upgrading, listed first. The release queue closed the week at 202 required work items and 224 nice-to-have, against 213 and 221 at the start. 12 required items joined and 23 left. Most of those that left were behaviour that shipped earlier and gained its end-to-end proof this week. The additions are the appliance kernel, live BGP reconfiguration and gaps the RFC checking found. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/](https://ze-software.net/project/changes/2026-10-05/)
+
+ BGP IPsec Config API
+
+**Update**
+
+ 02
+
 Week of 2026-09-28
 
 ### [A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes, graceful restart, BFD, OSPF flooding and LDP sessions. Five changes need a look before upgrading, listed in their own section. The release queue closed the week at 213 required work items and 221 nice-to-have, against 191 and 219 at the start. 24 items joined and none left. Eleven of the required additions are defects found this week, and seven more split the RFC fix work by area. The rest are update authenticity, an SRv6 forwarding path and two tooling items. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/](https://ze-software.net/project/changes/2026-09-28/)
@@ -233,23 +243,13 @@ Week of 2026-09-28
 
 **Update**
 
- 02
+ 03
 
 Week of 2026-09-21
 
 ### [Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end. The release queue closed the week at 191 required work items and 219 nice-to-have, against 157 and 183 at the start. 74 items joined and 4 left. Almost everything that joined is a defect or a missing behavior found by reading the RFCs end to end. Three of the four that left are the backup and restore work below. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/](https://ze-software.net/project/changes/2026-09-21/)
 
- Storage Config BGP IPsec
-
-**Update**
-
- 03
-
-Week of 2026-09-14
-
-### [Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week's fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable. The release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/](https://ze-software.net/project/changes/2026-09-14/)
-
- Diagnostics IPsec OSPF Interfaces - [See all updates](https://ze-software.net/project/changes/)
+ Storage Config BGP IPsec - [See all updates](https://ze-software.net/project/changes/)
 `Try safely`
 
 ## Try Ze before the first release.

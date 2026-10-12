@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.0%</strong><b>12 of 100 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 100 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 100 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>88.9%</strong><b>136 of 153 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>89.0%</strong><b>138 of 155 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>153</td>
+<td>155</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>153</td>
+<td>155</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>52</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>136</td>
+<td>138</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4301.md</code></td>
@@ -631,14 +631,12 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> Ze holds one SPD and no selection function; plan/spec-ipsec-spd-selection.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-6">RFC4301-4.4.1-6</code></td><td colspan="3"><span class="rfc-subject">The SPD MUST permit a user or administrator to specify policy entries as follows: (§4.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-6">RFC4301-4.4.1-6</code></td><td colspan="3"><span class="rfc-subject">SPD-S: For traffic that is to be protected using IPsec, the entry consists of the values of the selectors that apply to the traffic to be protected via AH or ESP, controls on how to create SAs based on these selectors, and the parameters needed to effect this protection (e.g., algorithms, modes, etc.). (§4.4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L35" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDPermitsEachDispositionInEachDatabase</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_s_test.go#L58" title="internal/component/ike/ipsec/rfc4301_spd_s_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L70" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDRefusesADispositionItDoesNotCarry</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_s_test.go#L110" title="internal/component/ike/ipsec/rfc4301_spd_s_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart</code></a></span></div>
 </div></td>
 </tr>
@@ -647,8 +645,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L100" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDIsManagedThroughTheConfiguration</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L143" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDInterfaceRefusesWhatItCannotProgram</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L103" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDIsManagedThroughTheConfiguration</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L146" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDInterfaceRefusesWhatItCannotProgram</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-8">RFC4301-4.4.1-8</code></td><td colspan="3"><span class="rfc-subject">(The means of signaling such requests to the IPsec implementation are outside the scope of this standard.) However, the system administrator MUST be able to specify whether or not a user or application can override (default) system policies. (§4.4.1)</span></td></tr>
@@ -679,8 +677,10 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-11">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_bypass_return_test.go#L48" title="internal/component/ike/engine/rfc4301_bypass_return_test.go" target="_blank" rel="noopener"><code>TestRFC4301BypassReturnTrafficHasAnSPDIEntry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L36" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDPermitsEachDispositionInEachDatabase</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_discard_test.go#L94" title="internal/component/ike/engine/rfc4301_spd_discard_test.go" target="_blank" rel="noopener"><code>TestSPDPolicyMirrorsTheInboundSelector</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_bypass_return_test.go#L69" title="internal/component/ike/engine/rfc4301_bypass_return_test.go" target="_blank" rel="noopener"><code>TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L72" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDRefusesADispositionItDoesNotCarry</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-12">RFC4301-4.4.1-12</code></td><td colspan="3"><span class="rfc-subject">SPD-O: For outbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded. (§4.4.1)</span></td></tr>
@@ -689,8 +689,10 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-12">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_bypass_return_test.go#L88" title="internal/component/ike/engine/rfc4301_bypass_return_test.go" target="_blank" rel="noopener"><code>TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L37" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDPermitsEachDispositionInEachDatabase</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_discard_test.go#L95" title="internal/component/ike/engine/rfc4301_spd_discard_test.go" target="_blank" rel="noopener"><code>TestSPDPolicyMirrorsTheInboundSelector</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_bypass_return_test.go#L109" title="internal/component/ike/engine/rfc4301_bypass_return_test.go" target="_blank" rel="noopener"><code>TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L73" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDRefusesADispositionItDoesNotCarry</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-2">RFC4301-4.4.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Note that the Local and Remote ports may not be available in the case of receipt of a fragmented packet or if the port fields have been protected by IPsec (encrypted); thus, a value of OPAQUE also MUST be supported. (§4.4.1.1)</span></td></tr>
@@ -1184,9 +1186,9 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_protocol_any_sa_test.go#L19" title="internal/component/ike/engine/rfc4301_protocol_any_sa_test.go" target="_blank" rel="noopener"><code>TestRFC4301ProtocolAnyChildSACarriesAnyPorts</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L178" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301ProtocolAnyEntryCarriesAnyPorts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L181" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301ProtocolAnyEntryCarriesAnyPorts</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_protocol_any_sa_test.go#L45" title="internal/component/ike/engine/rfc4301_protocol_any_sa_test.go" target="_blank" rel="noopener"><code>TestRFC4301ProtocolAnyChildSARefusesAPort</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L199" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301ProtocolAnyEntryRefusesAPort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L202" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301ProtocolAnyEntryRefusesAPort</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.2-1">RFC4301-7.2-1</code></td><td colspan="3"><span class="rfc-subject">Receivers MUST perform a minimum offset check on IPv4 (non-initial) fragments to protect against overlapping fragment attacks when SAs of this type are employed. (§7.2)</span></td></tr>
@@ -2023,24 +2025,14 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.4.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.1-6"><code>RFC4301-4.4.1-6</code></a></h3>
-<p>The SPD MUST permit a user or administrator to specify policy entries as follows: (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged pass 6. The SPD-S clause (RFC 4301 4.4.1: selectors, controls on how to create SAs, and the parameters needed to effect the protection) is now proven: TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection writes a site-to-site peer through ParseIPsecConfig + ValidateGroupRefs and reads back the traffic-selector prefixes, connection-type/remote-address/esp-group, and mode transport with proposal aes256/sha256. The negative refuses an undefined esp-group (by ValidateGroupRefs), mode beet, an unknown connection-type and a /33 selector, each naming the part: an entry is never accepted with a part silently dropped or replaced, which is the form in which an SPD fails to let the administrator specify it. SPD-I/SPD-O units at HEAD unchanged. Revert records parseSiteToSitePeer +/- and parseSPDPolicy +/- observed red. The undefined esp-group case is refused outside the recorded producer; the other three cases redden through it.</p>
+<p>SPD-S: For traffic that is to be protected using IPsec, the entry consists of the values of the selectors that apply to the traffic to be protected via AH or ESP, controls on how to create SAs based on these selectors, and the parameters needed to effect this protection (e.g., algorithms, modes, etc.). (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1) moved the two disposition tests off this row. RFC 4301 4.4.1, under &#34;The SPD MUST permit a user or administrator to specify policy entries as follows:&#34;: &#34;SPD-S: For traffic that is to be protected using IPsec, the entry consists of the values of the selectors that apply to the traffic to be protected via AH or ESP, controls on how to create SAs based on these selectors, and the parameters needed to effect this protection (e.g., algorithms, modes, etc.).&#34; The row now carries only the SPD-S pair, both unchanged since the last read: TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection parses a site-to-site peer through ParseIPsecConfig and ValidateGroupRefs and reads back the selector prefixes, the SA creation controls (connection-type, remote address, esp-group) and the protection parameters (mode transport, aes256/sha256), each compared exactly; TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart refuses an undefined esp-group, mode beet, an unknown connection-type and a /33 selector, each naming the part. Revert records on config.go::parseSiteToSitePeer. The earlier defect (bypass/discard tests tagged here) is resolved.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L70" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDRefusesADispositionItDoesNotCarry</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_s_test.go#L110" title="internal/component/ike/ipsec/rfc4301_spd_s_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L35" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDPermitsEachDispositionInEachDatabase</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2060,12 +2052,12 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L143" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDInterfaceRefusesWhatItCannotProgram</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L146" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDInterfaceRefusesWhatItCannotProgram</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L100" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDIsManagedThroughTheConfiguration</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L103" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDIsManagedThroughTheConfiguration</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2118,13 +2110,18 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-4.4.1-11"><code>RFC4301-4.4.1-11</code></a></h3>
 <p>SPD-I: For inbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded. (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against full RFC 4301 Section 4.4.1. The controlling lead-in is: ‘The SPD MUST permit a user or administrator to specify policy entries as follows:’ The complete assigned item is: ‘SPD-I: For inbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded.’ Read all three tagged units: internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector and internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry / TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy. The DISCARD case requires an inbound policy and exact remote-source/local-destination prefixes. The BYPASS positive additionally pins BYPASS and asymmetric source-any/destination-22 ports. Its distinct negative rejects outbound orientation and an inbound policy for an out-only entry. internal/component/ike/engine/spd_policy.go::spdPolicyParams selects directions, spdPolicyDirection reverses addresses and ports, and installSPDPolicies consumes the results through dp.InstallPolicy. The owned edit adds an unknown-direction panic to the test without weakening assertions or changing either tag claim. This is unit-level projection evidence, not execution of config commit or kernel packet delivery. The DISCARD unit itself does not assert action, protocol, ports or exact multiplicity, so those checks are not attributed to it. The canonical scope report marks its positive discrimination record unit-changed; parent must obtain a separate native recorder observation for this cover. No new execution is claimed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1) added the disposition pair. RFC 4301 4.4.1, under &#34;The SPD MUST permit a user or administrator to specify policy entries as follows:&#34;: &#34;SPD-I: For inbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded.&#34; The engine units judged before (TestSPDPolicyMirrorsTheInboundSelector, TestRFC4301BypassReturnTrafficHasAnSPDIEntry, TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy) are unchanged and carry the selector half: the inbound entry holds the mirrored selectors of the traffic, never an unmirrored copy (records on spdPolicyParams). The added positive TestRFC4301SPDPermitsEachDispositionInEachDatabase carries the &#39;administrator can specify&#39; half: bypass and discard with direction in and both parse through ParseIPsecConfig to the exact SPActionBypass/SPActionDiscard and SPDDirIn/SPDDirBoth; its claim names disposition and direction only, which is what it asserts. The added negative TestRFC4301SPDRefusesADispositionItDoesNotCarry refuses an absent action (not read as PROTECT, the SPAction zero value), protect, an unknown action and an unknown direction, each by its exact message. Revert records on ipsec/spd_policy.go::parseSPDPolicy for both.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_bypass_return_test.go#L69" title="internal/component/ike/engine/rfc4301_bypass_return_test.go" target="_blank" rel="noopener"><code>TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L72" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDRefusesADispositionItDoesNotCarry</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2138,18 +2135,28 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L36" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDPermitsEachDispositionInEachDatabase</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4301-4.4.1-12"><code>RFC4301-4.4.1-12</code></a></h3>
 <p>SPD-O: For outbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded. (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against full RFC 4301 Section 4.4.1. The controlling lead-in is: ‘The SPD MUST permit a user or administrator to specify policy entries as follows:’ The complete assigned item is: ‘SPD-O: For outbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded.’ Read all three tagged units: internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector and internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry / TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy. The DISCARD case requires an outbound policy and exact local-source/remote-destination prefixes. The BYPASS positive additionally checks BYPASS and source-22/destination-any ports. Its distinct negative rejects inbound orientation and an outbound policy for an in-only entry. internal/component/ike/engine/spd_policy.go::spdPolicyParams selects directions, spdPolicyDirection retains outbound orientation, and installSPDPolicies forwards each result to dp.InstallPolicy. The owned unknown-direction panic strengthens failure handling without changing either tag claim. These tests inspect builder results, not kernel installation or packet delivery; the DISCARD unit alone does not assert action, protocol, ports or exact multiplicity. Parent must renew this behavior-changed unit’s positive record for this id separately from the -11 record. No test or recorder was executed by this judge.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1) added the disposition pair. RFC 4301 4.4.1, under &#34;The SPD MUST permit a user or administrator to specify policy entries as follows:&#34;: &#34;SPD-O: For outbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded.&#34; The engine units judged before (TestSPDPolicyMirrorsTheInboundSelector, TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry, TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy) are unchanged and carry the selector half (records on spdPolicyParams). The added positive TestRFC4301SPDPermitsEachDispositionInEachDatabase shows bypass and discard with direction out and both parse to the exact disposition and SPDDirOut/SPDDirBoth; its claim names disposition and direction only, which is what it asserts. The added negative TestRFC4301SPDRefusesADispositionItDoesNotCarry refuses an absent action, protect, an unknown action and an unknown direction by exact message. Revert records on ipsec/spd_policy.go::parseSPDPolicy for both.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_bypass_return_test.go#L109" title="internal/component/ike/engine/rfc4301_bypass_return_test.go" target="_blank" rel="noopener"><code>TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L73" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDRefusesADispositionItDoesNotCarry</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2160,6 +2167,11 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_discard_test.go#L95" title="internal/component/ike/engine/rfc4301_spd_discard_test.go" target="_blank" rel="noopener"><code>TestSPDPolicyMirrorsTheInboundSelector</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L37" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301SPDPermitsEachDispositionInEachDatabase</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2875,7 +2887,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L199" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301ProtocolAnyEntryRefusesAPort</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L202" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301ProtocolAnyEntryRefusesAPort</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2885,7 +2897,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L178" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301ProtocolAnyEntryCarriesAnyPorts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc4301_spd_management_test.go#L181" title="internal/component/ike/ipsec/rfc4301_spd_management_test.go" target="_blank" rel="noopener"><code>TestRFC4301ProtocolAnyEntryCarriesAnyPorts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3628,7 +3640,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4555 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4555: IKEv2 Mobility and Multihoming Protocol (MOBIKE). 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 4555: IKEv2 Mobility and Multihoming Protocol (MOBIKE). 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4555 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4555: IKEv2 Mobility and Multihoming Protocol (MOBIKE). 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 4555: IKEv2 Mobility and Multihoming Protocol (MOBIKE). 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4555 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4555: IKEv2 Mobility and Multihoming Protocol (MOBIKE). 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 4555: IKEv2 Mobility and Multihoming Protocol (MOBIKE). 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,23 +117,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>13 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>20.0%</strong><b>8 of 40 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>14 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>27.3%</strong><b>12 of 44 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 23 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>14</strong><b>of 26 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 14 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 8 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -205,10 +205,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>23</td>
+<td>26</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>13</td>
+<td>14</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -226,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>40</td>
+<td>44</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>40</td>
+<td>44</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>10</td>
+<td>13</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>8</td>
+<td>12</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4555.md</code></td>
@@ -275,7 +275,7 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>13</strong></td>
+<td><strong>14</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
@@ -302,11 +302,11 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>13</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>14</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (13):</strong> <a href="#rfc4555-x-1"><code>RFC4555-x-1</code></a>, <a href="#rfc4555-x-2"><code>RFC4555-x-2</code></a>, <a href="#rfc4555-3.9-1"><code>RFC4555-3.9-1</code></a>, <a href="#rfc4555-3.7-1"><code>RFC4555-3.7-1</code></a>, <a href="#rfc4555-3.8-1"><code>RFC4555-3.8-1</code></a>, <a href="#rfc4555-3.8-2"><code>RFC4555-3.8-2</code></a>, <a href="#rfc4555-3.6-1"><code>RFC4555-3.6-1</code></a>, <a href="#rfc4555-3.7-4"><code>RFC4555-3.7-4</code></a>, <a href="#rfc4555-3.7-5"><code>RFC4555-3.7-5</code></a>, <a href="#rfc4555-3.9-3"><code>RFC4555-3.9-3</code></a>, <a href="#rfc4555-3.9-4"><code>RFC4555-3.9-4</code></a>, <a href="#rfc4555-4.2.1-1"><code>RFC4555-4.2.1-1</code></a>, <a href="#rfc4555-4.2.5-1"><code>RFC4555-4.2.5-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (14):</strong> <a href="#rfc4555-x-1"><code>RFC4555-x-1</code></a>, <a href="#rfc4555-x-2"><code>RFC4555-x-2</code></a>, <a href="#rfc4555-3.9-1"><code>RFC4555-3.9-1</code></a>, <a href="#rfc4555-3.7-1"><code>RFC4555-3.7-1</code></a>, <a href="#rfc4555-3.8-1"><code>RFC4555-3.8-1</code></a>, <a href="#rfc4555-3.8-2"><code>RFC4555-3.8-2</code></a>, <a href="#rfc4555-3.6-1"><code>RFC4555-3.6-1</code></a>, <a href="#rfc4555-3.7-4"><code>RFC4555-3.7-4</code></a>, <a href="#rfc4555-3.7-5"><code>RFC4555-3.7-5</code></a>, <a href="#rfc4555-3.9-3"><code>RFC4555-3.9-3</code></a>, <a href="#rfc4555-3.9-4"><code>RFC4555-3.9-4</code></a>, <a href="#rfc4555-4.2.6-1"><code>RFC4555-4.2.6-1</code></a>, <a href="#rfc4555-4.2.1-1"><code>RFC4555-4.2.1-1</code></a>, <a href="#rfc4555-4.2.5-1"><code>RFC4555-4.2.5-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -424,6 +424,15 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L807" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsUpdateWaitsForRoutability</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-4.2.6-1">RFC4555-4.2.6-1</code></td><td colspan="3"><span class="rfc-subject">The Notify Message Type for this message is 16402. The notification data contains the IP addresses and ports from/to which the packet was sent. (§4.2.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-4.2.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1809" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1813" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-4.2.1-1">RFC4555-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received. (Payload Formats, Section 4.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -515,6 +524,24 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.6-2">RFC4555-3.6-2</code></td><td colspan="3"><span class="rfc-subject">This information can be updated by sending an INFORMATIONAL exchange request message that contains either one or more ADDITIONAL_IP4_ADDRESS/ADDITIONAL_IP6_ADDRESS notifications or the NO_ADDITIONAL_ADDRESSES notification. (§3.6)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1778" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> a MAY that permits the update to carry its address list, so the one observable is that Ze&#39;s INFORMATIONAL update carries NO_ADDITIONAL_ADDRESSES (internal/component/ike/engine/mobike_test.go TestMobikeUpdateCarriesItsAddressList); an update without the list is also permitted, so there is no violating input for a negative to refuse</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.6-3">RFC4555-3.6-3</code></td><td colspan="3"><span class="rfc-subject">The initiator MAY include these notifications in the same request as UPDATE_SA_ADDRESSES. (§3.6)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.6-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1780" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> a MAY that permits the address notifications to ride in the UPDATE_SA_ADDRESSES request, so the one observable is that Ze sends NO_ADDITIONAL_ADDRESSES in that same request (internal/component/ike/engine/mobike_test.go TestMobikeUpdateCarriesItsAddressList); sending them in a separate request is also permitted, so there is no violating input for a negative to refuse</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.7-3">RFC4555-3.7-3</code></td><td colspan="3"><span class="rfc-subject">In environments where the peer is expected to be well-behaved (many corporate VPNs, for instance), or the address can be verified by some other means (e.g., a certificate issued by an authority trusted for this purpose), the return routability check MAY be omitted. (§3.7)</span></td></tr>
 <tr><td></td>
@@ -823,6 +850,26 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc4555-4.2.6-1"><code>RFC4555-4.2.6-1</code></a></h3>
+<p>The Notify Message Type for this message is 16402. The notification data contains the IP addresses and ports from/to which the packet was sent. (§4.2.6)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1). RFC 4555 4.2.6: &#34;The Notify Message Type for this message is 16402.  The notification data contains the IP addresses and ports from/to which the packet was sent.&#34; Type clause, now enforced: TestMobikeNoNATsDataIsTheSendTuple decrypts the NO_NATS_ALLOWED notify off a real update and requires NotifyMsgType == 16402 as a literal, so a wrong shared wire.NotifyNoNATsAllowed constant is red (mbRequireNotify finds the notify by the constant, then the literal disagrees) and a producer writing another type is red at mbRequireNotify. Data clause: the 12-octet IPv4 data equals the received packet&#39;s source address, destination address, source port and destination port field by field, and noNATsAllowedMatches accepts that tuple. Negative: noNATsAllowedMatches refuses a changed source address, a changed destination address, swapped ports, a changed source port, and now the packet&#39;s own addresses and ports written at the 16-octet width; because net.IP.Equal treats the IPv4-mapped form as equal, the length test is the only thing that refuses that last case, so it isolates the width. Revert records on mobike.go::noNATsAllowedPayload (positive) and noNATsAllowedMatches (negative). Both defects of the earlier weak verdict are resolved.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1813" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1809" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4555-4.2.1-1"><code>RFC4555-4.2.1-1</code></a></h3>
 <p>The notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received. (Payload Formats, Section 4.2.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: sending MOBIKE_SUPPORTED with non-empty data, or acting on (for example rejecting) received data. mbAuthOfferEmpty in internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation requires zero-length data, protocol 0 and no SPI on both generated IKE_AUTH offers. The request-extension-data and response-extension-data cases inject non-empty data in each direction and require that negotiation still enables COOKIE2 echo (mbOnlyNotify), which goes red if the data were not ignored.</p>
@@ -867,6 +914,36 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4555_cookie2_test.go#L50" title="internal/component/ike/engine/rfc4555_cookie2_test.go" target="_blank" rel="noopener"><code>TestRFC4555Cookie2IsTheRandomSourceOutput</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc4555-3.6-2"><code>RFC4555-3.6-2</code></a></h3>
+<p>This information can be updated by sending an INFORMATIONAL exchange request message that contains either one or more ADDITIONAL_IP4_ADDRESS/ADDITIONAL_IP6_ADDRESS notifications or the NO_ADDITIONAL_ADDRESSES notification. (§3.6)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-10-11 by an independent judge. RFC 4555 3.6: &#34;This information can be updated by sending an INFORMATIONAL exchange request message that contains either one or more ADDITIONAL_IP4_ADDRESS/ADDITIONAL_IP6_ADDRESS notifications or the NO_ADDITIONAL_ADDRESSES notification.&#34; The sentence permits a way to update the list and obliges nothing when no update is sent, so the {single-polarity: positive} annotation holds: no input is a violation for a negative to refuse. TestMobikeUpdateCarriesItsAddressList drives a real IKE_AUTH handshake, starts an update with startMobikeRequest, and requires the datagram the responder reads to be an INFORMATIONAL request (exchange type, R bit clear) whose decrypted chain carries NO_ADDITIONAL_ADDRESSES. Revert record on mobike.go::startMobikeRequest. Residual, not a finding: the &#39;either ... or&#39; is not asserted as exclusive (no check that no ADDITIONAL_IP4/6_ADDRESS rides beside NO_ADDITIONAL_ADDRESSES); the producer (mobike.go) writes only NO_ADDITIONAL_ADDRESSES today.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1778" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc4555-3.6-3"><code>RFC4555-3.6-3</code></a></h3>
+<p>The initiator MAY include these notifications in the same request as UPDATE_SA_ADDRESSES. (§3.6)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-10-11 by an independent judge. RFC 4555 3.6: &#34;The initiator MAY include these notifications in the same request as UPDATE_SA_ADDRESSES.&#34; A MAY whose alternative (a separate request) is also permitted, so the {single-polarity: positive} annotation holds. TestMobikeUpdateCarriesItsAddressList requires both UPDATE_SA_ADDRESSES and NO_ADDITIONAL_ADDRESSES in the decrypted chain of the one INFORMATIONAL request startMobikeRequest sends, so dropping the address notification from that request turns it red. Revert record on mobike.go::startMobikeRequest.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1780" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1113,7 +1190,7 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
 <td>not stated</td>
 <td>0</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Row RFC4555-4.2.6-1 (added 2026-10-11) is read from the indicative sentence &#34;The notification data contains the IP addresses and ports from/to which the packet was sent.&#34;, which carries no keyword; the section 3.9 responder check RFC4555-3.9-3 compares exactly these fields.</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>not stated</td>
@@ -1248,7 +1325,7 @@ Atomic migration requires Linux 7.2&#39;s API and CONFIG_XFRM_MIGRATE in the app
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

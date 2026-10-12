@@ -321,7 +321,7 @@ before the daemon starts. When none answers a verifiable response it emits
 missing or wrong shared key counts as unreachable.
 
 ```
-ze doctor --json router.conf
+ze doctor --json config router.conf
 ze explain doctor-radius-admin-unreachable
 ```
 

@@ -208,6 +208,12 @@ resolved groups are compared, so a leaf that Ze gains in a later release restart
 from the day it exists.</p>
 <p>Rotating a cipher is the case worth naming, because it edits no peer block at all. A peer
 holds the NAME of its groups and none of the crypto, so <code>ike-group IKE-1 { proposal 1 { encryption ...</code> restarts every peer that names <code>IKE-1</code> and no other.</p>
+<p>One edit does not restart the tunnel. When a peer's IKE SA is up with no Child SA, because
+the two sides could not agree on ESP when it was established, a commit that changes only that
+peer's <code>esp-group</code> keeps the IKE SA. Nothing is carrying traffic yet, so nothing runs under
+the old settings; the new <code>esp-group</code> applies when the Child SA is created on that IKE SA,
+with no reconnect. Change the <code>ike-group</code> or the <code>peer</code> block in the same commit, or make the
+edit while a Child SA exists, and the peer restarts as above.</p>
 <p>A commit that leaves a peer's block and its two groups unchanged does not touch that peer,
 whatever else in the configuration moved. Adding a second peer, editing a firewall rule or
 changing a log level leaves a running tunnel carrying traffic.</p>
@@ -1671,7 +1677,7 @@ boundaries; neither is a claim that every IKE extension is implemented.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

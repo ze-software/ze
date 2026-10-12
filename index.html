@@ -90,7 +90,7 @@
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
-      aria-label="Operate BGP from the live dashboard demonstration"
+      aria-label="Operate BGP from the live dashboard"
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
@@ -99,9 +99,9 @@
     </noscript>
                                 </div>
                                 <figcaption>
-                                    <strong id="hero-demo-title">Live BGP dashboard</strong>
+                                    <strong id="hero-demo-title">Operate BGP from the live dashboard</strong>
                                     <span>Replayable Ze terminal lab</span>
-                                    <a href="demos/terminal/#live-bgp-dashboard">Read transcript</a>
+                                    <a href="features/cli-commands/#runtime-interaction">Read transcript</a>
                                 </figcaption>
                             </figure>
                         </div>
@@ -111,7 +111,7 @@
                                     <strong>Why Ze exists</strong>
                                     <small>Learn how Ze came to be.</small>
                                 </a>
-                                <a class="hero-start-action" href="demos/terminal/#web-configuration-commit">
+                                <a class="hero-start-action" href="features/web-interface/#browser-configuration-workflow">
                                     <strong>Watch a demo</strong>
                                     <small>Discover the web interface.</small>
                                 </a>
@@ -177,8 +177,8 @@
                 </article>
                 <article class="whats-new-item tone-sky">
                     <span class="whats-new-label">Recently shipped</span>
-                    <h3><a href="project/changes/2026-09-28/">Week of 2026-09-28</a></h3>
-                    <p>A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes…</p>
+                    <h3><a href="project/changes/2026-10-05/">Week of 2026-10-05</a></h3>
+                    <p>A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and…</p>
                 </article>
                 <article class="whats-new-item tone-pink">
                     <span class="whats-new-label">RFC compliance progress</span>
@@ -209,7 +209,7 @@
                 <div class="proof-strip" aria-label="Project evidence">
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            ><span data-ze-stat="tests.unit_display">35,100+</span> <span class="label">unit tests</span></strong
+                            ><span data-ze-stat="tests.unit_display">35,600+</span> <span class="label">unit tests</span></strong
                         >
                         <ul>
                             <li>Wire encoding, parsing</li>
@@ -232,7 +232,7 @@
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
-                            ><span data-ze-stat="tests.e2e_display">2,100+</span>
+                            ><span data-ze-stat="tests.e2e_display">2,200+</span>
                             <span class="label">end to end tests</span></strong
                         >
                         <ul>
@@ -570,6 +570,22 @@
                             <span class="cat">Update</span>
                             <span class="home-update-number">01</span>
                         </div>
+                        <p class="home-update-date">Week of 2026-10-05</p>
+                        <h3><a href="project/changes/2026-10-05/">A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and IKEv2. Several changes need a look before upgrading, listed first.
+
+The release queue closed the week at 202 required work items and 224 nice-to-have, against 213 and 221 at the start. 12 required items joined and 23 left. Most of those that left were behaviour that shipped earlier and gained its end-to-end proof this week. The additions are the appliance kernel, live BGP reconfiguration and gaps the RFC checking found. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/</a></h3>
+                        <div class="home-update-tags">
+                            <span class="home-update-tag cat-routing">BGP</span>
+                            <span class="home-update-tag cat-secure">IPsec</span>
+                            <span class="home-update-tag cat-operate">Config</span>
+                            <span class="home-update-tag cat-automate">API</span>
+                        </div>
+                    </article>
+                    <article class="card card-post home-update-card tone-pink">
+                        <div class="home-update-head">
+                            <span class="cat">Update</span>
+                            <span class="home-update-number">02</span>
+                        </div>
                         <p class="home-update-date">Week of 2026-09-28</p>
                         <h3><a href="project/changes/2026-09-28/">A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes, graceful restart, BFD, OSPF flooding and LDP sessions. Five changes need a look before upgrading, listed in their own section.
 
@@ -581,10 +597,10 @@ The release queue closed the week at 213 required work items and 221 nice-to-hav
                             <span class="home-update-tag cat-observe">Flow Export</span>
                         </div>
                     </article>
-                    <article class="card card-post home-update-card tone-pink">
+                    <article class="card card-post home-update-card tone-grape">
                         <div class="home-update-head">
                             <span class="cat">Update</span>
-                            <span class="home-update-number">02</span>
+                            <span class="home-update-number">03</span>
                         </div>
                         <p class="home-update-date">Week of 2026-09-21</p>
                         <h3><a href="project/changes/2026-09-21/">Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end.
@@ -595,22 +611,6 @@ The release queue closed the week at 191 required work items and 219 nice-to-hav
                             <span class="home-update-tag cat-operate">Config</span>
                             <span class="home-update-tag cat-routing">BGP</span>
                             <span class="home-update-tag cat-secure">IPsec</span>
-                        </div>
-                    </article>
-                    <article class="card card-post home-update-card tone-grape">
-                        <div class="home-update-head">
-                            <span class="cat">Update</span>
-                            <span class="home-update-number">03</span>
-                        </div>
-                        <p class="home-update-date">Week of 2026-09-14</p>
-                        <h3><a href="project/changes/2026-09-14/">Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week&#39;s fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable.
-
-The release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/</a></h3>
-                        <div class="home-update-tags">
-                            <span class="home-update-tag cat-observe">Diagnostics</span>
-                            <span class="home-update-tag cat-secure">IPsec</span>
-                            <span class="home-update-tag cat-routing">OSPF</span>
-                            <span class="home-update-tag cat-platform">Interfaces</span>
                         </div>
                     </article>
                 </div>
@@ -679,7 +679,7 @@ The release queue closed the week at 157 required work items and 183 nice-to-hav
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

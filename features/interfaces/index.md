@@ -195,6 +195,12 @@ entries. The `DiscoverInterfaces` function enumerates interfaces via `ListInterf
 bridge, veth, dummy, or loopback. On Linux, the netlink `device` type maps to ethernet
 (except `lo`, which maps to loopback). Results are sorted by type then name.
 
+A managed client (`ze init --managed`) and an appliance seed (`ze init --seed`) skip
+discovery and write no initial config: the managed client takes its first config from
+its hub, and the appliance discovers on the device at first boot.
+
+<!-- source: internal/plugins/init/main.go -- runInit -->
+
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces, infoToZeType -->
 
 The generated config uses descriptive names as YANG list keys (the OS interface name at

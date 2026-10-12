@@ -65,6 +65,7 @@
 <li><a href="#groups-and-dynamic-peers">Groups and dynamic peers</a></li>
 <li><a href="#the-send-permission">The send permission</a></li>
 <li><a href="#reading-the-delivery-graph">Reading the delivery graph</a></li>
+<li><a href="#attached-to-a-running-peer">Attached to a running peer</a></li>
 </ol></li>
 <li><a href="#invocation-modes">Invocation Modes</a></li>
 <li><a href="#built-in-plugins">Built-In Plugins</a></li>
@@ -561,6 +562,23 @@ registry name of a plugin loaded with <code>--plugin</code>.</p>
 <!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect, PeerScopedProcs -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowEventDelivery -->
 <!-- source: internal/component/bgp/reactor/delivery_graph.go -- deliveryPeersFromSettings -->
+<h3 id="attached-to-a-running-peer">Attached to a running peer</h3>
+<p>A reload can attach a plugin to a peer whose session is already up, through a
+receive-only <code>attach process</code> block (<a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md" target="_blank" rel="noopener">config reload</a>). The
+plugin then receives a <code>state up</code> for that peer with reason <code>attached</code>. That up
+does not start the session: the peer's initial routing update already went out,
+so the up carries no initial-replay token and holds back no End-of-RIB. A plugin
+that replays routes toward a peer when it comes up must skip that replay on an
+<code>attached</code> up, or it sends the peer routes it already holds. <code>bgp-rib</code>,
+<code>bgp-rr</code>, <code>bgp-rs</code>, <code>bgp-watchdog</code>, <code>redistribute-orchestrator</code> and
+<code>bgp-adj-rib-in</code> skip it. Routes the peer announced before the attach reach the
+plugin through the ROUTE-REFRESH Ze sends after the up.</p>
+<p>A reload that detaches a plugin sends it a <code>state down</code> for that peer alone,
+and the session stays up for every other plugin. The plugin drops what it holds
+for the peer. A plugin whose grant changed receives a down, then an <code>attached</code>
+up.</p>
+<!-- source: pkg/plugin/rpc/enums.go -- ReasonAttached -->
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- bindProcesses, unbindProcesses -->
 <h2 id="invocation-modes">Invocation Modes</h2>
 <table>
 <thead>
@@ -1921,7 +1939,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

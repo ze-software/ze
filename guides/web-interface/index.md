@@ -295,22 +295,27 @@ In integrated mode, CLI commands update the page content directly:
 | Command | Effect |
 |---------|--------|
 | `edit <path>` | Navigate to a config path |
-| `set <leaf> <value>` | Set a value at the current context path |
+| `set [path] <leaf> <value>` | Set a value under the current context path. The last token is the value and the one before it the leaf, as in the SSH CLI; quote a value that holds spaces |
 | `delete <leaf>` | Delete a value at the current context path |
 | `show [path]` | Display config text at the current or specified path |
 | `top` | Navigate to root |
 | `up` | Navigate one level up |
-| `commit` | Commit pending changes |
-| `discard` | Discard pending changes |
+| `commit now` | Commit pending changes. `commit now force` commits over another user's conflicting change and discards it from theirs (see the config editor guide). `commit` without a subcommand is refused with the list of subcommands. `commit confirmed <seconds>`, `commit accept`, `commit abort` and `commit verify` follow the config editor guide. A commit that validation refuses answers with the SSH editor's text, listing each error and warning; when only warnings block it, the answer names the forced form, and the CLI bar shows it as an error |
+| `discard` | Discard pending changes. `discard` alone or `discard all` drops every change; `discard <path>` drops only the changes at or under that path, the command a commit conflict's `fix:` line prints, and a path holding none of your pending changes is refused, as is a pipe (`discard | match x`), since discard prints nothing to filter. The message line repeats the answer (the refusal, the path dropped, or `changes discarded`), and each discard writes a `config-discard` audit record whose detail lists only the changes it dropped (empty for a whole discard with nothing pending; see the audit guide) |
 | `help` | List available commands |
 
 The prompt shows the current context path: `ze[bgp peer]# `.
 <!-- source: internal/component/web/cli.go -- formatCLIPrompt, dispatchCLICommand -->
+<!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
+<!-- source: internal/component/web/cli.go -- handleCLICommit -->
 
 ### Terminal Mode
 
-Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo.
-<!-- source: internal/component/web/cli_terminal.go -- HandleCLITerminalWithDispatchAuthorizerAndAudit, executeTerminalCommand -->
+Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo. `set` reads its line the way the integrated mode does. `deactivate <path>` and `activate <path>` take a leaf, a leaf-list value, a container or a list entry, and answer as the SSH editor does ("Deactivated bgp router-id"). `errors` lists this session's pending changes, one line each: `+ copy`, `~ deactivate`, `~ activate`, `+`/`-` for a set or a delete.
+<!-- source: internal/component/web/cli_terminal.go -- HandleCLITerminalWithDispatchAuthorizerAndAudit, executeTerminalCommand, executeTerminalSet -->
+<!-- source: internal/component/web/cli.go -- splitSetArgs -->
+<!-- source: internal/component/cli/editor_activation.go -- ApplyActivation -->
+<!-- source: internal/component/web/editor.go -- EditorManager.Diff -->
 
 ### Tab Completion
 
@@ -321,9 +326,19 @@ The CLI bar provides tab completion via a JSON endpoint at `/cli/complete`. Comp
 ## Live Updates
 
 The web interface uses Server-Sent Events (SSE) to notify connected browsers when configuration changes are committed by any user. A notification banner appears with the username and a "Refresh" button.
-<!-- source: internal/component/web/sse.go -- EventBroker, BroadcastConfigChange -->
+<!-- source: internal/component/web/sse.go -- EventBroker, BroadcastConfigChange, SendTo -->
 
-Connect to the SSE stream at `/events` (requires authentication). The broker supports up to 100 concurrent SSE clients. Slow clients that fall behind have events dropped rather than blocking other clients.
+The same stream carries, to each user alone, what the SSH editor's status
+line would show that user: the countdown of a `commit confirmed` window, or
+whose window is pending, how a window ended, and that another user's forced
+commit discarded one of your changes. They arrive as `config-change` events,
+so they use the same banner. While a user's own commit is in flight, the
+window news for that user waits, so a user's own `commit accept` or
+`commit abort` is never reported as closed by another session. See "Commit
+Confirmed" in `config-editor.md`.
+<!-- source: internal/component/web/window_notices.go -- WindowNotices, pollWindow -->
+
+Connect to the SSE stream at `/events` (requires authentication). Each stream is registered under its user. The broker supports up to 100 concurrent SSE clients. Slow clients that fall behind have events dropped rather than blocking other clients.
 
 ### Event Format
 
@@ -348,7 +363,7 @@ Admin command results are displayed as titled cards showing the command name, ou
 
 ## Resilience
 
-**Corrupt change files:** If a per-user change file in the live store is unparseable (e.g., from a previous bug), it is automatically discarded with a warning log. The user can continue editing without manual intervention.
+**Corrupt change files:** If a per-user change file in the live store does not parse, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (`discard`) to start again.
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
 
 **Asset caching:** Static assets (`/assets/`) are served with `Cache-Control: no-cache, must-revalidate` so browsers always pick up changes after binary updates without requiring a hard refresh.

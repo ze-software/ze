@@ -2631,11 +2631,30 @@
                         ]
                       },
                       {
-                        "description": "The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that\ncarries many attributes needs it.",
-                        "kind": "container",
+                        "description": "The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that\ncarries many attributes needs it. Absent means not advertised.",
+                        "kind": "leaf",
                         "name": "extended-message",
-                        "short-help": "Extended Message capability (RFC 8654).",
-                        "source": "config"
+                        "short-help": "Extended Message capability mode (RFC 8654): enable, disable, require or refuse.",
+                        "source": "config",
+                        "type": "capability-mode",
+                        "values": [
+                          {
+                            "name": "disable",
+                            "short-help": "Do not advertise the capability; no enforcement"
+                          },
+                          {
+                            "name": "enable",
+                            "short-help": "Advertise the capability; no enforcement"
+                          },
+                          {
+                            "name": "refuse",
+                            "short-help": "Do not advertise the capability; refuse the session when the peer offers it"
+                          },
+                          {
+                            "name": "require",
+                            "short-help": "Advertise the capability; refuse the session when the peer does not offer it"
+                          }
+                        ]
                       },
                       {
                         "children": [
@@ -2705,11 +2724,22 @@
                         "source": "config"
                       },
                       {
-                        "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).\nRequires session link-local on the peer or its group:\nthe configuration is refused without it, because ze must\nsend its own link-local address once the capability is\nnegotiated (draft-ietf-idr-linklocal-capability Section 4).",
-                        "kind": "container",
+                        "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).\nRequires session link-local on the peer or its group:\nthe configuration is refused without it, because ze must\nsend its own link-local address once the capability is\nnegotiated (draft-ietf-idr-linklocal-capability Section 4).\nOnly enable and disable: the plugin enforces neither\nrequire nor refuse, so the schema does not offer them.\nA peer's value overrides its group's; absent on both\nmeans not advertised.",
+                        "kind": "leaf",
                         "name": "link-local-nexthop",
-                        "short-help": "Link-local next-hop capability.",
-                        "source": "config"
+                        "short-help": "Link-local next-hop capability: enable or disable.",
+                        "source": "config",
+                        "type": "enumeration",
+                        "values": [
+                          {
+                            "name": "disable",
+                            "short-help": "Do not advertise the capability, overriding the group"
+                          },
+                          {
+                            "name": "enable",
+                            "short-help": "Advertise the capability"
+                          }
+                        ]
                       },
                       {
                         "children": [
@@ -2765,11 +2795,30 @@
                         "source": "config"
                       },
                       {
-                        "description": "The capability lets the peer request a full re-advertisement of the routes, without a session\nteardown.",
-                        "kind": "container",
+                        "description": "The capability lets the peer request a full re-advertisement of the routes, without a session\nteardown. enable also advertises Enhanced Route Refresh (RFC 7313). Absent means not advertised.",
+                        "kind": "leaf",
                         "name": "route-refresh",
-                        "short-help": "Route Refresh capability (RFC 2918).",
-                        "source": "config"
+                        "short-help": "Route Refresh capability mode (RFC 2918): enable, disable, require or refuse.",
+                        "source": "config",
+                        "type": "capability-mode",
+                        "values": [
+                          {
+                            "name": "disable",
+                            "short-help": "Do not advertise the capability; no enforcement"
+                          },
+                          {
+                            "name": "enable",
+                            "short-help": "Advertise the capability; no enforcement"
+                          },
+                          {
+                            "name": "refuse",
+                            "short-help": "Do not advertise the capability; refuse the session when the peer offers it"
+                          },
+                          {
+                            "name": "require",
+                            "short-help": "Advertise the capability; refuse the session when the peer does not offer it"
+                          }
+                        ]
                       },
                       {
                         "children": [
@@ -3959,11 +4008,30 @@
                     ]
                   },
                   {
-                    "description": "The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that\ncarries many attributes needs it.",
-                    "kind": "container",
+                    "description": "The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that\ncarries many attributes needs it. Absent means not advertised.",
+                    "kind": "leaf",
                     "name": "extended-message",
-                    "short-help": "Extended Message capability (RFC 8654).",
-                    "source": "config"
+                    "short-help": "Extended Message capability mode (RFC 8654): enable, disable, require or refuse.",
+                    "source": "config",
+                    "type": "capability-mode",
+                    "values": [
+                      {
+                        "name": "disable",
+                        "short-help": "Do not advertise the capability; no enforcement"
+                      },
+                      {
+                        "name": "enable",
+                        "short-help": "Advertise the capability; no enforcement"
+                      },
+                      {
+                        "name": "refuse",
+                        "short-help": "Do not advertise the capability; refuse the session when the peer offers it"
+                      },
+                      {
+                        "name": "require",
+                        "short-help": "Advertise the capability; refuse the session when the peer does not offer it"
+                      }
+                    ]
                   },
                   {
                     "children": [
@@ -4033,11 +4101,22 @@
                     "source": "config"
                   },
                   {
-                    "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).\nRequires session link-local on the peer or its group:\nthe configuration is refused without it, because ze must\nsend its own link-local address once the capability is\nnegotiated (draft-ietf-idr-linklocal-capability Section 4).",
-                    "kind": "container",
+                    "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).\nRequires session link-local on the peer or its group:\nthe configuration is refused without it, because ze must\nsend its own link-local address once the capability is\nnegotiated (draft-ietf-idr-linklocal-capability Section 4).\nOnly enable and disable: the plugin enforces neither\nrequire nor refuse, so the schema does not offer them.\nA peer's value overrides its group's; absent on both\nmeans not advertised.",
+                    "kind": "leaf",
                     "name": "link-local-nexthop",
-                    "short-help": "Link-local next-hop capability.",
-                    "source": "config"
+                    "short-help": "Link-local next-hop capability: enable or disable.",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "disable",
+                        "short-help": "Do not advertise the capability, overriding the group"
+                      },
+                      {
+                        "name": "enable",
+                        "short-help": "Advertise the capability"
+                      }
+                    ]
                   },
                   {
                     "children": [
@@ -4093,11 +4172,30 @@
                     "source": "config"
                   },
                   {
-                    "description": "The capability lets the peer request a full re-advertisement of the routes, without a session\nteardown.",
-                    "kind": "container",
+                    "description": "The capability lets the peer request a full re-advertisement of the routes, without a session\nteardown. enable also advertises Enhanced Route Refresh (RFC 7313). Absent means not advertised.",
+                    "kind": "leaf",
                     "name": "route-refresh",
-                    "short-help": "Route Refresh capability (RFC 2918).",
-                    "source": "config"
+                    "short-help": "Route Refresh capability mode (RFC 2918): enable, disable, require or refuse.",
+                    "source": "config",
+                    "type": "capability-mode",
+                    "values": [
+                      {
+                        "name": "disable",
+                        "short-help": "Do not advertise the capability; no enforcement"
+                      },
+                      {
+                        "name": "enable",
+                        "short-help": "Advertise the capability; no enforcement"
+                      },
+                      {
+                        "name": "refuse",
+                        "short-help": "Do not advertise the capability; refuse the session when the peer offers it"
+                      },
+                      {
+                        "name": "require",
+                        "short-help": "Advertise the capability; refuse the session when the peer does not offer it"
+                      }
+                    ]
                   },
                   {
                     "children": [
@@ -6107,11 +6205,30 @@
                     ]
                   },
                   {
-                    "description": "The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that\ncarries many attributes needs it.",
-                    "kind": "container",
+                    "description": "The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that\ncarries many attributes needs it. Absent means not advertised.",
+                    "kind": "leaf",
                     "name": "extended-message",
-                    "short-help": "Extended Message capability (RFC 8654).",
-                    "source": "config"
+                    "short-help": "Extended Message capability mode (RFC 8654): enable, disable, require or refuse.",
+                    "source": "config",
+                    "type": "capability-mode",
+                    "values": [
+                      {
+                        "name": "disable",
+                        "short-help": "Do not advertise the capability; no enforcement"
+                      },
+                      {
+                        "name": "enable",
+                        "short-help": "Advertise the capability; no enforcement"
+                      },
+                      {
+                        "name": "refuse",
+                        "short-help": "Do not advertise the capability; refuse the session when the peer offers it"
+                      },
+                      {
+                        "name": "require",
+                        "short-help": "Advertise the capability; refuse the session when the peer does not offer it"
+                      }
+                    ]
                   },
                   {
                     "children": [
@@ -6181,11 +6298,22 @@
                     "source": "config"
                   },
                   {
-                    "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).\nRequires session link-local on the peer or its group:\nthe configuration is refused without it, because ze must\nsend its own link-local address once the capability is\nnegotiated (draft-ietf-idr-linklocal-capability Section 4).",
-                    "kind": "container",
+                    "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).\nRequires session link-local on the peer or its group:\nthe configuration is refused without it, because ze must\nsend its own link-local address once the capability is\nnegotiated (draft-ietf-idr-linklocal-capability Section 4).\nOnly enable and disable: the plugin enforces neither\nrequire nor refuse, so the schema does not offer them.\nA peer's value overrides its group's; absent on both\nmeans not advertised.",
+                    "kind": "leaf",
                     "name": "link-local-nexthop",
-                    "short-help": "Link-local next-hop capability.",
-                    "source": "config"
+                    "short-help": "Link-local next-hop capability: enable or disable.",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "disable",
+                        "short-help": "Do not advertise the capability, overriding the group"
+                      },
+                      {
+                        "name": "enable",
+                        "short-help": "Advertise the capability"
+                      }
+                    ]
                   },
                   {
                     "children": [
@@ -6241,11 +6369,30 @@
                     "source": "config"
                   },
                   {
-                    "description": "The capability lets the peer request a full re-advertisement of the routes, without a session\nteardown.",
-                    "kind": "container",
+                    "description": "The capability lets the peer request a full re-advertisement of the routes, without a session\nteardown. enable also advertises Enhanced Route Refresh (RFC 7313). Absent means not advertised.",
+                    "kind": "leaf",
                     "name": "route-refresh",
-                    "short-help": "Route Refresh capability (RFC 2918).",
-                    "source": "config"
+                    "short-help": "Route Refresh capability mode (RFC 2918): enable, disable, require or refuse.",
+                    "source": "config",
+                    "type": "capability-mode",
+                    "values": [
+                      {
+                        "name": "disable",
+                        "short-help": "Do not advertise the capability; no enforcement"
+                      },
+                      {
+                        "name": "enable",
+                        "short-help": "Advertise the capability; no enforcement"
+                      },
+                      {
+                        "name": "refuse",
+                        "short-help": "Do not advertise the capability; refuse the session when the peer offers it"
+                      },
+                      {
+                        "name": "require",
+                        "short-help": "Advertise the capability; refuse the session when the peer does not offer it"
+                      }
+                    ]
                   },
                   {
                     "children": [
@@ -28727,7 +28874,7 @@
                   {
                     "children": [
                       {
-                        "description": "Route-based IPsec encrypts the traffic the routing table forwards\ninto the named XFRM interface. Commit refuses a name beside mode\ntransport, because an XFRM interface carries tunnel-mode encapsulation.\nNo code maps the name to the if-id of that interface today. The Child\nSA is installed with if_id 0, and the binding carries no traffic.",
+                        "description": "Route-based IPsec encrypts the traffic the routing table forwards\ninto the named XFRM interface. Commit refuses a name beside mode\ntransport, because an XFRM interface carries tunnel-mode encapsulation.\nZe installs the Child SA with the if-id of the named interface. A name\nthat is not an XFRM interface, or one whose if-id is 0, refuses the Child\nSA, so the tunnel stays down rather than coming up unbound.",
                         "kind": "leaf",
                         "name": "bind",
                         "short-help": "VTI interface name to bind this peer's traffic to.",
@@ -28735,7 +28882,7 @@
                         "type": "string"
                       }
                     ],
-                    "description": "The interface itself is declared under interfaces xfrm, where the if-id\nleaf carries the identifier a bound security association must match. Ze joins\nthe two nowhere, so every Child SA is installed with if_id 0.",
+                    "description": "The interface itself is declared under interfaces xfrm, where the if-id\nleaf carries the identifier a bound security association must match. Ze reads\nthat if-id through the name under bind and installs this peer's Child SAs with it.",
                     "kind": "container",
                     "name": "vti",
                     "short-help": "Virtual Tunnel Interface binding.",

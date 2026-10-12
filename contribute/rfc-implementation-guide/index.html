@@ -708,6 +708,9 @@ declared by the test.</p>
 </tr>
 </tbody>
 </table>
+<p>A scheduled workflow names a runner directly, or as the lab of a wrapper whose
+action table declares a <code>le-words</code> keyword: <code>./le test qemu docker-lab lab "test integration interop"</code> credits <code>test integration interop</code> as well as
+<code>docker-lab</code> (<code>workflowNestedLe</code> in <code>internal/le/rfc/carriers.go</code>).</p>
 <p>The four legacy trees under <code>test/interop*/</code> carry the same interop kinds through
 <code>legacyInteropCarriers</code>, keyed on a <code>/check.py</code> suffix.</p>
 <p>A unit test file's name follows its tags: a file whose tags cite one RFC is
@@ -1053,7 +1056,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
                 </div>
             </div>
         </footer>

@@ -26,7 +26,7 @@ command below it. `show interface` is registered at two words and takes an
 interface name, so `brief`, `scan`, `type`, `errors`, `rate`, and the two
 `name <name> ...` forms all go to the daemon rather than being read as interface
 names.
-<!-- source: internal/component/command/registry/registry.go -- LookupLocal prefix refusal -->
+<!-- source: internal/component/command/local.go -- LookupLocal prefix refusal -->
 
 ### Peer selectors on a destructive command
 
@@ -67,7 +67,8 @@ container's name. That name is the word the operator types the value after, so
 `send bgp <selector> unicast <prefix>` binds the selector and leaves the
 prefix to the handler. The shape-based fallback stays for a command that
 anchors nothing, and both refuse ambiguity: two candidates name none.
-<!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens, anchoredDef, implicitSelectorDef -->
+<!-- source: internal/component/plugin/server/command.go -- matchCommandTokens, anchoredDef, implicitSelectorDef -->
+<!-- source: internal/component/command/argbind.go -- ValidateArgs, positionalDef -->
 <!-- source: internal/component/config/yang/command.go -- appendAnchored -->
 
 ### A command declares what its answer holds
@@ -214,7 +215,7 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 ```
 
 
-**Commit confirmed:** The editor supports `commit confirmed <seconds>` for safe remote changes. The config is applied immediately but auto-reverts if `confirm` is not issued within the timeout window (1-3600 seconds). Use `confirm abort` to revert manually. Modeled after Junos commit confirmed.
+**Commit confirmed:** The editor supports `commit confirmed <seconds>` for safe remote changes. The config is applied immediately but auto-reverts if `commit accept` is not issued within the timeout window (1-3600 seconds). Use `commit abort` to revert manually. A plain commit is `commit now`; `commit verify` validates without applying. Modeled after Junos commit confirmed.
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
 
 **Command history persistence:** Both `ze config edit` and `ze cli` persist command history to the `database/` store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).
