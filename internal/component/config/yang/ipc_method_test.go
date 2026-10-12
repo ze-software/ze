@@ -1,3 +1,8 @@
+// Design: docs/architecture/api/process-protocol.md -- the plugin IPC methods the YANG loader publishes.
+//
+// This test lives beside the loader rather than beside the IPC modules
+// because internal/core is the leaf tier and does not import a component.
+
 package yang_test
 
 import (
