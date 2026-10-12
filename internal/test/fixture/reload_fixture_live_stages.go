@@ -33,7 +33,7 @@ const (
 // The script is one step per line; blank lines and lines starting with # are
 // skipped:
 //
-//	await-file <path>            wait for a file in the work directory (ze-peer's established-file)
+//	await-file <path>            wait for a file in the work directory (the test peer's established-file)
 //	reload <source>              copy <source> over ze-bgp.conf, then SIGHUP the daemon (daemon.pid)
 //	has <command> => <needle>    poll <command> until its JSON answer contains <needle>
 //	lacks <command> => <needle>  poll <command> until its JSON answer does not contain <needle>

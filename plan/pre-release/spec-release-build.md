@@ -325,7 +325,7 @@ N-A: tooling, no protocol behavior changes.
 - `internal/le/site/build.go` - install.sh and the public key
 - `internal/le/workflowcheck/workflowcheck_test.go` - the new workflow's privileges
 - `go.mod`, `go.sum`, `vendor/` - nFPM v2.47.0
-- `ai/INDEX.md` - the le inventory row
+- `ai/INDEX.md` - the le repo inventory row
 - `plan/pre-release/spec-release-distribution.md` - scope amended to consume this spec's output; the `database.zefs` statement corrected
 - `docs/guide/quickstart.md` - installation by package, Homebrew and curl
 - `docs/guide/self-update.md`, `docs/architecture/config/system-update.md` - the package-managed refusal

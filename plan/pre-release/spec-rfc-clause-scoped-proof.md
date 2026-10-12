@@ -264,7 +264,7 @@ Only `internal/le/rfc/partial_test.go` and `test/ui/le-rfc-partial-proof.ci`. Pr
 |---|----------|----------|---------------|
 | 1 | User feature | N-A | No product capability; public evidence covered below |
 | 2 | Config syntax | N-A | No config changes |
-| 3 | CLI | Yes | `docs/contributing/rfc-conformance-gates.md`; le evidence output, not product command-reference |
+| 3 | CLI | Yes | `docs/contributing/rfc-conformance-gates.md`; le verify evidence output, not product command-reference |
 | 4 | Product API/RPC | N-A | No product RPC; site JSON covered in website/AI |
 | 5 | Plugin | N-A | No plugin changes |
 | 6 | Guide | Yes | Conformance gates page is this tool's guide |

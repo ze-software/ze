@@ -117,11 +117,11 @@ func TestProcSysWriteDeniesKeepAClassAndADirectory(t *testing.T) {
 // mount rules it was given, and docker-default's other denies.
 // PREVENTS: a lab profile that silently drops one of docker-default's denies.
 func TestDockerDefaultProfileKeepsTheRest(t *testing.T) {
-	profile := DockerDefaultProfile("ze-test", "  deny @{PROC}/sys/** w,\n", "  deny mount,\n")
+	profile := DockerDefaultProfile("ze-lab", "  deny @{PROC}/sys/** w,\n", "  deny mount,\n")
 	for _, want := range []string{
-		"profile ze-test flags=(attach_disconnected,mediate_deleted) {",
-		"signal (send,receive) peer=ze-test,",
-		"ptrace (trace,tracedby,read,readby) peer=ze-test,",
+		"profile ze-lab flags=(attach_disconnected,mediate_deleted) {",
+		"signal (send,receive) peer=ze-lab,",
+		"ptrace (trace,tracedby,read,readby) peer=ze-lab,",
 		"  deny @{PROC}/sys/** w,\n",
 		"  deny mount,\n",
 		"deny @{PROC}/sysrq-trigger rwklx,",

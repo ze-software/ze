@@ -54,6 +54,8 @@ var retiredRecords = [...]retiredRecord{
 	{path: "website/changes/discord/2026-08-03-weekly.md", why: "a published weekly update"},
 	{path: "website/talks/", why: "published talks record the commands of their day"},
 	{path: "plan/known-failures/", why: "known-failure shards record the command that failed on the day it failed"},
+	{path: "rfc/audit/", why: "RFC audit verdicts record the carrier commands they judged, and the renames those carriers went through"},
+	{path: "plan/handoff-le-subject-first.md", why: "the handoff of the subject-first rename lists the binaries that rename retired"},
 	{
 		path: "internal/le/doc/check/testdata/doc_citation_baseline.txt",
 		why:  "the link gate's baseline lists the dead paths that historical records already carried",

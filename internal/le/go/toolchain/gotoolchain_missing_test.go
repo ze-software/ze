@@ -94,7 +94,7 @@ func TestTheLauncherRefusesWithoutGo(t *testing.T) {
 	}
 
 	checkout := t.TempDir()
-	for _, name := range []string{"le", "feature-tags", "feature-gates.txt", "go.mod"} {
+	for _, name := range []string{"feature-tags", "feature-gates.txt", "go.mod", "le"} {
 		body, readErr := os.ReadFile(filepath.Join(repository, name)) //nolint:gosec // the files this repository's launcher reads
 		if readErr != nil {
 			t.Fatalf("read %s: %v", name, readErr)
