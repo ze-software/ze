@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -778,9 +779,19 @@ func plugin14DecoratorMerge(ctx context.Context, _ *sdk.Plugin, events <-chan pl
 		return errors.New("no update-rpki events received")
 	}
 	foundValid, foundInvalid, foundNotFound := false, false, false
-	for _, event := range collected {
+	for index, event := range collected {
 		bgp := plugin14Map(event["bgp"])
 		update := plugin14Map(bgp["update"])
+		// Each event's message, update and rpki section, so a run that misses a
+		// state shows which event carried what rather than only the count.
+		var line textbuf.Buffer
+		line.Str("update-rpki event ").Int(int64(index + 1)).
+			Str(": message=").Str(plugin14Text(bgp["message"])).
+			Str(" update=").Str(plugin14Text(update)).
+			Str(" rpki=").Str(plugin14Text(bgp["rpki"])).Byte('\n')
+		if err := line.StdErr(); err != nil {
+			return err
+		}
 		if len(update) == 0 {
 			return fmt.Errorf("update-rpki event missing or empty update section: %v", event)
 		}
