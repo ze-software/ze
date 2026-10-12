@@ -1352,7 +1352,7 @@
       "claim-sha": "a6c41744b5bc4d53",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
-      "producer-sha": "488250d9a64aa748",
+      "producer-sha": "a8163b3c964b8110",
       "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1385,7 +1385,7 @@
       "claim-sha": "b28af858e84b6ebf",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
-      "producer-sha": "488250d9a64aa748",
+      "producer-sha": "a8163b3c964b8110",
       "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
