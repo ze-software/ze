@@ -1135,7 +1135,7 @@ an exabgp-compat config is left alone for the same reason.
 <!-- source: internal/test/runner/loopback.go -- probe, error text, --bind, config-local and local-address scan -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- runOneExaBGPTest, the exabgp-compat preflight call -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
-<!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
+<!-- source: internal/test/runner/loopback_bsd.go -- SIOCAIFADDR on macOS and FreeBSD -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 
 An exabgp-compat case runs TWO processes, ze and the mock BGP server, and its

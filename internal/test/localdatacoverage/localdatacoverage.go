@@ -402,7 +402,7 @@ func inPrivateWorkspace(scenario func(string) error) (result error) {
 func runScenario(output io.Writer, work string) error {
 
 	configPath := filepath.Join(work, "pipe-local.conf")
-	if err := writeFixture(configPath, "environment {\n    cli {\n        format {\n            default table;\n        }\n    }\n}\nbgp {\n}\n"); err != nil {
+	if err := writeFixture(configPath, "environment {\n    cli {\n        format {\n            default table;\n        }\n    }\n}\nbgp {\n    router-id 203.0.113.253;\n    session { asn { local 65000; } }\n}\n"); err != nil {
 		return err
 	}
 	if err := writeFixture(configPath+".draft", "set environment cli format default json\n"); err != nil {
@@ -410,9 +410,10 @@ func runScenario(output io.Writer, work string) error {
 	}
 	// The diff needs a second configuration that differs inside bgp{}: the
 	// command resolves the BGP tree, so a difference anywhere else is invisible
-	// to it.
+	// to it. Both files carry the mandatory bgp values (router-id, session asn
+	// local), so the difference is the router-id value.
 	otherPath := filepath.Join(work, "pipe-local-other.conf")
-	if err := writeFixture(otherPath, "bgp {\n    router-id 10.0.0.1;\n}\n"); err != nil {
+	if err := writeFixture(otherPath, "bgp {\n    router-id 10.0.0.1;\n    session { asn { local 65000; } }\n}\n"); err != nil {
 		return err
 	}
 	resolvedConfigPath, err := filepath.EvalSymlinks(configPath)
@@ -452,9 +453,10 @@ func runScenario(output io.Writer, work string) error {
 	if err != nil {
 		return err
 	}
-	added, _ := document["added"].(map[string]any)
-	if err := require(added["router-id"] == "10.0.0.1",
-		"config diff lost the router-id the second config adds: %#v", payload); err != nil {
+	changed, _ := document["changed"].(map[string]any)
+	routerID, _ := changed["router-id"].(map[string]any)
+	if err := require(routerID["old"] == "203.0.113.253" && routerID["new"] == "10.0.0.1",
+		"config diff lost the router-id the second config changes: %#v", payload); err != nil {
 		return err
 	}
 

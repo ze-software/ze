@@ -1,14 +1,30 @@
-# Test: ze doctor --json reports missing PKI CA certificate
-# VALIDATES: AC-9 PKI CA without certificate material emits doctor-pki-cert.
+# Test: ze doctor --json reports PKI CA certificate material it cannot use
+# VALIDATES: AC-9 PKI CA with unusable certificate material emits doctor-pki-cert.
+# VALIDATES: a PKI CA with no certificate at all is refused by the YANG
+# mandatory check (RFC 7950 Section 7.6.5) before doctor's PKI check runs, and
+# doctor reports the refusal (doctor-config-parse) naming the missing leaf.
 
-tmpfs=pki-missing-cert.conf:terminator=EOF_CONF
+tmpfs=pki-bad-cert.conf:terminator=EOF_CONF
 pki {
     ca root {
+        certificate "not-base64-der!";
     }
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze doctor --json config pki-missing-cert.conf
+tmpfs=pki-missing-cert.conf:terminator=EOF_MISSING
+pki {
+    ca root {
+    }
+}
+EOF_MISSING
+
+cmd=foreground:seq=1:exec=ze doctor --json config pki-bad-cert.conf:exit=1
 expect=exit:code=1
 expect=stdout:contains=doctor-pki-cert
-expect=stdout:contains=PKI CA root
+expect=stdout:contains=PKI CA root: certificate is not base64 DER
+
+cmd=foreground:seq=2:exec=ze doctor --json config pki-missing-cert.conf:exit=1
+expect=exit:code=1
+expect=stdout:contains=doctor-config-parse
+expect=stdout:contains=pki/ca[root]/certificate: mandatory field
