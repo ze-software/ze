@@ -443,9 +443,12 @@ deregistration does not revert), and BIRD lets the oldest live request win
 (`bfd_reconfigure_session` takes `HEAD(s->request_list)` and merges it field by
 field over the interface config). Neither takes the shortest Detection Time.
 Authentication is outside that sentence: a shared session runs one key, and
-`authMismatchCase` already refuses a join with another. The owner picks the rule
-(shortest Detection Time per RFC 5882 Section 4.1, last writer as FRR, or oldest
-as BIRD) before Phase 4 step 3 is coded.
+`authMismatchCase` already refuses a join with another. Owner decision, Thomas,
+2026-10-12, "Fastest detection (Recommended)": a shared session runs the
+parameters giving the shortest Detection Time among its current clients (RFC 5882
+Section 4.1's advice), recomputed whenever a client joins, leaves or edits its
+profile, independent of registration order; a change of the local timers starts a
+Poll Sequence (RFC 5880 Section 6.8.3).
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
