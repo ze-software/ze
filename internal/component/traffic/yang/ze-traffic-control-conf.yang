@@ -11,6 +11,11 @@ module ze-traffic-control-conf {
                  `usage`, contributed by the traffic-usage plugin) augment
                  the same `traffic` parent.";
 
+    revision 2026-10-12 {
+        description "Make qdisc a presence container, so its mandatory type is
+                     required only when a qdisc is configured, not in every
+                     interface entry (RFC 7950 Section 7.6.5).";
+    }
     revision 2026-07-02 {
         description "Nest traffic-control under traffic/control; the container
                      now owns the shared traffic parent that traffic-usage
@@ -89,8 +94,9 @@ filter type the backend does not support.";
                 }
 
                 container qdisc {
+                    presence "Attach a root queueing discipline to the interface.";
                     description "Ze attaches this qdisc at the root of the interface, and every
-class hangs beneath it.";
+class hangs beneath it. An interface entry with no qdisc block attaches none.";
                     ze:help "The root queueing discipline of the interface.";
 
                     leaf type {
