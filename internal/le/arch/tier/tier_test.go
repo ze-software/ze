@@ -660,3 +660,48 @@ func TestEveryTopLevelSubsystemIsClassified(t *testing.T) {
 		t.Fatalf("subsystems %q, want %q", sortedNames(rows), want)
 	}
 }
+
+// VALIDATES: a blank import from one schema package to another, the edge a
+// generated yang/register.go carries for a YANG import, does not make the
+// imported plugin engine a component.
+// PREVENTS: the placement gate reading the owner-approved schema edge
+// (schemaDependency) as a feature dependency, which flagged fib/kernel,
+// anomaly/detect and ddos/detect after 7d69d6a669, while the ownership gate
+// admitted the same edge.
+func TestASchemaImportDoesNotMoveAnEngine(t *testing.T) {
+	files := map[string]string{
+		fixtureModuleFile:                             fixtureModuleContents,
+		"internal/plugins/edgeengine/r.go":            engineFile("edgeengine"),
+		"internal/plugins/edgeengine/yang/y.go":       "package yang\n",
+		"internal/plugins/augmenter/r.go":             engineFile("augmenter"),
+		"internal/plugins/augmenter/yang/register.go": blankImport("yang", "internal/plugins/edgeengine/yang"),
+	}
+	root := fixtureTree(t, files)
+	edges, err := collectEdges(root, fixtureModule)
+	if err != nil {
+		t.Fatalf("collecting edges: %v", err)
+	}
+	misplaced, err := engineMisplacements(root, fixtureModule, edges)
+	if err != nil {
+		t.Fatalf("computing misplacements: %v", err)
+	}
+	if len(misplaced) != 0 {
+		t.Fatalf("misplacements %v, want none: a schema-to-schema blank import is not a feature dependency", misplaced)
+	}
+
+	// The same edge as a named import from implementation code still counts.
+	files["internal/plugins/augmenter/yang/register.go"] = "package yang\n"
+	files["internal/plugins/augmenter/use.go"] = blankImport("augmenter", "internal/plugins/edgeengine/yang")
+	root = fixtureTree(t, files)
+	edges, err = collectEdges(root, fixtureModule)
+	if err != nil {
+		t.Fatalf("collecting edges: %v", err)
+	}
+	misplaced, err = engineMisplacements(root, fixtureModule, edges)
+	if err != nil {
+		t.Fatalf("computing misplacements: %v", err)
+	}
+	if misplaced["internal/plugins/edgeengine"] != AreaComponent {
+		t.Fatalf("misplacements %v, want internal/plugins/edgeengine in component: a feature imports it", misplaced)
+	}
+}

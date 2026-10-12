@@ -404,7 +404,11 @@ func engineSubsystems(tree string) (map[string]bool, error) {
 //
 // It excludes the engine subtree, tests, generated composition root, cmd/ze
 // dispatch, and non-feature trees. None is a feature that depends on the engine.
-func engineDepended(engineRel, module string, edges Edges) bool {
+// It also excludes a blank import between two schema packages, the edge
+// schemaDependency admits for the ownership gate: a module's YANG import
+// mirrored in Go links a schema, not the engine, so both gates judge that one
+// owner-approved edge the same way.
+func engineDepended(tree, engineRel, module string, edges Edges) (bool, error) {
 	var tb textbuf.Buffer
 	pkg := tb.Str(module).Byte('/').Str(engineRel).String()
 	tb.Reset()
@@ -421,12 +425,45 @@ func engineDepended(engineRel, module string, edges Edges) bool {
 			if isRegistrationImporter(importer) || hasAnyPrefix(importer, NonFeaturePrefixes[:]) {
 				continue
 			}
+			schema, err := schemaImport(tree, importer, imported)
+			if err != nil {
+				return false, err
+			}
+			if schema {
+				continue
+			}
 			if strings.HasPrefix(importer, "internal/component/") || strings.HasPrefix(importer, "internal/plugins/") {
-				return true
+				return true, nil
 			}
 		}
 	}
-	return false
+	return false, nil
+}
+
+// schemaImport reports whether importer reaches imported only through the
+// schema-to-schema blank import that schemaDependency admits. It reads the
+// importer's import block, because Edges keeps no import kind.
+func schemaImport(tree, importer, imported string) (bool, error) {
+	if path.Base(path.Dir(importer)) != schemaDirName {
+		return false, nil
+	}
+	if path.Base(imported) != schemaDirName {
+		return false, nil
+	}
+	file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(tree, filepath.FromSlash(importer)), nil, parser.ImportsOnly)
+	if err != nil {
+		return false, err
+	}
+	for _, spec := range file.Imports {
+		importPath, unquoteErr := strconv.Unquote(spec.Path.Value)
+		if unquoteErr != nil {
+			return false, unquoteErr
+		}
+		if importPath == imported && schemaDependency(importer, imported, spec) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // hasAnyPrefix reports whether rel starts with any of the prefixes.
@@ -463,7 +500,11 @@ func engineMisplacements(tree, module string, edges Edges) (map[string]string, e
 			area = AreaComponent
 		}
 		expected := AreaPlugins
-		if engineDepended(engine, module, edges) {
+		depended, err := engineDepended(tree, engine, module, edges)
+		if err != nil {
+			return nil, err
+		}
+		if depended {
 			expected = AreaComponent
 		}
 		if expected != area {

@@ -135,7 +135,9 @@ schema package (a `yang` directory) importing another schema package, which is
 how a module's YANG `import` of a module another plugin registers is mirrored
 in Go (`command-ownership.md`, "YANG as Data, Not Code"). A schema package holds
 modules and no implementation, and the owner approved schema packages
-importing each other on 2026-10-09.
+importing each other on 2026-10-09. The engine-placement gate admits the same
+edge: a blank import between two schema packages does not make the imported
+plugin engine a component (`engineDepended`, `schemaImport`).
 
 Test files, test/chaos/performance harnesses, `internal/le` and `bin` tools are not
 production importers. The shared scanner excludes fixture `testdata` directories,
