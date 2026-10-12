@@ -513,14 +513,15 @@ func TestIdenticalOperatorBindingReplacingDerived(t *testing.T) {
 }
 
 // graphUpObserver stands where the event dispatcher's observer stands, and
-// records at each FSM up the processes the published graph feeds the peer's
-// state event: the set onPeerStateChange reads at delivery time and sends the
-// up to.
+// records at each FSM up and each FSM down the processes the published graph
+// feeds the peer's state event: the set onPeerStateChange reads at delivery
+// time and sends the event to.
 type graphUpObserver struct {
 	srv *pluginserver.Server
 
-	mu  sync.Mutex
-	fed [][]string
+	mu    sync.Mutex
+	fed   [][]string
+	downs [][]string
 }
 
 func (o *graphUpObserver) OnPeerEstablished(peer *Peer) {
@@ -530,7 +531,31 @@ func (o *graphUpObserver) OnPeerEstablished(peer *Peer) {
 	o.mu.Unlock()
 }
 
-func (o *graphUpObserver) OnPeerClosed(*Peer, string) {}
+func (o *graphUpObserver) OnPeerClosed(peer *Peer, _ string) {
+	fed := recv(o.srv.DeliveryGraph(), bgpevents.EventState, events.DirUnspecified, peer.settings.Address.String())
+	o.mu.Lock()
+	o.downs = append(o.downs, fed)
+	o.mu.Unlock()
+}
+
+// downsTo counts the downs name received: the targeted ones the recorder saw
+// and the FSM ones whose graph read fed it.
+func downsTo(name string, rec *bindRecorder, obs *graphUpObserver) int {
+	count := 0
+	for _, step := range rec.recorded() {
+		if step.event == "down" && slices.Contains(step.processes, name) {
+			count++
+		}
+	}
+	obs.mu.Lock()
+	defer obs.mu.Unlock()
+	for _, fed := range obs.downs {
+		if slices.Contains(fed, name) {
+			count++
+		}
+	}
+	return count
+}
 
 // upsTo counts the ups name received: the targeted ones the recorder saw and
 // the FSM ones whose graph read fed it.
@@ -667,6 +692,45 @@ func TestDetachedProcessToldDownWhenSessionClosesAfterPublish(t *testing.T) {
 		events = append(events, step.event+":"+strings.Join(step.processes, ","))
 	}
 	assert.Equal(t, []string{"down:monitor"}, events, "the detached process is told down")
+}
+
+// TestAttachWhileSessionClosingIsToldDown proves review finding I5: the
+// session closes while a reload attaches a process. The FSM down reads the
+// graph before the publish carries the new edge, so it misses the process the
+// reload has just told up. The apply MUST tell that process down itself, and
+// MUST NOT restart a session that is already going away.
+//
+// Method: the recorder's hook runs the FSM's close announcement right after
+// the targeted up (step 2), so its graph read lands before the step-3 publish
+// with no sleep. An observer reads the graph as the dispatcher's down does.
+// Red when nothing marks the session closing before that read.
+//
+// VALIDATES: announceClosed and applyHotSwappableSettings step 4.
+// PREVENTS: a process holding an up for a session no down reached it for.
+func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	setSessionFacts(peer, true, true)
+	srv, rec := newBindingReactor(t, peer, conn)
+	obs := &graphUpObserver{srv: srv}
+	peer.reactor.addPeerObserver(obs)
+	session := peer.session
+	rec.onBind = func() {
+		peer.announceClosed(peer.reactor, session, "connection lost")
+	}
+
+	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+	require.Empty(t, reason)
+	peer.applyHotSwappableSettings(next, copier)
+
+	require.Equal(t, 1, upsTo("monitor", rec, obs), "the attached process was told up once")
+	assert.Equal(t, 1, downsTo("monitor", rec, obs), "and down once for the session that closed")
+	peer.mu.RLock()
+	defer peer.mu.RUnlock()
+	for _, op := range peer.opQueue {
+		assert.NotEqual(t, PeerOpTeardown, op.Type, "a closing session is not restarted")
+	}
+	assert.Empty(t, bgpFrames(t, conn.written()), "a closing session is sent no ROUTE-REFRESH")
 }
 
 // assertTeardownQueued checks the apply restarted the session: the peer is

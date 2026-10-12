@@ -326,7 +326,8 @@ func (p *Peer) writeBindings(r *Reactor, bindings []ProcessBinding) {
 	}
 }
 
-// sessionUpPhase is how far the plugins were told that one session is up. A
+// sessionUpPhase is how far the plugins were told that one session is up, and
+// whether they are being told it closed. A
 // reload that attaches a process reads it to decide whether the process owes a
 // targeted up (Peer.applyHotSwappableSettings), because the FSM's own up reads
 // the delivery graph at delivery time (onPeerStateChange) and so reaches every
@@ -344,6 +345,12 @@ const (
 	// sessionUpDelivered: the FSM up returned, so it read the graph before
 	// anything published from here on.
 	sessionUpDelivered
+	// sessionUpClosing: the session left Established and the FSM down is
+	// being delivered, or was. It reads the graph after this mark, at a point
+	// no reader can place, so a process whose edge is published now may or may
+	// not receive it. A process given a targeted up must be told down by
+	// whoever gave it.
+	sessionUpClosing
 )
 
 // upPhaseLocked returns how far the plugins were told that session is up. A
@@ -362,8 +369,9 @@ func (p *Peer) upPhaseLocked(session *Session) sessionUpPhase {
 // markSessionUp records how far the plugins were told that session is up. It
 // writes under r.mu as well as p.mu because the reload's graph publish holds
 // r.mu while it reads the phase (applyHotSwappableSettings step 3): a phase
-// that moves to sessionUpDelivering after that read moved after the publish,
-// so the FSM up it precedes reads the published graph.
+// that moves to sessionUpDelivering or sessionUpClosing after that read moved
+// after the publish, so the FSM up or down it precedes reads the published
+// graph.
 func (p *Peer) markSessionUp(r *Reactor, session *Session, phase sessionUpPhase) {
 	r.mu.Lock()
 	p.mu.Lock()
@@ -383,6 +391,19 @@ func (p *Peer) announceEstablished(r *Reactor, session *Session, neg *capability
 	r.notifyPeerEstablished(p)
 	r.notifyPeerNegotiated(p, neg)
 	p.markSessionUp(r, session, sessionUpDelivered)
+}
+
+// announceClosed tells the plugins that session left Established: the state
+// down, to the processes the delivery graph feeds when it is read. The session
+// is marked closing BEFORE that read, so a reload publishing an attached
+// process's edge sees the mark whenever the down could have missed the edge,
+// and tells that process down itself (applyHotSwappableSettings step 4). A
+// mark after the read would leave a window in which the down missed the
+// process and the reload still judged the session up.
+// The caller MUST hold neither r.mu nor p.mu.
+func (p *Peer) announceClosed(r *Reactor, session *Session, reason string) {
+	p.markSessionUp(r, session, sessionUpClosing)
+	r.notifyPeerClosed(p, reason)
 }
 
 // bindProcesses tells the named processes, whose bindings bindings holds, that

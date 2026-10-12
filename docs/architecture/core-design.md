@@ -2286,16 +2286,24 @@ a process attached before it starts receives it and needs no second one.
    peer feeds. The delivery waits for every acknowledgement, and the graph still
    lacks the new edges, so no message of the session reaches a process before
    its up.
-3. The bindings are written and the graph republished. If the session is no
-   longer the one the up was about (it closed, or its up phase moved inside the
-   window), or the FSM up was being delivered when the apply began, the
-   attached processes are told down again and the session restarts: no process
-   holds an up for a session that is gone, or two ups.
+3. The bindings are written and the graph republished, and the session's
+   phase is read under the same reactor lock. The session's close marks it
+   closing (`Peer.announceClosed`) under that lock BEFORE its FSM down reads
+   the graph, so a down that read the graph without the new edges always
+   leaves the mark for this read to see. If the session is marked closing, the
+   attached processes are told down again and nothing else is done: the
+   session is going away on its own, so it is neither restarted nor caught up.
+   Otherwise, if the session is no longer the one the up was about (its up
+   phase moved inside the window, or it left Established), or the FSM up was
+   being delivered when the apply began, the attached processes are told down
+   again and the session restarts. Either way no process holds an up for a
+   session that is gone, or two ups.
 4. Processes that lost their binding are told the peer is down for them alone,
    whenever any up for the session may have reached them, including when the
    session closed after the republish, so they drop its routes while the others
-   keep them. Each attached process is caught up in the directions its grant
-   covers (`Session.bindingCatchUp`).
+   keep them. Each attached process of a session that is still Established and
+   not closing is caught up in the directions its grant covers
+   (`Session.bindingCatchUp`).
 
 | The grant | The session | Catch-up |
 |-----------|-------------|----------|
@@ -2322,7 +2330,7 @@ dead route, and nothing logs it (journal row 2026-10-10 in
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, handleAttachedUp, sendBatchedWithdrawals -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryRoutes -->
 
-<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- receiveOnly, receiveBindingsDeliverable, Session.bindingCatchUp, Peer.bindProcesses, Peer.catchUpBoundProcesses -->
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- receiveOnly, receiveBindingsDeliverable, Session.bindingCatchUp, Peer.bindProcesses, Peer.catchUpBoundProcesses, Peer.announceClosed -->
 <!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- applyHotSwappableSettings -->
 
 A withdrawal is built from the ANNOUNCEMENT the peer received and then rewritten

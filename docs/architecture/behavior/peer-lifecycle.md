@@ -281,7 +281,10 @@ sequence exactly as it reads above.
    raise `session-dropped` on the report bus via
    `raiseSessionDropped`. The check avoids duplicating an event the
    operator already sees elsewhere when NOTIFICATION fired.
-3. Notify the reactor via `reactor.notifyPeerClosed(p, reason)`.
+3. `p.announceClosed(reactor, session, reason)`: mark the session closing
+   under the reactor lock, so a reload attaching a process at the same moment
+   tells that process down itself (`docs/architecture/core-design.md`, section
+   18a), then notify the reactor via `reactor.notifyPeerClosed(p, reason)`.
 4. Clear negotiated capabilities and encoding contexts.
 5. `setState(PeerStateConnecting)`.
 6. Log `session closed` with the reason.

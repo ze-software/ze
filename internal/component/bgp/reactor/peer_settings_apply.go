@@ -386,20 +386,29 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	// closed, holds attached processes with a missing or a second up, so it
 	// restarts instead, after telling down the ones step 2 told up.
 	//
+	// A session marked closing at the publish (Peer.announceClosed) is going
+	// away on its own: its FSM down read the graph after the mark, on either
+	// side of the publish, so it may have missed the attached processes. The
+	// ones step 2 told up are told down here, and the session is neither
+	// restarted, which would tear down the next one, nor caught up.
+	//
 	// A detached process is told down whenever any up may have reached it: an
 	// FSM up that read the graph before the publish fed it, and the FSM down
 	// of a session closing after the publish no longer does. A second down is
 	// harmless, a missing one leaves it holding the session's routes. Only a
 	// session no up was announced for, at step 1 or at the publish, owes it
 	// nothing: its up reads the graph without the edge.
-	restart := len(gained) > 0 && (!sameSession || announced == sessionUpDelivering)
-	if restart && established {
+	closing := announcedAtWrite == sessionUpClosing
+	restart := len(gained) > 0 && !closing && (!sameSession || announced == sessionUpDelivering)
+	if established && (restart || closing) {
 		p.unbindProcesses(r, gained)
 	}
 	if announced != sessionUpUnspecified || announcedAtWrite != sessionUpUnspecified {
 		p.unbindProcesses(r, detached)
 	}
 	switch {
+	case closing:
+		// Going away on its own: no restart and no catch-up.
 	case restart:
 		p.restartForBinding(gained, "session changed while processes were bound to it: restarting the session")
 	case established && p.State() == PeerStateEstablished:

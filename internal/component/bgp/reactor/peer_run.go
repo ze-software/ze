@@ -584,8 +584,11 @@ func (p *Peer) runOnce() error {
 			p.mu.RLock()
 			reactor := p.reactor
 			p.mu.RUnlock()
+			// announceClosed marks the session closing before the down reads
+			// the delivery graph, so a reload racing it can place that read
+			// (applyHotSwappableSettings).
 			if reactor != nil {
-				reactor.notifyPeerClosed(p, reason)
+				p.announceClosed(reactor, session, reason)
 			}
 
 			// Clear negotiated capabilities and encoding contexts on session teardown

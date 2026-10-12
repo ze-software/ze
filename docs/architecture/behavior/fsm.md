@@ -475,16 +475,16 @@ session.fsm.SetCallback(func(from, to fsm.State) {
     if to == fsm.StateEstablished {
         // ... set negotiated capabilities ...
         if reactor != nil {
-            reactor.notifyPeerEstablished(p)
+            p.announceEstablished(reactor, session, neg) // marks the up phase around notifyPeerEstablished
         }
-        go p.sendInitialRoutes()
+        p.startInitialRoutes()
     } else if from == fsm.StateEstablished {
         reason := "session closed"
         if to == fsm.StateIdle {
             reason = "connection lost"
         }
         if reactor != nil {
-            reactor.notifyPeerClosed(p, reason)
+            p.announceClosed(reactor, session, reason) // marks the session closing, then notifyPeerClosed
         }
         // ... clear capabilities ...
     }
@@ -492,6 +492,7 @@ session.fsm.SetCallback(func(from, to fsm.State) {
 ```
 <!-- source: internal/component/bgp/reactor/peer.go -- SetCallback on fsm -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyPeerEstablished, notifyPeerClosed -->
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceEstablished, Peer.announceClosed -->
 
 ### Peer lifecycle observers
 
