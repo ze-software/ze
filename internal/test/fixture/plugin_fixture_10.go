@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -421,6 +422,20 @@ func fixture10MPLSForwardingShow(ctx context.Context, plugin *sdk.Plugin) error 
 	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
 		return err
 	}
+	// Ze reads the kernel MPLS table on Linux alone. On any other host the
+	// command refuses with an error naming the OS, because an empty table there
+	// would read as "no MPLS routes". The fixture runs on the host ze runs on,
+	// so its own GOOS says which answer is correct.
+	if runtime.GOOS != "linux" {
+		if err := fixture10MPLSForwardingRefused(fixture10Call(ctx, plugin, "show mpls forwarding"), "mpls-forwarding"); err != nil {
+			return err
+		}
+		if err := fixture10MPLSForwardingRefused(fixture10Call(ctx, plugin, "show mpls forwarding limit 5"), "mpls-forwarding-limit"); err != nil {
+			return err
+		}
+		fmt.Fprintln(os.Stderr, "OK: show mpls forwarding refused, naming "+runtime.GOOS)
+		return nil
+	}
 	data, err := fixture10Object(fixture10Call(ctx, plugin, "show mpls forwarding"), "mpls-forwarding")
 	if err != nil {
 		return err
@@ -437,6 +452,24 @@ func fixture10MPLSForwardingShow(ctx context.Context, plugin *sdk.Plugin) error 
 		return fmt.Errorf("mpls-forwarding-limit: entries is %T", limited["entries"])
 	}
 	fmt.Fprintln(os.Stderr, "OK: show mpls forwarding returned an empty table")
+	return nil
+}
+
+// fixture10MPLSForwardingRefused checks the answer `show mpls forwarding` gives
+// on a host that is not Linux: an error that names Linux and the host's OS,
+// never a table.
+func fixture10MPLSForwardingRefused(reply fixture10Reply, label string) error {
+	if reply.status != statusError && reply.err == nil {
+		return fmt.Errorf("%s: expected a refusal off Linux, got status=%q data=%s", label, reply.status, reply.raw)
+	}
+	if reply.err == nil {
+		return fmt.Errorf("%s: refusal carries no error text", label)
+	}
+	for _, want := range []string{"Linux", runtime.GOOS} {
+		if !strings.Contains(reply.err.Error(), want) {
+			return fmt.Errorf("%s: refusal does not name %q: %w", label, want, reply.err)
+		}
+	}
 	return nil
 }
 

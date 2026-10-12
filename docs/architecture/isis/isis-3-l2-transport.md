@@ -60,8 +60,13 @@ operator action.
 ## Decision: the doctor check is split by platform and self-contained
 
 `doctor.go` holds the platform-neutral check body, so it is testable on any OS.
-`doctor_linux.go` and `doctor_other.go` hold the raw-socket probe. `register.go`
-registers the check from `init()`. The whole check lives under `transport/`, and
+`doctor_linux.go` and `doctor_other.go` hold the raw-socket probe,
+`checkRawSocket`, which returns the reason the socket is unavailable, and the
+check prints that reason as the warning. On Linux the reason wraps the socket
+error: a permission refusal (`EPERM`, `EACCES`) adds the `CAP_NET_RAW` hint, and
+any other error is reported as itself. On any other host the probe always
+refuses, naming the host's OS, because the transport is Linux-only.
+`register.go` registers the check from `init()`. The whole check lives under `transport/`, and
 it owns the `doctor-isis-raw-socket` diagnostic code. One code, one owner: the
 IS-IS component does not re-register it.
 

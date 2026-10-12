@@ -7,7 +7,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
-var rawSocketProbe = rawSocketAvailable
+var rawSocketProbe = checkRawSocket
 
 func checkOSPFRawSocket(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
@@ -17,12 +17,13 @@ func checkOSPFRawSocket(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnost
 	if tree.GetContainer("ospf") == nil {
 		return nil
 	}
-	if rawSocketProbe() {
+	err := rawSocketProbe()
+	if err == nil {
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
 		Code:     "doctor-ospf-raw-socket",
 		Severity: diagnostic.SeverityWarning,
-		Message:  "cannot open raw IP socket for protocol 89 (OSPF needs CAP_NET_RAW)",
+		Message:  err.Error(),
 	}}
 }

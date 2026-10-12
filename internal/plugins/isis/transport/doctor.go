@@ -18,7 +18,7 @@ import (
 )
 
 // rawSocketProbe is a test seam over the platform raw-socket probe.
-var rawSocketProbe = rawSocketAvailable
+var rawSocketProbe = checkRawSocket
 
 // checkISISRawSocket warns when IS-IS is configured but a raw AF_PACKET socket
 // cannot be opened (needs CAP_NET_RAW). It is a no-op when IS-IS is not
@@ -31,12 +31,13 @@ func checkISISRawSocket(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnost
 	if tree.GetContainer("isis") == nil {
 		return nil
 	}
-	if rawSocketProbe() {
+	err := rawSocketProbe()
+	if err == nil {
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
 		Code:     "doctor-isis-raw-socket",
 		Severity: diagnostic.SeverityWarning,
-		Message:  "cannot open raw AF_PACKET socket (IS-IS needs CAP_NET_RAW)",
+		Message:  err.Error(),
 	}}
 }

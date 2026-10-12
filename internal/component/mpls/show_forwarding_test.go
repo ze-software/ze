@@ -14,6 +14,7 @@ import (
 
 func TestShowMPLSForwardingArgs(t *testing.T) {
 	t.Run("no args returns done envelope", func(t *testing.T) {
+		withEmptyForwardingTable(t)
 		resp, err := handleShowMPLSForwarding(nil, commandtest.Args())
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -47,16 +48,29 @@ func TestShowMPLSForwardingArgs(t *testing.T) {
 	})
 }
 
+// withEmptyForwardingTable swaps the kernel reader for one that answers an
+// empty table the way a Linux read of a host with no MPLS routes does: a nil
+// slice and no error. The real reader answers from the host's kernel, which
+// holds routes on some hosts and refuses off Linux.
+func withEmptyForwardingTable(t *testing.T) {
+	t.Helper()
+	old := forwardingTable
+	forwardingTable = func(int) ([]forwardingEntry, error) { return nil, nil }
+	t.Cleanup(func() { forwardingTable = old })
+}
+
 // TestShowMPLSForwardingEntriesIsAlwaysArray guards the JSON list contract:
 // `entries` must marshal as a JSON array even when the forwarding table is
 // empty. A nil slice marshals to `null`, which broke the .ci consumer with
-// `"entries" is not a list: NoneType`. dumpMPLSRoutes returns nil on a host
-// with no MPLS routes (forwarding_other.go, and any Linux read that yields
-// none), so the handler must pin entries to an empty array.
+// `"entries" is not a list: NoneType`. dumpMPLSRoutes returns nil on a Linux
+// host with no MPLS routes, so the handler must pin entries to an empty array.
 //
 // VALIDATES: show mpls forwarding always returns entries as a JSON list.
 // PREVENTS: a regression where an empty table serializes entries as null.
+//
+// Method: the forwardingTable seam answers a nil, error-free table.
 func TestShowMPLSForwardingEntriesIsAlwaysArray(t *testing.T) {
+	withEmptyForwardingTable(t)
 	resp, err := handleShowMPLSForwarding(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)

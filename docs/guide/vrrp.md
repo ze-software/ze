@@ -418,7 +418,7 @@ filters link-local multicast will break the election.
 |------|---------|
 | `doctor-vrrp-config-invalid` | A cross-leaf rule was broken (for example `accept-mode` with `version 2`, or `track` on the address-owner group). |
 | `doctor-vrrp-backend-unusable` | The tree configures VRRP on a backend that cannot run it. |
-| `doctor-vrrp-raw-socket` | The raw socket VRRP needs cannot be opened, usually missing `CAP_NET_RAW`. |
+| `doctor-vrrp-raw-socket` | The raw socket VRRP needs cannot be opened, usually missing `CAP_NET_RAW`. On a host that is not Linux the transport cannot run at all, and the message names the host's OS. |
 
 Run `ze show diagnostic <code>` for the remediation.
 

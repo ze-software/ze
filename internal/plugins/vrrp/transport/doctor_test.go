@@ -3,6 +3,7 @@
 package transport
 
 import (
+	"errors"
 	"slices"
 	"testing"
 
@@ -30,7 +31,7 @@ func TestVRRPRawSocketDoctorWarn(t *testing.T) {
 	// VALIDATES: AC-11 -- vrrp configured + probe false -> one SeverityWarning with
 	// code doctor-vrrp-raw-socket.
 	old := rawSocketProbe
-	rawSocketProbe = func() bool { return false }
+	rawSocketProbe = func() error { return errProbeRefused }
 	t.Cleanup(func() { rawSocketProbe = old })
 
 	diags := checkVRRPRawSocket(diagnostic.DoctorCheckContext{Tree: vrrpTree()})
@@ -45,7 +46,7 @@ func TestVRRPRawSocketDoctorWarn(t *testing.T) {
 	}
 
 	// With the probe available, no warning even when vrrp is configured.
-	rawSocketProbe = func() bool { return true }
+	rawSocketProbe = func() error { return nil }
 	if diags := checkVRRPRawSocket(diagnostic.DoctorCheckContext{Tree: vrrpTree()}); len(diags) != 0 {
 		t.Errorf("probe available: got %d diagnostics, want 0", len(diags))
 	}
@@ -55,7 +56,7 @@ func TestVRRPRawSocketDoctorSilent(t *testing.T) {
 	// VALIDATES: AC-11 -- no vrrp group in the tree -> no diagnostics regardless of
 	// the probe (boxes not running VRRP get no spurious warning).
 	old := rawSocketProbe
-	rawSocketProbe = func() bool { return false }
+	rawSocketProbe = func() error { return errProbeRefused }
 	t.Cleanup(func() { rawSocketProbe = old })
 
 	if diags := checkVRRPRawSocket(diagnostic.DoctorCheckContext{Tree: config.NewTree()}); len(diags) != 0 {
@@ -90,5 +91,32 @@ func TestVRRPRawSocketCodeRegistered(t *testing.T) {
 	}
 	if meta.Title == "" || meta.Description == "" {
 		t.Error("doctor-vrrp-raw-socket missing title/description")
+	}
+}
+
+// errProbeRefused stands in for any reason the platform probe gives.
+var errProbeRefused = errors.New("probe refused")
+
+// TestVRRPRawSocketDoctorCarriesProbeReason proves the warning carries the reason the probe
+// gives, so a host that is not Linux reads that the transport is Linux-only
+// instead of a CAP_NET_RAW hint that cannot apply there.
+//
+// VALIDATES: the diagnostic message is the probe's own reason, word for word.
+// PREVENTS: a fixed capability message hiding why the transport cannot run.
+//
+// Method: swap the rawSocketProbe seam for one refusing with a known reason.
+func TestVRRPRawSocketDoctorCarriesProbeReason(t *testing.T) {
+	const reason = "the VRRP raw transport is Linux-only, and this host runs plan9"
+	old := rawSocketProbe
+	rawSocketProbe = func() error { return errors.New(reason) }
+	t.Cleanup(func() { rawSocketProbe = old })
+	tree := vrrpTree()
+
+	diags := checkVRRPRawSocket(diagnostic.DoctorCheckContext{Tree: tree})
+	if len(diags) != 1 {
+		t.Fatalf("got %d diagnostics, want 1", len(diags))
+	}
+	if diags[0].Message != reason {
+		t.Errorf("message = %q, want the probe's reason %q", diags[0].Message, reason)
 	}
 }

@@ -2,11 +2,22 @@
 
 // Design: docs/architecture/isis/isis-3-l2-transport.md -- raw-socket probe (non-Linux stub)
 //
-// The IS-IS raw L2 transport only opens an AF_PACKET socket on Linux, so off
-// Linux there is no raw-socket dependency to warn about; the probe reports
-// available so the doctor check stays quiet.
+// The IS-IS raw L2 transport opens its raw socket on Linux alone:
+// backend_other.go refuses to open one anywhere else. So off Linux the probe
+// reports the transport unavailable and names the host's OS, and the doctor
+// check warns instead of reporting healthy for a transport that cannot run.
 
 package transport
 
-// rawSocketAvailable is a stub on non-Linux: there is no raw-socket dependency.
-func rawSocketAvailable() bool { return true }
+import (
+	"errors"
+	"runtime"
+)
+
+// checkRawSocket reports why the IS-IS raw transport cannot run on
+// this host: it is Linux-only, and this host is not Linux.
+func checkRawSocket() error {
+	return errors.New("IS-IS cannot run on this host, so it forms no adjacencies here: " +
+		"its raw L2 transport is Linux-only, and this host runs " + runtime.GOOS +
+		". Run ze on Linux to use IS-IS")
+}

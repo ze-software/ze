@@ -1,16 +1,22 @@
-# Test: show mpls forwarding returns the kernel MPLS forwarding table via dispatch-command
+# Test: show mpls forwarding answers through dispatch-command on every host
 # Exercises: dispatch-command -> ze-mpls:show-forwarding -> handleShowMPLSForwarding -> dumpMPLSRoutes
-#            (internal/component/mpls/show_forwarding.go:45, forwarding_linux.go).
-# Verifies: the command is WIRED and returns a structured forwarding table: a JSON
-#           object whose "entries" field is a list. On a host with no installed MPLS
-#           label-switching routes (the normal test runner / a dev box without the
-#           mpls_router module) the table is EMPTY, so entries is a zero-length list.
+#            (internal/component/mpls/show_forwarding.go, forwarding_linux.go, forwarding_other.go).
+# Verifies: the command is WIRED, and its answer matches the host.
+#   - Linux: a structured forwarding table, a JSON object whose "entries" field is a
+#     list. On a host with no installed MPLS label-switching routes (the normal test
+#     runner, a dev box without the mpls_router module) the table is EMPTY, so
+#     entries is a zero-length list.
+#   - Any other OS: Ze does not read an MPLS table there, so the command refuses
+#     with an error naming Linux and the host's OS, never an empty table that would
+#     read as "no MPLS routes". The fixture (fixture10MPLSForwardingShow) picks the
+#     expected answer from its own GOOS, which is the host ze runs on.
 #
 # NOTE: asserting NON-EMPTY entries (a real swap/pop or push row) requires a kernel
 #       MPLS route to be installed first (`ip -f mpls route add ...`), which needs a
 #       real Linux kernel with AF_MPLS. That is a needs-linux/QEMU follow-up. This
 #       base dispatch test deliberately does NOT carry option=needs-linux: it must be
-#       GREEN in the normal runner, proving only wiring + the empty-table shape.
+#       GREEN in the normal runner on every OS, proving wiring plus the answer each
+#       platform owes.
 
 # ze-peer: accepts connection
 stdin=peer:terminator=EOF_PEER
@@ -20,7 +26,8 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Native observer validates the empty forwarding table and limit argument.
+# Native observer validates the forwarding answer (empty table on Linux, refusal
+# elsewhere) and the limit argument.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {

@@ -516,7 +516,8 @@ with labels is listed in `docs/plugin-development/metrics.md`.
 `ze doctor` reports IS-IS readiness problems before the engine starts:
 
 - `doctor-isis-raw-socket`: IS-IS is configured but a raw `AF_PACKET` socket
-  cannot be opened (needs `CAP_NET_RAW`); IS-IS forms no adjacencies without it.
+  cannot be opened (needs `CAP_NET_RAW`, and Linux: on any other host the check
+  warns and names the OS); IS-IS forms no adjacencies without it.
 - `doctor-isis-net-missing`: the `isis` block is present but no `net` is set;
   IS-IS cannot derive a System ID or originate LSPs.
 - `doctor-isis-system-id-mismatch`: an explicit `system-id` disagrees with the

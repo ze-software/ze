@@ -258,11 +258,15 @@ omission and DF-set ICMP quotation.
 
 ## Operator surface
 
-`show mpls forwarding` reads the kernel table. The non-Linux build carries a stub
-so the command exists everywhere.
+`show mpls forwarding` reads the kernel table on Linux. The non-Linux build
+carries a stub so the command exists everywhere, and the stub refuses with an
+error naming the host's OS: an empty table would read as "no MPLS routes" on a
+host where Ze cannot read the table at all. OpenBSD's kernel has MPLS, but Ze
+does not read its table.
 
 <!-- source: internal/component/mpls/show_forwarding.go -- the show mpls forwarding command -->
 <!-- source: internal/component/mpls/forwarding_linux.go -- the kernel AF_MPLS table reader -->
+<!-- source: internal/component/mpls/forwarding_other.go -- the non-Linux refusal -->
 
 Per-interface MPLS input is enabled through the iface YANG (`mpls { enable }`,
 which sets `net.mpls.conf.<iface>.input`), not through a standalone MPLS module.

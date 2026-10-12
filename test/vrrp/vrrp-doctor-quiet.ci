@@ -9,6 +9,14 @@
 # PREVENTS: a check that cries wolf. The vrrp plugin shares the `interface`
 # config root, so it loads on every ze deployment; a diagnostic that fired on
 # healthy configs would appear for operators who have never configured VRRP.
+#
+# Gated option=needs-linux: the property is "quiet on a host that can run VRRP".
+# The VRRP raw transport is Linux-only, so on any other OS the doctor rightly
+# warns doctor-vrrp-raw-socket and the reject below would go red there. That
+# off-Linux warning is proven by TestRawSocketProbeOffLinuxNamesTheOS
+# (internal/plugins/vrrp/transport/doctor_other_test.go).
+
+option=needs-linux
 
 tmpfs=vrrp-ok.conf:terminator=EOF_OK
 interface {

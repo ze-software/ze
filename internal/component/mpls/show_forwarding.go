@@ -43,6 +43,11 @@ func init() {
 	)
 }
 
+// forwardingTable is the platform kernel reader the handler calls. It is a test
+// seam: the handler's success contract is tested over a stand-in reader, because
+// the real one answers from the host's kernel (an error off Linux).
+var forwardingTable = dumpMPLSRoutes
+
 func handleShowMPLSForwarding(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	const usage = "usage: show mpls forwarding [limit N]"
@@ -67,7 +72,7 @@ func handleShowMPLSForwarding(_ *pluginserver.CommandContext, validated command.
 		}
 	}
 
-	entries, err := dumpMPLSRoutes(limit + 1)
+	entries, err := forwardingTable(limit + 1)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error via Response
 	}

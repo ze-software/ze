@@ -18,7 +18,7 @@ import (
 )
 
 // rawSocketProbe is a test seam over the platform raw-socket probe.
-var rawSocketProbe = rawSocketAvailable
+var rawSocketProbe = checkRawSocket
 
 // checkVRRPRawSocket warns when VRRP is configured but a raw proto-112 socket
 // cannot be opened (needs CAP_NET_RAW). It is a no-op when VRRP is not configured,
@@ -31,13 +31,14 @@ func checkVRRPRawSocket(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnost
 	if !vrrpConfigured(tree) {
 		return nil
 	}
-	if rawSocketProbe() {
+	err := rawSocketProbe()
+	if err == nil {
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
 		Code:     "doctor-vrrp-raw-socket",
 		Severity: diagnostic.SeverityWarning,
-		Message:  "cannot open raw IP socket for protocol 112 (VRRP needs CAP_NET_RAW)",
+		Message:  err.Error(),
 	}}
 }
 

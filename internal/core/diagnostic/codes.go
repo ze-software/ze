@@ -646,25 +646,25 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        "doctor-isis-raw-socket",
 		Title:       "IS-IS raw L2 socket unavailable",
-		Description: "IS-IS is configured but a raw AF_PACKET/SOCK_RAW socket cannot be opened. IS-IS runs directly over IEEE 802.3 frames (ISO/IEC 10589), so it needs CAP_NET_RAW or root; without it IS-IS cannot send or receive IIH/LSP/CSNP/PSNP PDUs and forms no adjacencies.",
+		Description: "IS-IS is configured but a raw AF_PACKET/SOCK_RAW socket cannot be opened. IS-IS runs directly over IEEE 802.3 frames (ISO/IEC 10589), so it needs CAP_NET_RAW or root; without it IS-IS cannot send or receive IIH/LSP/CSNP/PSNP PDUs and forms no adjacencies. The raw transport is Linux-only, so on any other host the check warns with a message naming that host's OS.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-isis-raw-socket"},
 	},
 	{
 		Code:        "doctor-ospf-raw-socket",
 		Title:       "OSPF raw IP socket unavailable",
-		Description: "OSPF is configured but a raw IP socket for protocol 89 (RFC 2328) cannot be opened. This requires CAP_NET_RAW or root; without it OSPF cannot send or receive Hello, DD, LS Request, LS Update, or LS Ack packets.",
+		Description: "OSPF is configured but a raw IP socket for protocol 89 (RFC 2328) cannot be opened. This requires CAP_NET_RAW or root; without it OSPF cannot send or receive Hello, DD, LS Request, LS Update, or LS Ack packets. The raw transport is Linux-only, so on any other host the check warns with a message naming that host's OS.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-raw-socket"},
 	},
 	{
 		Code:        "doctor-ospfv3-raw-socket",
 		Title:       "OSPFv3 raw IPv6 socket unavailable",
-		Description: "OSPFv3 is configured but a raw IPv6 socket for protocol 89 (RFC 5340) cannot be opened. This requires CAP_NET_RAW or root; without it OSPFv3 cannot send or receive Hello, DD, LS Request, LS Update, or LS Ack packets.",
+		Description: "OSPFv3 is configured but a raw IPv6 socket for protocol 89 (RFC 5340) cannot be opened. This requires CAP_NET_RAW or root; without it OSPFv3 cannot send or receive Hello, DD, LS Request, LS Update, or LS Ack packets. The raw transport is Linux-only, so on any other host the check warns with a message naming that host's OS.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospfv3-raw-socket"},
 	},
 	{
 		Code:        "doctor-vrrp-raw-socket",
 		Title:       "VRRP raw IP socket unavailable",
-		Description: "VRRP is configured but a raw IP socket for protocol 112 (RFC 9568 / RFC 3768) cannot be opened. VRRP advertisements are sent and received directly over IP protocol 112, so this requires CAP_NET_RAW or root; without it VRRP cannot send or receive advertisements and every group stays in Initialize (no failover). The transport also needs it for the gratuitous-ARP (AF_PACKET) and unsolicited-NA (raw ICMPv6) failover announcers.",
+		Description: "VRRP is configured but a raw IP socket for protocol 112 (RFC 9568 / RFC 3768) cannot be opened. VRRP advertisements are sent and received directly over IP protocol 112, so this requires CAP_NET_RAW or root; without it VRRP cannot send or receive advertisements and every group stays in Initialize (no failover). The transport also needs it for the gratuitous-ARP (AF_PACKET) and unsolicited-NA (raw ICMPv6) failover announcers. The raw transport is Linux-only, so on any other host the check warns with a message naming that host's OS.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vrrp-raw-socket"},
 	},
 	{

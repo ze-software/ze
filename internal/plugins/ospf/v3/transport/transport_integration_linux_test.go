@@ -41,13 +41,13 @@ func ospfv3SampleHello() []byte {
 }
 
 func TestOSPFv3TransportRawSocketCap(t *testing.T) {
-	if !rawSocketAvailable() {
+	if checkRawSocket() != nil {
 		t.Skip("CAP_NET_RAW unavailable")
 	}
 }
 
 func TestOSPFv3TransportVethMulticastRoundTrip(t *testing.T) {
-	if !rawSocketAvailable() {
+	if checkRawSocket() != nil {
 		t.Skip("CAP_NET_RAW unavailable")
 	}
 	loadIfaceBackend(t)
@@ -87,7 +87,7 @@ func TestOSPFv3TransportVethMulticastRoundTrip(t *testing.T) {
 }
 
 func TestOSPFv3TransportAllDRoutersReceive(t *testing.T) {
-	if !rawSocketAvailable() {
+	if checkRawSocket() != nil {
 		t.Skip("CAP_NET_RAW unavailable")
 	}
 	loadIfaceBackend(t)
