@@ -41,7 +41,7 @@ The 2026-10-02 independent rejudgment found that
 `internal/plugins/ldp/session.go::processMessages` checks Hop Count in Label
 Mapping but leaves Label Request in the unhandled-message branch. Mapping-only
 tests cannot prove the whole receipt requirement. These two weak verdicts move
-here from `plan/pre-release/spec-rfc-verdict-fix-routing.md` under parent P-3;
+here from `spec-rfc-verdict-fix-routing` (closed 2026-10-12) under parent P-3;
 their existing Mapping tests and native records remain.
 
 RFC 5036 Section 3.4.4.1: "If an LSR receives a message containing a Hop Count

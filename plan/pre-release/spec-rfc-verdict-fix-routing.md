@@ -7,7 +7,7 @@
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the routing group before any row edit, parent R-11) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-11 |
+| Updated | 2026-10-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -470,7 +470,7 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 
 ## Progress, 2026-10-11
 
-Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD on 2026-10-11. Implementation is finished; the spec waits for its independent `/ze-review`. It is not closed.
+Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) and git history, each claim re-checked against HEAD on 2026-10-11. Implementation is finished. 2026-10-12: the independent review loop ended clean at round 3 and the spec closes (Review Gate, Pre-Commit Verification).
 
 ## Implementation Summary
 
@@ -525,7 +525,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | interop for the RSVP-TE fixes (`01345e4234`) | 2026-10-11: the two new scenarios `egress-implicit-null-penultimate-pop` and `transit-resv-state-expires` are written, PASS, and go red against a break overlay; seven of the eight existing scenarios PASS (Goal Validation). `plr-backup-path-to-egress-merge-point` FAILED: after `prot0` goes down the Ze PLR refused the ingress's next PATH refresh as Bad strict node (its ERO names the MP strict across the failed link), so the repair expired. DONE 2026-10-11: fixed in `9114a04414` (`repairedPathSelection`, unit `TestRepairedLSPKeepsUpstreamRefresh`); the checker now also waits for the egress router-LSA that attributes `.14` and fails on a Routing Problem PathErr for LSP-ID 1; lab PASS with the fix, FAIL without it (Goal Validation); journal row `plan/journal/repair-undone-by-the-next-refresh.md` | nothing owed |
 | verdict for the new row RFC4090-6.4.3-2 (split 2026-10-12 in `27be2c4a3c`, records in `rfc/discrimination/rfc4090.json`) | DONE 2026-10-12: an independent judge stamped `enforced` in `rfc/audit/rfc4090.json` (round-2 review, `review-rfc-verdict-routing-r2.md` in session scratch) | nothing owed |
 | re-record the four `handlePathTransit` records 27be2c4a3c staled (RFC2205-x-1 negative, RFC3209-4.2.4-4 positive, RFC3209-4.4.3-4 positive with its mutant now at line 666, RFC3209-4.7.4-3 negative) | DONE 2026-10-12: re-recorded; `./le rfc check` names no routing stem (AC-C5) | nothing owed |
-| `./le verify worktree` | needs a quiet machine | this spec, before closure |
+| `./le verify worktree` | DONE 2026-10-12: the full gate ran over HEAD `a7798ff530` (logs `tmp/verify-worktree-logs/20261012T074519.479667000Z-p32652-r1-a7798ff530bb/full-603307227/`) and exited red. The routing reds and why none is this spec's: `internal/plugins/ospf` `TestRFC5187InterfaceIDPreservedAcrossRestart` assumes a loopback named `lo`, which macOS names `lo0` (test from 2026-09-30, OSPF, outside this child's packages); the `rsvpte` functional suite fails all five `.ci` files on darwin before RSVP-TE starts, because the interface plugin has "no backend configured and no OS default available" (re-run 2026-10-12, scratch `rsvpte-func-close.log`); doc-drift flagged six `docs/architecture/rsvpte/mpls-rsvp-te.md` claims on `handlePath` (`9114a04414`) and `handlePathTransit` (`27be2c4a3c`), each re-read during closure and still true (Pre-Commit Verification). isis, ldp, rsvpte and vrrp unit packages passed | nothing owed |
 
 ## Review Gate
 
@@ -546,3 +546,42 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | 5 | BLOCKER | round 2: four `handlePathTransit` records staled by `27be2c4a3c` | `rfc/discrimination/rfc2205.json`, `rfc3209.json` | `74eefd3517` |
 
 Earlier work under review: `07f7e61463`, `9114a04414`, `d5c55c5670`. Round 3 found 0 BLOCKER and 0 ISSUE.
+
+## Pre-Commit Verification
+
+Re-run 2026-10-12 at HEAD `57a0a928e9` during closure.
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/interop-rsvpte/scenarios/egress-implicit-null-penultimate-pop/`, `transit-resv-state-expires/` | yes | `ls -d` 2026-10-12; "Files to Create" plans none, these are the two scenarios Work Not Done names |
+| `internal/plugins/rsvpte/rfc4090_repair_refresh_test.go` | yes | `ls` 2026-10-12 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-C1 | derived listing holds only "Blocked by" ids | the "Derived listing" jq filter run 2026-10-12 prints five rows: RFC3209-4.6.1-2, RFC4090-6-6, RFC5036-3.4.4.1-1, RFC5036-3.4.4.1-2, RFC9252-5-3, each owned by the spec named under AC-C1 |
+| AC-C2, AC-C3, AC-C5, AC-C6 | verdicts recorded, rows split and judged, no stale verdict in the owned stems | `./le rfc check` 2026-10-12 (scratch `rfccheck-close.txt`): 12 violations, in rfc2545, rfc4271, rfc4724, rfc4760 and rfc5187 only; none in rfc1195, rfc2205, rfc2966, rfc3032, rfc3209, rfc3786, rfc3787, rfc4090, rfc5036, rfc5303, rfc5305, rfc5308, rfc5310 or rfc905. rfc5187 is OSPF's (in-flight move of `rfc5187_preserve_restart_test.go`) |
+| AC-C2 (RFC4090-6.2-1, RFC4090-6.4.3-2 units) | the tagged units pass | `go test ./internal/plugins/rsvpte/ -run 'TestRepairedLSP\|TestRFC4090BypassDestinationIsMergePoint'` 2026-10-12: three PASS, ok |
+| AC-C4 | no foreign defect fixed here | the four blocked verdicts sit in their owning specs' ACs (Work Not Done) |
+| AC-C7 | no R-7 row | N-A |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` over the owned stems | `TestCheckAuditRatchetSeesTipCommit` | `go test ./internal/le/rfc/ -run TestCheckAuditRatchetSeesTipCommit` ok 2026-10-12 |
+| RSVP-TE repair across upstream refresh, against freeRouter | interop `plr-backup-path-to-egress-merge-point` | PASS with `9114a04414`, FAIL without it (Goal Validation) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `./le rfc audit-stamp` takes `mode rejudge`; RFC4090-6.4.3-2 was stamped through it (`86fe92f1ea`) |
+| A-2 | confirmed | the AC-C1 listing above holds only the "Blocked by" ids |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md` repair refresh | changed in `9114a04414` and `27be2c4a3c` with `repairedPathSelection` | yes |
+| `docs/architecture/rsvpte/mpls-rsvp-te.md` claims anchored on `handlePath` (lines 64, 137, 337) | `9114a04414` changed only the ERO resolution of a refresh under local repair; the MTU floor, mandatory-object drop and LABEL_REQUEST refusal the claims state run as before | yes, still true; reviewed-claim rows in `plan/doc-reviewed/d1987d95.md` |
+| same page, claims on `handlePathTransit` (lines 306, 315, 352) | `27be2c4a3c` added one line storing `PSB.ReceivedERO`; RRO recording and withdrawal and the SESSION_ATTRIBUTE relay are unchanged | yes, still true; same ledger |
+| RFC status (#9) | owned stems changed only through `rfc/short`, `rfc/audit`, `rfc/discrimination`; `./le rfc check` names none | yes |
