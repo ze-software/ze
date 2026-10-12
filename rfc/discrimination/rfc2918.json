@@ -49,7 +49,7 @@
       "rid": "RFC2918-4-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh",
-      "unit-sha": "81a4c2ae89e56b71",
+      "unit-sha": "6ae56a4359d8d219",
       "claim-sha": "08eef7c8adfedc90",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_replay.go::collectGroupedRibOutRoutesForFamily",
