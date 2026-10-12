@@ -70,7 +70,7 @@
     {
       "rid": "RFC5187-3.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart",
+      "unit": "internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart",
       "unit-sha": "26cbec28fc27c6c1",
       "claim-sha": "44b433c664929fde",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC5187-3.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart",
+      "unit": "internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart",
       "unit-sha": "26cbec28fc27c6c1",
       "claim-sha": "b51dbc47e353ee82",
       "route": "revert",
