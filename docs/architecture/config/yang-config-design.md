@@ -118,7 +118,7 @@ extraction fails at daemon start and on reload instead of checking match
 entries against an empty command set. The API and MCP command metadata
 (`commandMetaSource`) caches the error with the metadata and returns it on
 every call: REST and gRPC answer an internal error naming the cause, and MCP
-`tools/list` and `tools/call` answer a JSON-RPC internal error. The `ze cli`
+`tools/list` and `tools/call` answer a JSON-RPC internal error. The `ze cli` <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 client builds its YANG state on first use, never at package init, and caches
 the error with it: every accessor returns it, so `ze` help, usage, the menu,
 verb dispatch, shell completion and the command catalog report the cause and

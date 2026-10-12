@@ -422,7 +422,7 @@ a raw dispatch escape hatch, and `ze_reference` returns the machine-readable
 daemon reference.
 
 When `CommandLister` returns an error (the hub's lister does when the YANG
-loader refuses the schema), `tools/list` and `tools/call` answer a JSON-RPC
+loader refuses the schema), `tools/list` and `tools/call` answer a JSON-RPC <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 internal error (`-32603`) that names the cause. They never answer a list of
 the handcrafted tools alone, or an unknown-tool refusal.
 

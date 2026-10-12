@@ -111,7 +111,7 @@ Searches executed over `internal/component/bgp/plugins`, `internal/component/bgp
 | PLUG-BGP | `internal/component/bgp/plugins/healthcheck` | `healthcheck/register.go` | Covered. |
 | PLUG-BGP | `internal/component/bgp/plugins/hostname` | `hostname/register.go` | Covered. |
 | PLUG-BGP | `internal/component/bgp/plugins/llnh` | `llnh/register.go` | Covered. |
-| PLUG-BGP | `internal/component/bgp/plugins/persist` | `persist/register.go`, `persist/server.go` lock-search hit | Covered. |
+| PLUG-BGP | `internal/component/bgp/plugins/persist` | `persist/register.go`, `persist/server.go` lock-search hit | Covered. The plugin was deleted after this review, in d3e5b4a770. <!-- doc-links: ignore (the persist plugin was deleted in d3e5b4a770; this row records what the review read) --> |
 | PLUG-BGP | `internal/component/bgp/plugins/redistribute_egress` | `redistribute_egress/register.go` | Covered. |
 | PLUG-BGP | `internal/component/bgp/plugins/redistribute_ingress` | `redistribute_ingress/register.go` | Covered. | <!-- doc-links: ignore (the plugin was deleted on 2026-09-04 by `1ec5b741f8`, after this review read it) -->
 | PLUG-BGP/RPC-BGP | `internal/component/bgp/plugins/rib` and `rib/events`, `rib/pool`, `rib/storage` | `rib/register.go`, RIB EventBus search, command search, pool/storage default-search hits | Covered. |

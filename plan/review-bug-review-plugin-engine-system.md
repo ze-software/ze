@@ -82,7 +82,7 @@ Command, schema, and root command wiring references:
 - `internal/component/cmd/show/yang/ze-cli-show-cmd.yang`
 - `internal/component/cmd/show/yang/ze-cli-show-api.yang`
 - `internal/component/cmd/clear/yang/ze-cli-clear-api.yang`
-- `internal/component/cmd/delete/yang/ze-cli-delete-api.yang`
+- `internal/component/cmd/delete/yang/ze-cli-delete-api.yang`, removed after this review in 3b9366fa72; its rpc now lives in `internal/component/bgp/yang/ze-bgp-api.yang` <!-- doc-links: ignore (deleted in 3b9366fa72; this line records what the review read) -->
 - `internal/component/cmd/delete/yang/self_containment_test.go`
 - `internal/plugins/host-cmd/yang/ze-host-cmd.yang`
 - `internal/plugins/host-cmd/cmd/show_host.go`
