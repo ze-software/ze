@@ -30,17 +30,17 @@
       "verdict": "enforced"
     },
     "RFC5216-2.1.1-10": {
-      "note": "Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished now runs ze's peer against a test server that resumes TLS 1.2 (stockTLS12Resumption sets UnwrapSession nil on the authenticator config, so crypto/tls redeems the ticket): the ClientHello is checked to offer the ticket, peer.Resumed() is asserted, and the peer's answer must carry no plaintext handshake message, change_cipher_spec, then exactly one sealed handshake record (finished); a peer adding certificate, client_key_exchange or certificate_verify fails. The obligation binds the peer, so a stock resuming server is the right counterpart. The negative tag is a config assertion (no session cache with resumption off); discrimination rests on the exact-output positive.",
+      "note": "Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator's own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. This row rests on the unchanged peer arm (no session cache with resumption off) and on TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished, where ze's peer meets a stock TLS 1.2 resuming server: the ClientHello offers the ticket, Resumed() holds, and the answer must be change_cipher_spec then exactly one sealed finished, so a peer adding certificate, client_key_exchange or certificate_verify fails. Verdict stands.",
       "requirement_sha": "a4623332d55d280b",
       "tests": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "0d5062c007771a53",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3311e035bc2d961b",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3311e035bc2d961b"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "aa3af049af23d41f",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aa3af049af23d41f"
       },
       "units": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "7013a756eaee4424",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "8fbe472157fd858f",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aaf845eb0a57ecf1"
       },
       "verdict": "enforced"
     },
@@ -71,45 +71,45 @@
       "verdict": "enforced"
     },
     "RFC5216-2.1.1-4": {
-      "note": "Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. The only unit change is the UnwrapSession assertion in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry (now non-nil), which bears on no sessionId. Section 2.1.1: \"If the peer's sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session.\" The tagged units assert session-ticket keys and resumption config, the ticket rule, not the sessionId choice. Gap re-read in go1.27.2: crypto/tls sets ServerHello.sessionId only in serverHandshakeState.doResumeHandshake (echoing the client), so a TLS 1.2 full handshake, now also the answer to every TLS 1.2 ticket, carries an empty session_id and the server chooses none.",
+      "note": "Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator's own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. None of it bears on a sessionId. Section 2.1.1: \"If the peer's sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session.\" The tags still assert ticket and config behaviour, and crypto/tls sets ServerHello.sessionId only on a TLS 1.2 resumption (echoing the client), so a full TLS 1.2 handshake carries an empty session_id: the server chooses none. Verdict stands.",
       "requirement_sha": "aed07a9f6964af4f",
       "tests": {
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3311e035bc2d961b",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3311e035bc2d961b"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "aa3af049af23d41f",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aa3af049af23d41f"
       },
       "units": {
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "8fbe472157fd858f",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aaf845eb0a57ecf1"
       },
       "verdict": "wrong"
     },
     "RFC5216-2.1.1-5": {
-      "note": "Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. The sentence binds the server that matches a session (Section 2.1.1: \"If the session matches the peer's, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session.\"). Ze's authenticator now matches no TLS 1.2 session, so the obligation is met by never arising. TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished proves that on the wire: the peer's ClientHello is checked to offer its ticket, and ze's authenticator answers with refused.Resumed() false and a full flight (certificate, no change_cipher_spec); any TLS 1.2 match, whatever its suite, goes red. Its suite comparison runs against a stock crypto/tls test server and is a harness check, not evidence about ze. The config tags are weak alone: the positive proves only that some UnwrapSession is installed, and the negative (TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights, off.UnwrapSession != nil) no longer separates the refusal from redeemTLS13Only or any other hook, so its claim \"installs an UnwrapSession refusal\" exceeds its check. Discrimination rests on the wire unit. TLS 1.3 matches belong to RFC 9190.",
+      "note": "Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator's own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. Section 2.1.1: \"If the session matches the peer's, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session.\" Ze meets it by matching no TLS 1.2 session. The earlier limit (the negative only checked an UnwrapSession was installed, which no longer separated the refusal from redeemTLS13Only) is closed: the negative now fails on any off or on config that redeems a TLS 1.2 ticket under its own keys. The wire positive TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished still shows ze's authenticator answering an offered ticket with a full flight. TLS 1.3 matches belong to RFC 9190.",
       "requirement_sha": "3260e6d733fefa3f",
       "tests": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "0d5062c007771a53",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3311e035bc2d961b",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3311e035bc2d961b"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "aa3af049af23d41f",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aa3af049af23d41f"
       },
       "units": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "7013a756eaee4424",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "8fbe472157fd858f",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aaf845eb0a57ecf1"
       },
       "verdict": "enforced"
     },
     "RFC5216-2.1.1-6": {
-      "note": "Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. The only unit change is the UnwrapSession assertion in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry, unrelated to this flight; the server-flight proof is unchanged. TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone reassembles the server's first full TLS 1.2 flight from its fragments and reads it message by message: a certificate is present and server_hello_done is the last handshake message, so a flight missing either fails. The negative tag is a config refusal (unparsable certificate builds no tls.Config), which covers the certificate clause only; the ordering clause rests on the exact-output positive. Every tagged unit carries a record.",
+      "note": "Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator's own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. This row rests on the unchanged unparsable-certificate arm (no tls.Config, so no full handshake without a server_certificate) and on TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone, which reads the first full TLS 1.2 server flight message by message: certificate present, server_hello_done last. The negative covers the certificate clause; the ordering clause rests on the exact-output positive. Verdict stands.",
       "requirement_sha": "a5b31546f57258ed",
       "tests": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone": "0d5062c007771a53",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3311e035bc2d961b",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3311e035bc2d961b"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "aa3af049af23d41f",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aa3af049af23d41f"
       },
       "units": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone": "260f31cb85204b08",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "8fbe472157fd858f",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aaf845eb0a57ecf1"
       },
       "verdict": "enforced"
     },
@@ -127,32 +127,32 @@
       "verdict": "enforced"
     },
     "RFC5216-2.1.1-9": {
-      "note": "Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. The only unit change is the UnwrapSession assertion in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry, unrelated to this flight. TestRFC5216PeerFlightAnswersTheCertificateRequest reads the peer's second flight after a non-resuming server_hello: handshake types exactly certificate, client_key_exchange, certificate_verify, then change_cipher_spec, then one sealed handshake record (finished); a flight missing client_key_exchange, change_cipher_spec or finished fails. The negative tag is a config assertion (no session cache with resumption off), so discrimination rests on the exact-output positive. Every tagged unit carries a record.",
+      "note": "Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator's own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. This row rests on the unchanged peer arm (resumption off installs no ClientSessionCache) and on TestRFC5216PeerFlightAnswersTheCertificateRequest, which requires exactly certificate, client_key_exchange, certificate_verify, change_cipher_spec and one sealed finished after a non-resuming server_hello. Discrimination rests on that exact-output positive. Verdict stands.",
       "requirement_sha": "aa652a71dde99132",
       "tests": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "0d5062c007771a53",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3311e035bc2d961b",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3311e035bc2d961b"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "aa3af049af23d41f",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aa3af049af23d41f"
       },
       "units": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "43e40a57c746c213",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "8fbe472157fd858f",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aaf845eb0a57ecf1"
       },
       "verdict": "enforced"
     },
     "RFC5216-2.1.2-1": {
-      "note": "Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. Section 2.1.2: \"If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message.\" crypto/tls always sends a NewSessionTicket on a TLS 1.2 resumption, so ze meets the sentence by never resuming TLS 1.2. TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake drives a real offer (the ClientHello session_ticket extension is checked non-empty) and reads the server flight: not resumed, no change_cipher_spec, a certificate, server_hello_done last; an authenticator that resumed TLS 1.2 fails Resumed and ccs. Limit named: the resumption-off arm is covered only by TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights checking off.UnwrapSession != nil, which no longer tells refuseResumption from redeemTLS13Only or a hook that redeems TLS 1.2, so that negative claim (\"installs the refusal\") exceeds its check; no tagged unit drives a TLS 1.2 ticket at an authenticator with resumption off. The TLS 1.3 off path is wire-proven by TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket (RFC 9190, untagged here).",
+      "note": "Re-judged 2026-10-12 (independent auditor). The negative unit TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights changed in beb466e549: it now encrypts the session state of a real EAP-TLS 1.3 exchange under each authenticator's own ticket keys and calls UnwrapSession; the resumption-off config must answer no session at TLS 1.2 and 1.3, the resumption-on config none at TLS 1.2 and the session at TLS 1.3, so refuseResumption and redeemTLS13Only (resumption.go, cs.Version == tls.VersionTLS12 refused) are each told apart from a hook that redeems. The control (on redeems at 1.3) proves the ticket is one a matching authenticator would resume. The no-resumption-state, unparsable-certificate and peer-cache arms are unchanged. Section 2.1.2: \"If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message.\" crypto/tls always sends NewSessionTicket on a TLS 1.2 resumption, so ze meets the sentence by never resuming TLS 1.2. Positive TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake drives a real offer and reads a full flight. The limit the earlier note named (the resumption-off arm checked only that some UnwrapSession was installed) is closed: the negative now calls each config's hook on a real ticket and fails on any TLS 1.2 redemption, off or on. No tagged unit drives a TLS 1.2 ticket at an off authenticator over the wire; the hook call is the boundary crypto/tls consults (serverHandshakeState.checkForResumption).",
       "requirement_sha": "f0f6ae8c0ada3b5a",
       "tests": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake": "0d5062c007771a53",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "3311e035bc2d961b",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3311e035bc2d961b"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "aa3af049af23d41f",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aa3af049af23d41f"
       },
       "units": {
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake": "38791764d58d356c",
         "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "8fbe472157fd858f",
-        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "aaf845eb0a57ecf1"
       },
       "verdict": "enforced"
     },
