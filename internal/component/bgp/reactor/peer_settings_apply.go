@@ -461,7 +461,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	// Step 5: the BFD client follows the opt-in the write delivered, read from
 	// the write itself, so an opt-in judged swappable always reaches the
 	// client.
-	p.applyBFDOptInChange(bfd)
+	p.applyBFDOptInChange(&bfd)
 }
 
 // refreshPrefixStale republishes the prefix-staleness verdict from the peer's

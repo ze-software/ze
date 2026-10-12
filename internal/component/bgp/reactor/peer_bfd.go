@@ -544,7 +544,7 @@ type bfdOptInChange struct {
 // engine for: the opt-in enabled or not, and, while enabled, the request.
 // HoldTime and HoldDown act only in strict mode, so a non-strict opt-in that
 // differs in nothing else asks for the same session.
-func (c bfdOptInChange) reopens() bool {
+func (c *bfdOptInChange) reopens() bool {
 	enabledBefore := c.before != nil && c.before.Enabled
 	enabledAfter := c.after != nil && c.after.Enabled
 	if enabledBefore != enabledAfter {
@@ -565,7 +565,7 @@ func (c bfdOptInChange) reopens() bool {
 // again, because the engine resolves the profile when a client asks
 // (pluginService.EnsureSession). A start that lost a race with the exit
 // from Established is undone, since the exit's stop may already have run.
-func (p *Peer) applyBFDOptInChange(change bfdOptInChange) {
+func (p *Peer) applyBFDOptInChange(change *bfdOptInChange) {
 	if !change.reopens() {
 		return
 	}
