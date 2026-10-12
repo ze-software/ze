@@ -875,6 +875,8 @@ func TestConfig_RemotePortBoundary(t *testing.T) {
 // TestConfig_RemoteMissingAddress rejects a remote with no address.
 //
 // VALIDATES: AC-6 -- address is mandatory (a dial target needs an endpoint).
+// The YANG schema marks it mandatory (RFC 7950 Section 7.6.5), so the config
+// loader refuses it before ExtractParameters is reached.
 func TestConfig_RemoteMissingAddress(t *testing.T) {
 	const src = `l2tp {
 	enabled true
@@ -882,9 +884,9 @@ func TestConfig_RemoteMissingAddress(t *testing.T) {
 		port 1701
 	}
 }`
-	_, err := l2tp.ExtractParameters(loadTree(t, src))
+	_, err := zeconfig.LoadConfig(src, "test.conf", nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "address")
+	assert.Contains(t, err.Error(), "l2tp/remote[r]/address")
 }
 
 // TestConfig_MultipleRemotes parses several dial targets and preserves order.
