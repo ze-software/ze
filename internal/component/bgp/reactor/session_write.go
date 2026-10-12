@@ -93,7 +93,7 @@ func (s *Session) sendNotificationWithin(conn net.Conn, code message.NotifyError
 		//
 		// WARN because a NOTIFICATION is always an abnormal end, and cold enough to afford
 		// it: at most one per session teardown. The code/subcode are the two fields that
-		// say WHY, and `ze explain` has no entry for a raw BGP error code -- which is an
+		// say WHY, and `ze show diagnostic` has no entry for a raw BGP error code -- which is an
 		// argument for emitting the name that DOES exist, not for `code=3`. Both are
 		// logged as their RFC names (ai/rules/cli.md leg 2, the evidence;
 		// ai/rules/evidence.md, since message already owns the tables).

@@ -75,7 +75,7 @@ func init() {
 		args := validated.Tokens()
 		return Run(append([]string{"fmt"}, args...))
 	}, registry.Meta{ShortHelp: "Pretty-print the config with consistent formatting and ordering."})
-	command.MustRegisterLocalData("validate config", dataValidate, registry.Meta{
+	command.MustRegisterLocalData("show config validation", dataValidate, registry.Meta{
 		ShortHelp: "Check a config for errors without applying it.",
 		Description: "Both the grammar of the file and the meaning of its values are checked, and each " +
 			"problem is reported with the diagnostic code that explains it.",
@@ -104,7 +104,7 @@ func init() {
 	// dump, diff and the validation verdict are each ONE document, so the row
 	// operators are refused over them by name. history and list answer rows.
 	command.RegisterShape([]string{
-		"show config dump", "show config diff", "validate config",
+		"show config dump", "show config diff", "show config validation",
 	}, command.ShapeDoc)
 	command.RegisterShape([]string{
 		"show config history", "show config list",

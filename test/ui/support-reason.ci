@@ -1,4 +1,4 @@
-# Test: ze support --reason embeds reason in manifest
+# Test: ze request support archive --reason embeds reason in manifest
 # VALIDATES: AC-7 of spec-support.md -- reason metadata
 # NOTE: the runner splits exec= on whitespace (no shell quoting), so the reason
 # must be a single token; a multi-word "BGP flap test" would be parsed as extra
@@ -11,7 +11,7 @@ tmpfs=.support-out-keep:terminator=EOF_KEEP
 placeholder so the runner allocates an isolated working dir
 EOF_KEEP
 
-cmd=foreground:seq=1:exec=ze support --module version --reason BGP-flap-test --json --output .
+cmd=foreground:seq=1:exec=ze request support archive --module version --reason BGP-flap-test --json --output .
 expect=exit:code=0
 expect=stdout:contains="BGP-flap-test"
 expect=stdout:contains="reason"

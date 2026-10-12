@@ -168,7 +168,7 @@ in `command/registry`, because that package cannot import `command` and so
 cannot name the value.
 
 The handler returns a payload AND an exit code, and the two are independent. The
-code carries the verdict, the payload carries the evidence, and `validate config`
+code carries the verdict, the payload carries the evidence, and `show config validation`
 is the command that needs both: it answers the diagnostics of a configuration it
 rejects and exits 1. The answer therefore goes to stdout whatever the code is,
 because a payload on stderr is a payload no pipe operator can reach. A handler

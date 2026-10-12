@@ -101,7 +101,7 @@ func TestISISDoctorChecksRegistered(t *testing.T) {
 }
 
 // TestISISRawSocketCodeRegistered: doctor-isis-raw-socket is a registered
-// diagnostic code (owned by isis-3) so `ze explain` can describe it; isis-13
+// diagnostic code (owned by isis-3) so `ze show diagnostic` can describe it; isis-13
 // surfaces it without re-registering.
 func TestISISRawSocketCodeRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()

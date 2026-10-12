@@ -21,7 +21,7 @@ import (
 
 // codeSSHHostKeyMissing names a host key or host certificate file the config
 // points at and the filesystem does not hold. internal/core/diagnostic/codes.go
-// declares it, so `ze explain doctor-ssh-hostkey-missing` answers.
+// declares it, so `ze show diagnostic doctor-ssh-hostkey-missing` answers.
 const codeSSHHostKeyMissing = "doctor-ssh-hostkey-missing"
 
 // configLeafTrue is the spelling of a true boolean leaf in the config tree.

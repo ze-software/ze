@@ -84,19 +84,19 @@ func doctorConfigClaims(ctx context.Context) error {
 	}
 
 	// The code an operator sees is one they can look up.
-	explain, err := doctorConfigClaimsRun(ctx, "ze-stripped", "explain", doctorConfigClaimsUnclaimed)
+	explain, err := doctorConfigClaimsRun(ctx, "ze-stripped", "show", "diagnostic", doctorConfigClaimsUnclaimed)
 	if err != nil {
-		return doctorConfigClaimsFail("run ze explain %s: %v", doctorConfigClaimsUnclaimed, err)
+		return doctorConfigClaimsFail("run ze show diagnostic %s: %v", doctorConfigClaimsUnclaimed, err)
 	}
 	if explain.exitCode != 0 {
 		return doctorConfigClaimsFail(
-			"ze explain %s failed: %s",
+			"ze show diagnostic %s failed: %s",
 			doctorConfigClaimsUnclaimed,
 			explain.stderr,
 		)
 	}
 	if !bytes.Contains([]byte(explain.stdout), []byte("Config subtree delivered to nobody")) {
-		return doctorConfigClaimsFail("ze explain does not describe the code: %s", explain.stdout)
+		return doctorConfigClaimsFail("ze show diagnostic does not describe the code: %s", explain.stdout)
 	}
 
 	if _, err := fmt.Fprintln(os.Stdout, "OK"); err != nil {

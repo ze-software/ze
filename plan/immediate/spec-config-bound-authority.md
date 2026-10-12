@@ -222,7 +222,7 @@ limit, and a kernel ABI value set does not vary by machine.
 | AC-17 | An MTU above the old static ceiling of 16000 that the device's `IFLA_MAX_MTU` permits | Validate passes. A loopback or a virtual link that accepts 65536 is configurable |
 | AC-18 | The link cannot be read, or the kernel reply carries no `IFLA_MAX_MTU` | Validate does NOT refuse, and doctor warns |
 | AC-19 | The `mtu` config leaf and the `bytes` command argument that also names an MTU | Both declare `ze:authority "host"` and both reach the same validator, so the config path and the command path cannot disagree about the ceiling as they do today at 16000 against 65535 |
-| AC-20 | `ze doctor --json` output for each new check | Every code it emits is declared in `internal/core/diagnostic/codes.go` and is explained by `ze explain <code>` |
+| AC-20 | `ze doctor --json` output for each new check | Every code it emits is declared in `internal/core/diagnostic/codes.go` and is explained by `ze show diagnostic <code>` |
 
 ## End-to-End User Stories
 

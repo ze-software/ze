@@ -21,7 +21,7 @@ import (
 
 // codeBMPUnreachable names a configuration none of whose BMP collectors
 // accepts a TCP connection. internal/core/diagnostic/codes.go declares it, so
-// `ze explain doctor-bmp-unreachable` answers.
+// `ze show diagnostic doctor-bmp-unreachable` answers.
 const codeBMPUnreachable = "doctor-bmp-unreachable"
 
 // collectorDefaultPort is the port a collector entry that names none is sent

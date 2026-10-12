@@ -25,7 +25,7 @@ type collectOptions struct {
 }
 
 // moduleRegistry is the SINGLE SOURCE OF TRUTH for the set of
-// modules available in `ze support`. Adding a new module means one
+// modules available in `ze request support archive`. Adding a new module means one
 // entry here; all consumers (help text, --list-modules, validation,
 // collection) DERIVE from this map.
 var moduleRegistry = map[string]moduleCollector{

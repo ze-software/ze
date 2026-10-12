@@ -6,7 +6,7 @@
 # command now asserts its OWN exit code via cmd=...:exit=N). Two runner facts
 # force the split, both verified in internal/test/runner/runner_exec.go:
 #   1. expect=exit:code= is file-level (Record.ExpectExitCode is a single value,
-#      compared against lastQuickZeErr), so exit-0 `ze explain` and exit-1
+#      compared against lastQuickZeErr), so exit-0 `ze show diagnostic` and exit-1
 #      `ze doctor` commands cannot share a file.
 #   2. reject=stdout:pattern= matches the file's ACCUMULATED stdout, so the
 #      explain commands below -- which necessarily print the code names -- would
@@ -14,24 +14,24 @@
 # Net coverage went up: 4 unasserted commands became 6 individually asserted ones.
 #
 # VALIDATES: every doctor code the vrrp surface can emit is registered with
-# metadata, so `ze explain <code>` tells an operator what the problem is and how
+# metadata, so `ze show diagnostic <code>` tells an operator what the problem is and how
 # to fix it. The raw-socket code is owned by the transport; its FIRING path needs
 # CAP_NET_RAW and lives in the QEMU integration test, but its metadata is
 # asserted here.
-# PREVENTS: a code that fires with no metadata, leaving `ze explain` to fail for
+# PREVENTS: a code that fires with no metadata, leaving `ze show diagnostic` to fail for
 # an operator holding a diagnostic they cannot act on.
 
 # A generous timeout on the first command: the runner treats each foreground `ze`
 # as a daemon and waits for a readiness file that these one-shot commands never
 # write.
-cmd=foreground:seq=1:exec=ze explain doctor-vrrp-config-invalid:timeout=60s:exit=0
+cmd=foreground:seq=1:exec=ze show diagnostic doctor-vrrp-config-invalid:timeout=60s:exit=0
 expect=stdout:contains=doctor-vrrp-config-invalid
 expect=stdout:contains=accept-mode
 
-cmd=foreground:seq=2:exec=ze explain doctor-vrrp-backend-unusable:exit=0
+cmd=foreground:seq=2:exec=ze show diagnostic doctor-vrrp-backend-unusable:exit=0
 expect=stdout:contains=doctor-vrrp-backend-unusable
 expect=stdout:contains=netlink
 
-cmd=foreground:seq=3:exec=ze explain doctor-vrrp-raw-socket:exit=0
+cmd=foreground:seq=3:exec=ze show diagnostic doctor-vrrp-raw-socket:exit=0
 expect=exit:code=0
 expect=stdout:contains=doctor-vrrp-raw-socket

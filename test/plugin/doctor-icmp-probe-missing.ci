@@ -6,7 +6,7 @@
 #            doctor` reports `doctor-icmp-probe` and the message names both
 #            fixes, CAP_NET_RAW and ping_group_range. The code is distinct from
 #            `doctor-icmp-probe-unprivileged`, which says the datagram socket
-#            stands in. `ze explain` resolves the code.
+#            stands in. `ze show diagnostic` resolves the code.
 # PREVENTS: a missing probe dependency that surfaces as a socket error at the
 #           operator's first ping instead of a diagnostic with a code.
 #
@@ -30,12 +30,12 @@ EOF_CONF
 cmd=foreground:seq=1:exec=le test fixture plugin/isolated-netns netns zedfd$PORT without-net-raw run ze doctor --json config probe.conf:timeout=20s
 expect=exit:code=0
 # The JSON row, quotes and comma included: a bare `doctor-icmp-probe` is also a
-# prefix of the unprivileged code and of the `ze explain` line below.
+# prefix of the unprivileged code and of the `ze show diagnostic` line below.
 expect=stdout:pattern="code": "doctor-icmp-probe",
 expect=stdout:contains=no ICMP probe socket can be opened
 expect=stdout:contains=CAP_NET_RAW
 expect=stdout:contains=ping_group_range
 reject=stdout:contains=doctor-icmp-probe-unprivileged
 
-cmd=foreground:seq=2:exec=ze explain doctor-icmp-probe:exit=0
+cmd=foreground:seq=2:exec=ze show diagnostic doctor-icmp-probe:exit=0
 expect=stdout:contains=ping_group_range

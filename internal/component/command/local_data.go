@@ -58,7 +58,7 @@ import (
 //
 // The two results are INDEPENDENT. The payload says whether there is an answer
 // to render, the code says what the process exits with, and a command MAY have
-// both: `validate config` answers the diagnostics of a config it rejects and
+// both: `show config validation` answers the diagnostics of a config it rejects and
 // exits 1. A handler with nothing to say MUST write its reason to stderr and
 // return a nil payload.
 type LocalDataHandler func(args ValidatedArgs) (any, int)
@@ -113,7 +113,7 @@ func RegisterLocalData(path string, handler LocalDataHandler, meta registry.Meta
 func plainLocalData(path string, handler LocalDataHandler, render func(string, any) int) LocalHandler {
 	return func(validated ValidatedArgs) int {
 		// A nonzero code with a payload is an ANSWER the command exits
-		// nonzero on, not an error with nothing to say: `validate config`
+		// nonzero on, not an error with nothing to say: `show config validation`
 		// renders the diagnostics of a config it rejects and exits 1. The
 		// renderer's own failure wins, because then nothing was printed.
 		payload, code := handler(validated)

@@ -58,7 +58,7 @@ func TestDoctorMTULocalStateReportsEachUnreadableSource(t *testing.T) {
 		}
 	}
 	// The code resolves once the binary entry point registers the built-in
-	// table, which is what `ze explain` reads.
+	// table, which is what `ze show diagnostic` reads.
 	diagnostic.RegisterBuiltinCodes()
 	if diagnostic.Lookup(codeMTULocalState) == nil {
 		t.Errorf("code %s is not in internal/core/diagnostic/codes.go", codeMTULocalState)

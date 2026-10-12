@@ -1,9 +1,9 @@
-# Test: ze validate config <file> via unified verb dispatch
-# VALIDATES: validate config verb dispatches to the validate handler and answers
+# Test: ze show config validation <file> via unified verb dispatch
+# VALIDATES: show config validation dispatches to the validate handler and answers
 #            the verdict for the file it read.
-# PREVENTS: regression in unified verb dispatch for validate command
+# PREVENTS: regression in unified verb dispatch for show config validation
 #
-# The assertion reads the ANSWER, not a sentence. `validate config` is registered
+# The assertion reads the ANSWER, not a sentence. `show config validation` is registered
 # through registry.MustRegisterLocalData with command.RenderLocalAnswer, so it
 # answers a diagnostic.ValidateResult and the pipe layer renders it
 # (ai/rules/cli.md). Until 2026-08-30 the same path was a MustRegisterLocalMeta
@@ -19,6 +19,7 @@
 # half of the same pair.
 stdin=config:terminator=EOF_STDIN
 bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {
@@ -64,7 +65,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze validate config test.conf
+cmd=foreground:seq=1:exec=ze show config validation test.conf
 expect=exit:code=0
 expect=stdout:pattern=valid\s+true
 expect=stdout:pattern=path\s+test\.conf

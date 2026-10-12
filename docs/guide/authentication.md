@@ -75,7 +75,7 @@ a central server.
 
 ```
 ze doctor --json config router.conf
-ze explain doctor-aaa-no-local-fallback
+ze show diagnostic doctor-aaa-no-local-fallback
 ```
 
 It warns where a RADIUS or TACACS+ server is configured and no

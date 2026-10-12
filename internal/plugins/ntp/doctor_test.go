@@ -130,7 +130,7 @@ func TestCheckNTPClientIsSilentWhenAServerAnswers(t *testing.T) {
 
 // TestNTPDoctorChecksRegistered asks the registry the doctor runner reads
 // whether it holds every check this plugin declares, at the phase and order
-// each declaration states, and whether every code resolves for `ze explain`.
+// each declaration states, and whether every code resolves for `ze show diagnostic`.
 //
 // VALIDATES: the init() in register.go installed the table and the registry
 // accepted it.

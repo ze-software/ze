@@ -527,7 +527,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
 | The kernel path is proven | The QEMU target passes |
 | Interoperability is proven | Scenarios `ipcomp` and `ipcomp-declined` pass |
 | No interop tag was added | `grep -rn 'RFC requirement:' test/interop-ipsec/` returns nothing |
-| The doctor check is reachable | `ze doctor --json` lists the check and `ze explain <code>` answers |
+| The doctor check is reachable | `ze doctor --json` lists the check and `ze show diagnostic <code>` answers |
 
 ### Security Review Checklist
 

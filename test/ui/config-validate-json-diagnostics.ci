@@ -1,11 +1,11 @@
-# Test: `validate config | json` — stable diagnostic JSON
+# Test: `show config validation | json` — stable diagnostic JSON
 # VALIDATES: AC-1 agent receives stable diagnostic JSON with diagnostics array
 
 tmpfs=bad.conf:terminator=EOF_CONF
 invalid syntax here
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze cli -c "validate config bad.conf | json"
+cmd=foreground:seq=1:exec=ze cli -c "show config validation bad.conf | json"
 expect=exit:code=1
 expect=stdout:contains="diagnostics"
 expect=stdout:contains="code"

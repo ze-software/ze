@@ -13,7 +13,7 @@ import (
 // The codes come from the producer rather than from a list here, so a refusal
 // that starts answering a code the registry does not hold turns this red.
 //
-// VALIDATES: `ze explain <code>` resolves every code the DoT/DoH certificate
+// VALIDATES: `ze show diagnostic <code>` resolves every code the DoT/DoH certificate
 // check reports.
 // PREVENTS: a diagnostic an operator cannot look up.
 func TestCertMaterialCodesRegistered(t *testing.T) {

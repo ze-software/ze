@@ -41,7 +41,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Operators need to save or send a complete support bundle during an incident without
-remembering remote collection details. Ze already has the local `ze support`
+remembering remote collection details. Ze already has the local `ze request support archive`
 tech-support equivalent. This spec adds a `save` pipe sink and a support-owned
 destination list, so support output and other CLI output can be saved under the
 Ze config/data directory, streamed to syslog, or copied by SSH.
@@ -58,7 +58,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
   → Decision: Reuse the support component and command pipe machinery. Do not add a second support bundle producer.
   → Constraint: Command and config surfaces must register through their owning packages.
 - [ ] `docs/guide/command-catalogue.md` - names command grammar categories and vendor equivalents.
-  → Decision: The operator-facing feature is a `save` pipe sink plus a support archive producer. The catalogue's planned `generate tech-support archive` row must be reconciled with shipped `ze support`.
+  → Decision: The operator-facing feature is a `save` pipe sink plus a support archive producer. The catalogue's planned `generate tech-support archive` row must be reconciled with shipped `ze request support archive`.
   → Constraint: User-supplied paths and remote names need a closed keyword before the value.
 - [ ] `ai/patterns/cli-command.md` - structural template for CLI command grammar.
   → Decision: The pipe syntax uses keyword-value pairs: `save file path`, `save ssh destination`, and `save syslog destination`.
@@ -86,7 +86,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/support/support.go` - `Run` parses `ze support` flags, collects modules, writes an archive with `writeArchive`, and optionally prints `SupportManifest` JSON.
+- [ ] `internal/component/support/support.go` - `Run` parses `ze request support archive` flags, collects modules, writes an archive with `writeArchive`, and optionally prints `SupportManifest` JSON.
 - [ ] `internal/component/support/modules.go` - `moduleRegistry`, `ModuleNames`, and `filterModules` define the available support bundle modules.
 - [ ] `internal/plugins/support/register.go` - registers root command `support` with help text and offline mode.
 - [ ] `cmd/ze/ze_core_dispatch.go` - registers root handlers and dispatches local and YANG command paths.
@@ -105,12 +105,12 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 - [ ] `internal/core/paths/paths.go` - resolves the Ze config/data directory.
 - [ ] `internal/component/doctor/checks_storage.go` - verifies writable persistent destinations.
 - [ ] `internal/component/doctor/checks_tls.go` - shows the existing doctor pattern for stored material referenced by config.
-- [ ] `docs/guide/command-reference.md` - documents `ze support` as the support archive command.
+- [ ] `docs/guide/command-reference.md` - documents `ze request support archive` as the support archive command.
 - [ ] `docs/features.md` - marks Tech-Support Bundle as supported and describes current support modules.
 - [ ] `docs/guide/command-catalogue.md` - still marks Tech-support archive as planned and names vendor equivalents.
 
 **Behavior to preserve:**
-- `ze support` remains the local tech-support archive command and continues to collect the current module set.
+- `ze request support archive` remains the local tech-support archive command and continues to collect the current module set.
 - Support archives remain privacy-by-default. Sensitive config and secrets stay redacted unless `--sensitive` is explicitly set.
 - Existing pipe operators keep their current semantics and ordering.
 - Existing SSH credential commands keep their storage format and precedence rules.
@@ -120,13 +120,13 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 - Add a `save` pipe sink that can write command output or a support archive to a local relative path, syslog destination, or SSH destination.
 - Add support-owned named SSH and syslog destinations to config.
 - Let operators use a configured destination during an incident without retyping host, port, path, facility, or credential details.
-- Update docs so shipped `ze support` and the catalogue agree.
+- Update docs so shipped `ze request support archive` and the catalogue agree.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Interactive CLI input, web CLI input, SSH exec input, and offline `ze pipe` stdin can contain a `save` pipe operator.
-- `ze support` remains an offline root command that produces a support archive path and manifest.
+- `ze request support archive` remains an offline root command that produces a support archive path and manifest.
 - Config enters through YANG-backed `support` configuration for named export destinations.
 
 ### Transformation Path
@@ -142,7 +142,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | CLI input to pipe parser | `ProcessPipesChecked` and `ProcessPipesDefaultFormatChecked` parse `save` | Unit tests in `internal/component/command/pipe_test.go` |
-| Offline command to support component | `ze support` continues to call `support.Run` | Functional UI test for local save |
+| Offline command to support component | `ze request support archive` continues to call `support.Run` | Functional UI test for local save |
 | Config to destination resolver | YANG tree parses named destinations into a typed resolver | Config parse test and unit resolver test |
 | Destination resolver to ZeFS SSH credentials | Named SSH destination references stored credential material | Unit test with fake store |
 | Save sink to filesystem | Writer resolves a relative path under `paths.DefaultConfigDir()` and creates the target | Unit and functional test |
@@ -172,7 +172,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `ze support` is the existing tech-support equivalent to extend. | User said show tech-support or equivalent; docs and support source show `ze support` generates the archive. | A separate `show tech-support` producer would duplicate support collection. | Source read of `support.Run` and docs. | validated |
+| A-1 | `ze request support archive` is the existing tech-support equivalent to extend. | User said show tech-support or equivalent; docs and support source show `ze request support archive` generates the archive. | A separate `show tech-support` producer would duplicate support collection. | Source read of `support.Run` and docs. | validated |
 | A-2 | Config must store named SSH and syslog destinations, but not raw private key bytes. | User asked for pre-saved locations and saved SSH credential key; SSH credentials already use ZeFS. | Visible config could leak secrets or force key material through config diffs. | Source read of `zefs` SSH keys and config masking. | partly broken (2026-09-05) -- the half that says config holds no key bytes stands. The half that says stored material can be REFERENCED by name does not: `pkg/zefs/keys.go` holds one credential set for the Ze daemon's own remote (`meta/ssh/{host}/{port}/username` and `.../password`), not a set keyed by destination name, and `resolvePassword` in `internal/component/cli/sshclient/client.go` offers a stored password, `ze.ssh.password` or a TTY prompt, with no key-based auth at all. A named outbound destination needs a credential store that does not exist. |
 | A-3 | Local file save uses a path relative to Ze config/data directory. The CLI grammar remains `save file path <relative-path>` because repo CLI rules require `path` before a user value. | User selected relative local paths; `paths.DefaultConfigDir()` maps Linux and appliance locations. | Saving to cwd or arbitrary absolute paths would behave differently on Linux and appliances. | User confirmation and source read of `paths.DefaultConfigDir()`. | broken (2026-09-05) -- `save <path>` shipped on 2026-08-23 in commit 77ec7e1ec, after this spec was written. `saveAnswer` in `internal/component/command/pipe_save.go` writes the operator's path as given, and the file header states the security model it chose: any path the operator's own process may write, refused outright wherever the DAEMON expands the chain. It does not resolve under `paths.DefaultConfigDir()`, and it rejects neither an absolute path nor `..`. |
 | A-4 | `save` is a terminal pipe operator. | A save sink has side effects and does not produce data for later pipe transforms. | Chaining after save could run transformations on a status message instead of the original data. | Source review of pipe processors and design review; parser tests enforce it during implementation. | broken (2026-09-05) -- the shipped operator is not terminal. `pipeCatalog` in `internal/component/command/pipe_catalog.go` declares `save` as `ClassGlobal` with `RepeatCompose`, and `ApplyPipes` in `internal/component/command/pipe.go` runs `applySaves` over the FINISHED answer after the whole chain, wherever `save` sat in it. `TestSaveWritesTheFormattedAnswer` pins that ordering. |
@@ -219,7 +219,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 | AC-6 | A configured destination references missing credential material | Validation or doctor reports a clear error naming the destination and missing reference. |
 | AC-7 | A configured destination has a malformed host, port, syslog address, or path | Config parsing or validation rejects it before use. |
 | AC-13 | Operator supplies an empty, absolute, or escaping local file path | Ze rejects it and names the invalid path constraint. |
-| AC-8 | Command output includes secrets or sensitive config by default | Save output uses the same redaction behavior as the command being saved. `ze support --sensitive` remains the explicit opt-in for secrets. |
+| AC-8 | Command output includes secrets or sensitive config by default | Save output uses the same redaction behavior as the command being saved. `ze request support archive --sensitive` remains the explicit opt-in for secrets. |
 | AC-9 | Save delivery fails after the command output is produced | Ze returns a non-zero result for the save operation and names the failed destination and cause. |
 | AC-10 | Existing pipe operators are used without `save` | Existing behavior and tests remain unchanged. |
 | AC-11 | A user asks for help or completion | Help and completion list `save` syntax and configured destination names where the CLI supports dynamic completion. |
@@ -429,11 +429,11 @@ owner-directed design or invents a store or a wire framing that does not exist.
 | D-2 | Does a local save stay confined under `paths.DefaultConfigDir()`? | AC-13 asks for a confinement the shipped design deliberately rejected. `pipe_save.go` refuses `save` wherever the daemon expands the chain, and treats the operating system's permissions as the whole answer everywhere else. Confining the path would remove a working local use (saving to a home directory) to defend a surface that is already refused. | AC-13, AC-1 |
 | D-3 | Where does credential material for a named outbound SSH destination live, and what form does it take? | `pkg/zefs/keys.go` holds one credential set for the Ze daemon's own remote, keyed by host and port rather than by destination name, and `resolvePassword` supports no key-based auth. A named destination therefore needs a NEW secret store, which is a security decision. | AC-4, AC-5, AC-6 |
 | D-4 | What framing carries a tar.gz over syslog, and is syslog the right transport for it at all? | This spec's own Known Limitations require the framing, chunking and reassembly metadata to be defined before code. R-3 already records that syslog is a poor fit for a binary archive. | AC-3 |
-| D-5 | Does the shipped command stay `ze support`, or become `generate tech-support archive`? | `docs/guide/command-catalogue.md` publishes the row as `planned` with an empty Ze column, and its own grammar section reserves `generate <what>` for artifact production. Correcting the row asserts one answer or the other, so even the documentation half of AC-12 waits here. | AC-12 |
+| D-5 | Does the shipped command stay `ze request support archive`, or become `generate tech-support archive`? | `docs/guide/command-catalogue.md` publishes the row as `planned` with an empty Ze column, and its own grammar section reserves `generate <what>` for artifact production. Correcting the row asserts one answer or the other, so even the documentation half of AC-12 waits here. | AC-12 |
 
 ## Design Insights
 
-- `ze support` is already the support bundle producer. Creating `show tech-support` as a separate producer would violate the no-duplication rule.
+- `ze request support archive` is already the support bundle producer. Creating `show tech-support` as a separate producer would violate the no-duplication rule.
 - The existing pipe engine is text and JSON oriented. Support archive delivery needs artifact metadata or a direct support destination path, otherwise the save sink can save only the manifest.
 - Syslog is the least natural target for a full tar.gz archive. It is reliable for a text summary or manifest, but binary archive delivery needs chunking, encoding, or a narrower supported mode.
 - SSH credentials are already a ZeFS concern. Config should name a destination and credential reference, not own the private key payload.
@@ -442,7 +442,7 @@ owner-directed design or invents a store or a wire framing that does not exist.
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Extend `ze support`; do not create a second tech-support collector | Add `show tech-support` with a separate collector | Existing `support.Run` already owns collection, manifest, redaction, and archive writing. |
+| Extend `ze request support archive`; do not create a second tech-support collector | Add `show tech-support` with a separate collector | Existing `support.Run` already owns collection, manifest, redaction, and archive writing. |
 | Use `save` as a terminal pipe sink | Let later pipe operators transform the save success message | Side effects must happen once and on the intended bytes. Chaining after save is ambiguous. |
 | Require closed keywords before values | Accept `save file <path>` because the user phrased it that way | Repo CLI rule requires a closed keyword before any user-supplied value. |
 | Store remote destinations in config and credentials in ZeFS | Store private key bytes in YANG config | Existing SSH credential storage avoids secret leakage in config display and diffs. |

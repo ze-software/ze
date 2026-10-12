@@ -26,7 +26,7 @@ import (
 
 // doctorVPPDPDKCode names a VFIO module that is not loaded or a configured PCI
 // device sysfs does not hold. internal/core/diagnostic/codes.go declares it, so
-// `ze explain doctor-vpp-dpdk` answers.
+// `ze show diagnostic doctor-vpp-dpdk` answers.
 const doctorVPPDPDKCode = "doctor-vpp-dpdk"
 
 // dpdkLoadedModules is the module-list reader checkVPPDPDK runs, and

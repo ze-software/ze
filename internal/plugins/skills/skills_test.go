@@ -33,7 +33,7 @@ func captureStdout(t *testing.T, fn func()) string {
 
 func TestSkillsListAll(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run(commandtest.Args("list"))
+		code := showSkills(commandtest.Args())
 		assert.Equal(t, 0, code)
 	})
 	assert.Contains(t, out, "ze")
@@ -45,7 +45,7 @@ func TestSkillsListAll(t *testing.T) {
 
 func TestSkillsListJSON(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run(commandtest.Args("list", "--json"))
+		code := showSkills(commandtest.Args("--json"))
 		assert.Equal(t, 0, code)
 	})
 	var entries []diagnostic.SkillEntry
@@ -56,7 +56,7 @@ func TestSkillsListJSON(t *testing.T) {
 
 func TestSkillsGetCompact(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run(commandtest.Args("get", "ze"))
+		code := showSkill(commandtest.Args("ze"))
 		assert.Equal(t, 0, code)
 	})
 	assert.Contains(t, out, "name: ze")
@@ -65,10 +65,10 @@ func TestSkillsGetCompact(t *testing.T) {
 
 func TestSkillsGetFull(t *testing.T) {
 	compact := captureStdout(t, func() {
-		Run(commandtest.Args("get", "ze"))
+		showSkill(commandtest.Args("ze"))
 	})
 	full := captureStdout(t, func() {
-		code := Run(commandtest.Args("get", "ze", "--full"))
+		code := showSkill(commandtest.Args("ze", "--full"))
 		assert.Equal(t, 0, code)
 	})
 	assert.Contains(t, full, "Diagnostic Loop")
@@ -77,7 +77,7 @@ func TestSkillsGetFull(t *testing.T) {
 
 func TestSkillsGetInnerSkill(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run(commandtest.Args("get", "ze-diagnostics"))
+		code := showSkill(commandtest.Args("ze-diagnostics"))
 		assert.Equal(t, 0, code)
 	})
 	assert.Contains(t, out, "ze-diagnostics")
@@ -86,7 +86,7 @@ func TestSkillsGetInnerSkill(t *testing.T) {
 
 func TestSkillsGetJSON(t *testing.T) {
 	out := captureStdout(t, func() {
-		code := Run(commandtest.Args("get", "ze", "--json"))
+		code := showSkill(commandtest.Args("ze", "--json"))
 		assert.Equal(t, 0, code)
 	})
 	var result struct {
@@ -100,11 +100,14 @@ func TestSkillsGetJSON(t *testing.T) {
 }
 
 func TestSkillsGetUnknown(t *testing.T) {
-	code := Run(commandtest.Args("get", "nonexistent"))
+	code := showSkill(commandtest.Args("nonexistent"))
 	assert.Equal(t, 1, code)
 }
 
+// TestSkillsNoArgs proves the skills package refuses an invocation that names
+// nothing to fetch: `show skill` with no name exits 1 rather than printing an
+// empty skill.
 func TestSkillsNoArgs(t *testing.T) {
-	code := Run(commandtest.Args())
+	code := showSkill(commandtest.Args())
 	assert.Equal(t, 1, code)
 }

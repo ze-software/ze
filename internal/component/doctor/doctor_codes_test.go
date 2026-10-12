@@ -13,13 +13,13 @@ import (
 // the compiler cannot: does the registry still hold the code the constant
 // names? A builtin entry deleted or renamed turns this red.
 //
-// VALIDATES: `ze explain <code>` resolves every code `ze doctor` reports here.
+// VALIDATES: `ze show diagnostic <code>` resolves every code `ze doctor` reports here.
 // PREVENTS: a diagnostic an operator cannot look up.
 func TestDoctorCheckCodesRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
 
 	// The last four are emitted by the Linux-only checks (checks_linux.go). The
-	// registry answers for them on every platform, and `ze explain` is asked on
+	// registry answers for them on every platform, and `ze show diagnostic` is asked on
 	// every platform too.
 	codes := []string{
 		diagnostic.CodeDoctorStoreIntegrity,

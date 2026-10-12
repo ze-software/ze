@@ -62,7 +62,7 @@ type moduleData struct {
 	data []byte
 }
 
-// Run executes the support command.
+// Run executes the request support archive command.
 func Run(validated command.ValidatedArgs) int {
 	args := validated.Tokens()
 	var (
@@ -641,7 +641,7 @@ func parseSince(s string) (time.Time, error) {
 }
 
 func usage() {
-	os.Stderr.WriteString("Usage: ze support [options] [<config-file>]\n" + //nolint:errcheck // CLI help
+	os.Stderr.WriteString("Usage: ze request support archive [options] [<config-file>]\n" + //nolint:errcheck // CLI help
 		"\nGenerate a tech-support archive for troubleshooting.\n" +
 		"\nOptions:\n" +
 		"  --module M       Collect only named modules (comma-separated)\n" +

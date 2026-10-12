@@ -661,7 +661,7 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | Entry Point | -> | Feature Code | Exact mandatory test |
 |-------------|----|--------------|----------------------|
 | `ze init --automatic` | -> | init automatic bootstrap/state validator | `test/install/package-bootstrap.ci`; six named `TestRunAutomatic*` symbols |
-| `ze doctor --json` and `ze explain` | -> | bounded systemctl query plus registered update diagnostic | `test/install/package-doctor-unit.ci`; `TestDoctorSystemctlShow`; `TestDoctorPackageManagedUpdate` |
+| `ze doctor --json` and `ze show diagnostic` | -> | bounded systemctl query plus registered update diagnostic | `test/install/package-doctor-unit.ci`; `TestDoctorSystemctlShow`; `TestDoctorPackageManagedUpdate` |
 | `show system update` and every firmware check/download/apply/restart/rollback command | -> | `ActiveBackend` package-managed dispatcher plus package-aware YANG help | guard `.ci`; `TestPackageManagedShowSystemUpdate`; `TestFirmwareHandlersPackageManaged`; `TestFirmwareCommandHelpPackageManaged`; both booted VM full profiles |
 | Downloaded `install-ze-repository.sh install|remove` | -> | fingerprint/checksum verification and atomic external source/key pair lifecycle | Planned repository-bootstrap test action; all six package full profiles |
 | Protected release-build workflow | -> | deterministic builder/input manifest/packages | Planned release build/reproducibility test action |
@@ -761,7 +761,7 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | `TestRunAutomaticNoPlaintext` | `internal/plugins/init/main_test.go` | Known plaintext absent from state/config/output/argv fixtures | |
 | `TestPackagedUnitMatchesGeneratedUnit` | `internal/plugins/systemd/unit_test.go` | Vendor unit semantic parity for `/usr/bin/ze` and `/etc/ze` | |
 | `TestDoctorSystemctlShow` | `internal/component/doctor/checks_platform_systemd_test.go` | Exact command; vendor/admin/drop-in/not-found/unavailable/nonzero/malformed/duplicate/oversize/timeout classifications | |
-| `TestDoctorPackageManagedUpdate` | `internal/component/doctor/checks_platform_systemd_test.go` | `doctor-update-package-managed` plus `ze explain` registration | |
+| `TestDoctorPackageManagedUpdate` | `internal/component/doctor/checks_platform_systemd_test.go` | `doctor-update-package-managed` plus `ze show diagnostic` registration | |
 | `TestPackageManagedBackendSelection` | `internal/component/config/system/backend_package_managed_test.go` | Safe deb/rpm marker precedence; missing marker fallback; unsafe/unknown marker failure | |
 | `TestPackageManagedBackendOperations` | `internal/component/config/system/backend_package_managed_test.go` | Check/status and download/apply/restart/rollback guidance with no files/mutation | |
 | `TestPackageManagedDisablesAutoApply` | `internal/component/config/system/backend_package_managed_test.go` | Background SelfUpdater never starts despite auto config | |
@@ -853,7 +853,7 @@ The test symbols above describe required release-policy behaviour, not existing 
 | Exact command/test | Location | End-user/operator scenario | Status |
 |--------------------|----------|----------------------------|--------|
 | Install-suite action invoking `./le test install --all` (wiring required) | `test/install/package-bootstrap.ci` | Safe automatic bootstrap, existing/unsafe state, no plaintext | |
-| same exact install-suite command | `test/install/package-doctor-unit.ci` | Effective unit/drop-in/query diagnostics and `ze explain` | |
+| same exact install-suite command | `test/install/package-doctor-unit.ci` | Effective unit/drop-in/query diagnostics and `ze show diagnostic` | |
 | same exact install-suite command | `test/install/package-self-update-guard.ci` | Real update handlers cannot stage/mutate packaged binary | |
 | `./le test functional ui` (`./le test ui --all`) | `test/ui/init-automatic-help.ci` | Automatic flag and package purpose visible | |
 | Planned repository-bootstrap test action | `packaging/repository/install-ze-repository.sh`; `internal/le/evidence/` | Same production install/remove script, local signed fixtures, tool/conflict/fingerprint/failure matrix | |
@@ -949,7 +949,7 @@ None. Every named release, package, repository, trust, bootstrap, recovery, moni
 - `internal/component/config/system/backend.go` and existing backend tests - `BackendPackageManaged`, marker option/precedence, safe marker validation.
 - `cmd/ze/hub/main_system.go` - pass injectable/default install-method marker path into backend selection.
 - `internal/plugins/update-cmd/cmd/firmware.go`, `cmd/show_test.go`, `yang/ze-update-firmware-cmd.yang`, and `yang/self_containment_test.go` - preserve structured package-managed responses, verify `show system update` dispatch for both markers, and make command help explain that package backends do not contact/stage/restart/rollback.
-- `internal/core/diagnostic/codes.go` - unconditionally register `doctor-service-query` and `doctor-update-package-managed` with `ze explain` examples.
+- `internal/core/diagnostic/codes.go` - unconditionally register `doctor-service-query` and `doctor-update-package-managed` with `ze show diagnostic` examples.
 - `README.md` - package/download quickstart and pre-release notice removal only after public canary.
 - `docs/features.md`, `docs/guide/README.md`, `docs/guide/quickstart.md` - package-first availability/navigation.
 - `docs/guide/ubuntu-build-install.md`, `docs/guide/ze-install.md` - source versus package install, exact identity/state/service/failure/remove policy.
@@ -968,7 +968,7 @@ None. Every named release, package, repository, trust, bootstrap, recovery, moni
 | CLI grammar | Yes | Existing `ze init [options]` and update commands; no identifier grammar change |
 | Functional test | Yes | Bootstrap, doctor, update guard, package/repository, staging, and public `.ci`/evidence paths |
 | Doctor behavior | Yes | Effective systemd unit plus package-managed auto-apply diagnostic |
-| Diagnostic registry | Yes | New registered `doctor-service-query` and `doctor-update-package-managed`; unit/`.ci`/`ze explain` coverage |
+| Diagnostic registry | Yes | New registered `doctor-service-query` and `doctor-update-package-managed`; unit/`.ci`/`ze show diagnostic` coverage |
 | New daemon runtime dependency | No | Packages require systemd/CA certificates; Go daemon adds no external library/process dependency |
 | Prometheus metrics | No | Publisher metrics are external operational state, not daemon telemetry |
 | Release evidence | Yes | `internal/le/evidence/evidence.go` and release evidence workflow |

@@ -1,10 +1,10 @@
-# Tech-Support Bundle (`ze support`)
+# Tech-Support Bundle (`ze request support archive`)
 
 ## Meta
 
 | Field | Value |
 |-------|-------|
-| Name | Tech-Support Bundle (`ze support`) |
+| Name | Tech-Support Bundle (`ze request support archive`) |
 | Kind | daemon |
 | Scope | complete |
 | Level | experimental |

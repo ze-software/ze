@@ -51,8 +51,8 @@ Markdown from the live registries.
 ## Structured Diagnostics
 
 ```
-ze cli -c "validate config <file> | json"
-ze explain [--json] <diagnostic-code>
+ze cli -c "show config validation <file> | json"
+ze show diagnostic [--json] <diagnostic-code>
 ze config fix --plan <file>
 ```
 
@@ -65,7 +65,7 @@ expected/actual facts, and repair metadata. Agents parse JSON diagnostics instea
 scraping terminal prose.
 
 Each diagnostic carries a stable code (e.g., `config-parse`, `config-yang-type`,
-`config-listener-conflict`). Use `ze explain <code>` to get an explanation.
+`config-listener-conflict`). Use `ze show diagnostic <code>` to get an explanation.
 
 `ze config fix --plan` reports candidate repairs without editing files.
 Repair plans carry safety labels (`format-only`, `section-local`, `behavior-preserving`,
@@ -74,9 +74,9 @@ Repair plans carry safety labels (`format-only`, `section-local`, `behavior-pres
 ## Version-Matched Skills
 
 ```
-ze skills list
-ze skills get ze-diagnostics
-ze skills get ze --full
+ze show skills
+ze show skill ze-diagnostics
+ze show skill ze --full
 ```
 
 The installed binary serves agent workflow guides matched to its exact version.

@@ -700,7 +700,7 @@ in Phase 3.
 | 51 | Local Audit Trail | Supported | Supported | .ci per surface (REST, gRPC, MCP, web) asserting an auth-fail row in show audit; resolve duplicate test/draft/plugin/audit-config-commit.ci |
 | 52 | Health Registry | Supported | Partial | each registered check must be able to return non-healthy (a test that drives it red) |
 | 53 | Storage SMART Management | Supported | Experimental | per-device-class (ATA, NVMe) proof; reload-updates-interval test at daemon level |
-| 54 | Tech-Support Bundle (`ze support`) | Supported | Supported after one doc fix (Experimental strictly: S4) | archive JSON-per-module schema asserted by .ci |
+| 54 | Tech-Support Bundle (`ze request support archive`) | Supported | Supported after one doc fix (Experimental strictly: S4) | archive JSON-per-module schema asserted by .ci |
 | 55 | System Readiness (`ze doctor`) | Supported | Partial | every diagnostic code in internal/core/diagnostic/codes.go reached by at least one .ci |
 | 56 | Granular Debug | Supported | Partial | prove "not auto-applied on reboot" with a restart .ci |
 | 57 | Runtime Diagnostics | Supported | Experimental | MCP exposure asserted by a tools/list .ci naming these commands |

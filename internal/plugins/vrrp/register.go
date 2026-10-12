@@ -228,7 +228,7 @@ func runVRRPEngine(conn net.Conn) int {
 }
 
 // registerVRRPDiagnosticCodes publishes this plugin's doctor codes so
-// `ze explain <code>` resolves them.
+// `ze show diagnostic <code>` resolves them.
 func registerVRRPDiagnosticCodes() {
 	for _, m := range vrrpDiagnosticCodes {
 		_ = diagnostic.Register(m)

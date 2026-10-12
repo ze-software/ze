@@ -190,7 +190,7 @@ Inventory data enters from code and tests:
 | Daemon startup | `cmd/ze/main.go` | `ze <config>`, `ze -f <file>`, `ze start` | parse/plugin/web tests, install/docs tests | config/CLI, docs | Needs first-run walkthrough |
 | YANG verbs | `cmd/ze/main.go`, YANG command tree | `show`, `set`, `del`, `update`, `validate`, `monitor`, `clear` | `test/ui`, `test/editor`, `test/plugin` | config/CLI | Needs complete command vs handler diff |
 | Static offline roots | `cmd/ze/main.go` | `bgp`, `plugin`, `cli`, `config`, `init`, `passwd`, `data`, `schema`, `yang`, `interface`, `firewall`, `traffic-control`, `remote`, `resolve`, `exabgp`, `signal`, `status`, `env`, `sysctl`, `tacacs`, `l2tp`, `appliance`, `service`, `install`, `uninstall`, `completion` | mostly `test/ui`, `test/install`, package tests | config/CLI, system-linux, docs | Help/dispatch drift candidates |
-| Registry local commands | `cmd/ze/*/register.go`, `cmdregistry` | `doctor`, `explain`, `skills`, `crashes`, `host`, `ping`, `generate wireguard keypair`, `show env`, `show data`, `show yang`, `show schema`, `show config` | `test/ui` | config/CLI, docs | Must verify help and completion visibility |
+| Registry local commands | `cmd/ze/*/register.go`, `cmdregistry` | `doctor`, `show diagnostic`, `show skills`, `show skill`, `crashes`, `host`, `ping`, `request wireguard keypair`, `show env`, `show data`, `show yang`, `show schema`, `show config` | `test/ui` | config/CLI, docs | Must verify help and completion visibility |
 | Global metadata | `cmd/ze/main.go`, `cmdregistry` | `help`, `help --ai`, `version`, `--plugins`, `completion` | `test/ui/help-ai-json.ci`, command contract tests | docs/onboarding | Unknown-command suggestions are manually listed |
 
 ### Online RPC and YANG Command Surfaces

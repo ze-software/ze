@@ -117,7 +117,7 @@ func TestCheckVPPDPDKIsSilentWithoutDPDKInterfaces(t *testing.T) {
 // TestVPPLinuxDoctorChecksRegistered asks the registry the doctor runner reads
 // whether it holds every check this component declares on Linux, at the phase
 // and order each declaration states, and whether each code resolves for
-// `ze explain`.
+// `ze show diagnostic`.
 //
 // VALIDATES: the init() in register_linux.go installed the table and the
 // registry accepted it.

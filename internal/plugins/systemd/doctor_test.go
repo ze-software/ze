@@ -223,7 +223,7 @@ func TestCheckServiceInstallRunsOnSystemd(t *testing.T) {
 
 // TestServiceDoctorCheckRegistered asks the registry the doctor runner reads
 // whether it holds this plugin's check, at the phase and order the declaration
-// states, and whether every code it declares resolves for `ze explain`.
+// states, and whether every code it declares resolves for `ze show diagnostic`.
 //
 // VALIDATES: the init() in register.go installed the check and the registry
 // accepted it.

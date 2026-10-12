@@ -171,11 +171,11 @@ These are the forms that fail, and what to write instead.
 | Reporting a value as invalid without printing it | Include `%q` of the offending value |
 | Rewording a stable error phrase per call site | Keep one phrase so it stays greppable |
 | Returning `nil` or skipping when a check cannot run | Return an error; fail closed |
-| A user-facing failure with no diagnostic code or remediation | Register a `doctor-*` code and make it `ze explain`-able |
+| A user-facing failure with no diagnostic code or remediation | Register a `doctor-*` code and make it `ze show diagnostic`-able |
 
 A machine-facing failure carries a registered code from
 `internal/core/diagnostic/codes.go`, holding a title, a description, examples
-and remediation, and `ze explain <code>` prints it. The code is declared once,
+and remediation, and `ze show diagnostic <code>` prints it. The code is declared once,
 as an exported constant beside the table, and every surface that emits it
 references that constant rather than the string. The handler returns the code
 and structured fields rather than a finished sentence, which is what makes the

@@ -84,7 +84,7 @@ func LoadCrashDumpIntent(configPath string) (crashlog.Intent, error) {
 // the instance's own config out of the config store.
 //
 // The store is opened only for the empty path, so a caller that names a file
-// needs no storage at all: that is the path `ze support --config` takes, and the
+// needs no storage at all: that is the path `ze request support archive --config` takes, and the
 // path a test takes.
 func readCrashDumpConfig(configPath string) (name string, data []byte, err error) {
 	if configPath != "" {

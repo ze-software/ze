@@ -21,7 +21,7 @@ import (
 
 // codeTACACSUnreachable names a configuration none of whose TACACS+ servers
 // accepts a TCP connection. internal/core/diagnostic/codes.go declares it, so
-// `ze explain doctor-tacacs-unreachable` answers.
+// `ze show diagnostic doctor-tacacs-unreachable` answers.
 const codeTACACSUnreachable = "doctor-tacacs-unreachable"
 
 // codeTACACSWeakSecret identifies a key below the RFC's recommended length.

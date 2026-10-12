@@ -77,7 +77,7 @@ func closeOpenSpans(rec *Record, stdoutLen, stderrLen int) {
 // trip on one. Two files did exactly that:
 // test/plugin/kernel-capability-unknown-starts.ci and
 // kernel-capability-doctor-reports.ci each asserted that `ze doctor` printed a
-// diagnostic code and then ran `ze explain <that code>`, whose output satisfied
+// diagnostic code and then ran `ze show diagnostic <that code>`, whose output satisfied
 // the assertion on a host where the doctor check does not run at all.
 //
 // The stream name still selects nothing for a `contains=`: a command's span

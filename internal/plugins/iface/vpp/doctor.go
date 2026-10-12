@@ -220,7 +220,7 @@ func lcpNetnsMarkerDiagnostic(netns string) diagnostic.Diagnostic {
 		Str(" is not the host network namespace. VPP resolves the leaf as a namespace name under ").Str(lcpNetnsPathPrefix).
 		Str(", so the LCP TAPs land in ").Str(lcpNetnsPathPrefix).Str(netns).
 		Str(" and ze cannot bind on them from its own namespace. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, where ze runs; the other remedy is to run ze in the ").Quoted(netns).
-		Str(" namespace so BGP binds where the TAPs are, or see ze explain doctor-vpp-lcp-netns").String()
+		Str(" namespace so BGP binds where the TAPs are, or see ze show diagnostic doctor-vpp-lcp-netns").String()
 	return diagnostic.Diagnostic{
 		Code:     diagnostic.CodeDoctorVPPLCPNetns,
 		Severity: diagnostic.SeverityWarning,
@@ -249,7 +249,7 @@ func lcpNetnsConfigDiagnostic(tree *config.Tree, netns string) (diagnostic.Diagn
 	var tb textbuf.Buffer
 	msg := tb.Str("bgp is enabled and vpp.lcp.netns=").Quoted(netns).
 		Str(" is not root-reachable; BGP cannot bind on an LCP-shadowed interface in a separate namespace. VPP resolves the leaf as a namespace name under /var/run/netns/, so no name puts the TAPs where a root-netns ze binds. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, or run ze in the ").Quoted(netns).
-		Str(" namespace so BGP binds where the TAPs are; see ze explain doctor-vpp-lcp-netns").String()
+		Str(" namespace so BGP binds where the TAPs are; see ze show diagnostic doctor-vpp-lcp-netns").String()
 	return diagnostic.Diagnostic{
 		Code:     diagnostic.CodeDoctorVPPLCPNetns,
 		Severity: diagnostic.SeverityWarning,
@@ -275,7 +275,7 @@ func lcpNetnsHostDiagnostic(netns string) (diagnostic.Diagnostic, bool) {
 	case err != nil:
 		msg := tb.Str("vpp.lcp.netns=").Quoted(netns).Str(" could not be checked against ").Str(lcpNetnsPathPrefix).Str(": ").Err(err).
 			Str(". VPP opens that path for the LCP TAPs, so a missing namespace fails LCP pair creation at apply. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, or run ze in the ").Quoted(netns).
-			Str(" namespace so BGP binds where the TAPs are; see ze explain doctor-vpp-lcp-netns").String()
+			Str(" namespace so BGP binds where the TAPs are; see ze show diagnostic doctor-vpp-lcp-netns").String()
 		return diagnostic.Diagnostic{
 			Code:     diagnostic.CodeDoctorVPPLCPNetns,
 			Severity: diagnostic.SeverityWarning,

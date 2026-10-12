@@ -10,14 +10,14 @@ Use this when Ze config fails to parse or validate.
 ## Commands
 
 ```sh
-ze cli -c "validate config <file> | json"
-ze explain [--json] <diagnostic-code>
+ze cli -c "show config validation <file> | json"
+ze show diagnostic [--json] <diagnostic-code>
 ze config fix --plan <file>
 ```
 
 ## Diagnostic Shape
 
-Fields from `validate config | json`:
+Fields from `show config validation | json`:
 
 - `code`: stable lower-kebab diagnostic code
 - `severity`: `error` or `warning`
@@ -42,6 +42,6 @@ Fields from `validate config | json`:
 
 1. Run the failing command with `--json`.
 2. Use the span to inspect the relevant config.
-3. Run `ze explain <code>` before broad changes.
+3. Run `ze show diagnostic <code>` before broad changes.
 4. Fix the earliest root cause first.
 5. Re-validate after each fix.

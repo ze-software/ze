@@ -2,7 +2,7 @@
 # VALIDATES: checkGRInProcess (internal/component/bgp/plugins/gr/doctor.go) is
 #            WIRED into `ze doctor` -- `plugin { external X { run "ze plugin
 #            bgp-gr"; } }` produces the doctor-bgp-gr-out-of-process diagnostic,
-#            and `ze explain` answers for the code it reports.
+#            and `ze show diagnostic` answers for the code it reports.
 # PREVENTS:  the operator trap the check exists to close. With bgp-gr in a child
 #            process, RunGRPlugin never calls setEgressState in the daemon, so
 #            LLGREgressFilter treats every neighbor as LLGR-incapable and
@@ -37,14 +37,14 @@ plugin {
 EOF_EXTERNAL
 
 cmd=foreground:seq=1:exec=ze doctor --json config gr-external.conf:exit=0
-# The `"code":` prefix matters: `ze explain` below prints the same code, so a
+# The `"code":` prefix matters: `ze show diagnostic` below prints the same code, so a
 # bare substring match on it would pass with the check unregistered.
 expect=stdout:contains="code": "doctor-bgp-gr-out-of-process"
 expect=stdout:contains=plugin grext: bgp-gr runs as a separate process
 expect=stdout:contains=LLGR egress filter in the daemon has no peer capability state
 
-# --- 2. The code ze doctor printed resolves through ze explain ---
-cmd=foreground:seq=2:exec=ze explain doctor-bgp-gr-out-of-process:exit=0
+# --- 2. The code ze doctor printed resolves through ze show diagnostic ---
+cmd=foreground:seq=2:exec=ze show diagnostic doctor-bgp-gr-out-of-process:exit=0
 expect=stdout:contains=Graceful Restart plugin runs out of process
 
 # --- 3. Contrast: `use bgp-gr` runs the engine in the daemon ---

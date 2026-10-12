@@ -32,5 +32,5 @@ expect=stdout:contains=COVERED: show schema methods [done]
 expect=stdout:contains=COVERED: show schema protocol [done]
 expect=stdout:contains=COVERED: show yang completion [done]
 expect=stdout:contains=COVERED: show yang tree [done]
-expect=stdout:contains=COVERED: validate config [done]
+expect=stdout:contains=COVERED: show config validation [done]
 expect=stdout:contains=OK: 20/20 local-data commands and local one-shot save

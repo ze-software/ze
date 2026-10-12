@@ -437,12 +437,12 @@ func TestDoctorLCPNetnsRemediation(t *testing.T) {
 }
 
 // TestDoctorLCPNetnsCodeDescription verifies the registered diagnostic code's
-// description carries the same true remedy. This is what `ze explain
+// description carries the same true remedy. This is what `ze show diagnostic
 // doctor-vpp-lcp-netns` prints, so it is a second operator-facing surface and
 // it repeated the same false advice.
 // VALIDATES: AC-3 -- the registry row names no vpp.lcp.netns value as the fix
 // and names the working remedy instead.
-// PREVENTS: fixing the doctor message while `ze explain` keeps handing out the
+// PREVENTS: fixing the doctor message while `ze show diagnostic` keeps handing out the
 // advice that breaks the dataplane.
 func TestDoctorLCPNetnsCodeDescription(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
@@ -450,7 +450,7 @@ func TestDoctorLCPNetnsCodeDescription(t *testing.T) {
 	if meta == nil {
 		t.Fatal("doctor-vpp-lcp-netns is not registered in internal/core/diagnostic/codes.go")
 	}
-	assertLCPNetnsAdvice(t, "ze explain description", meta.Description)
+	assertLCPNetnsAdvice(t, "ze show diagnostic description", meta.Description)
 }
 
 // TestVPPBackendImplementsInterface verifies compile-time interface compliance.

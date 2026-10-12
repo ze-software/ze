@@ -64,7 +64,7 @@ type Related struct {
 	Message string `json:"message"`
 }
 
-// ValidateResult is the record `validate config` answers with: the verdict,
+// ValidateResult is the record `show config validation` answers with: the verdict,
 // and every diagnostic behind it.
 type ValidateResult struct {
 	SchemaVersion int          `json:"schema-version"`
@@ -74,7 +74,7 @@ type ValidateResult struct {
 	Config        any          `json:"config,omitempty"`
 }
 
-// ExplainResult is the JSON envelope for ze explain --json.
+// ExplainResult is the JSON envelope for ze show diagnostic --json.
 type ExplainResult struct {
 	Code         string   `json:"code"`
 	Title        string   `json:"title"`
@@ -136,7 +136,7 @@ func NewDoctorResult(ready bool, diags []Diagnostic) DoctorResult {
 	}
 }
 
-// SkillEntry describes a bundled skill for ze skills list.
+// SkillEntry describes a bundled skill for ze show skills.
 type SkillEntry struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`

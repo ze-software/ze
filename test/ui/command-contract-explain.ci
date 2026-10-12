@@ -1,7 +1,7 @@
-# Test: explain contract — validate explain JSON has required fields
-# VALIDATES: explain --json output contains code, title, description
+# Test: show diagnostic contract — validate show diagnostic JSON has required fields
+# VALIDATES: show diagnostic --json output contains code, title, description
 
-cmd=foreground:seq=1:exec=ze explain --json config-parse
+cmd=foreground:seq=1:exec=ze show diagnostic --json config-parse
 expect=exit:code=0
 expect=stdout:contains="code"
 expect=stdout:contains="title"

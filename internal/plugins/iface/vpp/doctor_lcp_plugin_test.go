@@ -282,7 +282,7 @@ func TestCheckVPPLCPPluginUntrustedOutputWarns(t *testing.T) {
 
 // TestVPPLCPPluginCheckIsRegistered proves the check reaches BOTH registries
 // `ze doctor` reads: the DOCTOR-CHECK registry that decides whether the check
-// runs at all, and the diagnostic-CODE registry `ze explain` resolves against.
+// runs at all, and the diagnostic-CODE registry `ze show diagnostic` resolves against.
 //
 // VALIDATES: AC-7 -- the check is registered and its diagnostic code is known.
 //
@@ -301,10 +301,10 @@ func TestVPPLCPPluginCheckIsRegistered(t *testing.T) {
 
 	meta := diagnostic.Lookup("doctor-vpp-lcp-plugin")
 	if meta == nil {
-		t.Fatal("diagnostic code doctor-vpp-lcp-plugin is not registered; ze explain would not resolve it")
+		t.Fatal("diagnostic code doctor-vpp-lcp-plugin is not registered; ze show diagnostic would not resolve it")
 	}
 	if meta.Description == "" {
-		t.Fatal("registered code has no description; ze explain would print nothing useful")
+		t.Fatal("registered code has no description; ze show diagnostic would print nothing useful")
 	}
 
 	// DoctorPhasePostConfig is the phase registerDoctorChecks declares, and the

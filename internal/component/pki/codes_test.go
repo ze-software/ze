@@ -10,7 +10,7 @@ import (
 // the CA root check (doctor.go) and the configured certificate reference
 // (tls.go).
 //
-// VALIDATES: `ze explain <code>` resolves every code the PKI surfaces report.
+// VALIDATES: `ze show diagnostic <code>` resolves every code the PKI surfaces report.
 // PREVENTS: a code this package spells its own way, which the registry and the
 // DoT/DoH check would then disagree with.
 func TestPKICodesRegistered(t *testing.T) {

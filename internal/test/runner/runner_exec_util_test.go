@@ -124,7 +124,7 @@ func TestIsQuickExitZeCommand(t *testing.T) {
 	quick := [][]string{
 		{"config", "validate", "-"},
 		{"show", "bgp", "peer", "list"},
-		{"explain", "doctor-isis-net-missing"},
+		{"show", "diagnostic", "doctor-isis-net-missing"},
 		{"doctor", "--json", "config", "isis-mismatch.conf"}, // .conf is an arg to a verb, not the daemon config
 		{"isis", "decode"},
 		{"schema", "tree"},

@@ -25,7 +25,7 @@ import (
 )
 
 // codeTelemetryProcfs names a /proc/stat the exporter cannot read.
-// internal/core/diagnostic/codes.go declares it, so `ze explain
+// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
 // doctor-telemetry-procfs` answers.
 const codeTelemetryProcfs = "doctor-telemetry-procfs"
 

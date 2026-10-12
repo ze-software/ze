@@ -1,8 +1,8 @@
-// Design: docs/guide/command-reference.md -- ze support
+// Design: docs/guide/command-reference.md -- ze request support archive
 // Related: internal/component/support/support.go -- collect and writeArchive,
 // the producer whose archive members these drivers read back
 //
-// The support-archive fixtures: `ze support --json` prints the manifest and
+// The support-archive fixtures: `ze request support archive --json` prints the manifest and
 // nothing else, so a test that asserts on a module's collected data reads that
 // data out of the archive the same run wrote.
 
@@ -32,7 +32,7 @@ func init() {
 // per module and no collected value at all (SupportManifest,
 // internal/component/support/support.go), so the crash reports and the
 // readiness block are in the archive and only there. Putting the member's own
-// bytes on stdout lets a .ci assert against what `ze support` produced rather
+// bytes on stdout lets a .ci assert against what `ze request support archive` produced rather
 // than against a sentence this driver writes.
 func supportCrashesArchive(_ context.Context, args []string) error {
 	if len(args) != 0 {
@@ -55,7 +55,7 @@ func supportCrashesArchive(_ context.Context, args []string) error {
 
 // supportArchivePath names the one support archive in dir.
 //
-// `ze support` builds the file name from the hostname and the collection
+// `ze request support archive` builds the file name from the hostname and the collection
 // timestamp, so a caller cannot predict it. A test directory holds one run, so
 // any other count is a broken scenario rather than a choice to make: two
 // archives leave no way to tell which run is under test, and none means the

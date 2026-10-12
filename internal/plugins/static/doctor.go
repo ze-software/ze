@@ -17,20 +17,20 @@ import (
 // doctorCodeInterfaceNexthopNoBackend is emitted when the config has a static
 // route with an interface-only next-hop but no `interface { backend ... }`
 // stanza, so the runtime resolve (iface.Resolve) will fail with "no backend
-// loaded". Registered in internal/core/diagnostic/codes.go so `ze explain`
+// loaded". Registered in internal/core/diagnostic/codes.go so `ze show diagnostic`
 // can describe it.
 const doctorCodeInterfaceNexthopNoBackend = "doctor-static-interface-nexthop-no-backend"
 
 // doctorCodeRouteSkipped is emitted when the running static plugin has skipped
 // one or more routes the backend could not program (per-route isolation,
 // spec-fixit-static-per-route-isolation). Registered in
-// internal/core/diagnostic/codes.go so `ze explain` can describe it.
+// internal/core/diagnostic/codes.go so `ze show diagnostic` can describe it.
 const doctorCodeRouteSkipped = "doctor-static-route-skipped"
 
 // doctorCodeNoFIBWriter is emitted when the config declares a main-table static
 // route and NO FIB plugin can program it: the operator declared none and the
 // registry holds no writer for the data plane the config selects. Registered in
-// internal/core/diagnostic/codes.go so `ze explain` can describe it.
+// internal/core/diagnostic/codes.go so `ze show diagnostic` can describe it.
 const doctorCodeNoFIBWriter = "doctor-static-no-fib-writer"
 
 // staticDoctorChecks declares the static plugin's doctor readiness checks. The

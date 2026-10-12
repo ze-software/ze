@@ -23,7 +23,9 @@ func supportDoctorOwnerCheck(ctx context.Context) error {
 	cmd := exec.CommandContext(
 		ctx,
 		"ze",
+		"request",
 		"support",
+		"archive",
 		"--module",
 		"doctor",
 		"--json",
@@ -46,7 +48,7 @@ func supportDoctorOwnerCheck(ctx context.Context) error {
 		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return productExitError{code: exitErr.ExitCode()}
 		}
-		return fmt.Errorf("run ze support: %w", err)
+		return fmt.Errorf("run ze request support archive: %w", err)
 	}
 
 	var manifest map[string]any

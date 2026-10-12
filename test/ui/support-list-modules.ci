@@ -1,6 +1,6 @@
-# Test: ze support --list-modules lists all registered modules
+# Test: ze request support archive --list-modules lists all registered modules
 # VALIDATES: AC-4 of spec-support.md -- module discovery from registry
-cmd=foreground:seq=1:exec=ze support --list-modules
+cmd=foreground:seq=1:exec=ze request support archive --list-modules
 expect=exit:code=0
 expect=stdout:contains=version
 expect=stdout:contains=doctor

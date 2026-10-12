@@ -8,7 +8,7 @@
 # internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go.
 # PREVENTS: the IPsec doctor code regressing to unregistered/unexplainable.
 
-cmd=foreground:seq=1:exec=ze explain doctor-ospfv3-ipsec
+cmd=foreground:seq=1:exec=ze show diagnostic doctor-ospfv3-ipsec
 expect=exit:code=0
 expect=stdout:contains=doctor-ospfv3-ipsec
 expect=stdout:contains=CAP_NET_ADMIN

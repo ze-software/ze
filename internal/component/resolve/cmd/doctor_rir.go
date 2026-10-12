@@ -34,7 +34,7 @@ import (
 
 // codeRIRSourceRefused marks a configured delegation source that the fetch
 // rule refuses. It is declared in internal/core/diagnostic/codes.go, so
-// `ze explain doctor-rir-source-refused` answers.
+// `ze show diagnostic doctor-rir-source-refused` answers.
 const codeRIRSourceRefused = "doctor-rir-source-refused"
 
 // rirSourcesDoctorCheck describes the check. register_rir.go registers it.

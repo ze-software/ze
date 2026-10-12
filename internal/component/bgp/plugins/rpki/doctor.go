@@ -20,7 +20,7 @@ import (
 
 // codeRPKIUnreachable names a configuration none of whose RPKI caches accepts
 // a TCP connection. internal/core/diagnostic/codes.go declares it, so
-// `ze explain doctor-rpki-unreachable` answers.
+// `ze show diagnostic doctor-rpki-unreachable` answers.
 const codeRPKIUnreachable = "doctor-rpki-unreachable"
 
 // rtrDefaultPort is the unprotected RTR TCP port (RFC 8210 Section 9).

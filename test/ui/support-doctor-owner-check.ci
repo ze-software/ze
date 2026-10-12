@@ -1,4 +1,4 @@
-# Test: ze support --module doctor includes owner-registered runtime dependency checks
+# Test: ze request support archive --module doctor includes owner-registered runtime dependency checks
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
 # VALIDATES: command-surface-ownership Phase 6 -- support's doctor collector
 #            uses the registered doctor provider, including owner checks.

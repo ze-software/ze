@@ -522,4 +522,4 @@ with labels is listed in `docs/plugin-development/metrics.md`.
 - `doctor-isis-system-id-mismatch`: an explicit `system-id` disagrees with the
   System ID embedded in the first NET.
 
-Each code is explainable with `ze explain <code>`.
+Each code is explainable with `ze show diagnostic <code>`.

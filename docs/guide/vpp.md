@@ -111,7 +111,7 @@ namespace (specced, not implemented).
 where nothing binds. On Linux the check also opens the namespace
 directory, and reports a namespace that is absent (LCP pair creation
 would fail at apply) separately from a probe that could not answer. Run
-`ze explain doctor-vpp-lcp-netns` for the detail.
+`ze show diagnostic doctor-vpp-lcp-netns` for the detail.
 
 The accepted character set for the leaf is what VPP can carry through: printable,
 no whitespace, no path separator, under 256 characters. VPP's own parser reads the

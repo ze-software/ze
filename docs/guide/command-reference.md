@@ -110,7 +110,7 @@ Validate a configuration file without starting the daemon.
 ```
 ze config validate <config-file>
 ze config validate -q <config-file>     # Quiet: exit code only
-ze cli -c "validate config <config-file> | json"   # the same verdict as JSON
+ze cli -c "show config validation <config-file> | json"   # the same verdict as JSON
 ```
 
 | Flag | Purpose |
@@ -624,22 +624,22 @@ Returns a JSON array of per-device objects:
 Temperature alerts are emitted to the report bus (`show warnings` / `show errors`):
 `temp-high` (informational threshold), `temp-rising` (rate-of-change), `temp-critical` (critical threshold), `smart-failing` (health status failed).
 
-### ze support
+### ze request support archive
 
 Generate a tech-support archive for troubleshooting. Collects system state,
 health checks, configuration, logs, and diagnostics into a compressed tar.gz
 with one JSON file per module. No shell-outs; gokrazy-safe.
 
 ```
-ze support                             # Full bundle, all 20 modules
-ze support --module version,doctor     # Only named modules
-ze support --exclude dmesg             # All except named modules
-ze support --json                      # Output manifest JSON to stdout
-ze support --list-modules              # List available modules
-ze support --reason "BGP flap"         # Embed reason in manifest
-ze support --sensitive                 # Include passwords (default: redacted)
-ze support --since 2h                  # Time scope for log collection
-ze support --output /var/support/      # Output directory (default: cwd)
+ze request support archive                             # Full bundle, all 20 modules
+ze request support archive --module version,doctor     # Only named modules
+ze request support archive --exclude dmesg             # All except named modules
+ze request support archive --json                      # Output manifest JSON to stdout
+ze request support archive --list-modules              # List available modules
+ze request support archive --reason "BGP flap"         # Embed reason in manifest
+ze request support archive --sensitive                 # Include passwords (default: redacted)
+ze request support archive --since 2h                  # Time scope for log collection
+ze request support archive --output /var/support/      # Output directory (default: cwd)
 ```
 
 <!-- source: internal/component/support/support.go -- Run, collect, SupportManifest -->
@@ -2159,8 +2159,8 @@ Not auto-applied on reboot (safety). Use `ze set debug active name <name>` after
 Each plugin declares valid flags via the debug YANG registry; invalid flags are rejected.
 Each of these commands is a node in the YANG command tree (`ze-debug-cmd`), so
 `ze help`, `ze <command> help` and completion offer it. The same holds for
-`explain`, `skills`, `support`, `validate config`, `show config graph` and
-`generate wireguard keypair`, and `./le doc yang-contract command-contract`
+`show diagnostic`, `show skills`, `show skill`, `request support archive`, `show config validation`, `show config graph` and
+`request wireguard keypair`, and `./le doc yang-contract command-contract`
 fails on a local command it finds with no node.
 <!-- source: internal/plugins/debug/yang/ze-debug-cmd.yang -- set/delete/clear debug, show debug profile -->
 <!-- source: internal/le/doc/yangcontract/contract.go -- Validate, OrphanLocalHandlers -->

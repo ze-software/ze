@@ -39,20 +39,20 @@ const (
 const staleAfter = 24 * time.Hour
 
 // domainDiagnosticCodes is the explanation metadata for the codes this plugin
-// owns, so `ze explain <code>` can describe them. They live with the plugin, so
+// owns, so `ze show diagnostic <code>` can describe them. They live with the plugin, so
 // removing the plugin removes the codes (ai/rules/plugins.md).
 var domainDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:        codeDomainGroupStaleData,
 		Title:       "Firewall domain group is enforcing stale addresses",
 		Description: "A firewall rule references a domain group holding a DNS name that has not resolved for more than a day. Ze keeps the addresses it learned before, because emptying the set on a failed query would enforce a DNS outage rather than a fact about the name. The filter is enforcing addresses the DNS has stopped confirming. Check that the configured name servers are reachable and that the name still exists, then run 'update firewall domain-group <name>'. When a name is gone upstream for good, run 'clear firewall domain-group <name>' to remove its addresses.",
-		Examples:    []string{"ze doctor --json", cmdShowDomainGroup, "ze explain doctor-firewall-domain-group-stale-data"},
+		Examples:    []string{"ze doctor --json", cmdShowDomainGroup, "ze show diagnostic doctor-firewall-domain-group-stale-data"},
 	},
 	{
 		Code:        codeDomainGroupNoData,
 		Title:       "Firewall domain group has no addresses",
 		Description: "A firewall rule references a domain group with no resolved addresses. The rule filters nothing, and the table carrying it is held back until the group resolves. Run 'update firewall domain-group <name>' to resolve its names.",
-		Examples:    []string{"ze doctor --json", "ze explain doctor-firewall-domain-group-no-data"},
+		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-firewall-domain-group-no-data"},
 	},
 }
 

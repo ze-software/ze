@@ -109,7 +109,7 @@ func TestCheckSemanticsIsSilentWithoutATree(t *testing.T) {
 // TestSemanticsDoctorCheckRegistered asks the registry the doctor runner reads
 // whether it holds this component's check, at the phase and order the
 // declaration states, and whether every code it declares resolves for
-// `ze explain`.
+// `ze show diagnostic`.
 //
 // VALIDATES: the init() in doctor.go installed the check and the registry
 // accepted its config-* codes.

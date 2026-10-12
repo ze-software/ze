@@ -29,7 +29,7 @@ var errEmptyExecCommand = errors.New("empty exec command")
 
 // splitCommand splits an exec= value into argv on space and tab, and keeps a
 // quoted span as one argument. Every suite runs through it, so one .ci line
-// produces one argv: `ze cli -c "validate config bad.conf | json"` hands -c the
+// produces one argv: `ze cli -c "show config validation bad.conf | json"` hands -c the
 // whole pipeline rather than the word `"validate`.
 // Backslash escapes are not handled; no exec= value uses one.
 func splitCommand(s string) ([]string, error) {

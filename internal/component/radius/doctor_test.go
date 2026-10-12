@@ -56,7 +56,7 @@ func TestRadiusAdminDoctorReachable(t *testing.T) {
 }
 
 // VALIDATES: the check registered its diagnostic code in the global registry.
-// PREVENTS: an unregistered code that `ze explain` cannot describe.
+// PREVENTS: an unregistered code that `ze show diagnostic` cannot describe.
 func TestRadiusAdminDoctorRegistered(t *testing.T) {
 	assert.Contains(t, diagnostic.DoctorCheckNames(), "radius-admin-unreachable")
 }

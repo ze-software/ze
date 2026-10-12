@@ -501,7 +501,7 @@ stale ones. `ze doctor` reports the same conditions with three codes:
 - `doctor-firewall-irr-oversized-data`: a referenced entry is longer than a
   firewall set holds, so the rules naming it are not programmed.
 
-Run `ze explain <code>` for the full description. `ze_firewall_irr_data_age_seconds` is the
+Run `ze show diagnostic <code>` for the full description. `ze_firewall_irr_data_age_seconds` is the
 age of the oldest data being enforced, and
 `ze_firewall_irr_last_refresh_timestamp` moves only when a refresh learned
 prefixes.
@@ -693,7 +693,7 @@ a different fact from a family that answered and holds nothing.
   not resolved for more than a day, and Ze is still enforcing the addresses it
   learned before.
 
-Run `ze explain <code>` for the full description. Four metrics carry the same
+Run `ze show diagnostic <code>` for the full description. Four metrics carry the same
 state: `ze_firewall_domain_group_addresses_cached`,
 `ze_firewall_domain_group_refresh_outcomes_total` (labels `unchanged`,
 `changed`, `nxdomain`, `error`, `panic`),

@@ -1,5 +1,5 @@
 # Test: command contract snapshot — validate JSON contract shapes
-# VALIDATES: diagnostic JSON, explain JSON, and skills JSON match pinned contract shapes
+# VALIDATES: diagnostic JSON, show diagnostic JSON, and show skills JSON match pinned contract shapes
 
 tmpfs=bad.conf:terminator=EOF_CONF
 invalid syntax here
@@ -8,7 +8,7 @@ EOF_CONF
 option=timeout:value=25s
 
 # Validate diagnostic JSON has required fields
-cmd=foreground:seq=1:exec=ze cli -c "validate config bad.conf | json"
+cmd=foreground:seq=1:exec=ze cli -c "show config validation bad.conf | json"
 expect=exit:code=1
 expect=stdout:contains="diagnostics"
 expect=stdout:contains="valid"

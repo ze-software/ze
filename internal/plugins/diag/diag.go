@@ -30,15 +30,15 @@ import (
 //	private: <base64>
 //	public:  <base64>
 //
-// Usage: ze generate wireguard keypair
+// Usage: ze request wireguard keypair
 //
 // Returns 1 if `wg` is not installed. No arguments accepted.
 func RunWgKeypair(validated command.ValidatedArgs) int {
 	args := validated.Tokens()
-	fs := flag.NewFlagSet("generate wireguard keypair", flag.ContinueOnError)
+	fs := flag.NewFlagSet("request wireguard keypair", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	fs.Usage = func() {
-		if _, err := fmt.Fprintln(os.Stderr, "Usage: ze generate wireguard keypair\n\nGenerate a WireGuard keypair by invoking `wg genkey` and `wg pubkey`.\nThe system must have the `wg` binary installed."); err != nil {
+		if _, err := fmt.Fprintln(os.Stderr, "Usage: ze request wireguard keypair\n\nGenerate a WireGuard keypair by invoking `wg genkey` and `wg pubkey`.\nThe system must have the `wg` binary installed."); err != nil {
 			return // writing to stderr; nothing to recover
 		}
 	}
@@ -49,14 +49,14 @@ func RunWgKeypair(validated command.ValidatedArgs) int {
 		return 1
 	}
 	if fs.NArg() > 0 {
-		fmt.Fprintln(os.Stderr, "generate wireguard keypair: no arguments accepted")
+		fmt.Fprintln(os.Stderr, "request wireguard keypair: no arguments accepted")
 		fs.Usage()
 		return 1
 	}
 	ctx := context.Background()
 	priv, err := exec.CommandContext(ctx, "wg", "genkey").Output() //nolint:gosec // no user input
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "generate wireguard keypair: wg genkey failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "request wireguard keypair: wg genkey failed: %v\n", err)
 		return 1
 	}
 	privStr := strings.TrimSpace(string(priv))
@@ -64,7 +64,7 @@ func RunWgKeypair(validated command.ValidatedArgs) int {
 	pubCmd.Stdin = strings.NewReader(privStr + "\n")
 	pub, err := pubCmd.Output()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "generate wireguard keypair: wg pubkey failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "request wireguard keypair: wg pubkey failed: %v\n", err)
 		return 1
 	}
 	if _, err := fmt.Fprintf(os.Stdout, "private: %s\npublic:  %s\n", privStr, strings.TrimSpace(string(pub))); err != nil { //nolint:errcheck // output

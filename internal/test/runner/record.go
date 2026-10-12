@@ -345,7 +345,7 @@ type RunCommand struct {
 	// test's accumulated stdout AND stderr. A file could therefore satisfy an
 	// assertion with a DIFFERENT command's output, and two did:
 	// test/plugin/kernel-capability-unknown-starts.ci asserted the doctor
-	// printed doctor-ipsec-xfrm-unknown and then ran `ze explain
+	// printed doctor-ipsec-xfrm-unknown and then ran `ze show diagnostic
 	// doctor-ipsec-xfrm-unknown`, whose output satisfied the assertion on a
 	// host where the doctor check does not run at all.
 	//

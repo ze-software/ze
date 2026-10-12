@@ -55,7 +55,7 @@ func Evidence() []Invocation {
 	return []Invocation{
 		{Command: "show config dump %s | json compact", Evidence: "show config dump"},
 		{Command: "show config diff pipe-local.conf pipe-local-other.conf | json compact", Evidence: "show config diff"},
-		{Command: "validate config pipe-local.conf | json compact", Evidence: "validate config"},
+		{Command: "show config validation pipe-local.conf | json compact", Evidence: "show config validation"},
 		{Command: "show config history pipe-local.conf | json compact", Evidence: "show config history"},
 		{Command: "show config list | json compact", Evidence: "show config list"},
 		{Command: "show schema list | json compact", Evidence: "show schema list"},
@@ -458,13 +458,13 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 
-	payload, err = localJSON("validate config pipe-local.conf | json compact", "validate config", output)
+	payload, err = localJSON("show config validation pipe-local.conf | json compact", "show config validation", output)
 	if err != nil {
 		return err
 	}
 	document, _ = object(payload)
 	if err := require(document["valid"] == true && document["path"] == "pipe-local.conf",
-		"validate config did not answer a verdict for the file it read: %#v", payload); err != nil {
+		"show config validation did not answer a verdict for the file it read: %#v", payload); err != nil {
 		return err
 	}
 

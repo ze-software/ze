@@ -82,7 +82,7 @@ func TestDoctorIfaceMacvlanCheckRegistered(t *testing.T) {
 }
 
 // TestDoctorIfaceMacvlanCodeRegistered proves the diagnostic code is explainable
-// via ze explain (registered in codes.go with title + description).
+// via ze show diagnostic (registered in codes.go with title + description).
 func TestDoctorIfaceMacvlanCodeRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
 	meta := diagnostic.Lookup("doctor-iface-macvlan")

@@ -62,7 +62,7 @@ func TestDoctorSaysNothingWhenNoDelegationSourceIsConfigured(t *testing.T) {
 
 // VALIDATES: the init() in register_rir.go installed the check, the registry
 // accepted it at the phase and order the declaration states, and the code it
-// emits is registered so `ze explain` answers for it.
+// emits is registered so `ze show diagnostic` answers for it.
 // PREVENTS: a check that `ze doctor` stopped running while its unit tests
 // stayed green, and a diagnostic an operator cannot look up.
 func TestRIRSourcesDoctorCheckRegistered(t *testing.T) {
@@ -81,7 +81,7 @@ func TestRIRSourcesDoctorCheckRegistered(t *testing.T) {
 
 	diagnostic.RegisterBuiltinCodes()
 	meta := diagnostic.Lookup(codeRIRSourceRefused)
-	require.NotNil(t, meta, "the code reaches ze explain")
+	require.NotNil(t, meta, "the code reaches ze show diagnostic")
 	assert.NotEmpty(t, meta.Title)
 	assert.NotEmpty(t, meta.Description)
 }

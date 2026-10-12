@@ -97,7 +97,7 @@ func TestCheckBMPCollectorsIsSilentWithoutCollectors(t *testing.T) {
 
 // TestBMPDoctorCheckRegistered asks the registry the doctor runner reads
 // whether it holds this plugin's check, at the phase and order declared, and
-// whether the code it emits resolves for `ze explain`.
+// whether the code it emits resolves for `ze show diagnostic`.
 //
 // VALIDATES: the init() in register.go installed the check and the registry
 // accepted it.

@@ -761,8 +761,8 @@ func TestCheckDiskSpace_UnreadableDirIsReported(t *testing.T) {
 }
 
 func TestDoctorCoverageCodesRegistered(t *testing.T) {
-	// VALIDATES: AC-17 every new doctor coverage diagnostic code is registered for ze explain.
-	// PREVENTS: ze doctor emitting codes that ze explain cannot describe.
+	// VALIDATES: AC-17 every new doctor coverage diagnostic code is registered for ze show diagnostic.
+	// PREVENTS: ze doctor emitting codes that ze show diagnostic cannot describe.
 	for _, code := range []string{
 		"doctor-l2tp-unavailable",
 		"doctor-l2tp-ppp-unavailable",

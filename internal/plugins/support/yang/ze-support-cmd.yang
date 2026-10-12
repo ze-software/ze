@@ -2,15 +2,26 @@ module ze-support-cmd {
     namespace "urn:ze:support:cmd";
     prefix supportcmd;
     import ze-extensions { prefix ze; }
-    description "The support command, owned by the support plugin, which registers its handler. See the plugin self-containment rule.";
+    description "The request support archive command, owned by the support plugin, which registers its handler. See the plugin self-containment rule.";
+    revision 2026-10-12 { description "Rename support to request support archive: the first word of a command is its verb."; }
     revision 2026-10-08 { description "Initial: declare the support command the support plugin already served."; }
 
-    container support {
+    container request {
         config false;
-        ze:command "ze-support:support";
-        description "The archive holds logs, config, state and diagnostics, and is what to send
+
+        container support {
+            config false;
+            description "Material for a support case.";
+            ze:help "Collect material for a support case.";
+
+            container archive {
+                config false;
+                ze:command "ze-support:request-support-archive";
+                description "The archive holds logs, config, state and diagnostics, and is what to send
 when you report an issue. Secrets are redacted unless asked for. Modules can be selected
 or excluded, and a time window narrows the logs the archive holds.";
-        ze:help "Collect logs, config, state and diagnostics into one archive.";
+                ze:help "Collect logs, config, state and diagnostics into one archive.";
+            }
+        }
     }
 }

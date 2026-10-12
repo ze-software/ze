@@ -36,27 +36,34 @@ var inventory = []skill{
 	{Name: "ze-agent", Description: "Agent workflow for config validation and repair", File: "data/ze-agent.md"},
 }
 
-// Run executes the skills command.
-func Run(validated command.ValidatedArgs) int {
+// showSkills executes `show skills`: it lists every bundled skill.
+func showSkills(validated command.ValidatedArgs) int {
 	args := validated.Tokens()
-	if len(args) == 0 {
-		usage()
-		return 1
-	}
-
-	switch args[0] {
-	case "help", "-h", "--help":
+	if wantsHelp(args) {
 		usage()
 		return 0
-	case "list":
-		return runList(args[1:])
-	case "get":
-		return runGet(args[1:])
-	default:
-		fmt.Fprintf(os.Stderr, "unknown skills subcommand: %s\n", args[0])
-		usage()
-		return 1
 	}
+	return runList(args)
+}
+
+// showSkill executes `show skill <name>`: it prints one bundled skill.
+func showSkill(validated command.ValidatedArgs) int {
+	args := validated.Tokens()
+	if wantsHelp(args) {
+		usage()
+		return 0
+	}
+	return runGet(args)
+}
+
+// wantsHelp reports whether the operator asked for the usage page.
+func wantsHelp(args []string) bool {
+	for _, a := range args {
+		if a == "-h" || a == "--help" {
+			return true
+		}
+	}
+	return false
 }
 
 func runList(args []string) int {
@@ -173,13 +180,13 @@ func skillNames() string {
 
 func usage() {
 	p := helpfmt.Page{
-		Command:   "ze skills",
+		Command:   "ze show skills",
 		ShortHelp: "List and retrieve version-matched Ze skills for agents",
-		Usage:     []string{"ze skills list [--json]", "ze skills get <name> [--full] [--json]"},
+		Usage:     []string{"ze show skills [--json]", "ze show skill <name> [--full] [--json]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
-				{Name: "list", Desc: "List all bundled skills"},
-				{Name: "get <name>", Desc: "Retrieve skill content by name"},
+				{Name: "show skills", Desc: "List all bundled skills"},
+				{Name: "show skill <name>", Desc: "Retrieve skill content by name"},
 			}},
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: flagJSON, Desc: "Output as structured JSON"},
@@ -187,10 +194,10 @@ func usage() {
 			}},
 		},
 		Examples: []string{
-			"ze skills list",
-			"ze skills get ze",
-			"ze skills get ze-diagnostics --full",
-			"ze skills list --json",
+			"ze show skills",
+			"ze show skill ze",
+			"ze show skill ze-diagnostics --full",
+			"ze show skills --json",
 		},
 	}
 	p.WriteErr()

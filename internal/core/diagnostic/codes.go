@@ -20,7 +20,7 @@ const exampleConfigValidate = "ze config validate ze.conf"
 
 // The spelling of a code, declared once so that no other package writes it out.
 //
-// A code is an operator-facing surface: `ze explain <code>` looks it up by this
+// A code is an operator-facing surface: `ze show diagnostic <code>` looks it up by this
 // spelling, and the check that emits it, the doctor check registration that
 // lists it, and the entry below that explains it must all agree. A second
 // spelling in the emitting package is a second declaration of one fact, so the
@@ -128,7 +128,7 @@ var builtinCodes = []CodeMeta{
 		Code:        "config-parse",
 		Title:       "Config syntax error",
 		Description: "The config file contains a syntax error such as an unknown keyword, missing token, or invalid scalar value.",
-		Examples:    []string{`ze cli -c "validate config bad.conf | json"`, "ze explain config-parse"},
+		Examples:    []string{`ze cli -c "show config validation bad.conf | json"`, "ze show diagnostic config-parse"},
 	},
 	{
 		Code:         CodeConfigYANGMissing,
@@ -182,7 +182,7 @@ var builtinCodes = []CodeMeta{
 		Code:        "config-kernel-capability",
 		Title:       "Kernel capability missing for a configured subsystem",
 		Description: "The configuration uses a subsystem this kernel cannot carry. Every failing subsystem is named, with the kernel feature it needs and the configuration that asked for it. `ze` refuses to start on the same verdict, so a config that fails here would produce a daemon that comes up and does not work. The verdict is about the host running the command: validating a config written for another machine answers about this one. Remedy: run the kernel feature the message names, or remove the configuration that needs it.",
-		Examples:    []string{exampleConfigValidate, "ze explain config-kernel-capability"},
+		Examples:    []string{exampleConfigValidate, "ze show diagnostic config-kernel-capability"},
 	},
 	{
 		Code:        CodeConfigGNMIInvalid,
@@ -218,7 +218,7 @@ var builtinCodes = []CodeMeta{
 		Code:        "config-secret-masked",
 		Title:       "Secret holds the display placeholder",
 		Description: "A ze:sensitive or ze:bcrypt leaf holds the placeholder a display path writes over a secret. The value was masked for display and cannot be stored. Restore the real value, or set it through the plaintext-<name> sibling.",
-		Examples:    []string{exampleConfigValidate, "ze explain config-secret-masked"},
+		Examples:    []string{exampleConfigValidate, "ze show diagnostic config-secret-masked"},
 	},
 	{
 		Code:        "config-warning",
@@ -299,43 +299,43 @@ var builtinCodes = []CodeMeta{
 		Code:        "doctor-static-interface-nexthop-no-backend",
 		Title:       "Static interface next-hop has no iface backend",
 		Description: "A static route forwards over an interface-only next-hop (no gateway address) but the config declares no `interface { backend ... }` stanza. The next-hop interface name cannot be resolved to an ifindex at runtime, so the static section fails to load. Add an interface backend, or give the next-hop a gateway address.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-static-interface-nexthop-no-backend"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-static-interface-nexthop-no-backend"},
 	},
 	{
 		Code:        "doctor-static-route-skipped",
 		Title:       "Static route skipped (rest of section kept programmed)",
 		Description: "The running static plugin could not program one or more routes (an absent device, an absent interface backend, or an unresolvable next-hop) and skipped them so the rest of the static section stayed programmed. A skipped prefix is unrouted until its dependency appears; it is re-attempted on the next config apply and clears once it programs. Run `static show` to see which prefixes are skipped and why, then fix the offending next-hop or create the missing device or interface backend.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-static-route-skipped"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-static-route-skipped"},
 	},
 	{
 		Code:        "doctor-static-no-fib-writer",
 		Title:       "Static routes in the main table have no FIB plugin to program them",
 		Description: "The config declares a static route in the main table, and no plugin programs the data plane it selects at `interface { backend }`. A main-table static route is arbitrated by the system RIB against every other protocol that offers the same prefix, and a FIB plugin programs the winner, so with no writer the route reaches the system RIB and stops there. You do NOT need a `fib { ... }` block for the common case: Ze loads the writer for the data plane your config selects, `fib-kernel` for netlink and `fib-vpp` for vpp. This fires when the selected data plane has no writer at all. Name a backend Ze programs, or add the `fib { ... }` block for the plugin you want. A route in a NAMED table does not need any of this: static programs it directly.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-static-no-fib-writer"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-static-no-fib-writer"},
 	},
 	{
 		Code:        "doctor-ddos-detect-no-flow-source",
 		Title:       "DDoS characterization has no flow source",
 		Description: "ddos-detect is enabled with characterization on, but neither traffic-usage (track-ip) nor flow-export (conntrack) is configured. Detection still works, but mitigation degrades to generic-flood with no target prefix, so responders cannot install a surgical or targeted rule. Enable traffic-usage track-ip and/or flow-export conntrack.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ddos-detect-no-flow-source"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ddos-detect-no-flow-source"},
 	},
 	{
 		Code:        "doctor-flowexport-conntrack-unavailable",
 		Title:       "flow-export conntrack table unavailable",
 		Description: "flow-export conntrack export is enabled but nf_conntrack is not loaded (nothing -- no firewall/NAT rule, no modprobe -- pulled it in), so the ctnetlink dump reads an empty table. The recent-flow ring stays empty and DDoS characterization degrades to generic-flood with no discriminating vector. Load nf_conntrack (a firewall or NAT rule does this) so per-flow records are available.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-flowexport-conntrack-unavailable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-flowexport-conntrack-unavailable"},
 	},
 	{
 		Code:        "doctor-anomaly-detect-no-feature-source",
 		Title:       "Anomaly detector has no feature source",
 		Description: "anomaly-detect is enabled, but neither traffic-usage nor flow-export is configured. The trafficfeature layer is fed by the observation feed from these sources; with neither configured it produces no per-source features, so the behavioral detector observes nothing and emits no incidents. Enable traffic-usage and/or flow-export.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-anomaly-detect-no-feature-source"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-anomaly-detect-no-feature-source"},
 	},
 	{
 		Code:        "doctor-anomaly-shape-armed-no-firewall",
 		Title:       "Anomaly responder armed without a firewall",
 		Description: "anomaly-shape is in armed mode but no firewall is configured. The responder installs live per-source rate-limit rules via the firewall component; with no firewall the armed actions cannot be applied to the kernel, so autonomous mitigation silently does nothing. Configure a firewall, or keep the responder in shadow mode.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-anomaly-shape-armed-no-firewall"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-anomaly-shape-armed-no-firewall"},
 	},
 	{
 		Code:        CodeDoctorTLSMissing,
@@ -363,7 +363,7 @@ var builtinCodes = []CodeMeta{
 			"or its stored intermediate does not build a chain to a configured ca certificate. " +
 			"The listener does not start; ze never substitutes a self-signed certificate for a name the operator configured. " +
 			"Fix the name, add private { key ... } to the pki entry, or correct the intermediate.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-tls-reference", "show pki certificate name <name>"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-tls-reference", "show pki certificate name <name>"},
 	},
 	{
 		Code:  CodeDoctorPKICARootMissing,
@@ -372,7 +372,7 @@ var builtinCodes = []CodeMeta{
 			"No root is stored, so the next daemon start generates one. " +
 			"Every copy of the previous root that an operator distributed stops working at that point, because the leaves the new root issues carry a different issuer. " +
 			"Export the new root with `show pki local-ca pem` and give it to each client configured to trust this node.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-pki-ca-root-missing", "show pki local-ca pem"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-pki-ca-root-missing", "show pki local-ca pem"},
 		RelatedCodes: []string{CodeDoctorPKICARootExpiry},
 	},
 	{
@@ -381,7 +381,7 @@ var builtinCodes = []CodeMeta{
 		Description: "The stored local certificate authority root expires within 90 days, or has expired already. " +
 			"The window is 90 days rather than the 30 a configured certificate gets, because the root has to be replaced on every client that trusts it and Ze distributes it by hand. " +
 			"An expired root is an error: every leaf it issued is refused, so plugin and fleet connections fail.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-pki-ca-root-expiry", "show pki local-ca pem"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-pki-ca-root-expiry", "show pki local-ca pem"},
 		RelatedCodes: []string{CodeDoctorPKICARootMissing},
 	},
 	{
@@ -397,7 +397,7 @@ var builtinCodes = []CodeMeta{
 			"Ze starts an external plugin by giving the `run` string to `/bin/sh -c`, so every external plugin in the config fails to start and the daemon runs without them. " +
 			"A gokrazy appliance image carries no shell utilities, which is where a host reaches this state. " +
 			"Move the plugin to an `internal` block where a built-in plugin provides it, or install a shell on this host.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-plugin-shell-missing"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-shell-missing"},
 		RelatedCodes: []string{"doctor-plugin-missing"},
 	},
 	{
@@ -407,31 +407,31 @@ var builtinCodes = []CodeMeta{
 			"The acceptor takes the FIRST server block and the managed listener takes every block that declares client entries, so a shared address is asked of the kernel twice. " +
 			"The acceptor binds it, the managed listener is skipped, and every managed client that dials that address is dropped by an acceptor which routes only to a plugin waiter. " +
 			"Move the client entries to a server block with its own port.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-hub-managed-collision"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-hub-managed-collision"},
 	},
 	{
 		Code:        CodeDoctorServiceUnit,
 		Title:       "Systemd service unit unreadable",
 		Description: "The installed ze systemd unit exists but cannot be read by doctor.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-service-unit"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-service-unit"},
 	},
 	{
 		Code:        CodeDoctorServiceExecutable,
 		Title:       "Systemd service executable invalid",
 		Description: "The installed ze systemd unit ExecStart does not point to an existing executable file.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-service-executable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-service-executable"},
 	},
 	{
 		Code:        CodeDoctorServiceUser,
 		Title:       "Systemd service user missing",
 		Description: "The user configured in the ze systemd unit does not exist on this host.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-service-user"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-service-user"},
 	},
 	{
 		Code:        CodeDoctorServiceGroup,
 		Title:       "Systemd service group missing",
 		Description: "The group configured in the ze systemd unit does not exist on this host.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-service-group"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-service-group"},
 	},
 	{
 		Code:        "doctor-ssh-hostkey-missing",
@@ -509,19 +509,19 @@ var builtinCodes = []CodeMeta{
 		Code:        CodeDoctorVPPWireguard,
 		Title:       "VPP wireguard plugin not enabled",
 		Description: "A wireguard interface is configured under the vpp backend, but the VPP wireguard plugin is not enabled (vpp.plugins.wireguard) or not loaded in the running VPP. VPP cannot program wireguard tunnels without it, so the interface will fail at apply.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-wireguard"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-wireguard"},
 	},
 	{
 		Code:        CodeDoctorVPPLCPNetns,
 		Title:       "LCP netns will not carry the TAPs ze needs",
 		Description: "vpp.lcp.netns carries a value, so VPP resolves it as a network namespace NAME and opens /var/run/netns/<name> for the Linux Control Plane TAPs. ze also passes the same leaf as VPP's global default netns. Three outcomes follow, and this code reports whichever applies. The TAPs land outside the namespace ze runs in, so BGP cannot bind on an LCP-shadowed interface: ze has no netns-aware listener, and netns-aware BGP binding is specced but not implemented. ze's own markers host and root are not exempt, because to VPP they are ordinary names: netns=host asks for a namespace literally called host. And when the namespace is absent from this host, LCP pair creation fails at apply with a raw VPP error; a probe that cannot answer is reported as a probe failure and never as absence. Remedy: leave vpp.lcp.netns empty, which clears VPP's global default and leaves the TAPs in VPP's own namespace where ze runs, or run ze in the namespace the leaf names so BGP binds where the TAPs are.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-lcp-netns"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-lcp-netns"},
 	},
 	{
 		Code:        CodeDoctorVPPLCPPlugin,
 		Title:       "VPP linux_cp plugin not loaded",
 		Description: "vpp.lcp is enabled, so ze writes a startup.conf that enables linux_cp_plugin.so, but the running VPP does not report that plugin as loaded. The linux_cp API is therefore unavailable and the config apply fails at the binapi layer with a raw VPP error that names the failing message rather than the missing plugin. Remedy: run a VPP build that ships linux_cp_plugin.so (and linux_nl_plugin.so), or disable vpp.lcp. When the probe gives no usable answer -- vppctl missing, VPP socket absent, VPP wedged, or a zero exit whose output carries no plugin listing -- this is reported as a WARNING instead, because none of those is evidence about which plugins VPP loaded.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-lcp-plugin"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-lcp-plugin"},
 	},
 	{
 		Code:        "doctor-kernel-nexthop",
@@ -533,193 +533,193 @@ var builtinCodes = []CodeMeta{
 		Code:         "doctor-config-bgp-peer",
 		Title:        "BGP peer configuration rejected",
 		Description:  "The BGP engine's own peer resolution refuses this configuration, so the daemon will fail to start on it -- an unknown address family, a missing mandatory setting (prefix maximum, connection local ip), or an unresolvable cross-reference. Doctor runs the same gate `ze config validate` applies; before this check existed it reported such a config as ready and exited 0, which is the operator trap it closes. Severity is error: the report is not ready and `ze doctor` exits 1. Remedy: run `ze config validate <file>` for the full error list and correct the named peer.",
-		Examples:     []string{exampleDoctorJSON, exampleConfigValidate, "ze explain doctor-config-bgp-peer"},
+		Examples:     []string{exampleDoctorJSON, exampleConfigValidate, "ze show diagnostic doctor-config-bgp-peer"},
 		RelatedCodes: []string{codeConfigBGPPeer, codeConfigBGPResolve},
 	},
 	{
 		Code:        CodeDoctorKernelCapabilityForced,
 		Title:       "Kernel capability answer forced by a test",
 		Description: "A kernel capability probe did not run: its answer was forced through ze.test.kernelcap.force, which only a zetest build (the functional-test daemon) reads. Every forced answer says so, a forced present included, so a verdict injected by a test is never read as the host's kernel. This code carries a forced PRESENT, at WARNING severity, and does not refuse a start; a forced absent or unknown reports the capability's own code with the variable named in its message. A shipped ze never reads the variable, so seeing this code from a shipped binary is a build defect. Remedy: unset ze.test.kernelcap.force, or run the build you meant to test.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-kernel-capability-forced"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-kernel-capability-forced"},
 	},
 	{
 		Code:        CodeDoctorKernelCapabilityDenied,
 		Title:       "Kernel capability probe denied by the host's security policy",
 		Description: "A kernel capability probe could not ask the kernel because a security policy confining ze (an AppArmor profile such as Docker's docker-default, or an SELinux label) refused a step it needs: the probe's mount of /proc/sys in a private mount namespace, or its write to /proc/sys/net/mpls/platform_labels. The answer is neither present nor absent, and the message names the policy, the denied step and the grant. It is a WARNING and does not refuse a start, as for a probe that could not ask, but `ze doctor --json kernel-capabilities` reports the row denied and exits 1, and the Docker kernel check refuses it. Remedy: grant the probe those steps; Ze's AppArmor profile ze-kernel-probe grants exactly them, and on a Docker host `./le setup docker-kernel apparmor` loads it.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-kernel-capability-denied"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-kernel-capability-denied"},
 	},
 	{
 		Code:         CodeDoctorMPLSUnknown,
 		Title:        "MPLS kernel support unknown",
 		Description:  "The MPLS capability probe (/proc/sys/net/mpls/platform_labels, under the root named by ze.test.doctor.procfs-root) could not be read, so ze cannot tell whether the kernel holds an AF_MPLS forwarding table. This is reported rather than passed over in silence: a check that cannot be evaluated is not a check that succeeded. It is a WARNING and it does not refuse a start, because refusing on a probe ze could not read would stop a router whose kernel is fine. Remedy: check the permissions on /proc/sys/net/mpls and the path above it. An ABSENT probe is not this code -- it means the kernel holds no AF_MPLS table, it reports doctor-mpls-unavailable, and that one does refuse the start.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-unknown"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-mpls-unknown"},
 		RelatedCodes: []string{CodeDoctorMPLSUnavailable},
 	},
 	{
 		Code:         CodeDoctorMPLSTransitMTUUnenforced,
 		Title:        "MPLS transit path MTU not enforced",
 		Description:  "RSVP-TE runs on the kernel FIB, and the kernel refuses a path MTU (RTA_METRICS/RTAX_MTU) on an AF_MPLS route: it is an upstream kernel without CONFIG_MPLS_IP_MTU, which ze's own runtime kernel adds with gokrazy/kernel/patches/0002-mpls-ip-mtu.patch. ze still installs every transit swap and pop, WITHOUT the downstream path MTU the ADSPEC carried, so a transit LSP comes up and forwards, but an oversized labeled packet is dropped by the outgoing device instead of being fragmented or answered with ICMP Fragmentation Needed or Packet Too Big. Push routes keep their MTU. This is a WARNING and it does not refuse a start: a stock kernel forwards correctly within the device MTU. Remedy: run ze's appliance kernel, or a kernel built with that patch, when the LSP path MTU must be enforced at this transit router.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-transit-mtu-unenforced"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-mpls-transit-mtu-unenforced"},
 		RelatedCodes: []string{CodeDoctorMPLSTransitMTUUnknown, CodeDoctorMPLSUnavailable},
 	},
 	{
 		Code:         CodeDoctorMPLSTransitMTUUnknown,
 		Title:        "MPLS transit path MTU support unknown",
 		Description:  "ze could not tell whether the kernel accepts a path MTU on an AF_MPLS route. The probe sends two non-creating route requests for label 16 and needs CAP_NET_ADMIN and a non-empty MPLS label space (/proc/sys/net/mpls/platform_labels); an unprivileged `ze doctor`, or one run before the daemon enabled the label space, cannot ask. This is a WARNING and never refuses a start. The daemon asks again when it installs its first transit route that carries a path MTU, and installs that route without the MTU unless the kernel answered that it accepts one. Remedy: run `ze doctor` as root after the daemon has started.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-transit-mtu-unknown"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-mpls-transit-mtu-unknown"},
 		RelatedCodes: []string{CodeDoctorMPLSTransitMTUUnenforced},
 	},
 	{
 		Code:         "doctor-bgp-capture-directory",
 		Title:        "BGP capture directory not usable",
 		Description:  "A BGP peer sets capture{enabled true} but the configured capture directory cannot be created or written by the ze user. The session will still establish: protocol event capture is a diagnostic aid and never blocks BGP. It will simply record nothing, which is indistinguishable from a quiet peer unless doctor says so. Remedy: create the directory and give the ze user write access, name a writable path in the peer's capture{directory ...}, or set capture{enabled false}.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-bgp-capture-directory"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-bgp-capture-directory"},
 		RelatedCodes: []string{CodeDoctorWriteDestination},
 	},
 	{
 		Code:         CodeDoctorMPLSUnavailable,
 		Title:        "MPLS kernel support unavailable",
 		Description:  "The kernel holds no AF_MPLS forwarding table: /proc/sys/net/mpls/platform_labels does not exist, and the configuration asks the kernel FIB to forward MPLS. BGP labeled routes cannot be installed, and neither LDP nor RSVP-TE can program a label. This is an ERROR: `ze` refuses to start on it and `ze config validate` fails on it, because a daemon that advertises label forwarding it cannot perform blackholes the traffic it attracted. Remedy: load mpls_router, or run a kernel built with CONFIG_MPLS_ROUTING and CONFIG_MPLS_IPTUNNEL. ze's own appliance kernel builds both in, so it needs no module. A table that EXISTS with a label space of 0 is not reported at all: ze writes a label space before it programs its first label.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-unavailable"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-mpls-unavailable"},
 		RelatedCodes: []string{CodeDoctorMPLSUnknown},
 	},
 	{
 		Code:        "doctor-ldp-port-unavailable",
 		Title:       "LDP port 646 cannot be bound",
 		Description: "LDP is configured but the daemon cannot bind UDP/TCP port 646 (RFC 5036). The port is privileged (<1024) and may need CAP_NET_BIND_SERVICE or root, or it is already in use by another process.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ldp-port-unavailable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ldp-port-unavailable"},
 	},
 	{
 		Code:        "doctor-rsvpte-rawsock-unavailable",
 		Title:       "RSVP-TE raw IP socket unavailable",
 		Description: "RSVP-TE is configured but a raw IP socket for protocol 46 (RFC 2205) cannot be opened. This requires CAP_NET_RAW or root; without it RSVP-TE cannot send or receive PATH/RESV messages.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-rsvpte-rawsock-unavailable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-rsvpte-rawsock-unavailable"},
 	},
 	{
 		Code:        "doctor-geodns-port-unavailable",
 		Title:       "GeoDNS privileged listen-port cannot be bound",
 		Description: "GeoDNS is configured to listen on a privileged port (<1024, e.g. 53) but the daemon cannot bind it for UDP/TCP. The port needs CAP_NET_BIND_SERVICE or root, or it is already in use. The default port 5300 is unprivileged and not affected.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-geodns-port-unavailable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-geodns-port-unavailable"},
 	},
 	{
 		Code:        "doctor-as112-port-unavailable",
 		Title:       "AS112 port 53 cannot be bound",
 		Description: "AS112 is enabled but the daemon cannot bind its fixed UDP/TCP port 53 (RFC 7534 Section 3.5). The port needs CAP_NET_BIND_SERVICE or root, or it is already in use by another service (e.g. GeoDNS on the same address).",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-as112-port-unavailable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-as112-port-unavailable"},
 	},
 	{
 		Code:        CodeDoctorAS112WatchdogMissingWithdraw,
 		Title:       "AS112 route missing watchdog withdraw marker",
 		Description: "A BGP update block announces an AS112 covering prefix (192.175.48.0/24, 192.31.196.0/24, 2620:4f:8000::/48, or 2001:4:112::/48) without a watchdog{withdraw true} marker. The marker's absence defaults to already-announced, so the route is advertised at startup before AS112 health is confirmed (RFC 7534 Section 3.3).",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-as112-watchdog-missing-withdraw"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-as112-watchdog-missing-withdraw"},
 	},
 	{
 		Code:        CodeDoctorAS112GlobalOriginUncoordinated,
 		Title:       "AS112 global origin override to a public ASN",
 		Description: "A BGP session sets asn.local 112 with the replace-as local-option while eBGP-peering a non-private-use remote ASN (RFC 6996 Section 4), making this node an uncoordinated global AS112 origin. RFC 7534 Section 3.2/Section 5 requires coordination before deploying outside a local-use mirror.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-as112-global-origin-uncoordinated"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-as112-global-origin-uncoordinated"},
 	},
 	{
 		Code:        CodeDoctorAS112RedistributeOriginUncoordinated,
 		Title:       "AS112 redistribute origin to a public ASN",
 		Description: "The as112 service originates its covering prefixes as AS112 (asn 112, the default) via redistribute { destination bgp { import as112 } } while an eBGP session to a non-private-use remote ASN (RFC 6996 Section 4) exists, making this node an uncoordinated global AS112 origin. RFC 7534 Section 3.2/Section 5 requires coordination; restrict the route with an egress community/prefix filter or set an operator/private asn.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-as112-redistribute-origin-uncoordinated"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-as112-redistribute-origin-uncoordinated"},
 	},
 	{
 		Code:        CodeDoctorAS112RedistributeNotImported,
 		Title:       "AS112 redistribute knob set but not imported into BGP",
 		Description: "service as112 is enabled and sets a redistribute-only knob (an explicit asn or a community) but no redistribute { destination bgp { import as112 } } is configured. Those knobs only affect the BGP-originated covering prefixes and are ignored without the import, so the covering prefixes are never originated into BGP -- the common wiring mistake where an operator expects the routes but forgot the import. Add the import, or remove the knob if the node serves DNS only.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-as112-redistribute-not-imported"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-as112-redistribute-not-imported"},
 	},
 	{
 		Code:        "doctor-iface-macvlan",
 		Title:       "Kernel macvlan support unavailable",
 		Description: "The kernel cannot create a bridge-mode macvlan device (CONFIG_MACVLAN). ze's owned-device mechanism -- plugin-requested macvlan devices on a parent interface -- needs it; without CONFIG_MACVLAN those devices fail at apply. Enable CONFIG_MACVLAN or load the macvlan module. If the probe instead reports a permission failure, it lacked CAP_NET_ADMIN.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-iface-macvlan"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-iface-macvlan"},
 	},
 	{
 		Code:        "doctor-iface-ra-forwarding",
 		Title:       "Router Advertisements sent while IPv6 forwarding is off",
 		Description: "A unit sends Router Advertisements (interface ... unit ... ipv6 router-advertisement enabled true) while net.ipv6.conf.<device>.forwarding is 0. Hosts on that link autoconfigure and install a default route through Ze, and the kernel then drops the off-link traffic they send, so the link looks configured and carries nothing. Set ipv6 forwarding true on the advertising unit, or set the sysctl through a profile. Ze reports this state and never changes it, because a kernel change outside declared config would hide the real setting. Advertising with forwarding off is deliberate in one case: router-lifetime 0, which says Ze is not a default router and advertises prefixes only.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-iface-ra-forwarding"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-iface-ra-forwarding"},
 	},
 	{
 		Code:        "doctor-isis-raw-socket",
 		Title:       "IS-IS raw L2 socket unavailable",
 		Description: "IS-IS is configured but a raw AF_PACKET/SOCK_RAW socket cannot be opened. IS-IS runs directly over IEEE 802.3 frames (ISO/IEC 10589), so it needs CAP_NET_RAW or root; without it IS-IS cannot send or receive IIH/LSP/CSNP/PSNP PDUs and forms no adjacencies.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-isis-raw-socket"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-isis-raw-socket"},
 	},
 	{
 		Code:        "doctor-ospf-raw-socket",
 		Title:       "OSPF raw IP socket unavailable",
 		Description: "OSPF is configured but a raw IP socket for protocol 89 (RFC 2328) cannot be opened. This requires CAP_NET_RAW or root; without it OSPF cannot send or receive Hello, DD, LS Request, LS Update, or LS Ack packets.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-raw-socket"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-raw-socket"},
 	},
 	{
 		Code:        "doctor-ospfv3-raw-socket",
 		Title:       "OSPFv3 raw IPv6 socket unavailable",
 		Description: "OSPFv3 is configured but a raw IPv6 socket for protocol 89 (RFC 5340) cannot be opened. This requires CAP_NET_RAW or root; without it OSPFv3 cannot send or receive Hello, DD, LS Request, LS Update, or LS Ack packets.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospfv3-raw-socket"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospfv3-raw-socket"},
 	},
 	{
 		Code:        "doctor-vrrp-raw-socket",
 		Title:       "VRRP raw IP socket unavailable",
 		Description: "VRRP is configured but a raw IP socket for protocol 112 (RFC 9568 / RFC 3768) cannot be opened. VRRP advertisements are sent and received directly over IP protocol 112, so this requires CAP_NET_RAW or root; without it VRRP cannot send or receive advertisements and every group stays in Initialize (no failover). The transport also needs it for the gratuitous-ARP (AF_PACKET) and unsolicited-NA (raw ICMPv6) failover announcers.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vrrp-raw-socket"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vrrp-raw-socket"},
 	},
 	{
 		Code:        "doctor-icmp-probe",
 		Title:       "ICMP probe socket unavailable",
 		Description: "Neither ICMP socket kind can be opened, so ping and traceroute cannot run. The raw ICMP socket needs CAP_NET_RAW or root, and the unprivileged datagram ICMP socket needs the daemon's group inside net.ipv4.ping_group_range. The message carries the refusal of each kind and the group the daemon runs as, so it names which of the two fixes applies. A raw socket refused for a reason other than privilege is reported as itself, and no fallback is tried.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-icmp-probe"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-icmp-probe"},
 	},
 	{
 		Code:        "doctor-icmp-probe-unprivileged",
 		Title:       "ICMP probes run on the unprivileged datagram socket",
 		Description: "The raw ICMP socket is refused for privilege (no CAP_NET_RAW), and the unprivileged datagram ICMP socket stands in because the daemon's group is inside net.ipv4.ping_group_range. Ping runs on it, including the do-not-fragment modes and the reported next-hop MTU. Traceroute does not: the kernel delivers Time Exceeded only to a raw socket, so show traceroute, monitor traceroute and show probe-round refuse to run and name CAP_NET_RAW. Grant CAP_NET_RAW to the daemon to restore them.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-icmp-probe-unprivileged"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-icmp-probe-unprivileged"},
 	},
 	{
 		Code:        "doctor-mtu-local-state",
 		Title:       "show mtu cannot read a local-state source",
 		Description: "One of the two kernel sources show mtu reads beside the wire cannot be read: the fragmentation counters of /proc/net/snmp (through procfs) or net.ipv4.tcp_mtu_probing (through the sysctl component). The measurement and the tunnel sizing still run; the payload reports the finding that source feeds as unreadable instead of a value. The message names the source and its error. Mount procfs at /proc, or run on a host whose sysctl backend the daemon can read.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-mtu-local-state"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-mtu-local-state"},
 	},
 	{
 		Code:        "doctor-crash-capture-unarmed",
 		Title:       "Kernel crash capture configured but not armed",
 		Description: "system crash-dump enabled is set, but the running kernel booted without the reserved memory region the capture writes into. A reservation is a kernel boot argument, so a commit records the intent and the next boot arms it: build the appliance image with image.crash-dump and reboot. Until then a kernel panic leaves no record, and the appliance has no shell to diagnose one with.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-crash-capture-unarmed"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-crash-capture-unarmed"},
 	},
 	{
 		Code:        "doctor-crash-capture-pstore",
 		Title:       "Kernel crash record store unreadable",
 		Description: "The reserved region is present on the kernel command line, but the pstore filesystem the kernel exposes the record through cannot be read. Either the running kernel was built without CONFIG_PSTORE and CONFIG_PSTORE_RAM, or mounting pstore on /sys/fs/pstore was refused. The kernel takes the reserved memory on every boot either way, so this reports RAM spent for a record nothing can read back.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-crash-capture-pstore"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-crash-capture-pstore"},
 	},
 	{
 		Code:        "doctor-crash-directory-unwritable",
 		Title:       "Crash directory not writable",
 		Description: "No candidate crash directory could be created and written, so Ze has nowhere to store a crash report. The probe order is the ze.crash.dir override, then the config directory's crash subdirectory, then the three built-in candidates. Without one, a Go panic report is lost and a harvested kernel record is kept in the reserved region for the next boot instead of being stored.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-crash-directory-unwritable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-crash-directory-unwritable"},
 	},
 	{
 		Code:        "doctor-ospfv3-ipsec",
 		Title:       "OSPFv3 IPsec (RFC 4552) kernel unavailable",
 		Description: "An OSPFv3 (IPv6-family) interface configures RFC 4552 manual IPsec (AH/ESP), but the kernel XFRM dataplane cannot be reached to install the transport-mode Security Associations and policies. This needs CAP_NET_ADMIN and kernel IPsec support; without it the interface would form an UNPROTECTED adjacency, so Ze warns instead of silently claiming protection.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospfv3-ipsec"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospfv3-ipsec"},
 	},
 	{
 		Code:        "doctor-ospf-graceful-restart-nvs",
 		Title:       "OSPF Graceful Restart NVS path unwritable",
 		Description: "OSPF Graceful Restart is enabled (restarter support planned or planned-and-unplanned, RFC 3623 / RFC 5187), which requires a writable non-volatile store to persist the restart fact (RFC 3623 Section 2.1) across a planned restart, but the managed store directory cannot be resolved or written. Without it a planned restart cannot record its grace deadline, so the resumed engine boots normally instead of staying on the forwarding path, defeating non-stop forwarding. Ensure a persistent config directory is configured and writable.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-graceful-restart-nvs"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-graceful-restart-nvs"},
 	},
 	{
 		Code:        "doctor-ospf-segment-routing-overlap",
 		Title:       "OSPF Segment Routing label range overlap or unsound",
 		Description: "OSPF Segment Routing is enabled (RFC 8665 / RFC 8666) but the configured SRGB (global) and SRLB (local) label ranges overlap each other, overlap another range, sit outside the 20-bit MPLS label space, carry a zero Range Size, or a Prefix-SID index falls outside the total SRGB size. A double-claimed label maps two SIDs onto one forwarding entry and blackholes traffic. Make the SRGB and SRLB disjoint contiguous ranges within 16..1048575, each with Range Size greater than zero, not overlapping the LDP or RSVP-TE label space, and keep every node Prefix-SID index within the SRGB.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-segment-routing-overlap"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-segment-routing-overlap"},
 	},
 	// doctor-isis-net-missing and doctor-isis-system-id-mismatch are NOT listed
 	// here: they are owned and registered by the IS-IS component
@@ -731,7 +731,7 @@ var builtinCodes = []CodeMeta{
 		Description: "The configuration uses the l2tp subsystem and the kernel does not provide the l2tp generic netlink family (CONFIG_L2TP). " +
 			"The probe asks the generic netlink controller for the family, which loads l2tp_netlink on a modular kernel and changes nothing. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
 			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_L2TP, such as Ze's own runtime kernel.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-l2tp-unavailable"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-l2tp-unavailable"},
 		RelatedCodes: []string{CodeDoctorL2TPUnknown},
 	},
 	{
@@ -740,7 +740,7 @@ var builtinCodes = []CodeMeta{
 		Description: "The configuration uses the l2tp subsystem and the probe for the l2tp generic netlink family (CONFIG_L2TP) gave no verdict, " +
 			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
 			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-l2tp-unknown"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-l2tp-unknown"},
 		RelatedCodes: []string{CodeDoctorL2TPUnavailable},
 	},
 	{
@@ -749,7 +749,7 @@ var builtinCodes = []CodeMeta{
 		Description: "The configuration uses the l2tp subsystem and the kernel does not provide the PPPoL2TP socket (CONFIG_PPPOL2TP). " +
 			"The probe opens and closes an AF_PPPOX PX_PROTO_OL2TP socket, which loads l2tp_ppp on a modular kernel and changes nothing. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
 			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_PPPOL2TP, such as Ze's own runtime kernel.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-l2tp-ppp-unavailable"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-l2tp-ppp-unavailable"},
 		RelatedCodes: []string{CodeDoctorL2TPPPPUnknown},
 	},
 	{
@@ -758,7 +758,7 @@ var builtinCodes = []CodeMeta{
 		Description: "The configuration uses the l2tp subsystem and the probe for the PPPoL2TP socket (CONFIG_PPPOL2TP) gave no verdict, " +
 			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
 			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-l2tp-ppp-unknown"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-l2tp-ppp-unknown"},
 		RelatedCodes: []string{CodeDoctorL2TPPPPUnavailable},
 	},
 	{
@@ -767,7 +767,7 @@ var builtinCodes = []CodeMeta{
 		Description: "The configuration uses the pppoe subsystem and the kernel does not provide the PPPoE socket (CONFIG_PPPOE). " +
 			"The probe opens and closes an AF_PPPOX PX_PROTO_OE socket, which loads pppoe on a modular kernel and changes nothing. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
 			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_PPPOE, such as Ze's own runtime kernel.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-pppoe-unavailable"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-pppoe-unavailable"},
 		RelatedCodes: []string{CodeDoctorPPPoEUnknown},
 	},
 	{
@@ -776,7 +776,7 @@ var builtinCodes = []CodeMeta{
 		Description: "The configuration uses the pppoe subsystem and the probe for the PPPoE socket (CONFIG_PPPOE) gave no verdict, " +
 			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
 			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-pppoe-unknown"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-pppoe-unknown"},
 		RelatedCodes: []string{CodeDoctorPPPoEUnavailable},
 	},
 	{
@@ -785,7 +785,7 @@ var builtinCodes = []CodeMeta{
 		Description: "The configuration uses a wireguard interface and the kernel does not provide the wireguard generic netlink family (CONFIG_WIREGUARD). " +
 			"The probe asks the generic netlink controller for the family, which loads wireguard on a modular kernel and changes nothing. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
 			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_WIREGUARD, such as Ze's own runtime kernel.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-wireguard-unavailable"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-wireguard-unavailable"},
 		RelatedCodes: []string{CodeDoctorWireGuardUnknown},
 	},
 	{
@@ -794,7 +794,7 @@ var builtinCodes = []CodeMeta{
 		Description: "The configuration uses a wireguard interface and the probe for the wireguard generic netlink family (CONFIG_WIREGUARD) gave no verdict, " +
 			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
 			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-wireguard-unknown"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-wireguard-unknown"},
 		RelatedCodes: []string{CodeDoctorWireGuardUnavailable},
 	},
 	{
@@ -803,7 +803,7 @@ var builtinCodes = []CodeMeta{
 		Description: "The configuration uses an xfrm interface and the kernel does not provide the xfrm link kind (CONFIG_XFRM_INTERFACE). " +
 			"The probe asks for an xfrm link with interface id 0 inside a throwaway network namespace, which the kernel refuses after finding the link kind; it needs CAP_SYS_ADMIN to create that namespace. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
 			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_XFRM_INTERFACE, such as Ze's own runtime kernel.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-xfrm-interface-unavailable"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-xfrm-interface-unavailable"},
 		RelatedCodes: []string{CodeDoctorXFRMInterfaceUnknown},
 	},
 	{
@@ -812,20 +812,20 @@ var builtinCodes = []CodeMeta{
 		Description: "The configuration uses an xfrm interface and the probe for the xfrm link kind (CONFIG_XFRM_INTERFACE) gave no verdict, " +
 			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
 			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-xfrm-interface-unknown"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-xfrm-interface-unknown"},
 		RelatedCodes: []string{CodeDoctorXFRMInterfaceUnavailable},
 	},
 	{
 		Code:        "doctor-firewall-nftables",
 		Title:       "nftables kernel support unavailable",
 		Description: "The firewall is configured with the nft backend but nf_tables kernel support is not loaded.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-firewall-nftables"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-firewall-nftables"},
 	},
 	{
 		Code:        "doctor-dhcp-iface",
 		Title:       "DHCP listen interface missing",
 		Description: "The DHCP server is configured to listen on an interface that does not exist on the system.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-dhcp-iface"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-dhcp-iface"},
 	},
 	{
 		Code:  CodeDoctorIPsecIface,
@@ -833,7 +833,7 @@ var builtinCodes = []CodeMeta{
 		Description: "vpn ipsec interface names an interface that does not exist on the system, " +
 			"or whose name is malformed. IPsec resolves the local address of every peer that has " +
 			"no explicit local-address from this interface, so those peers will not establish.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-iface"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-iface"},
 	},
 	{
 		Code:  CodeDoctorIPsecUDPEncap,
@@ -846,7 +846,7 @@ var builtinCodes = []CodeMeta{
 			"no traffic. A bind failure usually means another process holds port 4500. On Linux a " +
 			"UDP_ENCAP failure usually means the setsockopt call was refused. On another platform it " +
 			"means the host has no IPsec dataplane at all.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-udp-encap"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-udp-encap"},
 	},
 	{
 		Code:  CodeDoctorIPsecCertURL,
@@ -856,7 +856,7 @@ var builtinCodes = []CodeMeta{
 			"for hash-and-url lookup, and ze refuses every other scheme before any name resolution. " +
 			"A peer that asked for hash-and-url and cannot name a reachable http URL will fall back " +
 			"to nothing: the certificate never reaches the remote end and IKE_AUTH fails there.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-cert-url"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-cert-url"},
 	},
 	{
 		Code:  CodeDoctorIPsecCertURLDenied,
@@ -868,7 +868,7 @@ var builtinCodes = []CodeMeta{
 			"not. The URL ze publishes must be reachable by the PEER, so a private address is " +
 			"usually a configuration mistake. Name the prefix in certificate-url-allow when it is " +
 			"deliberate.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-cert-url-denied"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-cert-url-denied"},
 	},
 	{
 		Code:  CodeDoctorIPsecCookieThreshold,
@@ -881,7 +881,7 @@ var builtinCodes = []CodeMeta{
 			"defense RFC 7296 Section 2.6 offers against state and CPU exhaustion from forged " +
 			"source addresses is off. Lower cookie-threshold to the responding-peer count or " +
 			"below, or leave it at the default of 0 to challenge every inbound initiation.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-cookie-threshold"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-cookie-threshold"},
 	},
 	{
 		Code:  CodeDoctorIPsecXFRMUnavailable,
@@ -899,7 +899,7 @@ var builtinCodes = []CodeMeta{
 			"passes this probe and still encrypts nothing; only the appliance build requirement " +
 			"catches that (internal/appliance/kernelreq.go). An empty `vpn { ipsec { } }` block " +
 			"installs no SA and is never reported here.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-xfrm-unavailable"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-xfrm-unavailable"},
 	},
 	{
 		Code:  CodeDoctorIPsecXFRMUnknown,
@@ -912,7 +912,7 @@ var builtinCodes = []CodeMeta{
 			"there, so there is no dataplane to find. Remedy: read the reason the message carries. " +
 			"A permission denial is a privilege fault rather than a kernel one, and rebuilding a " +
 			"kernel for it changes nothing.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-xfrm-unknown"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-xfrm-unknown"},
 	},
 	{
 		Code:  CodeDoctorIPsecMOBIKEUnavailable,
@@ -925,7 +925,7 @@ var builtinCodes = []CodeMeta{
 			"host that runs Ze's labs is refused on it, because the MOBIKE scenarios cannot pass " +
 			"there. The probe sends a migration naming no SA, so it changes nothing. Remedy: run a " +
 			"kernel built with CONFIG_XFRM_MIGRATE from Linux 7.2 on, such as Ze's own runtime kernel.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-mobike-unavailable"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-mobike-unavailable"},
 		RelatedCodes: []string{CodeDoctorIPsecMOBIKEUnknown},
 	},
 	{
@@ -935,7 +935,7 @@ var builtinCodes = []CodeMeta{
 			"probe needs CAP_NET_ADMIN, and the kernel answered with an errno that neither proves " +
 			"nor rules out the handler. Ze does not offer MOBIKE until the answer is present. This " +
 			"is a WARNING and it does not refuse a start. Remedy: run `ze doctor` as root.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-mobike-unknown"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-mobike-unknown"},
 		RelatedCodes: []string{CodeDoctorIPsecMOBIKEUnavailable},
 	},
 	{
@@ -948,7 +948,7 @@ var builtinCodes = []CodeMeta{
 			"it does not refuse a start, because the other family may still work. The probe asks " +
 			"the kernel to replace an SA on a reserved SPI that cannot exist, so it installs " +
 			"nothing. Remedy: load esp4 or esp6, or run a kernel built with the symbol named.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-esp-unavailable"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-unavailable"},
 		RelatedCodes: []string{CodeDoctorIPsecESPUnknown, CodeDoctorIPsecXFRMUnavailable},
 	},
 	{
@@ -959,7 +959,7 @@ var builtinCodes = []CodeMeta{
 			"request, or a kernel missing AES-GCM itself, leaves the question open. This is a " +
 			"WARNING and it does not refuse a start. Remedy: run `ze doctor` as root and read the " +
 			"reason the message carries.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-esp-unknown"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-unknown"},
 		RelatedCodes: []string{CodeDoctorIPsecESPUnavailable},
 	},
 	{
@@ -972,7 +972,7 @@ var builtinCodes = []CodeMeta{
 			"a start, because a proposal naming another algorithm still installs. A Docker host " +
 			"that runs Ze's labs is refused on it. Remedy: run a kernel built with the symbol the " +
 			"message names, or load its module.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-transform-unavailable"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-transform-unavailable"},
 		RelatedCodes: []string{CodeDoctorIPsecTransformUnknown},
 	},
 	{
@@ -982,20 +982,20 @@ var builtinCodes = []CodeMeta{
 			"The probe needs CAP_NET_ADMIN and an ESP transform type, so a denied request, or a " +
 			"kernel without ESP, leaves the question open. This is a WARNING and it does not " +
 			"refuse a start. Remedy: run `ze doctor` as root and read the reason the message carries.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-ipsec-transform-unknown"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-transform-unknown"},
 		RelatedCodes: []string{CodeDoctorIPsecTransformUnavailable},
 	},
 	{
 		Code:        CodeDoctorBGPListen,
 		Title:       "BGP listener unavailable",
 		Description: "A configured BGP local address and port could not be bound before daemon startup.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-bgp-listen"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-bgp-listen"},
 	},
 	{
 		Code:        "doctor-bgp-md5",
 		Title:       "BGP TCP MD5 not supported",
 		Description: "A BGP peer has TCP MD5 authentication configured but the platform does not support TCP_MD5SIG.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-bgp-md5"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-bgp-md5"},
 	},
 	{
 		Code:  "doctor-bgp-peer-no-role",
@@ -1007,7 +1007,7 @@ var builtinCodes = []CodeMeta{
 			"and runs with whatever filters it names. This is a warning so the omission is visible rather than " +
 			"silent. Remedy: declare `role { import provider|customer|peer|rs|rs-client }` on each peer, which " +
 			"also enables the RFC 9234 Only-To-Customer leak protection, or leave it out deliberately.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-bgp-peer-no-role"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-bgp-peer-no-role"},
 	},
 	{
 		Code:  "doctor-redistribute-unknown-source",
@@ -1017,7 +1017,7 @@ var builtinCodes = []CodeMeta{
 			"redistribution rule in the file rather than the one line that is wrong. Remedy: correct the source " +
 			"name, or compile in the component that registers it. `ze config schema redistribute` lists the " +
 			"sources this build registers.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-redistribute-unknown-source"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-redistribute-unknown-source"},
 	},
 	{
 		Code:  "doctor-redistribute-unknown-destination",
@@ -1029,248 +1029,248 @@ var builtinCodes = []CodeMeta{
 			"consumer registers at plugin startup, so a build that omits the destination protocol is a " +
 			"legitimate reason for the name to be unknown here. Remedy: correct the protocol name, or compile in " +
 			"the protocol that consumes it.",
-		Examples: []string{exampleDoctorJSON, "ze explain doctor-redistribute-unknown-destination"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-redistribute-unknown-destination"},
 	},
 	{
 		Code:        "doctor-tacacs-unreachable",
 		Title:       "TACACS+ servers unreachable",
 		Description: "No configured TACACS+ authentication server accepted a TCP connection within the probe timeout.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-tacacs-unreachable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-tacacs-unreachable"},
 	},
 	{
 		Code:        "doctor-tacacs-weak-secret",
 		Title:       "TACACS+ shared secret is short",
 		Description: "A configured TACACS+ shared secret is shorter than the 16 characters recommended by RFC 8907 Section 10.5.1. Use a unique secret of at least 16 characters, preferably 32 or more, and rotate it on both ends.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-tacacs-weak-secret"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-tacacs-weak-secret"},
 	},
 	{
 		Code:        "doctor-radius-unreachable",
 		Title:       "RADIUS servers unreachable",
 		Description: "No configured L2TP RADIUS server could be reached by the UDP readiness probe.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-radius-unreachable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-radius-unreachable"},
 	},
 	{
 		Code:        "doctor-radius-admin-unreachable",
 		Title:       "RADIUS admin servers unreachable",
 		Description: "No configured system/authentication/radius server answered an Access-Request probe, so operator logins via RADIUS may fall through to local or fail.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-radius-admin-unreachable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-radius-admin-unreachable"},
 	},
 	{
 		Code:        "doctor-aaa-no-local-fallback",
 		Title:       "No local account to fall back to",
 		Description: "A remote AAA backend (RADIUS or TACACS+) is configured and no system/authentication/user is. The chain asks the remote backend first and reaches the local one only when the remote fails to ANSWER, so that fallback is an account: with none declared, an unreachable server or a backend whose config will not build leaves the box with no login at all.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-aaa-no-local-fallback"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-aaa-no-local-fallback"},
 	},
 	{
 		Code:        "doctor-hub-unreachable",
 		Title:       "Management hub unreachable",
 		Description: "This node is configured as a managed client (plugin/hub/client) but none of its management hubs answered a TCP probe. The node still boots and runs its committed config; it will not receive hub-pushed config updates until a hub becomes reachable.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-hub-unreachable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-hub-unreachable"},
 	},
 	{
 		Code:        "doctor-traffic-usage-ebpf",
 		Title:       "traffic-usage eBPF unavailable",
 		Description: "The traffic-usage plugin is enabled but the kernel cannot load or attach its eBPF TCX programs (missing CAP_BPF/CAP_NET_ADMIN, no TCX support, or a non-Linux build). Byte accounting will not run.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-traffic-usage-ebpf"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-traffic-usage-ebpf"},
 	},
 	{
 		Code:        CodeDoctorBFDPort,
 		Title:       "BFD control port unavailable",
 		Description: "BFD is configured but the UDP control port could not be bound.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-bfd-port"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-bfd-port"},
 	},
 	{
 		Code:        CodeDoctorPKICert,
 		Title:       "PKI certificate invalid",
 		Description: "A PKI CA or device certificate is missing, malformed, expired, or not yet valid.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-pki-cert"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-pki-cert"},
 	},
 	{
 		Code:        CodeDoctorIPsecListen,
 		Title:       "IPsec IKE listener unavailable",
 		Description: "IPsec is configured but an IKE UDP listener port could not be bound.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ipsec-listen"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-listen"},
 	},
 	{
 		Code:        "doctor-telemetry-procfs",
 		Title:       "Telemetry procfs unavailable",
 		Description: "Telemetry OS collectors are configured but required procfs files are not readable.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-telemetry-procfs"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-telemetry-procfs"},
 	},
 	{
 		Code:        CodeDoctorTFTPListen,
 		Title:       "TFTP listener unavailable",
 		Description: "The TFTP server is configured but its UDP listener port could not be bound.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-tftp-listen"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-tftp-listen"},
 	},
 	{
 		Code:        CodeDoctorImageListen,
 		Title:       "Image server listener unavailable",
 		Description: "The image server is configured but its HTTP listener port could not be bound.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-image-listen"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-image-listen"},
 	},
 	{
 		Code:        CodeDoctorNTPListen,
 		Title:       "NTP listener unavailable",
 		Description: "NTP is configured but UDP port 123 could not be bound.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ntp-listen"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ntp-listen"},
 	},
 	{
 		Code:        "doctor-sysctl-procfs",
 		Title:       "Sysctl procfs unavailable",
 		Description: "Sysctl settings are configured but /proc/sys is not writable.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-sysctl-procfs"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-sysctl-procfs"},
 	},
 	{
 		Code:        "doctor-conntrack-procfs",
 		Title:       "Conntrack procfs unavailable",
 		Description: "Conntrack tuning is configured but /proc/sys/net/netfilter/nf_conntrack_max is unavailable or not writable.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-conntrack-procfs"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-conntrack-procfs"},
 	},
 	{
 		Code:        "doctor-policyroute-netlink",
 		Title:       "Policy route netlink unavailable",
 		Description: "Policy routing is configured but a route netlink handle could not be opened.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-policyroute-netlink"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-policyroute-netlink"},
 	},
 	{
 		Code:        "doctor-ntp-server-unreachable",
 		Title:       "NTP servers unreachable",
 		Description: "None of the configured NTP servers responded to a reachability probe. Clock synchronization may fail.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ntp-server-unreachable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ntp-server-unreachable"},
 	},
 	{
 		Code:        "doctor-clock-no-sync",
 		Title:       "No clock synchronization configured",
 		Description: "Ze NTP is disabled on a platform where clock synchronization must be provided by Ze or explicitly verified externally.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-clock-no-sync"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-clock-no-sync"},
 	},
 	{
 		Code:        "doctor-config-platform-mismatch",
 		Title:       "Config default mismatches platform",
 		Description: "A configured or default path matches a different runtime platform, such as gokrazy /perm storage on systemd or /etc/resolv.conf on gokrazy.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-config-platform-mismatch"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-config-platform-mismatch"},
 	},
 	{
 		Code:        CodeDoctorMachineIDMissing,
 		Title:       "Machine ID missing",
 		Description: "The platform expects /etc/machine-id to exist and contain a stable machine identifier, but it is missing or empty.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-machine-id-missing"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-machine-id-missing"},
 	},
 	{
 		Code:        "doctor-rpki-unreachable",
 		Title:       "RPKI cache servers unreachable",
 		Description: "None of the configured RPKI cache servers accepted a TCP connection within the probe timeout.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-rpki-unreachable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-rpki-unreachable"},
 	},
 	{
 		Code:        "doctor-bmp-unreachable",
 		Title:       "BMP collectors unreachable",
 		Description: "None of the configured BMP sender collectors accepted a TCP connection within the probe timeout.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-bmp-unreachable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-bmp-unreachable"},
 	},
 	{
 		Code:        "doctor-gtsm-kernel-state",
 		Title:       "GTSM peer kernel state missing",
 		Description: "A BGP peer configured with `connection ttl` (RFC 5082 GTSM) is short of the kernel state that protects its related ICMP messages: the host route to the peer carrying hop limit 255, or the ze_gtsm nftables table that drops an ICMP error arriving below the peer's TTL floor. Inside the daemon (show doctor) the check reads what the kernel holds against what the daemon published; the usual cause is a peer whose interface was down at config apply, and the next peer reconcile installs it. In `ze doctor`, before a start, the check reports a peer the kernel resolves no route to, because that route install will fail at apply.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-gtsm-kernel-state"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-gtsm-kernel-state"},
 	},
 	{
 		Code:        CodeDoctorWriteDestination,
 		Title:       "Write destination not writable",
 		Description: "A configured file write destination (persist path, output directory) is not writable.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-write-destination"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-write-destination"},
 	},
 	{
 		Code:        "doctor-ntp-clock-privilege",
 		Title:       "NTP clock adjustment privilege missing",
 		Description: "NTP is configured but the process lacks CAP_SYS_TIME. Clock adjustment will fail unless running as root or with the capability granted.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ntp-clock-privilege"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ntp-clock-privilege"},
 	},
 	{
 		Code:        "doctor-vpp-dpdk",
 		Title:       "VPP DPDK readiness failure",
 		Description: "VPP DPDK is configured but a required VFIO kernel module is not loaded or a PCI device is not present in sysfs.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-dpdk"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-dpdk"},
 	},
 	{
 		Code:        "doctor-smart-sysfs",
 		Title:       "SMART block devices cannot be enumerated",
 		Description: "SMART management is enabled but /sys/class/block cannot be read, so the storage manager will find no device to monitor.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-smart-sysfs"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-smart-sysfs"},
 	},
 	{
 		Code:        "doctor-smart-access",
 		Title:       "No block device answers SMART",
 		Description: "SMART management is enabled and the host holds block devices, but none of them answers a SMART query, which is what a process with insufficient privileges for the SMART ioctls sees. Grant ze the privilege or disable storage/smart.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-smart-access"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-smart-access"},
 	},
 	{
 		Code:        "doctor-vpp-hugepages",
 		Title:       "VPP hugepage reservation problem",
 		Description: "VPP is enabled but the host's boot-time hugepage reservation is missing, smaller than VPP needs, clamped by the kernel, or (for 1G pages) unsupported by the CPU. Reserve hugepages via image.hugepages or the boot cmdline.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-hugepages"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-hugepages"},
 	},
 	{
 		Code:        "doctor-vpp-cpu-isolation",
 		Title:       "VPP worker CPUs are not isolated",
 		Description: "VPP pins worker threads to CPUs the Linux scheduler still owns, or the host does not report which CPUs are isolated, or every online CPU is isolated and the Linux control plane has none. A VPP worker busy-polls, so a CPU it shares with Linux costs both. Isolate the worker cores with isolcpus on the boot cmdline, or with image.isolated-cpus on an appliance.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-cpu-isolation"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-cpu-isolation"},
 	},
 	{
 		Code:        "doctor-update-check-unreachable",
 		Title:       "Update check URL unreachable",
 		Description: "The configured firmware update-check URL did not respond to an HTTP HEAD probe within the timeout.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-update-check-unreachable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-update-check-unreachable"},
 	},
 	{
 		Code:        "doctor-archive-unreachable",
 		Title:       "Archive destination unreachable",
 		Description: "A configured HTTP/HTTPS config archive destination did not respond to an HTTP HEAD probe within the timeout.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-archive-unreachable"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-archive-unreachable"},
 	},
 	{
 		Code:        CodeDoctorRandomSeed,
 		Title:       "No random seed persistence",
 		Description: "The platform has no known random-seed persistence service. On gokrazy, randomd saves to /perm/random.seed; on systemd, systemd-random-seed.service saves to /var/lib/systemd/random-seed. Without seed persistence, early-boot entropy may be poor, weakening cryptographic operations like BGP TCP-AO or TLS key generation.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-random-seed"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-random-seed"},
 	},
 	{
 		Code:        "doctor-copp-missing",
 		Title:       "CoPP input chain not active",
 		Description: "Control-plane policing (CoPP) for BGP is configured but the nftables input chain protecting TCP/179 may not be installed. Verify the firewall backend is running and the copp plugin started successfully.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-copp-missing"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-copp-missing"},
 	},
 	{
 		Code:        "doctor-memlock-rlimit-low",
 		Title:       "RLIMIT_MEMLOCK too small for the ze executable",
 		Description: "RLIMIT_MEMLOCK is smaller than the ze executable, so the kernel refuses to lock the binary in memory and its pages can be evicted under memory pressure. A daemon that waits on the disk holding its own binary drops sessions at the moment it must keep them. Raise the limit: the generated ze.service unit does it with LimitMEMLOCK=infinity, and under Docker use --ulimit memlock=-1 or --cap-add IPC_LOCK. This check reads the host before ze locks anything; `show plugin list` reports what a running ze process achieved.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-memlock-rlimit-low"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-memlock-rlimit-low"},
 	},
 	{
 		Code:        "doctor-memlock-rlimit-unknown",
 		Title:       "RLIMIT_MEMLOCK could not be read",
 		Description: "The pre-flight memory-lock check could not read RLIMIT_MEMLOCK, the size of /proc/self/exe, or the effective capability set in /proc/self/status, so it has no verdict on whether this host can lock the ze executable. The usual cause is a restricted or absent /proc. Mount /proc, or read the `show plugin list` setup outcome on a running ze process instead.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-memlock-rlimit-unknown"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-memlock-rlimit-unknown"},
 	},
 	{
 		Code:         CodeDoctorConfigRootUnclaimed,
 		Title:        "Config subtree delivered to nobody",
 		Description:  "A config subtree is stored but no plugin and no handler receives it, so it has no effect. The daemon selects plugins for a config change by matching the changed path against the config roots each plugin declares; a path that matches nothing is accepted and logged at Info level only. Either the owning plugin is not built into this binary, or it did not load, or its config root declaration is missing. Check `ze plugin list` for the owning plugin.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-config-root-unclaimed"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-config-root-unclaimed"},
 		RelatedCodes: []string{CodeDoctorConfigClaimsUnavailable},
 	},
 	{
 		Code:         CodeDoctorConfigClaimsUnavailable,
 		Title:        "Config delivery could not be checked",
 		Description:  "The doctor could not build the list of config roots this build delivers, so it did not check whether the configured subtrees reach anything. This is reported rather than passed over: a check that cannot see its subject has cleared nothing.",
-		Examples:     []string{exampleDoctorJSON, "ze explain doctor-config-claims-unavailable"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-config-claims-unavailable"},
 		RelatedCodes: []string{CodeDoctorConfigRootUnclaimed},
 	},
 	{
 		Code:        codeDoctorRIRSourceRefused,
 		Title:       "RIR delegation source will not be read",
 		Description: "A `system/rir/delegation-source` block names a URL that `update resolve rir` refuses, so that registry's file is never fetched and the ASN-to-registry table stays as it is. A source is read over HTTPS, or over plain HTTP only when its host is the router itself; the host is compared after parsing, so a name that merely starts with 127.0.0.1 is not loopback. The config editor refuses such a URL at commit time, so a running config carrying one came from an older binary, a restored backup, or an edit made outside the editor.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-rir-source-refused"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-rir-source-refused"},
 	},
 }

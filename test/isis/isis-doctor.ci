@@ -1,10 +1,10 @@
 # Test: IS-IS doctor checks (spec-isis-13 config-sanity + surfaced raw-socket).
 #
 # VALIDATES: spec-isis-13 -- the IS-IS doctor codes are registered and explainable
-#            (ze explain), and `ze doctor --json` against a config whose explicit
+#            (ze show diagnostic), and `ze doctor --json` against a config whose explicit
 #            system-id disagrees with the NET emits doctor-isis-system-id-mismatch
 #            (AC-12). The raw-socket code (owned by isis-3) is surfaced by
-#            ze explain too (AC-11 surface); its firing path needs CAP_NET_RAW and
+#            ze show diagnostic too (AC-11 surface); its firing path needs CAP_NET_RAW and
 #            is a QEMU integration test, not a .ci.
 # PREVENTS:  regression where a config-sanity code is unregistered (not
 #            explainable) or the config-sanity check never fires on a bad config.
@@ -28,18 +28,18 @@ EOF_CONF
 # --- All three IS-IS doctor codes are explainable. ---------------------------
 # A generous timeout: the runner treats each foreground `ze` as a daemon and,
 # with a tmpfs present, waits ~5s per command for a readiness file the one-shot
-# `ze explain` / `ze doctor` never writes; four commands need >15s of budget.
-cmd=foreground:seq=1:exec=ze explain doctor-isis-net-missing:timeout=60s:exit=0
+# `ze show diagnostic` / `ze doctor` never writes; four commands need >15s of budget.
+cmd=foreground:seq=1:exec=ze show diagnostic doctor-isis-net-missing:timeout=60s:exit=0
 expect=exit:code=0
 expect=stdout:contains=doctor-isis-net-missing
 expect=stdout:contains=net
 
-cmd=foreground:seq=2:exec=ze explain doctor-isis-system-id-mismatch:exit=0
+cmd=foreground:seq=2:exec=ze show diagnostic doctor-isis-system-id-mismatch:exit=0
 expect=exit:code=0
 expect=stdout:contains=doctor-isis-system-id-mismatch
 expect=stdout:contains=System ID
 
-cmd=foreground:seq=3:exec=ze explain doctor-isis-raw-socket:exit=0
+cmd=foreground:seq=3:exec=ze show diagnostic doctor-isis-raw-socket:exit=0
 expect=exit:code=0
 expect=stdout:contains=doctor-isis-raw-socket
 expect=stdout:contains=CAP_NET_RAW

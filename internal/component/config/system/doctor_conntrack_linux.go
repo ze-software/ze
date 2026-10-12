@@ -25,7 +25,7 @@ import (
 )
 
 // codeConntrackProcfs names a netfilter sysctl tree that is absent or not
-// writable. internal/core/diagnostic/codes.go declares it, so `ze explain
+// writable. internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
 // doctor-conntrack-procfs` answers.
 const codeConntrackProcfs = "doctor-conntrack-procfs"
 

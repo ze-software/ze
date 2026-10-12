@@ -420,7 +420,7 @@ filters link-local multicast will break the election.
 | `doctor-vrrp-backend-unusable` | The tree configures VRRP on a backend that cannot run it. |
 | `doctor-vrrp-raw-socket` | The raw socket VRRP needs cannot be opened, usually missing `CAP_NET_RAW`. |
 
-Run `ze explain <code>` for the remediation.
+Run `ze show diagnostic <code>` for the remediation.
 
 <!-- source: internal/plugins/vrrp/yang/ze-vrrp-conf.yang -- config surface -->
 <!-- source: internal/plugins/vrrp/groups.go -- cross-leaf verifier and its messages -->

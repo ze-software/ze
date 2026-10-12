@@ -196,7 +196,7 @@ func dataHistory(validated command.ValidatedArgs) (any, int) {
 	})
 }
 
-// dataValidate answers `validate config <file>`: whether the configuration is
+// dataValidate answers `show config validation <file>`: whether the configuration is
 // usable, and every diagnostic that says why not.
 //
 // The exit code is the verdict and the payload is the evidence, so a rejected
@@ -210,7 +210,7 @@ func dataValidate(validated command.ValidatedArgs) (any, int) {
 	}
 	if len(args) > 1 {
 		helpfmt.WriteError(os.Stderr, false,
-			"validate config takes one config file, got %d", len(args))
+			"show config validation takes one config file, got %d", len(args))
 		return nil, exitError
 	}
 

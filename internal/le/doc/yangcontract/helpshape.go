@@ -29,7 +29,7 @@
 // published catalog `ze help command --json` merges the command tree with the
 // offline local registry (cmd/ze/help_command.go, collectCommands), so a gate
 // that walked the tree alone reported GREEN over 601 nodes while
-// `generate wireguard keypair` published a two-sentence, 41-word description
+// `request wireguard keypair` published a two-sentence, 41-word description
 // nothing refused (plan/journal/gate-excludes-part-of-its-population.md).
 
 package docyangcontract

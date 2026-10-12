@@ -60,7 +60,7 @@ func TestDoctorICMPProbeCheckReportsMissingCapability(t *testing.T) {
 	}
 	diagnostic.RegisterBuiltinCodes()
 	if diagnostic.Lookup(codeICMPProbeUnavailable) == nil {
-		t.Errorf("%s has no metadata in codes.go, so ze explain cannot answer for it", codeICMPProbeUnavailable)
+		t.Errorf("%s has no metadata in codes.go, so ze show diagnostic cannot answer for it", codeICMPProbeUnavailable)
 	}
 }
 

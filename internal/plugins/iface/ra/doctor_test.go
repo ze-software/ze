@@ -156,7 +156,7 @@ func TestDoctorRAForwarding(t *testing.T) {
 }
 
 // VALIDATES: the doctor check is registered with the code it emits, so
-// `ze doctor` runs it and `ze explain` can describe it.
+// `ze doctor` runs it and `ze show diagnostic` can describe it.
 // PREVENTS: a check that exists in code and never runs.
 func TestDoctorRACheckRegistration(t *testing.T) {
 	assert.Equal(t, "iface-ra-forwarding", raForwardingDoctorCheck.Name)

@@ -24,7 +24,7 @@ import (
 )
 
 // codeSmartSysfs names a /sys/class/block the check cannot enumerate.
-// internal/core/diagnostic/codes.go declares it, so `ze explain` answers.
+// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic` answers.
 const codeSmartSysfs = "doctor-smart-sysfs"
 
 // codeSmartAccess names a host whose whole devices all refuse SMART, declared

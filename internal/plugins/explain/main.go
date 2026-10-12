@@ -1,4 +1,4 @@
-// Design: docs/features/ai-first.md — explain command
+// Design: docs/features/ai-first.md — show diagnostic command
 // Overview: register.go — command registration
 
 package explain
@@ -14,7 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// Run executes the explain command.
+// Run executes the show diagnostic command.
 func Run(validated command.ValidatedArgs) int {
 	args := validated.Tokens()
 	if len(args) == 0 {
@@ -106,17 +106,17 @@ func outputText(meta *diagnostic.CodeMeta) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command:   "ze explain",
+		Command:   "ze show diagnostic",
 		ShortHelp: "Explain a diagnostic code emitted by ze config validate",
-		Usage:     []string{"ze explain [--json] <diagnostic-code>"},
+		Usage:     []string{"ze show diagnostic [--json] <diagnostic-code>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--json", Desc: "Output structured JSON explanation"},
 			}},
 		},
 		Examples: []string{
-			"ze explain config-parse",
-			"ze explain --json config-yang-type",
+			"ze show diagnostic config-parse",
+			"ze show diagnostic --json config-yang-type",
 		},
 	}
 	p.WriteErr()

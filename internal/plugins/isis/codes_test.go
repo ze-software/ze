@@ -2,7 +2,7 @@
 //
 // VALIDATES: the IS-IS component OWNS and registers its two config-sanity
 // diagnostic codes (doctor-isis-net-missing, doctor-isis-system-id-mismatch) from
-// its own register.go, so `ze explain <code>` describes them and so deleting the
+// its own register.go, so `ze show diagnostic <code>` describes them and so deleting the
 // component removes them (they are NOT hardcoded in diagnostic.builtinCodes).
 // PREVENTS: a regression that re-adds the IS-IS codes to the central builtinCodes
 // slice (plugin-self-containment), or that drops their title/description.
@@ -18,7 +18,7 @@ import (
 
 // TestISISConfigSanityCodesOwnedByComponent: the two config-sanity codes are
 // registered (the isis package init() ran on import) and carry explanation
-// metadata, so `ze explain` works without RegisterBuiltinCodes listing them.
+// metadata, so `ze show diagnostic` works without RegisterBuiltinCodes listing them.
 func TestISISConfigSanityCodesOwnedByComponent(t *testing.T) {
 	for _, code := range []string{codeNETMissing, codeSystemIDMismatch} {
 		meta := diagnostic.Lookup(code)

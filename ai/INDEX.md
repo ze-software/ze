@@ -262,7 +262,7 @@ Reach for one of these before inventing a new mechanism.
 | Spec progress | `./le spec status` |
 | Generated plugin imports | `./le plugin imports check` |
 | Whether the tree git holds compiles | `./le repo compiles check`. It runs in both full verification modes and is a structural gate in `internal/le/commit` |
-| Runtime readiness | `ze doctor --json` and `ze explain <diagnostic-code>` |
+| Runtime readiness | `ze doctor --json` and `ze show diagnostic <diagnostic-code>` |
 
 Each of these answers with structured data, so `| json`, `| yaml` and `| table`
 all render it.

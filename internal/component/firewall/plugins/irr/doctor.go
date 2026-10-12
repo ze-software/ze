@@ -38,26 +38,26 @@ const (
 )
 
 // irrDiagnosticCodes is the explanation metadata for the codes this plugin owns,
-// so `ze explain <code>` can describe them. They live with the plugin, so
+// so `ze show diagnostic <code>` can describe them. They live with the plugin, so
 // removing the plugin removes the codes (ai/rules/plugins.md).
 var irrDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:        codeIRRStaleData,
 		Title:       "Firewall IRR filter is enforcing stale data",
 		Description: "A firewall rule or interface binding references an ASN or AS-SET whose most recent IRR refresh returned no prefixes. Ze keeps the prefixes it learned before, because replacing them with an empty list would drop every packet the filter was written to accept. The filter is enforcing data the IRR has stopped confirming. Check that the IRR server is reachable and that the AS-SET still exists, then run 'update firewall irr all'. When the AS-SET is gone upstream for good, run 'clear firewall irr as-set <name>' to remove its prefixes.",
-		Examples:    []string{cmdDoctorJSON, cmdShowIRR, "ze explain doctor-firewall-irr-stale-data"},
+		Examples:    []string{cmdDoctorJSON, cmdShowIRR, "ze show diagnostic doctor-firewall-irr-stale-data"},
 	},
 	{
 		Code:        codeIRRNoData,
 		Title:       "Firewall IRR filter has no prefixes",
 		Description: "A firewall rule or interface binding references an ASN or AS-SET with no cached prefixes. The reference filters nothing. Run 'update firewall irr asn <asn>' or 'update firewall irr as-set <name>' to fetch the prefix list.",
-		Examples:    []string{cmdDoctorJSON, "ze explain doctor-firewall-irr-no-data"},
+		Examples:    []string{cmdDoctorJSON, "ze show diagnostic doctor-firewall-irr-no-data"},
 	},
 	{
 		Code:        codeIRROversizedData,
 		Title:       "Firewall IRR reference is too large for a firewall set",
 		Description: "A firewall rule or interface binding references an ASN or AS-SET whose IPv4 or IPv6 prefix list is longer than one firewall set holds. Ze does not program a part of it, because a set that holds part of a prefix list drops traffic an accept rule was written to pass, and passes traffic a drop rule was written to block. The rules naming the reference are not in the kernel. Narrow the reference to the members you filter on, or run 'clear firewall irr as-set <name>' to remove it.",
-		Examples:    []string{cmdDoctorJSON, cmdShowIRR, "ze explain doctor-firewall-irr-oversized-data"},
+		Examples:    []string{cmdDoctorJSON, cmdShowIRR, "ze show diagnostic doctor-firewall-irr-oversized-data"},
 	},
 }
 

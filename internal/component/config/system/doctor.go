@@ -35,7 +35,7 @@ import (
 
 // codeDNSResolver names a configuration none of whose name servers answers.
 // internal/core/diagnostic/codes.go declares it, as it does the two codes
-// below, so `ze explain <code>` answers for each.
+// below, so `ze show diagnostic <code>` answers for each.
 const codeDNSResolver = "doctor-dns-resolver"
 
 // codeUpdateCheckUnreachable names an update-check URL that answers no HEAD.

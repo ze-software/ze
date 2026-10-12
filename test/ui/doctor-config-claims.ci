@@ -2,7 +2,7 @@
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
 # Spec: spec-improve-7-yang-handler-gate AC-7 (closed 2026-08-29)
 # VALIDATES: an operator whose config names a subtree this build delivers to
-#            nobody learns it from `ze doctor`, with a code `ze explain`
+#            nobody learns it from `ze doctor`, with a code `ze show diagnostic`
 #            describes. Server.reloadConfig accepts such a subtree, logs Info
 #            "config reload: no affected plugins, updating config" and stores it
 #            (internal/component/plugin/server/reload.go). This check is what

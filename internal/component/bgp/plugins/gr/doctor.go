@@ -29,7 +29,7 @@ var grDiagnosticCodes = []diagnostic.CodeMeta{
 			"stale routes are withdrawn from external peers and depreferenced toward internal peers, for the life of the process, " +
 			"including peers that negotiated LLGR. " +
 			"Configure the plugin as `plugin { internal <name> { use bgp-gr; } }` to run it in the daemon.",
-		Examples: []string{"ze doctor --json", "ze explain doctor-bgp-gr-out-of-process"},
+		Examples: []string{"ze doctor --json", "ze show diagnostic doctor-bgp-gr-out-of-process"},
 	},
 }
 

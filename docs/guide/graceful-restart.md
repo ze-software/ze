@@ -219,7 +219,7 @@ routes it sends to internal peers (Section 4.6). Peers that negotiated LLGR with
 the child engine get that same treatment.
 
 `ze doctor` reports the arrangement as `doctor-bgp-gr-out-of-process`. Run
-`ze explain doctor-bgp-gr-out-of-process` for the full text.
+`ze show diagnostic doctor-bgp-gr-out-of-process` for the full text.
 <!-- source: internal/component/bgp/plugins/gr/doctor.go -- checkGRInProcess, doctor-bgp-gr-out-of-process -->
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter reads egressState -->
 

@@ -716,7 +716,7 @@ func TestHelpShapeGateWalksAnRPCOutsideAnAPIModule(t *testing.T) {
 // PREVENTS: the defect this surface was added to close. The gate walked 601
 // command nodes and 211 RPCs and answered "every command node and every RPC
 // declares a summary of one short sentence" while
-// `generate wireguard keypair` published a two-sentence, 41-word description
+// `request wireguard keypair` published a two-sentence, 41-word description
 // through `ze help command --json`, because the offline registry the catalog
 // merges was never read (plan/journal/gate-excludes-part-of-its-population.md).
 // The assertion is driven from HelpShape, the exported entry point the action
@@ -733,7 +733,7 @@ func TestHelpShapeGateWalksTheOfflineLocalRegistry(t *testing.T) {
 
 	found := false
 	for _, entry := range locals {
-		if entry.Path == "generate wireguard keypair" {
+		if entry.Path == "request wireguard keypair" {
 			found = true
 		}
 	}

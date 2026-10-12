@@ -2,7 +2,7 @@
 #
 # VALIDATES: `ze doctor` stays silent on a valid vrrp group. This file contains
 # exactly ONE command on purpose: reject=stdout:pattern= is matched against the
-# WHOLE file's accumulated stdout, not per command, so a `ze explain
+# WHOLE file's accumulated stdout, not per command, so a `ze show diagnostic
 # doctor-vrrp-config-invalid` in the same file would print that code and trip the
 # reject even though the config is clean (that is precisely how this test first
 # failed). Keeping the file to one command is what makes the reject meaningful.

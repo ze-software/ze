@@ -77,13 +77,13 @@ func TestDoctorReportsVPPBackend(t *testing.T) {
 }
 
 // TestDoctorCodesAreExplainable proves every code this plugin can emit is
-// registered with metadata, so `ze explain <code>` resolves it.
+// registered with metadata, so `ze show diagnostic <code>` resolves it.
 func TestDoctorCodesAreExplainable(t *testing.T) {
 	registerVRRPDiagnosticCodes()
 	for _, code := range []string{codeVRRPConfigInvalid, codeVRRPBackendUnusable} {
 		meta := diagnostic.Lookup(code)
 		if meta == nil {
-			t.Errorf("code %q is not registered; `ze explain %s` would fail", code, code)
+			t.Errorf("code %q is not registered; `ze show diagnostic %s` would fail", code, code)
 			continue
 		}
 		if meta.Title == "" || meta.Description == "" {

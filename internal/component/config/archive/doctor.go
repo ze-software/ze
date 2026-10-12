@@ -21,7 +21,7 @@ import (
 
 // codeArchiveUnreachable names an HTTP archive destination that answers no
 // HEAD. internal/core/diagnostic/codes.go declares it, so
-// `ze explain doctor-archive-unreachable` answers.
+// `ze show diagnostic doctor-archive-unreachable` answers.
 const codeArchiveUnreachable = "doctor-archive-unreachable"
 
 // archiveProbeTimeout bounds one destination probe. DoctorProbeTimeout can

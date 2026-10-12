@@ -34,7 +34,7 @@ import (
 )
 
 // codeVPPUnreachable names an API socket the backend cannot dial.
-// internal/core/diagnostic/codes.go declares it, so `ze explain` answers.
+// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic` answers.
 const codeVPPUnreachable = "doctor-vpp-unreachable"
 
 // codeVPPVersion names a VPP whose version cannot be read, declared beside

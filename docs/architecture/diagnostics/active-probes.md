@@ -314,7 +314,7 @@ an operator's first probe. A raw socket that opens is silent. The datagram
 kind standing in is `doctor-icmp-probe-unprivileged`, so the operator learns
 traceroute is unavailable before it refuses. Neither kind opening is
 `doctor-icmp-probe`, whose message carries each kind's refusal and the group
-the daemon runs as, so it names which of the two fixes applies. `ze explain
+the daemon runs as, so it names which of the two fixes applies. `ze show diagnostic
 <code>` answers for both. ze runs as root on gokrazy, so the raw kind is what
 production opens; the fallback matters the day Ze drops privileges or runs
 outside the appliance.

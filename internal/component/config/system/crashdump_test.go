@@ -177,7 +177,7 @@ func TestCrashDumpIntentCarriesEveryLeaf(t *testing.T) {
 }
 
 func TestLoadCrashDumpIntentReadsANamedFile(t *testing.T) {
-	// `ze support --config` and the offline `show crashes` both name a file, and
+	// `ze request support archive --config` and the offline `show crashes` both name a file, and
 	// that path resolves no config store at all.
 	path := filepath.Join(t.TempDir(), "ze.conf")
 	text := "system {\n    crash-dump {\n        enabled true\n        reserve 64\n    }\n}\n"

@@ -111,7 +111,7 @@ func TestRedistributeCheckSilentWithNoBlock(t *testing.T) {
 
 // TestRedistributeDoctorCheckRegistered asks the registry the doctor runner
 // reads whether it holds this component's check, at the phase and order the
-// declaration states, and whether every code it emits resolves for `ze explain`.
+// declaration states, and whether every code it emits resolves for `ze show diagnostic`.
 //
 // VALIDATES: the init() in register_doctor.go installed the check and the
 // registry accepted it.

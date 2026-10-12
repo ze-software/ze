@@ -318,7 +318,7 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 	want := []Invocation{
 		{Command: "show config dump %s | json compact", Evidence: "show config dump"},
 		{Command: "show config diff pipe-local.conf pipe-local-other.conf | json compact", Evidence: "show config diff"},
-		{Command: "validate config pipe-local.conf | json compact", Evidence: "validate config"},
+		{Command: "show config validation pipe-local.conf | json compact", Evidence: "show config validation"},
 		{Command: "show config history pipe-local.conf | json compact", Evidence: "show config history"},
 		{Command: "show config list | json compact", Evidence: "show config list"},
 		{Command: "show schema list | json compact", Evidence: "show schema list"},

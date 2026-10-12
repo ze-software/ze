@@ -99,7 +99,7 @@ and folded kdump artifacts into `show tech-support report`.
 - [ ] `internal/plugins/crashes/register.go` - registers `show crashes` as an OFFLINE FALLBACK, never a plain local, so it does not shadow the daemon command while the daemon is up.
 - [ ] `internal/plugins/crashes/yang/ze-crashes-cmd.yang` - the `show crashes` command tree, `config false`, owned by the plugin for self-containment. Carries a `name` leaf for selecting one report.
 - [ ] `internal/plugins/crashes/cmd/show.go` - the daemon-served RPC half.
-- [ ] `internal/component/support/modules.go` - `moduleRegistry` is the single source of truth for `ze support` modules; help text, `--list-modules`, validation and collection all derive from it. A `crashes` entry is already registered.
+- [ ] `internal/component/support/modules.go` - `moduleRegistry` is the single source of truth for `ze request support archive` modules; help text, `--list-modules`, validation and collection all derive from it. A `crashes` entry is already registered.
 - [ ] `internal/component/support/support.go` - `collectCrashes` returns count, directory and full content per crash file.
 - [ ] `internal/component/support/disk_unix.go` - `collectDiskInfo` already does `Statfs` and reports total, free, used and used-percent.
 - [ ] `internal/appliance/kernelreq.go` - `universalKernelRequirements` and `runtimeKernelRequirements` are Go-verified `CONFIG_` floors. The `CONFIG_INET_ESP` comment records exactly the failure this catches: the kernel accepts the install, the feature is silently dead, and the image has no busybox to diagnose it with.
@@ -208,7 +208,7 @@ Four entries, which do not share a trigger:
 | Daemon start with a record present in pstore | → | harvest writes a kernel-kind artifact into the crash directory | `TestHarvestWritesKernelArtifact` |
 | `ze show crashes` | → | listing returns userspace and kernel artifacts with a kind field | `TestShowCrashesListsKernelKind` |
 | `ze show crashes` with no daemon running | → | offline fallback returns the same artifacts | `TestOfflineShowCrashesListsKernelKind` |
-| `ze support --module crashes` | → | `collectCrashes` returns kernel metadata and readiness | `TestSupportCrashesModuleCarriesKernelReadiness` |
+| `ze request support archive --module crashes` | → | `collectCrashes` returns kernel metadata and readiness | `TestSupportCrashesModuleCarriesKernelReadiness` |
 | `ze doctor` | → | the three crash-capture checks run and report | `TestDoctorReportsCrashCaptureReadiness` |
 | Appliance image build | → | reservation rendered onto the kernel command line | `TestApplianceBuildRendersCrashReservation` |
 | Built runtime kernel | → | `CONFIG_` floor check | `TestRuntimeKernelRequirementsIncludePstore` |
@@ -225,7 +225,7 @@ Four entries, which do not share a trigger:
 | AC-5 | `ze show crashes name <kernel artifact>` | The panic text is printed in full |
 | AC-6 | Same harvest runs twice with no new panic | Exactly one artifact exists; the second harvest finds nothing to do |
 | AC-7 | The crash directory is not writable when a record is pending | The record is left in place, readiness reports the directory unwritable, and the next boot retries the harvest |
-| AC-8 | `ze support` with default modules | The `crashes` module payload carries kernel artifacts and the readiness block |
+| AC-8 | `ze request support archive` with default modules | The `crashes` module payload carries kernel artifacts and the readiness block |
 | AC-9 | `ze doctor` on a machine with the feature enabled but no reservation | A check fails with a registered diagnostic code naming the missing reservation |
 | AC-10 | The runtime kernel is built without the pstore symbols | The kernel requirement floor check fails the build |
 | AC-11 | A watchdog-initiated reboot | No kernel artifact is produced |
@@ -420,7 +420,7 @@ closes after step 7.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | The pstore record is kernel-authored but arbitrary-length; the reader bounds what it copies and never sizes an allocation from an untrusted length field |
-| Information disclosure | A kernel backtrace can contain pointers and memory contents. It follows the existing crash-file sanitization path and the `--sensitive` default in `ze support`, so a bundle redacts unless asked |
+| Information disclosure | A kernel backtrace can contain pointers and memory contents. It follows the existing crash-file sanitization path and the `--sensitive` default in `ze request support archive`, so a bundle redacts unless asked |
 | Resource exhaustion | Artifacts share the existing retention count; a panic loop cannot fill `/perm` because rotation applies to kernel artifacts too |
 | Error leakage | A readiness failure names what is missing and what to do, without printing kernel addresses to an unauthenticated surface |
 | Authorization fails closed | The memory-image opt-in is refused, with a reason, when the architecture or the space precondition does not hold |

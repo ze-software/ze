@@ -27,7 +27,7 @@
 #
 # This file runs exactly ONE command on purpose. expect=stdout:contains= is
 # matched against the file's ACCUMULATED stdout, not per command, so a second
-# `ze explain doctor-vpp-lcp-netns` in the same file prints the code name and
+# `ze show diagnostic doctor-vpp-lcp-netns` in the same file prints the code name and
 # satisfies the code assertion on its own -- with checkVPPLCPNetns stubbed out
 # the first draft of this test still passed that assertion. Keeping the file to
 # one command is what makes all three assertions gate.
@@ -53,7 +53,7 @@ cmd=foreground:seq=1:exec=ze doctor --json config vpp-lcp-netns.conf
 expect=stdout:contains=doctor-vpp-lcp-netns
 expect=stdout:contains=is not root-reachable
 expect=stdout:contains=dataplane
-# NOTE: an earlier DRAFT of this file, never committed, also ran `ze explain
+# NOTE: an earlier DRAFT of this file, never committed, also ran `ze show diagnostic
 #   doctor-vpp-lcp-netns` and asserted on it. Both were dropped before the file
 #   landed, because they made it WEAKER, not
 #   stronger. Assertions match accumulated stdout, so explain's own output
@@ -62,6 +62,6 @@ expect=stdout:contains=dataplane
 #   What the dropped assertion actually proved is still gated elsewhere:
 #   TestRegistryKnownCodes (internal/core/diagnostic/registry_test.go:12)
 #   walks EVERY registered code and requires a non-empty title and
-#   description, and test/ui/command-contract-explain.ci gates the `ze explain`
+#   description, and test/ui/command-contract-explain.ci gates the `ze show diagnostic`
 #   CLI contract itself. The three remaining assertions now all gate on the
 #   doctor output this test exists to prove.

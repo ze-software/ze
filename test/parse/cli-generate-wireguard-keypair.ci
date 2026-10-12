@@ -1,5 +1,5 @@
-# Test: `ze generate wireguard keypair` is dispatched and takes no arguments
-# Exercises: registry local command "generate wireguard keypair" -> RunWgKeypair
+# Test: `ze request wireguard keypair` is dispatched and takes no arguments
+# Exercises: registry local command "request wireguard keypair" -> RunWgKeypair
 #            (internal/plugins/diag/diag.go, registered in register.go)
 # VALIDATES: the three-word command resolves through the local-command registry in
 #            the real ze binary, its argument guard rejects a stray token, and the
@@ -28,6 +28,7 @@
 stdin=config:terminator=EOF_CONF
 # Minimal valid config; the command below never reads it.
 bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {
@@ -50,8 +51,8 @@ EOF_CONF
 # A stray token must be refused BEFORE RunWgKeypair reaches `wg genkey`. That is
 # what the stderr text discriminates: drop the guard and the message becomes a wg
 # failure here, or on a host that has wg, a printed keypair on stdout.
-cmd=foreground:seq=1:exec=ze generate wireguard keypair extra-arg:exit=1
+cmd=foreground:seq=1:exec=ze request wireguard keypair extra-arg:exit=1
 expect=exit:code=1
-expect=stderr:contains=generate wireguard keypair: no arguments accepted
-expect=stderr:contains=Usage: ze generate wireguard keypair
+expect=stderr:contains=request wireguard keypair: no arguments accepted
+expect=stderr:contains=Usage: ze request wireguard keypair
 reject=stdout:contains=private:

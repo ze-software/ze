@@ -87,7 +87,7 @@ func TestMPLSPlatformLabelsNotCreatedWhenTheTableIsAbsent(t *testing.T) {
 }
 
 // VALIDATES: the fib kernel plugin enrolls the MPLS capability, so ze doctor
-// reports it, the startup gate refuses on it and ze explain resolves its codes.
+// reports it, the startup gate refuses on it and ze show diagnostic resolves its codes.
 // PREVENTS: the capability existing as dead code, which is what an unregistered
 // enrolment is (ai/rules/completion.md). It also pins the ownership: a VPP or P4
 // backend never links this package, so it never carries this requirement.

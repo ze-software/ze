@@ -121,7 +121,7 @@ func registerISIS() {
 	configyang.RegisterCompleteFn("isis-system-id", systemIDCompletions)
 
 	// Register the IS-IS config-sanity diagnostic codes (codes.go) this component
-	// OWNS, so `ze explain` can describe them and deleting the component removes
+	// OWNS, so `ze show diagnostic` can describe them and deleting the component removes
 	// them (they are not in the central diagnostic.builtinCodes slice;
 	// ai/rules/plugins.md). The raw-socket code is owned/listed by
 	// the transport, never here (one code, one owner).
@@ -168,7 +168,7 @@ func registerISIS() {
 func init() { registerISIS() }
 
 // registerISISDiagnosticCodes registers the IS-IS config-sanity diagnostic codes
-// (metadata in codes.go) the component OWNS, so `ze explain <code>` can describe
+// (metadata in codes.go) the component OWNS, so `ze show diagnostic <code>` can describe
 // them. They are deliberately NOT in the central diagnostic.builtinCodes slice:
 // owning them here means deleting the IS-IS component removes the codes with it
 // (ai/rules/plugins.md). A duplicate registration is benign (the

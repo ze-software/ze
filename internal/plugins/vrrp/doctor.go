@@ -30,13 +30,13 @@ var vrrpDiagnosticCodes = []diagnostic.CodeMeta{
 		Code:        codeVRRPConfigInvalid,
 		Title:       "VRRP configuration is not usable",
 		Description: "A VRRP group fails a cross-leaf rule that per-leaf YANG constraints cannot express: an advertise interval the configured version cannot encode on the wire, accept-mode combined with version 2, an IPv6 group whose first virtual-address is not link-local, one virtual address claimed by two groups on the same unit, or track configured on the group that owns its virtual address, whose priority is fixed at 255. The affected group does not run; correct the reported group.",
-		Examples:    []string{"ze doctor --json", "ze explain doctor-vrrp-config-invalid"},
+		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-vrrp-config-invalid"},
 	},
 	{
 		Code:        codeVRRPBackendUnusable,
 		Title:       "VRRP configured on a VPP-backed interface tree",
 		Description: "VRRP needs macvlan devices and raw sockets, which only the netlink interface backend provides, but the interface backend is set to vpp. No virtual router runs. Remove the vrrp configuration or use the netlink backend; native VPP VRRP is not implemented.",
-		Examples:    []string{"ze doctor --json", "ze explain doctor-vrrp-backend-unusable"},
+		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-vrrp-backend-unusable"},
 	},
 }
 

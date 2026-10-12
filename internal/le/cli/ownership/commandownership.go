@@ -59,13 +59,9 @@ var noOwnerAllowlist = map[string]string{
 	"install":   "Host installation for the ze binary; no runtime component owns host package installation.",
 	"uninstall": "Host removal of the ze binary, unit, and config.",
 	"service":   "Host service (systemd) management for the ze binary.",
-	"support":   "Cross-system support bundle aggregator; archive orchestration is process-global.",
-	"skills":    "Agent skill inventory tied to the current binary and generated support files.",
-	"generate":  "Offline crypto artifact generation; no narrower PKI command owner exists yet.",
 	"remote":    "Remote device management over SSH; no narrower runtime owner.",
 	"crashes":   "Reads crash files written by the process panic handler.",
 	"doctor":    "Process readiness aggregator; owner-specific checks register with the doctor registry.",
-	"explain":   "Diagnostic-code lookup tied to the process binary.",
 	"host":      "Offline hardware inventory for the box.",
 	"pipe":      "Offline carrier for the pipe-operator language over stdin (format/filter/display); applies generic text transforms without a runtime component owner.",
 }

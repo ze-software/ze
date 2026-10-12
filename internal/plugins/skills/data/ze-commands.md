@@ -14,8 +14,8 @@ ze config validate|dump|fmt|diff|edit|set|migrate <args>
 ze bgp decode|encode <args>
 ze yang tree|completion|doc [module]
 ze schema list|methods|events
-ze explain [--json] <code>
-ze skills list|get <name>
+ze show diagnostic [--json] <code>
+ze show skills, ze show skill <name>
 ze help ai [--json]
 ```
 

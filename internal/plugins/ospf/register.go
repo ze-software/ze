@@ -159,19 +159,19 @@ var ospfDiagnosticCodes = []diagnostic.CodeMeta{
 		Code:        codeOSPFRouterIDMissing,
 		Title:       "OSPF router-id missing",
 		Description: "OSPF is configured but no router-id is set and none can be derived from an interface IPv4 address. The engine cannot originate LSAs or form adjacencies without a router-id; set `ospf { router-id <dotted-quad> }`.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-router-id-missing"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-router-id-missing"},
 	},
 	{
 		Code:        codeOSPFInterfaceAreaUnbound,
 		Title:       "OSPF interface bound to undeclared area",
 		Description: "An OSPF interface references an area that is not declared under `areas`. The interface forms no adjacency; declare the area or correct the interface `area` binding.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-interface-area-unbound"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-interface-area-unbound"},
 	},
 	{
 		Code:        codeOSPFBFDPluginAbsent,
 		Title:       "OSPF BFD enabled but BFD plugin not loaded",
 		Description: "BFD (RFC 5880 / RFC 5881) is enabled on an OSPF interface but the BFD plugin is not loaded in this process. OSPF still forms adjacencies and detects loss on the Hello/Dead timers; sub-second BFD failure detection is unavailable until the `bfd` plugin runs.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-bfd-plugin-absent"},
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-bfd-plugin-absent"},
 	},
 }
 

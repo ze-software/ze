@@ -224,7 +224,7 @@ func TestDoctorIgnoresAGroupNoRuleNames(t *testing.T) {
 	assert.Empty(t, domainGroupDiagnostics(cfg, cache, time.Now()))
 }
 
-// TestDoctorCodesAreRegistered proves `ze explain <code>` can describe both
+// TestDoctorCodesAreRegistered proves `ze show diagnostic <code>` can describe both
 // codes. A diagnostic with no metadata prints a bare identifier.
 func TestDoctorCodesAreRegistered(t *testing.T) {
 	codes := map[string]bool{}

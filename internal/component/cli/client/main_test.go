@@ -496,11 +496,11 @@ func TestEmitLocalResultSeparatesAnswersAndDiagnostics(t *testing.T) {
 	// A REJECTING answer: the code is the verdict and the payload is the
 	// evidence, so both are honored (command.LocalDataHandler). This is the
 	// combination that had no case here, and it is the one that broke:
-	// `validate config` published the diagnostics of a rejected config on
+	// `show config validation` published the diagnostics of a rejected config on
 	// stderr, where no pipe operator can reach them.
 	stderr = captureOutput(t, true, func() {
 		stdout = captureOutput(t, false, func() {
-			code = emitLocalResult("validate config bad.conf | json", "{\"valid\":false}\n", 1, nil)
+			code = emitLocalResult("show config validation bad.conf | json", "{\"valid\":false}\n", 1, nil)
 		})
 	})
 	if code != 1 {
@@ -518,7 +518,7 @@ func TestEmitLocalResultSeparatesAnswersAndDiagnostics(t *testing.T) {
 	// to either stream and passes the code through.
 	stderr = captureOutput(t, true, func() {
 		stdout = captureOutput(t, false, func() {
-			code = emitLocalResult("validate config", "", 1, nil)
+			code = emitLocalResult("show config validation", "", 1, nil)
 		})
 	})
 	if code != 1 {

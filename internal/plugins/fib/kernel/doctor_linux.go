@@ -28,7 +28,7 @@ import (
 )
 
 // codeKernelNexthop names a kernel without nexthop objects.
-// internal/core/diagnostic/codes.go declares it, so `ze explain
+// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
 // doctor-kernel-nexthop` answers.
 const codeKernelNexthop = "doctor-kernel-nexthop"
 

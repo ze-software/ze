@@ -88,7 +88,7 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
   → Constraint: config floors enforced by paired `.require` files; the Go path `internal/appliance/kernelreg.go` resolves fragments+manifests, the actual `=y` assertion is `build.py:enforce_required_symbols` (143-160). A missing required `=y` symbol fails the build.
   → Constraint: resolved `.config` (defconfig + merge_config + olddefconfig) is the cheaply-diffable artifact; unrelated symbols must stay byte-identical.
 - [ ] `ai/rules/repo-maintenance.md` — runtime-dependency readiness checks
-  → Constraint: a new runtime dependency (here: the `/sys/kernel/security/lockdown` procfs/securityfs path) requires a registered `ze doctor` check. The appliance is a component, not a plugin, so register via `diagnostic.RegisterDoctorCheck()` from the owning package init(); add a `doctor-<component>-<condition>` code to `internal/core/diagnostic/codes.go`, explainable via `ze explain`. Needs a Linux-tagged unit test + a `ze doctor --json` functional test + QEMU coverage.
+  → Constraint: a new runtime dependency (here: the `/sys/kernel/security/lockdown` procfs/securityfs path) requires a registered `ze doctor` check. The appliance is a component, not a plugin, so register via `diagnostic.RegisterDoctorCheck()` from the owning package init(); add a `doctor-<component>-<condition>` code to `internal/core/diagnostic/codes.go`, explainable via `ze show diagnostic`. Needs a Linux-tagged unit test + a `ze doctor --json` functional test + QEMU coverage.
 
 ### Source Files Read (Current Behavior)
 - [ ] `tools/kernel-builder/build.py` (retired; now `internal/le/deployment/hostkernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> (407L)
@@ -193,7 +193,7 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
 | R-2 | Signed-kexec verification fails on the appliance → every OTA silently full-reboots, hiding the regression | OTA works but slower; nothing surfaced | Doctor/telemetry signal that kexec succeeded; gokrazy already logs "kexec reboot failed" (reboot_amd64.go) — surface that log |
 | R-3 | Ephemeral module key not actually destroyed / persists in the docker named volume or squashfs image | key file present in image or the `ze-kernel-build` volume (`/tmp/kbuild`, where the reused build tree + `certs/` live — C-9) | build.py deletes key in same container invocation; test greps image + `ze-kernel-build` + asserts no `certs/signing_key.pem` in the cached tree |
 | R-8 | Stable image-signing private key is mishandled (committed, baked into the image, or lost) | key in git/image, or OTA verification suddenly fails after a key rotation | keep the privkey in CI secret storage; sign the image in CI (not in the shared build container); rotate via dual-trust (embed old+new cert) |
-| R-4 | `DMESG_RESTRICT` hides boot diagnostics field engineers rely on | support bundle missing dmesg for non-root | ze support tooling runs as root (verify); document the change |
+| R-4 | `DMESG_RESTRICT` hides boot diagnostics field engineers rely on | support bundle missing dmesg for non-root | ze request support archive tooling runs as root (verify); document the change |
 | R-5 | Image-signing symbols are amd64-only; if put in the shared `runtime.require` floor, the arm64 build aborts in `enforce_required_symbols` (the floor is arch-agnostic and only understands `=y`) | arm64 kernel build fails on a missing x86 symbol | keep `KEXEC_SIG`/`BZIMAGE_VERIFY_SIG`/`SYSTEM_TRUSTED_KEYS` OUT of the shared floor; put them in an amd64-only config fragment, OR teach the floor per-arch manifests (larger change, call out explicitly) |
 | R-6 | `MODULE_SIG_FORCE` blocks a module we actually need at runtime that is NOT built in (a future addition, or VFIO if not built in) | DPDK bind fails: "modprobe vfio: Key was rejected" | build VFIO in (`CONFIG_VFIO{,_PCI,_IOMMU_TYPE1}=y`) so nothing relies on a signed module; signing is the backstop, not the path |
 | R-7 | The `=y`-only floor cannot assert lockdown is in `CONFIG_LSM` nor that confidentiality is not forced; a regression to confidentiality or to lockdown-absent would pass the build | unit tests green, appliance behaves wrong | runtime doctor check (AC-4/AC-8) is the real guarantee; consider a dedicated build-time check that greps the resolved `.config` for the string symbols (extends enforce_required_symbols) |
@@ -282,7 +282,7 @@ N/A — no wire-protocol change. Justification: this is a kernel build/config + 
 - `tools/kernel-builder/Dockerfile` — add `sbsigntool` + `openssl` for image + key handling
 - `internal/appliance/doctor_checks.go` — register `doctor-appliance-lockdown`; gate it on a **running-on-appliance** signal so it is a no-op (not a warning) on a dev host where `/sys/kernel/security/lockdown` is absent or `[none]` (C-8)
 - `internal/appliance/dev_setup_drift_test.go` — add `appliance-lockdown` to the `buildArtifactChecks` skip-set; it is a runtime check, not a host build prerequisite, so it does NOT belong in `dev-setup.py` (C-7, `dev_setup_drift_test.go`)
-- `internal/core/diagnostic/codes.go` — register the `doctor-appliance-lockdown` code (title/description/examples, `ze explain`)
+- `internal/core/diagnostic/codes.go` — register the `doctor-appliance-lockdown` code (title/description/examples, `ze show diagnostic`)
 - `internal/appliance/kernelreg.go` (+ `_test.go`) — if the floor gains a string-symbol / `=n` check for `CONFIG_LSM` and `# CONFIG_KEXEC is not set` (R-7, C-5), it lands here and in build.py
 
 ## Files to Create
@@ -320,7 +320,7 @@ N/A — no wire-protocol change. Justification: this is a kernel build/config + 
 | 12 | Internal architecture changed? | Yes | kernel build doc / `tools/installer-kernel/PROFILES.md` — signing stage + floor symbols |
 | 13 | Route metadata keys? | No | — |
 | 14 | Prometheus counters? | No (unless gauge added) | — |
-| 15 | Registered diagnostic/code/inventory changed? | Yes | diagnostic code list / `ze explain` corpus for `doctor-appliance-lockdown` |
+| 15 | Registered diagnostic/code/inventory changed? | Yes | diagnostic code list / `ze show diagnostic` corpus for `doctor-appliance-lockdown` |
 | 16 | Changed source referenced by doc anchors? | Check | grep `docs/` for anchors to build.py / kernel configs |
 | 17 | Existing docs show config examples for this area? | Check | appliance kernel docs |
 
@@ -328,7 +328,7 @@ N/A — no wire-protocol change. Justification: this is a kernel build/config + 
 
 1. **Phase: Floor + config fragments (cheap, no compile)** — add the `=y` symbols to runtime/installer config + require fragments; build VFIO in. Verify via resolved-`.config` diff (config-only docker run, no `-j` compile) per 988 gotcha. Tests: `kernel-hardening-floor.ci`, `kernel-lockdown-config.ci`.
 2. **Phase: Signing in build.py** — provision both certs BEFORE `build_kernel`; `MODULE_SIG_ALL` module signing (ephemeral key) during `modules_install`; sbsign the amd64 `bzImage` with the stable release key after; destroy the ephemeral key LAST (C-3). Dockerfile gains `sbsigntool`/`openssl`. Test: image + `ze-kernel-build` volume have no ephemeral key (AC-7).
-3. **Phase: Doctor check** — securityfs parse + `diagnostic.RegisterDoctorCheck()` + code registration + `ze explain`. Tests: unit (Linux) + `ze doctor --json` functional.
+3. **Phase: Doctor check** — securityfs parse + `diagnostic.RegisterDoctorCheck()` + code registration + `ze show diagnostic`. Tests: unit (Linux) + `ze doctor --json` functional.
 4. **Phase: QEMU evidence** — `ze-qemu-lockdown-active`, `-ota-kexec`, `-arm64`; confirm install QEMU still green.
 5. **Docs** — features.md, appliance guide (incl. at-rest follow-on note), functional-tests.md, PROFILES.md.
 

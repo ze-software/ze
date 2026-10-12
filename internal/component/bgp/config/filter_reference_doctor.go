@@ -25,7 +25,7 @@ import (
 
 // codeFilterReferenceUndefined is raised when a filter chain names a policy
 // that bgp/policy does not define. internal/core/diagnostic/codes.go declares
-// it, so `ze explain doctor-config-reference` answers.
+// it, so `ze show diagnostic doctor-config-reference` answers.
 const codeFilterReferenceUndefined = "doctor-config-reference"
 
 // filterReferenceDoctorCheck describes the check. register.go registers it.

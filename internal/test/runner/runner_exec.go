@@ -701,7 +701,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		execStr = strings.ReplaceAll(execStr, "$PORT", strconv.Itoa(rec.Port))
 
 		// Parse command and args. splitCommand keeps a quoted span whole, so
-		// `ze cli -c "validate config bad.conf | json"` reaches ze as three
+		// `ze cli -c "show config validation bad.conf | json"` reaches ze as three
 		// arguments and -c carries the whole pipeline.
 		cmdParts, splitErr := splitCommand(execStr)
 		if splitErr != nil {

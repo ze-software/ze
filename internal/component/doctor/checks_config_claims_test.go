@@ -105,10 +105,10 @@ func TestConfigClaimsCheckHandlesEmptyTree(t *testing.T) {
 	}
 }
 
-// TestConfigClaimsCheckCodesRegistered checks both codes reach `ze explain`.
+// TestConfigClaimsCheckCodesRegistered checks both codes reach `ze show diagnostic`.
 //
 // VALIDATES: AC-7 -- the diagnostic codes this check emits are registered, so
-// `ze explain <code>` describes them.
+// `ze show diagnostic <code>` describes them.
 // PREVENTS: a diagnostic an operator cannot look up.
 func TestConfigClaimsCheckCodesRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()

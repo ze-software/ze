@@ -21,7 +21,7 @@ import (
 
 // codeDHCPIface names a listen interface the server cannot bind: one whose
 // name is not a device name, or one the host does not hold.
-// internal/core/diagnostic/codes.go declares it, so `ze explain
+// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
 // doctor-dhcp-iface` answers.
 const codeDHCPIface = "doctor-dhcp-iface"
 

@@ -10,8 +10,8 @@ import (
 // TestYangErrorCodeIsRegistered drives yangErrorCode over every validation
 // error type the YANG validator declares and looks each answer up.
 //
-// VALIDATES: the code `validate config` puts in a diagnostic is one
-// `ze explain <code>` resolves.
+// VALIDATES: the code `show config validation` puts in a diagnostic is one
+// `ze show diagnostic <code>` resolves.
 // PREVENTS: a code spelled here and nowhere else, which an operator cannot look
 // up and no other surface agrees with.
 func TestYangErrorCodeIsRegistered(t *testing.T) {

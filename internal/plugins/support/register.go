@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md -- support command registration
+// Design: docs/architecture/core-design.md -- request support archive command registration
 
 package support
 
@@ -9,15 +9,10 @@ import (
 )
 
 func init() {
-	registry.RegisterRoot("support", registry.Meta{
-		ShortHelp: "Collect logs, config, and diagnostics into a support archive",
-		Mode:      "offline",
-		Section:   registry.SectionSystem,
-		Subs:      "[--module M] [--exclude M] [--since T] [--reason R] [--sensitive] [--json] [--list-modules]",
-	})
-	command.MustRegisterLocalMeta("support", impl.Run, registry.Meta{
+	command.MustRegisterLocalMeta("request support archive", impl.Run, registry.Meta{
 		ShortHelp: "Collect logs, config, state and diagnostics into one archive.",
 		Description: "Send the archive to support when you report an issue. Modules can be selected or " +
 			"excluded, and a time window narrows what the archive holds.",
+		Mode: "offline",
 	})
 }

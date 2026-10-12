@@ -13,7 +13,7 @@ import (
 // The codes come from the registration rather than from a list here, so a check
 // added, removed, or given another code is judged without an edit to this file.
 //
-// VALIDATES: `ze explain <code>` resolves every code an IPsec readiness check
+// VALIDATES: `ze show diagnostic <code>` resolves every code an IPsec readiness check
 // reports.
 // PREVENTS: a diagnostic an operator cannot look up.
 func TestIPsecDoctorCodesRegistered(t *testing.T) {

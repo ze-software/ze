@@ -268,7 +268,7 @@ func TestServerTLSMaterialEmptyName(t *testing.T) {
 
 func TestCheckCertReferenceDiagnostics(t *testing.T) {
 	// VALIDATES: AC-8/AC-11 -- the doctor helper classifies every way a
-	// configured reference can be wrong, using distinct codes so `ze explain`
+	// configured reference can be wrong, using distinct codes so `ze show diagnostic`
 	// gives the operator the right fix.
 	now := time.Now()
 	healthy := chainPKIConfig(t, now.Add(365*24*time.Hour))

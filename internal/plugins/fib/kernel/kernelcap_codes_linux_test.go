@@ -11,7 +11,7 @@ import (
 )
 
 // TestMPLSCapabilityCodesRegistered proves this plugin's kernel capability is
-// enrolled and that both codes it answers with reach `ze explain`.
+// enrolled and that both codes it answers with reach `ze show diagnostic`.
 //
 // VALIDATES: an operator meeting doctor-mpls-unavailable or doctor-mpls-unknown
 // can look the code up.
@@ -29,7 +29,7 @@ func TestMPLSCapabilityCodesRegistered(t *testing.T) {
 	}
 }
 
-// VALIDATES: the transit MTU capability is enrolled, reaches `ze explain`
+// VALIDATES: the transit MTU capability is enrolled, reaches `ze show diagnostic`
 // through both codes, and is a degrading capability: its absence warns and
 // never refuses a start.
 // PREVENTS: a stock kernel stopping an RSVP-TE router whose only loss is the

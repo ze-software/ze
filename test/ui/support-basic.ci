@@ -1,4 +1,4 @@
-# Test: ze support produces a tar.gz archive with manifest
+# Test: ze request support archive produces a tar.gz archive with manifest
 # VALIDATES: AC-1 of spec-support.md -- basic archive generation
 # The archive is written into the per-test working dir (--output .), which the
 # runner allocates fresh and cleans up; the shared /tmp collides under load
@@ -7,7 +7,7 @@ tmpfs=.support-out-keep:terminator=EOF_KEEP
 placeholder so the runner allocates an isolated working dir
 EOF_KEEP
 
-cmd=foreground:seq=1:exec=ze support --module version --json --output .
+cmd=foreground:seq=1:exec=ze request support archive --module version --json --output .
 expect=exit:code=0
 expect=stdout:contains="schema-version"
 expect=stdout:contains="archive-path"

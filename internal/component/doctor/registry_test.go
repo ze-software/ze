@@ -21,11 +21,11 @@ import (
 // A code is checked whatever namespace it belongs to. The registry accepts the
 // codes a check really emits (internal/core/diagnostic/doctor_registry.go,
 // DoctorCheck), so the semantic-validation bridge declares config-* codes, and
-// those owe `ze explain` an answer exactly as a doctor-* code does.
+// those owe `ze show diagnostic` an answer exactly as a doctor-* code does.
 //
 // VALIDATES: every code a registered check declares resolves through
 // diagnostic.Lookup.
-// PREVENTS: ze doctor emitting a code ze explain cannot describe.
+// PREVENTS: ze doctor emitting a code ze show diagnostic cannot describe.
 func TestDoctorRegisteredCheckCodesHaveMetadata(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
 

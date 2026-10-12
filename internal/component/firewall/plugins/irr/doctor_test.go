@@ -73,7 +73,7 @@ func TestDoctorSilentWithoutIRRReferences(t *testing.T) {
 func TestDoctorCodesAreRegistered(t *testing.T) {
 	for _, code := range []string{codeIRRStaleData, codeIRRNoData} {
 		if diagnostic.Lookup(code) == nil {
-			t.Errorf("code %q is emitted but not registered for 'ze explain'", code)
+			t.Errorf("code %q is emitted but not registered for 'ze show diagnostic'", code)
 		}
 	}
 }

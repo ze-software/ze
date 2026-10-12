@@ -258,7 +258,7 @@ comparison. The detailed source evidence remains in the appendices below.
 | Verify/release evidence gates | Yes | Yes | Partial | Ze and VyOS have more explicit CI/release gates. |
 | Lint/static gates | Yes | Yes | Partial | freeRtr runs CodeQL static analysis on push/PR (C/Java/Python); no style linter found. |
 | Mutation testing | Yes | No | No | Ze-only in inspected sources. |
-| Support bundle | Yes | Yes | No | Ze has `ze support` with doctor, host, platform, sanitized config, crashes, disk, interfaces, routes, neighbors, DNS, firewall, and runtime modules. VyOS has support archive evidence. freeRtr support bundle evidence was not found. |
+| Support bundle | Yes | Yes | No | Ze has `ze request support archive` with doctor, host, platform, sanitized config, crashes, disk, interfaces, routes, neighbors, DNS, firewall, and runtime modules. VyOS has support archive evidence. freeRtr support bundle evidence was not found. |
 
 ## Architecture and extensibility matrix
 

@@ -18,7 +18,7 @@
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes, on Opus when the model is an Anthropic one. `-` closes in the same session. -->
 
-<!-- Scope: cli. `ze explain <code>` is the surface whose answer the decision
+<!-- Scope: cli. `ze show diagnostic <code>` is the surface whose answer the decision
      changes; the doctor registry and the code table are what it reads.
      Bucket: plan/ (the release goes out without it, plan/README.md). Named in
      the Work Not Done table of
@@ -35,15 +35,15 @@ constant on 2026-09-14, so that their emitters reference one declaration.
 
 The bottom-tier table is a second declaration of what each feature emits
 (`ai/rules/principles.md`, declare once). Moving an entry into its emitter
-breaks `ze explain <code>` on a build without that feature's tag, because the
+breaks `ze show diagnostic <code>` on a build without that feature's tag, because the
 code then registers nowhere.
 
 The decision this spec makes, one of two:
 
-| Reading | What `ze explain <code>` answers on a build without the feature | What the check is |
+| Reading | What `ze show diagnostic <code>` answers on a build without the feature | What the check is |
 |---------|----------------------------------------------------------------|-------------------|
 | A: a code an absent feature would emit still explains | The explanation | The table stays; each emitter references the constant, and the check is that it does |
-| B: `ze explain` answers "that feature is not in this build" | "that feature is not in this build" | The entry moves to the emitter; the doctor registry contract (`diagnostic.RegisterDoctorCheck` in `internal/core/diagnostic/doctor_registry.go`), whose codes must resolve through `diagnostic.Lookup`, is the check |
+| B: `ze show diagnostic` answers "that feature is not in this build" | "that feature is not in this build" | The entry moves to the emitter; the doctor registry contract (`diagnostic.RegisterDoctorCheck` in `internal/core/diagnostic/doctor_registry.go`), whose codes must resolve through `diagnostic.Lookup`, is the check |
 
 ## Required Reading
 
@@ -62,7 +62,7 @@ The decision this spec makes, one of two:
 - [ ] `internal/core/diagnostic/doctor_registry.go` - `diagnostic.RegisterDoctorCheck`, the doctor registry contract; a registered check's codes must resolve through `diagnostic.Lookup`
   → Decision: under reading B, this contract is the check that every emitted code has a declaration
 - [ ] `spec-the-fix-pass-for-restated-registries` - Work Not Done, the 121 feature-owned codes; the vocabulary of this spec
-  → Constraint: moving an entry into its emitter breaks `ze explain <code>` on a build without that feature's tag
+  → Constraint: moving an entry into its emitter breaks `ze show diagnostic <code>` on a build without that feature's tag
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfcNNNN.md` - [why relevant]
@@ -70,7 +70,7 @@ The decision this spec makes, one of two:
 
 **Key insights:** (minimal context to resume after compaction)
 - The table in `codes.go` is a second declaration of what each feature emits; the 35 `CodeDoctor*` constants are the shape where the emitter references one declaration.
-- The decision is what `ze explain` owes for a code the running build cannot emit: the explanation (reading A) or "that feature is not in this build" (reading B).
+- The decision is what `ze show diagnostic` owes for a code the running build cannot emit: the explanation (reading A) or "that feature is not in this build" (reading B).
 
 ## Current Behavior (MANDATORY)
 
@@ -79,13 +79,13 @@ The decision this spec makes, one of two:
 - [ ] `internal/core/diagnostic/doctor_registry.go` - `diagnostic.RegisterDoctorCheck` registers a doctor check; the codes it names must resolve through `diagnostic.Lookup`
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
-- `ze explain <code>` answers every code the running build can emit.
+- `ze show diagnostic <code>` answers every code the running build can emit.
 - The 35 emitters that reference a `CodeDoctor*` constant keep referencing one declaration.
 - A doctor check registered through `diagnostic.RegisterDoctorCheck` keeps the contract that its codes resolve through `diagnostic.Lookup`.
 
 **Behavior to change:** (only what the user asked for)
 - No `doctor-*` code is declared in two places: the 121 feature-owned entries stop being a second declaration of what their emitter emits.
-- What `ze explain <code>` answers for a code the running build cannot emit is decided (reading A or B in Task) and implemented.
+- What `ze show diagnostic <code>` answers for a code the running build cannot emit is decided (reading A or B in Task) and implemented.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -160,7 +160,7 @@ The decision this spec makes, one of two:
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | The tree is searched for every `doctor-*` code declaration | No `doctor-*` code is declared in two places |
-| AC-2 | `ze explain <code>` is run, on any build, for a code that build can emit | The code is explained |
+| AC-2 | `ze show diagnostic <code>` is run, on any build, for a code that build can emit | The code is explained |
 | AC-3 | Every doctor check registered through `diagnostic.RegisterDoctorCheck` is walked, and each entry of its `Codes` is resolved through `diagnostic.Lookup` | A test walks every registered check and every code resolves; the test goes RED when one registered code has no declaration |
 
 ## End-to-End User Stories

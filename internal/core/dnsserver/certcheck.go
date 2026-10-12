@@ -21,7 +21,7 @@ import (
 const certExpiryWarnWindow = 30 * 24 * time.Hour
 
 // The two severities a CertProblem carries. The codes it carries are
-// declared by internal/core/diagnostic, which `ze explain <code>` reads.
+// declared by internal/core/diagnostic, which `ze show diagnostic <code>` reads.
 const (
 	severityError   = "error"
 	severityWarning = "warning"

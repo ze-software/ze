@@ -120,11 +120,11 @@ func TestDoctorCheckIsRegistered(t *testing.T) {
 	assert.Contains(t, found.Codes, doctorCodeNoLocalFallback)
 
 	// The builtin table is registered by the binary entry point rather than by
-	// an init, so a unit test registers it to ask what `ze explain` would print.
+	// an init, so a unit test registers it to ask what `ze show diagnostic` would print.
 	diagnostic.RegisterBuiltinCodes()
 	meta := diagnostic.Lookup(doctorCodeNoLocalFallback)
-	require.NotNil(t, meta, "every code a check emits owes an entry ze explain can print")
-	assert.NotEmpty(t, meta.Description, "ze explain must have something to print")
+	require.NotNil(t, meta, "every code a check emits owes an entry ze show diagnostic can print")
+	assert.NotEmpty(t, meta.Description, "ze show diagnostic must have something to print")
 	assert.True(t, strings.Contains(meta.Description, "system/authentication/user"),
 		"the description must name the config that repairs it")
 	assert.True(t, strings.Contains(meta.Description, "no login"),

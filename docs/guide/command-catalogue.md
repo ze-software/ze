@@ -73,7 +73,7 @@ doing to it."
 | `<domain> <selector> <verb>` | `peer <sel> teardown`, `peer <sel> pause` | Operations targeting one or more instances within a subsystem |
 | `<domain> <verb> <object>` | `config rollback <n>` | Domain operations that produce or consume a named object |
 | `show <what>` | `show bgp`, `show bgp peer list`, `show warnings`, `show errors`, `show interface`, `show version`, `show system memory` | Cross-domain read-only introspection |
-| `generate <what>` | `generate wireguard keypair`, `generate tech-support archive` (planned) | Produce a new artifact from local state (keys, certs, bundles) |
+| `request <what>` | `request wireguard keypair`, `request support archive` | Produce a new artifact from local state (keys, certs, bundles) |
 | `<bare verb>` | `ping`, `traceroute`, `help` | Universal diagnostics / reserved verbs |
 
 **Why this shape.** Domain-first keeps the completion tree shallow:
@@ -84,11 +84,11 @@ them and operators reach for them by muscle memory:
 - `show` — universal read-only introspection. Groups by topic at the
   second position (`show system`, `show interface`, `show bgp`), which
   gives back the domain-first grouping one level down.
-- `generate` — universal "produce a new artifact" verb. Covers
+- `request` — universal "produce a new artifact" verb. Covers
   keypairs, certificate signing requests, tech-support archives,
   anything where the output is a new file or blob. Same as `show`,
-  the second position is a topic (`generate wireguard keypair`,
-  `generate tech-support archive`).
+  the second position is a topic (`request wireguard keypair`,
+  `request support archive`).
 
 Every other verb (`clear`, `reset`, `restart`, `flush`, `inject`,
 `withdraw`, `archive`, `rollback`, `teardown`, `pause`, `resume`,
@@ -99,10 +99,10 @@ Every other verb (`clear`, `reset`, `restart`, `flush`, `inject`,
 - The domain name is a subsystem (`bgp`, `peer`, `rib`, `commit`,
   `rpki`, `bmp`, `log`, `cache`, `healthcheck`, `metrics`,
   `wireguard`, `firewall`, `config`, ...). It is NOT a generic verb,
-  EXCEPT for the two reserved root verbs (`show`, `generate`).
+  EXCEPT for the two reserved root verbs (`show`, `request`).
 - Verbs are lowercase, single-word when possible (`list`, `show`,
   `start`, `stop`, `inject`, `withdraw`, `teardown`, `pause`,
-  `resume`, `flush`, `reset`, `generate`, `archive`, `rollback`,
+  `resume`, `flush`, `reset`, `archive`, `rollback`,
   `fmt`, `validate`).
 - Selectors come between domain and verb when they target a single
   instance (`peer <addr> teardown`), not after the verb. This reads as
@@ -116,7 +116,7 @@ Every other verb (`clear`, `reset`, `restart`, `flush`, `inject`,
 
 | VyOS / Junos / Nokia | Ze form |
 |----------------------|---------|
-| `generate wireguard keypair` | `generate wireguard keypair` (already domain-after-verb, kept) |
+| `generate wireguard keypair` | `request wireguard keypair` |
 | `reset ip bgp <addr>` | `peer <addr> teardown` |
 | `clear ip bgp <addr> soft in` | `route-refresh <family>` (today) |
 | `clear interfaces counters eth0` | `clear interface eth0 counters` (shipped; `clear` verb added 2026-04-18) |
@@ -285,7 +285,7 @@ subsystem lands.
 | Daemon memory | `show system memory` | `show task memory` | `show system memory-pools` | `show processes memory` | `show memory` | `show system memory` | shipped | process | Complements `show bgp rib status`. Nests a `hardware` subobject from `host.DetectMemory()`; same data available standalone via `show host memory` |
 | Daemon CPU | `show system cpu` | `show task cpu` | `show system cpu` | `show processes cpu` | - | `show system cpu` | shipped | process | Nests a `hardware` subobject from `host.DetectCPU()`; same data available standalone via `show host cpu` |
 | Daemon date/time | `show date` | `show system time` | `show system time` | `show clock` | - | `show system date` | shipped | process | |
-| Platform detection | - | - | - | - | - | `show system platform` | shipped | process | Runtime platform type (gokrazy, systemd, container, plain-linux, darwin) and capability flags (read-only root, /perm, reboot, persistent storage). Also in `ze doctor` and `ze support` |
+| Platform detection | - | - | - | - | - | `show system platform` | shipped | process | Runtime platform type (gokrazy, systemd, container, plain-linux, darwin) and capability flags (read-only root, /perm, reboot, persistent storage). Also in `ze doctor` and `ze request support archive` |
 | Firmware update | - | - | - | - | - | `show system update` | shipped | process | Periodic check against remote version manifest (`{"version":"26.05.17"}`); reports availability via report bus |
 | Update server | - | - | - | - | - | `ze update serve` | shipped | offline | Minimal HTTP server: `GET /version.json` + `GET /<os>/<arch>` binary download; run on build infra, not on routers |
 | Daemon version | `show version` | `show version` | `show version` | `show version` | - | `ze show version` | shipped | process | |
@@ -307,7 +307,7 @@ subsystem lands.
 | Prometheus metrics | - | - | - | - | - | `metrics show` | shipped | process | |
 | Structured event stream (SSE) | - | `monitor *` | - | - | - | `bgp monitor` | shipped | bgp | SSE |
 | Operational reports (healthcheck) | - | - | - | - | - | `show bgp healthcheck` | shipped | process | ze-unique |
-| Tech-support archive | `generate tech-support archive` | `request support information` | `admin tech-support` | `show tech-support` | - | | planned | process | Zip of logs + running config |
+| Tech-support archive | `request support archive` | `request support information` | `admin tech-support` | `show tech-support` | - | | shipped | process | Zip of logs + running config |
 
 ## 10. Diagnostics
 
@@ -341,7 +341,7 @@ Runtime-level config manipulation that is not `set` / `del`.
 | Format / canonicalise | - | - | - | - | - | `ze config fmt` | shipped | config | Ze-unique |
 | Force commit archive | `force commit-archive` | - | `admin save` | - | - | | planned | config | |
 | Generate SSH host key | `generate ssh server-key` | `request security pki ...` | - | `security ssh generate` | - | | scope | - | OS admin task |
-| Generate WireGuard keypair | `generate wireguard keypair` | - | - | - | - | `generate wireguard keypair` | shipped | shell | Reserved verb-first form (`generate`) |
+| Generate WireGuard keypair | `request wireguard keypair` | - | - | - | - | `request wireguard keypair` | shipped | shell | Verb-first form (`request`) |
 
 ## 12. PKI / Crypto / Security
 

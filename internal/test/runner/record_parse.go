@@ -971,7 +971,7 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]strin
 // and an assertion it could not place was checked against the whole test's
 // accumulated output instead -- which is how test/plugin/kernel-capability-
 // unknown-starts.ci came to assert that `ze doctor` printed a diagnostic code
-// and then satisfy that assertion with its own `ze explain <that code>`.
+// and then satisfy that assertion with its own `ze show diagnostic <that code>`.
 func (r *Record) assertionTarget(directive string) (*RunCommand, error) {
 	if len(r.RunCommands) == 0 {
 		return nil, fmt.Errorf("%s has no cmd= line above it, so it names no command's output: "+

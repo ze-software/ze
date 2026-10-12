@@ -82,7 +82,7 @@ func TestVRRPRawSocketDoctorRegistered(t *testing.T) {
 
 func TestVRRPRawSocketCodeRegistered(t *testing.T) {
 	// VALIDATES: AC-11 -- the doctor-vrrp-raw-socket diagnostic code is explainable
-	// via `ze explain` (CodeMeta registered in codes.go).
+	// via `ze show diagnostic` (CodeMeta registered in codes.go).
 	diagnostic.RegisterBuiltinCodes()
 	meta := diagnostic.Lookup("doctor-vrrp-raw-socket")
 	if meta == nil {

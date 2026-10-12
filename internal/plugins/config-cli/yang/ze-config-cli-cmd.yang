@@ -4,7 +4,8 @@ module ze-config-cli-cmd {
     import ze-extensions { prefix ze; }
     // These handlers inspect, compare, and format configuration files through
     // the config backend. See ai/rules/plugin-self-containment.md.
-    description "The show config and validate config command trees, owned by the config CLI.";
+    description "The show config command tree, owned by the config CLI.";
+    revision 2026-10-12 { description "Rename validate config to show config validation: the first word of a command is its verb."; }
     revision 2026-10-08 { description "Declare show config graph and validate config, which the config CLI already served."; }
     // Every command that enumerates a set now spells the verb the same way.
     revision 2026-08-31 { description "Renamed show config ls to show config list."; }
@@ -89,27 +90,20 @@ are left out, so the graph is the one the daemon would build.";
                     ze:help "Config file path, or - for stdin.";
                 }
             }
-        }
-    }
 
-    container validate {
-        config false;
-        description "Each command checks something without applying it, so it is safe against a
-production router.";
-        ze:help "Check without applying.";
-
-        container config {
-            config false;
-            ze:command "ze-config-cli:validate-config";
-            description "Both the grammar of the file and the meaning of its values are checked,
+            container validation {
+                config false;
+                ze:command "ze-config-cli:show-config-validation";
+                description "Both the grammar of the file and the meaning of its values are checked,
 and each problem is reported with the diagnostic code that explains it. Nothing is
 applied.";
-            ze:help "Check a config for errors without applying it.";
-            leaf file {
-                type string { length "1..4096"; }
-                mandatory true;
-                description "The config file to check, or - to read it on stdin.";
-                ze:help "Config file path, or - for stdin.";
+                ze:help "Check a config for errors without applying it.";
+                leaf file {
+                    type string { length "1..4096"; }
+                    mandatory true;
+                    description "The config file to check, or - to read it on stdin.";
+                    ze:help "Config file path, or - for stdin.";
+                }
             }
         }
     }

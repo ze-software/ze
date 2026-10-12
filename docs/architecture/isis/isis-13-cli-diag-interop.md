@@ -87,7 +87,7 @@ interop job.
 
 ## Trap: a one-shot command still waits for a readiness file
 
-`ze doctor` and `ze explain` exit immediately, but the functional-test runner
+`ze doctor` and `ze show diagnostic` exit immediately, but the functional-test runner
 treats every foreground `ze` invocation as a daemon and waits for a readiness
 file the one-shot never writes. A file running several sequential explain and
 doctor calls needs a generous timeout on the first command so they fit the

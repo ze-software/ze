@@ -218,7 +218,7 @@ func TestCheckResolvConfDefaultOnSystemd(t *testing.T) {
 // TestSystemDoctorChecksRegistered asks the registry the doctor runner reads
 // whether it holds every check this component declares, at the phase and
 // order each declaration states, and whether every code they emit resolves
-// for `ze explain`.
+// for `ze show diagnostic`.
 //
 // VALIDATES: the init() in register.go installed the checks and the registry
 // accepted them.

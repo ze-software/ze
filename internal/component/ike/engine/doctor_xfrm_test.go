@@ -138,7 +138,7 @@ func TestXFRMCapabilitySilentWhenNothingIsWrong(t *testing.T) {
 }
 
 // VALIDATES: the enrolment is declared by the ike engine, so ze doctor runs it,
-// the startup gate reads it and ze explain resolves both its codes.
+// the startup gate reads it and ze show diagnostic resolves both its codes.
 // PREVENTS: the capability existing as dead code, which is what an unregistered
 // readiness check is (ai/rules/completion.md).
 func TestIPsecCapabilityEnrolled(t *testing.T) {

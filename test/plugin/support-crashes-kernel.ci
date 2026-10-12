@@ -1,5 +1,5 @@
 # Test: the support archive carries the kernel artifact and the readiness block.
-# VALIDATES: AC-8 of spec-crash-capture -- `ze support --module crashes` emits
+# VALIDATES: AC-8 of spec-crash-capture -- `ze request support archive --module crashes` emits
 #            each report with its kind and full content, plus the readiness
 #            block, through the existing `crashes` module. No new module name.
 # PREVENTS: a bundle that is ambiguous about a box with no kernel report. An
@@ -30,7 +30,7 @@ EOF_KEEP
 # support.go). The reports and the readiness block are in the ARCHIVE, so the
 # second command reads crashes.json back out of it and the assertions below it
 # hold on the bytes ze wrote there.
-cmd=foreground:seq=1:exec=ze support --module crashes --json --output .:exit=0
+cmd=foreground:seq=1:exec=ze request support archive --module crashes --json --output .:exit=0
 expect=stdout:contains="crashes"
 expect=stdout:contains="collected": true
 

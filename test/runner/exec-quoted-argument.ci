@@ -3,7 +3,7 @@
 # The runner splits an exec= value the way a shell does: a quoted span stays ONE
 # argv element. The fixture receives `one | two three` as a single argument and
 # fails when it receives four, so a runner that splits on whitespace turns this
-# test red. That is the defect this test pins: `ze cli -c "validate config
+# test red. That is the defect this test pins: `ze cli -c "show config validation
 # bad.conf | json"` used to hand -c the word `"validate` and the rest of the
 # pipeline as separate arguments.
 

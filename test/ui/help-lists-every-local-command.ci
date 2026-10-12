@@ -5,29 +5,30 @@
 # PREVENTS: a command that runs when typed but that no help page, completion
 #           list or command catalog names, as the debug profile commands,
 #           explain, skills, support, generate wireguard keypair, show config
-#           graph and validate config were until 2026-10-08
+#           graph and validate config were until 2026-10-08. On 2026-10-12 the
+#           five that did not open with a verb were renamed to show diagnostic,
+#           show skills, show skill, request support archive, request wireguard
+#           keypair and show config validation
 #
 # The top-level help and completion read the YANG command tree, so a verb only
 # a handler knew about was absent from both. Help pages are written to stderr
 # (helpfmt.Page.WriteErr); completion words go to stdout.
+#
+# Thirty ze invocations each load the whole YANG schema, so the default budget
+# is too short on a loaded host.
+option=timeout:value=120s
 
-# The four new top-level verbs, in the verb list `ze help` prints.
-cmd=foreground:seq=1:exec=ze help
+# The renamed commands sit under the show and request verbs.
+cmd=foreground:seq=1:exec=ze completion words run show
 expect=exit:code=0
-expect=stderr:pattern=(?m)^  explain +Explain one diagnostic code Ze printed\.$
-expect=stderr:pattern=(?m)^  skills +List the agent skills this binary carries, or fetch one by name\.$
-expect=stderr:pattern=(?m)^  support +Collect logs, config, state and diagnostics into one archive\.$
-expect=stderr:pattern=(?m)^  validate +Check without applying\.$
-expect=stderr:pattern=(?m)^  generate +Generate keys and other material on this host\.$
-
-# Completion at the root offers the same verbs.
-cmd=foreground:seq=2:exec=ze completion words run
-expect=exit:code=0
-expect=stdout:pattern=(?m)^explain\t
+expect=stdout:pattern=(?m)^diagnostic\t
 expect=stdout:pattern=(?m)^skills\t
+expect=stdout:pattern=(?m)^skill\t
+
+cmd=foreground:seq=2:exec=ze completion words run request
+expect=exit:code=0
 expect=stdout:pattern=(?m)^support\t
-expect=stdout:pattern=(?m)^validate\t
-expect=stdout:pattern=(?m)^generate\t
+expect=stdout:pattern=(?m)^wireguard\t
 
 # The debug profile commands under set, delete, clear and show.
 cmd=foreground:seq=3:exec=ze completion words run set debug
@@ -62,18 +63,19 @@ cmd=foreground:seq=9:exec=ze completion words run show debug
 expect=exit:code=0
 expect=stdout:pattern=(?m)^profile\t
 
-# The commands under generate, show config and validate.
-cmd=foreground:seq=10:exec=ze completion words run generate wireguard
+# The commands under request wireguard, show config and request support.
+cmd=foreground:seq=10:exec=ze completion words run request wireguard
 expect=exit:code=0
 expect=stdout:pattern=(?m)^keypair\t
 
 cmd=foreground:seq=11:exec=ze completion words run show config
 expect=exit:code=0
 expect=stdout:pattern=(?m)^graph\t
+expect=stdout:pattern=(?m)^validation\t
 
-cmd=foreground:seq=12:exec=ze completion words run validate
+cmd=foreground:seq=12:exec=ze completion words run request support
 expect=exit:code=0
-expect=stdout:pattern=(?m)^config\t
+expect=stdout:pattern=(?m)^archive\t
 
 # A declared command answers its own generated help page and usage line.
 cmd=foreground:seq=13:exec=ze set debug module help
@@ -108,14 +110,47 @@ cmd=foreground:seq=20:exec=ze show debug profile help
 expect=exit:code=0
 expect=stderr:contains=ze show debug profile [name <name>] [module <module>]
 
-cmd=foreground:seq=21:exec=ze generate wireguard keypair help
+cmd=foreground:seq=21:exec=ze request wireguard keypair help
 expect=exit:code=0
-expect=stderr:contains=ze generate wireguard keypair - Generate a WireGuard keypair with the system wg binary.
+expect=stderr:contains=ze request wireguard keypair - Generate a WireGuard keypair with the system wg binary.
 
 cmd=foreground:seq=22:exec=ze show config graph help
 expect=exit:code=0
 expect=stderr:contains=ze show config graph <file>
 
-cmd=foreground:seq=23:exec=ze validate config help
+cmd=foreground:seq=23:exec=ze show config validation help
 expect=exit:code=0
-expect=stderr:contains=ze validate config <file>
+expect=stderr:contains=ze show config validation <file>
+
+# The verb help pages name the renamed commands with their summaries.
+cmd=foreground:seq=24:exec=ze show help
+expect=exit:code=0
+expect=stderr:pattern=(?m)^  diagnostic +Explain one diagnostic code Ze printed\.$
+expect=stderr:pattern=(?m)^  skills +List the agent skills this binary carries\.$
+expect=stderr:pattern=(?m)^  skill +Fetch one bundled agent skill by name\.$
+
+cmd=foreground:seq=25:exec=ze request help
+expect=exit:code=0
+expect=stderr:pattern=(?m)^  support +Collect material for a support case\.$
+expect=stderr:pattern=(?m)^  wireguard +Request WireGuard material\.$
+
+# The old names carry no alias: each is refused as an unknown command.
+cmd=foreground:seq=26:exec=ze explain doctor-ospf-router-id-missing
+expect=exit:code=1
+expect=stderr:contains=unknown command: explain
+
+cmd=foreground:seq=27:exec=ze skills
+expect=exit:code=1
+expect=stderr:contains=unknown command: skills
+
+cmd=foreground:seq=28:exec=ze support
+expect=exit:code=1
+expect=stderr:contains=unknown command: support
+
+cmd=foreground:seq=29:exec=ze validate config test.conf
+expect=exit:code=1
+expect=stderr:contains=unknown command: validate
+
+cmd=foreground:seq=30:exec=ze generate wireguard keypair
+expect=exit:code=1
+expect=stderr:contains=unknown command: generate

@@ -34,7 +34,7 @@ var bfdStrictDiagnosticCodes = []diagnostic.CodeMeta{
 			"The configuration declares no top-level `bfd { ... }` block, so no BFD engine runs and no session can ever come up: " +
 			"the peer stays in OPENSENT for the life of the process. " +
 			"Add a top-level `bfd { enabled true; ... }` block, or remove `strict true` from the peer.",
-		Examples: []string{"ze doctor --json", "ze explain doctor-bgp-bfd-strict-without-engine"},
+		Examples: []string{"ze doctor --json", "ze show diagnostic doctor-bgp-bfd-strict-without-engine"},
 	},
 }
 

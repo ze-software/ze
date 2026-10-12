@@ -973,7 +973,7 @@ command in the file, so an assertion could be satisfied by a command its author
 never named and a reject could trip on any command's output. Two files did
 exactly that: `test/plugin/kernel-capability-unknown-starts.ci` and
 `kernel-capability-doctor-reports.ci` each asserted that `ze doctor` printed a
-diagnostic code and then ran `ze explain <that code>`, whose output satisfied the
+diagnostic code and then ran `ze show diagnostic <that code>`, whose output satisfied the
 assertion on a host where the doctor check does not run at all.
 
 So a file no longer needs splitting to make a negative assertion mean something.

@@ -124,7 +124,7 @@ func TestCrashDoctorChecksAreRegistered(t *testing.T) {
 
 func TestCrashDoctorCodesAreRegistered(t *testing.T) {
 	// Every validation error an agent sees carries a stable code with an
-	// explanation behind it, so `ze explain <code>` answers.
+	// explanation behind it, so `ze show diagnostic <code>` answers.
 	diagnostic.RegisterBuiltinCodes()
 	for _, code := range []string{
 		"doctor-crash-capture-unarmed",

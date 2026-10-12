@@ -122,7 +122,7 @@ func TestCheckGRInProcessMatchesAPathQualifiedLaunch(t *testing.T) {
 }
 
 // TestGRDoctorCodeIsExplainable keeps the reported code answerable by
-// `ze explain`: doctor's own TestDoctorRegisteredCheckCodesHaveMetadata fails
+// `ze show diagnostic`: doctor's own TestDoctorRegisteredCheckCodesHaveMetadata fails
 // otherwise, and an operator meeting the code has nowhere to read what it means.
 func TestGRDoctorCodeIsExplainable(t *testing.T) {
 	require.NotNil(t, diagnostic.Lookup(codeGROutOfProcess),

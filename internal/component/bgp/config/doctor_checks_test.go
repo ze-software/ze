@@ -422,7 +422,7 @@ func TestDoctorCheckBGPCaptureDirectoryInGroup(t *testing.T) {
 
 // TestBGPDoctorChecksReachTheRunner asks the registry the doctor runner reads
 // whether it holds every check this package declares, at the phase and order
-// declared, and whether every code they emit resolves for `ze explain`.
+// declared, and whether every code they emit resolves for `ze show diagnostic`.
 //
 // VALIDATES: the init() in register.go installed the table and the registry
 // accepted every entry.
