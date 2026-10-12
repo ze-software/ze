@@ -531,11 +531,18 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 
 | Field | Value |
 |-------|-------|
-| Artifact | |
-| `./le spec review check` | not run |
-| Rounds | |
-| Reviewer lenses used | |
+| Artifact | `tmp/review/rfc-verdict-fix-routing-5620b26f-603e-4d57-826d-6ef92b7fcd64.md` (30 files, verdict=clean); findings in session scratch `review-rfc-verdict-routing.md`, `review-rfc-verdict-routing-r2.md`, `review-rfc-verdict-routing-r3.md` |
+| `./le spec review check` | OK -- `review_gate: OK (8 code files, clean, hashes match tmp/review/rfc-verdict-fix-routing-5620b26f-603e-4d57-826d-6ef92b7fcd64.md)` |
+| Rounds | 3 |
+| Reviewer lenses used | round 1: wiring and tests, logic and removed behaviour, RFC and ledger; round 2: the round-1 fixes, RFC 4090 Section 6.4.3 verdict, `./le rfc check`; round 3: the round-2 fix, red reproduced by overlay for the four re-records, `./le rfc check` over the owned stems |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| 1 | BLOCKER | five rfc2205/rfc3209 records staled by the `handlePath` edit of `9114a04414` | `rfc/discrimination/rfc2205.json`, `rfc3209.json` | `27be2c4a3c` |
+| 2 | ISSUE | `repairedPathSelection` kept a stale route on a one-hop length heuristic | `internal/plugins/rsvpte/frr.go::repairedPathSelection` | `27be2c4a3c` (exact `ReceivedERO` match, `TestRepairedLSPChangedEROResolvedAgain`) |
+| 3 | ISSUE | interop proved only the absence of a PathErr | `internal/le/interoplab/rsvpte/checkers.go` | `e01eaaecf3` (`repairOutlivesProtectedState`, red observed) |
+| 4 | ISSUE | no ledger row for the RFC 4090 Section 6.4.3 control-traffic clause | `rfc/short/rfc4090.md` | `27be2c4a3c` (row RFC4090-6.4.3-2), `86fe92f1ea` (verdict enforced) |
+| 5 | BLOCKER | round 2: four `handlePathTransit` records staled by `27be2c4a3c` | `rfc/discrimination/rfc2205.json`, `rfc3209.json` | `74eefd3517` |
+
+Earlier work under review: `07f7e61463`, `9114a04414`, `d5c55c5670`. Round 3 found 0 BLOCKER and 0 ISSUE.
