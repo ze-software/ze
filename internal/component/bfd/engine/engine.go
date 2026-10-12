@@ -161,6 +161,8 @@ func (l *Loop) SetMetricsHook(h MetricsHook) {
 // exported via Snapshot + Prometheus counters.
 type sessionEntry struct {
 	machine *session.Machine
+	// profile names the bfd profile of the client whose timers the session
+	// runs (retimeLocked), the one the snapshot shows.
 	profile string
 	// auth is the authentication configuration the session was built with,
 	// nil for none. A live session refuses a join whose configuration differs
@@ -612,7 +614,6 @@ func (l *Loop) reviveReleasedLocked(req api.SessionRequest, key api.Key, release
 	if err := replaceAuth(released, req, key); err != nil {
 		return nil, err
 	}
-	released.profile = req.Profile
 	l.reviveLocked(released)
 	released.machine.Reconfigure(req)
 	return l.attachClientLocked(released, key, req), nil

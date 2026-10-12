@@ -179,6 +179,24 @@ type Machine struct {
 	txDesiredHeld   bool
 	txDesiredHeldUs uint32
 
+	// rxRequiredHeld is true while a reduction of bfd.RequiredMinRxInterval
+	// made in Up waits for its Poll Sequence to terminate, and
+	// rxRequiredHeldUs is the bfd.RequiredMinRxInterval that was in force
+	// before the reduction. DetectionInterval uses the held value
+	// (requiredMinRxInForceUs) until the Final ends the Poll, or the session
+	// leaves Up. holdRequiredMinRxLocked sets it, the Final and the exit from
+	// Up clear it.
+	rxRequiredHeld   bool
+	rxRequiredHeldUs uint32
+
+	// timersPending is true while a timer change ApplyTimers made in Up waits
+	// for the Poll Sequence in flight to settle (RFC 5880 Section 6.8.3
+	// choice 3). The configured values already hold the change;
+	// applyPendingTimersLocked moves them into the operating variables once
+	// pollSequenceIdle allows, and leaving Up clears it, because the Up
+	// transition applies the configured values itself.
+	timersPending bool
+
 	// echoSequence is the monotonic counter carried inside the ZEEC
 	// envelope's Sequence field. Incremented by NextEchoSequence on
 	// every echo TX so the receive path (a reflected echo hitting
@@ -293,8 +311,9 @@ func (m *Machine) Init(req api.SessionRequest, localDiscr uint32, clk clock.Cloc
 //
 // The caller MUST call it after the session has left AdminDown, because
 // entering Down discards an outstanding Poll Sequence, and MUST NOT call it on
-// an Up session, whose intervals change only through a Poll Sequence it did
-// not start. Not safe for concurrent use: the engine holds its lock.
+// an Up session, whose intervals change only through a Poll Sequence:
+// ApplyTimers is the call for a live session. Not safe for concurrent use: the
+// engine holds its lock.
 func (m *Machine) Reconfigure(req api.SessionRequest) {
 	if m.vars.SessionState == packet.StateUp {
 		panic("BUG: bfd session Reconfigure called on an Up session")
@@ -331,24 +350,32 @@ func (m *Machine) applyRequest(req api.SessionRequest) {
 		m.role = RolePassive
 	}
 
-	mult := req.DetectMult
-	if mult == 0 {
-		mult = DefaultDetectMult
-	}
-	configTx := req.DesiredMinTxInterval
-	if configTx == 0 {
-		configTx = SlowStartIntervalUs
-	}
-	configRx := req.RequiredMinRxInterval
-	if configRx == 0 {
-		configRx = SlowStartIntervalUs
-	}
-
+	configTx, configRx, mult := RequestTimers(req)
 	m.vars.ConfiguredDesiredMinTxInterval = configTx
 	m.vars.ConfiguredRequiredMinRxInterval = configRx
 	m.vars.DetectMult = mult
 	m.vars.RequiredMinEchoRxInterval = req.DesiredMinEchoTxInterval
 	m.vars.DesiredMinEchoTxInterval = req.DesiredMinEchoTxInterval
+}
+
+// RequestTimers answers the configured bfd.DesiredMinTxInterval,
+// bfd.RequiredMinRxInterval and bfd.DetectMult a client request asks for. A
+// zero field is the client leaving the choice to the engine (api.SessionRequest),
+// which answers the slow-start interval and DefaultDetectMult.
+func RequestTimers(req api.SessionRequest) (desiredMinTxUs, requiredMinRxUs uint32, detectMult uint8) {
+	desiredMinTxUs = req.DesiredMinTxInterval
+	if desiredMinTxUs == 0 {
+		desiredMinTxUs = SlowStartIntervalUs
+	}
+	requiredMinRxUs = req.RequiredMinRxInterval
+	if requiredMinRxUs == 0 {
+		requiredMinRxUs = SlowStartIntervalUs
+	}
+	detectMult = req.DetectMult
+	if detectMult == 0 {
+		detectMult = DefaultDetectMult
+	}
+	return desiredMinTxUs, requiredMinRxUs, detectMult
 }
 
 // Key returns the session's identity. Safe to call after Init.

@@ -13,6 +13,7 @@ package session
 import (
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
@@ -26,7 +27,7 @@ func (m *Machine) DetectionInterval() time.Duration {
 	if mult == 0 {
 		mult = uint32(m.vars.DetectMult)
 	}
-	floor := max(m.vars.RequiredMinRxInterval, m.vars.RemoteDesiredMinTx)
+	floor := max(m.requiredMinRxInForceUs(), m.vars.RemoteDesiredMinTx)
 	if floor == 0 {
 		floor = SlowStartIntervalUs
 	}
@@ -95,6 +96,125 @@ func (m *Machine) releaseDesiredMinTxLocked() {
 	}
 	m.txDesiredHeld = false
 	m.rescheduleTxLocked()
+}
+
+// requiredMinRxInForceUs answers the bfd.RequiredMinRxInterval the Detection
+// Time is computed from: the held pre-reduction value while a reduction made
+// in Up waits for its Poll Sequence, the live variable otherwise.
+//
+// RFC 5880 Section 6.8.3: "If bfd.RequiredMinRxInterval is reduced and
+// bfd.SessionState is Up, the previous value of bfd.RequiredMinRxInterval MUST
+// be used when calculating the Detection Time for the remote system until the
+// Poll Sequence described above has terminated." An increase takes effect at
+// once and is never held.
+func (m *Machine) requiredMinRxInForceUs() uint32 {
+	if m.rxRequiredHeld {
+		return m.rxRequiredHeldUs
+	}
+	return m.vars.RequiredMinRxInterval
+}
+
+// holdRequiredMinRxLocked records the bfd.RequiredMinRxInterval in force
+// before a write of reducedUs, when that write is a reduction made in Up. The
+// caller MUST call it before the write, and MUST start the Poll Sequence that
+// carries the new value in the same step. A hold already in place keeps its
+// value: it is the interval in force until the first Poll terminates.
+func (m *Machine) holdRequiredMinRxLocked(reducedUs uint32) {
+	if m.vars.SessionState != packet.StateUp {
+		return
+	}
+	if reducedUs >= m.vars.RequiredMinRxInterval {
+		return
+	}
+	if m.rxRequiredHeld {
+		return
+	}
+	m.rxRequiredHeld = true
+	m.rxRequiredHeldUs = m.vars.RequiredMinRxInterval
+}
+
+// ApplyTimers gives the session the bfd.DesiredMinTxInterval,
+// bfd.RequiredMinRxInterval and bfd.DetectMult that req asks for, in any
+// state, keeping everything else: the role, the discriminators, the
+// authentication and what the session learned from the remote end. The engine
+// calls it when a profile edit or a change of the session's clients changes
+// the timers a live session runs.
+//
+// bfd.DetectMult is not one of the two intervals Section 6.8.3 obliges a Poll
+// for, so it changes at once. Outside Up, bfd.DesiredMinTxInterval stays at
+// the one-second floor, and the Up transition applies the configured values
+// (onStateChange). In Up the change waits for any Poll Sequence in flight to
+// settle (applyPendingTimersLocked). Not safe for concurrent use: the engine
+// holds its lock.
+func (m *Machine) ApplyTimers(req api.SessionRequest) {
+	desiredMinTxUs, requiredMinRxUs, detectMult := RequestTimers(req)
+	m.configReq.DesiredMinTxInterval = req.DesiredMinTxInterval
+	m.configReq.RequiredMinRxInterval = req.RequiredMinRxInterval
+	m.configReq.DetectMult = req.DetectMult
+	m.vars.ConfiguredDesiredMinTxInterval = desiredMinTxUs
+	m.vars.ConfiguredRequiredMinRxInterval = requiredMinRxUs
+	// RFC 5880 Section 6.8.3: "In any case other than those explicitly called
+	// out above, timing parameter changes MUST be effected immediately
+	// (changing the transmission rate and/or the Detection Time)."
+	m.vars.DetectMult = detectMult
+	if m.vars.SessionState == packet.StateUp {
+		m.timersPending = true
+		m.applyPendingTimersLocked()
+		return
+	}
+	required := m.vars.RequiredMinRxInterval
+	m.vars.RequiredMinRxInterval = requiredMinRxUs
+	// RFC 5880 Section 6.8.3: "If either bfd.DesiredMinTxInterval is changed
+	// or bfd.RequiredMinRxInterval is changed, a Poll Sequence MUST be
+	// initiated (see section 6.5)." bfd.DesiredMinTxInterval stays at the
+	// one-second floor outside Up, so only the receive interval can move here.
+	if requiredMinRxUs != required {
+		m.vars.PollOutstanding = true
+	}
+}
+
+// applyPendingTimersLocked moves a timer change ApplyTimers recorded in Up
+// into the operating variables, and starts the Poll Sequence that carries it.
+// It waits while a Poll is outstanding or settling: the Final of a Poll in
+// flight would otherwise answer two changes at once. Receive calls it again
+// once the packet with the Final bit clear has arrived.
+func (m *Machine) applyPendingTimersLocked() {
+	if !m.timersPending {
+		return
+	}
+	// RFC 5880 Section 6.8.3: "if multiple changes are made that require the
+	// use of a Poll Sequence, there are three choices", and this takes choice
+	// 3: "an additional BFD Control packet with the Final (F) bit *clear* MUST
+	// be received after the Poll Sequence has completed prior to the
+	// initiation of another Poll Sequence".
+	if !m.pollSequenceIdle() {
+		return
+	}
+	m.timersPending = false
+	desiredMinTxUs := m.vars.ConfiguredDesiredMinTxInterval
+	requiredMinRxUs := m.vars.ConfiguredRequiredMinRxInterval
+	if m.echoSlowdownApplied {
+		// RFC 5880 Section 6.8.9: the slow-down stays in force over the edit.
+		desiredMinTxUs = max(EchoSlowdownIntervalUs, desiredMinTxUs)
+		requiredMinRxUs = max(EchoSlowdownIntervalUs, requiredMinRxUs)
+	}
+	if desiredMinTxUs == m.vars.DesiredMinTxInterval {
+		if requiredMinRxUs == m.vars.RequiredMinRxInterval {
+			return
+		}
+	}
+	// RFC 5880 Section 6.8.3
+	m.holdDesiredMinTxLocked(desiredMinTxUs)
+	// RFC 5880 Section 6.8.3
+	m.holdRequiredMinRxLocked(requiredMinRxUs)
+	m.vars.DesiredMinTxInterval = desiredMinTxUs
+	m.vars.RequiredMinRxInterval = requiredMinRxUs
+	// RFC 5880 Section 6.8.7: the transmit interval is recalculated when
+	// bfd.DesiredMinTxInterval changes; a reduction takes effect at once and
+	// an increase is held, so the pending deadline moves to what is in force.
+	m.rescheduleTxLocked()
+	// RFC 5880 Section 6.8.3
+	m.vars.PollOutstanding = true
 }
 
 // armDetectionLocked sets the next-detection deadline relative to now. The
@@ -432,6 +552,8 @@ func (m *Machine) revertEchoSlowdownLocked() {
 	}
 	m.echoSlowdownApplied = false
 	m.vars.DesiredMinTxInterval = m.vars.ConfiguredDesiredMinTxInterval
+	// RFC 5880 Section 6.8.3
+	m.holdRequiredMinRxLocked(m.vars.ConfiguredRequiredMinRxInterval)
 	m.vars.RequiredMinRxInterval = m.vars.ConfiguredRequiredMinRxInterval
 	// RFC 5880 Section 6.8.7: the transmit interval is recalculated when
 	// bfd.DesiredMinTxInterval changes, and Section 6.8.3 makes a reduction

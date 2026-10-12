@@ -1,0 +1,176 @@
+# Test: a reload that edits the profile of a pinned BFD session which is Up
+#       changes the timers the session runs in place: the session stays Up and
+#       advertises the edited timers.
+# Initial config: the `bfd` root with profile p (300ms, Detect Mult 3) and a
+#                 pinned single-hop-session to 127.0.0.1 from local 127.0.0.1
+#                 under p. The session's Control packets come back to it over
+#                 loopback (its Your Discriminator is its own), so it reaches Up
+#                 with no second BFD speaker.
+# Live change:    the staged fixture (reload/live-stages, run inside the daemon)
+#                 waits for the session to be Up at 300ms, then reloads
+#                 config2.conf, where p runs 100ms with Detect Mult 5.
+# Expected:       `show bfd sessions` lists the session Up with Detect Mult 5 and
+#                 a 100ms transmit interval, the Poll Sequence that carried the
+#                 change having completed; it records no transition to Down or
+#                 AdminDown.
+#
+# VALIDATES: spec-bgp-live-receive-binding-and-bfd-keep-session AC-25 (owner
+#            decision "Apply live, in keep-session"): reload -> applyConfig ->
+#            applyPinned -> Loop.UpdateSession -> retimeLocked ->
+#            Machine.ApplyTimers (RFC 5880 Section 6.8.3 Poll Sequence).
+# PREVENTS: a profile edit that never reaches a live pinned session, and one
+#           that reaches it by tearing it down.
+#
+# DISCRIMINATION: with applyPinned skipping a key it already holds (the code
+# before AC-25), the session keeps Detect Mult 3 and the
+# `"detect-multiplier":5` stage fails after its 20s poll.
+# A BFD session reaches Up only on Linux: the darwin transport reads no
+# received TTL, and the engine fails closed on single-hop packets without one
+# (transport/udp_other.go, parseReceivedTTL).
+option=skip-os:value=darwin
+option=timeout:value=60s
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+option=exclusive:group=bfd-ports
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+# ze-peer creates this file on the daemon's first UPDATE; the staged fixture
+# holds its first step until it exists.
+option=established-file:path=established
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# The clean shutdown after the last stage: Cease (6) / Administrative Shutdown
+# (2, RFC 4486) with the RFC 8203 default text.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bfd {
+	enabled true
+	profile p {
+		detect-multiplier 3
+		desired-min-tx-us 300000
+		required-min-rx-us 300000
+	}
+
+	single-hop-session 127.0.0.1 {
+		local 127.0.0.1
+		profile p
+	}
+}
+
+# The BGP peer only paces the script (its established-file) and carries the
+# clean shutdown; it has no BFD opt-in.
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# The plugin block is byte-identical to the initial config's, so the staged
+# fixture survives the reload.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bfd {
+	enabled true
+	profile p {
+		detect-multiplier 5
+		desired-min-tx-us 100000
+		required-min-rx-us 100000
+	}
+
+	single-hop-session 127.0.0.1 {
+		local 127.0.0.1
+		profile p
+	}
+}
+
+# The BGP peer only paces the script (its established-file) and carries the
+# clean shutdown; it has no BFD opt-in.
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+await-file established
+has show bfd sessions => "state":"up"
+has show bfd sessions => "tx-interval":300000000
+reload config2.conf
+has show bfd sessions => "detect-multiplier":5
+has show bfd sessions => "tx-interval":100000000
+has show bfd sessions => "state":"up"
+lacks show bfd sessions => "to":"down"
+lacks show bfd sessions => "to":"admin-down"
+say BFD-PINNED-PROFILE-EDIT-UP: session kept Up at the edited timers
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
+
+expect=stderr:contains=BFD-PINNED-PROFILE-EDIT-UP: session kept Up at the edited timers
+reject=stderr:pattern=ZE-OBSERVER-FAIL

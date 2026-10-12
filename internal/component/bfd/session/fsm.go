@@ -88,8 +88,16 @@ func (m *Machine) Receive(c packet.Control) error {
 		// RFC 5880 Section 6.8.3: an increase held for this Poll now
 		// takes effect.
 		m.releaseDesiredMinTxLocked()
+		// RFC 5880 Section 6.8.3: a reduction held for this Poll now enters
+		// the Detection Time.
+		m.rxRequiredHeld = false
 	} else if !c.Final {
 		m.pollSettling = false
+	}
+	if m.vars.SessionState == packet.StateUp {
+		// RFC 5880 Section 6.8.3: a timer change that waited for the Poll in
+		// flight starts its own once this one has settled.
+		m.applyPendingTimersLocked()
 	}
 
 	now := m.clk.Now()
@@ -171,6 +179,8 @@ func (m *Machine) onStateChange(prev packet.State) {
 			// RFC 5880 Section 6.8.3: a configured interval above the
 			// slow-start one is an increase made in Up.
 			m.holdDesiredMinTxLocked(m.vars.ConfiguredDesiredMinTxInterval)
+			// RFC 5880 Section 6.8.3
+			m.holdRequiredMinRxLocked(m.vars.ConfiguredRequiredMinRxInterval)
 			m.vars.DesiredMinTxInterval = m.vars.ConfiguredDesiredMinTxInterval
 			m.vars.RequiredMinRxInterval = m.vars.ConfiguredRequiredMinRxInterval
 			m.vars.PollOutstanding = true
@@ -181,8 +191,12 @@ func (m *Machine) onStateChange(prev packet.State) {
 	// which owes a Poll Sequence once the Down-entry reset below has run.
 	desiredTxRaised := false
 	if m.vars.SessionState != packet.StateUp {
-		// The hold belongs to a Poll made in Up; leaving Up ends both.
+		// The holds belong to a Poll made in Up; leaving Up ends them, and a
+		// pending timer change too, which the next Up transition applies
+		// from the configured values.
 		m.txDesiredHeld = false
+		m.rxRequiredHeld = false
+		m.timersPending = false
 		// RFC 5880 Section 6.8.3: "When bfd.SessionState is not Up, the
 		// system MUST set bfd.DesiredMinTxInterval to a value of not less
 		// than one second (1,000,000 microseconds)." Every entry into a

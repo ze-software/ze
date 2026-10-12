@@ -220,9 +220,11 @@ func (r *runtimeState) applyConfig(cfg *pluginConfig) error {
 }
 
 // applyPinned reconciles the live pinned-session set against cfg. Sessions
-// missing from cfg are released; new entries are created. Existing keys
-// have their shutdown bit re-applied so an operator flipping `shutdown
-// true/false` on a reload takes effect immediately.
+// missing from cfg are released; new entries are created. Existing keys take
+// the request their profile resolves to now (engine.Loop.UpdateSession), so a
+// profile edit reaches the live session in place, and have their shutdown bit
+// re-applied so an operator flipping `shutdown true/false` on a reload takes
+// effect immediately.
 func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 	// A pinned session is a client like any other, so its key goes through
 	// the same canonicalization the protocol clients get (api.SessionRequest.Canonical).
@@ -284,6 +286,10 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 			handle = h
 			r.pinned[key] = handle
 			logger().Info("bfd pinned session created", "peer", key.Peer.String(), "mode", key.Mode.String(), "vrf", key.VRF)
+		} else if updateErr := loop.UpdateSession(handle, req); updateErr != nil {
+			// A key already held takes the request its profile resolves to
+			// now, so a profile edit reaches the live session in place.
+			return fmt.Errorf("bfd: update session %s: %w", key.Peer, updateErr)
 		}
 		if s.shutdown {
 			if err := handle.Shutdown(); err != nil {

@@ -579,16 +579,28 @@ operator@router# commit
 
 On `commit`, the plugin receives the new `bfd` section and applies it.
 A new pinned session starts, a removed one is released, and a change to a
-pinned session's `shutdown` leaf takes effect at once. A profile edit does
-not reach a session that is already running: a live session keeps the
-timers and authentication it was built with until every client has
-released it. The edit applies to sessions created after the commit. A
-released session that a client revives inside its Detection Time takes that
-client's authentication as the profile holds it then, and its timers too when
-the client asks for the session's exact key.
+pinned session's `shutdown` leaf takes effect at once. An edit to the
+profile a pinned session names reaches that session at once, in place: it
+keeps running, keeps its discriminator, and takes the edited timers (an Up
+session through a Poll Sequence, so it stays Up). It takes an edited auth block
+too, unless another client of the session, naming another profile or none,
+runs the current one: then the edit is refused and the commit's apply fails
+with the error, which names that client's profile.
 
-To make a profile edit take effect on a running session now, release it from
-every client that holds it, then let them ask again:
+A session shared by several clients runs the fastest timers among them: those
+giving the shortest Detection Time (Detect Mult times Required Min RX). They
+are chosen again whenever a client joins or leaves, or a pinned session's
+profile is edited, so a fast client speeds the session up and its departure
+slows it down again.
+
+For the other clients (a BGP peer, a static route next-hop, an OSPF interface),
+a profile edit reaches the session when that client next asks for it; until
+then the session keeps the timers and authentication the client asked with. A
+released session that a client revives inside its Detection Time takes that
+client's authentication as the profile holds it then, and its timers too.
+
+To make a profile edit take effect for those clients now, release the session
+from every client that holds it, then let them ask again:
 
 | Client | Releases the session when | Asks again when |
 |--------|---------------------------|-----------------|
@@ -606,6 +618,7 @@ A client refused because its authentication differs from the live
 session's asks again at the same moments, so a fix to its own config
 takes effect then.
 <!-- source: internal/component/bfd/bfd.go -- applyPinned -->
+<!-- source: internal/component/bfd/engine/shared_session.go -- UpdateSession, retimeLocked, fastestRequest -->
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession, reviveReleasedLocked, createSessionLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- authMismatchCase -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- startBFDClient and stopBFDClient callers -->

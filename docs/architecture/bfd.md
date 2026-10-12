@@ -167,9 +167,22 @@ one multi-hop peer, is not merged onto one of them by a guess. Both are listed
 in `rfc/short/rfc5882.md`, under "Multiple Control Protocols (Section 4.4)",
 where the conformance ledger reads them.
 
-One session carries one authentication configuration, and one set of timers:
-those of the request that created it. A later client joins the session as it
-is. A client whose authentication differs from a live session's (Auth Type, Key
+One session carries one authentication configuration and one set of timers.
+The timers are those of the client whose request gives the shortest Detection
+Time: the smallest Detect Mult times Required Min RX, then the smallest Detect
+Mult times Desired Min TX, then the profile name, so the order clients joined
+in never decides. They are recomputed whenever a client joins, leaves or edits
+its request (`retimeLocked`, owner decision of 2026-10-12 after RFC 5882 §4.1:
+"It is generally useful to choose the parameters resulting in the shortest
+Detection Time"). An Up session takes a timer change through a Poll Sequence
+(`Machine.ApplyTimers`, RFC 5880 §6.8.3): an increase of Desired Min TX keeps
+the old transmit interval, and a reduction of Required Min RX keeps the old
+Detection Time, until the Final; a change made while a Poll is in flight waits
+for it to settle. `Loop.UpdateSession` is the edit: the bfd plugin calls it for
+every pinned session at each apply, so a profile edit reaches a live pinned
+session in place, keeping its discriminator. An edit that changes the
+authentication is refused with `ErrAuthMismatch` while another client of the
+session, naming another profile or none, runs the current one. A client whose authentication differs from a live session's (Auth Type, Key
 ID, Meticulous flag or secret, or authentication on one side only) is refused
 with `ErrAuthMismatch` at both join arms (`joinAuthCheck`), so it gets no
 session rather than a second one, and it never runs on an authentication it did
@@ -199,6 +212,8 @@ every client naming that profile, on any neighbor.
 <!-- source: internal/component/bfd/transport/udp.go -- ingressInterface -->
 <!-- source: internal/component/bfd/session_identity.go -- connectedLinks, vrfMembership -->
 <!-- source: internal/component/bfd/engine/shared_session.go -- sharedEntryLocked, sharesSession, joinedKey -->
+<!-- source: internal/component/bfd/engine/shared_session.go -- retimeLocked, fastestRequest, UpdateSession -->
+<!-- source: internal/component/bfd/session/timers.go -- ApplyTimers, applyPendingTimersLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent, SetProfileAuth, sharedAuthLocked, replaceAuth -->
 <!-- source: internal/component/bfd/bfd.go -- loopFor, runtimeState.profileAuthFor -->
 

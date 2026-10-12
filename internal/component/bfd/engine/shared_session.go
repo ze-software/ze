@@ -5,7 +5,12 @@
 package engine
 
 import (
+	"fmt"
+	"slices"
+	"strconv"
+
 	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/bfd/session"
 )
 
 // sessionClient is one client's hold on a session: the key it asked with and
@@ -25,6 +30,8 @@ func (l *Loop) addClientLocked(entry *sessionEntry, sessionKey api.Key, req api.
 	entry.clients = append(entry.clients, client)
 	// RFC 5882 Section 4.4
 	entry.joined = joinedKey(sessionKey, entry.clients)
+	// RFC 5882 Section 4.1
+	retimeLocked(entry)
 	return &handle{loop: l, key: sessionKey, client: client}
 }
 
@@ -54,7 +61,152 @@ func detachClientLocked(entry *sessionEntry, sessionKey api.Key, client *session
 	entry.clients = append(entry.clients[:at], entry.clients[at+1:]...)
 	// RFC 5882 Section 4.4
 	entry.joined = joinedKey(sessionKey, entry.clients)
+	// RFC 5882 Section 4.1
+	retimeLocked(entry)
 	return entry.machine.Release(), true
+}
+
+// UpdateSession gives the client holding h the request req in place: a
+// profile edit reaching a live session. The session keeps its discriminator,
+// its state and what it learned from the remote end; it takes req's
+// authentication, and runs the timers of the fastest of its clients
+// (retimeLocked), so an Up session changes them through a Poll Sequence
+// (session.Machine.ApplyTimers).
+//
+// req MUST name the session the client asked for when it took h: an edit
+// that moves a client to another remote system is a release and a new
+// request. A change of authentication is refused with ErrAuthMismatch while
+// another client of the session relies on the current one (updateAuthLocked).
+// Safe for concurrent use: it takes l.mu.
+func (l *Loop) UpdateSession(h api.SessionHandle, req api.SessionRequest) error {
+	hh, ok := h.(*handle)
+	if !ok {
+		return ErrForeignHandle
+	}
+	if req.Key() != hh.client.key {
+		return fmt.Errorf("bfd: edit of the session to peer %s: the new request names peer %s, "+
+			"another session than the one this client holds; a client that moves releases its "+
+			"session and asks for the new one: %w", hh.client.key.Peer, req.Peer, ErrUnknownSession)
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	entry, ok := l.sessions[hh.key]
+	if !ok {
+		return ErrUnknownSession
+	}
+	// A handle released before the edit holds nothing to edit.
+	if !slices.Contains(entry.clients, hh.client) {
+		return ErrUnknownSession
+	}
+	if err := updateAuthLocked(entry, hh.client, req, hh.key); err != nil {
+		return err
+	}
+	hh.client.req = req
+	// RFC 5882 Section 4.1
+	retimeLocked(entry)
+	return nil
+}
+
+// updateAuthLocked gives entry the authentication of client's edited request
+// req. A session runs one authentication for all its clients (joinAuthCheck),
+// so the change is refused while another client relies on the current one: a
+// client naming another bfd profile, or none, whose request asks for other
+// authentication than req. A client naming the same profile takes the same
+// edit at its own next request. The caller MUST hold l.mu.
+//
+// RFC 5882 Section 10.2: "BFD authentication SHOULD be used and is strongly
+// encouraged." A client may only run on a session whose authentication it
+// asked for.
+func updateAuthLocked(entry *sessionEntry, client *sessionClient, req api.SessionRequest, key api.Key) error {
+	if sameAuth(entry.auth, req.Auth) {
+		return nil
+	}
+	for _, held := range entry.clients {
+		if held == client {
+			continue
+		}
+		if req.Profile != "" && held.req.Profile == req.Profile {
+			continue
+		}
+		if sameAuth(held.req.Auth, req.Auth) {
+			continue
+		}
+		return fmt.Errorf("bfd: session to peer %s%s vrf %s: %w: bfd profile %q now has another "+
+			"auth block, and %s shares the session with the current one; %s; to fix it, give "+
+			"that client the same auth block, or name bfd profile %q on it",
+			key.Peer, refusalInterface(key.Interface), key.VRF, ErrAuthMismatch, req.Profile,
+			describeClientProfile(held.req.Profile), authMismatchWhy, req.Profile)
+	}
+	return replaceAuth(entry, req, key)
+}
+
+// describeClientProfile names a client by the bfd profile it asked with, for
+// a refusal an operator reads.
+func describeClientProfile(profile string) string {
+	if profile == "" {
+		return "a client naming no bfd profile"
+	}
+	return "a client of bfd profile " + strconv.Quote(profile)
+}
+
+// retimeLocked gives entry the timers of the fastest of its current clients
+// (fastestRequest), and names that client's profile as the session's. It runs
+// whenever a client joins, leaves or edits its request, so the session's
+// timers are a property of the clients present, never of their order or of
+// the session's history. A session with no client left keeps what it runs:
+// it is released, and its timers no longer serve anyone. The caller MUST hold
+// l.mu.
+//
+// RFC 5882 Section 4.1: "Note that all protocols sharing a session will
+// operate using the same parameters. The mechanism for choosing the
+// parameters among those desired by the various protocols is outside the
+// scope of this specification. It is generally useful to choose the
+// parameters resulting in the shortest Detection Time".
+func retimeLocked(entry *sessionEntry) {
+	if len(entry.clients) == 0 {
+		return
+	}
+	fastest := fastestRequest(entry.clients)
+	entry.profile = fastest.Profile
+	// RFC 5880 Section 6.8.3
+	entry.machine.ApplyTimers(fastest)
+}
+
+// fastestRequest answers the request of clients giving the shortest Detection
+// Time: the smallest Detect Mult times Required Min RX Interval, which is the
+// Detection Time a remote system using the same parameters gives this end
+// (RFC 5880 Section 6.8.4). A tie goes to the smaller Detect Mult times
+// Desired Min TX Interval, the remote system's Detection Time of this end, and
+// then to the profile name, so the answer is the same whatever order the
+// clients joined in. A zero field reads as the default the session machine
+// gives it (session.RequestTimers). clients MUST NOT be empty.
+func fastestRequest(clients []*sessionClient) api.SessionRequest {
+	best := clients[0].req
+	for _, client := range clients[1:] {
+		if fasterRequest(client.req, best) {
+			best = client.req
+		}
+	}
+	return best
+}
+
+// fasterRequest reports whether candidate ranks before incumbent in the
+// fastestRequest order.
+func fasterRequest(candidate, incumbent api.SessionRequest) bool {
+	candidateTxUs, candidateRxUs, candidateMult := session.RequestTimers(candidate)
+	incumbentTxUs, incumbentRxUs, incumbentMult := session.RequestTimers(incumbent)
+	candidateRx := uint64(candidateMult) * uint64(candidateRxUs)
+	incumbentRx := uint64(incumbentMult) * uint64(incumbentRxUs)
+	if candidateRx != incumbentRx {
+		return candidateRx < incumbentRx
+	}
+	candidateTx := uint64(candidateMult) * uint64(candidateTxUs)
+	incumbentTx := uint64(incumbentMult) * uint64(incumbentTxUs)
+	if candidateTx != incumbentTx {
+		return candidateTx < incumbentTx
+	}
+	return candidate.Profile < incumbent.Profile
 }
 
 // reviveLocked brings a released entry (ReleaseSession) back for a client that
