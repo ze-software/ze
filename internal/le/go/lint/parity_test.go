@@ -1128,3 +1128,61 @@ func TestJobArgvSeparatesAFullRunFromAScopedRun(t *testing.T) {
 		t.Fatalf("scoped run identity = %q, want %q", scoped, want)
 	}
 }
+
+// TestAPassThatDidNotCompleteIsNamedApartFromFindings proves a lint child that
+// stopped before linting (golangci-lint's failure code, as when `go` is missing
+// from PATH, or a child that never started) is reported as incomplete, never
+// folded into the findings line, while a pass with real findings is still named
+// as findings. Method: stream answers per pass, then read the report and stderr.
+func TestAPassThatDidNotCompleteIsNamedApartFromFindings(t *testing.T) {
+	root, _ := lintFixture(t)
+	ops := runnerOps{
+		lookPath: func(name string) (string, error) { return name, nil },
+		capture:  func(context.Context, []string, string, []string) commandResult { return commandResult{} },
+		stream: func(_ context.Context, argv []string, _ string, _ []string, _ io.Writer) (int, error) {
+			switch argv[len(argv)-1] {
+			case "findings":
+				return lintFindings, nil
+			case "stopped":
+				return 3, nil
+			case "absent":
+				return 127, errors.New(`exec: "golangci-lint": executable file not found in $PATH`)
+			default:
+				return 0, nil
+			}
+		},
+		inputHash: func(string) (string, error) { return "fixture-inputs", nil },
+	}
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+	plan := LintPlan{Passes: []PassPlan{
+		{Name: "host", Command: []string{lintProgram, "run", "clean"}, Packages: []string{"clean"}},
+		{Name: "darwin", Command: []string{lintProgram, "run", "findings"}, Packages: []string{"findings"}},
+		{Name: "freebsd", Command: []string{lintProgram, "run", "stopped"}, Packages: []string{"stopped"}},
+		{Name: "openbsd", Command: []string{lintProgram, "run", "absent"}, Packages: []string{"absent"}},
+	}}
+
+	var report Report
+	var code int
+	_, stderr := captureLintOutput(t, func() { report, code = runner.execute(plan) })
+	if code != lintFindings || report.Code != lintFindings {
+		t.Fatalf("code=%d report.code=%d, want the first failure %d", code, report.Code, lintFindings)
+	}
+	if report.Passes[1].Error != "" {
+		t.Errorf("a pass with findings is marked incomplete: %q", report.Passes[1].Error)
+	}
+	if !strings.Contains(report.Passes[2].Error, "exited 3") {
+		t.Errorf("stopped pass error = %q, want the exit code named", report.Passes[2].Error)
+	}
+	if !strings.Contains(report.Passes[3].Error, "could not start") {
+		t.Errorf("absent pass error = %q, want could not start", report.Passes[3].Error)
+	}
+	if !strings.Contains(stderr, "lint_flavors: findings in: darwin\n") {
+		t.Errorf("stderr does not name the findings pass alone:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "did not complete and linted nothing: freebsd, openbsd.") {
+		t.Errorf("stderr does not name the incomplete passes apart:\n%s", stderr)
+	}
+}

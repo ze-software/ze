@@ -43,7 +43,10 @@ const (
 	taglessDir     = "tmp/lint-flavors"
 	taglessName    = "notags-"
 	cannotPlan     = 2
-	listTemplate   = "{{$d:=.Dir}}{{range .GoFiles}}{{$d}}/{{.}}\n{{end}}{{range .CgoFiles}}{{$d}}/{{.}}\n{{end}}{{range .TestGoFiles}}{{$d}}/{{.}}\n{{end}}{{range .XTestGoFiles}}{{$d}}/{{.}}\n{{end}}"
+	// lintFindings is golangci-lint's exitcodes.IssuesFound: the run completed
+	// and reported findings. Any other non-zero exit is a run that stopped.
+	lintFindings = 1
+	listTemplate = "{{$d:=.Dir}}{{range .GoFiles}}{{$d}}/{{.}}\n{{end}}{{range .CgoFiles}}{{$d}}/{{.}}\n{{end}}{{range .TestGoFiles}}{{$d}}/{{.}}\n{{end}}{{range .XTestGoFiles}}{{$d}}/{{.}}\n{{end}}"
 )
 
 var ignoreConstraint = regexp.MustCompile(`(^|[^A-Za-z0-9_])ignore([^A-Za-z0-9_]|$)`)
@@ -342,6 +345,10 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 		if len(packages) == 0 || len(files) == 0 {
 			return LintPlan{}, fmt.Errorf("lint flavor %s selected an empty package population", flavor.Name)
 		}
+		// A flavor claims only packages holding a file no earlier pass
+		// selected, so it lints, it does not type-check: a package of shared
+		// files is never compiled under this flavor's GOOS here. The BSD and
+		// Darwin compile check is ./le go vet-platforms, over every package.
 		scope := make([]string, 0, len(packages))
 		for name, selected := range packages {
 			for path := range selected {
@@ -753,6 +760,7 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 	}
 
 	var flavorFailures []string
+	var incompletePasses []string
 	outputReady := true
 	for index := range plan.Passes {
 		pass := &plan.Passes[index]
@@ -771,20 +779,23 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 		}
 		code, runErr := r.ops.stream(r.ctx, pass.Command, r.root, pass.Environment, watch)
 		result.Code = code
-		if code != 0 {
-			if report.Code == 0 {
-				report.Code = code
-			}
-			if pass.Name != passHost && pass.Name != passLinuxIntegration {
-				flavorFailures = append(flavorFailures, pass.Name)
-			}
+		if code != 0 && report.Code == 0 {
+			report.Code = code
 		}
-		if runErr != nil {
-			result.Error = runErr.Error()
-			if writeErr := writeLintf(os.Stderr, "lint: cannot run %s: %v\n", pass.Name, runErr); writeErr != nil {
+		incomplete := passIncomplete(code, runErr)
+		if incomplete != "" {
+			// A pass that did not complete collected no findings, so its silence
+			// is not a clean result. It is named apart from findings, and it is
+			// named for the host passes too, because nothing else would say it.
+			result.Error = incomplete
+			incompletePasses = append(incompletePasses, pass.Name)
+			if writeErr := writeLintf(os.Stderr, "lint: %s did not complete: %s\n", pass.Name, incomplete); writeErr != nil {
 				recordLintOutputError(&report, "write child-start diagnostic", writeErr)
 				outputReady = false
 			}
+		}
+		if code == lintFindings && incomplete == "" && pass.Name != passHost && pass.Name != passLinuxIntegration {
+			flavorFailures = append(flavorFailures, pass.Name)
 		}
 		report.Passes = append(report.Passes, result)
 		if !outputReady {
@@ -802,8 +813,14 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 		report.Code = plan.Coverage.Code
 	}
 	if outputReady && len(flavorFailures) != 0 {
-		if err := writeLintf(os.Stderr, "lint_flavors: failed: %s\n", strings.Join(flavorFailures, ", ")); err != nil {
+		if err := writeLintf(os.Stderr, "lint_flavors: findings in: %s\n", strings.Join(flavorFailures, ", ")); err != nil {
 			recordLintOutputError(&report, "write flavor-failure diagnostic", err)
+			outputReady = false
+		}
+	}
+	if outputReady && len(incompletePasses) != 0 {
+		if err := writeLintf(os.Stderr, "lint: %d pass(es) did not complete and linted nothing: %s. Fix the cause printed above and rerun ./le go lint run.\n", len(incompletePasses), strings.Join(incompletePasses, ", ")); err != nil {
+			recordLintOutputError(&report, "write incomplete-pass diagnostic", err)
 			outputReady = false
 		}
 	}
@@ -822,6 +839,26 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 		}
 	}
 	return report, report.Code
+}
+
+// passIncomplete names why a lint child produced no verdict, and answers ""
+// when it ran to the end. golangci-lint exits lintFindings when it reported
+// findings; every other non-zero code (a failed package load, such as `go`
+// missing from PATH, a timeout, a bad configuration) means it stopped before
+// linting, as does a child that never started.
+func passIncomplete(code int, runErr error) string {
+	if runErr != nil {
+		var text textbuf.Buffer
+		return text.Str("could not start: ").Err(runErr).String()
+	}
+	if code == 0 {
+		return ""
+	}
+	if code == lintFindings {
+		return ""
+	}
+	var text textbuf.Buffer
+	return text.Str("golangci-lint exited ").Int(int64(code)).Str(" without reporting findings").String()
 }
 
 func announcePass(pass *PassPlan) error {
