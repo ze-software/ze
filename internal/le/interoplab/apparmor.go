@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: kernelcheck.go -- the kernel probe, the first container run under a Ze profile
 // Related: register_apparmor.go -- the kernel probe's registration
-// Related: ../setup/dockerkernel_apparmor.go -- the action that loads a registered profile
+// Related: ../setup/dockerkernel/dockerkernel_apparmor.go -- the action that loads a registered profile
 //
 // A lab container that needs more than Docker's docker-default AppArmor
 // profile grants runs under a Ze profile that grants exactly that, never

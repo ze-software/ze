@@ -1,4 +1,4 @@
-package setup
+package dockerkernel
 
 import (
 	"bytes"

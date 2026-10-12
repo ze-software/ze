@@ -2,7 +2,7 @@
 // Related: run.go -- the guest boot this action plans
 // Related: guestle.go -- the guest le that runs the check and the lab
 // Related: ../deployment/gokrazyimage.go -- RuntimeKernelCacheDir, where the booted kernel is cached
-// Related: ../../setup/dockerkernel.go -- `setup docker-kernel check`, run inside the guest
+// Related: ../../setup/dockerkernel/dockerkernel.go -- `setup docker-kernel check`, run inside the guest
 //
 // dockerlab.go is the one path the Mac (HVF, arm64) and the scheduled nightly
 // (KVM, amd64) share for a Docker lab that runs Ze (owner D-6): boot the Alpine

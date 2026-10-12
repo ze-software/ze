@@ -526,7 +526,7 @@ reinstall replaces: it removes `/lib/modules/<release>` and
 the new modules inside the old tree. It prints each `sudo` step before it runs
 it, and never reboots. Off Linux it refuses and names the guest
 route, `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).
-<!-- source: internal/le/setup/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall -->
+<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- BuildLinuxZe, GuestZeRel -->
 <!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute -->
 

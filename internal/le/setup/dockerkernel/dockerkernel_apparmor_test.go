@@ -7,7 +7,7 @@
 // generic lab profile ze-lab-net-sysctl, so the registry holds more than the
 // probe's profile, as it does in the le binary.
 
-package setup
+package dockerkernel
 
 import (
 	"os"

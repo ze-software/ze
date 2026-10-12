@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: dockerkernel.go -- the area this verb belongs to
-// Related: ../interoplab/apparmor.go -- the profile registry, and the load command its refusals name
-// Related: ../../component/kernelcap/apparmor.go -- DockerDefaultProfile, the base of every profile
+// Related: ../../interoplab/apparmor.go -- the profile registry, and the load command its refusals name
+// Related: ../../../component/kernelcap/apparmor.go -- DockerDefaultProfile, the base of every profile
 //
 // `le setup docker-kernel apparmor` loads a Ze AppArmor profile on a Linux
 // Docker host whose daemon applies AppArmor (D-7). A lab container that needs
@@ -14,7 +14,7 @@
 // loaded with apparmor_parser through sudo, one printed step at a time, only
 // after the operator confirms the profile by name.
 
-package setup
+package dockerkernel
 
 import (
 	"errors"

@@ -75,6 +75,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/scratch"
 	_ "github.com/ze-software/ze/internal/le/session"
 	_ "github.com/ze-software/ze/internal/le/setup"
+	_ "github.com/ze-software/ze/internal/le/setup/dockerkernel"
 	_ "github.com/ze-software/ze/internal/le/site"
 	_ "github.com/ze-software/ze/internal/le/site/facts"
 	_ "github.com/ze-software/ze/internal/le/site/terminaldemo"

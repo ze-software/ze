@@ -1,8 +1,8 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
-// Related: register.go -- registers this area beside `setup`
-// Related: ../interoplab/kernelcheck.go -- DockerKernel, the check `check` runs
-// Related: ../test/qemu/dockerlab.go -- the macOS route, which runs `check` in the guest, and BuildLinuxZe, the ze `check` probes with
-// Related: ../test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir, the kernel `install` places
+// Related: register.go -- registers this area, a member of the `setup` namespace
+// Related: ../../interoplab/kernelcheck.go -- DockerKernel, the check `check` runs
+// Related: ../../test/qemu/dockerlab.go -- the macOS route, which runs `check` in the guest, and BuildLinuxZe, the ze `check` probes with
+// Related: ../../test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir, the kernel `install` places
 //
 // dockerkernel.go is `le setup docker-kernel`: the Docker daemon's kernel must
 // carry every feature Ze enrolls (owner D-4). `check` asks the daemon in hand.
@@ -15,7 +15,7 @@
 // macOS the labs run inside the Ze-kernel QEMU guest instead, so `install`
 // refuses there and names that route.
 
-package setup
+package dockerkernel
 
 import (
 	"context"
@@ -186,6 +186,14 @@ const (
 // mode in one step. It is not the `install` verb of this action.
 const installBinary = "install"
 
+// sudoBin is the route to root every install step takes. Each step runs
+// through it on its own, so the operator sees one root command at a time.
+const sudoBin = "sudo"
+
+// osLinux is the one platform either root action runs on, spelled the way
+// runtime.GOOS does.
+const osLinux = "linux"
+
 // elfMachines maps the GOARCH a Docker daemon reports to the ELF machine a Go
 // build for it carries. An architecture missing here is refused by name, never
 // passed unchecked.
@@ -308,7 +316,7 @@ func runDockerKernelInstall(args leaction.Arguments) (any, int) {
 // dockerKernelInstallPlatform refuses every platform but Linux, naming the
 // route the Mac takes instead (D-6).
 func dockerKernelInstallPlatform(goos string) error {
-	if goos == "linux" {
+	if goos == osLinux {
 		return nil
 	}
 	var tb textbuf.Buffer

@@ -163,7 +163,7 @@ from the cache entry's emitted `config` and refuses a release that does not end
 with it, because a reinstall removes the trees it replaces. The QEMU guest
 release check accepts the suffixed release.
 <!-- source: gokrazy/kernel/runtime.config -- CONFIG_LOCALVERSION -->
-<!-- source: internal/le/setup/dockerkernel.go -- cachedKernelRelease, kernelLocalVersion -->
+<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- cachedKernelRelease, kernelLocalVersion -->
 <!-- source: internal/le/test/qemu/run_exec.go -- Run.assertRuntimeKernel -->
 
 

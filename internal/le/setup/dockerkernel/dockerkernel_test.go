@@ -1,4 +1,4 @@
-package setup
+package dockerkernel
 
 import (
 	"os"
@@ -141,7 +141,7 @@ func TestDockerKernelReleaseNeedsTheZeSuffix(t *testing.T) {
 // PREVENTS: the install refusing every kernel Ze builds, or a build that
 // ships a bare upstream release name.
 func TestRuntimeKernelConfigDeclaresALocalVersion(t *testing.T) {
-	config, err := os.ReadFile(filepath.Join("..", "..", "..", "gokrazy", "kernel", "runtime.config"))
+	config, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "gokrazy", "kernel", "runtime.config"))
 	if err != nil {
 		t.Fatalf("read runtime.config: %v", err)
 	}
