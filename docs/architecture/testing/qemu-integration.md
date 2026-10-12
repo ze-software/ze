@@ -338,7 +338,16 @@ the guest mounts at the link's own absolute target before it touches
 setup line, and `guestSetup` plus `qemuArgs` in the kernel builder do the same
 for `ze appliance kernel --builder qemu`, whose worker binary and runtime output
 both sit under `/workspace/tmp`.
+
+`./le test qemu run` also exports the checkout's `cache` link, tagged
+`zescratch-cache`, when `./le scratch links-ensure` made it a symlink
+(`cacheShare` in `internal/le/test/qemu/run.go`). Every le-driven Go build sets `GOCACHE` to
+`cache/go-cache`, whatever the guest exported, so a lab that cross-compiles
+inside the guest, as `docker-lab` does when its lab stages ze, otherwise meets
+the link dangling and stops with `mkdir /workspace/cache: file exists`. The
+kernel builder runs no le-driven build in its guest and takes no cache share.
 <!-- source: internal/core/tmplink/tmplink.go -- Shares -->
+<!-- source: internal/le/test/qemu/run.go -- cacheShare -->
 <!-- source: internal/le/test/qemu/run.go -- Run.scratchShares -->
 <!-- source: internal/appliance/kernelbuilder/recipe.go -- guestSetup -->
 

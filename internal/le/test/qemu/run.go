@@ -18,6 +18,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -532,14 +533,64 @@ func (r *Run) arm64BIOS() (string, error) {
 }
 
 // scratchShares answers the 9p exports the guest needs to follow the checkout
-// tmp symlinks it meets under /workspace: tmp itself, or the relocated
-// children of a real tmp (internal/core/tmplink, Shares).
+// symlinks it meets under /workspace: tmp itself, or the relocated children
+// of a real tmp (internal/core/tmplink, Shares), and the cache link the Go
+// build cache lives behind (cacheShare).
 func (r *Run) scratchShares() ([]tmplink.Share, error) {
 	shares, err := tmplink.Shares(r.Tree, "/workspace")
 	if err != nil {
 		return nil, fmt.Errorf("find the tmp directories relocated out of the checkout: %w", err)
 	}
+	cache, linked, err := cacheShare(r.Tree)
+	if err != nil {
+		return nil, fmt.Errorf("find the build cache relocated out of the checkout: %w", err)
+	}
+	if linked {
+		shares = append(shares, cache)
+	}
 	return shares, nil
+}
+
+// cacheShareTag is the virtfs mount_tag of the cache export. tmplink's tags
+// are "zescratch" and "zescratch-<Migratable child>", and "cache" is not one.
+const cacheShareTag = "zescratch-cache"
+
+// cacheShare answers the export a guest needs to follow the checkout's `cache`
+// symlink (`./le scratch links-ensure` points it out of tree), and false when
+// cache is absent or a real directory, which the workspace share already
+// carries. Every le-driven Go build sets GOCACHE to cache/go-cache
+// (internal/le/go/toolchain, GoCache) whatever the guest exported, so a lab
+// that cross-compiles inside the guest (`le test qemu docker-lab`) meets the
+// link dangling and fails with "mkdir /workspace/cache: file exists".
+//
+// It lives here rather than in tmplink because the kernel builder imports
+// tmplink and runs no le-driven build in its guest: an edit there changes the
+// runtime-kernel cache identity for no behavior of the kernel's.
+func cacheShare(tree string) (tmplink.Share, bool, error) {
+	link := filepath.Join(tree, "cache")
+	info, err := os.Lstat(link)
+	if errors.Is(err, os.ErrNotExist) {
+		return tmplink.Share{}, false, nil
+	}
+	if err != nil {
+		return tmplink.Share{}, false, err
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		return tmplink.Share{}, false, nil
+	}
+	target, err := os.Readlink(link)
+	if err != nil {
+		return tmplink.Share{}, false, err
+	}
+	host, err := filepath.EvalSymlinks(link)
+	if err != nil {
+		return tmplink.Share{}, false, fmt.Errorf("resolve %s: %w", link, err)
+	}
+	guest := target
+	if !filepath.IsAbs(target) {
+		guest = path.Clean(path.Join(GuestWorkspace, filepath.ToSlash(target)))
+	}
+	return tmplink.Share{Tag: cacheShareTag, Host: host, Guest: guest}, true, nil
 }
 
 func (r *Run) virtfsArgs() ([]string, error) {
