@@ -36,7 +36,7 @@
 3 internal/component/bgp/plugins/adj_rib_in/rib_commands.go
 1 internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go
 1 internal/component/bgp/plugins/bmp/sender_config.go
-4 internal/component/bgp/plugins/cmd/update/update_text.go
+6 internal/component/bgp/plugins/cmd/update/update_text.go
 2 internal/component/bgp/plugins/cmd/update/update_text_evpn.go
 1 internal/component/bgp/plugins/cmd/update/update_text_nlri.go
 2 internal/component/bgp/plugins/cmd/update/update_text_srpolicy.go
@@ -72,6 +72,7 @@
 1 internal/component/config/loader_redistribute.go
 1 internal/component/config/schema.go
 1 internal/component/config/validators.go
+1 internal/component/config/yang/enum_assignment.go
 2 internal/component/doctor/checks_as112_coordination.go
 7 internal/component/firewall/config.go
 1 internal/component/firewall/plugins/domain/config.go
