@@ -103,7 +103,7 @@ system {
 // committed config. A handler that ignores the body answers what a handler that
 // applies it answers, and one fixture then covers both. It is urlencoded
 // because readUploadedConfig accepts a form field.
-const webUploadedConfig = "bgp+%7B%0A++++router-id+5.6.7.8%0A%7D%0A"
+const webUploadedConfig = "bgp+%7B%0A++++router-id+5.6.7.8%0A++++session+%7B+asn+%7B+local+65000%3B+%7D+%7D%0A%7D%0A"
 
 // webGoldenDispatch answers the commands the pages issue with fixed output.
 // The bytes a page renders then depend on the page, not on a running daemon.

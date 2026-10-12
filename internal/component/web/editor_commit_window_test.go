@@ -17,6 +17,10 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
+// windowCommittedConfig is the config the window tests start from: bgp
+// router-id and session asn local are mandatory (RFC 7950 Section 7.6.5).
+const windowCommittedConfig = "bgp {\n\trouter-id 10.0.0.250\n\tsession {\n\t\tasn {\n\t\t\tlocal 64999\n\t\t}\n\t}\n}\n"
+
 // nopRecorder persists nothing: these tests never restart the daemon.
 type nopRecorder struct{}
 
@@ -25,9 +29,12 @@ func (nopRecorder) Clear() error               { return nil }
 
 // newWindowEditorManager is a promoting manager wired to a daemon window whose
 // revert stages the rollback and promotes it, as the hub's confirmRevert does.
+// The committed config carries the bgp leaves YANG marks mandatory, with values
+// no test sets, so a commit that changes one bgp leaf passes validation and the
+// window decides it.
 func newWindowEditorManager(t *testing.T) (*EditorManager, *config.Schema, *confirm.Window) {
 	t.Helper()
-	mgr, schema := newPromotingEditorManager(t)
+	mgr, schema := newPromotingEditorManagerOver(t, windowCommittedConfig)
 	window := confirm.NewWindow(func(rollback []byte) error {
 		if _, err := storage.WriteCandidateVersion(mgr.store, mgr.configPath, rollback, time.Now()); err != nil {
 			return err

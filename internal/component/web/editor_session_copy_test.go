@@ -39,9 +39,16 @@ func TestWebSessionCopyAfterCommit(t *testing.T) {
 // hook that promotes the candidate.
 func newPromotingEditorManager(t *testing.T) (*EditorManager, *config.Schema) {
 	t.Helper()
+	return newPromotingEditorManagerOver(t, "# ze config\n")
+}
+
+// newPromotingEditorManagerOver is newPromotingEditorManager over a committed
+// config of the caller's choosing.
+func newPromotingEditorManagerOver(t *testing.T, committed string) (*EditorManager, *config.Schema) {
+	t.Helper()
 	installPeerValidator(t, func(*config.Tree) error { return nil })
 	configPath := filepath.Join(t.TempDir(), "test.conf")
-	require.NoError(t, os.WriteFile(configPath, []byte("# ze config\n"), 0o600))
+	require.NoError(t, os.WriteFile(configPath, []byte(committed), 0o600))
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
