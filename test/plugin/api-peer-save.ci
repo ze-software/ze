@@ -24,6 +24,9 @@ plugin {
 }
 
 bgp {
+	# A peer created at runtime carries no router-id, so the saved file
+	# needs the global one (mandatory, RFC 7950 Section 7.6.5).
+	router-id 1.2.3.4
 	peer peer1 {
 		connection {
 			remote {

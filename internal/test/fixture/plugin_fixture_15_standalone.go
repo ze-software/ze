@@ -87,6 +87,8 @@ func plugin15RPKIPipeSummary(ctx context.Context, _ []string) error {
 }
 
 bgp {
+    router-id 203.0.113.253;
+    session { asn { local 65000; } }
     rpki {
         cache-server 127.0.0.1 {
             trusted-network true
@@ -291,6 +293,7 @@ func plugin15StreamAnswerTable(ctx context.Context, args []string) error {
 }
 
 bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {

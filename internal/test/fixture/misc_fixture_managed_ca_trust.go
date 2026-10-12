@@ -336,7 +336,7 @@ func caTrustHubConfig(pluginPort, managedPort int, exportPath string) string {
 	b.Str("    external ca-export { run \"le test fixture managed/hub-ca-export -out ").Str(exportPath).
 		Str("\"; encoder json; }\n")
 	b.Str("}\n")
-	b.Str("bgp {\n    router-id 10.0.0.1\n}\n")
+	b.Str("bgp {\n    session { asn { local 65000; } }\n    router-id 10.0.0.1\n}\n")
 	return b.String()
 }
 
@@ -352,7 +352,7 @@ func caTrustClientConfig(managedPort int, routerID, anchorPEM string) string {
 		Str(strconv.Itoa(managedPort)).Str("; secret \"").Str(caTrustClientSecret).
 		Str("\"; ca ").Str(caTrustAnchorName).Str("; }\n")
 	b.Str("    }\n}\n")
-	b.Str("bgp {\n    router-id ").Str(routerID).Str("\n}\n")
+	b.Str("bgp {\n    router-id ").Str(routerID).Str("\n    session { asn { local 65000; } }\n}\n")
 	return b.String()
 }
 

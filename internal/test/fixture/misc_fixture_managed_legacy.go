@@ -16,6 +16,7 @@ func init() {
 }
 
 const managedCachedBase = `bgp {
+ router-id 203.0.113.253;
  peer p1 {
   connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; } }
   session { asn { local 65000; remote 65001; } router-id 1.2.3.4; }

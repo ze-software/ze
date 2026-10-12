@@ -27,6 +27,7 @@ bfd {
 	}
 }
 bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			local {
@@ -100,6 +101,7 @@ bfd {
 	}
 }
 bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			local {

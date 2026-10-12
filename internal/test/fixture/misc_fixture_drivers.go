@@ -131,7 +131,7 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 		return commandOutput(ctx, work, env, "", name, args...)
 	}
 	configPath := filepath.Join(work, "pipe-local.conf")
-	config := "environment {\n    cli {\n        format {\n            default table;\n        }\n    }\n}\nbgp {\n}\n"
+	config := "environment {\n    cli {\n        format {\n            default table;\n        }\n    }\n}\nbgp {\n    router-id 203.0.113.253;\n    session { asn { local 65000; } }\n}\n"
 	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return err
 	}

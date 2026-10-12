@@ -241,7 +241,7 @@ func storageInitFromBlob(ctx context.Context) error {
 		zefs.KeyLocalAdminUsername.Pattern: []byte(storageSeedUser),
 		zefs.KeyLocalAdminPassword.Pattern: []byte("$2a$10$seedhash"),
 		zefs.KeyInstanceName.Pattern:       []byte("seeded-router"),
-		zefs.KeyFileActive.Key("ze.conf"):  []byte("bgp { router-id 10.0.0.1; }\n"),
+		zefs.KeyFileActive.Key("ze.conf"):  []byte("bgp { session { asn { local 65000; } } router-id 10.0.0.1; }\n"),
 	}
 	blob, err := storage.CreateBlobPopulated("database.zefs", func(seed storage.Storage) error {
 		for key, value := range values {
@@ -668,7 +668,7 @@ func storageBackupScenario(ctx context.Context) error {
 	historyDigest := fmt.Sprintf("%x", sha256.Sum256([]byte("history")))
 	values := map[string][]byte{
 		"meta/ssh/default":                []byte("127.0.0.1/2222"),
-		"file/active/router.conf":         []byte("bgp { }\n"),
+		"file/active/router.conf":         []byte("bgp { router-id 203.0.113.253; session { asn { local 65000; } } }\n"),
 		"file/20260926-101500.000/r.conf": []byte("sha256:" + historyDigest),
 		"object/" + historyDigest:         []byte("history"),
 		"future/ab/cdef":                  []byte("future namespace"),
@@ -860,7 +860,7 @@ func storageExplicitRestart(ctx context.Context) error {
 }
 
 func storageOfflineScenario(ctx context.Context) error {
-	if err := os.WriteFile("router.conf", []byte("bgp { router-id 1.2.3.4; }\n"), 0o600); err != nil {
+	if err := os.WriteFile("router.conf", []byte("bgp { session { asn { local 65000; } } router-id 1.2.3.4; }\n"), 0o600); err != nil {
 		return err
 	}
 	if _, err := storageRequireCommand(ctx, "", "config", "set", "router.conf", "bgp", "router-id", "5.6.7.8"); err != nil {

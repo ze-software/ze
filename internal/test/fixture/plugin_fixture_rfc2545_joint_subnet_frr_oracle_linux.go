@@ -45,6 +45,7 @@ const jointSubnetFRRZeConfig = `plugin {
  internal rs { use bgp-rs; }
 }
 bgp {
+ router-id 203.0.113.253;
  peer inject {
   connection { remote { ip GLOBAL; port PORT; } local { ip SOURCE_LOCAL; accept false; } }
   session {

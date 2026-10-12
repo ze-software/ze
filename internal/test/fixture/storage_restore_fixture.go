@@ -160,7 +160,7 @@ func storageRestoreFullScenario(ctx context.Context) error {
 	historyDigest := fmt.Sprintf("%x", sha256.Sum256([]byte("history")))
 	backup := map[string][]byte{
 		zefs.KeySSHDefault.Pattern:        []byte(storageRestoreEndpoint),
-		storageKeyActive:                  []byte("bgp { }\n"),
+		storageKeyActive:                  []byte("bgp { router-id 203.0.113.253; session { asn { local 65000; } } }\n"),
 		storageKeyPassword:                {0, 1, 2, 0xff},
 		"custom/unregistered/nested/key":  []byte("unknown keys survive"),
 		"file/20260926-101500.000/r.conf": []byte("sha256:" + historyDigest),
@@ -388,7 +388,7 @@ func storageInterruptedRestore(dir, state string, old, backup map[string][]byte)
 func storageRestoreResumeScenario(ctx context.Context) error {
 	old := map[string][]byte{storageKeyActive: []byte("old config\n")}
 	backup := map[string][]byte{
-		storageKeyActive:   []byte("bgp { }\n"),
+		storageKeyActive:   []byte("bgp { router-id 203.0.113.253; session { asn { local 65000; } } }\n"),
 		storageKeyPassword: []byte("restored"),
 	}
 	for _, state := range []string{storageStatePreMove, storageStateAbsent, storageStatePublished, storageStateUnrelated} {
@@ -451,7 +451,7 @@ func storageRestoreConfigScenario(ctx context.Context) error {
 		return err
 	}
 	if err := storageWriteBlob("backup.zefs", map[string][]byte{
-		"file/active/" + device: []byte("bgp { }\n"),
+		"file/active/" + device: []byte("bgp { router-id 203.0.113.253; session { asn { local 65000; } } }\n"),
 		storageKeyPassword:      []byte("artifact secret"),
 	}); err != nil {
 		return err
@@ -469,7 +469,7 @@ func storageRestoreConfigScenario(ctx context.Context) error {
 	}
 	defer store.Close() //nolint:errcheck // read-only comparison.
 	for key, want := range map[string]string{
-		"file/active/" + device:    "bgp { }\n",
+		"file/active/" + device:    "bgp { router-id 203.0.113.253; session { asn { local 65000; } } }\n",
 		storageKeyPassword:         "device secret",
 		zefs.KeySSHDefault.Pattern: storageRestoreEndpoint,
 	} {

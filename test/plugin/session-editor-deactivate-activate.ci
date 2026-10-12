@@ -28,6 +28,8 @@ environment {
     }
 }
 
+# Each peer carries its own router-id, so the config stays valid while the
+# global one is deactivated (a mandatory leaf, RFC 7950 Section 7.6.5).
 bgp {
     router-id 1.2.3.4
     session {
@@ -46,6 +48,7 @@ bgp {
             }
         }
         session {
+            router-id 10.0.0.1
             asn {
                 remote 65001
             }
@@ -62,6 +65,7 @@ bgp {
             }
         }
         session {
+            router-id 10.0.0.1
             asn {
                 remote 65002
             }

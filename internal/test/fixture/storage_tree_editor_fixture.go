@@ -33,7 +33,7 @@ func storageExplicitEditorAuthority(ctx context.Context, _ []string) error {
  authorization { profile admin { run { default-action allow; } edit { default-action allow; } } }
 }
 environment { ssh { enabled true; server main { ip 127.0.0.1; port %d; } } }
-bgp { router-id 1.2.3.4; }
+bgp { session { asn { local 65000; } } router-id 1.2.3.4; }
 `, port)
 	path, err := filepath.Abs("cli-commit.conf")
 	if err != nil {

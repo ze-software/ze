@@ -47,6 +47,7 @@ func extra1AS112ProbeAnycast(ctx context.Context, args []string) error {
 	}
 	config := fmt.Sprintf(`service { as112 { enabled true } }
 bgp {
+	router-id 203.0.113.253;
 	healthcheck {
 		probe as112check {
 			command "le test fixture plugin/as112-probe-anycast-not-loopback-probe %s"

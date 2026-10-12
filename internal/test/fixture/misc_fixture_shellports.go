@@ -215,7 +215,7 @@ func radiusSecretRotationDriver(ctx context.Context, args []string) error {
 	defer os.RemoveAll(daemonDir) //nolint:errcheck // fixture cleanup
 	bgpPort := 10000 + os.Getpid()%20000
 	config := func(key string) string {
-		return fmt.Sprintf("bgp { peer peer1 { connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } } session { asn { local 65533; remote 65533; } } } }\nsystem { authentication { radius { server %s { port %s; key %q; } timeout 2; } } authorization { profile admin { run { default-action allow; } edit { default-action allow; } } } }\nenvironment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }\n", host, port, key)
+		return fmt.Sprintf("bgp { router-id 203.0.113.253; peer peer1 { connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } } session { asn { local 65533; remote 65533; } } } }\nsystem { authentication { radius { server %s { port %s; key %q; } timeout 2; } } authorization { profile admin { run { default-action allow; } edit { default-action allow; } } } }\nenvironment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }\n", host, port, key)
 	}
 	path := "reload-aaa-radius-rotation.conf"
 	if err := os.WriteFile(path, []byte(config("wrong-key")), 0o600); err != nil {

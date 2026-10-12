@@ -27,6 +27,7 @@ func extra1RadiusAdmin(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "mock at %s\n", address)
 	config := fmt.Sprintf(`bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
 		session { asn { local 65533; remote 65533; } }
@@ -83,6 +84,7 @@ func extra1RadiusFallback(ctx context.Context, args []string) error {
 		return err
 	}
 	config := fmt.Sprintf(`bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
 		session { asn { local 65533; remote 65533; } }
@@ -139,6 +141,7 @@ func extra1AnswerUnknownCommand(ctx context.Context, args []string) error {
 		return err
 	}
 	config := fmt.Sprintf(`bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
 		session { asn { local 65533; remote 65533; } }
@@ -208,6 +211,7 @@ func extra1RadiusChap(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "mock at %s\n", address)
 	config := fmt.Sprintf(`bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
 		session { asn { local 65533; remote 65533; } }
@@ -294,6 +298,7 @@ func extra1RadiusEap(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "mock at %s\n", address)
 	config := fmt.Sprintf(`bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
 		session { asn { local 65533; remote 65533; } }

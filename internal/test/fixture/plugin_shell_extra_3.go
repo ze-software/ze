@@ -353,6 +353,7 @@ func pluginCLIDebugExtra3(ctx context.Context, args []string) error {
 }
 
 const sshPubkeyConfigExtra3 = `bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection { remote { ip 127.0.0.1 } local { ip 127.0.0.1; accept false } }
 		session { asn { local 65533; remote 65533 } }

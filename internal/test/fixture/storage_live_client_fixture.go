@@ -171,7 +171,7 @@ func restoreClientHubConfig(sshPort, pluginPort, managedPort string) string {
 		Str("; secret \"").Str(caTrustHubSecret).Str("\";\n")
 	b.Str("            client ").Str(caTrustClientName).Str(" { secret \"").Str(caTrustClientSecret).Str("\"; }\n")
 	b.Str("        }\n    }\n}\n")
-	b.Str("bgp {\n    router-id 10.0.0.1\n}\n")
+	b.Str("bgp {\n    session { asn { local 65000; } }\n    router-id 10.0.0.1\n}\n")
 	return b.String()
 }
 
@@ -182,6 +182,6 @@ func restoreClientConfig(managedPort, routerID string) string {
 	b.Str("        client ").Str(caTrustClientName).Str(" { host 127.0.0.1; port ").Str(managedPort).
 		Str("; secret \"").Str(caTrustClientSecret).Str("\"; }\n")
 	b.Str("    }\n}\n")
-	b.Str("bgp {\n    router-id ").Str(routerID).Str("\n}\n")
+	b.Str("bgp {\n    router-id ").Str(routerID).Str("\n    session { asn { local 65000; } }\n}\n")
 	return b.String()
 }

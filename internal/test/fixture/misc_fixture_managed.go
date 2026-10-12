@@ -201,8 +201,8 @@ func managedConfig(routerID string, hubPort, pluginPort int, reject bool) string
 	}
 	builder.Str("}\n")
 	fmt.Fprintf(&builder, "bgp {\n  router-id %s\n", routerID)
+	builder.Str("  session { asn { local 1; } }\n")
 	if reject {
-		builder.Str("  session { asn { local 1; } }\n")
 		builder.Str("  peer peer1 {\n")
 		builder.Str("    connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }\n")
 		builder.Str("    session { asn { remote 1; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } }\n")
