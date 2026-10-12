@@ -2,13 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | verification |
 | Scope | plugin |
 | Depends | - |
 | Phase | 6/6 |
 | Handoff | verify |
-| Updated | 2026-09-19 |
-| Blocker | AC-5 guest proof and the recorded closure pause need resolution |
+| Updated | 2026-10-12 |
 
 <!-- Handoff `verify`: the implementation session commits the work, sets Status to
      `verification` and stops. A later session reviews that commit and closes, on Opus when the model is an Anthropic one. -->
@@ -21,8 +20,8 @@ This spec bounds each traffic VPP binary-API reply so a request that receives
 no answer cannot hold the backend for the life of the process. The
 implementation is present: `(*backend).Apply` calls
 `applyWithOps(newGovppOps(ch), desired)`, and `newGovppOps` installs the
-clamped reply deadline before returning the facade. The remaining proof and
-closure pause are recorded below.
+clamped reply deadline before returning the facade. The AC-5 guest proof ran
+on 2026-10-12 and is recorded below; the spec waits for its verification review.
 
 Before the fix, Apply built an inline `&govppOps{ch: ch}` and installed no
 deadline. A fresh govpp channel kept `core.DefaultReplyTimeout`, which is zero;
@@ -291,7 +290,7 @@ any wire; it installs a client-side deadline.
 ## Files to Modify
 
 - `internal/plugins/traffic/vpp/backend_linux.go` - the last statement of `(*backend).Apply` uses the constructor instead of the inline `&govppOps{ch: ch}` literal. Its `// Design:` annotation points at `docs/architecture/traffic/fw-7-traffic-vpp.md`, which describes the apply path and not the channel lifetime, so that doc needs no edit; the seam doc does.
-- `internal/le/qemu/alltests.go` - the current `unitPhase` runs the package population with `./...` and feature tags; AC-5 still requires evidence that the traffic VPP tests execute in the guest.
+- `internal/le/qemu/alltests.go` - the current `unitPhase` runs the package population with `./...` and feature tags; the 2026-10-12 guest run shows the traffic VPP tests executing there (AC-5 row).
 - `docs/architecture/traffic/fw-7b-backend-hardening.md` - the "The `vppOps` seam" section records that the production implementation is built by a constructor that binds the reply deadline, and why the binding sits there.
 
 ## Files to Create
@@ -360,7 +359,7 @@ any wire; it installs a client-side deadline.
 5. **Phase: documentation** -- the seam doc, and any stale source anchor the checklist grep finds.
    - Files: `docs/architecture/traffic/fw-7b-backend-hardening.md`
    - Verify: `./le doc check verify`
-6. **Full verification** - `./le verify worktree`, then the verification handoff once every required proof is complete. The recorded owner pause below must be resolved first.
+6. **Full verification** - `./le verify worktree`, then the verification handoff once every required proof is complete. The recorded pause was resolved on 2026-10-12 by the guest proof it named.
 
 ### Critical Review Checklist
 
@@ -498,12 +497,13 @@ Go release from `go.mod` through `goversion.DeclaredRelease`, and
 `allTestsRun.suiteCommand` uses the BusyBox-compatible `timeout -k` form.
 Reading those changes supplies no replacement run.
 
-AC-5 remains owned here, without a narrower substitute. The recorded owner
-pause must be resolved before closure: resume the guest proof on the repaired
-runner, or explicitly assign any newly reproduced infrastructure blocker
-without dropping the required guest execution. The constructor/clamp evidence
-below is historical evidence of that seam, not proof that a silent VPP replied
-or that the guest suite ran.
+AC-5 remained owned here, without a narrower substitute, and the recorded
+pause named its resolution: resume the guest proof on the repaired runner. That
+proof ran on 2026-10-12 (AC-5 row below): the unit phase and the integration
+phase of `./le test qemu all-tests` each printed
+`ok github.com/ze-software/ze/internal/plugins/traffic/vpp` inside the guest.
+The spec is handed to verification. The constructor/clamp evidence below is
+evidence of that seam, not proof that a silent VPP replied.
 
 ### What Was Implemented
 
@@ -523,7 +523,8 @@ or that the guest suite ran.
   own sources and fails on a `govppOps` built anywhere else, and on finding none.
 - The original QEMU integration list included the traffic package. The current
   `allTestsRun.unitPhase` in `internal/le/qemu/alltests.go` runs `./...` with
-  feature tags instead. AC-5 still needs a guest execution result.
+  feature tags instead. The 2026-10-12 guest run supplied the execution result
+  AC-5 needs (AC-5 row).
 
 ### Bugs Found/Fixed
 
@@ -585,7 +586,7 @@ and remaining ownership are stated in the closure verdict and Work Not Done.
 | AC-2 | Done | `TestVppReplyTimeoutBounds`, row "unset uses the default" | 10s |
 | AC-3 | Done | `TestVppReplyTimeoutBounds`, nine rows | `0s`, `-1s`, `500ms` clamp to 1s; `61s`, `10m` clamp to 60s; `not-a-duration` and empty fall back to 10s |
 | AC-4 | Done | a host binary compiled with the tag set `ze_core ze_vpp` prints at `env list`: `ze.traffic.vpp.reply-timeout  duration  10s  Bound on each VPP binary-API round-trip; ...` | the key is behind `ze_vpp` (`feature-gates.txt`), so a `ze_core`-only binary lists neither VPP knob |
-| AC-5 | BLOCKED by two QEMU gate defects | `./le test qemu run command "./le test qemu all-tests"`, run 2026-09-05 from this Linux workstation: exit 1, and `internal/plugins/traffic/vpp` appears NOWHERE in the output. The run printed 29 phase headers and executed no test at all. 28 functional suites returned the BusyBox usage text for `timeout`, and the unit phase died at `go: downloading go1.27.0 (linux/amd64)` followed by `error: command ssh exceeded its deadline` | Two defects, both in `internal/le/qemu/` and neither in this spec's code. `GoVersion` is 1.25.9 (`internal/le/qemu/run.go`, spent by `setupCommand`) against `go 1.27.0` in `go.mod`, which makes every guest `go` command fetch a toolchain and blow `DefaultCommandTimeout` in the same file; and `killAfterFlag` is `--kill-after=15s` (`internal/le/qemu/alltests.go`) against BusyBox 1.37.0 `timeout`, which takes only `-k KILL_SECS`. `./le go version-pin check` answers OK over 10 carriers and reads neither file. Recorded in `plan/journal/gate-excludes-part-of-its-population.md`, 2026-09-05. The Linux-only tests DO pass on a Linux host: `go test -count=1 -race ./internal/plugins/traffic/vpp/...` returns ok. What is unproven is the reach AC-5 asks for |
+| AC-5 | Done (2026-10-12) | `./le job run label qemu-ac5 command ./le test qemu run kernel ~/.cache/ze/runtime-kernel/7.2.9-runtime-amd64-runtime-docker-7c0d8f79-34cba457/vmlinuz packages "iproute2 libcap" timeout 4h command "ZE_BIN=bin/ze-linux-amd64-0c3648c8 ZE_STRIPPED_BIN=bin/ze-stripped-linux-amd64-0c3648c8 ./le test qemu all-tests"` on this Linux workstation under KVM, guest kernel `7.2.9` confirmed. The unit phase (`go test -timeout 20m -tags <feature tags> ./...`, `CGO_ENABLED=0`) printed `ok github.com/ze-software/ze/internal/plugins/traffic/vpp 0.157s`, not cached, and the integration phase printed `ok github.com/ze-software/ze/internal/plugins/traffic/vpp 0.216s`. The guest is Linux, so the `//go:build linux` files `timeout_linux.go` and `timeout_linux_test.go` compile there. The whole run exited 1 on other packages' reds (`phases: 33 ran, 1 skipped, 34 planned`; guest `signal: killed` builds, `cmd/ze` and three other packages at the 20m timeout, `ensureLoopbackAlias` in functional/encode); none names this package. Log: `tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/qemu-all-tests-3.log` | The command as AC-5 writes it does not reach the unit phase. The guest needs static `ze` and `ze-stripped`, and the checkout's `bin/ze` is a glibc build that `runnableInGuest` refuses (run 1). The binaries were built with `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build`, `ze` with `ze_core ze_distro ze_setup zetest` plus every `feature-gates.txt` gate and `ze-stripped` with `ze_core ze_ssh`, the tag sets `daemonBuildCommands` uses. Without `timeout`, the 1200s `DefaultCommandTimeout` ended run 2 in functional/reload. Journal: `plan/journal/gate-excludes-part-of-its-population.md`, 2026-10-12. Earlier attempt follows. Superseded 2026-09-05 record: `./le test qemu run command "./le test qemu all-tests"`, run 2026-09-05 from this Linux workstation: exit 1, and `internal/plugins/traffic/vpp` appears NOWHERE in the output. The run printed 29 phase headers and executed no test at all. 28 functional suites returned the BusyBox usage text for `timeout`, and the unit phase died at `go: downloading go1.27.0 (linux/amd64)` followed by `error: command ssh exceeded its deadline` | Two defects, both in `internal/le/qemu/` and neither in this spec's code. `GoVersion` is 1.25.9 (`internal/le/qemu/run.go`, spent by `setupCommand`) against `go 1.27.0` in `go.mod`, which makes every guest `go` command fetch a toolchain and blow `DefaultCommandTimeout` in the same file; and `killAfterFlag` is `--kill-after=15s` (`internal/le/qemu/alltests.go`) against BusyBox 1.37.0 `timeout`, which takes only `-k KILL_SECS`. `./le go version-pin check` answers OK over 10 carriers and reads neither file. Recorded in `plan/journal/gate-excludes-part-of-its-population.md`, 2026-09-05. The Linux-only tests DO pass on a Linux host: `go test -count=1 -race ./internal/plugins/traffic/vpp/...` returns ok. What is unproven is the reach AC-5 asks for |
 | AC-6 | Done | the RED block under TDD Test Plan, taken with `ch.SetReplyTimeout` deleted | the failure names the missing call, not a compile error |
 
 ### Tests from TDD Plan
@@ -612,10 +613,9 @@ and remaining ownership are stated in the closure verdict and Work Not Done.
 ### Audit Summary
 
 - **Total items:** 20
-- **Done:** 17
-- **Partial:** 1, AC-5. The September 5 run reached no tests. The current runner
-  changes do not supply a replacement execution result, and the owner pause
-  remains as stated in the closure verdict.
+- **Done:** 18. AC-5 joined on 2026-10-12: the guest run named
+  `internal/plugins/traffic/vpp` as `ok` in its unit and integration phases.
+- **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 2 (`ops.go` header, the QEMU list's file name) -- both in Deviations
 
@@ -626,13 +626,12 @@ and remaining ownership are stated in the closure verdict and Work Not Done.
 | A VPP that accepts a request and never answers no longer blocks the traffic backend for the life of the process | functional (unit, at the seam the package owns) | `TestNewGovppOpsBindsReplyTimeout` asserts the channel `Apply` sends on carries 3s, 10s, 1s and 60s for the four operator inputs, and fails on a value at or below zero. Shown RED with `ch.SetReplyTimeout` deleted (output under TDD). The wait itself is `receiveReplyInternal` inside vendored govpp, which no fake can stand in for, so the proof is bounded to the value installed |
 | No production path can skip the bound | ratchet test | `TestGovppOpsIsBuiltOnlyByItsConstructor` fails on a `govppOps` built outside `newGovppOps`, and fails again on finding none. Shown RED twice at implementation: once with the call site reverted to the inline literal, once with the constructor returning `nil` |
 | An operator can raise the bound without a rebuild | CLI output | A `ze_core ze_vpp` host binary prints the key, its `duration` type and its `10s` default at `env list`; `TestVppReplyTimeoutBounds` proves every operator input lands inside 1s..60s |
-| The Linux-only proof is reachable from any host | QEMU run | NOT ACHIEVED. `./le test qemu run command "./le test qemu all-tests"` reached no test at all on 2026-09-05 (exit 1). See the AC-5 row |
+| The Linux-only proof is reachable from any host | QEMU run | ACHIEVED 2026-10-12, with static guest binaries and `timeout 4h`: the guest's unit and integration phases each printed `ok github.com/ze-software/ze/internal/plugins/traffic/vpp`. See the AC-5 row for the command and the log |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| AC-5's proof: the package's Linux-only tests executing inside the QEMU guest | The recorded 2026-09-05 run executed no tests. The two cited runner causes have since changed, but no replacement proof is recorded here | `plan/immediate/spec-traffic-vpp-deferred-reply-timeout.md`; retained here until guest execution is demonstrated and the recorded closure pause is resolved |
 | An end-to-end proof that a wedged VPP unblocks: a stub mode that accepts a request and never answers it, plus an assertion that traffic apply returns an identifiable reply-timeout error within the configured bound and permits a subsequent apply | The wait is inside vendored govpp and the constructor proof observes the installed value only | `plan/spec-finish-vpp-stub.md`, AC-16. AC-11 remains the successful-Apply proof and cannot substitute for the withheld-reply case |
 | The reply deadline for `internal/plugins/iface/vpp`, `internal/plugins/fib/vpp` and `internal/plugins/static/vpp` | Different callers, different locks, different blast radii from traffic's | `plan/immediate/spec-vpp-reply-deadline-iface-fib-static.md` |
 | The reply deadline for `newVPPBackend` (`internal/component/ike/dataplane/vpp.go`), which holds one channel for the backend's lifetime | `newVPPBackend` and `Connector.NewChannel` still install no deadline. The finding is outside this traffic repair and has no approved destination | Owner decision remains open: assign a dedicated IKE deadline spec or explicitly extend an existing deadline owner. `plan/journal/guard-added-to-one-half-of-a-pair.md` preserves the discovery but is not a destination spec |
@@ -678,7 +677,7 @@ they are a journal row rather than a review finding (`ai/rules/pre-release.md`).
 | AC-1 | nothing else builds a facade | `grep -rn 'govppOps{' internal/plugins/traffic/vpp/` returns one construction, in `newGovppOps`; the other six hits are comments |
 | AC-2, AC-3 | the clamp | `./le job run label unit-trafficvpp command go test -count=1 -race ./internal/plugins/traffic/vpp/...` returned `ok github.com/ze-software/ze/internal/plugins/traffic/vpp 1.159s` |
 | AC-4 | the key reaches `ze env list` | a `ze_core ze_vpp` host binary prints `ze.traffic.vpp.reply-timeout  duration  10s  Bound on each VPP binary-API round-trip; ...` |
-| AC-5 | the package's tests run inside the VM | NOT DEMONSTRATED. See the AC-5 row of the Implementation Audit |
+| AC-5 | the package's tests run inside the VM | 2026-10-12 guest run: `ok github.com/ze-software/ze/internal/plugins/traffic/vpp 0.157s` (unit phase) and `0.216s` (integration phase). See the AC-5 row of the Implementation Audit |
 
 ### Wiring Verified (end-to-end)
 
@@ -686,7 +685,7 @@ they are a journal row rather than a review finding (`ai/rules/pre-release.md`).
 |-------------|----------|----------|
 | `(*backend).Apply` builds the facade | none (no `.ci` reaches this path; see Functional Tests) | `(*backend).Apply` read in full: `conn.NewChannel()` is the only channel acquisition in the package, and the last statement is `b.applyWithOps(newGovppOps(ch), desired)`. `(*Connector).NewChannel` (`internal/component/vpp/conn.go`) returns a nil channel only with a non-nil error, so the constructor never receives nil |
 | The operator sets the env key | none | `TestVppReplyTimeoutBounds` drives `vppReplyTimeout` over nine inputs; the `ze_vpp` binary's `env list` shows the key is served by the registry |
-| A non-Linux checkout runs the Linux-only suite | none | NOT VERIFIED. The QEMU route reaches no test today; see the AC-5 row |
+| A non-Linux checkout runs the Linux-only suite | none | VERIFIED 2026-10-12 through the QEMU guest, with the static binaries and `timeout` the AC-5 row names; see that row |
 
 ### Assumptions Resolved
 
