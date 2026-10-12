@@ -1,3 +1,4 @@
+// RFC naming: untagged -- Section 9.1.2.2 step (e), interior cost, has no MUST-level row in rfc/short/rfc4271.md to tag.
 package rib
 
 import (
