@@ -409,7 +409,7 @@ Deleted: `internal/component/config/yang/cli/tree_bgp.go`, `internal/component/b
 8. **Phase F: SR-Policy text** (32) -- write `TestSRPolicyTextMatchesPluginGrammar` over AC-11a to AC-11f first and record today's outcome for each row; validate A-8; then declare no ADD-PATH in the SR-Policy registration and refuse the whole command when it carries `path-information` alongside an SR-Policy section, make the encoder refuse `rd`/`label`, make the shared registry section parser refuse a later `add`/`del` for every registry family with the message AC-11b names, and delete the SAFI 73 branch, the two SAFI 73 case lists and `update_text_srpolicy.go`. AC-11a to AC-11g.
 9. **Phase G: pool-stats** (33) -- move handler and module into the rib owner; names declared beside the pools. AC-12.
 10. **Phase H: BFD capture seam** (34) -- interface and setter into `bfd/api`; diag reads it. AC-13.
-11. **Phase I: crash boot effect** (35) -- boot-effect field on `registry.Registration`; crashes registers it (A-9) with `HarvestAtBoot` and the not-writable warning; hub runs registered effects once between `applyHostTuning` and `startSmartManager` and drops `harvestKernelCrashes`. AC-14.
+11. **Phase I: crash boot effect** (35) -- boot-effect field on `registry.Registration`; crashes registers it (A-9) with `HarvestAtBoot` and the not-writable warning; hub runs registered effects once between `applyHostTuning` and `startSmartManager` and drops `harvestKernelCrashes`; update `plugins.snapshot` and `docs/features/plugins.md` with the one `crashes` row. AC-14, AC-16.
 12. Docs per checklist, in each phase. AC-1, AC-2 at the end.
 
 ### Critical Review Checklist
