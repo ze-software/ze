@@ -234,7 +234,9 @@ func (v *ConfigValidator) parseError(err error) ConfigValidationError {
 // ValidateWithYANG validates the parsed tree using YANG constraints.
 // Uses recursive ValidateTree for systematic validation of all leaves.
 // Group peers inherit group-level fields merged with peer-level fields.
-// Returns (errors, warnings). Mandatory-missing fields are warnings, value errors are errors.
+// Returns (errors, warnings). Value errors are errors, and so is a missing
+// mandatory leaf at the bgp global level. A missing mandatory leaf inside a
+// peer is a warning here, so it does not block editing.
 func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) ([]ConfigValidationError, []ConfigValidationError) {
 	return v.validateWithYANG(tree, "")
 }
@@ -276,30 +278,22 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 		delete(bgpMap, keyPeer)
 		delete(bgpMap, keyGroup)
 		yangErrs := v.yangValidator.ValidateTree("bgp", bgpMap)
+		// A missing mandatory global leaf refuses (RFC 7950 Section 7.6.5),
+		// unless every session resolves it from its group or itself: the
+		// owner's 2026-10-12 ruling, applied by config.EverySessionCarries so
+		// the editor and LoadConfig reach one verdict.
+		bgpData := bgp.ToMap()
 		for i := range yangErrs {
+			if yangErrs[i].Type == yang.ErrTypeMissing && config.EverySessionCarries(bgpData, yangErrs[i].Path) {
+				continue
+			}
 			field := yangLeafName(yangErrs[i].Path)
-			setPath := strings.ReplaceAll(yangErrs[i].Path, ".", " ")
 			var tb textbuf.Buffer
-			var msg string
-			if yangErrs[i].Type == yang.ErrTypeMissing {
-				msg = tb.Str("missing required field \"").Str(field).Str("\" (set ").Str(setPath).Str(" <value>)").String()
-			} else {
-				msg = tb.Reset().Str(field).Str(": ").Str(yangErrs[i].Message).String()
-			}
-			severity := severityError
-			if yangErrs[i].Type == yang.ErrTypeMissing {
-				severity = severityWarning
-			}
-			ve := ConfigValidationError{
+			errs = append(errs, ConfigValidationError{
 				Line:     findFieldLine(lines, "bgp", field),
-				Message:  msg,
-				Severity: severity,
-			}
-			if severity == severityWarning {
-				warns = append(warns, ve)
-			} else {
-				errs = append(errs, ve)
-			}
+				Message:  tb.Str(field).Str(": ").Str(yangErrs[i].Message).String(),
+				Severity: severityError,
+			})
 		}
 	}
 

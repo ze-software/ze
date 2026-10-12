@@ -53,10 +53,10 @@ func (tacacsBackend) Build(params aaa.BuildParams) (aaa.Contribution, error) {
 	// refuses one. Refusing here as well means the operator learns at load,
 	// with the address named, rather than at the first login attempt.
 	//
-	// The YANG `mandatory true` on the leaf reports the same absence, but
-	// SectionValidationError.Blocking grades a missing mandatory field a
-	// warning on purpose (validate_sections.go), so the schema alone lets the
-	// daemon start.
+	// The YANG `mandatory true` on the leaf refuses the same absence at load
+	// (RFC 7950 Section 7.6.5), so a config file never reaches this check with
+	// a keyless server. It stays because Build is the boundary every caller
+	// crosses, and a tree that skipped the schema check must still not send.
 	for _, srv := range cfg.Servers {
 		if len(srv.Key) == 0 {
 			return aaa.Contribution{}, fmt.Errorf("tacacs server %s: %w", srv.Address, ErrNoSharedSecret)

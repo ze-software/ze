@@ -320,8 +320,8 @@ func TestValidateTree_PatternViolation(t *testing.T) {
 
 	data := map[string]any{
 		"router-id": "not-an-ip",
-		"local": map[string]any{
-			"as": uint32(65001),
+		"session": map[string]any{
+			"asn": map[string]any{"local": uint32(65001)},
 		},
 	}
 
@@ -472,8 +472,8 @@ func TestValidateTree_NestedContainers(t *testing.T) {
 
 	data := map[string]any{
 		"router-id": "192.0.2.1",
-		"local": map[string]any{
-			"as": uint32(65001),
+		"session": map[string]any{
+			"asn": map[string]any{"local": uint32(65001)},
 		},
 		"peer": map[string]any{
 			"peer1": map[string]any{
@@ -508,8 +508,8 @@ func TestValidateTree_ListEntries(t *testing.T) {
 	// Two peers: one valid, one with invalid receive-hold-time
 	data := map[string]any{
 		"router-id": "192.0.2.1",
-		"local": map[string]any{
-			"as": uint32(65001),
+		"session": map[string]any{
+			"asn": map[string]any{"local": uint32(65001)},
 		},
 		"peer": map[string]any{
 			"peer1": map[string]any{

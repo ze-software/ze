@@ -93,12 +93,8 @@ module ze-tacacs-conf {
                                      conformant packet to send. Section 10.5.2 requires
                                      a shared secret and forbids a client to set
                                      TAC_PLUS_UNENCRYPTED_FLAG. Omitting the key refuses
-                                     a commit, through the AAA rebuild rather than
-                                     through the schema: a missing mandatory field is
-                                     only a warning. At BOOT the same failure is logged
-                                     and this backend is DROPPED from the chain. A user
-                                     who exists locally still logs in, and the local
-                                     profiles still govern the command. The leaf is
+                                     the config: a commit, a load and a boot all stop
+                                     on the missing mandatory field. The leaf is
                                      sensitive, so display paths mask it. Keys of 32
                                      characters or longer are supported. Use at least
                                      16 characters; doctor warns about shorter keys.

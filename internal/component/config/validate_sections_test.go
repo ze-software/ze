@@ -115,35 +115,6 @@ func TestLoadConfigAcceptsAValidConfigUnchanged(t *testing.T) {
 	}
 }
 
-// TestValidateCustomSectionsGradesMissingAsNonBlocking pins the severity rule
-// both callers share. A missing mandatory field is reported and does not refuse:
-// `ze config validate` has always graded it a warning, and a LoadConfig that
-// graded it an error would refuse configs the operator was told were fine.
-func TestValidateCustomSectionsGradesMissingAsNonBlocking(t *testing.T) {
-	missing := SectionValidationError{
-		Section: "isis",
-		Err: yang.ValidationError{
-			Path:    "instance.core",
-			Type:    yang.ErrTypeMissing,
-			Message: `mandatory field "net" is missing`,
-		},
-	}
-	if missing.Blocking() {
-		t.Error("a missing mandatory field must not refuse the config")
-	}
-	refused := SectionValidationError{
-		Section: "plugin",
-		Err: yang.ValidationError{
-			Path:    "internal.p1.use",
-			Type:    yang.ErrTypeType,
-			Message: "not a registered internal plugin",
-		},
-	}
-	if !refused.Blocking() {
-		t.Error("a custom validator refusal must refuse the config")
-	}
-}
-
 // TestSectionValidationErrorRedactsASensitiveLeaf proves a refusal never prints
 // the value of a leaf the schema marks sensitive. The message reaches stderr and
 // the startup log, so a validator bound to a secret must not leak it there.
@@ -166,6 +137,30 @@ func TestSectionValidationErrorRedactsASensitiveLeaf(t *testing.T) {
 	}
 	if !strings.Contains(msg, "isis") || !strings.Contains(msg, "key[1]/secret") {
 		t.Errorf("message does not name the section and the leaf: %s", msg)
+	}
+}
+
+// TestSectionValidationErrorKeepsAMissingSensitiveLeafReason proves a missing
+// sensitive leaf is reported as missing. There is no value to redact, and the
+// redacted form ("missing validation failed") told the operator neither that
+// the key was absent nor how to set it.
+func TestSectionValidationErrorKeepsAMissingSensitiveLeafReason(t *testing.T) {
+	reason := `mandatory field "key" is missing: add it with ` + "`set system authentication tacacs server 127.0.0.1 key <value>`"
+	e := SectionValidationError{
+		Section:   "system",
+		Sensitive: true,
+		Err: yang.ValidationError{
+			Path:    "system/authentication/tacacs/server[127.0.0.1]/key",
+			Type:    yang.ErrTypeMissing,
+			Message: reason,
+		},
+	}
+	msg := e.Message()
+	if !strings.Contains(msg, reason) {
+		t.Errorf("the missing-leaf reason was replaced: %s", msg)
+	}
+	if strings.Contains(msg, "redacted") {
+		t.Errorf("a missing leaf was redacted as if it held a value: %s", msg)
 	}
 }
 

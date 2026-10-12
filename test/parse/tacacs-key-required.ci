@@ -15,10 +15,15 @@
 #     (`cmd/ze/hub/main_reload.go`, "reload: rebuild aaa bundle"), but only
 #     while a bundle is already live: the rebuild is skipped when it is nil.
 #
-# WHAT THIS TEST PROVES, and what it used to. The daemon STARTS, reads the
-# config, drops the tacacs backend from the chain, and keeps running. That is
-# the correct behavior, so there is no exit code to assert and none is asserted:
-# the evidence is the error text and the backend it names.
+# WHAT THIS TEST PROVES. Since 2026-10-12 (RFC 7950 Section 7.6.5 enforcement,
+# OWNER RULING 5 in the pre-release spec for YANG when, unique and choice) the
+# schema's `mandatory true` on the key refuses the config at load, before any
+# AAA bundle is built, so the daemon never starts with a keyless server and the
+# build-time drop described above is no longer reached from a config file. The
+# evidence is the refusal naming the key's path and saying it is missing.
+#
+# Before that ruling the daemon started and dropped the tacacs backend; the
+# history below is how that assertion came to be trusted.
 #
 # It asserted one until 2026-09-06, and that assertion was the whole reason this
 # file passed while proving nothing. The measurement recorded here on 2026-09-04
@@ -33,7 +38,7 @@
 # `internal/test/runner/parsing.go`; a bare `ze -` now runs as `ze start <file>`.
 #
 # VALIDATES: a tacacs server declared with no key is refused by name when the
-#            AAA bundle is built.
+#            config loads (RFC 7950 Section 7.6.5), before the AAA bundle is built.
 # PREVENTS: the daemon authenticating against a server whose every packet body,
 #           the PAP User-Password included, would go out in cleartext under a
 #           header whose unencrypted flag is clear.
@@ -51,15 +56,10 @@ system {
 }
 EOF_CONF
 
-# The daemon does not exit, so the runner stops it at this deadline and then
-# checks the assertion against what it wrote. 3s is 15x the 200ms at which the
-# error was observed, and a parallel run widens it by ParallelTimeoutHeadroom.
 cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=3s
-# The whole proof, and it binds three facts to one log line: the backend that
-# was DROPPED is tacacs, the server is the one this config declares, and the
-# reason is ErrNoSharedSecret, which nothing but tacacsBackend.Build produces.
-# Each fact is load-bearing. Without the backend name a dropped radius or
-# ldap backend would satisfy it; without the error text any drop reason would,
-# a refused dial included; without the drop message the error could be logged
-# by a path that went on to use the server anyway.
-expect=stderr:pattern=backend dropped from the chain.*backend=tacacs error="tacacs server 127\.0\.0\.1:49: no shared secret configured for this TACACS\+ server"
+# The refusal ends the daemon before it starts, so it exits non-zero.
+expect=exit:code=1
+# Path and reason together: the path binds it to this server's key, and the
+# reason binds it to the mandatory rule rather than any other refusal.
+expect=stderr:contains=system/authentication/tacacs/server[127.0.0.1]/key: mandatory field "key" is missing
+reject=stderr:pattern=backend dropped from the chain

@@ -20,6 +20,7 @@ module ze-l2tp-shaper-conf {
         ze:help "L2TPv2 tunnel subsystem settings (RFC 2661).";
 
         container shaper {
+            presence "Shape every L2TP subscriber interface; default-rate is then required.";
             description "Ze installs the queueing discipline and the ingress policer on the pppN
                          interface when the session starts. The queueing discipline carries the
                          download rate and the policer carries the upload rate. A rate changed

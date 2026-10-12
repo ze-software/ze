@@ -714,14 +714,20 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 	// Check mandatory children at this level.
 	for name, child := range entry.Dir {
 		if child.Mandatory == yang.TSTrue {
-			if _, ok := data[name]; !ok {
-				*errs = append(*errs, ValidationError{
-					Path:    tb.Reset().Str(path).Byte('/').Str(name).String(),
-					Type:    ErrTypeMissing,
-					Message: tb.Reset().Str("mandatory field ").Quoted(name).Str(" is missing").String(),
-				})
+			if !mandatoryPresent(name, child, data) {
+				*errs = append(*errs, missingMandatory(tb.Reset().Str(path).Byte('/').Str(name).String(), name))
 			}
 			continue
+		}
+		// RFC 7950 Section 7.6.5: an absent non-presence container does not end
+		// the mandatory check below it. The constraint is decided by the closest
+		// ancestor that is not a non-presence container (Section 7.5.1), and for
+		// everything under this child that ancestor is the node being walked,
+		// which exists.
+		if isNonPresenceContainer(child) {
+			if _, ok := data[name]; !ok {
+				requireMandatoryUnderAbsent(tb.Reset().Str(path).Byte('/').Str(name).String(), child, errs)
+			}
 		}
 		// An ABSENT leaf-list with min-elements > 0 violates its bound just as
 		// surely as an empty one, and NOTHING else catches it.

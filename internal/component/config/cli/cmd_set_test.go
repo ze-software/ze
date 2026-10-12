@@ -45,6 +45,7 @@ func writeBlobConfig(t *testing.T, content string) (storage.Storage, string) {
 // PREVENTS: Set command silently failing or corrupting config.
 func TestCmdSetBasic(t *testing.T) {
 	configPath := writeTestConfig(t, `bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {
@@ -87,6 +88,7 @@ func TestCmdSetBasic(t *testing.T) {
 // PREVENTS: Data loss from unintended modifications.
 func TestCmdSetCreatesBackup(t *testing.T) {
 	configPath := writeTestConfig(t, `bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {
@@ -149,6 +151,7 @@ func TestCmdSetCreatesBackup(t *testing.T) {
 // PREVENTS: Accidental writes during preview.
 func TestCmdSetDryRun(t *testing.T) {
 	content := `bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {
@@ -231,6 +234,7 @@ func TestCmdSetDispatch(t *testing.T) {
 // PREVENTS: Storage wiring broken — set silently falls back to filesystem.
 func TestCmdSetWithBlobStorage(t *testing.T) {
 	store, configPath := writeBlobConfig(t, `bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {
@@ -268,6 +272,7 @@ func TestCmdSetWithBlobStorage(t *testing.T) {
 // PREVENTS: Storage lost during dispatch — subcommands use filesystem instead.
 func TestRunWithStorageDispatches(t *testing.T) {
 	store, configPath := writeBlobConfig(t, `bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {
@@ -320,6 +325,7 @@ func TestCmdSetWeakPasswordWarnsAndSets(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			configPath := writeTestConfig(t, `bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {

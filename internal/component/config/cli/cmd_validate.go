@@ -301,12 +301,10 @@ func runValidation(input, path string) *validationResult {
 			d.Repair = r
 			d.FixSafety = s
 		}
-		if f.Blocking() {
-			d.Severity = diagnostic.SeverityError
-			result.Valid = false
-		} else {
-			d.Severity = diagnostic.SeverityWarning
-		}
+		// Every failure refuses, a missing mandatory node included: LoadConfig
+		// refuses the same set, so this verdict is the daemon's.
+		d.Severity = diagnostic.SeverityError
+		result.Valid = false
 		result.Diagnostics = append(result.Diagnostics, d)
 	}
 
@@ -568,11 +566,10 @@ func yangErrorCode(t configyang.ErrorType) string {
 	}
 }
 
+// addSemanticWarnings carries no router-id warning: bgp/router-id is YANG
+// mandatory (RFC 7950 Section 7.6.5), so a config without it, global or on
+// every session, is refused as an error before it reaches this point.
 func addSemanticWarnings(result *validationResult, bgpTree map[string]any) {
-	if _, ok := bgpTree["router-id"]; !ok {
-		result.addWarning("config-warning", "router-id not configured (will use system default)")
-	}
-
 	globalLocalAS := asnFromSession(bgpTree, "local")
 	if globalLocalAS == 0 {
 		result.addWarning("config-warning", "local-as not configured globally")

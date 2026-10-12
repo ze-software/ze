@@ -25,6 +25,7 @@ module ze-l2tp-pool-conf {
             ze:help "Address and prefix pools handed to L2TP PPP sessions.";
 
             container ipv4 {
+                presence "Hand IPv4 addresses to PPP sessions; the gateway is then required.";
                 description "The gateway is the NAS-side address every session sees as its IPCP
                              peer, and it MUST NOT fall inside the start-to-end range.";
                 ze:help "The IPv4 range and the DNS servers a PPP session receives.";

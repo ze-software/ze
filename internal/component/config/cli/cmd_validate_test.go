@@ -21,6 +21,7 @@ import (
 
 // validConfig is a minimal valid BGP configuration for testing.
 const validConfig = `bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {
@@ -343,23 +344,32 @@ func TestValidateAcceptsInternalPluginWithUse(t *testing.T) {
 	}
 }
 
-// TestValidateSemanticValidationWarnings verifies semantic checks produce warnings.
+// TestValidateRefusesAMissingRouterID verifies that a config with no bgp
+// router-id, globally or on its session, is refused with an error.
 //
-// VALIDATES: Missing router-id produces warning.
-// PREVENTS: Silent config issues.
-func TestValidateSemanticValidationWarnings(t *testing.T) {
-	result := runValidation(validConfig, "test.conf")
-	require.True(t, result.Valid, "expected valid config")
+// VALIDATES: bgp/router-id is mandatory (RFC 7950 Section 7.6.5), so `ze
+// config validate` refuses the config with a config-yang-missing error that
+// names router-id, the same verdict LoadConfig gives.
+// PREVENTS: a missing router-id graded as a warning on a config the daemon
+// then refuses to load.
+func TestValidateRefusesAMissingRouterID(t *testing.T) {
+	conf := strings.Replace(validConfig, "\trouter-id 203.0.113.253;\n", "", 1)
+	require.NotEqual(t, validConfig, conf, "the fixture must lose its router-id")
 
-	// Should have warning about missing router-id.
-	hasRouterIDWarning := false
+	result := runValidation(conf, "test.conf")
+	assert.False(t, result.Valid, "a config with no router-id must be refused")
+
+	refused := false
 	for _, d := range result.Diagnostics {
-		if strings.Contains(d.Message, "router-id") {
-			hasRouterIDWarning = true
+		if d.Code != diagnostic.CodeConfigYANGMissing {
+			continue
+		}
+		if d.Severity == diagnostic.SeverityError && strings.Contains(d.Message, "router-id") {
+			refused = true
 			break
 		}
 	}
-	assert.True(t, hasRouterIDWarning, "expected warning about missing router-id")
+	assert.True(t, refused, "expected a config-yang-missing error naming router-id")
 }
 
 // TestValidateNoFalseASNWarnings verifies AS numbers set under the canonical
@@ -483,6 +493,7 @@ func TestValidateListenerConflictRelated(t *testing.T) {
 // PREVENTS: Empty repair objects in fix-plan output.
 func TestConfigFixPlanRepairIDs(t *testing.T) {
 	conf := `bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {
@@ -573,11 +584,11 @@ func TestValidatePendingReadsDraft(t *testing.T) {
 }
 
 // TestValidateConfigAnswersDiagnosticsAndFails verifies that the answer
-// `validate config` registers carries the diagnostics of a configuration it
+// `show config validation` registers carries the diagnostics of a configuration it
 // rejects, and that the command still exits 1.
 //
 // VALIDATES: the verdict is the exit code and the evidence is the payload, so
-// `validate config bad.conf | json` renders the diagnostics and fails.
+// `show config validation bad.conf | json` renders the diagnostics and fails.
 // PREVENTS: the local-data path dropping the answer of any command that exits
 // non-zero, which would have made a rejected config answer nothing at all.
 func TestValidateConfigAnswersDiagnosticsAndFails(t *testing.T) {
@@ -630,7 +641,7 @@ func TestValidateConfigAnswersAValidConfiguration(t *testing.T) {
 // second config file by name instead of validating the first and ignoring it.
 //
 // VALIDATES: the operator's intent is never silently dropped.
-// PREVENTS: `validate config a.conf b.conf` reporting on a.conf alone.
+// PREVENTS: `show config validation a.conf b.conf` reporting on a.conf alone.
 func TestValidateConfigNamesABadArgumentCount(t *testing.T) {
 	dir := t.TempDir()
 	configPath := dir + "/good.conf"

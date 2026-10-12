@@ -156,6 +156,7 @@ func TestConfigFmtComplexConfig(t *testing.T) {
 func TestConfigValidateCurrentConfig(t *testing.T) {
 	input := `
 bgp {
+	router-id 203.0.113.253;
 	session {
 		asn {
 			local 65000;
@@ -221,6 +222,7 @@ neighbor 192.0.2.1 {
 func TestConfigMigrateNativeConfig(t *testing.T) {
 	input := `
 bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {
@@ -335,6 +337,7 @@ set bgp peer peer1 session asn remote 65001
 // PREVENTS: Output file not created or empty.
 func TestConfigMigrateOutputToFile(t *testing.T) {
 	input := `bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {

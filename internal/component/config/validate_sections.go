@@ -111,23 +111,15 @@ type SectionValidationError struct {
 	Err       yang.ValidationError
 }
 
-// Blocking reports whether this failure refuses the config.
-//
-// A missing mandatory field does not refuse. `ze config validate` has always
-// graded it a warning, and LoadConfig must grade it the same way: an operator
-// who checks a config before an upgrade and a daemon that loads it after must
-// reach the same verdict on the same bytes.
-func (e SectionValidationError) Blocking() bool {
-	return e.Err.Type != yang.ErrTypeMissing
-}
-
 // Message renders the failure as "<section>: <path>: <reason>". The reason is
 // replaced by the error type when the leaf is sensitive, so a refusal never
-// prints a password or a key into a startup log.
+// prints a password or a key into a startup log. A missing leaf holds no value
+// to leak, so its reason, which names the leaf and the command that sets it,
+// is kept.
 func (e SectionValidationError) Message() string {
 	var tb textbuf.Buffer
 	msg := e.Err.Message
-	if e.Sensitive {
+	if e.Sensitive && e.Err.Type != yang.ErrTypeMissing {
 		msg = tb.Str(e.Err.Type.String()).Str(" validation failed (sensitive value redacted)").String()
 	}
 	if e.Err.Path != "" {
@@ -172,6 +164,7 @@ func ValidateCustomSections(tree *Tree) ([]SectionValidationError, error) {
 			found = append(found, SectionValidationError{Section: section, Err: ve})
 		}
 	}
+	found = append(found, bgpMandatoryFailures(validator, tree)...)
 	if len(found) == 0 {
 		return nil, nil
 	}
@@ -199,16 +192,14 @@ func refuseInvalidCustomSections(tree *Tree) error {
 	if err != nil {
 		return err
 	}
-	var blocking []string
-	for _, f := range found {
-		if f.Blocking() {
-			blocking = append(blocking, f.Message())
-		}
-	}
-	if len(blocking) == 0 {
+	if len(found) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%w: %s", ErrCustomValidation, textbuf.Join(blocking, "; "))
+	refusals := make([]string, 0, len(found))
+	for _, f := range found {
+		refusals = append(refusals, f.Message())
+	}
+	return fmt.Errorf("%w: %s", ErrCustomValidation, textbuf.Join(refusals, "; "))
 }
 
 // isSensitiveLeaf reports whether the last element of a validation error's path

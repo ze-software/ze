@@ -583,6 +583,7 @@ module ze-ipsec-conf {
             }
 
             container remote-access {
+                presence "Serve road warrior clients; the IKE group, the ESP group and the authentication mode are then required.";
                 description "The subtree parses and no session reads it, so a pool assigns no address and an
                     eap-user authenticates nobody. The engine builds the address pool at each apply and
                     then discards it. Configure a road warrior as a site-to-site peer with an EAP mode
