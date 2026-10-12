@@ -116,3 +116,77 @@ func TestBFDStopDuringInFlightStart(t *testing.T) {
 		t.Fatalf("live %d after a stop during the start, want 0", live)
 	}
 }
+
+// TestBFDStopBetweenClaimAndPass stops the client after startBFDClient
+// claimed the start and before its first pass reads the opt-in. Once the
+// start ends, the peer holds no session.
+// Method: the afterClaim seam runs the stop synchronously at that point.
+// MUTATION: clearing canceled at the top of the pass wipes the stop, and the
+// pass stores a handle for a peer that left Established, so this goes red.
+func TestBFDStopBetweenClaimAndPass(t *testing.T) {
+	svc := &swapBFDService{}
+	api.SetService(svc)
+	defer api.SetService(nil)
+	p := NewPeer(minimalPeerSettings(nonStrictBFD("fast")))
+	p.setState(PeerStateEstablished)
+	p.bfd.afterClaim = p.stopBFDClient
+
+	p.startBFDClient()
+
+	if live, _ := svc.state(); live != 0 {
+		t.Fatalf("live %d after a stop between the claim and the pass, want 0", live)
+	}
+}
+
+// releaseGatedBFDService is a gatedBFDService whose first ReleaseSession
+// signals releasing and then waits for released, so a test can act while a
+// canceled pass releases its session.
+type releaseGatedBFDService struct {
+	*gatedBFDService
+	releaseOnce sync.Once
+	releasing   chan struct{}
+	released    chan struct{}
+}
+
+func (s *releaseGatedBFDService) ReleaseSession(h api.SessionHandle) error {
+	first := false
+	s.releaseOnce.Do(func() { first = true })
+	if first {
+		close(s.releasing)
+		<-s.released
+	}
+	return s.gatedBFDService.ReleaseSession(h)
+}
+
+// TestBFDStopDuringCanceledPassRelease edits the opt-in while a start is
+// inside EnsureSession, so the start's pass is canceled and asked to pass
+// again, then stops the client while that canceled pass releases its
+// session. Once the start ends, the peer holds no session.
+// Method: the service holds the first EnsureSession until the edit ran, and
+// the first ReleaseSession until the stop ran; no sleeps.
+// MUTATION: clearing canceled at the top of the next pass wipes the stop,
+// and that pass stores a handle for a peer that left Established, so this
+// goes red.
+func TestBFDStopDuringCanceledPassRelease(t *testing.T) {
+	svc := &releaseGatedBFDService{
+		gatedBFDService: newGatedBFDService(),
+		releasing:       make(chan struct{}),
+		released:        make(chan struct{}),
+	}
+	api.SetService(svc)
+	defer api.SetService(nil)
+	p := NewPeer(minimalPeerSettings(nonStrictBFD("fast")))
+	p.setState(PeerStateEstablished)
+
+	wg := inFlightStart(p, svc.gatedBFDService)
+	swapBFD(t, p, withBFD(p.settingsSnapshot(), nonStrictBFD("slow")))
+	close(svc.proceed)
+	<-svc.releasing
+	p.stopBFDClient()
+	close(svc.released)
+	wg.Wait()
+
+	if live, _ := svc.state(); live != 0 {
+		t.Fatalf("live %d after a stop during the canceled pass's release, want 0", live)
+	}
+}

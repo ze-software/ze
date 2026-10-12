@@ -81,7 +81,16 @@ type bfdClient struct {
 	// canceled start would leave the peer with no session for the new
 	// opt-in. A stop clears it, since a stop with no start after it asks for
 	// no session. Written under mu.
+	//
+	// canceled and restart are cleared only inside the critical section that
+	// claims starting, or that decides another pass: a stop or a declined
+	// start landing between that section and the pass, or while a canceled
+	// pass releases its session, MUST reach the next pass.
 	restart bool
+
+	// afterClaim is a test seam, nil in production: startBFDClient calls it
+	// after it claimed starting and before the first pass.
+	afterClaim func()
 
 	// reading is the session's state and the time it entered that state,
 	// published as ONE value. It is atomic rather than under mu because the
@@ -229,7 +238,13 @@ func (p *Peer) startBFDClient() {
 		return
 	}
 	p.bfd.starting = true
+	p.bfd.canceled = false
+	p.bfd.restart = false
+	afterClaim := p.bfd.afterClaim
 	p.bfd.mu.Unlock()
+	if afterClaim != nil {
+		afterClaim()
+	}
 
 	// Each pass reads the opt-in after the claim, so a reload that swapped
 	// it before the pass is read here, and one that swaps it during the pass
@@ -264,13 +279,10 @@ type openedBFD struct {
 // critical section unless a stop ran while it asked (bfdClient.canceled). A
 // canceled pass releases what it opened and answers again when a start
 // declined meanwhile (bfdClient.restart). It answers nil when it stored
-// nothing, and clears starting then. The caller MUST have claimed starting.
+// nothing, and clears starting then. The caller MUST have claimed starting,
+// and only the claim, or a canceled pass deciding to pass again, clears
+// canceled and restart.
 func (p *Peer) openBFDSession() (*openedBFD, bool) {
-	p.bfd.mu.Lock()
-	p.bfd.canceled = false
-	p.bfd.restart = false
-	p.bfd.mu.Unlock()
-
 	cfg, req := p.bfdOptIn()
 	if cfg == nil || !cfg.Enabled {
 		p.endBFDStart()
@@ -298,8 +310,14 @@ func (p *Peer) openBFDSession() (*openedBFD, bool) {
 
 	p.bfd.mu.Lock()
 	if p.bfd.canceled {
+		// The decision to pass again and the clearing of what asked for it
+		// are one critical section: a stop during the release below sets
+		// canceled for the next pass, which then releases instead of storing.
 		again := p.bfd.restart
-		if !again {
+		if again {
+			p.bfd.canceled = false
+			p.bfd.restart = false
+		} else {
 			p.bfd.starting = false
 		}
 		p.bfd.mu.Unlock()
