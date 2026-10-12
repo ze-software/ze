@@ -510,11 +510,24 @@ The mandatory check (RFC 7950 Section 7.6.5) is not bound by that list.
 `mandatoryFailures` walks every other top-level section present in the config,
 the set `Validator.Sections` derives from the compiled schema, and keeps only
 the missing-mandatory errors, so no custom validator gains reach through it.
-`bgpMandatoryFailures` does the same for the bgp global level and counts a
-value every session inherits as present. A section absent from the config is
-not walked, which is the reading libyang's `LYD_VALIDATE_PRESENT` takes.
+`bgpMandatoryFailures` does the same for the whole bgp section, peer and group
+entries included. It counts a global value every session inherits as present,
+and only a global one: a node missing inside a `peer[...]` or `group[...]`
+entry is refused. RFC 7950 Section 7.6.5 makes the list entry that leaf's
+closest ancestor, and the entry exists, so the leaf must exist in it.
+`ResolveBGPTree` does merge the bgp defaults and the group's fields into each
+peer, so a value a group sets reaches its peers at run time, but the check does
+not count it: the owner's ruling on inherited values covers the global
+router-id and local ASN only. A future mandatory peer-level leaf that only the
+group sets is therefore refused, and needs an owner ruling when it lands. An
+entry path never counts as carried, because `EverySessionCarries` looks its
+`peer[...]` segment up as a session field and no session holds one. A section
+absent from the config is not walked, which is the reading libyang's
+`LYD_VALIDATE_PRESENT` takes.
 
 <!-- source: internal/component/config/validate_sections.go -- mandatoryFailures -->
+<!-- source: internal/component/config/validate_mandatory_bgp.go -- bgpMandatoryFailures, EverySessionCarries -->
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 <!-- source: internal/component/config/yang/validator_mandatory.go -- Sections -->
 
 ### Layer 3: Plugin config verifiers

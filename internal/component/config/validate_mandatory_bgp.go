@@ -6,7 +6,6 @@
 package config
 
 import (
-	"maps"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
@@ -23,12 +22,24 @@ var bgpSessionPathOf = map[string]string{
 }
 
 // bgpMandatoryFailures runs the RFC 7950 Section 7.6.5 mandatory check over the
-// global level of the bgp section, and counts a value every BGP session
-// inherits from its group or carries itself as present.
+// whole bgp section, peer and group entries included, and counts a global value
+// every BGP session inherits from its group or carries itself as present.
 //
-// Only the mandatory check runs here. The rest of the bgp walk is withheld for
-// the reason knownUnwalkedValidatorSections records, and the peer and group
-// lists are removed before the walk so their custom validators never run.
+// Only the mandatory check is kept. The rest of the bgp walk is withheld for
+// the reason knownUnwalkedValidatorSections records, so every other failure
+// the walk reports, a custom validator's included, is dropped here.
+//
+// The inheritance answers for a global node alone, one whose path holds no
+// list entry. A node missing inside a peer[...] or group[...] entry stays a
+// failure. RFC 7950 Section 7.6.5: "Otherwise, the leaf MUST exist if the
+// ancestor node exists in the data tree." The closest ancestor of such a leaf
+// that is not a non-presence container is the list entry itself, and the
+// entry exists, so the leaf MUST exist in it. ResolveBGPTree does deep-merge
+// the bgp defaults and the group's fields into each peer it builds, so a value
+// a group sets reaches its peers at run time, but this check does not count
+// that: the owner ruling below covers the global router-id and local ASN only.
+// A future mandatory peer-level leaf that only the group sets is therefore
+// refused, and that case owes an owner ruling when the first such leaf lands.
 //
 // RFC 7950 Section 7.6.5: "If no such ancestor exists in the schema tree, the
 // leaf MUST exist." bgp, bgp/session and bgp/session/asn are non-presence
@@ -43,15 +54,17 @@ func bgpMandatoryFailures(validator *yang.Validator, tree *Tree) []SectionValida
 		return nil
 	}
 	data := bgp.ToMap()
-	global := maps.Clone(data)
-	delete(global, "peer")
-	delete(global, "group")
 
 	var found []SectionValidationError
-	for _, ve := range validator.ValidateTreeAllModules(string(ConfigTypeBGP), global) {
+	for _, ve := range validator.ValidateTreeAllModules(string(ConfigTypeBGP), data) {
 		if ve.Type != yang.ErrTypeMissing {
 			continue
 		}
+		// Guard: an entry path such as bgp/peer[p1]/required never matches
+		// here. EverySessionCarries looks its first segment, peer[p1], up as a
+		// field of each session, and no session holds a field named with a list
+		// key, so a node missing inside an entry always stays a failure.
+		// TestEverySessionCarriesNeverMatchesAnEntryPath holds that.
 		if EverySessionCarries(data, ve.Path) {
 			continue
 		}

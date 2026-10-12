@@ -2,8 +2,14 @@ package config
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
 // TestRFC7950MandatoryRefusesBGPConfig proves RFC7950-7.6.5-1 at LoadConfig,
@@ -143,5 +149,157 @@ func TestMandatoryBGPLeafDynamicGroupCarriesItself(t *testing.T) {
 		member + "\t}\n}\n"
 	if _, err := LoadConfig(carried, "test.conf", nil); err != nil {
 		t.Errorf("a dynamic group carrying router-id and local ASN was refused: %v", err)
+	}
+}
+
+// peerMandatoryModule declares a bgp section whose peer list, at both levels,
+// holds a mandatory leaf, beside a global mandatory leaf a peer may carry. No
+// live module has a mandatory node inside a peer or a group yet, so the test
+// supplies one.
+const peerMandatoryModule = `module t-bgp-conf {
+	namespace "urn:t-bgp-conf"; prefix t;
+	grouping peer-body {
+		leaf name { type string; }
+		leaf required { type string; mandatory true; }
+		leaf id { type string; }
+	}
+	container bgp {
+		leaf id { type string; mandatory true; }
+		list peer { key name; uses peer-body; }
+		list group {
+			key name;
+			leaf name { type string; }
+			leaf id { type string; }
+			list peer { key name; uses peer-body; }
+		}
+	}
+}`
+
+// peerMandatoryFailurePaths runs bgpMandatoryFailures over a bgp section built
+// by fill, against peerMandatoryModule, and returns the path of every failure.
+func peerMandatoryFailurePaths(t *testing.T, fill func(bgp *Tree)) []string {
+	t.Helper()
+	loader := yang.NewLoader()
+	require.NoError(t, loader.AddModuleFromText("t-bgp-conf.yang", peerMandatoryModule))
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+
+	tree := NewTree()
+	bgp := NewTree()
+	fill(bgp)
+	tree.SetContainer(string(ConfigTypeBGP), bgp)
+
+	var paths []string
+	for _, failure := range bgpMandatoryFailures(yang.NewValidator(schema), tree) {
+		paths = append(paths, failure.Err.Path)
+	}
+	slices.Sort(paths)
+	return paths
+}
+
+// peerEntry builds one peer list entry, carrying each leaf in leaves.
+func peerEntry(leaves map[string]string) *Tree {
+	entry := NewTree()
+	for name, value := range leaves {
+		entry.Set(name, value)
+	}
+	return entry
+}
+
+// TestMandatoryBGPPeerAndGroupEntriesAreWalked proves the mandatory check
+// reaches inside bgp peer and group entries, and that the session inheritance
+// still answers only for a global leaf.
+//
+// VALIDATES: a standalone peer and a grouped peer each missing their mandatory
+// leaf are refused at their own entry path; the same entries carrying it pass;
+// a global mandatory leaf every peer carries still counts as present.
+// PREVENTS: bgpMandatoryFailures removing peer and group before the walk, so a
+// mandatory node a module declares inside an entry was never required.
+//
+// Method: a test module with a mandatory leaf in the peer list at both levels,
+// walked through bgpMandatoryFailures over hand-built trees.
+func TestMandatoryBGPPeerAndGroupEntriesAreWalked(t *testing.T) {
+	missing := peerMandatoryFailurePaths(t, func(bgp *Tree) {
+		bgp.AddListEntry("peer", "p1", peerEntry(map[string]string{"id": "x"}))
+		group := peerEntry(map[string]string{"id": "x"})
+		group.AddListEntry("peer", "p2", peerEntry(map[string]string{"id": "x"}))
+		bgp.AddListEntry("group", "g", group)
+	})
+	assert.Equal(t, []string{"bgp/group[g]/peer[p2]/required", "bgp/peer[p1]/required"}, missing,
+		"a peer entry missing its mandatory leaf must be refused at its own path")
+
+	carried := peerMandatoryFailurePaths(t, func(bgp *Tree) {
+		bgp.AddListEntry("peer", "p1", peerEntry(map[string]string{"id": "x", "required": "y"}))
+		group := peerEntry(map[string]string{"id": "x"})
+		group.AddListEntry("peer", "p2", peerEntry(map[string]string{"required": "y"}))
+		bgp.AddListEntry("group", "g", group)
+	})
+	assert.Empty(t, carried, "every entry carries its mandatory leaf and every session resolves bgp/id")
+
+	oneWithoutID := peerMandatoryFailurePaths(t, func(bgp *Tree) {
+		bgp.AddListEntry("peer", "p1", peerEntry(map[string]string{"required": "y"}))
+	})
+	assert.Equal(t, []string{"bgp/id"}, oneWithoutID,
+		"a global mandatory leaf no session carries must still be refused")
+}
+
+// TestMandatoryBGPPeerWalkAcceptsACompletePeer proves walking peer entries
+// refuses nothing the shipped modules leave optional.
+//
+// VALIDATES: a bgp section with a router-id and one peer carrying its
+// connection and both ASNs loads.
+// PREVENTS: the peer walk turning a leaf that is mandatory only in a peer
+// sub-container the config leaves out into a refusal of an ordinary peer.
+//
+// Method: LoadConfig over the config `ze config validate` is tested with.
+func TestMandatoryBGPPeerWalkAcceptsACompletePeer(t *testing.T) {
+	complete := `bgp {
+	router-id 203.0.113.253;
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; }
+		}
+		session { asn { remote 65533; local 65533; } }
+	}
+}`
+	if _, err := LoadConfig(complete, "test.conf", nil); err != nil {
+		t.Errorf("a complete peer was refused: %v", err)
+	}
+}
+
+// TestEverySessionCarriesNeverMatchesAnEntryPath proves the guard
+// bgpMandatoryFailures relies on: a missing-node path inside a peer or group
+// entry is never counted as carried, so an entry-level miss stays a failure.
+//
+// VALIDATES: with every session and the group carrying "required", the global
+// path bgp/required counts as carried, while the entry paths
+// bgp/peer[p1]/required and bgp/group[g]/peer[p2]/required do not.
+// PREVENTS: EverySessionCarries learning to resolve an entry path (for example
+// by stripping its name[key] segments, or by reading the group's value for a
+// member), which would let session inheritance excuse a leaf RFC 7950 Section
+// 7.6.5 requires inside the entry itself.
+//
+// Method: EverySessionCarries over a hand-built map in the Tree.ToMap shape,
+// with the global path as the positive control.
+func TestEverySessionCarriesNeverMatchesAnEntryPath(t *testing.T) {
+	data := map[string]any{
+		"peer": map[string]any{
+			"p1": map[string]any{"required": "y"},
+		},
+		"group": map[string]any{
+			"g": map[string]any{
+				"required": "y",
+				"peer": map[string]any{
+					"p2": map[string]any{"required": "y"},
+				},
+			},
+		},
+	}
+	require.True(t, EverySessionCarries(data, "bgp/required"),
+		"positive control: every session carries the leaf at the global path")
+	for _, entryPath := range []string{"bgp/peer[p1]/required", "bgp/group[g]/peer[p2]/required", "bgp/group[g]/required"} {
+		assert.False(t, EverySessionCarries(data, entryPath),
+			"%s names a node inside a list entry and must never count as carried", entryPath)
 	}
 }
