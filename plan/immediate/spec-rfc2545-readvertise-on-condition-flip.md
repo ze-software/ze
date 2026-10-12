@@ -4,10 +4,10 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | protocol |
-| Depends | - |
+| Depends | plan/immediate/spec-bgp-link-local-only-next-hop.md (its AC-17 designs the per-peer re-advertise this spec reuses) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-10-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -24,7 +24,9 @@ arrives.
 address event it snapshots the peer list, reads `network.ConnectedPrefixes()`,
 and for each peer whose stored `llScope.connected` differs from that table calls
 `peer.refreshForwardFactsIfLiveFrom(connected)`. It re-settles the snapshot and
-deliberately re-advertises nothing. The false-to-true direction is harmless.
+deliberately re-advertises nothing. The false-to-true direction was first
+recorded as harmless; since 2026-10-12 it re-advertises too (AC-2), to agree
+with `spec-bgp-link-local-only-next-hop` AC-17.
 
 This is Thomas's ruling on B-16, given on 2026-08-08 after the closing review of
 the RFC 2545 work in `ec3ad9c76`: "re-advertise the affected prefixes". He gave
@@ -47,8 +49,18 @@ re-announce scoped to that peer's channels, triggered the way BIRD triggers
 `channel_request_feeding` from `channel_roa_out_changed`, which is its one
 refeed trigger that is neither a config nor a protocol event.
 
-**Cost note recorded with the ruling:** Ze has no Adj-RIB-Out refeed primitive
-today, and building one is the bulk of the work.
+**Cost note, corrected 2026-10-12:** the note recorded with the ruling ("Ze
+has no Adj-RIB-Out refeed primitive today, and building one is the bulk of
+the work") is stale. The RIB plugin already re-sends one peer's Adj-RIB-Out
+for one family: `outboundResend` (`clear bgp rib out`,
+`internal/component/bgp/plugins/rib/rib_commands.go`), the rail RFC 2918's
+re-advertise reaches, replaying `ribOut` with `meta["replay"]`; and
+`sendInitialRoutes` (`reactor/peer_initial_sync.go`) sends config routes.
+`plan/immediate/spec-bgp-link-local-only-next-hop.md` (Key Design Decisions,
+"Re-advertise", and AC-17) writes the per-peer re-advertise on an interface
+address event from those primitives, run on a long-lived reactor worker
+rather than on the EventBus goroutine. This spec reuses that path, and adds
+only its own trigger: an RFC 2545 Section 3 condition flip.
 
 ## Required Reading
 
@@ -73,11 +85,22 @@ today, and building one is the bulk of the work.
 - [ ] `rfc/full/rfc2545.txt` - Section 3, the shared-subnet condition itself
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
-- the equal-table guard that stops an interface burst rebuilding a peer's scope once per address
-- the false-to-true direction, which is harmless
+- one refresh per interface burst, never one per address event. The
+  equal-table guard that gave it is replaced by
+  `spec-bgp-link-local-only-next-hop` AC-17: the guard compares masked
+  prefixes, which cannot see a link-local move, so the refresh now compares
+  each peer's inputs unmasked, and the burst collapses on the worker's
+  capacity-one channel (amended 2026-10-12 to agree with that spec)
 
 **Behavior to change:** (only what the user asked for)
 - a true-to-false flip re-advertises the prefixes the condition governs
+- a false-to-true flip re-advertises them too, with the link-local now
+  appended: the next hop changes, so the route is a new one in the peer's
+  Adj-RIB-Out and RFC 4271 Section 9.2 owes the UPDATE ("All newly installed
+  routes and all newly unfeasible routes for which there is no replacement
+  route SHALL be advertised to its peers by means of an UPDATE message").
+  This replaces the earlier "harmless, nothing sent" reading so the two specs
+  agree (`spec-bgp-link-local-only-next-hop` AC-17, amended 2026-10-12)
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -92,7 +115,7 @@ today, and building one is the bulk of the work.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | iface component ↔ BGP reactor | interface address event payload | No |
-| reactor ↔ Adj-RIB-Out | a refeed primitive that does not exist today | No |
+| reactor ↔ route sources | the re-advertise `spec-bgp-link-local-only-next-hop` designs: RIB `outboundResend`, the forwarding plugin's peer replay, the config-route send from `sendInitialRoutes` | No |
 
 ### Integration Points
 - `peer.refreshForwardFactsIfLiveFrom` (`peer_forward_facts.go`), also the settings-apply path
@@ -117,7 +140,7 @@ today, and building one is the bulk of the work.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | a refeed primitive fires an update storm on an interface burst | update counts jump on a flap | the equal-table guard already collapses a burst |
+| R-1 | a refeed fires an update storm on an interface burst | update counts jump on a flap | the link-scope worker's capacity-one channel collapses a burst to one pass, and only a peer whose answer changed is re-advertised (`spec-bgp-link-local-only-next-hop` AC-17) |
 | R-2 | a per-peer refeed disturbs update-group sharing | <to be filled> | <to be filled> |
 
 ## Blast Radius
@@ -139,7 +162,7 @@ today, and building one is the bulk of the work.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | the shared-subnet condition goes from true to false | the prefixes it governs are re-advertised with a next hop the peer can resolve |
-| AC-2 | the condition goes from false to true | no re-advertisement is sent |
+| AC-2 | the condition goes from false to true | the prefixes it governs are re-advertised once, with the link-local appended after the global, through the same path as AC-1 (RFC 4271 Section 9.2; amended 2026-10-12 to agree with `spec-bgp-link-local-only-next-hop` AC-17, which re-advertises on every change of Ze's own next hop) |
 | AC-3 | an interface burst delivers several address events with one resulting table | one re-advertisement, not one per event |
 
 ## End-to-End User Stories
