@@ -497,6 +497,17 @@ answer as good news.
 
 <!-- source: internal/component/config/validate_sections.go -- ValidatorSectionCoverage, knownUnwalkedValidatorSections -->
 
+The mandatory check (RFC 7950 Section 7.6.5) is not bound by that list.
+`mandatoryFailures` walks every other top-level section present in the config,
+the set `Validator.Sections` derives from the compiled schema, and keeps only
+the missing-mandatory errors, so no custom validator gains reach through it.
+`bgpMandatoryFailures` does the same for the bgp global level and counts a
+value every session inherits as present. A section absent from the config is
+not walked, which is the reading libyang's `LYD_VALIDATE_PRESENT` takes.
+
+<!-- source: internal/component/config/validate_sections.go -- mandatoryFailures -->
+<!-- source: internal/component/config/yang/validator_mandatory.go -- Sections -->
+
 ### Layer 3: Plugin config verifiers
 
 A plugin declares `InProcessConfigVerifier` on its registration and receives its

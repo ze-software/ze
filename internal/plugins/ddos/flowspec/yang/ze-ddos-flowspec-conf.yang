@@ -8,12 +8,14 @@ module ze-ddos-flowspec-conf {
   description "FlowSpec (upstream announce) mitigation configuration. Augments the
                shared `ddos` container (owned by ze-ddos-detect-conf) with the
                `flowspec` subtree.";
+  revision 2026-10-12 { description "Make flowspec a presence container, so its mandatory action is required only when the FlowSpec responder is configured, not in every config with a ddos block (RFC 7950 Section 7.6.5)."; }
   revision 2026-07-12 { description "Remove the allowlist leaf-list; exemptions now come from the shared ddos/detect traffic policy via the event's SuppressMitigation flag, and local victims are skipped by direction."; }
   revision 2026-07-11 { description "Add confidence-min gate for the characterized announce path."; }
   revision 2026-07-02 { description "Nest under ddos/flowspec: augment /dd:ddos with container flowspec."; }
 
   augment "/dd:ddos" {
     container flowspec {
+      presence "Configure the FlowSpec responder.";
       description "The rule is announced to a peer, so the traffic is dropped upstream and
                    never reaches this router. It needs a peer that accepts FlowSpec, which
                    is what separates it from the local responder.";

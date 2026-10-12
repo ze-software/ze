@@ -927,69 +927,30 @@ func TestValidator_HoldTimeRange(t *testing.T) {
 	}
 }
 
-// TestValidator_MandatoryField verifies mandatory field detection.
+// TestValidator_MandatoryField proves a missing bgp router-id is refused at
+// LoadConfig, the entry point a daemon start and a reload share.
 //
-// VALIDATES: Container validation detects missing mandatory fields.
-// PREVENTS: Silent acceptance of incomplete config missing required fields.
+// VALIDATES: a bgp section carrying router-id and the local ASN loads; the
+// same section without router-id, and with no session to carry one, is
+// refused with a validation refusal naming bgp/router-id.
+// PREVENTS: a mandatory node checked only by a validator method no production
+// path calls (Validator.ValidateContainer has none), which let the config load.
 //
-// RFC requirement: RFC7950-7.6.5-1 positive -- a container with all mandatory nodes present (local/as, router-id) passes validation.
-// RFC requirement: RFC7950-7.6.5-1 negative -- a missing mandatory node yields an ErrTypeMissing (missing-element) error.
+// Method: LoadConfig over two configs.
+//
+// RFC requirement: RFC7950-7.6.5-1 positive -- LoadConfig accepts a bgp section carrying both mandatory leaves, router-id and session/asn/local.
+// RFC requirement: RFC7950-7.6.5-1 negative -- LoadConfig refuses the bgp section without router-id, naming bgp/router-id.
 func TestValidator_MandatoryField(t *testing.T) {
-	v := newTestValidator(t)
-
-	tests := []struct {
-		name    string
-		path    string
-		data    map[string]any
-		wantErr bool
-		errType yang.ErrorType
-	}{
-		{
-			name: "all_mandatory_present",
-			path: "bgp",
-			data: map[string]any{
-				"local": map[string]any{
-					"as": uint32(65001),
-				},
-				"router-id": "192.0.2.1",
-			},
-			wantErr: false,
-		},
-		{
-			name: "missing_mandatory_as_in_local",
-			path: "bgp/local",
-			data: map[string]any{
-				// "as" is mandatory in local container but missing
-			},
-			wantErr: true,
-			errType: yang.ErrTypeMissing,
-		},
-		{
-			name: "missing_mandatory_router_id",
-			path: "bgp",
-			data: map[string]any{
-				"local": map[string]any{
-					"as": uint32(65001),
-				},
-			},
-			wantErr: true,
-			errType: yang.ErrTypeMissing,
-		},
+	complete := "bgp {\n\trouter-id 192.0.2.1\n\tsession {\n\t\tasn {\n\t\t\tlocal 65001\n\t\t}\n\t}\n}\n"
+	if _, err := LoadConfig(complete, "test.conf", nil); err != nil {
+		t.Errorf("LoadConfig refused a bgp section carrying every mandatory leaf: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := v.ValidateContainer(tt.path, tt.data)
-			if tt.wantErr {
-				require.Error(t, err, "expected error for missing mandatory field")
-				if valErr, ok := errors.AsType[*yang.ValidationError](err); ok {
-					assert.Equal(t, tt.errType, valErr.Type)
-				}
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
+	noRouterID := "bgp {\n\tsession {\n\t\tasn {\n\t\t\tlocal 65001\n\t\t}\n\t}\n}\n"
+	_, err := LoadConfig(noRouterID, "test.conf", nil)
+	require.Error(t, err, "LoadConfig accepted a bgp section with no router-id")
+	assert.ErrorIs(t, err, ErrCustomValidation)
+	assert.Contains(t, err.Error(), "bgp/router-id")
 }
 
 // TestCheckAllValidatorsRegistered_AllPresent verifies no error when all validators exist.

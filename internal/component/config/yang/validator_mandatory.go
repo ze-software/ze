@@ -5,6 +5,7 @@
 package yang
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/openconfig/goyang/pkg/yang"
@@ -63,6 +64,31 @@ func missingMandatory(path, name string) ValidationError {
 			Str(path).Str(" mandatory (RFC 7950 Section 7.6.5); add it with `set ").
 			Str(setCommandWords(path)).Str(" <value>`").String(),
 	}
+}
+
+// Sections returns, sorted and once each, every top-level container that a
+// conf module of the validator's schema declares. A section several modules
+// contribute to, as l2tp is, appears once. The set comes from the compiled
+// schema, so a section a new module adds is in it without any edit here.
+func (v *Validator) Sections() []string {
+	seen := make(map[string]bool)
+	for _, modName := range v.schema.ConfModuleNames() {
+		entry := v.schema.GetEntry(modName)
+		if entry == nil {
+			continue
+		}
+		for name, child := range entry.Dir {
+			if child.IsContainer() {
+				seen[name] = true
+			}
+		}
+	}
+	sections := make([]string, 0, len(seen))
+	for name := range seen {
+		sections = append(sections, name)
+	}
+	slices.Sort(sections)
+	return sections
 }
 
 // setCommandWords turns a walk path such as bgp/peer[london]/session into the

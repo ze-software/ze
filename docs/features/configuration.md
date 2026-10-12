@@ -48,12 +48,13 @@ force flag, and the message names the section, the leaf, and the rule. A refusal
 declines rollback recovery, so an operator's typo cannot start the daemon on a
 config they never wrote. A missing mandatory field refuses the same way on every
 surface, including one below a non-presence container the file leaves out (RFC
-7950 Section 7.6.5). In the `bgp` section a global `router-id` or
+7950 Section 7.6.5), in every top-level section the file writes; a section the
+file omits is not checked. In the `bgp` section a global `router-id` or
 `session asn local` that every peer resolves from itself or its group counts as
 present.
 <!-- source: internal/component/config/yang/validator_mandatory.go -- requireMandatoryUnderAbsent -->
 <!-- source: internal/component/config/validate_mandatory_bgp.go -- bgpMandatoryFailures, EverySessionCarries -->
-<!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, ErrCustomValidation -->
+<!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, mandatoryFailures, ErrCustomValidation -->
 <!-- source: internal/component/config/loader.go -- LoadConfig calls ValidateCustomSections -->
 <!-- source: cmd/ze/hub/main.go -- recoverableLoadError declines recovery for ErrCustomValidation -->
 

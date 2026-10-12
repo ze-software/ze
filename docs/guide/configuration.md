@@ -4087,7 +4087,10 @@ BGP has always had its own deeper check at startup.
 **A missing mandatory field stops the daemon too.** A leaf the YANG schema marks
 `mandatory true` is required whenever its closest ancestor that is not a plain
 (non-presence) container exists, as RFC 7950 Section 7.6.5 says, even when every
-container between them is absent from the file. So a `bgp` block needs
+container between them is absent from the file. This holds in every section
+the config writes, not only the ones the rules above cover: a `bfd` profile
+with an `auth` block needs its `type`, `key-id` and `secret`. A section the file
+leaves out entirely is not checked. So a `bgp` block needs
 `router-id` and `session asn local`. The value can come from the peers instead:
 when every peer carries it, or inherits it from its group, the global leaf is
 not needed. The refusal names the leaf and the command that supplies it:

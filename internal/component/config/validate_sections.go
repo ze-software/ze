@@ -1,6 +1,8 @@
 // Design: docs/architecture/config/yang-config-design.md -- ze:validate custom validators
 // Related: loader.go -- LoadConfig refuses a config this walk rejects
 // Related: cli/cmd_validate.go -- `ze config validate` runs the same walk
+// Related: validate_mandatory_bgp.go -- the bgp share of the mandatory check
+// RFC: rfc/short/rfc7950.md
 
 package config
 
@@ -130,7 +132,8 @@ func (e SectionValidationError) Message() string {
 
 // ValidateCustomSections applies the registered ze:validate custom validators,
 // and the YANG cardinality, range and pattern checks, to every section in
-// validatedSections.
+// validatedSections, and the RFC 7950 Section 7.6.5 mandatory check alone to
+// every other present section (mandatoryFailures, bgpMandatoryFailures).
 //
 // This is the one walk. LoadConfig calls it so a daemon start and a SIGHUP
 // reload apply the rules, and cli.runValidation calls it so `ze config validate`
@@ -164,6 +167,7 @@ func ValidateCustomSections(tree *Tree) ([]SectionValidationError, error) {
 			found = append(found, SectionValidationError{Section: section, Err: ve})
 		}
 	}
+	found = append(found, mandatoryFailures(validator, tree)...)
 	found = append(found, bgpMandatoryFailures(validator, tree)...)
 	if len(found) == 0 {
 		return nil, nil
@@ -183,6 +187,54 @@ func ValidateCustomSections(tree *Tree) ([]SectionValidationError, error) {
 		found[i].Sensitive = redactAll || isSensitiveLeaf(found[i].Err.Path, sensitiveKeys)
 	}
 	return found, nil
+}
+
+// mandatoryFailures runs the RFC 7950 Section 7.6.5 mandatory check over every
+// top-level section the schema declares that the full walk above does not
+// cover, bgp excepted, because bgpMandatoryFailures owns it. The set is derived
+// from the compiled schema (Validator.Sections), so a section a new module adds
+// is covered without an edit here.
+//
+// Only the mandatory check is kept. The rest of each walk, the ze:validate
+// custom validators above all, is withheld for the reasons
+// knownUnwalkedValidatorSections and the validatedSections comment record, and
+// none of those validators produces ErrTypeMissing.
+//
+// RFC 7950 Section 7.6.5: "Otherwise, the leaf MUST exist if the ancestor node
+// exists in the data tree." A present section is the module's top level, so a
+// mandatory leaf below it, through non-presence containers only, is required.
+//
+// A section absent from the config is not walked. Read literally, the first
+// bullet of Section 7.6.5 ("If no such ancestor exists in the schema tree, the
+// leaf MUST exist") requires such a leaf even then, which would refuse every
+// config that omits the section. libyang's LYD_VALIDATE_PRESENT ("Validate only
+// modules whose data actually exist"), which FRR's nb_candidate_validate_yang
+// sets, takes the same reading as this walk. The deviation is recorded against
+// RFC7950-7.6.5-1 in rfc/short/rfc7950.md.
+func mandatoryFailures(validator *yang.Validator, tree *Tree) []SectionValidationError {
+	walked := make(map[string]bool, len(validatedSections)+1)
+	for _, s := range validatedSections {
+		walked[s] = true
+	}
+	walked[string(ConfigTypeBGP)] = true
+
+	var found []SectionValidationError
+	for _, section := range validator.Sections() {
+		if walked[section] {
+			continue
+		}
+		container := tree.GetContainer(section)
+		if container == nil {
+			continue
+		}
+		for _, ve := range validator.ValidateTreeAllModules(section, container.ToMap()) {
+			if ve.Type != yang.ErrTypeMissing {
+				continue
+			}
+			found = append(found, SectionValidationError{Section: section, Err: ve})
+		}
+	}
+	return found
 }
 
 // refuseInvalidCustomSections turns the walk into LoadConfig's verdict: an error

@@ -157,8 +157,9 @@ Once the attack is characterized, a surgical BGP FlowSpec rule is announced to t
 configured upstream peer, matching the attack's protocol, ports, and flags. The
 FlowSpec responder waits for characterization by default rather than acting on the
 fast signal: announcing upstream blinds the box behind the filter, so the rule
-must be right the first time. The `action` is mandatory (no default, because
-neither choice is universally safe): `rate-limit` announces an RFC 8955
+must be right the first time. Once a `flowspec` block is present, its `action` is
+mandatory (no default, because neither choice is universally safe); a `ddos` block
+without `flowspec` needs none: `rate-limit` announces an RFC 8955
 traffic-rate of `rate-limit-bytes` bytes/sec (preserving legitimate traffic up to
 that rate), while `discard` drops the whole characterized flow. A `rate-limit-bytes`
 of `0` is valid and is equivalent to `discard`; `action rate-limit` without a
