@@ -595,6 +595,10 @@ the other client names no profile, restore the edited profile's auth block, or
 name the edited profile on that client (an OSPF interface cannot name one: set
 `bfd { enabled false; }` on it). Or release the session as below.
 
+A commit that deletes a profile together with the BGP peers and static routes
+naming it applies: a client still holding a session under the deleted profile
+keeps it as it runs until the client releases it in the same commit.
+
 A session shared by several clients runs the fastest timers among them: those
 giving the shortest Detection Time (Detect Mult times Required Min RX). They
 are chosen again whenever a client joins or leaves, or the profile of any of

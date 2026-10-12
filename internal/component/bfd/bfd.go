@@ -227,7 +227,16 @@ func (r *runtimeState) applyConfig(cfg *pluginConfig) error {
 // protocol clients and pinned sessions alike, in place. Pinned keys have their shutdown bit
 // re-applied so an operator flipping `shutdown true/false` on a reload takes
 // effect immediately.
+//
+// cfg is published before the sessions change, because loopFor and the
+// loop's profile lookup (profileAuthFor) read it while this apply opens and
+// joins sessions, and it stays published when a session refuses the edit:
+// the commit holds it, and a client that asks after every client released
+// the refusing session builds it from the edited profile (docs/guide/bfd.md,
+// "Editing live"). So no client a commit removes may fail this apply: a
+// client naming a profile cfg deleted keeps its request (reprofileClients).
 func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
+
 	// A pinned session is a client like any other, so its key goes through
 	// the same canonicalization the protocol clients get (api.SessionRequest.Canonical).
 	// A configured session and a strict-mode BGP peer to one neighbor then
@@ -321,8 +330,21 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 // its session, so this is the only way a profile edit reaches it. Every loop
 // is tried; the answer joins each loop's error. The caller MUST hold
 // runtimeStateGuard.
+//
+// A client naming a profile cfg no longer defines keeps the request it holds.
+// Every client is refused at commit when it names a profile the candidate
+// does not define (api.CheckProfile, which BGP and static routes run), so a
+// live client naming a deleted profile is leaving in the same commit: its
+// BGP peer or static route was removed or changed with it, and releases the
+// session when its own apply runs, which may be after this one.
 func (r *runtimeState) reprofileClients(cfg *pluginConfig) error {
 	resolve := func(req api.SessionRequest) (api.SessionRequest, error) {
+		if _, defined := cfg.profiles[req.Profile]; !defined {
+			logger().Info("bfd profile deleted while a client still holds a session under it; "+
+				"the client keeps its session until it releases it in this commit",
+				"profile", req.Profile, "peer", req.Peer.String(), "mode", req.Mode.String())
+			return req, nil
+		}
 		return resolveProfile(req, cfg.profiles)
 	}
 	var errs []error
