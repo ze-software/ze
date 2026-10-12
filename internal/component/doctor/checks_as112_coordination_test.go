@@ -306,6 +306,7 @@ func TestCheckAS112GlobalOriginCoordination_RemoteASNBoundaries(t *testing.T) {
 func TestDoctorAS112CoordinationFunctional(t *testing.T) {
 	const cfg = `
 bgp {
+	router-id 10.0.0.1
 	peer peer1 {
 		connection {
 			remote {

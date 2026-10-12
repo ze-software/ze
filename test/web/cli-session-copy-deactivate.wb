@@ -38,6 +38,13 @@ action=fill:id=terminal-input:value=set bgp peer wbsrc session asn remote 65001
 action=press:id=terminal-input:key=Enter
 action=wait
 
+# The peer carries its own router-id, which the copy hands to wbdst, so the
+# config stays valid with the global one inactive (a mandatory leaf, RFC 7950
+# Section 7.6.5).
+action=fill:id=terminal-input:value=set bgp peer wbsrc session router-id 10.0.0.9
+action=press:id=terminal-input:key=Enter
+action=wait
+
 action=fill:id=terminal-input:value=commit now
 action=press:id=terminal-input:key=Enter
 action=wait
