@@ -648,6 +648,11 @@ func matcherFor(t *testing.T, format string, sys *system.SystemConfig, archiveNa
 // block's error after writing the copy, without pruning.
 // PREVENTS: a panic in the daemon's archive path from regexp.MustCompile, which
 // refuses a pattern that is not valid UTF-8.
+//
+// A filesystem that refuses a name that is not valid UTF-8 (APFS answers
+// "illegal byte sequence") fails the copy before the matcher runs. There the
+// notifier MUST return that write error as the block's error, with no copy
+// written and nothing pruned; a probe file decides which outcome the host owes.
 func TestArchiveMatcher_InvalidUTF8(t *testing.T) {
 	sys := system.SystemConfig{Host: "r\xff1", CommitRevisions: 1}
 	_, err := archive.ArchiveMatcher(archive.DefaultFilenameFormat, "ze.conf", &sys, "backup")
@@ -658,8 +663,18 @@ func TestArchiveMatcher_InvalidUTF8(t *testing.T) {
 	configs := []archive.ArchiveConfig{{Name: "backup", Location: "file://" + dir, Filename: "{date}-{host}", Trigger: archive.TriggerCommit}}
 	errs := archive.NewNotifier("ze.conf", configs, &sys, nil)([]byte("config"))
 	require.Len(t, errs, 1)
-	assert.ErrorContains(t, errs[0], "archive backup: archive filename matcher")
-	assert.Len(t, dirNames(t, dir), len(foreign)+1)
+
+	probeErr := os.WriteFile(filepath.Join(t.TempDir(), sys.Host), nil, 0o600)
+	if probeErr == nil {
+		assert.ErrorContains(t, errs[0], "archive backup: archive filename matcher")
+		assert.Len(t, dirNames(t, dir), len(foreign)+1)
+		return
+	}
+	assert.ErrorContains(t, errs[0], "archive backup: archive to file")
+	var refusal *os.PathError
+	require.ErrorAs(t, probeErr, &refusal)
+	assert.ErrorContains(t, errs[0], refusal.Err.Error())
+	assert.Len(t, dirNames(t, dir), len(foreign))
 }
 
 // TestNewNotifier_Prunes commits once through a notifier with commit-revisions
