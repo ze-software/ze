@@ -66,9 +66,11 @@ relayed route passes the forwarding fence as part of an initial update,
 that relay runs under one per-peer re-send hold on live forwards for the
 whole pass, with a cut taken after the hold is up from the sources'
 received-UPDATE IDs (`receiveCut`), never the shared message counter, and
-the relay starts only after each source's publication reaches it and
-adj-rib-in's process has applied every prior event (`drainRecoverySources`,
-`DrainEventsApplied`, the calls relay recovery already makes), both waits
+the relay starts only after each source's publication reaches its own cut
+and adj-rib-in's process has applied every prior event (a per-source loop,
+`drainResendSources`, that skips a source whose old session's publication
+failed or stopped short of its cut, then `DrainEventsApplied`, round-13
+I1 on that spec), both waits
 sharing one 2 s budget and holding no lock, so a route replaced or
 withdrawn during the pass ends as the live rail left it; the routes go in
 ascending message-ID order, and the pass promises the per-source current
