@@ -57,8 +57,10 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		// (internal/le/interoplab/zebuild.go). The change was reviewed with that
 		// commit and the pin was not carried with it.
 		// Repinned for 4a923c72de: the header comment names `./le test integration`.
-		"Dockerfile.ze":                                      "978c8f06fb7ae72730d0746b3a4b57777defb20b697053dd48b94f158ea22e7b",
-		"Dockerfile.lac":                                     "de2f22de8c1815e8d0d6a37b96d7518d8157b26cd5598fb95c8e4f624909a180",
+		// Repinned for 6948695bdc, which dropped kmod from Dockerfile.ze and
+		// Dockerfile.lac: no lab container loads a kernel module.
+		"Dockerfile.ze":                                      "d18dcba6226a09fb874cee777af6566f92bdb5723f82a91568951b8421cd2213",
+		"Dockerfile.lac":                                     "67007f9802268dbc1762c754fb7187abafca0408314c3e2d9d7252abd36e00f8",
 		"daemons":                                            "6c0f1be1b722ff89041b5bea87ed1212dd0595019b44730616de9e338cb08cd0",
 		"vtysh.conf":                                         "dc8aa539965a4cebabbe1a75a53b48ae8471bafe77ce59af22d5352d28da4df6",
 		"scenarios/01-ppp-ipv4/ze.conf":                      "1025ac71136323782a35a27cf6c2278d668ad9e597e6fa610e943bed39d97b33",

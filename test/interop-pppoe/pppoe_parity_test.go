@@ -89,14 +89,17 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		// the binary StageBinaries cross-compiles
 		// (internal/le/interoplab/zebuild.go).
 		// Repinned for 4a923c72de: the header comment names `./le test integration`.
-		"Dockerfile.ze":    "54a8c905d8b39034273744f3c7fbefa3eae5397213917a8402d59fd1893b4a90",
-		"Dockerfile.accel": "9d64c266c9481adc00df37b70a83aa8c7bddbab8dfc75f4c7c05ddabe1bbcc6a",
+		// Repinned for bdee1599a3, which removed kmod and modprobe from the ze,
+		// accel-ppp and client images: each peer holds NET_ADMIN and /dev/ppp.
+		"Dockerfile.ze":    "2401cbe2bf4ab32a39935a405facdb1da273b8c146d6f7546544ec468e90a344",
+		"Dockerfile.accel": "ca79627cf36afc748854a2486e1b8efeb800942875c4cac588cff4f56bac3ed8",
 		// Repinned for 0e1543cc9a, which added tcpdump to the client image: the
 		// pppoe-empty-service-name checker captures the discovery exchange to
 		// read the Service-Name tags Ze puts on the wire. Repinned again for
 		// pppoe-pap-ze-ac, which added tcpreplay: that checker resends the
 		// client's captured PAP Authenticate-Request from inside the container.
-		"Dockerfile.client":                           "5ce1e23c9348057a7ff71680d7d1b4abe29e2ea9cb9a0f221e237c7add859a7e",
+		// Repinned again for bdee1599a3 (no kmod, no modprobe).
+		"Dockerfile.client":                           "3ea9ab6e185566a61bbad964c9840be775efa62a724ea34fcb32065fcaf2a78d",
 		"scenarios/01-pppoe-chap-ipv4/ze.conf":        "1b1427eb24d3cc599f02d7e285606a99d91ca64a7d9df1f222bb757e26d8f54b",
 		"scenarios/01-pppoe-chap-ipv4/accel-ppp.conf": "c7b096b09feb5492123e4f32fff09a167abc30b798f5a6b22ae6e007f3d5fa05",
 		"scenarios/01-pppoe-chap-ipv4/chap-secrets":   "04525c6958851189a53ea92d539f1dd5970eceff8e95d626eb7033438b912067",
