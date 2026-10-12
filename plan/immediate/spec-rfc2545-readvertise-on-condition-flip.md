@@ -51,15 +51,25 @@ refeed trigger that is neither a config nor a protocol event.
 
 **Cost note, corrected 2026-10-12:** the note recorded with the ruling ("Ze
 has no Adj-RIB-Out refeed primitive today, and building one is the bulk of
-the work") is stale. The RIB plugin already re-sends one peer's Adj-RIB-Out
-for one family: `outboundResend` (`clear bgp rib out`,
-`internal/component/bgp/plugins/rib/rib_commands.go`), the rail RFC 2918's
-re-advertise reaches, replaying `ribOut` with `meta["replay"]`; and
-`sendInitialRoutes` (`reactor/peer_initial_sync.go`) sends config routes.
+the work") is stale, but the RIB's `outboundResend` alone is not the
+primitive: it replays the next hop `ribOut` recorded as an explicit address
+(`rib.go`, `sentFamilyNextHop`; `rib_replay.go`), so it never re-runs the
+egress next-hop decision this spec's condition feeds (round-9 B1 on
+`spec-bgp-link-local-only-next-hop`). The re-send that does re-run it has
+three parts, one per route source, each scoped to one peer and one family
+with no End-of-RIB: forwarded routes, sent or withheld, through the forward
+rail over adj-rib-in's stored copy (`request bgp adj-rib-in replay` with a
+new family argument, relayed by `RelayStoredRoute`, which applies
+`applyFactsNextHop` and the egress pair trimming per destination); API
+routes through `outboundResend` restricted to locally originated entries,
+replaying a `next-hop self` entry as `self` from a new `ribOutEntry` marker
+and an explicit next hop as itself; and config and default-originate
+routes through a `staticMu` sibling of `deliverStaticRouteDelta`
+(`reactor/peer_static_wire.go`).
 `plan/immediate/spec-bgp-link-local-only-next-hop.md` (Key Design Decisions,
-"Re-advertise", and AC-17) writes the per-peer re-advertise on an interface
-address event from those primitives, run on a long-lived reactor worker
-rather than on the EventBus goroutine. This spec reuses that path, and adds
+"Re-advertise", and AC-17) writes that re-send for an interface address
+event, run on a long-lived reactor worker rather than on the EventBus
+goroutine. This spec reuses that path, and adds
 only its own trigger: an RFC 2545 Section 3 condition flip.
 
 ## Required Reading
@@ -115,7 +125,7 @@ only its own trigger: an RFC 2545 Section 3 condition flip.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | iface component ↔ BGP reactor | interface address event payload | No |
-| reactor ↔ route sources | the re-advertise `spec-bgp-link-local-only-next-hop` designs: RIB `outboundResend`, the forwarding plugin's peer replay, the config-route send from `sendInitialRoutes` | No |
+| reactor ↔ route sources | the re-advertise `spec-bgp-link-local-only-next-hop` designs: the forward rail over adj-rib-in's stored routes (`RelayStoredRoute`), RIB `outboundResend` for locally originated routes with `self` replayed as `self`, and the config-route re-send under `staticMu`; each re-runs the egress next-hop decision | No |
 
 ### Integration Points
 - `peer.refreshForwardFactsIfLiveFrom` (`peer_forward_facts.go`), also the settings-apply path
@@ -162,7 +172,7 @@ only its own trigger: an RFC 2545 Section 3 condition flip.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | the shared-subnet condition goes from true to false | the prefixes it governs are re-advertised with a next hop the peer can resolve |
-| AC-2 | the condition goes from false to true | the prefixes it governs are re-advertised once, with the link-local appended after the global, through the same path as AC-1 (RFC 4271 Section 9.2; amended 2026-10-12 to agree with `spec-bgp-link-local-only-next-hop` AC-17, which re-advertises on every change of Ze's own next hop) |
+| AC-2 | the condition goes from false to true | the prefixes it governs are re-advertised once, with the link-local appended after the global, through the same path as AC-1 (RFC 4271 Section 9.2; amended 2026-10-12 to agree with `spec-bgp-link-local-only-next-hop` AC-17, which re-advertises on every change of Ze's own next hop). The link-local is the egress's answer on the re-send, never a recorded one: the forward rail's pair trimming decides it for a forwarded route, `linkLocalNextHopFor` for an API route replayed as `self` or as its explicit global, and the same call for a config route; a replay of a recorded address with `nhop set` is not the path (re-checked after round-9 B1, N4) |
 | AC-3 | an interface burst delivers several address events with one resulting table | one re-advertisement, not one per event |
 
 ## End-to-End User Stories
