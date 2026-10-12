@@ -105,3 +105,43 @@ func TestMandatoryBGPLeafInheritedBySessions(t *testing.T) {
 		t.Errorf("refusal %q does not name bgp/router-id", err)
 	}
 }
+
+// TestMandatoryBGPLeafDynamicGroupCarriesItself proves a dynamic group is a
+// session source of its own, members or not.
+//
+// VALIDATES: a dynamic group (connection remote ip dynamic) whose static member
+// peers carry router-id and the local ASN, but which carries neither itself, is
+// refused with no global value; the same group carrying both loads.
+// PREVENTS: counting the members as the group's sessions. A dynamic session is
+// built from the bgp defaults and the group's own fields (resolveDynamicGroup),
+// never from a member, so it would start with no router-id.
+//
+// Method: LoadConfig over two configs.
+func TestMandatoryBGPLeafDynamicGroupCarriesItself(t *testing.T) {
+	member := `		peer p1 {
+			connection { remote { ip 192.0.2.2 } }
+			session {
+				asn { local 65000; remote 65001; }
+				router-id 192.0.2.1
+			}
+		}
+`
+	bare := "bgp {\n\tgroup g {\n\t\tconnection { remote { ip dynamic } }\n" +
+		"\t\tsession { asn { remote 65001; } }\n" + member + "\t}\n}\n"
+	_, err := LoadConfig(bare, "test.conf", nil)
+	if err == nil {
+		t.Fatal("a dynamic group carrying no router-id was accepted because its members carry one")
+	}
+	for _, want := range []string{"bgp/router-id", "bgp/session/asn/local"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q does not name %q", err, want)
+		}
+	}
+
+	carried := "bgp {\n\tgroup g {\n\t\tconnection { remote { ip dynamic } }\n" +
+		"\t\tsession {\n\t\t\tasn { local 65000; remote 65001; }\n\t\t\trouter-id 192.0.2.1\n\t\t}\n" +
+		member + "\t}\n}\n"
+	if _, err := LoadConfig(carried, "test.conf", nil); err != nil {
+		t.Errorf("a dynamic group carrying router-id and local ASN was refused: %v", err)
+	}
+}

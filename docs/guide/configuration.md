@@ -4093,7 +4093,9 @@ with an `auth` block needs its `type`, `key-id` and `secret`. A section the file
 leaves out entirely is not checked. So a `bgp` block needs
 `router-id` and `session asn local`. The value can come from the peers instead:
 when every peer carries it, or inherits it from its group, the global leaf is
-not needed. The refusal names the leaf and the command that supplies it:
+not needed. A dynamic group (`connection remote ip dynamic`) must carry the
+value itself, even when it lists static peers, because the sessions it accepts
+are built from the group and never from a member. The refusal names the leaf and the command that supplies it:
 
 ```
 error: load config: config validation failed: bgp: bgp/router-id: mandatory field "router-id" is missing: the YANG schema marks bgp/router-id mandatory (RFC 7950 Section 7.6.5); add it with `set bgp router-id <value>`

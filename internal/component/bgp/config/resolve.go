@@ -80,7 +80,7 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 		delete(groupFields, "peer") // Peer list is not a group-level field.
 
 		// Detect dynamic group: connection > remote > ip == "dynamic".
-		if isDynamicGroup(groupFields) {
+		if config.IsDynamicBGPGroup(groupFields) {
 			tmpl, err := resolveDynamicGroup(groupName, groupFields, bgpDefaults)
 			if err != nil {
 				return nil, err
@@ -175,20 +175,6 @@ type DynamicGroupTemplate struct {
 	MaxPeers  uint32
 	RSClient  bool
 	Template  map[string]any
-}
-
-// isDynamicGroup returns true when the group's connection > remote > ip is "dynamic".
-func isDynamicGroup(groupFields map[string]any) bool {
-	connMap, ok := groupFields["connection"].(map[string]any)
-	if !ok {
-		return false
-	}
-	remoteMap, ok := connMap["remote"].(map[string]any)
-	if !ok {
-		return false
-	}
-	ip, ok := remoteMap["ip"].(string)
-	return ok && ip == "dynamic"
 }
 
 // resolveDynamicGroup validates and resolves a dynamic group into a template.

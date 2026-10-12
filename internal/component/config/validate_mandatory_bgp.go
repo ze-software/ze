@@ -63,8 +63,9 @@ func bgpMandatoryFailures(validator *yang.Validator, tree *Tree) []SectionValida
 // EverySessionCarries reports whether every BGP session source in the bgp
 // section resolves the global leaf at missingPath (bgp/<relative path>) from
 // its own value or its group's. A source is a standalone peer, a peer inside a
-// group, or a group with no peer, which is the template a dynamic group
-// instantiates. A section with no source answers false: nothing supplies the
+// group, a group with no peer, and a dynamic group whether or not it lists
+// peers, because a dynamic group is the template its accepted sessions are
+// built from. A section with no source answers false: nothing supplies the
 // value, so the global leaf stays required.
 func EverySessionCarries(data map[string]any, missingPath string) bool {
 	relative := strings.TrimPrefix(missingPath, string(ConfigTypeBGP)+"/")
@@ -82,15 +83,18 @@ func EverySessionCarries(data map[string]any, missingPath string) bool {
 		}
 	}
 	for _, group := range listEntries(data, "group") {
+		groupCarries := hasNestedMapValue(group, path)
 		members := listEntries(group, "peer")
-		if len(members) == 0 {
+		// A dynamic group is a session source of its own whether or not it
+		// lists static members: resolveDynamicGroup builds each accepted
+		// session from the bgp defaults and the group's fields, never from a
+		// member's, so a value only the members carry never reaches it.
+		if len(members) == 0 || IsDynamicBGPGroup(group) {
 			sources++
-			if !hasNestedMapValue(group, path) {
+			if !groupCarries {
 				return false
 			}
-			continue
 		}
-		groupCarries := hasNestedMapValue(group, path)
 		for _, peer := range members {
 			sources++
 			if groupCarries {
@@ -102,6 +106,24 @@ func EverySessionCarries(data map[string]any, missingPath string) bool {
 		}
 	}
 	return sources > 0
+}
+
+// IsDynamicBGPGroup reports whether a bgp group's fields, in the shape
+// Tree.ToMap writes, declare it a dynamic group: connection remote ip is the
+// literal "dynamic". ResolveBGPTree reads the same test to build the group's
+// session template, so the mandatory check and the resolver agree on which
+// groups are templates.
+func IsDynamicBGPGroup(group map[string]any) bool {
+	connection, ok := group["connection"].(map[string]any)
+	if !ok {
+		return false
+	}
+	remote, ok := connection["remote"].(map[string]any)
+	if !ok {
+		return false
+	}
+	ip, ok := remote["ip"].(string)
+	return ok && ip == "dynamic"
 }
 
 // listEntries returns the entries of the list named name in data, the shape
