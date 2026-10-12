@@ -312,7 +312,7 @@ func runZeUntilLogsRejecting03(ctx context.Context, config string, required, for
 	if err != nil {
 		return err
 	}
-	defer stderr.Close()
+	defer stderr.Close() //nolint:errcheck // the read end is drained; the run result carries the useful error
 	cmd.Stderr = stderrWriter
 	cmd.Env = os.Environ()
 	for key, value := range extraEnv {

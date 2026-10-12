@@ -307,9 +307,12 @@ func (s *Setup) loopbackAddresses() []string {
 	return []string{LoopbackIPv6, loopbackPeerIPv6, loopbackLinkLocalIPv6}
 }
 
+// loopbackInterfaceDarwin is the loopback interface name on Darwin.
+const loopbackInterfaceDarwin = "lo0"
+
 func (s *Setup) loopbackInterface() string {
 	if s.goos() == osDarwin {
-		return "lo0"
+		return loopbackInterfaceDarwin
 	}
 	return "lo"
 }
@@ -409,9 +412,9 @@ func (s *Setup) loopbackAddArgv(addr string) []string {
 	host := tb.Str(addr).Str(suffix).String()
 	if s.goos() == osDarwin {
 		if strings.Contains(addr, ":") {
-			return []string{"ifconfig", "lo0", "inet6", host, "alias"}
+			return []string{"ifconfig", loopbackInterfaceDarwin, "inet6", host, "alias"}
 		}
-		return []string{"ifconfig", "lo0", "alias", addr}
+		return []string{"ifconfig", loopbackInterfaceDarwin, "alias", addr}
 	}
 	// The peer's /127 is the only non-host route these additions introduce.
 	return []string{"ip", "-6", "addr", "add", host, "dev", "lo"}

@@ -9,6 +9,7 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/netip"
@@ -163,7 +164,7 @@ func Parse(data []byte, addressBits int) (*Registry, error) {
 	// whitespace/comments/processing instructions may follow that document.
 	for {
 		token, err := decoder.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

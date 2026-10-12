@@ -346,7 +346,8 @@ func rfc9085OSPFBasePrefixPlacement(t *testing.T) {
 				t.Fatalf("base prefixes = %d, want 4", len(s.Prefixes))
 			}
 			seen := make(map[[2]byte]bool)
-			for _, prefix := range s.Prefixes {
+			for i := range s.Prefixes {
+				prefix := &s.Prefixes[i]
 				origin := prefix.Node.RouterID[0]
 				address := prefix.Prefix.Addr().As16()
 				object := address[7]

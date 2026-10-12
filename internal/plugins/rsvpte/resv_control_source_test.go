@@ -1,12 +1,12 @@
 // Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- the reservation error and
-// teardown paths, and which neighbour each one is accepted from.
+// teardown paths, and which neighbor each one is accepted from.
 // Related: rfc2205_resv_error_test.go -- the RFC 2205 ResvErr and ResvTear
 // obligations these source checks sit in front of.
 //
 // VALIDATES: a ResvErr is acted on only when its IP source is the previous hop
 // of the held reservation, and a ResvTear only when its IP source is the next
 // hop the reservation came from (samePeer in handleResvErr and handleResvTear).
-// PREVENTS: a host that is not the neighbour holding the state tearing down a
+// PREVENTS: a host that is not the neighbor holding the state tearing down a
 // transit's reservation, blockading it, or having its error relayed to the
 // receiver, by sending a message whose objects all match.
 //
@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// sourceStranger is an address that is neither neighbour of the transit and
+// sourceStranger is an address that is neither neighbor of the transit and
 // that no IGP database attributes to either of them.
 var sourceStranger = netip.MustParseAddr("10.0.0.66")
 
@@ -84,7 +84,7 @@ func admissionFailure(psb *pathStateBlock) []byte {
 
 // TestResvErrFromWrongSourceIgnored sends a transit holding a reservation a
 // ResvErr whose SESSION, STYLE and FILTER_SPEC all match it, from a stranger
-// and from the egress (a real neighbour, but the next hop rather than the
+// and from the egress (a real neighbor, but the next hop rather than the
 // previous one), and checks neither message reaches the reservation or the
 // receiver.
 func TestResvErrFromWrongSourceIgnored(t *testing.T) {
@@ -119,7 +119,7 @@ func TestResvErrFromPreviousHopActedOn(t *testing.T) {
 
 // TestResvTearFromWrongSourceIgnored sends a transit holding a reservation a
 // ResvTear whose SESSION, STYLE, FILTER_SPEC and RSVP_HOP all match it, from a
-// stranger and from the ingress (a real neighbour, but the previous hop rather
+// stranger and from the ingress (a real neighbor, but the previous hop rather
 // than the next one), and checks the reservation, its label and its forwarding
 // entry stay and no ResvTear goes upstream.
 func TestResvTearFromWrongSourceIgnored(t *testing.T) {

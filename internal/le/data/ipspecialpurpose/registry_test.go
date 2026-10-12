@@ -99,7 +99,7 @@ func TestWriteFailurePreservesBothSnapshots(t *testing.T) {
 func refreshTree(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "internal/core/ipregistry"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "internal", "core", "ipregistry"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return root
@@ -109,7 +109,7 @@ func refreshSnapshot(t *testing.T, url string) []byte {
 	t.Helper()
 	for _, source := range sources {
 		if url == source.url() {
-			data, err := os.ReadFile(filepath.Join("../../../..", source.file()))
+			data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", source.file()))
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -291,7 +291,7 @@ func parseTape(path, root string) (terminalTape, error) {
 		word, argument, _ := strings.Cut(line.text, " ")
 		name, modifier, _ := strings.Cut(word, "+")
 		requiresArgument := name == "Output" || name == "Screenshot" || name == "Set" || name == tapeCardCommand || name == tapeSleepCommand || name == "Source" || name == tapeTypeCommand || name == tapeWaitCommand
-		known := name == "Down" || name == "Enter" || name == "Escape" || name == "Hide" || name == "Left" || requiresArgument || name == "Show"
+		known := name == "Down" || name == "Enter" || name == "Escape" || name == tapeHideCommand || name == "Left" || requiresArgument || name == tapeShowCommand
 		if !known {
 			return terminalTape{}, fmt.Errorf("%s: unknown directive %q", line.where, word)
 		}
@@ -305,9 +305,9 @@ func parseTape(path, root string) (terminalTape, error) {
 			return terminalTape{}, fmt.Errorf("%s: directive %q takes no +%q", line.where, name, modifier)
 		}
 		switch name {
-		case "Hide":
+		case tapeHideCommand:
 			hidden = true
-		case "Show":
+		case tapeShowCommand:
 			hidden = false
 		case tapeCardCommand:
 			if hidden {
@@ -863,9 +863,9 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 	}
 	for _, action := range tape.actions {
 		switch action.name {
-		case "Hide":
+		case tapeHideCommand:
 			writer.hide()
-		case "Show":
+		case tapeShowCommand:
 			err = writer.show()
 		case tapeCardCommand:
 			err = session.card(action)

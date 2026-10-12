@@ -20,8 +20,8 @@ var (
 // accepting a glob so a version-pinned artifact can be named precisely.
 //
 // Precision matters here because the gate fails OPEN when it is coarse: naming
-// an organisation's directory under gokrazy/modcache was once satisfied by an
-// unrelated module of the same organisation that lived beside the one the test
+// an organization's directory under gokrazy/modcache was once satisfied by an
+// unrelated module of the same organization that lived beside the one the test
 // read, so a checkout without that module passed the gate and died on the same
 // missing file the gate exists to prevent (ai/rules/evidence.md). A glob lets
 // the test name the FILE it actually reads -- `<module>@*/<file>` -- without

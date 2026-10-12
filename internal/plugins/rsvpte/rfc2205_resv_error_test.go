@@ -57,6 +57,8 @@ func admittingTransit(t *testing.T, maxReservable float64) (*engine, *fakeTransp
 
 // resvFrom returns the RESV the egress sends the transit for psb's sender,
 // with the given style and FLOWSPEC.
+//
+//nolint:unparam // style stays a parameter so each RFC-tagged caller names the style it sends; dropping it rewrites RFC 2205 tagged test bodies for no behavior change
 func resvFrom(psb *pathStateBlock, style uint32, flowSpec FlowSpec) []byte {
 	rsb := &resvStateBlock{Session: psb.Session, FlowSpec: flowSpec, Label: labelObject{Label: 16050}, Style: style}
 	return buildResv(rsb, psb.SenderTemplate, DefaultRefreshPeriod, rfc2205Egress)

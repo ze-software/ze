@@ -167,6 +167,16 @@ func TestPortLeaseLoopbackOccupants(t *testing.T) {
 // proving every successful probe listener was closed before returning the lease.
 func assertPortLeaseBindable(t *testing.T, ports PortRange) {
 	t.Helper()
+	// Every probe listener stays open until the helper returns, so both
+	// families hold the whole pair at once, and all of them close together.
+	var listeners []net.Listener
+	defer func() {
+		for _, listener := range listeners {
+			if err := listener.Close(); err != nil {
+				t.Error(err)
+			}
+		}
+	}()
 	for port := ports.Start; port < ports.End(); port++ {
 		for _, network := range []string{"tcp4", "tcp6"} {
 			address := "127.0.0.1"
@@ -181,11 +191,7 @@ func assertPortLeaseBindable(t *testing.T, ports PortRange) {
 				}
 				t.Fatalf("leased %s port %d is not bindable: %v", network, port, err)
 			}
-			defer func() {
-				if err := listener.Close(); err != nil {
-					t.Error(err)
-				}
-			}()
+			listeners = append(listeners, listener)
 		}
 	}
 }

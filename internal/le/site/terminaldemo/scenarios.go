@@ -627,6 +627,8 @@ const (
 	keywordFormat       = "format"
 	tapeSleepDirective  = "@sleep"
 	tapeSleepCommand    = "Sleep"
+	tapeHideCommand     = "Hide"
+	tapeShowCommand     = "Show"
 	showPeerListRaw     = "show bgp peer list | raw"
 )
 

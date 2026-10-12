@@ -20,6 +20,7 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	_ "github.com/ze-software/ze/internal/le/perf"
 	_ "github.com/ze-software/ze/internal/le/setup"
+	_ "github.com/ze-software/ze/internal/le/setup/dockerkernel"
 	_ "github.com/ze-software/ze/internal/le/test/deployment"
 	_ "github.com/ze-software/ze/internal/le/test/fuzz"
 	_ "github.com/ze-software/ze/internal/le/test/integration"

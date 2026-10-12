@@ -714,18 +714,18 @@ func actionsInCommand(fields []string, registered func(string) bool, nested func
 		command, verbAt = twoWord, 3
 	}
 	tb.Reset()
-	out := []string{tb.Str(command).Byte('/').Str(fields[verbAt]).String()}
+	action := tb.Str(command).Byte('/').Str(fields[verbAt]).String()
 
 	keyword, nests := nested(command, fields[verbAt])
 	if !nests {
-		return out
+		return []string{action}
 	}
 	words := nestedLeWords(fields[verbAt+1:], keyword)
 	if len(words) == 0 {
-		return out
+		return []string{action}
 	}
 	inner := append([]string{"./le"}, words...)
-	return append(out, actionsInCommand(inner, registered, nested)...)
+	return append([]string{action}, actionsInCommand(inner, registered, nested)...)
 }
 
 // nestedLeWords answers the words of the value keyword introduces among an
