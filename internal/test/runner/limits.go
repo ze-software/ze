@@ -4,7 +4,6 @@ package runner
 
 import (
 	"fmt"
-	"syscall"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -24,8 +23,8 @@ type LimitCheck struct {
 // YANG RPC uses socket pairs per plugin (~4 FDs each) instead of stdin/stdout pipes.
 // With 2 plugins per test: ~50 FDs per concurrent test.
 func CheckUlimit(parallel int) (*LimitCheck, error) {
-	var limit syscall.Rlimit
-	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {
+	current, maximum, err := rlimitNofile()
+	if err != nil {
 		return nil, fmt.Errorf("getrlimit: %w", err)
 	}
 
@@ -38,22 +37,21 @@ func CheckUlimit(parallel int) (*LimitCheck, error) {
 		uint64(parallel)*fdsPerTest, minRecommended)
 
 	check := &LimitCheck{
-		Current:  limit.Cur,
-		Max:      limit.Max,
+		Current:  current,
+		Max:      maximum,
 		Required: needed,
 	}
 
-	if limit.Cur >= needed {
+	if current >= needed {
 		return check, nil
 	}
 
 	check.RaiseNeeded = true
 
 	// Try to raise soft limit
-	newLimit := min(needed, limit.Max)
+	newLimit := min(needed, maximum)
 
-	limit.Cur = newLimit
-	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {
+	if err := setRlimitNofile(newLimit, maximum); err != nil {
 		return check, fmt.Errorf("ulimit too low: have %d, need %d (run: ulimit -n %d): %w",
 			check.Current, needed, needed, err)
 	}
@@ -62,8 +60,8 @@ func CheckUlimit(parallel int) (*LimitCheck, error) {
 	check.RaisedTo = newLimit
 
 	// Verify it was raised
-	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err == nil {
-		check.Current = limit.Cur
+	if raised, _, err := rlimitNofile(); err == nil {
+		check.Current = raised
 	}
 
 	return check, nil
