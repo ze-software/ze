@@ -87,11 +87,11 @@ func TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry(t *testing.T) {
 }
 
 // RFC requirement: RFC5216-2.1.1-4 negative -- an authenticator with no resumption state builds no tls.Config, so it never chooses a sessionId it could not redeem.
-// RFC requirement: RFC5216-2.1.1-5 negative -- an authenticator whose operator turned resumption off installs an UnwrapSession refusal, so no session is ever matched and the ciphersuite comparison never has a wrong session to pass.
+// RFC requirement: RFC5216-2.1.1-5 negative -- an authenticator whose operator turned resumption off answers no session from its UnwrapSession, at TLS 1.2 and at TLS 1.3, for a ticket encrypted under its own ticket keys from a session a real exchange established; a resumption-on authenticator redeems the same session at TLS 1.3, so the ticket is one a matching authenticator would resume.
 // RFC requirement: RFC5216-2.1.1-6 negative -- an authenticator whose certificate does not parse builds no tls.Config, so no full handshake without a server_certificate can start.
 // RFC requirement: RFC5216-2.1.1-9 negative -- a peer with resumption off installs no session cache, so it never sends the shorter resumed flight in place of the full one.
 // RFC requirement: RFC5216-2.1.1-10 negative -- a peer with resumption off installs no session cache, so it never claims a resumption the authenticator did not indicate.
-// RFC requirement: RFC5216-2.1.2-1 negative -- an authenticator with resumption off installs the refusal, so it never sends the resumed flight.
+// RFC requirement: RFC5216-2.1.2-1 negative -- for a ticket encrypted under its own ticket keys, a resumption-off authenticator's UnwrapSession answers no session at TLS 1.2 and at TLS 1.3, and a resumption-on authenticator's answers no session at TLS 1.2 while it redeems the same session at TLS 1.3.
 func TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 
@@ -106,9 +106,21 @@ func TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights(t *testing.T) {
 		t.Fatal("an authenticator with no parsable certificate built a tls.Config")
 	}
 
+	state := establishedSessionState(t, pki)
+
 	off := authenticatorTLSConfigForTest(t, pki.serverConfigResuming(NewResumption(time.Now, false)))
-	if off.UnwrapSession == nil {
-		t.Error("an authenticator with resumption off installs no refusal, so it would resume")
+	for _, version := range []uint16{tls.VersionTLS12, tls.VersionTLS13} {
+		if unwrapOwnTicket(t, off, state, version) != nil {
+			t.Errorf("an authenticator with resumption off redeemed a %s ticket under its own keys, so it would resume", tls.VersionName(version))
+		}
+	}
+
+	on := authenticatorTLSConfigForTest(t, pki.serverConfigResuming(NewResumption(time.Now, true)))
+	if unwrapOwnTicket(t, on, state, tls.VersionTLS12) != nil {
+		t.Error("an authenticator with resumption on redeemed a ticket at TLS 1.2, where crypto/tls follows the resumed server_hello with a NewSessionTicket")
+	}
+	if unwrapOwnTicket(t, on, state, tls.VersionTLS13) == nil {
+		t.Error("an authenticator with resumption on did not redeem its own TLS 1.3 ticket, so the refusals above prove nothing")
 	}
 
 	peer := NewPeerSessionTLS("eap-tls-client", pki.resumptionPeerConfig(nil))
@@ -116,6 +128,44 @@ func TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights(t *testing.T) {
 	if cfg := peerTLSConfigFor(t, peer); cfg.ClientSessionCache != nil {
 		t.Error("a peer with resumption off installs a session cache")
 	}
+}
+
+// establishedSessionState answers the session state of one completed EAP-TLS
+// 1.3 exchange, read back out of the ticket the peer stored, so every ticket
+// the test encrypts carries a session crypto/tls really established.
+func establishedSessionState(t *testing.T, pki *eapTLSPKI) *tls.SessionState {
+	t.Helper()
+	peerStore := NewResumption(time.Now, true)
+	fl, peer := driveResumingExchange(t, pki, NewResumption(time.Now, true), peerStore)
+	t.Cleanup(peer.Close)
+	requireCompleted(t, fl, "the exchange that establishes the session")
+	_, state, err := cachedTicket(t, peerStore, "the established session").ResumptionState()
+	if err != nil {
+		t.Fatalf("read the stored session back: %v", err)
+	}
+	if state == nil {
+		t.Fatal("the peer stored a ticket with no session state")
+	}
+	return state
+}
+
+// unwrapOwnTicket encrypts state under cfg's own ticket keys and answers what
+// cfg's UnwrapSession makes of that ticket on a connection at version.
+func unwrapOwnTicket(t *testing.T, cfg *tls.Config, state *tls.SessionState, version uint16) *tls.SessionState {
+	t.Helper()
+	if cfg.UnwrapSession == nil {
+		t.Fatal("the authenticator installs no UnwrapSession, so crypto/tls's default ticket decryption runs")
+	}
+	cs := tls.ConnectionState{Version: version}
+	ticket, err := cfg.EncryptTicket(cs, state)
+	if err != nil {
+		t.Fatalf("encrypt a %s ticket under the authenticator's keys: %v", tls.VersionName(version), err)
+	}
+	session, err := cfg.UnwrapSession(ticket, cs)
+	if err != nil {
+		t.Fatalf("UnwrapSession at %s: %v", tls.VersionName(version), err)
+	}
+	return session
 }
 
 // peerTLSConfigFor builds the peer role's tls.Config for one PeerSession, the way
