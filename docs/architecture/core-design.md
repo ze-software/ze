@@ -2290,14 +2290,19 @@ a process attached before it starts receives it and needs no second one.
    phase is read under the same reactor lock. The session's close marks it
    closing (`Peer.announceClosed`) under that lock BEFORE its FSM down reads
    the graph, so a down that read the graph without the new edges always
-   leaves the mark for this read to see. If the session is marked closing, the
-   attached processes are told down again and nothing else is done: the
-   session is going away on its own, so it is neither restarted nor caught up.
-   Otherwise, if the session is no longer the one the up was about (its up
-   phase moved inside the window, or it left Established), or the FSM up was
-   being delivered when the apply began, the attached processes are told down
-   again and the session restarts. Either way no process holds an up for a
-   session that is gone, or two ups.
+   leaves the mark for this read to see. If the session is marked closing, or
+   is gone (the peer's run cleared it, or published the next session, which
+   also clears the mark), the attached processes are told down again and
+   nothing else is done: the session is going away on its own, so it is not
+   caught up, and nothing is restarted, because a teardown queued then would
+   be drained by the next session, which would read a Cease it did nothing to
+   earn. Otherwise, if the session's up phase moved inside the window, its
+   Established state changed without a close, or the FSM up was being
+   delivered when the apply began, the attached processes are told down again
+   and the session restarts. A session published when the apply found none
+   restarts too, because its up read the graph on an unknown side of the
+   publish. Either way no process holds an up for a session that is gone, or
+   two ups.
 4. Processes that lost their binding are told the peer is down for them alone,
    whenever any up for the session may have reached them, including when the
    session closed after the republish, so they drop its routes while the others

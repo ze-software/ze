@@ -698,39 +698,68 @@ func TestDetachedProcessToldDownWhenSessionClosesAfterPublish(t *testing.T) {
 // session closes while a reload attaches a process. The FSM down reads the
 // graph before the publish carries the new edge, so it misses the process the
 // reload has just told up. The apply MUST tell that process down itself, and
-// MUST NOT restart a session that is already going away.
+// MUST NOT restart: the session is going away on its own, and a teardown
+// queued now is drained by the next session, which then reads a Cease.
 //
 // Method: the recorder's hook runs the FSM's close announcement right after
 // the targeted up (step 2), so its graph read lands before the step-3 publish
 // with no sleep. An observer reads the graph as the dispatcher's down does.
-// Red when nothing marks the session closing before that read.
+// The cases differ in how far the close got before the publish: only marked,
+// cleared as runOnce's defer clears it, or replaced by the next session.
+// Red when nothing marks the session closing before that read, or when the
+// apply restarts a session that is no longer the one step 1 judged.
 //
 // VALIDATES: announceClosed and applyHotSwappableSettings step 4.
-// PREVENTS: a process holding an up for a session no down reached it for.
+// PREVENTS: a process holding an up for a session no down reached it for,
+// and a Cease sent to the session that follows.
 func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
-	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	setSessionFacts(peer, true, true)
-	srv, rec := newBindingReactor(t, peer, conn)
-	obs := &graphUpObserver{srv: srv}
-	peer.reactor.addPeerObserver(obs)
-	session := peer.session
-	rec.onBind = func() {
-		peer.announceClosed(peer.reactor, session, "connection lost")
-	}
+	for _, tc := range []struct {
+		name string
+		next func() *Session // the session the defer leaves, nil for none
+		gone bool            // runOnce's defer ran before the publish
+	}{
+		{name: "marked"},
+		{name: "cleared", gone: true},
+		{name: "replaced", gone: true, next: func() *Session { return &Session{} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			setSessionFacts(peer, true, true)
+			srv, rec := newBindingReactor(t, peer, conn)
+			obs := &graphUpObserver{srv: srv}
+			peer.reactor.addPeerObserver(obs)
+			session := peer.session
+			rec.onBind = func() {
+				peer.announceClosed(peer.reactor, session, "connection lost")
+				if !tc.gone {
+					return
+				}
+				// What runOnce's defer does once the session's run returns.
+				peer.mu.Lock()
+				peer.session = nil
+				if tc.next != nil {
+					peer.session = tc.next()
+				}
+				peer.upSession = nil
+				peer.upPhase = sessionUpUnspecified
+				peer.mu.Unlock()
+			}
 
-	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
-	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
-	require.Empty(t, reason)
-	peer.applyHotSwappableSettings(next, copier)
+			next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+			copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
+			require.Empty(t, reason)
+			peer.applyHotSwappableSettings(next, copier)
 
-	require.Equal(t, 1, upsTo("monitor", rec, obs), "the attached process was told up once")
-	assert.Equal(t, 1, downsTo("monitor", rec, obs), "and down once for the session that closed")
-	peer.mu.RLock()
-	defer peer.mu.RUnlock()
-	for _, op := range peer.opQueue {
-		assert.NotEqual(t, PeerOpTeardown, op.Type, "a closing session is not restarted")
+			require.Equal(t, 1, upsTo("monitor", rec, obs), "the attached process was told up once")
+			assert.Equal(t, 1, downsTo("monitor", rec, obs), "and down once for the session that closed")
+			peer.mu.RLock()
+			defer peer.mu.RUnlock()
+			for _, op := range peer.opQueue {
+				assert.NotEqual(t, PeerOpTeardown, op.Type, "neither the closing session nor the next one is restarted")
+			}
+			assert.Empty(t, bgpFrames(t, conn.written()), "a closing session is sent no ROUTE-REFRESH")
+		})
 	}
-	assert.Empty(t, bgpFrames(t, conn.written()), "a closing session is sent no ROUTE-REFRESH")
 }
 
 // assertTeardownQueued checks the apply restarted the session: the peer is
