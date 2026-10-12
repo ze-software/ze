@@ -1268,17 +1268,6 @@
     },
     {
       "rid": "RFC3748-7.10-4",
-      "polarity": "positive",
-      "unit": "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds",
-      "unit-sha": "06916f12891e9579",
-      "claim-sha": "3644069e744127fe",
-      "route": "revert",
-      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-      "producer-sha": "6a89e2148a8dd067",
-      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC3748-7.10-4",
       "polarity": "negative",
       "unit": "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds",
       "unit-sha": "06916f12891e9579",
@@ -1287,6 +1276,17 @@
       "producer": "internal/core/eap/peer_chain.go::verifyPeerCertificate",
       "producer-sha": "21a7756cc3463e46",
       "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3748-7.10-4",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds",
+      "unit-sha": "06916f12891e9579",
+      "claim-sha": "3644069e744127fe",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "4bf36773b2ef46db",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3748-7.10-5",
