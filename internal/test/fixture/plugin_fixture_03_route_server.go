@@ -117,15 +117,18 @@ func bgpRSFastpath03(ctx context.Context, p *sdk.Plugin) error {
 	if !ok || data["enabled"] != true {
 		return fmt.Errorf("fast path not enabled: %v", value)
 	}
+	var last any
 	if !Poll(ctx, 60, 200*time.Millisecond, func() bool {
 		value, err := done03(ctx, p, "request bgp rib fastpath status")
 		if err != nil {
+			last = err
 			return false
 		}
+		last = value
 		status, ok := value.(map[string]any)
 		return ok && number03(status["forwarded"]) > 0
 	}) {
-		return fmt.Errorf("fast path read no forward-handle bytes")
+		return fmt.Errorf("fast path read no forward-handle bytes, last status: %v", last)
 	}
 	return nil
 }
