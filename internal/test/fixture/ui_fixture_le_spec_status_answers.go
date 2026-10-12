@@ -409,7 +409,7 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 		}
 	}
 	commands := [][]string{
-		{argInit, argQuiet, "--template=", "--initial-branch=fixture"},
+		{argInit, argQuiet, "--template=", gitInitFixtureBranch},
 		{argAdd, "--", dirPlan},
 		{"rm", "--cached", "--", "plan/immediate/spec-fixture-untracked.md"},
 		{"-c", "core.hooksPath=" + os.DevNull, "-c", gitCommitNoSign, argCommit, argQuiet, "-m", "Fixture specs"},

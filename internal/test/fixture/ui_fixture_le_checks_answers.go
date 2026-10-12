@@ -669,7 +669,7 @@ func leChecksBuildTree(ctx context.Context, parent, checkout string) (string, []
 		repocompiles.KeepKey:  "false",
 	})
 	for _, args := range [][]string{
-		{argInit, argQuiet, "--template=", "--initial-branch=fixture"},
+		{argInit, argQuiet, "--template=", gitInitFixtureBranch},
 		{argAdd, "--", "."},
 		{"-c", "core.hooksPath=" + os.DevNull, "-c", gitCommitNoSign, argCommit, argQuiet, "-m", "Build fixture"},
 	} {

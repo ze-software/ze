@@ -17,6 +17,39 @@ import (
 
 const leJobAdmitsHelperEnv = "ZE_TEST_LE_JOB_ADMITS_HELPER"
 
+// uiLeJobAdmitsCheckout makes the scratch registry tree a Git checkout with one
+// commit, because admission fingerprints a job's inputs from HEAD and refuses
+// a tree whose HEAD it cannot read (job.InputHash). The commit ignores tmp/,
+// as the real checkout does, so the registry the first job writes there is not
+// an input change the identical second job would see.
+func uiLeJobAdmitsCheckout(ctx context.Context, root string) error {
+	if err := os.WriteFile(filepath.Join(root, fileGitIgnore), []byte("tmp/*\n"), 0o600); err != nil {
+		return fmt.Errorf("write scratch .gitignore: %w", err)
+	}
+	env := childEnvironment(os.Environ(), map[string]string{
+		envGitConfigGlobal: os.DevNull,
+		envGitConfigSystem: "1",
+		envGitAuthorName:   gitFixtureName,
+		envGitAuthorEmail:  gitFixtureEmail,
+		envGitCommitName:   gitFixtureName,
+		envGitCommitEmail:  gitFixtureEmail,
+	})
+	commands := [][]string{
+		{argInit, argQuiet, "--template=", gitInitFixtureBranch},
+		{argAdd, "--", fileGitIgnore},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", gitCommitNoSign, argCommit, argQuiet, "-m", "Fixture checkout"},
+	}
+	for _, args := range commands {
+		command := exec.CommandContext(ctx, "git", args...) //nolint:gosec // the fixture chooses the program and its arguments
+		command.Dir = root
+		command.Env = env
+		if output, err := command.CombinedOutput(); err != nil {
+			return fmt.Errorf("git %v in the scratch registry tree: %w\n%s", args, err, output)
+		}
+	}
+	return nil
+}
+
 func init() {
 	Register("ui/le-job-admits", uiDriver(leJobAdmits))
 }
@@ -83,6 +116,9 @@ func leJobAdmits(ctx context.Context) error {
 	scratch := filepath.Join(testDir, "tree")
 	if err := os.MkdirAll(filepath.Join(scratch, "tmp"), 0o750); err != nil {
 		return fmt.Errorf("create scratch registry tree: %w", err)
+	}
+	if err := uiLeJobAdmitsCheckout(ctx, scratch); err != nil {
+		return err
 	}
 
 	environment := withoutEnv(os.Environ(), "ZE_RUN_JOB", leJobAdmitsHelperEnv)

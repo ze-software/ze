@@ -335,6 +335,7 @@ const (
 	gitCommitNoSign                 = "commit.gpgsign=false"
 	gitFixtureEmail                 = "fixture@example.invalid"
 	gitFixtureName                  = "Fixture"
+	gitInitFixtureBranch            = "--initial-branch=fixture"
 	logBFDConfigured                = "bfd plugin configured"
 	logBFDPinnedSessionCreated      = "bfd pinned session created"
 	logBFDRunning                   = "bfd plugin running"
