@@ -123,6 +123,10 @@ bgp {
 }
 EOF_CONF2
 
+# rsvp-te depends on the interface plugin, which has no backend off Linux
+# (internal/component/iface/default_other.go), so the daemon refuses to start
+# on darwin. The test runs on Linux and under ./le test qemu all-tests.
+option=needs-linux
 cmd=background:seq=1:exec=le test fixture reload/config-apply-ordering-coarse-root-trigger
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
 # Stop once the reload completed and the observer saw the coarse root applied.
