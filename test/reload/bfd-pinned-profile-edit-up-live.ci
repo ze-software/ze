@@ -21,9 +21,12 @@
 # PREVENTS: a profile edit that never reaches a live pinned session, and one
 #           that reaches it by tearing it down.
 #
-# DISCRIMINATION: with applyPinned skipping a key it already holds (the code
-# before AC-25), the session keeps Detect Mult 3 and the
-# `"detect-multiplier":5` stage fails after its 20s poll.
+# DISCRIMINATION: with applyPinned skipping a key it already holds and not
+# calling reprofileClients (the code before AC-25; either call alone carries
+# the edit to a pinned session), the session keeps Detect Mult 3 and the
+# `"detect-multiplier":5` stage fails after its 20s poll. Observed on Linux
+# 2026-10-12, 2/2 red against an overlay build run with ZE_BIN and
+# LE_TEST_NO_BUILD=1; green against the tree.
 # A BFD session reaches Up only on Linux: the darwin transport reads no
 # received TTL, and the engine fails closed on single-hop packets without one
 # (transport/udp_other.go, parseReceivedTTL).

@@ -2737,6 +2737,14 @@ Native suite actions isolate their binaries. For one selection, queue the
 runner through `./le job run`; set `ZE_BIN` only when testing an explicitly
 pinned `ze`. The harness is always the `le` you run.
 
+`ZE_BIN` alone names WHERE the runner puts `ze`, not a binary it keeps: without
+`LE_TEST_NO_BUILD=1` the runner still compiles the working tree into that path
+(`Runner.Build`), overwriting the binary you pinned. A discrimination run
+against an overlay or mutant build therefore sets both, or it silently measures
+the unmodified tree:
+`ZE_BIN=$PWD/bin/ze-mutant LE_TEST_NO_BUILD=1 ./le test bgp reload --pattern <test>`.
+<!-- source: internal/test/runner/runner.go -- Build, verifyPrebuilt -->
+
 BGP suites use the `le test bgp <suite>` command shape:
 
 ```bash
