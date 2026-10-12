@@ -60,6 +60,48 @@ calls a handler. Every one of their eleven plugin edges is a blank import that
 duplicates the generated composition, and the twelfth is a startup-time metrics
 setter.
 
+### Owner questions (scope and product only)
+
+| # | Question | Recommendation |
+|---|----------|----------------|
+| Q-1 | One spec in phases, or split route D (the FlowSpec and BGP-LS core move, 11 edges, the largest phase) into its own spec? | one spec, D1 and D2 as separate phases and commits |
+| Q-2 | `update text` for SR-Policy will refuse an endpoint whose address family does not match the NLRI's AFI (today accepted and encoded). This is the one deliberate behavior change; every other changed input in AC-11 is a refusal of input that is already invalid. Accept it? | accept: the plugin's encoder and config path already refuse it, so `update text` is the only surface that does not |
+
+### Route D symbol inventory (verified by declaration scan, 2026-10-12)
+
+Go methods live with their type, so every method of a moving type moves with
+it, including its `AppendJSON` (this resolves `flowspec/json.go` reading the
+unexported `.family`, `.flowSpec`, `.rd`, and `ls/json.go` reading `cachedBytes`).
+Nothing that registers moves: every `family.MustRegister` call and every fill of
+a registry stays in the plugin.
+
+**FlowSpec: `internal/core/bgp/nlri/flowspec`**
+
+| Plugin file | Moves to core | Stays in the plugin | Newly exported by core (called from the plugin) |
+|-------------|---------------|---------------------|-----------------------------------------------|
+| `types.go` | all types, constants, `NewFlowSpec`, `ParseFlowSpec`, methods, `parseFlowComponent`, `componentOfType` | the four `family.MustRegister` vars (lines 47-50), moved to `register.go`; core uses `family.Family` values built from `internal/core/family` constants | `ParseFlowComponent` (from `plugin_encode_text.go`) |
+| `types_numeric.go` | whole file | - | `NewFlowNumericComponent` (`config_builder.go`, `plugin_encode_text.go`), `NewFlowTCPFlagsMatchComponent`, `NewFlowFragmentMatchComponent` (`plugin_encode_text.go`), `NewFlowICMPCodeComponent` (`config_builder.go`) |
+| `types_prefix.go` | whole file | - | `NewFlowDestPrefixComponentWithOffset`, `NewFlowSourcePrefixComponentWithOffset` (`config_builder.go`) |
+| `types_vpn.go` | whole file | - | - |
+| `compare.go` | whole file (`Compare` uses `componentOfType`) | - | - |
+| `json.go` | `AppendJSON` methods and their helpers (`appendFlowSpecJSON`, `flowSpecKey`, `appendNestedStringArray`) | - | - |
+| `config.go`, `config_builder.go`, `encode.go`, `plugin.go`, `plugin_decode.go`, `plugin_encode_text.go`, `plugin_protocol.go`, `register.go` | - | whole files | - |
+
+**BGP-LS: `internal/core/bgp/nlri/bgpls`**
+
+| Plugin file | Moves to core | Stays in the plugin | Newly exported by core (called from the plugin) |
+|-------------|---------------|---------------------|-----------------------------------------------|
+| `types.go` | all NLRI types, `BGPLSNLRIType`, `BGPLSProtocolID`, `bgplsBase` and its methods, `parseBGPLS`, descriptor parsers, `parseBGPLSWithRest`, `tlv`, `writeTLV`, `uint32ToBytes`, `WriteTLVBytes`, the AFI/SAFI aliases | `BGPLSFamily`, `BGPLSVPNFamily` (`family.MustRegister`, lines 40-41), moved to `register.go`; `ls_export` names its families from `internal/core/family` constants | `ParseBGPLSWithRest` (`plugin.go`), `TLV` and `WriteTLV` (used by `attr*.go`, `plugin.go`) |
+| `types_nlri.go`, `types_descriptor.go`, `types_srv6.go` | whole files | - | - |
+| `json.go` | `AppendJSON` methods and helpers | - | - |
+| `attr.go` | - | the TLV decoder registry: `lsAttrTLV`, `lsAttrTLVDecoder`, `lsAttrTLVRegistry`, `registerLsAttrTLV`, `lookupLsAttrTLVDecoder`, `registeredLsAttrTLVCount`, `iterateAttrTLVs`, `decodeAttrTLV`, `decodeAllAttrTLVs`, `AttrTLVsToJSON`, JSON helpers | - |
+| `attr_node.go` | every `TLV*` code constant; `LsSrLabelRange`, `LsSRCapabilities` with their methods and helpers (`srLabelRangesLen`, `writeSrLabelRanges`, `decodeSrLabelRanges`, `srLabelRangesToJSON`) and `decodeSRCapabilities` | every other `ls*` attribute type and decoder | `DecodeSRCapabilities` (registered by `register_attr.go`) |
+| `attr_link.go`, `attr_prefix.go`, `attr_srv6.go` | the `TLV*` code constants (including `TLVPeerNodeSID`, `TLVPeerAdjSID`, `TLVPeerSetSID`, `TLVSIDLabel`) | attribute types, decoders, the TLV name maps | - |
+| `plugin.go`, `register.go`, `register_attr.go` | - | whole files | - |
+
+The moving files import only `internal/core/{bgp/nlri,bgp/wire,family,textbuf}`
+today, so core gains no dependency on component or plugin code.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -126,7 +168,7 @@ setter.
 
 **Behavior to change:**
 - `pool-stats` names its 14th pool instead of printing `unknown` (route G).
-- The SR-Policy text grammar in `update text` becomes the one the plugin registers; any difference in accepted input or error wording is listed in A-3 before the change.
+- The SR-Policy text grammar in `update text` becomes the one the plugin registers. Every changed input and its outcome is in AC-11b to AC-11f; the only input accepted today that becomes refused for a reason other than already being invalid is the endpoint/AFI mismatch (Q-2).
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -159,7 +201,7 @@ setter.
 - `filterapi.Filter` (new optional field), `filterapi.SetMetricsRegistry`.
 - Plugin `registry.Registration` (attribute JSON decoder field, route E).
 - `bfd/api` (new seam beside `SetProfileChecker`).
-- A boot-effect registration (route I; home decided at design review, see Key Design Decisions).
+- A boot-effect field on `registry.Registration` (route I), run once by hub between `applyHostTuning` and `startSmartManager`.
 - `./le repo generate` for the moved schema and handler packages.
 
 ### Architectural Verification
@@ -179,10 +221,12 @@ setter.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every production binary that links the reactor, `config/yang/cli`, the three CLIs or `plugins/init` also links `plugin/all` | `cmd/ze/ze_core_dispatch.go` imports both `plugin/all` and the CLI packages; `ze-installer` and `ze-serial-shell` import none of them (grep 2026-10-12) | a binary loses RPCs or a backend silently | `go list -deps` of each `cmd/*` main, recorded in the spec | unvalidated |
 | A-2 | Unit tests in `bgp/reactor`, `config/yang/cli`, `firewall/cli`, `iface/cli`, `traffic/cli`, `plugins/init`, `mtu/ping/traceroute/cmd` that need the deleted registrations can import them from `_test.go` files (non-production, gate-exempt) | `pluginNonProduction` exempts `_test.go` | tests go red after deletion | package tests of each touched package under `./le job run` | unvalidated |
-| A-3 | The plugin's SR-Policy grammar (`parseSRPolicyNLRIArgs`, `validateSRPolicyEndpoint`) accepts every input the `update` copy accepts and builds the same bytes; differences are limited to error wording, AFI/endpoint validation, and `path-information` handling | read of both parsers 2026-10-12 | operator-visible grammar change | table of accepted/refused inputs from both parsers, `bgp-srpolicy-{1,2}-encode.ci` green | unvalidated |
-| A-4 | The exported symbols listed in rows 20-30 plus their transitive needs can move to core without moving any `family.MustRegister` call or any registry fill | type files import only core (2026-10-12) | the move drags a registry into core | `./le arch tier check` core-direction and placement gates green after the move | unvalidated |
+| A-3 | Byte identity does NOT hold for every input: the two grammars differ on `path-information`, on `rd`/`label`, on a later `add`/`del`, and on endpoint/AFI mismatch. AC-11 lists each changed input and its outcome; every other input the `update` copy accepts builds the same bytes through the plugin encoder | independent review 2026-10-12; read of `update_text_srpolicy.go` and `srpolicy/encode.go` | an input accepted today changes bytes silently | `TestSRPolicyTextMatchesPluginGrammar` over AC-11's table; `bgp-srpolicy-{1,2}-encode.ci` green unchanged | unvalidated |
+| A-4 | The Route D inventory moves to core without moving any `family.MustRegister` call or any registry: the BGP-LS attribute TLV registry (`lsAttrTLVRegistry`, `registerLsAttrTLV`, `lookupLsAttrTLVDecoder`, `decodeAllAttrTLVs`) stays whole in the plugin, and core holds only `DecodeSRCapabilities` as a plain function the plugin registers | declaration scan 2026-10-12; moving files import only core | the move drags a registry into core | `./le arch tier check` core-direction and placement gates; grep core packages for `MustRegister` and package-level maps written from `init()` | unvalidated |
 | A-5 | `ls_export` can name its families from `internal/core/family` constants (`AFIBGPLS`, `SAFIBGPLinkState`, `SAFIBGPLinkStateVPN`) instead of the plugin's registered vars | `family.go` declares the AFI name; plugin registers the name pair | export path needs a registered `Family` value | `bgpls-export-lifecycle.ci` green | unvalidated |
-| A-6 | The BFD raw capture interface returns `plugin.BGPRawCaptureEntry`, a component/plugin type `bfd/api` may import without a cycle | `capture_raw.go` line 18 | import cycle | build of `bfd/api` | unvalidated |
+| A-6 | The BFD raw capture interface returns `plugin.BGPRawCaptureEntry`, a component/plugin type `bfd/api` may import without a cycle | `capture_raw.go` line 18 | import cycle | independent design review 2026-10-12 | validated |
+| A-8 | No registered `InProcessNLRIEncoder` grammar uses `add` or `del` as a value token, so the shared registry section parser may consume a later `add`/`del` inside the run (last wins) for every plugin family | SR-Policy parser today accepts a later `add`/`del` and lets it win (`update_text_srpolicy.go` lines 51-66) | the shared parser would steal a value token from another family | grep of every `EncodeNLRIHex` argument parser; their unit tests green. If wrong: the shared parser keeps add/del first-only and refuses a later one with an error naming the fix | unvalidated |
+| A-9 | `crashes` holds no `registry.Registration` today (only `RegisterRPCs`, an offline fallback and doctor checks); route I adds one, and `registry.Register` requires a non-nil `RunEngine`, so it carries the same no-op engine `srpolicy` uses | grep of `internal/plugins/crashes` 2026-10-12; `registry.go` line 509 | the registration adds an engine process | `ze plugin` listing and startup test show no new running process | unvalidated |
 | A-7 | Moving the three `-cmd` YANG modules changes no module name, namespace or prefix, so `ze-mtu-cmd`, `ze-ping-cmd`, `ze-traceroute-cmd` stay byte-identical and their imports still resolve | `yang/glue` keys by module, not directory | YANG load failure | `TestYANGImportsFollowGoImports`, `cmd_schema_test.go` moved with the module | unvalidated |
 
 ### Risks
@@ -195,7 +239,8 @@ setter.
 | R-5 | Filter metrics hook runs before the filter registered (init order) | loop counter absent from `/metrics` | hooks run at reactor start, long after every `init()`; a unit test asserts the counter appears |
 | R-6 | Concurrent sessions edit `reactor.go`, `ls_export`, `rib` | foreign hunks in the same files | `.claude/rules/foreign-files.md`; edit only the import block and the one call site |
 | R-7 | `spec-bgp-ls-origination-and-the-scheduled-marker` (pre-release) touches `ls_export` | merge conflict | land route D's `ls` move as one phase and tell that spec's owner the new import path |
-| R-8 | The boot-effect seam (route I) becomes a general hook other code piles onto | review finds a second, unrelated caller | typed, named registration with one documented purpose; no ordering knobs |
+| R-8 | The boot-effect field (route I) becomes a general hook other code piles onto | review finds a second, unrelated use or a request for ordering | one run point only: hub calls the registered boot effects once, right after `applyHostTuning` and before `startSmartManager` (`cmd/ze/hub/main.go` lines 1022-1024); no ordering field, no reload-time call, documented as "runs once at daemon start" |
+| R-9 | `bfdRawCapture` is written by BFD start/stop and read by the `capture-raw` handler with no synchronisation today | race detector on the diag/BFD tests | the seam in `bfd/api` holds the provider in an `atomic.Pointer` (or `atomic.Value`), matching `loopMetricsPtr`; the race is fixed by the move, not carried |
 
 ## Blast Radius
 
@@ -225,7 +270,7 @@ setter.
 |-------|-------------------|-------------------|
 | AC-1 | `./le arch tier check` on the finished tree | exit 0; `plugin ownership OK`; `ownership.go` and `module-tiers.md` gain no exemption or baseline |
 | AC-2 | `test/ui/le-placement-answers.ci` | passes |
-| AC-3 | `go list -deps` of every `cmd/*` main package, before and after | the set of `internal/plugins/...` and `bgp/plugins/...` packages linked is identical except the three deleted `-cmd/yang` paths, replaced by their new homes |
+| AC-3 | `go list -deps` of `cmd/ze` under each shipped tag set, `ze_core`, `ze_core,ze_bgp`, `ze_setup`, `ze_core,ze_appliance`, `ze_distro,ze_core,ze_bgp`, plus the `./le` build set, and of `cmd/ze-installer` and `cmd/ze-serial-shell`, before and after | for each set, the `internal/plugins/...` and `bgp/plugins/...` packages linked are identical except the three deleted `-cmd/yang` paths, replaced by their new homes, the moved pool-stats package, and the two new `internal/core/bgp/nlri/...` packages; the diff is pasted in the spec |
 | AC-4 | `internal/component/config/yang/cli/tree_bgp.go` | deleted; stale "import cycles / rpcDirs" comments in `tree.go` and `tree_bfd.go` corrected |
 | AC-5 | metrics enabled, a route with a local-AS loop received | `ze_bgp_as_path_loop_detected_total{peer=...}` increments, as today; reactor imports no `reactor/filter` |
 | AC-6 | `internal/plugins/{mtu,ping,traceroute}-cmd` | gone; each module lives at `internal/component/<x>/yang/` with unchanged module name, namespace and prefix; `show mtu`, `ping`, `traceroute` completion and help unchanged |
@@ -233,11 +278,17 @@ setter.
 | AC-8 | encode/decode `.ci` suites for BGP-LS, FlowSpec, SR-Policy | byte-identical outputs, no expectation edited |
 | AC-9 | `ze bgp decode` of an UPDATE carrying attribute 29 | same `bgp-ls` JSON; `decode_update.go` has no `case 29` and no `nlri/ls` import |
 | AC-10 | `ze bgp decode` in a build without `bgp-nlri-ls` registered (unit test with an empty registry) | attribute 29 falls back to the generic unknown-attribute output, no panic |
-| AC-11 | `update text` SR-Policy inputs from A-3's table | same bytes as before for every accepted input; `update_text_srpolicy.go` deleted; the SAFI 73 branch gone |
-| AC-12 | `pool-stats` | answered by a rib-owned package; returns one row per pool in `AllPools()`, every row named, no `unknown` |
-| AC-13 | `capture-raw protocol bfd` with BFD running / not running | works / returns today's not-available error; `bfd.go` imports no `plugins/diag` |
-| AC-14 | daemon start | crash harvest runs once, same log lines and gauges; `cmd/ze/hub` imports no `plugins/crashes` |
-| AC-15 | benchmarks `BenchmarkFlowSpecValidation*` (rib) and the reactor UPDATE path benchmark | allocs/op unchanged, ns/op within noise; numbers pasted in the spec |
+| AC-11a | `update text ... nlri ipv4/sr-policy add distinguisher D color C endpoint E` with E of the NLRI's AFI (every input `bgp-srpolicy-{1,2}-encode.ci` uses) | same NLRI bytes as before |
+| AC-11b | a later `add`/`del` inside the run (`add distinguisher 1 del color 2 endpoint 10.0.0.1`) | accepted as today, last wins (`del`), same bytes; if A-8 fails, refused with an error saying to write one `add` or `del` right after the family |
+| AC-11c | a field before any `add`/`del` | refused as today (`route.ErrMissingAddDel`) |
+| AC-11d | `path-information N` on SAFI 73, inside the section or carried in the accumulator | refused with an error naming the problem (SR-Policy NLRI does not support ADD-PATH, RFC 9830) and the fix (remove `path-information`); never stripped silently. The refusal comes from a fact the SR-Policy plugin declares in its registration, never from a SAFI test in `update` |
+| AC-11e | `rd` or `label` inside an SR-Policy section | refused by the SR-Policy encoder with an error naming the token and saying SR-Policy takes only `distinguisher`, `color`, `endpoint` (today these end the section and the top-level parser refuses them; refused before, refused after, clearer message) |
+| AC-11f | endpoint of the other address family (`ipv4/sr-policy ... endpoint 2001:db8::1`) | refused by `validateSRPolicyEndpoint`: the one deliberate behavior change, owner question Q-2 |
+| AC-11g | the code | `update_text_srpolicy.go` deleted; no `SAFISRPolicy` in `update_text_nlri.go`: the SAFI 73 branch, the `parseNLRI` case list (line 262) and the native-family switch (lines 448-449) are gone, SR-Policy is reached because the registry says a plugin encodes it |
+| AC-12 | `pool-stats` | answered by `internal/component/bgp/plugins/rib/poolcmd` with its module `ze-rib-poolstats-cmd.yang` in `internal/component/bgp/plugins/rib/poolcmd/yang/` (WireMethod `ze-bgp:pool-stats` unchanged); one row per pool in `AllPools()`, every row named from names declared beside the pools in `rib/pool/attributes.go`, no `unknown` |
+| AC-13 | `capture-raw protocol bfd` with BFD running / not running | works / returns today's not-available error; the provider is held in an atomic in `bfd/api`; `bfd.go` imports no `plugins/diag`; race-enabled test green |
+| AC-14 | daemon start | the crashes registration's boot effect runs once, after `applyHostTuning` and before `startSmartManager`, with the same log lines and gauges, and the "no crash directory is writable" warning (now `main_system.go` line 173) emitted by the crashes package; `cmd/ze/hub` imports no `plugins/crashes`; a config reload does not run it |
+| AC-15 | `BenchmarkForwardDirect` and `BenchmarkForwardDirect_Batch` (`internal/component/bgp/reactor/forward_update_bench_test.go`), and a new `BenchmarkRIBFlowSpecValidation` in `internal/component/bgp/plugins/rib/` run before the D1 move and after it | allocs/op identical, ns/op within noise; numbers pasted in the spec |
 
 ## End-to-End User Stories
 
@@ -274,7 +325,7 @@ setter.
 | existing BGP-LS, FlowSpec, SR-Policy encode/decode, flowspec-fw, bgpls-export, crashes, diag-capture suites | `test/{encode,decode,plugin,ui}/` | unchanged behavior | |
 
 ### Interop Tests (Scope: protocol)
-N-A: pure internal refactor with no wire-visible change (`ai/rules/interop-and-goal-validation.md` exemption). Byte identity is proven by AC-8.
+N-A, under the "no wire-visible change" exemption of `ai/rules/interop-and-goal-validation.md`, stated precisely: for every input Ze still accepts, the bytes Ze puts on the wire are unchanged (AC-8, AC-11a, AC-11b); the inputs AC-11c to AC-11f are refused at the `update text` command before any UPDATE is built, so they send nothing and no peer can observe them. That refusal is proven by `TestSRPolicyTextMatchesPluginGrammar`, not by a peer.
 
 ## Files to Modify
 - `internal/component/bgp/reactor/reactor.go` (imports, metrics comment and call)
@@ -287,8 +338,9 @@ N-A: pure internal refactor with no wire-visible change (`ai/rules/interop-and-g
 - `internal/component/bgp/plugins/nlri/ls/*`, `nlri/flowspec/*` (moved symbols removed, imports updated, attribute JSON decoder registered)
 - `internal/component/bgp/plugins/rib/rib_flowspec_validation.go`, `internal/plugins/flowspec-firewall/*.go`
 - `internal/component/bgp/cli/decode_update.go`
-- `internal/component/bgp/plugins/cmd/update/update_text_nlri.go`
-- `internal/component/plugin/registry/registry.go` (attribute JSON decoder field and lookup)
+- `internal/component/bgp/plugins/cmd/update/update_text_nlri.go` (SAFI 73 branch, `parseNLRI` case list line 262, native-family switch lines 448-449, later `add`/`del` in `parseRegistryNLRISection`, ADD-PATH refusal from the registration)
+- `internal/component/bgp/plugins/nlri/srpolicy/register.go`, `encode.go` (declare no ADD-PATH; refuse `rd`/`label` with a clear error)
+- `internal/component/plugin/registry/registry.go` (attribute JSON decoder field and lookup, no-ADD-PATH fact, boot-effect field)
 - `internal/component/bgp/plugins/rib/pool/attributes.go` (names declared with pools)
 - `internal/component/bfd/bfd.go`, `internal/component/bfd/api/` (seam), `internal/plugins/diag/cmd/capture_raw.go`
 - `cmd/ze/hub/main.go`, `main_system.go`, `internal/plugins/crashes/readiness.go`, `register.go`
@@ -299,7 +351,9 @@ N-A: pure internal refactor with no wire-visible change (`ai/rules/interop-and-g
 - `internal/core/bgp/nlri/bgpls/` (BGP-LS wire vocabulary moved from `nlri/ls`)
 - `internal/core/bgp/nlri/flowspec/` (FlowSpec wire vocabulary moved from `nlri/flowspec`)
 - `internal/component/{mtu,ping,traceroute}/yang/` (ping and traceroute new; mtu existing) holding the moved `-cmd` modules
-- rib-owned `pool-stats` package with its YANG module (moved from `cmd/rib`)
+- `internal/component/bgp/plugins/rib/poolcmd/` (handler moved from `cmd/rib/pool_stats.go`) and `rib/poolcmd/yang/ze-rib-poolstats-cmd.yang` (moved from `cmd/rib/yang/`)
+- crashes `registry.Registration` in `internal/plugins/crashes/register.go` (boot effect, no-op engine)
+- `BenchmarkRIBFlowSpecValidation` in `internal/component/bgp/plugins/rib/`
 - `test/plugin/bgp-pool-stats.ci`
 
 Deleted: `internal/component/config/yang/cli/tree_bgp.go`, `internal/component/bgp/plugins/cmd/update/update_text_srpolicy.go`, `internal/component/bgp/plugins/cmd/rib/pool_stats.go` and its YANG module, `internal/plugins/{mtu,ping,traceroute}-cmd/`.
@@ -338,7 +392,7 @@ Deleted: `internal/component/config/yang/cli/tree_bgp.go`, `internal/component/b
 | 13 | Route metadata keys changed? | No | - |
 | 14 | Prometheus counters changed? | No | names unchanged |
 | 15 | Registered plugin/command/inventory changed? | Yes | `docs/plugin-overview.md` if it lists `*-cmd` |
-| 16 | Changed files with doc source anchors? | Yes | DERIVED: `./le spec citation anchors spec plan/pre-release/spec-plugin-ownership-imports.md` at each phase. Declared by `// Design:` headers of files this spec changes: `docs/architecture/api/architecture.md` (affected only if it names the `update` SR-Policy parser; check in phase F), `docs/architecture/config/yang-config-design.md` (affected: the analysis-tree blank-import partition described for `tree.go`/`tree_bgp.go`, phase A), `docs/architecture/hub-architecture.md` (affected: daemon-start crash harvest call, phase I), `docs/architecture/plugin/rib-storage-design.md` (affected: FlowSpec validation imports the core package, phase D1), `docs/architecture/pool-architecture.md` (affected: pool names declared beside `AllPools`, pool-stats owner, phase G), `rfc/short/rfc5880.md` (unaffected: `bfd.go` changes one seam call, no BFD protocol behavior; anchor checked in phase H) |
+| 16 | Changed files with doc source anchors? | Yes | DERIVED: `./le spec citation anchors spec plan/pre-release/spec-plugin-ownership-imports.md` at each phase. Declared by `// Design:` headers of files this spec changes: `docs/architecture/api/architecture.md` (affected only if it names the `update` SR-Policy parser; check in phase F), `docs/architecture/config/yang-config-design.md` (affected: the analysis-tree blank-import partition described for `tree.go`/`tree_bgp.go`, phase A), `docs/architecture/hub-architecture.md` (affected: daemon-start crash harvest call, phase I), `docs/architecture/plugin/rib-storage-design.md` (affected: FlowSpec validation imports the core package, phase D1), `docs/architecture/pool-architecture.md` (affected: pool names declared beside `AllPools`, pool-stats owner, phase G), `docs/architecture/wire/nlri.md` (affected: SR-Policy registration declares no ADD-PATH and the `update text` path goes through the registered encoder, phase F), `rfc/short/rfc5880.md` (unaffected: `bfd.go` changes one seam call, no BFD protocol behavior; anchor checked in phase H) |
 | 17 | Existing docs show examples for this area? | Yes | SR-Policy `update text` examples checked against the plugin grammar |
 
 ## Implementation Steps
@@ -350,10 +404,10 @@ Deleted: `internal/component/config/yang/cli/tree_bgp.go`, `internal/component/b
 5. **Phase D1: FlowSpec core** (25-30) -- move the wire vocabulary to `internal/core/bgp/nlri/flowspec`, plugin keeps `family.MustRegister`, config, JSON/text, hex codecs; update RIB and flowspec-firewall. AC-7, AC-8, AC-15.
 6. **Phase D2: BGP-LS core** (20-24) -- same for `internal/core/bgp/nlri/bgpls`; `ls_export` uses core family constants (A-5). AC-7, AC-8.
 7. **Phase E: attribute JSON decoder** (31) -- registry field keyed by attribute code, `bgp-nlri-ls` registers `AttrTLVsToJSON` for 29, decoder looks it up. AC-9, AC-10.
-8. **Phase F: SR-Policy text** (32) -- write A-3's table first, then delete the SAFI 73 branch and `update_text_srpolicy.go`. AC-11.
+8. **Phase F: SR-Policy text** (32) -- write `TestSRPolicyTextMatchesPluginGrammar` over AC-11a to AC-11f first and record today's outcome for each row; validate A-8; then declare no ADD-PATH in the SR-Policy registration, make the encoder refuse `rd`/`label`, let the shared registry section parser honour a later `add`/`del`, and delete the SAFI 73 branch, the two SAFI 73 case lists and `update_text_srpolicy.go`. AC-11a to AC-11g.
 9. **Phase G: pool-stats** (33) -- move handler and module into the rib owner; names declared beside the pools. AC-12.
 10. **Phase H: BFD capture seam** (34) -- interface and setter into `bfd/api`; diag reads it. AC-13.
-11. **Phase I: crash boot effect** (35) -- registration and the hub call site. AC-14.
+11. **Phase I: crash boot effect** (35) -- boot-effect field on `registry.Registration`; crashes registers it (A-9) with `HarvestAtBoot` and the not-writable warning; hub runs registered effects once between `applyHostTuning` and `startSmartManager` and drops `harvestKernelCrashes`. AC-14.
 12. Docs per checklist, in each phase. AC-1, AC-2 at the end.
 
 ### Critical Review Checklist
@@ -403,10 +457,11 @@ Deleted: `internal/component/config/yang/cli/tree_bgp.go`, `internal/component/b
 | C: metrics hook on `filterapi.Filter` | `registry.Registration.ConfigureMetrics` | the loop filter is not a run plugin, so `ConfigureMetrics` never fires (the reactor comment says so); `filterapi` already owns the sibling attr-mod counters and is the seam the filter registers through. Startup only; `LoopIngress` keeps its atomic load |
 | B: schema into `internal/component/<x>/yang/` | delete only the blank import | the import is a symptom: a handler owner whose schema lives in another directory fails the delete-the-folder test either way. `command-ownership.md` puts it at `<owner>/yang` |
 | E: attribute JSON decoder registered by attribute code | move `AttrTLVsToJSON` and all TLV decoders to core | the decoders are the `bgp-nlri-ls` plugin's feature; removing the plugin should remove BGP-LS attribute decoding from `ze bgp decode`. Offline tool, no hot path |
-| F: SR-Policy text through `registry.EncodeNLRIByFamily` | move `srpolicy.New` to core | the plugin already registers an encoder for exactly this grammar; the `update` copy is a duplicate. Command path only: one hex round trip per operator command, as every other plugin family already pays |
-| G: pool-stats into the rib owner | a registry for "pool reporters" | one reader, one owner; moving the handler is simpler than a seam. The pool names move beside `AllPools()`, removing the 13-vs-14 drift |
-| H: seam in `bfd/api` | diag registry of capture providers | `bfd/api` is the always-on BFD client contract and already holds two nil-able seams of this shape |
-| I: crash harvest as a registered boot effect | (a) give crashes an engine and run the harvest in `RunEngine`; (b) move `HarvestAtBoot` into `internal/core/crashlog` | (a) changes the plugin's process model for one call; (b) puts config reading and gauge publication into core. Open for design review: whether the effect registers in `plugin/registry` or a smaller host package hub already imports |
+| F: SR-Policy text through `registry.EncodeNLRIByFamily` | move `srpolicy.New` to core | the plugin already registers an encoder for exactly this grammar; the `update` copy is a duplicate. Command path only: one hex round trip per operator command, as every other plugin family already pays. ADD-PATH refusal comes from a fact the plugin declares in its registration (the encoder's own comment: "SR-Policy NLRIs do not support ADD-PATH"), so `update` keeps no SAFI 73 test |
+| F: later `add`/`del` handled by the shared registry section parser for every plugin family (A-8) | require `add`/`del` first and refuse a later one | keeps every SR-Policy input accepted today accepted with the same bytes; the refusal is the fallback if A-8 fails |
+| G: pool-stats into `internal/component/bgp/plugins/rib/poolcmd` with its schema in `poolcmd/yang` | a registry for "pool reporters" | one reader, one owner; moving the handler is simpler than a seam. The pool names move beside `AllPools()`, removing the 13-vs-14 drift |
+| H: seam in `bfd/api`, provider held in an atomic | diag registry of capture providers | `bfd/api` is the always-on BFD client contract and already holds two nil-able seams of this shape; the atomic fixes today's unsynchronised `bfdRawCapture` (R-9) |
+| I: a boot-effect field on `registry.Registration`, set by a new crashes registration (A-9), run once by hub after `applyHostTuning` and before `startSmartManager`; the not-writable warning moves into the crashes effect | (a) give crashes an engine and run the harvest in `RunEngine`; (b) move `HarvestAtBoot` into `internal/core/crashlog`; (c) a separate boot-hook registry package | (a) changes the plugin's process model for one call; (b) puts config reading and gauge publication into core; (c) is a new registry for one user, where `registry.Registration` is already the place a plugin declares what the host calls. R-8 holds it to one run point (decided at design review, 2026-10-12) |
 
 ## Known Limitations
 - `update_text_nlri.go` still dispatches FlowSpec, VPLS and EVPN by SAFI in its own parsers. Those are central enumerations under `ai/rules/principles.md` but not ownership edges (no plugin import); not in this spec.
