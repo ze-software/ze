@@ -46,8 +46,9 @@ module ze-bgp-conf {
             mandatory true;
             description "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer. Ze
                 therefore rejects 0.0.0.0. A peer that implements RFC 6286 Section 2.2 answers an OPEN that carries
-                0.0.0.0 with Bad BGP Identifier.";
-            ze:help "BGP Router ID for this speaker. The leaf is required.";
+                0.0.0.0 with Bad BGP Identifier. The leaf is mandatory, and a config without it loads only when every
+                peer sets session router-id itself or inherits it from its group; a dynamic group must set its own.";
+            ze:help "BGP Router ID for this speaker. Required unless every peer or its group sets one.";
         }
 
         leaf as-notation {
