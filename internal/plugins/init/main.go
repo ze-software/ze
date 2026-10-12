@@ -399,8 +399,15 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 		// appliance boots with no active config and builds one at first boot from
 		// the template merged with its own on-device discovery (see
 		// cmd/ze/ze_core_start.go bootstrapConfigFromTemplate).
+		//
+		// --managed skips it too: a managed client's config comes from its hub.
+		// cmdStartManaged reads file/active/<name>.conf as the hub's cached
+		// config, so a discovered file under that name would stand in for it
+		// and the first boot would never fetch from the hub.
 		if seed { //nolint:staticcheck // SA9003: intentional no-op; see comment above
 			// appliance seed: nothing baked in; first boot discovers on-device.
+		} else if managed { //nolint:staticcheck // SA9003: intentional no-op; see comment above
+			// managed client: the hub supplies the first config.
 		} else if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: load netlink backend: %v\n", loadErr)
 		} else {
