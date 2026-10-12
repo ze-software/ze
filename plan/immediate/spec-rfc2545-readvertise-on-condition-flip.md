@@ -82,6 +82,15 @@ event, run on a long-lived reactor worker rather than on the EventBus
 goroutine. This spec reuses that path, and adds
 only its own trigger: an RFC 2545 Section 3 condition flip.
 
+**Open, 2026-10-12 (round 12 on `spec-bgp-link-local-only-next-hop`):** the
+re-send shape is an owner question there (Owner decisions, "Round 12:
+re-send shape"): end the affected session with a Cease, subcode 6, so its
+initial send carries the new next hop, or keep the in-place re-send above.
+The Cease would also answer this spec's flip with a session reset, which is
+a different act from the B-16 ruling's "re-advertise the affected
+prefixes", so the owner's answer there decides this spec's AC-1 and AC-2
+too. Until then the paragraph above stands as round 11 left it.
+
 ## Required Reading
 
 ### Architecture Docs
