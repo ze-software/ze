@@ -152,7 +152,7 @@
       "claim-sha": "2f99f6b032e29e8e",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
+      "producer-sha": "4ed1ee92b4f69d5a",
       "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "4a1ed509fcfb711c",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
+      "producer-sha": "4ed1ee92b4f69d5a",
       "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1461,7 +1461,7 @@
       "claim-sha": "88eb27e84f38de84",
       "route": "revert",
       "producer": "internal/component/bfd/engine/engine.go::reviveReleasedLocked",
-      "producer-sha": "d4f9764cf0babe11",
+      "producer-sha": "bcb92415ff19add0",
       "break": "body of reviveReleasedLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1514,10 +1514,10 @@
       "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets",
       "unit-sha": "85b1dc36ec81a566",
       "claim-sha": "c4cd83969ff47c82",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::Receive",
-      "producer-sha": "a78f25ff2c103765",
-      "break": "line 49: \"!=\" -\u003e \"==\""
+      "producer-sha": "358034a974de9c16",
+      "break": "body of Receive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.1-5",
@@ -1538,7 +1538,7 @@
       "claim-sha": "1075ce28dcbb77a6",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
+      "producer-sha": "4ed1ee92b4f69d5a",
       "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1549,7 +1549,7 @@
       "claim-sha": "7edce3c9599917c8",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
+      "producer-sha": "4ed1ee92b4f69d5a",
       "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1635,10 +1635,10 @@
       "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880SlowStartFloorInEveryStateButUp",
       "unit-sha": "a183f8fec64f8e77",
       "claim-sha": "08cd9c4b55b61372",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
-      "break": "line 179: \"m.vars.SessionState != packet.StateUp\" -\u003e \"false\""
+      "producer-sha": "4ed1ee92b4f69d5a",
+      "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.3-1",
@@ -1648,7 +1648,7 @@
       "claim-sha": "6eb308a26ec8dcfe",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
+      "producer-sha": "4ed1ee92b4f69d5a",
       "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1659,7 +1659,7 @@
       "claim-sha": "4d61d3ccd3f4977d",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
+      "producer-sha": "4ed1ee92b4f69d5a",
       "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1679,10 +1679,10 @@
       "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedForEachIntervalAlone",
       "unit-sha": "feea045acd28d2d6",
       "claim-sha": "bb051a8452c4887f",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
-      "break": "line 165: \"||\" -\u003e \"\u0026\u0026\""
+      "producer-sha": "4ed1ee92b4f69d5a",
+      "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.3-2",
@@ -1690,10 +1690,10 @@
       "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx",
       "unit-sha": "d0a718710a4ad2be",
       "claim-sha": "2459d3272aa817c0",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
-      "break": "line 186: \"!=\" -\u003e \"==\""
+      "producer-sha": "4ed1ee92b4f69d5a",
+      "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.3-2",
@@ -1703,7 +1703,7 @@
       "claim-sha": "2eddf43f4676d7bb",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
+      "producer-sha": "4ed1ee92b4f69d5a",
       "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1714,7 +1714,7 @@
       "claim-sha": "61a9b7bdc0730182",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "e4d315357f7abe7b",
+      "producer-sha": "4ed1ee92b4f69d5a",
       "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1833,10 +1833,10 @@
       "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce",
       "unit-sha": "9ae079cd965c690c",
       "claim-sha": "7794851eb7efd6bf",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bfd/session/timers.go::DetectionInterval",
-      "producer-sha": "c30900f2e9f01e47",
-      "break": "line 26: \"mult == 0\" -\u003e \"true\""
+      "producer-sha": "59d6ae94c0c554b1",
+      "break": "body of DetectionInterval replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.3-8",
@@ -2099,7 +2099,7 @@
       "claim-sha": "d224bf6100ef32da",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::Receive",
-      "producer-sha": "a78f25ff2c103765",
+      "producer-sha": "358034a974de9c16",
       "break": "body of Receive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2110,7 +2110,7 @@
       "claim-sha": "239e549266dd9ccb",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::Receive",
-      "producer-sha": "a78f25ff2c103765",
+      "producer-sha": "358034a974de9c16",
       "break": "body of Receive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

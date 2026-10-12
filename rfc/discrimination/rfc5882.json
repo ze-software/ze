@@ -42,7 +42,7 @@
       "claim-sha": "553a967b5887d811",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::Receive",
-      "producer-sha": "a78f25ff2c103765",
+      "producer-sha": "358034a974de9c16",
       "break": "body of Receive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
