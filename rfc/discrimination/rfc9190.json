@@ -204,7 +204,7 @@
       "polarity": "negative",
       "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13RefusesATicketPastTheSection57Lifetime",
       "unit-sha": "8416c2268e64221e",
-      "claim-sha": "ba67013caebece21",
+      "claim-sha": "88e7063f2d739040",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
       "producer-sha": "4bf36773b2ef46db",
