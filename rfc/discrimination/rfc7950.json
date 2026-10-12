@@ -438,7 +438,7 @@
       "claim-sha": "c11480f157dd23c4",
       "route": "revert",
       "producer": "internal/component/config/yang/validator.go::walkTree",
-      "producer-sha": "850c03ca8334f5d3",
+      "producer-sha": "f1f1d8fe60ff47c3",
       "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -460,7 +460,7 @@
       "claim-sha": "a65ac29952d87ca7",
       "route": "revert",
       "producer": "internal/component/config/yang/validator.go::walkTree",
-      "producer-sha": "850c03ca8334f5d3",
+      "producer-sha": "f1f1d8fe60ff47c3",
       "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -471,7 +471,7 @@
       "claim-sha": "87776a5776775722",
       "route": "revert",
       "producer": "internal/component/config/yang/validator_mandatory.go::requireMandatoryUnderAbsent",
-      "producer-sha": "7d85cd44ff733bb8",
+      "producer-sha": "7710d7c24cd56aa0",
       "break": "body of requireMandatoryUnderAbsent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -482,7 +482,7 @@
       "claim-sha": "e0ff290b8dc7ac13",
       "route": "revert",
       "producer": "internal/component/config/yang/validator.go::walkTree",
-      "producer-sha": "850c03ca8334f5d3",
+      "producer-sha": "f1f1d8fe60ff47c3",
       "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -504,7 +504,7 @@
       "claim-sha": "a3e83056325b777c",
       "route": "revert",
       "producer": "internal/component/config/yang/validator.go::walkTree",
-      "producer-sha": "850c03ca8334f5d3",
+      "producer-sha": "f1f1d8fe60ff47c3",
       "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -515,7 +515,7 @@
       "claim-sha": "67c3ce0d907a19ae",
       "route": "revert",
       "producer": "internal/component/config/yang/validator_mandatory.go::requireMandatoryUnderAbsent",
-      "producer-sha": "7d85cd44ff733bb8",
+      "producer-sha": "7710d7c24cd56aa0",
       "break": "body of requireMandatoryUnderAbsent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -526,7 +526,7 @@
       "claim-sha": "5ecba524329959a5",
       "route": "revert",
       "producer": "internal/component/config/yang/validator.go::walkTree",
-      "producer-sha": "850c03ca8334f5d3",
+      "producer-sha": "f1f1d8fe60ff47c3",
       "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -594,6 +594,28 @@
       "producer": "internal/component/config/yang/loader.go::Resolve",
       "producer-sha": "6897919c7558a576",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-7.9.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode",
+      "unit-sha": "d88553862c15fbf2",
+      "claim-sha": "1d00547a9d1ad77d",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_mandatory.go::mandatoryPresent",
+      "producer-sha": "f92b8f4417dbe408",
+      "break": "body of mandatoryPresent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-7.9.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode",
+      "unit-sha": "d88553862c15fbf2",
+      "claim-sha": "894a142e981b7679",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator_mandatory.go::missingMandatory",
+      "producer-sha": "63672ef68b68fd6e",
+      "break": "body of missingMandatory replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7950-8.1-2",

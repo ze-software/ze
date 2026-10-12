@@ -146,6 +146,9 @@ func TestRFC7950MandatoryRequiredWhenAncestorExists(t *testing.T) {
 //
 // Method: walk a container holding a mandatory choice with one case node
 // present, with a nested-choice case node present, and with none.
+//
+// RFC requirement: RFC7950-7.9.4-1 negative -- a container holding no data node of any case of its mandatory choice (wrap/kind) is reported missing the choice.
+// RFC requirement: RFC7950-7.9.4-1 positive -- a node of one case, or of a case of a nested choice, satisfies the mandatory choice and raises no missing error.
 func TestMandatoryChoiceSatisfiedByACaseNode(t *testing.T) {
 	loader := NewLoader()
 	module := `module ze-test-choice-conf {
