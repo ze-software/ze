@@ -226,5 +226,5 @@ func TestPositionBoundsFireWhenTheTreeIsWalked(t *testing.T) {
 
 // policyOnly wraps one policy body in the smallest bgp block that parses.
 func policyOnly(list string) string {
-	return "bgp {\n    router-id 1.2.3.4;\n    policy {\n" + list + "\n    }\n}\n"
+	return "bgp {\n    router-id 1.2.3.4;\n    session { asn { local 65000; } }\n    policy {\n" + list + "\n    }\n}\n"
 }

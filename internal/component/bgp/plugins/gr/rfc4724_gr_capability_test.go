@@ -42,6 +42,11 @@ import (
 // under "session" beside "capability" rather than at the top of the peer.
 func deliverBGPSection(t *testing.T, text string) string {
 	t.Helper()
+	// The YANG schema marks bgp/router-id and bgp/session/asn/local mandatory
+	// (RFC 7950 Section 7.6.5), so every configuration under test carries
+	// them. Neither touches graceful-restart or the families it lists.
+	require.True(t, strings.HasPrefix(text, "bgp {\n"), "the configuration under test opens the bgp section")
+	text = "bgp {\n\trouter-id 192.0.2.1\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000\n\t\t}\n\t}\n" + strings.TrimPrefix(text, "bgp {\n")
 	result, err := zeconfig.LoadConfig(text, "test.conf", nil)
 	require.NoError(t, err, "the configuration under test must parse")
 	subtree := zeconfig.ExtractConfigSubtree(result.Tree.ToPluginMap(), configRootBGP)

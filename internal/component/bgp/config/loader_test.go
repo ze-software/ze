@@ -378,7 +378,7 @@ func TestOldSyntaxHint(t *testing.T) {
 
 	t.Run("current syntax no hint", func(t *testing.T) {
 		// Valid current config should parse without error (no hint needed).
-		input := `bgp { session { asn { local 65000; } } peer transit1 { connection { remote { ip 192.0.2.1; } local { ip 192.168.1.1; } } session { asn { remote 65001; } } } }`
+		input := `bgp { router-id 192.0.2.254; session { asn { local 65000; } } peer transit1 { connection { remote { ip 192.0.2.1; } local { ip 192.168.1.1; } } session { asn { remote 65001; } } } }`
 		_, err := LoadReactor(input)
 		require.NoError(t, err)
 	})
@@ -1676,7 +1676,7 @@ func TestReloadFuncRefusesIncompleteCandidate(t *testing.T) {
 		session { asn { remote 65001; } family { ipv4/unicast { prefix { maximum 10000; } } } }
 	}
 }`
-	candidate := `bgp { peer broken { session { } } }`
+	candidate := `bgp { router-id 1.2.3.4; session { asn { local 65000; } } peer broken { session { } } }`
 	require.NoError(t, os.WriteFile(configPath, []byte(active), 0o600))
 	store := newReloadFileStore(t, configPath)
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte(candidate), time.Now())

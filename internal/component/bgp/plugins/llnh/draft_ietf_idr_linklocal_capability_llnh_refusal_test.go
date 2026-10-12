@@ -39,7 +39,7 @@ func deliverLLNHSection(t *testing.T, text string) string {
 // llnhPeerConfig builds one standalone peer. sessionExtra goes inside the
 // session block, capabilityBody inside its capability block.
 func llnhPeerConfig(sessionExtra, capabilityBody string) string {
-	return "bgp {\n\tpeer peer1 {\n" +
+	return "bgp {\n\trouter-id 192.0.2.1\n\tpeer peer1 {\n" +
 		"\t\tconnection {\n\t\t\tremote { ip 2001:db8:1::2; }\n\t\t\tlocal { ip 2001:db8:1::1; }\n\t\t}\n" +
 		"\t\tsession {\n\t\t\tasn { local 65001; remote 65001; }\n" +
 		"\t\t\tfamily {\n\t\t\t\tipv6/unicast { }\n\t\t\t}\n" +
@@ -51,7 +51,7 @@ func llnhPeerConfig(sessionExtra, capabilityBody string) string {
 // llnhGroupConfig builds one group enabling the capability, with one peer.
 // groupExtra and peerExtra go inside the group's and the peer's session block.
 func llnhGroupConfig(groupExtra, peerExtra string) string {
-	return "bgp {\n\tgroup fabric {\n" +
+	return "bgp {\n\trouter-id 192.0.2.1\n\tgroup fabric {\n" +
 		"\t\tsession {\n\t\t\tfamily {\n\t\t\t\tipv6/unicast { }\n\t\t\t}\n" +
 		groupExtra +
 		"\t\t\tcapability {\n\t\t\t\tlink-local-nexthop enable\n\t\t\t}\n\t\t}\n" +

@@ -15,8 +15,16 @@ import (
 )
 
 // peerWithout is the config the cases below add a removed leaf to. It loads
-// clean, so a refusal in a case is the added leaf and nothing else.
+// clean, so a refusal in a case is the added leaf and nothing else. It carries
+// the router-id and local ASN the schema marks mandatory (RFC 7950 Section
+// 7.6.5), as every case below does.
 const peerWithout = `bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     group default {
         peer edge1 {
             connection {
@@ -41,6 +49,12 @@ const peerWithout = `bgp {
 // The live leaf of that name is session > link-local, which carries an address
 // and which applyLinkLocal reads.
 const peerWithConnectionLinkLocal = `bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     group default {
         peer edge1 {
             connection {
@@ -67,6 +81,12 @@ const peerWithConnectionLinkLocal = `bgp {
 // that container and nothing else, so the leaf promised a filter no event ever
 // had applied to it.
 const peerWithProcessContentAttribute = `bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     group default {
         peer edge1 {
             connection {
