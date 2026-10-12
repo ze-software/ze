@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | design |
 | Scope | protocol |
-| Depends | plan/immediate/spec-bgp-unowned-rfc-rows.md (row 3: the link-scope snapshot gains the name of the session's interface, its A-2 decision, which AC-9 to AC-19 read; its I4 runtime check of `session link-local`, which AC-14 reuses; and its scenario `bgp-linklocal-capability-interface-frr`, which proves AC-8's receive direction); plan/immediate/spec-rfc2545-readvertise-on-condition-flip.md (a skeleton with no design: this spec writes the per-peer re-advertise AC-17 needs, Key Design Decisions "Re-advertise", and that spec and unowned-rows I3 reuse it; that spec's AC-2, its equal-table guard and its "no refeed primitive" note were amended on 2026-10-12 to agree, round-8 I3) |
+| Depends | plan/immediate/spec-bgp-unowned-rfc-rows.md (row 3: the link-scope snapshot gains the name of the session's interface, its A-2 decision, which AC-9 to AC-19 read; its I4 runtime check of `session link-local`, which AC-14 reuses; and its scenario `bgp-linklocal-capability-interface-frr`, which proves AC-8's receive direction); plan/immediate/spec-rfc2545-readvertise-on-condition-flip.md (a skeleton with no design: this spec writes the per-peer re-advertise AC-17 needs, Key Design Decisions "Re-advertise", and that spec and unowned-rows I3 reuse it; that spec's AC-2, its equal-table guard and its "no refeed primitive" note were amended on 2026-10-12 to agree, round-8 I3, and again for the round-9 B1 re-send path) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-12 |
@@ -360,24 +360,78 @@ the next hop depend on runtime state the configuration does not show."
     amended on 2026-10-12 to agree with this spec, status unchanged.
   → Decision: this spec writes the re-advertise design (Key Design
     Decisions, "Re-advertise"), and that spec and unowned-rows I3 reuse it.
-- [ ] `internal/component/bgp/plugins/rib/rib_commands.go` (`outboundResend`, the `clear bgp rib out` handler at line 162, `sendRoutes` at line 703), `rib_replay.go` (`resendRoutesWithCursor`, `collectGroupedRibOutRoutesFiltered`), `rib_structured.go` (the sent-event handler at line 389, `handleRefreshStructured`), `rib_bestchange.go` (`replayBestPaths`), `internal/component/bgp/plugins/rs/server_handlers.go` (`replayForPeer`), `internal/component/bgp/reactor/peer_initial_sync.go` (`sendInitialRoutes`), `adj_rib_out.go`, `reactor.go` (`ExecuteCommand`), `send_permission.go`
-  → Constraint: `outboundResend` replays the RIB's `ribOut` for an up peer
-    and one family through `resendRoutesWithCursor`, and every command
-    carries `meta["replay"]` so the reactor's `adjRIBOut` does not suppress a
-    route the peer already holds (RFC 4271 Section 9.2, `adj_rib_out.go`).
-    It is the rail RFC 2918's re-advertise reaches.
-  → Constraint: `ribOut` is filled from the sent event (`rib_structured.go`,
-    "This is the record of what Ze SENT"), so a route the egress withheld is
-    not in it. AC-17 (1) cannot be answered from `ribOut` alone.
-  → Constraint: `sendInitialRoutes` also sends default routes and the
-    End-of-RIB, claimed once per family per session (`claimInitialSyncEOR`,
-    RFC 4724 Section 2), so it is never re-run whole on an established
-    session. Peer-up replay omits config-static `ribOut` entries because
-    `sendInitialRoutes` owns them (`collectGroupedRibOutRoutesFiltered`).
+- [ ] `internal/component/bgp/reactor/reactor_api_relay.go` (`RelayStoredRoute`), `reactor_api_forward.go` (`ForwardUpdate`, the withhold branch at line 817), `forward_rs.go` (line 535), `peer_forward_facts.go` (`applyFactsNextHop`), `adj_rib_out.go` (`announceSignature`), `internal/component/bgp/plugins/adj_rib_in/rib_commands.go` (`replayCommand`), `rs/server_handlers.go` (`replayForPeer`), `rr/rr.go` (`replayForPeer`), `plugins/rib/rib_commands.go` (`outboundResend`, the `clear bgp rib out` handler at line 162), `rib_replay.go`, `rib.go` (the sent-event handler at line 939, `updateRouteWithMeta`), `ribout_entry.go`, `rib_bestchange.go` (`replayBestPaths`), `reactor_api_batch.go` (`AnnounceNLRIBatch`), `peer.go` (`QueueAnnounce`, `staticMu`, `staticWire`), `peer_static_wire.go` (`deliverStaticRouteDelta`, `withdrawStaticRoutes`, `sendStaticRoutes`), `peer_initial_sync.go` (`sendInitialRoutes`, `sendDefaultOriginateRoutes`), `reactor.go` (`Start`, `stop`, `ExecuteCommand`), `send_permission.go` (read at the producer, round 9)
+  → Constraint: `ribOut` records the SENT next hop, one address (`rib.go`
+    line 954, `NextHop: sentFamilyNextHop(event, fam)`), and `outboundResend`
+    replays it as an explicit next hop (`bgp.FormatAnnounceCommand`,
+    `rib_replay.go`), so it never re-runs next-hop self: a replaced global
+    would be re-sent as the old one, and a link-local-only route as an
+    explicit link-local the route-level entry points refuse (round-9 B1).
+    Replaying the recorded address is not the re-advertise for a route whose
+    next hop Ze chose.
+  → Constraint: the forward rail re-runs the egress next-hop decision on
+    every call: `forwardUpdateCore` and `RelayStoredRoute` apply
+    `applyFactsNextHop` per destination, and a destination the egress now
+    refuses gets a withdrawal (`mods.SetWithdraw()` after
+    `egressNextHopWithheld`, `reactor_api_forward.go` line 817,
+    `forward_rs.go` line 535). `ForwardUpdate` reads `recentUpdates`, which
+    expires (`ErrUpdateExpired`), so it is no store for a route sent long
+    ago. The retained source UPDATE is adj-rib-in's: `request bgp adj-rib-in
+    replay <peer> <from-index> <max-msg-id>` (`replayCommand`) relays every
+    stored route of every source but the target through `RelayStoredRoute`,
+    the rail peer-up replay uses, and sends no End-of-RIB itself. The route
+    server's and the route reflector's peer-up replays both call it
+    (`rs/server_handlers.go` line 412, `rr/rr.go` line 566); the route
+    server's `replayForPeer` adds the End-of-RIB and the initial-replay
+    bookkeeping (`endReplay`, `initialReplay`, `ReplayGen`), which is why it
+    is not reused on an established session. The command takes no family
+    today.
+  → Constraint: `announceSignature` keys a route on its attributes and, for
+    an MP family, on the MP_REACH_NLRI value without its NLRI, so the next
+    hop is in the signature: a relayed route whose answer changed passes
+    `adjRIBOut`, and one whose answer is unchanged is suppressed (AC-17 (4)).
+  → Constraint: `replayBestPaths` (`rib_bestchange.go` line 1522) emits the
+    whole best-path table as `ribevents.BestChange` batches for sysrib; it is
+    not per peer and does not reach the BGP egress (A-7 broken, round-9 I1).
+  → Constraint: the `self` policy of an API-announced route is kept only
+    while the route is in flight: on `bgptypes.NLRIBatch.NextHop`
+    (`AnnounceNLRIBatch`, `reactor_api_batch.go` line 432) and, for a
+    session not yet established, on the queued `peerOp.NextHopSelf`
+    (`QueueAnnounce`, `peer.go` line 2278). Once sent, only the resolved
+    address survives, in `ribOutEntry.NextHop`. `AnnounceNLRIBatch` skips a
+    peer whose `resolveNextHop` fails (line 432, `continue`), so a re-sent
+    `self` route that no longer resolves is today neither sent nor
+    withdrawn. The sent event already carries a per-route marker the RIB
+    stores (`event.RouteMeta["config-static"]`, `rib.go` line 939, into
+    `ribOutEntry.ConfigStatic`), which is the shape the new marker takes.
+  → Constraint: config routes have their own record of what reached the
+    wire: `p.staticWire` (the routes as configured, with their next-hop
+    policy, and the session they were sent on) and the delta writer
+    `deliverStaticRouteDelta`, both under `p.staticMu`, which
+    `sendInitialRoutes` holds across "read the set, send it, record it"
+    (`peer.go` line 497). `sendStaticRoutes` skips a route whose
+    `resolveNextHop` fails ("next-hop resolution failed", `continue`).
+    `withdrawStaticRoutes` resolves the next hop again to build the
+    withdrawal and skips a route that no longer resolves ("static route not
+    withdrawn: its next hop no longer resolves"), although
+    `SynthesizeWithdraw` drops the next hop. `staticRouteDelta` compares
+    configured routes, so a changed own address yields an empty delta.
+  → Constraint: `sendDefaultOriginateRoutes` (`peer_initial_sync.go` line
+    886) resolves `::/0` under next-hop self through the same
+    `resolveNextHop` (line 918) and skips on failure, so a default withheld
+    at establishment is never sent later; the End-of-RIB is claimed once per
+    family per session (`claimInitialSyncEOR`, RFC 4724 Section 2), so
+    `sendInitialRoutes` is never re-run whole on an established session.
   → Constraint: `ExecuteCommand` leaves `CommandContext.Sender` unset, and a
     command that puts a message on a peer's wire is refused by name there
-    (`send_permission.go`, `errSendNoSender`). The worker's dispatch states
-    its sender on the path `send_permission.go` names.
+    (`send_permission.go`, `errSendNoSender`; `RelayStoredRoute` refuses an
+    unset sender the same way). The worker's dispatch states its sender on
+    the path `send_permission.go` names.
+  → Constraint: the reactor's goroutines join `r.wg` (`Start`, `r.wg.Go`,
+    `reactor.go` line 1380), and `stop` seals, notifies and cancels in that
+    order, so `r.ctx` stays live through the notify budget; `r.stopping` is
+    set by `stop` under `r.mu` (line 454). `updateRouteWithMeta` waits up to
+    10 s per command (`rib.go` line 830).
   → Constraint: the iface monitor (`internal/plugins/iface/netlink/monitor_linux.go`,
     `handleAddrUpdate`) drops an IPv6 address event while the address is
     tentative, so the address-added event, and with it `refreshPeerLinkScopes`,
@@ -453,7 +507,7 @@ BGP wire against FRR and BIRD.
 | iface exact lookup by kernel device (`internal/component/iface/resolve.go`) | the configured interface bound to the device, its addresses and flags, or a named cause |
 | `addrList`, `GetInterface` (`internal/plugins/iface/netlink/show_linux.go`) | a read error is returned, never an empty list |
 | reactor link-scope worker (`reactor_iface.go`, new) | one long-lived goroutine reading a capacity-one channel: the EventBus handler signals it without blocking; it rebuilds the snapshots, runs the exact lookups and starts the re-advertise (AC-17) |
-| re-advertise (Key Design Decisions, "Re-advertise") | the RIB plugin's `outboundResend` for routes already sent, the forwarding plugin's peer replay for routes the egress withheld, and the config-route send factored out of `sendInitialRoutes`, per affected peer and family; `plan/immediate/spec-rfc2545-readvertise-on-condition-flip.md` and unowned-rows I3 reuse it |
+| re-advertise (Key Design Decisions, "Re-advertise") | per affected peer and family, with no End-of-RIB: forwarded routes, sent or withheld, through a family-scoped `request bgp adj-rib-in replay` relayed on the forward rail (`RelayStoredRoute`), which re-runs `applyFactsNextHop`; API routes through the RIB's `outboundResend` restricted to locally originated entries, replaying a `self` entry as `next-hop self`; config routes and the default-originate route through a `staticMu` sibling of `deliverStaticRouteDelta` (round-9 B1, I2); `plan/immediate/spec-rfc2545-readvertise-on-condition-flip.md` and unowned-rows I3 reuse it |
 | `ze doctor` | the unowned-rows AC-5 row for "no iface backend" also names the BGP peers whose own IPv6 next hop it disables (AC-18) |
 | `refuseLinkLocalCapabilityWithoutAddress` (`llnh.go`) | the capability-77 refusal removed; the `fe80::/10` leaf check kept |
 | `interoplab` checkers | `bgp-linklocal-only-next-hop-frr` (AC-8), `bgp-ipv4-session-ipv6-global-next-hop-frr` and `-bird` (AC-9), `bgp-linklocal-own-next-hop-frr` (AC-10, AC-11) |
@@ -468,7 +522,7 @@ BGP wire against FRR and BIRD.
 | A-4 | The lab can put a global IPv6 address on the shared link for Ze, FRR and BIRD while the sessions stay on IPv4 | `needsIPv6` (`internal/le/interoplab/bgp/prepare.go` line 137) makes the network dual-stack, with Docker-assigned globals, when any scenario file contains `baseIPv6Prefix` (round-7 N2). So the AC-9 scenarios contain that text, and the AC-8, AC-10 and AC-11 scenarios MUST NOT, or their link gains a global | AC-9's scenarios need a lab change first; it is made in this spec, not deferred | source | holds |
 | A-5 | BIRD (the lab's image) installs an IPv6 route received over an IPv4 session with a 32-octet global plus link-local next hop | BIRD source 02d082a7 (round-7 N1): `bgp_decode_next_hop_ip` (`proto/bgp/packets.c` line 1412) accepts 32 octets, and under the default gateway mode `bgp_apply_next_hop` (line 1099) resolves the link-local on `p->neigh->iface`; with `next hop prefer global` it calls `neigh_find(gw)`, which needs BIRD to hold an address in the global's prefix, so the BIRD scenario keeps the default | AC-9's BIRD scenario cannot pass; the owner is told with BIRD's log | source; the step-2 bring-up confirms | holds |
 | A-6 | Configuring the lab container's `eth0` (and a `dummy` interface) under `interface` in `ze.conf` leaves the Docker-assigned addresses and the kernel link-local in place, so the iface backend loads without changing the link the scenarios assert | the iface plugin programs the addresses its config names; whether it removes unnamed ones is not read yet | the AC-9 to AC-11 scenarios would assert addresses Ze removed; the scenario configures the addresses explicitly instead, and the checker reads them from the container either way | step 2: bring up `ze.conf` with `interface ethernet eth0` and compare `ip -6 addr show eth0` before and after | unvalidated |
-| A-7 | A peer replay for one family on an ESTABLISHED session (the RIB's `replayBestPaths`, the route server's `replayForPeer`) re-offers every route of that family the plugin selected for the peer, including one the egress withheld for an own-next-hop cause, and the reactor's `adjRIBOut` suppresses a route the peer already holds unchanged | `ribOut` holds only what was sent (`rib_structured.go`), so the withheld route must come from the plugin's selection; both functions exist (`rib_bestchange.go` line 1522, `rs/server_handlers.go` line 412) and are not read yet | AC-17 (1) has no source for the withheld route; R-8 | step 2: read both functions and `announceSignature` (`adj_rib_out.go`), and state whether the signature covers the egress next hop | unvalidated |
+| A-7 | A peer replay for one family on an ESTABLISHED session (the RIB's `replayBestPaths`, the route server's `replayForPeer`) re-offers every route of that family the plugin selected for the peer, including one the egress withheld for an own-next-hop cause | read at the producer in round 9: `replayBestPaths` (`rib_bestchange.go` line 1522) emits the whole best-path table as `ribevents.BestChange` batches for sysrib, not per peer and not to the BGP egress; `replayForPeer` (`rs/server_handlers.go` line 412) is the peer-up replay, bound to `initialReplay` and `ReplayGen`, and always ends in `rs.sendEOR` through `endReplay`, so on an established session it would send a second End-of-RIB. `announceSignature` does cover the egress next hop | the withheld route's source is adj-rib-in's stored copy relayed on the forward rail (Key Design Decisions, "Re-advertise"), which holds a route whether or not the egress sent it; R-8 | none left: the forward-rail re-send replaces it | broken (round-9 I1) |
 
 | ID | Risk | Mitigation |
 |----|------|-----------|
@@ -478,7 +532,7 @@ BGP wire against FRR and BIRD.
 | R-4 | Routes sent today change their next hop, all only when the session interface is configured under `interface`: on an IPv4 session the forward rails send the interface global (plus link-local one hop) for 2/1, 2/2 and 2/128 in place of the mapped field they send today, and the announce rail sends the same where it withholds today; a global-IPv6 session with no leaf gains the interface link-local as the second address (AC-16); a peer that negotiated 77 without the leaf, refused today, now comes up. For 6VPE the mapped field requests IPv4 tunneling (RFC 4659 Section 3.2.1.2) and the global requests IPv6 tunneling, so an IPv4-only MPLS core would lose 2/128 forwarding | the owner's decisions ("addresses come from the interface automatically"; I1, "Apply to all IPv6 families", which is FRR's and BIRD's default for 6VPE, Required Reading). 6PE keeps the mapped field (RFC 4798 Section 2). Without the `interface` entry no route sent today is withheld (AC-18). With it, the forward rails also withhold 2/1 and 2/2 where the announce rail withholds (AC-13 a to d), in place of the mapped field they send today, opted into by configuring the interface. The reason depends on the capability state: with capability 77, §4 ("MUST not be advertised") and §4 item 3 (`-4-9`); without it, RFC 2545 Section 3, which asks for "the global IPv6 address of the next hop", while the mapped field is RFC 4798's 6PE encoding and not an address of Ze's (round-8 I1). 6VPE with no global keeps the mapped field (RFC 4659 Section 3.2.1.2, FRR), so 6VPE between IPv4 loopbacks keeps working (round-8 N1). AC-16 lists every case that must not change, and the docs name the 6VPE change (Known Limitations) |
 | R-5 | The iface backend is absent (no `interface` root), the session interface is not configured under it, or the address read fails | owner, 2026-10-12, "Require an `interface` section": each is a named cause from the exact lookup; Ze keeps today's answer on every rail and logs the AC-13 Warn with the fix (AC-18). The lookup resolves by kernel device exactly and never falls back to the kernel name as a logical name; `addrList` returns its error, so a read failure is cause (f), never "no address" (AC-19) |
 | R-7 | AC-17's re-advertise has no design in `spec-rfc2545-readvertise-on-condition-flip`, which is a skeleton | this spec writes it (Key Design Decisions, "Re-advertise"): existing primitives per route source, triggered from the link-scope worker, never a second per-trigger copy. The readvertise spec and the unowned-rows spec's I3 reuse it, and the readvertise spec's AC-2, equal-table guard and cost note were amended on 2026-10-12 to agree (round-8 I3) |
-| R-8 | The withheld-route half of AC-17 (1) depends on A-7 | if A-7 breaks, step 5 stops and reports to the owner with the producer read, rather than building a reactor-side copy of the routes |
+| R-8 | The forward-rail re-send needs adj-rib-in to hold the source route | adj-rib-in stores every received route for replay, and the route server and reflector already rely on it for peer-up replay. A forwarder that runs without `bgp-adj-rib-in` gets no re-send: step 2 lists every such plugin, and if one exists step 5 stops and reports to the owner with the producer read, rather than building a reactor-side copy of the routes (A-7 broken, round-9 I1) |
 | R-6 | Deleting the llnh refusal deletes tagged tests | the behaviour they assert is reversed by the owner's decision; each tag moves to the test that proves the new producer (AC-11, AC-15), and the records are re-observed, never copied |
 
 ## Blast Radius
@@ -511,7 +565,7 @@ No wire-format change. Config: no new leaf; capability 77 stops requiring
 | A route received from another peer, forwarded with next-hop self over an IPv4 session | → | `buildForwardFacts`, `applyFactsNextHop` | the forward-rail cases of `TestOwnIPv6NextHopGlobalOverIPv4Session` and `TestOwnIPv6NextHopLinkLocalOnlyOverIPv4Session` |
 | `ze` boots a config enabling capability 77 with no `session link-local` | → | `llnh.go` verifier | `test/plugin/llnh-accepts-without-link-local.ci` |
 | A BGP-only config (no `interface` root) announces and forwards IPv6 routes with next-hop self over an IPv4 session | → | the exact lookup's no-backend cause, the rails' unchanged answers, the Warn, the `ze doctor` row | `test/plugin/bgp-own-ipv6-next-hop-without-interface.ci` (round-8 I5); `TestOwnIPv6NextHopWithoutInterfaceConfig`; `bgp-linklocal-only-multihop-withdraw-frr` stays green as a regression check only (its FRR peer uses `next-hop unchanged`, so it proves none of AC-18) |
-| The session interface's link-local finishes DAD after the session is up | → | iface monitor address event, the non-blocking handler, the link-scope worker, the re-advertise | `TestRefreshPeerLinkScopesOwnAddressChange`; `TestLinkScopeHandlerDoesNotCallBackend`; `bgp-linklocal-own-next-hop-frr` with the order forced (AC-17) |
+| The session interface's link-local finishes DAD after the session is up | → | iface monitor address event, the non-blocking handler, the link-scope worker, the re-advertise | `TestRefreshPeerLinkScopesOwnAddressChange`; `TestLinkScopeHandlerDoesNotCallBackend`; `bgp-linklocal-own-next-hop-frr` with the order forced by deleting and re-adding Ze's eth0 link-local (AC-17, round-9 I3) |
 
 AC-7 has no row here: it adds no entry point, it re-reads tests over existing
 producers (round-3 N3).
@@ -530,8 +584,8 @@ producers (round-3 N3).
 | AC-14 | Address choice on an interface with several IPv6 addresses | the global is the first address in kernel order that is not link-local, not `Tentative` and not "temporary" (BIRD `if_recalc_preferred`, FRR `if_get_ipv6_global`); the link-local is the `session link-local` leaf when the interface holds it and it is not tentative, else the first usable `fe80::/10` address (BIRD `llv6`, FRR `if_get_ipv6_local`). A tentative link-local is never sent as Ze's own (`-1-1`). `TestLinkScopeOwnAddresses`: several globals, a temporary first, a tentative first, the leaf second among several link-locals |
 | AC-15 | A config enables capability 77 on a peer or group with no `session link-local` | `ze` boots and the session comes up: `refuseLinkLocalCapabilityWithoutAddress` and its `...Sections` wrapper are deleted, with the stale "Caller MUST run refuseLinkLocalCapabilityWithoutAddress" comment on `extractLLNHCapabilities` rewritten; a non-`fe80::/10` leaf is still refused, and a `link-local-nexthop` value outside the enumeration is still refused by the YANG enumeration and by the `fe80::/10` check function, which returns `llnhEnabledFor`'s error (a unit case each). With no `interface` root the config is accepted too, and the AC-13 (g) Warn names the fix. `draft_ietf_idr_linklocal_capability_llnh_refusal_test.go` and `llnh_test.go` assert acceptance; `test/plugin/llnh-refuses-without-link-local.ci` is replaced by `test/plugin/llnh-accepts-without-link-local.ci`; the `-4-3` tags leave the llnh tests (AC-11) and their records are removed from `rfc/discrimination/draft-ietf-idr-linklocal-capability.json` |
 | AC-16 | Each case the arm must not change, and the one it changes on purpose | unchanged, one test case each: a link-local transport session (`TestNextHopSelfLinkLocalEndpointNeedsTheCapabilityOnTheForwardRails` stays green); an IPv4 NLRI (IPv4 next hop self); an IPv4 NLRI with an Extended Next Hop pair keeps the IPv4 endpoint, so §5's 16-octet form is not originated (round-6 N8); an IPv6 NLRI whose endpoint `canUseNextHopFor` admits (the arm's trigger, round-6 N4); an explicit `fe80::` next hop stays refused at the route-level entry points; a global-IPv6 session with the leaf set and held; 6PE (2/4) over an IPv4 session keeps the 16-octet `::ffff:<IPv4 endpoint>` on both forward rails and stays unchanged on the announce rail, with the interface configured and holding a global (RFC 4798 Section 2); SR Policy (2/73) keeps the IPv4 endpoint `canUseNextHopFor` admits (RFC 9830 Section 2.1). Changed on purpose, each a case: a global-IPv6 session with no leaf now sends the interface link-local after the global when RFC 2545 Section 3's condition holds; 2/1, 2/2 and 2/128 on the forward rails send the interface addresses in place of the mapped field (AC-9) |
-| AC-17 | An interface change that keeps the masked prefix table equal: a link-local moved from one interface to another, a global replaced within its prefix, a link-local finishing DAD | `refreshPeerLinkScopes` rebuilds the affected peers' scope and forwarding facts. The shortcut compares the per-peer inputs (both interface names and the source interface's usable addresses with flags, unmasked), not the masked prefix list. When a peer's `ownIPv6NextHop` answer changes, Ze re-advertises that peer's affected routes through the re-advertise path (R-7) without resetting the session, as RFC 4271 Section 9.2 requires ("All newly installed routes and all newly unfeasible routes for which there is no replacement route SHALL be advertised"). `TestRefreshPeerLinkScopesOwnAddressChange`, red on today's comparison, asserts on routes advertised BEFORE the change: (1) a route withheld at establishment because the link-local was tentative is sent with the link-local once DAD completes, with no new route from the RIB; (2) a route sent with a link-local that then moves to another interface is re-sent with the new answer, or withdrawn when no answer remains (the AC-13 cause), never left on the wire with the old address; (3) a route sent with a global that is replaced within its prefix is re-sent with the new global; (4) a change that leaves the answer equal (an unrelated address, a temporary address) sends nothing. The EventBus handler returns without calling the iface backend and without sending: `TestLinkScopeHandlerDoesNotCallBackend` counts backend calls on a stub and asserts none before the worker runs, and that a burst of events yields one refresh pass and one re-advertise per changed peer and family (round-8 I4). `bgp-linklocal-own-next-hop-frr` asserts (1) end to end with the order forced (round-8 N2): after Established and after FRR holds Ze's route, the checker raises `dad_transmits` and `retrans_time_ms` on Ze's eth0, deletes Ze's link-local and adds it back, asserts FRR withdraws the route while the address is tentative, then asserts FRR holds it again via that link-local once DAD completes. Red with the re-advertise removed: FRR never gets the route back. If the Ze container cannot change its own addresses, the step-2 bring-up finds it and reports |
-| AC-18 | A BGP-only config (no `interface` root, so no iface backend), or a session interface not configured under `interface`, or one whose address read fails, carrying IPv6 routes with next-hop self over IPv4 and over global-IPv6 sessions | every rail sends exactly what it sends today: the announce rail withholds over IPv4, the forward rails send `::ffff:<IPv4 endpoint>` for 2/1, 2/2, 2/4 and 2/128, and a global-IPv6 session sends its global plus the leaf (unowned-rows I4 rules) or the global alone; one Warn per peer names the cause (AC-13 f, g, h) and the fix, and the unowned-rows AC-5 `ze doctor` row for "no iface backend" names these peers too. `TestOwnIPv6NextHopWithoutInterfaceConfig`, one case per cause and per rail, red if a lookup cause is read as "no address" (the route would be withheld on the forward rails). Step 1's `TestForwardRailsIPv4SessionMappedNextHopToday` pins today's 2/1 forward answer (16 octets, `::ffff:<IPv4 endpoint>`) before any change, and stays green after it for this case. Through the real entry point (round-8 I5): `test/plugin/bgp-own-ipv6-next-hop-without-interface.ci` boots `ze` with a BGP-only config (no `interface` root) and `le test peer` sessions over IPv4 with IPv6 unicast, the pattern of `test/plugin/nexthop-self-ipv6-forward.ci`. A source peer sends a 2/1 route that Ze forwards with next-hop self to the destination peer, and a config `update` block announces a 2/1 route to that peer; the `.ci` asserts the forwarded UPDATE's bytes (`expect=bgp` hex, MP_REACH next hop `::ffff:<IPv4 endpoint>`, 16 octets), no UPDATE for the announced route, the AC-13 (g) Warn text (`expect=stderr:contains`), and that a second UPDATE logs no second Warn (`reject=stderr:pattern` matching the Warn twice); then `ze doctor --json config <file>` (the `test/plugin/doctor-icmp-probe-missing.ci` pattern) prints the AC-5 row naming the peer. Red with the cause read as "no address": the forwarded route is withheld and the hex expectation fails |
+| AC-17 | An interface change that keeps the masked prefix table equal: a link-local moved from one interface to another, a global replaced within its prefix, a link-local finishing DAD | `refreshPeerLinkScopes` rebuilds the affected peers' scope and forwarding facts. The shortcut compares the per-peer inputs (both interface names and the source interface's usable addresses with flags, unmasked), not the masked prefix list. When a peer's `ownIPv6NextHop` answer changes, Ze re-advertises that peer's affected routes through the re-advertise path (R-7) without resetting the session, as RFC 4271 Section 9.2 requires ("All newly installed routes and all newly unfeasible routes for which there is no replacement route SHALL be advertised"). `TestRefreshPeerLinkScopesOwnAddressChange`, red on today's comparison, asserts on routes advertised BEFORE the change: (1) a route withheld at establishment because the link-local was tentative is sent with the link-local once DAD completes, with no new route from the RIB; (2) a route sent with a link-local that then moves to another interface is re-sent with the new answer, or withdrawn when no answer remains (the AC-13 cause), never left on the wire with the old address; (3) a route sent with a global that is replaced within its prefix is re-sent with the new global; (4) a change that leaves the answer equal (an unrelated address, a temporary address) sends nothing. Each of (1) to (4) runs for each route source: a forwarded route, an API route announced with next-hop self, and a config route. (5) A config route held on the wire (in `staticWire`) whose next hop no longer resolves is withdrawn and leaves `staticWire`, and a default-originate `::/0` withheld at establishment is sent once its answer appears, with no second End-of-RIB (round-9 I2). The EventBus handler returns without calling the iface backend and without sending: `TestLinkScopeHandlerDoesNotCallBackend` counts backend calls on a stub and asserts none before the worker runs, and that a burst of events yields one refresh pass and one re-advertise per changed peer and family (round-8 I4). `bgp-linklocal-own-next-hop-frr` asserts (1) and (2) end to end with the order forced and no timing window (round-9 I3): after Established and after FRR holds Ze's route via Ze's link-local, on a link with no global, the checker deletes Ze's eth0 link-local (`ip -6 addr del`, which NET_ADMIN allows) and asserts FRR withdraws the route (cause (a)); it then adds the link-local back and asserts FRR holds the route again via that link-local once DAD completes, which is the "address arrives after Established" order. No sysctl is written in the Ze container: the lab mounts `/proc/sys` read-only and grants a net sysctl write only to a scenario carrying `keepalived.conf` (`internal/le/interoplab/bgp/prepare.go` lines 318-337). Red with the re-advertise removed: FRR never withdraws the route, and never gets it back. If the Ze container cannot change its own addresses, the step-2 bring-up finds it and reports |
+| AC-18 | A BGP-only config (no `interface` root, so no iface backend), or a session interface not configured under `interface`, or one whose address read fails, carrying IPv6 routes with next-hop self over IPv4 and over global-IPv6 sessions | every rail sends exactly what it sends today: the announce rail withholds over IPv4, the forward rails send `::ffff:<IPv4 endpoint>` for 2/1, 2/2, 2/4 and 2/128, and a global-IPv6 session sends its global plus the leaf (unowned-rows I4 rules) or the global alone; one Warn per peer names the cause (AC-13 f, g, h) and the fix, and the unowned-rows AC-5 `ze doctor` row for "no iface backend" names these peers too. `TestOwnIPv6NextHopWithoutInterfaceConfig`, one case per cause and per rail, red if a lookup cause is read as "no address" (the route would be withheld on the forward rails). Step 1's `TestForwardRailsIPv4SessionMappedNextHopToday` pins today's 2/1 forward answer (16 octets, `::ffff:<IPv4 endpoint>`) before any change, and stays green after it for this case. Through the real entry point (round-8 I5): `test/plugin/bgp-own-ipv6-next-hop-without-interface.ci` boots `ze` with a BGP-only config (no `interface` root) and `le test peer` sessions over IPv4 with IPv6 unicast, the two-peer forward pattern of `test/plugin/med-not-propagated-across-as.ci` (`option=tcp_connections`, `option=conn_map:value=remote-ip`, the plugin forward rail; `test/plugin/nexthop-self-ipv6-forward.ci` proves config parse only, its wire forward being blocked, round-9 N1). A source peer sends a 2/1 route that Ze forwards with next-hop self to the destination peer, and a config `update` block announces a 2/1 route to that peer; the `.ci` asserts the forwarded UPDATE's bytes (`expect=bgp` hex, MP_REACH next hop `::ffff:<IPv4 endpoint>`, 16 octets), no UPDATE for the announced route, the AC-13 (g) Warn text (`expect=stderr:contains`), and that a second UPDATE logs no second Warn (`reject=stderr:pattern` matching the Warn twice); then `ze doctor --json config <file>` (the `test/plugin/doctor-icmp-probe-missing.ci` pattern) prints the AC-5 row naming the peer. Red with the cause read as "no address": the forwarded route is withheld and the hex expectation fails |
 | AC-19 | The netlink address dump for the session interface fails | `addrList` returns the error, `GetInterface` returns it, and the exact lookup returns cause (f); an interrupted dump is listed again. `TestAddrListReturnsReadError` (netlink backend, Linux) and the cause (f) case of `TestOwnIPv6NextHopWithoutInterfaceConfig`; red on today's `addrList`, which returns nil |
 
 ## End-to-End User Stories
@@ -557,13 +611,13 @@ producers (round-3 N3).
 | `TestOwnIPv6NextHopRefusals` | same file | AC-13, one case per cause: decision, Warn text, once per peer and cause | |
 | `TestOwnIPv6NextHopUnchanged` | same file | AC-16, one case per row, and the global-IPv6 session gaining the interface link-local | |
 | `TestLinkScopeOwnAddresses` | `internal/component/bgp/reactor/link_scope_test.go` | AC-14, and the source interface for a multihop peer | |
-| `TestRefreshPeerLinkScopesOwnAddressChange` | `internal/component/bgp/reactor/reactor_iface_test.go` | AC-17, the four before-and-after cases | |
+| `TestRefreshPeerLinkScopesOwnAddressChange` | `internal/component/bgp/reactor/reactor_iface_test.go` | AC-17, the before-and-after cases (1) to (4) for each route source (forwarded, API `self`, config), and (5): a held config route that loses its answer is withdrawn and leaves `staticWire`, and a withheld default-originate route is sent with no second End-of-RIB (round-9 I2) | |
 | `TestForwardRailsIPv4SessionMappedNextHopToday` | `internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_own_test.go` | step 1: today's 2/1 forward answer on both forward rails, pinned before the arm; AC-18 keeps it green for the not-configured case | |
 | `TestOwnIPv6NextHopWithoutInterfaceConfig` | same file | AC-18 and AC-19: each lookup cause on each rail keeps today's answer, one Warn | |
 | `TestOwnIPv6NextHopArmFamilies` | same file | the arm family set derived from `MPNextHopProfile` and `canUseNextHopFor` is 2/1, 2/2 and 2/128, and excludes 2/4 and 2/73 | |
 | `TestDeviceLookupExact` | `internal/component/iface/resolve_test.go` | the kernel-device lookup: an os-name binding, a MAC binding, a device whose name is another interface's logical name with a selector (answers the bound interface, never the namesake), unbound, bound twice, no backend; an identity-named interface with no selector straight after a config apply; a MAC-selected interface never resolved before the lookup (round-8 I2) | |
 | `TestAddrListReturnsReadError` | `internal/plugins/iface/netlink/show_linux_test.go` | AC-19, through the package-variable seam over `netlink.AddrList` (round-8 N3): the error reaches `GetInterface`; an interrupted dump is listed again | |
-| `TestLinkScopeHandlerDoesNotCallBackend` | `internal/component/bgp/reactor/reactor_iface_test.go` | AC-17: the handler only signals the worker; a burst gives one pass; the worker stops with the reactor's context | |
+| `TestLinkScopeHandlerDoesNotCallBackend` | `internal/component/bgp/reactor/reactor_iface_test.go` | AC-17: the handler only signals the worker; a burst gives one pass; the worker joins `r.wg`, stops with the reactor's context, and starts no re-advertise once `r.stopping` is set (round-9 N2) | |
 | `TestLinkLocalCapabilityAcceptedWithoutLinkLocalAddress` | `internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go` (renamed to match) and `llnh_test.go` | AC-15: accepted standalone, through the group, through `LoadConfig` and `ToPluginMap`; a non-`fe80::/10` leaf still refused | |
 
 ### Functional Tests
@@ -580,7 +634,7 @@ producers (round-3 N3).
 | `bgp-linklocal-only-next-hop-frr` | `test/interop/scenarios/bgp-linklocal-only-next-hop-frr` | FRR | AC-8: the 16-octet link-local Ze relays unchanged from a speaker on the same link is installed by FRR | |
 | `bgp-ipv4-session-ipv6-global-next-hop-frr` | `test/interop/scenarios/bgp-ipv4-session-ipv6-global-next-hop-frr` | FRR | AC-9: over an IPv4 session, Ze's interface global plus link-local, installed by FRR. The scenario also carries an injector on the same link (the `bgp-linklocal-only-multihop-withdraw-frr` pattern) whose 2/1 route Ze forwards to FRR with next-hop self, so the forward-rail rewrite (the mapped field today, the interface addresses after) is proven against FRR; red with the arm removed shows the mapped field (round-8 N4). The multihop global (AC-12) stays unit-level: every lab daemon shares one link, a routed hop is a lab topology change, and `TestOwnIPv6NextHopMultihop` covers each rail | |
 | `bgp-ipv4-session-ipv6-global-next-hop-bird` | `test/interop/scenarios/bgp-ipv4-session-ipv6-global-next-hop-bird` | BIRD | AC-9: the same, installed by BIRD, without capability 77 | |
-| `bgp-linklocal-own-next-hop-frr` | `test/interop/scenarios/bgp-linklocal-own-next-hop-frr` | FRR | AC-10, AC-11 and AC-17 (1): Ze's interface link-local alone, to an EBGP FRR (AS 65002) and an IBGP `peerFRRSink` (AS 65001), on a link with no global, no `session link-local` in `ze.conf`, which configures `interface ethernet eth0` and `interface dummy dummy0`; no file contains `baseIPv6Prefix` | |
+| `bgp-linklocal-own-next-hop-frr` | `test/interop/scenarios/bgp-linklocal-own-next-hop-frr` | FRR | AC-10, AC-11 and AC-17 (1) and (2), by deleting and re-adding Ze's eth0 link-local: Ze's interface link-local alone, to an EBGP FRR (AS 65002) and an IBGP `peerFRRSink` (AS 65001), on a link with no global, no `session link-local` in `ze.conf`, which configures `interface ethernet eth0` and `interface dummy dummy0`; no file contains `baseIPv6Prefix` | |
 | `bgp-linklocal-only-multihop-withdraw-frr` (existing, unchanged) | `test/interop/scenarios/bgp-linklocal-only-multihop-withdraw-frr` | FRR | regression check only: its `ze.conf` has no `interface` root and it stays green. Its FRR peer uses `next-hop unchanged`, so it proves none of AC-18, which `test/plugin/bgp-own-ipv6-next-hop-without-interface.ci` proves (round-8 I5) | |
 | `bgp-linklocal-capability-interface-frr` (created by the unowned-rows spec) | `test/interop/scenarios/bgp-linklocal-capability-interface-frr` | FRR | AC-8 receive direction, by reference | |
 
@@ -594,8 +648,12 @@ producers (round-3 N3).
 - `plan/journal/zero-value-as-valid-answer.md` - one row: `ListInterfaces` reads a failed address dump as an interface with no addresses
 - `internal/component/bgp/reactor/forward_next_hop.go` - the comment at lines 725-727 rewritten to state what the `mapped` test admits (step 1)
 - `internal/component/bgp/reactor/reactor_iface.go` - the EventBus handler signals the link-scope worker without blocking; the worker (started with the reactor, stopped by its context) rebuilds the snapshots, runs the exact lookups and starts the re-advertise; the comment at lines 93-96 ("no re-advertisement is triggered here") rewritten with the RFC 4271 Section 9.2 reason (AC-17)
-- `internal/component/bgp/reactor/peer_initial_sync.go` - the config-route send factored out of `sendInitialRoutes` so the worker can re-send one peer's config routes for one family with no default route and no End-of-RIB (AC-17)
-- the worker's dispatch of `clear bgp rib out <peer> <family>` (RIB `outboundResend`) and of the forwarding plugin's peer replay for one family, with its sender stated on the path `send_permission.go` names (AC-17, A-7)
+- `internal/component/bgp/reactor/peer_static_wire.go` - the config-route re-send, a sibling of `deliverStaticRouteDelta` under `staticMu`: for one family, re-resolve each configured route, send the ones whose answer changed, withdraw the held ones that no longer resolve, and record the result in `staticWire`, which now keeps each route's sent next hop so `withdrawStaticRoutes` builds the withdrawal without resolving again (AC-17, round-9 I2)
+- `internal/component/bgp/reactor/peer_initial_sync.go` - `sendDefaultOriginateRoutes` split so the re-send can send or withdraw one family's default route without the End-of-RIB claim, from a per-family record of the sent default kept beside `staticWire` (AC-17, round-9 I2)
+- `internal/component/bgp/plugins/adj_rib_in/rib_commands.go` - `replayCommand` takes an optional family, so the worker's forward re-send relays one family's stored routes to one peer (AC-17, round-9 B1)
+- `internal/component/bgp/plugins/rib/rib.go`, `ribout_entry.go`, `rib_replay.go`, `rib_commands.go` - the sent event's `next-hop-self` marker stored as `ribOutEntry.NextHopSelf`; `outboundResend` takes a filter to locally originated entries and replays a `self` entry with `next-hop self` in place of the recorded address (round-9 B1)
+- `internal/component/bgp/reactor/reactor_api_batch.go` - the sent event of a `self` announce carries the marker; a replayed `self` announce whose `resolveNextHop` fails withdraws the route from a peer whose `adjRIBOut` holds it, in place of skipping the peer (AC-17 (2))
+- the worker's dispatch of the adj-rib-in replay and of `clear bgp rib out <peer> <family>`, each with its sender stated on the path `send_permission.go` names (AC-17)
 - `internal/component/iface/resolve.go` - `setResolverConfig` also publishes the configured logical names; the exact lookup resolves unbound MAC-selected names before answering (round-8 I2)
 - `internal/plugins/iface/netlink/show_linux.go` - the package-variable seam over `netlink.AddrList` (round-8 N3)
 - `plan/immediate/spec-rfc2545-readvertise-on-condition-flip.md` - amended on 2026-10-12 to agree with AC-17 (its AC-2, the equal-table guard, the cost note); status stays skeleton
@@ -662,16 +720,16 @@ producers (round-3 N3).
 | 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/interop.md`: four scenario paragraphs |
 | 11 | Affects daemon comparison? | Yes | the FRR and BIRD comparison is recorded in Key Design Decisions; any comparison page the docs index names for next-hop self is updated |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md`: next-hop self and the link-scope snapshot |
-| 13 | Route metadata keys added/changed? | No | none |
+| 13 | Route metadata keys added/changed? | Yes | the sent event's `next-hop-self` route marker, stored as `ribOutEntry.NextHopSelf` (round-9 B1): `docs/architecture/plugin/rib-storage-design.md`, beside `config-static` |
 | 14 | Prometheus counters added/changed? | No | none |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/architecture/testing/interop.md`, declared by `check_special.go`; `docs/architecture/core-design.md`, declared by `link_scope.go` and `forward_next_hop.go`; `docs/architecture/wire/capabilities.md`, declared by `llnh.go`; `docs/architecture/bgp/interface-event-reactions.md`, declared by `reactor_iface.go`; `docs/architecture/iface/logical-name-resolution.md` and `docs/features/interfaces.md`, declared by `resolve.go` and the netlink backend |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `request bgp adj-rib-in replay` gains an optional family, and `clear bgp rib out` a filter to locally originated entries (round-9 B1): `docs/architecture/plugin/rib-storage-design.md` and the commands' help text |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/architecture/testing/interop.md`, declared by `check_special.go`; `docs/architecture/core-design.md`, declared by `link_scope.go` and `forward_next_hop.go`; `docs/architecture/wire/capabilities.md`, declared by `llnh.go`; `docs/architecture/bgp/interface-event-reactions.md`, declared by `reactor_iface.go`; `docs/architecture/iface/logical-name-resolution.md` and `docs/features/interfaces.md`, declared by `resolve.go` and the netlink backend; `docs/architecture/plugin/rib-storage-design.md`, declared by `rib.go`, `rib_commands.go` and `adj_rib_in/rib_commands.go`; `docs/architecture/bgp/replay-cursor.md`, declared by `rib_replay.go`; `docs/architecture/pool-architecture.md`, declared by `ribout_entry.go`; `docs/architecture/core-design.md`, also declared by `reactor_api_batch.go` and `peer_static_wire.go` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/configuration.md` and `docs/guide/route-injection.md` mention `link-local-nexthop`; re-read both |
 
 ## Implementation Steps
 
 1. AC-7 re-read of `-5-1`, `-4-2`, `-4-8` (and `-4-9` for the mapped field, AC-12); correct any vacuous test, and fix a `-4-2` regression at its producer if the re-read finds one. Pin today's 2/1 forward answer with `TestForwardRailsIPv4SessionMappedNextHopToday` (green on today's code), print the arm family set from `MPNextHopProfile`, and rewrite the contradicting comment at `forward_next_hop.go` lines 725-727. Own commit.
-2. Validate A-6 and A-7 (read `replayBestPaths`, `replayForPeer` and `announceSignature`; list every plugin that forwards without `bgp-rib`), and the AC-19 read error and the exact device lookup (tests first, red, then the iface and netlink changes; own commit). Bring up FRR over IPv4 with IPv6 unicast and capability 77 on a link with no global (A-3 confirmation), and BIRD over IPv4 with a global (A-5 confirmation). Stop and report on any failure.
+2. Validate A-6, and list every plugin that forwards without `bgp-adj-rib-in` (R-8; A-7 is broken, round-9 I1), and the AC-19 read error and the exact device lookup (tests first, red, then the iface and netlink changes; own commit). Bring up FRR over IPv4 with IPv6 unicast and capability 77 on a link with no global (A-3 confirmation), and BIRD over IPv4 with a global (A-5 confirmation). Stop and report on any failure.
 3. AC-8 scenario `bgp-linklocal-only-next-hop-frr` (relay), with the recorded red. Own commit.
 4. AC-15 (llnh), tests first, red; the `.ci`; docs §9c and route-injection; the tags leave the llnh tests in the same commit that adds them on the reactor (step 5), so no commit carries `-4-3` with no tag.
 5. AC-9 to AC-14, AC-16 to AC-18, after the unowned-rows spec's interface name has landed (R-3): tests first, red; the snapshot fields; `ownIPv6NextHop`; the two rail calls; the refresh comparison; the Warn producer; the re-advertise trigger, on the path R-7 names; green; the `-4-3` records, after the owner has approved the tag move (Owner decisions); docs and summaries. One commit with step 4.
@@ -762,25 +820,85 @@ producers (round-3 N3).
   session the change resets nothing, so Ze takes FRR's per-peer re-announce
   without a session reset. This is decided from the RFC and both sources, not
   put to the owner. The design is written here, because the readvertise
-  skeleton holds none (round-8 I3), and it builds no new refeed store; each
-  route source re-sends through a primitive it already has:
-  forwarded routes already on the wire, through the RIB plugin's
-  `outboundResend` (`clear bgp rib out <peer> <family>`), the rail RFC 2918's
-  re-advertise reaches, which replays `ribOut` with `meta["replay"]` so the
-  reactor's `adjRIBOut` lets it through and the egress applies the new answer
-  or withdraws; forwarded routes the egress withheld, which `ribOut` never
-  recorded, through the forwarding plugin's peer replay for that family (A-7);
-  config routes, through the config-route send factored out of
-  `sendInitialRoutes`, for that family, with no default route and no
-  End-of-RIB. The families are the arm families for an IPv4 session and the
-  IPv6 families for a global-IPv6 session. A burst collapses to one pass:
-  the EventBus handler only signals a capacity-one channel, and the
-  link-scope worker refreshes once and re-advertises once per changed peer
-  and family. The worker is one long-lived goroutine, started with the
-  reactor and stopped by its context (`ai/rules/goroutine-lifecycle.md`),
+  skeleton holds none (round-8 I3), and it builds no new refeed store. Each
+  route source re-sends through a path that re-runs the egress next-hop
+  decision, because replaying a recorded next hop sends an address Ze no
+  longer holds (round-9 B1).
+  Forwarded routes, sent or withheld, go through the forward rail over the
+  retained source UPDATE. The worker dispatches `request bgp adj-rib-in
+  replay <peer> 0 <cut>` with the new family argument, the cut being
+  adj-rib-in's ingest position when the pass starts, so a newer route stays
+  on the live rail. It relays adj-rib-in's stored routes of that family from
+  every other source through `RelayStoredRoute`, the rail peer-up replay
+  uses, so each route meets `applyFactsNextHop` and `egressNextHopWithheld`
+  for this destination again: a changed answer passes `adjRIBOut` (the next
+  hop is in `announceSignature`), an unchanged one is suppressed, a route
+  now refused becomes a withdrawal of what the peer holds, and a route
+  withheld at establishment is sent. adj-rib-in holds a route whether or not
+  the egress sent it, so this one path also covers the withheld route (A-7
+  broken, round-9 I1). No End-of-RIB is sent: the command sends none, and
+  the route server's `endReplay` is not called. It relays what the route
+  server's and reflector's peer-up replays relay, through the same egress
+  policy; a forwarder that does not store in adj-rib-in gets no re-send
+  (R-8).
+  Routes announced through the API go through the RIB plugin's
+  `outboundResend` (`clear bgp rib out <peer> <family>`), restricted to
+  locally originated entries. The sent event of a `self` announce carries a
+  new `next-hop-self` route marker, the RIB stores it as
+  `ribOutEntry.NextHopSelf` beside `ConfigStatic`, and the replay of such an
+  entry writes `next-hop self` in place of the recorded address, so
+  `AnnounceNLRIBatch` resolves it again. This is where the `self` policy is
+  kept: today it lives only on the in-flight `NLRIBatch` and the queued
+  `peerOp`. An entry with an explicit next hop replays the operator's
+  address, and the egress derives its link-local half again in
+  `linkLocalNextHopFor`. A replayed `self` announce whose resolution fails
+  withdraws the route from a peer whose `adjRIBOut` holds it, where
+  `AnnounceNLRIBatch` skips the peer today. Forwarded entries stay out of
+  this replay, because their recorded next hop is the old answer.
+  Config routes go through a new sibling of `deliverStaticRouteDelta`. It
+  takes `staticMu` for one peer and one family, re-resolves every configured
+  route of that family, sends each one whose resolved next hop differs from
+  the one `staticWire` recorded for it, withdraws with
+  `withdrawStaticRoutes` each held route that no longer resolves, and
+  records the result in `staticWire`. `staticWire` keeps each route's sent
+  next hop for this, and `withdrawStaticRoutes` builds the withdrawal from
+  it rather than resolving again, since `SynthesizeWithdraw` drops the next
+  hop and a route whose next hop vanished is exactly the one to withdraw
+  (round-9 I2). Like the delta, it leaves alone a connection that has not
+  been sent its static set, whose initial send reads the new answer itself.
+  The family's default-originate route is re-sent the same way, sent where
+  it now resolves and withdrawn where it no longer does, from a per-family
+  record of the sent default kept beside `staticWire` and apart from the
+  configured set, so a reload delta never withdraws it; the End-of-RIB claim
+  stays once per family per session.
+  The families are the arm families for an IPv4 session and the IPv6
+  families for a global-IPv6 session. A burst collapses to one pass: the
+  EventBus handler only signals a capacity-one channel, and the link-scope
+  worker refreshes once and re-advertises once per changed peer and family.
+  The worker is one long-lived goroutine (`ai/rules/goroutine-lifecycle.md`),
   because the handler runs on the netlink monitor's read loop, where
-  `pkg/ze/eventbus.go` forbids I/O (round-8 I4). The readvertise spec and the
-  unowned-rows spec's I3 reuse this path.
+  `pkg/ze/eventbus.go` forbids I/O (round-8 I4). Lifecycle (round-9 N2):
+  `Start` launches it with `r.wg.Go` beside the AIGP advertiser, so `Wait`
+  covers it; it returns when `r.ctx` is cancelled, never on a closed
+  channel, because the handler's non-blocking send would panic on one.
+  `stop` cancels `r.ctx` last, after the notify budget, so the worker reads
+  `r.stopping` under `r.mu` before each peer and starts no re-advertise once
+  the stop has begun. The reactor's doc comment states this start and stop
+  order. Ordering with the synchronous refreshes at establishment and
+  reload: the snapshot is published before the worker re-sends, so any send
+  after the publish reads the new answer; the config-route re-send
+  serialises with `sendInitialRoutes` and the reload delta on `staticMu`; a
+  peer whose initial sync for the family has not finished (its End-of-RIB
+  not yet claimed) is skipped, because its initial send and replay read the
+  new answer themselves; and the worker re-reads the peer's current session
+  before each dispatch, so a session replaced in between is left to its own
+  initial send. Each dispatch waits for its plugin command, up to 10 s for
+  the RIB's (`updateRouteWithMeta`), and the worker serves peers one after
+  another, so many peers changing at once serialise behind a slow plugin.
+  That is accepted; the worker logs each dispatch at Debug with its peer,
+  family and duration, so a slow plugin reads as a slow plugin and not a
+  hang (round-9 N3). The readvertise spec and the unowned-rows spec's I3
+  reuse this path.
 - No global (round-8 I1, N1; owner's standing rule, 2026-10-11, "match bird
   and frr behaviour", FRR where they differ). Without capability 77 the
   draft does not apply (its lines 188-191), so a 2/1 or 2/2 withhold rests
@@ -851,6 +969,7 @@ producers (round-3 N3).
 | Round-7 I3: nothing re-advertises when Ze's own next hop changes | Owner, 2026-10-12: not an owner question; decide from the RFC and FRR and BIRD | RFC 4271 Section 9.2 and FRR's per-peer re-announce decide it: AC-17 re-advertises the affected routes on the readvertise spec's path, which Depends names (Key Design Decisions, "Re-advertise") |
 | Round-8 I1 and N1: without capability 77 the draft does not apply, so what decides the no-global case per family? | Main thread, 2026-10-12, from the owner's standing rule "match bird and frr behaviour; where they differ follow FRR" and the RFCs | 2/1 and 2/2: withheld, on RFC 2545 Section 3 ("the global IPv6 address of the next hop"), which outranks FRR's mapped fallback. 2/128: FRR keeps the mapped field (`bgp_updgrp_packet.c`), BIRD withholds, so Ze keeps today's mapped field with a zero RD (RFC 4659 Section 3.2.1.2), and 6VPE between IPv4 loopbacks keeps working |
 | Round-8 I3: the readvertise skeleton holds no design and contradicts AC-17 | Main thread, 2026-10-12 | This spec writes the re-advertise design (Key Design Decisions, "Re-advertise"); the readvertise spec's AC-2, equal-table guard and cost note are amended to agree, its status kept |
+| Round-9 B1, I1: `outboundResend` replays the recorded next hop, and A-7's replays do not reach the egress | Main thread, 2026-10-12, from the producers | Forwarded routes re-send through adj-rib-in's stored copy on the forward rail, API routes through `outboundResend` replaying `self` as `self`, config and default routes through a `staticMu` sibling of the reload delta (Key Design Decisions, "Re-advertise"); the readvertise spec and unowned-rows I3 amended to name the same path |
 | Round-7 N9: the two llnh `-4-3` tags (`draft_ietf_idr_linklocal_capability_llnh_refusal_test.go` lines 75 and 104) and their records are deleted and re-observed on `TestOwnIPv6NextHopInternalDirectlyConnected` | PENDING: needs the owner's approval at implementation, because it moves RFC-tagged tests (`ai/rules/rule-precedence.md`) | AC-11: the positive (the internal peer's next hop is Ze's interface link-local) and the named negative (an internal peer more than one hop away gets none), each recorded by `./le rfc discriminate-record`. Step 5 stops before the move until the owner approves |
 
 ## Known Limitations
@@ -876,12 +995,12 @@ producers (round-3 N3).
   withheld as today; FRR would send the mapped field there. Ze keeps today's
   answer, because sending it would be a new behaviour outside this spec's
   scope; the forward rails keep the mapped field they send today.
-- A forwarded route the egress withheld comes back only through the
-  forwarding plugin's peer replay (A-7), and a sent route through the RIB
-  plugin's `ribOut` (the route server depends on `bgp-rib`,
-  `rs/register.go`). Step 2 lists every plugin that forwards without
-  `bgp-rib`; if one exists, its routes are re-sent only on their next
-  UPDATE, and that case goes to the owner with the list before step 5.
+- A forwarded route, sent or withheld, comes back through adj-rib-in's
+  stored copy relayed on the forward rail, so a forwarder that runs without
+  `bgp-adj-rib-in` gets no re-send, and its routes change only on their next
+  UPDATE. Step 2 lists every such plugin; if one exists, that case goes to
+  the owner with the list before step 5 (R-8). API routes come back from the
+  RIB plugin's `ribOut`, so they need `bgp-rib`.
 - An address the operator marked preferred is not honoured: BIRD has a
   configured preference, FRR does not, and Ze takes the first usable address.
   The leaf covers the link-local half.
