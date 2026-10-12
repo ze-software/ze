@@ -169,7 +169,7 @@ func longestLocalPrefix(words []string) (LocalHandler, int) {
 func InvokeLocal(path string, handler LocalHandler, args []string) int {
 	validated, err := ValidateModelArgs(path, args, nil)
 	if err != nil {
-		writeLocalRefusal(err)
+		writeLocalRefusal("ze "+path, err)
 		return 1
 	}
 	return handler(validated)

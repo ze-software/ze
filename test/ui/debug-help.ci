@@ -1,10 +1,18 @@
-# Test: set debug module with no subsystem shows usage
-# VALIDATES: CLI usage output for the verb-first debug set grammar
+# Test: set debug module with no subsystem names what is missing and the help
+#       that lists every argument
+# VALIDATES: the verb-first debug set grammar refuses a missing module name
+#            before its handler runs (command.ValidateArgs, since 62842be4c7),
+#            the refusal names the leaf and the `help` request that fixes it,
+#            and that help request prints the usage naming level, flag and scope.
 # the `ze debug` root command was removed (spec-cli-verb-first-followup);
-# debug is now verb-first (set/delete/show/clear). The old toggle-usage assertions
-# no longer apply; this asserts the new `set debug module` usage instead.
+# debug is now verb-first (set/delete/show/clear).
 cmd=foreground:seq=1:exec=ze set debug module
 expect=exit:code=1
+expect=stderr:contains=required argument missing: module-name
+expect=stderr:contains=hint: run 'ze set debug module help'
+
+cmd=foreground:seq=2:exec=ze set debug module help
+expect=exit:code=0
 expect=stderr:contains=level
 expect=stderr:contains=flag
 expect=stderr:contains=scope

@@ -1482,7 +1482,12 @@ no tokens and no binding. `Tokens` answers a copy, so neither the route nor the
 handler can change what was judged. A call that leaves a mandatory leaf unfilled
 is refused with a `*command.MissingArgumentError` (`required argument missing:
 <leaf>`), which still reports the lone binding, because the dispatcher adopts a
-positional selector before it reports the missing leaf.
+positional selector before it reports the missing leaf. The in-process routes
+(R2, R3, R6, R7) write the refusal to stderr, and a missing leaf is followed by
+`hint: run '<command> help' to see the arguments it takes`, because the refusal
+names one leaf and the help page names every argument (`ze` prefixes the
+command on the `ze <verb>` routes, and `ze cli -c` takes it bare).
+<!-- source: internal/component/command/local_data.go -- localRefusal -->
 
 Every route that invokes a handler calls the validator, including for a path
 whose model declares no definition: that call passes the tokens through

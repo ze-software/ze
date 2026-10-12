@@ -137,7 +137,7 @@ func MustRegisterLocalData(path string, handler LocalDataHandler, meta registry.
 	// The detail goes to stderr and the panic value is a literal. A registration
 	// failure is a programming error at init, so the process must stop, and the
 	// error already names the path that could not register.
-	writeLocalRefusal(err)
+	writeLocalRefusal(path, err)
 	panic("BUG: command.MustRegisterLocalData")
 }
 
@@ -196,7 +196,7 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	// 129-character name reached the handler although the leaf says 1..128.
 	validated, argErr := validateLocalArgs(words, args)
 	if argErr != nil {
-		writeLocalRefusal(argErr)
+		writeLocalRefusal(strings.Join(words[:len(words)-len(args)], " "), argErr)
 		return "", 1, true
 	}
 
@@ -278,9 +278,23 @@ var errNoArgDefSource = errors.New("argument definitions are not loaded in this 
 
 // writeLocalRefusal writes an argument refusal to stderr, where a local-data
 // handler writes its own refusals, so the operator reads both on one channel.
-func writeLocalRefusal(err error) {
+//
+// invocation is the command as the operator types it on the calling route,
+// without its arguments. A missing mandatory argument is followed by the help
+// request for that command, because the refusal names one leaf and the help
+// page names every argument the command takes: that page is the fix.
+func writeLocalRefusal(invocation string, err error) {
+	os.Stderr.WriteString(localRefusal(invocation, err)) //nolint:errcheck // CLI diagnostic
+}
+
+// localRefusal is the text writeLocalRefusal writes, one line per statement.
+func localRefusal(invocation string, err error) string {
 	var tb textbuf.Buffer
-	os.Stderr.WriteString(tb.Str("error: ").Str(err.Error()).Byte('\n').String()) //nolint:errcheck // CLI diagnostic
+	tb.Str("error: ").Str(err.Error()).Byte('\n')
+	if _, missing := errors.AsType[*MissingArgumentError](err); missing {
+		tb.Str("hint: run '").Str(invocation).Str(" help' to see the arguments it takes\n")
+	}
+	return tb.String()
 }
 
 // HasLocalData reports whether a command is served in this process, which is
