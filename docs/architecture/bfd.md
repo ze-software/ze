@@ -147,9 +147,14 @@ The engine finishes the key. `Loop.EnsureSession` joins a request that left a
 field unset to the one live session it cannot be told apart from
 (`sharedEntryLocked`): the same peer, VRF and mode, and no field that both name
 with different values (`sharesSession`). The join works in either arrival
-order, because the session records the most specific identity a client reached
-it with, so a later client naming a different local address or link is told
-apart from it. A BGP multi-hop peer with no local address therefore shares the
+order, because the session records the most specific identity its current
+clients reached it with, so a later client naming a different local address or
+link is told apart from it. That identity belongs to the clients, not to the
+session's history: each handle carries its client's hold, and every join and
+every release recomputes it from the clients still attached (`joinedKey`). A
+pinned client that releases takes its narrowing with it, so the next client
+pinned elsewhere shares the session instead of opening a second one to the same
+remote system (RFC 5882 §4.4). A BGP multi-hop peer with no local address therefore shares the
 pinned `multi-hop-session` to the same peer in any VRF, and a BGP peer with no
 interface leaf shares the OSPF session to a global neighbor that `Canonical`
 could not place on one link.
@@ -193,7 +198,7 @@ every client naming that profile, on any neighbor.
 <!-- source: internal/component/bfd/api/session_identity.go -- Canonical, canonicalMultiHop -->
 <!-- source: internal/component/bfd/transport/udp.go -- ingressInterface -->
 <!-- source: internal/component/bfd/session_identity.go -- connectedLinks, vrfMembership -->
-<!-- source: internal/component/bfd/engine/engine.go -- sharedEntryLocked, sharesSession -->
+<!-- source: internal/component/bfd/engine/shared_session.go -- sharedEntryLocked, sharesSession, joinedKey -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent, SetProfileAuth, sharedAuthLocked, replaceAuth -->
 <!-- source: internal/component/bfd/bfd.go -- loopFor, runtimeState.profileAuthFor -->
 
@@ -293,7 +298,8 @@ joined only when no live session matches the request, so a session kept for
 its Detection Time never makes a request that matches one live session
 ambiguous.
 
-<!-- source: internal/component/bfd/engine/engine.go -- ReleaseSession, acquireLocked, retireReleasedLocked, reviveReleasedLocked, sharedEntryLocked -->
+<!-- source: internal/component/bfd/engine/engine.go -- ReleaseSession, retireReleasedLocked, reviveReleasedLocked -->
+<!-- source: internal/component/bfd/engine/shared_session.go -- reviveLocked, detachClientLocked, sharedEntryLocked -->
 <!-- source: internal/component/bfd/engine/loop.go -- tick -->
 
 ### What a state change tells a client

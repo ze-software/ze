@@ -108,3 +108,57 @@ func refcountOf(snap []api.SessionState) int {
 	}
 	return snap[0].Refcount
 }
+
+// RFC requirement: RFC5882-4.4-1 positive -- "If multiple control protocols
+// wish to establish BFD sessions with the same remote system for the same data
+// protocol, all MUST share a single BFD session" (RFC 5882 sec 4.4).
+// A client pinned to a local address that joins a shared session narrows the
+// identity the session answers for; when that client leaves, the narrowing
+// leaves with it (Loop.ReleaseSession recomputes the entry's joined key from
+// the clients still attached). A third client pinned to another local address
+// then shares the one session rather than opening a second session to the same
+// remote system. The negative half keeps RFC 5883 sec 4.1: while the pinned
+// client is still attached, the session runs on its address pair, and a client
+// pinned elsewhere is a distinct address pair with its own session.
+func TestSharedSessionWidensOnRelease(t *testing.T) {
+	const peer = "203.0.113.9"
+	a, b, c := multiHop(peer, ""), multiHop(peer, "172.30.0.2"), multiHop(peer, "10.1.0.2")
+
+	t.Run("pinned client left", func(t *testing.T) {
+		loop := joinLoop(api.MultiHop)
+		if _, err := loop.EnsureSession(a); err != nil {
+			t.Fatalf("EnsureSession A: %v", err)
+		}
+		hb, err := loop.EnsureSession(b)
+		if err != nil {
+			t.Fatalf("EnsureSession B: %v", err)
+		}
+		if err := loop.ReleaseSession(hb); err != nil {
+			t.Fatalf("ReleaseSession B: %v", err)
+		}
+		entry, ok := loop.sessions[a.Key()]
+		if !ok {
+			t.Fatalf("session opened by A is gone after B left")
+		}
+		if entry.joined != a.Key() {
+			t.Errorf("joined after B left = %+v, want A's key %+v", entry.joined, a.Key())
+		}
+		hc, err := loop.EnsureSession(c)
+		if err != nil {
+			t.Fatalf("EnsureSession C: %v", err)
+		}
+		if hc.Key() != a.Key() {
+			t.Errorf("C's handle names %+v, want the shared session %+v", hc.Key(), a.Key())
+		}
+		if snap := loop.Snapshot(); len(snap) != 1 || snap[0].Refcount != 2 {
+			t.Fatalf("after C joined: refcounts %v, want ONE session at 2 (RFC 5882 sec 4.4)", refcounts(snap))
+		}
+	})
+
+	t.Run("pinned client still attached", func(t *testing.T) {
+		snap := ensureAll(t, joinLoop(api.MultiHop), a, b, c)
+		if len(snap) != 2 {
+			t.Fatalf("B on 172.30.0.2 attached, C on 10.1.0.2: %d sessions, want 2 (RFC 5883 sec 4.1), refcounts %v", len(snap), refcounts(snap))
+		}
+	})
+}

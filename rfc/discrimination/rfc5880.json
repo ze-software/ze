@@ -1461,7 +1461,7 @@
       "claim-sha": "88eb27e84f38de84",
       "route": "revert",
       "producer": "internal/component/bfd/engine/engine.go::reviveReleasedLocked",
-      "producer-sha": "b0f682e936bfc266",
+      "producer-sha": "d4f9764cf0babe11",
       "break": "body of reviveReleasedLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

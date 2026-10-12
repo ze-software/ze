@@ -188,16 +188,23 @@ type sessionEntry struct {
 	// holds STRINGS for display, and a session that has made no transition has
 	// no entry at all.
 	lastDiag packet.Diag
-	// joined is the most specific identity any client has reached this
-	// session with. It equals the session's map key until a client that names
-	// a field the key left unset joins it (sharedEntryLocked); from then on the
-	// session answers for that value, so a later client naming a DIFFERENT
-	// value is told apart from it and gets its own session.
+	// clients holds one entry per live hold on the session, in the order they
+	// were taken: the key each client asked with and the request it made. Its
+	// length is the machine's refcount: attachClientLocked and
+	// detachClientLocked are the only writers of either, and move both.
+	clients []*sessionClient
+	// joined is the identity the session answers for while its current
+	// clients hold it: the session's map key with every field it left unset
+	// taken from a client that named it (joinedKey). A later client naming a
+	// DIFFERENT value is told apart from it and gets its own session. It is
+	// recomputed whenever a client attaches or detaches, so the narrowing a
+	// client brought leaves with that client, and a session with no client
+	// left answers for its map key alone.
 	joined api.Key
 	// released is true while the session has no client but is kept, in
 	// AdminDown, for one Detection Time after its last received packet
 	// (ReleaseSession). tick removes it once that time has passed, and a
-	// client that asks for it again first revives it (acquireLocked).
+	// client that asks for it again first revives it (reviveLocked).
 	released bool
 	// sendWarnAt is when a failed transmission of this session was last
 	// logged at Warn, the zero time when none has been. It rate-limits
@@ -563,8 +570,8 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 		if err := joinAuthCheck(entry, req, key, l.profileAuth); err != nil {
 			return nil, err
 		}
-		entry.machine.Acquire()
-		return &handle{loop: l, key: key}, nil
+		// RFC 5882 Section 4.4
+		return l.attachClientLocked(entry, key, req), nil
 	}
 	// RFC 5882 Section 4.4: a client that named less joins the one session
 	// it cannot be told apart from.
@@ -572,15 +579,15 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 		if err := l.sharedAuthLocked(entry, req, sessionKey); err != nil {
 			return nil, err
 		}
-		l.acquireLocked(entry)
-		entry.joined = narrowKey(entry.joined, key)
+		l.reviveLocked(entry)
+		h := l.attachClientLocked(entry, sessionKey, req)
 		engineLog().Info("bfd session shared",
 			"peer", key.Peer.String(),
 			"mode", key.Mode.String(),
 			"vrf", key.VRF,
 			"request-local", key.Local.String(),
 			"session-local", sessionKey.Local.String())
-		return &handle{loop: l, key: sessionKey}, nil
+		return h, nil
 	}
 
 	discr, err := l.allocateDiscriminatorLocked()
@@ -606,9 +613,9 @@ func (l *Loop) reviveReleasedLocked(req api.SessionRequest, key api.Key, release
 		return nil, err
 	}
 	released.profile = req.Profile
-	l.acquireLocked(released)
+	l.reviveLocked(released)
 	released.machine.Reconfigure(req)
-	return &handle{loop: l, key: key}, nil
+	return l.attachClientLocked(released, key, req), nil
 }
 
 // createSessionLocked builds the session for req on discriminator discr and
@@ -645,127 +652,7 @@ func (l *Loop) createSessionLocked(req api.SessionRequest, key api.Key, discr ui
 	l.sessions[key] = entry
 	l.byDiscr[discr] = entry
 	l.byKey[firstPacketIndex(key)] = entry
-	return &handle{loop: l, key: key}, nil
-}
-
-// sharedEntryLocked answers the one live session a request shares, when its
-// key is not one the engine already holds exactly. The caller MUST hold l.mu.
-//
-// RFC 5882 Section 4.4: "If multiple control protocols wish to establish BFD
-// sessions with the same remote system for the same data protocol, all MUST
-// share a single BFD session."
-//
-// The clients do not name a session with the same fields.
-// api.SessionRequest.Canonical completes what it can from the link table, and
-// what it cannot complete stays unset: the local address of a multi-hop BGP
-// peer with no `connection local ip`, which Canonical never derives, and the
-// link and address of a single-hop peer on two links, on no connected prefix,
-// or on a daemon with no interface backend. An unset field says the client
-// does not care, so it matches any value (sharesSession). ok is false when no
-// session matches, and also when more than one does: a request that could
-// mean either of two sessions is not merged onto one of them by a guess, and
-// gets its own.
-//
-// A released session (ReleaseSession) has no client left to share with, so it
-// is matched only when no live session is: the live sessions are counted
-// first, and the released ones decide only when none of them matches. Counted
-// together, a released session kept for its Detection Time would make a
-// request that matches one live session ambiguous, and open a second session
-// to the same remote system.
-//
-// The scan is linear in the loop's sessions. EnsureSession runs once per
-// client per session lifetime, never per packet.
-func (l *Loop) sharedEntryLocked(key api.Key) (api.Key, *sessionEntry, bool) {
-	var live, released sharedMatch
-	for k, entry := range l.sessions {
-		if !sharesSession(key, entry.joined) {
-			continue
-		}
-		if entry.released {
-			released.add(k, entry)
-			continue
-		}
-		live.add(k, entry)
-	}
-	if live.count > 0 {
-		return live.only()
-	}
-	return released.only()
-}
-
-// sharedMatch counts the sessions sharedEntryLocked matched in one class, live
-// or released, and remembers the last one.
-type sharedMatch struct {
-	key   api.Key
-	entry *sessionEntry
-	count int
-}
-
-// add records one more matching session.
-func (s *sharedMatch) add(key api.Key, entry *sessionEntry) {
-	s.key, s.entry = key, entry
-	s.count++
-}
-
-// only answers the matched session when exactly one matched; none, or more
-// than one, is no answer.
-func (s *sharedMatch) only() (api.Key, *sessionEntry, bool) {
-	if s.count != 1 {
-		return api.Key{}, nil, false
-	}
-	return s.key, s.entry, true
-}
-
-// sharesSession reports whether two keys can name one session: the same peer,
-// VRF and hop mode, and no field that both name with different values.
-//
-// RFC 5883 Section 4.1: "Multiple sessions between the same pair of systems
-// must have at least one endpoint address distinct from one another." Two
-// local addresses both named are two address pairs, so they never share; an
-// address one side left unset is no endpoint distinct from anything.
-//
-// RFC 5881 Section 2 puts a single-hop session on "a single IP hop that is
-// associated with an incoming interface", so two named links never share
-// either.
-//
-// A link-local peer is the exception to the unset link. RFC 4007 Section 6:
-// "the same non-global address may be in use in more than one zone of the
-// same scope (e.g., the use of link-local address fe80::1 in two separate
-// physical links)". fe80::1 with no link does not name a remote system, so it
-// matches only a session that names no link either.
-func sharesSession(a, b api.Key) bool {
-	if a.Peer != b.Peer {
-		return false
-	}
-	if a.VRF != b.VRF {
-		return false
-	}
-	if a.Mode != b.Mode {
-		return false
-	}
-	if a.Local.IsValid() && b.Local.IsValid() && a.Local != b.Local {
-		return false
-	}
-	if a.Peer.IsLinkLocalUnicast() {
-		return a.Interface == b.Interface
-	}
-	if a.Interface != "" && b.Interface != "" && a.Interface != b.Interface {
-		return false
-	}
-	return true
-}
-
-// narrowKey returns joined with every field it left unset taken from key, the
-// identity of the client that just joined. sharesSession already refused any
-// field both name differently, so nothing named is overwritten.
-func narrowKey(joined, key api.Key) api.Key {
-	if !joined.Local.IsValid() {
-		joined.Local = key.Local
-	}
-	if joined.Interface == "" {
-		joined.Interface = key.Interface
-	}
-	return joined
+	return l.addClientLocked(entry, key, req), nil
 }
 
 // buildAuthPair converts api.AuthSettings into a session.AuthPair,
@@ -843,8 +730,10 @@ func (l *Loop) allocateDiscriminatorLocked() (uint32, error) {
 	return 0, ErrDiscriminatorSpaceExhausted
 }
 
-// ReleaseSession decrements the refcount on the session identified by h
-// and tears it down when the count reaches zero.
+// ReleaseSession removes the hold h carries from its session, and tears the
+// session down when no hold is left. Releasing a handle a second time
+// releases nothing: the hold is gone, and a later client's hold on the same
+// session is not this caller's to drop.
 func (l *Loop) ReleaseSession(h api.SessionHandle) error {
 	hh, ok := h.(*handle)
 	if !ok {
@@ -857,7 +746,12 @@ func (l *Loop) ReleaseSession(h api.SessionHandle) error {
 	if !ok {
 		return nil
 	}
-	if entry.machine.Release() > 0 {
+	// RFC 5882 Section 4.4
+	left, held := detachClientLocked(entry, hh.key, hh.client)
+	if !held {
+		return nil
+	}
+	if left > 0 {
 		return nil
 	}
 	l.closeSubscribersLocked(hh.key)
@@ -876,18 +770,6 @@ func (l *Loop) ReleaseSession(h api.SessionHandle) error {
 	entry.released = true
 	entry.machine.AdminDown(packet.DiagAdminDown)
 	return nil
-}
-
-// acquireLocked adds one client to entry. A released entry that a client asks
-// for again inside its Detection Time is revived rather than replaced: it
-// leaves AdminDown and keeps its discriminator. The caller MUST hold l.mu.
-func (l *Loop) acquireLocked(entry *sessionEntry) {
-	entry.machine.Acquire()
-	if !entry.released {
-		return
-	}
-	entry.released = false
-	entry.machine.AdminEnable()
 }
 
 // retireReleasedLocked removes a released entry once one Detection Time has

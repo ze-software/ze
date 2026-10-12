@@ -310,10 +310,14 @@ func (l *Loop) warnSendFailedLocked(entry *sessionEntry, packetKind string, err 
 		"local-discriminator", entry.machine.LocalDiscriminator(), "err", err)
 }
 
-// handle is the engine's implementation of api.SessionHandle.
+// handle is the engine's implementation of api.SessionHandle. key names the
+// session; client is the hold EnsureSession gave this caller, which
+// ReleaseSession removes. A handle built without a client (the tests' direct
+// Shutdown and Enable calls) holds nothing, and releasing it releases nothing.
 type handle struct {
-	loop *Loop
-	key  api.Key
+	loop   *Loop
+	key    api.Key
+	client *sessionClient
 }
 
 // Key returns the session identity.
