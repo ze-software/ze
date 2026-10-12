@@ -111,8 +111,36 @@ type bfdReading struct {
 // It says nothing about BfdStrictNegotiated: whether the PEER agreed is
 // decided by the OPEN exchange and lives on the session's FSM.
 func (p *Peer) bfdStrict() bool {
-	cfg := p.settings.BFD
+	return bfdOptInStrict(p.bfdSettings())
+}
+
+// bfdOptInStrict answers whether an opt-in runs the strict-mode procedures:
+// configured, enabled, and strict. A nil or disabled opt-in is not strict,
+// whatever its Strict leaf says (draft-ietf-idr-bgp-bfd-strict-mode Section 3,
+// item 17).
+func bfdOptInStrict(cfg *BFDSettings) bool {
 	return cfg != nil && cfg.Enabled && cfg.Strict
+}
+
+// bfdSettings answers the peer's BFD opt-in under p.mu. A reload swaps a
+// non-strict opt-in onto a running peer (hotSwappableSettings), so every
+// reader of a running peer's opt-in MUST come through here, or through
+// bfdOptIn, never through p.settings.BFD. The swap replaces the pointer and
+// never writes the pointed-to struct, so the answer stays consistent after
+// the lock is released. Safe for concurrent use.
+func (p *Peer) bfdSettings() *BFDSettings {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.BFD
+}
+
+// bfdOptIn answers the opt-in and the session request built from it, both
+// read in one p.mu section so the request is the one the opt-in describes.
+// Safe for concurrent use.
+func (p *Peer) bfdOptIn() (*BFDSettings, api.SessionRequest) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.BFD, bfdRequestFor(p.settings)
 }
 
 // bfdSessionState answers the draft's bfd.SessionState session attribute for
@@ -171,7 +199,7 @@ func (p *Peer) bfdSubState() string {
 // operator configured, so they are logged at error and the session
 // gate holds the peer out of Established (session_bfd_strict.go).
 func (p *Peer) startBFDClient() {
-	cfg := p.settings.BFD
+	cfg, req := p.bfdOptIn()
 	if cfg == nil || !cfg.Enabled {
 		return
 	}
@@ -210,7 +238,6 @@ func (p *Peer) startBFDClient() {
 			"peer", p.settings.Address)
 		return
 	}
-	req := bfdRequestFor(p.settings)
 	handle, err := svc.EnsureSession(req)
 	if err != nil {
 		if cfg.Strict {
@@ -494,6 +521,63 @@ func (p *Peer) stopBFDClient() {
 		<-done
 	}
 	peerLogger().Info("bfd session closed for peer", "peer", p.settings.Address)
+}
+
+// newSession builds the session for one connection of this peer, reading
+// the BFD opt-in through the peer's locked accessor (Session.bfdOptIn).
+// Every session a peer runs MUST be built here.
+func (p *Peer) newSession() *Session {
+	session := NewSession(p.settings)
+	session.bfdOptIn = p.bfdSettings
+	return session
+}
+
+// bfdOptInChange is what a reload's swap did to a running peer's BFD opt-in:
+// the opt-in and its session request before and after the write. Both sides
+// are non-strict, or the plan restarted instead (hotSwappableSettings).
+type bfdOptInChange struct {
+	before, after               *BFDSettings
+	requestBefore, requestAfter api.SessionRequest
+}
+
+// reopens answers whether the change moves what the BFD client asks the
+// engine for: the opt-in enabled or not, and, while enabled, the request.
+// HoldTime and HoldDown act only in strict mode, so a non-strict opt-in that
+// differs in nothing else asks for the same session.
+func (c bfdOptInChange) reopens() bool {
+	enabledBefore := c.before != nil && c.before.Enabled
+	enabledAfter := c.after != nil && c.after.Enabled
+	if enabledBefore != enabledAfter {
+		return true
+	}
+	return enabledAfter && c.requestBefore != c.requestAfter
+}
+
+// applyBFDOptInChange moves the running peer's BFD client to the opt-in a
+// reload's swap just wrote, with no lock held: the release and the ensure
+// each wait on the BFD service, and stopBFDClient waits on the subscriber.
+// It opens and closes through startBFDClient and stopBFDClient, the same
+// functions the FSM callback uses, and adds no third way.
+//
+// A non-strict peer runs its BFD client while Established, so the client is
+// opened only on an Established peer; a peer that is not there yet opens it
+// on entry, reading the opt-in written here. An edit releases and opens
+// again, because the engine resolves the profile when a client asks
+// (pluginService.EnsureSession). A start that lost a race with the exit
+// from Established is undone, since the exit's stop may already have run.
+func (p *Peer) applyBFDOptInChange(change bfdOptInChange) {
+	if !change.reopens() {
+		return
+	}
+	// RFC 5882 Section 8
+	p.stopBFDClient()
+	if p.State() != PeerStateEstablished {
+		return
+	}
+	p.startBFDClient()
+	if p.State() != PeerStateEstablished {
+		p.stopBFDClient()
+	}
 }
 
 // bfdRequestFor builds an api.SessionRequest from PeerSettings. The

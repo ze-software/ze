@@ -59,8 +59,8 @@ func (s *Session) setBFDStateReader(read bfdStateReader) {
 //
 // The FSM tests the two together in every clause, so it stores the conjunction.
 func (s *Session) applyBFDStrictNegotiation() {
+	bfd := s.bfdOptIn()
 	s.mu.RLock()
-	bfd := s.settings.BFD
 	negotiated := s.negotiated
 	s.mu.RUnlock()
 
@@ -212,9 +212,7 @@ func (s *Session) bfdHoldDownPending() bool {
 // timers are running, and the BGP session's transition to Established is not
 // lingering on a pending event".
 func (s *Session) raiseBFDStrictConfigChanged() {
-	s.mu.RLock()
-	bfd := s.settings.BFD
-	s.mu.RUnlock()
+	bfd := s.bfdOptIn()
 
 	event := fsm.EventBfdStrictConfigChanged
 	if bfd == nil || !bfd.Enabled {

@@ -199,6 +199,17 @@ forwarding path Down, the reactor tears the BGP session with RFC 9384
 Cease NOTIFICATION (subcode 10, "BFD Down") without waiting for the
 hold timer.
 
+A reload or a commit that adds, removes, disables or edits the opt-in of a
+peer without `strict true` keeps the BGP session: an Established peer opens
+its BFD session at once, a removed or disabled opt-in releases it, and an
+edited one (another profile or mode) releases it and opens one under the new
+request. The same holds for a dynamic group's template, on every running
+dynamic peer of the group. A change with `strict true` before or after
+restarts the BGP session, because strict mode is announced in the OPEN
+(`docs/guide/config-reload.md`).
+
+<!-- source: internal/component/bgp/reactor/peer_bfd.go -- Peer.applyBFDOptInChange -->
+
 A released session does not leave `show bfd sessions` at once when it has
 heard from its peer. It stays there in `admin-down` for three of its
 Detection Times, because RFC 5880 Section 6.8.1 says its state "MUST be

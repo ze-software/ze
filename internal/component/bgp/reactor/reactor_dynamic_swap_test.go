@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -172,7 +173,8 @@ func TestDynamicFilterSwapResolvesAgainstLearnedAS(t *testing.T) {
 // TestFailingReloadRollsBackDynamicSwap proves AC-20 for the binding and filter
 // halves: a reload whose later step fails rolls the journal back, and the
 // dynamic peer is the same peer on the same session with its pre-reload
-// bindings, filter chain, template pair and group set. The gained process is
+// bindings, filter chain, BFD opt-in and client, template pair and group set.
+// The gained process is
 // told down for the rolled-back binding. No Cease is sent: the peer stays in
 // r.peers throughout.
 //
@@ -185,11 +187,18 @@ func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 	rec := establishDynamicPeer(t, r, peer)
 	session := peer.currentSession()
 
+	svc := &swapBFDService{}
+	api.SetService(svc)
+	defer api.SetService(nil)
+
 	changed := dynamicReloadGroup()
 	changed.Settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
 	changed.Settings.ImportFilters = []filterapi.FilterRef{{Name: "policy:strict-$remote_as"}}
+	changed.Settings.BFD = nonStrictBFD("fast")
 	j := reloadDynamicGroups(t, r, changed)
 	require.Len(t, peer.settingsSnapshot().ProcessBindings, 1, "the fixture must swap before it rolls back")
+	live, _ := svc.state()
+	require.Equal(t, 1, live, "the fixture must open the BFD client before it rolls back")
 
 	require.Empty(t, j.Rollback(), "the rollback must not fail")
 
@@ -210,6 +219,9 @@ func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 	require.Len(t, groups, 1)
 	assert.True(t, groups[0] == before, "the group set must be the pre-reload one")
 	assert.Equal(t, int32(1), before.ActivePeers.Load(), "the restored group must count the peer")
+	assert.Nil(t, peer.bfdSettings(), "the BFD opt-in must be the pre-reload one")
+	live, _ = svc.state()
+	assert.Equal(t, 0, live, "the rollback must release the BFD client the swap opened")
 
 	steps := rec.recorded()
 	require.Len(t, steps, 2, "an up for the swap, then a down for its undo")
@@ -453,4 +465,69 @@ func TestTreeRouteLeavesDynamicGroupsUnchanged(t *testing.T) {
 	assert.True(t, after == peer, "the tree route must not remove a dynamic peer")
 	require.Len(t, groups, 1)
 	assert.True(t, groups[0] == group, "the tree route must not replace the group set")
+}
+
+// TestDynamicNonStrictBFDOptInSwaps proves AC-19 at the step: a group template
+// that gains a non-strict BFD opt-in keeps the running dynamic peer and opens
+// its BFD client, and losing the opt-in releases the client, again on the same
+// peer and session.
+//
+// VALIDATES: the dynamic step delivers a non-strict opt-in through the swap.
+// PREVENTS: an IXP operator toggling BFD on a group and resetting every
+// dynamic session in it.
+// DISCRIMINATION: peer and session identity, and the fake service's live hold
+// count; with BFD outside the hot-swap set the step restarts the peer.
+func TestDynamicNonStrictBFDOptInSwaps(t *testing.T) {
+	svc := &swapBFDService{}
+	api.SetService(svc)
+	defer api.SetService(nil)
+	addr := netip.MustParseAddr("185.1.69.42")
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	establishDynamicPeer(t, r, peer)
+	session := peer.currentSession()
+	key := netip.AddrPortFrom(addr, DefaultBGPPort)
+
+	gained := dynamicReloadGroup()
+	gained.Settings.BFD = nonStrictBFD("fast")
+	reloadDynamicGroups(t, r, gained)
+	r.mu.RLock()
+	after := r.peers[key]
+	r.mu.RUnlock()
+	require.True(t, after == peer, "a non-strict opt-in must not restart the dynamic peer")
+	assert.True(t, after.currentSession() == session, "the session must be the same session")
+	live, profiles := svc.state()
+	require.Equal(t, 1, live, "the swap must open the BFD client")
+	assert.Equal(t, []string{"fast"}, profiles)
+
+	reloadDynamicGroups(t, r, dynamicReloadGroup())
+	r.mu.RLock()
+	after = r.peers[key]
+	r.mu.RUnlock()
+	require.True(t, after == peer, "removing the opt-in must not restart the dynamic peer")
+	assert.True(t, after.currentSession() == session, "the session must be the same session")
+	live, _ = svc.state()
+	assert.Equal(t, 0, live, "removing the opt-in must release the BFD client")
+}
+
+// TestDynamicStrictBFDChangeRestarts proves AC-19's strict half at the step: a
+// template change with strict mode on either side restarts the dynamic peer,
+// because strict mode lives in the OPEN and the OpenConfirm gate.
+//
+// VALIDATES: the dynamic step refuses to swap a strict-mode change.
+// PREVENTS: a running dynamic session keeping an OPEN built for the old mode.
+func TestDynamicStrictBFDChangeRestarts(t *testing.T) {
+	svc := &swapBFDService{}
+	api.SetService(svc)
+	defer api.SetService(nil)
+	addr := netip.MustParseAddr("185.1.69.42")
+	r, peer := newDynamicReloadReactor(t, dynamicReloadGroup(), addr, nil)
+	establishDynamicPeer(t, r, peer)
+
+	strict := dynamicReloadGroup()
+	strict.Settings.BFD = strictBFD("fast")
+	reloadDynamicGroups(t, r, strict)
+	r.mu.RLock()
+	after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
+	r.mu.RUnlock()
+	assert.False(t, after == peer, "a strict-mode opt-in must restart the dynamic peer")
 }

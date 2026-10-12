@@ -76,7 +76,7 @@ func runLiveStage(ctx context.Context, plugin *sdk.Plugin, step string) error {
 		}
 		return nil
 	case "reload":
-		return liveStagesReload(ctx, rest)
+		return liveStagesReload(ctx, plugin, rest)
 	case "has":
 		return liveStagesRead(ctx, plugin, rest, true)
 	case "lacks":
@@ -88,10 +88,15 @@ func runLiveStage(ctx context.Context, plugin *sdk.Plugin, step string) error {
 	return errors.New("unknown step: want await-file, reload, has, lacks or say")
 }
 
-// liveStagesReload copies source over the daemon's config file and sends it
-// SIGHUP. It returns once the signal is sent: the reload runs asynchronously,
-// so the next step that depends on it MUST poll (`has` or `lacks`).
-func liveStagesReload(ctx context.Context, source string) error {
+// liveStagesReload copies source over the daemon's config file, sends it
+// SIGHUP, and returns once the daemon reports that reload processed: the
+// generation `show reload-status` answers advanced past the one read before
+// the signal. Returning at the signal let the next `reload` overwrite the file
+// while this one still ran, so two reloads overlapped and the script asserted
+// a state neither of them was meant to leave (bgp-bfd-removed-live failed one
+// run in four that way). A step that reads a reload's effect still polls,
+// because a plugin may act on the reload after the generation advanced.
+func liveStagesReload(ctx context.Context, plugin *sdk.Plugin, source string) error {
 	if !waitForFile(ctx, "daemon.pid", liveStagesPollAttempts, liveStagesPollDelay) {
 		return errors.New("daemon.pid not found")
 	}
@@ -103,14 +108,29 @@ func liveStagesReload(ctx context.Context, source string) error {
 	if err != nil {
 		return err
 	}
+	baseline := reloadGeneration(ctx, plugin)
+	if baseline < 0 {
+		return errors.New("before the reload: show reload-status returned no generation")
+	}
 	if err := os.WriteFile(fileBGPConf, data, 0o600); err != nil {
 		return err
 	}
-	return syscall.Kill(pid, syscall.SIGHUP)
+	if err := syscall.Kill(pid, syscall.SIGHUP); err != nil {
+		return err
+	}
+	generation := baseline
+	if !Poll(ctx, liveStagesPollAttempts, liveStagesPollDelay, func() bool {
+		generation = reloadGeneration(ctx, plugin)
+		return generation > baseline
+	}) {
+		return fmt.Errorf("the reload never finished: show reload-status generation stayed at %d", generation)
+	}
+	return nil
 }
 
 // liveStagesRead polls a command until its answer contains the needle (want
-// true) or no longer does (want false). The answer is re-encoded as compact
+// true) or no longer does (want false). The answer may be any JSON value
+// (`show bfd sessions` answers an array), and it is re-encoded as compact
 // JSON, so a needle names a key and a value the way the JSON spells them:
 // "peer":"127.0.0.1".
 func liveStagesRead(ctx context.Context, plugin *sdk.Plugin, spec string, want bool) error {
@@ -122,7 +142,7 @@ func liveStagesRead(ctx context.Context, plugin *sdk.Plugin, spec string, want b
 	needle = strings.TrimSpace(needle)
 	last := "no answer"
 	held := Poll(ctx, liveStagesPollAttempts, liveStagesPollDelay, func() bool {
-		status, value, err := dispatchMap(ctx, plugin, command)
+		status, value, err := dispatchJSON(ctx, plugin, command)
 		if err != nil {
 			last = err.Error()
 			return false

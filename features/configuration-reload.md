@@ -11,7 +11,7 @@
 | Scope gaps | reload safety that depends on component-specific journals, privileged dataplane rollback evidence |
 | Level | experimental |
 | Components | cmd/ze/hub/main_reload.go, internal/component/plugin/server |
-| Real-path tests | test/reload/reload-add-peer.ci, test/reload/reload-remove-peer.ci, test/reload/reload-bad-config.ci, test/reload/reload-no-change.ci, test/reload/tx-protocol-rollback.ci, test/reload/tx-bgp-rollback.ci, test/reload/tx-protocol-sighup.ci |
+| Real-path tests | test/reload/reload-add-peer.ci, test/reload/reload-remove-peer.ci, test/reload/reload-bad-config.ci, test/reload/reload-no-change.ci, test/reload/tx-protocol-rollback.ci, test/reload/tx-bgp-rollback.ci, test/reload/tx-protocol-sighup.ci, test/reload/bgp-bfd-added-live.ci, test/reload/bgp-bfd-removed-live.ci, test/reload/bgp-bfd-profile-edit-live.ci, test/reload/bgp-bfd-dynamic-toggle-live.ci, test/reload/bgp-bfd-shared-session-widens.ci |
 | Docs | docs/features/config-reload.md |
 | Doc review | 2026-10-07: the row names its own unproven subset; reload functional tests under test/reload cover candidate promotion and rollback |
 | Defect review | 2026-10-07: open: plan/journal/rollback-forgets-partial-apply.md row 7, plan/immediate/spec-bgp-reload-rich-peer-no-bounce.md |

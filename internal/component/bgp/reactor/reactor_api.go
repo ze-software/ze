@@ -224,7 +224,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			LocalPort:               localPort,
 			RemotePort:              remotePort,
 			MD5Enabled:              s.MD5Key != "",
-			BFDEnabled:              s.BFD != nil,
+			BFDEnabled:              p.bfdSettings() != nil,
 			GTSMOutTTL:              s.OutTTL,
 			GTSMMinTTL:              s.MinTTL,
 			NegotiatedHoldTime:      time.Duration(p.NegotiatedHoldTime()) * time.Second,

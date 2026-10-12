@@ -47,7 +47,7 @@ type peerSettingsSwap struct {
 // session is visible and self-healing; a session left running on stale settings is
 // the silent mis-enforcement this spec exists to remove.
 //
-// Five fields qualify today, and each one qualifies for a reason read at the
+// Six fields qualify today, and each one qualifies for a reason read at the
 // consumer:
 //
 //   - ImportFilters: the ingress datapath re-reads it per received UPDATE through
@@ -81,6 +81,17 @@ type peerSettingsSwap struct {
 //     Any other binding change is left undelivered here, so it still reads as
 //     a difference and restarts. Its readers hold r.mu (the graph build,
 //     maySend) or p.mu (initialUpdateReporters), and the write holds both.
+//   - BFD, and only when neither side runs strict mode (bfdOptInStrict). A
+//     non-strict peer's BFD client runs beside the session and changes
+//     nothing it negotiated, so applyHotSwappableSettings delivers the opt-in
+//     by moving the client (Peer.applyBFDOptInChange): opened on an
+//     Established peer, released when removed or suspended, released and
+//     opened again when its request changed. Strict mode is in the OPEN
+//     (capability 74) and the OpenConfirm gate, which only a new session can
+//     apply, so a change with strict on either side restarts
+//     (draft-ietf-idr-bgp-bfd-strict-mode Sections 6 and 8). Every reader of a
+//     running peer's opt-in goes through the p.mu-guarded Peer.bfdSettings,
+//     the session's included (Session.bfdOptIn).
 //
 // The first four are the mutable set: resolveDynamicPeerSettings (reactor_dynamic.go)
 // writes the filter pair on the pointed-to struct under p.mu on a dynamic peer's
@@ -95,6 +106,9 @@ func hotSwappableSettings(dst, src *PeerSettings) {
 	dst.StaticRoutes = src.StaticRoutes
 	if onlyReceiveOnlyBindingsDiffer(dst.ProcessBindings, src.ProcessBindings) {
 		dst.ProcessBindings = src.ProcessBindings
+	}
+	if !bfdOptInStrict(dst.BFD) && !bfdOptInStrict(src.BFD) {
+		dst.BFD = src.BFD
 	}
 }
 
@@ -384,11 +398,13 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	successorUnannounced := currentPhase == sessionUpUnspecified || currentPhase == sessionUpClosing
 	closing := announcedAtWrite == sessionUpClosing || (session != nil && current != session && successorUnannounced)
 	before := p.settings.StaticRoutes
+	bfd := bfdOptInChange{before: p.settings.BFD, requestBefore: bfdRequestFor(p.settings)}
 	copy(p.settings, next)
 	if p.settings.IsDynamic {
 		p.writeDynamicTemplateLocked(next)
 	}
 	after := p.settings.StaticRoutes
+	bfd.after, bfd.requestAfter = p.settings.BFD, bfdRequestFor(p.settings)
 	p.mu.Unlock()
 	if r != nil {
 		if (len(gained) > 0 || len(lost) > 0) && r.deliveryPublished {
@@ -442,6 +458,10 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	if !sameStaticRouteSet(before, after) {
 		p.deliverStaticRouteDelta(after)
 	}
+	// Step 5: the BFD client follows the opt-in the write delivered, read from
+	// the write itself, so an opt-in judged swappable always reaches the
+	// client.
+	p.applyBFDOptInChange(bfd)
 }
 
 // refreshPrefixStale republishes the prefix-staleness verdict from the peer's

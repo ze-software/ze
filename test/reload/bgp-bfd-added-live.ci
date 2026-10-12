@@ -19,11 +19,11 @@
 # applyHotSwappableSettings -> startBFDClient). A non-strict opt-in is swapped
 # onto the running session and its BFD client opened there.
 #
-# Red until that spec's Phase 4: today a peer's BFD opt-in is a PeerSettings
-# field outside the hot-swap set (docs/architecture/core-design.md, section
-# 18a), so the reload sends Cease subcode 6 and re-adds the peer. The second
-# connection is refused and `show bfd sessions` stays empty (Cease observed on
-# 2026-10-10; the empty table with tcp_connections=1 again on 2026-10-11).
+# DISCRIMINATION: with the BFD opt-in outside the hot-swap set
+# (hotSwappableSettings not copying it), the reload sends Cease subcode 6 and
+# re-adds the peer: the second connection is refused and `show bfd sessions`
+# stays empty (observed on 2026-10-10 and 2026-10-11, before Phase 4). A bfd
+# plugin started by the same commit is ready when the BGP apply runs (A-4).
 #
 # No pre-commit read: before the commit `show bfd sessions` answers
 # "error: bfd: plugin not loaded" (the bfd plugin loads on its config root),

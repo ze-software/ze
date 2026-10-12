@@ -2232,8 +2232,8 @@ struct, so a field nobody classified still counts as a change.
 
 `hotSwappableSettings` is the swap set, and it is a SUBTRACTION from the whole
 struct rather than a list of what matters. Four fields qualify: `ImportFilters`,
-`ExportFilters`, `PrefixUpdated` and `StaticRoutes`, and `ProcessBindings` does
-for a receive-only binding (below). Every other field forces a
+`ExportFilters`, `PrefixUpdated` and `StaticRoutes`; `ProcessBindings` does
+for a receive-only binding, and `BFD` for a non-strict opt-in (both below). Every other field forces a
 restart, so a field added to `PeerSettings` tomorrow is restart-scoped until
 somebody classifies it on purpose. A wrongly restarted session is visible and
 self-healing; a session left running on settings nobody checked is silent.
@@ -2268,6 +2268,22 @@ peer takes the same swap. The reload's dynamic step
 template give the peer's address and hands that pair to `peerSettingsSwapPlan`,
 so a receive-only binding change on a dynamic group swaps on the running
 dynamic peers, and a change the session cannot take restarts them.
+
+`BFD` is swappable when neither the running nor the next opt-in runs strict mode
+(`bfdOptInStrict`). A non-strict peer's BFD client runs beside the session and
+changes nothing the session negotiated, so the apply delivers the opt-in by
+moving the client (`Peer.applyBFDOptInChange`): it is opened on an Established
+peer, released when the opt-in is removed or set `enabled false`, and released
+and opened again when the request it sends changed (the profile, the mode, the
+local address). A peer that is not Established only takes the opt-in, which the
+FSM's start on entry to Established then reads. Strict mode lives in the OPEN
+(capability 74) and in the OpenConfirm gate, which only a new session can apply,
+so any change with strict mode on either side restarts and the log names `BFD`.
+Every reader of a running peer's opt-in, the session's included
+(`Session.bfdOptIn`), goes through the `p.mu`-guarded `Peer.bfdSettings`. A
+dynamic group's template takes the same rule through the same plan.
+
+<!-- source: internal/component/bgp/reactor/peer_bfd.go -- bfdOptInStrict, Peer.bfdSettings, Peer.applyBFDOptInChange -->
 
 The apply delivers a binding change in an order (`Peer.applyHotSwappableSettings`).
 It judges the session up only once the FSM's own `state up` returned
@@ -2371,8 +2387,9 @@ alone, so a change applies at the next OPEN or not at all.
 The swap writes onto the struct the peer points at, under `p.mu`, rather than
 replacing the pointer: `Session` holds its own copy of the same pointer, so
 replacing it would leave every `s.settings` reader on the old struct. Cross-goroutine
-readers of the three swappable fields go through the `p.mu`-guarded accessors
-`Peer.ImportFilters` and `Peer.OldestPrefixUpdated` (`peer.go`), and the egress
+readers of the swappable fields go through the `p.mu`-guarded accessors
+`Peer.ImportFilters`, `Peer.OldestPrefixUpdated` (`peer.go`) and
+`Peer.bfdSettings` (`peer_bfd.go`), and the egress
 snapshot and the prefix-stale alarm are rebuilt after the lock is released.
 
 Reload delivers a policy change to routes received AFTER the swap. It does not

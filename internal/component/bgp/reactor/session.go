@@ -232,7 +232,15 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 type Session struct {
 	mu sync.RWMutex
 
-	settings   *PeerSettings
+	settings *PeerSettings
+	// bfdOptIn answers the BFD opt-in this session runs under. A reload swaps
+	// a non-strict opt-in onto a running peer under the peer's p.mu, which
+	// s.mu does not exclude, so a session a peer runs reads it through
+	// Peer.bfdSettings (Peer.newSession installs it). NewSession's own reader
+	// reads settings.BFD directly, which is safe only for a session no peer
+	// runs, so no reload can write its settings. Set once, before the session
+	// is shared; never written after.
+	bfdOptIn   func() *BFDSettings
 	fsm        *fsm.FSM
 	timers     *fsm.Timers
 	clock      clock.Clock
@@ -592,6 +600,7 @@ func NewSession(settings *PeerSettings) *Session {
 	s := &Session{
 		initialReplay:   nextMsgID(),
 		settings:        settings,
+		bfdOptIn:        func() *BFDSettings { return settings.BFD },
 		fsm:             fsm.New(),
 		timers:          fsm.NewTimers(),
 		clock:           clock.RealClock{},

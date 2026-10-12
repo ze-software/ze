@@ -15,11 +15,10 @@
 # PREVENTS: a profile edit that resets the BGP session BFD protects, and one that
 #           keeps the session under the old profile's timers.
 #
-# Red until that spec's Phase 4: today a peer's BFD opt-in is a PeerSettings
-# field outside the hot-swap set, so the commit sends Cease subcode 6 and the
-# second connection is refused (tcp_connections=1). AC-15's shared-session
-# half (a static route's BFD sharing the session keeps its parameters, R-12) is
-# not asserted here.
+# DISCRIMINATION: with the BFD opt-in outside the hot-swap set
+# (hotSwappableSettings not copying it), the commit sends Cease subcode 6 and
+# the second connection is refused (tcp_connections=1). The shared-session
+# half of a profile edit is AC-25's and not asserted here.
 option=timeout:value=60s
 option=env:var=ze.bfd.test-parallel:value=true
 option=env:var=ze.log.bgp.reactor:value=debug

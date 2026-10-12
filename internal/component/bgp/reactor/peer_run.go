@@ -215,7 +215,7 @@ func (p *Peer) runOnce() error {
 	p.notificationExchanged.Store(false)
 
 	// Create session
-	session := NewSession(p.settings)
+	session := p.newSession()
 	session.adjOut = &p.adjOut
 	// The RFC 7705 Section 4.2 fallback flag is the Peer's, and this session is one
 	// connection attempt against it: the session that MEETS Bad Peer AS is never the

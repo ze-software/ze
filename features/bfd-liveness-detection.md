@@ -10,7 +10,7 @@
 | Scope gaps | RFC 5880 and RFC 5881 obligations the ledger marks Partial, Echo mode transport half (spec-bfd-6b-echo-transport) |
 | Level | experimental |
 | Components | internal/component/bfd, internal/core/bgp/capability |
-| Real-path tests | test/bfd/bfd-detection-interval.ci, test/bfd/bfd-first-packet-pktinfo.ci, test/bfd/bfd-first-packet-pktinfo-v6.ci |
+| Real-path tests | test/bfd/bfd-detection-interval.ci, test/bfd/bfd-first-packet-pktinfo.ci, test/bfd/bfd-first-packet-pktinfo-v6.ci, test/reload/bgp-bfd-added-live.ci, test/reload/bgp-bfd-removed-live.ci, test/reload/bgp-bfd-profile-edit-live.ci, test/reload/bgp-bfd-dynamic-toggle-live.ci, test/reload/bgp-bfd-shared-session-widens.ci |
 | Interop | bgp/bfd-frr, bgp/bfd-simple-password-bird, bgp/bgp-bfd-strict-frr |
 | RFCs | rfc5880, rfc5881, rfc5883 |
 | Docs | docs/guide/bfd.md |

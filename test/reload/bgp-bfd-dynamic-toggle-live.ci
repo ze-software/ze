@@ -24,11 +24,11 @@
 # only when both reloads kept it. ze-peer runs no BFD, so the session stays Down
 # and never Up, which ends no BGP session (A-3).
 #
-# Red until that spec's Phase 4 (the dynamic step lands in Phase 3): today the
-# template change restarts the dynamic peer ("dynamic peer restart required ...
-# changed=group template"), the peer reads Cease subcode 6, and `show bfd
-# sessions` never lists 127.0.0.1. AC-19's strict half (non-strict <-> strict
-# restarts, log names BFD) is AC-7's rule and not asserted here.
+# Red with the BFD opt-in outside the hot-swap set: the template change
+# restarts the dynamic peer ("dynamic peer restart required ... changed=group
+# template"), the peer reads Cease subcode 6, and `show bfd sessions` never
+# lists 127.0.0.1. AC-19's strict half (non-strict <-> strict restarts) is
+# TestDynamicStrictBFDChangeRestarts.
 option=timeout:value=60s
 option=env:var=ze.log.bgp.reactor:value=info
 option=env:var=ze.bfd.test-parallel:value=true

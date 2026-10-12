@@ -45,7 +45,9 @@ func idleDriver(ctx context.Context, args []string) error {
 	return nil
 }
 
-func dispatchMap(ctx context.Context, plugin *sdk.Plugin, command string) (string, map[string]any, error) {
+// dispatchJSON runs command and decodes its answer as whatever JSON value it
+// is: an object, an array, or a structured answer carried as a JSON string.
+func dispatchJSON(ctx context.Context, plugin *sdk.Plugin, command string) (string, any, error) {
 	status, raw, err := plugin.DispatchCommand(ctx, command)
 	if err != nil {
 		return status, nil, err
@@ -60,6 +62,16 @@ func dispatchMap(ctx context.Context, plugin *sdk.Plugin, command string) (strin
 				return status, nil, fmt.Errorf("decode structured answer for %q: %w", command, err)
 			}
 		}
+	}
+	return status, value, nil
+}
+
+// dispatchMap runs command and answers its decoded answer, which MUST be a
+// JSON object.
+func dispatchMap(ctx context.Context, plugin *sdk.Plugin, command string) (string, map[string]any, error) {
+	status, value, err := dispatchJSON(ctx, plugin, command)
+	if err != nil {
+		return status, nil, err
 	}
 	object, ok := value.(map[string]any)
 	if !ok {

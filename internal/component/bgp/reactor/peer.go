@@ -677,16 +677,18 @@ func NewPeer(settings *PeerSettings) *Peer {
 
 // Settings returns the configured peer settings.
 //
-// The returned pointer is shared, and six fields on the pointed-to struct are written
+// The returned pointer is shared, and seven fields on the pointed-to struct are written
 // after construction, always under p.mu. resolveDynamicPeerSettings (reactor_dynamic.go)
 // writes PeerAS, ImportFilters and ExportFilters when a dynamic peer's session
 // establishes; applyHotSwappableSettings (peer_settings_apply.go) writes ImportFilters,
-// ExportFilters, PrefixUpdated and StaticRoutes when a config reload delivers a
-// hot-swappable change, and Capabilities as well when the reload proved the negotiation
-// unchanged (peer_settings_negotiation.go). A caller running on a different goroutine
-// than those writes MUST read those six fields through PeerAS()/ImportFilters()/
-// ExportFilters()/oldestPrefixUpdated()/ConfiguredCapabilities()/staticRoutes(), not off
-// this pointer, or it races the write. Every other PeerSettings field is set at
+// ExportFilters, PrefixUpdated, StaticRoutes and a non-strict BFD opt-in when a config
+// reload delivers a hot-swappable change, and Capabilities as well when the reload
+// proved the negotiation unchanged (peer_settings_negotiation.go). A caller running on
+// a different goroutine than those writes MUST read those seven fields through
+// PeerAS()/ImportFilters()/ExportFilters()/oldestPrefixUpdated()/
+// ConfiguredCapabilities()/staticRoutes()/bfdSettings(), not off this pointer, or it
+// races the write. ProcessBindings is written under r.mu and p.mu and read under
+// either (hotSwappableSettings). Every other PeerSettings field is set at
 // construction and never mutated, so reading it off this pointer is race-free.
 //
 // A caller that needs the WHOLE struct rather than one field uses settingsSnapshot.
