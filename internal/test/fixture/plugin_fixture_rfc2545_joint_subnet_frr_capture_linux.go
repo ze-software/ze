@@ -110,21 +110,7 @@ func jointSubnetFRRCaptured(source io.Reader, port uint16, scenario jointSubnetF
 			return false, nil
 		}
 		kind := data[18]
-		if !opened {
-			if kind != 1 {
-				return false, fmt.Errorf("FRR capture misses initial speaker OPEN")
-			}
-			if length < 29 {
-				return false, fmt.Errorf("FRR capture has short OPEN")
-			}
-			if data[19] != 4 {
-				return false, fmt.Errorf("FRR capture has unsupported OPEN version")
-			}
-			if length != 29+int(data[28]) {
-				return false, fmt.Errorf("FRR capture has malformed OPEN optional-parameter length")
-			}
-			opened = true
-		} else {
+		if opened {
 			switch kind {
 			case 2:
 				which, err := jointSubnetFRRCapturedUpdate(data[19:length], scenario)
@@ -147,6 +133,20 @@ func jointSubnetFRRCaptured(source io.Reader, port uint16, scenario jointSubnetF
 			default:
 				return false, fmt.Errorf("FRR capture has unexpected BGP type %d", kind)
 			}
+		} else {
+			if kind != 1 {
+				return false, fmt.Errorf("FRR capture misses initial speaker OPEN")
+			}
+			if length < 29 {
+				return false, fmt.Errorf("FRR capture has short OPEN")
+			}
+			if data[19] != 4 {
+				return false, fmt.Errorf("FRR capture has unsupported OPEN version")
+			}
+			if length != 29+int(data[28]) {
+				return false, fmt.Errorf("FRR capture has malformed OPEN optional-parameter length")
+			}
+			opened = true
 		}
 		data = data[length:]
 	}

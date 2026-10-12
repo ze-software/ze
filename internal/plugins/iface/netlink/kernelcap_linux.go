@@ -47,7 +47,7 @@ const (
 // xfrmInterfaceProbeAdd sends the RTM_NEWLINK from inside the throwaway
 // namespace. Tests replace it and MUST restore it.
 var xfrmInterfaceProbeAdd = func(handle *netlink.Handle) error {
-	return handle.LinkAdd(&netlink.Xfrmi{LinkAttrs: netlink.LinkAttrs{Name: xfrmProbeLinkName}})
+	return handle.LinkAdd(&netlink.Xfrmi{Name: xfrmProbeLinkName})
 }
 
 // ifaceKernelCapabilities returns the two capabilities this backend enrolls.

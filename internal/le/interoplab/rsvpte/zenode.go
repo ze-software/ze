@@ -84,7 +84,7 @@ func readZeNodeNet(path string) (zeNodeNet, error) {
 			continue
 		}
 		if err := network.add(strings.Fields(line)); err != nil {
-			return zeNodeNet{}, fmt.Errorf("Ze node network %s: line %q: %w", path, line, err)
+			return zeNodeNet{}, fmt.Errorf("ze node network %s: line %q: %w", path, line, err)
 		}
 	}
 	return network, nil

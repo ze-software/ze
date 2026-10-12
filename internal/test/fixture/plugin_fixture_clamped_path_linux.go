@@ -141,6 +141,8 @@ const (
 
 	// netnsArgPeer is the fixture keyword that declares a peer run.
 	netnsArgPeer = "peer"
+	// netnsArgIPv6 is the fixture keyword that adds the IPv6 plane.
+	netnsArgIPv6 = "ipv6"
 	// lePeerVerb is the `le test` verb that runs a peer script.
 	lePeerVerb = "peer"
 )
@@ -149,8 +151,15 @@ const (
 // IKE responder and the `show mtu` reference address.
 var clampedFarAddrs = []string{"10.99.2.1/24", "10.99.2.3/24", "10.99.2.9/24"}
 
+// The three clamped-path roles, each one a network namespace.
+const (
+	clampedRoleSender = "sender"
+	clampedRoleRouter = "router"
+	clampedRoleFar    = "far"
+)
+
 // clampedNamespaces are the role names `peer` and `peer-after` accept.
-var clampedNamespaces = []string{"sender", "router", "far"}
+var clampedNamespaces = []string{clampedRoleSender, clampedRoleRouter, clampedRoleFar}
 
 // netnsRunPlan is what the fixture arguments ask for.
 type netnsRunPlan struct {
@@ -217,7 +226,7 @@ func parseNetnsRunArgs(args []string) (*netnsRunPlan, error) {
 			}
 			index++
 			plan.farDaemons = append(plan.farDaemons, args[index])
-		case "ipv6":
+		case netnsArgIPv6:
 			plan.ipv6 = true
 		case netnsArgPeer:
 			if index+2 >= len(args) {
@@ -526,11 +535,11 @@ func (p *clampedPath) wireIPv6(orig netns.NsHandle) error {
 // only the three roles, so another name is a fixture defect.
 func (p *clampedPath) namespace(role string) (*testNetns, error) {
 	switch role {
-	case "sender":
+	case clampedRoleSender:
 		return p.sender, nil
-	case "router":
+	case clampedRoleRouter:
 		return p.router, nil
-	case "far":
+	case clampedRoleFar:
 		return p.far, nil
 	}
 	return nil, fmt.Errorf("BUG: peer namespace %q passed the parser", role)

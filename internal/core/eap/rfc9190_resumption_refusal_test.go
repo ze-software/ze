@@ -133,7 +133,7 @@ func TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey(t *testing.T) {
 //
 // RFC requirement: RFC9190-2.1.2-2 negative -- the 604800-second ceiling binds
 // the tickets the authenticator issued: one presented a second past it is not
-// honoured, so no ticket of ze's outlives the limit whatever the peer does with
+// honored, so no ticket of ze's outlives the limit whatever the peer does with
 // it.
 func TestEAPTLS13RefusesATicketPastTheSection57Lifetime(t *testing.T) {
 	pki := newEAPTLSPKIValidFor(t, resumptionPKIValidity)

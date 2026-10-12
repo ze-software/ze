@@ -21,7 +21,7 @@ import (
 // pppoeKernelCapability is the one capability the PPPoE subsystem enrolls.
 func pppoeKernelCapability() kernelcap.Capability {
 	return kernelcap.Capability{
-		Subsystem:   "pppoe",
+		Subsystem:   SubsystemName,
 		Component:   "pppoe",
 		Kernel:      "CONFIG_PPPOE",
 		ConfigLeaf:  "pppoe",

@@ -97,7 +97,7 @@ func TestXFRMInterfaceProbeOnThisHost(t *testing.T) {
 	saved := xfrmInterfaceProbeAdd
 	t.Cleanup(func() { xfrmInterfaceProbeAdd = saved })
 	xfrmInterfaceProbeAdd = func(handle *netlink.Handle) error {
-		return handle.LinkAdd(&netlink.GenericLink{LinkAttrs: netlink.LinkAttrs{Name: xfrmProbeLinkName}, LinkType: "zenosuchkind"})
+		return handle.LinkAdd(&netlink.GenericLink{Name: xfrmProbeLinkName, LinkType: "zenosuchkind"})
 	}
 	control := xfrmInterfaceProbe()
 	if control.State == kernelcap.StateUnknown {

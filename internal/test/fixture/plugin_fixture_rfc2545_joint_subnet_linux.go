@@ -41,6 +41,15 @@ type jointSubnetTopology struct {
 	bridge    bool
 }
 
+// The joint-subnet case names, as the carrier spells them after `case`.
+const (
+	jointSubnetCaseSameLink         = "same-link"
+	jointSubnetCaseSplitLink        = "split-link"
+	jointSubnetCaseEntityOffLink    = "entity-off-link"
+	jointSubnetCaseRecipientOffLink = "recipient-off-link"
+	jointSubnetCaseReplay           = "replay"
+)
+
 // jointSubnetDriver builds one RFC 2545 Section 3 scenario before using the
 // established peer/process lifecycle. The caller MUST provide case <name> then
 // the existing netns/peer/peer-after/run arguments. No kernel fact is injected
@@ -58,7 +67,7 @@ func jointSubnetDriver(ctx context.Context, args []string) error {
 	}
 	scenario := args[1]
 	switch scenario {
-	case "same-link", "split-link", "entity-off-link", "recipient-off-link", "replay":
+	case jointSubnetCaseSameLink, jointSubnetCaseSplitLink, jointSubnetCaseEntityOffLink, jointSubnetCaseRecipientOffLink, jointSubnetCaseReplay:
 	default:
 		return fmt.Errorf("joint-subnet: unknown case %q", scenario)
 	}
@@ -117,10 +126,10 @@ func (p *jointSubnetTopology) configure(scenario string, orig netns.NsHandle) er
 		{speaker, recipient, "sp", "p0"},
 		{speaker, announcer, "sn", "n0"},
 	}
-	if scenario == "entity-off-link" {
+	if scenario == jointSubnetCaseEntityOffLink {
 		p.links[1] = jointSubnetLink{recipient, announcer, "pn", "n0"}
 	}
-	if scenario == "recipient-off-link" {
+	if scenario == jointSubnetCaseRecipientOffLink {
 		p.links[0] = jointSubnetLink{announcer, recipient, "np", "p0"}
 	}
 	for _, pair := range p.links {
@@ -137,7 +146,7 @@ func (p *jointSubnetTopology) configure(scenario string, orig netns.NsHandle) er
 	}
 	recipientGlobal, speakerGlobal, announcerGlobal := "2001:db8:a::2/64", "2001:db8:a::1/64", "2001:db8:a::9/64"
 	announcerLinkLocal := "fe80::9/64"
-	if scenario == "replay" {
+	if scenario == jointSubnetCaseReplay {
 		// Preserve the replay carrier's original exact next-hop bytes while
 		// making each actor a real host on the same IPv6 link.
 		recipientGlobal, speakerGlobal, announcerGlobal = "2001:db8::2/64", "2001:db8::254/64", "2001:db8::1/64"
@@ -147,9 +156,9 @@ func (p *jointSubnetTopology) configure(scenario string, orig netns.NsHandle) er
 	p.addAddress(recipient, "p0", "fe80::2/64")
 	p.addAddress(announcer, "n0", announcerLinkLocal)
 	switch scenario {
-	case "same-link", "replay":
+	case jointSubnetCaseSameLink, jointSubnetCaseReplay:
 		p.bridge = true
-		bridge := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: "br0"}}
+		bridge := &netlink.Bridge{Name: "br0"}
 		if err := speaker.handle.LinkAdd(bridge); err != nil {
 			return fmt.Errorf("create common bridge: %w", err)
 		}
@@ -167,15 +176,15 @@ func (p *jointSubnetTopology) configure(scenario string, orig netns.NsHandle) er
 		}
 		p.addAddress(speaker, "br0", speakerGlobal)
 		p.addAddress(announcer, "n0", announcerGlobal)
-	case "split-link":
+	case jointSubnetCaseSplitLink:
 		p.addAddress(speaker, "sp", "2001:db8:a::1/64")
 		p.addAddress(speaker, "sn", "2001:db8:b::1/64")
 		p.addAddress(announcer, "n0", "2001:db8:b::9/64")
-	case "entity-off-link":
+	case jointSubnetCaseEntityOffLink:
 		p.addAddress(speaker, "sp", "2001:db8:a::1/64")
 		p.addAddress(recipient, "pn", "2001:db8:b::2/64")
 		p.addAddress(announcer, "n0", "2001:db8:b::9/64")
-	case "recipient-off-link":
+	case jointSubnetCaseRecipientOffLink:
 		p.addAddress(speaker, "sn", "2001:db8:b::1/64")
 		p.addAddress(announcer, "n0", "2001:db8:b::9/64")
 		p.addAddress(announcer, "np", "2001:db8:a::9/64")
@@ -186,9 +195,9 @@ func (p *jointSubnetTopology) configure(scenario string, orig netns.NsHandle) er
 		}
 	}
 	switch scenario {
-	case "same-link", "replay":
+	case jointSubnetCaseSameLink, jointSubnetCaseReplay:
 		return nil
-	case "split-link":
+	case jointSubnetCaseSplitLink:
 		if err := recipient.addRoute("2001:db8:b::/64", "2001:db8:a::1", "p0", 0); err != nil {
 			return err
 		}
@@ -196,7 +205,7 @@ func (p *jointSubnetTopology) configure(scenario string, orig netns.NsHandle) er
 			return err
 		}
 		return speaker.writeSysctl(orig, procSysIPv6Forward, "1")
-	case "entity-off-link":
+	case jointSubnetCaseEntityOffLink:
 		if err := speaker.addRoute("2001:db8:b::/64", "2001:db8:a::2", "sp", 0); err != nil {
 			return err
 		}
@@ -204,7 +213,7 @@ func (p *jointSubnetTopology) configure(scenario string, orig netns.NsHandle) er
 			return err
 		}
 		return recipient.writeSysctl(orig, procSysIPv6Forward, "1")
-	case "recipient-off-link":
+	case jointSubnetCaseRecipientOffLink:
 		if err := speaker.addRoute("2001:db8:a::/64", "2001:db8:b::9", "sn", 0); err != nil {
 			return err
 		}

@@ -45,15 +45,19 @@ const (
 	jointSubnetFRRSplitLink
 )
 
+// jointSubnetFRRDaemonAccount is the user and the group FRR runs as: the fixture
+// already runs as root inside its namespaces, so FRR drops no privilege.
+const jointSubnetFRRDaemonAccount = "root"
+
 // String is only for human output and the legacy topology configuration sink.
 func (scenario jointSubnetFRRScenario) String() string {
 	switch scenario {
 	case jointSubnetFRRUnspecified:
 		return "unspecified"
 	case jointSubnetFRRSameLink:
-		return "same-link"
+		return jointSubnetCaseSameLink
 	case jointSubnetFRRSplitLink:
-		return "split-link"
+		return jointSubnetCaseSplitLink
 	default:
 		// Named scalars admit arbitrary conversions; never call them split-link.
 		return "invalid"
@@ -99,9 +103,9 @@ func parseJointSubnetFRRPlan(args []string) (*jointSubnetFRRPlan, error) {
 		*field.value = args[2*i+1]
 	}
 	switch scenarioArgument {
-	case "same-link":
+	case jointSubnetCaseSameLink:
 		plan.scenario = jointSubnetFRRSameLink
-	case "split-link":
+	case jointSubnetCaseSplitLink:
 		plan.scenario = jointSubnetFRRSplitLink
 	default:
 		return nil, fmt.Errorf("joint-subnet-frr: only same-link and split-link are defined")
@@ -137,10 +141,10 @@ func jointSubnetFRRDriver(parent context.Context, args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(parent, 90*time.Second)
 	defer cancel()
-	if err := os.Mkdir(plan.output, 0o755); err != nil {
+	if err := os.Mkdir(plan.output, 0o755); err != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (.claude/rules/sudo.md)
 		return fmt.Errorf("fresh evidence directory: %w", err)
 	}
-	if err := os.Mkdir(plan.runtimeDir, 0o755); err != nil {
+	if err := os.Mkdir(plan.runtimeDir, 0o750); err != nil {
 		return fmt.Errorf("fresh local runtime directory: %w", err)
 	}
 	defer func() {
@@ -173,7 +177,7 @@ func jointSubnetFRRDriver(parent context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("installed FRR version: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(plan.output, "version.txt"), version, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(plan.output, "version.txt"), version, 0o644); err != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (.claude/rules/sudo.md)
 		return err
 	}
 	return runJointSubnetFRR(ctx, plan, &topology, orig)
@@ -206,7 +210,7 @@ func runJointSubnetFRR(ctx context.Context, plan *jointSubnetFRRPlan, topology *
 	}()
 	portArgument := strconv.Itoa(int(plan.port))
 	zserv := filepath.Join(plan.runtimeDir, "zserv.api")
-	common := []string{"-f", filepath.Join(plan.output, "frr.conf"), "-z", zserv, "--vty_socket", plan.runtimeDir, "-P", "0", "-u", "root", "-g", "root"}
+	common := []string{"-f", filepath.Join(plan.output, "frr.conf"), "-z", zserv, "--vty_socket", plan.runtimeDir, "-P", "0", "-u", jointSubnetFRRDaemonAccount, "-g", jointSubnetFRRDaemonAccount}
 	zebra := append([]string{plan.zebra}, common...)
 	zebra = append(zebra, "-i", filepath.Join(plan.runtimeDir, "zebra.pid"))
 	if _, err := startJointSubnetFRRProcess(ctx, zebra, topology.path.router, orig, plan.output, "zebra", watched); err != nil {
@@ -319,9 +323,9 @@ func (capture *jointSubnetFRRProcess) flush() error {
 	select {
 	case <-watched.exits:
 		watched.pending--
-		return fmt.Errorf("capture flush exceeded three seconds; forced termination: %v", killErr)
+		return fmt.Errorf("capture flush exceeded three seconds; forced termination: %w", killErr)
 	case <-timer.C:
-		return fmt.Errorf("capture failed to join after forced termination: %v", killErr)
+		return fmt.Errorf("capture failed to join after forced termination: %w", killErr)
 	}
 }
 
@@ -394,10 +398,10 @@ func pollJointSubnetFRR(ctx context.Context, watched, capture *watchedProcesses,
 		select {
 		case exit := <-watched.exits:
 			watched.pending--
-			return fmt.Errorf("FRR fixture process %s exited: %v", exit.label, exit.err)
+			return fmt.Errorf("FRR fixture process %s exited: %w", exit.label, exit.err)
 		case exit := <-captureExits:
 			capture.pending--
-			return fmt.Errorf("FRR recipient capture exited prematurely: %v", exit.err)
+			return fmt.Errorf("FRR recipient capture exited prematurely: %w", exit.err)
 		case <-ctx.Done():
 			return fmt.Errorf("FRR fixture setup or completion deadline, not a protocol verdict: %w", ctx.Err())
 		default:
@@ -408,10 +412,10 @@ func pollJointSubnetFRR(ctx context.Context, watched, capture *watchedProcesses,
 		select {
 		case exit := <-watched.exits:
 			watched.pending--
-			return fmt.Errorf("FRR fixture process %s exited: %v", exit.label, exit.err)
+			return fmt.Errorf("FRR fixture process %s exited: %w", exit.label, exit.err)
 		case exit := <-captureExits:
 			capture.pending--
-			return fmt.Errorf("FRR recipient capture exited prematurely: %v", exit.err)
+			return fmt.Errorf("FRR recipient capture exited prematurely: %w", exit.err)
 		case <-ticker.C:
 		case <-ctx.Done():
 			return fmt.Errorf("FRR fixture setup or completion deadline, not a protocol verdict: %w", ctx.Err())
@@ -423,7 +427,7 @@ func pollJointSubnetFRR(ctx context.Context, watched, capture *watchedProcesses,
 // the locked-thread start and shared child watcher. On success the caller MUST
 // call stopJointSubnetFRRProcesses, or flush for capture's separately owned watcher.
 func startJointSubnetFRRProcess(ctx context.Context, argv []string, namespace *testNetns, orig netns.NsHandle, output, label string, watched *watchedProcesses) (jointSubnetFRRProcess, error) {
-	log, err := os.OpenFile(filepath.Join(output, label+".log"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	log, err := os.OpenFile(filepath.Join(output, label+".log"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return jointSubnetFRRProcess{}, err
 	}
@@ -454,5 +458,5 @@ func startJointSubnetFRRProcess(ctx context.Context, argv []string, namespace *t
 // signal/join owner. The caller MUST register every successful start with its
 // watcher and MUST stop that watcher, even after execution-context cancellation.
 func newJointSubnetFRRChild(ctx context.Context, argv []string) *exec.Cmd {
-	return exec.CommandContext(context.WithoutCancel(ctx), argv[0], argv[1:]...)
+	return exec.CommandContext(context.WithoutCancel(ctx), argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 }

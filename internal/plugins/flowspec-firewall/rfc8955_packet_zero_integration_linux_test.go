@@ -4,6 +4,7 @@
 package flowspecfirewall
 
 import (
+	"errors"
 	"net"
 	"runtime"
 	"testing"
@@ -145,7 +146,7 @@ func TestSelectedFlowSpecZeroPacketRateKernel(t *testing.T) {
 	var data [8]byte
 	if n, _, err := receiver.ReadFromUDP(data[:]); err == nil {
 		t.Fatalf("zero-rate target leaked packet %x", data[:n])
-	} else if timeout, ok := err.(net.Error); !ok || !timeout.Timeout() {
+	} else if timeout, ok := errors.AsType[net.Error](err); !ok || !timeout.Timeout() {
 		t.Fatalf("receive failed for a reason other than packet discard: %v", err)
 	}
 	counters, err := firewall.GetBackend().GetCounters(tableName)
@@ -188,7 +189,7 @@ func TestSelectedFlowSpecZeroPacketRateKernel(t *testing.T) {
 	}
 	if n, _, err := receiver.ReadFromUDP(data[:]); err == nil {
 		t.Fatalf("reinstalled zero-rate target leaked packet %x", data[:n])
-	} else if timeout, ok := err.(net.Error); !ok || !timeout.Timeout() {
+	} else if timeout, ok := errors.AsType[net.Error](err); !ok || !timeout.Timeout() {
 		t.Fatalf("reinstalled discard probe failed unexpectedly: %v", err)
 	}
 	change.Withdraw = true

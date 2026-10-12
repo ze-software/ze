@@ -27,7 +27,7 @@ const kernelcapComponent = "l2tp"
 func l2tpKernelCapabilities() []kernelcap.Capability {
 	return []kernelcap.Capability{
 		{
-			Subsystem:   "l2tp",
+			Subsystem:   SubsystemName,
 			Component:   kernelcapComponent,
 			Kernel:      "CONFIG_L2TP",
 			ConfigLeaf:  "l2tp",

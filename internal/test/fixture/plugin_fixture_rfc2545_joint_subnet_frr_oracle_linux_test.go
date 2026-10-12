@@ -34,15 +34,19 @@ func TestJointSubnetFRRRouteRequiredFields(t *testing.T) {
 				if err := json.Unmarshal([]byte(jointSubnetFRRRouteJSON), &object); err != nil {
 					t.Fatal(err)
 				}
-				path := object["paths"].([]any)[0].(map[string]any)
+				path := jointSubnetFRRFirstObject(t, object["paths"])
 				target := object
 				switch field.level {
 				case "path":
 					target = path
 				case "peer":
-					target = path["peer"].(map[string]any)
+					peer, ok := path["peer"].(map[string]any)
+					if !ok {
+						t.Fatalf("fixture route path has no peer object: %v", path["peer"])
+					}
+					target = peer
 				case "hop":
-					target = path["nexthops"].([]any)[0].(map[string]any)
+					target = jointSubnetFRRFirstObject(t, path["nexthops"])
 				}
 				switch mode {
 				case "missing":
@@ -187,4 +191,19 @@ func TestJointSubnetFRRControlCommunity(t *testing.T) {
 			}
 		})
 	}
+}
+
+// jointSubnetFRRFirstObject returns the first object of a JSON array taken from
+// the fixture route, and fails the test when the fixture lacks that shape.
+func jointSubnetFRRFirstObject(t *testing.T, value any) map[string]any {
+	t.Helper()
+	array, ok := value.([]any)
+	if !ok || len(array) == 0 {
+		t.Fatalf("fixture route value is not a non-empty array: %v", value)
+	}
+	object, ok := array[0].(map[string]any)
+	if !ok {
+		t.Fatalf("fixture route array starts with a non-object: %v", array[0])
+	}
+	return object
 }

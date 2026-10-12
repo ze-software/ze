@@ -95,7 +95,7 @@ func writeJointSubnetFRRFiles(plan *jointSubnetFRRPlan) error {
 	for _, file := range []struct{ name, body string }{
 		{"frr.conf", jointSubnetFRRConfig}, {"ze.conf", ze}, {"inject.peer", inject},
 	} {
-		if err := os.WriteFile(filepath.Join(plan.output, file.name), []byte(file.body), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(plan.output, file.name), []byte(file.body), 0o644); err != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (.claude/rules/sudo.md)
 			return err
 		}
 	}
@@ -109,6 +109,8 @@ func writeJointSubnetFRRFiles(plan *jointSubnetFRRPlan) error {
 // RFC 2545 Section 3: "The value of the Length of Next Hop Network Address field
 // on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is
 // present, or 32 if a link-local address is also included in the Next Hop field."
+// The subject route carries both next hops; the control route carries the
+// global next hop and a community fence.
 func jointSubnetFRRUpdate(global string, subject bool) []byte {
 	attributes := []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xec}
 	nextHop := netip.MustParseAddr(global).As16()
@@ -130,9 +132,16 @@ func jointSubnetFRRUpdate(global string, subject bool) []byte {
 	attributes = append(attributes, 0)
 	attributes = append(attributes, nlri...)
 	length := 23 + len(attributes)
-	message := []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, byte(length >> 8), byte(length), 2, 0, 0, byte(len(attributes) >> 8), byte(len(attributes))}
+	message := make([]byte, 0, length)
+	message = append(message, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, byte(length>>8), byte(length), 2, 0, 0, byte(len(attributes)>>8), byte(len(attributes)))
 	return append(message, attributes...)
 }
+
+// The FRR JSON values a next hop of the fixture route carries.
+const (
+	jointSubnetFRRAFIIPv6     = "ipv6"
+	jointSubnetFRRScopeGlobal = "global"
+)
 
 // These JSON DTOs deliberately preserve missing/null values. They are not
 // validated domain values: callers MUST use parseJointSubnetFRRRoute before the
@@ -365,17 +374,17 @@ func assertJointSubnetFRRRoute(route jointSubnetFRRRoute, prefix string, global 
 	if *path.NextHops[0].IP != global {
 		return fmt.Errorf("FRR semantic mismatch: %s global=%s, want %s", prefix, *path.NextHops[0].IP, global)
 	}
-	if *path.NextHops[0].AFI != "ipv6" {
+	if *path.NextHops[0].AFI != jointSubnetFRRAFIIPv6 {
 		return fmt.Errorf("FRR semantic mismatch: global next-hop address-family")
 	}
-	if *path.NextHops[0].Scope != "global" {
+	if *path.NextHops[0].Scope != jointSubnetFRRScopeGlobal {
 		return fmt.Errorf("FRR semantic mismatch: global next-hop scope")
 	}
 	if pair {
 		if *path.NextHops[1].IP != netip.MustParseAddr("fe80::9") {
 			return fmt.Errorf("FRR semantic mismatch: link-local=%s, want fe80::9", *path.NextHops[1].IP)
 		}
-		if *path.NextHops[1].AFI != "ipv6" {
+		if *path.NextHops[1].AFI != jointSubnetFRRAFIIPv6 {
 			return fmt.Errorf("FRR semantic mismatch: link-local next-hop address-family")
 		}
 		if *path.NextHops[1].Scope != "link-local" {
@@ -387,7 +396,7 @@ func assertJointSubnetFRRRoute(route jointSubnetFRRRoute, prefix string, global 
 
 func jointSubnetFRRJSON(ctx context.Context, plan *jointSubnetFRRPlan, namespace *testNetns, orig netns.NsHandle, command, artifact string) ([]byte, error) {
 	data, err := jointSubnetFRRCommand(ctx, []string{plan.vtysh, "--vty_socket", plan.runtimeDir, "-d", "bgpd", "-c", command}, namespace, orig)
-	if writeErr := os.WriteFile(filepath.Join(plan.output, artifact), data, 0o644); writeErr != nil {
+	if writeErr := os.WriteFile(filepath.Join(plan.output, artifact), data, 0o644); writeErr != nil { //nolint:gosec // a root run leaves its evidence readable by the owner (.claude/rules/sudo.md)
 		return nil, writeErr
 	}
 	if err != nil {
@@ -422,7 +431,7 @@ func jointSubnetFRRCommand(parent context.Context, argv []string, namespace *tes
 		return nil, err
 	}
 	var output jointSubnetFRRBuffer
-	command := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	command := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Stdout, command.Stderr = &output, &output
 	runErr := command.Run()
 	if err := netns.Set(orig); err != nil {

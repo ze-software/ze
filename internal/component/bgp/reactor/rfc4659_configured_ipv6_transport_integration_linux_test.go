@@ -296,6 +296,7 @@ func rfc4659ReadConfiguredRoutes(t *testing.T, ctx context.Context, updates <-ch
 // RFC 4724 Section 2: "For any other address family, it is an UPDATE message
 // that contains only the MP_UNREACH_NLRI attribute [BGP-MP] with no withdrawn
 // routes for that <AFI, SAFI>."
+// It returns the MP_REACH value, or true when the UPDATE is that End-of-RIB.
 func rfc4659ConfiguredMPReach(t *testing.T, body []byte) ([]byte, bool) {
 	t.Helper()
 	if len(body) < 4 {
@@ -393,7 +394,7 @@ func rfc4659TransportFixture(t *testing.T, speaker, recipient, selected netip.Ad
 		}
 	})
 	pair := &netlink.Veth{
-		LinkAttrs:     netlink.LinkAttrs{Name: "vpn-receiver"},
+		Name:          "vpn-receiver",
 		PeerName:      "vpn-sender",
 		PeerNamespace: netlink.NsFd(int(senderNS)),
 	}

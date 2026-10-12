@@ -441,8 +441,7 @@ func requireRemoteAlert(t *testing.T, who string, err error) {
 	if err == nil {
 		t.Fatalf("%s recorded no error, so no alert reached it", who)
 	}
-	var alert tls.AlertError
-	if errors.As(err, &alert) {
+	if _, ok := errors.AsType[tls.AlertError](err); ok {
 		return
 	}
 	if strings.Contains(err.Error(), "remote error: tls:") {

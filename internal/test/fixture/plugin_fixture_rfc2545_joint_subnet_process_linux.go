@@ -80,13 +80,13 @@ func runJointSubnetPeers(ctx context.Context, plan *netnsRunPlan, path *clampedP
 	if len(plan.peers) != 2 {
 		return fmt.Errorf("joint-subnet needs exactly recipient and announcer peers")
 	}
-	if plan.peers[0].namespace != "router" {
+	if plan.peers[0].namespace != clampedRoleRouter {
 		return fmt.Errorf("joint-subnet first peer must be the recipient")
 	}
 	if plan.peers[0].after != "" {
 		return fmt.Errorf("joint-subnet recipient must start immediately")
 	}
-	if plan.peers[1].namespace != "far" {
+	if plan.peers[1].namespace != clampedRoleFar {
 		return fmt.Errorf("joint-subnet second peer must be the announcer")
 	}
 	if plan.peers[1].after == "" {
@@ -146,7 +146,7 @@ func runJointSubnetPeers(ctx context.Context, plan *netnsRunPlan, path *clampedP
 		select {
 		case exit := <-watched.exits:
 			watched.pending--
-			return fmt.Errorf("joint-subnet %s exited before the completion fence: %v", exit.label, exit.err)
+			return fmt.Errorf("joint-subnet %s exited before the completion fence: %w", exit.label, exit.err)
 		case <-poll.C:
 		case <-ctx.Done():
 			return fmt.Errorf("joint-subnet setup or completion deadline (not a protocol verdict): %w", ctx.Err())
@@ -161,7 +161,7 @@ func startJointSubnetPeer(ctx context.Context, declaration netnsPeer, namespace 
 	if err := netns.Set(namespace.ns); err != nil {
 		return err
 	}
-	command := exec.CommandContext(ctx, "le", "test", lePeerVerb, declaration.script)
+	command := exec.CommandContext(ctx, "le", "test", lePeerVerb, declaration.script) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Stdout = output
 	command.Stderr = output
 	command.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}

@@ -22,8 +22,8 @@ var l2tpSourcesOnce sync.Once
 func registerL2TPSources() {
 	l2tpSourcesOnce.Do(func() {
 		err := redistribute.RegisterSource(redistribute.RouteSource{
-			Name:        "l2tp",
-			Protocol:    "l2tp",
+			Name:        SubsystemName,
+			Protocol:    SubsystemName,
 			Description: "subscriber routes from L2TP tunnels",
 		})
 		if err != nil {
