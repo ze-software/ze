@@ -5,9 +5,10 @@
 #                 and no BFD opt-in, and the `bfd` root with profile fast.
 # Live change:    the staged fixture (reload/live-stages, run inside the daemon)
 #                 reloads config2.conf (the peer gains a non-strict opt-in by
-#                 this spec's swap: client A, no local address, opens session
-#                 S), config3.conf (a pinned single-hop-session to 127.0.0.1
-#                 from local 127.0.0.1: client B joins S and narrows it),
+#                 this spec's swap: client A, multi-hop with no local
+#                 address, opens session S), config3.conf (a pinned
+#                 multi-hop-session to 127.0.0.1 from local 127.0.0.1: client
+#                 B joins S and narrows it),
 #                 config4.conf (B removed: it leaves S) and config5.conf (the
 #                 same pinned session from local 127.0.0.2: client C).
 # Expected:       after the last reload `show bfd sessions` lists ONE session to
@@ -26,12 +27,24 @@
 # static plugin loads the interface plugin, which has no backend on darwin, so
 # the BGP peer's swap is client A here and a pinned session is B.
 #
+# The clients are multi-hop because only a multi-hop client stays unpinned on
+# every platform. A single-hop request takes its link and local address from
+# the link table (api.SessionRequest.Canonical): on Linux, lo holds
+# 127.0.0.0/8, so a single-hop A is keyed on local 127.0.0.1, B matches that
+# key exactly, and C from 127.0.0.2 rightly gets a second session (RFC 5883
+# Section 4.1). That second session's packets leave from 127.0.0.1 and loop
+# back with Your Discriminator zero, so the address demux hands them to S,
+# which reads the remote state Down and takes the BGP peer down. A multi-hop
+# request derives no local address (canonicalMultiHop), so A stays unpinned.
+#
 # DISCRIMINATION: with the engine before ce9ee9c2df (the narrowed `joined` key
 # never widened on release), C fails to share and opens a second session: the
-# table then holds two sessions to 127.0.0.1 with refcount 1 each.
+# table then holds two sessions to 127.0.0.1 with refcount 1 each (darwin). On
+# Linux the second session's packets loop back to S, as described above, so S
+# goes Down, BGP sends Cease "BFD Down" and the say line never prints.
 option=timeout:value=60s
 option=env:var=ze.bfd.test-parallel:value=true
-# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+# BFD binds the RFC 5881 and RFC 5883 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
 option=exclusive:group=bfd-ports
 
 stdin=peer:terminator=EOF_PEER
@@ -123,7 +136,7 @@ bgp {
 			}
 			bfd {
 				enabled true
-				mode single-hop
+				mode multi-hop
 				profile fast
 			}
 		}
@@ -162,7 +175,7 @@ bfd {
 		required-min-rx-us 50000
 	}
 
-	single-hop-session 127.0.0.1 {
+	multi-hop-session 127.0.0.1 {
 		local 127.0.0.1
 		profile fast
 	}
@@ -181,7 +194,7 @@ bgp {
 			}
 			bfd {
 				enabled true
-				mode single-hop
+				mode multi-hop
 				profile fast
 			}
 		}
@@ -234,7 +247,7 @@ bgp {
 			}
 			bfd {
 				enabled true
-				mode single-hop
+				mode multi-hop
 				profile fast
 			}
 		}
@@ -273,7 +286,7 @@ bfd {
 		required-min-rx-us 50000
 	}
 
-	single-hop-session 127.0.0.1 {
+	multi-hop-session 127.0.0.1 {
 		local 127.0.0.2
 		profile fast
 	}
@@ -292,7 +305,7 @@ bgp {
 			}
 			bfd {
 				enabled true
-				mode single-hop
+				mode multi-hop
 				profile fast
 			}
 		}
