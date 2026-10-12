@@ -21,6 +21,12 @@ option=timeout:value=20s
 # makes ze correctly withdraw the source's routes toward dest, racing the very
 # forwarding burst this test asserts (announce 0000-0006 then withdraw seen).
 option=linger:value=true
+# await-file: hold the burst until ze has the dest session Established. A route
+# that reaches ze before then matches no forward target and reaches dest later
+# through bgp-rs's peer-up replay, whose order is not the send order, so the
+# ordered= needles below would judge the replay rather than the overflow path.
+# The dest block writes the file on ze's first UPDATE to it (its End-of-RIB).
+option=await-file:path=forward-overflow-dest.up
 
 # Send 50 UPDATEs: 10.0.0.0/24 through 10.0.49.0/24
 # Each UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, LOCAL_PREF=100
@@ -87,6 +93,7 @@ EOF_SOURCE
 # Dest peer (ASN 65002) -- verify every forwarded route arrives, in order
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
+option=established-file:path=forward-overflow-dest.up
 option=timeout:value=20s
 # // reframed seq=N:contains= (one NLRI per message) to seq=1:ordered=
 # (same 50 needles, strict in-order consumption across message boundaries).

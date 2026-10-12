@@ -251,6 +251,9 @@ func zeTestMergePeerFileConfig(config, fileConfig *peer.Config) {
 	if fileConfig.EstablishedFile != "" {
 		config.EstablishedFile = fileConfig.EstablishedFile
 	}
+	if fileConfig.AwaitFile != "" {
+		config.AwaitFile = fileConfig.AwaitFile
+	}
 	if len(fileConfig.CapabilityOverrides) > 0 {
 		config.CapabilityOverrides = fileConfig.CapabilityOverrides
 	}

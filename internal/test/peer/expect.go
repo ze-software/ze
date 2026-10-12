@@ -324,6 +324,14 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) (cl
 		}
 		config.EstablishedFile = kv["path"]
 
+	case "await-file":
+		// A missing path would make the wait a no-op, and the race the option
+		// exists to close would come back with no sign of why.
+		if kv["path"] == "" {
+			return false, errors.New("option=await-file needs path=<name>, the file ze-peer waits for before its first send (another peer block's established-file)")
+		}
+		config.AwaitFile = kv["path"]
+
 	case "tcp_connections":
 		v, cerr := strconv.Atoi(kv["value"])
 		if cerr != nil {

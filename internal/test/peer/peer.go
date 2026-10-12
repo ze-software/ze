@@ -235,6 +235,18 @@ type Config struct {
 	// A session that never receives an UPDATE never writes it, and the fixture
 	// waiting on it then fails with its own message.
 	EstablishedFile string
+	// AwaitFile names a file ze-peer waits for before it sends anything after
+	// the OPEN handshake (option=await-file:path=<name>). It resolves like
+	// EstablishedFile, so one peer block can hold its first UPDATE until another
+	// peer block's established-file says the daemon has that session
+	// Established.
+	//
+	// It exists for a relay test whose sender must not race the receiver's
+	// session: ze forwards nothing to a peer it does not yet hold Established,
+	// and a route that arrives first reaches the receiver later through a
+	// peer-up replay instead of the forward path the test asserts. The wait is
+	// bounded by awaitFileMax and fails with a message naming the file.
+	AwaitFile string
 	// IPv6: bind to IPv6 instead of IPv4
 	IPv6 bool
 	// Decode: decode messages to human-readable format in output
@@ -716,6 +728,11 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 // senderAS is ze-peer's own AS on an eBGP session and 0 on iBGP
 // (ebgpSenderAS); send-default-route and every send-route prepend it.
 func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint32) Result {
+	// Hold every send until the awaited file exists (option=await-file).
+	if err := p.awaitFile(ctx); err != nil {
+		return Result{Success: false, Error: err}
+	}
+
 	// Send default route if requested.
 	if p.config.SendDefaultRoute {
 		p.printf("sending default-route\n")
