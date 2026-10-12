@@ -500,7 +500,7 @@ func driveEditor04(ctx context.Context, env []string, config string, reject bool
 	if err := send("set bgp router-id 2.2.2.2", "2.2.2.2"); err != nil {
 		return fmt.Errorf("%w\n%s", err, transcript)
 	}
-	if _, err := terminal.WriteString("commit\r"); err != nil {
+	if _, err := terminal.WriteString("commit now\r"); err != nil {
 		return fmt.Errorf("%w\n%s", err, transcript)
 	}
 	if reject {

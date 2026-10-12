@@ -151,7 +151,7 @@ func storageEditorConflict(ctx context.Context, environment []string, path strin
 	if err := os.WriteFile(path, external, 0o600); err != nil {
 		return err
 	}
-	if _, err := terminal.WriteString("commit\r"); err != nil {
+	if _, err := terminal.WriteString("commit now\r"); err != nil {
 		return err
 	}
 	transcript, err = readPTYUntil04(terminal, []byte(transcript), false, "commit failed:", "commit blocked:", "Configuration committed")
