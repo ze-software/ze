@@ -7,7 +7,7 @@
 cmd=foreground:seq=1:exec=ze help ai api:exit=0
 expect=exit:code=0
 expect=stdout:contains=Daemon API Commands
-expect=stdout:contains=ze-show:
+expect=stdout:contains=ze-bgp:show-
 
 # Summary self-describes: lists the available sections including dispatch.
 cmd=foreground:seq=2:exec=ze help ai:exit=0
@@ -18,7 +18,7 @@ expect=stdout:contains=dispatch
 # Legacy flag alias still resolves to the same listing (backward compatibility).
 cmd=foreground:seq=3:exec=ze help --ai api:exit=0
 expect=exit:code=0
-expect=stdout:contains=ze-show:
+expect=stdout:contains=ze-bgp:show-
 
 # Discoverability: the top-level usage signposts the AI reference leaf.
 cmd=foreground:seq=4:exec=ze --help:exit=0
