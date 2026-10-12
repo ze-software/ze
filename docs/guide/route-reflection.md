@@ -175,8 +175,8 @@ dispatch boundary; the VPN peer exchanges check both forwarding and withdrawal.
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- forwardUpdate -->
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- opUpdateRoute -->
 <!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- send bgp cached -->
-<!-- source: test/draft/plugin/vpn-withdrawal-inventory-rr-ipv4.ci -- complete VPNv4 MP attributes -->
-<!-- source: test/draft/plugin/vpn-withdrawal-inventory-rr-ipv6.ci -- complete VPNv6 MP attributes -->
+<!-- source: test/plugin/vpn-withdrawal-inventory-rr-ipv4.ci -- complete VPNv4 MP attributes -->
+<!-- source: test/plugin/vpn-withdrawal-inventory-rr-ipv6.ci -- complete VPNv6 MP attributes -->
 
 ### Zero-Copy Forwarding
 
@@ -270,7 +270,9 @@ initial update is ready. A delegated replay owner suppresses this self-replay;
 if no owner both receives state events and has permission to send UPDATEs for
 the peer, the engine's unheld-role marker restores it. The bounded relay uses
 the reactor's existing destination session, family, source-generation and
-export checks.
+export checks. An up whose reason is `attached` replays nothing: a reload
+attached `bgp-adj-rib-in` to a session that was already up, and the peer's
+initial update went out without it.
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- handleStructuredState, handleState -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go -- replayFlowSpecs -->
 

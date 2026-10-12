@@ -1658,7 +1658,7 @@ compile, wrapping `ErrUncompilablePattern`, so no argument is ever built with
 its pattern missing. The error names the module, the leaf, leaf-list,
 typedef or deviation the pattern restricts, the source location, and the reason, which
 quotes the pattern.
-<!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef, compilePatterns -->
+<!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef, compiledPatterns.compiled -->
 <!-- source: internal/component/command/argvalidate.go -- validateString -->
 <!-- source: internal/component/config/yang/loader.go -- checkPatterns, modulePatternErrors -->
 

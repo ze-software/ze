@@ -75,7 +75,7 @@ each issue marked. The web terminal and the web CLI bar run the same validation
 and answer with the same text, the CLI bar as an error notification, and a
 refused commit leaves your changes pending there too.
 <!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal, WithSkippedWarnings, cmdCommitVerify -->
-<!-- source: internal/component/cli/model_commit_window.go -- ForcedCommand -->
+<!-- source: internal/component/cli/contract/commit.go -- ForcedCommand -->
 <!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
 <!-- source: internal/component/web/cli.go -- handleCLICommit -->
 
@@ -242,7 +242,7 @@ non-zero. Without a terminal, including when the input is stdin, it asks nothing
 and refuses, naming `--yes`; `--yes` confirms in advance. A replaced config is
 committed as a new active version and the previous one becomes its rollback, so
 `ze config rollback` restores it.
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, confirmImportReplace, importOne -->
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, cmdImportConfirm -->
 <!-- source: internal/component/config/storage/restore.go -- RestoreConfig -->
 
 ## Editing Modes

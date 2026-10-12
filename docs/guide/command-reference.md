@@ -317,7 +317,7 @@ across, and a capture with no BGP in it exits non-zero naming what it examined.
 An IPv4 unicast route needs an IPv4 `next-hop`. `encode` refuses any other
 next hop, and exits 1 with an error that names the requirement, rather than
 print an UPDATE whose NLRI has no NEXT_HOP attribute.
-<!-- source: internal/component/bgp/message/update_build.go -- checkInlineNextHop -->
+<!-- source: internal/component/bgp/message/update_build.go -- checkUnicastNextHop -->
 
 ### ze show warnings / ze show errors
 

@@ -67,7 +67,8 @@ container's name. That name is the word the operator types the value after, so
 `send bgp <selector> unicast <prefix>` binds the selector and leaves the
 prefix to the handler. The shape-based fallback stays for a command that
 anchors nothing, and both refuse ambiguity: two candidates name none.
-<!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens, anchoredDef, implicitSelectorDef -->
+<!-- source: internal/component/plugin/server/command.go -- matchCommandTokens, anchoredDef, implicitSelectorDef -->
+<!-- source: internal/component/command/argbind.go -- ValidateArgs, positionalDef -->
 <!-- source: internal/component/config/yang/command.go -- appendAnchored -->
 
 ### A command declares what its answer holds

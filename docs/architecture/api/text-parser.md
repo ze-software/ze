@@ -95,7 +95,7 @@ NLRI tokens are collected until `textparse.IsTopLevelKeyword` sees the next attr
 
 ### State Parser: parseTextState
 
-`parseTextState(text string) *Event` scans the uniform state line. `remote as <value>` sets `PeerASN`; `state <value>` sets the state string.
+`parseTextState(text string) *Event` scans the uniform state line. `remote as <value>` sets `PeerASN`; `state <value>` sets the state string; `reason <value>` sets `Reason`, which names why a session went down, or is `attached` on an up a reload sent to a process it attached to a session already up; `initial-replay <receipt>` sets `InitialReplay`.
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextState -->
 
 ### Refresh Parser: parseTextRefresh
@@ -113,7 +113,7 @@ NLRI tokens are collected until `textparse.IsTopLevelKeyword` sees the next attr
 Quick parse fails closed for malformed headers by returning specific errors for missing `peer`, address, `remote`, `as`, ASN value, dispatch token, or event type. A missing or non-numeric message ID returns event type, peer address, payload, and msgID 0 without treating the event as malformed.
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- errInvalidTextEventMissingPeerPrefix, errInvalidTextEventMissingEventType, quickParseTextEvent -->
 
-Full parsers are tolerant of partial bodies. Missing mandatory peer address returns nil. Missing optional values, unknown tokens, and unparsable numeric body fields are skipped.
+Full parsers are tolerant of partial bodies. Missing mandatory peer address returns nil. Missing optional values, unknown tokens, and unparsable numeric body fields are skipped, with one exception: a state line whose `initial-replay` token has no value, or a value that is not a number, returns nil, because the receipt grants readiness and a wrong one must not be guessed.
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextOpen, parseTextState, parseTextRefresh, parseTextNLRIOps -->
 
 ### String Operations Used
