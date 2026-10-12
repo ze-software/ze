@@ -50,7 +50,7 @@ func TestRFC9085NativeExportAttributePlacement(t *testing.T) {
 				for _, object := range []byte{4, 5} {
 					for _, topology := range []uint16{0, 7} {
 						marker := origin*20 + object + byte(topology)
-						for linkMode := byte(0); linkMode < 3; linkMode++ {
+						for linkMode := range byte(3) {
 							linkMarker := marker + linkMode*80
 							flags := byte(0x60)
 							if tc.isis {
@@ -158,7 +158,8 @@ func TestRFC9085NativeExportAttributePlacement(t *testing.T) {
 					if topology != 0 && topology != 7 {
 						t.Fatalf("unexpected topology %d", topology)
 					}
-					if kind == 2 {
+					switch kind {
+					case 2:
 						remote := rfc9085ExportOne(t, rfc9085ExportOne(t, nlri[13:], 257), 515)
 						wantRemote := []byte{4, 4, 4, 4}
 						if tc.isis {
@@ -175,7 +176,7 @@ func TestRFC9085NativeExportAttributePlacement(t *testing.T) {
 							want[1099][0] = 0x30
 							want[1100] = []byte{0x30, marker + 1, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0x3f, marker}
 						}
-					} else if kind == 3 || kind == 4 {
+					case 3, 4:
 						prefix := rfc9085ExportOne(t, nlri[13:], 265)
 						wantHead := []byte{24, 192, 0}
 						wantKind := uint16(3)
@@ -198,7 +199,6 @@ func TestRFC9085NativeExportAttributePlacement(t *testing.T) {
 							t.Fatalf("unexpected prefix object %d", object)
 						}
 						marker := origin*20 + object + byte(topology)
-						route := byte(0)
 						routeDescriptors := exportTLVValues(t, nlri[13:], 264)
 						if tc.isis || ranged {
 							if len(routeDescriptors) != 0 {
@@ -209,7 +209,7 @@ func TestRFC9085NativeExportAttributePlacement(t *testing.T) {
 							if len(value) != 1 {
 								t.Fatalf("route-type descriptor = %x, want one octet", value)
 							}
-							route = value[0]
+							route := value[0]
 							if route != 1 && route != 2 && route != 3 && route != 5 {
 								t.Fatalf("unexpected OSPF route class %d", route)
 							}
@@ -227,7 +227,7 @@ func TestRFC9085NativeExportAttributePlacement(t *testing.T) {
 								}
 							}
 						}
-					} else {
+					default:
 						t.Fatalf("unexpected NLRI type %d", kind)
 					}
 				}
@@ -278,7 +278,7 @@ func rfc9085ExportOne(t *testing.T, wire []byte, typ uint16) []byte {
 func rfc9085ExportLinkIdentity(t *testing.T, wire []byte, origin byte) (byte, byte) {
 	t.Helper()
 	for _, object := range []byte{4, 5} {
-		for mode := byte(0); mode < 3; mode++ {
+		for mode := range byte(3) {
 			want := map[uint16][]byte{258: {0, 0, 0, object, 0, 0, 0, origin + 10}}
 			if mode == 1 {
 				want = map[uint16][]byte{259: {10, origin, object, 1}, 260: {10, origin, object, 2}}

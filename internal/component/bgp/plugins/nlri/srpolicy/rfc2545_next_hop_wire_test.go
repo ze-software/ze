@@ -26,6 +26,7 @@ func TestSRPolicyConfigNextHopWire(t *testing.T) {
 	for _, endpoint := range []string{"192.0.2.9", "2001:db8::9"} {
 		for _, nextHop := range []string{"192.0.2.1", "2001:db8::1"} {
 			t.Run(endpoint+"/"+nextHop, func(t *testing.T) {
+				t.Parallel()
 				isIPv6 := netip.MustParseAddr(endpoint).Is6()
 				pr, err := parseConfigRoute(registry.ConfigRouteRequest{
 					Content: strings.Fields("distinguisher 7 color 100 endpoint " + endpoint + " preference 100"),
@@ -67,6 +68,7 @@ func TestSRPolicyEncodeNextHopWire(t *testing.T) {
 	for _, endpoint := range []string{"192.0.2.9", "2001:db8::9"} {
 		for _, nextHop := range []string{"192.0.2.1", "2001:db8::1"} {
 			t.Run(endpoint+"/"+nextHop, func(t *testing.T) {
+				t.Parallel()
 				isIPv6 := netip.MustParseAddr(endpoint).Is6()
 				familyName := "ipv4/sr-policy"
 				if isIPv6 {
@@ -94,6 +96,7 @@ func TestSRPolicyEncodeRejectsInvalidIPv6NextHop(t *testing.T) {
 	for _, endpoint := range []string{"192.0.2.9", "2001:db8::9"} {
 		for _, nextHop := range []string{"::1", "::", "ff02::1", "::ffff:192.0.2.1"} {
 			t.Run(endpoint+"/"+nextHop, func(t *testing.T) {
+				t.Parallel()
 				familyName := "ipv4/sr-policy"
 				if netip.MustParseAddr(endpoint).Is6() {
 					familyName = "ipv6/sr-policy"
