@@ -425,9 +425,15 @@ groups:
 //
 // Peer-up replay also carries the marker so its sent-event feedback preserves
 // the stored source peer and stale level instead of claiming a new local route.
-func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGroup) int {
+//
+// resent counts the routes of every group the engine accepted whole. A group
+// with a refused command is abandoned as replayRoutesWithCursor abandons one:
+// the cursor is reset so the next group carries full attributes rather than a
+// delta against a state the engine never took, and the group's routes count
+// in refused, including any an earlier command of that group delivered.
+func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGroup) (resent, refused int) {
 	if len(groups) == 0 {
-		return 0
+		return 0, 0
 	}
 
 	// Reset stale cursor state from a prior aborted replay before the first
@@ -436,8 +442,8 @@ func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGrou
 
 	sortGroupsForMinimalDeltas(groups)
 
-	total := 0
 	var prev *Route
+groups:
 	for i := range groups {
 		g := &groups[i]
 		cmds := formatCursorCommands(g, prev)
@@ -447,16 +453,21 @@ func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGrou
 			meta["stale"] = g.StaleLevel
 		}
 		for _, cmd := range cmds {
-			r.updateRouteWithMeta(peerAddr, cmd, meta)
+			if err := r.updateRouteWithMeta(peerAddr, cmd, meta); err != nil {
+				r.updateRoute(peerAddr)
+				refused += len(g.Prefixes)
+				prev = nil
+				continue groups
+			}
 		}
-		total += len(g.Prefixes)
+		resent += len(g.Prefixes)
 		if g.Route.RawAttrs == "" {
 			prev = g.Route
 		}
 	}
 
 	r.updateRoute(peerAddr)
-	return total
+	return resent, refused
 }
 
 const maxNLRIBytesPerCommand = 4000

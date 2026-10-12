@@ -863,9 +863,10 @@ func TestHandleCommand_RIBOutboundResend(t *testing.T) {
 	status, data, err := r.handleCommand("clear bgp rib out", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	// Resend count: routes are sent via SDK RPC (updateRoute), which fails silently on closed pipes
-	// but the resend logic still counts them
-	assert.Contains(t, dataStr(t, data), `"resent":1`)
+	// The test plugin's send fails, so the engine takes nothing: the one
+	// selected route is reported refused, never counted as resent.
+	assert.Contains(t, dataStr(t, data), `"resent":0`)
+	assert.Contains(t, dataStr(t, data), `"refused":1`)
 	assert.Contains(t, dataStr(t, data), `"peers":1`)
 }
 
@@ -2098,7 +2099,10 @@ func TestOutboundResendAllFamilies(t *testing.T) {
 
 	var result map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
-	assert.Equal(t, float64(2), result["resent"], "should resend routes from both families")
+	// The test plugin's send fails, so both families' routes are selected
+	// and reported refused rather than counted as resent.
+	assert.Equal(t, float64(0), result["resent"], "a refused route is not resent")
+	assert.Equal(t, float64(2), result["refused"], "should attempt routes from both families")
 }
 
 // TestOutboundResendSingleFamily verifies resend with family sends only that family.
@@ -2123,7 +2127,9 @@ func TestOutboundResendSingleFamily(t *testing.T) {
 
 	var result map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
-	assert.Equal(t, float64(1), result["resent"], "should resend only ipv4/unicast routes")
+	// The test plugin's send fails, so the selected route is reported refused.
+	assert.Equal(t, float64(0), result["resent"], "a refused route is not resent")
+	assert.Equal(t, float64(1), result["refused"], "should attempt only ipv4/unicast routes")
 }
 
 // TestStatusJSONMultiFamilyCount verifies status counts across families.
@@ -2226,7 +2232,9 @@ func TestOutboundResendSelectorFromArgs(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(1), result["peers"], "should resend to 1 peer (not 10.0.0.1)")
-	assert.Equal(t, float64(1), result["resent"], "should resend 1 route")
+	// The test plugin's send fails, so the one selected route is reported refused.
+	assert.Equal(t, float64(0), result["resent"], "a refused route is not resent")
+	assert.Equal(t, float64(1), result["refused"], "should attempt 1 route")
 }
 
 // TestInboundEmptySelectorFromArgs verifies clear bgp rib in extracts selector from args.

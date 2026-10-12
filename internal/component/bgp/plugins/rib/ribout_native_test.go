@@ -357,8 +357,8 @@ func TestSentNativeReplayCarriesStaleMetadata(t *testing.T) {
 	if ready != 1 {
 		t.Fatalf("peer-up replay sent %d ready markers", ready)
 	}
-	if count := r.resendRoutesWithCursor(peer.String(), groups); count != 1 {
-		t.Fatalf("resend count = %d", count)
+	if resent, refused := r.resendRoutesWithCursor(peer.String(), groups); resent != 1 || refused != 0 {
+		t.Fatalf("resend counts = %d resent, %d refused", resent, refused)
 	}
 	if announcements != 2 {
 		t.Fatalf("resend sent %d total announcements", announcements)

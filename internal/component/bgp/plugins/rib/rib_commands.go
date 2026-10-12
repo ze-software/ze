@@ -672,13 +672,17 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 	}
 	r.peerMu.RUnlock()
 
-	resent := 0
+	resent, refused := 0, 0
 	for _, peer := range peersToResend {
 		// RPC selector is a string boundary: one conversion per resent peer.
-		resent += r.resendRoutesWithCursor(peer.String(), groupsToResend[peer])
+		peerResent, peerRefused := r.resendRoutesWithCursor(peer.String(), groupsToResend[peer])
+		resent += peerResent
+		refused += peerRefused
 	}
 
-	return map[string]any{"resent": resent, "peers": len(peersToResend)}
+	// refused names the routes the engine did not take, so an operator never
+	// reads a resend the engine rejected as delivered.
+	return map[string]any{"resent": resent, "refused": refused, "peers": len(peersToResend)}
 }
 
 // sendRoutes sends routes to a peer without the "plugin session ready" signal.
