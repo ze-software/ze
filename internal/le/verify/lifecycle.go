@@ -324,6 +324,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	}
 	report.Diagnostics = append(report.Diagnostics,
 		sharedCacheLink(path),
+		sharedModcacheLink(root, path),
 		text.Reset().Str("verify-worktree: ").Str(shortSHA(sha)).Str(" -> ").Str(path).String(),
 		text.Reset().Str("verify-worktree: native ").Str(population).String(),
 	)

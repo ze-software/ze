@@ -508,6 +508,23 @@ verify-worktree: shared build cache: created  cache -> /Users/thomas/Unix/cache/
 A cache that cannot be linked is reported on that line and the run continues
 against a cold one. The link is speed and disk, never correctness.
 
+The run also fills the worktree's `gokrazy/modcache` from the checkout's
+(`sharedModcacheLink`, `internal/le/verify/modcache.go`). Git tracks only the
+gokrazy init source there, and `ze appliance build` resolves its modules with
+`GOPROXY=off`, so a worktree carrying only tracked files failed every appliance
+build with "looks unpopulated" whatever the checkout held. Each entry the
+worktree lacks becomes a symlink to the checkout's; a tracked file is never
+replaced, and every link lands on a path the cache's `.gitignore` ignores. The
+line reads:
+
+```
+verify-worktree: gokrazy module cache: linked 23 entries from <checkout>/gokrazy/modcache
+```
+
+A checkout with no cache is reported on that line with `./le setup install` in
+that checkout as the fix, and the run continues: the appliance stage then fails
+with its own cause.
+
 ### What the gate is holding
 
 A verify worktree that carries uncommitted changes is never deleted, whoever
