@@ -17,6 +17,7 @@ package bfd
 import (
 	"errors"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
@@ -134,6 +135,10 @@ func TestClientProfileAuthEditJoinsAgain(t *testing.T) {
 // unauthenticated session under "p" and "q". A reload giving "p" an auth block
 // is refused with ErrAuthMismatch, since the "q" client runs the current, no
 // authentication, and the session keeps it: a request under "q" still joins.
+// The refusal says what an operator reads: both profiles, that every client
+// keeps the session it ran before the commit, and the one fix.
+// MUTATION: the join path's reason ("this client gets no BFD session") on the
+// edit path, or a fix naming neither profile, turns this test red.
 func TestClientProfileAuthEditRefusedWhileShared(t *testing.T) {
 	svc, loop := pinnedEditService(t, clientEditSection(pinnedEditSlow, pinnedEditSlow))
 	ensureClient(t, svc, clientEditRequest("p"))
@@ -145,6 +150,19 @@ func TestClientProfileAuthEditRefusedWhileShared(t *testing.T) {
 	runtimeStateGuard.Unlock()
 	if !errors.Is(err, engine.ErrAuthMismatch) {
 		t.Fatalf("reload giving \"p\" an auth block: err %v, want ErrAuthMismatch", err)
+	}
+	msg := err.Error()
+	for _, want := range []string{
+		`after this commit a client of bfd profile "p" and a client of bfd profile "q" ask for different auth blocks`,
+		"keeps the settings it ran before this commit, for every client",
+		`to fix it, give bfd profile "p" and bfd profile "q" the same auth block`,
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("refusal %q\nlacks %q", msg, want)
+		}
+	}
+	if strings.Contains(msg, "gets no BFD session") {
+		t.Errorf("refusal %q says a client loses its session, but every client keeps it", msg)
 	}
 
 	ensureClient(t, svc, clientEditRequest("q"))

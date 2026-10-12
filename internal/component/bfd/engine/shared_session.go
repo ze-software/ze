@@ -159,11 +159,18 @@ func reprofileEntryLocked(entry *sessionEntry, sessionKey api.Key, resolve func(
 		if sameAuth(requests[0].Auth, req.Auth) {
 			continue
 		}
-		return fmt.Errorf("bfd: session to peer %s%s vrf %s: %w: after this edit %s and %s "+
-			"ask for different auth blocks, and the session they share keeps the one it runs; "+
-			"%s; to fix it, give both profiles the same auth block",
+		// Only a profile carries an auth block (profileConfig.applyTo), so
+		// when one side names none, the other is the profile this commit
+		// edited.
+		edited, holder := requests[0].Profile, req.Profile
+		if edited == "" {
+			edited, holder = holder, edited
+		}
+		return fmt.Errorf("bfd: session to peer %s%s vrf %s: %w: after this commit %s and %s "+
+			"ask for different auth blocks; %s; to fix it, %s",
 			sessionKey.Peer, refusalInterface(sessionKey.Interface), sessionKey.VRF, ErrAuthMismatch,
-			describeClientProfile(requests[0].Profile), describeClientProfile(req.Profile), authMismatchWhy)
+			describeClientProfile(edited), describeClientProfile(holder), authEditRefusedWhy,
+			authEditFix(edited, holder))
 	}
 	if !sameAuth(entry.auth, requests[0].Auth) {
 		if err := replaceAuth(entry, authRequest(requests), sessionKey); err != nil {
@@ -230,13 +237,61 @@ func updateAuthLocked(entry *sessionEntry, client *sessionClient, req api.Sessio
 		if sameAuth(held.req.Auth, req.Auth) {
 			continue
 		}
-		return fmt.Errorf("bfd: session to peer %s%s vrf %s: %w: bfd profile %q now has another "+
-			"auth block, and %s shares the session with the current one; %s; to fix it, give "+
-			"that client the same auth block, or name bfd profile %q on it",
-			key.Peer, refusalInterface(key.Interface), key.VRF, ErrAuthMismatch, req.Profile,
-			describeClientProfile(held.req.Profile), authMismatchWhy, req.Profile)
+		return fmt.Errorf("bfd: session to peer %s%s vrf %s: %w: after this commit %s asks for "+
+			"another auth block than %s, which shares the session; %s; to fix it, %s",
+			key.Peer, refusalInterface(key.Interface), key.VRF, ErrAuthMismatch,
+			describeEditedClient(req.Profile), describeClientProfile(held.req.Profile),
+			authEditRefusedWhy, authEditFix(req.Profile, held.req.Profile))
 	}
 	return replaceAuth(entry, req, key)
+}
+
+// authEditRefusedWhy says why an edit is refused and what the refusal leaves
+// running. Unlike a refused join (authMismatchWhy), every client keeps its
+// session: the edit is what is dropped, for the whole session, so its timers
+// stay as they were before the commit too (reprofileEntryLocked installs every
+// client's edit or none).
+const authEditRefusedWhy = "one session per neighbor runs one authentication " +
+	"(RFC 5882 Section 4.4), so this session keeps the settings it ran before " +
+	"this commit, for every client, and the commit's BFD apply fails"
+
+// authEditFix is the config change that lets a refused edit through. edited
+// is the profile whose auth block the commit changed, or empty for a pinned
+// session that now names no profile; holder is the profile of the client that
+// relies on the current authentication, or empty for a client naming none.
+//
+// A client naming no profile is an OSPF interface, or a BGP peer, static
+// route or pinned session that names none. An OSPF interface's bfd block names
+// no profile and no auth block (ospf bfdRequestForNeighbor), and the engine
+// does not know which protocol a client is, so the fix that names a profile
+// on that client carries the OSPF alternative beside it, as the join refusal
+// does (authMismatchCase).
+func authEditFix(edited, holder string) string {
+	if edited == "" {
+		if holder == "" {
+			// Two clients naming no profile both run without
+			// authentication (sameAuth), so no edit between them is
+			// refused; this answer is never printed.
+			return authReleaseFix
+		}
+		return "name " + clientProfile(holder) + " on this pinned session, or remove the " +
+			"auth block from " + clientProfile(holder)
+	}
+	if holder == "" {
+		return "restore the previous auth block of " + clientProfile(edited) + ", or name " +
+			clientProfile(edited) + " on the client that names no bfd profile (on an OSPF " +
+			"interface, which cannot name one, set bfd { enabled false; } instead)"
+	}
+	return "give " + clientProfile(edited) + " and " + clientProfile(holder) + " the same auth block"
+}
+
+// describeEditedClient names the pinned session whose edit UpdateSession
+// refused, by the profile it now names.
+func describeEditedClient(profile string) string {
+	if profile == "" {
+		return "this pinned session, which names no bfd profile,"
+	}
+	return "this pinned session's " + clientProfile(profile)
 }
 
 // describeClientProfile names a client by the bfd profile it asked with, for

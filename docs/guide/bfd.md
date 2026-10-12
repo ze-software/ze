@@ -588,9 +588,12 @@ running, keeps its discriminator, and takes the edited timers (an Up session
 through a Poll Sequence, so it stays Up). It takes an edited auth block too,
 when every client of the session asks for the same authentication after the
 edit. When one does not, because it names another profile or none, the session
-keeps every client's request and its current authentication, and the commit's
-apply fails with the error, which names the two profiles; give both the same
-auth block, or release the session as below.
+keeps every client's request, its timers and its current authentication, every
+client keeps the session, and the commit's apply fails with the error, which
+names the two clients by profile. Give both profiles the same auth block. When
+the other client names no profile, restore the edited profile's auth block, or
+name the edited profile on that client (an OSPF interface cannot name one: set
+`bfd { enabled false; }` on it). Or release the session as below.
 
 A session shared by several clients runs the fastest timers among them: those
 giving the shortest Detection Time (Detect Mult times Required Min RX). They
