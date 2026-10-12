@@ -1,6 +1,6 @@
 module github.com/ze-software/ze
 
-go 1.27.0
+go 1.27.2
 
 // The patch-qualified Go directive is the standard-library security floor.
 // Every workflow reads this file through actions/setup-go, and Go's toolchain
@@ -48,7 +48,7 @@ require (
 	go.fd.io/govpp v0.13.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/mod v0.41.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	golang.org/x/sync v0.23.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0

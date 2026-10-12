@@ -29,7 +29,7 @@ sudo apt-get install -y \
 Install Go 1.27, the version `go.mod` requires. Pick the current 1.27 patch release from <https://go.dev/dl/> if a newer patch exists.
 
 ```bash
-GO_VERSION=1.27.0
+GO_VERSION=1.27.2
 GO_ARCH="$(dpkg --print-architecture)"
 case "$GO_ARCH" in
   amd64|arm64) ;;
