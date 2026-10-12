@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -130,8 +129,8 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 	if configDir == "" {
 		return nil
 	}
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(configDir, &stat); err != nil {
+	blocks, err := diskspace.Stat(configDir)
+	if err != nil {
 		// Absence is not a fault: the host has not run ze init yet. Every OTHER
 		// error means the free space was never measured, and an empty result is
 		// the HEALTHY verdict (ai/rules/evidence.md).
@@ -146,7 +145,7 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 			Path:     configDir,
 		}}
 	}
-	return checkDiskSpaceBlocks(configDir, diskspace.UsableBlocks(stat.Blocks), diskspace.UsableBlocks(stat.Bavail))
+	return checkDiskSpaceBlocks(configDir, blocks.Total, blocks.Available)
 }
 
 func checkDiskSpaceBlocks(configDir string, total, available uint64) []diagnostic.Diagnostic {

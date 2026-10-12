@@ -6,7 +6,6 @@ package support
 
 import (
 	"fmt"
-	"syscall"
 
 	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/paths"
@@ -34,14 +33,13 @@ func collectDiskInfo() (any, error) {
 			continue
 		}
 
-		var stat syscall.Statfs_t
-		if err := syscall.Statfs(path, &stat); err != nil {
+		blocks, err := diskspace.Stat(path)
+		if err != nil {
 			continue
 		}
 		seen[path] = true
 
-		usage, err := diskUsageFromBlocks(path, diskspace.UsableBlocks(stat.Blocks),
-			diskspace.UsableBlocks(stat.Bavail), diskspace.UsableBlocks(stat.Bsize))
+		usage, err := diskUsageFromBlocks(path, blocks.Total, blocks.Available, blocks.Size)
 		if err != nil {
 			return nil, fmt.Errorf("disk usage %s: %w", path, err)
 		}

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/identity"
 	"github.com/ze-software/ze/internal/core/redact"
@@ -846,16 +847,15 @@ func (su *selfUpdater) stageBinary(tempPath string) error {
 
 func (su *selfUpdater) checkDiskSpace(binarySize int64) error {
 	dir := filepath.Dir(su.targetPath)
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(dir, &stat); err != nil {
+	available, err := diskspace.Free(dir)
+	if err != nil {
 		return nil //nolint:nilerr // skip check if statfs fails (unsupported FS)
 	}
-	// int64(stat.Bsize) is NOT redundant: Statfs_t.Bsize is int32 on 32-bit
-	// linux (arm, 386) and int64 on 64-bit, and Ze ships on ARM appliances.
-	// unconvert reports it redundant because it only ever sees the host GOARCH.
-	available := int64(stat.Bavail) * int64(stat.Bsize) //nolint:gosec,unconvert // product bounded by filesystem capacity; the conversion is load-bearing on 32-bit
 	needed := binarySize * 2
-	if available < needed {
+	if needed < 0 {
+		return fmt.Errorf("insufficient disk space: binary size %d is out of range", binarySize)
+	}
+	if available < uint64(needed) {
 		return fmt.Errorf("insufficient disk space: need %d bytes, have %d", needed, available)
 	}
 	return nil

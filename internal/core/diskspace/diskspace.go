@@ -35,10 +35,9 @@ const BytesPerGiB = 1024 * 1024 * 1024
 func Free(path string) (uint64, error) {
 	probe := path
 	for {
-		var stat unix.Statfs_t
-		err := unix.Statfs(probe, &stat)
+		blocks, err := Stat(probe)
 		if err == nil {
-			free, err := Bytes(UsableBlocks(stat.Bavail), UsableBlocks(stat.Bsize))
+			free, err := Bytes(blocks.Available, blocks.Size)
 			if err != nil {
 				return 0, fmt.Errorf("statfs %s: %w", probe, err)
 			}
@@ -53,6 +52,28 @@ func Free(path string) (uint64, error) {
 		}
 		probe = parent
 	}
+}
+
+// Blocks is one statfs answer in the fields Ze reads, in units of Size bytes.
+// The fields carry each system's own names (OpenBSD prefixes them with F_), so
+// callers read this rather than unix.Statfs_t.
+type Blocks struct {
+	Total     uint64 // blocks on the filesystem
+	Available uint64 // blocks an unprivileged writer can use
+	Size      uint64 // bytes in one block
+}
+
+// Stat answers the block counts of the filesystem that holds path. The error is
+// statfs's own, unwrapped, so a caller can test it with errors.Is and add the
+// path itself.
+//
+// Safe for concurrent use.
+func Stat(path string) (Blocks, error) {
+	var stat unix.Statfs_t
+	if err := unix.Statfs(path, &stat); err != nil {
+		return Blocks{}, err
+	}
+	return blocksOf(&stat), nil
 }
 
 // GiB renders a byte count in whole tenths of a gibibyte, for a message an
