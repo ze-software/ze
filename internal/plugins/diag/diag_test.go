@@ -10,7 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
-// VALIDATES: RunWgKeypair (diag.go) runs `wg genkey`, pipes THAT private key
+// VALIDATES: runWgKeypair (diag.go) runs `wg genkey`, pipes THAT private key
 //            into `wg pubkey` on stdin, prints both keys, and refuses arguments.
 // PREVENTS:  the success path going unexecuted. It used to be guarded by a
 //            LookPath("wg") skip, and `wg` is installed on no build host here, so
@@ -42,8 +42,8 @@ func silenceStderr(t *testing.T) {
 // attempting to exec `wg`.
 func TestRunWgKeypair_RejectsArgs(t *testing.T) {
 	silenceStderr(t)
-	if rc := RunWgKeypair(commandtest.Args("extra")); rc != 1 {
-		t.Errorf("RunWgKeypair(extra) = %d, want 1", rc)
+	if rc := runWgKeypair(commandtest.Args("extra")); rc != 1 {
+		t.Errorf("runWgKeypair(extra) = %d, want 1", rc)
 	}
 }
 
@@ -58,7 +58,7 @@ const (
 // installWgFixture puts a deterministic `wg` on PATH for the duration of the
 // test and returns nothing: the fixture IS the assertion. `wg pubkey` exits
 // non-zero unless its stdin is exactly what `wg genkey` printed, so a
-// RunWgKeypair that stopped piping the private key through cannot pass.
+// runWgKeypair that stopped piping the private key through cannot pass.
 //
 // This replaces a LookPath("wg") skip. `wg` is not installed on the build hosts
 // or in CI, so the skip fired every time and the success path -- the whole
@@ -93,7 +93,7 @@ func installWgFixture(t *testing.T) {
 }
 
 // captureStdout runs fn with os.Stdout replaced by a pipe and returns what it
-// wrote. RunWgKeypair prints through os.Stdout directly, so this is the only
+// wrote. runWgKeypair prints through os.Stdout directly, so this is the only
 // place its output can be read.
 func captureStdout(t *testing.T, fn func() int) (int, string) {
 	t.Helper()
@@ -122,14 +122,14 @@ func TestRunWgKeypair_PipesGenkeyIntoPubkey(t *testing.T) {
 	installWgFixture(t)
 	silenceStderr(t)
 
-	rc, out := captureStdout(t, func() int { return RunWgKeypair(commandtest.Args()) })
+	rc, out := captureStdout(t, func() int { return runWgKeypair(commandtest.Args()) })
 	if rc != 0 {
-		t.Fatalf("RunWgKeypair() = %d, want 0; stdout=%q", rc, out)
+		t.Fatalf("runWgKeypair() = %d, want 0; stdout=%q", rc, out)
 	}
 
 	want := "private: " + fixturePrivateKey + "\npublic:  " + fixturePublicKey + "\n"
 	if out != want {
-		t.Errorf("RunWgKeypair() stdout =\n%q\nwant\n%q", out, want)
+		t.Errorf("runWgKeypair() stdout =\n%q\nwant\n%q", out, want)
 	}
 }
 
@@ -139,12 +139,12 @@ func TestRunWgKeypair_ReportsMissingWg(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	silenceStderr(t)
 
-	rc, out := captureStdout(t, func() int { return RunWgKeypair(commandtest.Args()) })
+	rc, out := captureStdout(t, func() int { return runWgKeypair(commandtest.Args()) })
 	if rc != 1 {
-		t.Errorf("RunWgKeypair() with no wg = %d, want 1", rc)
+		t.Errorf("runWgKeypair() with no wg = %d, want 1", rc)
 	}
 	if out != "" {
-		t.Errorf("RunWgKeypair() with no wg wrote %q to stdout, want nothing", out)
+		t.Errorf("runWgKeypair() with no wg wrote %q to stdout, want nothing", out)
 	}
 	if _, err := exec.LookPath("wg"); err == nil {
 		t.Fatal("PATH override failed: wg is still resolvable, so this test proved nothing")

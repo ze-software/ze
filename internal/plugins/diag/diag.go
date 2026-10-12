@@ -1,5 +1,5 @@
 // Design: docs/guide/command-catalogue.md -- diagnostics (wireguard keygen)
-// Related: ../main.go -- registers RunWgKeypair as a local command
+// Related: register.go -- registers runWgKeypair as a local command
 //
 // Package diag is the offline home for diagnostic commands that wrap OS
 // tools with validated argv (no shell). The daemon is not required:
@@ -24,7 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 )
 
-// RunWgKeypair generates a WireGuard keypair by invoking `wg genkey`
+// runWgKeypair generates a WireGuard keypair by invoking `wg genkey`
 // and `wg pubkey`. Prints two lines to stdout:
 //
 //	private: <base64>
@@ -33,7 +33,7 @@ import (
 // Usage: ze request wireguard keypair
 //
 // Returns 1 if `wg` is not installed. No arguments accepted.
-func RunWgKeypair(validated command.ValidatedArgs) int {
+func runWgKeypair(validated command.ValidatedArgs) int {
 	args := validated.Tokens()
 	fs := flag.NewFlagSet("request wireguard keypair", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)

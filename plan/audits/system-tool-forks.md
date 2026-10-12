@@ -79,7 +79,7 @@ Ordered most severe first. "Ships as" says which path the fork is on.
 | 1 | `internal/component/l2tp/kernel_linux.go:514` `probeKernelModules` | `modprobe l2tp_ppp`, `modprobe pppol2tp` | daemon runtime, L2TP subsystem `Start()` | `os.Stat("/sys/module/<n>")` (already present as `moduleBuiltIn`); real load via `unix.FinitModule` | Critical |
 | 2 | `internal/component/plugin/process/process.go:622` `(*Process).startExternal` | `/bin/sh -c <plugin run>` | daemon runtime, plugin supervisor | `exec` of argv without a shell is still a fork; the plugin contract itself needs a decision | High |
 | 3 | `internal/component/config/system/conntrack_linux.go:41` `LoadConntrackModules` | `modprobe nf_conntrack_*` | daemon runtime, system config apply (`cmd/ze/hub/main_system.go:229`) | `unix.FinitModule`; presence already answered by `/proc/modules` in the same file | High |
-| 4 | `internal/plugins/diag/diag.go:54,60` `RunWgKeypair` | `wg genkey`, `wg pubkey` | operator CLI, `ze request wireguard keypair` | `crypto/ecdh` X25519 (`ecdh.X25519().GenerateKey`), base64 std encoding | High |
+| 4 | `internal/plugins/diag/diag.go` `runWgKeypair` | `wg genkey`, `wg pubkey` | operator CLI, `ze request wireguard keypair` | `crypto/ecdh` X25519 (`ecdh.X25519().GenerateKey`), base64 std encoding | High |
 | 5 | `internal/component/bgp/plugins/healthcheck/probe.go:22` `runProbeCommand` and `hooks.go:63` `runSingleHook` | `/bin/sh -c <probe>`, `/bin/sh -c <hook>` | daemon runtime, per probe interval and per state change | none for the arbitrary command; native probes (TCP connect, HTTP, ICMP) would cover the common cases | High |
 | 6 | `internal/plugins/flowexport/conntrack_setup_appliance_linux.go:54` `loadConntrackModules` | `modprobe nf_conntrack`, `modprobe nf_conntrack_netlink` | daemon runtime, gokrazy appliance ONLY (`ze_appliance` tag) | delete it: on gokrazy the modules are built in and `modprobe` is absent by construction | High |
 | 7 | `internal/component/doctor/checks_linux.go:458` `checkVPPVersion` | `vppctl show version` | `ze doctor` | GoVPP binary API over the socket Ze already dials (`internal/component/vpp/conn.go`): `vpe.ShowVersion` | High |
@@ -189,8 +189,8 @@ that are loaded. The gap is only the load itself.
 
 ### 4. WireGuard keypair generation shells out to `wg`
 
-`internal/plugins/diag/diag.go:34-72` `RunWgKeypair`, registered as a local
-command at `internal/plugins/diag/register.go:21` under
+`internal/plugins/diag/diag.go` `runWgKeypair`, registered as a local
+command in `internal/plugins/diag/register.go` under
 `ze request wireguard keypair`. Its own usage text says "The system must have
 the `wg` binary installed", and it returns 1 when the binary is absent.
 

@@ -14,7 +14,7 @@ import (
 // accounting in flushWrites. Each sends at 0.6 SendHoldTime and survives to 1.2
 // SendHoldTime; the exact new deadline also distinguishes a restart from a stopped timer.
 // MUTATION: remove the emitted-message reset in flushWrites: the deadline stays old.
-// RFC requirement: RFC9687-4.3-8 positive -- SendAnnounce, SendUpdateHeld, raw and parsed fwdBatchHandler batches, and flushFwdDirty restart the live session's SendHoldTimer and survive 1.2 SendHoldTime with a send in the middle.
+// RFC requirement: RFC9687-4.3-8 positive -- SendAnnounce, sendUpdateHeld, raw and parsed fwdBatchHandler batches, and flushFwdDirty restart the live session's SendHoldTimer and survive 1.2 SendHoldTime with a send in the middle.
 func TestRFC9687RemainingWritersRestartSendHold(t *testing.T) {
 	for _, name := range []string{"announce", "held", "batch-raw", "batch-parsed", "dirty-flush"} {
 		t.Run(name, func(t *testing.T) {
@@ -33,8 +33,8 @@ func TestRFC9687RemainingWritersRestartSendHold(t *testing.T) {
 				route := bgptypes.RouteSpec{Prefix: netip.MustParsePrefix("198.51.100.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.99"))}
 				err = s.SendAnnounce(route, netip.Addr{}, 65001, false, true, false)
 			case "held":
-				s.HoldWrites()
-				err = s.SendUpdateHeld(&message.Update{WithdrawnRoutes: []byte{24, 10, 0, 0}})
+				s.holdWrites()
+				err = s.sendUpdateHeld(&message.Update{WithdrawnRoutes: []byte{24, 10, 0, 0}})
 				s.releaseWrites()
 			case "batch-raw", "batch-parsed":
 				// RFC 9687 Section 4.3: only this post-advance send can restart the deadline.

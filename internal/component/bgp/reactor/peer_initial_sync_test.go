@@ -27,7 +27,7 @@ import (
 // Established Session writing into the returned recordingConn, so a test can
 // assert on the bytes that actually reached the wire; when false the Session is
 // left in Idle, which is the state a session that went away mid-establishment
-// presents to SendUpdateHeld (session_write.go: ErrInvalidState, nothing written).
+// presents to sendUpdateHeld (session_write.go: ErrInvalidState, nothing written).
 func newInitialSyncPeer(t *testing.T, established bool, families ...family.Family) (*Peer, *recordingConn) {
 	t.Helper()
 	settings := &PeerSettings{
@@ -238,7 +238,7 @@ func TestNoTestBuildsItsOwnFamiliesSentMap(t *testing.T) {
 
 // TestInitialSyncEORNotCountedWhenSessionLeftEstablished is the failure half: when
 // the session drops between sendInitialRoutes reading p.session and the EOR write,
-// SendUpdateHeld returns ErrInvalidState WITHOUT writing anything, and the counter
+// sendUpdateHeld returns ErrInvalidState WITHOUT writing anything, and the counter
 // must not move.
 //
 // VALIDATES: the incrEORSent contract (peer_stats.go): "eor-sent >= 1 means the

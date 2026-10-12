@@ -130,8 +130,8 @@ func TestRFC9687SuppressedAttemptsDoNotRestartSendHold(t *testing.T) {
 				case "policy-update", "duplicate-update", "paths-limit":
 					err = s.SendUpdate(update)
 				case "policy-held", "duplicate-held":
-					s.HoldWrites()
-					err = s.SendUpdateHeld(update)
+					s.holdWrites()
+					err = s.sendUpdateHeld(update)
 					s.releaseWrites()
 				case "policy-batch", "stale-batch-raw", "stale-batch-parsed":
 					fwdBatchHandler(fwdKey{}, []fwdItem{item})

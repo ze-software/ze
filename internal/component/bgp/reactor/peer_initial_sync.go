@@ -301,7 +301,7 @@ func (p *Peer) sendInitialRoutes() {
 	// both holds AND the gap by initialSyncEOROwed rather than by the lock
 	// (reactor_api_forward.go).
 	//
-	// HoldWrites is s.writeMu.Lock (session_write.go). While it is held both
+	// holdWrites is s.writeMu.Lock (session_write.go). While it is held both
 	// egress rails are shut out, but by opposite mechanisms, and this comment
 	// had them backwards: the RS FAST PATH is the TryLock and gives up
 	// (forward_rs.go tryDirectWriteNoFlush, falling back to the pool), while the
@@ -323,11 +323,11 @@ func (p *Peer) sendInitialRoutes() {
 	func() {
 		sendFn := p.sendUpdateDirect
 		if session != nil {
-			session.HoldWrites()
+			session.holdWrites()
 			// This phase MUST release its hold before the queue drain, including
 			// panic unwinding to sendInitialRoutes' recovery boundary.
 			defer session.releaseWrites()
-			sendFn = session.SendUpdateHeld
+			sendFn = session.sendUpdateHeld
 		}
 
 		// Send family-specific routes (config-originated).
@@ -376,11 +376,11 @@ func (p *Peer) sendInitialRoutes() {
 	func() {
 		sendFn := p.sendUpdateDirect
 		if session != nil {
-			session.HoldWrites()
+			session.holdWrites()
 			// This separate phase MUST release its own hold on return or panic;
 			// it MUST NOT cover the queue drain or forwarding wake above.
 			defer session.releaseWrites()
-			sendFn = session.SendUpdateHeld
+			sendFn = session.sendUpdateHeld
 		}
 
 		// `behavior { manual-eor true }` withholds the AUTOMATIC marker, because
@@ -401,11 +401,11 @@ func (p *Peer) sendInitialRoutes() {
 		// RFC 4724: "including the case when there is no update to send"
 		// Families() returns families in deterministic order (sorted by AFI, then SAFI).
 		//
-		// sendFn is session.SendUpdateHeld here (writeMu already held): it writes the
+		// sendFn is session.sendUpdateHeld here (writeMu already held): it writes the
 		// UPDATE AND flushes bufWriter before returning (session_write.go
-		// SendUpdateHeld), so a nil error means the frame left for the socket, not
+		// sendUpdateHeld), so a nil error means the frame left for the socket, not
 		// that it was queued behind the hold. A non-nil error means it did NOT --
-		// SendUpdateHeld returns ErrInvalidState without writing anything once the FSM
+		// sendUpdateHeld returns ErrInvalidState without writing anything once the FSM
 		// has left Established, and the session can go down between the p.session read
 		// above and this call. Counting such an attempt would publish an end-of-RIB
 		// the peer never receives, exactly the barrier the compiled functional

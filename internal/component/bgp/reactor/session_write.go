@@ -997,20 +997,20 @@ func (s *Session) requestWriteDeadline(ctx context.Context, conn net.Conn) (func
 	}, nil
 }
 
-// HoldWrites acquires the session write lock, preventing the forward pool
+// holdWrites acquires the session write lock, preventing the forward pool
 // (which uses TryLock) from interleaving messages. Caller MUST call
-// ReleaseWrites when done and use SendUpdateHeld instead of SendUpdate.
-func (s *Session) HoldWrites() {
+// releaseWrites when done and use sendUpdateHeld instead of SendUpdate.
+func (s *Session) holdWrites() {
 	s.writeMu.Lock()
 }
 
-// releaseWrites releases the write lock acquired by HoldWrites.
+// releaseWrites releases the write lock acquired by holdWrites.
 func (s *Session) releaseWrites() {
 	s.writeMu.Unlock()
 }
 
-// SendUpdateHeld sends an UPDATE while writeMu is already held by the caller
-// via HoldWrites. Calling without HoldWrites is undefined.
+// sendUpdateHeld sends an UPDATE while writeMu is already held by the caller
+// via holdWrites. Calling without holdWrites is undefined.
 //
 // It MUST NOT take s.mu. The caller already holds writeMu, and the lock
 // hierarchy orders s.mu BEFORE writeMu (see the Session type). closeConn takes
@@ -1019,7 +1019,7 @@ func (s *Session) releaseWrites() {
 // that landed during the initial sync deadlocked the peer for good. The state
 // read needs no s.mu anyway: s.fsm is set once in NewSession and FSM.State
 // takes the FSM's own lock.
-func (s *Session) SendUpdateHeld(update *message.Update) error {
+func (s *Session) sendUpdateHeld(update *message.Update) error {
 	state := s.fsm.State()
 
 	if state != fsm.StateEstablished {
