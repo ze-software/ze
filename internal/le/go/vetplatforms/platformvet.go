@@ -1,8 +1,15 @@
 // Design: docs/architecture/core-design.md -- native Go checks run through le
 // Detail: ../gotoolchain/gotoolchain.go -- the environment for the Go command
 //
-// Package govetplatforms checks the host and interface package trees against the
-// non-Linux implementations that the normal host build does not compile.
+// Package govetplatforms type-checks the shipped tree under the non-Linux
+// targets that the normal host build does not compile.
+//
+// The lint flavors cannot stand in for it. A lint flavor claims a package
+// only when that flavor selects a file no earlier pass selected, so a package
+// whose files are all shared (internal/test/runner, internal/core/diskspace) is
+// linted once, under the host GOOS, and never type-checked against FreeBSD's
+// signed Rlimit or OpenBSD's F_-prefixed Statfs_t. This action vets every
+// package under every target it names, so such a break fails here.
 package govetplatforms
 
 import (
@@ -25,15 +32,28 @@ const (
 	PlatformDarwin Platform = iota + 1
 	// PlatformFreeBSD selects the FreeBSD stubs.
 	PlatformFreeBSD
+	// PlatformOpenBSD selects the OpenBSD stubs.
+	PlatformOpenBSD
 )
 
-// packagePatterns is the complete population each platform action vets. No
-// feature tags are added because the action runs plain `go vet`.
+// packagePatterns is the complete population each platform action vets: the
+// shipped tree, with its test files.
 var packagePatterns = [...]string{
-	"./internal/component/host/...",
-	"./internal/component/iface/...",
-	"./internal/plugins/iface/...",
+	"./cmd/...",
+	"./internal/...",
+	"./pkg/...",
 }
+
+// personalityTags are added to the manifest's feature tags, so the files every
+// shipped personality selects are type-checked together, as the lint
+// "personalities" flavor does for Linux.
+var personalityTags = []string{"ze_distro", "ze_appliance", "ze_setup"}
+
+// vetFlags turns off the one analyzer the tree is known to trip on purpose:
+// internal/core/textbuf hides a pointer from escape analysis with a uintptr
+// round trip, and golangci-lint's govet carries the reviewed nolint for it.
+// The action exists for compile correctness; the full analyzer set is lint's.
+var vetFlags = []string{"-unsafeptr=false"}
 
 type platformSpec struct {
 	platform Platform
@@ -47,16 +67,23 @@ var platformSpecs = [...]platformSpec{
 		platform: PlatformDarwin,
 		goos:     "darwin",
 		verb:     "darwin",
-		why: "the iface and host trees still compile under GOOS=darwin. Nothing in the " +
-			"default host-GOOS build exercises default_other.go, backend_other.go or " +
-			"host/platform_other.go, so a stub that stops compiling rots silently",
+		why: "the shipped tree still compiles under GOOS=darwin. A Linux host build never " +
+			"selects default_other.go, backend_other.go or host/platform_other.go, so a stub " +
+			"that stops compiling rots silently",
 	},
 	{
 		platform: PlatformFreeBSD,
 		goos:     "freebsd",
 		verb:     "freebsd",
-		why: "the same trees under GOOS=freebsd. An int64-versus-uint64 syscall.Rlimit " +
+		why: "the shipped tree under GOOS=freebsd. An int64-versus-uint64 syscall.Rlimit " +
 			"drift is the shape of break this catches",
+	},
+	{
+		platform: PlatformOpenBSD,
+		goos:     "openbsd",
+		verb:     "openbsd",
+		why: "the shipped tree under GOOS=openbsd, whose Statfs_t names its fields F_bavail " +
+			"and F_bsize, so code reading Bavail compiles everywhere else",
 	},
 }
 
@@ -84,8 +111,8 @@ type Report struct {
 
 type actionExecutor func(string, []string, string, []string) (gaterun.ActionReport, int)
 
-// Runner owns the derived toolchain for both platform actions. It reads the
-// checkout once when a sweep names Darwin and FreeBSD together.
+// Runner owns the derived toolchain for every platform action. It reads the
+// checkout once when a sweep names several platforms together.
 type Runner struct {
 	root    string
 	chain   gotoolchain.Toolchain
@@ -112,11 +139,20 @@ func newRunner(root string, execute actionExecutor) (Runner, error) {
 	return Runner{root: root, chain: chain, execute: execute}, nil
 }
 
-// packagePatternsForVet returns the exact three package patterns the action vets.
+// packagePatternsForVet returns the exact package patterns the action vets.
 func packagePatternsForVet() []string { return slices.Clone(packagePatterns[:]) }
 
+// vetCommand answers the argv one platform runs: the manifest's tags plus the
+// personality tags, the vet flags, then the packages.
+func (r Runner) vetCommand(packages []string) []string {
+	args := make([]string, 0, len(vetFlags)+len(packages))
+	args = append(args, vetFlags...)
+	args = append(args, packages...)
+	return r.chain.GoVet(gotoolchain.TestOptions{Tags: personalityTags}, args...)
+}
+
 // Plan derives one invocation. GOOS is the only cross-target override. GOARCH
-// remains inherited, CGO remains disabled, and no tag flag is added.
+// remains inherited and CGO remains disabled.
 func (r Runner) Plan(platform Platform) (Plan, error) {
 	spec, err := specFor(platform)
 	if err != nil {
@@ -127,9 +163,7 @@ func (r Runner) Plan(platform Platform) (Plan, error) {
 	}
 
 	packages := packagePatternsForVet()
-	command := make([]string, 0, 2+len(packages))
-	command = append(command, "go", "vet")
-	command = append(command, packages...)
+	command := r.vetCommand(packages)
 
 	return Plan{
 		Action:      spec.verb,
@@ -165,15 +199,12 @@ func failedReport(platform Platform, err error) Report {
 	if specErr != nil {
 		return Report{Code: 2, Error: err.Error()}
 	}
-	packages := packagePatternsForVet()
-	command := make([]string, 0, 2+len(packages))
-	command = append(command, "go", "vet")
-	command = append(command, packages...)
+	// No command ran, and none is reported: the toolchain that would have
+	// derived its tags is what failed.
 	return Report{
 		Action:   spec.verb,
 		Platform: spec.goos,
-		Packages: packages,
-		Command:  command,
+		Packages: packagePatternsForVet(),
 		Code:     2,
 		Error:    err.Error(),
 	}

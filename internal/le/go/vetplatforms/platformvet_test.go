@@ -58,7 +58,7 @@ func platformVetEnvValue(entries []string, key string) (string, bool) {
 
 func TestActionsDeclareBothReadOnlyPlatforms(t *testing.T) {
 	listing := Actions()
-	want := []string{"darwin", "freebsd"}
+	want := []string{"darwin", "freebsd", "openbsd"}
 	if len(listing.Actions) != len(want) {
 		t.Fatalf("go vet-platforms declares %d actions, want %d", len(listing.Actions), len(want))
 	}
@@ -88,11 +88,14 @@ func TestBothPlansUseTheExactCommandAndDistinctGOOS(t *testing.T) {
 		t.Fatalf("NewRunner: %v", err)
 	}
 
+	// The fixture manifest declares ze_bgp, so the tag set is that feature
+	// plus the personalities every shipped build selects.
 	wantCommand := []string{
-		"go", "vet",
-		"./internal/component/host/...",
-		"./internal/component/iface/...",
-		"./internal/plugins/iface/...",
+		"go", "vet", "-tags", "ze_core ze_bgp ze_distro ze_appliance ze_setup",
+		"-unsafeptr=false",
+		"./cmd/...",
+		"./internal/...",
+		"./pkg/...",
 	}
 	for _, test := range []struct {
 		platform Platform
@@ -101,6 +104,7 @@ func TestBothPlansUseTheExactCommandAndDistinctGOOS(t *testing.T) {
 	}{
 		{PlatformDarwin, "darwin", "darwin"},
 		{PlatformFreeBSD, "freebsd", "freebsd"},
+		{PlatformOpenBSD, "openbsd", "openbsd"},
 	} {
 		plan, planErr := runner.Plan(test.platform)
 		if planErr != nil {
@@ -112,8 +116,8 @@ func TestBothPlansUseTheExactCommandAndDistinctGOOS(t *testing.T) {
 		if !slices.Equal(plan.Command, wantCommand) {
 			t.Errorf("Plan(%s) command = %v, want %v", test.goos, plan.Command, wantCommand)
 		}
-		if !slices.Equal(plan.Packages, wantCommand[2:]) {
-			t.Errorf("Plan(%s) packages = %v, want %v", test.goos, plan.Packages, wantCommand[2:])
+		if !slices.Equal(plan.Packages, wantCommand[5:]) {
+			t.Errorf("Plan(%s) packages = %v, want %v", test.goos, plan.Packages, wantCommand[5:])
 		}
 		for key, want := range map[string]string{
 			"GOCACHE":             filepath.Join(root, "cache", "go-cache"),
@@ -205,7 +209,7 @@ func TestRunnerFailsClosedOnMissingToolchainData(t *testing.T) {
 
 func TestRunnerFailsClosedBeforeExecutionWhenAPackageIsMissing(t *testing.T) {
 	root := platformVetFixture(t, platformVetManifest, platformVetGoMod)
-	missing := filepath.Join(root, "internal", "component", "iface")
+	missing := filepath.Join(root, "pkg")
 	if err := os.Remove(missing); err != nil {
 		t.Fatalf("remove fixture package: %v", err)
 	}
@@ -281,5 +285,58 @@ func TestDefaultRunnerStreamsChildOutputAndExitCodeUnchanged(t *testing.T) {
 	wantErr := "==> darwin\nvet stderr\n"
 	if got := string(errOut); got != wantErr {
 		t.Errorf("stderr=%q, want %q", got, wantErr)
+	}
+}
+
+// TestASharedOnlyPackageThatBreaksOnABSDFailsTheGate proves the gate that type-
+// checks the BSD targets reaches a package whose files every target shares, the
+// shape lint's flavors never compile under FreeBSD or OpenBSD. Method: a real
+// `go vet` over a fixture whose one package reads Statfs_t the Linux and Darwin
+// way. It compiles under darwin (the control, so the fixture itself is sound)
+// and must fail under freebsd (signed Bavail) and openbsd (F_bavail).
+func TestASharedOnlyPackageThatBreaksOnABSDFailsTheGate(t *testing.T) {
+	root := platformVetFixture(t, platformVetManifest, platformVetGoMod)
+	shared := filepath.Join(root, "internal", "core", "diskfree")
+	if err := os.MkdirAll(shared, 0o750); err != nil {
+		t.Fatalf("create shared package: %v", err)
+	}
+	source := "package diskfree\n\nimport \"syscall\"\n\n" +
+		"// Free answers the bytes free at path.\n" +
+		"func Free(path string) (uint64, error) {\n" +
+		"\tvar stat syscall.Statfs_t\n" +
+		"\tif err := syscall.Statfs(path, &stat); err != nil {\n\t\treturn 0, err\n\t}\n" +
+		"\treturn stat.Bavail * uint64(stat.Bsize), nil\n}\n"
+	if err := os.WriteFile(filepath.Join(shared, "diskfree.go"), []byte(source), 0o600); err != nil {
+		t.Fatalf("write shared package: %v", err)
+	}
+	// A sound package beside it, in a tree an earlier, narrower population
+	// named, so a gate that never reaches the shared package still has
+	// something to vet and passes: that pass is the red this test exists for.
+	sound := filepath.Join(root, "internal", "component", "host", "sound")
+	if err := os.MkdirAll(sound, 0o750); err != nil {
+		t.Fatalf("create sound package: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sound, "sound.go"), []byte("package sound\n"), 0o600); err != nil {
+		t.Fatalf("write sound package: %v", err)
+	}
+	runner, err := NewRunner(root)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	for _, test := range []struct {
+		platform Platform
+		wantRed  bool
+	}{
+		{PlatformDarwin, false},
+		{PlatformFreeBSD, true},
+		{PlatformOpenBSD, true},
+	} {
+		report, code := runner.Run(test.platform)
+		if test.wantRed && code == 0 {
+			t.Errorf("%s: a shared-only package that does not compile passed the gate: %#v", report.Platform, report)
+		}
+		if !test.wantRed && code != 0 {
+			t.Errorf("%s: the control build failed with code %d, so the fixture is unsound", report.Platform, code)
+		}
 	}
 }

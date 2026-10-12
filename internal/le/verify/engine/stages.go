@@ -88,7 +88,7 @@ func fullStages() []Stage {
 	}
 	stages = slices.Concat(stages, staticcheckStages(), []Stage{
 		structural("repo compiles", "check"),
-		stage("go vet-platforms", "darwin", "freebsd"),
+		stage("go vet-platforms", "darwin", "freebsd", "openbsd"),
 		structural("doc wiring"),
 		stage("doc check", "verify"),
 		stage("doc check", "links"),

@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- the go vet-platforms area, as one command
-// Overview: platformvet.go -- the shared runner for both cross-target actions
+// Overview: platformvet.go -- the shared runner for every cross-target action
 //
 // actions.go owns the two gate rows and their sweep behavior. The dispatch,
 // listing, help line, and refusal text come from internal/le/le/action.
@@ -14,7 +14,7 @@ const area = "go vet-platforms"
 
 type platformRun func(Platform) (any, int)
 
-// actionTable derives both actions from the platform specifications. A sweep
+// actionTable derives every action from the platform specifications. A sweep
 // resolves every action name before it calls run.
 func actionTable(run platformRun) leaction.Area {
 	rows := make([]leaction.Action, 0, len(platformSpecs))

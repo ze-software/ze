@@ -12,7 +12,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "vet the host and interface trees against their Darwin and FreeBSD implementations",
+		ShortHelp: "type-check the shipped tree under GOOS darwin, freebsd and openbsd",
 		Mode:      "offline",
 		Section:   registry.SectionTest,
 		SubsFunc:  Subs,
@@ -23,6 +23,6 @@ func init() {
 	// row-shaped data. Pipe operators can render those answers directly.
 	leroot.RegisterShape(area, command.ShapeMap)
 
-	// Claims come from the same action table that dispatches both platforms.
+	// Claims come from the same action table that dispatches every platform.
 
 }
