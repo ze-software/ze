@@ -146,6 +146,10 @@ func prepareFwdProvenance(item *fwdItem, original, transformed *wireu.WireUpdate
 			return err
 		}
 	}
+	// The path visitor below escapes to the heap, so it captures this copy and
+	// never item: capturing item would leak the caller's stack fwdItem and cost
+	// every forwarded UPDATE one allocation, ADD-PATH or not.
+	source := item.receivedPeer
 	err := fwdBodySections(transformed.Payload(), func(data []byte, fam family.Family, withdraw, multiprotocol bool) error {
 		if p.count == len(p.sections) {
 			return fmt.Errorf("forward ownership: too many NLRI sections")
@@ -154,7 +158,7 @@ func prepareFwdProvenance(item *fwdItem, original, transformed *wireu.WireUpdate
 		section.family, section.withdraw, section.multiprotocol = fam, withdraw, multiprotocol
 		p.count++
 		return fwdProvenancePaths(data, fam, ctx, withdraw, func(raw []byte, received uint32, addPath bool) error {
-			path := adjOutPath{source: item.receivedPeer, received: received, addPath: addPath}
+			path := adjOutPath{source: source, received: received, addPath: addPath}
 			if synthesized && withdraw {
 				var key fwdPathKey
 				if err := fwdPathKeyFor(&key, fam, received, raw, true, scratch[:]); err != nil {
