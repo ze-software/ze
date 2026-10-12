@@ -62,6 +62,9 @@ setter.
 
 ### Owner questions (scope and product only)
 
+Answered by Thomas, 2026-10-12: Q-1 "One spec (Recommended)"; Q-2 "Accept all
+three (Recommended)".
+
 | # | Question | Recommendation |
 |---|----------|----------------|
 | Q-1 | One spec in phases, or split route D (the FlowSpec and BGP-LS core move, 11 edges, the largest phase) into its own spec? | one spec, D1 and D2 as separate phases and commits |
@@ -283,7 +286,7 @@ today, so core gains no dependency on component or plugin code.
 | AC-11c | a field before any `add`/`del` | refused as today (`route.ErrMissingAddDel`) |
 | AC-11d | `path-information N` in a command carrying an SR-Policy section: before `nlri`, inside the section, or in a mixed command (`path-information 5 nlri ipv4/unicast add ... nlri ipv4/sr-policy add ...`) | the whole command is refused and nothing is applied (Q-2 (b)), with an error naming the problem (SR-Policy NLRI does not support ADD-PATH, RFC 9830) and the fix (drop `path-information`, or put SR-Policy in its own command); never stripped silently. The refusal comes from a fact the SR-Policy plugin declares in its registration, never from a SAFI test in `update` |
 | AC-11e | `rd` or `label` inside an SR-Policy section | refused by the SR-Policy encoder with an error naming the token and saying SR-Policy takes only `distinguisher`, `color`, `endpoint` (today these end the section and the top-level parser refuses them; refused before, refused after, clearer message) |
-| AC-11f | endpoint of the other address family (`ipv4/sr-policy ... endpoint 2001:db8::1`) | refused by `validateSRPolicyEndpoint`: the one deliberate behavior change, owner question Q-2 |
+| AC-11f | endpoint of the other address family (`ipv4/sr-policy ... endpoint 2001:db8::1`) | refused by `validateSRPolicyEndpoint`: a deliberate behavior change, owner question Q-2 (a) |
 | AC-11g | the code | `update_text_srpolicy.go` deleted; no `SAFISRPolicy` in `update_text_nlri.go`: the SAFI 73 branch, the `parseNLRI` case list (line 262) and the native-family switch (lines 448-449) are gone, SR-Policy is reached because the registry says a plugin encodes it |
 | AC-12 | `pool-stats` | answered by `internal/component/bgp/plugins/rib/poolcmd` with its module `ze-rib-poolstats-cmd.yang` in `internal/component/bgp/plugins/rib/poolcmd/yang/` (WireMethod `ze-bgp:pool-stats` unchanged); one row per pool in `AllPools()`, every row named from names declared beside the pools in `rib/pool/attributes.go`, no `unknown` |
 | AC-13 | `capture-raw protocol bfd` with BFD running / not running | works / returns today's not-available error; the provider is held in an atomic in `bfd/api`; `bfd.go` imports no `plugins/diag`; race-enabled test green |
