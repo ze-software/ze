@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -112,11 +113,15 @@ func registerOSPF() {
 	configyang.RegisterCompleteFn("ospf-area-id", areaIDCompletions)
 
 	reg := registry.Registration{
-		Name:                    Namespace,
-		Description:             "Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP",
-		Features:                "yang",
-		YANG:                    ospfyang.ZeOSPFConfYANG,
-		ConfigRoots:             []string{Namespace},
+		Name:        Namespace,
+		Description: "Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP",
+		Features:    "yang",
+		YANG:        ospfyang.ZeOSPFConfYANG,
+		ConfigRoots: []string{Namespace},
+		// An interface's `bfd { enabled true }` opts into BFD, so commit hands
+		// OSPF the candidate bfd section to refuse the opt-in while BFD is
+		// absent or disabled (checkBFDOptIns). A read never auto-loads OSPF.
+		ConfigReads:             []string{bfdapi.ConfigRoot},
 		Dependencies:            []string{"interface", "fib-kernel", "sysctl"},
 		RFCs:                    []string{"2328", "5709", "7474", "9129"},
 		RunEngine:               runOSPFEngine,
@@ -302,8 +307,12 @@ func rpcConfigSections(sections []rpc.ConfigSection) []configSection {
 }
 
 func verifyOSPFConfigSections(sections []rpc.ConfigSection) error {
-	cfg, err := parseOSPFConfig(rpcConfigSections(sections), systemRouterIDSource{})
+	ospfSections := rpcConfigSections(sections)
+	cfg, err := parseOSPFConfig(ospfSections, systemRouterIDSource{})
 	if err != nil {
+		return err
+	}
+	if err := checkBFDOptIns(cfg, ospfSections); err != nil {
 		return err
 	}
 	return validateConfig(cfg)
@@ -414,6 +423,9 @@ func runOSPFEngine(conn net.Conn) int {
 		if err := validateConfig(cfg); err != nil {
 			return err
 		}
+		if err := checkBFDOptIns(cfg, sdkConfigSections(sections)); err != nil {
+			return err
+		}
 		// spec-ospf-ext-5: validate the SR ranges (SRGB/SRLB Range Size > 0,
 		// non-overlap, label bounds, prefix-SID index within the SRGB).
 		if err := validateSRConfig(sdkConfigSections(sections)); err != nil {
@@ -432,6 +444,11 @@ func runOSPFEngine(conn net.Conn) int {
 			return err
 		}
 		if err := validateConfig(cfg); err != nil {
+			return err
+		}
+		// The startup config gets the commit's BFD opt-in check, so a config
+		// that opts into BFD while BFD is absent or disabled cannot boot.
+		if err := checkBFDOptIns(cfg, sdkConfigSections(sections)); err != nil {
 			return err
 		}
 		cfgMu.Lock()

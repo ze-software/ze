@@ -290,17 +290,21 @@ func (rm *routeManager) setupBFDLocked(rs *routeState) {
 			handle.Unsubscribe(ch)
 		}
 
-		go rm.watchBFD(key, idx, ch, done)
+		go rm.watchBFD(key, idx, handle, ch, done)
 	}
 }
 
-func (rm *routeManager) watchBFD(key routeKey, nhIdx int, ch <-chan bfdapi.StateChange, done <-chan struct{}) {
+// watchBFD follows one next-hop's BFD session until the route is torn down
+// (done) or the channel closes because the BFD engine stopped
+// (endVanishedBFDSession).
+func (rm *routeManager) watchBFD(key routeKey, nhIdx int, handle bfdapi.SessionHandle, ch <-chan bfdapi.StateChange, done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
 			return
 		case sc, ok := <-ch:
 			if !ok {
+				rm.endVanishedBFDSession(key, nhIdx, handle)
 				return
 			}
 			rm.mu.Lock()
@@ -337,6 +341,46 @@ func (rm *routeManager) watchBFD(key routeKey, nhIdx int, ch <-chan bfdapi.State
 			}
 			rm.mu.Unlock()
 		}
+	}
+}
+
+// endVanishedBFDSession is watchBFD's answer to its channel closing while the
+// next-hop still holds handle: the BFD engine stopped (engine.Loop.Stop closes
+// every subscriber channel), so the session is gone. The next-hop forgets the
+// handle, with nothing to release into a loop that no longer exists, and stops
+// being BFD-tracked: it is active again, as a next-hop is when static runs
+// without BFD, and the route is reprogrammed if that changed its next-hop set.
+// RFC 5882 Section 4.2: "If a BFD session transitions from Up state to
+// AdminDown ... clients SHOULD NOT take any control protocol action", and an
+// engine stopping is BFD switched off on this system, not a path failure.
+//
+// A route replaced or removed since keeps its own state: its next-hop no
+// longer holds handle, or the route no longer exists.
+func (rm *routeManager) endVanishedBFDSession(key routeKey, nhIdx int, handle bfdapi.SessionHandle) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	rs, exists := rm.routes[key]
+	if !exists {
+		return
+	}
+	if nhIdx >= len(rs.nhStates) {
+		return
+	}
+	nhs := &rs.nhStates[nhIdx]
+	if nhs.handle != handle {
+		return
+	}
+	nhs.handle = nil
+	nhs.unsub = nil
+	logger().Warn("static: BFD session ended because the BFD engine stopped; next hop no longer BFD-tracked",
+		"prefix", key.prefix, "table", key.table, "nh", nhs.nh.Address)
+	if nhs.active {
+		return
+	}
+	nhs.active = true
+	if err := rm.programRouteLocked(rs); err != nil {
+		logger().Warn("static: reprogramming after the BFD engine stopped failed",
+			"prefix", key.prefix, "table", key.table, "error", err)
 	}
 }
 

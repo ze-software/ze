@@ -1,0 +1,167 @@
+# Test: a reload that sets `bfd { enabled false }` while a BGP peer still opts
+#       into BFD is rejected, and the peer keeps its BFD session.
+# Initial config: one iBGP peer with `connection bfd { profile fast }` and the
+#                 `bfd` root, so the session opened on entry to Established is
+#                 listed.
+# Live change:    the staged fixture (reload/live-stages, run inside the daemon)
+#                 reloads config2.conf: the same config with the top-level
+#                 `bfd { enabled false }` and the peer's opt-in kept.
+# Expected:       the reload is refused, naming the peer; the BFD session is
+#                 still listed after it; one TCP connection for the whole test.
+#
+# VALIDATES: owner decision 2026-10-12 (journal lifetime-ends-before-its-last-
+#            reader): a configuration in which a client opts into BFD while BFD
+#            is disabled does not commit, and the refusal names the clients
+#            still opting in (reactor.checkPeerBFDOptIns through
+#            api.CheckOptIns, reached by the reload's BGP verify).
+# PREVENTS: BFD disabled from under a protected peer, which then runs with no
+#           failure detection, or, in strict mode, cannot re-establish.
+#
+# Timers: profile fast is 300 ms x3 (900 ms detection), not 50 ms x3. The
+# session runs over 127.0.0.1 inside one daemon, so a scheduling stall longer
+# than the detection time drops it as "BFD Down" and the peer flaps. That was
+# seen once at 150 ms, during a parallel -race run: BFD Down logged before the
+# refusal, on a verify path that is read-only for BFD. With 4 busy loops on the
+# test's 2 pinned cores, 12 runs of this test and 12 of a control with the
+# reload replaced by `show bfd sessions` polls all passed with no BFD Down
+# (2026-10-12), so the drop is a detection-time artefact, not the reload.
+# Every assertion is unchanged.
+option=timeout:value=60s
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+option=exclusive:group=bfd-ports
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+# ze-peer creates this file on the daemon's first UPDATE; the staged fixture
+# holds its first reload until it exists.
+option=established-file:path=established
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# The clean shutdown after the last stage, on the SAME connection: Cease (6) /
+# Administrative Shutdown (2, RFC 4486) with the RFC 8203 default text.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 300000
+		required-min-rx-us 300000
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			bfd {
+				enabled true
+				mode single-hop
+				profile fast
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# The rejected reload: BFD disabled, the peer's opt-in kept. The plugin block is
+# byte-identical in both configs, so the staged fixture survives.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bfd {
+	enabled false
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 300000
+		required-min-rx-us 300000
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			bfd {
+				enabled true
+				mode single-hop
+				profile fast
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+await-file established
+has show bfd sessions => "peer":"127.0.0.1"
+reload config2.conf
+has show bfd sessions => "peer":"127.0.0.1"
+say BFD-DISABLE-REFUSED: reload refused, BFD session kept
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
+
+expect=stderr:contains=bfd { enabled false } is set, so no client may opt into BFD; remove the bfd opt-in of peer 127.0.0.1 first
+expect=stderr:contains=BFD-DISABLE-REFUSED: reload refused, BFD session kept
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=peer restart required

@@ -305,15 +305,29 @@ stops the daemon, so a file whose peer names an undefined profile never
 boots. `ze config validate`
 does not run this check for a BGP peer: it reports such a file valid,
 and only the daemon refuses it. A static next-hop's `bfd-profile` is
-checked by both. If the session is still refused at
-start (BFD disabled, for example), the peer logs the refusal and runs
-without BFD unless it is in strict mode, where it stays down. If the BFD plugin is not loaded at all,
-the BGP peer starts without BFD and logs a warning -- BGP is not
-blocked by a missing BFD plugin. A peer that names a `profile` is the
-exception: in a build that carries no BFD, nothing can check the name,
-so the daemon refuses to start, the same answer a commit gives, rather
-than run a peer whose operator asked for a profile without BFD at all.
-<!-- source: internal/component/bgp/reactor/peer_bfd.go — verifyPeerBFDProfiles -->
+checked by both.
+
+A client that opts into BFD needs BFD running. A config in which a BGP
+peer's `connection bfd` is enabled, a static next-hop names a
+`bfd-profile`, or an OSPF interface sets `bfd { enabled true; }`, while
+the config has no top-level `bfd` block, sets `bfd { enabled false; }`,
+or runs a build that carries no BFD, is refused: at commit, at reload,
+and at startup, so the daemon does not boot with it. The refusal names
+every client still opting in:
+
+```
+bfd: bfd { enabled false } is set, so no client may opt into BFD; remove the bfd opt-in of peer 192.0.2.1 first
+```
+
+BFD therefore cannot be removed or disabled from under a protected
+client. Remove the opt-ins first, in the same commit or an earlier one:
+a strict-mode peer then restarts, and a peer outside strict mode stays
+up. If a session is still refused at start for another reason, the
+peer logs the refusal and runs without BFD unless it is in strict mode,
+where it stays down.
+<!-- source: internal/component/bgp/reactor/peer_bfd.go — verifyPeerBFDProfiles, checkPeerBFDOptIns -->
+<!-- source: internal/component/bfd/api/opt_in_check.go — CheckOptIns -->
+<!-- source: internal/component/bfd/config.go — checkClientsEnabled -->
 <!-- source: internal/component/bfd/api/profile_check.go — CheckProfile refuses when no BFD registered a checker -->
 <!-- source: internal/component/config/plugin_verify.go — VerifyPluginConfigMapTransition runs only a registration's InProcessConfigVerifier, which BGP does not set -->
 <!-- source: internal/component/plugin/server/reload_compensation.go — reloadConfigSections -->

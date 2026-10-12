@@ -127,6 +127,12 @@ a main-table route is re-inserted into the Loc-RIB with the surviving set, and a
 named-table route is rewritten through the backend. The route is withdrawn only
 when every next hop is down.
 
+Static asks for the BFD service once, when it starts, and its registration
+starts it after the bfd plugin (`StartAfter: ["bfd"]`) so the service exists by
+then. When the BFD engine stops, every session's subscription closes: the next
+hop forgets its session and is active again, untracked, as it is when static
+runs without BFD (`routeManager.endVanishedBFDSession`).
+
 A main-table route's weights reach the data plane through `nexthop.NextHop.Weight`
 on the Loc-RIB path and `ECMPPath.Weight` on the best-change event. Both are one
 octet, which is what the kernel's `rtnh_hops` and VPP's `fib_path` weight each

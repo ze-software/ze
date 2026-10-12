@@ -26,8 +26,15 @@ func TestPeerBFDProfileCheckedAtCommit(t *testing.T) {
 		refusal string
 	}{
 		{"defined profile", map[string]any{"enabled": "true", "profile": "fast"}, commitBFDSection, ""},
-		{"no profile named", map[string]any{"enabled": "true"}, "", ""},
+		{"no profile named", map[string]any{"enabled": "true"}, `{"bfd":{}}`, ""},
 		{"bfd disabled on the peer", map[string]any{"enabled": "false", "profile": "typo"}, commitBFDSection, ""},
+		// The owner decision of 2026-10-12: a peer opting into BFD needs BFD
+		// running, so BFD cannot be removed from under it.
+		{"opt-in, no bfd section", map[string]any{"enabled": "true"}, "", "the config has no bfd section"},
+		{"opt-in, bfd disabled", map[string]any{"enabled": "true"}, `{"bfd":{"enabled":"false"}}`, "bfd { enabled false }"},
+		{"opt-in with profile, bfd disabled", map[string]any{"enabled": "true", "profile": "fast"},
+			`{"bfd":{"enabled":"false","profile":{"fast":{"detect-multiplier":"5"}}}}`, "bfd { enabled false }"},
+		{"peer bfd disabled, no bfd section", map[string]any{"enabled": "false"}, "", ""},
 		{"undefined profile", map[string]any{"enabled": "true", "profile": "typo"}, commitBFDSection, `profile "typo" is not defined`},
 		{"no bfd section", map[string]any{"enabled": "true", "profile": "fast"}, "", "the config has no bfd section"},
 		{"passive single-hop", map[string]any{"enabled": "true", "profile": "quiet"}, commitBFDSection, `profile "quiet" sets passive`},

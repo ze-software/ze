@@ -597,3 +597,57 @@ func TestOSPFBFDReloadDisableKeepsAdjacency(t *testing.T) {
 		t.Fatalf("neighbor state = %v (ok=%v), want full (disable must not bounce)", snap.State, ok)
 	}
 }
+
+// ---- the BFD engine stops under a running client ----
+
+// VALIDATES: when the BFD engine stops, which closes every subscriber channel,
+// the OSPF client detaches itself without a release, the sessions gauge falls,
+// and the next Full asks the service for a new session.
+//
+// PREVENTS: a client left in the map after its engine went away: bfdNeighborFull
+// then returned on "exists" and the neighbor never got BFD back, and the gauge
+// counted a session nothing ran.
+func TestOSPFBFDEngineStopDetachesClient(t *testing.T) {
+	svc := newFakeBFDService()
+	e, reg := bfdTestEngine(t, enabledBFD(), svc)
+	id := ridMust(t, bfdTestPeerRID)
+	seedNeighbor(t, e, id, netip.MustParseAddr(bfdTestPeerAddr))
+	e.bfdNeighborFull(fullSnap(id))
+	key := svc.firstRequest(t).Key()
+	h := svc.handleFor(t, key)
+
+	// engine.Loop.Stop: every subscriber channel closes, no handle survives.
+	svc.mu.Lock()
+	delete(svc.handles, key)
+	svc.mu.Unlock()
+	close(h.ch)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		e.bfdMu.Lock()
+		left := len(e.bfdClients)
+		e.bfdMu.Unlock()
+		if left == 0 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	e.bfdMu.Lock()
+	left := len(e.bfdClients)
+	e.bfdMu.Unlock()
+	if left != 0 {
+		t.Fatalf("BFD clients = %d 2s after the engine stopped, want 0", left)
+	}
+	if got := reg.get("ze_ospf_bfd_sessions"); got != 0 {
+		t.Fatalf("sessions gauge = %d after the engine stopped, want 0", got)
+	}
+	if got := svc.release.Load(); got != 0 {
+		t.Fatalf("ReleaseSession calls = %d, want 0: no loop is left to release into", got)
+	}
+
+	e.bfdNeighborFull(fullSnap(id))
+	if got := svc.ensure.Load(); got != 2 {
+		t.Fatalf("EnsureSession calls = %d, want 2: the next Full did not ask again", got)
+	}
+	e.bfdNeighborLost(fullSnap(id))
+}

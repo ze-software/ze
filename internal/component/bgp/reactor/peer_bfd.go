@@ -412,8 +412,9 @@ func (p *Peer) runOpenedBFDClient(opened *openedBFD) {
 
 // runBFDSubscriber is the per-peer subscriber worker. It drains the
 // subscription channel until either stop is signaled or the channel
-// closes (handle released), and turns each BFD state change into the
-// FSM event draft-ietf-idr-bgp-bfd-strict-mode Section 4 names for it.
+// closes (the BFD engine stopped: endVanishedBFDSession), and turns each BFD
+// state change into the FSM event draft-ietf-idr-bgp-bfd-strict-mode Section 4
+// names for it.
 //
 //	BFD Up        -> Event 32, BfdUp
 //	BFD Down      -> Event 31, BfdDown
@@ -430,7 +431,6 @@ func (p *Peer) runBFDSubscriber(
 	stop <-chan struct{},
 	done chan<- struct{},
 ) {
-	_ = handle // retained for future Shutdown/Enable integration
 	defer close(done)
 	for {
 		select {
@@ -438,6 +438,7 @@ func (p *Peer) runBFDSubscriber(
 			return
 		case change, ok := <-sub:
 			if !ok {
+				p.endVanishedBFDSession(handle)
 				return
 			}
 			// The entry time moves with the state, because Section 10
@@ -526,6 +527,51 @@ func (p *Peer) runBFDSubscriber(
 			p.deliverBFDEvent(event)
 		}
 	}
+}
+
+// endVanishedBFDSession is the subscriber's answer to its channel closing
+// while this peer still holds handle: the BFD engine stopped, which closes
+// every subscriber channel (engine.Loop.Stop), and the session is gone with
+// it. The peer forgets the handle so the next startBFDClient asks the service
+// again instead of returning on a handle that answers nothing, and no longer
+// reports a live session. Nothing is released: the loop the handle named is
+// gone, so there is no reference left to drop.
+//
+// When stopBFDClient or a reopen took the handle first, the peer's state
+// already belongs to that caller and is left alone.
+//
+// The FSM is told the session went AdminDown, because a BFD engine stopping
+// is BFD being disabled on this system, and draft-ietf-idr-bgp-bfd-strict-mode
+// Section 4, Event 35, says: "When BFD has been disabled, the local system
+// will trigger a BfdAdminDown event instead." Section 8.7.1 ignores it in
+// Established, matching RFC 5882 Section 4.2: "If a BFD session transitions
+// from Up state to AdminDown ... clients SHOULD NOT take any control protocol
+// action", so the BGP session keeps running on its hold timer. A strict peer
+// waiting in a BfdUpPending sub-state proceeds (Sections 8.3.1 to 8.5.1), and
+// its next OPEN finds no live session, so bfdStrictHolds holds it exactly as
+// it holds a strict peer whose BFD plugin is not running.
+//
+// Called only from runBFDSubscriber, the goroutine that owns handle's channel.
+func (p *Peer) endVanishedBFDSession(handle api.SessionHandle) {
+	p.bfd.mu.Lock()
+	if p.bfd.handle != handle {
+		p.bfd.mu.Unlock()
+		return
+	}
+	p.bfd.svc = nil
+	p.bfd.handle = nil
+	p.bfd.sub = nil
+	p.bfd.stop = nil
+	p.bfd.done = nil
+	// RFC 5880 Section 6.8.1: a session that exists again starts in Down.
+	p.bfd.reading.Store(&bfdReading{state: api.StateDown, since: p.clock.Now()})
+	p.bfd.live.Store(false)
+	p.bfd.mu.Unlock()
+
+	peerLogger().Warn("bfd session ended because the BFD engine stopped; peer runs without BFD",
+		"peer", p.settings.Address)
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 4, Event 35
+	p.deliverBFDEvent(fsm.EventBfdAdminDown)
 }
 
 // bfdChangeTime answers when a BFD change happened, preferring the ENGINE's own
@@ -713,6 +759,26 @@ func bfdRequestFor(s *PeerSettings) api.SessionRequest {
 	return req
 }
 
+// checkPeerBFDOptIns refuses a candidate in which a peer opts into BFD (a
+// `connection bfd` container whose enabled leaf is true, the gate
+// startBFDClient applies) while the candidate bfd section is absent or sets
+// `enabled false`. The refusal names every such peer, so the operator removes
+// the opt-ins before BFD: a strict peer then restarts and a non-strict one
+// stays up, by the per-peer rule, rather than BFD vanishing under it.
+func checkPeerBFDOptIns(peers []*PeerSettings, bfdData string) error {
+	var optIns []string
+	for _, s := range peers {
+		if s.BFD == nil {
+			continue
+		}
+		if !s.BFD.Enabled {
+			continue
+		}
+		optIns = append(optIns, "peer "+s.Address.String())
+	}
+	return api.CheckOptIns(bfdData, optIns)
+}
+
 // VerifyPeerBFDProfiles is the commit check for BGP's config verify, reached
 // through registry.BGPReactorHandle (verifyPeerBFDProfiles).
 func (r *Reactor) VerifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) error {
@@ -735,6 +801,9 @@ func (r *Reactor) VerifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) 
 func verifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) error {
 	peers, err := PeersFromTree(bgpTree)
 	if err != nil {
+		return err
+	}
+	if err := checkPeerBFDOptIns(peers, bfdData); err != nil {
 		return err
 	}
 	for _, s := range peers {

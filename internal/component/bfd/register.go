@@ -24,6 +24,9 @@ func init() {
 	// A BGP peer or a static next-hop that names a profile asks this at
 	// commit (api.CheckProfile), so a typo is refused where it was typed.
 	api.SetProfileChecker(checkClientProfile)
+	// A client opting into BFD asks this at commit (api.CheckOptIns), so BFD
+	// cannot be removed or disabled from under a protected client.
+	api.SetEnabledChecker(checkClientsEnabled)
 
 	reg := registry.Registration{
 		Name:                    pluginName,

@@ -130,7 +130,13 @@ func init() {
 		// both plugins land in the same startup tier and static's resolve races
 		// LoadBackend (spec-fixit-static-interface-nexthops A-1c). Optional, so
 		// a config with no `interface` stanza leaves static unconstrained.
-		OptionalDependencies:    []string{"interface"},
+		OptionalDependencies: []string{"interface"},
+		// StartAfter orders static after bfd when both are selected, so the
+		// BFD service bfd publishes in its OnStarted exists when static's
+		// OnStarted asks for it, once (runStaticPlugin). In one tier static
+		// started first and every next-hop ran without BFD. Order only: it
+		// never loads bfd, so a config or a build without BFD is unaffected.
+		StartAfter:              []string{"bfd"},
 		InProcessConfigVerifier: verifyStaticConfig,
 		DoctorChecks:            staticDoctorChecks(),
 		RunEngine:               runStaticPlugin,
@@ -179,8 +185,9 @@ func verifyStaticSections(sections []sdk.ConfigSection, tables *routingtable.Reg
 	return nil, false, nil
 }
 
-// checkBFDProfiles refuses a next-hop whose bfd-profile the candidate bfd
-// section does not define, or defines with a setting a single-hop session may
+// checkBFDProfiles refuses a next-hop naming a bfd-profile while the candidate
+// bfd section is absent or disabled, and a next-hop whose bfd-profile the
+// candidate bfd section does not define, or defines with a setting a single-hop session may
 // not use. Without it the commit succeeds and the session is refused at start,
 // so the route runs unmonitored with a log line as the only trace.
 func checkBFDProfiles(routes []staticRoute, sections []sdk.ConfigSection) error {
@@ -189,6 +196,21 @@ func checkBFDProfiles(routes []staticRoute, sections []sdk.ConfigSection) error 
 		if section.Root == bfdapi.ConfigRoot {
 			bfdData = section.Data
 		}
+	}
+	// A next-hop naming a bfd-profile opts into BFD, so a candidate whose bfd
+	// section is absent or sets `enabled false` is refused, naming each such
+	// next-hop: BFD cannot be removed from under a monitored route.
+	var optIns []string
+	for i := range routes {
+		for _, nh := range routes[i].NextHops {
+			if nh.BFDProfile == "" {
+				continue
+			}
+			optIns = append(optIns, "static route "+routes[i].Prefix.String()+" next-hop "+nh.Address.String())
+		}
+	}
+	if err := bfdapi.CheckOptIns(bfdData, optIns); err != nil {
+		return err
 	}
 	for i := range routes {
 		for _, nh := range routes[i].NextHops {

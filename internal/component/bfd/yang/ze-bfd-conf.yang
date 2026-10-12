@@ -33,10 +33,10 @@ module ze-bfd-conf {
             default true;
             description "The default is true. false stops every BFD session, the ones pinned in this bfd
                 container and the ones a protocol client asks for at runtime. A reload to false stops the
-                pinned sessions already running. A BGP peer that carries a bfd container gets a refusal
-                instead of a session, so a peer in strict mode stays down and a peer outside strict mode
-                runs without BFD. To stop the session of one peer only, remove the bfd container from that
-                peer or set its enabled leaf to false.";
+                pinned sessions already running. A config that sets false while a BGP peer, a static
+                next-hop or an OSPF interface still opts into BFD is refused, naming those clients, so
+                remove the opt-ins first. To stop the session of one peer only, remove the bfd container
+                from that peer or set its enabled leaf to false.";
             ze:help "Master switch for the BFD plugin.";
         }
 

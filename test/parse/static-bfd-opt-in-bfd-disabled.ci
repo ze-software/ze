@@ -1,0 +1,31 @@
+# Test: a static next-hop opting into BFD while `bfd { enabled false }` is rejected.
+#
+# VALIDATES: `ze config validate` refuses a next-hop `bfd-profile` while the
+#            top-level bfd block sets `enabled false`, even though the profile is
+#            defined, naming the route and the next-hop (api.CheckOptIns).
+# PREVENTS: BFD disabled from under a monitored route, which then stays installed
+#           with no failure detection. Owner decision 2026-10-12.
+
+stdin=config:terminator=EOF_CONF
+bfd {
+    enabled false;
+    profile fast {
+        detect-multiplier 5;
+    }
+}
+static {
+    table default {
+        route 192.0.2.0/24 {
+            next {
+                hop 10.0.0.1 {
+                    bfd-profile fast;
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=bfd: bfd { enabled false } is set, so no client may opt into BFD; remove the bfd opt-in of static route 192.0.2.0/24 next-hop 10.0.0.1 first

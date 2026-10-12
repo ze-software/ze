@@ -543,6 +543,24 @@ func checkClientProfile(bfdData, profile string, mode api.HopMode) (authenticate
 	return resolved.Auth != nil, nil
 }
 
+// checkClientsEnabled answers the api.CheckOptIns seam: a client opting into
+// BFD needs the candidate bfd section present and not `enabled false`, the two
+// states in which no client session can open. The enabled leaf is read by
+// parseBFDSection, the parser the running plugin applies.
+func checkClientsEnabled(bfdData string) error {
+	if bfdData == "" {
+		return errors.New("the config has no bfd section")
+	}
+	cfg, err := parseBFDSection(bfdData)
+	if err != nil {
+		return err
+	}
+	if !cfg.enabled {
+		return errors.New("bfd { enabled false } is set")
+	}
+	return nil
+}
+
 // permitsMode answers whether a session in mode may use this profile. It is
 // the one hop-mode check, shared by validate (pinned sessions) and
 // resolveProfile (every client request), so the two paths cannot drift apart.

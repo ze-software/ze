@@ -847,6 +847,14 @@ func RunBFDPlugin(conn net.Conn) int {
 	// pendingCfg holds the validated config between OnConfigVerify and
 	// OnConfigApply. The SDK guarantees Configure runs before Verify on
 	// startup; on reload, Verify runs and Apply consumes the result.
+	// A transaction another participant's verify aborts leaves pendingCfg
+	// set: the SDK gives a plugin no abort hook (the engine's verify-abort
+	// event reaches no plugin), so nothing here can clear it. It is never
+	// applied, because the orchestrator sends apply only to the participants
+	// it sent verify to in the same transaction (TxCoordinator.runVerify,
+	// then runApply or the section-apply nodes of operationNodes, each
+	// selecting by filterDiffs over the same diffs), so the next apply this
+	// plugin sees follows its own verify, which overwrote the stale value.
 	var pendingCfg *pluginConfig
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {

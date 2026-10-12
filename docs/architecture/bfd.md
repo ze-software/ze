@@ -208,7 +208,19 @@ keep running until the transaction commits (`OnConfigCommitted`,
 `runtimeState.committedConfig`). Stopping a loop closes the subscription of every
 protocol client holding a session on it, and a BGP peer or static route asks
 again only at its next Established or route change, so a disable rolled back
-after its loops stopped would have left those clients without BFD. A stop still
+after its loops stopped would have left those clients without BFD. A client
+whose subscription closes forgets that session itself, so its next start asks
+the service again: a BGP peer reports no live session and its FSM takes
+BfdAdminDown (`Peer.endVanishedBFDSession`; draft-ietf-idr-bgp-bfd-strict-mode
+Section 4, Event 35), a static next-hop is active again and untracked
+(`routeManager.endVanishedBFDSession`), and an OSPF client detaches
+(`detachBFDClient`). None of them treats it as a path failure. Such a
+disable no longer commits while a protocol client opts in: each client's
+verify asks `api.CheckOptIns` with the candidate bfd section, and the bfd
+plugin's `checkClientsEnabled` refuses a candidate with no bfd section or with
+`enabled false`, naming every BGP peer, static next-hop and OSPF interface
+still opting in. The deferral still covers pinned sessions and a disable rolled
+back for another participant's failure. A stop still
 deferred when the next apply arrives belongs to a transaction that committed,
 and runs before that apply. A client whose authentication differs from a live session's (Auth Type, Key
 ID, Meticulous flag or secret, or authentication on one side only) is refused

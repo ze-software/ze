@@ -1,0 +1,35 @@
+# Test: an OSPF interface opting into BFD while the config has no bfd block is rejected.
+#
+# VALIDATES: `ze config validate` refuses a config in which an OSPF interface
+#            sets `bfd { enabled true }` and no top-level bfd block exists, naming
+#            the interface. An interface without bfd is not named. OSPF reads the
+#            bfd root (ConfigReads) and asks the bfd plugin (api.CheckOptIns).
+# PREVENTS: the adjacency running on the dead interval alone behind a doctor
+#           notice, the behavior before the owner decision of 2026-10-12.
+
+stdin=config:terminator=EOF_CONF
+ospf {
+    router-id 10.0.0.1
+    areas {
+        area 0.0.0.0 {
+            area-type normal
+        }
+    }
+    interfaces {
+        interface eth0 {
+            area 0.0.0.0
+            bfd {
+                enabled true
+            }
+        }
+        interface eth1 {
+            area 0.0.0.0
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=bfd: the config has no bfd section, so no client may opt into BFD; remove the bfd opt-in of ospf interface eth0 first
+reject=stdout:contains=eth1

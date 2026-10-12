@@ -63,3 +63,21 @@ func TestStaticCommitRefusesUnusableBFDProfile(t *testing.T) {
 		})
 	}
 }
+
+// TestStaticCommitRefusesBFDOptInWhileBFDDisabled is the owner decision of
+// 2026-10-12: a next-hop naming a bfd-profile opts into BFD, so a candidate
+// whose bfd section sets `enabled false` is refused, naming the next-hop, even
+// though the profile is defined.
+func TestStaticCommitRefusesBFDOptInWhileBFDDisabled(t *testing.T) {
+	sections := []sdk.ConfigSection{
+		{Root: pluginName, Data: wrap("10.0.0.0/8", `{"next":{"hop":{"10.0.0.1":{"bfd-profile":"fast"}}}}`)},
+		{Root: "bfd", Data: `{"bfd":{"enabled":"false","profile":{"fast":{"detect-multiplier":"5"}}}}`},
+	}
+	_, _, err := verifyStaticSections(sections, defReg())
+	if err == nil || !strings.Contains(err.Error(), "bfd { enabled false }") {
+		t.Fatalf("verify error = %v, want the bfd { enabled false } refusal", err)
+	}
+	if !strings.Contains(err.Error(), "static route 10.0.0.0/8 next-hop 10.0.0.1") {
+		t.Errorf("verify error = %v, want the next-hop named", err)
+	}
+}

@@ -230,6 +230,11 @@ activate an interface backend. This preserves raw-interface and empty-interface
 BFD startup on platforms without a default interface backend. The order-only
 edge does not keep a target loaded after its own configuration is removed.
 
+Static uses `StartAfter: ["bfd"]`: BFD publishes its service in `OnStarted`,
+and static asks for it once, in its own `OnStarted`. In one tier static could
+start first and run every next-hop without BFD. A static-only configuration, or
+a build without the bfd plugin, never loads BFD through this edge.
+
 The daemon checks its config-path and explicit startup selections together.
 Already-selected explicit prerequisites move into the config-path phase when
 needed; unrelated explicit plugins remain later. Thus an explicitly selected

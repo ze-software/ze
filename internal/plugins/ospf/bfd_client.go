@@ -238,7 +238,8 @@ func (e *engine) startBFDSession(iface string, id types.RouterID, area string, p
 }
 
 // runBFDSubscriber is the per-session subscriber worker (one per BFD-protected neighbor). It
-// drains the subscription channel until stop is signaled or the channel closes.
+// drains the subscription channel until stop is signaled or the channel closes (the BFD
+// engine stopped: the client detaches itself).
 //
 // On a Down that is a path failure it declares the OSPF neighbor down through the existing
 // NSM seam; AdminDown, and a Down the neighbor's AdminDown caused, take no action. It
@@ -254,6 +255,16 @@ func (e *engine) runBFDSubscriber(c *bfdClient, svc api.Service) {
 			return
 		case change, ok := <-c.sub:
 			if !ok {
+				// The BFD engine stopped, which closes every subscriber
+				// channel (engine.Loop.Stop), and the session went with it.
+				// Detach so the next Full asks the service again instead of
+				// finding this client in the map; nil releases nothing into a
+				// loop that no longer exists. No OSPF action: RFC 5882
+				// Section 4.2 asks none for BFD switched off, and the
+				// RouterDeadInterval still guards the adjacency.
+				e.log.Warn("bfd session ended because the BFD engine stopped; ospf neighbor runs on hello/dead timers",
+					"interface", c.key.iface, "neighbor", c.key.router.String())
+				e.detachBFDClient(c, nil)
 				return
 			}
 			e.bfdMu.Lock()
@@ -483,4 +494,35 @@ func bfdRequestForNeighbor(peer, local netip.Addr, ifname string, cfg bfdInterfa
 		RequiredMinRxInterval: cfg.MinRxUs,
 		DetectMult:            cfg.Multiplier,
 	}
+}
+
+// checkBFDOptIns refuses a candidate in which an OSPF interface opts into BFD
+// (`bfd { enabled true }`, on any address family) while the candidate bfd
+// section is absent or sets `enabled false`. The refusal names every such
+// interface, so BFD cannot be removed from under a protected adjacency: the
+// operator removes the opt-ins first. sections are the commit's sections; the
+// bfd one is delivered because the registration reads that root.
+func checkBFDOptIns(cfg ospfConfig, sections []configSection) error {
+	var bfdData string
+	for _, s := range sections {
+		if s.Root == api.ConfigRoot {
+			bfdData = s.Data
+		}
+	}
+	var optIns []string
+	for _, ic := range cfg.Interfaces {
+		if ic.BFD.Enabled {
+			optIns = append(optIns, "ospf interface "+ic.Name)
+		}
+	}
+	families := cfg.v6Families()
+	for i := range families {
+		family := &families[i]
+		for _, ic := range family.cfg.Interfaces {
+			if ic.BFD.Enabled {
+				optIns = append(optIns, "ospf address-family "+family.af.String()+" interface "+ic.Name)
+			}
+		}
+	}
+	return api.CheckOptIns(bfdData, optIns)
 }

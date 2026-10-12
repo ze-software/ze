@@ -603,8 +603,8 @@ module ze-bgp-conf {
                 presence "Enable BFD liveness detection for this peer";
                 description "When the container is present, the BGP reactor calls the Service interface of the BFD plugin at
                     session establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must
-                    be loaded through a top-level bfd { ... } block. When the plugin is absent, the BGP peer starts
-                    without BFD and Ze logs a warning.";
+                    be loaded through a top-level bfd { ... } block. A config that opts a peer in while that block is
+                    absent or sets enabled false is refused, naming the peer.";
                 ze:help "Bidirectional Forwarding Detection options for this peer (RFC 5880).";
 
                 leaf enabled {
