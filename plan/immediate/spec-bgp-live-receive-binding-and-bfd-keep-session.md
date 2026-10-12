@@ -385,6 +385,12 @@ Phase 2/3 review fixes, 2026-10-12 (review `scratch/review-keep-session-p23.md`)
 
 ## Owner decisions
 
+**Owner authorised: review round 6 of the I5 change set (eb5323da8d, 85ce246f55,
+5606f5d7d1 and the B3/I1 drain fix).** Thomas, 2026-10-12: "authorise round 6".
+Round 5 closed B2 and found B3 (a teardown queued during the closing drain is
+dropped, leaving attached processes with a down and no up) and I1 (the main
+drain's teardown ends whatever session is current after the EOR sends).
+
 **OQ-1, BFD on dynamic peers (AC-9): answered 2026-10-11, option A.** The
 owner's words: "A: yes, design it". A dynamic peer's non-strict BFD opt-in
 change, made through its group template, keeps the session up like a configured
