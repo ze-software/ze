@@ -117,12 +117,11 @@ func TestHarnessSampleSeesALiveLeTest(t *testing.T) {
 		t.Skip("no sh on PATH")
 	}
 	dir := t.TempDir()
-	body, err := os.ReadFile(shell)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// A symlink, not a copy: macOS kills a copy of the signed /bin/sh at exec,
+	// so a copied shell never appears in the sample. The symlink still puts
+	// `<dir>/le` in argv[0], which is what `ps -eo args=` reports.
 	le := filepath.Join(dir, "le")
-	if err := os.WriteFile(le, body, 0o700); err != nil {
+	if err := os.Symlink(shell, le); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "test"), []byte("read line\n"), 0o600); err != nil {
