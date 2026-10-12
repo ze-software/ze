@@ -126,6 +126,15 @@ func installDockerStub(args []string) int {
 	return 0
 }
 func installGoStub(args []string) int {
+	// `go env GOVERSION` is the build preflight asking which go the host has
+	// (hostGoVersion in internal/appliance/gokpreflight.go). It compiles
+	// nothing, so its GOARCH is not the build's and the arch check below is
+	// for the build's go subprocesses only. The answer is the go this binary
+	// was built with, which built Ze, so it meets go.mod's go directive.
+	if slices.Equal(args, []string{"env", "GOVERSION"}) {
+		fmt.Println(runtime.Version())
+		return 0
+	}
 	arch := os.Getenv("GOARCH")
 	if logPath := os.Getenv("ZE_INSTALL_GOARCH_LOG"); logPath != "" {
 		file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // the path is the fixture's own scratch file
@@ -371,6 +380,19 @@ func applianceISOFixture(ctx context.Context, arch string, magicOffset int, magi
 		if err := os.WriteFile(filepath.Join("tools", "installer-kernel", name), nil, 0o600); err != nil {
 			return err
 		}
+	}
+	// `ze appliance iso` keys the installer kernel cache from the builder
+	// sources, read relative to this directory as from the top of a source tree.
+	// The builder trees are copied, not linked: the key walks tools/kernel-builder,
+	// and a walk does not descend a symlinked root, so a link would hand the key
+	// the directory itself as a file it cannot read.
+	for _, rel := range []string{pathKernelBuilder, "internal/appliance/kernelbuilder"} {
+		if err := copyFixtureTree(filepath.Join(repo, filepath.FromSlash(rel)), filepath.FromSlash(rel)); err != nil {
+			return err
+		}
+	}
+	if err := linkKernelKeyImports(repo, "."); err != nil {
+		return err
 	}
 	ze, err := exec.LookPath("ze")
 	if err != nil {
@@ -1378,17 +1400,25 @@ func kernelRuntimeDepsFixture(ctx context.Context, args []string) error {
 	if baseline == arm || baseline == installer {
 		return fmt.Errorf("architecture or target did not change cache identity: runtime=%s arm=%s installer=%s", baseline, arm, installer)
 	}
-	mutationPaths, err := kernelCacheMutationPaths(scratch)
+	buildPaths, hostSidePaths, err := kernelCacheMutationPaths(scratch)
 	if err != nil {
 		return err
 	}
-	for _, rel := range mutationPaths {
+	for _, rel := range buildPaths {
 		if err := assertCacheMutation(ctx, ze, scratch, rel, baseline); err != nil {
 			return err
 		}
 	}
-	probe := filepath.Join(scratch, "internal", "appliance", "kernelbuilder", "zz_runtime_deps_probe.go")
-	if err := os.WriteFile(probe, []byte("package kernelbuilder\nconst fixtureProbe = true\n"), 0o600); err != nil {
+	for _, rel := range hostSidePaths {
+		if err := assertCacheHeld(ctx, ze, scratch, rel, baseline); err != nil {
+			return err
+		}
+	}
+	// A new file under tools/kernel-builder is a new builder input: the key
+	// walks that tree whole, so the file moves the identity before any code
+	// names it.
+	probe := filepath.Join(scratch, filepath.FromSlash(pathKernelBuilder), "zz_runtime_deps_probe.go")
+	if err := os.WriteFile(probe, []byte("package main\nconst fixtureProbe = true\n"), 0o600); err != nil {
 		return err
 	}
 	changed, err := query("runtime", "amd64", "runtime")
@@ -1410,61 +1440,75 @@ func kernelRuntimeDepsFixture(ctx context.Context, args []string) error {
 	}
 	return nil
 }
-func kernelCacheMutationPaths(root string) ([]string, error) {
-	paths := []string{
+
+// kernelCacheMutationPaths answers the files whose edit MUST move the runtime
+// kernel's cache identity, and the host-side kernelbuilder files whose edit
+// MUST NOT. The build inputs are the profile config and require files, every
+// file under tools/kernel-builder (the key walks it whole, shared fragments
+// included), and the kernelbuilder files kernelbuilder.BuildSources names. The
+// other kernelbuilder Go files probe, measure and word refusals, so an edit
+// there keeps every cached kernel (kernelBuilderSources in
+// internal/appliance/cache.go).
+func kernelCacheMutationPaths(root string) (build, hostSide []string, err error) {
+	build = []string{
 		pathGokrazyKernelConfig,
 		"gokrazy/kernel/kernel.require",
 		pathGokrazyRuntimeConfig,
 		"gokrazy/kernel/runtime.require",
-		pathEFIConsoleConfig,
-		"tools/kernel-builder/common/efi-console.require",
 	}
-	for _, sourceRoot := range []string{pathKernelBuilder, "internal/appliance/kernelbuilder"} {
-		absoluteRoot := filepath.Join(root, filepath.FromSlash(sourceRoot))
-		err := filepath.WalkDir(absoluteRoot, func(path string, entry os.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if entry.IsDir() {
-				if sourceRoot == pathKernelBuilder && path != absoluteRoot {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if strings.HasSuffix(path, "_test.go") {
-				return nil
-			}
-			relative, err := filepath.Rel(root, path)
-			if err != nil {
-				return err
-			}
-			paths = append(paths, filepath.ToSlash(relative))
-			return nil
-		})
-		if err != nil {
-			return nil, err
+	err = filepath.WalkDir(filepath.Join(root, filepath.FromSlash(pathKernelBuilder)), func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
 		}
+		if entry.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		build = append(build, filepath.ToSlash(relative))
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
 	}
-	return paths, nil
+	const builderPkg = "internal/appliance/kernelbuilder"
+	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(builderPkg)))
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		rel := filepath.ToSlash(filepath.Join(builderPkg, name))
+		if slices.Contains(kernelbuilder.BuildSources, name) {
+			build = append(build, rel)
+			continue
+		}
+		hostSide = append(hostSide, rel)
+	}
+	// Without a host-side file the exclusion half proves nothing.
+	if len(hostSide) == 0 {
+		return nil, nil, fmt.Errorf("%s holds no host-side file, so the fixture cannot show an edit there keeps the cache", builderPkg)
+	}
+	return build, hostSide, nil
 }
 
+// assertCacheMutation edits rel and requires the runtime kernel's cache
+// identity to move, then to return to baseline once the edit is undone.
 func assertCacheMutation(ctx context.Context, ze, root, rel, baseline string) error {
-	path := filepath.Join(root, filepath.FromSlash(rel))
-	original, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
+	changed, err := queryMutatedKernelCache(ctx, ze, root, rel)
 	if err != nil {
 		return err
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(path, append(original, []byte("\n// fixture mutation\n")...), info.Mode().Perm()); err != nil {
-		return err
-	}
-	changed, queryErr := queryKernelCache(ctx, ze, root, "runtime", "amd64", "runtime")
-	restoreErr := os.WriteFile(path, original, info.Mode().Perm())
-	if queryErr != nil || restoreErr != nil {
-		return errors.Join(queryErr, restoreErr)
 	}
 	if changed == baseline {
 		return fmt.Errorf("%s did not invalidate cache identity", rel)
@@ -1477,6 +1521,42 @@ func assertCacheMutation(ctx context.Context, ze, root, rel, baseline string) er
 		return fmt.Errorf("%s did not restore cache identity", rel)
 	}
 	return nil
+}
+
+// assertCacheHeld edits a host-side rel and requires the runtime kernel's
+// cache identity to stay at baseline.
+func assertCacheHeld(ctx context.Context, ze, root, rel, baseline string) error {
+	changed, err := queryMutatedKernelCache(ctx, ze, root, rel)
+	if err != nil {
+		return err
+	}
+	if changed != baseline {
+		return fmt.Errorf("%s is host-side, yet editing it changed the cache identity from %s to %s", rel, baseline, changed)
+	}
+	return nil
+}
+
+// queryMutatedKernelCache appends a comment line to rel, queries the runtime
+// kernel's cache identity, and restores rel's original bytes.
+func queryMutatedKernelCache(ctx context.Context, ze, root, rel string) (string, error) {
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	original, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, append(original, []byte("\n// fixture mutation\n")...), info.Mode().Perm()); err != nil {
+		return "", err
+	}
+	changed, queryErr := queryKernelCache(ctx, ze, root, "runtime", "amd64", "runtime")
+	restoreErr := os.WriteFile(path, original, info.Mode().Perm())
+	if queryErr != nil || restoreErr != nil {
+		return "", errors.Join(queryErr, restoreErr)
+	}
+	return changed, nil
 }
 
 func kernelSharedFragmentFixture(ctx context.Context, args []string) error {
@@ -1526,17 +1606,44 @@ func kernelSharedFragmentFixture(ctx context.Context, args []string) error {
 	if err := os.WriteFile(common, append(data, []byte("\n# fixture mutation\n")...), 0o600); err != nil {
 		return err
 	}
+	// The identity ends in the config hash, over the fragments the profile
+	// resolves, then the builder hash, over every file under
+	// tools/kernel-builder (kernelCacheVariantFor in internal/appliance/cache.go).
+	// The shared fragment lives under that tree, so its edit moves every
+	// profile's builder hash, and membership shows in the config hash alone.
 	for i, profile := range profiles {
 		after, err := queryKernelCache(ctx, ze, scratch, profile[0], profile[1], profile[2])
 		if err != nil {
 			return err
 		}
+		if after == before[i] {
+			return fmt.Errorf("shared fragment edit kept the %s cache identity %s, though the key hashes every builder file", profile[2], after)
+		}
+		configBefore, err := kernelCacheConfigHash(before[i])
+		if err != nil {
+			return err
+		}
+		configAfter, err := kernelCacheConfigHash(after)
+		if err != nil {
+			return err
+		}
 		included := profile[2] != profileQEMU
-		if included == (after == before[i]) {
+		if included == (configAfter == configBefore) {
 			return fmt.Errorf("shared fragment membership wrong for %s: before=%s after=%s", profile[2], before[i], after)
 		}
 	}
 	return nil
+}
+
+// kernelCacheConfigHash answers the config-hash field of a kernel cache
+// directory: the second field from the end of its base name, counted from the
+// end because a profile name can itself hold a dash.
+func kernelCacheConfigHash(dir string) (string, error) {
+	fields := strings.Split(filepath.Base(dir), "-")
+	if len(fields) < 3 {
+		return "", fmt.Errorf("kernel cache directory %s does not end in a config hash and a builder hash", dir)
+	}
+	return fields[len(fields)-2], nil
 }
 func assertRuntimeKernelComposition(root string) error {
 	var combined []byte
@@ -1632,7 +1739,39 @@ func copyKernelFixtureTree(repo string) (string, error) {
 			return "", err
 		}
 	}
+	if err := linkKernelKeyImports(repo, root); err != nil {
+		os.RemoveAll(root) //nolint:errcheck // fixture cleanup
+		return "", err
+	}
 	return root, nil
+}
+
+// kernelKeyImports are the source-tree inputs the kernel cache key reads
+// besides the builder directories a fixture copies: go.mod, which names the
+// module, and the Ze packages internal/appliance/kernelbuilder imports, all
+// under internal/core (kernelBuilderSources, zeImportClosure in
+// internal/appliance/cache.go). Without them `ze appliance` refuses to key the
+// cache and every kernel and ISO fixture fails before its own assertion. They
+// are read, never written, so a symlink to the repository serves them.
+var kernelKeyImports = []string{fileGoMod, "internal/core"}
+
+// linkKernelKeyImports symlinks kernelKeyImports from repo into root.
+func linkKernelKeyImports(repo, root string) error {
+	for _, rel := range kernelKeyImports {
+		if err := linkFixtureSource(repo, root, rel); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// linkFixtureSource symlinks repo/rel to root/rel, creating root/rel's parent.
+func linkFixtureSource(repo, root, rel string) error {
+	target := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+		return err
+	}
+	return os.Symlink(filepath.Join(repo, filepath.FromSlash(rel)), target)
 }
 
 func copyFixtureTree(source, dest string) error {
