@@ -274,9 +274,11 @@ func TestPeerSettingsStaticRouteBesideRestartFieldNamesTheOtherField(t *testing.
 // until somebody adds it to hotSwappableSettings on purpose.
 func TestPeerSettingsRestartRequiredIsFailClosed(t *testing.T) {
 	// Fields never named by the old hand-maintained predicate, spread across the
-	// scalar / map / slice / pointer shapes the struct holds.
+	// scalar / map / slice / pointer shapes the struct holds. A non-strict BFD
+	// opt-in is swapped on purpose (hotSwappableSettings), so the BFD row
+	// gives a strict one, which the swap never takes.
 	tests := map[string]func(*PeerSettings){
-		"BFD":            func(p *PeerSettings) { p.BFD = &BFDSettings{Enabled: true} },
+		"BFD strict":     func(p *PeerSettings) { p.BFD = &BFDSettings{Enabled: true, Strict: true} },
 		"MinTTL":         func(p *PeerSettings) { p.MinTTL = 254 },
 		"LinkLocal":      func(p *PeerSettings) { p.LinkLocal = mustParseAddr("fe80::1") },
 		"SendCommunity":  func(p *PeerSettings) { p.SendCommunity = []string{"none"} },
