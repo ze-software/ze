@@ -454,6 +454,47 @@ func TestModelValidationDebounce(t *testing.T) {
 		"stale tick should not trigger validation - errors should remain")
 }
 
+// TestModelValidationTickWaitsForCommandInFlight proves a validation tick
+// never reads the editor while a command holds it.
+//
+// VALIDATES: a matching tick that arrives while a command's turn is reserved
+// leaves the validation state untouched, and the command's result, when
+// Update applies it, runs the validation the tick deferred.
+// PREVENTS: the data race between a commit rewriting the editor tree on its
+// command goroutine (SaveDraft) and runValidation reading it in Update, seen
+// under -race in session/bracket-member-deactivate-commit.et.
+//
+// Method: reserve a dispatch turn as executeCommand does, deliver the
+// matching tick through Update, then deliver the command's result.
+func TestModelValidationTickWaitsForCommandInFlight(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
+
+	ed, err := NewLooseFileEditor(nil, configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
+	require.NoError(t, err)
+	model.scheduleValidation()
+	ed.setWorkingContent(`bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } timer { receive-hold-time 1; } } }`)
+
+	_, done := model.dispatch.reserve()
+	tickID := model.validationID
+	busyModel, _ := model.Update(validationTickMsg{id: tickID})
+	held, ok := busyModel.(Model)
+	require.True(t, ok, "Update should return a Model")
+	assert.Empty(t, held.validationErrors, "a tick during a command MUST NOT validate the editor the command holds")
+	assert.True(t, held.validationDeferred, "the validation the tick asked for is deferred, not dropped")
+
+	idleModel, _ := held.Update(commandResultMsg{turnDone: done})
+	idle, ok := idleModel.(Model)
+	require.True(t, ok, "Update should return a Model")
+	assert.NotEmpty(t, idle.validationErrors, "the deferred validation runs when the command's result is applied")
+	assert.False(t, idle.validationDeferred, "the deferred validation runs once")
+}
+
 // TestModelStatusBarErrorIndicator verifies error count in status bar.
 //
 // VALIDATES: View() shows error count when errors exist.

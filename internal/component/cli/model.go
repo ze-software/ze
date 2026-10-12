@@ -152,6 +152,7 @@ type Model struct {
 	validationErrors   []ConfigValidationError
 	validationWarnings []ConfigValidationError
 	validationID       int // Incremented on each text change for debounce
+	validationDeferred bool // A validation tick arrived while a command held the editor
 
 	// Reload errors from the last commit attempt. Shown by the errors command.
 	reloadErrors []string
@@ -578,9 +579,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case validationTickMsg:
 		// Only validate if this tick matches current ID (not stale)
-		if msg.id == m.validationID {
-			m.runValidation()
+		if msg.id != m.validationID {
+			return m, nil
 		}
+		// A command in flight owns the editor on its own goroutine (a commit
+		// rewrites the tree in SaveDraft), so reading it here races that
+		// write. handleCommandResult validates once the result is applied.
+		if m.dispatch.busy() {
+			m.validationDeferred = true
+			return m, nil
+		}
+		m.runValidation()
 		return m, nil
 
 	case confirmCountdownMsg:
@@ -645,7 +654,10 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Run validation before viewport update so highlightValidationIssues uses fresh errors.
-	if r.revalidate {
+	// A validation tick that arrived while the command held the editor was
+	// deferred to here (validationDeferred).
+	if r.revalidate || m.validationDeferred {
+		m.validationDeferred = false
 		m.runValidation()
 	}
 
@@ -946,22 +958,25 @@ func (m Model) handleDraftPoll() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	next := tea.Tick(draftPollInterval, func(time.Time) tea.Msg { return draftPollMsg{} })
+	// A command in flight owns the editor on its own goroutine, so the poll
+	// MUST NOT re-read the draft into it now. It may also be this session's
+	// own accept or abort: its result, not the poll, says how the window
+	// ended. The next poll looks.
+	if m.dispatch.busy() {
+		return m, next
+	}
 	changed, notification := m.editor.checkDraftChanged()
 	if changed {
 		m.statusMessage = notification
 		m.showConfigContent()
 	}
-	// A command in flight may be this session's own accept or abort: its
-	// result, not the poll, says how the window ended. The next poll looks.
-	if !m.dispatch.busy() {
-		if notice, ok := m.pollDaemonWindow(); ok {
-			m.statusMessage = notice
-			m.showConfigContent()
-		}
+	if notice, ok := m.pollDaemonWindow(); ok {
+		m.statusMessage = notice
+		m.showConfigContent()
 	}
 
-	// Reschedule next poll.
-	return m, tea.Tick(draftPollInterval, func(time.Time) tea.Msg { return draftPollMsg{} })
+	return m, next
 }
 
 // autoSaveOnQuit saves a .edit snapshot when force-quitting with unsaved changes.
