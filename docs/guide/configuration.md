@@ -4095,10 +4095,19 @@ leaves out entirely is not checked. So a `bgp` block needs
 when every peer carries it, or inherits it from its group, the global leaf is
 not needed. A dynamic group (`connection remote ip dynamic`) must carry the
 value itself, even when it lists static peers, because the sessions it accepts
-are built from the group and never from a member. The refusal names the leaf and the command that supplies it:
+are built from the group and never from a member. The refusal names the leaf
+and the command that supplies it:
 
 ```
 error: load config: config validation failed: bgp: bgp/router-id: mandatory field "router-id" is missing: the YANG schema marks bgp/router-id mandatory (RFC 7950 Section 7.6.5); add it with `set bgp router-id <value>`
+```
+
+A mandatory choice, such as a static route's action, has no name of its own
+in the file, so the refusal lists one command for each of its cases instead,
+and any one of them satisfies it:
+
+```
+error: load config: config validation failed: static: static/table[default]/route[10.0.0.0/8]/action: mandatory choice "action" is missing: the YANG schema requires one of its cases under static/table[default]/route[10.0.0.0/8] (RFC 7950 Section 7.9.4); add one with `set static table default route 10.0.0.0/8 blackhole`, `set static table default route 10.0.0.0/8 next ...`, `set static table default route 10.0.0.0/8 reject`
 ```
 
 **A reload refuses the same way, and the daemon keeps running.** Send SIGHUP

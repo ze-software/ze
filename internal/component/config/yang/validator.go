@@ -715,7 +715,7 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 	for name, child := range entry.Dir {
 		if child.Mandatory == yang.TSTrue {
 			if !mandatoryPresent(name, child, data) {
-				*errs = append(*errs, missingMandatory(tb.Reset().Str(path).Byte('/').Str(name).String(), name))
+				*errs = append(*errs, missingMandatory(tb.Reset().Str(path).Byte('/').Str(name).String(), name, child))
 			}
 			continue
 		}

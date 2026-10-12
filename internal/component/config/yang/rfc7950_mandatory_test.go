@@ -182,3 +182,86 @@ func TestMandatoryChoiceSatisfiedByACaseNode(t *testing.T) {
 		t.Error("an empty container did not report its mandatory choice missing")
 	}
 }
+
+// TestMandatoryChoiceMessageNamesTypeableCases proves the refusal for a missing
+// mandatory choice prints commands an operator can type. A choice never
+// appears in the data under its own name, so `set <parent> <choice> <value>`
+// is refused by the parser it is meant to satisfy.
+//
+// VALIDATES: the message names every case data node, nested choices included,
+// each in a `set` command shaped by its node kind (a non-presence container
+// takes more words, an empty leaf and a presence container none, a valued leaf
+// a value), and never the choice name
+// as a word of a command.
+// PREVENTS: telling the operator to type `set wrap kind <value>`.
+//
+// Method: walk a container whose mandatory choice has a container case, an
+// empty-leaf case, a presence-container case and a nested-choice leaf case,
+// with none present.
+func TestMandatoryChoiceMessageNamesTypeableCases(t *testing.T) {
+	loader := NewLoader()
+	module := `module ze-test-choice-msg-conf {
+	namespace "urn:ze:test:choicemsg";
+	prefix tm;
+	container wrap {
+		choice kind {
+			mandatory true;
+			case gre { container gre { leaf ttl { type uint8; } } }
+			case drop { leaf drop { type empty; } }
+			case stop { container stop { presence "stop"; leaf code { type uint8; } } }
+			case other {
+				choice deep {
+					case ipip { leaf ipip { type string; } }
+				}
+			}
+		}
+	}
+}`
+	if err := loader.AddModuleFromText("ze-test-choice-msg-conf.yang", module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
+	schema, err := loader.Resolve()
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	v := NewValidator(schema)
+
+	var message string
+	for _, ve := range v.ValidateTree("wrap", map[string]any{}) {
+		if ve.Type == ErrTypeMissing && ve.Path == "wrap/kind" {
+			message = ve.Message
+		}
+	}
+	if message == "" {
+		t.Fatal("an empty container did not report its mandatory choice missing")
+	}
+	for _, want := range []string{"`set wrap drop`", "`set wrap stop`", "`set wrap gre ...`", "`set wrap ipip <value>`", "Section 7.9.4"} {
+		if !strings.Contains(message, want) {
+			t.Errorf("message %q does not carry %q", message, want)
+		}
+	}
+	if strings.Contains(message, "set wrap kind") {
+		t.Errorf("message %q tells the operator to type the choice name, which no parser accepts", message)
+	}
+}
+
+// TestSetCommandWordsKeepsSlashInKey proves a list key holding a slash, a
+// prefix such as 10.0.0.0/8, survives into the suggested `set` command whole.
+//
+// VALIDATES: path separators become spaces, a slash inside a [key] does not.
+// PREVENTS: suggesting `set static table default route 10.0.0.0 8 ...`, which
+// the parser refuses.
+//
+// Method: convert walk paths with and without a prefix key.
+func TestSetCommandWordsKeepsSlashInKey(t *testing.T) {
+	cases := map[string]string{
+		"static/table[default]/route[10.0.0.0/8]":    "static table default route 10.0.0.0/8",
+		"bgp/peer[london]/session":                   "bgp peer london session",
+		"static/table[default]/route[2001:db8::/32]": "static table default route 2001:db8::/32",
+	}
+	for path, want := range cases {
+		if got := setCommandWords(path); got != want {
+			t.Errorf("setCommandWords(%q) = %q, want %q", path, got, want)
+		}
+	}
+}

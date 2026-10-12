@@ -33,7 +33,7 @@ func requireMandatoryUnderAbsent(path string, container *yang.Entry, errs *[]Val
 	for name, child := range container.Dir {
 		childPath := tb.Reset().Str(path).Byte('/').Str(name).String()
 		if child.Mandatory == yang.TSTrue {
-			*errs = append(*errs, missingMandatory(childPath, name))
+			*errs = append(*errs, missingMandatory(childPath, name, child))
 			continue
 		}
 		if isNonPresenceContainer(child) {
@@ -55,15 +55,70 @@ func isNonPresenceContainer(entry *yang.Entry) bool {
 // missingMandatory builds the error for a mandatory node absent from the data:
 // what is missing, why it is required, and the command that supplies it. path
 // is the slash-joined path the walk built, a list entry written as name[key].
-func missingMandatory(path, name string) ValidationError {
+//
+// A choice gets its own message. It never appears in the data under its own
+// name, so `set <parent> <choice> <value>` is a command the parser refuses;
+// the operator types one of the case nodes instead, and the message lists each
+// one as a command.
+func missingMandatory(path, name string, entry *yang.Entry) ValidationError {
 	var tb textbuf.Buffer
+	parent := strings.TrimSuffix(path, "/"+name)
+	if entry.IsChoice() {
+		tb.Str("mandatory choice ").Quoted(name).Str(" is missing: the YANG schema requires one of its cases under ").
+			Str(parent).Str(" (RFC 7950 Section 7.9.4); add one with")
+		for i, node := range choiceDataNodes(entry) {
+			if i > 0 {
+				tb.Byte(',')
+			}
+			tb.Str(" `").Str(setCommandFor(parent, node)).Byte('`')
+		}
+		return ValidationError{Path: path, Type: ErrTypeMissing, Message: tb.String()}
+	}
 	return ValidationError{
 		Path: path,
 		Type: ErrTypeMissing,
 		Message: tb.Str("mandatory field ").Quoted(name).Str(" is missing: the YANG schema marks ").
-			Str(path).Str(" mandatory (RFC 7950 Section 7.6.5); add it with `set ").
-			Str(setCommandWords(path)).Str(" <value>`").String(),
+			Str(path).Str(" mandatory (RFC 7950 Section 7.6.5); add it with `").
+			Str(setCommandFor(parent, entry)).Str("`").String(),
 	}
+}
+
+// choiceDataNodes returns, sorted by name, the data nodes a choice's cases
+// hold, the nodes of a nested choice included: the names an operator can type
+// to satisfy the choice. Recursion depth is bounded by the depth of the
+// compiled YANG schema.
+func choiceDataNodes(choice *yang.Entry) []*yang.Entry {
+	var nodes []*yang.Entry
+	for _, branch := range choice.Dir {
+		for _, node := range branch.Dir {
+			if node.IsChoice() {
+				nodes = append(nodes, choiceDataNodes(node)...)
+				continue
+			}
+			nodes = append(nodes, node)
+		}
+	}
+	slices.SortFunc(nodes, func(a, b *yang.Entry) int { return strings.Compare(a.Name, b.Name) })
+	return nodes
+}
+
+// setCommandFor writes the `set` command that creates node under the walk path
+// parent, shaped by what the node takes: an empty leaf and a presence
+// container are complete alone, a non-presence container or a list takes more
+// words, any other leaf takes a value.
+func setCommandFor(parent string, node *yang.Entry) string {
+	var tb textbuf.Buffer
+	tb.Str("set ").Str(setCommandWords(parent)).Byte(' ').Str(node.Name)
+	if node.IsLeaf() && node.Type != nil && node.Type.Kind == yang.Yempty {
+		return tb.String()
+	}
+	if node.IsContainer() && !isNonPresenceContainer(node) {
+		return tb.String()
+	}
+	if node.IsDir() {
+		return tb.Str(" ...").String()
+	}
+	return tb.Str(" <value>").String()
 }
 
 // Sections returns, sorted and once each, every top-level container that a
@@ -92,9 +147,26 @@ func (v *Validator) Sections() []string {
 }
 
 // setCommandWords turns a walk path such as bgp/peer[london]/session into the
-// words of a `set` command: bgp peer london session.
+// words of a `set` command: bgp peer london session. A slash inside a list key,
+// as in route[10.0.0.0/8], is part of the key and is kept.
 func setCommandWords(path string) string {
-	return strings.NewReplacer("/", " ", "[", " ", "]", "").Replace(path)
+	var tb textbuf.Buffer
+	inKey := false
+	for i := range len(path) {
+		c := path[i]
+		switch {
+		case c == '[':
+			inKey = true
+			tb.Byte(' ')
+		case c == ']':
+			inKey = false
+		case c == '/' && !inKey:
+			tb.Byte(' ')
+		default:
+			tb.Byte(c)
+		}
+	}
+	return tb.String()
 }
 
 // mandatoryPresent reports whether the mandatory node name is present in data.
