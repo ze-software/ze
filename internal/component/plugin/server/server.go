@@ -272,6 +272,11 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 	pathToDesc := yang.PathToDescription(schema)
 	pathToHelp := yang.PathToHelp(schema)
 	pathToArgDefs := yang.PathToArgDefs(schema)
+	// Every dispatch route (command.ValidateModelArgs) judges arguments
+	// against these same definitions. Seeding them here spares the first
+	// plugin command a second load of the model, which delayed it past the
+	// first BGP UPDATE it was sent to precede.
+	yang.SeedCommandArgDefs(pathToArgDefs)
 
 	// Register core handlers (text dispatcher for plugin protocol),
 	// including all YANG command aliases. Two builtins holding one command

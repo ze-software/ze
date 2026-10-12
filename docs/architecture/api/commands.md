@@ -187,7 +187,7 @@ registers itself as the source (`command.RegisterArgDefSource`); a process with
 no source registered refuses every local command rather than skipping the check.
 The handler runs on the value `ValidateArgs` returned, never on the raw words.
 <!-- source: internal/component/command/local_data.go -- ServeLocal, validateLocalArgs, ValidateModelArgs -->
-<!-- source: internal/component/config/yang/command.go -- commandArgDefs -->
+<!-- source: internal/component/config/yang/command_argdefs.go -- commandArgDefs -->
 
 `ze <verb>` does not pass through `ServeLocal`: it runs the plain local handler
 that `command.RegisterLocalData` builds from the same data handler and registers
@@ -1493,7 +1493,12 @@ Every route that invokes a handler calls the validator, including for a path
 whose model declares no definition: that call passes the tokens through
 unchanged. Each route then invokes the handler only with the tokens of the
 value it got. A route that holds no definitions of its own judges against the
-model through `command.ValidateModelArgs`.
+model through `command.ValidateModelArgs`. The daemon builds those definitions once
+at startup and seeds them (`yang.SeedCommandArgDefs` in `NewServer`), so the
+first plugin command is not held up while the model loads a second time; a
+process that seeds nothing loads the model on its first call.
+<!-- source: internal/component/config/yang/command_argdefs.go -- SeedCommandArgDefs, commandArgDefs -->
+<!-- source: internal/component/plugin/server/server.go -- NewServer -->
 
 | Route | Where | Definitions |
 |-------|-------|-------------|

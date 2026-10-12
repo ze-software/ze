@@ -155,32 +155,6 @@ func PathToArgDefs(schema *Resolved) map[string][]command.ArgDef {
 	return result
 }
 
-// modelArgDefs holds PathToArgDefs over the default model once it has been
-// built. Only a SUCCESS is kept: the shipped model is embedded and cannot
-// fail differently on a retry, but a test that registers a broken module for
-// its own duration (RegisterModuleForTest) must not leave every later caller
-// in the process refused. sync.OnceValues would keep that failure forever.
-var (
-	modelArgDefsMu sync.Mutex
-	modelArgDefs   map[string][]command.ArgDef
-)
-
-// commandArgDefs is the command.ArgDefSource the local-data route reads: the
-// argument definitions the default model declares at path, nil when it
-// declares none. Safe for concurrent use.
-func commandArgDefs(path string) ([]command.ArgDef, error) {
-	modelArgDefsMu.Lock()
-	defer modelArgDefsMu.Unlock()
-	if modelArgDefs == nil {
-		schema, err := DefaultLoader()
-		if err != nil {
-			return nil, err
-		}
-		modelArgDefs = PathToArgDefs(schema)
-	}
-	return modelArgDefs[path], nil
-}
-
 func collectArgDefs(node *command.Node, prefix string, result map[string][]command.ArgDef) {
 	if node == nil {
 		return
