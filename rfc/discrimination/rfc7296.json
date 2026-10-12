@@ -2403,7 +2403,7 @@
       "rid": "RFC7296-3.6-2",
       "polarity": "positive",
       "unit": "test/parse/ipsec-hash-and-url-accepted.ci",
-      "unit-sha": "94ab5da97c8a3e66",
+      "unit-sha": "a540561472452fc4",
       "claim-sha": "a9a6db830b21b429",
       "route": "revert",
       "producer": "internal/component/ike/ipsec/config_auth_policy.go::parseCertificatePolicy",
