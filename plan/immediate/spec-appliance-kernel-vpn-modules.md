@@ -7,7 +7,7 @@
 | Depends | `plan/pre-release/spec-appliance-ships-ze-kernel.md` (AC-6 and AC-7 only; AC-1..AC-5 land without it) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-10 |
+| Updated | 2026-10-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -162,10 +162,10 @@ State of each VPN symbol in the arm64 emitted config:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | the amd64 emitted config matches arm64 for every symbol in the table above | both arches merge the same fragments; only defconfig differs, and defconfig is where the crypto symbols come from | an amd64 build refuses, or ships a transform as `=m` | the amd64 native build on the Linux host reads each symbol (AC-5) | unvalidated |
+| A-1 | the amd64 emitted config matches arm64 for every symbol in the table above | both arches merge the same fragments; only defconfig differs, and defconfig is where the crypto symbols come from | an amd64 build refuses, or ships a transform as `=m` | the amd64 native build on the Linux host reads each symbol (AC-5) | validated 2026-10-12: the arm64 and amd64 emitted configs read the same 22 symbol lines (AC-5 Evidence) |
 | A-2 | gokrazy cannot load a `=m` transform (no `modprobe` helper) | `conntrack_setup_appliance_linux.go` comment; gokrazy image holds two ze binaries plus randomd/heartbeat | `=m` would be enough and `=y` costs only kernel size | `ls /sbin/modprobe` in a booted guest | unvalidated |
 | A-3 | `ecb(cipher_null)` is the spelling the 7.2 kernel accepts for NULL ESP | `xfrm_linux.go` NOTE says unverified | NULL ESP install fails even with `CONFIG_CRYPTO_NULL=y` | AC-6 installs a NULL-ESP SA; a refusal is a defect in the name table, fixed here | unvalidated |
-| A-4 | Kconfig for 7.2 exposes `CONFIG_CRYPTO_CHACHA20POLY1305` and `CONFIG_CRYPTO_NULL` as user-selectable on both arches | emitted config prints them as "is not set" (so they exist on arm64) | the symbol name changed; requirement must name the 7.2 symbol | AC-5 emitted configs | unvalidated |
+| A-4 | Kconfig for 7.2 exposes `CONFIG_CRYPTO_CHACHA20POLY1305` and `CONFIG_CRYPTO_NULL` as user-selectable on both arches | emitted config prints them as "is not set" (so they exist on arm64) | the symbol name changed; requirement must name the 7.2 symbol | AC-5 emitted configs | validated 2026-10-12: both 7.2.9 emitted configs read `CONFIG_CRYPTO_CHACHA20POLY1305=y` and `CONFIG_CRYPTO_NULL=y` (AC-5 Evidence) |
 | A-5 | `ipsec-mobike-test` can install SAs with a chosen ESP transform | the lab runs Ze IKE in a guest on Ze's kernel | a new lab is needed | read `internal/le/test/deployment/mobike.go` at implementation | unvalidated |
 
 ### Risks
@@ -359,8 +359,36 @@ CONFIG_CRYPTO_SHA256=y
 CONFIG_CRYPTO_SHA512=y
 ```
 
-### amd64
-- Not built: owed on the Linux host (native amd64 builder). AC-5 stays open until its lines are pasted here.
+### amd64 (built 2026-10-11 00:24 +0100, native Docker builder, Linux host; read 2026-10-12 at HEAD c79501292b)
+- Cache entry: `~/.cache/ze/runtime-kernel/7.2.9-runtime-amd64-runtime-docker-7c0d8f79-34cba457` (`vmlinuz`, `config`, `lib/modules/7.2.9-ze`, 2 `.ko`: `xt_LOG.ko`, `x86_pkg_temp_thermal.ko`; `kernel.version`: version=7.2.9, target=runtime, profile=runtime, arch=amd64, modules=yes, builder=docker). `CONFIG_LOCALVERSION="-ze"`.
+- The key is HEAD's, read from its producer and not from the entry name. `kernelCacheVariantFor` (`internal/appliance/cache.go`) hashes the fragments and manifests `resolveKernelProfile` resolves plus every patch (`7c0d8f79`), and the builder sources with their Ze import closure (`34cba457`). With `gokrazy/` and `internal/appliance/` clean against HEAD, `go run -tags ze_setup ./cmd/ze appliance kernel --target runtime --arch amd64 --version 7.2.9 --builder docker --print-cache-dir` (through `./le job run`) printed exactly this entry's path.
+- A shell walk of all 114 `runtime.require` symbols and all 18 `kernel.require` symbols against this `config` found every one `=y`.
+- Emitted VPN symbol lines (identical to arm64):
+
+```
+CONFIG_XFRM_USER=y
+CONFIG_XFRM_INTERFACE=y
+CONFIG_XFRM_MIGRATE=y
+CONFIG_XFRM_STATISTICS=y
+CONFIG_INET_AH=y
+CONFIG_INET_ESP=y
+CONFIG_INET6_AH=y
+CONFIG_INET6_ESP=y
+CONFIG_WIREGUARD=y
+CONFIG_CRYPTO_NULL=y
+CONFIG_CRYPTO_AUTHENC=y
+CONFIG_CRYPTO_AES=y
+CONFIG_CRYPTO_DES=y
+CONFIG_CRYPTO_CBC=y
+CONFIG_CRYPTO_CHACHA20POLY1305=y
+CONFIG_CRYPTO_GCM=y
+CONFIG_CRYPTO_SEQIV=y
+CONFIG_CRYPTO_ECHAINIV=y
+CONFIG_CRYPTO_HMAC=y
+CONFIG_CRYPTO_SHA1=y
+CONFIG_CRYPTO_SHA256=y
+CONFIG_CRYPTO_SHA512=y
+```
 
 ## Known Limitations
 - N100 hardware boot: owner-deferred (decision above), not evidence for this spec.
