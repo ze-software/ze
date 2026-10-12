@@ -7,6 +7,7 @@
 #   local handlers still ran. See ai/rules/plugin-self-containment.md.
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {

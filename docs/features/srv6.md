@@ -40,6 +40,12 @@ advertise PrefixSID by default.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer pe1 {
         session {
             accept-srv6-prefix-sid true
@@ -122,6 +128,12 @@ whole route, not just its Prefix-SID attribute:
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         community-match SERVICE-20 {
             entry target:65000:10 { type extended; action reject; }

@@ -9,9 +9,12 @@
 # TACACS+ server made the build fail, the bundle stayed nil, and ssh was never
 # started. The operator kept a forwarding router and lost every way into it.
 #
-# The tacacs server declares no key. RFC 8907 Section 10.5.2 requires a shared
-# secret and forbids a client to set TAC_PLUS_UNENCRYPTED_FLAG, so
-# tacacsBackend.Build refuses the server and the whole bundle build fails.
+# TACACS+ accounting is on and no server is declared. RFC 8907 Section 8.3
+# requires an accounting record for every command, so tacacsBackend.Build
+# refuses a chain with nowhere to send one, and the whole bundle build fails.
+# The schema accepts this config, which is why it is the trigger: a keyless
+# server, the trigger this test used first, is now refused at load because the
+# YANG marks the key mandatory (RFC 7950 Section 7.6.5).
 #
 # VALIDATES: with the TACACS+ backend unbuilt, ssh starts, a LOCAL account logs
 #            in, and its command runs under the authorizer the local backend
@@ -23,6 +26,7 @@
 
 stdin=ze-conf:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
 		session { asn { local 65533; remote 65533; } }
@@ -35,8 +39,8 @@ system {
 			profile [ admin ]
 		}
 		tacacs {
-			server 127.0.0.1 { port 49; }
 			timeout 2
+			accounting true
 		}
 	}
 	authorization {
@@ -58,7 +62,7 @@ cmd=foreground:seq=2:exec=le test fixture plugin/aaa-local-failover $PORT2:timeo
 expect=exit:code=0
 # The chain really did fail to build. Without this the test would also pass
 # against a daemon whose TACACS+ config was simply ignored.
-expect=stderr:pattern=no shared secret configured for this TACACS\+ server
+expect=stderr:contains=tacacs accounting requires at least one server
 # And the operator still got in, on a local account.
 expect=stderr:pattern=auth success.*source=local
 expect=stderr:pattern=OK: the local account logged in and ran a command

@@ -362,6 +362,12 @@ them.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         reject-asn NO-TRANSIT {
             indirect [ 174 701 3356 ];
@@ -409,6 +415,12 @@ container applies the operations to every route.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         modify scrub-med {
             match {
@@ -929,6 +941,12 @@ deprioritizes the interface.
 
 ```
 bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     rpki {
         aspa {
             validation true;

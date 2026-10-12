@@ -1423,6 +1423,7 @@ Peers directly under `bgp` (not inside a group) inherit only BGP-level globals:
 
 ```
 bgp {
+    router-id 192.0.2.1
     session { asn { local 65000; } }
 
     peer my-peer {

@@ -4,6 +4,7 @@
 # Note: test runner requires stdin config block even for offline commands
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {

@@ -3,6 +3,7 @@
 # PREVENTS: new filter schema missing from config validation.
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	policy {
 		remove-private-as STRIP {
 		}

@@ -5,6 +5,7 @@
 # PREVENTS: Removed set { med-remove true; } syntax remains accepted
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	policy {
 		modify PREFER-LOCAL {
 			set {

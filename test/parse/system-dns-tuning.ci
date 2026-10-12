@@ -3,6 +3,7 @@
 # VALIDATES: AC-10 -- dns tuning values accepted by schema
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {

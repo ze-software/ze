@@ -20,6 +20,11 @@ EOF_CONF
 # environment-ONLY config is accepted.
 stdin=config-dump:terminator=EOF_DUMP
 bgp {
+    session {
+        asn {
+            local 65000
+        }
+    }
     router-id 10.0.0.1
 }
 environment {

@@ -19,6 +19,12 @@ references in a `filter {}` config block. Named filter types are defined under
 
 ```
 bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     policy {
         loop-detection no-self-as {
             allow-own-as 0;
@@ -78,6 +84,12 @@ Default filters can be deactivated per-peer using the inline `inactive:` prefix:
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer special {
         filter {
             import [ inactive:no-self-as ];
@@ -139,6 +151,12 @@ stated values returns accept and passes through unchanged.
 
 ```
 bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         modify blackhole-to-discard {
             match { community [ blackhole ]; }

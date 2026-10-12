@@ -18,6 +18,12 @@ received message and nothing else.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer peer1 {
         capture {
             enabled true

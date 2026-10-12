@@ -4,6 +4,7 @@
 # PREVENTS: YANG schema or augment regression breaking family-filter parsing
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	policy {
 		family-filter NoFlow {
 			family ipv4/flow

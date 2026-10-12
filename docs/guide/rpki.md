@@ -84,6 +84,12 @@ For native mutual TLS, name a CA and a client identity from the
 
 ```
 bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     rpki {
         cache-server 192.0.2.1 {
             source-address 192.0.2.2
@@ -205,6 +211,12 @@ mechanism.
 
 ```
 bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     peer transit-a {
         rpki {
             action { invalid reject; }
@@ -469,6 +481,12 @@ ASPA is opt-in. Enable it under `rpki / aspa / validation` and configure `role /
 
 ```
 bgp {
+    router-id 192.0.2.254;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     rpki {
         cache-server 192.0.2.1 {
             port 323;

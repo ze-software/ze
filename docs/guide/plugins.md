@@ -261,6 +261,12 @@ the group merge, not from the text of the config file.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     group ix {
         connection {
             remote {
@@ -807,6 +813,12 @@ whole session.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         reject-asn NO-TRANSIT {
             indirect [ 174 3356 ]
@@ -1016,6 +1028,12 @@ AS on export, or the source peer AS on import.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         remove-private-as STRIP {
         }

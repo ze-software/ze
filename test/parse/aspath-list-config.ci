@@ -4,6 +4,7 @@
 # PREVENTS: YANG schema or augment regression breaking as-path-list parsing
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	policy {
 		as-path-list ALLOW-PEER {
 			entry "^[0-9]+$" {

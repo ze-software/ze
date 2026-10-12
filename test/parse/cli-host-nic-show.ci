@@ -10,7 +10,14 @@
 # feature cannot succeed. Skip on darwin per rules/os-specific-tests.md.
 option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
-bgp { }
+bgp {
+  router-id 203.0.113.253
+  session {
+    asn {
+      local 65000
+    }
+  }
+}
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze show host nic

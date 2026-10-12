@@ -2,6 +2,7 @@
 # Verifies that the YANG schema accepts community definitions and filter blocks
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	community {
 		standard block-list {
 			value 65000:100

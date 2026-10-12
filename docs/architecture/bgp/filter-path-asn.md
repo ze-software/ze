@@ -32,6 +32,12 @@ against a ze that rejects everything.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         reject-asn NO-TRANSIT {
             indirect [ 174 3356 ]

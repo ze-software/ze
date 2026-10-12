@@ -363,6 +363,12 @@ Established until the BFD session to that neighbour is Up.
 
 ```
 bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer peer1 {
         connection {
             local  { ip 192.0.2.1 }

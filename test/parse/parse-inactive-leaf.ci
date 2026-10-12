@@ -19,6 +19,7 @@ bgp {
 			}
 		}
 		session {
+			router-id 203.0.113.253
 			asn {
 				remote 65534
 			}

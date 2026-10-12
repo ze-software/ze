@@ -24,6 +24,12 @@ EOF_PEER
 # Initial ze bgp configuration (empty -- no peers, no interfaces)
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
+  router-id 203.0.113.253
+  session {
+    asn {
+      local 65000
+    }
+  }
 }
 EOF_CONF
 

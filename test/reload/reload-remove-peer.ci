@@ -65,6 +65,12 @@ EOF_CONF
 # Rewritten config (no peers - reconcilePeers removes the existing peer)
 tmpfs=config2.conf:terminator=EOF_CONF2
 bgp {
+  router-id 203.0.113.253
+  session {
+    asn {
+      local 65000
+    }
+  }
 }
 EOF_CONF2
 

@@ -1,6 +1,8 @@
 # Test: `ze config deactivate` on a leaf path
 # Validates the new one-shot CLI verb against a real config file: the
 # leaf is preserved in the file but prefixed with "inactive:".
+# The peer carries its own router-id, so the config stays valid with the
+# global one inactive (a mandatory leaf, RFC 7950 Section 7.6.5).
 tmpfs=test.conf:terminator=EOF_FILE
 bgp {
 	router-id 10.0.0.1
@@ -19,6 +21,7 @@ bgp {
 			}
 		}
 		session {
+			router-id 10.0.0.1
 			asn {
 				remote 65534
 			}

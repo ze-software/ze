@@ -2,6 +2,7 @@
 # Verifies that the SSH server configuration is accepted by the YANG schema
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {

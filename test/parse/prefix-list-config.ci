@@ -5,6 +5,7 @@
 # PREVENTS: YANG schema or augment regression breaking prefix-list parsing
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	policy {
 		prefix-list CUSTOMERS {
 			entry 10.0.0.0/8 {

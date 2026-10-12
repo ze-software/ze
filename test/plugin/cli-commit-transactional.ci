@@ -24,6 +24,11 @@ environment {
 }
 
 bgp {
+    session {
+        asn {
+            local 65000;
+        }
+    }
     router-id 1.2.3.4
 }
 EOF_CONF

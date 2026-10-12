@@ -80,6 +80,12 @@ ze's own BGP peer state changes and route updates.
 
 ```
 bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     bmp {
         sender {
             collector monitoring-station {

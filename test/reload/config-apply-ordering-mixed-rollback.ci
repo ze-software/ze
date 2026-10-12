@@ -112,6 +112,12 @@ rsvp-te {
 }
 
 bgp {
+	router-id 1.2.3.4
+	session {
+		asn {
+			local 1
+		}
+	}
 	peer peer1 {
 		connection {
 			remote {
@@ -182,6 +188,12 @@ rsvp-te {
 }
 
 bgp {
+	router-id 1.2.3.4
+	session {
+		asn {
+			local 1
+		}
+	}
 }
 EOF_CONF2
 

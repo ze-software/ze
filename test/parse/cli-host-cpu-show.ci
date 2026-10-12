@@ -11,6 +11,7 @@
 option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	peer p1 {
 		connection {
 			remote { ip 127.0.0.1; }

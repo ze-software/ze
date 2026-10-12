@@ -4,6 +4,11 @@
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
+  session {
+    asn {
+      local 65000;
+    }
+  }
   router-id 1.2.3.4;
   peer peer-v6-1 {
   	connection {

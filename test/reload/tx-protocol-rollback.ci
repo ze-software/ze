@@ -61,6 +61,12 @@ EOF_CONF
 # Bad config: invalid (missing required fields)
 tmpfs=bad-config.conf:terminator=EOF_BAD
 bgp {
+	router-id 203.0.113.253
+	session {
+		asn {
+			local 65000
+		}
+	}
 	peer broken {
 		session {
 		}

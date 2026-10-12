@@ -1,6 +1,7 @@
 # Test: NLRI without operation keyword (add/del/eor) must fail
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	peer peer3 {
 		connection {
 			remote {

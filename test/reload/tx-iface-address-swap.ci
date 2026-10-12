@@ -40,6 +40,12 @@ option=needs-linux:caps=net-admin
 # Initial config: dummy interface holding 10.77.0.1/24, no peer.
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
+	session {
+		asn {
+			local 65000
+		}
+	}
 }
 
 interface {

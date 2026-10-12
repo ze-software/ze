@@ -8,6 +8,7 @@
 # VALIDATES: AC-4 -- a redistribute source outside the registry is refused by name
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253;
 	peer peer1 {
 		connection {
 			remote {

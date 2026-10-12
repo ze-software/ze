@@ -113,6 +113,7 @@ Current native shape:
 
 ```
 bgp {
+    router-id 192.0.2.254
     session { asn { local 65000; } }
 
     group defaults {

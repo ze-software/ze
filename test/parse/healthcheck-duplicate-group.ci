@@ -2,6 +2,12 @@
 
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
+	session {
+		asn {
+			local 65000
+		}
+	}
 	healthcheck {
 		probe dns {
 			command "true"

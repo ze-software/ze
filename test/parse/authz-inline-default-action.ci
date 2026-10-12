@@ -3,6 +3,7 @@
 # PREVENTS: Valid compact authorization config failing parse before schema validation.
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	peer loopback {
 		connection {
 			remote {

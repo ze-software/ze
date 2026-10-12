@@ -29,6 +29,7 @@
 # the ID_DER_ASN1_DN acceptance RFC 7296 Section 4 requires is configurable.
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {

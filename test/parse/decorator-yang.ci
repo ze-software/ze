@@ -3,6 +3,7 @@
 # VALIDATES: AC-2 -- non-decorated leaves still parse correctly
 stdin=config:terminator=EOF_CONF
 bgp {
+	router-id 203.0.113.253
 	session {
 		asn {
 			local 64500

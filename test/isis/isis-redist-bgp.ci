@@ -38,6 +38,7 @@
 # --- Both directions: import isis into BGP, and connected/static/bgp into isis. ---
 stdin=isis-redist-both:terminator=EOF_BOTH
 bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {

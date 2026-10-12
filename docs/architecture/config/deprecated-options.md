@@ -43,6 +43,7 @@ session state:
 
 ```
 bgp {
+    router-id 192.0.2.254
     session { asn { local 65000; } }
 
     peer upstream1 {
@@ -70,6 +71,12 @@ Current config uses named groups and concrete peers:
 
 ```
 bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     group default {
         timer { receive-hold-time 90; }
 
@@ -101,6 +108,12 @@ Current config expresses the same default as a BGP group:
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     group ibgp-rs {
         session { asn { remote 65000; } }
     }

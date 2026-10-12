@@ -5,6 +5,11 @@
 
 tmpfs=valid-zero.conf:terminator=EOF_ZERO
 bgp {
+  session {
+    asn {
+      local 65000;
+    }
+  }
   router-id 1.2.3.4;
   peer peer1 {
   	connection {

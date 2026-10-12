@@ -4,6 +4,11 @@
 
 tmpfs=valid-three.conf:terminator=EOF_THREE
 bgp {
+  session {
+    asn {
+      local 65000;
+    }
+  }
   router-id 1.2.3.4;
   peer peer1 {
   	connection {

@@ -32,6 +32,7 @@ EOF_BOOL
 
 stdin=mode:terminator=EOF_MODE
 bgp {
+	router-id 203.0.113.253
 	peer test-peer {
 		connection {
 			remote {
