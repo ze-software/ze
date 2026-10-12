@@ -35,7 +35,7 @@ func uiLeJobAdmitsCheckout(ctx context.Context, root string) error {
 		envGitCommitEmail:  gitFixtureEmail,
 	})
 	commands := [][]string{
-		{argInit, argQuiet, "--template=", gitInitFixtureBranch},
+		{argInit, argQuiet, gitInitNoTemplate, gitInitFixtureBranch},
 		{argAdd, "--", fileGitIgnore},
 		{"-c", "core.hooksPath=" + os.DevNull, "-c", gitCommitNoSign, argCommit, argQuiet, "-m", "Fixture checkout"},
 	}
