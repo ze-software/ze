@@ -69,6 +69,20 @@ type bfdClient struct {
 	// session whose subscriber nothing would ever stop.
 	starting bool
 
+	// cancelled says a stopBFDClient ran while a start was in flight: the
+	// start found nothing to stop, so the start MUST release the session
+	// it opened instead of storing it. Written under mu.
+	cancelled bool
+
+	// restart says a startBFDClient declined while a start was in flight,
+	// so the start in flight MUST open again, from the opt-in as it is then,
+	// when a stop cancelled it. A reload stops and then starts
+	// (Peer.applyBFDOptInChange): its start declines, and without this the
+	// cancelled start would leave the peer with no session for the new
+	// opt-in. A stop clears it, since a stop with no start after it asks for
+	// no session. Written under mu.
+	restart bool
+
 	// reading is the session's state and the time it entered that state,
 	// published as ONE value. It is atomic rather than under mu because the
 	// OPEN rail reads it on the session's read goroutine while the
@@ -199,69 +213,140 @@ func (p *Peer) bfdSubState() string {
 // operator configured, so they are logged at error and the session
 // gate holds the peer out of Established (session_bfd_strict.go).
 func (p *Peer) startBFDClient() {
-	cfg, req := p.bfdOptIn()
-	if cfg == nil || !cfg.Enabled {
-		return
-	}
-
 	// The check and the store below are ONE critical section, held by
 	// starting. Splitting them let two concurrent callers -- the strict
 	// early start in runOnce and the FSM callback on Established -- both
 	// see no handle, both call EnsureSession, and the second store orphan
 	// the first subscriber goroutine with no stop channel to close it.
 	p.bfd.mu.Lock()
-	if p.bfd.handle != nil || p.bfd.starting {
+	if p.bfd.handle != nil {
+		p.bfd.mu.Unlock()
+		return
+	}
+	if p.bfd.starting {
+		p.bfd.restart = true
 		p.bfd.mu.Unlock()
 		return
 	}
 	p.bfd.starting = true
 	p.bfd.mu.Unlock()
 
-	started := false
-	defer func() {
-		if started {
+	// Each pass reads the opt-in after the claim, so a reload that swapped
+	// it before the pass is read here, and one that swaps it during the pass
+	// stops and starts again, which cancels this pass and asks for another.
+	// The loop is bounded by the reloads that land while EnsureSession runs.
+	for {
+		opened, again := p.openBFDSession()
+		if again {
+			continue
+		}
+		if opened == nil {
 			return
 		}
-		p.bfd.mu.Lock()
-		p.bfd.starting = false
-		p.bfd.mu.Unlock()
-	}()
+		p.runOpenedBFDClient(opened)
+		return
+	}
+}
 
+// openedBFD is what openBFDSession stored for one session: the opt-in it was
+// opened for, the handle and its subscription, and the subscriber worker's
+// stop and done channels.
+type openedBFD struct {
+	cfg    *BFDSettings
+	handle api.SessionHandle
+	sub    <-chan api.StateChange
+	stop   chan struct{}
+	done   chan struct{}
+}
+
+// openBFDSession is one pass of startBFDClient: it reads the opt-in, asks the
+// BFD service for the session and subscribes, and stores all of it in one
+// critical section unless a stop ran while it asked (bfdClient.cancelled). A
+// cancelled pass releases what it opened and answers again when a start
+// declined meanwhile (bfdClient.restart). It answers nil when it stored
+// nothing, and clears starting then. The caller MUST have claimed starting.
+func (p *Peer) openBFDSession() (*openedBFD, bool) {
+	p.bfd.mu.Lock()
+	p.bfd.cancelled = false
+	p.bfd.restart = false
+	p.bfd.mu.Unlock()
+
+	cfg, req := p.bfdOptIn()
+	if cfg == nil || !cfg.Enabled {
+		p.endBFDStart()
+		return nil, false
+	}
 	svc := api.GetService()
 	if svc == nil {
+		p.endBFDStart()
 		if cfg.Strict {
 			peerLogger().Error("bfd strict-mode configured but BFD plugin not loaded; peer is held down",
 				"peer", p.settings.Address)
-			return
+			return nil, false
 		}
 		peerLogger().Warn("bfd configured on peer but BFD plugin not loaded; peer runs without BFD",
 			"peer", p.settings.Address)
-		return
+		return nil, false
 	}
 	handle, err := svc.EnsureSession(req)
+	opened := &openedBFD{cfg: cfg, handle: handle}
+	if err == nil {
+		opened.sub = handle.Subscribe()
+		opened.stop = make(chan struct{})
+		opened.done = make(chan struct{})
+	}
+
+	p.bfd.mu.Lock()
+	if p.bfd.cancelled {
+		again := p.bfd.restart
+		if !again {
+			p.bfd.starting = false
+		}
+		p.bfd.mu.Unlock()
+		if err == nil {
+			handle.Unsubscribe(opened.sub)
+			// RFC 5882 Section 8
+			if releaseErr := svc.ReleaseSession(handle); releaseErr != nil {
+				peerLogger().Debug("bfd ReleaseSession of a cancelled start failed",
+					"peer", p.settings.Address, "err", releaseErr)
+			}
+		}
+		return nil, again
+	}
 	if err != nil {
+		p.bfd.starting = false
+		p.bfd.mu.Unlock()
 		if cfg.Strict {
 			peerLogger().Error("bfd strict-mode EnsureSession failed; peer is held down",
 				"peer", p.settings.Address, "err", err)
-			return
+			return nil, false
 		}
 		peerLogger().Warn("bfd EnsureSession failed; peer runs without BFD",
 			"peer", p.settings.Address, "err", err)
-		return
+		return nil, false
 	}
-	sub := handle.Subscribe()
-	stop := make(chan struct{})
-	done := make(chan struct{})
-
-	p.bfd.mu.Lock()
 	p.bfd.svc = svc
 	p.bfd.handle = handle
-	p.bfd.sub = sub
-	p.bfd.stop = stop
-	p.bfd.done = done
+	p.bfd.sub = opened.sub
+	p.bfd.stop = opened.stop
+	p.bfd.done = opened.done
+	p.bfd.starting = false
+	p.bfd.restart = false
+	p.bfd.mu.Unlock()
+	return opened, false
+}
+
+// endBFDStart clears starting for a pass that opened nothing.
+func (p *Peer) endBFDStart() {
+	p.bfd.mu.Lock()
 	p.bfd.starting = false
 	p.bfd.mu.Unlock()
-	started = true
+}
+
+// runOpenedBFDClient seeds the peer's reading from the session
+// openBFDSession stored and starts the subscriber worker.
+func (p *Peer) runOpenedBFDClient(opened *openedBFD) {
+	cfg, handle, sub, stop, done := opened.cfg, opened.handle, opened.sub, opened.stop, opened.done
 
 	// Seed from the engine's own snapshot rather than from an assumption.
 	// api.SessionHandle.Subscribe delivers the session's current state as the
@@ -491,6 +576,12 @@ func (p *Peer) deliverBFDEvent(event fsm.Event) {
 // on each retry and never converge.
 func (p *Peer) stopBFDClient() {
 	p.bfd.mu.Lock()
+	if p.bfd.starting {
+		// A start in flight has no handle to stop yet: it releases what it
+		// opens instead (openBFDSession).
+		p.bfd.cancelled = true
+		p.bfd.restart = false
+	}
 	svc := p.bfd.svc
 	handle := p.bfd.handle
 	sub := p.bfd.sub
