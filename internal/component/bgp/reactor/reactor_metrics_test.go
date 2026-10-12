@@ -258,7 +258,7 @@ func TestUpdatePeriodicMetrics_SetsOverflowGauges(t *testing.T) {
 	}
 
 	// Create a worker so WorkerCount > 0 and OverflowDepths has an entry.
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("192.168.1.1:179")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("192.168.1.1:179")}, &fwdItem{})
 	require.Eventually(t, func() bool {
 		return pool.WorkerCount() == 1
 	}, time.Second, time.Millisecond)
@@ -334,7 +334,7 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("192.168.1.1:179")}
 
 	// First dispatch: worker starts and blocks in handler on <-blocker.
-	ok := pool.TryDispatch(key, fwdItem{})
+	ok := pool.TryDispatch(key, &fwdItem{})
 	require.True(t, ok, "first TryDispatch should succeed")
 	pool.recordForwarded(netip.MustParseAddr("10.0.0.1"))
 
@@ -347,15 +347,15 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 
 	// Fill the channel (chanSize=4): worker is blocked, so these stay queued.
 	for range 4 {
-		ok = pool.TryDispatch(key, fwdItem{})
+		ok = pool.TryDispatch(key, &fwdItem{})
 		require.True(t, ok, "TryDispatch should succeed while channel has space")
 	}
 	pool.recordForwarded(netip.MustParseAddr("10.0.0.1"))
 
 	// Channel is full (4/4). TryDispatch should fail.
-	ok = pool.TryDispatch(key, fwdItem{})
+	ok = pool.TryDispatch(key, &fwdItem{})
 	require.False(t, ok, "TryDispatch should fail (channel full)")
-	ok = pool.dispatchOverflow(key, fwdItem{})
+	ok = pool.dispatchOverflow(key, &fwdItem{})
 	require.True(t, ok, "dispatchOverflow should succeed")
 	pool.recordOverflowed(netip.MustParseAddr("10.0.0.1"))
 

@@ -257,7 +257,7 @@ func (g *gatedWorkers) finishWrite(t testing.TB, pool *fwdPool, addr netip.AddrP
 	gate := g.gates[addr.Addr()]
 	// Queued while the worker is still inside the forwarded batch's handler, so
 	// it cannot be drained into that same batch.
-	require.True(t, pool.TryDispatch(fwdKey{peerAddr: addr}, fwdItem{}),
+	require.True(t, pool.TryDispatch(fwdKey{peerAddr: addr}, &fwdItem{}),
 		"the sentinel batch must reach peer %s's worker", addr)
 	close(gate.release)
 	select {

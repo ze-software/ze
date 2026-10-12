@@ -85,7 +85,7 @@ func (fp *fwdPool) barrier(ctx context.Context, filter func(fwdKey) bool) error 
 		w.overflowMu.Unlock()
 
 		if overflowEmpty {
-			if fp.TryDispatch(targets[i].key, sentinel) {
+			if fp.TryDispatch(targets[i].key, &sentinel) {
 				continue
 			}
 			// Channel was full; fall through to overflow path.
@@ -94,7 +94,7 @@ func (fp *fwdPool) barrier(ctx context.Context, filter func(fwdKey) bool) error 
 		// overflow so it is processed strictly after every dispatch that
 		// preceded Barrier. If dispatchOverflow returns false (pool
 		// stopped), it calls sentinel.done() itself.
-		fp.dispatchOverflow(targets[i].key, sentinel)
+		fp.dispatchOverflow(targets[i].key, &sentinel)
 	}
 
 	// Wait for all sentinels to be processed.

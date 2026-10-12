@@ -143,14 +143,14 @@ func BenchmarkFwdPoolTryDispatch(b *testing.B) {
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
 
 	// Warm up: ensure worker exists so we measure steady-state, not creation.
-	pool.TryDispatch(key, fwdItem{})
+	pool.TryDispatch(key, &fwdItem{})
 	for pool.WorkerCount() == 0 {
 		runtime.Gosched()
 	}
 
 	b.ReportAllocs()
 	for b.Loop() {
-		pool.TryDispatch(key, fwdItem{})
+		pool.TryDispatch(key, &fwdItem{})
 	}
 }
 
@@ -183,13 +183,13 @@ func BenchmarkFwdPoolTryDispatchParallel(b *testing.B) {
 		keysMu.Unlock()
 
 		// Warm up worker.
-		pool.TryDispatch(key, fwdItem{})
+		pool.TryDispatch(key, &fwdItem{})
 		for pool.WorkerCount() < id+1 {
 			runtime.Gosched()
 		}
 
 		for pb.Next() {
-			pool.TryDispatch(key, fwdItem{})
+			pool.TryDispatch(key, &fwdItem{})
 		}
 	})
 }

@@ -60,13 +60,13 @@ func TestFwdPool_RouteSuperseding(t *testing.T) {
 
 	// Fill the channel to force overflow.
 	blocker := fwdItem{peer: &Peer{}}
-	fp.TryDispatch(key, blocker)
+	fp.TryDispatch(key, &blocker)
 	// Wait for worker to pick up the item and block in handler.
 	require.Eventually(t, func() bool {
 		return fp.WorkerCount() == 1
 	}, 2*time.Second, time.Millisecond)
 	// Re-fill the channel while worker is blocked.
-	fp.TryDispatch(key, fwdItem{peer: &Peer{}})
+	fp.TryDispatch(key, &fwdItem{peer: &Peer{}})
 
 	body := []byte{0x00, 0x00, 0x00, 0x10, 0x40, 0x01, 0x01, 0x00}
 	superKey := fwdSupersedeKey([][]byte{body})
@@ -81,7 +81,7 @@ func TestFwdPool_RouteSuperseding(t *testing.T) {
 		meta:         map[string]any{"tag": "v1"},
 		done:         func() { done1Called.Store(true) },
 	}
-	require.True(t, fp.dispatchOverflow(key, item1))
+	require.True(t, fp.dispatchOverflow(key, &item1))
 
 	// Second overflow item with same key -- should supersede.
 	item2 := fwdItem{
@@ -91,7 +91,7 @@ func TestFwdPool_RouteSuperseding(t *testing.T) {
 		meta:         map[string]any{"tag": "v2"},
 		done:         func() { done2Called.Store(true) },
 	}
-	require.True(t, fp.dispatchOverflow(key, item2))
+	require.True(t, fp.dispatchOverflow(key, &item2))
 
 	// Verify: old item's done() was called (superseded).
 	assert.True(t, done1Called.Load(), "superseded item's done() must be called")
@@ -126,7 +126,7 @@ func TestFwdPool_SupersedingDifferentKeys(t *testing.T) {
 
 	// Fill the channel so the worker is stuck in the handler, guaranteeing
 	// subsequent dispatchOverflow calls land in the overflow queue.
-	fp.TryDispatch(key, fwdItem{peer: &Peer{}})
+	fp.TryDispatch(key, &fwdItem{peer: &Peer{}})
 	require.Eventually(t, func() bool {
 		return fp.WorkerCount() == 1
 	}, 2*time.Second, time.Millisecond)
@@ -134,11 +134,11 @@ func TestFwdPool_SupersedingDifferentKeys(t *testing.T) {
 	body1 := []byte{0x01}
 	body2 := []byte{0x02}
 
-	fp.dispatchOverflow(key, fwdItem{
+	fp.dispatchOverflow(key, &fwdItem{
 		peer: &Peer{}, rawBodies: [][]byte{body1},
 		supersedeKey: fwdSupersedeKey([][]byte{body1}),
 	})
-	fp.dispatchOverflow(key, fwdItem{
+	fp.dispatchOverflow(key, &fwdItem{
 		peer: &Peer{}, rawBodies: [][]byte{body2},
 		supersedeKey: fwdSupersedeKey([][]byte{body2}),
 	})

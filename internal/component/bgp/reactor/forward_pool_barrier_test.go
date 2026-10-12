@@ -33,8 +33,8 @@ func TestFwdPool_Barrier_DrainsAll(t *testing.T) {
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Dispatch two items — handler is blocked so they queue up
-	pool.Dispatch(key, fwdItem{})
-	pool.Dispatch(key, fwdItem{})
+	pool.Dispatch(key, &fwdItem{})
+	pool.Dispatch(key, &fwdItem{})
 
 	// Start barrier in goroutine
 	barrierDone := make(chan error, 1)
@@ -102,8 +102,8 @@ func TestFwdPool_Barrier_Filtered(t *testing.T) {
 	}()
 
 	// Dispatch to both peers
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("2.2.2.2:179")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, &fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("2.2.2.2:179")}, &fwdItem{})
 
 	// Wait for peer1's item to be processed
 	require.Eventually(t, func() bool {
@@ -135,7 +135,7 @@ func TestFwdPool_Barrier_ContextCancel(t *testing.T) {
 		pool.Stop()
 	}()
 
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, &fwdItem{})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -183,12 +183,12 @@ func TestFwdPool_Barrier_WithOverflow(t *testing.T) {
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Fill the channel (size=2)
-	pool.TryDispatch(key, fwdItem{})
-	pool.TryDispatch(key, fwdItem{})
+	pool.TryDispatch(key, &fwdItem{})
+	pool.TryDispatch(key, &fwdItem{})
 
 	// These go to overflow
-	pool.dispatchOverflow(key, fwdItem{})
-	pool.dispatchOverflow(key, fwdItem{})
+	pool.dispatchOverflow(key, &fwdItem{})
+	pool.dispatchOverflow(key, &fwdItem{})
 
 	// Start barrier
 	barrierDone := make(chan error, 1)

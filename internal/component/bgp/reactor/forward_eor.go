@@ -37,7 +37,7 @@ func (a *reactorAPIAdapter) queueEndOfRIB(peer *Peer, fam family.Family, update 
 	peer.mu.RLock()
 	session := peer.session
 	peer.mu.RUnlock()
-	return a.r.fwdPool.dispatchOverflow(fwdKey{peerAddr: peer.settings.PeerKey()}, fwdItem{
+	return a.r.fwdPool.dispatchOverflow(fwdKey{peerAddr: peer.settings.PeerKey()}, &fwdItem{
 		updates:       []*message.Update{update},
 		peer:          peer,
 		session:       session,

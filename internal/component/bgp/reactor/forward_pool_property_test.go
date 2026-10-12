@@ -149,8 +149,8 @@ func TestForwardPoolOrderingProperty(t *testing.T) {
 				for k := range perGoroutine {
 					item := fwdItem{meta: map[string]any{"id": base + k}}
 					// Real caller pattern: non-blocking try, overflow fallback.
-					if !pool.TryDispatch(key, item) {
-						pool.dispatchOverflow(key, item)
+					if !pool.TryDispatch(key, &item) {
+						pool.dispatchOverflow(key, &item)
 					}
 				}
 			}(g * perGoroutine)

@@ -764,7 +764,7 @@ func (target announceTarget) queueBehindForwards(expectedMessage uint64, replay 
 			if replay {
 				item.meta = map[string]any{"replay": true}
 			}
-			if !target.peer.reactor.fwdPool.dispatchOverflow(key, item) {
+			if !target.peer.reactor.fwdPool.dispatchOverflow(key, &item) {
 				return errForwardPoolStopped
 			}
 			return nil

@@ -34,7 +34,7 @@ func blockedOverflowPool(t *testing.T, mux *MixedBufMux) (*fwdPool, fwdKey) {
 	}
 
 	key := fwdKey{peerAddr: mustAddrPort("10.0.0.1:179")}
-	fp.TryDispatch(key, fwdItem{peer: &Peer{}})
+	fp.TryDispatch(key, &fwdItem{peer: &Peer{}})
 	require.Eventually(t, func() bool {
 		return fp.WorkerCount() == 1
 	}, 2*time.Second, time.Millisecond, "worker must pick the item up and block in the handler")
@@ -128,7 +128,7 @@ func TestOverflowItemSurvivesSafetyValveEviction(t *testing.T) {
 	require.NoError(t, cache.Ack(200, "healthy"))
 
 	fp, key := blockedOverflowPool(t, nil)
-	require.True(t, fp.dispatchOverflow(key, fwdItem{
+	require.True(t, fp.dispatchOverflow(key, &fwdItem{
 		peer:      &Peer{},
 		rawBodies: [][]byte{body},
 		done:      func() { cache.Release(100) },
@@ -172,7 +172,7 @@ func TestOverflowItemOwnsBytesWithoutAHandle(t *testing.T) {
 	bodies := [][]byte{src, second}
 
 	fp, key := blockedOverflowPool(t, nil)
-	require.True(t, fp.dispatchOverflow(key, fwdItem{peer: &Peer{}, rawBodies: bodies}))
+	require.True(t, fp.dispatchOverflow(key, &fwdItem{peer: &Peer{}, rawBodies: bodies}))
 
 	require.Equal(t, &src[0], &bodies[0][0], "the caller's body slice must not be re-pointed")
 
@@ -205,7 +205,7 @@ func TestOverflowItemOwnsBytesLargerThanOneHandle(t *testing.T) {
 	want := append([]byte(nil), src...)
 
 	fp, key := blockedOverflowPool(t, mux)
-	require.True(t, fp.dispatchOverflow(key, fwdItem{peer: &Peer{}, rawBodies: [][]byte{src}}))
+	require.True(t, fp.dispatchOverflow(key, &fwdItem{peer: &Peer{}, rawBodies: [][]byte{src}}))
 
 	for i := range src {
 		src[i] = 0xAA
@@ -234,7 +234,7 @@ func TestOverflowItemOwnsUpdateSections(t *testing.T) {
 	want := append([]byte(nil), src...)
 
 	fp, key := blockedOverflowPool(t, mux)
-	require.True(t, fp.dispatchOverflow(key, fwdItem{
+	require.True(t, fp.dispatchOverflow(key, &fwdItem{
 		peer: &Peer{},
 		updates: []*message.Update{{
 			WithdrawnRoutes: src[0:4],

@@ -46,7 +46,7 @@ func TestDispatchOverflowReleasesItemWhenStopped(t *testing.T) {
 		done:        func() { doneCalled = true },
 	}
 
-	if fp.dispatchOverflow(fwdKey{}, item) {
+	if fp.dispatchOverflow(fwdKey{}, &item) {
 		t.Fatal("a stopped pool must refuse the dispatch")
 	}
 
@@ -71,7 +71,7 @@ func TestDispatchOverflowStoppedIsSafeWithoutABuffer(t *testing.T) {
 	fp.stopped = true
 
 	var doneCalled bool
-	if fp.dispatchOverflow(fwdKey{}, fwdItem{done: func() { doneCalled = true }}) {
+	if fp.dispatchOverflow(fwdKey{}, &fwdItem{done: func() { doneCalled = true }}) {
 		t.Fatal("a stopped pool must refuse the dispatch")
 	}
 	if !doneCalled {

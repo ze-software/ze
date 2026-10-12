@@ -132,7 +132,7 @@ func (f *aigpReplayFixture) forward(t *testing.T, id uint64) {
 func (f *aigpReplayFixture) drain(t *testing.T) {
 	t.Helper()
 	done := make(chan struct{})
-	require.True(t, f.r.fwdPool.Dispatch(fwdKey{peerAddr: f.destination.Settings().PeerKey()}, fwdItem{done: func() { close(done) }}))
+	require.True(t, f.r.fwdPool.Dispatch(fwdKey{peerAddr: f.destination.Settings().PeerKey()}, &fwdItem{done: func() { close(done) }}))
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):

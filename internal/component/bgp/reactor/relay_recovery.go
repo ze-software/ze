@@ -291,7 +291,7 @@ func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents
 	// and sends all advertised ADD-PATH IDs without restarting the RIB scan.
 	dispatched = true
 	if !a.r.fwdPool.dispatchOverflow(fwdKey{peerAddr: destination.Settings().PeerKey()},
-		fwdItem{peer: destination, recovery: admission}) {
+		&fwdItem{peer: destination, recovery: admission}) {
 		return false, errForwardPoolStopped
 	}
 	select {

@@ -1219,16 +1219,16 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// (Peer.initialUpdateOwed).
 			pending[i].item.initialUpdate = srcInfo.initialUpdate
 			if dst := pending[i].item.peer; dst != nil && dst.forwardOrderHold(srcInfo.initialUpdate) {
-				if a.r.fwdPool.dispatchOverflow(pending[i].key, pending[i].item) {
+				if a.r.fwdPool.dispatchOverflow(pending[i].key, &pending[i].item) {
 					a.r.fwdPool.recordOverflowed(srcAddr)
 					dispatchedCount++
 				}
 				continue
 			}
-			if a.r.fwdPool.TryDispatch(pending[i].key, pending[i].item) {
+			if a.r.fwdPool.TryDispatch(pending[i].key, &pending[i].item) {
 				a.r.fwdPool.recordForwarded(srcAddr)
 				dispatchedCount++
-			} else if a.r.fwdPool.dispatchOverflow(pending[i].key, pending[i].item) {
+			} else if a.r.fwdPool.dispatchOverflow(pending[i].key, &pending[i].item) {
 				a.r.fwdPool.recordOverflowed(srcAddr)
 				dispatchedCount++
 			}

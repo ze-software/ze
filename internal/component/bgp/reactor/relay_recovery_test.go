@@ -336,7 +336,7 @@ func TestRecoveryCanceledAndStoppedOperation(t *testing.T) {
 			key := fwdKey{peerAddr: destination.Settings().PeerKey()}
 			if stopped {
 				r.fwdPool.Stop()
-				require.False(t, r.fwdPool.dispatchOverflow(key, item))
+				require.False(t, r.fwdPool.dispatchOverflow(key, &item))
 				require.Error(t, admission.err)
 			} else {
 				r.fwdPool.safeBatchHandle(key, []fwdItem{item})

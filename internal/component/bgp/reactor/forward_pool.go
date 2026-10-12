@@ -693,7 +693,10 @@ func (fp *fwdPool) releaseRecoveryItems(recovery *recoveryAdmission) {
 // Blocks if the channel is full (backpressure on the caller).
 // Returns true if the item was enqueued, false if the pool is stopped.
 // Callers must clean up associated state (e.g., cache Release) on false.
-func (fp *fwdPool) Dispatch(key fwdKey, item fwdItem) bool {
+// The pool copies *item and keeps no pointer to it: item is a pointer only to
+// spare the copy of a 328-byte struct. After true the caller MUST NOT release
+// or reuse what *item references, because the queued copy owns it.
+func (fp *fwdPool) Dispatch(key fwdKey, item *fwdItem) bool {
 	// Fast path: RLock when the worker already exists.
 	// pending.Add(1) must happen under RLock so the idle handler (which takes
 	// Lock) always sees pending > 0 while a Dispatch is in flight.
@@ -734,7 +737,7 @@ func (fp *fwdPool) Dispatch(key fwdKey, item fwdItem) bool {
 	// is full, this blocks until the worker drains one item. The stopCh
 	// escape prevents deadlock during shutdown.
 	select {
-	case w.ch <- item:
+	case w.ch <- *item:
 		w.pending.Add(-1)
 	case <-fp.stopCh:
 		w.pending.Add(-1)
@@ -747,12 +750,13 @@ func (fp *fwdPool) Dispatch(key fwdKey, item fwdItem) bool {
 // TryDispatch attempts a non-blocking send to the worker for the given key.
 // Creates the worker lazily if it doesn't exist.
 // Returns true if the item was enqueued, false if the channel is full or pool is stopped.
-// On false, the caller should use dispatchOverflow as a fallback.
+// On false, the caller should use dispatchOverflow as a fallback, and *item is
+// as the caller passed it. The pointer contract is Dispatch's.
 //
 // If the send fails because the channel is full:
 //   - Sets the worker's congested flag (if not already set)
 //   - Fires onCongested callback on false->true transition
-func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
+func (fp *fwdPool) TryDispatch(key fwdKey, item *fwdItem) bool {
 	// Fast path: RLock for the common case where the worker already exists.
 	// The non-blocking send is performed under RLock to prevent the idle
 	// handler (which takes Lock) from deleting the worker between lookup
@@ -793,7 +797,7 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 
 		item.countOnChannel()
 		select {
-		case w.ch <- item:
+		case w.ch <- *item:
 			w.pending.Add(-1)
 			fp.dispatchWG.Done()
 			return true
@@ -825,7 +829,7 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 	// Fast path: non-blocking send under RLock.
 	item.countOnChannel()
 	select {
-	case w.ch <- item:
+	case w.ch <- *item:
 		fp.mu.RUnlock()
 		fp.dispatchWG.Done()
 		return true
@@ -856,7 +860,7 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 //
 // Returns true if the item was buffered, false if the pool is stopped
 // (in which case done() is called immediately to prevent cache leaks).
-func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
+func (fp *fwdPool) dispatchOverflow(key fwdKey, item *fwdItem) bool {
 	// Fast path: RLock when the worker already exists.
 	// pending.Add(1) under RLock prevents the idle handler from deleting
 	// the worker between lookup and the overflow append below. RLock is
@@ -870,7 +874,7 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 		// with peerBufIdx and peerPoolRef set before dispatching. Neither
 		// TryDispatch nor the caller releases on a false return, so without
 		// this the Outgoing Peer Pool buffer is never handed back.
-		fp.releaseItem(&item)
+		fp.releaseItem(item)
 		if item.done != nil {
 			item.done()
 		}
@@ -892,7 +896,7 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 			fp.mu.Unlock()
 			// Same obligation as the fast-path stopped branch above: the item
 			// still holds the caller's pooled buffer here.
-			fp.releaseItem(&item)
+			fp.releaseItem(item)
 			if item.done != nil {
 				item.done()
 			}
@@ -945,7 +949,7 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 	// The item is about to sit in an unbounded queue for as long as this
 	// destination stays behind, so it must stop aliasing the source entry's
 	// buffers before it gets there (ownOverflowBodies).
-	ownOverflowBodies(&item)
+	ownOverflowBodies(item)
 
 	w.overflowMu.Lock()
 
@@ -998,7 +1002,7 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 			}
 			old := w.overflow[i]
 			copy(w.overflow[i:], w.overflow[i+1:])
-			w.overflow[len(w.overflow)-1] = item
+			w.overflow[len(w.overflow)-1] = *item
 			fp.releaseItem(&old)
 			if old.done != nil {
 				old.done()
@@ -1008,7 +1012,7 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 		}
 	}
 
-	w.overflow = append(w.overflow, item)
+	w.overflow = append(w.overflow, *item)
 	w.overflowPending.Add(1)
 
 	// Log when overflow grows large (potential slow peer), but never drop.
@@ -1241,8 +1245,8 @@ func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
 // buf is a reusable slice from the caller — reset to [:0] and returned for reuse.
 // limit caps the total batch size (0 = unlimited). Remaining items stay in the
 // channel for the next drain cycle (AC-24: TX budget).
-func drainBatch(buf []fwdItem, firstItem fwdItem, ch <-chan fwdItem, limit int) []fwdItem {
-	buf = append(buf[:0], firstItem)
+func drainBatch(buf []fwdItem, firstItem *fwdItem, ch <-chan fwdItem, limit int) []fwdItem {
+	buf = append(buf[:0], *firstItem)
 	for {
 		if limit > 0 && len(buf) >= limit {
 			return buf
@@ -1322,7 +1326,7 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 			if !idle.Stop() {
 				fwdDrainTimer(idle)
 			}
-			w.batchBuf = drainBatch(w.batchBuf, item, w.ch, fp.cfg.batchLimit)
+			w.batchBuf = drainBatch(w.batchBuf, &item, w.ch, fp.cfg.batchLimit)
 			fp.safeBatchHandle(key, w.batchBuf)
 
 			// Check congestion teardown after each batch (AC-4).

@@ -797,7 +797,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			// destination's initial update, so the replay fence holds it
 			// (Peer.initialUpdateOwed).
 			if dst != nil && (dst.forwardOrderHold(false) || dst.forwardOverflowPending()) {
-				if r.fwdPool.dispatchOverflow(pending[i].key, pending[i].item) {
+				if r.fwdPool.dispatchOverflow(pending[i].key, &pending[i].item) {
 					delivered++
 					r.fwdPool.recordOverflowed(sourcePeerAddr)
 				} else {
@@ -834,10 +834,10 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 				if dstSession != nil && srcSession != nil {
 					srcSession.appendFwdDirty(dstSession)
 				}
-			case r.fwdPool.TryDispatch(pending[i].key, pending[i].item):
+			case r.fwdPool.TryDispatch(pending[i].key, &pending[i].item):
 				delivered++
 				r.fwdPool.recordForwarded(sourcePeerAddr)
-			case r.fwdPool.dispatchOverflow(pending[i].key, pending[i].item):
+			case r.fwdPool.dispatchOverflow(pending[i].key, &pending[i].item):
 				delivered++
 				r.fwdPool.recordOverflowed(sourcePeerAddr)
 			default:
