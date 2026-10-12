@@ -120,7 +120,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>60.0%</strong><b>3 of 5 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>91.8%</strong><b>89 of 97 tagged units, 0 escaped and 5 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>85.6%</strong><b>83 of 97 tagged units, 0 escaped and 11 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -543,7 +543,7 @@ Partial: the whole <a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a> sentence 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L74" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestOriginatedIPv6NextHopAdmissionAfterExportPolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L43" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestQueuedOriginateRefusesUnusableIPv6NextHop</code></a></td>
@@ -583,7 +583,7 @@ Partial: the whole <a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a> sentence 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L157" title="internal/component/bgp/reactor/rfc2545_static_origination_test.go" target="_blank" rel="noopener"><code>TestStaticOriginateContinuesAfterUnusablePolicyNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L21" title="internal/component/bgp/reactor/rfc2545_static_origination_test.go" target="_blank" rel="noopener"><code>TestStaticOriginateIPv6NextHopAdmission</code></a></td>
@@ -658,7 +658,7 @@ Partial: the whole <a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a> sentence 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L76" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestOriginatedIPv6NextHopAdmissionAfterExportPolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L45" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestQueuedOriginateRefusesUnusableIPv6NextHop</code></a></td>
@@ -698,7 +698,7 @@ Partial: the whole <a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a> sentence 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L159" title="internal/component/bgp/reactor/rfc2545_static_origination_test.go" target="_blank" rel="noopener"><code>TestStaticOriginateContinuesAfterUnusablePolicyNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L23" title="internal/component/bgp/reactor/rfc2545_static_origination_test.go" target="_blank" rel="noopener"><code>TestStaticOriginateIPv6NextHopAdmission</code></a></td>
@@ -753,7 +753,7 @@ Partial: the whole <a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a> sentence 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L78" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestOriginatedIPv6NextHopAdmissionAfterExportPolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L46" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestQueuedOriginateRefusesUnusableIPv6NextHop</code></a></td>
@@ -818,7 +818,7 @@ Partial: the whole <a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a> sentence 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L80" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestOriginatedIPv6NextHopAdmissionAfterExportPolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L48" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestQueuedOriginateRefusesUnusableIPv6NextHop</code></a></td>
@@ -1191,7 +1191,7 @@ Partial: the whole <a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a> sentence 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 12 October 2026 10:43 UTC</span>
                 </div>
             </div>
         </footer>

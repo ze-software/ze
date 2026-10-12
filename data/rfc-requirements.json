@@ -26346,7 +26346,7 @@
         "audited": 19,
         "discrimination-records": 78,
         "escapes": 0,
-        "stale-records": 3
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -27449,7 +27449,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvErrForOtherSenderNotRelayed",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 128,
+              "line": 130,
               "carrier": "unit/verify",
               "claim": "-- a ResvErr naming a sender (LSP-ID 2) for which the transit holds no reservation is relayed to nobody: the receiver of the LSP-ID 1 reservation is not responsible for that request and receives no ResvErr; handleResvErr in reservation.go. RFC 2205 Section 2.5: \"Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
@@ -27466,7 +27466,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvErrRelayedToReceiver",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 105,
+              "line": 107,
               "carrier": "unit/verify",
               "claim": "-- a transit holding the reservation a ResvErr names relays that ResvErr, received from its previous hop, to the next hop its Resv came from (the egress receiver), with the ERROR_SPEC node and code unchanged and the reservation's own FILTER_SPEC; handleResvErr in reservation.go. RFC 2205 Section 2.5: \"Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
@@ -27986,7 +27986,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205PathTearTSpecNotUsed",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 181,
+              "line": 183,
               "carrier": "unit/verify",
               "claim": "-- the SENDER_TSPEC of a received PathTear is not used: DecodeMessage records no SENDER_TSPEC for it, and the PathTear the transit relays carries the TSPEC of its stored path state (4e8 bytes/s), not the received 9e8; DecodeMessage in wire.go and pathTearLocked in reroute.go. RFC 2205 Section 3.1.5: \"A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
@@ -28003,7 +28003,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205PathTearObjectsIgnored",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 152,
+              "line": 154,
               "carrier": "unit/verify",
               "claim": "-- a PathTear whose sender descriptor carries a SENDER_TSPEC and an ADSPEC whose IntServ bodies are both invalid (C-Type 2, body 0xdeadbeef) still deletes the transit's path state and is relayed to the next hop, and no PathErr answers it, because both objects are skipped unread; DecodeMessage in wire.go and handlePathTear in engine.go. RFC 2205 Section 3.1.5: \"A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
@@ -28199,7 +28199,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvTearForOtherHopNotRouted",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 262,
+              "line": 264,
               "carrier": "unit/verify",
               "claim": "-- a ResvTear whose RSVP_HOP (LIH 7) does not match the reservation's is not routed upstream: no ResvTear reaches the previous hop and the reservation stays; handleResvTear in reservation.go. RFC 2205 Section 3.1.6: \"A ResvTear message must be routed like the corresponding Resv message, and its IP destination address will be the unicast address of a previous hop.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
@@ -28216,7 +28216,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvTearRoutedLikeResv",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 236,
+              "line": 238,
               "carrier": "unit/verify",
               "claim": "-- a ResvTear matching the transit's reservation is sent on to the same destination the transit relayed its Resv to, the unicast address of the previous hop (the ingress), and the reservation state is removed; handleResvTear and removeReservation in reservation.go. RFC 2205 Section 3.1.6: \"A ResvTear message must be routed like the corresponding Resv message, and its IP destination address will be the unicast address of a previous hop.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
@@ -28246,7 +28246,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205FixedFilterGoodDescriptorKept",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 308,
+              "line": 310,
               "carrier": "unit/verify",
               "claim": "-- the failure of sibling descriptors in an FF-style Resv does not reach the descriptor that is not in error: no ResvErr names LSP-ID 1, its reservation is installed with its own label, and its Resv is relayed to the ingress; handleResv in engine.go and acceptReservation in reservation.go. RFC 2205 Section 3.1.8: \"Each flow descriptor in a FF-style Resv message must be processed independently, and a separate ResvErr message must be generated for each one that is in error.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
@@ -28263,7 +28263,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205FixedFilterErrorPerDescriptor",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 282,
+              "line": 284,
               "carrier": "unit/verify",
               "claim": "-- an FF-style Resv carrying two descriptors in error (LSP-ID 5 and 6, no path state) draws two separate ResvErr messages to the egress, each carrying exactly one FILTER_SPEC, one for each failed descriptor; handleResv in engine.go and acceptReservation in reservation.go. RFC 2205 Section 3.1.8: \"Each flow descriptor in a FF-style Resv message must be processed independently, and a separate ResvErr message must be generated for each one that is in error.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
@@ -28293,7 +28293,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvErrWrongStyleNotRouted",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 368,
+              "line": 370,
               "carrier": "unit/verify",
               "claim": "-- a ResvErr whose STYLE (FF) does not match the transit's SE reservation for that sender is not routed: the transit sends no ResvErr toward the receiver; handleResvErr in reservation.go. RFC 2205 Section 3.1.8: \"This ResvErr message must contain the information required to define the error and to route the error message in later hops.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
@@ -28310,17 +28310,16 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvErrCarriesErrorAndRoute",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 339,
+              "line": 341,
               "carrier": "unit/verify",
               "claim": "-- the ResvErr a transit originates for a rejected SE Resv carries the SESSION, an RSVP_HOP naming the transit, an ERROR_SPEC naming the transit as error node with code 4 (No sender information), a copy of the Resv's STYLE, and the failing flow descriptor's FLOWSPEC and FILTER_SPEC, and is sent to the node the Resv came from; rejectReservation, sendResvError and buildReservationControl in reservation_build.go. RFC 2205 Section 3.1.8: \"This ResvErr message must contain the information required to define the error and to route the error message in later hops.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/rsvpte/reservation_build.go::sendResvError",
                 "break": "body of sendResvError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -28341,17 +28340,16 @@
               "polarity": "negative",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205FailedFirstReservationNotInPlace",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 420,
+              "line": 422,
               "carrier": "unit/verify",
               "claim": "-- an admission control failure on a Resv for which no reservation exists sends a ResvErr with code 1, value 2 and the InPlace flag off, and installs no reservation state; acceptReservation in reservation.go and rejectReservation in reservation_build.go. RFC 2205 Section 3.1.8: \"If the error is an admission control failure while attempting to increase an existing reservation, then the existing reservation must be left in place and the InPlace flag bit must be on in the ERROR_SPEC of the ResvErr message.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/rsvpte/reservation_build.go::rejectReservation",
                 "break": "body of rejectReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -28359,17 +28357,16 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205FailedIncreaseLeavesReservationInPlace",
               "file": "internal/plugins/rsvpte/rfc2205_resv_error_test.go",
-              "line": 384,
+              "line": 386,
               "carrier": "unit/verify",
               "claim": "-- an admission control failure on a Resv raising an existing reservation leaves that reservation in place (its FLOWSPEC, label, Up state and the 8e8 bits/s charged on eth0 unchanged, no Resv relayed upstream) and the ResvErr sent to the egress carries ERROR_SPEC code 1, value 2, with the InPlace flag on; acceptReservation in reservation.go and rejectReservation in reservation_build.go. RFC 2205 Section 3.1.8: \"If the error is an admission control failure while attempting to increase an existing reservation, then the existing reservation must be left in place and the InPlace flag bit must be on in the ERROR_SPEC of the ResvErr message.\" The quote is read from rfc/full/rfc2205.txt.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/rsvpte/reservation_build.go::rejectReservation",
                 "break": "body of rejectReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -37911,7 +37908,7 @@
         "audited": 5,
         "discrimination-records": 94,
         "escapes": 0,
-        "stale-records": 5
+        "stale-records": 11
       },
       "requirements": [
         {
@@ -38089,10 +38086,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
                 "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -38225,10 +38223,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
                 "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -38474,10 +38473,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
                 "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -38610,10 +38610,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
                 "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -38787,10 +38788,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
                 "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -39002,10 +39004,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
                 "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -52728,7 +52731,7 @@
         "audited": 7,
         "discrimination-records": 11,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 1
       },
       "requirements": [
         {
@@ -53002,14 +53005,14 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/plugins/rib/rfc2918_config_static_test.go` `TestRFC2918ConfigStaticRetainedForRefresh` (unit/verify), `internal/component/bgp/plugins/rib/rib_test.go` `TestHandleRefresh_InternalState` (unit/verify), `internal/component/bgp/reactor/rfc2918_replay_feedback_test.go` `TestRefreshSentFeedbackRetainsReplayOrigin` (unit/verify), `internal/component/bgp/reactor/rfc2918_replay_feedback_test.go` `TestRFC2918RefreshRunsCurrentExportPolicy` (unit/verify), `test/plugin/refresh-config-static.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/plugins/rib/rfc2918_config_static_test.go` `TestRFC2918RefreshDoesNotSendToDownPeer` (unit/verify), `internal/component/bgp/plugins/rib/rib_test.go` `TestHandleRefresh_PeerNotUp` (unit/verify), `internal/component/bgp/reactor/rfc2918_replay_feedback_test.go` `TestRFC2918RefreshRunsCurrentExportPolicy` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer",
               "file": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go",
-              "line": 83,
+              "line": 87,
               "carrier": "unit/verify",
               "claim": "-- a refresh from a peer with no established session emits neither routes nor markers, even when Adj-RIB-Out contains a route.",
               "tags": 1,
@@ -53058,10 +53061,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "unit-changed",
+                "detail": "the tagged unit's behavior changed since the red was observed",
                 "producer": "internal/component/bgp/plugins/rib/rib_replay.go::collectGroupedRibOutRoutesForFamily",
                 "break": "body of collectGroupedRibOutRoutesForFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -53138,7 +53142,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Independent re-judge after 1f2dd73052. Reread RFC 2918 Section 4: 'Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the \u003cAFI, SAFI\u003e carried in the message, based on its outbound route filtering policy.' The only change to test/plugin/refresh-config-static.ci is the capability spelling `route-refresh` to `route-refresh enable`; the session still negotiates the capability, and every expect/action line is byte-identical. The test still requires the exact configured UPDATE (ORIGIN IGP, NEXT_HOP 10.0.0.1, LOCAL_PREF 100, NLRI 192.168.1.0/24) at seq=1, sends a ROUTE-REFRESH for AFI 1 SAFI 1 subtype 0, and requires BoRR, the identical UPDATE, then EoRR at seq=3. Producer read at handleRefreshStructured (rib_structured.go): subtype 0 for an up peer collects collectRibOutRoutes(peer, fam) and sends them between borr and eorr; the config route reaches that Adj-RIB-Out through handleSentStructured, whose panic break the re-recorded discrimination record (917da161f8) shows turns this .ci red at the seq=3 UPDATE expect. The Go carriers and their clause attribution are unchanged from the prior verdict. No new execution is claimed.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh"
+            ]
           }
         },
         {
@@ -231520,7 +231527,7 @@
         "audited": 4,
         "discrimination-records": 13,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 2
       },
       "requirements": [
         {
@@ -231544,10 +231551,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
                 "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -231630,10 +231638,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
                 "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },

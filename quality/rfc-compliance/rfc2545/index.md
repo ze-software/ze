@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 60.0% | 3 of 5 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 91.8% | 89 of 97 tagged units, 0 escaped and 5 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 85.6% | 83 of 97 tagged units, 0 escaped and 11 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -152,7 +152,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L123) | unit/verify | revert, verified |
 | negative | [`TestAPIBatchRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L28) | unit/verify | revert, verified |
 | negative | [`TestNamedCommitRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L58) | unit/verify | revert, verified |
-| negative | [`TestOriginatedIPv6NextHopAdmissionAfterExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L74) | unit/verify | revert, verified |
+| negative | [`TestOriginatedIPv6NextHopAdmissionAfterExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L74) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestQueuedOriginateRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L43) | unit/verify | revert, verified |
 | negative | [`TestRFC2545EffectivePairPolicyAndMixedSibling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L589) | unit/verify | revert, verified |
 | negative | [`TestRFC2545ReceivedPairFirstAddressValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L534) | unit/verify | revert, verified |
@@ -160,7 +160,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestRFC2545ReceivedSingleGlobalAddressValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L793) | unit/verify | revert, verified |
 | negative | [`TestRFC2545ReceivedUnusableGlobalRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L120) | unit/verify | revert, verified |
 | negative | [`TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go#L33) | unit/verify | revert, verified |
-| negative | [`TestStaticOriginateContinuesAfterUnusablePolicyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L157) | unit/verify | revert, verified |
+| negative | [`TestStaticOriginateContinuesAfterUnusablePolicyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L157) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestStaticOriginateIPv6NextHopAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L21) | unit/verify | revert, verified |
 | negative | [`TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L41) | unit/verify | revert, verified |
 | negative | [`new-v6.ci`](https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L1) | functional/verify | unproven |
@@ -175,7 +175,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestSessionSendAnnounceAcceptsLinkLocalSecondAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L151) | unit/verify | revert, verified |
 | positive | [`TestAPIBatchRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L30) | unit/verify | revert, verified |
 | positive | [`TestNamedCommitRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L60) | unit/verify | revert, verified |
-| positive | [`TestOriginatedIPv6NextHopAdmissionAfterExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L76) | unit/verify | revert, verified |
+| positive | [`TestOriginatedIPv6NextHopAdmissionAfterExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L76) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestQueuedOriginateRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L45) | unit/verify | revert, verified |
 | positive | [`TestRFC2545EffectivePairPolicyAndMixedSibling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L590) | unit/verify | revert, verified |
 | positive | [`TestRFC2545ReceivedPairFirstAddressValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L535) | unit/verify | revert, verified |
@@ -183,7 +183,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestRFC2545ReceivedSingleGlobalAddressValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L794) | unit/verify | revert, verified |
 | positive | [`TestRFC2545ReceivedUnusableGlobalRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L121) | unit/verify | revert, verified |
 | positive | [`TestSendAnnounceAppendsLinkLocalWhenSection3Holds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L136) | unit/verify | revert, verified |
-| positive | [`TestStaticOriginateContinuesAfterUnusablePolicyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L159) | unit/verify | revert, verified |
+| positive | [`TestStaticOriginateContinuesAfterUnusablePolicyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L159) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestStaticOriginateIPv6NextHopAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L23) | unit/verify | revert, verified |
 | positive | [`conf-llnh-update.ci`](https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L8) | functional/verify | revert, verified |
 | positive | [`adj-rib-in-replay-rfc2545-next-hop.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L24) | functional/verify | revert, verified |
@@ -201,7 +201,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L126) | unit/verify | revert, verified |
 | negative | [`TestAPIBatchRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L31) | unit/verify | revert, verified |
 | negative | [`TestNamedCommitRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L61) | unit/verify | revert, verified |
-| negative | [`TestOriginatedIPv6NextHopAdmissionAfterExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L78) | unit/verify | revert, verified |
+| negative | [`TestOriginatedIPv6NextHopAdmissionAfterExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L78) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestQueuedOriginateRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L46) | unit/verify | revert, verified |
 | negative | [`TestRFC2545EffectivePairPolicyAndMixedSibling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L591) | unit/verify | revert, verified |
 | negative | [`new-v6.ci`](https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L8) | functional/verify | unproven |
@@ -214,7 +214,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestSessionSendAnnounceAcceptsLinkLocalSecondAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L154) | unit/verify | revert, verified |
 | positive | [`TestAPIBatchRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L33) | unit/verify | revert, verified |
 | positive | [`TestNamedCommitRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L63) | unit/verify | revert, verified |
-| positive | [`TestOriginatedIPv6NextHopAdmissionAfterExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L80) | unit/verify | revert, verified |
+| positive | [`TestOriginatedIPv6NextHopAdmissionAfterExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L80) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestQueuedOriginateRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L48) | unit/verify | revert, verified |
 | positive | [`TestRFC2545EffectivePairPolicyAndMixedSibling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L592) | unit/verify | revert, verified |
 | positive | [`TestSendAnnounceAppendsLinkLocalWhenSection3Holds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L140) | unit/verify | revert, verified |
