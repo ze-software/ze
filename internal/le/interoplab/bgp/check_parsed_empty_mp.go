@@ -37,8 +37,8 @@ func checkParsedEmptyMPFRR(ctx context.Context, check *interoplab.CheckContext) 
 	defer func() {
 		evidence, captureErr := parsedEmptyMPDiagnostics(ctx, check)
 		resultErr = errors.Join(resultErr, captureErr)
-		for _, name := range []string{"ze.conf", "frr.conf", "speaker-args", "speaker2-args"} {
-			content, readErr := os.ReadFile(filepath.Join(check.Source.Directory, name))
+		for _, name := range []string{zeConfigFile, frrConfigFile, speakerArgsFile, speaker2ArgsFile} {
+			content, readErr := os.ReadFile(filepath.Join(check.Source.Directory, name)) //nolint:gosec // a fixed fixture name inside the tracked scenario directory
 			resultErr = errors.Join(resultErr, readErr)
 			if readErr == nil {
 				evidence["fixture-"+name] = string(content)

@@ -231,11 +231,11 @@ func renderScenario(source, target string, network interoplab.Network) error {
 			if ipv6Token != "" {
 				text = strings.ReplaceAll(text, baseIPv6Prefix, ipv6Token)
 			}
-			if strings.Contains(text, rfc2545LinkLocalToken) {
+			if strings.Contains(text, rfc2545LinkLocalPlaceholder) {
 				if !network.IPv6.IsValid() {
 					return errors.New("RFC 2545 link-local rendering requires an IPv6 network")
 				}
-				text = strings.ReplaceAll(text, rfc2545LinkLocalToken, rfc2545LinkLocal(network).String())
+				text = strings.ReplaceAll(text, rfc2545LinkLocalPlaceholder, rfc2545LinkLocal(network).String())
 			}
 			if relative == "inject.msg" {
 				text = renderInjectedNextHops(text, ipv4)
@@ -360,7 +360,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		file string
 		name string
 		host uint8
-	}{{"speaker-args", peerSpeaker, 10}, {"speaker2-args", peerSpeaker2, 11}} {
+	}{{speakerArgsFile, peerSpeaker, 10}, {speaker2ArgsFile, peerSpeaker2, 11}} {
 		path := filepath.Join(scenario, speaker.file)
 		if !regularFile(path) {
 			continue
@@ -407,7 +407,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		name   string
 		config string
 		host   uint8
-	}{{peerFRR, "frr.conf", 3}, {peerFRRTransit, virtualLinkTransitConfig, 14}, {peerFRRSink, "frr-sink.conf", extendedSinkHost}} {
+	}{{peerFRR, frrConfigFile, 3}, {peerFRRTransit, virtualLinkTransitConfig, 14}, {peerFRRSink, "frr-sink.conf", extendedSinkHost}} {
 		path := filepath.Join(scenario, frr.config)
 		if !regularFile(path) {
 			continue
@@ -558,8 +558,8 @@ func networkHostAddress6(network interoplab.Network, host uint8) string {
 }
 
 const (
-	rfc2545Scenario       = "bgp-rfc2545-linklocal-nexthop-frr"
-	rfc2545LinkLocalToken = "@ZE_LINK_LOCAL@"
+	rfc2545Scenario             = "bgp-rfc2545-linklocal-nexthop-frr"
+	rfc2545LinkLocalPlaceholder = "@ZE_LINK_LOCAL@"
 )
 
 // rfc2545LinkLocal puts the selected lab prefix and Ze's host number in the

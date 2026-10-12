@@ -336,7 +336,7 @@ func readRPKIReloadSource(ctx context.Context, check *interoplab.CheckContext) (
 		return result, err
 	}
 	peer := document.Peers[source]
-	if peer["state"] != "established" {
+	if peer["state"] != peerStateEstablished {
 		return result, fmt.Errorf("FRR source is not established: %v", peer)
 	}
 	result.Counters = make(map[string]int64, 8)

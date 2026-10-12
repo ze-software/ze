@@ -57,7 +57,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 		}
 		for _, peer := range []string{peerSpeaker, peerSpeaker2} {
 			for _, suffix := range []string{"-ze.jsonl", "-frr.jsonl", "-result.json"} {
-				output, queryErr := check.Lab.Query(diagnosticCtx, peer, []string{"cat", "/tmp/srv6-identity" + suffix}, nil)
+				output, queryErr := check.Lab.Query(diagnosticCtx, peer, []string{cmdCat, "/tmp/srv6-identity" + suffix}, nil)
 				evidence[peer+suffix] = output
 				if queryErr != nil {
 					// The result file appears only when the bounded transport exits.
@@ -80,8 +80,8 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 				}
 			}
 		}
-		for _, name := range []string{"ze.conf", "frr.conf", "frr-sink.conf", "frr-image", "daemons", "inject.msg", "inject-args", "speaker-args", "speaker2-args"} {
-			content, readErr := os.ReadFile(filepath.Join(check.Source.Directory, name))
+		for _, name := range []string{zeConfigFile, frrConfigFile, "frr-sink.conf", "frr-image", "daemons", "inject.msg", "inject-args", speakerArgsFile, speaker2ArgsFile} {
+			content, readErr := os.ReadFile(filepath.Join(check.Source.Directory, name)) //nolint:gosec // a fixed fixture name inside the tracked scenario directory
 			if readErr != nil {
 				resultErr = errors.Join(resultErr, readErr)
 				continue
@@ -249,8 +249,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 			return err
 		}
 		if err := requireSRv6IdentityWire(capture, index == 1); err != nil {
-			var semantic srv6IdentitySemanticError
-			if !errors.As(err, &semantic) {
+			if _, semantic := errors.AsType[srv6IdentitySemanticError](err); !semantic {
 				// A complete selective red on one receiver cannot mask an
 				// incomplete or corrupted capture on the other receiver.
 				return fmt.Errorf("%s: %w", peer, err)
@@ -304,24 +303,24 @@ func requireSRv6IdentityZeSession(output, address string) error {
 	}
 	peer, found := detail.Peers[address]
 	if !found {
-		return errors.New("Ze peer absent")
+		return errors.New("the Ze peer is absent")
 	}
-	if peer.State != "established" {
-		return fmt.Errorf("Ze peer %s state %s", address, peer.State)
+	if peer.State != peerStateEstablished {
+		return fmt.Errorf("the Ze peer %s is in state %s", address, peer.State)
 	}
 	for _, counter := range []*uint64{peer.EOR, peer.Established, peer.Dropped} {
 		if counter == nil {
-			return errors.New("Ze session counters absent")
+			return errors.New("the Ze session counters are absent")
 		}
 	}
 	if *peer.EOR == 0 {
-		return errors.New("Ze initial EOR not yet sent")
+		return errors.New("the Ze initial EOR is not yet sent")
 	}
 	if *peer.Established != 1 {
-		return errors.New("Ze peer does not retain its first session")
+		return errors.New("the Ze peer does not retain its first session")
 	}
 	if *peer.Dropped != 0 {
-		return errors.New("Ze peer session dropped")
+		return errors.New("the Ze peer session dropped")
 	}
 	return nil
 }

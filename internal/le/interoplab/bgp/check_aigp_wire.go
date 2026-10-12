@@ -68,7 +68,7 @@ func waitAIGPWire(ctx context.Context, check *interoplab.CheckContext, transitio
 	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 45 * time.Second, Interval: time.Second, Description: "exact AIGP recipient wire transition",
 	}, func(probe context.Context) (string, error) {
-		return check.Lab.Query(probe, peerSpeaker, []string{"cat", aigpWireCapture}, nil)
+		return check.Lab.Query(probe, peerSpeaker, []string{cmdCat, aigpWireCapture}, nil)
 	}, func(output string) bool {
 		return requireAIGPWire(output, networkHostAddress(check.Network, 2), transitions) == nil
 	})

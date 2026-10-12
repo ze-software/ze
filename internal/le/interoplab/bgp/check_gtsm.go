@@ -72,7 +72,7 @@ func checkGTSMRelatedICMPTTL(ctx context.Context, check *interoplab.CheckContext
 
 	// Assertion 3. The receiver's counters before the stimulus.
 	readCounters := func(probeCtx context.Context) (string, error) {
-		return check.Lab.Query(probeCtx, peerFRR, []string{"cat", "/proc/net/netstat", "/proc/net/snmp6"}, nil)
+		return check.Lab.Query(probeCtx, peerFRR, []string{cmdCat, "/proc/net/netstat", "/proc/net/snmp6"}, nil)
 	}
 	beforeText, err := readCounters(ctx)
 	if err != nil {

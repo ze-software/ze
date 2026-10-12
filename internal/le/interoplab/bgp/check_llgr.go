@@ -290,7 +290,14 @@ func llgrReceivedFence(ctx context.Context, check *interoplab.CheckContext, host
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("%w; attempts=%d transient-failures=%d; last completed probe (available=%t): exit=%d stdout=%q stderr=%q error=%v; last measured RIB=%q",
+	// The completed probe's own error stays in the chain, so a caller can
+	// match it; a probe that completed without one prints as <nil>.
+	if lastCompletedErr == nil {
+		return fmt.Errorf("%w; attempts=%d transient-failures=%d; last completed probe (available=%t): exit=%d stdout=%q stderr=%q error=<nil>; last measured RIB=%q",
+			err, report.Attempts, report.TransientFailures, haveCompleted, lastCompleted.ExitCode,
+			lastCompleted.Stdout, lastCompleted.Stderr, lastMeasured)
+	}
+	return fmt.Errorf("%w; attempts=%d transient-failures=%d; last completed probe (available=%t): exit=%d stdout=%q stderr=%q error=%w; last measured RIB=%q",
 		err, report.Attempts, report.TransientFailures, haveCompleted, lastCompleted.ExitCode,
 		lastCompleted.Stdout, lastCompleted.Stderr, lastCompletedErr, lastMeasured)
 }

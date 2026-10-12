@@ -170,12 +170,14 @@ func runParsedEmptyMPSource(options speakerOptions, _ io.Writer) (resultErr erro
 func parsedEmptyMPPhase(phase int, nextHop netip.Addr) [][]byte {
 	eor := speakerMessage(bgpUpdate, []byte{0, 0, 0, 6, 0x80, 15, 3, 0, 2, 1})
 	announce := func(subnet byte) []byte {
-		body := []byte{0, 0, 0, 27, 0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xec, 0x40, 3, 4}
-		body = append(body, nextHop.AsSlice()...)
+		hop := nextHop.AsSlice()
+		body := make([]byte, 0, 20+len(hop)+7+4)
+		body = append(body, 0, 0, 0, 27, 0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xec, 0x40, 3, 4)
+		body = append(body, hop...)
 		// Distinct MEDs prevent the worker's legitimate attribute-bucket merge
-		// from erasing the separate announcement fences.
-		body = append(body, 0x80, 4, 4, 0, 0, 0, subnet)
-		body = append(body, 24, 198, 51, subnet)
+		// from erasing the separate announcement fences. The /24 NLRI follows
+		// the MED.
+		body = append(body, 0x80, 4, 4, 0, 0, 0, subnet, 24, 198, 51, subnet)
 		return speakerMessage(bgpUpdate, body)
 	}
 	switch phase {

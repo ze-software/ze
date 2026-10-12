@@ -148,6 +148,13 @@ const (
 	zeConfigFile       = "ze.conf"
 	zeReloadConfigFile = "ze-reload.conf"
 
+	// frrConfigFile is the primary FRR peer's config, and speakerArgsFile and
+	// speaker2ArgsFile the argument files of the two harness speakers. Each
+	// is optional in a scenario directory.
+	frrConfigFile    = "frr.conf"
+	speakerArgsFile  = "speaker-args"
+	speaker2ArgsFile = "speaker2-args"
+
 	zeMountedConfig       = "/etc/ze/bgp.conf"
 	zeMountedReloadConfig = "/etc/ze/reload.conf"
 	zeRunningConfig       = "/run/ze.conf"
