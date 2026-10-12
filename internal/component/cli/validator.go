@@ -97,6 +97,7 @@ func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 				Severity: severityError,
 			})
 		}
+		result.Errors = append(result.Errors, v.sectionErrors(tree)...)
 	}
 	return result
 }
@@ -117,7 +118,51 @@ func (v *ConfigValidator) ValidateTransition(previous, candidate string) ConfigV
 		})
 	}
 	result.Errors = append(result.Errors, v.bgpPeerErrors(tree)...)
+	result.Errors = append(result.Errors, v.sectionErrors(tree)...)
 	return result
+}
+
+// sectionErrors runs config.ValidateCustomSections, the section walk LoadConfig
+// refuses a config on: the ze:validate custom validators and the YANG checks
+// over validatedSections, and the RFC 7950 Section 7.6.5 mandatory check over
+// every other present section.
+//
+// The editor's own YANG pass covers the bgp section and ze:required, and
+// reached none of this, so `commit verify` called a config valid and a
+// file-mode `commit now` wrote it, and the daemon then refused to load it: a
+// TACACS+ server with no key, a mandatory choice left unset. The bgp global
+// failures are skipped because validateWithYANG reports them already, through
+// the same config.EverySessionCarries rule.
+//
+// The walk runs on a pruned clone, as LoadConfig prunes inactive nodes before
+// it walks, so an inactive subtree is not held to rules the daemon never
+// applies to it. A walk that cannot run refuses: a validator that cannot be
+// built must not wave the config through.
+func (v *ConfigValidator) sectionErrors(tree *config.Tree) []ConfigValidationError {
+	if tree == nil {
+		return nil
+	}
+	pruned := tree.Clone()
+	config.PruneInactive(pruned, v.schema)
+	failures, err := config.ValidateCustomSections(pruned)
+	if err != nil {
+		return []ConfigValidationError{{
+			Message:  "the section checks the daemon applies at load could not run, so the commit is refused: " + err.Error(),
+			Severity: severityError,
+		}}
+	}
+	var errs []ConfigValidationError
+	for _, f := range failures {
+		if f.Section == string(config.ConfigTypeBGP) {
+			continue
+		}
+		errs = append(errs, ConfigValidationError{
+			Line:     f.Err.LineNumber,
+			Message:  f.Message(),
+			Severity: severityError,
+		})
+	}
+	return errs
 }
 
 // bgpPeerErrors runs the BGP engine's own peer resolution, the gate the daemon

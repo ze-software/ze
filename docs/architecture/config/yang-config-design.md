@@ -475,6 +475,15 @@ Declaring a `ze:validate` is not sufficient to make it run. `ValidateCustomSecti
 iterates `validatedSections`, a list of top-level section names, and checks only
 inside those, so an annotation under any other section never executes.
 
+The walk has three callers, so they reach one verdict on the same bytes:
+`LoadConfig` at daemon start and reload, `ze config validate`, and the SSH
+config editor's `commit` and `commit verify` through `sectionErrors`. The editor
+runs it over a clone pruned of inactive nodes, as `LoadConfig` prunes before it
+walks, and reports every failure as an error that blocks the commit, bgp global
+failures excepted because its own bgp pass reports those already.
+
+<!-- source: internal/component/cli/validator.go -- sectionErrors -->
+
 The check above cannot see that: it asks whether the validator FUNCTION exists,
 never whether the walk reaches it, so a dead annotation and a live one are
 spelled identically and both pass. Three sections had dead annotations for as

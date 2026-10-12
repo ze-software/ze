@@ -136,8 +136,10 @@ func (e SectionValidationError) Message() string {
 // every other present section (mandatoryFailures, bgpMandatoryFailures).
 //
 // This is the one walk. LoadConfig calls it so a daemon start and a SIGHUP
-// reload apply the rules, and cli.runValidation calls it so `ze config validate`
-// reports them. A second walk would drift, and the drift is invisible until a
+// reload apply the rules, cli.runValidation calls it so `ze config validate`
+// reports them, and the SSH editor's ConfigValidator.sectionErrors calls it so
+// a commit is refused before it writes what the daemon would refuse to load.
+// A second walk would drift, and the drift is invisible until a
 // validator runs on one path only, which is the defect this function closes.
 //
 // The validator is built with no plugin YANG, matching `ze config validate`
