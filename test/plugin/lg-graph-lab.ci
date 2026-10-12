@@ -1,6 +1,21 @@
 # Test: Looking glass graph lab -- UK network topology
 # VALIDATES: next-hop and AS-path graph modes return correct topology from injected routes
 # PREVENTS: graph builder producing wrong nodes/edges, mode parameter ignored
+#
+# The AS-path SVGs label each node with the name the Team Cymru lookup returns
+# (DecorateASN, cmd/ze/hub/service_lg.go). The names come from `le test cymru`
+# (internal/test/mock/cymru), never from live DNS: the live service renamed
+# AS20940 between May and October 2026, and every exact-body match below went
+# red on every machine with a network. The stub answers
+# "TESTNET-<N> - Test AS<N>, XX" for every ASN, so the bodies are fixed.
+#
+# The stub binds port 53, because `system name-server` is declared
+# `type zt:ip-address` (internal/component/config/system/yang/ze-system-conf.yang)
+# and carries no port, so a daemon pointed at a stub reaches it there or nowhere.
+option=needs-linux:caps=net-bind
+# Serialize against every other test that binds port 53. The port is NODE-WIDE
+# and the address is fixed by the leaf's type, so two stubs cannot coexist.
+option=exclusive:group=dns-stub-port-53
 
 # ze-peer expectations (minimal handshake)
 stdin=peer:terminator=EOF_PEER
@@ -12,6 +27,17 @@ EOF_PEER
 
 # ze bgp configuration with LG enabled
 stdin=ze-bgp:terminator=EOF_CONF
+system {
+	# newResolvers (cmd/ze/hub/main_system.go) reads NameServers[0] into the
+	# resolver the Cymru lookup uses, so every ASN name comes from the stub.
+	name-server 127.0.0.1;
+	dns {
+		# An empty path stops Ze writing a resolv.conf. The runner's container is
+		# shared, and the file is not what the resolver reads here.
+		resolv-conf-path "";
+	}
+}
+
 plugin {
 	external lg-lab {
 		run "le test interop-bgp process lg-graph-lab lg-lab"
@@ -74,8 +100,9 @@ bgp {
 EOF_CONF
 
 # Process orchestration -- both in background, HTTP checks are the assertions
-cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=background:seq=1:exec=le test cymru --port 53
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=3:exec=ze -:stdin=ze-bgp
 
 # Wait for routes to be injected by lg-lab plugin before checking graph output.
 #

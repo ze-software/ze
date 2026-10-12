@@ -34,9 +34,14 @@ environment {
 }
 plugin {
 	hub {
+		# The hub is 127.0.0.1 on $PORT, a port the runner reserved for this
+		# test and nothing binds, so the probe is refused on every host. A
+		# TEST-NET address is not enough: a gateway that answers TCP 8443 for
+		# any destination (seen on a phone hotspot, 2026-10-12) let the probe
+		# connect, and doctor-hub-unreachable never fired.
 		client edge-01 {
-			host 203.0.113.5
-			port 8443
+			host 127.0.0.1
+			port $PORT
 			secret "startup-resilience-32char-min-secret"
 		}
 	}
