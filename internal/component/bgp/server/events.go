@@ -793,7 +793,10 @@ func onPeerBound(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plug
 			deliverPeerState(s, peer, procs, fed, rpc.SessionStateUp, rpc.ReasonAttached, false, &fmtCache, &scratchArr)
 		}
 	}
-	if len(negotiatedNames) == 0 || neg == nil {
+	if len(negotiatedNames) == 0 {
+		return
+	}
+	if neg == nil {
 		return
 	}
 	decoded, ok := neg.(format.DecodedNegotiated)

@@ -77,7 +77,10 @@ func readZeNodeNet(path string) (zeNodeNet, error) {
 	var network zeNodeNet
 	for line := range strings.SplitSeq(string(content), "\n") {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
 			continue
 		}
 		if err := network.add(strings.Fields(line)); err != nil {

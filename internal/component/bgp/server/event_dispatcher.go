@@ -104,7 +104,10 @@ func (d *EventDispatcher) OnPeerUnbound(peer *plugin.PeerInfo, state rpc.Session
 // edges, and the call returns once every process acknowledged, so no message of
 // the session reaches a process ahead of its up (onPeerBound).
 func (d *EventDispatcher) OnPeerBound(peer *plugin.PeerInfo, neg any, stateProcesses, negotiatedProcesses []string) {
-	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
+	if d.server.ProcessManager() == nil {
+		return
+	}
+	if d.server.Subscriptions() == nil {
 		return
 	}
 	onPeerBound(d.server, d.encoder, peer, neg, stateProcesses, negotiatedProcesses)

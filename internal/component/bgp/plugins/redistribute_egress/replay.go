@@ -141,7 +141,10 @@ func (c *replayCoordinator) onStateUp(bus ze.EventBus, peer, reason string) bool
 
 // markPeerUp records the peer up without firing a replay.
 func (c *replayCoordinator) markPeerUp(peer string) {
-	if c == nil || peer == "" {
+	if c == nil {
+		return
+	}
+	if peer == "" {
 		return
 	}
 	c.mu.Lock()
