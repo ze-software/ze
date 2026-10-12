@@ -123,7 +123,7 @@ func compatibilityRouteState(t *testing.T, safi family.SAFI, addPath bool) {
 						action = routeaction.Update
 						winner = routes[1]
 					}
-					assertCompatibilityChange(t, changes[before], fam, addPath, action, winner)
+					assertCompatibilityChange(t, &changes[before], fam, addPath, action, winner)
 				}
 			})
 		}
@@ -155,7 +155,7 @@ func assertCompatibilityRoutes(t *testing.T, r *RIBManager, peer netip.Addr, fam
 	}
 }
 
-func assertCompatibilityChange(t *testing.T, change ribevents.BestChangeEntry, fam family.Family, addPath bool, action routeaction.Action, route []byte) {
+func assertCompatibilityChange(t *testing.T, change *ribevents.BestChangeEntry, fam family.Family, addPath bool, action routeaction.Action, route []byte) {
 	t.Helper()
 	if change.Action != action {
 		t.Fatalf("action = %v, want %v", change.Action, action)
@@ -229,7 +229,7 @@ func compatibilityVPNPromotion(t *testing.T) {
 					if len(before) != 1 {
 						t.Fatalf("initial changes = %d, want only A's add", len(before))
 					}
-					assertCompatibilityChange(t, before[0], fam, addPath, routeaction.Add, a)
+					assertCompatibilityChange(t, &before[0], fam, addPath, routeaction.Add, a)
 					feedReceived(r, peA, ctxID, compatibilityBody(fam, hopA, 0, compatibilityWithdraw(a, addPath, tc.value), true))
 					assertCompatibilityRoutes(t, r, peA, fam, addPath, map[string]bool{})
 					assertCompatibilityRoutes(t, r, peB, fam, addPath, map[string]bool{hex.EncodeToString(b): true})
@@ -238,7 +238,7 @@ func compatibilityVPNPromotion(t *testing.T) {
 						t.Fatalf("promotion changes = %d, want one", len(changes)-len(before))
 					}
 					last := changes[len(before)]
-					assertCompatibilityChange(t, last, fam, addPath, routeaction.Update, b)
+					assertCompatibilityChange(t, &last, fam, addPath, routeaction.Update, b)
 					if last.NextHop != hopB {
 						t.Fatalf("replacement next hop = %v, want %v", last.NextHop, hopB)
 					}

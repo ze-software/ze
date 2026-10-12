@@ -225,7 +225,7 @@ func appendAttributeText(buf []byte, code attribute.AttributeCode, attr attribut
 		attribute.AttrClusterList, attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI,
 		attribute.AttrAS4Path, attribute.AttrAS4Aggregator, attribute.AttrTunnelEncap,
 		attribute.AttrIPv6ExtCommunity, attribute.AttrAIGP, attribute.AttrPrefixSID,
-		attribute.AttrTombstone:
+		attribute.AttrTombstone, attribute.AttrTrafficEngineering, attribute.AttrSet:
 		// These named attributes use the generic representation below.
 	default:
 		// Attribute codes are an open wire set; retain unknown attributes below.

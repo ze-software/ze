@@ -152,10 +152,10 @@ func TestAppendOtherAttrsWire(t *testing.T) {
 
 // TestAppendOtherAttrsWirePreservesShortExtendedHeader walks a reconstructed
 // MP_REACH followed by a tunnel attribute, with both legal length-header forms.
-// A short value does not permit a one-octet length when the retained flag says two.
 // RFC 4271 Section 4.3: "If the Extended Length bit of the Attribute Flags octet
 // is set to 1, the third and fourth octets of the path attribute contain the
 // length of the attribute data in octets."
+// A short value does not permit a one-octet length when the retained flag says two.
 func TestAppendOtherAttrsWirePreservesShortExtendedHeader(t *testing.T) {
 	mp := []byte{0, 2, 1, 16, 0x20, 1, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 48, 0x20, 1, 0x0d, 0xb8, 0, 1}
 	tunnel := []byte{0, 2, 0, 8, 6, 6, 0, 0, 0, 0, 0, 0}

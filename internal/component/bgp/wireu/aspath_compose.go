@@ -208,13 +208,14 @@ func overrideASPathValue(value []byte, peerAS, localAS uint32, asn4 bool, skip i
 			return
 		}
 		for range count {
-			if skip != 0 {
+			switch {
+			case skip != 0:
 				skip--
-			} else if asn4 {
+			case asn4:
 				if binary.BigEndian.Uint32(value[off:]) == peerAS {
 					binary.BigEndian.PutUint32(value[off:], localAS)
 				}
-			} else if uint32(binary.BigEndian.Uint16(value[off:])) == peerAS {
+			case uint32(binary.BigEndian.Uint16(value[off:])) == peerAS:
 				binary.BigEndian.PutUint16(value[off:], uint16(localAS)) //nolint:gosec // G115: caller restricts narrow override to mappable local AS
 			}
 			off += width

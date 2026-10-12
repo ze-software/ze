@@ -267,6 +267,6 @@ func (r *RIBManager) dispatchSentLifecycle(writes []sentLifecycleWrite) {
 	for _, write := range writes {
 		meta := map[string]any{"rib-lifecycle": true, metaKeyReplay: true,
 			bgptypes.SentOwnerMessageMeta: strconv.FormatUint(write.message, 10)}
-		r.updateRouteWithMeta(write.peer, write.command, meta)
+		r.updateRouteWithMeta(write.peer, write.command, meta) //nolint:errcheck // updateRouteWithMeta logs the failure; each lifecycle write stands alone, so the rest still go
 	}
 }

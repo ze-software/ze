@@ -145,6 +145,7 @@ func rsLabeledCompatibilityMatrix(t *testing.T) {
 		for _, addPath := range []bool{false, true} {
 			for _, compatibility := range []uint32{0x800000, 0, 0x000641, 0x123450, 0xffffff} {
 				t.Run(fam.String()+"/addpath="+strconv.FormatBool(addPath)+"/compat="+strconv.FormatUint(uint64(compatibility), 16), func(t *testing.T) {
+					t.Parallel()
 					rs := &routeServer{withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry)}
 					prefixes := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8"), netip.MustParsePrefix("11.0.0.0/8")}
 					if afi == family.AFIIPv6 {

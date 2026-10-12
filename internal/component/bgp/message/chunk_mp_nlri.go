@@ -85,7 +85,10 @@ func ChunkMPNLRI(nlriData []byte, afi family.AFI, safi family.SAFI, addPath bool
 	if walk == nil {
 		return dst, nlrisplit.ErrUnsupported
 	}
-	w := nlriChunkWalkPool.Get().(*nlriChunkWalk)
+	w, ok := nlriChunkWalkPool.Get().(*nlriChunkWalk)
+	if !ok {
+		panic("BUG: nlriChunkWalkPool holds a value that is not *nlriChunkWalk")
+	}
 	w.data = nlriData
 	w.chunks = dst
 	w.maxSize = maxSize
@@ -95,11 +98,12 @@ func ChunkMPNLRI(nlriData []byte, afi family.AFI, safi family.SAFI, addPath bool
 	w.stopAtLimit = false
 	_, err := walk(nlriData, addPath, w.visit)
 	dst = w.chunks
-	if w.tooLarge != 0 {
+	switch {
+	case w.tooLarge != 0:
 		err = fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, w.tooLarge, maxSize)
-	} else if err != nil {
+	case err != nil:
 		err = fmt.Errorf("%w: %w", ErrNLRIMalformed, err)
-	} else if w.offset > w.chunkStart {
+	case w.offset > w.chunkStart:
 		dst = append(dst, nlriData[w.chunkStart:w.offset])
 	}
 	// The pool MUST NOT retain the caller's wire buffer or result backing array.
@@ -141,7 +145,10 @@ func SplitMPNLRI(nlriData []byte, afi family.AFI, safi family.SAFI, addPath bool
 	if walk == nil {
 		return nil, nil, nlrisplit.ErrUnsupported
 	}
-	w := nlriChunkWalkPool.Get().(*nlriChunkWalk)
+	w, ok := nlriChunkWalkPool.Get().(*nlriChunkWalk)
+	if !ok {
+		panic("BUG: nlriChunkWalkPool holds a value that is not *nlriChunkWalk")
+	}
 	w.maxSize = maxSize
 	w.offset = 0
 	w.chunkStart = 0
