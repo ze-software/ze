@@ -115,9 +115,9 @@ Read the counts live. Never copy them from a commit message or a previous post.
 | MUSTs still owing a test | the "Coverage by RFC" line in the same file |
 | Documents whose requirement list has been checked against the RFC, and those not | `./le rfc extraction-status` |
 
-State the limit honestly: a green run proves everything on the list, and does
-not yet prove the list is complete. That is why the end-to-end reading is on
-the roadmap.
+Do not close the section with a stock caveat about what a green run does or
+does not prove (owner instruction, 2026-10-12): it read the same every week.
+State a limit only when this week's facts change it, in the week's own words.
 
 **MUST comes before SHOULD, and `Coming up` keeps that order.** Close what the
 checking found, then the MUSTs still owing a test, then the documents not yet
