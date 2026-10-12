@@ -14,8 +14,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/gokrazy/tools/gok"
-
 	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/appliance/instance"
 	"github.com/ze-software/ze/internal/core/env"
@@ -225,7 +223,7 @@ func Run(args []string) int {
 		debug("args=", strings.Join(prepared, " "))
 	}
 
-	if err := (gok.Context{Args: prepared}).Execute(context.Background()); err != nil {
+	if err := appliance.ExecuteGok(context.Background(), prepared); err != nil {
 		return fail(err)
 	}
 	return 0

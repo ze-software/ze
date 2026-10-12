@@ -4,7 +4,13 @@
 It replaced a retired workflow that exposed credentials on the command line.
 `ze appliance build <name>` reads them without putting them in process arguments.
 
+The build host is Linux or macOS. gokrazy's packer reads block device sizes
+only on those two systems, so on any other host `ze appliance build` and
+`le build gokrazy` refuse with that reason rather than failing to compile.
+
 <!-- source: internal/appliance/main.go -- command dispatch, built at call time -->
+<!-- source: internal/appliance/gok_execute.go -- ExecuteGok, the one gok entry point -->
+<!-- source: internal/appliance/gok_execute_other.go -- the refusal on any other host -->
 <!-- source: internal/appliance/config.go -- applianceConfig, Validate, LoadConfig, saveConfig -->
 <!-- source: internal/appliance/resolve.go -- ResolveDir and the per-appliance path layout -->
 <!-- source: internal/appliance/cmd_init.go -- init wizard, interactive and config-file modes -->

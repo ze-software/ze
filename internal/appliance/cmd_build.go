@@ -16,8 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokrazy/tools/gok"
-
 	"github.com/ze-software/ze/internal/appliance/instance"
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -45,7 +43,7 @@ var (
 	e2fsE2fsck    = ResolveE2FSTool("e2fsck")
 	runExternalFn = runExternal
 	gokBuildFn    = runGokInProcess
-	gokExecuteFn  = executeGok
+	gokExecuteFn  = ExecuteGok
 )
 
 // e2fsSearchDirs are the directories searched for each e2fsprogs tool, in order.
@@ -367,15 +365,6 @@ func runGokInProcess(args []string) error {
 	// as crashlog.Exec does before an execve.
 	crashlog.Flush()
 	return gokExecuteFn(ctx, args)
-}
-
-// executeGok runs gok's command line over args.
-func executeGok(ctx context.Context, args []string) error {
-	return gok.Context{
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-		Args:   args,
-	}.Execute(ctx)
 }
 
 func runGokBuild(cfg *applianceConfig, imgPath string) int {
