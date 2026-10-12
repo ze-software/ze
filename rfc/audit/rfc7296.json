@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-11",
+  "audited": "2026-10-12",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -36,10 +36,10 @@
       "verdict": "enforced"
     },
     "RFC7296-1.3.3-1": {
-      "note": "initiateIKERekey emits KEi (TestRespondIKERekey) and respondIKERekey refuses a rekey without KE naming KEi; test comment still cites Section 1.3.3 where the sentence is 1.3.2",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. initiateIKERekey emits KEi (TestRespondIKERekey) and respondIKERekey refuses a rekey without KE naming KEi; test comment still cites Section 1.3.3 where the sentence is 1.3.2",
       "requirement_sha": "b883c2b9ab5dc7a6",
       "tests": {
-        "internal/component/ike/engine/rfc7296_responder_test.go::TestRespondIKERekey": "0bd066ff172d78f8",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestRespondIKERekey": "dc42b3cca38785d0",
         "internal/component/ike/engine/rfc7296_test.go::TestRespondIKERekeyRejectsMissingKE": "e032382b6fba7977"
       },
       "units": {
@@ -558,13 +558,13 @@
       "verdict": "weak"
     },
     "RFC7296-2.4-3": {
-      "note": "Re-judged 2026-09-30. Unprotected-message clause unchanged: TestRteUnownedEstablishedSATrustsNothing (cleartext Delete/CREATE_CHILD_SA refused, authenticated Delete still ends the SA) and the two responder IKE_SA_INIT units. Routing-information clause now asserted with real loopback ICMP (linux, unprivileged, ran and passed, not skipped): the IKE socket sets IP_RECVERR and the queued Port Unreachable is consumed by the transport's real error-queue path (records: panic in drainErrorQueue + and deliverQueuedError - observed red, so the ICMP path runs in each unit). Negative TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing: a Port Unreachable from the peer's own address:port while a probe waits, plus a Fragmentation Needed routed into handleSizeRefusal (the engine's only ICMP consumer): SA stays Established, probe stays outstanding with no sa-failed answer, nothing reaches Refusals, later authenticated answer settles it. Positive TestRFC7296ICMPUnreachableDoesNotFailTheSA: after a queued Port Unreachable the SA's next request reaches the peer and the peer's authenticated answer settles the probe as fits. Limit: the assertion covers today's consumers (Refusals channel, handleSizeRefusal); a new ICMP consumer outside them would need its own test.",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Re-judged 2026-09-30. Unprotected-message clause unchanged: TestRteUnownedEstablishedSATrustsNothing (cleartext Delete/CREATE_CHILD_SA refused, authenticated Delete still ends the SA) and the two responder IKE_SA_INIT units. Routing-information clause now asserted with real loopback ICMP (linux, unprivileged, ran and passed, not skipped): the IKE socket sets IP_RECVERR and the queued Port Unreachable is consumed by the transport's real error-queue path (records: panic in drainErrorQueue + and deliverQueuedError - observed red, so the ICMP path runs in each unit). Negative TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing: a Port Unreachable from the peer's own address:port while a probe waits, plus a Fragmentation Needed routed into handleSizeRefusal (the engine's only ICMP consumer): SA stays Established, probe stays outstanding with no sa-failed answer, nothing reaches Refusals, later authenticated answer settles it. Positive TestRFC7296ICMPUnreachableDoesNotFailTheSA: after a queued Port Unreachable the SA's next request reaches the peer and the peer's authenticated answer settles the probe as fits. Limit: the assertion covers today's consumers (Refusals channel, handleSizeRefusal); a new ICMP consumer outside them would need its own test.",
       "requirement_sha": "cf7c5c842e6cd8d6",
       "tests": {
         "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing": "a5c7c1939e14d357",
         "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPUnreachableDoesNotFailTheSA": "a5c7c1939e14d357",
-        "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "0bd066ff172d78f8",
-        "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "0bd066ff172d78f8",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "dc42b3cca38785d0",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "dc42b3cca38785d0",
         "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing": "f133fd37f92cb793",
         "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing#2": "f133fd37f92cb793"
       },
@@ -579,10 +579,10 @@
       "verdict": "enforced"
     },
     "RFC7296-2.4-4": {
-      "note": "Re-read 2026-09-27. Forbidden: INITIAL_CONTACT sent outside the first IKE_AUTH. TestInitiatorEmitsInitialContact fails if the responder did not parse it from the first IKE_AUTH; TestInitialContactAbsentFromRekey fails if an IKE rekey CREATE_CHILD_SA carries it. buildAuthRequest (auth.go) is the only producer of NotifyInitialContact, so no other exchange can carry it.",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Re-read 2026-09-27. Forbidden: INITIAL_CONTACT sent outside the first IKE_AUTH. TestInitiatorEmitsInitialContact fails if the responder did not parse it from the first IKE_AUTH; TestInitialContactAbsentFromRekey fails if an IKE rekey CREATE_CHILD_SA carries it. buildAuthRequest (auth.go) is the only producer of NotifyInitialContact, so no other exchange can carry it.",
       "requirement_sha": "7a75a12e3c5c39ca",
       "tests": {
-        "internal/component/ike/engine/rfc7296_responder_test.go::TestInitiatorEmitsInitialContact": "0bd066ff172d78f8",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestInitiatorEmitsInitialContact": "dc42b3cca38785d0",
         "internal/component/ike/engine/rfc7296_test.go::TestInitialContactAbsentFromRekey": "e032382b6fba7977"
       },
       "units": {

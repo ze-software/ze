@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-12",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -181,10 +181,10 @@
       "verdict": "enforced"
     },
     "RFC2328-13-1": {
-      "note": "Both steps proven on the real wire path: TestRFC2328DiscardedLSAThenNextLSAProcessed encodes one LS Update (bad-checksum LSA, or LS type 6 with a valid Fletcher, then a good router-LSA) and dispatches it through the engine from an Exchange neighbor; the bad LSA is neither stored nor acknowledged and the next is installed and acknowledged. Red against the pre-fix producers (ReceiveUpdate returned on the first bad checksum; DecodeLSUpdate failed the whole packet on an unknown type). D-8 fix read at the producer: LSAIterator.Next advances at least 20 octets per pass and a truncated or short Length still ends the packet with an error (fuzzed 20 s each, iterator and DecodePacket); skipped LSAs count against # LSAs. The DecodeLSReq unit lost its 13-1 tag (LS Request decoder, D-15).",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Both steps proven on the real wire path: TestRFC2328DiscardedLSAThenNextLSAProcessed encodes one LS Update (bad-checksum LSA, or LS type 6 with a valid Fletcher, then a good router-LSA) and dispatches it through the engine from an Exchange neighbor; the bad LSA is neither stored nor acknowledged and the next is installed and acknowledged. Red against the pre-fix producers (ReceiveUpdate returned on the first bad checksum; DecodeLSUpdate failed the whole packet on an unknown type). D-8 fix read at the producer: LSAIterator.Next advances at least 20 octets per pass and a truncated or short Length still ends the packet with an error (fuzzed 20 s each, iterator and DecodePacket); skipped LSAs count against # LSAs. The DecodeLSReq unit lost its 13-1 tag (LS Request decoder, D-15).",
       "requirement_sha": "777287c8db2b74df",
       "tests": {
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "cc92618399884073",
         "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded": "6242f112e5a452b3",
         "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed": "26f4f0cd9038b198",
         "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed#2": "26f4f0cd9038b198"
@@ -198,11 +198,11 @@
       "verdict": "enforced"
     },
     "RFC2328-13-2": {
-      "note": "c20 judge: both clauses on the real flood path. Into: TestRFC2328ASExternalNotFloodedIntoStubArea, four-area ABR, Type-5 received on eth0 and self-originated, reaches the normal-area control eth3 and never leaves the stub eth1 or NSSA eth2, no stub/NSSA retransmission entry (red with eligibleInterface reverted). Throughout: TestRFC2328ASExternalFromStubInterfaceGoesNowhere, Type-5 from the stub/NSSA neighbor not installed and flooded out no interface, eth1 back included (red with shouldDropByArea reverted). Old helper-only units kept as supplementary. Helper rename by sed re-read: lsaFloodedOn consistent, no leftover.",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. c20 judge: both clauses on the real flood path. Into: TestRFC2328ASExternalNotFloodedIntoStubArea, four-area ABR, Type-5 received on eth0 and self-originated, reaches the normal-area control eth3 and never leaves the stub eth1 or NSSA eth2, no stub/NSSA retransmission entry (red with eligibleInterface reverted). Throughout: TestRFC2328ASExternalFromStubInterfaceGoesNowhere, Type-5 from the stub/NSSA neighbor not installed and flooded out no interface, eth1 back included (red with shouldDropByArea reverted). Old helper-only units kept as supplementary. Helper rename by sed re-read: lsaFloodedOn consistent, no leftover.",
       "requirement_sha": "41dc0469753b2263",
       "tests": {
         "internal/plugins/ospf/lsdb/rfc2328_area_type_test.go::TestOSPFStubFloodFilter": "a8040e2a2e2a44b0",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5": "cc92618399884073",
         "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalFromStubInterfaceGoesNowhere": "330db5d6e142abe6",
         "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalNotFloodedIntoStubArea": "330db5d6e142abe6"
       },
@@ -307,12 +307,12 @@
       "verdict": "enforced"
     },
     "RFC2328-13.3-1": {
-      "note": "Clauses: (a) flooded LSAs go on the adjacency's retransmission list: TestOSPFFloodOutOtherInterfaces + (eth1 Full neighbor queued; record on queueRetransmit observed red) and TestOSPFFloodQueuesExchangeAndLoadingNeighbors - (2-Way and the receiving neighbor never queued; record on isFloodEligibleNeighborState observed red). (b) retransmitted until acknowledged, every configurable per-interface RxmtInterval: TestRFC2328RetransmitEveryConfiguredRxmtInterval parses a real OSPFv2 config (eth1 retransmit-interval 3, eth2 11, eth0 default), takes RxmtInterval from engine.lsdbTopology, floods via ReceiveUpdate and ticks RetransmitTick each second 1..24: + eth1 at 3,6,9,12 and eth2 at 11,22 (repeated, per interface); - nothing on any other second, so a hard-coded 5 s or a single retransmission fails, and after eth1's ack at 12 no eth1 resend at 15..24 while unacknowledged eth2 still resends at 22. Exact per-second set compared, buffers isolated (one LSA, one neighbor per interface). TestOSPFRetransmitTimer keeps its earlier default-interval pin. Records on RetransmitTick observed red for both polarities.",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Clauses: (a) flooded LSAs go on the adjacency's retransmission list: TestOSPFFloodOutOtherInterfaces + (eth1 Full neighbor queued; record on queueRetransmit observed red) and TestOSPFFloodQueuesExchangeAndLoadingNeighbors - (2-Way and the receiving neighbor never queued; record on isFloodEligibleNeighborState observed red). (b) retransmitted until acknowledged, every configurable per-interface RxmtInterval: TestRFC2328RetransmitEveryConfiguredRxmtInterval parses a real OSPFv2 config (eth1 retransmit-interval 3, eth2 11, eth0 default), takes RxmtInterval from engine.lsdbTopology, floods via ReceiveUpdate and ticks RetransmitTick each second 1..24: + eth1 at 3,6,9,12 and eth2 at 11,22 (repeated, per interface); - nothing on any other second, so a hard-coded 5 s or a single retransmission fails, and after eth1's ack at 12 no eth1 resend at 15..24 while unacknowledged eth2 still resends at 22. Exact per-second set compared, buffers isolated (one LSA, one neighbor per interface). TestOSPFRetransmitTimer keeps its earlier default-interval pin. Records on RetransmitTick observed red for both polarities.",
       "requirement_sha": "d6a44568dd86b581",
       "tests": {
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFRetransmitTimer": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "cc92618399884073",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "cc92618399884073",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFRetransmitTimer": "cc92618399884073",
         "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval": "84c49eaebde9a3c9",
         "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval#2": "84c49eaebde9a3c9"
       },
@@ -373,11 +373,11 @@
       "verdict": "enforced"
     },
     "RFC2328-13.5-1": {
-      "note": "c20 judge: TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate reaches the ordinary newer-LSA ack through ReceiveUpdate, not hand-set flags: point-to-point, DROther and Backup (from the DR) each send an LS Ack carrying the header on eth0 after FlushDelayedAcks; the DR receiving from a DROther acks implicitly by flooding back out eth0. Negative TestOSPFDRRefloodsBackOutReceivingInterface (flooded back, implicit ack, no explicit ack, Table 19) now carries a judge-observed revert record on ackForReceive. Direct ack of unknown MaxAge held by TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded.",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. c20 judge: TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate reaches the ordinary newer-LSA ack through ReceiveUpdate, not hand-set flags: point-to-point, DROther and Backup (from the DR) each send an LS Ack carrying the header on eth0 after FlushDelayedAcks; the DR receiving from a DROther acks implicitly by flooding back out eth0. Negative TestOSPFDRRefloodsBackOutReceivingInterface (flooded back, implicit ack, no explicit ack, Table 19) now carries a judge-observed revert record on ackForReceive. Direct ack of unknown MaxAge held by TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded.",
       "requirement_sha": "24e8e5fb97afba29",
       "tests": {
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable": "cc92618399884073",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "cc92618399884073",
         "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "fcd3234658f1748d",
         "internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go::TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate": "09296c82da305f9e"
       },
@@ -405,11 +405,11 @@
       "verdict": "enforced"
     },
     "RFC2328-14-2": {
-      "note": "Clause (b) now holds Exchange as well as Loading: a purged MaxAge LSA on no retransmission list is kept with the only neighbor in exchange or loading and removed at once in full or exstart; a Loading-only guard turns the exchange subtest red while the older Loading unit stays green. Clause (a) stays on the retransmission-list units. The units call deletePurgedIfAcked directly, the LSDB seam every trigger uses.",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Clause (b) now holds Exchange as well as Loading: a purged MaxAge LSA on no retransmission list is kept with the only neighbor in exchange or loading and removed at once in full or exstart; a Loading-only guard turns the exchange subtest red while the older Loading unit stays green. Clause (a) stays on the retransmission-list units. The units call deletePurgedIfAcked directly, the LSDB seam every trigger uses.",
       "requirement_sha": "c44a7407d2818023",
       "tests": {
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "cc92618399884073",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "cc92618399884073",
         "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading": "207148933d5942ce",
         "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeRemovedOnceNoNeighborExchangingOrLoading": "207148933d5942ce"
       },
@@ -541,13 +541,13 @@
       "verdict": "enforced"
     },
     "RFC2328-4.4-1": {
-      "note": "Independent judgment: RFC 2328 section 4.4 says, \"Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required.\" The production raw protocol-89 backend now has proof on both sides: TestOSPFTransportVethMulticastRoundTrip reads IP_MULTICAST_IF == 192.0.2.1 and TTL 1, sends AllSPFRouters over a real veth into a peer namespace, and asserts receiving interface, source and exact payload. TestOSPFTransportAllDRoutersReceive first receives on that same link, leaves AllDRouters and requires subsequent delivery to be absent. The original duplicate-join/drop errno assertions prove actual socket membership installation/removal; the foreign-group refusal is supplementary OSPF API confinement, not a general IP multicast forwarding obligation. Inspected runInNS: caller pins its thread, namespace entry and deferred restoration each load the real netlink backend, LoadBackend closes the old counter socket and the replacement lazily opens in its lookup namespace; no fake resolver bypass. Inspected four native recorded producer-halt observations and fresh records. This proves Ze's configured socket/send/receive boundary, not Linux multicast forwarding (expressly not required by this section). No new judge test run.",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Independent judgment: RFC 2328 section 4.4 says, \"Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required.\" The production raw protocol-89 backend now has proof on both sides: TestOSPFTransportVethMulticastRoundTrip reads IP_MULTICAST_IF == 192.0.2.1 and TTL 1, sends AllSPFRouters over a real veth into a peer namespace, and asserts receiving interface, source and exact payload. TestOSPFTransportAllDRoutersReceive first receives on that same link, leaves AllDRouters and requires subsequent delivery to be absent. The original duplicate-join/drop errno assertions prove actual socket membership installation/removal; the foreign-group refusal is supplementary OSPF API confinement, not a general IP multicast forwarding obligation. Inspected runInNS: caller pins its thread, namespace entry and deferred restoration each load the real netlink backend, LoadBackend closes the old counter socket and the replacement lazily opens in its lookup namespace; no fake resolver bypass. Inspected four native recorded producer-halt observations and fresh records. This proves Ze's configured socket/send/receive boundary, not Linux multicast forwarding (expressly not required by this section). No new judge test run.",
       "requirement_sha": "05e902724dc37c8e",
       "tests": {
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled": "d5c94aa47f4b6b51",
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipRefusesForeignGroup": "d5c94aa47f4b6b51",
-        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "313376fa53f2d457",
-        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "313376fa53f2d457"
+        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "f8a4787456989a9e",
+        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "f8a4787456989a9e"
       },
       "units": {
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled": "3e6caeb689ba2dcb",

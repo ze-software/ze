@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-12",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2181-10.3-1": {
@@ -77,12 +77,12 @@
       "verdict": "enforced"
     },
     "RFC2181-5.4-2": {
-      "note": "Re-judged 2026-09-30. Positive: an overlapping response {B} replaces the cached A RRSet {A,B,C} with exactly {B}, so neither a union nor a remainder passes. Negative: the condition's false arm, data that forms no RRSet (AAAA of the same name, A of another name), leaves those sets whole. Records: cache.put reverts, both polarities observed red.",
+      "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Re-judged 2026-09-30. Positive: an overlapping response {B} replaces the cached A RRSet {A,B,C} with exactly {B}, so neither a union nor a remainder passes. Negative: the condition's false arm, data that forms no RRSet (AAAA of the same name, A of another name), leaves those sets whole. Records: cache.put reverts, both polarities observed red.",
       "requirement_sha": "c4c14a1cf07a1756",
       "tests": {
         "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet": "82cd74bc7cef234b",
         "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet#2": "82cd74bc7cef234b",
-        "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "a285c638f6f3738a"
+        "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "9a969f166b226f1c"
       },
       "units": {
         "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet": "c10f1be8b1784b6d",
