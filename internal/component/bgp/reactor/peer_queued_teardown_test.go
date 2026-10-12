@@ -128,3 +128,28 @@ func TestQueuedTeardownSkipsSessionThatReplacedItsTarget(t *testing.T) {
 		}
 	}
 }
+
+// TestQueuedTeardownSendsNothingToSessionThatReplacedItsTarget checks that a
+// teardown whose session has gone writes nothing to the session that holds the
+// peer now. Its End-of-RIB would tell that session's peer the initial update is
+// complete before any of it was sent, so a graceful-restart peer could flush
+// its stale routes early (RFC 4724 Section 2) (review I2). Method: the peer is
+// handed to a second session before runQueuedTeardown runs for the first, and
+// the second session's wire must stay empty.
+//
+// VALIDATES: runQueuedTeardown checks its target before the End-of-RIB.
+// PREVENTS: an early End-of-RIB on the session after the one being torn down.
+func TestQueuedTeardownSendsNothingToSessionThatReplacedItsTarget(t *testing.T) {
+	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	first := peer.session
+	other, nextConn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.mu.Lock()
+	peer.session = other.session
+	peer.mu.Unlock()
+
+	peer.runQueuedTeardown(peer.settings.Address.String(), peerOp{Type: PeerOpTeardown, TeardownSession: first})
+
+	if frames := bgpFrames(t, nextConn.written()); len(frames) != 0 {
+		t.Fatalf("the second session's wire carries %d frames, want none", len(frames))
+	}
+}

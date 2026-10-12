@@ -581,14 +581,20 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 // queue is cleared and the queueing gate opened. Both drains call it, so a
 // teardown queued during either one ends the session the same way.
 //
-// The drain checked op's target when it dequeued it, but the End-of-RIB sends
-// run in between and the peer can move to another session meanwhile. A
-// teardown that names a session therefore ends it only if it still holds the
-// peer; otherwise nothing is torn down, and the queue and the gate are left to
-// the initial sync of the session that holds the peer now.
+// The drain checked op's target when it dequeued it, but the peer can move to
+// another session before the End-of-RIB sends and while they run. A teardown
+// that names a session therefore checks it before the End-of-RIB, so the next
+// session never reads a marker for an initial update it has not received (RFC
+// 4724 Section 2), and again before the NOTIFICATION. When the target has gone
+// nothing is sent or torn down, and the queue and the gate are left to the
+// initial sync of the session that holds the peer now.
 //
 // Called with p.mu NOT held.
 func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
+	if !p.holdsTeardownTarget(op) {
+		routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
+		return
+	}
 	// EOR must be sent BEFORE NOTIFICATION per RFC 4724 Section 4.
 	//
 	// eorSent counts frames that reached the socket, never attempts: a failed
@@ -640,6 +646,18 @@ func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
 	p.initialSyncEOROwed.Store(false)
 	p.mu.Unlock()
 	p.wakeForwardOverflow()
+}
+
+// holdsTeardownTarget reports whether op still applies: a peer-level teardown
+// (nil target) always does, a targeted one only while its session holds the
+// peer. Called with p.mu NOT held.
+func (p *Peer) holdsTeardownTarget(op peerOp) bool {
+	if op.TeardownSession == nil {
+		return true
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return op.TeardownSession == p.session
 }
 
 // sendUpdateDirect is the default send callback when writeMu is not held.
