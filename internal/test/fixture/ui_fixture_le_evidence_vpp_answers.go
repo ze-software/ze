@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -252,7 +253,8 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	vppRecord := filepath.Join(work, "vpp-evidence-argv")
 	evidence := runLE([]string{areaDeployment, actionVPPTest, "|", renderJSON}, leOptions{record: vppRecord})
 	if evidence.code != 0 {
-		return fmt.Errorf("the VPP deployment proof exited %d: %s", evidence.code, uiLeEvidenceVppAnswersTail(evidence.stderr, 800))
+		return fmt.Errorf("the VPP deployment proof exited %d:\nstdout: %s\nstderr: %s", evidence.code,
+			uiLeEvidenceVppAnswersTail(evidence.stdout, 2400), uiLeEvidenceVppAnswersTail(evidence.stderr, 800))
 	}
 	var vpp map[string]any
 	if err := json.Unmarshal([]byte(evidence.stdout), &vpp); err != nil {
@@ -295,8 +297,8 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if len(vppCalls) != 90 {
-		return fmt.Errorf("the VPP deployment proof made %d Docker calls, want 90 (57 distinct steps, five cleanup polls, and the mkdir plus cp that stage each of the fourteen daemon configs)", len(vppCalls))
+	if len(vppCalls) != 104 {
+		return fmt.Errorf("the VPP deployment proof made %d Docker calls, want 104 (57 distinct steps, five cleanup polls, the mkdir plus cp that stage each of the fourteen daemon configs, and the SIGTERM pkill that stops each daemon):\n%s", len(vppCalls), uiLeEvidenceVppAnswersTally(vppCalls))
 	}
 	for _, owed := range []string{"TestVPPRealDataplaneInstalls", "show ip fib 10.20.0.0/24", "show classify tables", "show acl-plugin acl"} {
 		if !containsCall(vppCalls, owed) {
@@ -430,6 +432,28 @@ func uiLeEvidenceVppAnswersRecorded(path string) ([]string, error) {
 	return calls, nil
 }
 
+// uiLeEvidenceVppAnswersTally names each distinct recorded Docker call once,
+// with how often the proof made it, in first-seen order, so a wrong call count
+// shows which step repeated or appeared.
+func uiLeEvidenceVppAnswersTally(calls []string) string {
+	counts := make(map[string]int, len(calls))
+	order := make([]string, 0, len(calls))
+	for _, call := range calls {
+		if counts[call] == 0 {
+			order = append(order, call)
+		}
+		counts[call]++
+	}
+	var out strings.Builder
+	for _, call := range order {
+		out.WriteString(strconv.Itoa(counts[call]))
+		out.WriteString(" x ")
+		out.WriteString(head(call, 160))
+		out.WriteString("\n")
+	}
+	return out.String()
+}
+
 func containsCall(calls []string, text string) bool {
 	for _, call := range calls {
 		if strings.Contains(call, text) {
@@ -551,6 +575,11 @@ func dockerMain() {
         fmt.Println("vpp: container log")
         return
     case "run":
+        if strings.Contains(joined, "doctor --json kernel-capabilities") {
+            // The Docker kernel check's probe: a kernel with every feature.
+            fmt.Println("{\"ready\":true,\"capabilities\":[{\"subsystem\":\"netlink\",\"kernel\":\"CONFIG_NET\",\"state\":\"present\"}]}")
+            return
+        }
         record(args)
         for _, arg := range args {
             if strings.HasSuffix(arg, ":/run/vpp") {
@@ -561,6 +590,17 @@ func dockerMain() {
         return
     case "exec":
         dockerExec(args, joined)
+        return
+    case "info":
+        // The Docker kernel check asks which security modules the daemon
+        // applies (seccomp and no AppArmor, as a Docker Desktop or colima
+        // daemon answers) and which kernel it runs.
+        if strings.Contains(joined, ".SecurityOptions") {
+            fmt.Println("[\"name=seccomp,profile=builtin\"]")
+        }
+        if strings.Contains(joined, ".KernelVersion") {
+            fmt.Println("6.10.14-linuxkit")
+        }
         return
     }
 }
@@ -658,7 +698,7 @@ func dockerExec(args []string, joined string) {
     case strings.Contains(joined, "show acl-plugin acl"):
         if hasState("acl") && !configHas("firewall.conf", "table wan") { awaitState("clear-acl") }
         record(args)
-        if hasState("acl") { fmt.Println("ze/wan/input") }
+        if hasState("acl") { fmt.Println("acl-index 0 count 1 tag {ze/ze_wan/input}") }
         if hasState("clear-acl") { clearState("acl"); clearState("clear-acl") }
     case strings.Contains(joined, "pkill -TERM -f /src/tmp/evidence/bin/linux-amd64/le test peer"):
         record(args)
@@ -674,6 +714,17 @@ func dockerExec(args []string, joined string) {
     case strings.Contains(joined, "ip link show"):
         record(args)
         fmt.Println("1: lo: <LOOPBACK,UP>")
+    case strings.Contains(joined, "pkill -15 -f ") && strings.Contains(joined, " start /run/ze/"):
+        // The proof stops each daemon with SIGTERM through pkill on its exact
+        // start command (122bd2106e). A real ze exits on it, so the fake
+        // daemon below returns, and the proof never escalates to SIGKILL.
+        record(args)
+        pattern := args[len(args)-1]
+        conf := strings.ReplaceAll(pattern[strings.Index(pattern, "/run/ze/")+len("/run/ze/"):], "\\.", ".")
+        conf = strings.TrimSuffix(conf, "/ze.conf$")
+        setState("stop." + conf)
+    case strings.Contains(joined, "pkill -9 -f ") && strings.Contains(joined, " start /run/ze/"):
+        record(args)
     case strings.Contains(joined, "start /run/ze/"):
         record(args)
         conf := ""
@@ -683,6 +734,9 @@ func dockerExec(args []string, joined string) {
             }
         }
         _ = os.WriteFile(workPath()+"."+conf, nil, 0644)
+        // The hub's start line (cmd/ze/hub/main.go), which the proof waits
+        // for before it reads any config-specific line.
+        fmt.Println("Ze running. Press Ctrl+C to stop.")
         switch conf {
         case "traffic.conf":
             if configHas(conf, "interface loop0") { setState("pol-default") } else { setState("clear-pol-default") }
@@ -702,7 +756,12 @@ func dockerExec(args []string, joined string) {
         default:
             fmt.Fprintln(os.Stderr, "ze: interface backend vpp ready")
         }
-        time.Sleep(300 * time.Second)
+        // Run until the proof's SIGTERM pkill names this config, bounded at
+        // 300 seconds like the sleep it replaces.
+        for range 6000 {
+            if hasState("stop." + conf) { clearState("stop." + conf); return }
+            time.Sleep(50 * time.Millisecond)
+        }
     default:
         record(args)
     }

@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -26,10 +27,55 @@ func appendCall(path string, args []string) error {
 	return closeErr
 }
 
+// kernelProbe is the command the Docker kernel check (internal/le/interoplab,
+// checkDockerKernel) runs in its probe container, and kernelProbeAnswer is a
+// kernel that has every feature Ze enrolls, in the shape that command prints.
+const (
+	kernelProbe       = "doctor --json kernel-capabilities"
+	kernelProbeAnswer = `{"ready":true,"capabilities":[{"subsystem":"netlink","kernel":"CONFIG_NET","state":"present"}]}`
+)
+
+// dockerKernelCheck answers the questions the Docker kernel check asks of the
+// daemon, and false for every other call. The daemon runs on the machine the
+// stub was built for, applies seccomp and no AppArmor as a Docker Desktop or
+// colima daemon does, and its kernel has every feature Ze enrolls. An info
+// format it does not know is answered empty, which the asker refuses, so a new
+// question shows up as a red rather than as a pass.
+func dockerKernelCheck(args []string) (string, bool) {
+	if len(args) == 0 {
+		return "", false
+	}
+	joined := strings.Join(args, " ")
+	switch args[0] {
+	case "version":
+		return runtime.GOARCH, true
+	case "info":
+		if strings.Contains(joined, ".SecurityOptions") {
+			return `["name=seccomp,profile=builtin"]`, true
+		}
+		if strings.Contains(joined, ".KernelVersion") {
+			return "6.10.14-linuxkit", true
+		}
+		return "", true
+	case "run":
+		if strings.Contains(joined, kernelProbe) {
+			return kernelProbeAnswer, true
+		}
+	}
+	return "", false
+}
+
 // Run implements the external commands used by the le verify evidence fixture.
 func Run(name string, args []string) (int, bool) {
 	switch name {
 	case "docker":
+		// The kernel check's questions read the daemon and change nothing, so
+		// they are answered before the recording, which holds only the calls
+		// that pull, start, run in, or remove a container the proof asked for.
+		if answer, asked := dockerKernelCheck(args); asked {
+			fmt.Println(answer)
+			return 0, true
+		}
 		if err := appendCall(os.Getenv("ZE_RECORD_DOCKER"), args); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1, true
