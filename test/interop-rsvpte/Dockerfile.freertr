@@ -45,5 +45,6 @@ COPY --from=build /peer /peer
 FROM alpine:3.21.3
 RUN apk add --no-cache openjdk21-jre-headless iproute2 tcpdump tini
 COPY --from=build /peer /peer
-COPY run-freertr.sh /peer/run-freertr.sh
-ENTRYPOINT ["tini", "--", "sh", "/peer/run-freertr.sh"]
+# The suite passes the start command (freeRtrScript in
+# internal/le/interoplab/rsvpte/zenode.go) as the container command.
+ENTRYPOINT ["tini", "--"]

@@ -1188,8 +1188,8 @@ as evidence.
 `internal/le/interoplab/rsvpte/` puts up to four nodes on one Docker segment,
 `172.29.81.0/24`, in four roles: `ingress` (host 2), `transit` (3), `egress`
 (4) and `relay` (5). A scenario directory decides which implementation fills
-each role by the files it carries: `<role>.conf` with `<role>-setup.sh` makes
-the role a Ze node answering on the container address `.<host>`, and
+each role by the files it carries: `<role>.conf` makes the role a Ze node
+answering on the container address `.<host>`, and
 `<role>-hw.txt` with `<role>-sw.txt` makes it a freeRouter node answering on
 its own address `.<10+host>`. A role with neither file is absent. Nodes start
 downstream first, so the first PATH meets nodes that already listen. The
@@ -1203,13 +1203,18 @@ because freeRouter's `packRsvp.parseDatPatReq` refuses a PATH without
 SESSION_ATTRIBUTE and Ze emits that object only for a protected tunnel and a
 bypass. A third shape puts Ze at the point of local repair: Ze ingress, Ze
 PLR, freeRouter relay on the bypass, freeRouter egress as the merge point. Each freeRouter owns its own IPv4 stack
-and MAC: `test/interop-rsvpte/run-freertr.sh` makes the container's `eth0`
+and MAC: its container command (`freeRtrScript`) makes the container's `eth0`
 promiscuous and joins it to the jar through the upstream `rawInt.bin`, so the
 suite needs Docker alone, never host root, a TAP device or a network namespace,
 and no container runs privileged: a freeRouter holds `NET_ADMIN` and `NET_RAW`.
-A Ze node holds `NET_ADMIN` to program MPLS labels and VLANs, and its setup
-script writes its MPLS sysctls at run time (one names a VLAN it creates first),
-so it runs under `ze-lab-net-sysctl` with `/proc/sys` writable. The preflight
+A Ze node holds `NET_ADMIN` to program MPLS labels and VLANs. Its container
+command (`zeNodeScript`) creates the VLANs and adds the routes the role's
+optional `<role>-net.txt` declares, one `vlan <name> id <1-4094> address
+<address/length>` or `route <prefix> via <gateway>` per line, and a line of any
+other shape refuses the run. The command writes its MPLS sysctls at run time
+(one names a VLAN it creates first), so it runs under `ze-lab-net-sysctl` with
+`/proc/sys` writable. No scenario carries a shell script: the commands are
+built in Go from those typed lines. The preflight
 reads `/proc/sys/net/mpls/platform_labels` with no grant, loads no module, and
 refuses a host kernel without MPLS routing with the host command that loads it.
 
@@ -1277,7 +1282,7 @@ capture held Ze's message and freeRouter never relayed it.
 
 <!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- the suite, its topology and its MPLS preflight -->
 <!-- source: internal/le/interoplab/rsvpte/checkers.go -- every observation, read from a peer's capture -->
-<!-- source: test/interop-rsvpte/run-freertr.sh -- freeRouter on eth0 through rawInt.bin -->
+<!-- source: internal/le/interoplab/rsvpte/zenode.go -- freeRtrScript, zeNodeScript, readZeNodeNet -->
 <!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the three test-only RESV knobs -->
 <!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- freeRtrEnvironment reads <role>-env.txt -->
 

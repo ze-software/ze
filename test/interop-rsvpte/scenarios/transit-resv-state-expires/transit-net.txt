@@ -1,0 +1,5 @@
+# Ze transit (transit.conf) for transit-resv-state-expires. Once the LSP is up
+# the checker freezes the freeRouter egress, so no RESV refreshes Ze's
+# reservation: Ze MUST time it out, send a ResvTear upstream and withdraw its swap.
+route 198.51.100.4/32 via 172.29.81.14
+route 198.51.100.2/32 via 172.29.81.12

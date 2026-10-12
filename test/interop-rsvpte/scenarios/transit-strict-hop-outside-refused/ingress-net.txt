@@ -1,0 +1,2 @@
+# Ze ingress (ingress.conf) for transit-strict-hop-outside-refused. Every ERO hop is strict.
+route 198.51.100.9/32 via 172.29.81.15

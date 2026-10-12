@@ -1,0 +1,5 @@
+# Ze transit (transit.conf) for egress-implicit-null-penultimate-pop. The
+# freeRouter egress distributes Implicit NULL (egress-env.txt), so Ze is the
+# penultimate hop: it MUST pop its own label toward the egress, never push 3.
+route 198.51.100.4/32 via 172.29.81.14
+route 198.51.100.2/32 via 172.29.81.12

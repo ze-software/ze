@@ -100,7 +100,7 @@ func TestScenarioCatalog(t *testing.T) {
 // its downstream listens.
 func TestScenarioPlanRolesFromFiles(t *testing.T) {
 	directory := t.TempDir()
-	for _, name := range []string{"ingress.conf", "ingress-setup.sh", "relay-hw.txt", "relay-sw.txt", "egress.conf", "egress-setup.sh"} {
+	for _, name := range []string{"ingress.conf", "relay-hw.txt", "relay-sw.txt", "egress.conf"} {
 		if err := os.WriteFile(filepath.Join(directory, name), nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -128,7 +128,7 @@ func TestScenarioPlanRolesFromFiles(t *testing.T) {
 // scenario against an unaltered peer.
 func TestScenarioPlanFreeRtrEnvironment(t *testing.T) {
 	directory := t.TempDir()
-	for _, name := range []string{"egress-hw.txt", "egress-sw.txt", "transit.conf", "transit-setup.sh"} {
+	for _, name := range []string{"egress-hw.txt", "egress-sw.txt", "transit.conf"} {
 		if err := os.WriteFile(filepath.Join(directory, name), nil, 0o600); err != nil {
 			t.Fatal(err)
 		}

@@ -5,7 +5,7 @@
 // decides which implementation fills each role by the files it carries:
 // <role>.conf makes the role a Ze node, <role>-sw.txt a freeRouter node. Each
 // freeRouter owns its own IPv4 stack and MAC, reached through rawInt.bin on
-// its container's eth0 (test/interop-rsvpte/run-freertr.sh), so no host root,
+// its container's eth0 (freeRtrScript in zenode.go), so no host root,
 // TAP device or network namespace is needed, and no container runs privileged.
 // A Ze node holds NET_ADMIN to program MPLS labels and VLANs, and writes its
 // MPLS sysctls at run time under the generic net sysctl profile.
@@ -169,7 +169,11 @@ func scenarioPlan(suffix string, source interoplab.ScenarioSource) (interoplab.S
 		var peer interoplab.PeerConfig
 		switch {
 		case fileExists(filepath.Join(source.Directory, role.name+".conf")):
-			peer = zePeer(role.name, role.host, suffix, source.Directory)
+			network, err := readZeNodeNet(filepath.Join(source.Directory, role.name+"-net.txt"))
+			if err != nil {
+				return interoplab.ScenarioPlan{}, err
+			}
+			peer = zePeer(role.name, role.host, suffix, source.Directory, network)
 		case fileExists(filepath.Join(source.Directory, role.name+"-sw.txt")):
 			environment, err := freeRtrEnvironment(filepath.Join(source.Directory, role.name+"-env.txt"))
 			if err != nil {
@@ -231,6 +235,7 @@ func freeRtrPeer(role string, host uint8, suffix, directory string) interoplab.P
 			{Source: filepath.Join(directory, role+"-sw.txt"), Target: "/etc/freertr/rtr-sw.txt", ReadOnly: true},
 		},
 		Capabilities: []string{"NET_ADMIN", "NET_RAW"},
+		Command:      []string{"sh", "-c", freeRtrScript},
 		Ready: &interoplab.ReadyProbe{
 			Command:  []string{"sh", "-c", "pgrep -f rawInt.bin > /dev/null"},
 			Timeout:  90 * time.Second,
@@ -239,10 +244,11 @@ func freeRtrPeer(role string, host uint8, suffix, directory string) interoplab.P
 	}
 }
 
-// zePeer runs <role>-setup.sh, which enables MPLS, adds the role's routes and
-// execs the daemon on <role>.conf. tcpdump records the RSVP the node sends and
-// receives in the same capture file a freeRouter node writes.
-func zePeer(role string, host uint8, suffix, directory string) interoplab.PeerConfig {
+// zePeer runs zeNodeScript, which enables MPLS, creates the VLANs and adds the
+// routes <role>-net.txt declares, and execs the daemon on <role>.conf. tcpdump
+// records the RSVP the node sends and receives in the same capture file a
+// freeRouter node writes.
+func zePeer(role string, host uint8, suffix, directory string, network zeNodeNet) interoplab.PeerConfig {
 	return interoplab.PeerConfig{
 		Name:      role,
 		Container: containerName(role, suffix),
@@ -250,18 +256,15 @@ func zePeer(role string, host uint8, suffix, directory string) interoplab.PeerCo
 		Host:      host,
 		Mounts: []interoplab.Mount{
 			{Source: filepath.Join(directory, role+".conf"), Target: "/etc/ze/ze.conf", ReadOnly: true},
-			{Source: filepath.Join(directory, role+"-setup.sh"), Target: "/etc/ze/setup.sh", ReadOnly: true},
 		},
-		// The setup script writes net.mpls.conf.<link>.input for a VLAN it
-		// creates first, so the writes happen at run time and cannot be
+		// The node writes net.mpls.conf.<link>.input for a VLAN it creates
+		// first, so the writes happen at run time and cannot be
 		// --sysctl arguments.
 		Capabilities:    []string{netAdminCapability},
 		Arguments:       interoplab.NetSysctlWriteArguments(),
 		AppArmorProfile: interoplab.NetSysctlAppArmorProfileName,
 		Environment:     []interoplab.EnvironmentVariable{{Name: "ze.log.rsvp-te", Value: "debug"}},
-		Command: []string{"sh", "-c", "mkdir -p /run/fr; " +
-			"tcpdump -i eth0 -nn -l -vvv 'ip proto 46 or mpls' > " + captureFile + " 2> /run/fr/tcpdump.err & " +
-			"exec sh /etc/ze/setup.sh"},
+		Command:         []string{"sh", "-c", zeNodeScript(network)},
 		Ready: &interoplab.ReadyProbe{
 			// Ze listens on a raw IPv4 socket for protocol 46 once RSVP-TE runs.
 			Command:  []string{"sh", "-c", "grep -q ':002E ' /proc/net/raw"},

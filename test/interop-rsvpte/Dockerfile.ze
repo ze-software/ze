@@ -6,8 +6,10 @@
 # internal/le/interoplab/rsvpte/rsvpte.go, LabBinaries). The producer derives
 # the build tags from feature-gates.txt, so this file names none.
 #
-# The scenario's ze-setup.sh enables MPLS in the container's namespace and adds
-# its routes, then execs the daemon. tcpdump records the RSVP Ze exchanges.
+# The suite's container command (zeNodeScript in
+# internal/le/interoplab/rsvpte/zenode.go) enables MPLS in the container's
+# namespace, creates the scenario's VLANs and adds its routes from
+# <role>-net.txt, then execs the daemon. tcpdump records the RSVP Ze exchanges.
 
 FROM alpine:3.21
 

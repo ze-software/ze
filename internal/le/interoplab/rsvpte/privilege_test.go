@@ -6,13 +6,11 @@
 // its MPLS routes and VLANs, and writes its MPLS sysctls at run time under the
 // generic net sysctl profile; the preflight reads the MPLS sysctl tree with no
 // grant at all. The tests prepare every real scenario and read the docker run
-// inputs and the setup scripts; no container starts.
+// inputs, including the command each node runs; no container starts.
 
 package rsvpte
 
 import (
-	"bufio"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -24,33 +22,19 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-// setupSysctlKeys answers every key a setup script writes, and fails the test
-// on a line that writes /proc/sys in a form scriptSysctlWrites cannot read,
-// because a write it cannot name is a write the profile check never sees.
-func setupSysctlKeys(t *testing.T, path string) []string {
+// commandSysctlKeys answers every key a node's container command writes, and
+// fails the test on a line that writes /proc/sys in a form scriptSysctlWrites
+// cannot read, because a write it cannot name is a write the profile check
+// never sees. The command is `sh -c <script>`, one shell command per line.
+func commandSysctlKeys(t *testing.T, label string, command []string) []string {
 	t.Helper()
-	file, err := os.Open(path) // #nosec G304 -- a repository-owned scenario script.
-	if err != nil {
-		t.Fatal(err)
+	if len(command) != 3 || command[0] != "sh" || command[1] != "-c" {
+		t.Fatalf("%s: command %q is not sh -c <script>, so its sysctl writes cannot be read", label, command)
 	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			t.Errorf("close %s: %v", path, err)
-		}
-	}()
-
-	var lines []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		t.Fatal(err)
-	}
-	keys, unrecognized := scriptSysctlWrites(lines)
+	keys, unrecognized := scriptSysctlWrites(strings.Split(command[2], "\n"))
 	for _, line := range unrecognized {
 		t.Errorf("%s writes a sysctl in a form the privilege test cannot read: %q; "+
-			"write it as `sysctl -w key=value` or `echo value > /proc/sys/<key path>`", path, line)
+			"write it as `sysctl -w key=value` or `echo value > /proc/sys/<key path>`", label, line)
 	}
 	return keys
 }
@@ -151,7 +135,7 @@ func procSysWritten(line string) bool {
 // VALIDATES: NOTE 13 of spec-lab-containers-least-privilege review round 1.
 // The two write forms are read into keys, and every other form that writes a
 // sysctl is refused rather than skipped.
-// PREVENTS: a setup script writing a sysctl the profile denies through a form
+// PREVENTS: a node command writing a sysctl the profile denies through a form
 // the privilege test does not parse, and the test staying green.
 func TestScriptSysctlWritesRefusesFormsItCannotRead(t *testing.T) {
 	for _, tc := range []struct {
@@ -185,7 +169,7 @@ func TestScriptSysctlWritesRefusesFormsItCannotRead(t *testing.T) {
 
 // VALIDATES: AC-5 for the peers. No peer of any scenario runs --privileged; a
 // Ze node holds NET_ADMIN, gets /proc/sys writable under the generic net
-// sysctl profile, and that profile grants every key its setup script writes.
+// sysctl profile, and that profile grants every key its command writes.
 // PREVENTS: a node silently regaining --privileged, or a scenario script
 // writing a sysctl the profile denies.
 func TestRSVPTELabPeersRunWithoutPrivilege(t *testing.T) {
@@ -233,9 +217,13 @@ func TestRSVPTELabPeersRunWithoutPrivilege(t *testing.T) {
 			if peer.AppArmorProfile != interoplab.NetSysctlAppArmorProfileName {
 				t.Errorf("%s: Ze node %s runs under %q, want %s", source.Name, peer.Name, peer.AppArmorProfile, interoplab.NetSysctlAppArmorProfileName)
 			}
-			for _, key := range setupSysctlKeys(t, filepath.Join(source.Directory, peer.Name+"-setup.sh")) {
+			keys := commandSysctlKeys(t, source.Name+": Ze node "+peer.Name, peer.Command)
+			if len(keys) == 0 {
+				t.Errorf("%s: Ze node %s writes no sysctl, so its MPLS input is off", source.Name, peer.Name)
+			}
+			for _, key := range keys {
 				if !interoplab.NetSysctlGranted(key) {
-					t.Errorf("%s: %s-setup.sh writes %s, which %s denies", source.Name, peer.Name, key, interoplab.NetSysctlAppArmorProfileName)
+					t.Errorf("%s: Ze node %s writes %s, which %s denies", source.Name, peer.Name, key, interoplab.NetSysctlAppArmorProfileName)
 				}
 			}
 		}

@@ -1,0 +1,5 @@
+# Ze transit (transit.conf) for transit-ff-resv-unknown-sender. The freeRouter
+# egress sends fixed-filter RESVs with a second descriptor naming a sender
+# that has no path state (egress-env.txt): Ze MUST refuse that descriptor alone.
+route 198.51.100.4/32 via 172.29.81.14
+route 198.51.100.2/32 via 172.29.81.12
