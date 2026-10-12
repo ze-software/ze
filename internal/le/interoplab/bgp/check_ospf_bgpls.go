@@ -1,6 +1,14 @@
 // Design: docs/architecture/testing/interop.md -- native OSPF export at a BGP collector.
 // Related: check_special.go -- existing OSPF TE scenarios retain their FRR assertions.
+// Related: check_ospf_bgpls_nobgp.go -- what the check answers without the gate.
 // RFC: rfc/short/rfc9552.md -- Sections 5.2.1 and 5.3.2.1.
+//
+// The check decodes the collected BGP-LS UPDATEs with the BGP engine's own
+// message and BGP-LS NLRI types, which feature-gates.txt keeps behind
+// ze_bgp, so this file does too.
+
+//go:build ze_bgp
+
 package bgp
 
 import (

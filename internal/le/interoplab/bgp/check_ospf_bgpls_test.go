@@ -1,3 +1,5 @@
+//go:build ze_bgp
+
 // Design: docs/architecture/testing/interop.md -- collector oracle discrimination.
 // Related: check_ospf_bgpls.go -- production scenario checker, not the OSPF producer.
 package bgp

@@ -1,3 +1,5 @@
+//go:build ze_bgp
+
 // Design: docs/architecture/testing/interop.md -- oracle discrimination, not live proof.
 // Related: check_srv6_identity.go -- actual daemon and FRR execution stays native.
 package bgp

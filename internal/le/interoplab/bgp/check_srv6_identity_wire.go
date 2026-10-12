@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/interop.md -- non-vacuous RFC 9252 wire proof.
-// Related: helper_srv6_identity.go -- SDK receipts and literal expected TLV bytes.
+// Related: helper_srv6_identity.go -- the SDK filter that fills these receipts.
 package bgp
 
 import (
@@ -14,6 +14,48 @@ import (
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
+
+const (
+	srv6IdentityA = "2001:db8:9252::9"
+	srv6IdentityB = "2001:db8:9252::77"
+	// Label-Index Reserved/Flags normalize on transmission, unlike Service Reserved.
+	srv6IdentityLabel      = "01000700000000000064"
+	srv6IdentityDirtyLabel = "010007a1b2c300000064"
+	// L3 End.DT46 carries three nonzero Reserved fields, unknown sub-TLV
+	// f0 and unknown sub-sub-TLV ee. L2 Service belongs on an EVPN carrier,
+	// so generic type-6 stripping remains a code-regression assertion.
+	srv6IdentityServices = "05002da50100235a20010db8000000000000000000000001000014c3010006281810000000ee00027788f00003990011"
+	srv6IdentityOther    = "c80003aabbcc0300080000003e800003e8"
+)
+
+// srv6IdentityCall is a receipt from the real SDK callback, not an oracle verdict.
+type srv6IdentityCall struct {
+	Peer   string           `json:"peer"`
+	Input  string           `json:"input"`
+	Output string           `json:"output"`
+	Action sdk.FilterAction `json:"action"`
+}
+
+// srv6IdentityPolicyReceipt is a snapshot of all callback attempts. Attempts
+// saturates at five (five or more); Calls holds three announcements and one
+// exact IPv6 EOR. Failure and its first input are retained with fixed bounds.
+type srv6IdentityPolicyReceipt struct {
+	Attempts uint8                `json:"attempts"`
+	Failure  string               `json:"failure"`
+	Calls    []srv6IdentityCall   `json:"calls"`
+	Rejected srv6IdentityRejected `json:"rejected"`
+}
+
+// srv6IdentityRejected retains the first failure's callback input, not a guessed
+// interpretation. Input holds at most 4096 bytes encoded as hex; Octets records
+// the original length. The empty value means no rejected callback.
+type srv6IdentityRejected struct {
+	Peer      string `json:"peer"`
+	Direction string `json:"direction"`
+	Filter    string `json:"filter"`
+	Input     string `json:"input"`
+	Octets    int    `json:"octets"`
+}
 
 // srv6IdentityAttributes parses this fixture's UPDATE boundary independently of
 // the production Prefix-SID parser/rewriter. Values borrow the caller's bytes.
