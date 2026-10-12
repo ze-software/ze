@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-09",
+  "audited": "2026-10-12",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -96,9 +96,9 @@
     },
     "RFC7950-7.21.5-2": {
       "code": {
-        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+        "internal/component/config/yang/validator.go::walkTree": "519776c78bde0026"
       },
-      "note": "{gap} under OWNER RULING 4: walkTree evaluates no when expression, so neither the order nor the no-cycle rule is applied. Recorded, not closed.",
+      "note": "Re-judged 2026-10-12 (independent auditor). {gap} under OWNER RULING 4: walkTree changed in 05e3ee2a4a (mandatory descent only) and still evaluates no when expression, so neither the order nor the no-cycle rule is applied. Recorded, not closed.",
       "requirement_sha": "2950be598bb87418",
       "verdict": "unimplemented"
     },
@@ -216,36 +216,52 @@
       "verdict": "enforced"
     },
     "RFC7950-7.6.5-1": {
-      "note": "Row narrowed 2026-09-30 to the lead-in and the no-ancestor branch. The three tags prove only that yang.Validator.ValidateTree reports ErrTypeMissing for a leaf inside a container present in the data. The stack does not make the leaf exist: SectionValidationError.Blocking grades ErrTypeMissing non-blocking, so LoadConfig, ze config validate and the editor commit all accept the config; walkTree never visits a non-presence container absent from the data, so a mandatory leaf whose only ancestors are such containers is not required; and bgp is not in validatedSections. TestValidator_MandatoryField checks the type only when errors.AsType succeeds. Owner ruling 4: carried by spec-config-yang-when-unique-choice AC-2.",
+      "note": "Re-judged 2026-10-12 (independent auditor). After 05e3ee2a4a and 6e7a370dba (owner ruling 2026-10-12, \"3 yes enforce\"). What now holds: SectionValidationError.Blocking is gone, so a missing mandatory node refuses at LoadConfig, ze config validate and the editor commit; walkTree calls requireMandatoryUnderAbsent below an absent non-presence container. TestRFC7950MandatoryWithNoQualifyingAncestor (top/mid/need, yang level) and TestRFC7950MandatoryRefusesBGPConfig (LoadConfig refuses bgp with no session/asn/local, accepts it with) discriminate, with revert records. Why the row stays weak: the sentence is \"If no such ancestor exists in the schema tree, the leaf MUST exist.\", unconditional, and the stack still accepts non-compliant configs these green tags cannot catch. (1) ValidateCustomSections skips a top-level section absent from the config, so a mandatory leaf whose ancestors are all non-presence containers is required only when its top container is written; bgpMandatoryFailures returns nil with no bgp section. (2) ValidateCustomSections walks only validatedSections (21 names, six of which sit under environment and match nothing) and adds bgpMandatoryFailures for the bgp global level; firewall, bfd, static, traffic, class-of-service, flow-export, control-plane-protection, routing-table, bgp-epe and bgp-ls-export are not walked, and each of those modules declares mandatory leaves, so a config missing one loads. (3) EverySessionCarries counts a bgp/router-id or bgp/session/asn/local that every session carries as present: an owner-approved deviation, not conformance (rfc-compliance: a deviation is never counted conformant). (4) TestValidator_MandatoryField drives ValidateContainer (validateContainerEntry), whose only caller is reader.go under newReader, which has no non-test caller; it uses path bgp/local, which the real schema does not hold, checks the error type only when errors.AsType succeeds, and its positive passes with no mandatory check at all, and TestValidateTree_MandatoryMissing pins only a present-container case. The honest shape is {partial} once those covers carry revert records or are retagged; spec-config-yang-when-unique-choice AC-2.",
       "requirement_sha": "77d3aaadf4246691",
       "tests": {
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField#2": "b3c8b0c6e89ee5b5"
+        "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig": "56eef34748d94a05",
+        "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig#2": "56eef34748d94a05",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField#2": "d2fae35246b7e3e2",
+        "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor": "4993c72fd43155f8",
+        "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor#2": "4993c72fd43155f8"
       },
       "units": {
+        "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig": "9e0a2cd92c9ab183",
+        "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig#2": "9e0a2cd92c9ab183",
         "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing": "e1f1cd96991029ac",
         "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField": "cfa81ec909e7c6e9",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField#2": "cfa81ec909e7c6e9"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField#2": "cfa81ec909e7c6e9",
+        "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor": "eb90e34b1ceb7ce1",
+        "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor#2": "eb90e34b1ceb7ce1"
       },
       "verdict": "weak"
     },
     "RFC7950-7.6.5-2": {
       "code": {
-        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+        "internal/component/config/yang/validator.go::walkTree": "519776c78bde0026"
       },
-      "note": "No producer handles the case branch: goyang keeps a case's leaves under ChoiceEntry and CaseEntry entries, and walkTree checks mandatory children and recurses only through the container's own Dir, so a mandatory leaf inside a case is never required. Owner ruling 4 (YANG third-party, gaps not closed); spec-config-yang-when-unique-choice.",
+      "note": "Re-judged 2026-10-12 (independent auditor). walkTree changed in 05e3ee2a4a (mandatoryPresent, requireMandatoryUnderAbsent), and still no producer handles the case branch: mandatoryPresent satisfies a mandatory CHOICE from any node of its cases, but walkTree checks mandatory nodes only in entry.Dir and never descends into a choice or case entry, and requireMandatoryUnderAbsent stops at a choice, so a mandatory leaf inside a case is never required whatever nodes of that case exist. Owner ruling 4; spec-config-yang-when-unique-choice.",
       "requirement_sha": "f40e914ec8227cf4",
       "verdict": "unimplemented"
     },
     "RFC7950-7.6.5-3": {
       "code": {
-        "internal/component/config/validate_sections.go::Blocking": "cd81573ac033f3e1",
-        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+        "internal/component/config/validate_sections.go::ValidateCustomSections": "e9034fb0234e8e70",
+        "internal/component/config/yang/validator.go::walkTree": "519776c78bde0026"
       },
-      "note": "walkTree recurses only into data present in the map, so a mandatory leaf below a non-presence container absent from the data is never checked even when its list-entry or presence-container ancestor exists; and a missing mandatory leaf is non-blocking everywhere (SectionValidationError.Blocking). Owner ruling 4; spec-config-yang-when-unique-choice.",
-      "requirement_sha": "0a31fd7b708ec18f",
-      "verdict": "unimplemented"
+      "note": "Re-judged 2026-10-12 (independent auditor). Row now carries {partial: tested \"the leaf MUST exist\"; gap \"if the ancestor node exists in the data tree\"}; Producer internal/component/config/validate_sections.go::ValidateCustomSections. Section 7.6.5: \"Otherwise, the leaf MUST exist if the ancestor node exists in the data tree.\" Tested: walkTree recurses into every present list entry and presence container and, through requireMandatoryUnderAbsent, requires a mandatory leaf below absent non-presence containers; TestRFC7950MandatoryRequiredWhenAncestorExists requires top/item[a]/inner/must and top/knob/sub/val missing when the list entry and presence container exist, none when they are absent, none when supplied; both polarities carry revert records on requireMandatoryUnderAbsent and walkTree. A missing node now refuses at load, validate and commit (Blocking deleted). Gap: ValidateCustomSections walks only validatedSections (21 names, six of which sit under environment and match nothing) and adds bgpMandatoryFailures for the bgp global level; firewall, bfd, static, traffic, class-of-service, flow-export, control-plane-protection, routing-table, bgp-epe and bgp-ls-export are not walked, and each of those modules declares mandatory leaves, so a config missing one loads. The earlier unimplemented verdict is replaced because the walked population is now implemented and refused; the whole requirement still earns no credit.",
+      "requirement_sha": "4485e7ff35698e73",
+      "tests": {
+        "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists": "4993c72fd43155f8",
+        "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists#2": "4993c72fd43155f8"
+      },
+      "units": {
+        "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists": "f8dfd9fe5ac550a6",
+        "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists#2": "f8dfd9fe5ac550a6"
+      },
+      "verdict": "partial"
     },
     "RFC7950-7.7.4-1": {
       "note": "(a) forbidden: a leaf-list default invalid for its type loading; a leaf-list default beside min-elements >= 1 loading. (b) TestRFC7950DefaultInvalidForType: leaf-list range 1..10 default 30 requires an error containing `default \"30\" is not valid for type uint8`, and leaf-list min-elements 1 default 1 requires \"min-elements 1 is invalid\"; positive TestRFC7950DefaultValidForType: leaf-list default 3 inside 1..10 with no min-elements, assert.NoError. min-elements above 1 is not cased separately; 1 is the boundary.",
@@ -288,9 +304,9 @@
     },
     "RFC7950-8.1-1": {
       "code": {
-        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+        "internal/component/config/yang/validator.go::walkTree": "519776c78bde0026"
       },
-      "note": "the prefix says every constraint MUST be true in a valid configuration tree; walkTree evaluates no 'when', 'unique' or choice constraint, so a configuration violating one is accepted. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.",
+      "note": "Re-judged 2026-10-12 (independent auditor). walkTree gained the mandatory descent in 05e3ee2a4a and still evaluates no when, unique or choice exclusivity, so a configuration violating one is accepted; and the walk covers only part of the tree: ValidateCustomSections walks only validatedSections (21 names, six of which sit under environment and match nothing) and adds bgpMandatoryFailures for the bgp global level; firewall, bfd, static, traffic, class-of-service, flow-export, control-plane-protection, routing-table, bgp-epe and bgp-ls-export are not walked, and each of those modules declares mandatory leaves, so a config missing one loads. Owned by spec-config-yang-when-unique-choice.",
       "requirement_sha": "1ae9176c1fd50674",
       "verdict": "unimplemented"
     },
@@ -308,20 +324,20 @@
       "verdict": "weak"
     },
     "RFC7950-8.1-3": {
-      "note": "range: receive-hold-time 2 and port 0 refused ErrTypeRange (TestValidateTree_RangeViolation), 1 and 2 refused and 0, 3, 180, 65535 accepted (TestValidator_HoldTimeRange); pattern: router-id not-an-ip refused ErrTypePattern and 192.0.2.1 accepted; length: a 256-char isis hostname refused ErrTypeLength, and the same unit asserts a within-length hostname raises no length error (the positive half is asserted in the negative-tagged unit). Each input trips only the constraint named. Records on checkYangRange and validateString. Base-type conformance (a value of the wrong type) is carried by the Section 9 rows.",
+      "note": "range: receive-hold-time 2 and port 0 refused ErrTypeRange (TestValidateTree_RangeViolation), 1 and 2 refused and 0, 3, 180, 65535 accepted (TestValidator_HoldTimeRange); pattern: router-id not-an-ip refused ErrTypePattern and 192.0.2.1 accepted; length: a 256-char isis hostname refused ErrTypeLength, and the same unit asserts a within-length hostname raises no length error (the positive half is asserted in the negative-tagged unit). Each input trips only the constraint named. Records on checkYangRange and validateString. Base-type conformance (a value of the wrong type) is carried by the Section 9 rows. Rejudged 2026-10-12 after 05e3ee2a4a changed TestValidateTree_PatternViolation (owner-approved): its data now supplies session/asn/local where it supplied local/as, which the schema does not hold, so the input no longer trips a missing mandatory error first; errs[0] must be ErrTypePattern at router-id. Isolation improved, assertion unchanged, verdict stands. The unit's revert record on validateString is stale (unit-changed) and owes a re-record.",
       "requirement_sha": "5a05032565e079ea",
       "tests": {
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_RangeViolation": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange#2": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern#2": "b3c8b0c6e89ee5b5"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_RangeViolation": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange#2": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern#2": "d2fae35246b7e3e2"
       },
       "units": {
         "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "12f5b76747db9ef4",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation": "412590cd5d9f69d7",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation": "49fcdaf5ad97963c",
         "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_RangeViolation": "ed7caa39bd136d28",
         "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange": "01cc92f725f2724d",
         "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange#2": "01cc92f725f2724d",
@@ -332,9 +348,9 @@
     },
     "RFC7950-8.1-4": {
       "code": {
-        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+        "internal/component/config/yang/validator.go::walkTree": "519776c78bde0026"
       },
-      "note": "walkTree checks mandatory, type and leaf-list cardinality but evaluates no 'when', no 'unique', no choice exclusivity and no if-feature, so the at-most-one-case, when, unique and mandatory-under-false-when bullets are not enforced. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.",
+      "note": "Re-judged 2026-10-12 (independent auditor). walkTree gained the mandatory descent in 05e3ee2a4a and still evaluates no when, no unique, no choice exclusivity and no if-feature, so the at-most-one-case, when, unique and mandatory-under-false-when bullets are not enforced; a mandatory node is required regardless of any when. Owned by spec-config-yang-when-unique-choice.",
       "requirement_sha": "db7a7bd15882fa47",
       "verdict": "unimplemented"
     },
@@ -369,9 +385,9 @@
     "RFC7950-8.3.3-2": {
       "code": {
         "internal/component/cli/editor_commit.go::validateStagedTree": "7912ef6d1500911d",
-        "internal/component/config/validate_sections.go::Blocking": "cd81573ac033f3e1"
+        "internal/component/config/validate_sections.go::ValidateCustomSections": "e9034fb0234e8e70"
       },
-      "note": "LoadConfig (copy-config window) and the web editor commit (validateStagedTree through config/cli.ValidateContent) refuse type and ze:validate violations, but both grade a missing mandatory leaf a warning via SectionValidationError.Blocking and evaluate no when, unique or choice, so the constraints are not enforced at the end of the operation. Owner ruling 4; spec-config-yang-when-unique-choice.",
+      "note": "Re-judged 2026-10-12 (independent auditor). Blocking was deleted in 05e3ee2a4a, so LoadConfig (copy-config window, refuseInvalidCustomSections) and the editor commit (validateStagedTree through config/cli.ValidateContent, which runs ValidateCustomSections) now refuse a missing mandatory leaf as well as type and ze:validate violations. Still not met: neither evaluates when, unique or choice, and ValidateCustomSections walks only validatedSections (21 names, six of which sit under environment and match nothing) and adds bgpMandatoryFailures for the bgp global level; firewall, bfd, static, traffic, class-of-service, flow-export, control-plane-protection, routing-table, bgp-epe and bgp-ls-export are not walked, and each of those modules declares mandatory leaves, so a config missing one loads. Summary gap text corrected to say so. Owner ruling 4; spec-config-yang-when-unique-choice.",
       "requirement_sha": "9b94aa906a82e0f8",
       "verdict": "unimplemented"
     },
@@ -392,19 +408,19 @@
     },
     "RFC7950-9.1-2": {
       "code": {
-        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+        "internal/component/config/yang/validator.go::walkTree": "519776c78bde0026"
       },
-      "note": "{gap} under OWNER RULING 4: the types without a canonical form (identityref, instance-identifier) are not validated by Ze. Recorded, not closed.",
+      "note": "Re-judged 2026-10-12 (independent auditor). {gap} under OWNER RULING 4: walkTree changed in 05e3ee2a4a (mandatory descent only); the types without a canonical form (identityref, instance-identifier) are still absent from Ze and validated nowhere. Recorded, not closed.",
       "requirement_sha": "5197d685cf9f142a",
       "verdict": "unimplemented"
     },
     "RFC7950-9.12-1": {
-      "note": "negative: \"not-an-ip\" matching no member refused with ErrTypeType (TestValidateTree_UnionViolation); positive: a value matching only the first (192.0.2.2), only the second (2001:db8::1) and only the third, enum \"dynamic\", member each accepted, so a union check trying one member alone goes red. Records on validateUnion for all three units.",
+      "note": "negative: \"not-an-ip\" matching no member refused with ErrTypeType (TestValidateTree_UnionViolation); positive: a value matching only the first (192.0.2.2), only the second (2001:db8::1) and only the third, enum \"dynamic\", member each accepted, so a union check trying one member alone goes red. Records on validateUnion for all three units. Rejudged 2026-10-12: SHIFTED by 05e3ee2a4a, which edited sibling tests in rfc7950_validator_yang_test.go; the tagged units are byte-identical (gate-verified), so the verdict stands.",
       "requirement_sha": "cecc88b3b36e0def",
       "tests": {
         "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType": "cded36b0838b1317",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig": "b3c8b0c6e89ee5b5"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig": "d2fae35246b7e3e2"
       },
       "units": {
         "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType": "ad02f88c4bb32f5f",
@@ -487,17 +503,17 @@
       "verdict": "enforced"
     },
     "RFC7950-9.6-1": {
-      "note": "(a) forbidden: accepting a name not assigned in the enumeration, or refusing an assigned one. (b) TestValidateTree_FamilyModeEnum case \"invalid-mode\" and TestValidateTree_AddPathDirectionEnum case \"both\" require errs non-empty with errs[0].Type == ErrTypeEnum, and every defined name (enable/disable/require/ignore; send/receive/send/receive) assert.Empty; the radius auth-method (\"mschapv2\") and isis algorithm (\"hmac-sha-999\") negatives are refused ErrTypeEnum while every defined value is accepted.",
+      "note": "(a) forbidden: accepting a name not assigned in the enumeration, or refusing an assigned one. (b) TestValidateTree_FamilyModeEnum case \"invalid-mode\" and TestValidateTree_AddPathDirectionEnum case \"both\" require errs non-empty with errs[0].Type == ErrTypeEnum, and every defined name (enable/disable/require/ignore; send/receive/send/receive) assert.Empty; the radius auth-method (\"mschapv2\") and isis algorithm (\"hmac-sha-999\") negatives are refused ErrTypeEnum while every defined value is accepted. Rejudged 2026-10-12: SHIFTED by 05e3ee2a4a, which edited sibling tests in rfc7950_validator_yang_test.go; the tagged units are byte-identical (gate-verified), so the verdict stands.",
       "requirement_sha": "4ceb12d17fdd4610",
       "tests": {
         "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll": "e4e161212a27bdf8",
         "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll#2": "e4e161212a27bdf8",
         "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum": "4c9eafc440ab45ec",
         "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum#2": "4c9eafc440ab45ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum": "b3c8b0c6e89ee5b5",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "b3c8b0c6e89ee5b5"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum": "d2fae35246b7e3e2",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "d2fae35246b7e3e2"
       },
       "units": {
         "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll": "67fd8c00e1f8af3a",
