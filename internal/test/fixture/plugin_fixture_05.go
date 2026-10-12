@@ -726,7 +726,7 @@ func p05ConcurrentConfigCommit(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("REST port %q: %w", args[0], err)
 	}
-	for _, marker := range []string{"verify.started", "concurrent.ok"} {
+	for _, marker := range []string{"verify.started", "verify.finished", "verify.overlap", "concurrent.ok"} {
 		if err := os.Remove(marker); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("remove stale %s: %w", marker, err)
 		}
@@ -748,6 +748,18 @@ func p05ConcurrentConfigCommit(ctx context.Context, args []string) error {
 					timer.Stop()
 					return ctx.Err()
 				case <-timer.C:
+				}
+				if err := os.WriteFile("verify.finished", []byte("finished\n"), 0o600); err != nil {
+					return err
+				}
+			}
+			// The second commit waits its turn: its verify MUST NOT start
+			// while the first commit's verify is still running.
+			if section.Root == namespaceBGP && strings.Contains(section.Data, "10.0.0.3") {
+				if _, err := os.Stat("verify.finished"); err != nil {
+					if writeErr := os.WriteFile("verify.overlap", []byte("second verify began before the first ended\n"), 0o600); writeErr != nil {
+						return writeErr
+					}
 				}
 			}
 		}
@@ -869,12 +881,11 @@ func p05DriveRESTCommits(ctx context.Context, port int) error {
 	}) {
 		return errors.New("first commit did not enter config verify")
 	}
+	// Owner decision 2026-10-12, "wait its turn": the second commit queues
+	// behind the active one, then applies as its own commit.
 	secondResult := commit(second)
-	if secondResult.err != nil {
-		return secondResult.err
-	}
-	if secondResult.status < 400 || (!strings.Contains(secondResult.body, "candidate") && !strings.Contains(secondResult.body, "progress") && !strings.Contains(secondResult.body, "reload")) {
-		return fmt.Errorf("unexpected second commit rejection status=%d body=%s", secondResult.status, secondResult.body)
+	if secondResult.err != nil || secondResult.status >= 400 || secondResult.response["status"] != statusCommitted {
+		return fmt.Errorf("second commit did not wait its turn and commit: status=%d response=%v body=%s: %w", secondResult.status, secondResult.response, secondResult.body, secondResult.err)
 	}
 	var firstResult commitResult
 	select {
@@ -887,14 +898,19 @@ func p05DriveRESTCommits(ctx context.Context, port int) error {
 	if firstResult.err != nil || firstResult.status >= 400 || firstResult.response["status"] != statusCommitted {
 		return fmt.Errorf("first commit failed: status=%d response=%v body=%s: %w", firstResult.status, firstResult.response, firstResult.body, firstResult.err)
 	}
+	if overlap, err := os.ReadFile("verify.overlap"); err == nil {
+		return fmt.Errorf("commits overlapped: %s", overlap)
+	}
+	// Arrival order: the first commit applied 10.0.0.2, then the second
+	// applied its own candidate, 10.0.0.3, over it.
 	active, err := os.ReadFile("concurrent-config-commit.conf")
 	if err != nil {
 		return err
 	}
-	if !strings.Contains(string(active), "router-id 10.0.0.2") || strings.Contains(string(active), "router-id 10.0.0.3") {
-		return fmt.Errorf("active config after concurrent commits was wrong:\n%s", active)
+	if !strings.Contains(string(active), "router-id 10.0.0.3") || strings.Contains(string(active), "router-id 10.0.0.2") {
+		return fmt.Errorf("active config after queued commits was not the second commit's:\n%s", active)
 	}
-	const marker = "OK: concurrent commit rejected second candidate\n"
+	const marker = "OK: concurrent commits applied one after the other, in order\n"
 	if err := os.WriteFile("concurrent.ok", []byte(marker), 0o600); err != nil {
 		return err
 	}

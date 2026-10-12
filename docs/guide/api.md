@@ -208,6 +208,13 @@ every user with the window's refusal naming its owner and the seconds left,
 and the session stays open for a retry once the window is accepted or
 aborted (`config-editor.md`, "Commit Confirmed").
 
+Session commits apply one at a time. A commit that arrives while another is
+being applied waits its turn, then applies as its own commit with its own
+version in the config history, so two commits land in arrival order and both
+answer `{"status":"committed"}`. Each session commits the whole candidate it
+built, so the later commit replaces what the earlier one changed wherever the
+two sessions edited the same value.
+
 No-auth REST/gRPC callers cannot create config sessions. Configure a token or
 per-user authentication for API-driven config changes.
 

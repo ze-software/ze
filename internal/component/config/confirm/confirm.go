@@ -309,8 +309,10 @@ func (w *Window) otherUserError() *OtherUserError {
 // WriteOutside runs apply, a config write that no editor makes (an API
 // config session, a data restore, a raw-source commit), on window's worker:
 // refused with OtherUserError while any window is open, whoever asks, because
-// the window's revert would wipe the write. A nil window, a daemon with no
-// window, runs apply directly.
+// the window's revert would wipe the write. The worker runs one request at a
+// time, so a second write that arrives while one is applying waits its turn
+// and then applies on its own (owner decision 2026-10-12). A nil window, a
+// daemon with no window, runs apply directly.
 func WriteOutside(window *Window, apply func() error) error {
 	if window == nil {
 		return apply()

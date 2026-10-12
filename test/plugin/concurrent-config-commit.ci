@@ -1,6 +1,6 @@
-# Test: concurrent config commit rejects the second candidate
-# VALIDATES: AC-13 -- a second commit while a transaction is active fails and does not replace the first candidate.
-# PREVENTS: concurrent commits racing candidate pointers and promoting the wrong config.
+# Test: a second config commit waits its turn behind the active one
+# VALIDATES: AC-13 (owner decision 2026-10-12, "wait its turn") -- a second commit arriving while a commit is active waits until the first finishes, then is applied as its own commit; both succeed, each is a separate version in history, and they apply in arrival order.
+# PREVENTS: concurrent commits racing candidate pointers, interleaving, or one commit vanishing without a version of its own.
 
 option=timeout:value=45s
 
@@ -67,8 +67,10 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze start concurrent-config-commit.conf:timeout=45s
 expect=exit:code=0
-expect=file:path=concurrent.ok:contains=OK: concurrent commit rejected second candidate
+expect=file:path=concurrent.ok:contains=OK: concurrent commits applied one after the other, in order
 expect=key:path=meta/config/concurrent-config-commit.conf/active:exists=true
 expect=key:path=meta/config/concurrent-config-commit.conf/candidate:absent=true
-expect=file:path=concurrent-config-commit.conf:contains=router-id 10.0.0.2
-expect=file:path=concurrent-config-commit.conf:not-contains=router-id 10.0.0.3
+expect=file:path=concurrent-config-commit.conf:contains=router-id 10.0.0.3
+expect=file:path=concurrent-config-commit.conf:not-contains=router-id 10.0.0.2
+expect=key:glob=file/[0-9]*/concurrent-config-commit.conf:count=3
+expect=key:glob=object/*:count=3
