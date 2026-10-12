@@ -334,18 +334,29 @@ func displayFillOpenPTY(rows, cols uint16) (*os.File, *os.File, error) {
 	if err := pty.Setsize(master, &pty.Winsize{Rows: rows, Cols: cols}); err != nil {
 		return fail(err)
 	}
-	// pty.Open reads the descriptor through Fd, and Fd puts it in blocking
-	// mode: a Read on a quiet terminal then sleeps inside the read system call,
-	// where no deadline can reach it. Nonblocking mode sends the Read back to
-	// Go's poller, which still holds the master and honors the read and write
+	// The master must sit in Go's poller, which honors the read and write
 	// deadlines that displayFillReadAvailable and displayFillWrite set. The
 	// poller parks a Read that meets EAGAIN until the next byte arrives, so the
 	// deadline is the only bound: without one, a client that went quiet held
-	// this fixture until the runner killed it.
-	if err := syscall.SetNonblock(int(master.Fd()), true); err != nil {
-		return fail(err)
+	// this fixture until the runner killed it. The *os.File pty.Open returns
+	// cannot take a deadline on every platform: on darwin it wraps the
+	// descriptor with os.NewFile while the descriptor is blocking, so the file
+	// never joins the poller, and SetReadDeadline answers "file type does not
+	// support deadline" whatever mode the descriptor is put in later. A
+	// duplicate made nonblocking before os.NewFile sees it joins the poller on
+	// darwin and Linux alike, so the fixture reads and writes through that.
+	fd, err := syscall.Dup(int(master.Fd()))
+	if err != nil {
+		return fail(fmt.Errorf("duplicate the pseudo-terminal master: %w", err))
 	}
-	return master, slave, nil
+	syscall.CloseOnExec(fd)
+	if err := syscall.SetNonblock(fd, true); err != nil {
+		_ = syscall.Close(fd)
+		return fail(fmt.Errorf("make the pseudo-terminal master nonblocking: %w", err))
+	}
+	polled := os.NewFile(uintptr(fd), master.Name())
+	_ = master.Close() // the duplicate keeps the terminal open
+	return polled, slave, nil
 }
 
 // displayFillReadAvailable collects what the client writes until it has been
