@@ -5,6 +5,11 @@
 # or confusing the independent IMET originator with the session next hop.
 # Local auto keeps the configured address unset; only the connected socket can
 # supply 127.0.0.1. The collector listens on distinct address 127.0.0.2.
+# Linux only: Linux answers a connect to 127.0.0.2 from 127.0.0.1, the primary
+# loopback address, while Darwin answers it from 127.0.0.2 itself. There the
+# resolved self equals the collector's own address, which Ze withholds
+# (RFC 4271 Section 5.1.3), so the IMET this test expects is never sent.
+option=needs-linux
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=20s
 option=asn:value=65000
