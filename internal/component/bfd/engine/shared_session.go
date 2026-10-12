@@ -303,8 +303,9 @@ func describeClientProfile(profile string) string {
 	return "a client of bfd profile " + strconv.Quote(profile)
 }
 
-// retimeLocked gives entry the timers of the fastest of its current clients
-// (fastestRequest), and names that client's profile as the session's. It runs
+// retimeLocked gives entry the timers, the role and the echo interval of the
+// fastest of its current clients (fastestRequest), and names that client's
+// profile as the session's. It runs
 // whenever a client joins, leaves or edits its request, so the session's
 // timers are a property of the clients present, never of their order or of
 // the session's history. A session with no client left keeps what it runs:
@@ -324,6 +325,10 @@ func retimeLocked(entry *sessionEntry) {
 	entry.profile = fastest.Profile
 	// RFC 5880 Section 6.8.3
 	entry.machine.ApplyTimers(fastest)
+	// RFC 5880 Section 6.1
+	entry.machine.ApplyRole(fastest.Passive)
+	// RFC 5880 Section 6.8.13
+	entry.machine.ApplyEcho(fastest.DesiredMinEchoTxInterval)
 }
 
 // fastestRequest answers the request of clients giving the shortest Detection

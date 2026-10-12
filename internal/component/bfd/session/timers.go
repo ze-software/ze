@@ -173,6 +173,65 @@ func (m *Machine) ApplyTimers(req api.SessionRequest) {
 	}
 }
 
+// ApplyRole gives a live session the role a profile edit asks for: passive
+// when passive is true, else active. The role decides only whether the
+// session may transmit while it knows no remote discriminator, so an Up
+// session, which knows it, keeps transmitting either way, and the change shows
+// in a Down session: a passive one stops sending, an active one sends at once.
+// The engine calls it when a profile edit or a change of the session's clients
+// changes the role the fastest client asks for. Not safe for concurrent use:
+// the engine holds its lock.
+//
+// RFC 5880 Section 6.1: "A system taking the Active role MUST send BFD
+// Control packets for a particular session, regardless of whether it has
+// received any BFD packets for that session. A system taking the Passive role
+// MUST NOT begin sending BFD packets for a particular session until it has
+// received a BFD packet for that session, and thus has learned the remote
+// system's discriminator value."
+func (m *Machine) ApplyRole(passive bool) {
+	m.configReq.Passive = passive
+	m.role = RoleActive
+	if passive {
+		m.role = RolePassive
+	}
+	// RFC 5880 Section 6.8.7: "A system MUST NOT transmit BFD Control packets
+	// if bfd.RemoteDiscr is zero and the system is taking the Passive role."
+	if !m.transmitPermitted() {
+		m.nextTxAt = time.Time{}
+		return
+	}
+	if m.nextTxAt.IsZero() {
+		m.nextTxAt = m.clk.Now()
+	}
+}
+
+// ApplyEcho gives a live session the echo interval a profile edit asks for:
+// bfd.DesiredMinEchoTxInterval, and the Required Min Echo RX Interval it
+// advertises, which this end sets to the same value (applyRequest). The next
+// Control packet carries the new Required Min Echo RX Interval, a pending echo
+// moves to the new cadence (rescheduleEchoLocked), and zero stops echo at
+// once. Starting echo, with its Control slow-down, is the engine's echo tick's
+// work, as it is for a session created with echo. Not safe for concurrent
+// use: the engine holds its lock.
+//
+// RFC 5880 Section 6.8.13: "If it is desired to start or stop the
+// transmission of BFD Echo packets, this MAY be done at any time (subject to
+// the transmission requirements detailed in section 6.8.9)." and "If it is
+// desired to enable or disable the looping back of received BFD Echo packets,
+// this MAY be done at any time by changing the value of Required Min Echo RX
+// Interval to zero or nonzero in outgoing BFD Control packets."
+func (m *Machine) ApplyEcho(desiredMinEchoTxUs uint32) {
+	m.configReq.DesiredMinEchoTxInterval = desiredMinEchoTxUs
+	m.vars.DesiredMinEchoTxInterval = desiredMinEchoTxUs
+	m.vars.RequiredMinEchoRxInterval = desiredMinEchoTxUs
+	if !m.EchoEnabled() {
+		m.nextEchoAt = time.Time{}
+		return
+	}
+	// RFC 5880 Section 6.8.9
+	m.rescheduleEchoLocked()
+}
+
 // applyPendingTimersLocked moves a timer change ApplyTimers recorded in Up
 // into the operating variables, and starts the Poll Sequence that carries it.
 // It waits while a Poll is outstanding or settling: the Final of a Poll in

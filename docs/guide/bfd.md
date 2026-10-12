@@ -585,7 +585,14 @@ pinned session's `shutdown` leaf takes effect at once. An edit to a profile
 reaches at once, in place, every live session a client holds under it: a
 pinned session, a BGP peer, or a static route next-hop. The session keeps
 running, keeps its discriminator, and takes the edited timers (an Up session
-through a Poll Sequence, so it stays Up). It takes an edited auth block too,
+through a Poll Sequence, so it stays Up). It takes an edited `passive` at once:
+the role decides only whether the session may transmit before it has heard from
+the neighbor, so a Down session that has not heard from it stops sending when
+made passive and sends at once when made active, and an Up session keeps
+sending either way. It takes an edited echo interval at once too: the next
+Control packet advertises the new interval, a pending Echo packet moves to the
+new cadence, an interval of zero stops Echo, and a nonzero one on a session
+that ran none starts Echo as on a new session. It takes an edited auth block too,
 when every client of the session asks for the same authentication after the
 edit. When one does not, because it names another profile or none, the session
 keeps every client's request, its timers and its current authentication, every
@@ -630,6 +637,7 @@ session's asks again at the same moments, so a fix to its own config
 takes effect then.
 <!-- source: internal/component/bfd/bfd.go -- applyPinned, reprofileClients -->
 <!-- source: internal/component/bfd/engine/shared_session.go -- UpdateSession, Reprofile, reprofileEntryLocked, retimeLocked, fastestRequest -->
+<!-- source: internal/component/bfd/session/timers.go -- ApplyRole, ApplyEcho -->
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession, reviveReleasedLocked, createSessionLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- authMismatchCase -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- startBFDClient and stopBFDClient callers -->

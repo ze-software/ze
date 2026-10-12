@@ -17,6 +17,7 @@ import (
 	"errors"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/packet"
@@ -213,5 +214,68 @@ func TestUpdateSessionRefusesAnotherKey(t *testing.T) {
 	moved.Peer = netip.MustParseAddr("203.0.113.77")
 	if err := l.UpdateSession(h, moved); err == nil {
 		t.Fatal("an edit naming another peer was accepted")
+	}
+}
+
+// TestReprofileAppliesEchoInterval edits the echo interval of a sole client's
+// profile through Reprofile: the live session advertises the new Required
+// Min Echo RX Interval in its next Control packet, keeping its discriminator.
+// MUTATION: retimeLocked not calling ApplyEcho keeps advertising zero, so this
+// test goes red.
+func TestReprofileAppliesEchoInterval(t *testing.T) {
+	l := NewLoop(&captureTransport{}, clock.RealClock{})
+	req := timedReq("p", 300_000, 3)
+	if _, err := l.EnsureSession(req); err != nil {
+		t.Fatalf("EnsureSession: %v", err)
+	}
+	before := l.Snapshot()
+
+	err := l.Reprofile(func(r api.SessionRequest) (api.SessionRequest, error) {
+		r.DesiredMinEchoTxInterval = 150_000
+		return r, nil
+	})
+	if err != nil {
+		t.Fatalf("Reprofile: %v", err)
+	}
+
+	if after := l.Snapshot(); after[0].LocalDiscr != before[0].LocalDiscr {
+		t.Fatalf("the edit replaced the session: discriminator %d, want %d", after[0].LocalDiscr, before[0].LocalDiscr)
+	}
+	if c, _ := sessionTimers(t, l, req.Key()); c.RequiredMinEchoRxInterval != 150_000 {
+		t.Fatalf("advertised Required Min Echo RX %d, want 150000", c.RequiredMinEchoRxInterval)
+	}
+}
+
+// TestReprofileAppliesPassive makes a sole client's profile passive through
+// Reprofile while its session is Down and knows no remote discriminator: the
+// session stops transmitting, as RFC 5880 Section 6.8.7 requires of a passive
+// system, and keeps its discriminator.
+// MUTATION: retimeLocked not calling ApplyRole keeps the session sending, so
+// this test goes red.
+func TestReprofileAppliesPassive(t *testing.T) {
+	l := NewLoop(&captureTransport{}, clock.RealClock{})
+	req := timedReq("p", 300_000, 3)
+	if _, err := l.EnsureSession(req); err != nil {
+		t.Fatalf("EnsureSession: %v", err)
+	}
+	nextTx := func() time.Time {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		return l.sessions[req.Key()].machine.NextTxDeadline()
+	}
+	if nextTx().IsZero() {
+		t.Fatal("precondition: the active session has no TX deadline")
+	}
+
+	err := l.Reprofile(func(r api.SessionRequest) (api.SessionRequest, error) {
+		r.Passive = true
+		return r, nil
+	})
+	if err != nil {
+		t.Fatalf("Reprofile: %v", err)
+	}
+
+	if !nextTx().IsZero() {
+		t.Fatal("after the edit to passive: the session with no remote discriminator still transmits")
 	}
 }

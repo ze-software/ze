@@ -178,7 +178,12 @@ Detection Time"). An Up session takes a timer change through a Poll Sequence
 (`Machine.ApplyTimers`, RFC 5880 §6.8.3): an increase of Desired Min TX keeps
 the old transmit interval, and a reduction of Required Min RX keeps the old
 Detection Time, until the Final; a change made while a Poll is in flight waits
-for it to settle. At each apply the bfd plugin re-resolves, against the new
+for it to settle. The same recompute gives the session the fastest client's
+role and echo interval (`Machine.ApplyRole`, RFC 5880 §6.1 and §6.8.7: only a
+session that knows no remote discriminator changes what it sends;
+`Machine.ApplyEcho`, RFC 5880 §6.8.13: the advertised Required Min Echo RX
+Interval and the echo cadence change at once). At each apply the bfd plugin
+re-resolves, against the new
 profiles, the request of every client of every loop that named a profile
 (`runtimeState.reprofileClients`, `Loop.Reprofile`): a BGP peer, a static route
 next-hop or a pinned session asks once, naming only its profile, so this is how
@@ -222,7 +227,7 @@ every client naming that profile, on any neighbor.
 <!-- source: internal/component/bfd/engine/shared_session.go -- sharedEntryLocked, sharesSession, joinedKey -->
 <!-- source: internal/component/bfd/engine/shared_session.go -- retimeLocked, fastestRequest, UpdateSession, Reprofile, reprofileEntryLocked -->
 <!-- source: internal/component/bfd/bfd.go -- reprofileClients -->
-<!-- source: internal/component/bfd/session/timers.go -- ApplyTimers, applyPendingTimersLocked -->
+<!-- source: internal/component/bfd/session/timers.go -- ApplyTimers, ApplyRole, ApplyEcho, applyPendingTimersLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent, SetProfileAuth, sharedAuthLocked, replaceAuth -->
 <!-- source: internal/component/bfd/bfd.go -- loopFor, runtimeState.profileAuthFor -->
 
