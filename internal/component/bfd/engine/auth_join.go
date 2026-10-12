@@ -145,14 +145,15 @@ const authReleaseFix = "release the session from every client to rebuild it " +
 // found the two configurations different (sameAuth).
 //
 // No fix edits a named profile. An edit to a profile reaches every client
-// naming it, on any neighbor, at its next ask, so removing the auth block from
-// the profile one refused peer names would drop authentication for every other
-// peer naming it. Each fix instead names a profile on the refused client, or
-// copies an auth block into a profile only that client names, so it changes
-// the refused client alone and takes effect when that client next asks. A live
-// session keeps the authentication it was built with (it is set only in
-// createSessionLocked and replaceAuth), so a fix that edits another client's
-// profile would also wait for every client to release the session.
+// naming it, on any neighbor, at the commit (Loop.Reprofile), so removing the
+// auth block from the profile one refused peer names would drop authentication
+// for every other peer naming it. Each fix instead names a profile on the
+// refused client, or copies an auth block into a profile only that client
+// names, so it changes the refused client alone and takes effect when that
+// client next asks. A live session changes its authentication only when every
+// client agrees on the new one (createSessionLocked, replaceAuth), so a fix
+// that edits another client's profile could also leave the session refusing
+// the edit until every client releases it.
 //
 // liveFrom names the profile the live session's authentication came from
 // (sessionEntry.authFrom). Authentication reaches a request only through a

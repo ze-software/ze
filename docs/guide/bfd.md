@@ -532,14 +532,16 @@ auth block either; otherwise take OSPF out of BFD on that interface with
 `bfd { enabled false; }` or by deleting its `bfd` block.
 
 No fix the error names edits a profile. An edit to a profile reaches every
-client that names it, on any neighbor, at that client's next ask: removing the
-auth block from a profile many BGP peers share, to fix one refused peer, would
-drop authentication for all of them. Each fix instead names a profile on the
+client that names it, on any neighbor, at the commit: removing the auth block
+from a profile many BGP peers share, to fix one refused peer, would drop
+authentication for all of them. Each fix instead names a profile on the
 refused client, or copies an auth block into a profile only that client names,
 so it changes the refused client alone and takes effect when that client next
-asks for the session (see "Editing live"). The exceptions are a profile the
-session was built from that was edited or removed after the session was built,
-where only a release by every client helps:
+asks for the session (see "Editing live"). The exceptions are a session whose
+profile was edited without the edit reaching it, because another client of the
+session relies on the authentication it runs, and a session whose profile was
+removed with the pinned session that named it. There only a release by every
+client helps:
 
 | Live session | Refused client | Fix the error names |
 |--------------|----------------|---------------------|
@@ -547,7 +549,7 @@ where only a release by every client helps:
 | Authentication | Profile with no auth block | Name the profile the session was built from on this client, or copy that profile's auth block into a profile only this client names |
 | Authentication | No profile (an OSPF interface, or a BGP peer or pinned session naming none) | Name the profile the session was built from on this client, or, on an OSPF interface, set `bfd { enabled false; }` |
 | Authentication | Profile with a different auth block | Name the profile the session was built from on this client, or copy that profile's auth block into a profile only this client names |
-| Either | The profile the live session was built from, edited since | Release the session from every client (see "Editing live"), so the next client to ask builds it from the edited profile |
+| Either | The profile the live session was built from, edited since by an edit the session refused | Release the session from every client (see "Editing live"), so the next client to ask builds it from the edited profile |
 | Authentication | Any client, while the profile the session was built from has been edited or removed since, or now sets an option the session's hop mode refuses (`passive` on single-hop, `echo` on multi-hop) | Release the session from every client (see "Editing live"). The error never names that profile then: copying it, or naming it, would give the client an authentication the session does not run, or a name the commit refuses |
 
 The other way round, changing every other client to match the refused one,
@@ -579,28 +581,30 @@ operator@router# commit
 
 On `commit`, the plugin receives the new `bfd` section and applies it.
 A new pinned session starts, a removed one is released, and a change to a
-pinned session's `shutdown` leaf takes effect at once. An edit to the
-profile a pinned session names reaches that session at once, in place: it
-keeps running, keeps its discriminator, and takes the edited timers (an Up
-session through a Poll Sequence, so it stays Up). It takes an edited auth block
-too, unless another client of the session, naming another profile or none,
-runs the current one: then the edit is refused and the commit's apply fails
-with the error, which names that client's profile.
+pinned session's `shutdown` leaf takes effect at once. An edit to a profile
+reaches at once, in place, every live session a client holds under it: a
+pinned session, a BGP peer, or a static route next-hop. The session keeps
+running, keeps its discriminator, and takes the edited timers (an Up session
+through a Poll Sequence, so it stays Up). It takes an edited auth block too,
+when every client of the session asks for the same authentication after the
+edit. When one does not, because it names another profile or none, the session
+keeps every client's request and its current authentication, and the commit's
+apply fails with the error, which names the two profiles; give both the same
+auth block, or release the session as below.
 
 A session shared by several clients runs the fastest timers among them: those
 giving the shortest Detection Time (Detect Mult times Required Min RX). They
-are chosen again whenever a client joins or leaves, or a pinned session's
-profile is edited, so a fast client speeds the session up and its departure
+are chosen again whenever a client joins or leaves, or the profile of any of
+its clients is edited, so a fast client speeds the session up and its departure
 slows it down again.
 
-For the other clients (a BGP peer, a static route next-hop, an OSPF interface),
-a profile edit reaches the session when that client next asks for it; until
-then the session keeps the timers and authentication the client asked with. A
-released session that a client revives inside its Detection Time takes that
-client's authentication as the profile holds it then, and its timers too.
+An OSPF interface names no profile: its timers are those of its own `bfd`
+block, and an edit to them reaches the session when the interface next asks for
+it. A released session that a client revives inside its Detection Time takes
+that client's authentication as the profile holds it then, and its timers too.
 
-To make a profile edit take effect for those clients now, release the session
-from every client that holds it, then let them ask again:
+To make an edit the session refused take effect, or an OSPF interface's, release
+the session from every client that holds it, then let them ask again:
 
 | Client | Releases the session when | Asks again when |
 |--------|---------------------------|-----------------|
@@ -617,8 +621,8 @@ go of it; if that happens, tear it down again once they have.
 A client refused because its authentication differs from the live
 session's asks again at the same moments, so a fix to its own config
 takes effect then.
-<!-- source: internal/component/bfd/bfd.go -- applyPinned -->
-<!-- source: internal/component/bfd/engine/shared_session.go -- UpdateSession, retimeLocked, fastestRequest -->
+<!-- source: internal/component/bfd/bfd.go -- applyPinned, reprofileClients -->
+<!-- source: internal/component/bfd/engine/shared_session.go -- UpdateSession, Reprofile, reprofileEntryLocked, retimeLocked, fastestRequest -->
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession, reviveReleasedLocked, createSessionLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- authMismatchCase -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- startBFDClient and stopBFDClient callers -->

@@ -220,9 +220,11 @@ func (r *runtimeState) applyConfig(cfg *pluginConfig) error {
 }
 
 // applyPinned reconciles the live pinned-session set against cfg. Sessions
-// missing from cfg are released; new entries are created. Existing keys take
-// the request their profile resolves to now (engine.Loop.UpdateSession), so a
-// profile edit reaches the live session in place, and have their shutdown bit
+// missing from cfg are released; new entries are created. Every client of a
+// live session takes the request its profile resolves to now
+// (reprofileClients), and an existing pinned key takes its whole new request
+// (engine.Loop.UpdateSession), so a profile edit reaches the live sessions of
+// protocol clients and pinned sessions alike, in place. Pinned keys have their shutdown bit
 // re-applied so an operator flipping `shutdown true/false` on a reload takes
 // effect immediately.
 func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
@@ -260,6 +262,12 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 		delete(r.pinned, key)
 		logger().Info("bfd pinned session removed", "peer", key.Peer.String(), "mode", key.Mode.String())
 	}
+
+	// A profile edit reaches every client holding a session under it, the
+	// protocol clients' and the pinned ones' alike. It runs before the pinned
+	// refresh below, so a pinned session sharing a session with a protocol
+	// client under an edited profile finds the session already agreeing.
+	reprofileErr := r.reprofileClients(cfg)
 
 	// Compute a per-loop device name from all wanted sessions sharing
 	// the (vrf, mode) pair. If every single-hop pinned session in the
@@ -303,7 +311,28 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 	}
 
 	r.cfg = cfg
-	return nil
+	return reprofileErr
+}
+
+// reprofileClients re-resolves, against cfg's profiles, the request of every
+// client holding a session on any loop (engine.Loop.Reprofile). A protocol
+// client (BGP, a static route, OSPF) asks under a profile name and carries no
+// timers of its own (resolveProfile), and is never asked again while it holds
+// its session, so this is the only way a profile edit reaches it. Every loop
+// is tried; the answer joins each loop's error. The caller MUST hold
+// runtimeStateGuard.
+func (r *runtimeState) reprofileClients(cfg *pluginConfig) error {
+	resolve := func(req api.SessionRequest) (api.SessionRequest, error) {
+		return resolveProfile(req, cfg.profiles)
+	}
+	var errs []error
+	for key, loop := range r.loops {
+		// RFC 5882 Section 4.1
+		if err := loop.Reprofile(resolve); err != nil {
+			errs = append(errs, fmt.Errorf("bfd: %s loop vrf %s: profile edit: %w", key.mode, key.vrf, err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // resolveLoopDevices computes the SO_BINDTODEVICE name for each loop key

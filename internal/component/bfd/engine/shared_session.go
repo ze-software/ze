@@ -5,6 +5,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -99,10 +100,107 @@ func (l *Loop) UpdateSession(h api.SessionHandle, req api.SessionRequest) error 
 	if !slices.Contains(entry.clients, hh.client) {
 		return ErrUnknownSession
 	}
-	if err := updateAuthLocked(entry, hh.client, req, hh.key); err != nil {
+	return updateClientLocked(entry, hh.client, req, hh.key)
+}
+
+// Reprofile gives every client of the loop that named a bfd profile the
+// request resolve answers for it, in place: a reload that edits a profile
+// reaching the sessions its clients hold. resolve takes the request a client
+// holds and answers it with the profile's current timers and authentication;
+// a client naming no profile carries its own and is left alone. A session
+// keeps its discriminator and changes its timers through a Poll Sequence
+// (retimeLocked).
+//
+// The clients of one session are edited together (reprofileEntryLocked), so
+// an edit giving every profile on a session the same new auth block is taken.
+// A session whose clients would no longer agree on one authentication, or
+// one of whose clients resolve cannot answer, keeps every request it held,
+// and the answer joins the error of each such session. resolve MUST NOT call
+// back into the loop. Safe for concurrent use: it takes l.mu.
+func (l *Loop) Reprofile(resolve func(api.SessionRequest) (api.SessionRequest, error)) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	var errs []error
+	for sessionKey, entry := range l.sessions {
+		// RFC 5882 Section 4.1
+		if err := reprofileEntryLocked(entry, sessionKey, resolve); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// reprofileEntryLocked resolves the request of every client of entry that
+// named a profile, then installs them all, or none: a session runs one
+// authentication for every client (joinAuthCheck), so the edited requests
+// MUST agree on it before any is taken. The caller MUST hold l.mu.
+//
+// RFC 5882 Section 10.2: "BFD authentication SHOULD be used and is strongly
+// encouraged." A client may only run on a session whose authentication it
+// asked for.
+func reprofileEntryLocked(entry *sessionEntry, sessionKey api.Key, resolve func(api.SessionRequest) (api.SessionRequest, error)) error {
+	if len(entry.clients) == 0 {
+		return nil
+	}
+	requests := make([]api.SessionRequest, len(entry.clients))
+	for i, client := range entry.clients {
+		requests[i] = client.req
+		if client.req.Profile == "" {
+			continue
+		}
+		req, err := resolve(client.req)
+		if err != nil {
+			return err
+		}
+		requests[i] = req
+	}
+	for _, req := range requests[1:] {
+		if sameAuth(requests[0].Auth, req.Auth) {
+			continue
+		}
+		return fmt.Errorf("bfd: session to peer %s%s vrf %s: %w: after this edit %s and %s "+
+			"ask for different auth blocks, and the session they share keeps the one it runs; "+
+			"%s; to fix it, give both profiles the same auth block",
+			sessionKey.Peer, refusalInterface(sessionKey.Interface), sessionKey.VRF, ErrAuthMismatch,
+			describeClientProfile(requests[0].Profile), describeClientProfile(req.Profile), authMismatchWhy)
+	}
+	if !sameAuth(entry.auth, requests[0].Auth) {
+		if err := replaceAuth(entry, authRequest(requests), sessionKey); err != nil {
+			return err
+		}
+	}
+	for i, client := range entry.clients {
+		client.req = requests[i]
+	}
+	// RFC 5882 Section 4.1
+	retimeLocked(entry)
+	return nil
+}
+
+// authRequest answers the request whose authentication a session takes when
+// its clients' edited requests agree on it (reprofileEntryLocked): the first
+// that asks for sequence persistence (a pinned session's persist-dir), so an
+// edit does not drop it because a protocol client joined first, else the
+// first. requests MUST NOT be empty.
+func authRequest(requests []api.SessionRequest) api.SessionRequest {
+	for _, req := range requests {
+		if req.PersistDir != "" {
+			return req
+		}
+	}
+	return requests[0]
+}
+
+// updateClientLocked gives client of entry the request req: the
+// authentication first, refused while another client relies on the current
+// one (updateAuthLocked), then the timers of the fastest client
+// (retimeLocked). The caller MUST hold l.mu.
+func updateClientLocked(entry *sessionEntry, client *sessionClient, req api.SessionRequest, sessionKey api.Key) error {
+	if err := updateAuthLocked(entry, client, req, sessionKey); err != nil {
 		return err
 	}
-	hh.client.req = req
+	client.req = req
 	// RFC 5882 Section 4.1
 	retimeLocked(entry)
 	return nil
@@ -113,7 +211,7 @@ func (l *Loop) UpdateSession(h api.SessionHandle, req api.SessionRequest) error 
 // so the change is refused while another client relies on the current one: a
 // client naming another bfd profile, or none, whose request asks for other
 // authentication than req. A client naming the same profile takes the same
-// edit at its own next request. The caller MUST hold l.mu.
+// edit from Loop.Reprofile at the same apply. The caller MUST hold l.mu.
 //
 // RFC 5882 Section 10.2: "BFD authentication SHOULD be used and is strongly
 // encouraged." A client may only run on a session whose authentication it

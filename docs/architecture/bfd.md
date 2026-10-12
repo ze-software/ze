@@ -178,11 +178,18 @@ Detection Time"). An Up session takes a timer change through a Poll Sequence
 (`Machine.ApplyTimers`, RFC 5880 §6.8.3): an increase of Desired Min TX keeps
 the old transmit interval, and a reduction of Required Min RX keeps the old
 Detection Time, until the Final; a change made while a Poll is in flight waits
-for it to settle. `Loop.UpdateSession` is the edit: the bfd plugin calls it for
-every pinned session at each apply, so a profile edit reaches a live pinned
-session in place, keeping its discriminator. An edit that changes the
-authentication is refused with `ErrAuthMismatch` while another client of the
-session, naming another profile or none, runs the current one. A client whose authentication differs from a live session's (Auth Type, Key
+for it to settle. At each apply the bfd plugin re-resolves, against the new
+profiles, the request of every client of every loop that named a profile
+(`runtimeState.reprofileClients`, `Loop.Reprofile`): a BGP peer, a static route
+next-hop or a pinned session asks once, naming only its profile, so this is how
+a profile edit reaches it, in place, keeping the session's discriminator. The
+clients of one session are edited together, all or none
+(`reprofileEntryLocked`): when their edited requests no longer agree on one
+authentication, the session keeps every request and its authentication, and the
+apply fails with `ErrAuthMismatch` naming the two profiles. A pinned session
+also takes its whole new request through `Loop.UpdateSession`, which refuses a
+change of authentication while another client of the session, naming another
+profile or none, runs the current one. A client whose authentication differs from a live session's (Auth Type, Key
 ID, Meticulous flag or secret, or authentication on one side only) is refused
 with `ErrAuthMismatch` at both join arms (`joinAuthCheck`), so it gets no
 session rather than a second one, and it never runs on an authentication it did
@@ -198,7 +205,8 @@ records which profile its authentication came from (`sessionEntry.authFrom`,
 set at creation and by every `replaceAuth`), so a client that names that same
 profile with different authentication is told the profile was edited since the
 session was built, and that only a release by every client applies the edit:
-nothing re-requests a session a client already holds on a config commit. The
+the session refused that edit, or the profile left with the pinned session that
+named it. The
 engine also asks the bfd plugin whether that profile still resolves to the
 session's authentication, through the `engine.ProfileAuth` lookup each loop
 gets from `loopFor` (`runtimeState.profileAuthFor`, built for the loop's hop
@@ -212,7 +220,8 @@ every client naming that profile, on any neighbor.
 <!-- source: internal/component/bfd/transport/udp.go -- ingressInterface -->
 <!-- source: internal/component/bfd/session_identity.go -- connectedLinks, vrfMembership -->
 <!-- source: internal/component/bfd/engine/shared_session.go -- sharedEntryLocked, sharesSession, joinedKey -->
-<!-- source: internal/component/bfd/engine/shared_session.go -- retimeLocked, fastestRequest, UpdateSession -->
+<!-- source: internal/component/bfd/engine/shared_session.go -- retimeLocked, fastestRequest, UpdateSession, Reprofile, reprofileEntryLocked -->
+<!-- source: internal/component/bfd/bfd.go -- reprofileClients -->
 <!-- source: internal/component/bfd/session/timers.go -- ApplyTimers, applyPendingTimersLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent, SetProfileAuth, sharedAuthLocked, replaceAuth -->
 <!-- source: internal/component/bfd/bfd.go -- loopFor, runtimeState.profileAuthFor -->
