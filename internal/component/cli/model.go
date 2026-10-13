@@ -151,7 +151,7 @@ type Model struct {
 	// Validation state
 	validationErrors   []ConfigValidationError
 	validationWarnings []ConfigValidationError
-	validationID       int // Incremented on each text change for debounce
+	validationID       int  // Incremented on each text change for debounce
 	validationDeferred bool // A validation tick arrived while a command held the editor
 
 	// Reload errors from the last commit attempt. Shown by the errors command.

@@ -8,6 +8,7 @@
 
 # --- Valid BFD block validates. ----------------------------------------------
 stdin=ospf-bfd-valid:terminator=EOF_VALID
+bfd { }
 ospf {
 	router-id 10.0.0.1
 	areas {
@@ -36,6 +37,7 @@ expect=stdout:contains=configuration valid
 
 # --- multiplier 0 is rejected (YANG range 1..255). ---------------------------
 stdin=ospf-bfd-mult-zero:terminator=EOF_MULT
+bfd { }
 ospf {
 	router-id 10.0.0.1
 	areas {
@@ -59,6 +61,7 @@ expect=stdout:contains=multiplier
 
 # --- min-tx 0 is rejected (YANG range 1..10000). -----------------------------
 stdin=ospf-bfd-mintx-zero:terminator=EOF_MINTX
+bfd { }
 ospf {
 	router-id 10.0.0.1
 	areas {
@@ -82,6 +85,7 @@ expect=stdout:contains=min-tx
 
 # --- The SAME bfd block parses under address-family ipv6 (one parseInterface path). ---
 stdin=ospf-bfd-v6-valid:terminator=EOF_V6
+bfd { }
 ospf {
 	router-id 10.0.0.1
 	areas {
@@ -117,6 +121,7 @@ expect=stdout:contains=configuration valid
 
 # --- multiplier 0 is rejected under address-family ipv6 too. -----------------
 stdin=ospf-bfd-v6-mult-zero:terminator=EOF_V6MULT
+bfd { }
 ospf {
 	router-id 10.0.0.1
 	areas {
