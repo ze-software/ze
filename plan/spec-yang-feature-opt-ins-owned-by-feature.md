@@ -7,7 +7,7 @@
 | Depends | `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` (it edits the BGP `connection bfd` readers and the BFD client commit refusal; this spec moves the schema those readers read, so it lands after that spec closes) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-12 |
+| Updated | 2026-10-13 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -372,7 +372,7 @@ N-A: no wire change. Config paths and runtime behavior are unchanged in a full b
 | Go readers stay in the clients | move the parse of `connection bfd` into `bfd/api` | the owner's rule is about the schema; the reader is the client's behavior and reads through the always-on `bfd/api` contract |
 
 ## Known Limitations
-- Command schemas are outside this spec: `internal/component/cmd/show/yang/ze-cli-show-api.yang` declares `rpc l2tp-health` (handler `internal/component/l2tp/show_health.go`, `ze_l2tp`) and `rpc bgp-health` (handler in `internal/component/bgp/plugins/healthcheck/`, `ze_bgp`) in an always-linked module. Open owner question Q-8 (Q-C in the ownership-imports spec), recommended into this spec; until answered they stay out of scope.
+- Command schemas are outside this spec: `internal/component/cmd/show/yang/ze-cli-show-api.yang` declares `rpc l2tp-health` (handler `internal/component/l2tp/show_health.go`, `ze_l2tp`) and `rpc bgp-health` (handler `internal/component/bgp/plugins/cmd/peer/health.go`, `ze_bgp`) in an always-linked module. Answered by the owner on 2026-10-13 (Q-8): "this is a boundary cross IMHO BGP need to be in the bgp plugin and same for l2tp". The move belongs to `plan/pre-release/spec-plugin-ownership-imports.md` (route J, AC-17); out of scope here.
 
 ## Open Questions (which way, with recommendation)
 
@@ -385,7 +385,7 @@ N-A: no wire change. Config paths and runtime behavior are unchanged in a full b
 | Q-5 | OSPF `redistribute source` hard-codes `bgp`, `isis` as enum values present without those plugins. Fix here (string plus registry, as `ze-redistribute-conf` does) or separately? | Separately: it is a reference, not a definition |
 | Q-6 | OSPF `bfd` carries inline timers where BGP and static name a BFD profile. Keep the leaves (pure move), or replace with `profile`? | Pure move here; a profile change alters config and is its own decision |
 | Q-7 | How is the rule kept true: a reduced-tag schema test per gate, or a static check that no module names a node a gated package reads? | Reduced-tag schema test for the gates that have client opt-ins (`ze_bfd`, `ze_ldp`), plus the rule text |
-| Q-8 | **Open owner question, recorded identically as Q-C in `plan/pre-release/spec-plugin-ownership-imports.md`.** Where do the `l2tp-health` and `bgp-health` RPCs go? `internal/component/cmd/show/yang/ze-cli-show-api.yang` declares them at lines 43 and 50 in an always-linked module, while their handlers are gated (`ze_l2tp`, `ze_bgp`). Options: (a) the ownership-imports spec; (b) this spec; (c) a spec of their own. Neither RPC is an import edge, so the ownership-imports gate names neither and its AC-1 cannot prove the move | (b), this spec: its rule is the defect, a node that survives in a binary without its owner, and the ownership-imports gate cannot see it. The earlier recommendation, (a), rested on that spec moving command schemas in general, which it does not (Constraint above) |
+| Q-8 | Recorded as Q-C in `plan/pre-release/spec-plugin-ownership-imports.md`. Where do the `l2tp-health` and `bgp-health` RPCs go? `internal/component/cmd/show/yang/ze-cli-show-api.yang` declares them in an always-linked module, while their handlers are gated (`ze_l2tp`, `ze_bgp`). Options: (a) the ownership-imports spec; (b) this spec; (c) a spec of their own | **Decided 2026-10-13: (a).** Thomas: "this is a boundary cross IMHO BGP need to be in the bgp plugin and same for l2tp". Moved to `plan/pre-release/spec-plugin-ownership-imports.md` (route J, AC-17, which proves it with a schema test since that spec's gate cannot see it); out of scope here |
 | Q-9 | Bucket: `plan/` (no shipped build lacks a tag today) or `plan/pre-release/`? | `plan/` |
 
 ## Checklist

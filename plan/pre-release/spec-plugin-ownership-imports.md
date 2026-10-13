@@ -60,19 +60,32 @@ calls a handler. Every one of their eleven plugin edges is a blank import that
 duplicates the generated composition, and the twelfth is a startup-time metrics
 setter.
 
+Route J (owner answer Q-C, 2026-10-13) is a boundary crossing the gate cannot
+see, because it is no import edge: the always-linked `ze-cli-show-api` module
+declares `rpc l2tp-health` and `rpc bgp-health`, while the command nodes that
+point at them (`ze-l2tp-cmd.yang`, `ze-peer-cmd.yang`) and their handlers are
+gated with their owners. In a binary without an owner, its rpc is still loaded
+and `PublishedRPCs` (`internal/component/config/yang/rpc_publish.go`) lists it
+under `Unnamed`. Route J moves each rpc into its owner's API module: `bgp-health`
+into `ze-bgp-api` (`internal/component/bgp/yang/`, already the target of ten
+other `ze-peer-cmd` pointers) and `l2tp-health` into `ze-l2tp-api`
+(`internal/component/l2tp/yang/`, already the target of nineteen `ze-l2tp-cmd`
+pointers).
+
 ### Owner questions (scope and product only)
 
 Answered by Thomas, 2026-10-12: Q-1 "One spec (Recommended)"; Q-2 "Accept all
 three (Recommended)". Q-A and Q-B came from design review round 3; Thomas took
 the recommended option on both, 2026-10-12 (relayed by the coordinating session).
-Q-C came from design review round 4 and is open.
+Q-C came from design review round 4; Thomas answered it on 2026-10-13 with
+option (a), this spec (relayed by the coordinating session).
 
 | # | Question | Recommendation |
 |---|----------|----------------|
 | Q-1 | One spec in phases, or split route D (the FlowSpec and BGP-LS core move, 11 edges, the largest phase) into its own spec? | one spec, D1 and D2 as separate phases and commits |
 | Q-2 | `update text` for SR-Policy refuses three inputs it accepts today: (a) an endpoint whose address family does not match the NLRI's AFI (today encoded); (b) `path-information N` that applies to an SR-Policy section (top level or inside it; Q-A keeps one inside another family's section accepted), including a mixed command such as `path-information 5 nlri ipv4/unicast add ... nlri ipv4/sr-policy add ...` (today the SR-Policy section drops the identifier silently): the whole command is refused, so one command never half-applies; (c) a second `add`/`del` after the first field of a section (today the last one wins); `add`/`del` must come first for every registry family. Accept all three? | accept: (a) the plugin's encoder and config path already refuse it; (b) SR-Policy NLRIs do not support ADD-PATH and a silent drop is a wrong value; (c) one grammar for every plugin family. Every other changed input in AC-11 was already refused and only gets a clearer message |
 | Q-A | A `path-information` written inside ANOTHER family's section, in a command that also has an SR-Policy section (`nlri ipv4/unicast path-information 5 add ... nlri ipv4/sr-policy add ...`): refuse the whole command, or accept it? The identifier lives in the accumulator copy of the unicast section only (`ParseUpdateText` hands each section `attrs.snapshot()`), so it never reaches the SR-Policy NLRI | **Decided 2026-10-12: accept.** Refuse only a `path-information` that applies to the SR-Policy section: written at top level before that section's `nlri`, or inside the SR-Policy section. That is the silent drop Q-2 (b) is about; per-section identifiers of other families stay as documented. The other option, refusing the whole command whenever any `path-information` sits beside an SR-Policy section, was not taken. Phase F step 8 and AC-11d state this one rule |
-| Q-C | **Open, from design review round 4 (owner question).** Where do the `l2tp-health` and `bgp-health` RPCs go? `internal/component/cmd/show/yang/ze-cli-show-api.yang` declares them in an always-linked module, while their handlers are gated (`internal/component/l2tp/show_health.go` under `ze_l2tp`; `bgp/plugins/healthcheck/` under `ze_bgp`). Options: (a) this spec; (b) `plan/spec-yang-feature-opt-ins-owned-by-feature.md` (its Q-8 raised it); (c) a spec of their own. Neither RPC is an import edge, so `./le arch tier check` names neither and AC-1 cannot prove the move; this spec moves a command schema only where its location is itself one of the 35 edges (routes B and G) | (b), the opt-ins spec: its rule is the defect, a node that survives in a binary without its owner, and this spec's gate cannot see it. Recorded identically in that spec |
+| Q-C | Where do the `l2tp-health` and `bgp-health` RPCs go? `internal/component/cmd/show/yang/ze-cli-show-api.yang` declares them in an always-linked module, while their handlers are gated: `internal/component/l2tp/show_health.go` (`ze-l2tp:show-health`, `ze_l2tp`) and `internal/component/bgp/plugins/cmd/peer/health.go` (`ze-bgp:show-health`, `ze_bgp`; the round-4 text named `bgp/plugins/healthcheck/`, which holds no handler for it). Options: (a) this spec; (b) `plan/spec-yang-feature-opt-ins-owned-by-feature.md` (its Q-8 raised it); (c) a spec of their own. Neither RPC is an import edge, so `./le arch tier check` names neither and AC-1 cannot prove the move | **Decided 2026-10-13: (a), this spec.** Thomas: "this is a boundary cross IMHO BGP need to be in the bgp plugin and same for l2tp". Route J moves each rpc into its owner's API module; AC-17 proves it without the tier gate. The opt-ins spec's Q-8 records the same answer |
 | Q-B | Route I makes `crashes` a name the `plugin ... use` completion offers (`InternalPluginNameValidator` completes from `registry.Names()`) and adds `ze plugin crashes`, a no-op that exits 0 (`registry.Register` requires a `CLIHandler`): the exposure `loop` and `bgp-nlri-srpolicy` carry today. Accept and journal the class, or widen this spec to hide no-op registrations from completion and the CLI? | **Decided 2026-10-12: accept.** Both surfaces are listed under "Behavior to change"; the class has one row in `plan/journal/inert-registration-offered-as-a-choice.md`, written with this spec edit. Hiding no-op registrations is a separate change to the completion contract, not done here |
 
 ### Route D symbol inventory (verified by type-checked cross-reference scan, 2026-10-12, design reviews rounds 4 and 5)
@@ -172,7 +185,12 @@ counts, found one more field, and rewrote step 6):
    - a file naming only moving symbols is updated to the core path (Files to
      Modify), with no alias left behind (R-2);
    - a test file naming only staying symbols keeps the plugin import unchanged
-     (`rib/rib_parsefamily_test.go`, `ls_export/rfc7752_export_family_test.go`);
+     (`rib/rib_parsefamily_test.go`, `ls_export/rfc7752_export_family_test.go`,
+     `bgp/reactor/rfc8955_width_wire_test.go` naming only `flowspec.EncodeRoute`;
+     and the three blank imports that only register the family:
+     `bgp/plugins/cmd/announce/announce_test.go` (FlowSpec),
+     `bgp/message/rfc7606_flags_plugin_test.go` and `bgp/reactor/rfc9552_test.go`
+     (BGP-LS); round 9, from the importer list of 2026-10-13);
      a production file naming only staying symbols cannot, because its import
      is the edge this spec removes: the two are `ls_export/export_plugin.go`
      and `export_state.go` (`ls.BGPLSFamily`), which A-5 rewrites to core
@@ -354,6 +372,101 @@ so the file belongs to the session that runs the command:
 - The commit script drops the rows a commit used once that commit lands
   (`RFCApprovals.Dropped`), so this is done once per phase.
 
+**Weakened-test ledger (design review round 9).** `./le commit create` runs
+`testweakened.CheckCommit` (`internal/le/commit/prepare.go` `checkSourceGates`)
+over every test path the commit names or removes. It compares each top-level
+function of the HEAD text with the function of the same name in the new text of
+the same path (`weakenedUnits`, `internal/le/test/weakened/scope.go`), and never
+looks for the function at a new path. A function that leaves a file is judged
+against empty text: `detect` reports both "replacing test content with empty
+string" and "deleting Test/Fuzz/Benchmark function" for a test, and only the
+first for a helper. Each finding
+needs a row, `| Test | Reason |`, in the session's own shard
+`test/weakened/<session>.md` (`<session>` from `./le commit session`), written
+before the edit and carried by the phase commit (`docs/contributing/testing.md`,
+"When a test must be weakened"). The rows are self-service: the implementing
+agent writes its own shard, and no command or other session is involved.
+`ai/rules/testing.md` still requires asking the owner before test content is
+deleted, so the owner's ruling before each phase covers these moves, and each
+row's reason names the core destination file and says the test runs there
+unchanged.
+
+| Phase | Findings from | Rows |
+|-------|---------------|------|
+| D1 | split files `rfc8955_width_test.go`, `rfc8956_prefix_test.go`, `vocabulary_test.go` | one per moved function: `TestFlowSpecPreferredNumericWideReception`, `TestIPv6FlowPrefixPatternAndPadding`, `TestFlagNamesRoundTrip`, `TestProtocolNameReverseAgrees`; plus a row named by the file stem wherever the gate reports the file-level "removing assertions" count the moved function takes with it (the removed function's own verdict does not count assertions against empty text, so the drop surfaces under the stem) |
+| D1 | whole-file moves git does not pair as renames: up to 5 files, 11 functions (8 `Test`, 3 `Fuzz`) | one bare-path row per file, naming the plugin path: a path row covers every finding in that file, and the gate accepts it only because the commit removes that path (`liveScopeProblems`) |
+| D2 | split files `attr_test.go`, `plugin_test.go`, `rfc9552_test.go` | `TestDescriptorBGPRouterID`, `TestDescriptorConfedMember`, `TestDescriptorSRv6SID`, `TestFormatRouterID`, `TestRFC9552NLRIContentsNeverMakeItMalformed`, `TestRFC9552NLRIFramingErrorsRejected`, and the helper `nodeNLRIOddButLegal`; plus the file-stem rows the gate reports |
+| D2 | unpaired whole-file moves: up to 6 files, 54 functions (49 `Test` or `Fuzz`, 5 helpers) | one bare-path row per file |
+
+A whole-file move that `ProspectiveCommit` (`--find-renames=1%`) pairs as a
+rename is compared function by function against its new path, and owes no row
+unless a function lost an assertion. The authoritative list is what the gates
+print: the write-edit hook names the row before a split edit lands, and
+`./le commit create` prints each missing row.
+
+Order of work for a whole-file move, in each of D1 and D2:
+1. Write the core test file.
+2. Write the shard rows.
+3. Remove the plugin file with `rm`. The old file must be gone before the
+   package tests build, because it names unexported declarations that moved.
+   The pretool hook asks "Test deletion - user approval required"; the owner
+   answers that prompt.
+4. Run the package tests, then record the discrimination and audit work.
+5. Commit with `file` for each new path and the shard, and `remove` for each
+   old path. `docs/contributing/committing.md` describes a rename as a plain
+   `rm` of the old path plus the new file, and the script skips a removed path
+   that is already absent.
+
+`./le rfc rename` is not the route for any of these moves: it refuses a target
+that leaves its source's directory, and every move here goes from the plugin
+into `internal/core`.
+
+**Audit verdicts (design review round 9).** `rfc/audit/<stem>.json` keys each
+verdict's `tests`, `units` and `code` fingerprints by path (`file` or
+`file::Func`), and `verdictFreshness` (`internal/le/rfc/freshness.go`) compares
+(file, fingerprint) pairs, so a unit that moves to a new path is STALE, not
+SHIFTED, even when its body is unchanged. `checkAuditFreshness`
+(`internal/le/rfc/check_audit.go`) refuses both states. Counted on 2026-10-13
+over each stem's `requirements`, one verdict counted once if any key names a
+path under the plugin directory:
+
+| Phase | Stem | Verdicts keyed on `nlri/flowspec/` or `nlri/ls/` |
+|-------|------|--------------------------------------------------|
+| D1 | `rfc5575` | 6 |
+| D1 | `rfc8955` | 18 |
+| D1 | `rfc8956` | 6 |
+| D2 | `rfc7752` | 8 |
+| D2 | `rfc9085` | 9 |
+| D2 | `rfc9086` | 1 |
+| D2 | `rfc9514` | 7 |
+| D2 | `rfc9552` | 17 |
+
+D1 30, D2 42, 72 in all. Outside the plugin directories, verdicts keyed on a
+file a phase edits: D1, `rfc5575.json` `RFC5575-8-1`, stale (its unit
+`TestFlowSpecVPNUpdateCountsRouteDistinguisher` in
+`bgp/message/flowspec_wire_contract_test.go` names `flowspec.IPv4FlowSpecVPN`,
+which step 7 rewrites), and `RFC5575-4-8` and `rfc8955.json` `RFC8955-4-3`,
+shifted (same file, unit unchanged); D2, `rfc8955.json` `RFC8955-7.1-2` and
+`RFC8955-7.3-1`, shifted (`bgp/cli/rfc8955_decode_test.go` changes its `ls.`
+references outside those units). The verdicts keyed on `ls_export`, `epe`,
+`rib` and `flowspec-firewall` key units that name no moving symbol and stay
+fresh. So at most D1 31 and D2 42 verdicts are re-judged, and at least D1 2 and
+D2 2 are resealed.
+
+Re-stamp, in the phase commit that moves the code:
+- a verdict `./le rfc check` reports SHIFTED (unit bodies unchanged at the same
+  paths, as for an unchanged unit left in a split file) is re-stamped with
+  `./le rfc reseal`;
+- a STALE verdict (a moved unit, a unit whose text changed, a moved or changed
+  producer under `code`) is re-judged by a reader who did not author the move,
+  under the `ze-rfc-audit` skill, and the re-made verdict replaces the recorded
+  one with `./le rfc audit-stamp stem <stem> from <pending file> mode rejudge`
+  (`docs/contributing/rfc-conformance-gates.md`, the `rfc/audit/<stem>.json`
+  row).
+The split between SHIFTED and STALE within the 72 is read from `./le rfc check`
+after the move, not predicted here: it depends on which staying units change
+text (the approval table above).
+
 ## Required Reading
 
 ### Architecture Docs
@@ -377,6 +490,9 @@ so the file belongs to the session that runs the command:
 - [ ] `feature-gates.txt` rows `ze_bgp` and `ze_bfd`
   → Constraint: `internal/component/bfd/api` and `bfd/packet` are the always-on client contract of the gated BFD engine; consumers nil-check. A new BFD seam goes there.
   → Constraint: the whole BGP subtree and `flowspec-firewall` are dropped transitively under `ze_bgp`; a new `internal/core/bgp/...` package is linked only when imported, so it does not widen the always-on binary.
+
+- [ ] `internal/component/cmd/show/yang/self_containment_test.go`, `internal/component/bgp/plugins/cmd/peer/yang/cmd_schema_test.go`, `internal/component/config/related_test.go`
+  → Constraint (route J): each names the wire methods `ze-bgp:show-health` / `ze-l2tp:show-health`, which stay unchanged, so none of the three is edited.
 
 ### RFC Summaries (Scope: protocol)
 - N-A: no protocol behavior changes. Code that moves keeps its RFC comments verbatim (`rfc/short/rfc8955.md`, `rfc9552.md`, `rfc9085.md`, `rfc9086.md`, `rfc9514.md`, `rfc9830.md` stay the cited summaries).
@@ -408,6 +524,8 @@ so the file belongs to the session that runs the command:
 - [ ] `internal/component/bfd/bfd.go` (the two `diagCmd.SetBFDRawCaptureProvider` calls: `nil` on stop, `svc` on start; re-read 2026-10-13); `internal/plugins/diag/cmd/capture_raw.go` `BFDRawCaptureProvider` and `SetBFDRawCaptureProvider` - BFD pushes itself into a package variable owned by the diag plugin
 - [ ] `internal/component/bfd/api/registry.go`, `profile_check.go` - the existing nil-able seams (`SetService`/`GetService`, `SetProfileChecker`)
 - [ ] `cmd/ze/hub/main.go` `runYANGConfig` (its `harvestKernelCrashes` call), `main_system.go` `harvestKernelCrashes`; `internal/plugins/crashes/readiness.go` - `HarvestAtBoot` runs once at daemon start, logs, publishes two gauges; crashes registers no engine, only an offline fallback, doctor checks and RPCs
+- [ ] `internal/component/cmd/show/yang/ze-cli-show-api.yang` (`rpc l2tp-health`, `rpc bgp-health`); `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` and `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` (each `health` container: `ze:command` `ze-l2tp:show-health` / `ze-bgp:show-health`, `ze:rpc` into `ze-cli-show-api`); `internal/component/l2tp/show_health.go` and `internal/component/bgp/plugins/cmd/peer/health.go` (the handlers); `internal/component/config/yang/rpc_publish.go` `PublishedRPCs` (an rpc no node points at is published under `Unnamed`); `internal/component/cmd/update/yang/register_minimal_test.go` (the build-tag-guarded schema test pattern)
+  → Constraint (route J): these other files spell the names but do not reference the rpcs: `internal/test/fixture/plugin_fixture_03_bgp.go` and `plugin_fixture_09_l2tp.go` drive the `show ... health` commands and name the rpcs only in error strings; `internal/component/config/related_yang_test.go` checks the `ze:related` id `bgp-health` in `ze-bgp-conf.yang`; `internal/component/web/port_check_test.go` names the page file `nav-show-l2tp-health.txt`; `internal/le/site/docsmanifest.go` maps the `bgp-healthcheck` plugin guide. These name the wire methods `ze-bgp:show-health` / `ze-l2tp:show-health`, which route J keeps: `internal/component/cmd/show/yang/self_containment_test.go`, `internal/component/bgp/plugins/cmd/peer/yang/cmd_schema_test.go`, `internal/component/config/related_test.go`. None changes (grep, 2026-10-13).
 
 **Behavior to preserve:**
 - Every RPC, YANG module, CLI command, backend and filter stays registered in the shipped `ze` binary under every feature-gate combination it is registered in today.
@@ -421,6 +539,7 @@ so the file belongs to the session that runs the command:
 **Behavior to change:**
 - `pool-stats` names its 14th pool instead of printing `unknown` (route G).
 - The SR-Policy text grammar in `update text` becomes the one the plugin registers. Every changed input and its outcome is in AC-11b to AC-11f; the inputs accepted today that become refused for a reason other than already being invalid are the three Q-2 lists: endpoint/AFI mismatch, a `path-information` that applies to an SR-Policy section (top level or inside it; Q-A), and a later `add`/`del` in an SR-Policy section. A later `add`/`del` in a mup or mvpn section is refused today by their encoders and after F by the shared parser: same outcome, new message (A-8).
+- In a binary built without `ze_l2tp` or without `ze_bgp`, the schema no longer holds the owner-less `l2tp-health` or `bgp-health` rpc (today published under `Unnamed`, with nothing to answer it); with the owner, `show l2tp health` and `show bgp health` answer as today (route J, AC-17).
 - `crashes` becomes a value the `plugin ... use` completion offers (`InternalPluginNameValidator` completes from `registry.Names()`), and `ze plugin crashes` exists as a no-op that exits 0, because `registry.Register` refuses a registration without a `CLIHandler` (route I, Q-B). Same exposure as `loop` and `bgp-nlri-srpolicy` today; the class is journaled, not fixed here.
 - The plugin listing gains one `crashes` row: `plugins.snapshot`, `docs/features/plugins.md`, and the `docs/DESIGN.md` "Shipped Plugins" table with its registered-plugin count, which the yangcontract drift gate now checks (AC-16).
 
@@ -439,6 +558,7 @@ so the file belongs to the session that runs the command:
 6. G: the rib owner registers `ze-bgp:pool-stats` and reads its own pools with names declared beside them.
 7. H: BFD calls `bfdapi.SetRawCaptureProvider`; diag reads `bfdapi.RawCaptureProvider()` and nil-checks.
 8. I: crashes registers a boot effect; hub runs the registered effects where it calls `harvestKernelCrashes` now.
+9. J: the schema loader loads each health rpc only when its owner's API module is linked; the owner's `health` command node points at it with `ze:rpc`, and `PublishedRPCs` publishes it under the node's wire method.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -450,6 +570,7 @@ so the file belongs to the session that runs the command:
 | `update` command ↔ SR-Policy plugin | `registry.EncodeNLRIByFamily` | No |
 | BFD component ↔ diag plugin | `bfd/api` seam | No |
 | hub ↔ crashes plugin | registered boot effect | No |
+| always-on show schema ↔ L2TP and BGP owners (route J) | each health rpc declared by its owner's API module, reached by the owner's `ze:rpc` pointer | No |
 
 ### Integration Points
 - `filterapi.Filter` (new optional field), `filterapi.SetMetricsRegistry`.
@@ -488,7 +609,7 @@ so the file belongs to the session that runs the command:
 |----|------|--------------|----------------------|
 | R-1 | Deleting a blank import drops a registration in some build-tag combination | `./le build` matrix or feature-gate check red; `all_test.go` registration counts change | the generated composition is the only place a registration is pinned; any missing row is a generator defect fixed there |
 | R-2 | Core move of `nlri/ls` and `nlri/flowspec` leaves a re-export alias in the plugin (layering) | grep for type aliases or wrapper funcs in the plugins | `ai/rules/no-layering.md`: move, update every caller, no alias |
-| R-3 | RFC-tagged tests and discrimination records name the old package paths | `./le rfc check` red | route each test as the inventory's test table says. The rule is that the split follows the code: a tagged unit goes where step 6 of the inventory method routes it, so a tagged file may be split across the two packages (`compare_rfc8955_test.go`, `rfc5575_arrival_order_test.go`, `rfc8955_vpn_test.go`, `rfc8956_fragment_test.go`, `rfc9552_node_descriptor_unique_test.go`, `rfc9552_ordering_test.go`, `rfc9552_types_descriptor_key_test.go` move whole; `rfc8956_prefix_test.go`, `rfc8955_width_test.go`, `rfc9552_test.go`, `attr_test.go` are split), and every moved tagged unit is re-recorded. With `./le rfc discriminate-record`, in the phase commit that moves it: every record whose producer moves (D1 14, D2 9), every record whose unit or producer text changes without a move, because the gate fingerprints that text with only comments and whitespace stripped (D1 1, D2 87), and a fresh record for every moved tagged cover that has none and for the one rewritten unit (D1 18, D2 9 + 2), both listed under the inventory. `rfc9085_capabilities_receipt_test.go` stays whole, reaching TLV 1034 through the registered decoder (A-4) |
+| R-3 | RFC-tagged tests and discrimination records name the old package paths | `./le rfc check` red | route each test as the inventory's test table says. The rule is that the split follows the code: a tagged unit goes where step 6 of the inventory method routes it, so a tagged file may be split across the two packages (`compare_rfc8955_test.go`, `rfc5575_arrival_order_test.go`, `rfc8955_vpn_test.go`, `rfc8956_fragment_test.go`, `rfc9552_node_descriptor_unique_test.go`, `rfc9552_ordering_test.go`, `rfc9552_types_descriptor_key_test.go` move whole; `rfc8956_prefix_test.go`, `rfc8955_width_test.go`, `rfc9552_test.go`, `attr_test.go` are split), and every moved tagged unit is re-recorded. With `./le rfc discriminate-record`, in the phase commit that moves it: every record whose producer moves (D1 14, D2 9), every record whose unit or producer text changes without a move, because the gate fingerprints that text with only comments and whitespace stripped (D1 1, D2 87), and a fresh record for every moved tagged cover that has none and for the one rewritten unit (D1 18, D2 9 + 2), both listed under the inventory. `rfc9085_capabilities_receipt_test.go` stays whole, reaching TLV 1034 through the registered decoder (A-4). Audit verdicts (round 9): 72 keyed on the plugin directories (D1 30: `rfc5575` 6, `rfc8955` 18, `rfc8956` 6; D2 42: `rfc7752` 8, `rfc9085` 9, `rfc9086` 1, `rfc9514` 7, `rfc9552` 17) plus 5 outside (D1 3, D2 2); each STALE one re-judged by an independent reader and replaced with `./le rfc audit-stamp ... mode rejudge`, each SHIFTED one resealed with `./le rfc reseal`, in the phase commit. Weakened-test ledger (round 9): every function leaving a plugin test file gets its row in `test/weakened/<session>.md` before the edit, and each phase commit names that shard: D1 the 4 split-out functions and up to 5 unpaired whole-file paths, D2 the 6 split-out functions, the helper `nodeNLRIOddButLegal` and up to 6 unpaired whole-file paths, plus any file-stem row the gate reports |
 | R-4 | Doc source anchors (`<!-- source: -->`, `// Design:`) point at moved files | `./le spec citation anchors spec plan/pre-release/spec-plugin-ownership-imports.md` | update every anchor in the phase that moves the file |
 | R-5 | Filter metrics hook runs before the filter registered (init order) | loop counter absent from `/metrics` | hooks run at reactor start, long after every `init()`; a unit test asserts the counter appears |
 | R-6 | Concurrent sessions edit `reactor.go`, `ls_export`, `rib` | foreign hunks in the same files | `.claude/rules/foreign-files.md`; edit only the import block and the one call site |
@@ -502,7 +623,7 @@ so the file belongs to the session that runs the command:
 |----------|--------|
 | What breaks if this is wrong? | a command, backend, filter counter or YANG module missing from the binary; FlowSpec/BGP-LS bytes mis-encoded if the move changes code |
 | How is it reverted? | per-phase commits, each a single revert |
-| Who else touches this path? | reactor, RIB, ls_export (BGP-LS origination spec), flowspec-firewall, diag, crashes; `plan/spec-yang-feature-opt-ins-owned-by-feature.md` regenerates the same `plugin/all/all*.go` and `feature-gates.txt` (no node or import in common); `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` edits `internal/component/bfd/bfd.go` (`applyPinned`, its Files to Modify) beside route H's two `SetBFDRawCaptureProvider` calls; `bfd/api` also holds `opt_in_check.go` (committed in `b3cfb912d0`), so route H rereads both files before its edit (R-6) |
+| Who else touches this path? | reactor, RIB, ls_export (BGP-LS origination spec), flowspec-firewall, diag, crashes, `internal/component/cmd/show/yang` (route J); `plan/spec-yang-feature-opt-ins-owned-by-feature.md` regenerates the same `plugin/all/all*.go` and `feature-gates.txt` (no node or import in common); `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` edits `internal/component/bfd/bfd.go` (`applyPinned`, its Files to Modify) beside route H's two `SetBFDRawCaptureProvider` calls; `bfd/api` also holds `opt_in_check.go` (committed in `b3cfb912d0`), so route H rereads both files before its edit (R-6) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -519,6 +640,7 @@ so the file belongs to the session that runs the command:
 | daemon start | → | registered crash boot effect | `test/ui/cli-crashes-readiness.ci` plus `TestBootEffectsRunOnce` (home per route I) |
 | daemon start, config with no `plugin` block | → | `server/startup_autoload.go` with the crashes registration present | `TestAutoloadStartsNoCrashesEngine` (`internal/component/plugin/server/startup_autoload_test.go`); a regression guard, green on today's tree, its red shown in phase I against a registration declaring a trigger (Implementation step 1) |
 | `update text ... nlri ipv4/mup add ... del ...` (and the mvpn and sr-policy forms) | → | `parseRegistryNLRISection` later-`add`/`del` refusal | `TestRegistrySectionRefusesLaterAddDel` (`internal/component/bgp/plugins/cmd/update/update_text_test.go`) |
+| schema load of the composed binary, with and without each owner | → | `PublishedRPCs` over the health rpcs | `TestHealthRPCsPublishedOnlyWithOwner` (`internal/component/plugin/all/`) and `TestHealthRPCsAbsentWithoutOwner` (`cmd/ze/hub/build_tag_health_rpcs_absent_test.go`) |
 
 ## Acceptance Criteria
 
@@ -546,6 +668,7 @@ so the file belongs to the session that runs the command:
 | AC-14 | daemon start | the crashes registration's boot effect runs once, after `applyHostTuning` and before `startSmartManager`, with the same log lines and gauges, and the "no crash directory is writable" warning (now in `main_system.go` `harvestKernelCrashes`) emitted by the crashes package; `cmd/ze/hub` imports no `plugins/crashes`; a config reload does not run it |
 | AC-15 | `BenchmarkForwardDirect` and `BenchmarkForwardDirect_Batch` (`internal/component/bgp/reactor/forward_update_bench_test.go`), and a new `BenchmarkRIBFlowSpecValidation` in `internal/component/bgp/plugins/rib/` run before the D1 move and after it | allocs/op identical, ns/op within noise; numbers pasted in the spec |
 | AC-16 | the plugin listing after route I, and daemon start with a config holding no `plugin` block | three surfaces each gain exactly one `crashes` row: `internal/component/plugin/all/testdata/plugins.snapshot`, `docs/features/plugins.md`, and the `docs/DESIGN.md` "Shipped Plugins" table (the yangcontract drift gate, `checkDesignMD` in `internal/le/doc/yangcontract/drift.go`, reports a registered name missing from that table); the "N registered plugins" count in the `docs/DESIGN.md` "Goals" section is checked by the same gate: `checkDesignMD` gains a registered-plugin count check against `registryPluginNames()`, beside the address-family count it already checks, so the source is the build the drift gate runs in (the `./le` binary, whose `yangcontract/contract.go` imports `plugin/all`). That count depends on the build and on the OS of the host running `./le`: `iface-dhcp`, `iface-ra` and `memlock` register on Linux only (`//go:build linux` on each `register.go`; the `platformOnly` set of `TestRegisteredPluginNames`, `plugin/all/all_test.go`), the owner runs gates on darwin, and an exact number is red on one platform whichever is written (the class of `plan/journal/gate-verdict-depends-on-the-machine.md`). So the check reads the floor form the interop count already uses (`extractFloorCount`, "100+ interop scenarios"): a claim "N+ registered plugins" is reported only when the registry holds fewer than N, an exact claim "N registered plugins" is still reported when unequal, and that count is written as a floor set to the cross-platform count, the `plugins.snapshot` set the darwin registry holds (90 names today, 91 after route I; today's text says 97), pinned by `TestCheckDesignMDPluginCount`; no crashes engine is started, proven by `TestAutoloadStartsNoCrashesEngine` (A-9) |
+| AC-17 | the schema the composed binary loads (`plugin/all`, then `PublishedRPCs`), in a test build with `ze_l2tp` and `ze_bgp` and in one with neither (route J; the tier gate cannot see this, so the proof is a schema test) | with both owners: `PublishedRPCs.Commands` holds `ze-l2tp:show-health` pointing at an rpc of `ze-l2tp-api` and `ze-bgp:show-health` pointing at an rpc of `ze-bgp-api`, each rpc keeping its name (`l2tp-health`, `bgp-health`) and today's help and description text, so no wire method and no CLI path changes, and `show l2tp health` / `show bgp health` answer as today (`test/plugin/l2tp-health-show.ci`, `test/plugin/bgp-health-show.ci` green unchanged); without them: no published rpc, in `Commands`, `Protocol` or `Unnamed`, is a health rpc of either owner, and `ze-cli-show-api` declares neither rpc in any build. Proven by `TestHealthRPCsPublishedOnlyWithOwner` (`internal/component/plugin/all/`, `//go:build ze_l2tp && ze_bgp`) and `TestHealthRPCsAbsentWithoutOwner` (`cmd/ze/hub/build_tag_health_rpcs_absent_test.go`, `//go:build !ze_l2tp && !ze_bgp`, beside the 26 existing `build_tag_*_absent_test.go` files), which the verify bare-core lane already runs (`internal/le/verify/deps/verifydeps.go`: `GoTest` with `Core: true` over `./cmd/ze/hub`). A reduced-tag run over `plugin/all` is not the home: `Group.options` sets `Core` only for a group with tags, and `TestFeatureGatedModulesEnumerated` refuses that run on purpose |
 
 ## End-to-End User Stories
 
@@ -570,6 +693,8 @@ so the file belongs to the session that runs the command:
 | `TestRegistrySectionRefusesLaterAddDel` | `internal/component/bgp/plugins/cmd/update/update_text_test.go` | AC-11b for every registry family: one row each for mup, mvpn and sr-policy, each refused by the shared parser with the same message; one native row (`ipv4/unicast add P1 del P2`) still accepted and switching mode; a vpn row would be refused as written (`ErrMissingRD`, then `ErrMissingLabel`, both in `parseVPNNLRI`), so a vpn control row carries `rd` and `label` | |
 | `TestCheckDesignMDPluginCount` | `internal/le/doc/yangcontract/drift_test.go` | a `docs/DESIGN.md` line claiming the floor `N+ registered plugins` is reported when `len(registryPluginNames())` is below N and not when it is at or above N; an exact `N registered plugins` is reported when N differs and not when it is equal (AC-16) | |
 | `TestAutoloadStartsNoCrashesEngine` | `internal/component/plugin/server/startup_autoload_test.go` | with the crashes registration present and a config holding no `plugin` block, the auto-load set does not contain `crashes` (A-9, AC-16) | |
+| `TestHealthRPCsPublishedOnlyWithOwner` | `internal/component/plugin/all/` (file guarded `ze_l2tp && ze_bgp`) | AC-17 with both owners linked; red on today's tree, where both pointers name `ze-cli-show-api` | |
+| `TestHealthRPCsAbsentWithoutOwner` | `cmd/ze/hub/build_tag_health_rpcs_absent_test.go` (guarded `!ze_l2tp && !ze_bgp`; run by the verify bare-core lane) | AC-17 with neither owner; red on today's tree, where `PublishedRPCs.Unnamed` holds both | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -599,6 +724,8 @@ N-A, under the "no wire-visible change" exemption of `ai/rules/interop-and-goal-
 - `internal/component/bgp/plugins/rib/rib_flowspec_validation.go`, `internal/plugins/flowspec-firewall/*.go`
 - callers of moved symbols outside the 35 edges (inventory scan, step 7): `internal/chaos/peer/sender.go`, `internal/le/interoplab/bgp/check_ospf_bgpls.go`; tests `internal/plugins/flowspec-firewall/*_test.go` (9 files), `internal/component/bgp/plugins/cmd/update/update_text_test.go`, `internal/component/bgp/message/flowspec_wire_contract_test.go`, `internal/component/bgp/format/json_test.go`, `internal/component/bgp/cli/rfc8955_decode_test.go`
 - plugin test files of `nlri/flowspec` and `nlri/ls`, routed by the inventory's test table (moved whole, split by function, or kept); `rfc/discrimination/rfc5575.json`, `rfc8955.json`, `rfc8956.json` (D1, 15) and `rfc7752.json`, `rfc9085.json`, `rfc9086.json`, `rfc9514.json`, `rfc9552.json` (D2, 96) re-recorded, and the new records of moved or rewritten tagged units added to `rfc5575.json`, `rfc8955.json`, `rfc8956.json` (D1, 18) and `rfc7752.json`, `rfc9552.json` (D2, 11)
+- `rfc/audit/rfc5575.json`, `rfc8955.json`, `rfc8956.json` (D1: 30 verdicts keyed on the plugin directory, plus `RFC5575-8-1`, `RFC5575-4-8`, `RFC8955-4-3`) and `rfc/audit/rfc7752.json`, `rfc9085.json`, `rfc9086.json`, `rfc9514.json`, `rfc9552.json` (D2: 42, plus `rfc8955.json` `RFC8955-7.1-2`, `RFC8955-7.3-1`), re-judged with `./le rfc audit-stamp ... mode rejudge` or resealed with `./le rfc reseal`, as `./le rfc check` reports each (the audit paragraph under the inventory)
+- `test/weakened/<session>.md`, the implementing session's own shard: one row per function that leaves a plugin test file, or one path row per unpaired whole-file move, carried by the D1 and the D2 commit (the ledger paragraph under the inventory)
 - `internal/le/doc/yangcontract/drift.go`, `drift_test.go` (`checkDesignMD` checks the registered-plugin count, AC-16)
 - `internal/component/bgp/cli/decode_update.go`
 - `internal/component/bgp/plugins/cmd/update/update_text_nlri.go` (SAFI 73 branch, the `SAFISRPolicy` entry in the `parseNLRI` case list, the SR-Policy case of `nativeTextFamily`, later `add`/`del` in `parseRegistryNLRISection`, ADD-PATH refusal from the registration)
@@ -608,7 +735,9 @@ N-A, under the "no wire-visible change" exemption of `ai/rules/interop-and-goal-
 - `internal/component/bfd/bfd.go`, `internal/component/bfd/api/` (seam), `internal/plugins/diag/cmd/capture_raw.go`
 - `cmd/ze/hub/main.go`, `main_system.go`, `internal/plugins/crashes/readiness.go`, `register.go`
 - `internal/component/plugin/all/testdata/plugins.snapshot`, `docs/features/plugins.md`, `docs/DESIGN.md` "Shipped Plugins" table and its "Goals" registered-plugin count (one `crashes` row, AC-16)
-- `internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go` comments D1 makes stale: the `parseComponentText` doc comment (names `parseFlowComponent in types.go`, which D1 moves to core), the `familyModeBoth` doc comment (places `family.MustRegister` in `types.go`, moved to `register.go`), the `protocolNameToNumber` doc comment (calls `protocolNameToNumber` the ONLY protocol vocabulary in this package, moved to core)
+- comments D1 makes stale: in `internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go`, the `parseComponentText` doc comment (names `parseFlowComponent in types.go`, which D1 moves to core) and the `familyModeBoth` doc comment (places `family.MustRegister` in `types.go`, moved to `register.go`); in `flowspec/plugin.go`, the `flowSpecFamilySet` and `familyDecls` doc comments (each places the registration in `types.go`, moved to `register.go`). The `protocolNameToNumber` doc comment moves to core with the var, and is rewritten there: it calls the table the ONLY protocol vocabulary "in this package", which after the move is the core package, and names its readers, of which the config parser and the text encoder stay in the plugin
+- comments and headers D2 makes stale: in `internal/component/bgp/plugins/nlri/ls/plugin.go`, the `familyModeDecode` and `familyDecl` doc comments (each places `family.MustRegister` in `types.go`, moved to `register.go`); the file-header cross-references `ls/attr.go` `// Overview: types.go` and `ls/types.go` `// Detail: attr.go`, which then name a file in the other package: `checkCrossRefs` (`internal/le/doc/consistency/consistency.go`) pairs them within one directory, so both lines are removed, and the core and plugin files each keep cross-references only to files in their own directory. In FlowSpec every `types*.go` header names only files that move with it
+- route J: `internal/component/cmd/show/yang/ze-cli-show-api.yang` (the two rpcs removed), `internal/component/l2tp/yang/ze-l2tp-api.yang` and `internal/component/bgp/yang/ze-bgp-api.yang` (each gains its rpc under its unchanged name and text, and a revision statement, as `ze-bgp-api.yang` revision 2026-10-09 recorded the peer-delete move), `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` and `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` (`ze:rpc` repointed, a revision each)
 - `internal/component/plugin/server/startup_autoload_test.go` (`TestAutoloadStartsNoCrashesEngine`)
 - generated: `internal/component/plugin/all/*.go`, `AGENTS.md` plugin lists (via `./le repo generate`)
 - docs listed in the Documentation checklist
@@ -621,13 +750,14 @@ N-A, under the "no wire-visible change" exemption of `ai/rules/interop-and-goal-
 - crashes `registry.Registration` in `internal/plugins/crashes/register.go` (boot effect, no-op engine)
 - `BenchmarkRIBFlowSpecValidation` in `internal/component/bgp/plugins/rib/`
 - `test/plugin/bgp-pool-stats.ci`
+- a `_test.go` file in `internal/component/plugin/all/` guarded `ze_l2tp && ze_bgp`, holding `TestHealthRPCsPublishedOnlyWithOwner`, and `cmd/ze/hub/build_tag_health_rpcs_absent_test.go` guarded `!ze_l2tp && !ze_bgp`, holding `TestHealthRPCsAbsentWithoutOwner` (AC-17)
 
 Deleted: `internal/component/config/yang/cli/tree_bgp.go`, `internal/component/bgp/plugins/cmd/update/update_text_srpolicy.go`, `internal/component/bgp/plugins/cmd/rib/pool_stats.go` and its YANG module, `internal/plugins/{mtu,ping,traceroute}-cmd/`.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | three `-cmd` modules and `ze-rib-poolstats-cmd` move to their owners, content unchanged |
+| YANG schema (new RPCs/config) | Yes | three `-cmd` modules and `ze-rib-poolstats-cmd` move to their owners, content unchanged; the `l2tp-health` and `bgp-health` rpcs move from `ze-cli-show-api` into `ze-l2tp-api` and `ze-bgp-api` (route J) |
 | YANG validation constraints | N-A | no leaf changes |
 | YANG custom validators | N-A | none added |
 | CLI commands/flags | N-A | no command added or renamed |
@@ -646,10 +776,10 @@ Deleted: `internal/component/config/yang/cli/tree_bgp.go`, `internal/component/b
 | 1 | New user-facing feature, or scope/evidence/level changed? | No | refactor |
 | 2 | Config syntax changed? | No | - |
 | 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` if SR-Policy `update text` wording changes (A-3) |
-| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` (pool-stats owner; SR-Policy text through the registry) |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` (pool-stats owner; SR-Policy text through the registry; route J: the `show l2tp health` and `show bgp health` rpcs declared by their owners' API modules, the `// Design:` page of both handlers); `docs/architecture/command-ownership.md` if it names `ze-cli-show-api` as the home of an owner's rpc |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` if it lists the `-cmd` directories |
 | 6 | Has a user guide page? | No | - |
-| 7 | Wire format changed? | No; source paths change | `docs/architecture/wire/nlri-bgpls.md`, `docs/architecture/wire/nlri-flowspec.md` (also the `// Design:` page of `plugin_encode_text.go`, whose `familyModeBoth`, `protocolNameToNumber` and `parseComponentText` doc comments D1 corrects): source anchors to the core packages |
+| 7 | Wire format changed? | No; source paths change | `docs/architecture/wire/nlri-bgpls.md`, `docs/architecture/wire/nlri-flowspec.md` (also the `// Design:` page of `plugin_encode_text.go`, whose `familyModeBoth` and `parseComponentText` doc comments D1 corrects, and of the `protocolNameToNumber` comment D1 moves to core and rewrites): source anchors to the core packages |
 | 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/plugin/plugin-system.md` (filter metrics hook, attribute JSON decoder registration, boot effect) |
 | 9 | RFC behavior changed? | No | anchors in `rfc/short/rfc8955.md`, `rfc9552.md`, `rfc9830.md` updated where they cite moved files |
 | 10 | Test infrastructure changed? | No | - |
@@ -663,23 +793,24 @@ Deleted: `internal/component/config/yang/cli/tree_bgp.go`, `internal/component/b
 
 ## Implementation Steps
 
-1. **Phase: Wiring** -- write the failing tests in the Wiring Test table that do not exist yet (filter metrics hook, attribute JSON decoder, pool-stats `.ci`, diag BFD seam, boot effect). Record the `go list -deps` baseline for AC-3. `TestAutoloadStartsNoCrashesEngine` is the exception: it is a regression guard and passes on today's tree, which holds no crashes registration, so it cannot be written red here. Its red is shown in phase I instead, against a crashes registration temporarily declaring an auto-load trigger, and the output is pasted. The trigger is a family the test config configures (`server/startup_autoload.go` `getUnclaimedFamilyPlugins`), or a `DataPlane` declaration with a configured `NeedsDataPlane` producer; `NeedsDataPlane` on crashes itself starts nothing, because `appendDataPlaneWriter` adds the data-plane WRITER a needed plugin requires, never the plugin declaring the need.
+1. **Phase: Wiring** -- write the failing tests in the Wiring Test table that do not exist yet (filter metrics hook, attribute JSON decoder, pool-stats `.ci`, diag BFD seam, boot effect, the two AC-17 health rpc tests). Record the `go list -deps` baseline for AC-3. `TestAutoloadStartsNoCrashesEngine` is the exception: it is a regression guard and passes on today's tree, which holds no crashes registration, so it cannot be written red here. Its red is shown in phase I instead, against a crashes registration temporarily declaring an auto-load trigger, and the output is pasted. The trigger is a family the test config configures (`server/startup_autoload.go` `getUnclaimedFamilyPlugins`), or a `DataPlane` declaration with a configured `NeedsDataPlane` producer; `NeedsDataPlane` on crashes itself starts nothing, because `appendDataPlaneWriter` adds the data-plane WRITER a needed plugin requires, never the plugin declaring the need.
 2. **Phase A: redundant registrations** (edges 1-6, 8-16) -- delete the blank imports and `tree_bgp.go`; add `_test.go` imports where a package test needs them (A-2); correct the stale comments. Verify AC-3, AC-4.
 3. **Phase C: filter metrics** (edge 7) -- optional metrics hook on `filterapi.Filter`, called by `filterapi.SetMetricsRegistry`; loop filter declares it; reactor drops the import. AC-5.
 4. **Phase B: schema homes** (17-19) -- move each `-cmd/yang` package into `internal/component/<x>/yang/`, regenerate, delete the `-cmd` directories. AC-6.
-5. **Phase D1: FlowSpec core** (25-30) -- owner step first: the owner rules on the 27 D1 tagged units in the approval table under the inventory, and each ruling is recorded with `./le rfc approve unit <package>.<TestName> reason "<owner's words>"`; then move the wire vocabulary to `internal/core/bgp/nlri/flowspec`, plugin keeps `family.MustRegister`, config, the JSON/text entry points and hex codecs; the `plugin_decode.go` rendering helpers and the `plugin_encode_text.go` keyword block and name tables move as the inventory lists, exporting exactly its "Newly exported by core" column (33 names); update RIB, flowspec-firewall, `internal/chaos/peer/sender.go` and the 12 outside test files; route the plugin tests by the inventory's test table, naming a family in the moved tests by a `family.Family` built from core constants; the four outside test files that name a staying family var build it from core constants (inventory step 7); re-record the 14 D1 discrimination records whose producer moves and the 1 `rfc8956.json` record whose unit text changes, and record the 18 new D1 covers listed under the inventory, in this phase's commit; correct the three `plugin_encode_text.go` comments D1 makes stale: the `parseComponentText` doc comment (places `parseFlowComponent` in the plugin's `types.go`), the `familyModeBoth` doc comment (places `family.MustRegister` in `types.go`; it moves to `register.go`) and the `protocolNameToNumber` doc comment (calls `protocolNameToNumber` the ONLY protocol vocabulary in this package; it moves to core). Re-run the inventory scan on the result: no forward edge, no reverse edge to an unexported core name (the reverse list itself is never empty: staying code names core exports by design), and no core test naming a staying declaration. AC-7, AC-8, AC-15.
-6. **Phase D2: BGP-LS core** (20-24) -- owner step first: the owner rules on the 27 D2 tagged units in the approval table (35 if the three whole-file moves are not paired as renames), recorded the same way with `./le rfc approve`; then same for `internal/core/bgp/nlri/bgpls`, including the `plugin.go` JSON helpers, exporting exactly the inventory's "Newly exported by core" column (21 names plus the two result structs); `register_attr.go` adapts core `DecodeSRCapabilities` returning a nil interface on error (A-4), and the two TLV 1034 tests reach it through `lookupLsAttrTLVDecoder` and stay in the plugin; `ls_export` uses core family constants (A-5); update `internal/le/interoplab/bgp/check_ospf_bgpls.go` and `bgp/cli/rfc8955_decode_test.go`; route the other plugin tests by the test table, declaring the core copies of `buildAttrTLV` and `unknownAttrTLVType` it names; re-record the 9 D2 discrimination records, the 4 in `rfc/discrimination/rfc9085.json` naming the moved producer as core `DecodeSRCapabilities`, re-record the 87 D2 records whose unit or producer text changes without a move (27 in the plugin, 60 in `ls_export` and `epe`, listed under the inventory), and record the 9 new moved D2 covers and the 2 of the rewritten `TestRFC7752UnknownTLVPreservedAndPropagated` listed under the inventory, in this phase's commit. Re-run the inventory scan: before the change only the `lsAttrTLV` forward edge A-4 removes may appear; after it, no forward edge, no reverse edge to an unexported core name, and no core test naming a staying declaration. AC-7, AC-8.
+5. **Phase D1: FlowSpec core** (25-30) -- owner step first: the owner rules on the 27 D1 tagged units in the approval table under the inventory, and on the D1 test moves the weakened-test ledger lists (`ai/rules/testing.md`: ask before deleting test content), and each approval-table ruling is recorded with `./le rfc approve unit <package>.<TestName> reason "<owner's words>"`; ledger step next, before any test edit: write the D1 rows of the weakened-test ledger table into `test/weakened/<session>.md`, each reason naming the core destination; then move the wire vocabulary to `internal/core/bgp/nlri/flowspec`, plugin keeps `family.MustRegister`, config, the JSON/text entry points and hex codecs; the `plugin_decode.go` rendering helpers and the `plugin_encode_text.go` keyword block and name tables move as the inventory lists, exporting exactly its "Newly exported by core" column (33 names); update RIB, flowspec-firewall, `internal/chaos/peer/sender.go` and the 12 outside test files; route the plugin tests by the inventory's test table, naming a family in the moved tests by a `family.Family` built from core constants, in the order the ledger paragraph gives (core file written, rows written, plugin file removed with `rm` and the owner answering the "Test deletion - user approval required" prompt, tests run and recorded, commit with `file` for each new path and the shard and `remove` for each old path); the four outside test files that name a staying family var build it from core constants (inventory step 7); re-record the 14 D1 discrimination records whose producer moves and the 1 `rfc8956.json` record whose unit text changes, and record the 18 new D1 covers listed under the inventory, in this phase's commit; re-stamp the D1 audit verdicts (the 30 keyed on the plugin directory and the 3 outside ones), each as `./le rfc check` reports it: a STALE one re-judged by an independent reader and stamped with `./le rfc audit-stamp ... mode rejudge`, a SHIFTED one with `./le rfc reseal`; the commit names `test/weakened/<session>.md`; correct the comments D1 makes stale: in `plugin_encode_text.go` the `parseComponentText` doc comment (places `parseFlowComponent` in the plugin's `types.go`) and the `familyModeBoth` doc comment (places `family.MustRegister` in `types.go`; it moves to `register.go`), in `plugin.go` the `flowSpecFamilySet` and `familyDecls` doc comments (the same `types.go` placement), and move the `protocolNameToNumber` doc comment to core with the var, rewritten for the core package (it calls the table the ONLY protocol vocabulary in this package and names readers that stay in the plugin). Re-run the inventory scan on the result: no forward edge, no reverse edge to an unexported core name (the reverse list itself is never empty: staying code names core exports by design), and no core test naming a staying declaration. AC-7, AC-8, AC-15.
+6. **Phase D2: BGP-LS core** (20-24) -- owner step first: the owner rules on the 27 D2 tagged units in the approval table (35 if the three whole-file moves are not paired as renames), and on the D2 test moves the weakened-test ledger lists, the approval-table rulings recorded the same way with `./le rfc approve`; ledger step next, before any test edit: write the D2 rows of the ledger table into `test/weakened/<session>.md`; then same for `internal/core/bgp/nlri/bgpls`, including the `plugin.go` JSON helpers, exporting exactly the inventory's "Newly exported by core" column (21 names plus the two result structs); `register_attr.go` adapts core `DecodeSRCapabilities` returning a nil interface on error (A-4), and the two TLV 1034 tests reach it through `lookupLsAttrTLVDecoder` and stay in the plugin; `ls_export` uses core family constants (A-5); update `internal/le/interoplab/bgp/check_ospf_bgpls.go` and `bgp/cli/rfc8955_decode_test.go`; route the other plugin tests by the test table, declaring the core copies of `buildAttrTLV` and `unknownAttrTLVType` it names, in the ledger paragraph's order (the owner answers the `rm` prompt for each removed plugin file); re-stamp the D2 audit verdicts (the 42 keyed on the plugin directory and `rfc8955.json` `RFC8955-7.1-2`, `RFC8955-7.3-1`) the same way as D1; the commit names `test/weakened/<session>.md`; correct the comments and headers D2 makes stale: in `plugin.go` the `familyModeDecode` and `familyDecl` doc comments (they place `family.MustRegister` in `types.go`; it moves to `register.go`), and remove the cross-package header lines `ls/attr.go` `// Overview: types.go` and `ls/types.go` `// Detail: attr.go` (`checkCrossRefs` pairs header references within one directory); re-record the 9 D2 discrimination records, the 4 in `rfc/discrimination/rfc9085.json` naming the moved producer as core `DecodeSRCapabilities`, re-record the 87 D2 records whose unit or producer text changes without a move (27 in the plugin, 60 in `ls_export` and `epe`, listed under the inventory), and record the 9 new moved D2 covers and the 2 of the rewritten `TestRFC7752UnknownTLVPreservedAndPropagated` listed under the inventory, in this phase's commit. Re-run the inventory scan: before the change only the `lsAttrTLV` forward edge A-4 removes may appear; after it, no forward edge, no reverse edge to an unexported core name, and no core test naming a staying declaration. AC-7, AC-8.
 7. **Phase E: attribute JSON decoder** (31) -- registry field keyed by attribute code, `bgp-nlri-ls` registers `AttrTLVsToJSON` for 29, decoder looks it up. AC-9, AC-10.
 8. **Phase F: SR-Policy text** (32) -- write `TestSRPolicyTextMatchesPluginGrammar` over AC-11a to AC-11f first and record today's outcome for each row; validate A-8; then declare no ADD-PATH in the SR-Policy registration, and make `parseRegistryNLRISection`, when the registry says the section's family declared no ADD-PATH, refuse with the AC-11d error in exactly the three positions AC-11d lists and in no other: (1) the accumulator it was handed already carries `HasPathID` (a top-level `path-information`), tested on entry; (2) the token after the family is `path-information`, tested before the `add`/`del` check that would answer `ErrMissingAddDel`; (3) a `path-information` token inside the run `endsRegistrySection` keeps, tested before the run is handed to the encoder. A `path-information` inside another family's section never reaches this parser for the SR-Policy section, because each section gets its own accumulator copy, so it is accepted (owner decision Q-A, AC-11d control row). Make the encoder refuse `rd`/`label`, make the shared registry section parser refuse a later `add`/`del` for every registry family with the message AC-11b names (`TestRegistrySectionRefusesLaterAddDel`), and delete the SAFI 73 branch, the two SAFI 73 case lists and `update_text_srpolicy.go`. AC-11a to AC-11g.
 9. **Phase G: pool-stats** (33) -- move handler and module into the rib owner; names declared beside the pools. AC-12.
 10. **Phase H: BFD capture seam** (34) -- interface and setter into `bfd/api`; diag reads it. AC-13.
 11. **Phase I: crash boot effect** (35) -- boot-effect field on `registry.Registration`; crashes registers it (A-9) with `HarvestAtBoot` and the not-writable warning; hub runs registered effects once between `applyHostTuning` and `startSmartManager` and drops `harvestKernelCrashes`; update `plugins.snapshot`, `docs/features/plugins.md` and the `docs/DESIGN.md` "Shipped Plugins" table with the one `crashes` row; teach `checkDesignMD` the registered-plugin count in the floor and exact forms, checked against `registryPluginNames()` (`TestCheckDesignMDPluginCount`), then write the `docs/DESIGN.md` "Goals" registered-plugin count as the floor `N+`, N the `plugins.snapshot` line count after the `crashes` row (the cross-platform set, green on darwin and Linux); write `TestAutoloadStartsNoCrashesEngine` and show its red against a trigger-declaring registration (step 1). AC-14, AC-16.
-12. Docs per checklist, in each phase. AC-1, AC-2 at the end.
+12. **Phase J: health rpc homes** (owner answer Q-C; no edge number, the tier gate cannot see it) -- move `rpc l2tp-health` from `ze-cli-show-api.yang` into `ze-l2tp-api.yang` and `rpc bgp-health` into `ze-bgp-api.yang`, names, description and help text unchanged, with a revision statement in each receiving module; repoint the `ze:rpc` of the `health` containers in `ze-l2tp-cmd.yang` and `ze-peer-cmd.yang`, with a revision each; the `ze:command` wire methods `ze-l2tp:show-health` and `ze-bgp:show-health` and both handlers stay as they are; show both AC-17 tests red before the move and green after, through `./le job run`: the positive one under the default tags over `./internal/component/plugin/all/`, the negative one with `go test -tags ze_core ./cmd/ze/hub -run TestHealthRPCsAbsentWithoutOwner`. AC-17.
+13. Docs per checklist, in each phase. AC-1, AC-2 at the end.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | every one of the 35 edges gone from the gate output, each AC at file:line |
+| Completeness | every one of the 35 edges gone from the gate output, route J proven by AC-17, each AC at file:line |
 | Correctness | no registration lost (AC-3), byte identity (AC-8) |
 | Naming | core package names `bgpls`, `flowspec` match their family; YANG module names unchanged |
 | Data flow | no plugin imports another plugin's implementation; core imports no plugin |
@@ -746,14 +877,16 @@ did not author the spec.
 | 6 | 2026-10-13 | the round-5 fixes above plus their sibling sites | round 6 design review, 2026-10-13, owner-authorised ('ok to both'): 1 ISSUE, 4 NOTE; every finding re-verified against the code and `rfc/discrimination/`; ISSUE 1 corrected beyond the finding: it named 28 records staled by a qualifier change, and the re-count over every unit and producer body found 60 more, the `ls_export` and `epe` producers whose `ls.` references become `bgpls.` | this edit: ISSUE 1 (the gate's text rule, the 88 qualifier re-records per phase, D1 15 and D2 96 re-records, Files to Modify, R-3, Phase D1/D2), NOTE 2 (step 7 checks staying names; FlowSpec files build the family from core constants), 3 (5, not 6), 4 (R-3 whole-move list), 5 (`bfd.go` start-time `SetBFDRawCaptureProvider` call, `opt_in_check.go` committed) |
 | 7 | 2026-10-13 | the round-6 fixes above plus their sibling sites | round 7 design review, 2026-10-13, owner-authorised ('ok to both'): 0 BLOCKER, 1 ISSUE, 5 NOTE; every count re-verified against the code, tagged units re-derived per test function | this edit: ISSUE 1 (approval gates `rfcChangeProblems` and `proposedRFCChanges`, the approval table, the owner step before D1 and D2, unrecorded changed units owe no record, "stays" is not "unchanged"), NOTE 2 (FlowSpec families unregistered in two test binaries), 3 (`bgp/cli/rfc8955_decode_test.go` imports both), 4 ("also" wording on `export_state.go` `send`), 5 (line numbers replaced by symbols), 6 (Updated, these rows) |
 | 8 | 2026-10-13 | the round-7 fixes above plus their sibling sites | round 8 design review, 2026-10-13, owner-authorised: 0 BLOCKER, 1 ISSUE, 4 NOTE; every finding re-verified against the code | this edit: ISSUE 1 (who runs `./le rfc approve`, the session file it writes, the `!` route at the implementing session's prompt, the `path` check, rows dropped once their commit lands), NOTE 2 (package prefix per approval-table row), 3 (D1 whole-file units count unconditionally, D2 conditionally), 4 ("up to" for the changed-cover counts), 5 (the remaining hand-typed line citations replaced by symbols; while replacing, three of the handoff's symbols for the `plugin_encode_text.go` comments proved wrong and were corrected to the `parseComponentText`, `familyModeBoth` and `protocolNameToNumber` doc comments) |
-| 9 | - | owed before implementation: the round-8 fixes above plus their sibling sites | - | - |
+| 9 | 2026-10-13 | the round-8 fixes above plus their sibling sites | round 9 design review, 2026-10-13: 0 BLOCKER, 3 ISSUE, 3 NIT; every finding re-verified against the code and `rfc/audit/` (recounts match: 72 verdicts) | this edit: ISSUE 1 (weakened-test ledger paragraph, its order of work, the ledger step in D1 and D2, R-3, Files to Modify; `./le rfc rename` refuses a move out of the source directory), 2 (audit verdict paragraph and counts per phase, plus 5 outside verdicts the review did not count; re-stamp route in D1, D2, R-3, Files to Modify), 3 (the `plugin.go` and cross-package header comments of both plugins; the `protocolNameToNumber` comment re-homed to core), NIT 4 (step 7 list), 5 (order of work, the owner answering the `rm` prompt), 6 (Q-C left to the owner; answered the same day, below). Also in this edit: the owner's Q-C answer, route J, AC-17 and its two tests, Phase J |
+| 10 | 2026-10-13 | the round-9 fixes and route J above plus their sibling sites | round 10 design review, 2026-10-13, owner-authorised: 1 BLOCKER, 6 NIT; each verified at its producer (`Group.options`, the 26 `cmd/ze/hub/build_tag_*_absent_test.go` files, the bare-core lane in `verifydeps.go`, the two `.ci` files, the three wire-method tests) | this edit: BLOCKER 1 (negative AC-17 test moved to `cmd/ze/hub/build_tag_health_rpcs_absent_test.go`, run by the verify bare-core lane; `groups.go` change dropped; AC-17, Wiring, TDD, Files, Phase J command), NIT 2 (the two `.ci` files), 3 (rpc names unchanged, asserted in AC-17), 4 (revision statements in both receiving API modules), 5 (both verdicts for a test, one for a helper), 6 (Boundaries Crossed row, Blast Radius, Known Limitations), 7 (three wire-method tests in Required Reading and the route J constraint) |
+| 11 | - | owed before implementation: the round-10 fixes above plus their sibling sites | - | - |
 
 The implementation's own `/ze-review` gate is recorded here at closure, by
 `./le spec review record`.
 
 ## Known Limitations
 - `update_text_nlri.go` still dispatches FlowSpec, VPLS and EVPN by SAFI in its own parsers. Those are central enumerations under `ai/rules/principles.md` but not ownership edges (no plugin import); not in this spec.
-- The gate checks import edges only. Copied plugin policy without an import (`module-tiers.md`, "does not prove full feature ownership") stays out of scope.
+- The gate checks import edges only. Copied plugin policy without an import (`module-tiers.md`, "does not prove full feature ownership") stays out of scope; route J (owner answer Q-C) is the one non-import crossing in scope, proven by AC-17 rather than the gate.
 
 ## Checklist
 
@@ -771,7 +904,7 @@ The implementation's own `/ze-review` gate is recorded here at closure, by
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-16 all demonstrated
+- [ ] AC-1..AC-17 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes
