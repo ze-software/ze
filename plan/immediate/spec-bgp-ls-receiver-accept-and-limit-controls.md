@@ -493,6 +493,8 @@ before writing the release, and AC-7 carries one subtest per path class.
 | Q-6 | If GoBGP cannot inject BGP-LS (A-4), no third-party BGP-LS originator exists in the lab (FRR does not originate BGP-LS). Is the in-house `interop-bgp speaker` sidecar acceptable as the BGP-LS peer, or must another daemon be added? | try GoBGP first; ask again only if A-4 is refuted | Phase 4 |
 | Q-7 | Config name and place for the ceiling: a bgp-level `family <afi/safi> { rib-maximum N; rib-warning M }`-style list, or a `prefix-limit` container at bgp level mirroring the per-peer `prefix` container? | mirror the per-peer `prefix` shape at bgp level so the two read alike | Phase 1 |
 
+-> Decision (owner, 2026-10-13, "LS follow recommendations"): Q-1 to Q-7 are answered as recommended: the family block; land 8.2.3-1 now scoped, with the no-family-block fallback named as a gap against RFC 9552 Section 8.1.2's off-by-default; drop the crossing UPDATE and keep sessions up; count paths summed, GR stale paths a Known Limitation; re-scope the fault-management sibling; try GoBGP first (FRR originates BGP-LS only from 10.7); mirror the per-peer `prefix` shape, citing the IETF YANG draft's `max-number` as the external name. Evidence: research 2026-10-13 (`research-drain-ospf-startup-bgpls.md`).
+
 ## Known Limitations
 - Section 8.2.3's producer-side SHOULDs other than the advertise half of 8.2.3-1 (the rate limit 8.2.3-2, abstracted topologies 8.2.3-4, the 4096-byte UPDATE size 8.2.3-7) stay with `plan/pre-release/spec-bgp-ls-origination-and-the-scheduled-marker.md`.
 - A peer with no `family` block negotiates BGP-LS (R-8, Q-2); the fix belongs to whoever designs the family fallback.

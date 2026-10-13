@@ -247,6 +247,9 @@ IS a replacement route, so the bare withdrawal is owed only when none exists.
 | AC-9 | A announced two received paths for the prefix over ADD-PATH and withdraws one; C has no ADD-PATH | C receives A's remaining path (or the RIB's elected survivor including it), never a withdrawal |
 | AC-10 | Non-RS forwarder on the cached rail | Unchanged: an owner withdrawal is written as a withdrawal (unless the owner answers Q-2 otherwise) |
 | AC-11 | Recovery lookup fails (no provider, lookup error) | Same as departure: the destination session is retired through AutomaticStop/Cease and the cause is logged; never a silent stale route |
+| AC-12 | Owner constraint, 2026-10-13: "what happens if the route is known from X neighbors and two go down ! It must be unbounded". The prefix is known from N sources (N at least 4 in the test, and a property-style test over random N and orders); K of them (1 < K < N) withdraw or their sessions go down, in every order, back-to-back and concurrently | C always ends holding the RIB's best of the N-K survivors, never a withdrawal, never a stale route from a gone source; when K = N, exactly one withdrawal. No fixed limit on N, K, or the number of in-flight recoveries per prefix or per client: no bounded queue, slot or per-prefix pending table whose overflow drops, merges wrongly, or blocks other prefixes |
+
+-> Constraint (owner, 2026-10-13): the replacement must hold for any number of sources and any number of simultaneous losses, unbounded. "Two drains" in Q-1 named two pipeline flushes before one RIB lookup, not a limit of two sources; the design must show (Phase 3) that back-to-back or concurrent withdrawals and session losses for one prefix converge on the RIB's current best with no per-prefix bound, and AC-12 proves it.
 
 ## End-to-End User Stories
 
