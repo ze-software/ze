@@ -23,6 +23,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/metrics"
 	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
@@ -262,8 +263,15 @@ func (e *engine) runBFDSubscriber(c *bfdClient, svc api.Service) {
 				// loop that no longer exists. No OSPF action: RFC 5882
 				// Section 4.2 asks none for BFD switched off, and the
 				// RouterDeadInterval still guards the adjacency.
-				e.log.Warn("bfd session ended because the BFD engine stopped; ospf neighbor runs on hello/dead timers",
-					"interface", c.key.iface, "neighbor", c.key.router.String())
+				// At daemon stop the BFD engine can stop before OSPF does,
+				// and the neighbor then runs on nothing: no warning.
+				if registry.DaemonStopping() {
+					e.log.Debug("bfd session ended with the daemon stop",
+						"interface", c.key.iface, "neighbor", c.key.router.String())
+				} else {
+					e.log.Warn("bfd session ended because the BFD engine stopped; ospf neighbor runs on hello/dead timers",
+						"interface", c.key.iface, "neighbor", c.key.router.String())
+				}
 				e.detachBFDClient(c, nil)
 				return
 			}

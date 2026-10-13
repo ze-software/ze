@@ -544,6 +544,10 @@ func (p *Peer) runBFDSubscriber(
 // When stopBFDClient or a reopen took the handle first, the peer's state
 // already belongs to that caller and is left alone.
 //
+// The warning that the peer now runs without BFD is logged only while the
+// daemon runs (daemonStopping): at daemon stop the BFD engine can stop first,
+// and the peer stops right after it.
+//
 // The FSM is told the session went AdminDown, because a BFD engine stopping
 // is BFD being disabled on this system, and draft-ietf-idr-bgp-bfd-strict-mode
 // Section 4, Event 35, says: "When BFD has been disabled, the local system
@@ -572,10 +576,41 @@ func (p *Peer) endVanishedBFDSession(handle api.SessionHandle) {
 	p.bfd.live.Store(false)
 	p.bfd.mu.Unlock()
 
-	peerLogger().Warn("bfd session ended because the BFD engine stopped; peer runs without BFD",
-		"peer", p.settings.Address)
+	if p.daemonStopping() {
+		peerLogger().Debug("bfd session ended with the daemon stop",
+			"peer", p.settings.Address)
+	} else {
+		peerLogger().Warn("bfd session ended because the BFD engine stopped; peer runs without BFD",
+			"peer", p.settings.Address)
+	}
 	// draft-ietf-idr-bgp-bfd-strict-mode Section 4, Event 35
 	p.deliverBFDEvent(fsm.EventBfdAdminDown)
+}
+
+// daemonStopping answers whether the plugin server that hosts this peer's
+// reactor has begun to stop, which is the daemon stopping: a reload never stops
+// it (Reactor.cleanup). endVanishedBFDSession asks, because the server stops
+// every plugin at once (process.ProcessManager.Stop closes each connection with
+// no order between them), so the BFD engine can stop before the reactor stops
+// this peer. "Peer runs without BFD" is then false: the peer is stopping too.
+//
+// The answer is ordered before the close it explains. pluginserver.Server.Stop
+// marks the server stopped before it closes any plugin connection, and the BFD
+// engine closes this peer's subscription only after its connection closed.
+//
+// A peer with no reactor, or a reactor with no plugin server, answers false,
+// so the warning stays for every case this cannot tell apart.
+func (p *Peer) daemonStopping() bool {
+	p.mu.RLock()
+	r := p.reactor
+	p.mu.RUnlock()
+	if r == nil {
+		return false
+	}
+	if r.api == nil {
+		return false
+	}
+	return !r.api.Running()
 }
 
 // bfdChangeTime answers when a BFD change happened, preferring the ENGINE's own

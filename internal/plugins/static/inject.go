@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	staticevents "github.com/ze-software/ze/internal/plugins/static/events"
@@ -354,6 +355,10 @@ func (rm *routeManager) watchBFD(key routeKey, nhIdx int, handle bfdapi.SessionH
 // AdminDown ... clients SHOULD NOT take any control protocol action", and an
 // engine stopping is BFD switched off on this system, not a path failure.
 //
+// The warning that the next hop is no longer BFD-tracked is logged only while
+// the daemon runs (registry.DaemonStopping): at daemon stop the BFD engine can
+// stop before static does.
+//
 // A route replaced or removed since keeps its own state: its next-hop no
 // longer holds handle, or the route no longer exists.
 func (rm *routeManager) endVanishedBFDSession(key routeKey, nhIdx int, handle bfdapi.SessionHandle) {
@@ -372,8 +377,13 @@ func (rm *routeManager) endVanishedBFDSession(key routeKey, nhIdx int, handle bf
 	}
 	nhs.handle = nil
 	nhs.unsub = nil
-	logger().Warn("static: BFD session ended because the BFD engine stopped; next hop no longer BFD-tracked",
-		"prefix", key.prefix, "table", key.table, "nh", nhs.nh.Address)
+	if registry.DaemonStopping() {
+		logger().Debug("static: BFD session ended with the daemon stop",
+			"prefix", key.prefix, "table", key.table, "nh", nhs.nh.Address)
+	} else {
+		logger().Warn("static: BFD session ended because the BFD engine stopped; next hop no longer BFD-tracked",
+			"prefix", key.prefix, "table", key.table, "nh", nhs.nh.Address)
+	}
 	if nhs.active {
 		return
 	}

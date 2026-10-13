@@ -716,6 +716,24 @@ func GetPluginServer() PluginServerAccessor {
 	return pluginServerInstance
 }
 
+// DaemonStopping answers whether the daemon's plugin server has begun to stop.
+// The server stops every plugin at once (process.ProcessManager.Stop closes
+// each connection with no order between them), so a BFD client can see the BFD
+// engine stop before its own plugin is stopped. It asks here before it warns
+// that it now runs without BFD, which is false at daemon stop. The answer is
+// ordered before that close: Server.Stop marks the server stopped before it
+// closes any plugin connection.
+//
+// With no server stored the answer is false, so a client keeps its warning in
+// every case this cannot tell apart.
+func DaemonStopping() bool {
+	server := GetPluginServer()
+	if server == nil {
+		return false
+	}
+	return !server.Running()
+}
+
 // SetNTPSyncProvider registers a function that returns NTP sync info.
 // Called by the NTP plugin at init time.
 func SetNTPSyncProvider(fn func() map[string]any) {

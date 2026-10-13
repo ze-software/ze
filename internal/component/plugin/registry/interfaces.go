@@ -19,6 +19,9 @@ type PluginServerAccessor interface {
 	UpdateProtocolConfig(families, customEvents, customSendTypes []string)
 	SetMetricsRegistry(reg metrics.Registry)
 	SetCommitManager(cm any) // Set commit manager (type-asserted by handlers)
+	// Running answers false once the server's Stop has begun, which is the
+	// daemon stopping: Stop marks it before it closes any plugin connection.
+	Running() bool
 }
 
 // protocolReactorHandle provides lifecycle methods that any protocol reactor

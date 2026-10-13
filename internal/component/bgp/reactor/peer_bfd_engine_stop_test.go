@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bfd/packet"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
@@ -190,5 +192,84 @@ func TestBFDClientEngineStopDeliversAdminDown(t *testing.T) {
 		require.Equal(t, byte(msgtype.TypeKEEPALIVE), msg[18], "the withheld KEEPALIVE is what goes out")
 	case <-time.After(time.Second):
 		t.Fatal("no KEEPALIVE reached the wire after the BFD engine stopped")
+	}
+}
+
+// endVanishedAndWait closes the peer's BFD subscription the way engine.Loop.Stop
+// does and waits for the subscriber goroutine to return, so every line
+// endVanishedBFDSession logs is written before the caller reads the sink.
+func endVanishedAndWait(t *testing.T, p *Peer, svc *fakeBFDService) {
+	t.Helper()
+	p.bfd.mu.Lock()
+	done := p.bfd.done
+	p.bfd.mu.Unlock()
+	if done == nil {
+		t.Fatal("no BFD subscriber running")
+	}
+	close(svc.handle.ch)
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("BFD subscriber still running 2s after the engine closed the subscription")
+	}
+}
+
+// warnsRunsWithoutBFD answers whether the sink holds the warning that the peer
+// now runs without BFD.
+func warnsRunsWithoutBFD(sink []string) bool {
+	for _, line := range sink {
+		if strings.Contains(line, "runs without BFD") {
+			return true
+		}
+	}
+	return false
+}
+
+// VALIDATES: the BFD engine stopping while the daemon runs still warns that
+// the peer runs without BFD, and the same close during a daemon stop does not,
+// while both clear the handle. The daemon stop is a plugin server whose Stop
+// has run, which is what pluginserver.Server.Stop leaves before it closes any
+// plugin connection: a zero Server reports Running false the same way.
+//
+// PREVENTS: every daemon stop that happens to end the BFD plugin before the
+// reactor logging a warning that is false, because the peer stops a moment
+// later (test/reload/bgp-bfd-profile-reload-peer-and-profile.ci rejects it).
+// And the opposite: a guard that silences the warning when the engine stops
+// under a running daemon, where the peer really does run without BFD.
+func TestBFDClientEngineStopWarnsOnlyWhileDaemonRuns(t *testing.T) {
+	cases := []struct {
+		name     string
+		reactor  func(t *testing.T) *Reactor
+		wantWarn bool
+	}{
+		{"no reactor", func(*testing.T) *Reactor { return nil }, true},
+		{"reactor with no plugin server", newTestReactor, true},
+		{"plugin server stopped", func(t *testing.T) *Reactor {
+			r := newTestReactor(t)
+			r.api = &pluginserver.Server{}
+			return r
+		}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sink := rfc5882WarnSink(t)
+			svc := &fakeBFDService{}
+			p, cleanup := newBFDTestPeer(t, &BFDSettings{Enabled: true}, svc)
+			defer cleanup()
+			if r := tc.reactor(t); r != nil {
+				p.SetReactor(r)
+			}
+
+			p.startBFDClient()
+			defer p.stopBFDClient()
+			endVanishedAndWait(t, p, svc)
+
+			if _, _, live := p.bfdSessionState(); live {
+				t.Fatal("bfdSessionState reports a live session after the engine stopped")
+			}
+			if got := warnsRunsWithoutBFD(rfc5882WarnLines(sink)); got != tc.wantWarn {
+				t.Fatalf("warned runs without BFD = %v, want %v; log: %q", got, tc.wantWarn, sink.String())
+			}
+		})
 	}
 }
