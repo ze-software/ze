@@ -37,6 +37,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -500,14 +501,23 @@ func (c *CrashCapture) bootTime(port int, previous int64) (int64, string) {
 	lastError := "no answer yet"
 	for {
 		out, stderr, err := c.run.ssh(port, KernelQuery)
+		stale := false
 		if err != nil {
 			lastError = lastLine(stderr, out, err)
-		} else if booted, ok := bootTimeOf(out); ok && booted != previous {
-			return booted, ""
+		} else if booted, ok := bootTimeOf(out); ok {
+			if booted != previous {
+				return booted, ""
+			}
+			stale = true
+		} else {
+			lastError = "the answer carries no boot time"
 		}
 		if !time.Now().Before(end) {
 			if previous == 0 {
 				return 0, "`" + KernelQuery + "` never answered a boot time: " + lastError
+			}
+			if stale {
+				return 0, "the appliance never rebooted: it kept answering the boot time it had before the reboot"
 			}
 			return 0, "the appliance never came back from the reboot: " + lastError
 		}
@@ -557,21 +567,58 @@ func injectNMI(port int) string {
 	if err != nil {
 		return "the QEMU monitor did not answer: " + err.Error()
 	}
-	defer conn.Close() //nolint:errcheck // the command was written or the write error is reported
+	defer conn.Close() //nolint:errcheck // the monitor confirmed the command or the failure is reported
 
 	if err := conn.SetDeadline(time.Now().Add(sshAttemptMax)); err != nil {
 		return "the QEMU monitor connection: " + err.Error()
 	}
+	// The monitor greets a connection with a banner and its first prompt
+	// before it reads anything, and it drops a line it has not run when the
+	// connection closes. So the command goes after the first prompt, and the
+	// connection stays open until the next one: the monitor prints that
+	// prompt only once it has run the line. Whether the NMI took the machine
+	// down is what the boot time answers next.
+	if err := awaitMonitorPrompt(conn); err != nil {
+		return "the QEMU monitor never offered its prompt: " + err.Error()
+	}
 	if _, err := conn.Write([]byte("nmi\n")); err != nil {
 		return "writing nmi to the QEMU monitor: " + err.Error()
 	}
-	// The monitor executes a command line once it has read it. Reading the
-	// prompt that follows proves it did before the connection closes.
-	reply := make([]byte, 512)
-	if _, err := conn.Read(reply); err != nil {
-		return "the QEMU monitor did not acknowledge nmi: " + err.Error()
+	if err := awaitMonitorPrompt(conn); err != nil {
+		return "the QEMU monitor never confirmed it ran nmi: " + err.Error()
 	}
 	return ""
+}
+
+// monitorPrompt is what QEMU's human monitor prints when it is ready to read
+// the next command line.
+const monitorPrompt = "(qemu) "
+
+// monitorReplyMax bounds the bytes awaitMonitorPrompt holds while it waits for
+// a prompt. The banner and an nmi echo are under a hundred.
+const monitorReplyMax = 4096
+
+// errNoMonitorPrompt reports a monitor that sent monitorReplyMax bytes without
+// a prompt.
+var errNoMonitorPrompt = errors.New("no prompt in the first " + strconv.Itoa(monitorReplyMax) + " bytes")
+
+// awaitMonitorPrompt reads the monitor until it prints its prompt, within the
+// connection's deadline, and answers why it could not. It never reads past
+// monitorReplyMax bytes, so a prompt that ends beyond the bound is not found.
+func awaitMonitorPrompt(conn net.Conn) error {
+	reply := make([]byte, 0, monitorReplyMax)
+	chunk := make([]byte, 512)
+	for len(reply) < monitorReplyMax {
+		n, err := conn.Read(chunk[:min(len(chunk), monitorReplyMax-len(reply))])
+		reply = append(reply, chunk[:n]...)
+		if strings.Contains(string(reply), monitorPrompt) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return errNoMonitorPrompt
 }
 
 // otaReboot asks gokrazy's update server for the reboot `gok update` performs

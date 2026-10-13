@@ -481,7 +481,7 @@ and a writable `/perm/ze/crash`. Each then reboots the machine its own way.
 
 | Action | Reboot | Passes when the next boot |
 |--------|--------|---------------------------|
-| `crash-capture-panic-harvest` | The seed sets `kernel.unknown_nmi_panic` and `kernel.panic`; the proof sends `nmi` to a QEMU monitor on its own TCP port, so the kernel panics and warm-resets | Lists a kernel-kind artifact whose text carries the `Kernel panic` line |
+| `crash-capture-panic-harvest` | The seed sets `kernel.unknown_nmi_panic` and `kernel.panic`; the proof sends `nmi` to a QEMU monitor on its own TCP port after the monitor's first `(qemu) ` prompt, and keeps the connection open until the next prompt, because the monitor drops a line it has not run when the connection closes; the kernel then panics and warm-resets | Lists a kernel-kind artifact whose text carries the `Kernel panic` line |
 | `crash-capture-ota-unaffected` | A POST to gokrazy's `/reboot` over a forwarded port 80, the kexec reboot `gok update` ends with, authenticated with the password gok resolved at build time | Is armed again and lists no kernel artifact |
 
 A new boot is told from the old one by `boot-time-unix` in

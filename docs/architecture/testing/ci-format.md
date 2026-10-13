@@ -848,6 +848,16 @@ runs that build. Any other name is found on `PATH`. A shim directory on the
 child's `PATH` holds `ze` and `le`, so a plugin `run "le test ..."`
 line in a config reaches the same binaries.
 
+A step that runs an `le` action names the head `le`, never `./le`. An `le`
+head reaches the build the suite chose, as above: the runner's own executable
+when the suite compiled none. `./le` is the
+repository's launcher script, and the runner drops `ZE_LE_BUILD_NAME` from
+every child, so the launcher runs the shared `bin/le`: a suite started with
+`./le --name <build>` would then test an older binary than its own. The
+appliance steps that exec `le test qemu ...` rely on this.
+<!-- source: internal/test/runner/runner_exec.go -- binNameLE head resolution -->
+<!-- source: internal/test/runner/harness_exec.go -- ownExecutable, droppedFromChild -->
+
 **Provenance:** until 2026-09-02 the `.ci` runner split the value on whitespace
 alone while the parse suite honored quotes. The example above was already
 published here, so four `test/ui` tests were written against it. `-c` received

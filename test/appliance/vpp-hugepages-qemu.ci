@@ -23,6 +23,6 @@
 # the run at 15s on the first KVM-capable host to meet it. An explicit timeout
 # always wins over the derived one, so pin it to the real cost.
 option=timeout:value=900s
-cmd=foreground:seq=1:exec=./le test qemu vpp-hugepages-test
+cmd=foreground:seq=1:exec=le test qemu vpp-hugepages-test
 expect=exit:code=0
 expect=stdout:pattern=VPP-HUGEPAGES-QEMU: (PASS|SKIP)

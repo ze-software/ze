@@ -15,6 +15,6 @@
 # The explicit timeout covers a host ze build, an appliance init, a full gokrazy image
 # build and two QEMU boots; vpp-hugepages-qemu.ci explains why it is pinned.
 option=timeout:value=900s
-cmd=foreground:seq=1:exec=./le test qemu crash-capture-panic-harvest
+cmd=foreground:seq=1:exec=le test qemu crash-capture-panic-harvest
 expect=exit:code=0
 expect=stdout:pattern=APPLIANCE-CRASH-CAPTURE-QEMU: (PASS|SKIP)

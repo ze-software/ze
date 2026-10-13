@@ -19,6 +19,6 @@
 # an appliance init, a gokrazy image build and a QEMU boot need far more, so the
 # budget is pinned to the real cost, as vpp-hugepages-qemu.ci does.
 option=timeout:value=900s
-cmd=foreground:seq=1:exec=./le test qemu mpls-boot-test
+cmd=foreground:seq=1:exec=le test qemu mpls-boot-test
 expect=exit:code=0
 expect=stdout:pattern=APPLIANCE-MPLS-QEMU: (PASS|SKIP)
