@@ -51,7 +51,9 @@ type Open struct {
 	HoldTime uint16
 
 	// RFC 4271 Section 4.2 - BGP Identifier: 4-octet unsigned integer
-	// Set to an IP address assigned to the BGP speaker, same for all peers
+	// The RFC sets it to an IP address of the BGP speaker, the same for all
+	// peers. Ze writes the sending peer's PeerSettings.RouterID: the global
+	// router-id unless a peer or group overrides it.
 	BGPIdentifier uint32
 
 	// ASN4 is the AS this OPEN is SENT under, and it is written by the builder alone.
