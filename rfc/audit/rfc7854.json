@@ -1,6 +1,7 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-13",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -290,15 +291,15 @@
       "verdict": "enforced"
     },
     "RFC7854-4.9-1": {
-      "note": "reasons 1 and 3 carry the exact NOTIFICATION PDU and reason 5 carries no Data, but the reason 2 clause ('the code corresponding to the FSM Event that caused the system to close the session') is unproven: the producer writes the constant fsmEventNone for every reason 2, so the subtest's two-zero-octet assertion cannot fail on a wrong event code, and the subtest drives 'connection lost', an unexpected transport termination that Section 4.9 assigns to reason 4, not reason 2",
+      "note": "Re-judged 2026-10-13; both tagged units changed by setup only (recordPeerUpFor seeds the Peer Up Section 3.3 now requires before each Peer Down; every assertion byte-identical), so the earlier finding stands unchanged. Reasons 1 and 3 carry the exact NOTIFICATION PDU and reason 5 carries no Data, but the reason 2 clause ('the code corresponding to the FSM Event that caused the system to close the session') is unproven: the producer writes the constant fsmEventNone for every reason 2, so the subtest's two-zero-octet assertion cannot fail on a wrong event code, and the subtest drives 'connection lost', an unexpected transport termination that Section 4.9 assigns to reason 4, not reason 2.",
       "requirement_sha": "16daa710662a204f",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "01698cbab3c0d1f1",
-        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "01698cbab3c0d1f1"
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "f35e3e516018f144",
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "f35e3e516018f144"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "c78701703837c5a5",
-        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "3c2585587adafa7a"
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "0c4da1b51531150b",
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "e183e3aaeed62801"
       },
       "verdict": "weak"
     },
@@ -383,14 +384,14 @@
       "verdict": "enforced"
     },
     "RFC7854-x-10": {
-      "note": "TestBMPSenderPeerDown round-trips a Reason byte the caller chose (5), so it cannot fail on a wrong cause; TestHandleSenderStatePeerDown pins reason 2 ('no notification message was sent') for an event whose close reason is 'notification'. No unit ties a Reason to the cause that closed the session, and the producer peerDownFor (bmp_events.go) never emits reason 4, so an unexpected transport termination (which Section 4.9 assigns to reason 4) is reported as a local close",
+      "note": "Re-judged 2026-10-13; the TestHandleSenderStatePeerDown change is setup only (recordPeerUpFor seeds the Peer Up Section 3.3 now requires before a Peer Down; assertions byte-identical), so the earlier finding stands unchanged. TestBMPSenderPeerDown round-trips a Reason byte the caller chose (5), so it cannot fail on a wrong cause; TestHandleSenderStatePeerDown pins reason 2 ('no notification message was sent') for an event whose close reason is 'notification'. No unit ties a Reason to the cause that closed the session, and the producer peerDownFor (bmp_events.go) never emits reason 4, so an unexpected transport termination (which Section 4.9 assigns to reason 4) is reported as a local close.",
       "requirement_sha": "18f14aad3f239d5b",
       "tests": {
-        "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "ab6458033c6436a6",
+        "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "dd4b2b96c0b38dc9",
         "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "b1d529e5dcb7872e"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "457b579d815a6a7c",
+        "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "baeff2fea0c65d89",
         "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "d103d014f34221d9"
       },
       "verdict": "weak"
@@ -528,8 +529,8 @@
       "note": "IPv4 lands in octets 12..15 with 0..11 zero; the IPv6 negative keeps its full address",
       "requirement_sha": "50f35e68afacf531",
       "tests": {
-        "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv4": "ab6458033c6436a6",
-        "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv6": "ab6458033c6436a6"
+        "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv4": "dd4b2b96c0b38dc9",
+        "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv6": "dd4b2b96c0b38dc9"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv4": "b26e3342ea933a0f",
@@ -560,16 +561,16 @@
       "verdict": "enforced"
     },
     "RFC7854-x-8": {
-      "note": "Peer Up echoes both cached OPENs byte for byte (sender and event paths); with no cached OPENs no Peer Up is sent at all",
+      "note": "Re-judged 2026-10-13 after the RFC 7854 Section 3.3 guard (no Peer Down for a peer never reported up). Positives unchanged: TestHandleSenderStatePeerUp and TestBMPSenderPeerUp echo both cached OPENs byte for byte. Negative TestPeerUpOnCacheMissNeverReachesTheCollector: up event with no OPEN cached, down event, then a Route Monitoring sentinel on the same FIFO queue; the first message read must be the sentinel, and a Peer Up is a named failure. Owner-approved marker change (sentinel replaces the Peer Down, which Section 3.3 no longer owes). Reviewer observed red with the guard removed (first message became the Peer Down), so the test still sees the whole queue head; a Peer Up emitted without both OPENs would be read first and fail.",
       "requirement_sha": "72726805d80b4e52",
       "tests": {
-        "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerUp": "ab6458033c6436a6",
-        "internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector": "9857217c99e09fd7",
+        "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerUp": "dd4b2b96c0b38dc9",
+        "internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector": "43df111c6225e01e",
         "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerUp": "b1d529e5dcb7872e"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerUp": "be4e45534cd37c5d",
-        "internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector": "6bc26984c02f374a",
+        "internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector": "7c879ff8b01afc72",
         "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerUp": "bee521cf4cef19b4"
       },
       "verdict": "enforced"

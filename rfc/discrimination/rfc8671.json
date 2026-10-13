@@ -27,11 +27,11 @@
       "rid": "RFC8671-x-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB",
-      "unit-sha": "5f7753435b8d4fd6",
+      "unit-sha": "05a5c0c533b87ae1",
       "claim-sha": "6e18b4aa30dd77a9",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::handleSenderState",
-      "producer-sha": "be5f35fa653711aa",
+      "producer-sha": "c134a729e49f1cc5",
       "break": "body of handleSenderState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

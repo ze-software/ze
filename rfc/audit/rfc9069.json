@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -12,8 +13,8 @@
       "requirement_sha": "409f2be4a86b366f",
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "72246a1d68265311",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType": "fb27b88fc924ab93",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer": "fb27b88fc924ab93"
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType": "107cf26dcd8c573a",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer": "107cf26dcd8c573a"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "77e479748bdf19c7",
@@ -40,8 +41,8 @@
       "requirement_sha": "7b21af20b10bac12",
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "6c7c67660027ad63",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "fb27b88fc924ab93",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "fb27b88fc924ab93"
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "107cf26dcd8c573a",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "107cf26dcd8c573a"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "164e730b6f344d09",
@@ -93,7 +94,7 @@
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "72246a1d68265311",
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "72246a1d68265311",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart": "fb27b88fc924ab93"
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart": "107cf26dcd8c573a"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "cef0cb7eb915d31a",
@@ -106,7 +107,7 @@
       "note": "First verdict 2026-09-29. rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies drives one best change, reads the Loc-RIB Peer Up off the collector end of the pipe (Peer Type 3), and requires both the sent and the received OPEN to carry Multiprotocol capabilities equal to dumpFamilies, the families the emulated peer's Route Monitoring and End-of-RIB carry. {single-polarity: positive} holds: ze has one emulated peer and every producer of its Peer Up passes the one fabricateLocRIBOpen result, so no input yields a Loc-RIB Peer Up to refuse.",
       "requirement_sha": "c59781badb35a221",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies": "fb27b88fc924ab93"
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies": "107cf26dcd8c573a"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies": "42e6a3c0eda0d611"
@@ -119,7 +120,7 @@
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestAConfigurationThatAltersNoBehaviorBouncesNothing": "72246a1d68265311",
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession": "72246a1d68265311",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestBehaviorChangeBouncesTheLocRIBEmulatedPeer": "fb27b88fc924ab93"
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestBehaviorChangeBouncesTheLocRIBEmulatedPeer": "107cf26dcd8c573a"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestAConfigurationThatAltersNoBehaviorBouncesNothing": "64581dcdd7e8cac6",
@@ -166,7 +167,7 @@
       "requirement_sha": "b62aa6339f2e611b",
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "6c7c67660027ad63",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring": "fb27b88fc924ab93"
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring": "107cf26dcd8c573a"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "2681d339da8f1c51",
@@ -189,14 +190,14 @@
       "note": "Forbidden: Peer AS other than the router's primary ASN (zero, a constant, AS_TRANS). internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerAS != 4200000001 Errorf; ::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven two identities must give 65001 and 65002; internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity reads Peer AS 4200000001 off the wire with the OPEN cache empty.",
       "requirement_sha": "a3032001657ec349",
       "tests": {
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "904daa30c09ce18e",
         "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63",
-        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "6c7c67660027ad63",
-        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "904daa30c09ce18e"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "6c7c67660027ad63"
       },
       "units": {
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "ec5d663dfbfb7e20",
         "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115",
-        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "c6fcdb52a185c1da",
-        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "ec5d663dfbfb7e20"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "c6fcdb52a185c1da"
       },
       "verdict": "enforced"
     },

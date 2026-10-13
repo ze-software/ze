@@ -296,6 +296,7 @@ func TestHandleSenderStatePeerDown(t *testing.T) {
 		State:       rpc.SessionStateDown,
 		Reason:      "notification",
 	}
+	recordPeerUpFor(t, bp, se)
 
 	result := asyncRead(server)
 
@@ -340,6 +341,15 @@ func TestHandleSenderStatePeerDownCarriesTheNotificationZeSent(t *testing.T) {
 		}},
 	}
 
+	down := &rpc.StructuredEvent{
+		PeerAddress: "10.0.0.1",
+		PeerAS:      65001,
+		EventType:   rpc.EventKindState,
+		State:       rpc.SessionStateDown,
+		Reason:      "notification",
+	}
+	recordPeerUpFor(t, bp, down)
+
 	// A Cease ze SENT, which is what makes the teardown reason 1 rather than 3.
 	notification := []byte{6, 4}
 	bp.cacheNotificationPDU(&rpc.StructuredEvent{
@@ -349,13 +359,7 @@ func TestHandleSenderStatePeerDownCarriesTheNotificationZeSent(t *testing.T) {
 	})
 
 	result := asyncRead(server)
-	bp.handleStructuredEvent(&rpc.StructuredEvent{
-		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
-		EventType:   rpc.EventKindState,
-		State:       rpc.SessionStateDown,
-		Reason:      "notification",
-	})
+	bp.handleStructuredEvent(down)
 
 	r := <-result
 	if r.err != nil {

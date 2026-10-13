@@ -373,14 +373,16 @@ func TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB(t *testing.T) {
 			routeMonitorPolicy: policy,
 			senders:            []*senderSession{{name: "test", conn: client, stopCh: make(chan struct{})}},
 		}
-		result := asyncRead(server)
-		bp.handleStructuredEvent(&rpc.StructuredEvent{
+		downEvent := &rpc.StructuredEvent{
 			PeerAddress: "10.0.0.1",
 			PeerAS:      65001,
 			EventType:   rpc.EventKindState,
 			State:       rpc.SessionStateDown,
 			Reason:      "notification",
-		})
+		}
+		recordPeerUpFor(t, bp, downEvent)
+		result := asyncRead(server)
+		bp.handleStructuredEvent(downEvent)
 		r := <-result
 		closeLog(server, "server")
 		closeLog(client, "client")

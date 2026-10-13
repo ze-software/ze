@@ -1,6 +1,7 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-13",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -75,8 +76,8 @@
       "note": "Re-read 2026-09-27 against \u00a75.1 'The L flag MUST be set to 1 to indicate post-policy'. Ze's Adj-RIB-Out is post-policy only. Forbidden: a post-policy Adj-RIB-Out header with L=0; TestPeerHeaderFromEventAdjRIBOut fails when the sent direction lacks PeerFlagL. TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.",
       "requirement_sha": "78b531802e313954",
       "tests": {
-        "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "ab6458033c6436a6",
-        "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut": "ab6458033c6436a6"
+        "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "dd4b2b96c0b38dc9",
+        "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut": "dd4b2b96c0b38dc9"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "f9b8d61bde3447de",
@@ -85,16 +86,16 @@
       "verdict": "enforced"
     },
     "RFC8671-x-3": {
-      "note": "Re-judged 2026-09-29 (second). Both halves of 'Peer Up and Down Notifications ... independent of whether ... Adj-RIB-In, Adj-RIB-Out, or both' go through the producer under pre-policy, post-policy and all: rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB (identical per-peer header, both OPENs, transport fields; primeSender break observed red) and ::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB (identical header, reason, data; handleSenderState break observed red). msg_test.go::TestBMPPeerUpRoundTrip: stale line cite replaced by recordPeerUp (bmp_events.go), body unchanged; codec round trip now carries a writePeerUp record observed red. {single-polarity: positive} holds.",
+      "note": "Re-judged 2026-10-13. TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB changed by setup only: recordPeerUpFor seeds the Peer Up that RFC 7854 Section 3.3 now requires before a Peer Down, identically under pre-policy, post-policy and all, so the comparison of presence, per-peer header, reason and data across the three policies is unchanged and still runs through handleSenderState. TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB (identical header, both OPENs, transport fields through primeSender) and rfc8671_msg_test.go::TestBMPPeerUpRoundTrip unchanged. {single-polarity: positive} holds.",
       "requirement_sha": "5be0d12471a734fa",
       "tests": {
         "internal/component/bgp/plugins/bmp/rfc8671_msg_test.go::TestBMPPeerUpRoundTrip": "071a7fb045cb1b4e",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB": "fb27b88fc924ab93",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "fb27b88fc924ab93"
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB": "107cf26dcd8c573a",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "107cf26dcd8c573a"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc8671_msg_test.go::TestBMPPeerUpRoundTrip": "91d88a18cef9e783",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB": "0c960f570a18d537",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB": "b48a63e6ae1d0818",
         "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "e748948bd94d543a"
       },
       "verdict": "enforced"

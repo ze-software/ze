@@ -104,6 +104,7 @@ func TestRFC7854PeerDownCarriesTheDataItsReasonRequires(t *testing.T) {
 
 	t.Run("reason 1 carries the notification ze sent", func(t *testing.T) {
 		bp, server := peerDownHarness(t)
+		recordPeerUpFor(t, bp, peerDownEvent("session closed"))
 		pd := readPeerDown(t, bp, server,
 			notificationEvent(rpc.DirectionSent, body),
 			peerDownEvent("session closed"))
@@ -119,6 +120,7 @@ func TestRFC7854PeerDownCarriesTheDataItsReasonRequires(t *testing.T) {
 
 	t.Run("reason 3 carries the notification the peer sent", func(t *testing.T) {
 		bp, server := peerDownHarness(t)
+		recordPeerUpFor(t, bp, peerDownEvent("connection lost"))
 		pd := readPeerDown(t, bp, server,
 			notificationEvent(rpc.DirectionReceived, body),
 			peerDownEvent("connection lost"))
@@ -134,6 +136,7 @@ func TestRFC7854PeerDownCarriesTheDataItsReasonRequires(t *testing.T) {
 
 	t.Run("reason 2 carries the two-byte event code", func(t *testing.T) {
 		bp, server := peerDownHarness(t)
+		recordPeerUpFor(t, bp, peerDownEvent("connection lost"))
 		pd := readPeerDown(t, bp, server, peerDownEvent("connection lost"))
 
 		if pd.Reason != PeerDownLocalNoNotify {
@@ -158,6 +161,7 @@ func TestRFC7854PeerDownCarriesTheDataItsReasonRequires(t *testing.T) {
 // Data for the one reason that forbids it.
 func TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone(t *testing.T) {
 	bp, server := peerDownHarness(t)
+	recordPeerUpFor(t, bp, peerDownEvent(rpc.ReasonPeerRemoved))
 	pd := readPeerDown(t, bp, server, peerDownEvent(rpc.ReasonPeerRemoved))
 
 	if pd.Reason != PeerDownDeconfigured {
@@ -175,6 +179,7 @@ func TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone(t *testing.T) {
 func TestPeerDownDropsTheNotificationWithTheSession(t *testing.T) {
 	bp, server := peerDownHarness(t)
 
+	recordPeerUpFor(t, bp, peerDownEvent("session closed"))
 	first := readPeerDown(t, bp, server,
 		notificationEvent(rpc.DirectionSent, []byte{6, 2}),
 		peerDownEvent("session closed"))
@@ -182,11 +187,90 @@ func TestPeerDownDropsTheNotificationWithTheSession(t *testing.T) {
 		t.Fatalf("first reason = %d, want %d", first.Reason, PeerDownLocalNotify)
 	}
 
+	recordPeerUpFor(t, bp, peerDownEvent("connection lost"))
 	second := readPeerDown(t, bp, server, peerDownEvent("connection lost"))
 	if second.Reason != PeerDownLocalNoNotify {
 		t.Fatalf("second reason = %d, want %d: the cached NOTIFICATION must not survive", second.Reason, PeerDownLocalNoNotify)
 	}
 	if !bytes.Equal(second.Data, []byte{0, 0}) {
 		t.Errorf("second data = %x, want two zero bytes", second.Data)
+	}
+}
+
+// recordPeerUpFor caches both OPENs for the peer the down event names and runs
+// recordPeerUp, the producer the up event runs, so the plugin holds that peer
+// as reported up. It writes nothing to a collector. A following down event then
+// closes a peer ze told the collector about, which is the only peer RFC 7854
+// Section 3.3 owes a Peer Down for.
+func recordPeerUpFor(t *testing.T, bp *BMPPlugin, down *rpc.StructuredEvent) {
+	t.Helper()
+
+	openBody := []byte{4, 0xFD, 0xE9, 0, 90, 10, 0, 0, 1, 0}
+	for _, direction := range []rpc.MessageDirection{rpc.DirectionSent, rpc.DirectionReceived} {
+		bp.cacheOpenPDU(&rpc.StructuredEvent{
+			PeerAddress: down.PeerAddress,
+			EventType:   rpc.EventKindOpen,
+			Direction:   direction,
+			RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeOPEN, RawBytes: openBody},
+		})
+	}
+	bp.recordPeerUp(&rpc.StructuredEvent{
+		PeerAddress: down.PeerAddress,
+		PeerAS:      down.PeerAS,
+		EventType:   rpc.EventKindState,
+		State:       rpc.SessionStateUp,
+	})
+	if bp.peerUps[down.PeerAddress] == nil {
+		t.Fatalf("no Peer Up recorded for %s", down.PeerAddress)
+	}
+}
+
+// TestPeerDownIsNotSentForAPeerNeverReportedUp proves a Peer Down only ever
+// answers a Peer Up. RFC 7854 Section 3.3: "If any BGP peers for which Peer Up
+// messages were sent transition out of the Established state, corresponding
+// Peer Down messages are sent." A peer whose up event found no OPEN to build a
+// Peer Up from (a binding that does not cache OPENs) was never reported to the
+// collector, so neither its session loss nor its detach owes one: the collector
+// would be told a peer it never knew about went down.
+//
+// VALIDATES: no Peer Down reaches the collector for such a peer, on the
+// session-down path (reason 2) and on the detach path (reason 5).
+// Method: the up event with no OPEN cached, then the down event, then a Route
+// Monitoring sentinel queued on the same session. The session queue is FIFO, so
+// the first message the collector reads is the sentinel only when the down
+// event queued nothing before it.
+func TestPeerDownIsNotSentForAPeerNeverReportedUp(t *testing.T) {
+	for _, reason := range []string{"connection lost", rpc.ReasonPeerRemoved} {
+		t.Run(reason, func(t *testing.T) {
+			bp, server := peerDownHarness(t)
+			down := peerDownEvent(reason)
+
+			bp.handleStructuredEvent(&rpc.StructuredEvent{
+				PeerAddress: down.PeerAddress,
+				PeerAS:      down.PeerAS,
+				EventType:   rpc.EventKindState,
+				State:       rpc.SessionStateUp,
+			})
+			if bp.peerUps[down.PeerAddress] != nil {
+				t.Fatal("setup: a Peer Up was recorded with no OPEN cached")
+			}
+
+			result := asyncRead(server)
+			bp.handleStructuredEvent(down)
+			if err := bp.senders[0].writeRouteMonitoring(peerHeaderFromEvent(down), msgtype.TypeUPDATE, []byte{0, 0, 0, 0}); err != nil {
+				t.Fatalf("queue the sentinel: %v", err)
+			}
+
+			r := <-result
+			if r.err != nil {
+				t.Fatalf("read: %v", r.err)
+			}
+			if pd, ok := r.msg.(*PeerDown); ok {
+				t.Fatalf("collector read a Peer Down (reason %d) for a peer it was never sent a Peer Up for", pd.Reason)
+			}
+			if _, ok := r.msg.(*RouteMonitoring); !ok {
+				t.Fatalf("collector read %T, want the Route Monitoring sentinel", r.msg)
+			}
+		})
 	}
 }

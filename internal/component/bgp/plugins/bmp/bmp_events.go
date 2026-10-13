@@ -199,10 +199,17 @@ func (bp *BMPPlugin) cacheNotificationPDU(se *rpc.StructuredEvent) {
 
 // peerDownCause is the RFC 7854 Section 4.9 Reason and the Data that reason
 // obliges, for one peer that has left Established.
+//
+// reported is the guard on the whole message: it is true only when a Peer Up
+// was recorded for the peer, and a peer never reported up is owed no Peer Down
+// (RFC 7854 Section 3.3). Its false zero value is the answer for every peer
+// clearPeerState finds no Peer Up for, so the guard is a named field rather
+// than a reason byte that happens to stay zero.
 type peerDownCause struct {
-	peer   PeerHeader
-	reason uint8
-	data   []byte
+	peer     PeerHeader
+	reason   uint8
+	data     []byte
+	reported bool
 }
 
 // fsmEventNone is the Data of a reason 2 Peer Down.
@@ -225,6 +232,8 @@ var fsmEventNone = []byte{0, 0}
 
 // clearPeerState drops everything the plugin holds for a peer that has left
 // Established, and answers with the Peer Down that event owes the collectors.
+// The answer is marked reported only when a Peer Up was recorded for the peer;
+// otherwise the collectors were never told the peer was up and are owed nothing.
 //
 // One function for the two jobs because they read one piece of state: the Data
 // of a reason 1 or reason 3 Peer Down is the NOTIFICATION PDU, and this
@@ -235,7 +244,8 @@ func (bp *BMPPlugin) clearPeerState(se *rpc.StructuredEvent) peerDownCause {
 	bp.mu.Lock()
 	notify := bp.notifyCache[se.PeerAddress]
 	peer := peerHeaderFromEvent(se)
-	if st := bp.peerUps[se.PeerAddress]; st != nil {
+	st := bp.peerUps[se.PeerAddress]
+	if st != nil {
 		// A teardown event can arrive after the reactor has cleared its
 		// negotiated identity. Close the peer previously reported to BMP.
 		peer = st.peer
@@ -245,12 +255,13 @@ func (bp *BMPPlugin) clearPeerState(se *rpc.StructuredEvent) peerDownCause {
 	delete(bp.notifyCache, se.PeerAddress)
 	delete(bp.dedupState, se.PeerAddress)
 	delete(bp.dedupCount, se.PeerAddress)
-	bp.forgetAdjRoutes(bp.peerUps[se.PeerAddress])
+	bp.forgetAdjRoutes(st)
 	delete(bp.peerUps, se.PeerAddress)
 	bp.mu.Unlock()
 
 	cause := peerDownFor(notify, se.Reason)
 	cause.peer = peer
+	cause.reported = st != nil
 	return cause
 }
 
@@ -448,7 +459,8 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 // handleSenderState sends Peer Up or Peer Down to all collectors.
 //
 // cause carries the Peer Down reason and its Data, built by clearPeerState for
-// this same event. It is read on the down arm alone.
+// this same event, and whether a Peer Up was ever recorded for the peer. It is
+// read on the down arm alone, which sends nothing for a peer never reported up.
 func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*senderSession, cause peerDownCause) {
 	switch se.State {
 	case rpc.SessionStateUp:
@@ -475,6 +487,15 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 			ss.writeMu.Unlock()
 		}
 	case rpc.SessionStateDown:
+		// RFC 7854 Section 3.3: "If any BGP peers for which Peer Up messages
+		// were sent transition out of the Established state, corresponding
+		// Peer Down messages are sent."
+		// A peer recordPeerUp recorded nothing for (an OPEN was never cached,
+		// as on a binding without `open`) was never reported up, so neither its
+		// session loss nor its detach is reported down.
+		if !cause.reported {
+			return
+		}
 		// RFC 7854 Section 4.9: "Data (present if Reason = 1, 2 or 3)". The
 		// Data is not decoration: a collector that decodes to the figure reads
 		// the NOTIFICATION PDU, or the 2-byte FSM event code, straight after

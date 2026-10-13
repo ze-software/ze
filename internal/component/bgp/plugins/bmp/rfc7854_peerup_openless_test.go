@@ -9,6 +9,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -26,11 +27,13 @@ import (
 // Information TLVs by walking past both OPENs.
 //
 // METHOD: one collector session on a pipe, then two events for the same peer in
-// order -- Established with an empty OPEN cache, then Down. Peer Down needs no
-// cached OPEN, so it is always emitted. Both writes go through the session's
-// ordered queue (sender_drain.go enqueueLocked), so the FIRST message the
-// collector reads settles the question: a suppressed Peer Up makes it the Peer
-// Down, and an emitted one makes it the Peer Up.
+// order -- Established with an empty OPEN cache, then Down -- then a Route
+// Monitoring sentinel queued on the same session. A peer never reported up is
+// owed no Peer Down (RFC 7854 Section 3.3), so the down event queues nothing.
+// Every write goes through the session's ordered queue (sender_drain.go
+// enqueueLocked), so the FIRST message the collector reads settles the
+// question: a suppressed Peer Up makes it the sentinel, and an emitted one
+// makes it the Peer Up.
 //
 // VALIDATES: handleSenderState suppresses the Peer Up when recordPeerUp cached
 // no state for the peer.
@@ -76,6 +79,9 @@ func TestPeerUpOnCacheMissNeverReachesTheCollector(t *testing.T) {
 		Reason:      "remote-close",
 	}
 	bp.handleStructuredEvent(down)
+	if err := bp.senders[0].writeRouteMonitoring(peerHeaderFromEvent(down), msgtype.TypeUPDATE, []byte{0, 0, 0, 0}); err != nil {
+		t.Fatalf("queue the sentinel: %v", err)
+	}
 
 	r := <-first
 	if r.err != nil {
@@ -86,7 +92,7 @@ func TestPeerUpOnCacheMissNeverReachesTheCollector(t *testing.T) {
 			"RFC 7854 Section 4.10 requires both, so no Peer Up may be sent when neither is cached",
 			len(pu.SentOpenMsg), len(pu.ReceivedOpenMsg))
 	}
-	if _, ok := r.msg.(*PeerDown); !ok {
-		t.Fatalf("first message = %T, want *PeerDown (the Peer Up must have been suppressed)", r.msg)
+	if _, ok := r.msg.(*RouteMonitoring); !ok {
+		t.Fatalf("first message = %T, want the Route Monitoring sentinel (the Peer Up must have been suppressed)", r.msg)
 	}
 }
