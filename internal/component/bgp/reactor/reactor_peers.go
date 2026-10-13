@@ -198,7 +198,10 @@ func (r *Reactor) addPeerLocked(settings *PeerSettings) error {
 		)
 	}
 
-	// If reactor is running, start the peer and create listener if needed.
+	// If reactor is running, create the listener if needed, and start the peer
+	// once the plugin startup barrier has lifted (Reactor.peersStarted). A peer
+	// added before that is started by the StartPeers copy, so it cannot reach
+	// Established before the plugins its policy names are connected.
 	// Active-only peers dial out and never accept inbound — skip listener.
 	//
 	// A stop that has begun stays sealed: reactor.go shuts the listeners and
@@ -231,7 +234,12 @@ func (r *Reactor) addPeerLocked(settings *PeerSettings) error {
 				}
 			}
 		}
-		peer.StartWithContext(r.ctx)
+		if r.peersStarted {
+			peer.StartWithContext(r.ctx)
+		} else {
+			// A refused barrier never lifts, so the held peer is named.
+			r.logPeerHeldByRefusalLocked(peer)
+		}
 	}
 
 	// Republish the peer-to-process index, which this peer's attach blocks have

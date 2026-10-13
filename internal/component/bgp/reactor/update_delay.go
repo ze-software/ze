@@ -191,8 +191,10 @@ type updateDelayHold struct {
 // arm starts the hold. It MUST be called before any peer can reach Established,
 // which is why StartPeers calls it before it starts a single peer.
 //
-// peers is the expected set: the peers the reactor is about to start. An EMPTY
-// set still arms the hold. That separation is deliberate and it is two jobs, not
+// peers is the expected set: the configured peers the reactor is about to
+// start. A dynamic-group member is never in it, even one accepted while the
+// peer start barrier was closed and so started with the configured peers
+// (peerSlice, reactor.go). An EMPTY set still arms the hold. That separation is deliberate and it is two jobs, not
 // one: whether the feature runs is decided by the operator's config alone, and
 // whether CONVERGENCE can end the hold is decided by the expected set
 // (releaseIfConvergedLocked refuses an empty one). Folding them together made

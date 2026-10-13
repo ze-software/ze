@@ -45,17 +45,15 @@ option=timeout:value=50s
 option=established-file:path=established
 # 10.1.0.0/24, origin IGP, empty AS_PATH (iBGP), next-hop 10.0.0.1,
 # LOCAL_PREF 100: announced once the OPEN exchange is done. ALLOW-65533 accepts it.
+# Sent once. The dynamic session is held until every plugin, bgp-filter-prefix
+# included, finished startup (Reactor.peersStarted), so this one copy meets a
+# connected filter plugin; the stage's `show bgp rib received` reads it.
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0100
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# The same route again once Ze's End-of-RIB arrived. A dynamic session can be
-# accepted before bgp-filter-prefix has connected, and an import chain that
-# meets an unconnected filter plugin rejects (journal row 2026-10-11 in
-# plan/journal/false-synchronization-claim.md), so the first copy can be lost.
-action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0100
 # The clean shutdown after the last stage, on the SAME connection: Cease (6) /
 # Administrative Shutdown (2, RFC 4486) with the RFC 8203 default text.
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF

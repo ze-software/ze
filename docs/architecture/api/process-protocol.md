@@ -142,6 +142,26 @@ Tier-Ordered Startup below).
 - Only then does coordinator advance to next stage
 - All waiting plugins unblock simultaneously
 
+**No BGP peer starts before the last barrier.** The bgp plugin starts its
+reactor, and so opens its listeners, from its own configure callback, while
+other plugins are still in their stages. Its peers start only from
+`Reactor.StartPeers`, which the post-startup callback runs once every phase
+has finished. Until then the reactor's `peersStarted` flag is false, and three
+paths read it: the configured set, a peer `AddPeer` adds, and a member a
+dynamic group creates for an accepted connection. A peer created in that
+window stays inert, a passive one keeps its inbound socket in its inbound slot,
+and `StartPeers` starts it with the rest. A dynamic member therefore cannot
+reach Established before the filter plugins its import chain names are
+connected, where its first UPDATE would meet "plugin not connected".
+
+`StartPeers` refuses when a configured family has no decoder, and the daemon
+keeps running after it. The barrier then never lifts for that run, so each peer
+it holds, and each peer added or accepted later, is named in an error log
+("peer will not start") rather than waiting in silence.
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor.peersStarted, openPeerStartBarrier, StartPeers, refusePeerStart -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- createDynamicPeer -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- AddPeer -->
+
 **Stage RPCs:**
 <!-- source: pkg/plugin/rpc/types.go -- all stage input types -->
 

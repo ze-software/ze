@@ -244,7 +244,7 @@ func (c *RecentUpdateCache) Start() {
 		interval = gapScanInterval
 	}
 	ticker := c.clock.NewTicker(interval)
-	go c.gapScanLoop(ticker)
+	go c.gapScanLoop(ticker, c.stopCh)
 }
 
 // Stop shuts down the background gap scan goroutine.
@@ -265,12 +265,14 @@ func (c *RecentUpdateCache) setGapScanInterval(d time.Duration) {
 }
 
 // gapScanLoop runs the background gap scan on a ticker.
-// Exits when stopCh is closed.
-func (c *RecentUpdateCache) gapScanLoop(ticker clock.Ticker) {
+// Exits when stop is closed. stop is this run's channel, passed in rather than
+// read from c.stopCh: Stop does not wait for the loop, so a reactor restarted
+// at once makes Start write a new c.stopCh while the old loop may still read it.
+func (c *RecentUpdateCache) gapScanLoop(ticker clock.Ticker, stop <-chan struct{}) {
 	defer ticker.Stop()
 	for {
 		select {
-		case <-c.stopCh:
+		case <-stop:
 			return
 		case <-ticker.C():
 			c.safeRunGapScan()

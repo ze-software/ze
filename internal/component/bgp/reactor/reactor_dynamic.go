@@ -107,8 +107,16 @@ func (r *Reactor) createDynamicPeer(dg *DynamicGroupConfig, remoteAddr netip.Add
 		r.publishDeliveryGraphLocked()
 	}
 
-	if r.running {
+	// The plugin startup barrier, not running: the listener that accepted this
+	// connection opens before plugin startup ends, and a member started then
+	// can reach Established before the filter plugins its import chain names
+	// are connected. Held here, the peer is started by the StartPeers copy, and
+	// its inbound socket waits in the peer's inbound slot (acceptOrReject). A
+	// refused barrier never lifts, so the held member is named in the log.
+	if r.peersStarted {
 		peer.StartWithContext(r.ctx)
+	} else {
+		r.logPeerHeldByRefusalLocked(peer)
 	}
 
 	return peer, nil

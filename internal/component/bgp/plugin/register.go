@@ -243,6 +243,8 @@ func runBGPEngine(conn net.Conn) int {
 		// Start reactor (listeners, wiring). Peers are deferred: the externalServer
 		// flag skips peer startup in StartWithContext to avoid validate-open
 		// callbacks arriving before tier 1+ plugins complete their handshake.
+		// The listeners do open here, and a peer they or AddPeer create in
+		// that window is held too, until StartPeers (Reactor.peersStarted).
 		if err := bgpReactor.StartWithContext(context.Background()); err != nil {
 			return fmt.Errorf("bgp: start reactor: %w", err)
 		}

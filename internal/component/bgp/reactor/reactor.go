@@ -435,7 +435,30 @@ type Reactor struct {
 	sessionCapturesMu sync.Mutex
 	sessionCaptures   map[*sessionCapture]struct{}
 
+	// running is true from the end of StartWithContext until stop (from the
+	// barrier on the standalone path). It opens listeners for peers and groups
+	// added at runtime. It does NOT mean peers may start: in borrow mode it is
+	// set before plugin startup has finished.
 	running bool
+	// peersStarted is the plugin startup barrier as the peer start paths read
+	// it, under r.mu. StartPeers (borrow mode, after every plugin finished its
+	// 5-stage startup) or the standalone StartWithContext (after its plugin
+	// waits) sets it in the same critical section that copies r.peers for
+	// starting, so a peer added by AddPeer or a dynamic-group accept is either
+	// in that copy or started by its own path, never neither. Before it, such a
+	// peer stays inert and a passive one's inbound socket waits in its
+	// inbound slot (acceptOrReject). Without it a dynamic member accepted
+	// during plugin startup reached Established before the filter plugins its
+	// import chain names were connected, and its first UPDATE was rejected
+	// ("plugin not connected").
+	peersStarted bool
+	// peerStartRefusal is why StartPeers refused to lift the barrier, under
+	// r.mu; nil while no refusal happened in this run. The daemon keeps running
+	// after a refusal (bgp/plugin/register.go only logs it), so the barrier
+	// stays closed for good: every peer it holds, and every peer AddPeer or a
+	// dynamic-group accept adds later, is named in an error log rather than
+	// waiting in silence (logPeerHeldByRefusal).
+	peerStartRefusal error
 	// deliveryPublished is set by the first publishDeliveryGraphLocked and read
 	// under r.mu by every later peer change. Before it, the startup load's
 	// AddPeer calls skip the publish so one build covers the whole configured
@@ -767,42 +790,100 @@ func (r *Reactor) SetEventBusAny(eb any) {
 // MUST be called after StartWithContext.
 func (r *Reactor) StartPeers() error {
 	r.mu.RLock()
-	peersToStart := make(map[netip.AddrPort]*Peer, len(r.peers))
-	maps.Copy(peersToStart, r.peers)
+	configured := make(map[netip.AddrPort]*Peer, len(r.peers))
+	maps.Copy(configured, r.peers)
 	r.mu.RUnlock()
 
-	if err := r.validatePeerFamilies(peersToStart); err != nil {
+	if err := r.validatePeerFamilies(configured); err != nil {
+		r.refusePeerStart(err)
 		return err
 	}
 
 	// Arm the startup convergence hold BEFORE the first peer starts, so no peer
 	// can reach Established through the unheld path while the hold is being set
 	// up. These peers are the expected set BY IDENTITY: a dynamic-group member
-	// that establishes later is held like any other peer and never counted
-	// toward convergence, and a peer a later config reload adds is not part of
-	// this startup's convergence either (updateDelayHold.arm).
-	r.updateDelay.arm(r.ctx, r.clock, r.config.UpdateDelay, peerSlice(peersToStart))
+	// is held like any other peer and never counted toward convergence, even
+	// one accepted during plugin startup and so already in r.peers, and a peer
+	// a later config reload adds is not part of this startup's convergence
+	// either (updateDelayHold.arm).
+	r.updateDelay.arm(r.ctx, r.clock, r.config.UpdateDelay, peerSlice(configured))
 
 	// Before the first session opens, so a GTSM peer's related ICMP messages
 	// are protected from the first packet rather than from the first reload
 	// (gtsm.go).
 	r.publishGTSMKernelState()
 
+	// Lift the barrier and take the start set in one critical section: a peer
+	// AddPeer or a dynamic-group accept adds after this is started by that
+	// path, and one added before it is in this copy (Reactor.peersStarted).
+	peersToStart := r.openPeerStartBarrier()
 	for _, peer := range peersToStart {
 		peer.StartWithContext(r.ctx)
 	}
 	return nil
 }
 
-// peerSlice is the peers of a start map, as the expected set the startup
-// convergence hold records by identity. Both start paths build it the same way,
-// so neither can hand the hold a different population from the one it starts.
+// peerSlice is the configured peers of a start map, as the expected set the
+// startup convergence hold records by identity. Both start paths build it the
+// same way, so neither can hand the hold a different population. A dynamic-group
+// member is left out: it can be in the map because it was accepted while the
+// peer start barrier was closed (Reactor.peersStarted), and it is never part of
+// startup convergence.
 func peerSlice(peers map[netip.AddrPort]*Peer) []*Peer {
 	out := make([]*Peer, 0, len(peers))
 	for _, peer := range peers {
+		if peer.Settings().IsDynamic {
+			continue
+		}
 		out = append(out, peer)
 	}
 	return out
+}
+
+// openPeerStartBarrier sets peersStarted and returns every peer in r.peers at
+// that instant, taken under the same write lock. The caller MUST start every
+// returned peer. Safe for concurrent use; MUST NOT be called with r.mu held.
+func (r *Reactor) openPeerStartBarrier() map[netip.AddrPort]*Peer {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.openPeerStartBarrierLocked()
+}
+
+// openPeerStartBarrierLocked is openPeerStartBarrier for a caller that already
+// holds r.mu for writing, and MUST be called with it held.
+func (r *Reactor) openPeerStartBarrierLocked() map[netip.AddrPort]*Peer {
+	r.peersStarted = true
+	peers := make(map[netip.AddrPort]*Peer, len(r.peers))
+	maps.Copy(peers, r.peers)
+	return peers
+}
+
+// refusePeerStart records that StartPeers refused to lift the peer start
+// barrier, and names in an error log every peer the refusal now holds for the
+// rest of the run. Safe for concurrent use; MUST NOT be called with r.mu held.
+func (r *Reactor) refusePeerStart(refusal error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.peerStartRefusal = refusal
+	for _, peer := range r.peers {
+		r.logPeerHeldByRefusalLocked(peer)
+	}
+}
+
+// logPeerHeldByRefusalLocked logs an error naming peer when the peer start
+// barrier was refused in this run, so a peer that will never start is not
+// silent. It logs nothing while the barrier is merely not yet lifted. Caller
+// MUST hold r.mu.
+func (r *Reactor) logPeerHeldByRefusalLocked(peer *Peer) {
+	if r.peerStartRefusal == nil {
+		return
+	}
+	reactorLogger().Error("peer will not start: the BGP peer start was refused",
+		"peer", peer.Settings().Address,
+		"reason", r.peerStartRefusal,
+	)
 }
 
 // ConfiguredAutoLoad returns the BGP-specific auto-load configuration
@@ -1197,6 +1278,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// which let a peer start under a stop that had already marked and notified
 	// it (StartPeers holds no lock while it starts them).
 	r.stopping = false
+	// A fresh run closes the peer start barrier again: its peers wait for this
+	// run's plugin startup, not the previous run's (Reactor.peersStarted).
+	r.peersStarted = false
+	r.peerStartRefusal = nil
 	for _, peer := range r.peers {
 		peer.stopping.Store(false)
 	}
@@ -1362,16 +1447,29 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// reactor (update_delay.go).
 		r.updateDelay.arm(r.ctx, r.clock, r.config.UpdateDelay, peerSlice(peersToStart))
 
-		// Start all peers (passive peers wait for incoming connections).
-		for _, peer := range peersToStart {
+		// Start all peers (passive peers wait for incoming connections). The
+		// start set is taken again as the barrier lifts: a dynamic member
+		// accepted during the plugin waits is in r.peers but not in the copy
+		// above (Reactor.peersStarted). running is set in the same critical
+		// section: AddPeer starts a peer only when both are true, so with
+		// running still false a peer added after the copy and before the
+		// running write below would be in neither (Reactor.running).
+		r.mu.Lock()
+		r.running = true
+		barrierPeers := r.openPeerStartBarrierLocked()
+		r.mu.Unlock()
+		for _, peer := range barrierPeers {
 			peer.StartWithContext(r.ctx)
 		}
 	}
 	// When externalServer: peers deferred to StartPeers() call after all
 	// plugin tiers complete. Otherwise validate-open callbacks arrive
-	// before tier 1+ plugins finish their 5-stage handshake.
+	// before tier 1+ plugins finish their 5-stage handshake. Until then
+	// peersStarted stays false, so neither AddPeer nor a dynamic-group accept
+	// starts a peer either.
 
-	// Re-acquire lock only to set running state
+	// Re-acquire lock only to set running state. The standalone path above
+	// already set it with the barrier; this write is for borrow mode.
 	r.mu.Lock()
 	r.running = true
 	r.wg.Go(func() { r.runAIGPAdvertisements(r.ctx) })
