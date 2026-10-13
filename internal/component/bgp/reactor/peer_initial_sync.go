@@ -451,7 +451,8 @@ func (p *Peer) sendInitialRoutes() {
 // A teardown for the current session, or a peer-level one, stops the drain as
 // it stops the main one: runQueuedTeardown sends the End-of-RIB, tears the
 // session down and opens the gate, and drainAndCloseQueueGate reports true so
-// the caller sends nothing more. A teardown queues here whenever it is asked
+// the caller sends nothing more. A peer-level teardown that finds no session is
+// instead requeued for the next session, which it ends. A teardown queues here whenever it is asked
 // for during one of this drain's unlocked sends.
 //
 // Called with p.mu NOT held. addr and opMaxMsgSize are the caller's, so the peer
@@ -560,6 +561,11 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 				routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
 				continue
 			}
+			// Take what this pass consumed, the teardown included, off the
+			// queue before handing it on: runQueuedTeardown can leave the rest
+			// queued for the next session, and an operation already sent or
+			// dropped here must not be drained again there.
+			p.opQueue = p.opQueue[finalProcessed:]
 			p.mu.Unlock()
 			queueLocked = false
 			p.runQueuedTeardown(addr, op)
@@ -589,10 +595,18 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 // nothing is sent or torn down, and the queue and the gate are left to the
 // initial sync of the session that holds the peer now.
 //
+// A peer-level teardown (nil target) that finds no session at all ends the next
+// one, as teardownOf promises: it goes back to the head of the queue, ahead of
+// the routes queued behind it, and the queue is not cleared now. The next
+// session's drain reaches the teardown first, so this function then ends that
+// session and clears the whole queue: the routes behind it are dropped one
+// session later, never sent.
+//
 // Called with p.mu NOT held.
 func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
-	if !p.holdsTeardownTarget(op) {
-		routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
+	// Checked before the End-of-RIB, so a session that has gone, or that op
+	// does not name, is not sent markers.
+	if p.queuedTeardownSession(addr, op) == nil {
 		return
 	}
 	// EOR must be sent BEFORE NOTIFICATION per RFC 4724 Section 4.
@@ -616,22 +630,19 @@ func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
 	}
 
 	routesLogger().Debug("executing queued teardown", "peer", addr, "subcode", op.Subcode)
-	p.mu.RLock()
-	session := p.session
-	p.mu.RUnlock()
-	if op.TeardownSession != nil && op.TeardownSession != session {
-		routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
+	// Checked again: the session can end, or be replaced, while the End-of-RIB
+	// sends run unlocked.
+	session := p.queuedTeardownSession(addr, op)
+	if session == nil {
 		return
 	}
-	if session != nil {
-		// Set state to Connecting BEFORE Teardown to avoid race condition:
-		// Teardown closes TCP, peer immediately reconnects, but if peer.State()
-		// still shows Established, the new connection is rejected by collision check.
-		// The FSM callback will also set this, but may fire too late.
-		p.setState(PeerStateConnecting)
-		if err := sessionTeardown(session, op.Subcode, op.Message, op.Automatic); err != nil {
-			routesLogger().Debug("teardown error", "peer", addr, "error", err)
-		}
+	// Set state to Connecting BEFORE Teardown to avoid race condition:
+	// Teardown closes TCP, peer immediately reconnects, but if peer.State()
+	// still shows Established, the new connection is rejected by collision check.
+	// The FSM callback will also set this, but may fire too late.
+	p.setState(PeerStateConnecting)
+	if err := sessionTeardown(session, op.Subcode, op.Message, op.Automatic); err != nil {
+		routesLogger().Debug("teardown error", "peer", addr, "error", err)
 	}
 	// Clear remaining opQueue: these routes were never sent, so they have
 	// no sent history for the mandatory RIB to restore on reconnect.
@@ -648,16 +659,44 @@ func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
 	p.wakeForwardOverflow()
 }
 
-// holdsTeardownTarget reports whether op still applies: a peer-level teardown
-// (nil target) always does, a targeted one only while its session holds the
-// peer. Called with p.mu NOT held.
-func (p *Peer) holdsTeardownTarget(op peerOp) bool {
-	if op.TeardownSession == nil {
-		return true
+// keepTeardownForNextSessionLocked puts a peer-level teardown that found no
+// session back at the head of the opQueue, so the next session's initial sync
+// carries it out before the routes queued behind it, which that teardown then
+// clears unsent, and says so: the peer will be torn down once it next comes up. The queueing gate is left alone, because
+// the session-end defer in runOnce opened it before it cleared p.session.
+//
+// The teardown reclaims the slot it held when the drain took it, so it goes back
+// even when concurrent queueing has since filled the queue: the queue then holds
+// at most one operation past opQueueMax, and a teardown is never lost to it.
+//
+// MUST be called with p.mu held and p.session nil.
+func (p *Peer) keepTeardownForNextSessionLocked(addr string, op peerOp) {
+	p.opQueue = append(p.opQueue, peerOp{})
+	copy(p.opQueue[1:], p.opQueue)
+	p.opQueue[0] = op
+	routesLogger().Info("queued teardown kept for the next session: the session it would end has gone",
+		"peer", addr, "subcode", op.Subcode, "queued", len(p.opQueue)-1)
+}
+
+// queuedTeardownSession returns the session op ends now, or nil when it ends
+// none: a targeted teardown whose session no longer holds the peer is dropped,
+// and a peer-level one (nil target) that finds no session is kept for the next
+// session by keepTeardownForNextSessionLocked. Target check and requeue are one
+// p.mu hold, so a session ending between them cannot requeue a targeted
+// teardown. Called with p.mu NOT held.
+func (p *Peer) queuedTeardownSession(addr string, op peerOp) *Session {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	session := p.session
+	if op.TeardownSession != nil && op.TeardownSession != session {
+		routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
+		return nil
 	}
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return op.TeardownSession == p.session
+	if session == nil {
+		p.keepTeardownForNextSessionLocked(addr, op)
+		return nil
+	}
+	return session
 }
 
 // sendUpdateDirect is the default send callback when writeMu is not held.

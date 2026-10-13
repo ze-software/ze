@@ -4,9 +4,12 @@ package reactor
 
 import (
 	"bufio"
+	"log/slog"
 	"net/netip"
+	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -152,4 +155,103 @@ func TestQueuedTeardownSendsNothingToSessionThatReplacedItsTarget(t *testing.T) 
 	if frames := bgpFrames(t, nextConn.written()); len(frames) != 0 {
 		t.Fatalf("the second session's wire carries %d frames, want none", len(frames))
 	}
+}
+
+// sessionlessQueuedRoute returns a peer whose session has gone and a route
+// queued for the session that comes next, which is what a teardown drained
+// after its session ended finds behind it.
+func sessionlessQueuedRoute(t *testing.T) (*Peer, peerOp) {
+	t.Helper()
+	family.RegisterTestFamilies()
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+	peer, _ := newInitialSyncPeer(t, true, fam)
+	wire, err := nlri.NewWireNLRI(fam, mustHex(t, "050118c00003"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	route := peerOp{Type: PeerOpAnnounce, Route: rib.NewRouteWithASPath(wire, netip.Addr{}, nil, nil)}
+	peer.mu.Lock()
+	peer.session = nil
+	peer.mu.Unlock()
+	return peer, route
+}
+
+// requireTeardownThenRoute fails unless the opQueue holds exactly the
+// peer-level teardown at its head and the route queued behind it.
+func requireTeardownThenRoute(t *testing.T, peer *Peer, route peerOp) {
+	t.Helper()
+	peer.mu.RLock()
+	queue := append([]peerOp(nil), peer.opQueue...)
+	peer.mu.RUnlock()
+	if len(queue) != 2 {
+		t.Fatalf("opQueue holds %d operations, want the teardown and the route", len(queue))
+	}
+	if queue[0].Type != PeerOpTeardown {
+		t.Fatalf("opQueue head is %v, want the teardown", queue[0].Type)
+	}
+	if queue[0].TeardownSession != nil {
+		t.Fatal("the requeued teardown names a session, want the peer-level one")
+	}
+	if queue[0].Subcode != message.NotifyCeaseOtherConfigChange {
+		t.Fatalf("the requeued teardown carries subcode %d, want %d", queue[0].Subcode, message.NotifyCeaseOtherConfigChange)
+	}
+	if queue[1].Type != PeerOpAnnounce {
+		t.Fatalf("opQueue second entry is %v, want the queued route", queue[1].Type)
+	}
+	if queue[1].Route != route.Route {
+		t.Fatal("opQueue second entry is not the route queued for the next session")
+	}
+}
+
+// TestPeerLevelTeardownWithNoSessionWaitsForNextSession checks that a
+// peer-level teardown drained after its session has gone is kept for the next
+// session, as teardownOf promises ("ends whichever session holds the peer, or
+// the next one if it is queued"), and that the routes queued behind it stay
+// queued. It once tore nothing down, cleared the whole opQueue and said nothing
+// (journal silent-fall-through, review N1). Method: runQueuedTeardown on a peer
+// whose session is nil, with a route queued, and the routes log captured.
+//
+// VALIDATES: the teardown goes back to the head of the opQueue, the route stays
+// behind it, and one Info line names the peer.
+// PREVENTS: a peer-level teardown and the next session's routes lost in silence.
+func TestPeerLevelTeardownWithNoSessionWaitsForNextSession(t *testing.T) {
+	var sink syncBuffer
+	defer swapRoutesLogger(slog.New(slog.NewTextHandler(&sink, &slog.HandlerOptions{Level: slog.LevelInfo})))()
+
+	peer, route := sessionlessQueuedRoute(t)
+	peer.mu.Lock()
+	peer.opQueue = append(peer.opQueue, route)
+	peer.mu.Unlock()
+
+	teardown := peerOp{Type: PeerOpTeardown, Subcode: message.NotifyCeaseOtherConfigChange}
+	peer.runQueuedTeardown(peer.settings.Address.String(), teardown)
+
+	requireTeardownThenRoute(t, peer, route)
+	logged := sink.String()
+	if !strings.Contains(logged, "level=INFO") || !strings.Contains(logged, "peer=10.0.0.2") {
+		t.Fatalf("no Info line naming the peer for the kept teardown: %q", logged)
+	}
+}
+
+// TestClosingDrainKeepsPeerLevelTeardownWithNoSession checks the same contract
+// through the closing drain, which once left the operations it had already
+// taken in the opQueue when it handed a teardown on. Method: the closing drain
+// over a queue holding the peer-level teardown, then a route, with no session.
+//
+// VALIDATES: drainAndCloseQueueGate stops at the teardown and leaves exactly
+// the teardown and the route queued, once each.
+// PREVENTS: the teardown queued twice, or the route cleared with no session to
+// have sent it.
+func TestClosingDrainKeepsPeerLevelTeardownWithNoSession(t *testing.T) {
+	peer, route := sessionlessQueuedRoute(t)
+	teardown := peerOp{Type: PeerOpTeardown, Subcode: message.NotifyCeaseOtherConfigChange}
+	peer.mu.Lock()
+	peer.opQueue = append(peer.opQueue, teardown, route)
+	peer.mu.Unlock()
+
+	if !peer.drainAndCloseQueueGate(peer.settings.Address.String(), message.MaxMsgLen) {
+		t.Fatal("the closing drain went past a teardown")
+	}
+
+	requireTeardownThenRoute(t, peer, route)
 }

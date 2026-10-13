@@ -1630,7 +1630,10 @@ not hold Ze's own marker (owner ruling, 2026-09-18).
    remains held until its named reporters finish. A teardown queued during this
    drain's sends stops it as it stops the first drain (`runQueuedTeardown`:
    End-of-RIB, then the NOTIFICATION, then the gate opens), and steps 9 and 10
-   do not run. A teardown that names an earlier session is dropped.
+   do not run. A teardown that names an earlier session is dropped. A
+   peer-level teardown that finds the session already gone is kept at the
+   head of the opQueue for the next session, which it ends (logged at Info
+   naming the peer). The routes queued behind it are cleared then, unsent.
 9. **End-of-RIB, then the marker fact clears:** one marker per negotiated
    family, then `initialSyncEOROwed` goes false. The peer does NOT wait for the
    processes in step 5 first. A process that creates routes is treated like a
