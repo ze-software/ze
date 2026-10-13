@@ -14,11 +14,11 @@
 # PREVENTS: a commit that reports success while routes already received stay
 #           unvalidated, which the RPKI topic recording would show as wrong output.
 #           tcp_connections=1 also proves this commit does not reset the
-#           session, and it holds only because the base config already binds
-#           the peer with `attach process bgp-rpki`: the commit adds no
-#           binding. Adding an operator attach live does restart the peer
-#           (docs/architecture/core-design.md section 18a,
-#           TestOperatorBindingChangeStillRestarts).
+#           session. The base config already binds the peer with `attach
+#           process bgp-rpki`, so the commit adds no binding; attaching
+#           bgp-rpki in the same commit also keeps the session (receive-only
+#           binding swapped live), which test/reload/bgp-rpki-attach-live.ci
+#           proves (docs/architecture/core-design.md section 18a).
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER

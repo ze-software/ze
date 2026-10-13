@@ -240,11 +240,11 @@ func renderScenario(source, target string, network interoplab.Network) error {
 			if relative == "inject.msg" {
 				text = renderInjectedNextHops(text, ipv4)
 			}
-			// Both ze configs get the CLI block: the reload one replaces the
+			// Every ze config gets the CLI block: each reload one replaces the
 			// running config, and a scenario that lost the `interop` user at
 			// SIGHUP would fail every assertion after it for a reason that has
 			// nothing to do with what it tests.
-			if relative == zeConfigFile || relative == zeReloadConfigFile {
+			if relative == zeConfigFile || relative == zeReloadConfigFile || isZeStepReloadConfig(relative) {
 				text = rendered.Reset().Str(strings.TrimRight(text, "\n")).
 					Byte('\n').Str(zeCLIConfig).String()
 			}
@@ -346,6 +346,19 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		zeArguments = append(zeArguments, dockerEntrypointFlag, "/bin/sh")
 		zeCommand = []string{"-c", rendered.Reset().Str("cp ").Str(zeMountedConfig).Byte(' ').Str(zeRunningConfig).
 			Str(" && exec ze start ").Str(zeRunningConfig).String()}
+		// A scenario that reloads more than once names each further config
+		// ze-reload-<step>.conf; each is mounted beside the first under its
+		// own name (zeMountedStepReloadConfig), and ze.conf itself stays
+		// reachable at zeMountedConfig for a reload back to the start.
+		steps, globErr := filepath.Glob(filepath.Join(scenario, zeStepReloadConfigPattern))
+		if globErr != nil {
+			return nil, globErr
+		}
+		for _, step := range steps {
+			if regularFile(step) {
+				zeMounts = append(zeMounts, mount(step, zeMountedStepReloadConfig(filepath.Base(step))))
+			}
+		}
 	}
 	peers = append(peers, interoplab.PeerConfig{Name: "ze", Container: containerName("ze", suffix), Image: "ze", Host: 2,
 		Mounts: zeMounts, Capabilities: []string{capabilityNetAdmin}, Arguments: zeArguments, AppArmorProfile: appArmorProfile,

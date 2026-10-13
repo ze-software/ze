@@ -1,35 +1,75 @@
-# Test: a reload changes one peer's attach blocks, and delivery follows the new
-#       blocks while the edge that survives the reload keeps being fed.
-# Exercises: SIGHUP -> reconcilePeersJournaled -> AddPeer/RemovePeer ->
-#            Reactor.publishDeliveryGraphLocked -> Server.UpdateDeliveryGraph ->
-#            Server.PeerScopedProcs.
-# VALIDATES: AC-4. The added program is fed only AFTER the reload, and the kept
-#            program is still fed after it.
-# PREVENTS: an index that answers from the config the daemon started with, which
-#           is what a build-once graph would do.
+# Test: a reload that adds a receive-only attach block to a running peer keeps
+#       the session, tells the added process the session is up, and keeps
+#       feeding the edge that survives the reload.
+# Initial config: one iBGP peer with Route Refresh NOT negotiated (the peer drops
+#                 capability 2), attached to reload-kept `receive [ state
+#                 keepalive ]`. The peer announces 192.168.1.0/24 right after
+#                 its OPEN.
+# Live change:    once Ze's End-of-RIB arrived, the peer rewrites the config and
+#                 sends SIGHUP. The new config also attaches reload-added
+#                 `receive [ state ]`.
+# Expected:       one TCP connection and no NOTIFICATION Cease subcode 6;
+#                 reload-added's first event is `state up` with reason
+#                 `attached`; no ROUTE-REFRESH is sent, because the grant
+#                 carries no route; reload-kept gets no second state event and
+#                 is fed two KEEPALIVEs Ze sent after reload-added was told up.
+#                 The up is sent before the delivery graph is republished, so
+#                 the first sent KEEPALIVE may predate the publish. Only sent
+#                 ones count: the peer answers each frame with a KEEPALIVE, so
+#                 a received one can trail a sent one by milliseconds, while
+#                 two sent ones are two fires of Ze's keepalive timer, at
+#                 least one second apart. The second sent KEEPALIVE is then the
+#                 one that crossed the rebuilt graph.
 #
-# The marker file is the ordering, never a duration: the added program refuses
-# any event that reaches it before the trigger has sent the SIGHUP, so an
-# implementation that fed it from the start fails on the first event rather than
-# on a timeout.
+# VALIDATES: spec-bgp-live-receive-binding-and-bfd-keep-session AC-1 (wiring row
+#            "binding swap, delivery graph republish") and AC-14: SIGHUP ->
+#            reconcilePeersJournaled -> peerSettingsSwapPlan ->
+#            applyHotSwappableSettings -> targeted up ->
+#            Reactor.publishDeliveryGraphLocked -> Server.PeerScopedProcs.
+# PREVENTS: a receive-only attach that resets the session; a route-free grant
+#           sent through the catch-up, which with Route Refresh not negotiated
+#           and routes already announced would restart the peer; an added
+#           process fed before the config attached it; and a delivery index that
+#           drops the surviving edge when it is rebuilt.
+#
+# The order is carried by the events and the marker files: the added process
+# refuses any first event other than the attached up, and the kept process
+# discards what was queued before the added process was told up. One duration
+# remains: the kept-edge proof assumes the up and the graph publish of one
+# apply are less than one keepalive interval (1 s) apart.
+option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER
-option=tcp_connections:value=2
-option=timeout:value=30s
-# One session before the reload and one after it: the peer is torn down and
-# re-added because ProcessBindings sits outside hotSwappableSettings, and each
-# session ends its initial sync with an End-of-RIB.
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+# The peer's OPEN carries no Route Refresh (RFC 2918 Section 2, code 2), so the
+# capability is not negotiated whatever Ze advertises.
+option=open:value=drop-capability:code=2
+# 192.168.1.0/24, origin IGP, empty AS_PATH (iBGP), next-hop 10.0.0.1,
+# LOCAL_PREF 100: announced once the OPEN exchange is done.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+# EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Then the reload that attaches reload-added.
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+# RFC 2918 Section 3: a ROUTE-REFRESH is type 5. The added grant carries no
+# route, so nothing is asked for again. This line is a guard, not the proof:
+# RFC 2918 Section 4, "A BGP speaker may send a ROUTE-REFRESH message to its
+# peer only if it has received the Route Refresh Capability from its peer", and
+# this peer never sends it, so Ze would not send one even on a catch-up. The
+# Cease 6/6 reject below is the line that discriminates the no-catch-up path.
+reject=bgp:conn=1:pattern=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001705
+# RFC 4486 Section 4: Cease subcode 6, Other Configuration Change, is what the
+# restart branch sends.
+reject=bgp:conn=1:pattern=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
 EOF_PEER
 
-# Attached in BOTH configs: the edge that survives the reload.
-
-# Attached only by the SECOND config: it must be fed nothing until the reload.
-
-# Trigger: rewrite the config, SIGHUP, then say so. The marker is written AFTER
-# the signal, so an event that beats it is genuinely early.
-
+# Both processes run from boot. reload-added is attached to nothing until the
+# reload, so no event reaches it before then. A reload does not start an
+# external program a config newly declares (unwired-feature journal, row of
+# 2026-10-11), and the attach, not the start, is what this test is about.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external reload-kept {
@@ -55,8 +95,8 @@ bgp {
 		}
 		session {
 			asn {
-				local 65000
-				remote 65001
+				local 1
+				remote 1
 			}
 			router-id 1.2.3.4
 			family {
@@ -66,11 +106,15 @@ bgp {
 				graceful-restart disable
 			}
 		}
+		timer {
+			receive-hold-time 9
+			keepalive 1
+		}
 		behavior {
 			group-updates disable
 		}
 		attach process reload-kept {
-			receive [ state ]
+			receive [ state keepalive ]
 		}
 	}
 }
@@ -102,8 +146,8 @@ bgp {
 		}
 		session {
 			asn {
-				local 65000
-				remote 65001
+				local 1
+				remote 1
 			}
 			router-id 1.2.3.4
 			family {
@@ -113,11 +157,15 @@ bgp {
 				graceful-restart disable
 			}
 		}
+		timer {
+			receive-hold-time 9
+			keepalive 1
+		}
 		behavior {
 			group-updates disable
 		}
 		attach process reload-kept {
-			receive [ state ]
+			receive [ state keepalive ]
 		}
 		attach process reload-added {
 			receive [ state ]
@@ -126,10 +174,9 @@ bgp {
 }
 EOF_CONF2
 
-expect=stderr:pattern=RELOAD-KEPT: fed before and after the reload
-expect=stderr:pattern=RELOAD-ADDED: fed only after the reload attached it
+expect=stderr:pattern=RELOAD-ADDED: told up, reason attached, by the reload
+expect=stderr:pattern=RELOAD-KEPT: fed before and after the reload, on one session
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=le test fixture plugin/attach-process-reload-trigger
-cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=40s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
 expect=exit:code=0

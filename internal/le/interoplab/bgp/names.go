@@ -3,7 +3,11 @@
 // Related: checkers.go, check_extras.go -- the scenario tables that read them.
 package bgp
 
-import "github.com/ze-software/ze/internal/le/linuxle"
+import (
+	"path/filepath"
+
+	"github.com/ze-software/ze/internal/le/linuxle"
+)
 
 // Peers. A name is the container's role in a scenario lab. It is the
 // PeerConfig name, the stem of the container name, and the peer argument that
@@ -158,7 +162,24 @@ const (
 	zeMountedConfig       = "/etc/ze/bgp.conf"
 	zeMountedReloadConfig = "/etc/ze/reload.conf"
 	zeRunningConfig       = "/run/ze.conf"
+
+	// zeStepReloadConfigPattern matches the further reload configs of a
+	// scenario that reloads more than once, beside ze-reload.conf.
+	zeStepReloadConfigPattern = "ze-reload-*.conf"
 )
+
+// zeMountedStepReloadConfig is where a scenario's ze-reload-<step>.conf lands
+// in the ze container: /etc/ze/ under the file's own name.
+func zeMountedStepReloadConfig(file string) string {
+	return "/etc/ze/" + file
+}
+
+// isZeStepReloadConfig reports whether relative, a path inside a scenario
+// directory, is one of its ze-reload-<step>.conf files.
+func isZeStepReloadConfig(relative string) bool {
+	matched, err := filepath.Match(zeStepReloadConfigPattern, relative)
+	return err == nil && matched
+}
 
 // The ze cli invocation that zeCommand builds, and the command that reads it
 // back out of an operation.

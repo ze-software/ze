@@ -127,8 +127,8 @@ func readBFDPeerIdentity(ctx context.Context, lab interoplab.CheckerLab, neighbo
 	return identity, nil
 }
 
-// frrBFDPeer is the part of FRR's `show bfd peer <addr> json` this scenario
-// reads. Each field is a pointer so a field FRR did not print is told apart
+// frrBFDPeer is the part of FRR's `show bfd peer <addr> json` the BFD
+// scenarios read. Each field is a pointer so a field FRR did not print is told apart
 // from a zero it did.
 type frrBFDPeer struct {
 	Status                 *string `json:"status"`
@@ -137,6 +137,7 @@ type frrBFDPeer struct {
 	RemoteTransmitInterval *int    `json:"remote-transmit-interval"`
 	RemoteReceiveInterval  *int    `json:"remote-receive-interval"`
 	RemoteDetectMultiplier *int    `json:"remote-detect-multiplier"`
+	RemoteDiagnostic       *string `json:"remote-diagnostic"`
 }
 
 // frrBFDCounters is the part of `show bfd peer <addr> counters json` read here.

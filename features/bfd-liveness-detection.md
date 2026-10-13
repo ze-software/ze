@@ -11,7 +11,7 @@
 | Level | experimental |
 | Components | internal/component/bfd, internal/core/bgp/capability |
 | Real-path tests | test/bfd/bfd-detection-interval.ci, test/bfd/bfd-first-packet-pktinfo.ci, test/bfd/bfd-first-packet-pktinfo-v6.ci, test/reload/bgp-bfd-added-live.ci, test/reload/bgp-bfd-removed-live.ci, test/reload/bgp-bfd-profile-edit-live.ci, test/reload/bgp-bfd-dynamic-toggle-live.ci, test/reload/bgp-bfd-shared-session-widens.ci |
-| Interop | bgp/bfd-frr, bgp/bfd-simple-password-bird, bgp/bgp-bfd-strict-frr, bgp/bgp-bfd-profile-edit-live-frr |
+| Interop | bgp/bfd-frr, bgp/bfd-simple-password-bird, bgp/bgp-bfd-strict-frr, bgp/bgp-bfd-profile-edit-live-frr, bgp/bgp-bfd-enable-live-frr, bgp/bgp-bfd-dynamic-enable-live-frr |
 | RFCs | rfc5880, rfc5881, rfc5883 |
 | Docs | docs/guide/bfd.md |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; UDP 3784 single-hop and 4784 multi-hop match internal/component/bfd/api/events.go; Loop.Snapshot exists in internal/component/bfd/engine/snapshot.go |

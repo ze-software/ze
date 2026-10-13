@@ -25,10 +25,12 @@ option=timeout:value=40s
 # and redials on its retry timer, and the keepalive window the observer measures
 # after the live subscribe can fall entirely inside that gap.
 option=linger:value=true
-# One session before the reload and one after it: a changed attach block tears
-# the peer down and re-adds it (an operator binding is not a derived feed, so
-# hotSwappableSettings does not swap it), and each session ends its initial
-# sync with an End-of-RIB. The first session ends on NOTIFICATION Cease (6),
+# One session before the reload and one after it: the changed grant gains
+# `open-received`, and a binding that receives the OPEN is not receive-only
+# (ProcessBinding.receiveOnly), because only a new session produces an OPEN the
+# process can be shown. So the peer is torn down and re-added rather than
+# swapped (docs/architecture/core-design.md section 18a), and each session ends
+# its initial sync with an End-of-RIB. The first session ends on NOTIFICATION Cease (6),
 # subcode 6 "Other Configuration Change" (RFC 4486 Section 4).
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606

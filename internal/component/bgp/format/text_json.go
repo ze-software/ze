@@ -464,8 +464,10 @@ func attrFlagsClose(buf []byte, flags attribute.AttributeFlags, includeFlags boo
 }
 
 // appendStateChangeJSON appends the ze-bgp state-change JSON envelope to buf,
-// terminated by '\n'. reason is only present for "down" events; "up" has no
-// close reason.
+// terminated by '\n'. reason is written whenever it is non-empty, whatever the
+// state: a "down" carries its close reason, and an "up" carries
+// rpc.ReasonAttached when a reload attached the process to a session already
+// up. Any other "up" passes an empty reason, so the member is omitted.
 func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state rpc.SessionState, reason string, unheldRoles []string) []byte {
 	buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"state"},`...)
 	buf = appendPeerJSON(buf, peer)

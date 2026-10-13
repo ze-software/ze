@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	coreevents "github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -25,9 +27,8 @@ func init() {
 	Register("plugin/attach-process-receive-filter-state", eventObserver02("receive-filter-state", []string{eventUpdate, eventState}, receiveFilterState02))
 	Register("plugin/attach-process-receive-filter-update", eventObserver02("receive-filter-update", []string{eventUpdate, eventState}, receiveFilterUpdate02))
 	Register("plugin/labeled-withdraw-event", eventObserver02("labeled-withdraw-event", []string{eventUpdate}, labeledWithdrawEvent02))
-	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{eventState}, reloadKept02))
+	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{eventState, bgpevents.EventKeepalive}, reloadKept02))
 	Register("plugin/attach-process-reload-added", eventObserver02("reload-added", []string{eventState}, reloadAdded02))
-	Register("plugin/attach-process-reload-trigger", reloadTrigger02)
 	Register("plugin/attach-receive-only-live", eventObserver02("attach-receive-only-live", []string{eventUpdate, eventState}, attachReceiveOnlyLive02))
 	Register("plugin/attach-process-runtime-subscribe", eventObserver02("runtime-subscribe", []string{eventState}, runtimeSubscribe02))
 	Register("plugin/attach-process-runtime-subscribe-trigger", runtimeSubscribeTrigger02)
@@ -292,58 +293,161 @@ func stateEvent02(raw string) bool {
 	return kind == eventState
 }
 
+// stopped02 reports whether the run ended: the daemon said bye or the context
+// was canceled. nextEvent02 returns at once after either, so a loop that keeps
+// polling it on a miss MUST check this, or it spins until its own deadline.
+func stopped02(ctx context.Context, shutdown <-chan struct{}) bool {
+	if ctx.Err() != nil {
+		return true
+	}
+	select {
+	case <-shutdown:
+		return true
+	default:
+		return false
+	}
+}
+
+// reloadKeptKeepalives02 is how many KEEPALIVEs Ze SENT the kept edge must
+// receive after the attached marker. Peer.bindProcesses tells the added process
+// up BEFORE applyHotSwappableSettings calls Reactor.publishDeliveryGraphLocked,
+// so the first sent KEEPALIVE after the marker may still have been dispatched
+// through the old graph. Only the sent direction is counted: the test peer
+// answers every frame with a KEEPALIVE, so a received one can arrive a few
+// milliseconds after a sent one, while two sent KEEPALIVEs are two fires of
+// Ze's keepalive timer, which fsm.Timers schedules at least one second apart.
+// The second therefore went through the rebuilt graph as long as the up and the
+// publish in that one apply are less than a second apart.
+const reloadKeptKeepalives02 = 2
+
+// The markers test/plugin/attach-process-reload.ci's two processes order
+// themselves by: the attached process writes the first once it was told the
+// session is up, the kept process writes the second once it was fed after that.
+const (
+	reloadAttachedMarker02 = "attached.marker"
+	reloadKeptMarker02     = "kept.marker"
+)
+
+// reloadKept02 is the process attached in both configs of
+// test/plugin/attach-process-reload.ci.
+//
+// Goal: a reload that attaches another receive-only process leaves this edge in
+// the delivery graph and keeps feeding it, on the same session. Method: wait for
+// the session's own up, then, once the attached process was told up, require
+// reloadKeptKeepalives02 sent KEEPALIVEs queued after that point, so at least
+// one went through the rebuilt delivery graph. Any state event after the first up
+// fails: a down or a second up is a restart, or this process being detached.
 func reloadKept02(ctx context.Context, _ *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
 	for {
 		event, ok := nextEvent02(ctx, events, shutdown, 25*time.Second)
 		if !ok {
-			return fmt.Errorf("RELOAD-KEPT: never fed before the reload")
+			return fmt.Errorf("RELOAD-KEPT: never told the session is up")
 		}
-		if stateEvent02(event) {
+		if eventIsUp02(event) {
 			break
 		}
 	}
-	for {
-		event, ok := nextEvent02(ctx, events, shutdown, 25*time.Second)
-		if !ok {
-			return fmt.Errorf("RELOAD-KEPT: the surviving edge was not fed after the reload")
-		}
-		if stateEvent02(event) {
-			if _, err := os.Stat("reloaded.marker"); err == nil {
-				break
+	deadline := time.Now().Add(30 * time.Second)
+	attached := false
+	keepalives := 0
+	for time.Now().Before(deadline) {
+		if !attached && regularFileExists02(reloadAttachedMarker02) {
+			attached = true
+			// What was queued before the marker may predate the reload, so it
+			// proves nothing about the edge after it: drain it, still refusing
+			// a state event.
+			if err := drainKeptQueue02(events); err != nil {
+				return err
 			}
 		}
-	}
-	fmt.Fprintln(os.Stderr, "RELOAD-KEPT: fed before and after the reload")
-	if err := os.WriteFile("kept.marker", []byte("done"), 0o600); err != nil {
-		return err
-	}
-	return waitForShutdown02(ctx, shutdown, 30*time.Second)
-}
-
-func reloadAdded02(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
-	deadline := time.Now().Add(25 * time.Second)
-	fed := false
-	for !fed && time.Now().Before(deadline) {
-		event, ok := nextEvent02(ctx, events, shutdown, time.Second)
+		event, ok := nextEvent02(ctx, events, shutdown, 500*time.Millisecond)
 		if !ok {
+			if stopped02(ctx, shutdown) {
+				return fmt.Errorf("RELOAD-KEPT: the run ended first: attached marker seen %t, %d of %d sent KEEPALIVEs after it", attached, keepalives, reloadKeptKeepalives02)
+			}
 			continue
 		}
-		if _, err := os.Stat("reloaded.marker"); err != nil {
-			return fmt.Errorf("RELOAD-ADDED: fed before the config attached it: %.200s", event)
+		if stateEvent02(event) {
+			return fmt.Errorf("RELOAD-KEPT: state event after the first up, the session restarted or the edge was detached: %.300s", event)
 		}
-		fed = stateEvent02(event)
+		_, kind, direction := eventFacts02(event)
+		if !attached {
+			continue
+		}
+		if kind != bgpevents.EventKeepalive {
+			continue
+		}
+		if direction != coreevents.DirectionSent {
+			continue
+		}
+		keepalives++
+		if keepalives < reloadKeptKeepalives02 {
+			continue
+		}
+		fmt.Fprintln(os.Stderr, "RELOAD-KEPT: fed before and after the reload, on one session")
+		if err := os.WriteFile(reloadKeptMarker02, []byte("done"), 0o600); err != nil {
+			return err
+		}
+		return waitForShutdown02(ctx, shutdown, 30*time.Second)
 	}
-	if !fed {
-		return fmt.Errorf("RELOAD-ADDED: the reload attached it and it was fed nothing")
-	}
-	fmt.Fprintln(os.Stderr, "RELOAD-ADDED: fed only after the reload attached it")
+	return fmt.Errorf("RELOAD-KEPT: attached marker seen %t, and %d of %d sent KEEPALIVEs reached the kept edge after it", attached, keepalives, reloadKeptKeepalives02)
+}
+
+// drainKeptQueue02 empties the kept process's queue without waiting, and fails
+// on a state event, which after the first up means a restart or a detach.
+func drainKeptQueue02(events <-chan string) error {
 	for {
-		if _, err := os.Stat("kept.marker"); err == nil {
-			break
+		select {
+		case event := <-events:
+			if stateEvent02(event) {
+				return fmt.Errorf("RELOAD-KEPT: state event after the first up, the session restarted or the edge was detached: %.300s", event)
+			}
+		default:
+			return nil
 		}
-		_, _ = nextEvent02(ctx, events, shutdown, 500*time.Millisecond)
-		if time.Now().After(deadline.Add(20 * time.Second)) {
+	}
+}
+
+// reloadAdded02 is the process only the SECOND config of
+// test/plugin/attach-process-reload.ci attaches, `receive [ state ]`.
+//
+// Goal: the reload delivers the binding to the running session, and the process
+// is told the session is up by the targeted up (reason "attached", no
+// initial-replay token). Method: the process is attached to nothing before the
+// reload, so its first event must be that up. An event before it was fed before
+// the config attached it, and an up with another reason is a restarted session's.
+func reloadAdded02(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
+	event, ok := nextEvent02(ctx, events, shutdown, 40*time.Second)
+	if !ok {
+		return fmt.Errorf("RELOAD-ADDED: the reload attached it and it was told nothing")
+	}
+	body := eventBody02(event)
+	state, _ := body["state"].(string)
+	reason, _ := body["reason"].(string)
+	if !eventIsUp02(event) {
+		return fmt.Errorf("RELOAD-ADDED: first event is not an up (state %q): %.300s", state, event)
+	}
+	if reason != "attached" {
+		return fmt.Errorf("RELOAD-ADDED: up with reason %q, want \"attached\" (a restarted session's up): %.300s", reason, event)
+	}
+	if _, replay := body["initial-replay"]; replay {
+		return fmt.Errorf("RELOAD-ADDED: attached up carries an initial-replay token: %.300s", event)
+	}
+	fmt.Fprintln(os.Stderr, "RELOAD-ADDED: told up, reason attached, by the reload")
+	if err := os.WriteFile(reloadAttachedMarker02, []byte("done"), 0o600); err != nil {
+		return err
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	for !regularFileExists02(reloadKeptMarker02) {
+		if time.Now().After(deadline) {
 			return fmt.Errorf("RELOAD-ADDED: the kept edge never reported")
+		}
+		later, ok := nextEvent02(ctx, events, shutdown, 500*time.Millisecond)
+		if !ok && stopped02(ctx, shutdown) {
+			return fmt.Errorf("RELOAD-ADDED: the run ended before the kept edge reported")
+		}
+		if ok && stateEvent02(later) {
+			return fmt.Errorf("RELOAD-ADDED: state event after the attached up, the session did not stay up: %.300s", later)
 		}
 	}
 	requestShutdownAsync02(ctx, plugin)
@@ -679,25 +783,6 @@ func signalDaemon02() error {
 		return err
 	}
 	return process.Signal(syscall.SIGHUP)
-}
-
-func reloadTrigger02(ctx context.Context, args []string) error {
-	if len(args) != 0 {
-		return fmt.Errorf("reload trigger fixture takes no arguments")
-	}
-	if err := waitForFile02(ctx, "daemon.pid"); err != nil {
-		return err
-	}
-	if err := waitForFile02(ctx, "daemon.ready"); err != nil {
-		return err
-	}
-	if err := copyFile02("config2.conf", "ze-bgp.conf"); err != nil {
-		return err
-	}
-	if err := signalDaemon02(); err != nil {
-		return err
-	}
-	return os.WriteFile("reloaded.marker", nil, 0o600)
 }
 
 func runtimeSubscribeTrigger02(ctx context.Context, args []string) error {

@@ -906,6 +906,39 @@ are the only ones the reload can change.
 <!-- source: internal/le/interoplab/bgp/check_bfd_profile_edit.go -- checkBFDProfileEditLive, requireBFDProfileEditContinuity -->
 <!-- source: test/interop/scenarios/bgp-bfd-profile-edit-live-frr/ -- ze.conf, ze-reload.conf, frr.conf -->
 
+### Live attach and BFD opt-in without a session reset
+
+Three scenarios change a running FRR peer's Ze config by SIGHUP and require
+FRR's BGP `connectionsEstablished` to stay where it was before the first reload,
+through every reload except the BFD opt-in removal.
+
+| Scenario | Reloads | What FRR must show |
+|----------|---------|--------------------|
+| `bgp-attach-receive-only-live-frr` | `ze-reload.conf` attaches `adj-rib-in` to the peer, receive-only | exactly one more `messageStats.routeRefreshRecv` (one negotiated family, RFC 2918 Section 4), and Ze's `show bgp adj-rib-in` then holds the route FRR announced before the reload |
+| `bgp-bfd-enable-live-frr` | `ze-reload.conf` adds the peer's non-strict BFD opt-in, `ze-reload-edit.conf` edits its profile to 200ms and multiplier 5, `ze.conf` removes the opt-in | BFD Up at 300ms after the add; the same discriminators and no `session-down` at 200ms after the edit; BFD Down with `remote-diagnostic` `administratively down` after the removal |
+| `bgp-bfd-dynamic-enable-live-frr` | `ze-reload.conf` adds the opt-in to the template of the group FRR joins as a dynamic peer, `ze.conf` removes it | BFD Up at 300ms after the add, Down with `remote-diagnostic` `administratively down` after the removal |
+
+The attach checker first requires that `adj-rib-in` holds nothing for FRR, so
+the route it finds afterwards can only have come from the catch-up refresh.
+The BFD configs keep the `bfd` root in every step, because an opt-in names a
+profile of the bfd plugin.
+
+The removal step asserts what Ze sends and stops there. Ze releases the BFD
+session with AdminDown, diagnostic 7 (RFC 5880 Section 6.8.16), and FRR 10.3.1
+then resets BGP with Cease/BFD Down, although RFC 5882 Section 4.2 says
+"clients SHOULD NOT take any control protocol action" on a remote AdminDown.
+That reset is a recorded peer deviation, not a Ze failure, so the checker does
+not require BGP to survive the removal.
+
+A scenario that reloads more than once names each further config
+`ze-reload-<step>.conf`. The harness mounts every such file in the ze container
+at `/etc/ze/<file name>`, beside `ze-reload.conf` at `/etc/ze/reload.conf`, and
+`ze.conf` stays at `/etc/ze/bgp.conf`, so a checker reloads back to the start
+with `applyZeReload` on that path.
+<!-- source: internal/le/interoplab/bgp/check_live_keep_session.go -- checkAttachReceiveOnlyLive, checkBFDEnableLive, checkBFDDynamicEnableLive, requireOneRefreshSameSession, removeAndSignalAdminDown -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPeers -->
+<!-- source: internal/le/interoplab/bgp/names.go -- zeStepReloadConfigPattern, zeMountedStepReloadConfig -->
+
 ### RPKI route retention
 
 `INTEROP_SCENARIO=rpki-frr ./le test integration interop` runs FRR as the BGP
