@@ -60,6 +60,19 @@ router other than `always`, which never clears itself. A refusal is therefore th
 placeholder and this spec stays open, which is what `plan/spec-vrf.md` records
 for the `vrf` leaf.
 
+**The shutdown leaf's new name.** The owner's Q-6 answer in
+`plan/immediate/spec-daemon-drain-before-stop.md` (2026-10-13) gives the drain
+wait one leaf name under bgp, ospf and isis: `drain-on-shutdown <seconds>`.
+`ospf max-metric router-lsa on-shutdown` is deleted and replaced by
+`ospf drain-on-shutdown`, directly under `container ospf`, with no compatibility
+shim, because Ze is pre-release. The Task and Current Behavior text above and
+below describes HEAD, where the old leaf still exists. Every design, AC, test
+and file row in this spec names the new leaf. The rename (YANG, parser, RI bit
+reader, `show ospf` key, the parse test, the published YANG fixtures, the
+architecture page) is listed in the drain spec's Files to Modify. Whichever of
+the two specs is implemented first performs it, so this spec's interim refusal
+always names `ospf drain-on-shutdown`.
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.
@@ -101,7 +114,7 @@ file and no recent commit names this spec. `plan/pre-release/spec-rfc-verdict-fi
 - [ ] `internal/plugins/ospf/yang/ze-ospf-conf.yang` - container `max-metric/router-lsa`: `always` (boolean, default false), `on-startup` and `on-shutdown` (uint32, range 0..86400, units seconds). The `description` of each timed leaf already says it is stored, shown and raises the RI bit, and that "Ze starts no timed window". The `ze:help` strings still promise "Advertise as a stub router for N seconds after startup (0 disables)." and "... during a graceful shutdown (0 disables).", so the CLI help is the surviving false promise.
   → Constraint: the leaves are still unconsumed at HEAD: the only readers of `OnStartupSec` and `OnShutdownSec` outside tests are `parseMaxMetric`, `deriveRICapabilities` and `processSummary`.
 - [ ] `internal/plugins/ospf/config.go` - `maxMetricConfig` holds `RouterLSAAlways`, `OnStartupSec`, `OnShutdownSec`; `parseMaxMetric` fills it; `validateConfig` delegates to `validateConfigAF`, which the plugin's `OnConfigVerify` and `OnConfigure` callbacks both call.
-  → Decision: a commit-time refusal lives in `validateConfigAF`, not in the parser, so `TestOSPFMaxMetricConfig` (which parses `on-shutdown 60`) keeps proving the parse.
+  → Decision: a commit-time refusal lives in `validateConfigAF`, not in the parser, so `TestOSPFMaxMetricConfig` keeps proving the parse. It parses `on-shutdown 60` at HEAD; after the Q-6 rename (drain spec) it parses `drain-on-shutdown 60` instead.
 - [ ] `internal/plugins/ospf/instance.go` - `originateSelfLSAs` is the single self-LSA chokepoint for both address families. It skips while `gr.suppressOrigination()` holds (RFC 3623 restarting router), then passes `cfg.MaxMetric.RouterLSAAlways` to `v6OriginateSelf` (OSPFv3) or `lsdb.OriginateFromTopology` (OSPFv2). `originateSelfLSAsDeferred` queues a coalesced pass on the maintenance worker and is safe to call while holding `mu`. `openInterfaces` is the per-engine start: it runs for the base engine through `instanceManager.start`, for an instance created at reload through `instanceManager.reconcile`, and for the IPv6 engines through `v6EngineSet.bringUpLocked`. `shutdown` stops the LDP-sync and GR timers, cancels the engine context and joins the workers.
   → Constraint: the window flag must be read inside `originateSelfLSAs` for both families from one function, or v4 and v6 disagree.
   → Constraint: a timer callback must call `originateSelfLSAsDeferred`, never `originateSelfLSAs` inline, and `shutdown` must stop the timer before `cancel`.
@@ -116,7 +129,7 @@ file and no recent commit names this spec. `plan/pre-release/spec-rfc-verdict-fi
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - `always true` originates MaxLinkMetric on every non-stub link indefinitely, for OSPFv2 and OSPFv3.
-- The `show ospf` JSON keys `always`, `on-startup-seconds`, `on-shutdown-seconds`, `active` keep their names and types.
+- The `show ospf` JSON keys `always`, `on-startup-seconds`, `active` keep their names and types. `on-shutdown-seconds` does not: under the drain spec's Q-6 it becomes `drain-on-shutdown-seconds`, same type, read from `ospf drain-on-shutdown`.
 - The RI capability word: bit 2 set whenever any stub-router mode is configured (RFC 7770 Section 2.5, "support").
 - `TestOSPFMaxMetricConfig`, `TestRICapabilityBitsFromState` (RFC7770-2.4-2 tagged), `TestOSPFv6OriginateRouterLSAMaxMetric` and `test/ospf/ospf-show.ci` pass unchanged.
 - Stub (type 3) links keep their configured cost in every mode (RFC 6987 Section 2).
@@ -125,17 +138,17 @@ file and no recent commit names this spec. `plan/pre-release/spec-rfc-verdict-fi
 **Behavior to change:** (only what the user asked for)
 - `on-startup N` (N above 0) makes each OSPF engine originate its Router-LSA with MaxLinkMetric from its start until N seconds later, then re-originate with configured costs.
 - `show ospf` `active` is true while the startup window is open, and a new `on-startup-remaining-seconds` reports the time left.
-- `on-shutdown`: route decided by the owner (Q-1). Until it is built, a commit with `on-shutdown` above 0 is refused with an error naming the leaf, and the `ze:help` and `description` say so.
+- The shutdown window: route decided by the owner (Q-1), leaf renamed `ospf drain-on-shutdown` (drain spec Q-6). Until the drain lands, a commit with `drain-on-shutdown` above 0 is refused with an error naming the leaf, and its `ze:help` and `description` say so.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- Config: `ospf { max-metric { router-lsa { on-startup <0..86400>; on-shutdown <0..86400> } } }` in the daemon config, delivered to the OSPF plugin as a JSON config section through `OnConfigVerify` then `OnConfigure` / `OnConfigApply`.
+- Config: `ospf { max-metric { router-lsa { on-startup <0..86400> } } drain-on-shutdown <seconds> }` in the daemon config (the second leaf per the drain spec's Q-6), delivered to the OSPF plugin as a JSON config section through `OnConfigVerify` then `OnConfigure` / `OnConfigApply`.
 - Time: the engine's start (`openInterfaces`) and a timer expiry N seconds later.
 
 ### Transformation Path
 1. `parseOSPFConfig` → `parseMaxMetric` stores the seconds in `maxMetricConfig` (unchanged).
-2. `validateConfigAF` refuses `on-shutdown` above 0 while Q-1 is open (new).
+2. `validateConfigAF` refuses `drain-on-shutdown` above 0 until the drain spec lands (new).
 3. `openInterfaces` records the engine's start instant once per engine lifetime and, when `OnStartupSec` is above 0, arms the startup timer (new).
 4. `originateSelfLSAs` asks one engine function whether max-metric is in force now (`always` or the startup window open) and passes that to `OriginateFromTopology` / `v6OriginateSelf` (changed: the flag source).
 5. The timer fires, bumps nothing but the window state, and calls `originateSelfLSAsDeferred`; the next pass originates with configured costs, and flooding carries the new instance to neighbours (unchanged path).
@@ -152,7 +165,7 @@ file and no recent commit names this spec. `plan/pre-release/spec-rfc-verdict-fi
 - `originateSelfLSAs` - its two `cfg.MaxMetric.RouterLSAAlways` arguments become the window-aware flag.
 - `shutdown` - stops the startup timer with the other engine timers.
 - `processSummary` - `active` and the remaining time read the same flag function.
-- `validateConfigAF` - the interim refusal of `on-shutdown`.
+- `validateConfigAF` - the interim refusal of `drain-on-shutdown`.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -188,7 +201,7 @@ file and no recent commit names this spec. `plan/pre-release/spec-rfc-verdict-fi
 | R-1 | The timer fires after `shutdown` and touches freed engine state | Race detector or a panic in the shutdown test | `shutdown` stops the timer before `cancel`; the callback checks the epoch and `ctx.Err()` and only calls `originateSelfLSAsDeferred`, which already returns on a cancelled context; `TestOSPFMaxMetricStartupTimerStoppedOnShutdown` |
 | R-2 | v4 and v6 engines disagree because one call site still reads `RouterLSAAlways` | v6 test shows configured cost inside the window | Both call sites read one engine function; a grep of `RouterLSAAlways` outside `config.go`, `ri.go` and that function finds none |
 | R-3 | A GR restart opens the window, origination is suppressed for the grace period, and the window has closed by the time the router originates, so the window is invisible | Q-2 answer, or an operator reporting no drain after a planned restart | Q-2 decides; the default design counts from engine start (A-3) and states it in YANG |
-| R-4 | Interim refusal of `on-shutdown` breaks a stored config that carries it | Config load reports the refusal at boot | Ze is pre-release; the error names the leaf and says to remove it or set 0; recorded under Known Limitations until Q-1 is built |
+| R-4 | Interim refusal of `drain-on-shutdown` breaks a stored config that carries it (and the Q-6 rename refuses a stored `max-metric router-lsa on-shutdown`, which no longer exists) | Config load reports the refusal at boot | Ze is pre-release, so no shim (drain spec Q-6); the error names the leaf and says to remove it or set 0; recorded under Known Limitations until the drain lands |
 | R-5 | The interop checker lands in a file another session is editing: `check_special.go`, `names.go` and `prepare.go` under `internal/le/interoplab/bgp/` carried foreign uncommitted hunks at research time | `git status` shows them modified | The scenario is declarative: one entry in the scenario op table in `checkers.go` (not modified at research time) using the existing `opWaitContains` and `opWaitAbsent` kinds, so no special checker is needed; re-check `git status` before editing |
 | R-6 | The window flag read under `mu` deadlocks if the function takes `mu` while `originateSelfLSAs` holds it | Test hang | The function reads `now` and the stored window end under the caller's existing lock discipline; `originateSelfLSAs` copies config outside `mu` today, and the window end is copied with it |
 | R-7 | A real-time timer makes unit tests slow or flaky | Test wall time above a second | The `afterFunc` seam and an injected clock, as in `ldp_sync.go`; no real sleep in unit tests |
@@ -198,7 +211,7 @@ file and no recent commit names this spec. `plan/pre-release/spec-rfc-verdict-fi
 <!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | A router with `on-startup` set either never drains at boot (today's state) or stays drained (all transit avoids it) past the window; a config with `on-shutdown` above 0 is refused at commit |
+| What breaks if this is wrong? | A router with `on-startup` set either never drains at boot (today's state) or stays drained (all transit avoids it) past the window; a config with `drain-on-shutdown` above 0 is refused at commit |
 | How is it reverted? | Single commit revert; no stored state, no wire format change |
 | Who else touches this path? | `originateSelfLSAs` is shared with RFC 3623 GR suppression and LDP-IGP sync (per-interface cost-out); the RI bit with `rfc7770_ri_test.go`; no in-flight spec touches these files |
 
@@ -213,7 +226,7 @@ file and no recent commit names this spec. `plan/pre-release/spec-rfc-verdict-fi
 | Config `on-startup 120` at daemon boot (base OSPFv2 engine via `instanceManager.start`) | → | `openInterfaces` arms the window; `originateSelfLSAs` reads it | `test/ospf/ospf-max-metric-startup.ci` and `TestOSPFMaxMetricStartupWindowOpensAtStart` |
 | Config adds an OSPFv2 instance at reload (`instanceManager.reconcile`) | → | same, for the new engine only | `TestOSPFMaxMetricStartupWindowNewInstanceAtReload` |
 | Config `on-startup` on an IPv6 family (`v6EngineSet.bringUpLocked`) | → | `v6OriginateSelf` receives the window flag | `TestOSPFv6MaxMetricStartupWindow` |
-| Config `on-shutdown 60` at commit | → | `validateConfigAF` refusal | `test/ospf/ospf-max-metric-on-shutdown-refused.ci` and `TestOSPFMaxMetricOnShutdownRefused` |
+| Config `drain-on-shutdown 60` at commit | → | `validateConfigAF` refusal | `test/ospf/ospf-drain-on-shutdown-refused.ci` and `TestOSPFDrainOnShutdownRefused` |
 | FRR neighbour over a point-to-point link | → | Router-LSA flooded with 0xffff, then with the configured cost | interop scenario `ospf-max-metric-startup-frr` |
 
 ## Acceptance Criteria
@@ -232,10 +245,10 @@ file and no recent commit names this spec. `plan/pre-release/spec-rfc-verdict-fi
 | AC-8 | `on-startup` changed from 0 to N on a running engine by reload | No window opens (A-3, pending Q-2); `show ospf` reports the new configured value and `active false` | `TestOSPFMaxMetricStartupReloadDoesNotArm` |
 | AC-9 | `show ospf` inside the window | `stub-router.active` is true and `stub-router.on-startup-remaining-seconds` is the whole seconds left (above 0, at most N); outside it `active` follows `always` and the remaining key is absent | `TestOSPFShowSummaryStartupWindow`; `test/ospf/ospf-max-metric-startup.ci` |
 | AC-10 | Engine shutdown while the window is open | The timer is stopped, no origination runs after `shutdown` returns, race detector clean | `TestOSPFMaxMetricStartupTimerStoppedOnShutdown` |
-| AC-11 | Commit with `on-shutdown` above 0 (interim, while Q-1 is open; replaced by the Q-1 answer's ACs) | Commit refused; the error names `ospf max-metric router-lsa on-shutdown`, says Ze has no graceful-shutdown drain, and says to set 0 or remove the leaf | `TestOSPFMaxMetricOnShutdownRefused`; `test/ospf/ospf-max-metric-on-shutdown-refused.ci` |
-| AC-12 | `on-shutdown 0` or absent | Commit accepted, no change | `TestOSPFMaxMetricOnShutdownZeroAccepted` |
-| AC-13 | Any stub-router mode configured | RI capability bit 2 unchanged from today: set when `always`, `on-startup` above 0 (or `on-shutdown` above 0 once built) | existing `TestRICapabilityBitsFromState` passes unchanged |
-| AC-14 | `ze:help` and `description` of `on-startup` and `on-shutdown`, `docs/architecture/ospf/ospf-13-cli-diag-interop.md` | State what the code now does: the startup window and its anchor; the shutdown refusal | Prose, reviewed in `/ze-review` against the producing functions; no test asserts help text |
+| AC-11 | Commit with `ospf drain-on-shutdown` above 0 (interim, until the drain spec lands; replaced by AC-11 of `plan/immediate/spec-daemon-drain-before-stop.md`; leaf name per its Q-6) | Commit refused; the error names `ospf drain-on-shutdown`, says Ze has no graceful-shutdown drain, and says to set 0 or remove the leaf | `TestOSPFDrainOnShutdownRefused`; `test/ospf/ospf-drain-on-shutdown-refused.ci` |
+| AC-12 | `ospf drain-on-shutdown 0` or absent | Commit accepted, no change | `TestOSPFDrainOnShutdownZeroAccepted` |
+| AC-13 | Any stub-router mode configured | RI capability bit 2 unchanged from today: set when `always`, `on-startup` above 0 (or `drain-on-shutdown` above 0 once built; the drain spec's Q-6 rename moves `deriveRICapabilities` onto that field) | existing `TestRICapabilityBitsFromState` passes unchanged |
+| AC-14 | `ze:help` and `description` of `on-startup` and `drain-on-shutdown`, `docs/architecture/ospf/ospf-13-cli-diag-interop.md` | State what the code now does: the startup window and its anchor; the shutdown refusal | Prose, reviewed in `/ze-review` against the producing functions; no test asserts help text |
 
 ## End-to-End User Stories
 
@@ -247,7 +260,7 @@ file and no recent commit names this spec. `plan/pre-release/spec-rfc-verdict-fi
 |---|-----------|--------------------|-----------------------|
 | 1 | Sets `on-startup 120` and restarts the router so transit avoids it while BGP converges | config → `parseMaxMetric` → `openInterfaces` arms the window → `originateSelfLSAs` flag → Router-LSA 0xffff → flood → FRR database; expiry → re-origination with costs | interop `ospf-max-metric-startup-frr` |
 | 2 | Checks whether the router is still draining | `show ospf` → `processSummary` → `active`, `on-startup-remaining-seconds` | `test/ospf/ospf-max-metric-startup.ci` |
-| 3 | Sets `on-shutdown 60` | commit → `OnConfigVerify` → `validateConfigAF` refusal | `test/ospf/ospf-max-metric-on-shutdown-refused.ci` |
+| 3 | Sets `drain-on-shutdown 60` | commit → `OnConfigVerify` → `validateConfigAF` refusal | `test/ospf/ospf-drain-on-shutdown-refused.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -276,14 +289,14 @@ All timer tests drive the injected `afterFunc` seam and an injected clock; none 
 | `TestOSPFMaxMetricStartupTimerStoppedOnShutdown` | same | AC-10: after `shutdown` the seam timer reports stopped; a late fire (stale epoch) originates nothing; run under `-race` | |
 | `TestOSPFv6MaxMetricStartupWindow` | `internal/plugins/ospf/origination_v6_test.go` | AC-6 | |
 | `TestOSPFShowSummaryStartupWindow` | `internal/plugins/ospf/show_summary_test.go` | AC-9: `active` and `on-startup-remaining-seconds` inside and after the window | |
-| `TestOSPFMaxMetricOnShutdownRefused` | `internal/plugins/ospf/max_metric_window_test.go` | AC-11: `validateConfig` returns the named error for 1 and 86400 | |
-| `TestOSPFMaxMetricOnShutdownZeroAccepted` | same | AC-12 | |
+| `TestOSPFDrainOnShutdownRefused` | `internal/plugins/ospf/max_metric_window_test.go` | AC-11: `validateConfig` returns the named error for `drain-on-shutdown` 1 and 86400 | |
+| `TestOSPFDrainOnShutdownZeroAccepted` | same | AC-12 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
 | `on-startup` | 0..86400 s (YANG range, unchanged) | 86400 (and 1, the shortest window) | N/A (uint32) | 86401, refused by the YANG range |
-| `on-shutdown` (interim) | 0 only accepted while Q-1 is open | 0 | N/A (uint32) | 1, refused by `validateConfigAF` |
+| `drain-on-shutdown` (interim) | 0 only accepted until the drain spec lands | 0 | N/A (uint32) | 1, refused by `validateConfigAF` |
 
 ### Functional Tests
 <!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
@@ -292,7 +305,7 @@ All timer tests drive the injected `afterFunc` seam and an injected clock; none 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `ospf-max-metric-startup` | `test/ospf/ospf-max-metric-startup.ci` | Daemon boots with `on-startup 300`; `show ospf` reports `active true` and a remaining time; `show ospf database router` shows the self Router-LSA with metric 65535 on its non-stub link | |
-| `ospf-max-metric-on-shutdown-refused` | `test/ospf/ospf-max-metric-on-shutdown-refused.ci` | `ze config validate` (or commit) of `on-shutdown 60` fails with the named error and non-zero exit | |
+| `ospf-drain-on-shutdown-refused` | `test/ospf/ospf-drain-on-shutdown-refused.ci` | `ze config validate` (or commit) of `drain-on-shutdown 60` fails with the named error and non-zero exit | |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -313,7 +326,7 @@ closes) and record assertion 4 red. Both results go into the spec's closure evid
 |------------------|---------------|
 | `on-startup N` drains transit for N seconds after start, then restores costs | Interop `ospf-max-metric-startup-frr` log: FRR reads 65535 then 10 for Ze's point-to-point link, with both discrimination reds recorded |
 | The operator can see the window | `test/ospf/ospf-max-metric-startup.ci` asserting `active true` and the remaining seconds through the real `show ospf` |
-| No leaf promises a behaviour nothing performs | `test/ospf/ospf-max-metric-on-shutdown-refused.ci` (negative test through the real commit path) and the rewritten `ze:help` text, until Q-1's chosen route is built |
+| No leaf promises a behaviour nothing performs | `test/ospf/ospf-drain-on-shutdown-refused.ci` (negative test through the real commit path) and the rewritten `ze:help` text, until the drain spec (Q-1's chosen route) lands |
 
 BIRD is not used: FRR already runs the OSPFv2 point-to-point scenarios and FRR is the
 vendor whose `max-metric router-lsa on-startup` the leaf mirrors.
@@ -324,8 +337,8 @@ vendor whose `max-metric router-lsa on-startup` the leaf mirrors.
      referenced architecture doc describes, list that doc here too. -->
 - `internal/plugins/ospf/instance.go` - `originateSelfLSAs` reads the window-aware flag for both families; `openInterfaces` arms the window once; `shutdown` stops the timer; engine fields for the window end, timer, epoch and seams.
 - `internal/plugins/ospf/show_summary.go` - `active` from the window-aware flag; new `on-startup-remaining-seconds` (omitempty); stale type comment rewritten.
-- `internal/plugins/ospf/config.go` - `validateConfigAF` interim refusal of `on-shutdown` above 0 with a named sentinel error; `maxMetricConfig` comments corrected.
-- `internal/plugins/ospf/yang/ze-ospf-conf.yang` - `description` and `ze:help` of `router-lsa`, `on-startup`, `on-shutdown` state the window, its anchor (engine start) and the shutdown refusal.
+- `internal/plugins/ospf/config.go` - `validateConfigAF` interim refusal of `drain-on-shutdown` above 0 with a named sentinel error; `maxMetricConfig` comments corrected. If this spec lands before the drain spec, it performs the drain spec's Q-6 rename first (that spec's Files to Modify row "OSPF rename"), so the field refused is the new one.
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang` - `description` and `ze:help` of `router-lsa`, `on-startup` and `ospf drain-on-shutdown` state the window, its anchor (engine start) and the shutdown refusal.
 - `internal/plugins/ospf/ri.go` - comment only if the derivation comment goes stale; logic unchanged.
 - `internal/le/interoplab/bgp/checkers.go` - the `ospf-max-metric-startup-frr` op entry.
 - `docs/architecture/ospf/ospf-13-cli-diag-interop.md` - replace the "parsed and armed nowhere" bullet.
@@ -338,7 +351,7 @@ vendor whose `max-metric router-lsa on-startup` the leaf mirrors.
 - `internal/plugins/ospf/max_metric_window.go` - the window state, the window-aware flag function, arm and stop (RFC 6987 Section 1 and Section 2 quoted above them).
 - `internal/plugins/ospf/max_metric_window_test.go` - unit tests above.
 - `test/ospf/ospf-max-metric-startup.ci` - functional test.
-- `test/ospf/ospf-max-metric-on-shutdown-refused.ci` - functional test.
+- `test/ospf/ospf-drain-on-shutdown-refused.ci` - functional test.
 - `test/interop/scenarios/ospf-max-metric-startup-frr/ze.conf`, `frr.conf` - interop scenario.
 
 ### Integration Checklist
@@ -346,8 +359,8 @@ vendor whose `max-metric router-lsa on-startup` the leaf mirrors.
      row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang`: no new leaf; `description` and `ze:help` of `router-lsa`, `on-startup`, `on-shutdown` rewritten |
-| YANG validation constraints | No | Ranges unchanged (0..86400). The interim `on-shutdown` refusal is a behaviour gate, not a native constraint; narrowing the range to 0 is Q-3 |
+| YANG schema (new RPCs/config) | Yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang`: no new leaf of this spec's own (`ospf drain-on-shutdown` replaces `max-metric router-lsa on-shutdown` under the drain spec's Q-6); `description` and `ze:help` of `router-lsa`, `on-startup`, `drain-on-shutdown` rewritten |
+| YANG validation constraints | No | `on-startup` range unchanged (0..86400); `drain-on-shutdown`'s type and units are the drain spec's. The interim `drain-on-shutdown` refusal is a behaviour gate, not a native constraint (Q-3) |
 | YANG custom validators | No | Refusal lives in the plugin's `validateConfigAF`, reached through `OnConfigVerify`, like every other OSPF semantic check |
 | CLI commands/flags | No | No new command; `show ospf` gains one JSON key |
 | CLI grammar (keyword before value) | N-A | No command added |
@@ -370,12 +383,12 @@ vendor whose `max-metric router-lsa on-startup` the leaf mirrors.
 | 3 | CLI command added/changed? | Yes | `show ospf` gains `on-startup-remaining-seconds`: `docs/guide/ospf.md` `show ospf` paragraph |
 | 4 | API/RPC added/changed? | No | No RPC |
 | 5 | Plugin added/changed? | No | Behaviour inside the existing OSPF plugin |
-| 6 | Has a user guide page? | Yes | `docs/guide/ospf.md`: max-metric subsection (always, on-startup window anchored at engine start, on-shutdown refused until Q-1 is built) |
+| 6 | Has a user guide page? | Yes | `docs/guide/ospf.md`: max-metric subsection (always, on-startup window anchored at engine start, `ospf drain-on-shutdown` refused until the drain spec lands) |
 | 7 | Wire format changed? | No | Router-LSA format unchanged; only when the existing 0xffff value is sent |
 | 8 | Plugin SDK/protocol changed? | No | Under Q-1 (b). Option (a) would change it and re-open this row |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 6987 defines no timer and its summary is backlog; RFC scope frozen, so `rfc/short/rfc6987.md` and `docs/features/rfc-status.md` are not edited |
 | 10 | Test infrastructure changed? | No | Uses existing op kinds |
-| 11 | Affects daemon comparison? | Yes | `docs/comparison.md`: check whether it claims OSPF max-metric parity with FRR; correct to "on-startup yes, on-shutdown no" if it does |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md`: check whether it claims OSPF max-metric parity with FRR; correct to "on-startup yes, drain-on-shutdown no" if it does |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/ospf/ospf-13-cli-diag-interop.md` (the "parsed and armed nowhere" bullet) |
 | 13 | Route metadata keys added/changed? | No | None |
 | 14 | Prometheus counters added/changed? | No | None |
@@ -406,8 +419,8 @@ Phase 4 builds the instance-removal hold instead of the refusal.
 3. **Phase: Show** -- `active` and `on-startup-remaining-seconds`.
    - Tests: `TestOSPFShowSummaryStartupWindow`, `test/ospf/ospf-max-metric-startup.ci`.
    - Files: `show_summary.go`, `docs/guide/ospf.md`.
-4. **Phase: on-shutdown interim refusal** -- named sentinel error in `validateConfigAF`; YANG `description` and `ze:help` for all three leaves.
-   - Tests: `TestOSPFMaxMetricOnShutdownRefused`, `TestOSPFMaxMetricOnShutdownZeroAccepted`, `test/ospf/ospf-max-metric-on-shutdown-refused.ci`.
+4. **Phase: drain-on-shutdown interim refusal** -- the drain spec's Q-6 rename first if it has not landed; named sentinel error in `validateConfigAF`; YANG `description` and `ze:help` for `always`, `on-startup` and `drain-on-shutdown`.
+   - Tests: `TestOSPFDrainOnShutdownRefused`, `TestOSPFDrainOnShutdownZeroAccepted`, `test/ospf/ospf-drain-on-shutdown-refused.ci`.
    - Files: `config.go`, `ze-ospf-conf.yang`, `docs/guide/ospf.md`.
 5. **Phase: Interop** -- scenario directory and the op-table entry; run with `INTEROP_SCENARIO=ospf-max-metric-startup-frr ./le test integration interop`, keep the log; run both discrimination reverts.
    - Files: `test/interop/scenarios/ospf-max-metric-startup-frr/`, `internal/le/interoplab/bgp/checkers.go`.
@@ -425,7 +438,7 @@ Phase 4 builds the instance-removal hold instead of the refusal.
 | Naming | JSON key `on-startup-remaining-seconds` kebab-case, alongside `on-startup-seconds` |
 | Data flow | Exactly one function decides max-metric in force; v4, v6 and `show ospf` all read it |
 | Rule: `ai/rules/goroutine-lifecycle.md` | No `go func()`; the timer callback only queues deferred origination and is stopped in `shutdown` |
-| Rule: `ai/rules/user-facing-errors.md` | The `on-shutdown` refusal names the leaf path, the reason, and the fix (set 0 or remove) |
+| Rule: `ai/rules/user-facing-errors.md` | The `drain-on-shutdown` refusal names the leaf path, the reason, and the fix (set 0 or remove) |
 | Rule: `ai/rules/stale-comments.md` | `stubRouterView` comment, `maxMetricConfig` field comments, YANG descriptions, `deriveRICapabilities` comment all match the new behaviour |
 
 ### Deliverables Checklist
@@ -436,7 +449,7 @@ Phase 4 builds the instance-removal hold instead of the refusal.
 |-------------|---------------------|
 | Window-aware flag read by both origination calls | grep `RouterLSAAlways` in `internal/plugins/ospf` (non-test): only `config.go`, `ri.go`, the flag function |
 | Startup window unit tests | `./le job run` scoped `go test -race ./internal/plugins/ospf/ -run 'MaxMetric|ShowSummaryStartup'` |
-| Functional tests | `./le test functional` for `ospf-max-metric-startup` and `ospf-max-metric-on-shutdown-refused` |
+| Functional tests | `./le test functional` for `ospf-max-metric-startup` and `ospf-drain-on-shutdown-refused` |
 | Interop scenario | `INTEROP_SCENARIO=ospf-max-metric-startup-frr ./le test integration interop` green, plus the two recorded reds |
 | Docs | `./le spec citation anchors spec plan/immediate/spec-ospf-max-metric-startup-shutdown-windows.md` clean |
 
@@ -448,7 +461,7 @@ Phase 4 builds the instance-removal hold instead of the refusal.
 |-------|-----------------|
 | Input validation | `on-startup` bounded by YANG to 86400; the timer duration is computed from that bounded value only, no overflow in seconds-to-duration |
 | Resource exhaustion | One timer per engine, armed once; reload cannot stack timers |
-| Fail open | A config that cannot be honoured (`on-shutdown` above 0) is refused, never silently stored |
+| Fail open | A config that cannot be honoured (`drain-on-shutdown` above 0) is refused, never silently stored |
 
 ### Failure Routing
 
@@ -467,13 +480,13 @@ Phase 4 builds the instance-removal hold instead of the refusal.
      a subsystem arch doc, a rule, or the learned summary. -->
 
 - RFC 6987 gives the mechanism and the motive, never the timers. Whatever Ze states about the windows' anchor and duration is a product decision, which is why Q-2 and Q-3 exist.
-- The shutdown window is not an OSPF problem: no plugin can outlive the daemon's 3-second stop budget, so a drain on shutdown is a daemon lifecycle feature that OSPF (and BGP graceful shutdown, IS-IS overload-on-shutdown) would share.
+- The shutdown window is not an OSPF problem: no plugin can outlive the daemon's 3-second stop budget, so a drain on shutdown is a daemon lifecycle feature that OSPF, BGP and IS-IS share. The drain spec's Q-6 gives the three one leaf name, `drain-on-shutdown`.
 
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Build `on-startup`; refuse `on-shutdown` above 0 until Q-1 is answered (recommended) | (1) Build both now, adding a daemon hold phase in this spec. (2) Refuse both leaves. (3) Build `on-shutdown` only for instance removal at reload | (1) widens an OSPF spec into hub and plugin-server lifecycle with no owner decision; (2) discards the cheap half, since origination already takes the flag; (3) gives a leaf that means "drain on instance delete" but not on daemon stop, which the `ze:help` text would have to explain and an operator would still misread |
+| Build `on-startup`; refuse the shutdown leaf (`ospf drain-on-shutdown` since the drain spec's Q-6) above 0 until the drain lands (Q-1 (a)) | (1) Build both now, adding a daemon hold phase in this spec. (2) Refuse both leaves. (3) Build the shutdown leaf only for instance removal at reload | (1) widens an OSPF spec into hub and plugin-server lifecycle with no owner decision; (2) discards the cheap half, since origination already takes the flag; (3) gives a leaf that means "drain on instance delete" but not on daemon stop, which the `ze:help` text would have to explain and an operator would still misread |
 | One window-aware flag function read by both families and by `show ospf` | Pass a separate flag into each call site | One reader prevents v4/v6/show disagreement (R-2) |
 | Anchor the window at the engine's first `openInterfaces` | Plugin process start; first config apply; first adjacency Full | `openInterfaces` is the single per-engine start chokepoint across base, reload-created and IPv6 engines; the process start does not exist for an instance added later |
 | Timer via the `afterFunc` seam plus epoch, copying `ldp_sync.go` | A ticker in the maintenance worker; a deadline checked on every origination with no timer | A deadline with no timer never re-originates at expiry (nothing triggers origination); a ticker is a recurring cost for a one-shot event |
@@ -492,7 +505,7 @@ Phase 4 builds the instance-removal hold instead of the refusal.
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      is not a limitation: write it as its own spec, in the bucket that item
      belongs to, and name that spec here (ai/rules/planning.md). -->
-- `on-shutdown` is refused, not built, until Q-1 is answered. If the owner picks (a), the daemon drain phase becomes its own spec (`plan/immediate/spec-daemon-drain-before-stop.md`) and this spec stays open until OSPF joins it.
+- `ospf drain-on-shutdown` is refused, not built, until the drain lands. The owner picked Q-1 (a): the daemon drain phase is its own spec (`plan/immediate/spec-daemon-drain-before-stop.md`) and this spec stays open until OSPF joins it. That spec's Q-6 (owner, 2026-10-13) renamed the leaf this spec's Q-1 and Q-3 call `on-shutdown`: `max-metric router-lsa on-shutdown` is deleted and `ospf drain-on-shutdown` replaces it, with no shim. Q-3's "keep the leaf and range, refuse above 0" applies to the new leaf; its range is the drain spec's.
 - A startup window tied to BGP convergence ("until BGP is established") is not offered; RFC 6987 Section 1 motivates it, but no leaf promises it.
 - OSPFv3 uses MaxLinkMetric, as `always` does today; the R-bit alternative of RFC 6987 Section 2.1 is not used.
 
