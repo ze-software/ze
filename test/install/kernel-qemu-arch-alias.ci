@@ -1,5 +1,7 @@
-# Test: the native QEMU builder accepts aarch64 as an alias for arm64 and
-# continues to repository-path validation instead of rejecting the arch itself.
+# Test: the native QEMU builder accepts aarch64 as an alias for arm64 and never
+# rejects the arch itself. On an arm64 host it continues to repository-path
+# validation; on any other host the host-arch check refuses a kernel for arm64,
+# and that refusal naming arm64 is the proof the alias was read.
 
 option=timeout:value=20s
 

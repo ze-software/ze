@@ -1,6 +1,10 @@
-# Test: arm64 and amd64 appliance kernel requests produce distinct native cache
-# identities and preserve the requested architecture.
+# Test: an arm64 appliance build preserves the requested architecture: gok's go
+# subprocess sees GOARCH=arm64. The cache-identity half lives in
+# appliance-kernel-cache-arch-identity.ci, which runs on every host.
 option=env:var=ze_appliance_ssh_password:value=secret
+# The build reaches go only once the arm64 runtime kernel exists, and Ze builds
+# every kernel on a host of its own arch, so this runs only on an arm64 CPU.
+option=needs-arch:value=arm64
 option=timeout:value=20s
 
 

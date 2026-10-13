@@ -1975,7 +1975,19 @@ The QEMU actions self-skip with one visible line when the operator-supplied
 installer kernel or a required host tool is unavailable. A real failure exits
 non-zero.
 
+Every kernel builds on a host of its own arch, so the suite tests a target arch
+only on a CPU of that arch. A fixture whose arch is incidental asks for the
+host's arch (`hostKernelArch`), and runs on every host. A test that needs a
+build for one arch, such as `test/appliance/appliance-build-arm64-goarch.ci`,
+carries `option=needs-arch:value=arm64` and reports SKIP on any other host, with
+a reason naming both arches (`docs/architecture/testing/ci-format.md`, Options).
+A test that only names an arch runs everywhere: `kernel-qemu-arch-alias.ci`
+proves `aarch64` is read as arm64 by path validation on an arm64 host and by the
+host-arch refusal naming arm64 elsewhere, and
+`test/appliance/appliance-kernel-cache-arch-identity.ci` only queries the cache.
+
 <!-- source: internal/le/test/install/register.go -- the install suite command -->
+<!-- source: internal/test/fixture/install_fixture.go -- hostKernelArch, syntheticBuildRequest -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 <!-- source: internal/le/test/functional/actions.go -- Actions -->

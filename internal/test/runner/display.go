@@ -299,6 +299,13 @@ func (d *Display) TestFinished(nick string, state State, elapsed time.Duration) 
 	if name != "" && name != nick {
 		b.Str("  ").Str(name)
 	}
+	// A skip says why: the reason names what the host lacks (option=skip-os,
+	// needs-linux, needs-path, needs-arch), so it never reads as a pass.
+	if state == StateSkip {
+		if reason := d.skipReason(nick); reason != "" {
+			b.Str("  -- ").Str(reason)
+		}
+	}
 	if d.colors.Enabled() {
 		d.print(clearLine)
 	}
@@ -324,6 +331,19 @@ func (d *Display) testProgress(nick string) (int, int, string) {
 		}
 	}
 	return ordinal, total, name
+}
+
+// skipReason answers the SkipReason the parse recorded for nick, or "" when
+// the record carries none.
+func (d *Display) skipReason(nick string) string {
+	d.tests.mu.RLock()
+	defer d.tests.mu.RUnlock()
+
+	rec, ok := d.tests.byNick[nick]
+	if !ok {
+		return ""
+	}
+	return rec.SkipReason
 }
 
 // Newline prints a newline to move past the status line.

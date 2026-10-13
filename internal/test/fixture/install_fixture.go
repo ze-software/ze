@@ -36,6 +36,7 @@ func init() {
 	Register("appliance/appliance-iso-default-paths/prepare", isoAMD64Prepare)
 	Register("appliance/appliance-iso-default-paths/check-image", isoCheckImage)
 	registerPassed("appliance/appliance-build-arm64-goarch", applianceBuildARM64Fixture)
+	registerPassed("appliance/appliance-kernel-cache-arch-identity", applianceKernelCacheArchFixture)
 	registerPassed("appliance/appliance-iso-arm64", applianceISOARM64Fixture)
 	registerPassed("appliance/appliance-iso-default-paths", applianceISOAMD64Fixture)
 	Register("appliance/appliance-push-image-escape", appliancePushEscapeFixture)
@@ -259,9 +260,13 @@ func dockerOutputMount(args []string) string {
 	return ""
 }
 
-func applianceBuildARM64Fixture(ctx context.Context, args []string) error {
+// applianceKernelCacheArchFixture proves arm64 and amd64 kernel requests get
+// distinct native cache identities that name their arch. It only queries the
+// cache and builds nothing, so it runs on every host, unlike the GOARCH build
+// in applianceBuildARM64Fixture.
+func applianceKernelCacheArchFixture(ctx context.Context, args []string) error {
 	if len(args) != 1 {
-		return errors.New("appliance-build-arm64-goarch requires REPOSITORY")
+		return errors.New("appliance-kernel-cache-arch-identity requires REPOSITORY")
 	}
 	ze, err := exec.LookPath("ze")
 	if err != nil {
@@ -282,6 +287,20 @@ func applianceBuildARM64Fixture(ctx context.Context, args []string) error {
 	}
 	if arm == amd || !strings.Contains(arm, "arm64") || !strings.Contains(amd, "amd64") {
 		return fmt.Errorf("arm64 cache identity = %q, amd64 = %q", arm, amd)
+	}
+	return nil
+}
+
+// applianceBuildARM64Fixture proves an arm64 appliance build hands GOARCH=arm64
+// to gok's go subprocess. The build needs the arm64 runtime kernel, which Ze
+// builds only on an arm64 host, so its .ci carries option=needs-arch:value=arm64.
+func applianceBuildARM64Fixture(ctx context.Context, args []string) error {
+	if len(args) != 1 {
+		return errors.New("appliance-build-arm64-goarch requires REPOSITORY")
+	}
+	ze, err := exec.LookPath("ze")
+	if err != nil {
+		return err
 	}
 	work, err := os.Getwd()
 	if err != nil {
@@ -890,7 +909,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		if err := assertOwnershipRepairCalls(calls, req.OutputDir); err != nil {
+		if err := assertOwnershipRepairCalls(calls, req.Arch, req.OutputDir); err != nil {
 			return fmt.Errorf("successful build: %w", err)
 		}
 		if err := requireRegularFile(filepath.Join(req.OutputDir, "vmlinuz")); err != nil {
@@ -900,7 +919,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		wantProvenance := "version=" + versionKernelPinned + "\ntarget=runtime\nprofile=runtime\narch=arm64\nmodules=yes\nbuilder=docker\n" +
+		wantProvenance := "version=" + versionKernelPinned + "\ntarget=runtime\nprofile=runtime\narch=" + req.Arch + "\nmodules=yes\nbuilder=docker\n" +
 			provenanceSource(versionKernelPinned)
 		if string(provenance) != wantProvenance {
 			return fmt.Errorf("runtime provenance = %q, want %q", provenance, wantProvenance)
@@ -920,7 +939,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		if err := assertOwnershipRepairCalls(calls, req.OutputDir); err != nil {
+		if err := assertOwnershipRepairCalls(calls, req.Arch, req.OutputDir); err != nil {
 			return fmt.Errorf("failed build: %w", err)
 		}
 		if _, err := os.Stat(filepath.Join(req.OutputDir, "kernel.version")); !errors.Is(err, os.ErrNotExist) {
@@ -963,22 +982,31 @@ func readDockerCalls(path string) ([][]string, error) {
 	return calls, nil
 }
 
-func assertOwnershipRepairCalls(calls [][]string, outputDir string) error {
+func assertOwnershipRepairCalls(calls [][]string, arch, outputDir string) error {
+	platform := "linux/" + arch
 	if len(calls) != 3 {
 		return fmt.Errorf("docker calls = %v, want build, worker, repair", calls)
 	}
-	if !containsArgSequence(calls[0], "build", "--platform", "linux/arm64") {
+	if !containsArgSequence(calls[0], "build", "--platform", platform) {
 		return fmt.Errorf("builder image argv = %v", calls[0])
 	}
-	if !containsArgSequence(calls[1], "run", "--rm", "--platform", "linux/arm64") ||
-		!containsArg(calls[1], "ze-kernel-builder") ||
-		!containsArg(calls[1], outputDir+":/out") {
+	if !containsArgSequence(calls[1], "run", "--rm", "--platform", platform) {
+		return fmt.Errorf("kernel worker argv = %v", calls[1])
+	}
+	if !containsArg(calls[1], "ze-kernel-builder") {
+		return fmt.Errorf("kernel worker argv = %v", calls[1])
+	}
+	if !containsArg(calls[1], outputDir+":/out") {
 		return fmt.Errorf("kernel worker argv = %v", calls[1])
 	}
 	owner := fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())
-	if !containsArgSequence(calls[2], "run", "--rm", "--platform", "linux/arm64") ||
-		!containsArgSequence(calls[2], "chown", "-R", owner, "/out") ||
-		!containsArg(calls[2], outputDir+":/out") {
+	if !containsArgSequence(calls[2], "run", "--rm", "--platform", platform) {
+		return fmt.Errorf("ownership repair argv = %v", calls[2])
+	}
+	if !containsArgSequence(calls[2], "chown", "-R", owner, "/out") {
+		return fmt.Errorf("ownership repair argv = %v", calls[2])
+	}
+	if !containsArg(calls[2], outputDir+":/out") {
 		return fmt.Errorf("ownership repair argv = %v", calls[2])
 	}
 	return nil
@@ -1036,7 +1064,7 @@ func kernelVersionProvenanceFixture(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		want := "version=" + versionKernelPinned + "\ntarget=installer\nprofile=qemu\narch=arm64\nmodules=no\nbuilder=docker\n" +
+		want := "version=" + versionKernelPinned + "\ntarget=installer\nprofile=qemu\narch=" + req.Arch + "\nmodules=no\nbuilder=docker\n" +
 			provenanceSource(versionKernelPinned)
 		if string(data) != want {
 			return fmt.Errorf("provenance = %q, want %q", data, want)
@@ -1362,6 +1390,15 @@ func kernelQEMUArchAliasFixture(_ context.Context, _ []string) error {
 	}
 	if strings.Contains(err.Error(), "unsupported ARCH") {
 		return fmt.Errorf("aarch64 alias was rejected: %w", err)
+	}
+	// Every kernel builds on a host of its own arch. On another host the arch
+	// check refuses before path validation, and a refusal that names arm64 is
+	// itself the proof that aarch64 was read as arm64.
+	if runtime.GOARCH != archARM64 {
+		if !strings.Contains(err.Error(), "kernel for "+archARM64+" cannot be built here") {
+			return fmt.Errorf("aarch64 was not read as arm64 by the host-arch check: %w", err)
+		}
+		return nil
 	}
 	if !strings.Contains(err.Error(), "path escapes repository") {
 		return fmt.Errorf("aarch64 did not continue to path validation: %w", err)
@@ -1832,8 +1869,11 @@ func syntheticBuildRequest() (string, kernelbuilder.Request, func(), error) {
 		cleanup()
 		return "", kernelbuilder.Request{}, func() {}, err
 	}
+	// The request is for the host's arch: every kernel builds on a host of its
+	// own arch, so a fixed arch is refused on the other host (hostKernelArch).
+	arch, _ := hostKernelArch()
 	req := kernelbuilder.Request{
-		Root: root, Version: versionKernelPinned, Arch: archARM64, Profile: targetRuntime, Target: targetRuntime,
+		Root: root, Version: versionKernelPinned, Arch: arch, Profile: targetRuntime, Target: targetRuntime,
 		SourceDir: dirSource, OutputDir: "out", BuilderDir: dirBuilder, CommonDir: dirCommon,
 		Modules: valueYes, Fragments: []string{"src/runtime.config"}, Image: "fixture-builder",
 	}

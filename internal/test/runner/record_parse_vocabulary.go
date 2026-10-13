@@ -44,7 +44,7 @@ var (
 	}
 
 	recordOptionTypes = []string{
-		"asn", "bind", "env", "exclusive", directiveTypeFile, "needs-linux", "needs-path", "netns-link",
+		"asn", "bind", "env", "exclusive", directiveTypeFile, "needs-arch", "needs-linux", "needs-path", "netns-link",
 		directiveTypeOpen, "skip-env", "skip-os", "tcp_connections", "timeout", "update",
 	}
 

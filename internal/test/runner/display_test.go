@@ -69,3 +69,33 @@ func TestDisplayTestFinishedIncludesOrdinalNickAndName(t *testing.T) {
 		}
 	}
 }
+
+// TestDisplayTestFinishedNamesSkipReason pins that a SKIP line says why.
+//
+// VALIDATES: a skipped test's completion line carries its SkipReason, so an
+// option=needs-arch skip names the arch the test needs and the host's arch.
+// PREVENTS: a skip that reads like an unexplained gap, indistinguishable from a
+// test nobody can run.
+func TestDisplayTestFinishedNamesSkipReason(t *testing.T) {
+	ResetNickCounter()
+	tests := NewTests()
+	rec := tests.Add("arm64-only")
+	rec.Active = true
+	rec.SkipReason = "needs-arch=arm64, host GOARCH=amd64: a target arch is tested only on a CPU of that arch"
+
+	var buf bytes.Buffer
+	display := NewDisplay(tests, NewColorsWithOverride(false))
+	display.SetOutput(&buf)
+	display.SetParallel(1, tests.Count())
+	display.Start()
+
+	rec.State = StateSkip
+	display.TestFinished(rec.Nick, rec.State, 0)
+
+	out := buf.String()
+	for _, want := range []string{"SKIP", rec.Name, "-- " + rec.SkipReason} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("skip line missing %q:\n%s", want, out)
+		}
+	}
+}

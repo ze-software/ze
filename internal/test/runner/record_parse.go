@@ -470,6 +470,22 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			return nil
 		}
 
+	case "needs-arch":
+		// Declares the host CPU arches the test may run on (needs_arch.go). On
+		// any other host it SKIPS with a reason naming both arches. Like
+		// skip-os it never clears a SkipReason an earlier option set.
+		if err := checkKeys("option=needs-arch", kv, "value"); err != nil {
+			return err
+		}
+		reason, err := needsArchSkipReason(kv["value"], runtime.GOARCH)
+		if err != nil {
+			return err
+		}
+		if reason != "" {
+			r.SkipReason = reason
+			return nil
+		}
+
 	case "needs-path":
 		// Declares a repo-relative path the test cannot run without, where the
 		// path is an OPTIONAL heavyweight artifact rather than something a

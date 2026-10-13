@@ -1,0 +1,9 @@
+# Test: arm64 and amd64 appliance kernel requests produce distinct native cache
+# identities, each naming its arch. It only queries the cache and builds
+# nothing, so it runs on every host whatever its CPU.
+option=timeout:value=20s
+
+
+cmd=foreground:seq=1:exec=le test fixture appliance/appliance-kernel-cache-arch-identity "$ZE_REPO_ROOT"
+expect=exit:code=0
+expect=stdout:contains=OK

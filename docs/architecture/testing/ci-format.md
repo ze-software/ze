@@ -61,7 +61,8 @@ test before executing anything, so the reported error is the parse error rather
 than a confusing downstream symptom.
 
 **Unparseable outranks skipped.** A file that both fails to parse and carries
-`option=needs-linux` / `option=skip-os` is reported FAIL, not SKIP. Its skip
+a skip marker (`option=needs-linux`, `option=skip-os`, `option=needs-arch`) is
+reported FAIL, not SKIP. Its skip
 marker was parsed from the same broken file, so it is not trustworthy evidence
 that the file need not run: a contradicting directive may sit past the break, or
 the marker itself may be what was mis-parsed. Honoring it would mean trusting a
@@ -420,6 +421,7 @@ option=<type>:key=value[:key=value...]
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
+| `needs-arch` | `value=<goarch>[,<goarch>]` | Run only on a host whose CPU arch (`GOARCH`) is in the list. On any other host the test is SKIPPED, and the SKIP line names both arches: `SKIP ... -- needs-arch=arm64, host GOARCH=amd64: ...`. A test that builds or boots for a target arch carries it (owner decision 2026-10-13: a target arch is tested only on a CPU of that arch), because Ze builds every kernel on a host of its own arch, with no CPU emulation. Each token must be an arch the kernel builder supports (`kernelbuilder.SupportedArches`, today `amd64` and `arm64`): an empty token, a typo such as `amd46`, a kernel spelling such as `x86_64` or `aarch64`, a missing `value=` or any other key is a parse error on every host. A fixture whose arch is incidental to what it asserts asks for the host's arch instead (`hostKernelArch`, `internal/test/fixture/install_fixture.go`), so it runs everywhere. The `test/parse` suite has its own parser and does not take `needs-arch`. |
 | `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty `caps=` is refused on every host. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
 | `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le test qemu netns-test` path because the named link must never be created on the host. |
@@ -427,6 +429,9 @@ option=<type>:key=value[:key=value...]
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
 <!-- source: internal/test/runner/needs_path.go -- repoRootFrom, the needs-path lookup -->
+<!-- source: internal/test/runner/needs_arch.go -- needsArchSkipReason, checkNeedsArchToken -->
+<!-- source: internal/test/runner/display.go -- Display.TestFinished, the SKIP line carries the SkipReason -->
+<!-- test: internal/test/runner/needs_arch_test.go -- TestNeedsArchSkipReason, TestParseCIOptionNeedsArch -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
 
 #### Configuration inputs for peer AS derivation
@@ -502,6 +507,7 @@ before requesting shutdown.
 | The same, and loads eBPF | `option=needs-linux:caps=bpf` |
 | The same, and sets the system clock (the NTP plugin restoring persisted time) | `option=needs-linux:caps=sys-time` |
 | Skips on one non-Linux OS for a reason unrelated to the kernel | `option=skip-os:value=darwin` |
+| Builds or boots for one target arch, which only a CPU of that arch can do | `option=needs-arch:value=arm64` |
 | Needs an optional heavyweight artifact the checkout does not carry | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
 
 `caps=` takes a comma-separated list, so a test that programs netlink and loads
