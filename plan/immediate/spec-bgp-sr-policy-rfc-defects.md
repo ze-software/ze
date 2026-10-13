@@ -65,7 +65,8 @@ D4 is the AC-5 obligation given its own row so it carries a producer:
 
 ## Owner decisions
 
-Every question below is open. None is answered, and no answer is assumed by
+Every question below except Q7 is open (Q7 answered by the owner on 2026-10-13,
+recorded in its row). None of the others is answered, and no answer is assumed by
 the design: where a recommendation is given, the AC that depends on it names
 the question.
 
@@ -77,7 +78,7 @@ the question.
 | Q4 | D2 width: RFC 9830 states the 20-bit width only as a field description ("Label:  20 bits of label value.", Section 2.4.4.2.1; Figure 6 for the BSID; RFC 3032 Section 2.1 "This 20-bit field carries the actual value of the Label."). There is no MUST, so no requirement row can carry it, and RFC scope is frozen against new enrolment | (a) no new row: the width refusal is proven by untagged regression tests, since a silently truncated value is a `principles.md` defect independent of any row; (b) add a row to `rfc/short/rfc9830.md` | (a) |
 | Q5 | D2 reserved range on Type A segments: RFC 9830 forbids labels 0-15 only for the Binding SID (Section 2.4.2). Section 2.4.4.2.1 places no such rule on a Type A segment | (a) Type A keeps accepting 0-15, only the width is checked; (b) refuse 0-15 there too | (a): refusing it would be a rule the RFC does not state |
 | Q6 | The new per-family NLRI syntax registry (Design) sits beside the BGP-LS rule that `validateMPNLRISyntax` reaches through the hard-coded `NLRISyntaxRuled` | (a) leave BGP-LS where it is and record the hard-coded branch as a journal row; (b) move BGP-LS onto the registry in this spec, which changes RFC-tagged tests in `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | (a): (b) widens this spec into BGP-LS and its tagged tests |
-| Q7 | RFC-tagged test changes listed in the TDD Test Plan, "RFC-tagged tests that change": `TestRFC9830TunnelTypeIsSRPolicy` loses its RFC9830-4.2.1-7 (both) and RFC9830-4.2.1-6 (positive) tags; `TestRFC9830NLRICarriesAllThreeFields` loses its RFC9830-4.2.1-2 tags (both), or has them narrowed if the owner prefers. Both rest on transmit/encoder evidence for Section 4.2.1, which opens "When a BGP speaker receives an SR Policy NLRI from a neighbor, it MUST first perform validation based on the following rules ..."; the new receive tests carry the rows (revised 2026-10-13 after the RFC-tagged test review) | approve or refuse each row | approve |
+| Q7 | RFC-tagged test changes listed in the TDD Test Plan, "RFC-tagged tests that change": `TestRFC9830TunnelTypeIsSRPolicy` loses its RFC9830-4.2.1-7 (both) and RFC9830-4.2.1-6 (positive) tags; `TestRFC9830NLRICarriesAllThreeFields` loses its RFC9830-4.2.1-2 tags (both), or has them narrowed if the owner prefers. Both rest on transmit/encoder evidence for Section 4.2.1, which opens "When a BGP speaker receives an SR Policy NLRI from a neighbor, it MUST first perform validation based on the following rules ..."; the new receive tests carry the rows (revised 2026-10-13 after the RFC-tagged test review) | approve or refuse each row | approve. **Answered by the owner, 2026-10-13: "approve all RFC-tagged test changes".** Both rows are approved as listed in the TDD plan; the owner's words pick no narrowing alternative, so the listed edit (removing the 4.2.1-2 tags) stands. Commands under "Owner approval commands" in the TDD plan |
 
 D2 has no row of its own in `rfc/short/rfc9830.md` (Q4).
 
@@ -261,6 +262,17 @@ Untagged test that changes: `internal/component/bgp/reactor/session_prefix_recei
 (R-3). It keeps its assertion (an incomplete ADD-PATH entry never enters the
 installed inventory); only the way it reaches the inventory changes. Not an
 RFC-tagged test, so no owner approval, but it MUST NOT lose that assertion.
+
+#### Owner approval commands
+
+Approved by the owner on 2026-10-13 (Q7). The gate reads approvals from the committing session's own file (`tmp/commit-rfc-approved-<session>.md`), and a row is used up by the commit that carries its `RFC-approved:` trailer. So the owner runs these at the prompt of the session that implements and commits the edits, and runs a unit's command again if a later commit changes that unit a second time. A unit is `<package directory>.<top-level test function>`; both names were checked to exist at HEAD `051876c3f4`. `TestRFC9830TunnelTypeReceiveVerdicts` and the producer-changed units keep their text, so the gate does not ask for them; the new receive tests are new units and need none.
+
+2 commands:
+
+```
+./le rfc approve unit srpolicy.TestRFC9830TunnelTypeIsSRPolicy reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-bgp-sr-policy-rfc-defects, RFC9830-4.2.1-7 tags and the 4.2.1-6 positive tag removed)'
+./le rfc approve unit srpolicy.TestRFC9830NLRICarriesAllThreeFields reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-bgp-sr-policy-rfc-defects, RFC9830-4.2.1-2 tags removed)'
+```
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |

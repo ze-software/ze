@@ -176,7 +176,7 @@ separate single-field messages instead, preserving both families.
 | D4 | Does an RS-Client-learned route count as "learned from a Customer" for propagation to a Provider, Peer or RS? The RFC sentence says it does not; code and test say it does |
 | D5 | Does "advertising it" in Section 3.1 cover re-advertising a received BLACKHOLE route, and should the Section 3.2 guard default on? |
 
-None of these is answered. No row below records an approval.
+Only Q-5 is answered (owner, 2026-10-13, recorded in its row). No other row below records an approval.
 
 | ID | Question | Options | Recommendation and reason | Blocks |
 |----|----------|---------|---------------------------|--------|
@@ -186,7 +186,7 @@ None of these is answered. No row below records an approval.
 | Q-2 | Ze-originated T1ST without a TEID or endpoint: fix here or journal? | (a) refuse the route at the `update`/config entry point with an error naming the missing field, in this spec. (b) journal row, out of scope | (a) if Q-1 is (a): the D3 fix otherwise makes two Ze speakers withdraw each other's routes. (b) if Q-1 is (b) | AC-3 interop |
 | Q-3 | Do the D1 and D2 egress normalizations apply to the explicit raw diagnostic write (`writeUpdateBody` with `raw` true)? | (a) yes, as `clearTransmittedLabelIndex` already does. (b) no: raw stays byte-exact for fault injection | (a), for uniformity with the existing Prefix-SID normalization at the same spot. If an operator needs non-conformant bytes for a lab, that is a separate, named feature | AC-1, AC-2 |
 | Q-4 | D2: remove repeats at egress for LARGE_COMMUNITY only, or also for COMMUNITIES and EXTENDED COMMUNITIES? | (a) LARGE_COMMUNITY only. (b) all three | (a). Only RFC 8092 Section 3 forbids transmitting a repeat; RFC 1997 and RFC 4360 do not, and changing their bytes changes behaviour no RFC asks for | AC-2 |
-| Q-5 | Approval for the RFC-tagged units this spec changes (list in the TDD plan) | approve, or rule otherwise | Needed before implementation of D4 (and D5 under Q-D5 (b)) | AC-5 |
+| Q-5 | Approval for the RFC-tagged units this spec changes (list in the TDD plan) | approve, or rule otherwise | **Answered by the owner, 2026-10-13: "approve all RFC-tagged test changes".** Q-D4 and Q-D5 are still open and this answers neither. The approval covers the listed edits for whichever answers are recorded: the `TestOTCEgressFilter` change applies under Q-D4 (a), the `TestRFC7999PropagationCommunityIsNeverForced` change under Q-D5 (b); under the other answers that unit is not edited and its row goes unused. Commands under "Owner approval commands" in the TDD plan | AC-5 |
 
 ## Required Reading
 
@@ -374,6 +374,17 @@ The audit also confirms unchanged and still correct: the RFC4271-4.3-3/4 and RFC
 units, and the MUP decode-path units (their claims are about `ParseMUP`).
 
 No other existing tagged unit changes. The decode-path units `TestMUPT1STMandatoryFieldsWithinLength` and `TestMUPT1STTLVFraming` (tagged 3.1.3.1-6, -7, -10) stay as they are: they prove `ParseMUP` refuses the shapes, which the new ingress validator relies on, and the new ingress tests carry the treat-as-withdraw claim. `TestRFC4271AttributeFlagsLowNibbleZeroOnSend`, `TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive`, `TestLargeCommunities`, `TestLargeCommunitiesWriteToNoDuplicates` and the 3.1.3.1-9 ingress tests are untouched. Every new tag gets a `./le rfc discriminate-record` record, and every changed verdict a `./le rfc audit-stamp ... mode rejudge` by an agent that did not write the test (AC-5).
+
+#### Owner approval commands
+
+Approved by the owner on 2026-10-13 (Q-5). The gate reads approvals from the committing session's own file (`tmp/commit-rfc-approved-<session>.md`), and a row is used up by the commit that carries its `RFC-approved:` trailer. So the owner runs these at the prompt of the session that implements and commits the edits, and runs a unit's command again if a later commit changes that unit a second time. A unit is `<package directory>.<top-level test function>`: the flipped and added subtests of `TestOTCEgressFilter` are named by that enclosing function. Both names were checked to exist at HEAD `051876c3f4`. The first applies under Q-D4 (a), the second under Q-D5 (b); `TestRFC7999PropagationCommunityIsNeverForced` is the only unit in its file tagged RFC7999-3.2-2 negative.
+
+2 commands:
+
+```
+./le rfc approve unit role.TestOTCEgressFilter reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-bgp-update-propagation-rfc-defects, Q-D4 (a): src_role_rs_to_provider flips to suppress, three tagged subtests added)'
+./le rfc approve unit filter_community.TestRFC7999PropagationCommunityIsNeverForced reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-bgp-update-propagation-rfc-defects, Q-D5 (b) only: unset-leaf case moves out, claim narrowed)'
+```
 
 ### Functional Tests
 | Test | Proves |

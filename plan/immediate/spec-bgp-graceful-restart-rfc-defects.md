@@ -97,17 +97,18 @@ here in its "Blocked by" table (AC-4).
 |-----|----------|
 | - | None open: every row follows its RFC sentence and no reading is in doubt (2026-09-27; superseded by the 2026-10-13 design questions below) |
 
-### Owner questions raised in design (2026-10-13), all OPEN
+### Owner questions raised in design (2026-10-13)
 
-None is answered. The design below proceeds under each "Recommended" reading,
-and nothing here records an approval.
+Only Q-4 is answered (owner, 2026-10-13, recorded in its row). Q-1, Q-2, Q-3
+and Q-5 stay open: the design below proceeds under each "Recommended" reading,
+and nothing else here records an approval.
 
 | Q | Defect | Question | Recommended | If the other answer |
 |---|--------|----------|-------------|---------------------|
 | Q-1 | D2 | On reconnect, a family whose LLGR period has begun: keep its stale routes only when the new GR capability lists it with F set AND the new LLGR capability lists it with F set? | Yes, AND. RFC 9494 Section 4.2 adds its three LLGR conditions and also says RFC 4724 procedures apply "irrespective" of which period retained the routes. Consequence an operator sees: a family the peer omits from GR but carries in LLGR (LLGR-only) is purged at reconnect unless the new GR lists it with F set. | LLGR-only reading: an LLGR-period family obeys only the three Section 4.2 bullets; AC-2 drops its GR-side rows |
 | Q-2 | D6 | Should `LLGREgressFilter` act only on LLGR-stale routes (stale level at or above `storage.DepreferenceThreshold`, the level LLGR entry and receipt of LLGR_STALE set), letting a conventional GR-stale route (level 1) be advertised like any other? | Yes. RFC 4724 Section 4.2 forbids differentiating stale routes during forwarding; RFC 9494 Section 4.3 binds LLGR_STALE routes only. `docs/guide/graceful-restart.md` changes with it. | Keep today's "any stale level" behaviour; D6 leaves this spec and the guide keeps its sentence |
 | Q-3 | D5 | Preserve LLGR_STALE on every further advertisement of a route whose received COMMUNITIES carries it, whatever `send-community`, `community-remove` or a policy Set/Suppress says? | Yes, unconditional on presence: the Section 4.3 bullet is stated without exception, and the one code-8 handler sees the source attribute but not the route's metadata. A `send-community none` destination then receives COMMUNITIES holding LLGR_STALE alone. No config refusal for `community-remove ffff0006`: the runtime exemption makes it inert, and the guide says so. | Preserve only for routes Ze holds as LLGR-stale (meta stale level 2): needs the stale level plumbed into the attribute plan, a wider change |
-| Q-4 | all | Approve the RFC-tagged test changes listed in "RFC-tagged tests this spec changes" (TDD Test Plan)? | Approve: each change strengthens an assertion the audit called weak; none relaxes one | The affected verdicts stay weak and AC-4 cannot close |
+| Q-4 | all | Approve the RFC-tagged test changes listed in "RFC-tagged tests this spec changes" (TDD Test Plan)? | Approve: each change strengthens an assertion the audit called weak; none relaxes one. **Answered by the owner, 2026-10-13: "approve all RFC-tagged test changes".** It covers the two units listed in the TDD plan; the `TestOnSessionReestablished_DuringLLGR` prose is written for whichever Q-1 answer is recorded, and this does not answer Q-1. Commands under "Owner approval commands" in the TDD plan | The affected verdicts stay weak and AC-4 cannot close |
 | Q-5 | - | RFC 9494 gaps RFC9494-4.2-7, 4.2-9 and 4.2-10 (consecutive-drop purge and LLST re-arm, LLST expiry during synchronization) sit in the same `gr_state.go` and are owned by no spec (grep of `plan/` 2026-10-13). Fold them into this spec, or open a separate spec? | Separate spec in `plan/immediate/`: they change timer ownership across reconnect, a different mechanism from the six rows here, and folding them would double this spec's surface | Fold in: add D7 to D9 and their ACs before approval |
 | Q-7 | D5 / R-6 | Toward an IBGP neighbour without LLGR whose `send-community` suppresses standard communities, the Section 4.6 NO_EXPORT the GR egress filter adds is dropped by the Suppress. Fold the fix into D5 (an egress filter's Add of a value survives a send-community Suppress), or record it as a journal row for a separate fix? | Fold into D5: same handler, same phase, and it is the Section 4.6 MUST on the very routes D4 starts sending | journal row in `plan/journal/`, this spec unchanged |
 | Q-6 | D1 | The teardown reason after a NOTIFICATION becomes the new declared constant `rpc.ReasonNotification`, spelt "notification", in state events, `show` FSM history and the session-closed log line, replacing "session closed" / "connection lost" for those teardowns. Accept that operator-visible string? | Yes: GR already expects that spelling, and BMP reads the NOTIFICATION from its own cache, not the reason | Choose another spelling; only the constant's value changes |
@@ -347,6 +348,17 @@ The audit also confirms unchanged and still correct: `TestGRStateManagerNotifica
 and `TestGRStateManagerRouteRetention` (their claims are scoped to `onSessionDown`),
 `TestOnSessionReestablished_DuringLLGR_NoCaps`, and the 4.3-3 egress units (all use
 stale level 2, so D6 does not move them).
+
+#### Owner approval commands
+
+Approved by the owner on 2026-10-13 (Q-4). The gate reads approvals from the committing session's own file (`tmp/commit-rfc-approved-<session>.md`), and a row is used up by the commit that carries its `RFC-approved:` trailer. So the owner runs these at the prompt of the session that implements and commits the edits, and runs a unit's command again if a later commit changes that unit a second time. A unit is `<package directory>.<top-level test function>`; both names were checked to exist at HEAD `051876c3f4`. New tagged units need no approval.
+
+2 commands:
+
+```
+./le rfc approve unit rib.TestComparePair_LLGRStale reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-bgp-graceful-restart-rfc-defects, stale candidate gets higher LOCAL_PREF and lower peer address, tag prose narrowed to StaleLevel 2)'
+./le rfc approve unit gr.TestOnSessionReestablished_DuringLLGR reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-bgp-graceful-restart-rfc-defects, body unchanged, tag prose rewritten)'
+```
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |

@@ -287,6 +287,17 @@ IS a replacement route, so the bare withdrawal is owed only when none exists.
 | `TestRIBBestChangeWithdraw` | `internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go` | claim text only, IF the owner approves Q-4 | today: "a newly unfeasible route with no replacement is advertised as a withdrawal"; the body asserts a `BestChangeWithdraw` event, not an UPDATE. Proposed: drop the 9.2-7 tag from this unit (the new wire carrier replaces it); the 9-3 and 9.1.2-2 tags stay |
 | `TestRIBBestChangeNoPublishSameBest` | same | claim text only, IF Q-4 approved | today: "a route that is still feasible is not advertised as unfeasible"; body asserts no event. Proposed: drop the 9.2-7 tag; 9-3 and 9.2-8 stay |
 
+#### Owner approval commands
+
+Approved by the owner on 2026-10-13 (Q-4, "approve all RFC-tagged test changes"). The gate reads approvals from the committing session's own file (`tmp/commit-rfc-approved-<session>.md`), and a row is used up by the commit that carries its `RFC-approved:` trailer. So the owner runs these at the prompt of the session that implements and commits the claim edits, and runs a unit's command again if a later commit changes that unit a second time. A unit is `<package directory>.<top-level test function>`; both were checked to exist at HEAD `051876c3f4`. The two new wire carriers in `rfc4271_rs_replacement_test.go` are new units and need none.
+
+2 commands:
+
+```
+./le rfc approve unit rib.TestRIBBestChangeWithdraw reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-bgp-rs-replacement-on-withdrawal, 9.2-7 tag dropped, or narrowed to the RIB event under the other Q-4 answer)'
+./le rfc approve unit rib.TestRIBBestChangeNoPublishSameBest reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-bgp-rs-replacement-on-withdrawal, 9.2-7 tag dropped, or narrowed to the RIB event under the other Q-4 answer)'
+```
+
 No other RFC-tagged test changes. Tags on `forward_withdrawal_ownership_test.go`
 (`TestRSWithdrawalOwnershipRails` and siblings) are read for regressions only;
 AC-8 keeps them green. RFC7947 carriers are unchanged. The "newly installed
@@ -504,7 +515,7 @@ routes" half of the 9.2-7 sentence is not claimed by any new carrier.
 | Q-1 | Approach B costs a publication drain, a RIB applied-event drain and a lookup for every withdrawal the destination's current owner sends to a non-ADD-PATH client, including the common case where no other source exists and the answer is a plain withdrawal. A recovery hard failure resets that client session, as departure recovery does today. Is that cost and that fail-closed policy acceptable, and is the RIB-elected best the survivor you want? | Yes to all three | C or D changes Phases 3 to 5; "latest remaining" needs per-source ordering the RIB lacks (larger spec). **Answered by the owner, 2026-10-13: "RFC 4271 §9.2 requires the replacement: yes anything else in unacceptable". Approach B and its cost are accepted** |
 | Q-2 | Other cached forwarders reach the same writer. bgp-rr may share the shape: nothing under `plugins/rr` uses `recovery-source` or `recoverRouteSel`, but its withdrawal behaviour was NOT traced at its producer in this design pass. Widen this spec to it (after tracing), or journal it? | Keep this spec to bgp-rs; journal row for bgp-rr | Widening adds RR ACs, RR `.ci` and RFC 4456 reading. **Reading taken from the owner's answer to Q-1 ("anything else in unacceptable"), not a separate answer: Phase 1 traces bgp-rr's withdrawal path first; if it sends a bare withdrawal while a replacement exists, the RR case is in this spec's scope (ACs, `.ci`, RFC 4456 reading). The owner may still narrow this** |
 | Q-3 | RFC 7947 Section 2.1's SHOULD (row RFC7947-x-5, "SHOULD perform one or more BGP Decision Processes") stays untagged and unclaimed: forward-all remains. Confirm this spec claims nothing on x-5 | Confirm | Tagging x-5 needs a decision process on announcements, a different spec |
-| Q-4 | The two existing 9.2-7 carriers in `rfc4271_rib_bestchange_test.go` claim an advertisement but assert a RIB event. Drop the 9.2-7 tag from them once the wire carriers land (their 9-3, 9.1.2-2 and 9.2-8 tags stay)? This changes RFC-tagged tests | Yes, drop | Keep both; their claim text must still be narrowed to "the RIB publishes a withdraw best-change event" to stop overclaiming, which also stales their audit entry |
+| Q-4 | The two existing 9.2-7 carriers in `rfc4271_rib_bestchange_test.go` claim an advertisement but assert a RIB event. Drop the 9.2-7 tag from them once the wire carriers land (their 9-3, 9.1.2-2 and 9.2-8 tags stay)? This changes RFC-tagged tests | Yes, drop | Keep both; their claim text must still be narrowed to "the RIB publishes a withdraw best-change event" to stop overclaiming, which also stales their audit entry. **Answered by the owner, 2026-10-13: "approve all RFC-tagged test changes".** The tagged-test change listed in the TDD plan (drop the 9.2-7 tag from both units, their other tags staying) is approved; the same commands cover the narrowing alternative should the owner pick it instead. Commands under "Owner approval commands" in the TDD plan |
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work

@@ -284,6 +284,12 @@ AC-1 to AC-4 below are the skeleton's, kept as written; their code is at HEAD
 | `TestTwoLinkLocalSessionsStayApart` | same | tag ADDED: `RFC5881-3-2 negative` | new record, break: `reconcileZone` strips the zone without moving it into `iface` AND `firstPacketObserved` drops `in.Interface` |
 | none other | - | No existing tagged test is edited. The existing RFC5881-3-2 units (`engine/rfc5881_test.go`, `engine/rfc5881_first_packet_binding_test.go`), the RFC5882-4.4-1 units in `api/rfc5882_session_identity_test.go` (which use `fe80::` link tables) and the RFC5881-6-2 units in `transport/rfc5881_subnet_exemption_test.go` (which exempt `fe80::2`) are unaffected: `Canonical`, `reconcileZone`, `Send` and `egressLink.reaches` do not change, and the refusal lives in `parseSingleHopSession`, which no record names | none |
 
+#### Owner approval commands
+
+The owner approved all RFC-tagged test changes on 2026-10-13 ("approve all RFC-tagged test changes"), but this spec needs no command. The three units above exist at HEAD `051876c3f4` with no `RFC requirement:` tag (`link_local_first_packet_test.go` carries none), and the gate asks only about a unit that was tagged in the committed text, so adding a tag to them needs no approval. No existing tagged unit is edited.
+
+0 commands.
+
 The claim of each added tag states what the body checks and no more: "a Your
 Discriminator zero packet from a link-local source carrying the kernel's zone
 is associated with the session bound to that peer and interface".
