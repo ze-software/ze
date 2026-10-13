@@ -19,10 +19,10 @@
 #           and a gained process that never sees the routes the session
 #           already carried.
 #
-# Red until that spec's Phase 2: today ProcessBindings swaps only for derived
-# feeds, so this operator attach restarts the peer. The peer then reads a
-# NOTIFICATION Cease subcode 6 where it expects the ROUTE-REFRESH, and the
-# second connection is refused (tcp_connections=1).
+# An apply that swapped ProcessBindings only for derived feeds (the rule
+# before that spec's Phase 2) restarts the peer on this operator attach, and
+# the peer then reads a NOTIFICATION Cease subcode 6 where it expects the
+# ROUTE-REFRESH, and the second connection is refused (tcp_connections=1).
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER

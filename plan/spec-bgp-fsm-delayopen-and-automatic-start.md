@@ -172,7 +172,7 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
 |----------|--------|
 | What breaks if this is wrong? | Row 6: session establishment timing with `timer delay-open` set (OPEN held, Event 18 in Active). Row 7: restart pacing and the ConnectRetryCounter |
 | How is it reverted? | Each row lands as its own commit, revertible alone |
-| Who else touches this path? | `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (ledger rows, the R50 re-pointed tags), `plan/immediate/spec-bgp-open-session-rfc-defects.md` (OPEN and session handling), `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` (BFD strict-mode and session work in flight on 2026-10-11; row 6s edits `session_bfd_strict.go` and the strict-mode FSM arms it may also touch, so this spec's row 6s phase starts after that spec lands or coordinates file by file) |
+| Who else touches this path? | `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (ledger rows, the R50 re-pointed tags), `plan/immediate/spec-bgp-open-session-rfc-defects.md` (OPEN and session handling), `spec-bgp-live-receive-binding-and-bfd-keep-session` (closed 2026-10-13; BFD strict-mode and session work in flight on 2026-10-11; row 6s edits `session_bfd_strict.go` and the strict-mode FSM arms it may also touch, so this spec's row 6s phase starts after that spec lands or coordinates file by file) |
 | Row 6s | A peer with `bfd strict` and `delay-open` both set: wrong sub-state handling holds the session in Connect or Active until the BfdHoldTimer or the HoldTimer ends it |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)

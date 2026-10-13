@@ -890,3 +890,191 @@ The new catch-up call site carries `// RFC 2918 Section 4` (the quote stays on `
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1: the entry tests listed under Functional Tests, each red for the restart before its phase (Progress row).
+- Phase 2: one predicate for receive-only bindings (`ProcessBinding.receiveOnly`, `peer_derived_bindings.go`), `ProcessBinding.Derived` deleted, the ordered bind delivery in `applyHotSwappableSettings` (`peer_settings_apply.go`: targeted up acknowledged before the graph publish, session-phase checks `announceEstablished` / `announceClosed`, intermediate publish for a changed grant), the route-bearing and sent-direction catch-up (`Session.bindingCatchUp`, `hasAdvertised`), `OnPeerBound` and reason `attached` (`bgp/server/events.go`, `pkg/plugin/rpc/enums.go`), and the replay skip in `adj_rib_in` and `rr`.
+- Phase 3: the journaled dynamic step (`reconcileDynamicGroupsJournaled`, `planDynamicGroupsLocked`, `reactor_dynamic.go`), `dynamicTemplateChanged` deleted, a side-effect-free ReloadFunc that returns the groups, the `dyn*` pair captured in `NewPeer` and read and written under `p.mu` with `dynGeneration` (`readDynamicTemplate`, `publishDynamicResolution`, `writeDynamicTemplateLocked`).
+- Phase 4: RFC5882-4.4-1 (`joined` recomputed from the live clients, `bfd/engine/shared_session.go`), the non-strict BFD opt-in in the copier with every running-peer reader behind the locked accessor (`peer_bfd.go`, `session_bfd_strict.go`, `reactor_api.go`), profile edits reaching live sessions in place (`applyPinned` `UpdateSession`, `runtimeState.reprofileClients`, `Machine.ApplyTimers` with a Poll Sequence, fastest-detection rule `retimeLocked` / `fastestRequest`).
+- Phase 5: `test/plugin/attach-process-reload.ci` and `attach-process-runtime-subscribe.ci` rewritten for the new rule, `bgp-rpki-added-live.ci` comment, `docs/guide/rpki.md`, `features/configuration-reload.md`.
+- Phase 6: interop `bgp-attach-receive-only-live-frr`, `bgp-bfd-enable-live-frr`, `bgp-bfd-dynamic-enable-live-frr` (checkers in `internal/le/interoplab/bgp/check_live_keep_session.go`), `bgp-bfd-profile-edit-live-frr` (`check_bfd_profile_edit.go`); step reload configs mounted and given the interop CLI user (`prepare.go`, `names.go`).
+
+### Bugs Found/Fixed
+- Dynamic and API-added peers started before the plugin startup barrier (784c25a39c, `Reactor.peersStarted`): six barrier tests in `reactor_dynamic_startup_barrier_test.go`, `bgp-dynamic-filter-swap-live.ci`.
+- A pinned BFD session sent from the kernel's chosen source (31dcff600d, `Outbound.Local`, `sendControl`): `TestUDPSendLeavesFromThePinnedLocal`, `TestSendLockedCarriesTheKeyLocal`, `bgp-bfd-pinned-source-keeps-sibling.ci`.
+- A false "runs without BFD" warning at daemon stop (9dc54f5f60, `Peer.daemonStopping`, `registry.DaemonStopping`): three engine-stop tests.
+- A signal reload wrote the operator's config file (d6e282a705, `reloadSource`, `signalReload`, `promoteSignalCandidate`): `sighup_overlap_test.go`, `request-reload-promotes-operator-file.ci`.
+- A sessionless peer-level queued teardown cleared the queue in silence (883d273044, `queuedTeardownSession`, `keepTeardownForNextSessionLocked`): two queued-teardown tests.
+- BMP sent a Peer Down for a peer never reported up (dce906c381, `peerDownCause.reported`): `TestPeerDownIsNotSentForAPeerNeverReportedUp`.
+- The phase-2/3 race findings (A-7, review B1-B3, I1, I5) with the tests named in the A-7 annotations above.
+
+### Documentation Updates
+- `docs/architecture/core-design.md` section 18a (anchor `peer_derived_bindings.go -- receiveOnly, receiveBindingsDeliverable, Session.bindingCatchUp, Peer.bindProcesses, Peer.catchUpBoundProcesses, Peer.announceClosed`), `docs/guide/config-reload.md` rows 24-30, `docs/guide/bfd.md` "Session sharing" and "Editing live", `docs/guide/rpki.md` (anchor `peer_derived_bindings.go -- receiveOnly, feedCatchUp`), `docs/architecture/api/process-protocol.md` (the `attached` up, line 1019, and the startup barrier), `docs/architecture/api/ipc_protocol.md`, `docs/architecture/plugin/rib-storage-design.md` line 112, `docs/architecture/config/apply-ordering.md` (anchor `reactor_dynamic.go -- reconcileDynamicGroupsJournaled`), `docs/architecture/bfd.md` (source-address row), `docs/architecture/hub-architecture.md`, `docs/guide/bmp.md`, `docs/architecture/testing/interop.md` "Live attach and BFD opt-in without a session reset", `features/bfd-liveness-detection.md`, `features/configuration-reload.md`.
+- Closure: six `.ci` headers that still described the pre-change restart ("Red until that spec's Phase N: today ...") and the `peer_derived_bindings.go` header naming the deleted `dynamicTemplateChanged` were rewritten.
+- `./le doc check verify` 2026-10-13: red, 109 findings, every one in `../wiki/command-catalog.md` and `../gh-pages/` (published command catalog and per-command pages disagree with the live command contract). No command changed here; none of the findings names a file of this spec (`tmp/session/2026-10-13-9d2e6c21-74c1-4c42-b9ef-30145b95cfb1/scratch/close-ks-doccheck.log`).
+
+### Deviations from Plan
+- AC-12: the BFD removal step asserts FRR read Ze's AdminDown, not BGP survival; FRR 10.3.1 resets BGP on it (owner decision 2026-10-13, A-5).
+- AC-25 replaced R-12 and AC-15's shared half (owner decision 2026-10-11, "Fastest detection" 2026-10-12): a shared session now takes a profile edit in place.
+- `bgp-bfd-shared-session-widens.ci` uses multi-hop clients (main-thread decision 2026-10-12, L3), with the static-route variant in `static-bfd-shared-session-widens.ci`.
+- `TestSetDynamicGroupsRemovesThePeerWhenTheTemplateChanges` kept, re-scoped to a template change a session cannot take (router-id); the filter half moved to `TestDynamicFilterSwapResolvesAgainstLearnedAS`.
+- `TestDynamicBindingChangeRestartsBeforeSharedSwap` was deleted with `dynamicTemplateChanged`, as planned.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-7: judging the session up by `State()` | `setState(Established)` publishes before `notifyPeerEstablished` runs, so the apply gave two ups | review B1 of Phases 2-3 | `sessionUpPhase` and the A-7 tests |
+| assumption | A-2 for an external program a reload newly declares | a reload never starts it | Phase 3 run | `plan/immediate/spec-reload-starts-declared-external-programs.md` (owner) |
+| assumption | R-22 premise: no `.ci` pins a dynamic derived-feed swap | `reload-dynamic-peer-survives.ci` does | Phase 2 agent 2 | Phases 2 and 3 landed together on the dynamic path |
+| approach | A `ZE_BIN` overlay without `LE_TEST_NO_BUILD=1` | the runner rebuilt the tree into that path, so two "reds" measured unmodified code | Linux handover L1 | `docs/functional-tests.md` "Run a single test" says so |
+| approach | `.ci` headers stating "Red until Phase N: today ..." | they went stale the moment the phase landed | close review | rewritten at closure; write a red note as a past measurement, never as "today" |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. receive-only binding swapped, targeted up, catch-up both directions | Done | `peer_derived_bindings.go` `receiveOnly`, `Session.bindingCatchUp`; `peer_settings_apply.go` `applyHotSwappableSettings` | |
+| 2. a send grant restarts | Done | `receiveOnly` (send grant), `TestOperatorSendOrOpenBindingStillRestarts` | |
+| 3. an `open` or `*` receive grant restarts | Done | `receiveOnly`; `attach-process-runtime-subscribe.ci` (two connections) | |
+| 4. non-strict BFD opt-in live, configured and dynamic | Done | `hotSwappableSettings` BFD member, `peer_bfd.go`; dynamic step `reactor_dynamic.go` | |
+| 5. strict mode restarts | Done | `TestStrictBFDChangeRestarts`, `TestDynamicStrictBFDChangeRestarts` | |
+| 6. unclassified field restarts | Done | `hotSwappableSettings` stays a subtraction (core-design 18a) | |
+| 7. RFC5882-4.4-1 shared-session widening | Done | `bfd/engine/shared_session.go`; `TestSharedSessionWidensOnRelease` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestOperatorReceiveOnlyBindingSwaps`; `attach-process-reload.ci` | |
+| AC-2 | Done | `TestOperatorSendOrOpenBindingStillRestarts`; `attach-process-runtime-subscribe.ci` | |
+| AC-3 | Done | `bgp-rpki-attach-live.ci` | |
+| AC-4 | Done | `bgp-attach-receive-only-live.ci`; `TestGainedReceiveOnlyBindingGetsUpBeforeRefresh` | external process declared at boot (owner) |
+| AC-5 | Done | `bgp-bfd-added-live.ci` | |
+| AC-6 | Done | `bgp-bfd-removed-live.ci` | |
+| AC-7 | Done | `TestStrictBFDChangeRestarts` | |
+| AC-8 | Done | `bgp-attach-grant-change-live.ci` (10/10, red 3/3 `disc2-*`) | |
+| AC-9 | Done | `bgp-attach-dynamic-receive-only-live.ci`; `TestDynamicTemplateReceiveOnlySwap` | |
+| AC-10 | Done | `bgp-attach-no-route-refresh-restarts.ci`; `TestReceiveOnlyGainWithoutRouteRefreshRestarts` | |
+| AC-11 | Done | `TestBFDSwapRollbackRestoresClient`; `TestFailingReloadRollsBackDynamicSwap` | compensation path out of scope (R-18) |
+| AC-12 | Changed | interop `bgp-attach-receive-only-live-frr`, `bgp-bfd-enable-live-frr`, `bgp-bfd-profile-edit-live-frr` | removal clause per owner decision (A-5) |
+| AC-13 | Done | `bgp-attach-sent-direction-restarts.ci`; `TestSentDirectionGrantNeedsNothingAdvertised` | |
+| AC-14 | Done | `TestRouteFreeGrantNeedsNoCatchUp`; `attach-process-reload.ci` | |
+| AC-15 | Changed | `bgp-bfd-profile-edit-live.ci`; `TestNonStrictBFDProfileEditReopens`; shared half by AC-25 | owner decision 2026-10-11 |
+| AC-16 | Done | `TestPeerBoundCarriesNoReplayOrBarrier`; `TestAdjRIBInSkipsReplayOnAttachedUp`; `TestRRSkipsReplayOnAttachedUp` | |
+| AC-17 | Done | `TestBindRacesEstablished`, `TestAttachBeforeEstablishedUpIsOneUp`, `TestAttachWhileUpDeliveringRestarts`, `TestAttachWhileUpPhaseMovesRestarts` | |
+| AC-18 | Done | `TestIdenticalOperatorBindingReplacingDerived` | |
+| AC-19 | Done | `bgp-bfd-dynamic-toggle-live.ci`; `TestDynamicNonStrictBFDOptInSwaps`, `TestDynamicStrictBFDChangeRestarts`; interop `bgp-bfd-dynamic-enable-live-frr` | |
+| AC-20 | Done | `TestFailingReloadRollsBackDynamicSwap` | |
+| AC-21 | Done | `TestDynamicTemplateSwapRacesEstablishment`, `TestDynamicResolutionRefusedAfterSwap`, `TestDynamicTemplatesCapturedAtConstruction` | |
+| AC-22 | Done | `bgp-dynamic-filter-swap-live.ci`; `TestDynamicFilterSwapResolvesAgainstLearnedAS` | |
+| AC-23 | Done | `TestReloadFuncAppliesNoDynamicGroups`, `TestTreeRouteLeavesDynamicGroupsUnchanged` | |
+| AC-24 | Done | `TestSharedSessionWidensOnRelease`; `bgp-bfd-shared-session-widens.ci`; `static-bfd-shared-session-widens.ci` | |
+| AC-25 | Done | `TestPinnedProfileAuthEditJoinsAgain`, `TestPinnedProfileTimerEditInPlace`, `client_profile_edit_test.go`; `bfd-pinned-profile-edit-up-live.ci`; `bgp-bfd-profile-timer-edit-live.ci`; interop `bgp-bfd-profile-edit-live-frr` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every unit test in the TDD table | Done | `peer_derived_bindings_test.go`, `peer_bfd_swap_test.go`, `peer_bind_dispatch_test.go`, `reactor_dynamic_swap_test.go`, `bgp/server/peer_bound_test.go`, `adj_rib_in/rib_test.go`, `rr/rr_test.go`, `bfd/engine/rfc5882_shared_session_test.go`, `bfd/pinned_profile_edit_test.go` | `git grep "func <name>("` found each, 2026-10-13 |
+| `TestDynamicBindingChangeRestartsBeforeSharedSwap` | Done | deleted with `dynamicTemplateChanged` | transient by design |
+| every functional test in the Functional Tests table | Done | `test/reload/`, `test/plugin/` | all present, 2026-10-13 |
+| the four interop scenarios | Done | `test/interop/scenarios/` | green and red logs in Interop Tests |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify and Files to Create | Done | committed in the Phase 1-4 commits and 784c25a39c..466c421671; `peer_bfd_swap_test.go` and `reactor_dynamic_swap_test.go` hold tests the plan placed in `peer_bfd_test.go` and `reactor_dynamic_test.go` |
+
+### Audit Summary
+- **Total items:** 7 requirements, 25 ACs
+- **Done:** 7 requirements, 23 ACs
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (AC-12, AC-15), both by owner decision, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An RPKI or receive-only attach on an Established peer keeps the session, and the routes received before it reach the new process | interop + functional | `bgp-attach-receive-only-live-frr` GREEN (`tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/p8-attach-green.log`: FRR `connectionsEstablished` unchanged, `routeRefreshRecv` +1, adj-rib-in holds 10.77.0.0/24), RED with receive-only judged send-all (`p6-attach-red6.log`, assertion 8); `bgp-rpki-attach-live.ci` (states 1, 2, 3, one TCP connection) |
+| A non-strict BFD opt-in added, edited, removed live keeps the BGP session (configured and dynamic peer) | interop | `bgp-bfd-enable-live-frr` GREEN (`p8-bfd-green2.log`), RED silent release (`p8-bfd-red-admindown.log`, assertion 8) and no live swap (`p8-bfd-red-swap.log`, assertion 4); `bgp-bfd-dynamic-enable-live-frr` GREEN (`p8-dyn-green1.log`), RED (`p8-dyn-red-admindown.log`, `p8-dyn-red-swap.log`); `bgp-bfd-profile-edit-live-frr` GREEN (`l2-green5.log`), RED (`l2-red2.log`, `l2-red4.log`) |
+| A send grant, an `open` grant, strict BFD and any unclassified field still restart | functional + unit | `bgp-attach-sent-direction-restarts.ci`, `bgp-attach-no-route-refresh-restarts.ci`, `attach-process-runtime-subscribe.ci` (two connections, Cease 6/6); `TestOperatorSendOrOpenBindingStillRestarts`, `TestStrictBFDChangeRestarts`, `TestDynamicStrictBFDChangeRestarts` |
+| A gained process is told up (reason `attached`) before any message, with no replay or barrier | functional | `attach-process-reload.ci` green 3/3, red without the reason (`reason-red1.log`) and with an initial-replay token (`replay-red1.log`), both under `tmp/session/2026-10-13-9d2e6c21-74c1-4c42-b9ef-30145b95cfb1/scratch/` |
+| A changed grant on a forwarding process flaps the route downstream once, no restart | functional | `bgp-attach-grant-change-live.ci` 10/10 green, red 3/3 without the intermediate publish (peer B gets the route twice with no withdraw) |
+| RFC 5882 Section 4.4: one shared session after a pinned client leaves | functional + unit | `bgp-bfd-shared-session-widens.ci` Linux GREEN (`l3-mh1.log`), RED with `joined` left narrowed (`l3-disc.log`); `static-bfd-shared-session-widens.ci` QEMU GREEN (`qemu-static-optin.log`); `TestSharedSessionWidensOnRelease` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A reload that newly declares an `external` program does not start it, so a receive-only binding to it reaches no process | owner decision 2026-10-11: a separate spec | `plan/immediate/spec-reload-starts-declared-external-programs.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-live-receive-binding-and-bfd-keep-session-9d2e6c21-74c1-4c42-b9ef-30145b95cfb1.md` (19 files, verdict clean) |
+| `./le spec review check` | OK: 7 code files, clean, hashes match |
+| Rounds | 2 at closure: round 1 over the complete diff of 784c25a39c..466c421671 (per commit, scratch `close-ks-<sha>.diff`), round 2 over the closure fixes only. Earlier phase reviews: Phases 2-3 rounds up to 7 (owner-authorised rounds 6 and 7, Owner decisions), Phase 5 two rounds, Phase 6 one round, each commit's own review named in its message |
+| Reviewer lenses used | round 1: wiring, removed behavior, concurrency, stale comments, RFC 5883/5882/7854 quotes, style pass; round 2: the closure edits |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | file header names the deleted `dynamicTemplateChanged` as the dynamic path (stale-comments) | `internal/component/bgp/reactor/peer_derived_bindings.go` line 3 | names `reconcileDynamicGroupsJournaled` |
+| 2 | ISSUE | six `.ci` headers state the pre-change restart as today's behavior ("Red until that spec's Phase N: today ...") | `bgp-attach-dynamic-receive-only-live.ci`, `bgp-attach-receive-only-live.ci`, `bgp-rpki-attach-live.ci`, `bgp-dynamic-filter-swap-live.ci`, `bgp-attach-no-route-refresh-restarts.ci`, `bgp-attach-sent-direction-restarts.ci` | rewritten as the past rule the red measured |
+
+NOTEs (round 1, not blocking): (1) `./le commit audit base 784c25a39c^` reports the four bmp test files as WEAKENED; each edit is setup-only (`recordPeerUpFor`) or the owner-approved sentinel, and dce906c381 carries the five `RFC-approved:` trailers in the owner's words; the range audit does not read them. (2) A refused peer start barrier holds every later dynamic member for the run, logged per peer (`logPeerHeldByRefusalLocked`), by design. (3) The standalone-path AddPeer listener gap named only in the 784c25a39c message now has a journal row in `plan/journal/unwired-feature.md`. (4) BMP's no-Peer-Down rule is proven at the plugin's event entry (`handleStructuredEvent`), with no `.ci` collector test.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| the 19 `.ci` files of Wiring Test and Functional Tests | yes | `[ -f ]` loop 2026-10-13: 19 OK, 0 MISSING |
+| the four interop scenario directories | yes | `ls -d test/interop/scenarios/{bgp-attach-receive-only-live-frr,bgp-bfd-enable-live-frr,bgp-bfd-dynamic-enable-live-frr,bgp-bfd-profile-edit-live-frr}` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-25 | each AC's test exists at the file the Audit names | `git grep -l "func <name>("` 2026-10-13: 42 present, the two planned deletions absent |
+| AC-2 | the old pin is gone | `git grep TestOperatorBindingChangeStillRestarts` returns nothing |
+| AC-9, AC-22 | `dynamicTemplateChanged` and `derivedFeedsOnly` deleted | `git grep` returns only the closure-fixed header |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| SIGHUP reload adding a receive-only attach | `test/plugin/attach-process-reload.ci` | read 2026-10-13: `action=sighup`, `tcp_connections=1`, rejects Cease 6/6, expects `RELOAD-ADDED: told up, reason attached` |
+| interop scenarios | `check_live_keep_session.go` | read 2026-10-13: each checker reloads through `applyZeReload` and reads FRR's own counters |
+| every other Wiring Test row | the `.ci` the row names | present; contents verified by the phase reviews and the Progress record |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | A-1 annotations (re-grepped 2026-10-12) |
+| A-2 | confirmed for a registry-internal plugin; broken for an external program a reload declares | `bgp-rpki-attach-live` green; Work Not Done row |
+| A-3 | confirmed | `bgp-bfd-added-live`, `bgp-bfd-dynamic-toggle-live` |
+| A-4 | confirmed | same two tests list the session after one commit adding root and opt-in |
+| A-5 | confirmed for Ze (AdminDown signalled); FRR's reset recorded as a peer deviation | owner decision 2026-10-13; `p8-bfd-green2.log` |
+| A-6 | confirmed | `p8-attach-green.log` |
+| A-7 | broken, fixed | A-7 annotations and tests |
+| A-8 | confirmed | A-8 annotation 2026-10-12 |
+| A-9 | confirmed | A-9 annotation 2026-10-12 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| rows 1, 4, 6, 8, 12, 16, 17 (Yes) | grep 2026-10-13: core-design 2236/2269/2360, config-reload rows 24-30, bfd.md "Editing live", process-protocol 1019, rib-storage-design 112, apply-ordering 474/489, ipc_protocol two `attached` mentions | yes |
+| rows 2, 3, 5, 7, 9, 10, 11, 13, 14, 15 (No) | no YANG, CLI, wire-format, RFC summary or metric change in the diff | yes |
+| `./le doc check verify` | red, 109 findings, all in `../wiki` and `../gh-pages` command catalog surfaces, none from this spec | recorded |
+
+### Red gates named (pre-release rule)
+| Gate | Red | Cause |
+|------|-----|-------|
+| `./le test bgp plugin -a` | 647 `redistribute-as112-announce` | `fd00::2` missing from the host loopback after a reboot; the owner runs `./le setup` (sudo), then `./le test bgp plugin 647` |
+| `./le doc check verify` | 109 published-catalog findings | `../wiki` and `../gh-pages` out of date against the live command contract; no command changed here |
+| `./le verify worktree` | not run by the closing agent (5-minute rule); owed by the main thread | pre-existing structural reds (cross-plugin imports, stale iface-resolution record) |

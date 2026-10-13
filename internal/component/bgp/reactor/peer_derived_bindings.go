@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md — config reload delivers changed peer settings
 // Related: peer_settings_apply.go — hotSwappableSettings carries receive-only bindings, applyHotSwappableSettings delivers them in order
-// Related: reactor_dynamic.go — dynamicTemplateChanged restarts a dynamic peer on any binding change
+// Related: reactor_dynamic.go — reconcileDynamicGroupsJournaled swaps a dynamic peer's bindings through the same ordered delivery
 // Related: delivery_graph.go — the peer-to-process index a delivered binding republishes
 // Related: config.go — parseProcessBindingsFromTree and EnsureProcessBinding, the writers of a binding
 // RFC: rfc/short/rfc2918.md — ROUTE-REFRESH, how a new consumer learns what the peer sent

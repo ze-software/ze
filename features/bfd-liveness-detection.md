@@ -15,7 +15,7 @@
 | RFCs | rfc5880, rfc5881, rfc5883 |
 | Docs | docs/guide/bfd.md |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; UDP 3784 single-hop and 4784 multi-hop match internal/component/bfd/api/events.go; Loop.Snapshot exists in internal/component/bfd/engine/snapshot.go |
-| Defect review | 2026-10-12: spec-rfc-verdict-fix-bfd (ledger verdict repair) closed clean; RFC5882-4.4-1 is owned by AC-24 of plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md |
+| Defect review | 2026-10-12: spec-rfc-verdict-fix-bfd (ledger verdict repair) closed clean; RFC5882-4.4-1 was fixed under AC-24 of spec-bgp-live-receive-binding-and-bfd-keep-session (closed 2026-10-13; `TestSharedSessionWidensOnRelease`, `test/reload/bgp-bfd-shared-session-widens.ci`) |
 
 ## Description
 

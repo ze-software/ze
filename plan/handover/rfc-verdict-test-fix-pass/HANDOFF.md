@@ -32,7 +32,7 @@ files named below.
 ## Owner items (decide before the next BGP authors start)
 | Item | Recommendation |
 |---|---|
-| RFC5882-4.4-1 (parent AC-9): fix here or transfer | DECIDED 2026-10-11, transferred: AC-24 of `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` (Phase 4, step 1) owns the `bfd/engine/engine.go` fix; parent AC-9/AC-11 record it |
+| RFC5882-4.4-1 (parent AC-9): fix here or transfer | DECIDED 2026-10-11, transferred: AC-24 of `spec-bgp-live-receive-binding-and-bfd-keep-session` (Phase 4, step 1) owns the `bfd/engine/engine.go` fix; parent AC-9/AC-11 record it |
 | rfc/audit/rfc8955.json still has the RFC8955-6-2 entry (row retired under RFC 9117 in 2046bf766a). Auto mode refuses agents deleting it | Owner deletes the key by hand (as for RFC4577, 5cdad9cd96), or orders the main thread to |
 | rfc/extraction/rfc8955.json: exclusions 12 -> 13 with the same signed-off date; auto mode refused updating the date | Owner updates `signed-off` or orders it |
 | RFC5575-6-1 [MUST] has no annotation: RFC 9117 section 7 made the AS_PATH check optional and Ze does not enforce it | Record it as a disclosed deviation ({gap} citing RFC 9117 section 7) |

@@ -26,9 +26,10 @@
 # bgp-rpki re-validating the routes Adj-RIB-In retained (RFC 6811 Section 4),
 # so the refresh is asserted on the wire and the states in the table.
 #
-# Red until that spec's Phase 2: today the operator attach restarts the peer.
-# The peer reads a NOTIFICATION Cease subcode 6 where it expects the
-# ROUTE-REFRESH, and the second connection is refused (tcp_connections=1).
+# An apply that restarted the peer on the operator attach (the rule before
+# that spec's Phase 2) makes the peer read a NOTIFICATION Cease subcode 6
+# where it expects the ROUTE-REFRESH, and the second connection is refused
+# (tcp_connections=1).
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER

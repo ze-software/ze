@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | design |
 | Scope | config |
-| Depends | `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` (it edits the BGP `connection bfd` readers and the BFD client commit refusal; this spec moves the schema those readers read, so it lands after that spec closes) |
+| Depends | `spec-bgp-live-receive-binding-and-bfd-keep-session`, closed 2026-10-13 (it edits the BGP `connection bfd` readers and the BFD client commit refusal; this spec moves the schema those readers read, so it lands after that spec closes) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-13 |

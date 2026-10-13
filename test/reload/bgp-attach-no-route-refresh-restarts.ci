@@ -17,9 +17,8 @@
 # PREVENTS: a swap that keeps the session while the gained process holds none of
 #           the routes the session already carried.
 #
-# Green today, and it must stay green: today every operator binding change
-# restarts the peer. After that spec's Phase 2 it is the Route Refresh check
-# (feedCatchUp) that keeps this a restart.
+# It must stay a restart: the Route Refresh check (feedCatchUp) keeps it one,
+# because a peer that did not advertise Route Refresh cannot be asked again.
 option=timeout:value=60s
 option=env:var=ze.log.bgp.reactor:value=debug
 

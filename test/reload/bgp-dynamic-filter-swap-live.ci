@@ -30,9 +30,10 @@
 # the Cease/Administrative Shutdown it expects arrives on the first connection
 # only when the reload kept it.
 #
-# Red until that spec's Phase 3: today the template change restarts the dynamic
-# peer ("dynamic peer restart required ... changed=group template"), the peer
-# reads Cease subcode 6, and the after-reload policy test finds no peer.
+# A dynamic step that restarted the peer on the template change (the rule
+# before that spec's Phase 3) logs "dynamic peer restart required ...
+# changed=group template", the peer reads Cease subcode 6, and the
+# after-reload policy test finds no peer.
 option=timeout:value=60s
 option=env:var=ze.log.bgp.reactor:value=info
 

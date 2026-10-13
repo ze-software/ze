@@ -18,13 +18,12 @@
 #
 # VALIDATES: spec-bgp-live-receive-binding-and-bfd-keep-session AC-9 (wiring
 #            row "journaled dynamic step -> ordered bind delivery -> targeted up").
-# PREVENTS: a dynamic template change that resets every dynamic session
-#           (dynamicTemplateChanged), and a gained process fed an UPDATE before
-#           it is told the session is up.
+# PREVENTS: a dynamic template change that resets every dynamic session, and a
+#           gained process fed an UPDATE before it is told the session is up.
 #
-# Red until that spec's Phase 3: today any template difference other than a
-# derived feed restarts the dynamic peer. The peer then reads a NOTIFICATION
-# where it expects the ROUTE-REFRESH, and it never re-dials (tcp_connections=1).
+# A dynamic step that restarted the peer on the template change (the rule
+# before that spec's Phase 3) makes the peer read a NOTIFICATION where it
+# expects the ROUTE-REFRESH, and it never re-dials (tcp_connections=1).
 option=timeout:value=60s
 option=env:var=ze.log.bgp.reactor:value=info
 

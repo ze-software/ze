@@ -383,7 +383,7 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Unde
 |----------|--------|
 | What breaks if this is wrong? | D1: OPENs of 254-255 octets (today broken) and, if the threshold were moved wrongly, every OPEN; the encode/decode `.ci` corpus pins the common sizes. D2: capability plugins on reload. D3: log only. D4 removal: every config using a per-peer router-id is refused |
 | How is it reverted? | Single commit per row; D4 removal needs operator configs to regain the leaf |
-| Who else touches this path? | `plan/spec-bgp-fsm-delayopen-and-automatic-start.md` (OPEN and session handling), `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` (reload swap plan in `peer_settings_apply.go`, in flight), `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (verdict rows), `plan/pre-release/spec-config-yang-when-unique-choice.md` (router-id mandatory ruling) |
+| Who else touches this path? | `plan/spec-bgp-fsm-delayopen-and-automatic-start.md` (OPEN and session handling), `spec-bgp-live-receive-binding-and-bfd-keep-session` (reload swap plan in `peer_settings_apply.go`, closed 2026-10-13), `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (verdict rows), `plan/pre-release/spec-config-yang-when-unique-choice.md` (router-id mandatory ruling) |
 
 ## Implementation Steps
 

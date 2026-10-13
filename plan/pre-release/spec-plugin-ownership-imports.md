@@ -623,7 +623,7 @@ text (the approval table above).
 |----------|--------|
 | What breaks if this is wrong? | a command, backend, filter counter or YANG module missing from the binary; FlowSpec/BGP-LS bytes mis-encoded if the move changes code |
 | How is it reverted? | per-phase commits, each a single revert |
-| Who else touches this path? | reactor, RIB, ls_export (BGP-LS origination spec), flowspec-firewall, diag, crashes, `internal/component/cmd/show/yang` (route J); `plan/spec-yang-feature-opt-ins-owned-by-feature.md` regenerates the same `plugin/all/all*.go` and `feature-gates.txt` (no node or import in common); `plan/immediate/spec-bgp-live-receive-binding-and-bfd-keep-session.md` edits `internal/component/bfd/bfd.go` (`applyPinned`, its Files to Modify) beside route H's two `SetBFDRawCaptureProvider` calls; `bfd/api` also holds `opt_in_check.go` (committed in `b3cfb912d0`), so route H rereads both files before its edit (R-6) |
+| Who else touches this path? | reactor, RIB, ls_export (BGP-LS origination spec), flowspec-firewall, diag, crashes, `internal/component/cmd/show/yang` (route J); `plan/spec-yang-feature-opt-ins-owned-by-feature.md` regenerates the same `plugin/all/all*.go` and `feature-gates.txt` (no node or import in common); `spec-bgp-live-receive-binding-and-bfd-keep-session` (closed 2026-10-13) edited `internal/component/bfd/bfd.go` (`applyPinned`, its Files to Modify) beside route H's two `SetBFDRawCaptureProvider` calls; `bfd/api` also holds `opt_in_check.go` (committed in `b3cfb912d0`), so route H rereads both files before its edit (R-6) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

@@ -16,9 +16,8 @@
 # PREVENTS: a swap that keeps the session while the gained process never sees
 #           the routes Ze advertised before it attached.
 #
-# Green today, and it must stay green: today every operator binding change
-# restarts the peer. After that spec's Phase 2 it is the sent-direction arm
-# that keeps this a restart, although Route Refresh is negotiated. AC-13's
+# It must stay a restart: the sent-direction arm (hasAdvertised) keeps it
+# one, although Route Refresh is negotiated. AC-13's
 # other half (the same reload on a session where Ze advertised nothing keeps
 # one connection) is that spec's unit test TestSentDirectionGrantNeedsNothingAdvertised.
 option=timeout:value=60s
