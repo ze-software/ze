@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-13 | - (rs-replacement design review r10) | `Reactor.cleanup` (`bgp/reactor/reactor.go`) with `fwdPool.Stop` (`forward_pool.go`) | `cleanup` holds `r.mu` while `fwdPool.Stop` waits, with no deadline, for every forward worker to exit. A worker whose `checkTeardown` -> `congestionTeardownPeer` drains the FSM leave arm reaches `announceClosed` -> `markSessionUp`, which takes `r.mu`, so it never exits and the reactor stop wedges for good. Read, not run. | open: release `r.mu` before the pool join; test a congestion teardown racing stop. |

@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-13 | - (rs-replacement design review r9) | `Peer.stopBFDClient` (`bgp/reactor/peer_bfd.go`) beside `runBFDSubscriber` | On BFD Down in Established, the subscriber goroutine's teardown can drain the FSM and run the leave callback itself; `stopBFDClient` then blocks on `<-done`, which only that goroutine's `defer close(done)` closes. The goroutine leaks and the down is never announced. Read, not run. | open: keep the release non-waiting in the leave arm and wait for `done` on the `runOnce` goroutine; spec-bgp-rs-replacement-on-withdrawal designs this. |

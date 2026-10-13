@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-13 | - (rs-replacement design review r9) | `reactorForwardRSSection` (`bgp/reactor/forward_rs.go`), `notifyMessageReceiver` (`bgp/reactor/reactor_notify.go`) | Both hold `r.mu.RLock()` across a long span and release it with a plain `RUnlock`, not a defer, on goroutines that `recover()` (`peer_run.go` delivery worker, `safeRunOnce`). A recovered panic inside the span leaves `r.mu` read-held, so the next `r.mu` writer, and every reader after it, blocks for good. Read, not run. | open: `defer` the unlock or shrink the span to a snapshot copy; add a panic-in-span test. |
