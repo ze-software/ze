@@ -14,23 +14,23 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 473 CLI commands, 38 config sections, 90 plugin registrations, 52 direct Go dependencies, 44 weekly change entries.
-- Test evidence counts: 35,600+ unit tests, 88 fuzz targets, 2,200+ end-to-end transcript steps, 160 interop scenarios across 9 target implementations.
+- Current generated counts: 52 shipped or experimental feature cards, 474 CLI commands, 38 config sections, 93 plugin registrations, 52 direct Go dependencies, 44 weekly change entries.
+- Test evidence counts: 35,800+ unit tests, 88 fuzz targets, 2,200+ end-to-end transcript steps, 171 interop scenarios across 9 target implementations.
 - Release inventory preview pending owner classification: [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-10-12.
+- Generated date: 2026-10-13.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 35,600+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 35,800+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 88 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 160 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 171 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `./le verify worktree` runs the whole native verification population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `./le repo` is the narrower handoff gate.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -79,7 +79,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 - AI Tool Interfaces [automate, experimental]: chips: MCP, Generated, AI tools; MCP exposes CLI/API commands; AI tools read structured output; Plugins expose discoverable tools; link: https://ze-software.net/features/ai-first/index.md
 - SSH CLI [operate, experimental]: chips: Built-in SSH, RBAC; Manage Ze without OS shell accounts; Profiles, audit, and accounting; commit, rollback, diff, completion; link: https://ze-software.net/features/cli-commands/index.md
 - YANG Configuration [operate, experimental]: chips: YANG, ExaBGP; Schema-driven validation; One model feeds every surface; Plugin defined config and commands; link: https://ze-software.net/features/bgp-configuration/index.md
-- System Readiness [operate, experimental]: chips: ze doctor, ze explain; Offline pre-start checks; Health, warnings, and errors; Structured remediation with `ze explain`; link: https://ze-software.net/guides/production-diagnostics/index.md
+- System Readiness [operate, experimental]: chips: ze doctor, ze show diagnostic; Offline pre-start checks; Health, warnings, and errors; Structured remediation with `ze show diagnostic`; link: https://ze-software.net/guides/production-diagnostics/index.md
 - Native BGP Engine [routing, experimental]: chips: BGP, IPv4/IPv6, FlowSpec; Full implementation in Go; Lazy parsing, buffer-first encoding; Negotiated capabilities; link: https://ze-software.net/features/bgp-protocol/index.md
 - Static Routes [routing, experimental]: chips: ECMP, BFD, PBR; Named tables, policy routing; BFD-tracked failover; Multi-path ECMP groups; link: https://ze-software.net/guides/static-routes/index.md
 - BFD [routing, experimental]: chips: RFC 5880, Auth; Single-hop and multi-hop; GTSM, jitter, BGP integration; SHA1/MD5 auth, echo mode; Strict mode holds a BGP peer down until BFD is up; link: https://ze-software.net/features/bgp-protocol/index.md
@@ -214,6 +214,8 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `flow-export`: sFlow, NetFlow v9, and IPFIX counter export Config roots: flow-export. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/flowexport`.
 - `flowspec-firewall`: Translates BGP FlowSpec routes into nftables firewall rules Config roots: none. Dependencies: firewall, bgp-rib. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/flowspec-firewall`.
 - `geodns`: GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) Config roots: service. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/geodns`.
+- `iface-dhcp`: DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal Config roots: none. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/iface/dhcp`.
+- `iface-ra`: Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) Config roots: none. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/iface/ra`.
 - `ike`: IKEv2 engine for native IPsec VPN Config roots: vpn, pki. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/component/ike/engine`.
 - `imageserver`: Image server: HTTP provisioning for disk images and boot files Config roots: service. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/imageserver`.
 - `interface`: OS network interface monitoring and management Config roots: interface. Dependencies: sysctl. Optional: none. Start after (order only): none. YANG files: 6. Source: `internal/component/iface`.
@@ -225,6 +227,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `l2tp-shaper`: Traffic shaping for L2TP subscriber sessions Config roots: l2tp. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/l2tp/plugins/shaper`.
 - `ldp`: Label Distribution Protocol (RFC 5036): MPLS label distribution Config roots: ldp. Dependencies: fib-kernel, sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ldp`.
 - `loop`: Route loop detection (RFC 4271 S9, RFC 4456 S8) Config roots: none. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/reactor/filter`.
+- `memlock`: Memory lock: keep the running executable resident under memory pressure Config roots: none. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/memlock`.
 - `mrt`: MRT routing information export (RFC 6396) Config roots: mrt. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/mrt`.
 - `ntp`: NTP client: system clock synchronization Config roots: environment/ntp. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ntp`.
 - `ospf`: Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP Config roots: ospf. Dependencies: interface, fib-kernel, sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ospf`.
@@ -233,7 +236,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `rib`: System RIB: selects best route across protocols by admin distance Config roots: rib. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/sysrib`.
 - `routing-table`: Named routing table registry: maps names to kernel table IDs Config roots: routing-table. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/routingtable`.
 - `rsvp-te`: RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) Config roots: rsvp-te. Dependencies: interface, fib-kernel, sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/rsvpte`.
-- `static`: Static routes: config-driven kernel/VPP route programming with ECMP Config roots: static. Dependencies: routing-table, rib. Optional: interface. Start after (order only): none. YANG files: 2. Source: `internal/plugins/static`.
+- `static`: Static routes: config-driven kernel/VPP route programming with ECMP Config roots: static. Dependencies: routing-table, rib. Optional: interface. Start after (order only): bfd. YANG files: 2. Source: `internal/plugins/static`.
 - `sysctl`: Kernel tunable management: three-layer precedence, restore on stop Config roots: sysctl. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/sysctl`.
 - `tftpserver`: TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) Config roots: service. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/tftpserver`.
 - `traffic`: Traffic control (tc) qdisc, class, and filter management Config roots: traffic/control. Dependencies: none. Optional: vpp. Start after (order only): none. YANG files: 1. Source: `internal/component/traffic`.
@@ -243,7 +246,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 131 daemon, 4 offline, 338 read-only.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 129 daemon, 4 offline, 341 read-only.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name.
 
 ### `clear` commands (23)
@@ -300,12 +303,6 @@ The command catalog is generated from `ze help command --json`, not hand-written
 ### `doctor` commands (1)
 - `doctor` (offline): Check that this system is ready to run Ze\.
 
-### `explain` commands (1)
-- `explain` (daemon; wire ze-explain:explain; args code:string; usage `explain <code>`): Explain one diagnostic code Ze printed\.
-
-### `generate` commands (1)
-- `generate wireguard keypair` (daemon; wire ze-diag:generate-wireguard-keypair; usage `generate wireguard keypair`): Generate a WireGuard keypair with the system wg binary\.
-
 ### `help` commands (3)
 - `help` (read-only; wire ze-meta:bgp-help; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `help`): Show available commands at this level\.
 - `help ai` (offline): Print the agent reference this binary builds from its own registries\.
@@ -333,7 +330,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `plugin session ping` (read-only; wire ze-plugin:session-ping; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `plugin session ping`): Answer a health check with the daemon process id\.
 - `plugin session ready` (read-only; wire ze-plugin:session-ready; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `plugin session ready`): Signal that this plugin process finished its initialization\.
 
-### `request` commands (54)
+### `request` commands (56)
 - `request as112 healthcheck` (daemon; wire ze-as112:health; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args target:string; usage `request as112 healthcheck [target <target>]`): Send one authoritative query and check the AS112 answer\.
 - `request bgp adj-rib-in accept-routes` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in accept-routes`): Install one pending route under the validation state given\.
 - `request bgp adj-rib-in batch-validate` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in batch-validate`): Apply up to 256 validation decisions in one call\.
@@ -387,7 +384,9 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request reload` (daemon; wire ze-plugin:system-daemon-reload; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request reload`): Reload the configuration without restarting\.
 - `request shutdown` (daemon; wire ze-plugin:system-daemon-shutdown; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request shutdown`): Gracefully shutdown\: drain connections\, close peers\, exit\.
 - `request subscribe` (daemon; wire ze-cmd:bgp-subscribe; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request subscribe`): Start receiving events of one or more types\.
+- `request support archive` (daemon; wire ze-support:request-support-archive; usage `request support archive`): Collect logs\, config\, state and diagnostics into one archive\.
 - `request unsubscribe` (daemon; wire ze-cmd:bgp-unsubscribe; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request unsubscribe`): Stop receiving events you previously subscribed to\.
+- `request wireguard keypair` (daemon; wire ze-diag:request-wireguard-keypair; usage `request wireguard keypair`): Generate a WireGuard keypair with the system wg binary\.
 
 ### `resolve` commands (11)
 - `resolve cymru asn-name` (read-only; wire ze-resolve:cymru-asn-name; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args asn:union; usage `resolve cymru asn-name <asn>`): Find out who owns an AS number\.
@@ -421,7 +420,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `set sysctl` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `set sysctl <key> <value>`): Set a transient sysctl value
 - `set system file-descriptors` (daemon; wire ze-host:set-system-file-descriptors; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args limit:union; usage `set system file-descriptors [limit <limit|max>]`): Raise the file descriptor limit for the daemon process\.
 
-### `show` commands (299)
+### `show` commands (303)
 - `show aaa accounting` (read-only; wire ze-aaa:show-accounting; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show aaa accounting`): Show AAA accounting counters and any dropped records\.
 - `show announcements` (read-only; wire ze-bgp:show-announcements; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args tag:string, selector:string, family:string; usage `show announcements [tag <tag>] [selector <selector>] [family <family>]`): List active on\-demand announcements\.
 - `show anomaly detect` (read-only; wire ze-anomaly:show-anomaly; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show anomaly detect`): Show the recent behavioral anomaly incidents\.
@@ -490,6 +489,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show config graph` (read-only; wire ze-config-cli:show-config-graph; args file:string; usage `show config graph <file>`): Show how components and peers depend on each other\, as JSON\.
 - `show config history` (read-only; wire ze-config-cli:show-config-history; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show config history`): List available configuration rollback points\.
 - `show config list` (read-only; wire ze-config-cli:show-config-list; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show config list`): List all configuration files stored in the database\.
+- `show config validation` (read-only; wire ze-config-cli:show-config-validation; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args file:string; usage `show config validation <file>`): Check a config for errors without applying it\.
 - `show crashes` (read-only; wire ze-crashes:show-crashes; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show crashes [name <name>]`): View saved crash reports\, and whether kernel capture is armed\.
 - `show data cat` (read-only; wire ze-config-storage:show-data-cat; args key:string; usage `show data cat <key>`): Print the value of a storage key\.
 - `show data list` (read-only; wire ze-config-storage:show-data-list; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show data list`): List the keys in the selected store\.
@@ -500,6 +500,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show ddos status` (read-only; wire ze-ddos:show-status; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show ddos status`): Show the DDoS observation status\.
 - `show debug` (read-only; wire ze-debug:debug-state; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show debug`): Show live debug state from the running daemon\.
 - `show debug profile` (read-only; wire ze-debug:show-profile; args name:string, module:string; usage `show debug profile [name <name>] [module <module>]`): Show stored debug profiles\, one by name\, or one filtered to a module subtree\.
+- `show diagnostic` (read-only; wire ze-explain:show-diagnostic; args code:string; usage `show diagnostic <code>`): Explain one diagnostic code Ze printed\.
 - `show dns cache list` (read-only; wire ze-resolve:show-dns-cache-list; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show dns cache list`): List all non\-expired DNS cache entries\, sorted by shortest TTL first\.
 - `show dns cache record` (read-only; wire ze-resolve:show-dns-cache-record; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show dns cache record <name>`): Show DNS cache entries for one record name\.
 - `show dns cache stats` (read-only; wire ze-resolve:show-dns-cache-stats; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show dns cache stats`): Show the DNS cache hit\, miss\, eviction\, expiry\, and hit\-rate counters\.
@@ -670,6 +671,8 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show schema list` (read-only; wire ze-config-schema:show-schema-list; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show schema list`): List all YANG schemas loaded by the daemon\.
 - `show schema methods` (read-only; wire ze-config-schema:show-schema-methods; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show schema methods`): List all RPC methods defined in YANG API modules\.
 - `show schema protocol` (read-only; wire ze-config-schema:show-schema-protocol; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `show schema protocol`): Show the wire protocol version and format details\.
+- `show skill` (read-only; wire ze-skills:show-skill; args name:string; usage `show skill <name>`): Fetch one bundled agent skill by name\.
+- `show skills` (read-only; wire ze-skills:show-skills; usage `show skills`): List the agent skills this binary carries\.
 - `show static` (read-only; wire ze-static:show-static; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show static`): Show static routes defined in the configuration\.
 - `show status` (read-only; wire ze-plugin:system-daemon-status; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show status`): Show process status\, uptime\, and resource usage\.
 - `show storage smart` (read-only; wire ze-storage:show-smart; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show storage smart`): Show disk health via SMART data\.
@@ -722,12 +725,6 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show yang doc` (read-only; wire ze-config-yang:show-yang-doc; usage `show yang doc`): Generate command reference docs from YANG schemas\.
 - `show yang tree` (read-only; wire ze-config-yang:show-yang-tree; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show yang tree`): Print the YANG tree for a module in a readable hierarchy\.
 
-### `skills` commands (1)
-- `skills` (daemon; wire ze-skills:skills; usage `skills (list|get <name>)`): List the agent skills this binary carries\, or fetch one by name\.
-
-### `support` commands (1)
-- `support` (daemon; wire ze-support:support; usage `support`): Collect logs\, config\, state and diagnostics into one archive\.
-
 ### `system` commands (8)
 - `system command complete` (read-only; wire ze-plugin:system-command-complete; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args partial:string; usage `system command complete <partial>`): List the completion candidates for a partial command\.
 - `system command help` (read-only; wire ze-plugin:system-command-help; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `system command help <name>`): Show the detailed help for one command\.
@@ -755,9 +752,6 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `update system firmware download` (daemon; wire ze-update:system-firmware-download; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `update system firmware download`): Download the latest firmware image right now\.
 - `update system firmware restart` (daemon; wire ze-update:system-firmware-restart; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `update system firmware restart`): Reboot into the already\-staged firmware\.
 - `update system firmware rollback` (daemon; wire ze-update:system-firmware-rollback; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `update system firmware rollback`): Roll back to the previous firmware and restart\.
-
-### `validate` commands (1)
-- `validate config` (read-only; wire ze-config-cli:validate-config; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args file:string; usage `validate config <file>`): Check a config for errors without applying it\.
 
 ## Vendor command equivalents
 
@@ -1077,7 +1071,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Live system
 - [Reference index](https://ze-software.net/reference/index.md): Commands, configuration, plugins, standards, and feature status (web: https://ze-software.net/reference/)
-- [CLI reference](https://ze-software.net/reference/cli/index.md): 473 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
+- [CLI reference](https://ze-software.net/reference/cli/index.md): 474 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): %(config_sections)s sections, indexed from live YANG (web: https://ze-software.net/reference/configuration/)
 - [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
 ### Standards and lookup

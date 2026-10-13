@@ -25,6 +25,13 @@ Static routes: config-driven kernel/VPP route programming with ECMP
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`bfd`](../bfd/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/plugins/static`

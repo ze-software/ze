@@ -775,14 +775,14 @@
           "mode": false
         },
         {
-          "text": "ze explain",
+          "text": "ze show diagnostic",
           "mode": false
         }
       ],
       "bullets": [
         "Offline **pre-start checks**",
         "Health, warnings, and **errors**",
-        "Structured **remediation** with `ze explain`"
+        "Structured **remediation** with `ze show diagnostic`"
       ]
     },
     {

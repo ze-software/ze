@@ -232,8 +232,9 @@ show flow recent dst 203.0.113.42    # flows to a destination prefix or address
 configured upstream peer, matching the attack's protocol, ports, and flags. The
 FlowSpec responder waits for characterization by default rather than acting on the
 fast signal: announcing upstream blinds the box behind the filter, so the rule
-must be right the first time. The <code>action</code> is mandatory (no default, because
-neither choice is universally safe): <code>rate-limit</code> announces an RFC 8955
+must be right the first time. Once a <code>flowspec</code> block is present, its <code>action</code> is
+mandatory (no default, because neither choice is universally safe); a <code>ddos</code> block
+without <code>flowspec</code> needs none: <code>rate-limit</code> announces an RFC 8955
 traffic-rate of <code>rate-limit-bytes</code> bytes/sec (preserving legitimate traffic up to
 that rate), while <code>discard</code> drops the whole characterized flow. A <code>rate-limit-bytes</code>
 of <code>0</code> is valid and is equivalent to <code>discard</code>; <code>action rate-limit</code> without a
@@ -953,7 +954,7 @@ degrades to a coarse generic-flood drop.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

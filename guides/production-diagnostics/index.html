@@ -302,14 +302,14 @@ nobody. Ze picks the plugins for a config change by matching the changed path
 against the config roots each plugin declares. A path that matches nothing is
 stored and delivered to no one.</p>
 <pre><code>ze doctor --json
-ze explain doctor-config-root-unclaimed
+ze show diagnostic doctor-config-root-unclaimed
 </code></pre>
 <p><code>doctor-config-root-unclaimed</code> names the subtree. The usual cause is a plugin
 that is not in this binary or did not start; check with <code>ze plugin list</code>.</p>
 <!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims -->
 <h3 id="13b-ipsec-peers-never-establish">13b. IPsec Peers Never Establish</h3>
 <pre><code>ze doctor --json
-ze explain doctor-ipsec-iface
+ze show diagnostic doctor-ipsec-iface
 </code></pre>
 <p>Three faults share this code and each one used to be silent.</p>
 <table>
@@ -444,7 +444,7 @@ show system platform | json
 </code></pre>
 <p>Detected platforms: <strong>gokrazy</strong>, <strong>systemd</strong>, <strong>container</strong>, <strong>plain-linux</strong>, <strong>darwin</strong>.</p>
 <p>Capability flags: <code>read-only-root</code>, <code>perm-available</code>, <code>systemd-available</code>, <code>gokrazy-update-socket</code>, <code>gokrazy-ui-available</code>, <code>reboot-allowed</code>, <code>persistent-storage-writable</code>, <code>fd-limit-soft-current</code>, <code>fd-limit-hard-max</code>, <code>fd-limit-raisable</code>.</p>
-<p>Platform information is also included in <code>ze doctor</code> checks (e.g. gokrazy /perm writability) and <code>ze support</code> archives (as the <code>platform</code> module).</p>
+<p>Platform information is also included in <code>ze doctor</code> checks (e.g. gokrazy /perm writability) and <code>ze request support archive</code> archives (as the <code>platform</code> module).</p>
 <h2 id="platform-notes">Platform Notes</h2>
 <p>Commands that read <code>/proc</code> (sockets, kernel-log, file-descriptors, memory-map) are Linux-only. On other platforms they return "not available on this platform". The remaining commands (tcp-check, traceroute, goroutines, dns, profile) work on all platforms but traceroute requires CAP_NET_RAW.</p>
 
@@ -485,7 +485,7 @@ show system platform | json
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

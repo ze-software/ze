@@ -40,6 +40,12 @@ advertise PrefixSID by default.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer pe1 {
         session {
             accept-srv6-prefix-sid true
@@ -122,6 +128,12 @@ whole route, not just its Prefix-SID attribute:
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         community-match SERVICE-20 {
             entry target:65000:10 { type extended; action reject; }
@@ -298,7 +310,7 @@ the VPP dispatch logic.
 | First SID Sub-TLV preferred | 3.2 SHOULD | Implemented |
 | SID Structure Sub-Sub-TLV | 3.2.1 | Implemented |
 | Transposition reconstruction | 3.2.1 | Implemented (VPN/EVPN) |
-| LBL+LNL+FL+AL <= 128 validation | 3.2.1 | Implemented (errata 7817) |
+| LBL+LNL+FL+AL <= 128 validation | 3.2.1 | Partial: the sum is checked (errata 7817), but a SID Structure that fails it is only dropped from transposition, and the SID is still used whole instead of being invalid (`plan/immediate/spec-bgp-prefix-sid-rfc-defects.md`, D3) |
 | NH unchanged: preserve TLVs | 2 | Implemented: effective address identity, including explicit A-to-A; Reserved and unknown nested bytes are retained |
 | NH changed: SRv6 Service TLVs removed, other TLVs kept | 2 | Implemented removal after policy and configured rewrites, including policy-only changes under `auto` or `unchanged`. Local SID allocation/rebuilding remains unimplemented |
 | Malformed Service TLV: treat-as-withdraw | 7 | Partial: a Service TLV overrunning the attribute gets attribute-discard instead (spec D2) |

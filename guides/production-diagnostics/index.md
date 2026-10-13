@@ -310,7 +310,7 @@ stored and delivered to no one.
 
 ```
 ze doctor --json
-ze explain doctor-config-root-unclaimed
+ze show diagnostic doctor-config-root-unclaimed
 ```
 
 `doctor-config-root-unclaimed` names the subtree. The usual cause is a plugin
@@ -322,7 +322,7 @@ that is not in this binary or did not start; check with `ze plugin list`.
 
 ```
 ze doctor --json
-ze explain doctor-ipsec-iface
+ze show diagnostic doctor-ipsec-iface
 ```
 
 Three faults share this code and each one used to be silent.
@@ -462,7 +462,7 @@ Detected platforms: **gokrazy**, **systemd**, **container**, **plain-linux**, **
 
 Capability flags: `read-only-root`, `perm-available`, `systemd-available`, `gokrazy-update-socket`, `gokrazy-ui-available`, `reboot-allowed`, `persistent-storage-writable`, `fd-limit-soft-current`, `fd-limit-hard-max`, `fd-limit-raisable`.
 
-Platform information is also included in `ze doctor` checks (e.g. gokrazy /perm writability) and `ze support` archives (as the `platform` module).
+Platform information is also included in `ze doctor` checks (e.g. gokrazy /perm writability) and `ze request support archive` archives (as the `platform` module).
 
 ## Platform Notes
 

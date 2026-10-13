@@ -285,7 +285,7 @@ external peers (Section 4.3) and attaches NO_EXPORT with LOCAL_PREF 0 to the
 routes it sends to internal peers (Section 4.6). Peers that negotiated LLGR with
 the child engine get that same treatment.</p>
 <p><code>ze doctor</code> reports the arrangement as <code>doctor-bgp-gr-out-of-process</code>. Run
-<code>ze explain doctor-bgp-gr-out-of-process</code> for the full text.</p>
+<code>ze show diagnostic doctor-bgp-gr-out-of-process</code> for the full text.</p>
 <!-- source: internal/component/bgp/plugins/gr/doctor.go -- checkGRInProcess, doctor-bgp-gr-out-of-process -->
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter reads egressState -->
 <p>The route-server DOWN handler also uses an in-process query owned by <code>bgp-gr</code>.
@@ -609,7 +609,7 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

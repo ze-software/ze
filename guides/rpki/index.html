@@ -160,6 +160,12 @@ choice, not a measurement of the network's security.</p>
 <p>For native mutual TLS, name a CA and a client identity from the
 <a href="../configuration-model/#pki-certificate-store">PKI certificate store</a>:</p>
 <pre><code>bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     rpki {
         cache-server 192.0.2.1 {
             source-address 192.0.2.2
@@ -354,6 +360,12 @@ Section 3.3 states that an operator must make sure origin validation does not
 block a legitimate announcement carrying BLACKHOLE, and this leaf is that
 mechanism.</p>
 <pre><code>bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     peer transit-a {
         rpki {
             action { invalid reject; }
@@ -384,6 +396,15 @@ again without another UPDATE.</p>
 <h3 id="plugin-bindings">Plugin Bindings</h3>
 <p>Bind the rpki plugin with <code>attach process rpki { receive [ update-received state ]; }</code>. UPDATEs supply the received routes; state events remove a disconnected peer's tracked paths. Bind adj-rib-in with <code>attach process adj-rib-in { receive [ update-received state ]; }</code> too: it owns the validation gate and retained received routes.</p>
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- Dependencies: bgp-adj-rib-in -->
+<p>Both bindings grant no send type and do not receive the OPEN, so adding them to
+a peer whose session is already up does not reset that session. A commit or
+reload that attaches them tells each newly attached process the session is up,
+then asks the peer to send its routes again with one ROUTE-REFRESH per
+negotiated family, so the routes the peer announced before the change are
+validated too. A peer that did not advertise Route Refresh and has already
+announced routes cannot be asked again, so that peer is restarted (Cease
+subcode 6) instead. The full rule is in <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md" target="_blank" rel="noopener">Config Reload</a>.</p>
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- receiveOnly, feedCatchUp -->
 <h2 id="how-it-works">How It Works</h2>
 <h3 id="validation-states">Validation States</h3>
 <p>Each received route gets one of three states (RFC 6811):</p>
@@ -638,6 +659,12 @@ bgp {
 <p>ASPA is opt-in. Enable it under <code>rpki / aspa / validation</code> and configure <code>role / import</code> on each participating peer or group. Once enabled, the default policy keeps Invalid routes in the Adj-RIB-In but excludes them from route selection and advertisement. Valid and Unknown routes are accepted unless another configured policy rejects them.</p>
 <h3 id="configuration_1">Configuration</h3>
 <pre><code>bgp {
+    router-id 192.0.2.254;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     rpki {
         cache-server 192.0.2.1 {
             port 323;
@@ -889,7 +916,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
 <tr>
 <td>Routes accepted without validation</td>
 <td>rpki plugin not bound to peer</td>
-<td>Add <code>attach process rpki { receive [ update-received state ]; }</code> to peer config</td>
+<td>Add <code>attach process rpki { receive [ update-received state ]; }</code> to peer config; the change applies to a running session without resetting it when the peer supports Route Refresh or has announced no route yet; a peer without Route Refresh that has announced routes is restarted (see Plugin Bindings)</td>
 </tr>
 </tbody>
 </table>
@@ -935,7 +962,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

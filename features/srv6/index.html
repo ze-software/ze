@@ -149,6 +149,12 @@ SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.</p>
 <p>EBGP peers require explicit opt-in, in each direction. IBGP peers accept and
 advertise PrefixSID by default.</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer pe1 {
         session {
             accept-srv6-prefix-sid true
@@ -236,6 +242,12 @@ provisioned outside this ingress FIB path.</p>
 service's Route Target with <code>community-match</code>; rejecting a match withholds the
 whole route, not just its Prefix-SID attribute:</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         community-match SERVICE-20 {
             entry target:65000:10 { type extended; action reject; }
@@ -450,7 +462,7 @@ the VPP dispatch logic.</p>
 <tr>
 <td>LBL+LNL+FL+AL &lt;= 128 validation</td>
 <td>3.2.1</td>
-<td>Implemented (errata 7817)</td>
+<td class="cell-partial">∿</td>
 </tr>
 <tr>
 <td>NH unchanged: preserve TLVs</td>
@@ -538,7 +550,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

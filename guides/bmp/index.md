@@ -80,6 +80,12 @@ ze's own BGP peer state changes and route updates.
 
 ```
 bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     bmp {
         sender {
             collector monitoring-station {
@@ -153,7 +159,7 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 | Initiation (4) | Requires sysName/sysDescr and preserves information string order | Sends system identity on connect |
 | Termination (5) | Requires a two-byte Reason and closes the session | Sends administrative Reason 0 before disconnect |
 | Peer Up (3) | Tracks monitored peer | Sends on BGP Established |
-| Peer Down (2) | Marks peer down | Sends on BGP session close |
+| Peer Down (2) | Marks peer down | Sends on BGP session close, only for a peer whose Peer Up was sent (RFC 7854 Section 3.3) |
 | Route Monitoring (0) | Decodes inner BGP UPDATE | Wraps received UPDATEs |
 | Statistics Report (1) | Validates framing and logs peer/count metadata | Sends one per established peer every `statistics-timeout` seconds, with the O flag cleared (RFC 8671 Section 6.2) |
 | Route Mirroring (6) | Validates TLVs and logs peer/count metadata | Wraps every BGP PDU when `route-mirroring` is on |
@@ -177,7 +183,7 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 - Sends Initiation with the system identity on each connection
 - Sends Peer Up with the cached sent and received OPEN messages for every established BGP peer, followed by its current route snapshot and per-family End-of-RIB
 - Reports the actual established TCP local and remote ports in Peer Up, including the active opener's ephemeral port
-- Sends Peer Down with the established peer's identity and mapped reason code on session close, even after BGP has cleared the negotiated router ID
+- Sends Peer Down on session close or detach only for a peer whose Peer Up was sent (RFC 7854 Section 3.3: "If any BGP peers for which Peer Up messages were sent transition out of the Established state, corresponding Peer Down messages are sent."), with that peer's identity and mapped reason code, even after BGP has cleared the negotiated router ID. A peer with no cached OPENs, such as one on a binding without `open`, gets neither a Peer Up nor a Peer Down
 - Wraps received BGP UPDATEs as Route Monitoring (pre-policy, Adj-RIB-In)
 - Wraps sent BGP UPDATEs as Route Monitoring with O+L flags (post-policy, Adj-RIB-Out, RFC 8671)
 - With `route-mirroring true`, wraps every BGP message (OPEN, UPDATE, NOTIFICATION,
@@ -254,7 +260,7 @@ interrupt existing sessions.
 RFC 8671 Section 7.2 says a change that alters the behavior of an existing BMP
 session MUST bounce that session with a Peer Down and Peer Up sequence. Ze
 bounces the peers inside the session and leaves the session itself up: each
-established BGP peer gets a Peer Down with reason 5 (configuration reasons)
+BGP peer reported up gets a Peer Down with reason 5 (configuration reasons)
 followed by a Peer Up and a current route snapshot with per-family End-of-RIB.
 The collector therefore relearns the peer under the new configuration. The TCP
 connection stays open and no Termination is sent.

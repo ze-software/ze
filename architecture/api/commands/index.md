@@ -168,7 +168,7 @@ in `command/registry`, because that package cannot import `command` and so
 cannot name the value.
 
 The handler returns a payload AND an exit code, and the two are independent. The
-code carries the verdict, the payload carries the evidence, and `validate config`
+code carries the verdict, the payload carries the evidence, and `show config validation`
 is the command that needs both: it answers the diagnostics of a configuration it
 rejects and exits 1. The answer therefore goes to stdout whatever the code is,
 because a payload on stderr is a payload no pipe operator can reach. A handler
@@ -187,7 +187,7 @@ registers itself as the source (`command.RegisterArgDefSource`); a process with
 no source registered refuses every local command rather than skipping the check.
 The handler runs on the value `ValidateArgs` returned, never on the raw words.
 <!-- source: internal/component/command/local_data.go -- ServeLocal, validateLocalArgs, ValidateModelArgs -->
-<!-- source: internal/component/config/yang/command.go -- commandArgDefs -->
+<!-- source: internal/component/config/yang/command_argdefs.go -- commandArgDefs -->
 
 `ze <verb>` does not pass through `ServeLocal`: it runs the plain local handler
 that `command.RegisterLocalData` builds from the same data handler and registers
@@ -630,7 +630,7 @@ The counter is observational only; nothing reads it to make a decision, so it
 cannot change what a reload accepts or rejects.
 
 <!-- source: internal/component/plugin/server/reload_generation.go -- counter state, outcome vocabulary -->
-<!-- source: cmd/ze/hub/main_reload.go -- doReload, the increment site, after engine.Reload -->
+<!-- source: cmd/ze/hub/main_reload.go -- doReloadContext, the increment site, after engine.Reload -->
 <!-- source: internal/component/cmd/show/reload_status.go -- ze-cmd:show-reload-status handler + JSON shape -->
 
 ### Peer Commands
@@ -1482,13 +1482,23 @@ no tokens and no binding. `Tokens` answers a copy, so neither the route nor the
 handler can change what was judged. A call that leaves a mandatory leaf unfilled
 is refused with a `*command.MissingArgumentError` (`required argument missing:
 <leaf>`), which still reports the lone binding, because the dispatcher adopts a
-positional selector before it reports the missing leaf.
+positional selector before it reports the missing leaf. The in-process routes
+(R2, R3, R6, R7) write the refusal to stderr, and a missing leaf is followed by
+`hint: run '<command> help' to see the arguments it takes`, because the refusal
+names one leaf and the help page names every argument (`ze` prefixes the
+command on the `ze <verb>` routes, and `ze cli -c` takes it bare).
+<!-- source: internal/component/command/local_data.go -- localRefusal -->
 
 Every route that invokes a handler calls the validator, including for a path
 whose model declares no definition: that call passes the tokens through
 unchanged. Each route then invokes the handler only with the tokens of the
 value it got. A route that holds no definitions of its own judges against the
-model through `command.ValidateModelArgs`.
+model through `command.ValidateModelArgs`. The daemon builds those definitions once
+at startup and seeds them (`yang.SeedCommandArgDefs` in `NewServer`), so the
+first plugin command is not held up while the model loads a second time; a
+process that seeds nothing loads the model on its first call.
+<!-- source: internal/component/config/yang/command_argdefs.go -- SeedCommandArgDefs, commandArgDefs -->
+<!-- source: internal/component/plugin/server/server.go -- NewServer -->
 
 | Route | Where | Definitions |
 |-------|-------|-------------|

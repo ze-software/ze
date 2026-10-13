@@ -84,6 +84,12 @@ For native mutual TLS, name a CA and a client identity from the
 
 ```
 bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     rpki {
         cache-server 192.0.2.1 {
             source-address 192.0.2.2
@@ -205,6 +211,12 @@ mechanism.
 
 ```
 bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     peer transit-a {
         rpki {
             action { invalid reject; }
@@ -240,6 +252,16 @@ again without another UPDATE.
 
 Bind the rpki plugin with `attach process rpki { receive [ update-received state ]; }`. UPDATEs supply the received routes; state events remove a disconnected peer's tracked paths. Bind adj-rib-in with `attach process adj-rib-in { receive [ update-received state ]; }` too: it owns the validation gate and retained received routes.
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- Dependencies: bgp-adj-rib-in -->
+
+Both bindings grant no send type and do not receive the OPEN, so adding them to
+a peer whose session is already up does not reset that session. A commit or
+reload that attaches them tells each newly attached process the session is up,
+then asks the peer to send its routes again with one ROUTE-REFRESH per
+negotiated family, so the routes the peer announced before the change are
+validated too. A peer that did not advertise Route Refresh and has already
+announced routes cannot be asked again, so that peer is restarted (Cease
+subcode 6) instead. The full rule is in [Config Reload](https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md).
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- receiveOnly, feedCatchUp -->
 
 ## How It Works
 
@@ -469,6 +491,12 @@ ASPA is opt-in. Enable it under `rpki / aspa / validation` and configure `role /
 
 ```
 bgp {
+    router-id 192.0.2.254;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     rpki {
         cache-server 192.0.2.1 {
             port 323;
@@ -613,4 +641,4 @@ When the rpki plugin is not loaded, routes flow directly into Adj-RIB-In without
 | Routes delayed 30s then accepted | RPKI validation callback missing or unresponsive | Check process bindings and plugin logs; an empty or expired cache returns NotFound without this delay |
 | All routes Invalid | Wrong cache server data, or origin AS mismatch | Check `show bgp rpki roa` output, verify VRP coverage |
 | No VRPs loaded | Cache empty or RTR synchronization failed | Check `show bgp rpki status` and plugin logs; for TLS, check the named credentials, certificate chains, and DNS reference name |
-| Routes accepted without validation | rpki plugin not bound to peer | Add `attach process rpki { receive [ update-received state ]; }` to peer config |
+| Routes accepted without validation | rpki plugin not bound to peer | Add `attach process rpki { receive [ update-received state ]; }` to peer config; the change applies to a running session without resetting it when the peer supports Route Refresh or has announced no route yet; a peer without Route Refresh that has announced routes is restarted (see Plugin Bindings) |

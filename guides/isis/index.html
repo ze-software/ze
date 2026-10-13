@@ -575,13 +575,14 @@ with labels is listed in <code>docs/plugin-development/metrics.md</code>.</p>
 <p><code>ze doctor</code> reports IS-IS readiness problems before the engine starts:</p>
 <ul>
 <li><code>doctor-isis-raw-socket</code>: IS-IS is configured but a raw <code>AF_PACKET</code> socket
-cannot be opened (needs <code>CAP_NET_RAW</code>); IS-IS forms no adjacencies without it.</li>
+cannot be opened (needs <code>CAP_NET_RAW</code>, and Linux: on any other host the check
+warns and names the OS); IS-IS forms no adjacencies without it.</li>
 <li><code>doctor-isis-net-missing</code>: the <code>isis</code> block is present but no <code>net</code> is set;
 IS-IS cannot derive a System ID or originate LSPs.</li>
 <li><code>doctor-isis-system-id-mismatch</code>: an explicit <code>system-id</code> disagrees with the
 System ID embedded in the first NET.</li>
 </ul>
-<p>Each code is explainable with <code>ze explain &lt;code&gt;</code>.</p>
+<p>Each code is explainable with <code>ze show diagnostic &lt;code&gt;</code>.</p>
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -624,7 +625,7 @@ System ID embedded in the first NET.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

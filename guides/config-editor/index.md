@@ -87,7 +87,8 @@ user's change file, or from the shared draft when they already ran `save`, and
 nothing else of theirs is touched. Their next commit does not bring it back. Every
 editor session of theirs, SSH or web, reports "Your change at <path> was
 discarded by <you>'s forced commit" once: an SSH session at its next check for
-changes by other sessions (every two seconds, or when they next connect), a web
+changes by other sessions (every two seconds, a check that waits while one of
+their own commands runs, or when they next connect), a web
 session in the notification bar of each open page within a second, or when a
 page next opens if none was open, and again at the next second for a page whose
 event stream was too full to take it. From then on each session shows the
@@ -184,9 +185,10 @@ every `set` before the `commit` reads the draft. Nothing is dropped and no
 command is refused for arriving while another is in flight. A command starts
 only once the answer of the one before it is on screen, so answers appear in
 the same order: `commit abort` typed straight after `commit confirmed` always
-ends with the abort's answer. While a command is in flight, the status line's
-two-second look at a confirmed-commit window waits, so a session's own accept
-or abort is never reported as another session's. When the session ends with
+ends with the abort's answer. While a command is in flight, the two-second
+check for changes by other sessions waits: it neither re-reads the draft under
+the running command nor looks at a confirmed-commit window, so a session's own
+accept or abort is never reported as another session's. When the session ends with
 commands still queued, because the SSH client went away or the operator left,
 those commands are dropped unrun: a command that no operator will ever see the
 answer of does not change the draft.

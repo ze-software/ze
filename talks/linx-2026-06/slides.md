@@ -239,13 +239,13 @@ Should be an autocomplete:
 
 - `ze help --ai [--json]`: machine-readable command reference generated from the live binary
 - `ze schema methods`: all RPCs with parameters. `ze schema events`: all notifications
-- `ze skills get <name>`: version-matched knowledge documents embedded in the binary
+- `ze show skill <name>`: version-matched knowledge documents embedded in the binary
 - `ze doctor [--json]`: preflight checks so an agent can verify the system is ready before acting
 
 ### Structured diagnostics
 
 - `ze config validate --json`: stable diagnostic codes, source spans, expected vs actual
-- `ze explain <code>`: agent looks up any error programmatically, gets examples and related codes
+- `ze show diagnostic <code>`: agent looks up any error programmatically, gets examples and related codes
 - `ze config fix --plan --json`: repair candidates with safety labels, never edits files itself
 
 ---

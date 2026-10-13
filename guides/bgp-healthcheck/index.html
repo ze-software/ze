@@ -64,6 +64,12 @@
 <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- runHealthcheckPlugin -->
 <h2 id="quick-start">Quick Start</h2>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     healthcheck {
         probe dns {
             command "dig @127.0.0.1 example.com +short"
@@ -350,7 +356,7 @@ shape and <code>| fill</code> is refused by name.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

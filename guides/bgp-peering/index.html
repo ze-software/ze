@@ -130,6 +130,8 @@ ze doctor
 <p>Peer values override group values. Group values override the global BGP block. Inspect the resolved result with <code>show config dump</code> rather than reasoning about inheritance from the source file alone.</p>
 <h2 id="dynamic-peer-groups">Dynamic peer groups</h2>
 <p>A group with <code>connection { remote { ip dynamic } }</code> accepts a session from any address in its ranges. Use it for an IXP route server or any fabric where the members are not known when you write the configuration.</p>
+<p>A member that connects while Ze is still starting its plugins is held: its session opens only once every plugin is running, the same as a configured peer, so its first UPDATE meets the filters its policy names.</p>
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- createDynamicPeer -->
 <pre><code class="language-text">bgp {
     policy {
         reject-asn NO-TRANSIT {
@@ -456,7 +458,7 @@ ze cli -c "show bgp rib status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

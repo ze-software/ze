@@ -4,7 +4,7 @@ Source: `internal/le/rfc`, `rfc/short/*.md`, and `rfc/audit/*.json`.
 
 ## Gate verdict
 
-RED. 29 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 29 violation(s)`.
+RED. 2 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 2 violation(s)`.
 
 ### Overall
 
@@ -25,7 +25,7 @@ what Ze has
 | Tested both ways | 55.8% | 2,240 of 4,011 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 8.8% | 353 of 4,011 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4,011 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 61.6% | 5,102 of 8,284 tagged units in enrolled RFCs, 4 escaped and 18 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 61.9% | 5,138 of 8,299 tagged units in enrolled RFCs, 4 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -36,7 +36,7 @@ measures that are neither good news nor bad
 | Not applicable | 16.8% | 673 of 4,011 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 1.0% | 41 of 4,011 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.8% | 34 of 4,011 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Semantic verdicts | 2,208 | 18 shifted, 4 stale, 1,910 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
+| Semantic verdicts | 2,230 | 2 shifted, 0 stale, 1,908 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
 
 ### Negative
 
@@ -44,9 +44,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 0.1% | 5 of 4,011 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 16.6% | 665 of 4,011 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Gate verdict | RED | 29 open gate issues | whether ./le rfc check passes over this tree |
+| Partial proof; remaining gap | 0.2% | 8 of 4,011 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 16.5% | 662 of 4,011 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Gate verdict | RED | 2 open gate issues | whether ./le rfc check passes over this tree |
 
 The 8 shares marked as a part above are the whole of the 4,011 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -71,15 +71,15 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 29 |
+| Gate issues | 2 |
 | Gated MUST-level requirements | 4,140 |
 | Enrolled RFCs | 175 |
-| Resolved test tags | 8,545 |
-| Declared gaps | 665 |
+| Resolved test tags | 8,560 |
+| Declared gaps | 662 |
 | RFCs with declared gaps | 77 |
-| Fresh semantic audit verdicts | 2,208 |
-| Shifted semantic audit verdicts | 18 |
-| Stale semantic audit verdicts | 4 |
+| Fresh semantic audit verdicts | 2,230 |
+| Shifted semantic audit verdicts | 2 |
+| Stale semantic audit verdicts | 0 |
 
 ## Who implements each document
 
@@ -112,8 +112,8 @@ The bar is every one of the 4,011 gated MUST-level requirements. 707 of them are
 |---|---:|---:|---|
 | Positive and negative tests | 2,240 | 55.8% | `positive tag + negative tag` |
 | One polarity plus reason | 353 | 8.8% | `{single-polarity} annotation + required tag` |
-| Declared gap | 665 | 16.6% | `{gap} annotation + public ledger disclosure` |
-| Partial proof; remaining gap | 5 | 0.1% | `partial annotation; tested clause only, zero whole-requirement credit` |
+| Declared gap | 662 | 16.5% | `{gap} annotation + public ledger disclosure` |
+| Partial proof; remaining gap | 8 | 0.2% | `partial annotation; tested clause only, zero whole-requirement credit` |
 | One polarity, unexcused | 0 | 0.0% | `tag without annotation` |
 | Missing, unexcused | 0 | 0.0% | `no tag, no annotation` |
 | Not applicable | 673 | 16.8% | `{not-applicable} annotation`: the obligation does not bind Ze, so it is scope rather than coverage |
@@ -190,7 +190,7 @@ These 13 sentences are NOT scope. Each is an obligation Ze owes and has not buil
 | RFC | Declared gaps | Public status |
 |---|---:|---|
 | `RFC 5036` | 59 | Experimental |
-| `RFC 7950` | 58 | Partial |
+| `RFC 7950` | 56 | Partial |
 | `RFC 2205` | 43 | Experimental |
 | `RFC 9012` | 42 | Partial |
 | `DRAFT-IETF-BESS-MUP-SAFI` | 40 | Partial |
@@ -211,9 +211,9 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 52 
 | Reproduce it | `./le rfc check` | 1 of 52 full-mode verify stages run it |
 | Requirement source | `rfc/short/*.md` | 4,140 gated MUST-level requirements |
 | Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 175 enrolled RFCs |
-| Test tags | `internal/`, `pkg/`, `test/` | 8,545 resolved tags |
+| Test tags | `internal/`, `pkg/`, `test/` | 8,560 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 77 RFCs with gaps, 2 Supported with Remaining |
-| Semantic audits | `rfc/audit/*.json` | 2,208 fresh, 18 shifted, 4 stale, 1,910 missing |
+| Semantic audits | `rfc/audit/*.json` | 2,230 fresh, 2 shifted, 0 stale, 1,908 missing |
 | Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 52 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
@@ -221,33 +221,8 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 52 
 
 | RFC | Requirement | Level | What is wrong | The requirement |
 |---|---|---|---|---|
-| - | `-` | - | rfc/short/rfc2181.md:73: RFC2181-5.4-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc2328.md:844: RFC2328-13-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc2328.md:845: RFC2328-13-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc2328.md:849: RFC2328-13.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFRetransmitTimer), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc2328.md:852: RFC2328-14-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc2328.md:853: RFC2328-13.5-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc2328.md:868: RFC2328-4.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive, internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc2545.md:204: RFC2545-3-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyConfigNextHopWire (func-scoped), internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyEncodeNextHopWire (func-scoped), internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyEncodeRejectsInvalidIPv6NextHop (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
-| - | `-` | - | rfc/short/rfc2545.md:205: RFC2545-3-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyConfigNextHopWire (func-scoped), internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyEncodeNextHopWire (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
-| - | `-` | - | rfc/short/rfc2918.md:197: RFC2918-4-3 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2918 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
-| - | `-` | - | rfc/short/rfc4659.md:349: RFC4659-3.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6RejectsLabellessEncode, internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6WireRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc5187.md:270: RFC5187-3.2-1 has a STALE audit verdict -- what it judged changed: internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart (func-scoped), internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2 (func-scoped), internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart (func-scoped), internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc5187 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
-| - | `-` | - | rfc/short/rfc5882.md:263: RFC5882-4.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown, internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc5882.md:268: RFC5882-4.2.2.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc5882.md:269: RFC5882-4.2.2.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc5882.md:270: RFC5882-4.2.2.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc7296.md:495: RFC7296-1.3.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc7296_responder_test.go::TestRespondIKERekey), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc7296.md:702: RFC7296-2.4-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA, internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc7296.md:703: RFC7296-2.4-4 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc7296_responder_test.go::TestInitiatorEmitsInitialContact), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc8277.md:418: RFC8277-2.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap, internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap#2, internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet, internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc8907.md:386: RFC8907-4-5 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/tacacs/rfc8907_packet_test.go::TestPacketHeaderMarshalRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc8907.md:391: RFC8907-10-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc8907.md:392: RFC8907-10-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalNoEncryption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc9085.md:625: RFC9085-2.2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement (func-scoped), internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc9085 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
-| - | `-` | - | rfc/short/rfc9085.md:626: RFC9085-2.3-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement (func-scoped), internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc9085 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
-
-4 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
+| - | `-` | - | rfc/short/rfc4456.md:91: RFC4456-8-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
+| - | `-` | - | rfc/short/rfc4456.md:92: RFC4456-8-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
 
 ## Enrolled RFCs
 
@@ -348,7 +323,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 52 
 | [`RFC 5709`](rfc5709/index.md) OSPFv2 HMAC-SHA Cryptographic Authentication | Experimental | 14 | 0 | 0 | 0 |
 | [`RFC 5798`](rfc5798/index.md) Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | Partial | 59 | 7 | 0 | 0 |
 | [`RFC 5838`](rfc5838/index.md) Support of Address Families in OSPFv3 | Experimental | 16 | 8 | 0 | 0 |
-| [`RFC 5880`](rfc5880/index.md) Bidirectional Forwarding Detection (BFD) | Partial | 111 | 15 | 0 | 0 |
+| [`RFC 5880`](rfc5880/index.md) Bidirectional Forwarding Detection (BFD) | Partial | 111 | 14 | 0 | 0 |
 | [`RFC 5881`](rfc5881/index.md) Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop) | Partial | 23 | 6 | 0 | 0 |
 | [`RFC 5882`](rfc5882/index.md) Generic Application of Bidirectional Forwarding Detection (BFD) | Partial | 3 | 0 | 0 | 0 |
 | [`RFC 5883`](rfc5883/index.md) Bidirectional Forwarding Detection (BFD) for Multihop Paths | Partial | 6 | 0 | 0 | 0 |
@@ -387,7 +362,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 52 
 | [`RFC 7911`](rfc7911/index.md) Advertisement of Multiple Paths in BGP | Supported | 9 | 0 | 0 | 0 |
 | [`RFC 792`](rfc792/index.md) Internet Control Message Protocol | No public row declared | 10 | 0 | 0 | 0 |
 | [`RFC 7947`](rfc7947/index.md) Internet Exchange BGP Route Server | Partial | 2 | 0 | 0 | 0 |
-| [`RFC 7950`](rfc7950/index.md) The YANG 1.1 Data Modeling Language | Partial | 91 | 58 | 0 | 0 |
+| [`RFC 7950`](rfc7950/index.md) The YANG 1.1 Data Modeling Language | Partial | 91 | 56 | 0 | 0 |
 | [`RFC 7999`](rfc7999/index.md) BLACKHOLE Community | Partial | 4 | 0 | 0 | 0 |
 | [`RFC 8050`](rfc8050/index.md) Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions | Partial | 6 | 0 | 0 | 0 |
 | [`RFC 8092`](rfc8092/index.md) BGP Large Communities Attribute | Partial | 7 | 0 | 0 | 0 |

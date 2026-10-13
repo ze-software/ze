@@ -759,7 +759,7 @@ a NAK carrying an Error-Cause.</p>
 <td>NAK 407</td>
 </tr>
 <tr>
-<td>The identification attributes match exactly one session</td>
+<td>The identification attributes Ze evaluates match exactly one session (see below)</td>
 <td>NAK 503 for none, NAK 508 for several</td>
 </tr>
 <tr>
@@ -776,6 +776,31 @@ a NAK carrying an Error-Cause.</p>
 </tr>
 </tbody>
 </table>
+<p>Ze accepts fourteen identification attributes in a CoA-Request and evaluates
+three of them: Acct-Session-Id, User-Name and NAS-Port. Each one the request
+carries narrows the match. User-Name must equal the session's user name, NAS-Port
+must equal the local session ID, and Acct-Session-Id matches by prefix. Ze writes
+an Acct-Session-Id as <code>tunnelID-sessionID-sequence</code> and compares only the
+<code>tunnelID-sessionID-</code> part, so an id issued to a session that has ended also
+matches a later session that reuses the same tunnel and session IDs. A request
+that carries none of the three matches no session and gets NAK 503.</p>
+<p>The other eleven are accepted and not compared with anything: NAS-IP-Address,
+NAS-IPv6-Address, NAS-Identifier, Framed-IP-Address, Framed-Interface-Id,
+Framed-IPv6-Prefix, Called-Station-Id, Calling-Station-Id, Acct-Multi-Session-Id,
+NAS-Port-Id and Chargeable-User-Identity. A request whose attributes together
+name no session can therefore still act on the session its Acct-Session-Id,
+User-Name or NAS-Port names. This does not meet RFC 5176 Section 3, which
+requires the whole combination of identification attributes to match. A
+Disconnect-Request accepts the same set less Framed-IP-Address,
+Framed-Interface-Id and Framed-IPv6-Prefix, which get NAK 401, and evaluates the
+same three.</p>
+<p>Before that match, Ze looks the Acct-Session-Id up in the subscriber registry,
+which compares the whole id. When it finds a session, a CoA-Request applies to
+that session with no other attribute checked, and a Disconnect-Request for a
+PPPoE session gets NAK 504, because PPPoE teardown from a Disconnect-Request is
+not connected yet.</p>
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- findSessions, oneSession, findSubscriberSession, coaSupportedAttrs, disconnectSupportedAttrs -->
+<!-- source: internal/component/l2tp/subscriber/registry.go -- LookupByAcctSessionID -->
 <p>A CoA-Request is atomic, as RFC 5176 Section 2.3 requires. Ze makes every check
 before the first change leaves, so a NAK never follows a partial change. A
 Disconnect-Request carries identification attributes, plus the Reply-Message,
@@ -1495,7 +1520,7 @@ goroutine-per-tunnel.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -7,6 +7,12 @@ Ze's healthcheck plugin monitors service availability by running shell commands 
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     healthcheck {
         probe dns {
             command "dig @127.0.0.1 example.com +short"

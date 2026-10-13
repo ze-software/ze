@@ -631,10 +631,39 @@ a NAK carrying an Error-Cause.
 | Every attribute is one Ze supports | NAK 401 |
 | Every fixed-length attribute (NAS-Port, NAS-IP-Address, Acct-Terminate-Cause and others) has its length | NAK 407 |
 | CoA-Request: every Filter-Id and Vendor-Specific is a rate or a CoS profile Ze applies, with at most one of each | NAK 407 |
-| The identification attributes match exactly one session | NAK 503 for none, NAK 508 for several |
+| The identification attributes Ze evaluates match exactly one session (see below) | NAK 503 for none, NAK 508 for several |
 | Every part of the requested change can be carried out (a CoS profile needs an access interface) | NAK 506 |
 | The requested change reached the shaper | NAK 506 |
 | Disconnect-Request: the matched session was torn down (NAK 504 when its teardown fails, or when the L2TP service stopped after the match) | NAK 504 |
+
+Ze accepts fourteen identification attributes in a CoA-Request and evaluates
+three of them: Acct-Session-Id, User-Name and NAS-Port. Each one the request
+carries narrows the match. User-Name must equal the session's user name, NAS-Port
+must equal the local session ID, and Acct-Session-Id matches by prefix. Ze writes
+an Acct-Session-Id as `tunnelID-sessionID-sequence` and compares only the
+`tunnelID-sessionID-` part, so an id issued to a session that has ended also
+matches a later session that reuses the same tunnel and session IDs. A request
+that carries none of the three matches no session and gets NAK 503.
+
+The other eleven are accepted and not compared with anything: NAS-IP-Address,
+NAS-IPv6-Address, NAS-Identifier, Framed-IP-Address, Framed-Interface-Id,
+Framed-IPv6-Prefix, Called-Station-Id, Calling-Station-Id, Acct-Multi-Session-Id,
+NAS-Port-Id and Chargeable-User-Identity. A request whose attributes together
+name no session can therefore still act on the session its Acct-Session-Id,
+User-Name or NAS-Port names. This does not meet RFC 5176 Section 3, which
+requires the whole combination of identification attributes to match. A
+Disconnect-Request accepts the same set less Framed-IP-Address,
+Framed-Interface-Id and Framed-IPv6-Prefix, which get NAK 401, and evaluates the
+same three.
+
+Before that match, Ze looks the Acct-Session-Id up in the subscriber registry,
+which compares the whole id. When it finds a session, a CoA-Request applies to
+that session with no other attribute checked, and a Disconnect-Request for a
+PPPoE session gets NAK 504, because PPPoE teardown from a Disconnect-Request is
+not connected yet.
+
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- findSessions, oneSession, findSubscriberSession, coaSupportedAttrs, disconnectSupportedAttrs -->
+<!-- source: internal/component/l2tp/subscriber/registry.go -- LookupByAcctSessionID -->
 
 A CoA-Request is atomic, as RFC 5176 Section 2.3 requires. Ze makes every check
 before the first change leaves, so a NAK never follows a partial change. A

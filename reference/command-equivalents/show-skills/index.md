@@ -1,13 +1,13 @@
-# `explain`
+# `show skills`
 
-Explain one diagnostic code Ze printed\.
+List the agent skills this binary carries\.
 
 ## Ze command
 
-- Registry path: `explain`
-- Usage: `explain <code>`
-- Mode: Daemon
-- Wire method: `ze-explain:explain`
+- Registry path: `show skills`
+- Usage: `show skills`
+- Mode: Read-only
+- Wire method: `ze-skills:show-skills`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,13 +21,11 @@ Explain one diagnostic code Ze printed\.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer gives the meaning of the code\, its likely cause and the recommended fix\. It is read from the diagnostic catalog this binary carries and asks no daemon\.
+Each skill is a Markdown document bundled with the binary\, so it always matches the running version\. Prints each bundled skill with its one\-line description\.
 
 ## Arguments
 
-| Name | Type | Required | Values | Summary | Description |
-| --- | --- | --- | --- | --- | --- |
-| `code` | string | yes | any value of this type | Diagnostic code\. | A diagnostic code as a log line or an error message printed it\. An unknown code is refused\. |
+No command-specific arguments listed.
 
 ## Mapping intents
 

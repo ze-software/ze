@@ -331,7 +331,7 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-x-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_msg_test.go#L104" title="internal/component/bgp/plugins/bmp/rfc8671_msg_test.go" target="_blank" rel="noopener"><code>TestBMPPeerUpRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L356" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L409" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L411" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze builds every Peer Up from the peer&#39;s cached sent and received OPEN messages (cacheOpenPDU and recordPeerUp in internal/component/bgp/plugins/bmp/bmp_events.go, pair.sent/pair.received) regardless of the O flag, so an Adj-RIB-Out Peer Up carries the same OPENs as an Adj-RIB-In one by construction; there is no &#34;different OPENs for Adj-RIB-Out&#34; case to assert as a negative. The positive (a Peer Up round-trips its sent/received OPENs) is proven in TestBMPPeerUpRoundTrip, and the independence through the producer in TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB, which primes one collector per route-monitoring policy (pre-policy, post-policy, all) over the same Established peer and finds the same Peer Up on each. The Peer Down half is proven in TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB, which drives the same down event through a plugin per policy and finds the same Peer Down, header, reason and data, on each</p></td>
 </tr>
@@ -470,7 +470,7 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 </div>
 <h3><a href="#rfc8671-x-3"><code>RFC8671-x-3</code></a></h3>
 <p>Peer Up and Down Notifications convey BGP peering session state to BMP receivers.  The state is independent of whether or not route monitoring or route mirroring messages will be sent for Adj-RIB-In, Adj-RIB-Out, or both. (§6.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (second). Both halves of &#39;Peer Up and Down Notifications ... independent of whether ... Adj-RIB-In, Adj-RIB-Out, or both&#39; go through the producer under pre-policy, post-policy and all: rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB (identical per-peer header, both OPENs, transport fields; primeSender break observed red) and ::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB (identical header, reason, data; handleSenderState break observed red). msg_test.go::TestBMPPeerUpRoundTrip: stale line cite replaced by recordPeerUp (bmp_events.go), body unchanged; codec round trip now carries a writePeerUp record observed red. {single-polarity: positive} holds.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-13. TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB changed by setup only: recordPeerUpFor seeds the Peer Up that RFC 7854 Section 3.3 now requires before a Peer Down, identically under pre-policy, post-policy and all, so the comparison of presence, per-peer header, reason and data across the three policies is unchanged and still runs through handleSenderState. TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB (identical header, both OPENs, transport fields through primeSender) and rfc8671_msg_test.go::TestBMPPeerUpRoundTrip unchanged. {single-polarity: positive} holds.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -486,7 +486,7 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L409" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L411" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -852,7 +852,7 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

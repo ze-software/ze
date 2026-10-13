@@ -322,7 +322,7 @@ missing or wrong shared key counts as unreachable.
 
 ```
 ze doctor --json config router.conf
-ze explain doctor-radius-admin-unreachable
+ze show diagnostic doctor-radius-admin-unreachable
 ```
 
 <!-- source: internal/component/radius/doctor.go -- checkRadiusAdminServers -->

@@ -1,13 +1,13 @@
-# `support`
+# `show diagnostic`
 
-Collect logs\, config\, state and diagnostics into one archive\.
+Explain one diagnostic code Ze printed\.
 
 ## Ze command
 
-- Registry path: `support`
-- Usage: `support`
-- Mode: Daemon
-- Wire method: `ze-support:support`
+- Registry path: `show diagnostic`
+- Usage: `show diagnostic <code>`
+- Mode: Read-only
+- Wire method: `ze-explain:show-diagnostic`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,11 +21,13 @@ Collect logs\, config\, state and diagnostics into one archive\.
 - Command pipes: none
 - Pipe aliases: none
 
-The archive holds logs\, config\, state and diagnostics\, and is what to send when you report an issue\. Secrets are redacted unless asked for\. Modules can be selected or excluded\, and a time window narrows the logs the archive holds\.
+The answer gives the meaning of the code\, its likely cause and the recommended fix\. It is read from the diagnostic catalog this binary carries and asks no daemon\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `code` | string | yes | any value of this type | Diagnostic code\. | A diagnostic code as a log line or an error message printed it\. An unknown code is refused\. |
 
 ## Mapping intents
 

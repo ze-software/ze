@@ -123,6 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>8 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>4</strong><b>of 4 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -185,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -425,7 +426,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5187-3.2-1"><code>RFC5187-3.2-1</code></a></h3>
 <p>Therefore, the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts. (§3.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart, internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2, internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart, internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2 moved. Re-judged 2026-09-30 (independent judge, c12). Section 3.2: &#39;the OSPFv3 Interface ID ... MUST be preserved by the restarting router across restarts.&#39; The c11 vacuous negative is replaced: TestRFC5187InterfaceIDPreservedAcrossRestart runs on lo, whose kernel ifindex is the Interface ID a fresh start takes (grInterfaceID falls back to interfaceIndex, gr_preserve.go). - neither grInterfaceID(lo) nor the announced topology ID is the kernel ifindex; + the resumed engine announces the preserved 1041. Author overlay making restoreInterfaceIDs&#39; maps.Copy a no-op reds the negative line (&#39;lo resolves to its fresh-start Interface ID 1&#39;), judge read the diff and the log. Records +/- revert on restoreInterfaceIDs observed. The unit needs a host lo interface (Linux naming) and Fatalf&#39;s without it. gr_nvs_test.go tags are supplementary (NVS round-trip).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after 711a3d1ea0: TestRFC5187InterfaceIDPreservedAcrossRestart moved byte-identical into rfc5187_preserve_restart_linux_test.go under //go:build linux, so its key changed. Re-read against Section 3.2 (&#34;the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts&#34;): the negative fails if grInterfaceID(lo) or the announced topology ID equals the kernel ifindex a fresh start takes, the positive pins the preserved 1041. Limit named: the unit now compiles on Linux only, so on another host the row&#39;s discrimination is not exercised and the gr_nvs_test.go tags (NVS round-trip) are supplementary. Re-judged 2026-09-30 (independent judge, c12). Section 3.2: &#39;the OSPFv3 Interface ID ... MUST be preserved by the restarting router across restarts.&#39; The c11 vacuous negative is replaced: TestRFC5187InterfaceIDPreservedAcrossRestart runs on lo, whose kernel ifindex is the Interface ID a fresh start takes (grInterfaceID falls back to interfaceIndex, gr_preserve.go). - neither grInterfaceID(lo) nor the announced topology ID is the kernel ifindex; + the resumed engine announces the preserved 1041. Author overlay making restoreInterfaceIDs&#39; maps.Copy a no-op reds the negative line (&#39;lo resolves to its fresh-start Interface ID 1&#39;), judge read the diff and the log. Records +/- revert on restoreInterfaceIDs observed. The unit needs a host lo interface (Linux naming) and Fatalf&#39;s without it. gr_nvs_test.go tags are supplementary (NVS round-trip).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -619,7 +620,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

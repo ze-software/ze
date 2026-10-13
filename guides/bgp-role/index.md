@@ -190,6 +190,12 @@ on what we send THEM.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         reject-asn NO-TRANSIT {
             indirect [ 174 701 1299 3356 ]

@@ -507,11 +507,11 @@ Offline commands for agent-driven config validation and repair:
 
 | Command | Purpose |
 |---------|---------|
-| `ze cli -c "validate config <file> \| json"` | Structured diagnostics with stable codes |
-| `ze explain [--json] <code>` | Explain a diagnostic code |
+| `ze cli -c "show config validation <file> \| json"` | Structured diagnostics with stable codes |
+| `ze show diagnostic [--json] <code>` | Explain a diagnostic code |
 | `ze config fix --plan <file>` | Plan-only repair candidates |
-| `ze skills list [--json]` | List bundled agent skills |
-| `ze skills get <name> [--full]` | Load version-matched skill content |
+| `ze show skills [--json]` | List bundled agent skills |
+| `ze show skill <name> [--full]` | Load version-matched skill content |
 
 These commands do not require a running daemon. Agents use them to validate
 and fix config before committing.

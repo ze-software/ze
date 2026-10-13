@@ -404,7 +404,7 @@ data-handler and local-handler registries live in package <code>command</code> r
 in <code>command/registry</code>, because that package cannot import <code>command</code> and so
 cannot name the value.</p>
 <p>The handler returns a payload AND an exit code, and the two are independent. The
-code carries the verdict, the payload carries the evidence, and <code>validate config</code>
+code carries the verdict, the payload carries the evidence, and <code>show config validation</code>
 is the command that needs both: it answers the diagnostics of a configuration it
 rejects and exits 1. The answer therefore goes to stdout whatever the code is,
 because a payload on stderr is a payload no pipe operator can reach. A handler
@@ -422,7 +422,7 @@ registers itself as the source (<code>command.RegisterArgDefSource</code>); a pr
 no source registered refuses every local command rather than skipping the check.
 The handler runs on the value <code>ValidateArgs</code> returned, never on the raw words.</p>
 <!-- source: internal/component/command/local_data.go -- ServeLocal, validateLocalArgs, ValidateModelArgs -->
-<!-- source: internal/component/config/yang/command.go -- commandArgDefs -->
+<!-- source: internal/component/config/yang/command_argdefs.go -- commandArgDefs -->
 <p><code>ze &lt;verb&gt;</code> does not pass through <code>ServeLocal</code>: it runs the plain local handler
 that <code>command.RegisterLocalData</code> builds from the same data handler and registers
 in the local-handler registry. The judgment happens before that handler runs:
@@ -1265,7 +1265,7 @@ queued, not processed, and the replay advances it.</p>
 <p>The counter is observational only; nothing reads it to make a decision, so it
 cannot change what a reload accepts or rejects.</p>
 <!-- source: internal/component/plugin/server/reload_generation.go -- counter state, outcome vocabulary -->
-<!-- source: cmd/ze/hub/main_reload.go -- doReload, the increment site, after engine.Reload -->
+<!-- source: cmd/ze/hub/main_reload.go -- doReloadContext, the increment site, after engine.Reload -->
 <!-- source: internal/component/cmd/show/reload_status.go -- ze-cmd:show-reload-status handler + JSON shape -->
 <h3 id="peer-commands">Peer Commands</h3>
 <pre><code>show bgp peer list                    # List all peers
@@ -2339,12 +2339,22 @@ private, so only a successful call builds a non-zero value; the zero value means
 no tokens and no binding. <code>Tokens</code> answers a copy, so neither the route nor the
 handler can change what was judged. A call that leaves a mandatory leaf unfilled
 is refused with a <code>*command.MissingArgumentError</code> (<code>required argument missing: &lt;leaf&gt;</code>), which still reports the lone binding, because the dispatcher adopts a
-positional selector before it reports the missing leaf.</p>
+positional selector before it reports the missing leaf. The in-process routes
+(R2, R3, R6, R7) write the refusal to stderr, and a missing leaf is followed by
+<code>hint: run '&lt;command&gt; help' to see the arguments it takes</code>, because the refusal
+names one leaf and the help page names every argument (<code>ze</code> prefixes the
+command on the <code>ze &lt;verb&gt;</code> routes, and <code>ze cli -c</code> takes it bare).</p>
+<!-- source: internal/component/command/local_data.go -- localRefusal -->
 <p>Every route that invokes a handler calls the validator, including for a path
 whose model declares no definition: that call passes the tokens through
 unchanged. Each route then invokes the handler only with the tokens of the
 value it got. A route that holds no definitions of its own judges against the
-model through <code>command.ValidateModelArgs</code>.</p>
+model through <code>command.ValidateModelArgs</code>. The daemon builds those definitions once
+at startup and seeds them (<code>yang.SeedCommandArgDefs</code> in <code>NewServer</code>), so the
+first plugin command is not held up while the model loads a second time; a
+process that seeds nothing loads the model on its first call.</p>
+<!-- source: internal/component/config/yang/command_argdefs.go -- SeedCommandArgDefs, commandArgDefs -->
+<!-- source: internal/component/plugin/server/server.go -- NewServer -->
 <table>
 <thead>
 <tr>
@@ -4002,7 +4012,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

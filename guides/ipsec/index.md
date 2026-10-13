@@ -494,7 +494,10 @@ Section 2.1.2 makes that a MUST with no condition on it. The ticket key belongs 
 peering rather than to the session, so a later authentication with the same peer can redeem
 it. Whether Ze USES a ticket is the `session-resumption` leaf, which defaults to `true` and
 covers both roles; with it `false` every authentication runs a full handshake and the ticket
-still goes out. A resumed authentication re-checks the cached chain against the current
+still goes out. As the authenticator, Ze resumes TLS 1.3 sessions only: a peer that offers a
+TLS 1.2 ticket gets a full handshake, because RFC 5216 Section 2.1.2 allows nothing but
+change_cipher_spec and finished after a resuming TLS 1.2 server_hello, and the TLS library
+always adds a new ticket there. A resumed authentication re-checks the cached chain against the current
 `ca-certificate` and `crl`, so a certificate that was revoked or expired since the first
 handshake is refused.
 

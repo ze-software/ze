@@ -758,8 +758,8 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 <td>SHOULD</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-7.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L28" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L29" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L29" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L30" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.6-1">RFC8955-7.6-1</code></td><td colspan="3"><span class="rfc-subject">Implementations should provide mechanisms that map an arbitrary BGP community value (normal or extended) to Traffic Filtering Actions that require different mappings on different systems in the network. (§7.6)</span></td></tr>
@@ -1582,18 +1582,18 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 </div>
 <h3><a href="#rfc8955-7.2-3"><code>RFC8955-7.2-3</code></a></h3>
 <p>A traffic-rate-packets of 0 should result in all traffic for the particular flow to be discarded. (§7.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Literal packet-rate community 0x800c zero reaches the selected callback and real nft backend, with four target drops, exact four-packet/116-byte counters, unaffected-destination and positive-rate controls; the repaired sequence reinstalls zero, sends target token 7 and control token 8, requires only 8 plus a timeout, then withdraws that active discard and requires token 6 delivery, so stale zero-rate enforcement is now distinguishable from removal. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Literal packet-rate community 0x800c zero reaches the selected callback and real nft backend, with four target drops, exact four-packet/116-byte counters, unaffected-destination and positive-rate controls; the repaired sequence reinstalls zero, sends target token 7 and control token 8, requires only 8 plus a timeout, then withdraws that active discard and requires token 6 delivery, so stale zero-rate enforcement is now distinguishable from removal. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage. Re-judged 2026-10-13 after 2ce54b1f91: both discard-probe checks moved from err.(net.Error) to errors.AsType[net.Error](err); ReadFromUDP returns *net.OpError, which satisfies net.Error at the top of the chain, so each timeout assertion accepts and refuses exactly the errors it did before and the verdict is unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L29" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L30" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L28" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L29" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2059,7 +2059,7 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

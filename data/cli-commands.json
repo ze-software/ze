@@ -5527,55 +5527,6 @@
     "mode": "offline"
   },
   {
-    "path": "explain",
-    "short-help": "Explain one diagnostic code Ze printed.",
-    "description": "The answer gives the meaning of the code, its likely cause and the recommended\nfix. It is read from the diagnostic catalog this binary carries and asks no daemon.",
-    "mode": "daemon",
-    "wire-method": "ze-explain:explain",
-    "args": [
-      {
-        "name": "code",
-        "type": "string",
-        "mandatory": true,
-        "short-help": "Diagnostic code.",
-        "description": "A diagnostic code as a log line or an error message printed it. An unknown\ncode is refused."
-      }
-    ],
-    "usage": "explain <code>",
-    "grammar": [
-      {
-        "text": "explain",
-        "kind": "keyword"
-      },
-      {
-        "text": "code",
-        "kind": "value"
-      }
-    ]
-  },
-  {
-    "path": "generate wireguard keypair",
-    "short-help": "Generate a WireGuard keypair with the system wg binary.",
-    "description": "The private key is written on the first line and the public key on the\nsecond. The wg binary must be installed on this host.",
-    "mode": "daemon",
-    "wire-method": "ze-diag:generate-wireguard-keypair",
-    "usage": "generate wireguard keypair",
-    "grammar": [
-      {
-        "text": "generate",
-        "kind": "keyword"
-      },
-      {
-        "text": "wireguard",
-        "kind": "keyword"
-      },
-      {
-        "text": "keypair",
-        "kind": "keyword"
-      }
-    ]
-  },
-  {
     "path": "help",
     "short-help": "Show available commands at this level.",
     "description": "Lists every registered command verb with a brief description.",
@@ -14089,6 +14040,28 @@
     ]
   },
   {
+    "path": "request support archive",
+    "short-help": "Collect logs, config, state and diagnostics into one archive.",
+    "description": "The archive holds logs, config, state and diagnostics, and is what to send\nwhen you report an issue. Secrets are redacted unless asked for. Modules can be selected\nor excluded, and a time window narrows the logs the archive holds.",
+    "mode": "daemon",
+    "wire-method": "ze-support:request-support-archive",
+    "usage": "request support archive",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "support",
+        "kind": "keyword"
+      },
+      {
+        "text": "archive",
+        "kind": "keyword"
+      }
+    ]
+  },
+  {
     "path": "request unsubscribe",
     "short-help": "Stop receiving events you previously subscribed to.",
     "description": "Removes the subscription for the specified event type from your\ncurrent plugin session.",
@@ -14196,6 +14169,28 @@
         "class": "data",
         "available": "with-rows",
         "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "request wireguard keypair",
+    "short-help": "Generate a WireGuard keypair with the system wg binary.",
+    "description": "The private key is written on the first line and the public key on the\nsecond. The wg binary must be installed on this host.",
+    "mode": "daemon",
+    "wire-method": "ze-diag:request-wireguard-keypair",
+    "usage": "request wireguard keypair",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "wireguard",
+        "kind": "keyword"
+      },
+      {
+        "text": "keypair",
+        "kind": "keyword"
       }
     ]
   },
@@ -25729,6 +25724,99 @@
     ]
   },
   {
+    "path": "show config validation",
+    "short-help": "Check a config for errors without applying it.",
+    "description": "Both the grammar of the file and the meaning of its values are checked,\nand each problem is reported with the diagnostic code that explains it. Nothing is\napplied.",
+    "mode": "read-only",
+    "wire-method": "ze-config-cli:show-config-validation",
+    "args": [
+      {
+        "name": "file",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Config file path, or - for stdin.",
+        "description": "The config file to check, or - to read it on stdin."
+      }
+    ],
+    "usage": "show config validation <file>",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      },
+      {
+        "text": "validation",
+        "kind": "keyword"
+      },
+      {
+        "text": "file",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
     "path": "show crashes",
     "short-help": "View saved crash reports, and whether kernel capture is armed.",
     "description": "Without arguments, lists every stored report with its kind: 'panic' for a Go\npanic this daemon caught, 'kernel' for a kernel fault recovered from the\nreserved region on the following boot. The listing also carries a readiness\nblock, which reports configured and armed separately because the reservation\nis a kernel boot argument and a commit alone does not arm it. Use 'latest' to\nsee the newest report or 'name <filename>' to print one. Send the output to\nsupport when reporting a crash.",
@@ -26744,6 +26832,37 @@
       {
         "text": "module",
         "kind": "option"
+      }
+    ]
+  },
+  {
+    "path": "show diagnostic",
+    "short-help": "Explain one diagnostic code Ze printed.",
+    "description": "The answer gives the meaning of the code, its likely cause and the recommended\nfix. It is read from the diagnostic catalog this binary carries and asks no daemon.",
+    "mode": "read-only",
+    "wire-method": "ze-explain:show-diagnostic",
+    "args": [
+      {
+        "name": "code",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Diagnostic code.",
+        "description": "A diagnostic code as a log line or an error message printed it. An unknown\ncode is refused."
+      }
+    ],
+    "usage": "show diagnostic <code>",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "diagnostic",
+        "kind": "keyword"
+      },
+      {
+        "text": "code",
+        "kind": "value"
       }
     ]
   },
@@ -47248,6 +47367,55 @@
     "answer-shape": "doc"
   },
   {
+    "path": "show skill",
+    "short-help": "Fetch one bundled agent skill by name.",
+    "description": "Prints the named skill's Markdown document.",
+    "mode": "read-only",
+    "wire-method": "ze-skills:show-skill",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Skill name.",
+        "description": "A skill name as show skills prints it. An unknown name is refused."
+      }
+    ],
+    "usage": "show skill <name>",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "skill",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "value"
+      }
+    ]
+  },
+  {
+    "path": "show skills",
+    "short-help": "List the agent skills this binary carries.",
+    "description": "Each skill is a Markdown document bundled with the binary, so it always\nmatches the running version. Prints each bundled skill with its one-line description.",
+    "mode": "read-only",
+    "wire-method": "ze-skills:show-skills",
+    "usage": "show skills",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "skills",
+        "kind": "keyword"
+      }
+    ]
+  },
+  {
     "path": "show static",
     "short-help": "Show static routes defined in the configuration.",
     "description": "Lists each static route with its prefix, next-hop, and interface.",
@@ -53338,58 +53506,6 @@
     ]
   },
   {
-    "path": "skills",
-    "short-help": "List the agent skills this binary carries, or fetch one by name.",
-    "description": "Each skill is a Markdown document bundled with the binary, so it always\nmatches the running version. list names them, and get prints one by name.",
-    "mode": "daemon",
-    "wire-method": "ze-skills:skills",
-    "usage": "skills (list|get <name>)",
-    "grammar": [
-      {
-        "text": "skills",
-        "kind": "keyword"
-      },
-      {
-        "text": "action",
-        "group": [
-          {
-            "text": "list",
-            "kind": "group"
-          },
-          {
-            "text": "get",
-            "group": [
-              {
-                "text": "name",
-                "kind": "value"
-              }
-            ],
-            "kind": "group"
-          }
-        ],
-        "kind": "group-one-of"
-      }
-    ],
-    "subcommands": [
-      "get",
-      "list"
-    ]
-  },
-  {
-    "path": "support",
-    "short-help": "Collect logs, config, state and diagnostics into one archive.",
-    "description": "The archive holds logs, config, state and diagnostics, and is what to send\nwhen you report an issue. Secrets are redacted unless asked for. Modules can be selected\nor excluded, and a time window narrows the logs the archive holds.",
-    "mode": "daemon",
-    "wire-method": "ze-support:support",
-    "usage": "support",
-    "grammar": [
-      {
-        "text": "support",
-        "kind": "keyword"
-      }
-    ]
-  },
-  {
     "path": "system command complete",
     "short-help": "List the completion candidates for a partial command.",
     "description": "Ze completes a command NAME from the partial text. Write 'args' before the\ncommand name to complete an ARGUMENT of that command instead, in the form\n'system command complete args <cmd> [<completed>...] <partial>'.",
@@ -56156,94 +56272,5 @@
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
-  },
-  {
-    "path": "validate config",
-    "short-help": "Check a config for errors without applying it.",
-    "description": "Both the grammar of the file and the meaning of its values are checked,\nand each problem is reported with the diagnostic code that explains it. Nothing is\napplied.",
-    "mode": "read-only",
-    "wire-method": "ze-config-cli:validate-config",
-    "args": [
-      {
-        "name": "file",
-        "type": "string",
-        "mandatory": true,
-        "short-help": "Config file path, or - for stdin.",
-        "description": "The config file to check, or - to read it on stdin."
-      }
-    ],
-    "usage": "validate config <file>",
-    "grammar": [
-      {
-        "text": "validate",
-        "kind": "keyword"
-      },
-      {
-        "text": "config",
-        "kind": "keyword"
-      },
-      {
-        "text": "file",
-        "kind": "value"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      }
-    ],
-    "answer-shape": "doc"
   }
 ]

@@ -1,129 +1,21 @@
 {
   "gate": {
     "ok": false,
-    "error-count": 29,
+    "error-count": 2,
     "gated-must": 4140,
     "enrolled-rfcs": 175,
-    "test-tags": 8545,
-    "message": "rfc-requirements: 29 violation(s)",
+    "test-tags": 8560,
+    "message": "rfc-requirements: 2 violation(s)",
     "violations": [
-      "rfc/short/rfc2181.md:73: RFC2181-5.4-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc2328.md:844: RFC2328-13-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc2328.md:845: RFC2328-13-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc2328.md:849: RFC2328-13.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFRetransmitTimer), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc2328.md:852: RFC2328-14-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc2328.md:853: RFC2328-13.5-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc2328.md:868: RFC2328-4.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive, internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc2545.md:204: RFC2545-3-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyConfigNextHopWire (func-scoped), internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyEncodeNextHopWire (func-scoped), internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyEncodeRejectsInvalidIPv6NextHop (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc2545.md:205: RFC2545-3-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyConfigNextHopWire (func-scoped), internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyEncodeNextHopWire (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc2918.md:197: RFC2918-4-3 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2918 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc4659.md:349: RFC4659-3.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6RejectsLabellessEncode, internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6WireRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc5187.md:270: RFC5187-3.2-1 has a STALE audit verdict -- what it judged changed: internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart (func-scoped), internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2 (func-scoped), internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart (func-scoped), internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc5187 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc5882.md:263: RFC5882-4.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown, internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc5882.md:268: RFC5882-4.2.2.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc5882.md:269: RFC5882-4.2.2.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc5882.md:270: RFC5882-4.2.2.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc7296.md:495: RFC7296-1.3.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc7296_responder_test.go::TestRespondIKERekey), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc7296.md:702: RFC7296-2.4-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA, internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc7296.md:703: RFC7296-2.4-4 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc7296_responder_test.go::TestInitiatorEmitsInitialContact), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc8277.md:418: RFC8277-2.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap, internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap#2, internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet, internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc8907.md:386: RFC8907-4-5 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/tacacs/rfc8907_packet_test.go::TestPacketHeaderMarshalRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc8907.md:391: RFC8907-10-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc8907.md:392: RFC8907-10-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalNoEncryption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc9085.md:625: RFC9085-2.2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement (func-scoped), internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc9085 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc9085.md:626: RFC9085-2.3-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement (func-scoped), internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc9085 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc9494.md:228: RFC9494-4.6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc9494.md:229: RFC9494-4.6-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc9494.md:230: RFC9494-4.6-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc9494.md:237: RFC9494-4.3-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
+      "rfc/short/rfc4456.md:91: RFC4456-8-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
+      "rfc/short/rfc4456.md:92: RFC4456-8-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
     ],
     "findings": [
       {
-        "message": "rfc/short/rfc2181.md:73: RFC2181-5.4-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
+        "message": "rfc/short/rfc4456.md:91: RFC4456-8-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
       },
       {
-        "message": "rfc/short/rfc2328.md:844: RFC2328-13-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc2328.md:845: RFC2328-13-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc2328.md:849: RFC2328-13.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFRetransmitTimer), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc2328.md:852: RFC2328-14-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc2328.md:853: RFC2328-13.5-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable, internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc2328.md:868: RFC2328-4.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive, internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc2545.md:204: RFC2545-3-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyConfigNextHopWire (func-scoped), internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyEncodeNextHopWire (func-scoped), internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyEncodeRejectsInvalidIPv6NextHop (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/short/rfc2545.md:205: RFC2545-3-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyConfigNextHopWire (func-scoped), internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyEncodeNextHopWire (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2545 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/short/rfc2918.md:197: RFC2918-4-3 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2918 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/short/rfc4659.md:349: RFC4659-3.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6RejectsLabellessEncode, internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6WireRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc5187.md:270: RFC5187-3.2-1 has a STALE audit verdict -- what it judged changed: internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart (func-scoped), internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2 (func-scoped), internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart (func-scoped), internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc5187 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/short/rfc5882.md:263: RFC5882-4.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown, internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc5882.md:268: RFC5882-4.2.2.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc5882.md:269: RFC5882-4.2.2.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc5882.md:270: RFC5882-4.2.2.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc7296.md:495: RFC7296-1.3.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc7296_responder_test.go::TestRespondIKERekey), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc7296.md:702: RFC7296-2.4-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA, internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc7296.md:703: RFC7296-2.4-4 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc7296_responder_test.go::TestInitiatorEmitsInitialContact), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc8277.md:418: RFC8277-2.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap, internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap#2, internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet, internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc8907.md:386: RFC8907-4-5 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/tacacs/rfc8907_packet_test.go::TestPacketHeaderMarshalRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc8907.md:391: RFC8907-10-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc8907.md:392: RFC8907-10-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalNoEncryption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc9085.md:625: RFC9085-2.2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement (func-scoped), internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc9085 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/short/rfc9085.md:626: RFC9085-2.3-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement (func-scoped), internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc9085 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/short/rfc9494.md:228: RFC9494-4.6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc9494.md:229: RFC9494-4.6-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc9494.md:230: RFC9494-4.6-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc9494.md:237: RFC9494-4.3-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP, internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
+        "message": "rfc/short/rfc4456.md:92: RFC4456-8-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
       }
     ]
   },
@@ -146,11 +38,11 @@
     },
     {
       "key": "gap",
-      "count": 665
+      "count": 662
     },
     {
       "key": "partial-scope",
-      "count": 5
+      "count": 8
     },
     {
       "key": "one_polarity_unexcused",
@@ -178,7 +70,7 @@
     }
   ],
   "gaps": {
-    "requirements": 665,
+    "requirements": 662,
     "rfcs": 77,
     "status-counts": [
       {
@@ -212,7 +104,7 @@
       },
       {
         "rfc": "RFC 7950",
-        "count": 58,
+        "count": 56,
         "status": "Partial"
       },
       {
@@ -268,11 +160,11 @@
     ]
   },
   "audit": {
-    "verdicts": 2230,
-    "fresh": 2208,
-    "shifted": 18,
-    "stale": 4,
-    "missing": 1910
+    "verdicts": 2232,
+    "fresh": 2230,
+    "shifted": 2,
+    "stale": 0,
+    "missing": 1908
   },
   "verify": {
     "command": "./le rfc check",

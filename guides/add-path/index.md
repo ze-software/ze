@@ -53,6 +53,7 @@ A family entry can carry no block at all. `family { ipv4/unicast; }` takes the c
 
 ```
 bgp {
+    router-id 192.0.2.1;
     peer transit-a {
         connection {
             remote { ip 10.0.0.1; }

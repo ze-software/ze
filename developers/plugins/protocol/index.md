@@ -488,7 +488,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-verify` | `OnConfigVerify` | `ConfigVerifyInput` | `ConfigVerifyOutput` | Verify candidate config |
 | `ze-plugin-callback:config-apply` | `OnConfigApply` | `ConfigApplyInput` | `ConfigApplyOutput` | Apply a config diff |
 | `ze-plugin-callback:config-rollback` | `OnConfigRollback` | `{"transaction-id":"..."}` | None | Roll back a config transaction. Reaches the handler only while an apply this plugin accepted is neither committed nor rolled back |
-| `ze-plugin-callback:config-committed` | None, handled by the SDK | `{"transaction-id":"..."}` | None | The transaction committed; the SDK stops owing a rollback for its apply |
+| `ze-plugin-callback:config-committed` | `OnConfigCommitted` | `{"transaction-id":"..."}` | None | The transaction committed; the SDK stops owing a rollback for its apply. Reaches the handler only while an apply this plugin accepted is neither committed nor rolled back |
 | `ze-plugin-callback:config-operation-decompose` | `OnConfigOperationDecompose` | `ConfigOperationDecomposeInput` | `ConfigOperationDecomposeOutput` | Decompose a config transaction |
 | `ze-plugin-callback:config-operation-verify` | `OnConfigOperationVerify` | `ConfigOperationVerifyInput` | `ConfigOperationVerifyOutput` | Verify a config operation |
 | `ze-plugin-callback:config-operation-apply` | `OnConfigOperationApply` | `ConfigOperationApplyInput` | `ConfigOperationApplyOutput` | Apply a config operation |

@@ -19,29 +19,29 @@
   },
   "blog_articles": 6,
   "changes": 44,
-  "cli_commands": 473,
+  "cli_commands": 474,
   "config_sections": 38,
   "dependencies": 52,
   "features": {
     "core_experimental": 52
   },
-  "generated_at": "2026-10-12",
+  "generated_at": "2026-10-13",
   "github_stars": 57,
   "interop": {
-    "scenario_dirs_raw": 160,
-    "scenarios": 160,
-    "scenarios_display": "160",
+    "scenario_dirs_raw": 171,
+    "scenarios": 171,
+    "scenarios_display": "170+",
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-10-12T10:19:20Z",
+  "published_at": "2026-10-13T20:11:08Z",
   "repo": {
-    "design_comments": 5990,
-    "design_comments_display": "5,900+",
-    "detail_comments": 5752,
-    "detail_comments_display": "5,700+",
-    "go_packages": 864,
-    "go_packages_display": "860+"
+    "design_comments": 6436,
+    "design_comments_display": "6,400+",
+    "detail_comments": 6222,
+    "detail_comments_display": "6,200+",
+    "go_packages": 878,
+    "go_packages_display": "870+"
   },
   "rfc": {
     "enrolled": 175,
@@ -65,13 +65,13 @@
     "summaries_display": "194"
   },
   "tests": {
-    "e2e": 2220,
+    "e2e": 2231,
     "e2e_display": "2,200+",
     "editor": 177,
     "editor_display": "170+",
     "fuzz": 88,
     "fuzz_display": "88",
-    "unit": 35689,
-    "unit_display": "35,600+"
+    "unit": 35820,
+    "unit_display": "35,800+"
   }
 }

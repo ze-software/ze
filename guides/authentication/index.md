@@ -75,7 +75,7 @@ a central server.
 
 ```
 ze doctor --json config router.conf
-ze explain doctor-aaa-no-local-fallback
+ze show diagnostic doctor-aaa-no-local-fallback
 ```
 
 It warns where a RADIUS or TACACS+ server is configured and no
@@ -551,7 +551,7 @@ and continues.
 <!-- source: internal/component/config/loader.go -- LoadConfig -->
 <!-- source: internal/component/cli/editor_commit.go -- CommitSession, ApplyPasswordHashing -->
 <!-- source: internal/plugins/passwd/main.go -- runImpl -->
-<!-- source: cmd/ze/hub/main_reload.go -- runReload -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
 
 ## Things that do NOT work
 

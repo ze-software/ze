@@ -294,7 +294,8 @@ for, which is why neither is permitted:</p>
 test before executing anything, so the reported error is the parse error rather
 than a confusing downstream symptom.</p>
 <p><strong>Unparseable outranks skipped.</strong> A file that both fails to parse and carries
-<code>option=needs-linux</code> / <code>option=skip-os</code> is reported FAIL, not SKIP. Its skip
+a skip marker (<code>option=needs-linux</code>, <code>option=skip-os</code>, <code>option=needs-arch</code>) is
+reported FAIL, not SKIP. Its skip
 marker was parsed from the same broken file, so it is not trustworthy evidence
 that the file need not run: a contradicting directive may sit past the break, or
 the marker itself may be what was mis-parsed. Honoring it would mean trusting a
@@ -575,7 +576,7 @@ directive.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>expect=bgp</code>, <code>reject=bgp</code>, <code>action=*</code>, and the peer's own <code>option=</code> (<code>asn</code>, <code>bind</code>, <code>tcp_connections</code>, <code>conn_map</code>, <code>open</code>, <code>update</code>, <code>linger</code>, <code>silent</code>, <code>await_eor</code>, <code>established-file</code>)</td>
+<td><code>expect=bgp</code>, <code>reject=bgp</code>, <code>action=*</code>, and the peer's own <code>option=</code> (<code>asn</code>, <code>bind</code>, <code>tcp_connections</code>, <code>conn_map</code>, <code>open</code>, <code>update</code>, <code>linger</code>, <code>silent</code>, <code>await_eor</code>, <code>established-file</code>, <code>await-file</code>)</td>
 <td>le test peer</td>
 </tr>
 <tr>
@@ -793,6 +794,11 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <td>Peer-block only: ze-peer creates the empty file <code>&lt;name&gt;</code> when the daemon's first UPDATE arrives, once for the whole run. A relative name resolves in the test's work directory, where ze-peer and every compiled fixture run. The UPDATE, not ze's KEEPALIVE, is the event: RFC 4271 Section 9 permits an UPDATE only in Established, so the file proves the DAEMON is Established, while its KEEPALIVE arrives when it can still be in OpenConfirm. It lets a fixture wait on that state instead of a fixed delay: the reload trigger's <code>awaitEstablished</code> holds the SIGHUP until the file named <code>established</code> exists. A session that sends no UPDATE never writes the file. See. <span class="ev-src"><span class="ev-ref"><code>internal/test/fixture/misc_fixture_shellports.go</code></span><span class="ev-ref"><code>test/reload/reload-dynamic-peer-survives.ci</code></span></span></td>
 </tr>
 <tr>
+<td><code>await-file</code></td>
+<td><code>path=&lt;name&gt;</code></td>
+<td>Peer-block only: ze-peer sends nothing after the OPEN handshake, not an <code>action=send</code>, not an <code>option=update</code> route, until the file <code>&lt;name&gt;</code> exists. It resolves like <code>established-file</code>, so one peer block can hold its first UPDATE until another block's <code>established-file</code> proves the daemon has that session Established. A relay test needs it when its sender would otherwise race the receiver: ze forwards nothing to a peer it does not yet hold Established, and a route that arrives first reaches the receiver later through a peer-up replay, whose order is not the send order. The wait is bounded at 15 s and fails naming the file. See. <span class="ev-src"><span class="ev-ref"><code>test/plugin/forward-overflow-two-tier.ci</code></span></span></td>
+</tr>
+<tr>
 <td><code>open</code></td>
 <td><code>value=&lt;behavior&gt;</code></td>
 <td>OPEN message behavior</td>
@@ -811,6 +817,11 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <td><code>skip-os</code></td>
 <td><code>value=&lt;os&gt;[,&lt;os&gt;]</code></td>
 <td>Skip test on listed GOOS values (e.g., <code>darwin</code>, <code>linux</code>)</td>
+</tr>
+<tr>
+<td><code>needs-arch</code></td>
+<td><code>value=&lt;goarch&gt;[,&lt;goarch&gt;]</code></td>
+<td>Run only on a host whose CPU arch (<code>GOARCH</code>) is in the list. On any other host the test is SKIPPED, and the SKIP line names both arches: <code>SKIP. -- needs-arch=arm64, host GOARCH=amd64. </code>. A test that builds or boots for a target arch carries it (owner decision 2026-10-13: a target arch is tested only on a CPU of that arch), because Ze builds every kernel on a host of its own arch, with no CPU emulation. Each token must be an arch the kernel builder supports (<code>kernelbuilder.SupportedArches</code>, today <code>amd64</code> and <code>arm64</code>): an empty token, a typo such as <code>amd46</code>, a kernel spelling such as <code>x86_64</code> or <code>aarch64</code>, a missing <code>value=</code> or any other key is a parse error on every host. A fixture whose arch is incidental to what it asserts asks for the host's arch instead (<code>hostKernelArch</code>), so it runs everywhere. The <code>test/parse</code> suite has its own parser and does not take <code>needs-arch</code>. <span class="ev-src"><span class="ev-ref"><code>internal/test/fixture/install_fixture.go</code></span></span></td>
 </tr>
 <tr>
 <td><code>needs-linux</code></td>
@@ -837,6 +848,9 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
 <!-- source: internal/test/runner/needs_path.go -- repoRootFrom, the needs-path lookup -->
+<!-- source: internal/test/runner/needs_arch.go -- needsArchSkipReason, checkNeedsArchToken -->
+<!-- source: internal/test/runner/display.go -- Display.TestFinished, the SKIP line carries the SkipReason -->
+<!-- test: internal/test/runner/needs_arch_test.go -- TestNeedsArchSkipReason, TestParseCIOptionNeedsArch -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
 <h4 id="configuration-inputs-for-peer-as-derivation">Configuration inputs for peer AS derivation</h4>
 <p>The derivation follows consumers, not filenames or configuration-looking text:</p>
@@ -931,6 +945,10 @@ before requesting shutdown.</p>
 <tr>
 <td>Skips on one non-Linux OS for a reason unrelated to the kernel</td>
 <td><code>option=skip-os:value=darwin</code></td>
+</tr>
+<tr>
+<td>Builds or boots for one target arch, which only a CPU of that arch can do</td>
+<td><code>option=needs-arch:value=arm64</code></td>
 </tr>
 <tr>
 <td>Needs an optional heavyweight artifact the checkout does not carry</td>
@@ -1485,7 +1503,7 @@ command in the file, so an assertion could be satisfied by a command its author
 never named and a reject could trip on any command's output. Two files did
 exactly that: <code>test/plugin/kernel-capability-unknown-starts.ci</code> and
 <code>kernel-capability-doctor-reports.ci</code> each asserted that <code>ze doctor</code> printed a
-diagnostic code and then ran <code>ze explain &lt;that code&gt;</code>, whose output satisfied the
+diagnostic code and then ran <code>ze show diagnostic &lt;that code&gt;</code>, whose output satisfied the
 assertion on a host where the doctor check does not run at all.</p>
 <p>So a file no longer needs splitting to make a negative assertion mean something.
 <code>test/plugin/vpp-doctor-hugepages.ci</code> and <code>vpp-doctor-hugepages-quiet.ci</code>, and
@@ -1635,7 +1653,7 @@ an exabgp-compat config is left alone for the same reason.</p>
 <!-- source: internal/test/runner/loopback.go -- probe, error text, --bind, config-local and local-address scan -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- runOneExaBGPTest, the exabgp-compat preflight call -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
-<!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
+<!-- source: internal/test/runner/loopback_bsd.go -- SIOCAIFADDR on macOS and FreeBSD -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <p>An exabgp-compat case runs TWO processes, ze and the mock BGP server, and its
 verdict names which one ended the case:</p>
@@ -3166,7 +3184,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

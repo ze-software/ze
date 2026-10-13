@@ -742,6 +742,12 @@ of additions and withdrawals while the local best path settles.</p>
 <p><code>update-delay</code> holds the first advertisement until the RIB settles, so the
 neighbor receives one set:</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     update-delay {
         max-delay 30
         establish-wait 10
@@ -1030,6 +1036,12 @@ separate condition from RFC 7999 Section 3.3.</p>
 within IS the explicit configuration directive RFC 7999 Section 4 asks for, so
 <code>communities</code> defaults to the well-known value:</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer transit-a {
         blackhole {
             prefixes [ 192.0.2.0/24 198.51.100.0/24 ];
@@ -1040,6 +1052,12 @@ within IS the explicit configuration directive RFC 7999 Section 4 asks for, so
 <p>Most operators run RTBH on their own community rather than on the well-known
 one. Name it, and name both when a peer sends either:</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer transit-a {
         blackhole {
             communities [ blackhole 65001:666 ];
@@ -1100,6 +1118,12 @@ on the group.</p>
 session has no <code>peer</code> block, so the group is where an IXP route server writes
 one <code>blackhole</code> container for all of its members:</p>
 <pre><code>bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     group ix {
         connection {
             remote {
@@ -1137,6 +1161,12 @@ conditioned on a community rewrites whatever attribute the operator chooses,
 and a next-hop rewrite toward an address routed to a discard is the vendor
 two-step form of the same idea:</p>
 <pre><code>bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         modify RTBH {
             match { community 65001:666; }
@@ -1161,6 +1191,12 @@ then makes the /32 Invalid on length alone, and a session that rejects Invalid
 routes drops the announcement before the blackhole logic sees it. The symptom is
 a peer that reports the announcement as sent and a Ze that installs nothing.</p>
 <pre><code>bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     peer transit-a {
         rpki {
             action { invalid reject; }
@@ -2005,6 +2041,12 @@ The AS-path is converted to a space-separated decimal string and matched
 using Go RE2 (linear time, inherently ReDoS-safe). Use <code>[0-9]</code> instead of
 <code>\d</code> in regex strings (ze's config parser interprets backslash as escape).</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         as-path-list ALLOW-PEER {
             entry "^65001" { action accept }
@@ -2028,6 +2070,12 @@ with a peer, and the keyword each ASN is written under says where in the path it
 is unacceptable. A route matching any of them is rejected and the session stays
 up.</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         reject-asn NO-TRANSIT {
             indirect [ 174 3356 ]
@@ -2123,6 +2171,12 @@ the network name for each ASN it recognizes.</p>
 Each entry checks for presence of a specific community value in the route's
 standard, large, or extended community attributes.</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         community-match BLOCK-NO-EXPORT {
             entry no-export { type standard; action reject }
@@ -2150,6 +2204,12 @@ condition, and every other route leaves the filter unchanged. Use a match filter
 earlier in the chain when you want the rest dropped, because a rejected route
 leaves the pipe.</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         modify PREFER-LOCAL {
             set {
@@ -2222,6 +2282,12 @@ leaves the pipe.</p>
 <p><code>increment</code> and <code>decrement</code> compute from the value the route carries. When the
 route carries none, they start from <code>bgp { defaults { attribute { } } }</code>:</p>
 <pre><code>bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     defaults {
         attribute {
             med              0;
@@ -5093,8 +5159,27 @@ daemon does not half-start. The line names the section, the leaf and the rule:</
 </code></pre>
 <p>The rules cover <code>interface</code>, <code>sysctl</code>, <code>fib</code>, <code>plugin</code>, <code>telemetry</code>, <code>vpp</code>,
 <code>vpn</code>, <code>pki</code>, <code>l2tp</code>, <code>isis</code> and <code>ospf</code>. A BGP value is unaffected here because
-BGP has always had its own deeper check at startup. A missing mandatory field
-stays a warning and does not stop the daemon.</p>
+BGP has always had its own deeper check at startup.</p>
+<p><strong>A missing mandatory field stops the daemon too.</strong> A leaf the YANG schema marks
+<code>mandatory true</code> is required whenever its closest ancestor that is not a plain
+(non-presence) container exists, as RFC 7950 Section 7.6.5 says, even when every
+container between them is absent from the file. This holds in every section
+the config writes, not only the ones the rules above cover: a <code>bfd</code> profile
+with an <code>auth</code> block needs its <code>type</code>, <code>key-id</code> and <code>secret</code>. A section the file
+leaves out entirely is not checked. So a <code>bgp</code> block needs
+<code>router-id</code> and <code>session asn local</code>. The value can come from the peers instead:
+when every peer carries it, or inherits it from its group, the global leaf is
+not needed. A dynamic group (<code>connection remote ip dynamic</code>) must carry the
+value itself, even when it lists static peers, because the sessions it accepts
+are built from the group and never from a member. The refusal names the leaf
+and the command that supplies it:</p>
+<pre><code>error: load config: config validation failed: bgp: bgp/router-id: mandatory field "router-id" is missing: the YANG schema marks bgp/router-id mandatory (RFC 7950 Section 7.6.5); add it with `set bgp router-id &lt;value&gt;`
+</code></pre>
+<p>A mandatory choice, such as a static route's action, has no name of its own
+in the file, so the refusal lists one command for each of its cases instead,
+and any one of them satisfies it:</p>
+<pre><code>error: load config: config validation failed: static: static/table[default]/route[10.0.0.0/8]/action: mandatory choice "action" is missing: the YANG schema requires one of its cases under static/table[default]/route[10.0.0.0/8] (RFC 7950 Section 7.9.4); add one with `set static table default route 10.0.0.0/8 blackhole`, `set static table default route 10.0.0.0/8 next ...`, `set static table default route 10.0.0.0/8 reject`
+</code></pre>
 <p><strong>A reload refuses the same way, and the daemon keeps running.</strong> Send SIGHUP
 with a config a validator refuses and the reload fails, the staged candidate is
 cleared, and the daemon keeps serving the config it already runs. The listeners
@@ -5120,6 +5205,12 @@ not start. It does not tell you what else is wrong with the machine, so run
 <h2 id="healthcheck">Healthcheck</h2>
 <p>Service healthcheck probes monitor availability and control BGP route announcement via watchdog groups:</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     healthcheck {
         probe dns {
             command "dig @127.0.0.1 example.com +short"
@@ -5218,7 +5309,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

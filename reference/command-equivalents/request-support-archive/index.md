@@ -1,13 +1,13 @@
-# `generate wireguard keypair`
+# `request support archive`
 
-Generate a WireGuard keypair with the system wg binary\.
+Collect logs\, config\, state and diagnostics into one archive\.
 
 ## Ze command
 
-- Registry path: `generate wireguard keypair`
-- Usage: `generate wireguard keypair`
+- Registry path: `request support archive`
+- Usage: `request support archive`
 - Mode: Daemon
-- Wire method: `ze-diag:generate-wireguard-keypair`
+- Wire method: `ze-support:request-support-archive`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,7 +21,7 @@ Generate a WireGuard keypair with the system wg binary\.
 - Command pipes: none
 - Pipe aliases: none
 
-The private key is written on the first line and the public key on the second\. The wg binary must be installed on this host\.
+The archive holds logs\, config\, state and diagnostics\, and is what to send when you report an issue\. Secrets are redacted unless asked for\. Modules can be selected or excluded\, and a time window narrows the logs the archive holds\.
 
 ## Arguments
 

@@ -361,6 +361,25 @@ not load. That package set is DERIVED from the tree with `go list` on every run.
 A hand-written list drifts the moment somebody adds a `//go:build debug`
 file in a new package, and the drift is silent.
 
+The consequence is that a flavor pass is a lint pass, not a compile check. A
+package whose files every target shares, such as `internal/test/runner` or
+`internal/core/diskspace`, is linted once under the host GOOS and never
+type-checked under FreeBSD or OpenBSD, where `syscall.Rlimit` is signed and
+`Statfs_t` names its fields `F_bavail` and `F_bsize`. `./le go vet-platforms`
+is the check that does compile it: it vets `./cmd/... ./internal/... ./pkg/...`
+with the shipped personality tags under `darwin`, `freebsd` and `openbsd`, and
+`./le verify worktree` runs all three. The split is deliberate: linting every
+package again under each BSD would repeat the host pass's findings to type-check
+what one `go vet` per target already type-checks.
+
+A pass that stops before it lints is not a pass with findings. golangci-lint
+exits 1 when it reports findings; any other non-zero exit (a package load that
+failed because `go` was missing from `PATH`, a timeout, a configuration it
+could not read) or a child that never started means that pass checked nothing.
+The driver names those passes on their own line, `lint: N pass(es) did not
+complete and linted nothing`, and records the cause in the pass's `error`
+field, so a stopped pass never reads as one more red with findings.
+
 The driver then asserts coverage. Every tracked Go file must be loaded by some
 pass. The exceptions are `vendor/`, `gokrazy/modcache/`, and the `//go:build
 ignore` files that belong to no build. `./le go lint run` executes the

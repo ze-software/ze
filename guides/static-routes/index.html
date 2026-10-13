@@ -212,8 +212,10 @@ static {
 </code></pre>
 <p>If all BFD-tracked next-hops go down, the route is withdrawn entirely.</p>
 <p>The session to a next-hop is single-hop. The daemon at startup, a commit,
-a SIGHUP reload and <code>ze config validate</code> each refuse a <code>bfd-profile</code> that
-names no profile under
+a SIGHUP reload and <code>ze config validate</code> each refuse a <code>bfd-profile</code> while
+the <code>bfd</code> section is absent or sets <code>enabled false</code>, so BFD cannot be
+removed from under a monitored route: remove the <code>bfd-profile</code> lines first.
+They also refuse a <code>bfd-profile</code> that names no profile under
 <code>bfd { profile ... }</code>, and one whose profile sets <code>passive</code>, because RFC
 5881 §3 requires both ends of a single-hop session to be Active. The error
 names the route and the next-hop.</p>
@@ -388,7 +390,7 @@ framework. BGP redistribute can import static routes:</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -311,11 +311,11 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 ### System Readiness
 
-*operate / Experimental* -- `ze doctor` `ze explain`
+*operate / Experimental* -- `ze doctor` `ze show diagnostic`
 
 - Offline **pre-start checks**
 - Health, warnings, and **errors**
-- Structured **remediation** with `ze explain`
+- Structured **remediation** with `ze show diagnostic`
 
 [Learn more](https://ze-software.net/guides/production-diagnostics/)
 

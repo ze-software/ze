@@ -97,8 +97,8 @@ it is generated from code, not written by hand.</p>
 <code>./le cli catalog update file &lt;destination&gt;</code> action renders the corresponding
 Markdown from the live registries.</p>
 <h2 id="structured-diagnostics">Structured Diagnostics</h2>
-<pre><code>ze cli -c "validate config &lt;file&gt; | json"
-ze explain [--json] &lt;diagnostic-code&gt;
+<pre><code>ze cli -c "show config validation &lt;file&gt; | json"
+ze show diagnostic [--json] &lt;diagnostic-code&gt;
 ze config fix --plan &lt;file&gt;
 </code></pre>
 <p>The validation verdict is a record the pipe layer renders, so <code>| json</code>,
@@ -108,14 +108,14 @@ rendering flag of its own. The fix plan prints for a reader.</p>
 expected/actual facts, and repair metadata. Agents parse JSON diagnostics instead of
 scraping terminal prose.</p>
 <p>Each diagnostic carries a stable code (e.g., <code>config-parse</code>, <code>config-yang-type</code>,
-<code>config-listener-conflict</code>). Use <code>ze explain &lt;code&gt;</code> to get an explanation.</p>
+<code>config-listener-conflict</code>). Use <code>ze show diagnostic &lt;code&gt;</code> to get an explanation.</p>
 <p><code>ze config fix --plan</code> reports candidate repairs without editing files.
 Repair plans carry safety labels (<code>format-only</code>, <code>section-local</code>, <code>behavior-preserving</code>,
 <code>requires-human-review</code>) and stable repair IDs.</p>
 <h2 id="version-matched-skills">Version-Matched Skills</h2>
-<pre><code>ze skills list
-ze skills get ze-diagnostics
-ze skills get ze --full
+<pre><code>ze show skills
+ze show skill ze-diagnostics
+ze show skill ze --full
 </code></pre>
 <p>The installed binary serves agent workflow guides matched to its exact version.
 Skills cover diagnostics, config, commands, and agent edit loops. Agents load
@@ -228,7 +228,7 @@ references, automation, authorization, audit, and diagnostics.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

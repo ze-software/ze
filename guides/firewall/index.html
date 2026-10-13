@@ -832,7 +832,7 @@ filters nothing.</li>
 <li><code>doctor-firewall-irr-oversized-data</code>: a referenced entry is longer than a
 firewall set holds, so the rules naming it are not programmed.</li>
 </ul>
-<p>Run <code>ze explain &lt;code&gt;</code> for the full description. <code>ze_firewall_irr_data_age_seconds</code> is the
+<p>Run <code>ze show diagnostic &lt;code&gt;</code> for the full description. <code>ze_firewall_irr_data_age_seconds</code> is the
 age of the oldest data being enforced, and
 <code>ze_firewall_irr_last_refresh_timestamp</code> moves only when a refresh learned
 prefixes.</p>
@@ -1034,7 +1034,7 @@ so the rules naming it filter nothing.</li>
 not resolved for more than a day, and Ze is still enforcing the addresses it
 learned before.</li>
 </ul>
-<p>Run <code>ze explain &lt;code&gt;</code> for the full description. Four metrics carry the same
+<p>Run <code>ze show diagnostic &lt;code&gt;</code> for the full description. Four metrics carry the same
 state: <code>ze_firewall_domain_group_addresses_cached</code>,
 <code>ze_firewall_domain_group_refresh_outcomes_total</code> (labels <code>unchanged</code>,
 <code>changed</code>, <code>nxdomain</code>, <code>error</code>, <code>panic</code>),
@@ -1156,7 +1156,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

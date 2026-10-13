@@ -471,6 +471,12 @@ named by no config: ze generates <code>dyn-&lt;address&gt;</code> when it accept
 connection. Nothing needs to name it, because ze reads each peer's blocks after
 the group merge, not from the text of the config file.</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     group ix {
         connection {
             remote {
@@ -1313,6 +1319,12 @@ listed position, and leaves the session up. It is the cheap answer to a peer
 leaking its transit, which the max-prefix limit otherwise stops by dropping the
 whole session.</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         reject-asn NO-TRANSIT {
             indirect [ 174 3356 ]
@@ -1524,6 +1536,12 @@ peer, group, or global filter chain by their unique name.</p>
 <code>replace-with peer-as</code> mode replaces each private ASN with the destination peer
 AS on export, or the source peer AS on import.</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         remove-private-as STRIP {
         }
@@ -1939,7 +1957,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

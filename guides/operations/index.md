@@ -251,7 +251,7 @@ Three answers are possible and only one refuses:
 
 The third answer means ze could not reach the probe's evidence, most often
 because the process lacked a privilege. No kernel rebuild fixes that, so ze warns
-and starts. Read the reason in the message: `ze explain doctor-ipsec-xfrm-unknown`
+and starts. Read the reason in the message: `ze show diagnostic doctor-ipsec-xfrm-unknown`
 carries the rest.
 
 A configuration that does not use the subsystem is never probed and never

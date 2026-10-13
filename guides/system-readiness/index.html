@@ -91,7 +91,7 @@ feature (subsystem, <code>CONFIG_</code> symbol, state, reason) and exits 0 only
 row is <code>present</code>. It is how a host is checked before it runs Ze's Docker labs.</p>
 <!-- source: internal/component/doctor/kernel_capabilities.go -- writeKernelCapabilities -->
 <p>Each check produces a diagnostic with a code (e.g., <code>doctor-config-reference</code>),
-severity (<code>error</code> or <code>warning</code>), and message. Use <code>ze explain &lt;code&gt;</code> for
+severity (<code>error</code> or <code>warning</code>), and message. Use <code>ze show diagnostic &lt;code&gt;</code> for
 remediation guidance.</p>
 <h3 id="checks">Checks</h3>
 <table>
@@ -488,7 +488,7 @@ because a <code>doctor-</code> alias for them would be a second code for one fac
 registry accepts any well-formed lower-kebab code
 (<code>diagnostic.RegisterDoctorCheck</code>).</li>
 <li>Register the code in <code>internal/core/diagnostic/codes.go</code> so
-<code>ze explain &lt;code&gt;</code> works. The entry names the code through an exported
+<code>ze show diagnostic &lt;code&gt;</code> works. The entry names the code through an exported
 constant, and the check that emits it references that constant. A code
 spelled a second time in the emitting package is a second declaration of
 one fact, and <code>./le arch enumeration check</code> refuses it.</li>
@@ -537,7 +537,7 @@ is present and emits the registered code.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

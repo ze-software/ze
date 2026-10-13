@@ -561,6 +561,22 @@ charged to every commit in the checkout.</p>
 not load. That package set is DERIVED from the tree with <code>go list</code> on every run.
 A hand-written list drifts the moment somebody adds a <code>//go:build debug</code>
 file in a new package, and the drift is silent.</p>
+<p>The consequence is that a flavor pass is a lint pass, not a compile check. A
+package whose files every target shares, such as <code>internal/test/runner</code> or
+<code>internal/core/diskspace</code>, is linted once under the host GOOS and never
+type-checked under FreeBSD or OpenBSD, where <code>syscall.Rlimit</code> is signed and
+<code>Statfs_t</code> names its fields <code>F_bavail</code> and <code>F_bsize</code>. <code>./le go vet-platforms</code>
+is the check that does compile it: it vets <code>./cmd/... ./internal/... ./pkg/...</code>
+with the shipped personality tags under <code>darwin</code>, <code>freebsd</code> and <code>openbsd</code>, and
+<code>./le verify worktree</code> runs all three. The split is deliberate: linting every
+package again under each BSD would repeat the host pass's findings to type-check
+what one <code>go vet</code> per target already type-checks.</p>
+<p>A pass that stops before it lints is not a pass with findings. golangci-lint
+exits 1 when it reports findings; any other non-zero exit (a package load that
+failed because <code>go</code> was missing from <code>PATH</code>, a timeout, a configuration it
+could not read) or a child that never started means that pass checked nothing.
+The driver names those passes on their own line, <code>lint: N pass(es) did not complete and linted nothing</code>, and records the cause in the pass's <code>error</code>
+field, so a stopped pass never reads as one more red with findings.</p>
 <p>The driver then asserts coverage. Every tracked Go file must be loaded by some
 pass. The exceptions are <code>vendor/</code>, <code>gokrazy/modcache/</code>, and the <code>//go:build ignore</code> files that belong to no build. <code>./le go lint run</code> executes the
 native plan and returns its flavor rows as structured output; <code>./le go lint run</code>
@@ -844,7 +860,7 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

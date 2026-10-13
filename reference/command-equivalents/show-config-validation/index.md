@@ -1,13 +1,13 @@
-# `validate config`
+# `show config validation`
 
 Check a config for errors without applying it\.
 
 ## Ze command
 
-- Registry path: `validate config`
-- Usage: `validate config <file>`
+- Registry path: `show config validation`
+- Usage: `show config validation <file>`
 - Mode: Read-only
-- Wire method: `ze-config-cli:validate-config`
+- Wire method: `ze-config-cli:show-config-validation`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

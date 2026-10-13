@@ -1,6 +1,6 @@
 # Command Equivalents
 
-473 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+474 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -129,18 +129,6 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | --- | --- | --- | --- | --- | --- | --- |
 | `doctor` | Offline | - | - | - | - | [details](doctor/) |
 
-### explain
-
-| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
-| --- | --- | --- | --- | --- | --- | --- |
-| `explain` | Daemon | - | - | - | - | [details](explain/) |
-
-### generate
-
-| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
-| --- | --- | --- | --- | --- | --- | --- |
-| `generate wireguard keypair` | Daemon | - | - | - | - | [details](generate-wireguard-keypair/) |
-
 ### help
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
@@ -234,7 +222,9 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request reload` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reload/) |
 | `request shutdown` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-shutdown/) |
 | `request subscribe` | Daemon | - | - | - | - | [details](request-subscribe/) |
+| `request support archive` | Daemon | - | - | - | - | [details](request-support-archive/) |
 | `request unsubscribe` | Daemon | - | - | - | - | [details](request-unsubscribe/) |
+| `request wireguard keypair` | Daemon | - | - | - | - | [details](request-wireguard-keypair/) |
 
 ### resolve
 
@@ -349,6 +339,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show config graph` | Read-only | - | - | - | - | [details](show-config-graph/) |
 | `show config history` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-history/) |
 | `show config list` | Read-only | - | - | - | - | [details](show-config-list/) |
+| `show config validation` | Read-only | - | - | - | - | [details](show-config-validation/) |
 | `show crashes` | Read-only | - | - | - | - | [details](show-crashes/) |
 | `show data cat` | Read-only | - | - | - | - | [details](show-data-cat/) |
 | `show data list` | Read-only | - | - | - | - | [details](show-data-list/) |
@@ -359,6 +350,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show ddos status` | Read-only | - | - | - | - | [details](show-ddos-status/) |
 | `show debug` | Read-only | - | - | - | - | [details](show-debug/) |
 | `show debug profile` | Read-only | - | - | - | - | [details](show-debug-profile/) |
+| `show diagnostic` | Read-only | - | - | - | - | [details](show-diagnostic/) |
 | `show dns cache list` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-list/) |
 | `show dns cache record` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-record/) |
 | `show dns cache stats` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-stats/) |
@@ -529,6 +521,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show schema list` | Read-only | - | - | - | - | [details](show-schema-list/) |
 | `show schema methods` | Read-only | - | - | - | - | [details](show-schema-methods/) |
 | `show schema protocol` | Read-only | - | - | - | - | [details](show-schema-protocol/) |
+| `show skill` | Read-only | - | - | - | - | [details](show-skill/) |
+| `show skills` | Read-only | - | - | - | - | [details](show-skills/) |
 | `show static` | Read-only | - | - | - | - | [details](show-static/) |
 | `show status` | Read-only | - | - | - | - | [details](show-status/) |
 | `show storage smart` | Read-only | - | - | - | - | [details](show-storage-smart/) |
@@ -581,18 +575,6 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show yang doc` | Read-only | - | - | - | - | [details](show-yang-doc/) |
 | `show yang tree` | Read-only | - | - | - | - | [details](show-yang-tree/) |
 
-### skills
-
-| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
-| --- | --- | --- | --- | --- | --- | --- |
-| `skills` | Daemon | - | - | - | - | [details](skills/) |
-
-### support
-
-| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
-| --- | --- | --- | --- | --- | --- | --- |
-| `support` | Daemon | - | - | - | - | [details](support/) |
-
 ### system
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
@@ -626,12 +608,6 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `update system firmware download` | Daemon | - | - | - | - | [details](update-system-firmware-download/) |
 | `update system firmware restart` | Daemon | - | - | - | - | [details](update-system-firmware-restart/) |
 | `update system firmware rollback` | Daemon | - | - | - | - | [details](update-system-firmware-rollback/) |
-
-### validate
-
-| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
-| --- | --- | --- | --- | --- | --- | --- |
-| `validate config` | Read-only | - | - | - | - | [details](validate-config/) |
 
 ## Vendor-only gaps
 

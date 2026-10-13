@@ -1,16 +1,16 @@
-# `skills`
+# `show skill`
 
-List the agent skills this binary carries\, or fetch one by name\.
+Fetch one bundled agent skill by name\.
 
 ## Ze command
 
-- Registry path: `skills`
-- Usage: `skills (list\|get <name>)`
-- Mode: Daemon
-- Wire method: `ze-skills:skills`
+- Registry path: `show skill`
+- Usage: `show skill <name>`
+- Mode: Read-only
+- Wire method: `ze-skills:show-skill`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: `get`, `list`
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
@@ -21,11 +21,13 @@ List the agent skills this binary carries\, or fetch one by name\.
 - Command pipes: none
 - Pipe aliases: none
 
-Each skill is a Markdown document bundled with the binary\, so it always matches the running version\. list names them\, and get prints one by name\.
+Prints the named skill\'s Markdown document\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Skill name\. | A skill name as show skills prints it\. An unknown name is refused\. |
 
 ## Mapping intents
 

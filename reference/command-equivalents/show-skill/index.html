@@ -4,23 +4,23 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>skills - Command Equivalents - Ze</title>
-        <meta name="description" content="List the agent skills this binary carries, or fetch one by name." />
-        <meta property="og:title" content="skills - Command Equivalents - Ze" />
-        <meta property="og:description" content="List the agent skills this binary carries, or fetch one by name." />
+        <title>show skill - Command Equivalents - Ze</title>
+        <meta name="description" content="Fetch one bundled agent skill by name." />
+        <meta property="og:title" content="show skill - Command Equivalents - Ze" />
+        <meta property="og:description" content="Fetch one bundled agent skill by name." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="skills - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="List the agent skills this binary carries, or fetch one by name." />
+        <meta name="twitter:title" content="show skill - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="Fetch one bundled agent skill by name." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
-        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/skills/" />
-        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/skills/" />
+        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/show-skill/" />
+        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/show-skill/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
@@ -47,24 +47,26 @@
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
-    <h1 id="command-equivalent-detail-title">skills</h1>
-    <p>List the agent skills this binary carries, or fetch one by name.</p>
+    <h1 id="command-equivalent-detail-title">show skill</h1>
+    <p>Fetch one bundled agent skill by name.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Registry path</dt><dd><code>skills</code></dd></div>
-<div><dt>Usage</dt><dd><code>skills (list|get &lt;name&gt;)</code></dd></div>
-<div><dt>Mode</dt><dd>Daemon</dd></div>
-<div><dt>Wire method</dt><dd><code>ze-skills:skills</code></dd></div>
+<div><dt>Registry path</dt><dd><code>show skill</code></dd></div>
+<div><dt>Usage</dt><dd><code>show skill &lt;name&gt;</code></dd></div>
+<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Wire method</dt><dd><code>ze-skills:show-skill</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
-<div><dt>Subcommands</dt><dd><code>get</code> <code>list</code></dd></div>
+<div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
 <div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
 </dl>
-<h3>Description</h3><p>Each skill is a Markdown document bundled with the binary, so it always<br>matches the running version. list names them, and get prints one by name.</p>
+<h3>Description</h3><p>Prints the named skill&#39;s Markdown document.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>name</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Skill name.</td><td>A skill name as show skills prints it. An unknown name is refused.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -127,7 +129,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

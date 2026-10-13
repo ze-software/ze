@@ -86,6 +86,12 @@ references in a <code>filter {}</code> config block. Named filter types are defi
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter container -->
 <h3 id="quick-start">Quick Start</h3>
 <pre><code>bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     policy {
         loop-detection no-self-as {
             allow-own-as 0;
@@ -151,6 +157,12 @@ Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
 <h3 id="deactivating-filters">Deactivating Filters</h3>
 <p>Default filters can be deactivated per-peer using the inline <code>inactive:</code> prefix:</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer special {
         filter {
             import [ inactive:no-self-as ];
@@ -231,6 +243,12 @@ When the routes the modifier does not touch must keep flowing, put the condition
 on the modifier itself with a <code>match</code> block. A route that meets none of the
 stated values returns accept and passes through unchanged.</p>
 <pre><code>bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         modify blackhole-to-discard {
             match { community [ blackhole ]; }
@@ -555,7 +573,7 @@ unknown source under <code>doctor-redistribute-unknown-source</code>.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

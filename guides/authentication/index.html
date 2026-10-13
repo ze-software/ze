@@ -181,7 +181,7 @@ at boot is not. Keep a local account that works on a box whose logins come from
 a central server.</p>
 <p><code>ze doctor</code> says so before you find out the hard way:</p>
 <pre><code>ze doctor --json config router.conf
-ze explain doctor-aaa-no-local-fallback
+ze show diagnostic doctor-aaa-no-local-fallback
 </code></pre>
 <p>It warns where a RADIUS or TACACS+ server is configured and no
 <code>system.authentication.user</code> is. <code>docs/architecture/aaa-tacacs.md</code> carries the
@@ -632,7 +632,7 @@ and continues.</p>
 <!-- source: internal/component/config/loader.go -- LoadConfig -->
 <!-- source: internal/component/cli/editor_commit.go -- CommitSession, ApplyPasswordHashing -->
 <!-- source: internal/plugins/passwd/main.go -- runImpl -->
-<!-- source: cmd/ze/hub/main_reload.go -- runReload -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
 <h2 id="things-that-do-not-work">Things that do NOT work</h2>
 <table>
 <thead>
@@ -754,7 +754,7 @@ and continues.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

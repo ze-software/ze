@@ -4,23 +4,23 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>support - Command Equivalents - Ze</title>
-        <meta name="description" content="Collect logs, config, state and diagnostics into one archive." />
-        <meta property="og:title" content="support - Command Equivalents - Ze" />
-        <meta property="og:description" content="Collect logs, config, state and diagnostics into one archive." />
+        <title>show config validation - Command Equivalents - Ze</title>
+        <meta name="description" content="Check a config for errors without applying it." />
+        <meta property="og:title" content="show config validation - Command Equivalents - Ze" />
+        <meta property="og:description" content="Check a config for errors without applying it." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="support - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Collect logs, config, state and diagnostics into one archive." />
+        <meta name="twitter:title" content="show config validation - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="Check a config for errors without applying it." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
-        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/support/" />
-        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/support/" />
+        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/show-config-validation/" />
+        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/show-config-validation/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
@@ -47,24 +47,29 @@
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
-    <h1 id="command-equivalent-detail-title">support</h1>
-    <p>Collect logs, config, state and diagnostics into one archive.</p>
+    <h1 id="command-equivalent-detail-title">show config validation</h1>
+    <p>Check a config for errors without applying it.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Registry path</dt><dd><code>support</code></dd></div>
-<div><dt>Usage</dt><dd><code>support</code></dd></div>
-<div><dt>Mode</dt><dd>Daemon</dd></div>
-<div><dt>Wire method</dt><dd><code>ze-support:support</code></dd></div>
+<div><dt>Registry path</dt><dd><code>show config validation</code></dd></div>
+<div><dt>Usage</dt><dd><code>show config validation &lt;file&gt;</code></dd></div>
+<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Wire method</dt><dd><code>ze-config-cli:show-config-validation</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
+<div><dt>Answer shape</dt><dd>doc</dd></div>
 </dl>
-<h3>Description</h3><p>The archive holds logs, config, state and diagnostics, and is what to send<br>when you report an issue. Secrets are redacted unless asked for. Modules can be selected<br>or excluded, and a time window narrows the logs the archive holds.</p>
+<h3>Description</h3><p>Both the grammar of the file and the meaning of its values are checked,<br>and each problem is reported with the diagnostic code that explains it. Nothing is<br>applied.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>file</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Config file path, or - for stdin.</td><td>The config file to check, or - to read it on stdin.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -127,7 +132,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

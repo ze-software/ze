@@ -184,8 +184,10 @@ static {
 If all BFD-tracked next-hops go down, the route is withdrawn entirely.
 
 The session to a next-hop is single-hop. The daemon at startup, a commit,
-a SIGHUP reload and `ze config validate` each refuse a `bfd-profile` that
-names no profile under
+a SIGHUP reload and `ze config validate` each refuse a `bfd-profile` while
+the `bfd` section is absent or sets `enabled false`, so BFD cannot be
+removed from under a monitored route: remove the `bfd-profile` lines first.
+They also refuse a `bfd-profile` that names no profile under
 `bfd { profile ... }`, and one whose profile sets `passive`, because RFC
 5881 §3 requires both ends of a single-hop session to be Active. The error
 names the route and the next-hop.

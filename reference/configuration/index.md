@@ -79,7 +79,7 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
 - **bind-v6** `boolean`: Bind an IPv6 socket beside the IPv4 socket on every loop.
   When this leaf is true, the BFD plugin also binds an IPv6 socket (::0) alongside the IPv4 socket for every (vrf, mode) loop. The paired sockets share the same RX channel through a transport.Dual wrapper, and send routes by destination address family. Stage 2b (spec-bfd-2b-ipv6-transport) ships this leaf. A pinned IPv6 session requires the leaf to be set explicitly, so an operator who does not need IPv6 does not open a second socket per loop.
 - **enabled** `boolean`: Master switch for the BFD plugin.
-  The default is true. false stops every BFD session, the ones pinned in this bfd container and the ones a protocol client asks for at runtime. A reload to false stops the pinned sessions already running. A BGP peer that carries a bfd container gets a refusal instead of a session, so a peer in strict mode stays down and a peer outside strict mode runs without BFD. To stop the session of one peer only, remove the bfd container from that peer or set its enabled leaf to false.
+  The default is true. false stops every BFD session, the ones pinned in this bfd container and the ones a protocol client asks for at runtime. A reload to false stops the pinned sessions already running. A config that sets false while a BGP peer, a static next-hop or an OSPF interface still opts into BFD is refused, naming those clients, so remove the opt-ins first. To stop the session of one peer only, remove the bfd container from that peer or set its enabled leaf to false.
 - **multi-hop-session <peer local vrf>** `list`: Multi-hop BFD session (RFC 5883). Port 4784, no GTSM.
   The 255-TTL test of a single-hop session cannot work over several hops. The min-ttl leaf is the cheap protection here, and authentication is the strong one. Ze refuses an entry whose profile enables echo. RFC 5883 Section 3 states that the Echo function MUST NOT be used over multiple hops. The local leaf is required here, and it is optional on a single-hop session.
   - **local** `string`: Local source address. Required for multi-hop.
@@ -292,7 +292,7 @@ A peer inherits from its group defaults. A group inherits from this global level
   - **connection** `container`: Transport-level connection settings
     The container holds the local endpoint, the remote endpoint, the TCP MD5 key, the TTL controls, and the BFD opt-in. connect and accept cannot both be false, and Ze refuses that config.
     - **bfd** `container`: Bidirectional Forwarding Detection options for this peer (RFC 5880).
-      When the container is present, the BGP reactor calls the Service interface of the BFD plugin at session establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must be loaded through a top-level bfd { ... } block. When the plugin is absent, the BGP peer starts without BFD and Ze logs a warning.
+      When the container is present, the BGP reactor calls the Service interface of the BFD plugin at session establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must be loaded through a top-level bfd { ... } block. A config that opts a peer in while that block is absent or sets enabled false is refused, naming the peer.
       - **enabled** `boolean`: Master switch for the BFD session of this peer.
         Set the leaf false to keep the config in place and suspend the BFD client. This is useful during maintenance.
       - **hold-down** `uint32`: BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).
@@ -439,7 +439,7 @@ A peer inherits from its group defaults. A group inherits from this global level
     - **connection** `container`: Transport-level connection settings
       The container holds the local endpoint, the remote endpoint, the TCP MD5 key, the TTL controls, and the BFD opt-in. connect and accept cannot both be false, and Ze refuses that config.
       - **bfd** `container`: Bidirectional Forwarding Detection options for this peer (RFC 5880).
-        When the container is present, the BGP reactor calls the Service interface of the BFD plugin at session establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must be loaded through a top-level bfd { ... } block. When the plugin is absent, the BGP peer starts without BFD and Ze logs a warning.
+        When the container is present, the BGP reactor calls the Service interface of the BFD plugin at session establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must be loaded through a top-level bfd { ... } block. A config that opts a peer in while that block is absent or sets enabled false is refused, naming the peer.
         - **enabled** `boolean`: Master switch for the BFD session of this peer.
           Set the leaf false to keep the config in place and suspend the BFD client. This is useful during maintenance.
         - **hold-down** `uint32`: BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).
@@ -1284,7 +1284,7 @@ A peer inherits from its group defaults. A group inherits from this global level
   - **connection** `container`: Transport-level connection settings
     The container holds the local endpoint, the remote endpoint, the TCP MD5 key, the TTL controls, and the BFD opt-in. connect and accept cannot both be false, and Ze refuses that config.
     - **bfd** `container`: Bidirectional Forwarding Detection options for this peer (RFC 5880).
-      When the container is present, the BGP reactor calls the Service interface of the BFD plugin at session establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must be loaded through a top-level bfd { ... } block. When the plugin is absent, the BGP peer starts without BFD and Ze logs a warning.
+      When the container is present, the BGP reactor calls the Service interface of the BFD plugin at session establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must be loaded through a top-level bfd { ... } block. A config that opts a peer in while that block is absent or sets enabled false is refused, naming the peer.
       - **enabled** `boolean`: Master switch for the BFD session of this peer.
         Set the leaf false to keep the config in place and suspend the BFD client. This is useful during maintenance.
       - **hold-down** `uint32`: BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).
@@ -1862,8 +1862,8 @@ A peer inherits from its group defaults. A group inherits from this global level
   The route server forwards an UPDATE from one client to every other client. Each source peer gets its own worker, and the worker stops after 5 seconds with no work. A peer joins the client set with the rs-client leaf of its session, not with this container.
   - **worker-queue-size** `uint32`: Worker channel capacity per source peer, overridden by ze.bgp.route-server.worker-queue-size.
     Per-source-peer worker channel capacity. The ze.bgp.route-server.worker-queue-size environment variable overrides this value.
-- **router-id** `ipv4-address`: BGP Router ID for this speaker. The leaf is required.
-  RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer. Ze therefore rejects 0.0.0.0. A peer that implements RFC 6286 Section 2.2 answers an OPEN that carries 0.0.0.0 with Bad BGP Identifier.
+- **router-id** `ipv4-address`: BGP Router ID for this speaker. Required unless every peer or its group sets one.
+  RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer. Ze therefore rejects 0.0.0.0. A peer that implements RFC 6286 Section 2.2 answers an OPEN that carries 0.0.0.0 with Bad BGP Identifier. The leaf is mandatory, and a config without it loads only when every peer sets session router-id itself or inherits it from its group; a dynamic group must set its own.
 - **rpki** `container`: RPKI origin validation of a received route (RFC 6811).
   The container carries presence. Ze validates a route only when cache-server holds at least one entry, so an empty container validates nothing. The container also holds the validation timeout, the origin-validation actions, and the ASPA block. A peer and a group override an action leaf of their own. Neither can name a cache server, because the RTR transport is global.
   - **action** `container`: Global origin-validation actions.
@@ -6487,7 +6487,7 @@ The container holds the system-wide settings. This module attaches the local use
     - **server <address>** `list`: TACACS+ servers, tried in configured order
       Ze tries the servers in the order you write them and moves to the next one when a connection or an exchange fails. The order is the config order, because the list is ordered-by user. Where every server fails, the AAA chain moves on to the local backend, so the local accounts still answer.
       - **key** `string`: Shared secret this server obfuscates its packets with
-        The key is the shared secret RFC 8907 Section 4.5 builds the MD5 pseudo-pad from, and both ends must hold the same value. A client with no secret has no conformant packet to send. Section 10.5.2 requires a shared secret and forbids a client to set TAC_PLUS_UNENCRYPTED_FLAG. Omitting the key refuses a commit, through the AAA rebuild rather than through the schema: a missing mandatory field is only a warning. At BOOT the same failure is logged and this backend is DROPPED from the chain. A user who exists locally still logs in, and the local profiles still govern the command. The leaf is sensitive, so display paths mask it. Keys of 32 characters or longer are supported. Use at least 16 characters; doctor warns about shorter keys. A $9$-encoded value is decoded on read; this is reversible obfuscation, not encryption. Protect configuration files, exports and backups as secrets.
+        The key is the shared secret RFC 8907 Section 4.5 builds the MD5 pseudo-pad from, and both ends must hold the same value. A client with no secret has no conformant packet to send. Section 10.5.2 requires a shared secret and forbids a client to set TAC_PLUS_UNENCRYPTED_FLAG. Omitting the key refuses the config: a commit, a load and a boot all stop on the missing mandatory field. The leaf is sensitive, so display paths mask it. Keys of 32 characters or longer are supported. Use at least 16 characters; doctor warns about shorter keys. A $9$-encoded value is decoded on read; this is reversible obfuscation, not encryption. Protect configuration files, exports and backups as secrets.
       - **port** `uint16`: TCP port (default 49)
         Port 49 is the port IANA assigns to TACACS+, and RFC 8907 Section 3.4 names it. Ze opens one TCP connection to this port and reuses it where the server agrees to the single-connect flag. The type sets no lower bound, so a commit takes 0 and every connection to that server then fails.
     - **source-address** `ip-address`: Source IP for outbound TACACS+ connections
@@ -6853,7 +6853,7 @@ Two subtrees sit under it, and they are independent. control programs the queuei
   - **interface <name>** `list`: Traffic control of one named interface.
     The list key is the interface name.
     - **qdisc** `container`: The root queueing discipline of the interface.
-      Ze attaches this qdisc at the root of the interface, and every class hangs beneath it.
+      Ze attaches this qdisc at the root of the interface, and every class hangs beneath it. An interface entry with no qdisc block attaches none.
       - **class <name>** `list`: One traffic class of the queueing discipline.
         The list key is the class name. A class carries a rate, a ceil, a priority, and the filters that select its traffic.
         - **ceil** `rate-bps`: Largest rate this class can reach.

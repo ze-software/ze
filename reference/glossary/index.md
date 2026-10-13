@@ -84,7 +84,7 @@ The transaction that verifies, applies, and activates a candidate configuration.
 A Ze subsystem that owns runtime behaviour, configuration, commands, health, metrics, or plugins.
 
 **Doctor**  
-Offline readiness checks run with `ze doctor`. Findings have structured diagnostic codes that can be inspected with `ze explain`.
+Offline readiness checks run with `ze doctor`. Findings have structured diagnostic codes that can be inspected with `ze show diagnostic`.
 
 **Handler**  
 A callback registered by a component or plugin for configuration, commands, events, codecs, validation, or lifecycle stages.

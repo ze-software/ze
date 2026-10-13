@@ -109,6 +109,7 @@ binary you are running.</p>
 <p>Current native config puts BGP under <code>bgp {}</code> and separates transport from BGP
 session state:</p>
 <pre><code>bgp {
+    router-id 192.0.2.254
     session { asn { local 65000; } }
 
     peer upstream1 {
@@ -129,6 +130,12 @@ session state:</p>
 </code></pre>
 <p>Current config uses named groups and concrete peers:</p>
 <pre><code>bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     group default {
         timer { receive-hold-time 90; }
 
@@ -153,6 +160,12 @@ session state:</p>
 </code></pre>
 <p>Current config expresses the same default as a BGP group:</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     group ibgp-rs {
         session { asn { remote 65000; } }
     }
@@ -263,7 +276,7 @@ ze config migrate --list
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

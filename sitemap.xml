@@ -1351,12 +1351,6 @@
     <loc>https://ze-software.net/reference/command-equivalents/doctor/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/explain/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/generate-wireguard-keypair/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/reference/command-equivalents/help-ai/</loc>
   </url>
   <url>
@@ -1579,7 +1573,13 @@
     <loc>https://ze-software.net/reference/command-equivalents/request-subscribe/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-support-archive/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-unsubscribe/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-wireguard-keypair/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/resolve-cymru-asn-name/</loc>
@@ -1864,6 +1864,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-config-list/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-validation/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-crashes/</loc>
   </url>
   <url>
@@ -1892,6 +1895,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-debug/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-diagnostic/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-dns-cache-list/</loc>
@@ -2404,6 +2410,12 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-schema-protocol/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-skill/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-skills/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-static/</loc>
   </url>
   <url>
@@ -2557,12 +2569,6 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-yang-tree/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/skills/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/support/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/reference/command-equivalents/system-command-complete/</loc>
   </url>
   <url>
@@ -2633,9 +2639,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-system-firmware-rollback/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/validate-config/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/configuration/</loc>
@@ -2848,6 +2851,12 @@
     <loc>https://ze-software.net/reference/plugins/geodns/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/plugins/iface-dhcp/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/plugins/iface-ra/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/plugins/ike/</loc>
   </url>
   <url>
@@ -2879,6 +2888,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/loop/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/plugins/memlock/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/mrt/</loc>

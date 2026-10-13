@@ -675,7 +675,10 @@ Section 2.1.2 makes that a MUST with no condition on it. The ticket key belongs 
 peering rather than to the session, so a later authentication with the same peer can redeem
 it. Whether Ze USES a ticket is the <code>session-resumption</code> leaf, which defaults to <code>true</code> and
 covers both roles; with it <code>false</code> every authentication runs a full handshake and the ticket
-still goes out. A resumed authentication re-checks the cached chain against the current
+still goes out. As the authenticator, Ze resumes TLS 1.3 sessions only: a peer that offers a
+TLS 1.2 ticket gets a full handshake, because RFC 5216 Section 2.1.2 allows nothing but
+change_cipher_spec and finished after a resuming TLS 1.2 server_hello, and the TLS library
+always adds a new ticket there. A resumed authentication re-checks the cached chain against the current
 <code>ca-certificate</code> and <code>crl</code>, so a certificate that was revoked or expired since the first
 handshake is refused.</p>
 <p>Ze caps the TLS version at 1.3 on both EAP-TLS roles. RFC 9190 Section 1 requires that
@@ -1677,7 +1680,7 @@ boundaries; neither is a claim that every IKE extension is implemented.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

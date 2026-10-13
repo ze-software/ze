@@ -71,6 +71,12 @@
 <li>Ordered references under <code>filter { import [...] export [...] }</code>.</li>
 </ol>
 <pre><code class="language-text">bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         loop-detection no-self-as {
             allow-own-as 0
@@ -118,6 +124,12 @@ a peer, and states WHERE in the AS_PATH each one is unacceptable. A peer that
 leaks its transit sends paths that run through its upstream, and this list drops
 those routes while the session stays up.</p>
 <pre><code>bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         reject-asn NO-TRANSIT {
             indirect [ 174 701 3356 ];
@@ -244,6 +256,12 @@ direction, beside the named <code>tag</code> and <code>strip</code> sets. Each o
 </tbody>
 </table>
 <pre><code class="language-text">bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     group customers {
         filter {
             ingress {
@@ -297,6 +315,12 @@ makes ignoring the community conformant, so <code>none</code> is a supported sta
 leave on a session. The list takes <code>standard</code>, <code>large</code>, <code>extended</code>, <code>all</code>, or
 <code>none</code>. Unset is <code>all</code>.</p>
 <pre><code class="language-text">bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer transit-a {
         session { community { send [ standard ]; } }
     }
@@ -421,7 +445,7 @@ ze cli -c "show bgp peer transit-b rib"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

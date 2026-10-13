@@ -199,6 +199,17 @@ forwarding path Down, the reactor tears the BGP session with RFC 9384
 Cease NOTIFICATION (subcode 10, "BFD Down") without waiting for the
 hold timer.
 
+A reload or a commit that adds, removes, disables or edits the opt-in of a
+peer without `strict true` keeps the BGP session: an Established peer opens
+its BFD session at once, a removed or disabled opt-in releases it, and an
+edited one (another profile or mode) releases it and opens one under the new
+request. The same holds for a dynamic group's template, on every running
+dynamic peer of the group. A change with `strict true` before or after
+restarts the BGP session, because strict mode is announced in the OPEN
+(`docs/guide/config-reload.md`).
+
+<!-- source: internal/component/bgp/reactor/peer_bfd.go -- Peer.applyBFDOptInChange -->
+
 A released session does not leave `show bfd sessions` at once when it has
 heard from its peer. It stays there in `admin-down` for three of its
 Detection Times, because RFC 5880 Section 6.8.1 says its state "MUST be
@@ -294,15 +305,29 @@ stops the daemon, so a file whose peer names an undefined profile never
 boots. `ze config validate`
 does not run this check for a BGP peer: it reports such a file valid,
 and only the daemon refuses it. A static next-hop's `bfd-profile` is
-checked by both. If the session is still refused at
-start (BFD disabled, for example), the peer logs the refusal and runs
-without BFD unless it is in strict mode, where it stays down. If the BFD plugin is not loaded at all,
-the BGP peer starts without BFD and logs a warning -- BGP is not
-blocked by a missing BFD plugin. A peer that names a `profile` is the
-exception: in a build that carries no BFD, nothing can check the name,
-so the daemon refuses to start, the same answer a commit gives, rather
-than run a peer whose operator asked for a profile without BFD at all.
-<!-- source: internal/component/bgp/reactor/peer_bfd.go — verifyPeerBFDProfiles -->
+checked by both.
+
+A client that opts into BFD needs BFD running. A config in which a BGP
+peer's `connection bfd` is enabled, a static next-hop names a
+`bfd-profile`, or an OSPF interface sets `bfd { enabled true; }`, while
+the config has no top-level `bfd` block, sets `bfd { enabled false; }`,
+or runs a build that carries no BFD, is refused: at commit, at reload,
+and at startup, so the daemon does not boot with it. The refusal names
+every client still opting in:
+
+```
+bfd: bfd { enabled false } is set, so no client may opt into BFD; remove the bfd opt-in of peer 192.0.2.1 first
+```
+
+BFD therefore cannot be removed or disabled from under a protected
+client. Remove the opt-ins first, in the same commit or an earlier one:
+a strict-mode peer then restarts, and a peer outside strict mode stays
+up. If a session is still refused at start for another reason, the
+peer logs the refusal and runs without BFD unless it is in strict mode,
+where it stays down.
+<!-- source: internal/component/bgp/reactor/peer_bfd.go — verifyPeerBFDProfiles, checkPeerBFDOptIns -->
+<!-- source: internal/component/bfd/api/opt_in_check.go — CheckOptIns -->
+<!-- source: internal/component/bfd/config.go — checkClientsEnabled -->
 <!-- source: internal/component/bfd/api/profile_check.go — CheckProfile refuses when no BFD registered a checker -->
 <!-- source: internal/component/config/plugin_verify.go — VerifyPluginConfigMapTransition runs only a registration's InProcessConfigVerifier, which BGP does not set -->
 <!-- source: internal/component/plugin/server/reload_compensation.go — reloadConfigSections -->
@@ -363,6 +388,12 @@ Established until the BFD session to that neighbour is Up.
 
 ```
 bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer peer1 {
         connection {
             local  { ip 192.0.2.1 }
@@ -463,6 +494,13 @@ Standalone sessions are useful for monitoring a default gateway, a tunnel
 endpoint, or any path whose liveness a script or external tool wants to
 react to via the event stream.
 
+`local` is the source address of every Control packet the session sends,
+and it must be an address the host holds: on Linux a send from any other
+address is refused and logged. Two sessions to the same peer from two local
+addresses stay two sessions (RFC 5883 §4.1), and each sends from its own
+address, so the peer can tell them apart. Off Linux the kernel chooses the
+source address, and ze logs that once.
+
 ## Administrative shutdown
 
 `shutdown;` on a session puts it into `AdminDown` (RFC 5880 §6.8.16)
@@ -515,14 +553,16 @@ auth block either; otherwise take OSPF out of BFD on that interface with
 `bfd { enabled false; }` or by deleting its `bfd` block.
 
 No fix the error names edits a profile. An edit to a profile reaches every
-client that names it, on any neighbor, at that client's next ask: removing the
-auth block from a profile many BGP peers share, to fix one refused peer, would
-drop authentication for all of them. Each fix instead names a profile on the
+client that names it, on any neighbor, at the commit: removing the auth block
+from a profile many BGP peers share, to fix one refused peer, would drop
+authentication for all of them. Each fix instead names a profile on the
 refused client, or copies an auth block into a profile only that client names,
 so it changes the refused client alone and takes effect when that client next
-asks for the session (see "Editing live"). The exceptions are a profile the
-session was built from that was edited or removed after the session was built,
-where only a release by every client helps:
+asks for the session (see "Editing live"). The exception is a session whose
+profile was edited or removed after every client naming it had released the
+session, while clients of other profiles still hold it: it keeps running the
+authentication it was built with, and there only a release by every client
+helps:
 
 | Live session | Refused client | Fix the error names |
 |--------------|----------------|---------------------|
@@ -562,16 +602,52 @@ operator@router# commit
 
 On `commit`, the plugin receives the new `bfd` section and applies it.
 A new pinned session starts, a removed one is released, and a change to a
-pinned session's `shutdown` leaf takes effect at once. A profile edit does
-not reach a session that is already running: a live session keeps the
-timers and authentication it was built with until every client has
-released it. The edit applies to sessions created after the commit. A
-released session that a client revives inside its Detection Time takes that
-client's authentication as the profile holds it then, and its timers too when
-the client asks for the session's exact key.
+pinned session's `shutdown` leaf takes effect at once. An edit to a profile
+reaches at once, in place, every live session a client holds under it: a
+pinned session, a BGP peer, or a static route next-hop. The session keeps
+running, keeps its discriminator, and takes the edited timers (an Up session
+through a Poll Sequence, so it stays Up). It takes an edited `passive` at once:
+the role decides only whether the session may transmit before it has heard from
+the neighbor, so a Down session that has not heard from it stops sending when
+made passive and sends at once when made active, and an Up session keeps
+sending either way. It takes an edited echo interval at once too: the next
+Control packet advertises the new interval, a pending Echo packet moves to the
+new cadence, an interval of zero stops Echo, and a nonzero one on a session
+that ran none starts Echo as on a new session. It takes an edited auth block too,
+when every client of the session asks for the same authentication after the
+edit. When one does not, because it names another profile or none, the commit
+is refused and none of its `bfd` changes is applied: the edited profile keeps
+its previous auth block, every client keeps the session with its request, its
+timers and its current authentication, and the error names the two clients by
+profile. A client asking after the refusal gets the profile as it was before
+the commit. Give both profiles the same auth block. When the other client
+names no profile, restore the edited profile's auth block, or name the edited
+profile on that client (an OSPF interface cannot name one: set
+`bfd { enabled false; }` on it). Or release the other client first, as the
+table below says, commit that, and then commit the edit again: with the other
+client gone, the edit reaches the session. The release needs its own earlier
+commit when the other client is a BGP peer, because a commit's BGP peer changes
+are applied after its `bfd` changes.
 
-To make a profile edit take effect on a running session now, release it from
-every client that holds it, then let them ask again:
+A commit that deletes a profile together with the BGP peers and static routes
+naming it applies: a client still holding a session under the deleted profile
+keeps it as it runs until the client releases it in the same commit.
+
+A session shared by several clients runs the fastest timers among them: those
+giving the shortest Detection Time (Detect Mult times Required Min RX). They
+are chosen again whenever a client joins or leaves, or the profile of any of
+its clients is edited, so a fast client speeds the session up and its departure
+slows it down again.
+
+An OSPF interface names no profile: its timers are those of its own `bfd`
+block, and an edit to them reaches the session when the interface next asks for
+it. A released session that a client revives inside its Detection Time takes
+that client's authentication as the profile holds it then, and its timers too.
+
+To release the client that a refused edit names, or to make an edit to an OSPF
+interface's `bfd` block or to a profile the session no longer follows take
+effect, release the session from the clients that hold it, then let them ask
+again:
 
 | Client | Releases the session when | Asks again when |
 |--------|---------------------------|-----------------|
@@ -588,7 +664,11 @@ go of it; if that happens, tear it down again once they have.
 A client refused because its authentication differs from the live
 session's asks again at the same moments, so a fix to its own config
 takes effect then.
-<!-- source: internal/component/bfd/bfd.go -- applyPinned -->
+<!-- source: internal/component/bfd/bfd.go -- applyPinned, reprofileClients -->
+<!-- source: internal/component/bfd/config_tx.go -- commitConfig, rollbackConfig -->
+<!-- source: internal/component/plugin/server/reload.go -- reactor ApplyConfigDiff after the transaction -->
+<!-- source: internal/component/bfd/engine/shared_session.go -- UpdateSession, Reprofile, reprofileEntryLocked, retimeLocked, fastestRequest -->
+<!-- source: internal/component/bfd/session/timers.go -- ApplyRole, ApplyEcho -->
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession, reviveReleasedLocked, createSessionLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- authMismatchCase -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- startBFDClient and stopBFDClient callers -->

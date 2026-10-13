@@ -33,7 +33,12 @@ traffic {
 }
 ```
 
+An interface entry with no `qdisc` block attaches no root discipline. Once a
+`qdisc` block is present, its `type` is required, and a config that omits it is
+refused naming `traffic/control/interface[<name>]/qdisc/type`.
+
 <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
+<!-- source: internal/component/traffic/config.go -- parseInterfaceQoS -->
 
 ## tc Backend: Original Qdisc Snapshot
 

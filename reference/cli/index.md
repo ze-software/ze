@@ -1,6 +1,6 @@
 # CLI Reference
 
-473 commands across 49 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description, pipe operators, command pipes, and aliases for every command): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
+474 commands across 44 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description, pipe operators, command pipes, and aliases for every command): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
 
 ## Pipe operators (17)
 
@@ -100,18 +100,6 @@ Each command row names the operators it accepts after `|`.
 | --- | --- | --- | --- |
 | `doctor` | Offline | Check that this system is ready to run Ze\. | None |
 
-## explain (1)
-
-| Command | Mode | Description | Pipes |
-| --- | --- | --- | --- |
-| `explain` | Daemon | Explain one diagnostic code Ze printed\.<br>`explain <code>`<br>Arguments: `code` string, required: yes, any value of this type: Diagnostic code\. A diagnostic code as a log line or an error message printed it\. An unknown code is refused\. | None |
-
-## generate (1)
-
-| Command | Mode | Description | Pipes |
-| --- | --- | --- | --- |
-| `generate wireguard keypair` | Daemon | Generate a WireGuard keypair with the system wg binary\.<br>`generate wireguard keypair` | None |
-
 ## help (3)
 
 | Command | Mode | Description | Pipes |
@@ -198,7 +186,7 @@ Each command row names the operators it accepts after `|`.
 | `request peer resume` | Daemon | Resume reading from a previously paused peer\.<br>`request peer <selector> resume`<br>Arguments: `selector` string, required: yes, any value of this type: Peer selector The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `request peer teardown` | Daemon | Tear down a peer session\.<br>`request peer <selector> teardown <cease-subcode>`<br>Arguments: `selector` string, required: yes, any value of this type: Peer selector The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\.<br>`cease-subcode` uint, required: yes, any value of this type: BGP cease NOTIFICATION subcode The value is a whole number from 0 to 255\, and a value outside that range is refused\. Ze puts it in the Cease NOTIFICATION it sends before it closes the session\. | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 
-## request (other) (19)
+## request (other) (21)
 
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
@@ -220,7 +208,9 @@ Each command row names the operators it accepts after `|`.
 | `request reload` | Daemon | Reload the configuration without restarting\.<br>`request reload` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `request shutdown` | Daemon | Gracefully shutdown\: drain connections\, close peers\, exit\.<br>`request shutdown` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `request subscribe` | Daemon | Start receiving events of one or more types\.<br>`request subscribe`<br>Task support: required: the MCP server always answers with a task handle | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
+| `request support archive` | Daemon | Collect logs\, config\, state and diagnostics into one archive\.<br>`request support archive` | None |
 | `request unsubscribe` | Daemon | Stop receiving events you previously subscribed to\.<br>`request unsubscribe` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
+| `request wireguard keypair` | Daemon | Generate a WireGuard keypair with the system wg binary\.<br>`request wireguard keypair` | None |
 
 ## resolve (11)
 
@@ -323,7 +313,7 @@ Each command row names the operators it accepts after `|`.
 | `show bmp rib` | Read-only | Show routes received via BMP monitoring sessions\.<br>`show bmp rib` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show bmp sessions` | Read-only | Show active BMP receiver sessions\.<br>`show bmp sessions` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 
-## show config (7)
+## show config (8)
 
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
@@ -334,6 +324,7 @@ Each command row names the operators it accepts after `|`.
 | `show config graph` | Read-only | Show how components and peers depend on each other\, as JSON\.<br>`show config graph <file>`<br>Arguments: `file` string, required: yes, any value of this type: Config file path\, or \- for stdin\. The config file to read\, or \- to read it on stdin\. | None |
 | `show config history` | Read-only | List available configuration rollback points\.<br>`show config history` | Answer shape: `tab`<br>Column order: `revision, timestamp, path, state`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show config list` | Read-only | List all configuration files stored in the database\.<br>`show config list` | Answer shape: `tab`<br>Column order: `source, path`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
+| `show config validation` | Read-only | Check a config for errors without applying it\.<br>`show config validation <file>`<br>Arguments: `file` string, required: yes, any value of this type: Config file path\, or \- for stdin\. The config file to check\, or \- to read it on stdin\. | Answer shape: `doc`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>While streaming: `log`<br>Local process only: `save` |
 
 ## show ddos (4)
 
@@ -617,7 +608,7 @@ Each command row names the operators it accepts after `|`.
 | `show vrrp interface name` | Read-only | Show the VRRP virtual routers on one parent interface\.<br>`show vrrp interface name [value <value>]`<br>Arguments: `value` string, required: no, any value of this type: Parent interface name The name of the parent interface whose virtual routers the answer lists\. The word after the name keyword is the value\, and a bare word with no keyword is accepted from a programmatic sender\. | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show vrrp statistics` | Read-only | Show per\-virtual\-router counters\.<br>`show vrrp statistics` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 
-## show (other) (70)
+## show (other) (73)
 
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
@@ -643,6 +634,7 @@ Each command row names the operators it accepts after `|`.
 | `show data registered` | Read-only | List the key patterns registered by all subsystems\.<br>`show data registered` | Answer shape: `tab`<br>Column order: `pattern, description`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show debug` | Read-only | Show live debug state from the running daemon\.<br>`show debug`<br>Subcommands: `profile` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show debug profile` | Read-only | Show stored debug profiles\, one by name\, or one filtered to a module subtree\.<br>`show debug profile [name <name>] [module <module>]`<br>Arguments: `name` string, required: no, any value of this type: Profile name\. The stored profile to print\. Absent\, the command lists the profile names\.<br>`module` string, required: no, any value of this type: Subsystem subtree to keep\. A subsystem prefix\. Only the rows at or under that subtree are printed\, and the keyword is read only after name\. | None |
+| `show diagnostic` | Read-only | Explain one diagnostic code Ze printed\.<br>`show diagnostic <code>`<br>Arguments: `code` string, required: yes, any value of this type: Diagnostic code\. A diagnostic code as a log line or an error message printed it\. An unknown code is refused\. | None |
 | `show doctor` | Read-only | Check if this box is ready to run Ze\.<br>`show doctor` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show ecmp-groups` | Read-only | Show each prefix the system RIB holds equal\-cost paths for\, whether or not Ze programs them\.<br>`show ecmp-groups` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show env get` | Read-only | Show one environment variable in detail\.<br>`show env get <name>`<br>Arguments: `name` string, required: yes, any value of this type: Environment variable name The variable\'s full name as Ze registered it\, matched exactly\. A name Ze never declared is refused\, even when the process inherited it\. | Answer shape: `tab`<br>Column order: `key, type, default, current, description`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
@@ -678,6 +670,8 @@ Each command row names the operators it accepts after `|`.
 | `show rr peers` | Read-only | Show route reflector client peers\.<br>`show rr peers` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show rr status` | Read-only | Show whether the route reflector is active\.<br>`show rr status` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show runtime memory` | Read-only | Show the Go runtime allocator memory stats\.<br>`show runtime memory` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
+| `show skill` | Read-only | Fetch one bundled agent skill by name\.<br>`show skill <name>`<br>Arguments: `name` string, required: yes, any value of this type: Skill name\. A skill name as show skills prints it\. An unknown name is refused\. | None |
+| `show skills` | Read-only | List the agent skills this binary carries\.<br>`show skills` | None |
 | `show static` | Read-only | Show static routes defined in the configuration\.<br>`show static` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show status` | Read-only | Show process status\, uptime\, and resource usage\.<br>`show status` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show storage smart` | Read-only | Show disk health via SMART data\.<br>`show storage smart` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
@@ -691,18 +685,6 @@ Each command row names the operators it accepts after `|`.
 | `show yang completion` | Read-only | Show YANG paths available for tab completion\.<br>`show yang completion` | Answer shape: `tab`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show yang doc` | Read-only | Generate command reference docs from YANG schemas\.<br>`show yang doc` | None |
 | `show yang tree` | Read-only | Print the YANG tree for a module in a readable hierarchy\.<br>`show yang tree` | Answer shape: `tab`<br>Column order: `name, kind, source, description`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
-
-## skills (1)
-
-| Command | Mode | Description | Pipes |
-| --- | --- | --- | --- |
-| `skills` | Daemon | List the agent skills this binary carries\, or fetch one by name\.<br>`skills (list\|get <name>)`<br>Subcommands: `get`, `list` | None |
-
-## support (1)
-
-| Command | Mode | Description | Pipes |
-| --- | --- | --- | --- |
-| `support` | Daemon | Collect logs\, config\, state and diagnostics into one archive\.<br>`support` | None |
 
 ## system (8)
 
@@ -737,9 +719,3 @@ Each command row names the operators it accepts after `|`.
 | `update system firmware download` | Daemon | Download the latest firmware image right now\.<br>`update system firmware download` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `update system firmware restart` | Daemon | Reboot into the already\-staged firmware\.<br>`update system firmware restart` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `update system firmware rollback` | Daemon | Roll back to the previous firmware and restart\.<br>`update system firmware rollback` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
-
-## validate (1)
-
-| Command | Mode | Description | Pipes |
-| --- | --- | --- | --- |
-| `validate config` | Read-only | Check a config for errors without applying it\.<br>`validate config <file>`<br>Arguments: `file` string, required: yes, any value of this type: Config file path\, or \- for stdin\. The config file to check\, or \- to read it on stdin\. | Answer shape: `doc`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>While streaming: `log`<br>Local process only: `save` |

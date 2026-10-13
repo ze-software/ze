@@ -623,11 +623,11 @@ filters link-local multicast will break the election.</p>
 </tr>
 <tr>
 <td><code>doctor-vrrp-raw-socket</code></td>
-<td>The raw socket VRRP needs cannot be opened, usually missing <code>CAP_NET_RAW</code>.</td>
+<td>The raw socket VRRP needs cannot be opened, usually missing <code>CAP_NET_RAW</code>. On a host that is not Linux the transport cannot run at all, and the message names the host's OS.</td>
 </tr>
 </tbody>
 </table>
-<p>Run <code>ze explain &lt;code&gt;</code> for the remediation.</p>
+<p>Run <code>ze show diagnostic &lt;code&gt;</code> for the remediation.</p>
 <!-- source: internal/plugins/vrrp/yang/ze-vrrp-conf.yang -- config surface -->
 <!-- source: internal/plugins/vrrp/groups.go -- cross-leaf verifier and its messages -->
 <!-- source: internal/plugins/vrrp/cmd_show.go -- show/clear commands -->
@@ -681,7 +681,7 @@ filters link-local multicast will break the election.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -129,13 +129,14 @@ that nothing reads.</p>
 <p>The node starts with <code>ze start /etc/ze/ze.conf</code>. netlab assigns the interface addresses
 with <code>ip</code> inside the container, so the rendered configuration carries no interface
 block.</p>
-<p>Ze re-reads its configuration on SIGHUP only. <code>handleSIGHUPReload</code> stages the file as a
-candidate and reloads it. netlab sends no SIGHUP, and <code>ze.yml</code> says so with
+<p>Ze re-reads its configuration on SIGHUP only. <code>handleSIGHUPReload</code> runs <code>signalReload</code>,
+which stages the file as a candidate, reloads it, and never writes the file back. netlab sends no SIGHUP, and <code>ze.yml</code> says so with
 <code>features.initial.reload: false</code>. A configuration change in a running lab therefore
 needs <code>kill -HUP</code> on the ze process inside the node, or a node restart.</p>
 <!-- source: contrib/netlab/ze.yml -- clab.group_vars.netlab_start_daemon -->
 <!-- source: contrib/netlab/ze.yml -- features.initial.reload -->
-<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, stageSIGHUPCandidate -->
+<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, signalReload, stageSIGHUPCandidate -->
+<!-- source: cmd/ze/hub/config_source.go -- promoteSignalCandidate -->
 <p><code>netlab validate</code> reads the daemon through the CLI. <code>ze.yml</code> declares the show command
 as <code>ze cli -c "show $@ | json compact"</code>, and netlab runs it with <code>docker exec</code>. An
 explicit format pipe beats the <code>--format</code> flag, so that command emits JSON.</p>
@@ -232,7 +233,7 @@ starts a daemon from a golden file and parses the show command output.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

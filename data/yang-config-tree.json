@@ -252,7 +252,7 @@
         "type": "boolean"
       },
       {
-        "description": "The default is true. false stops every BFD session, the ones pinned in this bfd\ncontainer and the ones a protocol client asks for at runtime. A reload to false stops the\npinned sessions already running. A BGP peer that carries a bfd container gets a refusal\ninstead of a session, so a peer in strict mode stays down and a peer outside strict mode\nruns without BFD. To stop the session of one peer only, remove the bfd container from that\npeer or set its enabled leaf to false.",
+        "description": "The default is true. false stops every BFD session, the ones pinned in this bfd\ncontainer and the ones a protocol client asks for at runtime. A reload to false stops the\npinned sessions already running. A config that sets false while a BGP peer, a static\nnext-hop or an OSPF interface still opts into BFD is refused, naming those clients, so\nremove the opt-ins first. To stop the session of one peer only, remove the bfd container\nfrom that peer or set its enabled leaf to false.",
         "kind": "leaf",
         "name": "enabled",
         "short-help": "Master switch for the BFD plugin.",
@@ -1176,7 +1176,7 @@
                     "type": "boolean"
                   }
                 ],
-                "description": "When the container is present, the BGP reactor calls the Service interface of the BFD plugin at\nsession establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must\nbe loaded through a top-level bfd { ... } block. When the plugin is absent, the BGP peer starts\nwithout BFD and Ze logs a warning.",
+                "description": "When the container is present, the BGP reactor calls the Service interface of the BFD plugin at\nsession establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must\nbe loaded through a top-level bfd { ... } block. A config that opts a peer in while that block is\nabsent or sets enabled false is refused, naming the peer.",
                 "kind": "container",
                 "name": "bfd",
                 "short-help": "Bidirectional Forwarding Detection options for this peer (RFC 5880).",
@@ -1784,7 +1784,7 @@
                         "type": "boolean"
                       }
                     ],
-                    "description": "When the container is present, the BGP reactor calls the Service interface of the BFD plugin at\nsession establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must\nbe loaded through a top-level bfd { ... } block. When the plugin is absent, the BGP peer starts\nwithout BFD and Ze logs a warning.",
+                    "description": "When the container is present, the BGP reactor calls the Service interface of the BFD plugin at\nsession establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must\nbe loaded through a top-level bfd { ... } block. A config that opts a peer in while that block is\nabsent or sets enabled false is refused, naming the peer.",
                     "kind": "container",
                     "name": "bfd",
                     "short-help": "Bidirectional Forwarding Detection options for this peer (RFC 5880).",
@@ -5358,7 +5358,7 @@
                     "type": "boolean"
                   }
                 ],
-                "description": "When the container is present, the BGP reactor calls the Service interface of the BFD plugin at\nsession establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must\nbe loaded through a top-level bfd { ... } block. When the plugin is absent, the BGP peer starts\nwithout BFD and Ze logs a warning.",
+                "description": "When the container is present, the BGP reactor calls the Service interface of the BFD plugin at\nsession establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must\nbe loaded through a top-level bfd { ... } block. A config that opts a peer in while that block is\nabsent or sets enabled false is refused, naming the peer.",
                 "kind": "container",
                 "name": "bfd",
                 "short-help": "Bidirectional Forwarding Detection options for this peer (RFC 5880).",
@@ -7748,10 +7748,10 @@
         "source": "config"
       },
       {
-        "description": "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer. Ze\ntherefore rejects 0.0.0.0. A peer that implements RFC 6286 Section 2.2 answers an OPEN that carries\n0.0.0.0 with Bad BGP Identifier.",
+        "description": "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer. Ze\ntherefore rejects 0.0.0.0. A peer that implements RFC 6286 Section 2.2 answers an OPEN that carries\n0.0.0.0 with Bad BGP Identifier. The leaf is mandatory, and a config without it loads only when every\npeer sets session router-id itself or inherits it from its group; a dynamic group must set its own.",
         "kind": "leaf",
         "name": "router-id",
-        "short-help": "BGP Router ID for this speaker. The leaf is required.",
+        "short-help": "BGP Router ID for this speaker. Required unless every peer or its group sets one.",
         "source": "config",
         "type": "ipv4-address"
       },
@@ -26135,7 +26135,7 @@
               {
                 "children": [
                   {
-                    "description": "The key is the shared secret RFC 8907 Section 4.5\nbuilds the MD5 pseudo-pad from, and both ends must\nhold the same value. A client with no secret has no\nconformant packet to send. Section 10.5.2 requires\na shared secret and forbids a client to set\nTAC_PLUS_UNENCRYPTED_FLAG. Omitting the key refuses\na commit, through the AAA rebuild rather than\nthrough the schema: a missing mandatory field is\nonly a warning. At BOOT the same failure is logged\nand this backend is DROPPED from the chain. A user\nwho exists locally still logs in, and the local\nprofiles still govern the command. The leaf is\nsensitive, so display paths mask it. Keys of 32\ncharacters or longer are supported. Use at least\n16 characters; doctor warns about shorter keys.\nA $9$-encoded value is decoded on read; this is\nreversible obfuscation, not encryption. Protect\nconfiguration files, exports and backups as secrets.",
+                    "description": "The key is the shared secret RFC 8907 Section 4.5\nbuilds the MD5 pseudo-pad from, and both ends must\nhold the same value. A client with no secret has no\nconformant packet to send. Section 10.5.2 requires\na shared secret and forbids a client to set\nTAC_PLUS_UNENCRYPTED_FLAG. Omitting the key refuses\nthe config: a commit, a load and a boot all stop\non the missing mandatory field. The leaf is\nsensitive, so display paths mask it. Keys of 32\ncharacters or longer are supported. Use at least\n16 characters; doctor warns about shorter keys.\nA $9$-encoded value is decoded on read; this is\nreversible obfuscation, not encryption. Protect\nconfiguration files, exports and backups as secrets.",
                     "kind": "leaf",
                     "name": "key",
                     "short-help": "Shared secret this server obfuscates its packets with",
@@ -27729,7 +27729,7 @@
                     ]
                   }
                 ],
-                "description": "Ze attaches this qdisc at the root of the interface, and every\nclass hangs beneath it.",
+                "description": "Ze attaches this qdisc at the root of the interface, and every\nclass hangs beneath it. An interface entry with no qdisc block attaches none.",
                 "kind": "container",
                 "name": "qdisc",
                 "short-help": "The root queueing discipline of the interface.",

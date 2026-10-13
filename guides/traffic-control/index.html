@@ -102,7 +102,11 @@ the operator chooses one via the <code>backend</code> leaf.</p>
     }
 }
 </code></pre>
+<p>An interface entry with no <code>qdisc</code> block attaches no root discipline. Once a
+<code>qdisc</code> block is present, its <code>type</code> is required, and a config that omits it is
+refused naming <code>traffic/control/interface[&lt;name&gt;]/qdisc/type</code>.</p>
 <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
+<!-- source: internal/component/traffic/config.go -- parseInterfaceQoS -->
 <h2 id="tc-backend-original-qdisc-snapshot">tc Backend: Original Qdisc Snapshot</h2>
 <p>Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (<code>protocol.md</code>).</p>
 <p><code>noqueue</code> is snapshotted and restored. It is the default root on every virtual interface (veth, dummy, bridge, and anything else the kernel gives no real queue), so it is the state a QoS config is most often applied <em>from</em>. It carries no reconstructable parameters, but it is the <em>absence</em> of a discipline, so it is exactly restorable: the restore deletes whatever root Ze installed rather than replacing it, which returns the interface to <code>noqueue</code>. Adding a qdisc named <code>noqueue</code> is not the inverse operation, and a snapshot restored by deletion fails closed if a caller routes it down the replace path.</p>
@@ -354,7 +358,7 @@ default and range.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
                 </div>
             </div>
         </footer>

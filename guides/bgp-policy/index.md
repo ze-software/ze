@@ -11,6 +11,12 @@ Policy has two parts:
 
 ```text
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         loop-detection no-self-as {
             allow-own-as 0
@@ -67,6 +73,12 @@ those routes while the session stays up.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         reject-asn NO-TRANSIT {
             indirect [ 174 701 3356 ];
@@ -160,6 +172,12 @@ direction, beside the named `tag` and `strip` sets. Each one is a leaf under
 
 ```text
 bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     group customers {
         filter {
             ingress {
@@ -222,6 +240,12 @@ leave on a session. The list takes `standard`, `large`, `extended`, `all`, or
 
 ```text
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer transit-a {
         session { community { send [ standard ]; } }
     }

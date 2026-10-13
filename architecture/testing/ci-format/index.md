@@ -61,7 +61,8 @@ test before executing anything, so the reported error is the parse error rather
 than a confusing downstream symptom.
 
 **Unparseable outranks skipped.** A file that both fails to parse and carries
-`option=needs-linux` / `option=skip-os` is reported FAIL, not SKIP. Its skip
+a skip marker (`option=needs-linux`, `option=skip-os`, `option=needs-arch`) is
+reported FAIL, not SKIP. Its skip
 marker was parsed from the same broken file, so it is not trustworthy evidence
 that the file need not run: a contradicting directive may sit past the break, or
 the marker itself may be what was mis-parsed. Honoring it would mean trusting a
@@ -291,7 +292,7 @@ directive.
 
 | Line | Read by |
 |------|---------|
-| `expect=bgp`, `reject=bgp`, `action=*`, and the peer's own `option=` (`asn`, `bind`, `tcp_connections`, `conn_map`, `open`, `update`, `linger`, `silent`, `await_eor`, `established-file`) | le test peer |
+| `expect=bgp`, `reject=bgp`, `action=*`, and the peer's own `option=` (`asn`, `bind`, `tcp_connections`, `conn_map`, `open`, `update`, `linger`, `silent`, `await_eor`, `established-file`, `await-file`) | le test peer |
 | `expect=json`, `expect=stderr`, `expect=syslog`, `reject=stderr`, `reject=stdout`, `reject=syslog` | the test runner, where the line stands |
 | `cmd=api` | nobody. It documents the command that produced the expected bytes |
 | `option=timeout` | the test runner parses it, and **adopts it only when the file declares none.** Its scope is the whole test, not this peer, so a file-level value always wins. 450 tracked peer blocks carry one. Write the one that governs outside the block |
@@ -415,10 +416,12 @@ option=<type>:key=value[:key=value...]
 | `linger` | `value=true` | Peer-block only: the check peer never closes a connection itself. After ALL expectations complete it prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. BETWEEN connections, where one connection's expectations are met and a later connection is still owed, it holds that connection until the REMOTE closes it, and fails the test if teardown comes first. Without it a completed peer closes, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers, and it also makes the daemon's OWN close unobservable, because ze dials again on its retry timer whoever closed (`test/reload/config-apply-ordering-address-swap.ci` asserts a stop and a restart, and needs the peer to be incapable of causing one). A `conn_map` peer is excluded from the between-connections hold: it serves every connection of one batch in turn and then waits for the daemon to close them all, so holding the first would starve the batch. A `reject=bgp` that fires during either hold RETRACTS the success token already printed, so the peer still fails the test. |
 | `silent` | `value=true` | Peer-block only, check mode only: the peer stops sending the automatic KEEPALIVE reply it otherwise writes for every message it receives. It holds the TCP connection open and keeps reading and matching expectations. Needed to reach ze's receive hold timer: ze sends its own KEEPALIVE every hold/3 seconds, each automatic reply resets ze's hold timer, and "the peer went quiet" is otherwise unexpressible. A closed connection is a different event on a different code path, so `action=close` does not substitute. **Explicit writes still happen**: `action=send`, `action=notification`, the OPEN handshake itself, and `option=linger`'s post-completion KEEPALIVE loop are unaffected, so `silent` with `linger` is not silent. Sink and echo modes ignore it. See `test/plugin/deadpeer-holddown.ci`. |
 | `established-file` | `path=<name>` | Peer-block only: ze-peer creates the empty file `<name>` when the daemon's first UPDATE arrives, once for the whole run. A relative name resolves in the test's work directory, where ze-peer and every compiled fixture run. The UPDATE, not ze's KEEPALIVE, is the event: RFC 4271 Section 9 permits an UPDATE only in Established, so the file proves the DAEMON is Established, while its KEEPALIVE arrives when it can still be in OpenConfirm. It lets a fixture wait on that state instead of a fixed delay: the reload trigger's `awaitEstablished` (`internal/test/fixture/misc_fixture_shellports.go`) holds the SIGHUP until the file named `established` exists. A session that sends no UPDATE never writes the file. See `test/reload/reload-dynamic-peer-survives.ci`. |
+| `await-file` | `path=<name>` | Peer-block only: ze-peer sends nothing after the OPEN handshake, not an `action=send`, not an `option=update` route, until the file `<name>` exists. It resolves like `established-file`, so one peer block can hold its first UPDATE until another block's `established-file` proves the daemon has that session Established. A relay test needs it when its sender would otherwise race the receiver: ze forwards nothing to a peer it does not yet hold Established, and a route that arrives first reaches the receiver later through a peer-up replay, whose order is not the send order. The wait is bounded at 15 s and fails naming the file. See `test/plugin/forward-overflow-two-tier.ci`. |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
+| `needs-arch` | `value=<goarch>[,<goarch>]` | Run only on a host whose CPU arch (`GOARCH`) is in the list. On any other host the test is SKIPPED, and the SKIP line names both arches: `SKIP ... -- needs-arch=arm64, host GOARCH=amd64: ...`. A test that builds or boots for a target arch carries it (owner decision 2026-10-13: a target arch is tested only on a CPU of that arch), because Ze builds every kernel on a host of its own arch, with no CPU emulation. Each token must be an arch the kernel builder supports (`kernelbuilder.SupportedArches`, today `amd64` and `arm64`): an empty token, a typo such as `amd46`, a kernel spelling such as `x86_64` or `aarch64`, a missing `value=` or any other key is a parse error on every host. A fixture whose arch is incidental to what it asserts asks for the host's arch instead (`hostKernelArch`, `internal/test/fixture/install_fixture.go`), so it runs everywhere. The `test/parse` suite has its own parser and does not take `needs-arch`. |
 | `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty `caps=` is refused on every host. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
 | `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le test qemu netns-test` path because the named link must never be created on the host. |
@@ -426,6 +429,9 @@ option=<type>:key=value[:key=value...]
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
 <!-- source: internal/test/runner/needs_path.go -- repoRootFrom, the needs-path lookup -->
+<!-- source: internal/test/runner/needs_arch.go -- needsArchSkipReason, checkNeedsArchToken -->
+<!-- source: internal/test/runner/display.go -- Display.TestFinished, the SKIP line carries the SkipReason -->
+<!-- test: internal/test/runner/needs_arch_test.go -- TestNeedsArchSkipReason, TestParseCIOptionNeedsArch -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
 
 #### Configuration inputs for peer AS derivation
@@ -501,6 +507,7 @@ before requesting shutdown.
 | The same, and loads eBPF | `option=needs-linux:caps=bpf` |
 | The same, and sets the system clock (the NTP plugin restoring persisted time) | `option=needs-linux:caps=sys-time` |
 | Skips on one non-Linux OS for a reason unrelated to the kernel | `option=skip-os:value=darwin` |
+| Builds or boots for one target arch, which only a CPU of that arch can do | `option=needs-arch:value=arm64` |
 | Needs an optional heavyweight artifact the checkout does not carry | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
 
 `caps=` takes a comma-separated list, so a test that programs netlink and loads
@@ -973,7 +980,7 @@ command in the file, so an assertion could be satisfied by a command its author
 never named and a reject could trip on any command's output. Two files did
 exactly that: `test/plugin/kernel-capability-unknown-starts.ci` and
 `kernel-capability-doctor-reports.ci` each asserted that `ze doctor` printed a
-diagnostic code and then ran `ze explain <that code>`, whose output satisfied the
+diagnostic code and then ran `ze show diagnostic <that code>`, whose output satisfied the
 assertion on a host where the doctor check does not run at all.
 
 So a file no longer needs splitting to make a negative assertion mean something.
@@ -1135,7 +1142,7 @@ an exabgp-compat config is left alone for the same reason.
 <!-- source: internal/test/runner/loopback.go -- probe, error text, --bind, config-local and local-address scan -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- runOneExaBGPTest, the exabgp-compat preflight call -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
-<!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
+<!-- source: internal/test/runner/loopback_bsd.go -- SIOCAIFADDR on macOS and FreeBSD -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 
 An exabgp-compat case runs TWO processes, ze and the mock BGP server, and its

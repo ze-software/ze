@@ -79,6 +79,9 @@ Peer values override group values. Group values override the global BGP block. I
 
 A group with `connection { remote { ip dynamic } }` accepts a session from any address in its ranges. Use it for an IXP route server or any fabric where the members are not known when you write the configuration.
 
+A member that connects while Ze is still starting its plugins is held: its session opens only once every plugin is running, the same as a configured peer, so its first UPDATE meets the filters its policy names.
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- createDynamicPeer -->
+
 ```text
 bgp {
     policy {

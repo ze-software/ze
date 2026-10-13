@@ -30,7 +30,7 @@ row is `present`. It is how a host is checked before it runs Ze's Docker labs.
 <!-- source: internal/component/doctor/kernel_capabilities.go -- writeKernelCapabilities -->
 
 Each check produces a diagnostic with a code (e.g., `doctor-config-reference`),
-severity (`error` or `warning`), and message. Use `ze explain <code>` for
+severity (`error` or `warning`), and message. Use `ze show diagnostic <code>` for
 remediation guidance.
 
 ### Checks
@@ -250,7 +250,7 @@ Every new doctor check must:
    registry accepts any well-formed lower-kebab code
    (`diagnostic.RegisterDoctorCheck`).
 2. Register the code in `internal/core/diagnostic/codes.go` so
-   `ze explain <code>` works. The entry names the code through an exported
+   `ze show diagnostic <code>` works. The entry names the code through an exported
    constant, and the check that emits it references that constant. A code
    spelled a second time in the emitting package is a second declaration of
    one fact, and `./le arch enumeration check` refuses it.

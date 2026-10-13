@@ -500,6 +500,12 @@ neighbor receives one set:
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     update-delay {
         max-delay 30
         establish-wait 10
@@ -754,6 +760,12 @@ within IS the explicit configuration directive RFC 7999 Section 4 asks for, so
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer transit-a {
         blackhole {
             prefixes [ 192.0.2.0/24 198.51.100.0/24 ];
@@ -767,6 +779,12 @@ one. Name it, and name both when a peer sends either:
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer transit-a {
         blackhole {
             communities [ blackhole 65001:666 ];
@@ -811,6 +829,12 @@ one `blackhole` container for all of its members:
 
 ```
 bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     group ix {
         connection {
             remote {
@@ -859,6 +883,12 @@ two-step form of the same idea:
 
 ```
 bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         modify RTBH {
             match { community 65001:666; }
@@ -889,6 +919,12 @@ a peer that reports the announcement as sent and a Ze that installs nothing.
 
 ```
 bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     peer transit-a {
         rpki {
             action { invalid reject; }
@@ -1594,6 +1630,12 @@ using Go RE2 (linear time, inherently ReDoS-safe). Use `[0-9]` instead of
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         as-path-list ALLOW-PEER {
             entry "^65001" { action accept }
@@ -1622,6 +1664,12 @@ up.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         reject-asn NO-TRANSIT {
             indirect [ 174 3356 ]
@@ -1701,6 +1749,12 @@ standard, large, or extended community attributes.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         community-match BLOCK-NO-EXPORT {
             entry no-export { type standard; action reject }
@@ -1733,6 +1787,12 @@ leaves the pipe.
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     policy {
         modify PREFER-LOCAL {
             set {
@@ -1769,6 +1829,12 @@ route carries none, they start from `bgp { defaults { attribute { } } }`:
 
 ```
 bgp {
+    router-id 192.0.2.1;
+    session {
+        asn {
+            local 65000;
+        }
+    }
     defaults {
         attribute {
             med              0;
@@ -4013,8 +4079,33 @@ error: load config: config validation failed: isis: isis/hostname: "café.exampl
 
 The rules cover `interface`, `sysctl`, `fib`, `plugin`, `telemetry`, `vpp`,
 `vpn`, `pki`, `l2tp`, `isis` and `ospf`. A BGP value is unaffected here because
-BGP has always had its own deeper check at startup. A missing mandatory field
-stays a warning and does not stop the daemon.
+BGP has always had its own deeper check at startup.
+
+**A missing mandatory field stops the daemon too.** A leaf the YANG schema marks
+`mandatory true` is required whenever its closest ancestor that is not a plain
+(non-presence) container exists, as RFC 7950 Section 7.6.5 says, even when every
+container between them is absent from the file. This holds in every section
+the config writes, not only the ones the rules above cover: a `bfd` profile
+with an `auth` block needs its `type`, `key-id` and `secret`. A section the file
+leaves out entirely is not checked. So a `bgp` block needs
+`router-id` and `session asn local`. The value can come from the peers instead:
+when every peer carries it, or inherits it from its group, the global leaf is
+not needed. A dynamic group (`connection remote ip dynamic`) must carry the
+value itself, even when it lists static peers, because the sessions it accepts
+are built from the group and never from a member. The refusal names the leaf
+and the command that supplies it:
+
+```
+error: load config: config validation failed: bgp: bgp/router-id: mandatory field "router-id" is missing: the YANG schema marks bgp/router-id mandatory (RFC 7950 Section 7.6.5); add it with `set bgp router-id <value>`
+```
+
+A mandatory choice, such as a static route's action, has no name of its own
+in the file, so the refusal lists one command for each of its cases instead,
+and any one of them satisfies it:
+
+```
+error: load config: config validation failed: static: static/table[default]/route[10.0.0.0/8]/action: mandatory choice "action" is missing: the YANG schema requires one of its cases under static/table[default]/route[10.0.0.0/8] (RFC 7950 Section 7.9.4); add one with `set static table default route 10.0.0.0/8 blackhole`, `set static table default route 10.0.0.0/8 next ...`, `set static table default route 10.0.0.0/8 reject`
+```
 
 **A reload refuses the same way, and the daemon keeps running.** Send SIGHUP
 with a config a validator refuses and the reload fails, the staged candidate is
@@ -4053,6 +4144,12 @@ Service healthcheck probes monitor availability and control BGP route announceme
 
 ```
 bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
     healthcheck {
         probe dns {
             command "dig @127.0.0.1 example.com +short"
