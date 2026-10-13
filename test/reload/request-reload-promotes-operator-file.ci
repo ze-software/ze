@@ -1,0 +1,171 @@
+# Test: `request reload` adopts the file the operator wrote, as SIGHUP does.
+#
+# Initial config: an explicit config file (`ze start <file>`, file mode) with
+#                 one iBGP peer and the SSH listener the editor logs in on.
+# Operator edit:  ze-peer rewrites the file once the session is up (EOR seen),
+#                 adding peer2 at 127.0.0.2, then completes, which drops the
+#                 session. The editor script waits for that drop
+#                 ("connections-dropped":1), so the reload it then requests is
+#                 ordered after the rewrite.
+# Live change:    `ze cli -c "request reload"` (the RPC `ze config edit
+#                 --reload` sends). peer2 appearing in `show bgp peer detail`
+#                 proves the operator's file was applied.
+# Then:           the SSH editor commits an unrelated edit (peer1 hold time).
+# Expected:       the commit is ACCEPTED. A file-mode commit is refused unless
+#                 the file still holds exactly the bytes recorded as active
+#                 (promoteConfigCandidate), so acceptance proves both that the
+#                 reload recorded the operator's file as active and that the
+#                 reload never wrote the file. The committed file then holds
+#                 the operator's peer2 and the editor's hold time.
+#
+# VALIDATES: the hub wires `request reload` to newRequestReloadFunc
+#            (cmd/ze/hub/main.go, SetFullReloadFunc), which stages the file,
+#            applies it, and promotes it without writing it.
+# PREVENTS: request reload running reloadAfterCommitContext. That applies the
+#           file but never promotes it, so the next commit is refused with
+#           "explicit config changed externally" and the editor never prints
+#           "Session committed:". Measured by building ze with that one line
+#           reverted (go build -overlay): this file goes red at the commit wait.
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+# Connection 1: no routes, EOR from ze. The rewrite is the last item, so the
+# peer completes on it and the session drops after the file changed.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=rewrite:conn=1:seq=1:source=operator-edit.conf:dest=request-reload-promotes-operator-file.conf
+EOF_PEER
+
+tmpfs=request-reload-promotes-operator-file.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+}
+EOF_CONF
+
+# The operator's edit: the same config plus peer2.
+tmpfs=operator-edit.conf:terminator=EOF_EDIT
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+    peer peer2 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+}
+EOF_EDIT
+
+tmpfs=request-reload-promotes-operator-file.script:terminator=EOF_SCRIPT
+cli show bgp peer detail peer1 | no-more | json compact
+has "connections-dropped":1
+cli request reload
+has configuration reloaded
+cli show bgp peer detail peer2 | no-more | json compact
+has 127.0.0.2
+send set bgp peer peer1 timer receive-hold-time 90
+send commit now
+wait Session committed:
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start request-reload-promotes-operator-file.conf:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 request-reload-promotes-operator-file.conf request-reload-promotes-operator-file.script:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: session editor script completed
+expect=file:path=request-reload-promotes-operator-file.conf:contains=127.0.0.2
+expect=file:path=request-reload-promotes-operator-file.conf:contains=receive-hold-time 90
+reject=stderr:contains=changed externally

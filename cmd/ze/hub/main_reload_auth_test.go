@@ -316,7 +316,7 @@ func TestRunReloadInvalidAPIListenClearsCandidate(t *testing.T) {
 		return tree, treeFromMap(tree), nil
 	}
 
-	err = runReloadContext(t.Context(), srv, nil, cp, store, configPath, load, nil)
+	err = runReloadContext(t.Context(), reloadSourceCommit, srv, nil, cp, store, configPath, load, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "resolve candidate API identity")
 	_, _, candidateExists, readErr := storage.ReadCandidateConfig(store, configPath)
@@ -564,7 +564,7 @@ func TestRunReloadListenerRollbackFailureStaysFailClosed(t *testing.T) {
 		return tree, treeValue, nil
 	}
 
-	err = runReloadContext(t.Context(), srv, nil, cp, failAcquireStorage{Storage: baseStore}, configPath, load, lm)
+	err = runReloadContext(t.Context(), reloadSourceCommit, srv, nil, cp, failAcquireStorage{Storage: baseStore}, configPath, load, lm)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "promote candidate")
 	assert.Equal(t, 2, listener.calls, "listener migration and its failed rollback must both run")

@@ -28,7 +28,7 @@ import (
 
 // diskConfigLoaders builds the two config loaders the SIGHUP path runs on:
 // the map-only one the plugin server takes as its ConfigLoader (diff + plugin
-// reload) and the map-plus-tree one doReload passes to runReload.
+// reload) and the map-plus-tree one doReloadContext passes to runReloadContext.
 //
 // Both go through zeconfig.LoadConfig, which is where the config transforms
 // live: the ze:validate custom validators, and the ze:bcrypt password hashing.
@@ -71,10 +71,10 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 	return loadMap, loadBoth
 }
 
-// handleSIGHUPReload is the SIGHUP reload worker. Reads signals from reloadCh,
-// triggers plugin-level reload via ReloadFromDisk, refreshes the shared
-// ConfigProvider with the freshly loaded tree, then fans Reload out to every
-// registered subsystem (engine.Reload) so diff-able knobs hot-apply.
+// handleSIGHUPReload is the SIGHUP reload worker. Reads signals from reloadCh
+// and runs signalReload for each: stage the config source, reload the plugins
+// and the shared ConfigProvider from it, fan Reload out to every registered
+// subsystem (engine.Reload) so diff-able knobs hot-apply, then record it.
 // Lifecycle goroutine (one-time, runs for daemon lifetime).
 //
 // A SIGHUP that finds another config transaction holding the lock (a commit,
@@ -84,10 +84,13 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 // for the next SIGHUP instead left an operator's edit unapplied, with nothing
 // reported, until an unrelated signal came.
 //
+// reloads is the daemon's signal-reload mutex, shared with request reload
+// (newRequestReloadFunc).
+//
 // It closes done when reloadCh is closed and the reload it was running has
 // reported. Shutdown waits on that (awaitReloadWorker), so a SIGTERM racing a
 // SIGHUP does not take the verdict with it.
-func handleSIGHUPReload(ctx context.Context, reloadCh <-chan os.Signal, done chan<- struct{}, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator, recorder audit.Recorder) {
+func handleSIGHUPReload(ctx context.Context, reloadCh <-chan os.Signal, done chan<- struct{}, reloads *sync.Mutex, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator, recorder audit.Recorder) {
 	defer close(done)
 
 	for range reloadCh {
@@ -99,7 +102,7 @@ func handleSIGHUPReload(ctx context.Context, reloadCh <-chan os.Signal, done cha
 		// Each pass follows the end of another config transaction, so the loop
 		// ends when one attempt finds the lock free or shutdown begins.
 		for {
-			err := sighupReload(ctx, s, eng, cp, store, configPath, load, lm, recorder, trigger)
+			err := sighupReload(ctx, reloads, s, eng, cp, store, configPath, load, lm, recorder, trigger)
 			if !errors.Is(err, pluginserver.ErrReloadInProgress) {
 				break
 			}
@@ -113,15 +116,15 @@ func handleSIGHUPReload(ctx context.Context, reloadCh <-chan os.Signal, done cha
 	}
 }
 
-// sighupReload stages the config source as the candidate and reloads it. It
-// prints every error except ErrReloadInProgress, which it returns unprinted so
-// the caller can queue the reload. trigger names the reload in the audit log.
-func sighupReload(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator, recorder audit.Recorder, trigger string) error {
-	if err := stageSIGHUPCandidate(store, configPath); err != nil {
-		fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
-		return err
-	}
-	err := doReloadContext(ctx, s, eng, cp, store, configPath, load, lm)
+// sighupReload runs signalReload for the SIGHUP worker under reloads, waiting
+// for a request reload that holds it, so a SIGHUP queues rather than drops. It
+// audits the reload, prints every error except ErrReloadInProgress, which it
+// returns unprinted so the caller can queue the reload, and announces success
+// with reloadComplete. trigger names the reload in the audit log.
+func sighupReload(ctx context.Context, reloads *sync.Mutex, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator, recorder audit.Recorder, trigger string) error {
+	reloads.Lock()
+	err := signalReload(ctx, s, eng, cp, store, configPath, load, lm)
+	reloads.Unlock()
 	if errors.Is(err, pluginserver.ErrReloadInProgress) {
 		return err
 	}
@@ -132,6 +135,58 @@ func sighupReload(ctx context.Context, s *pluginserver.Server, eng *engine.Engin
 	recordDaemonReloadAudit(recorder, "system", "signal", audit.System, trigger)
 	reloadComplete()
 	return nil
+}
+
+// newRequestReloadFunc builds the `request reload` handler the hub wires as the
+// plugin server's FullReloadFunc (ze-plugin:system-daemon-reload, sent by
+// `ze config edit --reload`). That RPC announces an edit the operator made to
+// the file, as SIGHUP does, so it runs signalReload under the same per-daemon
+// reloads mutex. It takes the mutex with TryLock and answers
+// ErrReloadInProgress when another signal reload holds it, as the RPC always
+// has: waiting would deadlock a plugin that sends it from inside its own
+// apply. It does not audit: the dispatcher already records the RPC with the
+// real caller. gate and ready are the commit reloads' shutdown gate and plugin
+// startup wait; notify, when set, runs after a successful reload.
+func newRequestReloadFunc(gate *reloadGate, reloads *sync.Mutex, ready func(context.Context) error, notify func(), s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) pluginserver.FullReloadFunc {
+	return func(ctx context.Context) error {
+		if !gate.enter() {
+			return errDaemonStopping
+		}
+		defer gate.leave()
+		startupCtx, startupCancel := context.WithTimeout(ctx, 30*time.Second)
+		defer startupCancel()
+		if err := ready(startupCtx); err != nil {
+			return fmt.Errorf("wait for plugin startup: %w", err)
+		}
+		if !reloads.TryLock() {
+			return pluginserver.ErrReloadInProgress
+		}
+		err := signalReload(ctx, s, eng, cp, store, configPath, load, lm)
+		reloads.Unlock()
+		if err != nil {
+			return err
+		}
+		if notify != nil {
+			notify()
+		}
+		return nil
+	}
+}
+
+// signalReload reloads the config source the operator wrote. It is the one
+// implementation behind both triggers that announce such an edit: SIGHUP
+// (sighupReload) and `request reload` (newRequestReloadFunc). It stages the
+// source as the candidate and reloads it as reloadSourceSignal, so promotion
+// records it without writing the file. The caller MUST hold the daemon's
+// reloads mutex, so the staging of one reload and the reload itself never
+// interleave with another's: a request reload could otherwise load the
+// candidate a SIGHUP had staged but not yet applied, or refuse on it with
+// ErrCandidateExists. ErrReloadInProgress is returned as is.
+func signalReload(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+	if err := stageSIGHUPCandidate(store, configPath); err != nil {
+		return err
+	}
+	return doReloadContext(ctx, reloadSourceSignal, s, eng, cp, store, configPath, load, lm)
 }
 
 // awaitConfigTransaction waits for the config transaction holding the lock to
@@ -168,7 +223,7 @@ func awaitConfigTransaction(ctx context.Context, s *pluginserver.Server, reloadC
 // reloadGate counts the reloads a commit path starts on a request goroutine
 // (SSH or web commit, API full reload, managed commit). Shutdown closes the
 // gate and waits for them before the store is closed, because every one of
-// them ends in promoteConfigCandidate, which reads and writes the store. A
+// them ends in promoteReloadCandidate, which reads and writes the store. A
 // reload that arrives after the gate closed is refused rather than started
 // against a store about to close.
 type reloadGate struct {
@@ -277,10 +332,48 @@ func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface
 	}
 }
 
-// doReload performs a single config reload and records the "reload processed"
-// fence that `show reload-status` surfaces.
+// reloadSource names who authored the candidate a reload promotes, which
+// decides whether promotion may write the explicit config file. The caller
+// states it: the bytes cannot, because a file the operator wrote back to the
+// accepted bytes looks exactly like a file nobody touched.
+type reloadSource uint8
+
+const (
+	reloadSourceUnspecified reloadSource = iota
+	// reloadSourceCommit: the daemon wrote the candidate (SSH, web, API or
+	// managed commit), so promotion publishes it to the file.
+	reloadSourceCommit
+	// reloadSourceSignal: SIGHUP staged the candidate from the file the
+	// operator wrote, so promotion records it and leaves the file alone.
+	reloadSourceSignal
+)
+
+// promoteReloadCandidate promotes the candidate a successful reload applied,
+// by the rule its source owns.
+func promoteReloadCandidate(source reloadSource, store storage.Storage, configPath string) error {
+	switch source {
+	case reloadSourceCommit:
+		return promoteConfigCandidate(store, configPath)
+	case reloadSourceSignal:
+		return promoteSignalCandidate(store, configPath)
+	case reloadSourceUnspecified:
+		panic("BUG: reload promotion with an unspecified source")
+	}
+	panic("BUG: reload promotion with an unknown source")
+}
+
+// doReload is a test entry point: doReloadContext under a background context,
+// promoting as a commit (reloadSourceCommit). No production path calls it.
+func doReload(s *pluginserver.Server, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+	return doReloadContext(context.Background(), reloadSourceCommit, s, nil, cp, store, configPath, load, lm)
+}
+
+// doReloadContext performs a single config reload and records the "reload
+// processed" fence that `show reload-status` surfaces. source states who
+// authored the candidate: reloadSourceSignal from signalReload (SIGHUP and
+// `request reload`), reloadSourceCommit from every daemon-authored commit.
 //
-// The fence is marked HERE, around the whole of runReload, rather than inside
+// The fence is marked HERE, around the whole of runReloadContext, rather than inside
 // pluginserver.Server.reloadConfig, because a reload's rejections are decided
 // by the subsystems engine.Reload fans out to (e.g. l2tp refusing a listener
 // rebind), which runs after ReloadConfig. Marking at the plugin-server layer
@@ -291,19 +384,21 @@ func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface
 // queued, handleSIGHUPReload runs it when the holder's transaction ends, and
 // that run marks it. Marking
 // it here would fence an observer on a reload that had not been processed.
-func doReload(s *pluginserver.Server, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
-	return doReloadContext(context.Background(), s, nil, cp, store, configPath, load, lm)
-}
-
-func doReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
-	err := runReloadContext(ctx, s, eng, cp, store, configPath, load, lm)
+func doReloadContext(ctx context.Context, source reloadSource, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+	err := runReloadContext(ctx, source, s, eng, cp, store, configPath, load, lm)
 	if s != nil && !errors.Is(err, pluginserver.ErrReloadInProgress) {
 		s.MarkReloadProcessed(err == nil)
 	}
 	return err
 }
 
-// runReload performs a single config reload with a 30-second timeout.
+// runReload is a test entry point: runReloadContext with no store, so no
+// candidate and no fence. No production path calls it.
+func runReload(s *pluginserver.Server, cp *zeconfig.Provider, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+	return runReloadContext(context.Background(), reloadSourceCommit, s, nil, cp, nil, "", load, lm)
+}
+
+// runReloadContext performs a single config reload with a 30-second timeout.
 //
 // The load/plugin-apply/provider-refresh/subsystem-reload sequence runs in
 // lock-step from a SINGLE tree snapshot:
@@ -324,12 +419,9 @@ func doReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.En
 // changes between the plugin-server read and the subsystem read, and
 // avoids redundant I/O + YANG parse on every SIGHUP.
 //
-// Callers go through doReload, which wraps this to record the reload fence.
-func runReload(s *pluginserver.Server, cp *zeconfig.Provider, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
-	return runReloadContext(context.Background(), s, nil, cp, nil, "", load, lm)
-}
-
-func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+// Production callers go through doReloadContext, which wraps this to record
+// the reload fence.
+func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
 	reloadCtx, reloadCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer reloadCancel()
 	// The plugin transaction commits before listener migration and publication.
@@ -692,7 +784,7 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 	reloadSmartManager(parsedTree)
 
 	if candidateSet {
-		if err := promoteConfigCandidate(store, configPath); err != nil {
+		if err := promoteReloadCandidate(source, store, configPath); err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
 				return fmt.Errorf("reload: promote candidate: %w (rollback failed: %w)", err, rollbackErr)
 			}

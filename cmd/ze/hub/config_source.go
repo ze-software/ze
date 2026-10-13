@@ -56,6 +56,13 @@ func initializeConfigSource(store storage.Storage, path string, content []byte) 
 	return nil
 }
 
+// promoteConfigCandidate publishes a candidate the daemon authored: an SSH,
+// web, API or managed commit, or a schema migration. With an explicit file it
+// writes the candidate to that file through a file-commit intent, and refuses
+// when the file no longer holds the accepted bytes. A candidate staged by
+// SIGHUP or `request reload` (signalReload) is never published here: the
+// operator wrote that file, so promoteSignalCandidate records it without
+// touching the file.
 func promoteConfigCandidate(store storage.Storage, path string) error {
 	if storage.SourceMode(store) != storage.ConfigSourceFile {
 		return storage.PromoteCandidate(store, path)
@@ -76,11 +83,7 @@ func promoteConfigCandidate(store storage.Storage, path string) error {
 		return err
 	}
 	if !bytes.Equal(disk, expected) {
-		if !bytes.Equal(disk, content) {
-			return fmt.Errorf("explicit config changed externally: %s; reload the file before committing", path)
-		}
-		// A signal reload adopts the file the operator just edited.
-		expected = disk
+		return fmt.Errorf("explicit config changed externally: %s; reload the file before committing", path)
 	}
 	intent := fileCommit{Path: path, Expected: expected, Content: content, Stamp: stamp}
 	encoded, err := json.Marshal(intent)
@@ -92,6 +95,20 @@ func promoteConfigCandidate(store storage.Storage, path string) error {
 		return fmt.Errorf("persist explicit config commit intent: %w", err)
 	}
 	return recoverFileCommit(store, path)
+}
+
+// promoteSignalCandidate records the candidate signalReload staged from the
+// config source (SIGHUP or `request reload`) as the accepted version, after
+// its reload applied. It writes no
+// file-commit intent and never writes the file, because the operator owns the
+// file and the candidate was read from it. The file may have changed since the
+// candidate was staged: that edit belongs to the SIGHUP that announced it,
+// which stages the file again when this reload returns, so it neither fails
+// nor rolls back this one. Comparing bytes cannot tell "unchanged" from
+// "written back to the accepted bytes", which is how a reload once overwrote
+// an operator's edit with its own candidate.
+func promoteSignalCandidate(store storage.Storage, path string) error {
+	return storage.PromoteCandidate(store, path)
 }
 
 // recoverFileCommit MUST run before stale-candidate cleanup and before the

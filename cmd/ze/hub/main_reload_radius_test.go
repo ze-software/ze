@@ -244,7 +244,7 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 	}
 	migrator := &listenerMigrator{web: listener}
 	migrator.markUnauthenticated(svcWeb)
-	err = doReloadContext(ctx, server, nil, provider, nil, "", loadRemoval(occupiedPort), migrator)
+	err = doReloadContext(ctx, reloadSourceCommit, server, nil, provider, nil, "", loadRemoval(occupiedPort), migrator)
 	require.ErrorIs(t, err, syscall.EADDRINUSE, "must reach the genuine late web bind failure")
 	require.Equal(t, originalAddresses, listener.Addresses())
 
@@ -259,7 +259,7 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 	require.Equal(t, []byte{0, 0, 0, byte(l2tpevents.TerminateCauseUserRequest)}, stop.FindAttr(radius.AttrAcctTerminateCause))
 	third := up(t, 3) // Compensation also resumes new accounting admissions.
 
-	require.NoError(t, doReloadContext(ctx, server, nil, provider, nil, "", loadRemoval(webPort), migrator))
+	require.NoError(t, doReloadContext(ctx, reloadSourceCommit, server, nil, provider, nil, "", loadRemoval(webPort), migrator))
 	remaining := map[string]bool{
 		string(second.FindAttr(radius.AttrAcctSessionID)): true,
 		string(third.FindAttr(radius.AttrAcctSessionID)):  true,

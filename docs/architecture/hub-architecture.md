@@ -187,6 +187,19 @@ stored active version. Reload, archive and BGP readers retain that decision.
 An SSH or web commit stages a candidate, then the hub compares the explicit
 file with the accepted bytes. An external change refuses the commit.
 
+A SIGHUP, or a `request reload` (`ze config edit --reload`), stages the
+explicit file itself as the candidate. Both run one implementation, one reload
+at a time. Once that reload has applied, the hub records the candidate as the
+accepted version and never writes the file or a file-commit intent, because the
+operator wrote it. An edit made while the reload ran neither fails nor rolls it
+back: the trigger that announced the edit stages the file again next. The
+reload's caller names which rule applies (`reloadSource`), because the bytes
+cannot: a file written back to the accepted bytes is identical to an untouched
+one, and reading it that way once overwrote the operator's edit with the
+reload's own candidate.
+<!-- source: cmd/ze/hub/config_source.go -- promoteSignalCandidate, promoteConfigCandidate -->
+<!-- source: cmd/ze/hub/main_reload.go -- reloadSource, signalReload, promoteReloadCandidate -->
+
 The BGP reactor factory reads the staged candidate when a reload starts BGP.
 Without a candidate, it reads the accepted stored version that the hub published
 from the selected source. Stdin uses the captured startup bytes. The factory

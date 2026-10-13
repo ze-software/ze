@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -1036,6 +1037,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// returned (reloadGate, main_reload.go). Shutdown closes it below, after
 	// the SIGHUP worker, and before Run returns to the store's Close.
 	commitReloads := &reloadGate{}
+	// signalReloads serializes the signal reloads of this daemon: SIGHUP waits
+	// on it, request reload refuses while it is held (main_reload.go).
+	signalReloads := &sync.Mutex{}
 	reloadAfterCommitContext := func(ctx context.Context) error {
 		if !commitReloads.enter() {
 			return errDaemonStopping
@@ -1046,7 +1050,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
 			return fmt.Errorf("wait for plugin startup: %w", err)
 		}
-		if err := doReloadContext(ctx, apiServer, eng, configProvider, store, configPath, loadBoth, lm); err != nil {
+		if err := doReloadContext(ctx, reloadSourceCommit, apiServer, eng, configProvider, store, configPath, loadBoth, lm); err != nil {
 			return err
 		}
 		if gnmiReloadNotify != nil {
@@ -1284,7 +1288,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// REST/gRPC API listen config and users were resolved above (before the
 	// management-listener guard); apiCfg, apiCfgOK, and bootUsers are reused here.
 	var apiShutdowns []func(context.Context)
-	apiServer.SetFullReloadFunc(reloadAfterCommitContext)
+	// `request reload` reloads the file the operator wrote, as SIGHUP does, so
+	// it shares the SIGHUP implementation and the daemon's reloads mutex.
+	apiServer.SetFullReloadFunc(newRequestReloadFunc(commitReloads, signalReloads, apiServer.WaitForStartupComplete, gnmiReloadNotify, apiServer, eng, configProvider, store, configPath, loadBoth, lm))
 	managedCtx, managedCancel := context.WithCancel(context.Background())
 	defer managedCancel()
 	if managedClient != nil && store != nil {
@@ -1369,7 +1375,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	reloadDone := make(chan struct{})
 	reloadCtx, reloadCancel := context.WithCancel(context.Background())
 	defer reloadCancel()
-	go handleSIGHUPReload(reloadCtx, reloadCh, reloadDone, apiServer, eng, configProvider, store, configPath, loadBoth, lm, auditLog)
+	go handleSIGHUPReload(reloadCtx, reloadCh, reloadDone, signalReloads, apiServer, eng, configProvider, store, configPath, loadBoth, lm, auditLog)
 
 	if stdinOpen {
 		go monitorStdinEOF(stopCh)

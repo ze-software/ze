@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -421,7 +422,7 @@ func TestWaitLoopSIGTERMDuringFailedReload(t *testing.T) {
 	reloadDone := make(chan struct{})
 	reloadCtx, reloadCancel := context.WithCancel(context.Background())
 	defer reloadCancel()
-	go handleSIGHUPReload(reloadCtx, reloadCh, reloadDone, server, nil, nil, nil, "", load, nil, nil)
+	go handleSIGHUPReload(reloadCtx, reloadCh, reloadDone, &sync.Mutex{}, server, nil, nil, nil, "", load, nil, nil)
 
 	loopDone := make(chan struct{})
 	go func() {
@@ -560,17 +561,34 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 		hupCh := make(chan os.Signal, 4)
 		reloadCh := make(chan os.Signal, 1)
 		reloadDone := make(chan struct{})
-		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, server, nil, nil, store, configPath, load, nil, nil)
+		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, &sync.Mutex{}, server, nil, nil, store, configPath, load, nil, nil)
 		loopDone := make(chan struct{})
 		go func() {
 			waitLoop(stopCh, hupCh, reloadCh, nil)
 			close(loopDone)
 		}()
+		// The worker reads and writes store, so it MUST have exited before
+		// newTestStore's cleanup closes it. Cleanups run last registered first,
+		// so this one runs before that Close, when the subtest fails as well. A
+		// worker left running there read the closed store and printed "file
+		// already closed" over the real failure.
+		var stopOnce sync.Once
+		stopSignals := func() {
+			stopOnce.Do(func() {
+				stopCh <- syscall.SIGTERM
+				<-loopDone
+				close(reloadCh)
+			})
+		}
+		t.Cleanup(func() {
+			stopSignals()
+			<-reloadDone
+		})
 
 		hupCh <- syscall.SIGHUP
 		select {
 		case <-loads:
-		case <-time.After(5 * time.Second):
+		case <-time.After(storeWriteBound(t)):
 			close(reactor.release)
 			t.Fatal("the reload worker did not start the SIGHUP reload")
 		}
@@ -579,14 +597,12 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 		require.NoError(t, <-held)
 		select {
 		case <-loads:
-		case <-time.After(5 * time.Second):
+		case <-time.After(storeWriteBound(t)):
 			t.Fatal("the queued SIGHUP did not reload when the holder's transaction ended")
 		}
 
-		stopCh <- syscall.SIGTERM
-		<-loopDone
-		close(reloadCh)
-		awaitReloadWorker(reloadDone, 5*time.Second, func() { t.Error("the queued reload did not finish") })
+		stopSignals()
+		awaitReloadWorker(reloadDone, storeWriteBound(t), func() { t.Error("the queued reload did not finish") })
 		select {
 		case <-loads:
 			t.Error("the queued SIGHUP reloaded more than once")
@@ -612,7 +628,7 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 
 		reloadCh := make(chan os.Signal, 1)
 		reloadDone := make(chan struct{})
-		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, server, nil, nil, nil, "", load, nil, nil)
+		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, &sync.Mutex{}, server, nil, nil, nil, "", load, nil, nil)
 
 		reloadCh <- syscall.SIGHUP
 		select {
@@ -652,7 +668,7 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 
 		reloadCh := make(chan os.Signal, 1)
 		reloadDone := make(chan struct{})
-		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, server, nil, nil, nil, "", load, nil, nil)
+		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, &sync.Mutex{}, server, nil, nil, nil, "", load, nil, nil)
 		reloadCh <- syscall.SIGHUP
 		select {
 		case <-loads:
@@ -677,6 +693,22 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 		default:
 		}
 	})
+}
+
+// storeWriteBound is how long a hang detector waits for a step that writes the
+// store: until 30 seconds before the test binary's own -timeout, or 5 minutes
+// when the binary has none. The store fsyncs every write, and on a disk shared
+// with VM builds and other test binaries one fsync was measured at 4.6 seconds
+// (0.7 on average), so a fixed bound of 5 or even 30 seconds failed the reload
+// tests while nothing hung. Waiting up to the deadline still names the step
+// that hung, where the -timeout panic would name only the test.
+func storeWriteBound(t *testing.T) time.Duration {
+	t.Helper()
+	deadline, ok := t.Deadline()
+	if !ok {
+		return 5 * time.Minute
+	}
+	return max(time.Until(deadline)-30*time.Second, time.Second)
 }
 
 // mustParseReloadStamp parses a version stamp in the store's own layout,
