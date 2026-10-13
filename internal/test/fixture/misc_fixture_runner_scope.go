@@ -142,7 +142,7 @@ func verifyScopeSelectorDriver(ctx context.Context, args []string) error {
 		return fmt.Errorf("bad selector output: %s", out)
 	}
 	packages := strings.TrimSpace(strings.TrimPrefix(sections[0], "# packages\n"))
-	if packages != "./cmd/ze\n./cmd/ze/hub\n./internal/component/ssh" {
+	if packages != "./cmd/ze\n./cmd/ze/hub\n./internal/appliance\n./internal/component/ssh" {
 		return fmt.Errorf("SSH packages changed: %s", packages)
 	}
 	if strings.TrimSpace(sections[1]) != "ze_ssh" {
