@@ -551,7 +551,7 @@ and continues.
 <!-- source: internal/component/config/loader.go -- LoadConfig -->
 <!-- source: internal/component/cli/editor_commit.go -- CommitSession, ApplyPasswordHashing -->
 <!-- source: internal/plugins/passwd/main.go -- runImpl -->
-<!-- source: cmd/ze/hub/main_reload.go -- runReload -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
 
 ## Things that do NOT work
 

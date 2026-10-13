@@ -1,7 +1,7 @@
 # Configuration Reload
 
 Ze supports live configuration reload without restarting the daemon. Changed peers are updated, new peers are added, and removed peers are disconnected.
-<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, doReload -->
+<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, signalReload, doReloadContext -->
 <!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- applyHotSwappableSettings -->
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- bindProcesses, unbindProcesses, restartForBinding -->
 <!-- source: internal/component/bgp/reactor/peer_bfd.go -- Peer.applyBFDOptInChange -->
@@ -189,8 +189,8 @@ the order below is the same for both. The editor sends the
 `ze-plugin:system-daemon-reload` request over the daemon socket, and the daemon runs
 the reload that SIGHUP runs.
 <!-- source: internal/component/cli/reload.go -- newSocketReloadNotifier -->
-<!-- source: cmd/ze/hub/main.go -- reloadAfterCommitContext -->
-<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, doReloadContext -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, SetFullReloadFunc -->
+<!-- source: cmd/ze/hub/main_reload.go -- newRequestReloadFunc, handleSIGHUPReload, signalReload, doReloadContext -->
 
 Ze applies one commit in this order:
 

@@ -20,15 +20,21 @@ adjacency down inside the BFD detection window instead of the
 - **An interface `bfd` block does not start the BFD plugin; the top-level `bfd`
   container does.** The plugin owns the `bfd` config root, and config-path
   auto-load matches top-level roots only, so `ospf { interfaces { interface eth0
-  { bfd { enabled true } } } }` alone leaves the service unpublished and OSPF on
-  its Hello/Dead timers. A configuration that wants OSPF BFD also carries
-  `bfd { enabled true; }`, as the `ospf-bfd-frr` interop scenario does. OSPFv3
+  { bfd { enabled true } } } }` alone would leave the service unpublished. Such a
+  configuration is refused instead: at commit, at reload and at startup, an OSPF
+  interface that opts into BFD while the `bfd` section is absent or sets
+  `enabled false` fails the check, which names every such interface. The
+  registration reads the `bfd` root so the check sees it. A configuration that
+  wants OSPF BFD also carries `bfd { enabled true; }`, as the `ospf-bfd-frr`
+  interop scenario does. OSPFv3
   also needs `bind-v6 true` in that container: it defaults to false, and without
   it the loop holds only an IPv4 socket, so every Control packet to an IPv6
   neighbour fails to send (`ospfv3-bfd-frr` sets both).
   <!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins -->
   <!-- source: internal/component/bfd/register.go -- init -->
   <!-- source: internal/component/bfd/bfd.go -- newTransport -->
+  <!-- source: internal/plugins/ospf/bfd_client.go -- checkBFDOptIns -->
+  <!-- source: internal/plugins/ospf/register.go -- registerOSPF, runOSPFEngine -->
 - **One long-lived subscriber goroutine per session, never one per event.** It
   drains the state-change channel until the client stops it or the engine closes
   the subscription. This follows `ai/rules/goroutine-lifecycle.md`.
@@ -44,6 +50,13 @@ adjacency down inside the BFD detection window instead of the
   the RouterDeadInterval, the independent liveness detection Section 3.2
   assumes. The check names each state explicitly, because a future state value
   is not readable as "link down" by a range comparison.
+- **A BFD engine that stops detaches the client and leaves the adjacency up.**
+  The engine closes every subscriber channel when it stops, and the session
+  goes with it. The subscriber detaches its client, releasing nothing, so the
+  neighbor's next transition to Full asks the service again. OSPF takes no
+  action, as for BFD switched off (RFC 5882 Section 4.2), and the
+  RouterDeadInterval still guards the adjacency. The client logs a warning that the neighbor now runs on its
+  Hello and Dead timers, at debug level instead when the daemon is stopping.
   <!-- source: internal/plugins/ospf/bfd_client.go -- runBFDSubscriber -->
 - **The Down handler drives the existing neighbor-down seam**, not a private
   state transition. Reusing it makes a BFD-driven teardown behave exactly like

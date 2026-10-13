@@ -198,7 +198,7 @@ and each is implemented, because ze runs the strict-mode procedures of Section 8
 
 | Event | Ze name | Ze producer | What it does |
 |-------|---------|-------------|--------------|
-| 30 `BfdAdminDown` | `EventBfdAdminDown` | `Peer.runBFDSubscriber` | Releases a pending sub-state; ignored everywhere else. AdminDown says nothing about the data path (RFC 5882 Section 3.2) |
+| 30 `BfdAdminDown` | `EventBfdAdminDown` | `Peer.runBFDSubscriber`, and `Peer.endVanishedBFDSession` when the BFD engine stops and closes the subscription (BFD disabled on the system, Section 4) | Releases a pending sub-state; ignored everywhere else. AdminDown says nothing about the data path (RFC 5882 Section 3.2) |
 | 31 `BfdDown` | `EventBfdDown` | `Peer.runBFDSubscriber` | Closes the session with Cease / BFD Down in Established always, and in OpenSent or OpenConfirm when strict mode is negotiated. Ignored in Connect and Active |
 | 32 `BfdUp` | `EventBfdUp` | `Peer.runBFDSubscriber` | Releases a pending sub-state: the withheld KEEPALIVE goes out and the session advances |
 | 33 `BfdDisabled` | `EventBfdDisabled` | `Session.raiseBFDStrictConfigChanged`, when BFD was turned off | Same release as event 30 |
@@ -211,7 +211,7 @@ Event 31 ZEROES the counter in OpenSent and OpenConfirm (Sections 8.5.2 and
 (Sections 8.3.3, 8.4.3, 8.5.3) and event 35 zeroes.
 
 <!-- source: internal/component/bgp/fsm/state.go -- EventBfdAdminDown, EventBfdDown, EventBfdUp, EventBfdDisabled, EventBfdHoldTimerExpires, EventBfdStrictConfigChanged -->
-<!-- source: internal/component/bgp/reactor/peer_bfd.go -- runBFDSubscriber, bfdEventFor -->
+<!-- source: internal/component/bgp/reactor/peer_bfd.go -- runBFDSubscriber, bfdEventFor, endVanishedBFDSession -->
 <!-- source: internal/component/bgp/reactor/session_bfd_strict.go -- handleBFDEvent, bfdTeardown -->
 
 ### The two BFD strict-mode sub-states

@@ -51,7 +51,9 @@ surface, including one below a non-presence container the file leaves out (RFC
 7950 Section 7.6.5), in every top-level section the file writes; a section the
 file omits is not checked. In the `bgp` section a global `router-id` or
 `session asn local` that every peer resolves from itself or its group counts as
-present; a dynamic group must carry it itself.
+present; a dynamic group must carry it itself. That inheritance covers the
+global level only: a mandatory node missing inside a `peer` or `group` entry is
+refused, even when a group would supply its value at run time.
 <!-- source: internal/component/config/yang/validator_mandatory.go -- requireMandatoryUnderAbsent -->
 <!-- source: internal/component/config/validate_mandatory_bgp.go -- bgpMandatoryFailures, EverySessionCarries -->
 <!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, mandatoryFailures, ErrCustomValidation -->

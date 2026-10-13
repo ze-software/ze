@@ -78,13 +78,14 @@ The node starts with `ze start /etc/ze/ze.conf`. netlab assigns the interface ad
 with `ip` inside the container, so the rendered configuration carries no interface
 block.
 
-Ze re-reads its configuration on SIGHUP only. `handleSIGHUPReload` stages the file as a
-candidate and reloads it. netlab sends no SIGHUP, and `ze.yml` says so with
+Ze re-reads its configuration on SIGHUP only. `handleSIGHUPReload` runs `signalReload`,
+which stages the file as a candidate, reloads it, and never writes the file back. netlab sends no SIGHUP, and `ze.yml` says so with
 `features.initial.reload: false`. A configuration change in a running lab therefore
 needs `kill -HUP` on the ze process inside the node, or a node restart.
 <!-- source: contrib/netlab/ze.yml -- clab.group_vars.netlab_start_daemon -->
 <!-- source: contrib/netlab/ze.yml -- features.initial.reload -->
-<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, stageSIGHUPCandidate -->
+<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, signalReload, stageSIGHUPCandidate -->
+<!-- source: cmd/ze/hub/config_source.go -- promoteSignalCandidate -->
 
 `netlab validate` reads the daemon through the CLI. `ze.yml` declares the show command
 as `ze cli -c "show $@ | json compact"`, and netlab runs it with `docker exec`. An

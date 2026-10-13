@@ -630,7 +630,7 @@ The counter is observational only; nothing reads it to make a decision, so it
 cannot change what a reload accepts or rejects.
 
 <!-- source: internal/component/plugin/server/reload_generation.go -- counter state, outcome vocabulary -->
-<!-- source: cmd/ze/hub/main_reload.go -- doReload, the increment site, after engine.Reload -->
+<!-- source: cmd/ze/hub/main_reload.go -- doReloadContext, the increment site, after engine.Reload -->
 <!-- source: internal/component/cmd/show/reload_status.go -- ze-cmd:show-reload-status handler + JSON shape -->
 
 ### Peer Commands

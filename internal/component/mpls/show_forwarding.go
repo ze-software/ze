@@ -84,7 +84,8 @@ func handleShowMPLSForwarding(_ *pluginserver.CommandContext, validated command.
 	// entries is the response's list contract: consumers (and the .ci test)
 	// require it to marshal as a JSON array even on a host with no MPLS routes.
 	// A nil slice marshals to `null`, so pin it to an empty array. The Linux
-	// reader already returns a non-nil slice; forwarding_other.go returns nil.
+	// reader already returns a non-nil slice, and forwarding_other.go returns an
+	// error, so this pin guards any future reader that returns nil.
 	if entries == nil {
 		entries = []forwardingEntry{}
 	}

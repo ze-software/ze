@@ -915,11 +915,13 @@ ze show mpls forwarding limit 500       # Cap the response size
 Each entry reports the incoming label (`in-label`), the `operation`
 applied (`swap` when an outgoing label stack is programmed, `pop` for
 disposition / implicit-null), any `out-labels`, the `next-hop`, and the
-egress `device`. On non-Linux platforms the table is empty (the kernel
-MPLS FIB is Linux-only).
+egress `device`. On a non-Linux host the command fails with an error
+naming the host's OS, rather than answering an empty table: Ze reads the
+kernel MPLS FIB on Linux only.
 
 <!-- source: internal/component/mpls/show_forwarding.go -- handleShowMPLSForwarding -->
 <!-- source: internal/component/mpls/forwarding_linux.go -- dumpMPLSRoutes -->
+<!-- source: internal/component/mpls/forwarding_other.go -- dumpMPLSRoutes -->
 
 ### show rsvp-te
 
