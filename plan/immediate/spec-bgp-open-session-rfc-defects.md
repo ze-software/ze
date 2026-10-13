@@ -236,7 +236,7 @@ default level is WARN.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRFC9072OptionalParamsBoundary` (table: capTotal 0, 1, 253, 254, 255, 256, 300) | `internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go` (new) | AC-1, AC-1n: builds the OPEN through `buildOpen`-equivalent packing plus `Open.WriteTo`, reads the envelope octets and walks the parameters with the framing the envelope announces; tagged `RFC9072-2-1 positive` (254, 255, 256 extended with two-octet Parameter Length) and `RFC9072-2-1 negative` (253 and below carry no marker and one-octet length) | |
+| `TestRFC9072OptionalParamsBoundary` (table: capTotal 0, 1, 253, 254, 255, 256, 300) | `internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go` (new) | AC-1, AC-1n: builds the OPEN through `buildOpen`-equivalent packing plus `Open.WriteTo`, reads the envelope octets and walks the parameters with the framing the envelope announces; tagged `RFC9072-2-1 positive` (254, 255, 256 extended with two-octet Parameter Length) and `RFC9072-2-1 negative` (253 and below carry no marker and one-octet length; the tag quotes the Section 2 SHOULD sentence, see the audit table below) | |
 | `TestChaosPeerOpenRoundTripsAbove255` | `internal/chaos/peer/session_test.go` | AC-1b | |
 | `TestCapabilityInjectorReplacePluginCapabilities` | `internal/component/plugin/registration_test.go` | replace swaps one plugin's set atomically, keeps the conflict check, leaves other plugins untouched (Q1 (a)) | |
 | `TestSDKRedeclareCapabilitiesRunning` | `pkg/plugin/sdk/` | the running-stage call reaches the engine and is refused before Running | |
@@ -259,6 +259,18 @@ default level is WARN.
 | `internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid` (`zero_router_id_rejected` case) | RFC6286-2.1-1 | Q2 = remove | the case feeds a peer-level `router-id 0.0.0.0`, which removal makes an unknown leaf; the case moves to the global leaf |
 | Every RFC-tagged test whose config text or tree sets a peer- or group-level `router-id` | various (86 tagged test files mention `router-id` at some level; the peer-level subset is enumerated in Phase 5 step 1 by `./le` grep before any edit) | Q2 = remove | input rewrite only; each needs owner approval and, where its claim's unit changes, a fresh discrimination record |
 | `rfc9072_param_type_test.go`, `rfc6286_routerid_unique_test.go`, `rfc8050_migration_epoch_test.go`, `session_first_as_test.go` | RFC9072-3-2, RFC6286-2.1-2, RFC8050, RFC6793 rows | Q4 = consolidate | they call `buildOptionalParams` by name |
+
+#### Independent audit of the tagged tests (2026-10-13, Q2 answered: deviation)
+
+Source: `tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/rfc-tagged-test-compliance-review.md`, section 11.
+Re-checked against `config_test.go` at HEAD, `rfc/full/rfc6286.txt` Section 2.1 and `rfc/full/rfc9072.txt` Section 2; agreed on both rows.
+
+| Tagged unit | Audit verdict | What the change owes |
+|-------------|---------------|----------------------|
+| `config_test.go::TestParsePeerFromTreeInvalid`, case `zero_router_id_rejected` (RFC6286-2.1-1 positive) | COMPLIANT, unchanged under the deviation | Its claim is limited to "non-zero" ("The BGP Identifier is a 4-octet, unsigned, non-zero integer", RFC 6286 Section 2.1), which the body proves by refusing a peer-level `0.0.0.0`. Under the deviation it is the Tested scope of the `{partial}` row in `rfc/short/rfc6286.md`, "the same for every local interface and every BGP peer" is the declared deviation gap, and the row contributes nothing to the conformance count. Body and tag unchanged |
+| new `TestRFC9072OptionalParamsBoundary` (RFC9072-2-1 positive and negative) | COMPLIANT once the negative's prose is fixed | The boundary at capTotal 254 is right: the field length is 2 + capTotal, and the MUST binds when it "does exceed 255". The negative (capTotal 253 and below stay in the base form) is NOT proved by the MUST sentence: the same paragraph says "an implementation MUST accept an OPEN message that uses the encoding of this specification even if the length of the Optional Parameters is 255 or less", so the extended form at or below 255 is permitted. The base form there is the SHOULD sentence plus Ze's choice. The negative tag line must quote it: RFC 9072 Section 2, "In the event that the length of the Optional Parameters in the BGP OPEN message does not exceed 255, the encodings of the base BGP specification [RFC4271] SHOULD be used without alteration." That sentence is enrolled as its own row, RFC9072-2-7 [SHOULD]; the same 253 case may also carry an `RFC9072-2-7 positive` tag, with its own discrimination record, since it proves that row directly |
+
+No existing tagged test changes under Q1 (a), Q2 deviation and Q4 in place: confirmed.
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |

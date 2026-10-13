@@ -360,6 +360,19 @@ AC-1 to AC-5 above keep their IDs: `plan/pre-release/spec-rfc-verdict-fix-bgp.md
 | `internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter` (both recorded entries) | RFC9234-3.1-1 | the untagged subtest `src_role_rs_to_provider_accept` inside the tagged unit flips its assertion from accept to suppress; three subtests added | only under Q-D4 (a) |
 | `internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go` (units tagged RFC7999-3.2-2 negative, "no propagation community is forced") | RFC7999-3.2-2 | the default it pins changes from `none` | only under Q-D5 (b) |
 
+#### Independent audit of these changes (2026-10-13)
+
+Source: `tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/rfc-tagged-test-compliance-review.md`, section 6.
+Re-checked against the test bodies at HEAD, `rfc/full/rfc9234.txt` Section 3.1 and `rfc/full/rfc7999.txt` Section 3.2; agreed on both rows.
+
+| Tagged unit | Audit verdict | What the change owes |
+|-------------|---------------|----------------------|
+| `TestOTCEgressFilter`, subtest `src_role_rs_to_provider_accept` flipped to `src_role_rs_to_provider_suppress` | COMPLIANT under Q-D4 (a) | RFC 9234 Section 3.1: "Route Server Client (RS-Client):  MAY propagate any route learned from a Customer, or that is locally originated, to an RS.  All other routes MUST NOT be propagated." The Customer and Peer roles carry the same "All other routes MUST NOT be propagated" sentence, and a route learned from an RS-Client is not "learned from a Customer", so it MUST NOT go to a Provider, Peer or RS. Today the subtest has no tag line of its own (the unit's two tags sit on `TestOTCEgressFilter`'s other subtests, lines 661 and 671). The flipped subtest carries the D4 fix, so it gets its own `// RFC requirement: RFC9234-3.1-1 positive -- ...` line stating what its body checks (src-role `rs`, destination provider, suppressed), with its own `./le rfc discriminate-record` record. The three added subtests (rs to peer, rs to rs suppress; rs to customer and rs-client accept) each carry a tag line too |
+| `TestRFC7999PropagationCommunityIsNeverForced` (RFC7999-3.2-2 negative) | COMPLIANT under Q-D5 (b) only if rewritten; unchanged and correct under (a) or (c) | RFC 7999 Section 3.2: "The community to prevent propagation SHOULD be chosen according to the operator's routing policy." Under (b) the default becomes `no-export`, so the prose "with the leaf set to none or left unset a BLACKHOLE route passes unchanged, so no fixed default is applied" becomes false, and so does the body's last assertion (`rfc7999Ingress(t, nil, payload)` returns nil). Under (b): remove "or left unset" and "so no fixed default is applied" from the claim, and move the unset-leaf case out of this negative (it becomes a positive of the new default). The explicit `none` case stays: an operator's `none` is still the operator's choice, so the negative still proves the SHOULD |
+
+The audit also confirms unchanged and still correct: the RFC4271-4.3-3/4 and RFC8092
+units, and the MUP decode-path units (their claims are about `ParseMUP`).
+
 No other existing tagged unit changes. The decode-path units `TestMUPT1STMandatoryFieldsWithinLength` and `TestMUPT1STTLVFraming` (tagged 3.1.3.1-6, -7, -10) stay as they are: they prove `ParseMUP` refuses the shapes, which the new ingress validator relies on, and the new ingress tests carry the treat-as-withdraw claim. `TestRFC4271AttributeFlagsLowNibbleZeroOnSend`, `TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive`, `TestLargeCommunities`, `TestLargeCommunitiesWriteToNoDuplicates` and the 3.1.3.1-9 ingress tests are untouched. Every new tag gets a `./le rfc discriminate-record` record, and every changed verdict a `./le rfc audit-stamp ... mode rejudge` by an agent that did not write the test (AC-5).
 
 ### Functional Tests

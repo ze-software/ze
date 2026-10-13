@@ -333,6 +333,21 @@ Every other tagged unit named in the verdict table keeps its body and tag:
 `test/plugin/llgr-egress-state-unloaded.ci`. New tagged units are additions, each
 with a `./le rfc discriminate-record` record in the same change.
 
+#### Independent audit of these changes (2026-10-13)
+
+Source: `tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/rfc-tagged-test-compliance-review.md`, section 5.
+Re-checked against the test bodies at HEAD and `rfc/full/rfc9494.txt` Sections 4.2 to 4.4; agreed on every row.
+
+| Tagged unit | Audit verdict | What the change owes |
+|-------------|---------------|----------------------|
+| `TestComparePair_LLGRStale` | COMPLIANT, prose to narrow | The body never marks a route LLGR_STALE: it builds a `Candidate` with `StaleLevel: 2` and calls `ComparePair`. The tag prose says "a route marked LLGR_STALE"; rewrite it to claim what the body checks: a candidate at `StaleLevel 2` (at `storage.DepreferenceThreshold`) loses Step 0 to one below it, whatever its LOCAL_PREF and peer address. The receive-path marking stays with `TestLLGRIngressFilter_MarksReceivedStale` and `TestRIBReceivedStaleMetaSetsLevel` (AC-13). The both-stale tie case (`stale` vs `stale2`) must keep equal LOCAL_PREF after `stale` is raised, so it still proves RFC 9494 Section 4.4 "normal tiebreaking applies" on the peer address and its "lower peer addr" message stays true |
+| `TestOnSessionReestablished_DuringLLGR` | COMPLIANT | Both F bits set means the family is kept under the Q-1 AND reading, which is RFC 4724 Section 4.2 applied "irrespective of whether the stale routes are retained during the Restart Time period or the Long-Lived Stale Time period" (RFC 9494 Section 4.2). Body unchanged; only the prose and the record change, as the row above says |
+
+The audit also confirms unchanged and still correct: `TestGRStateManagerNotificationBypass`
+and `TestGRStateManagerRouteRetention` (their claims are scoped to `onSessionDown`),
+`TestOnSessionReestablished_DuringLLGR_NoCaps`, and the 4.3-3 egress units (all use
+stale level 2, so D6 does not move them).
+
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
