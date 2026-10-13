@@ -74,7 +74,16 @@ func (in *Inbound) Release() {
 
 // Outbound is a single BFD packet the engine wants to send.
 type Outbound struct {
-	To        netip.Addr
+	To netip.Addr
+
+	// Local is the source address the packet MUST leave with: the local
+	// address in the session's key, which a pinned `local` leaf or a
+	// single-hop link derivation put there. An invalid Local means the
+	// session's key carries none, and the kernel chooses the source as it
+	// routes the packet. Echo packets leave it invalid: RFC 5881 Section 4
+	// gives their source address its own rules.
+	Local netip.Addr
+
 	VRF       string
 	Interface string
 	Mode      api.HopMode

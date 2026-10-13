@@ -75,15 +75,26 @@ type UDP struct {
 	ifNamesMu sync.RWMutex
 	ifNames   map[int]ifName
 
-	// egressPins caches, per interface name, the IP_PKTINFO / IPV6_PKTINFO
-	// control message Send attaches to pin a single-hop packet to that
-	// interface when the socket is bound to no device. The message is built
-	// once per name and read-only after, so every Send shares it without a
-	// lock around the write and without an allocation per packet. Entries
-	// expire on ifNameTTL for the reason ifNames does: a name can come back
-	// with another index after the device is deleted and recreated.
+	// egressPins caches, per interface name, what Send needs to know about
+	// the interface a single-hop session names: its index and its subnets.
+	// Entries expire on ifNameTTL for the reason ifNames does: a name can
+	// come back with another index after the device is deleted and recreated.
 	egressPinsMu sync.RWMutex
 	egressPins   map[string]*egressLink
+
+	// sendPins caches the IP_PKTINFO / IPV6_PKTINFO control message Send
+	// attaches to a packet pinned to a link, to a source address, or to both,
+	// keyed on that pair. A message is a pure function of its key, so an entry
+	// never goes stale and is read-only once stored: every Send shares it
+	// without a lock around the write and without an allocation per packet.
+	// The map holds at most sendPinsMax entries and is emptied when it reaches
+	// that, which costs one rebuild per live key.
+	sendPinsMu sync.RWMutex
+	sendPins   map[sendPin][]byte
+
+	// sourceUnpinnedOnce limits to one per transport the warning that this
+	// platform cannot set a packet's source address (pktinfoPin, udp_other.go).
+	sourceUnpinnedOnce sync.Once
 
 	// Clock is the time source the ifindex cache ages entries against. Nil
 	// means clock.RealClock{}, which is what every production caller wants; a
@@ -250,7 +261,14 @@ func (u *UDP) Stop() error {
 // the packet then leaves with an ifindex control message naming the session's
 // interface (see pinsToLink), so the kernel sends it on that link whatever the
 // routing table says about the peer. A multi-hop packet is routed and is
-// neither checked nor pinned.
+// neither checked nor pinned to a link.
+//
+// A packet whose Outbound.Local is valid, on either socket, leaves with that
+// address as its source, carried in the same control message (sendControl).
+// The kernel refuses the send when the address is not one of the host's own.
+// Off Linux no control message is built, so the kernel chooses the source,
+// and the first packet whose Local is valid logs a warning (sourceUnpinned,
+// warnSourceUnpinned).
 func (u *UDP) Send(out Outbound) error {
 	u.mu.Lock()
 	conn := u.conn
@@ -259,32 +277,127 @@ func (u *UDP) Send(out Outbound) error {
 		return errUDPNotStarted
 	}
 	to := u.destination(out)
-	if u.Mode != api.SingleHop {
+	pin := sendPin{source: out.Local}
+	if u.Mode == api.SingleHop && out.Interface != "" {
+		link, err := u.egressLinkOf(out.Interface)
+		if err != nil {
+			return err
+		}
+		// RFC 5881 Section 6: "On a multiaccess network, BFD Control packets MUST
+		// be transmitted with source and destination addresses that are part of
+		// the subnet (addressed from and to interfaces on the subnet)."
+		if !link.reaches(out.To) {
+			return fmt.Errorf("%w: peer %s, interface %q", errUDPOffSubnet, out.To, out.Interface)
+		}
+		if u.pinsToLink(out, to) {
+			// RFC 5881 Section 6: "Implementations MUST ensure that all BFD
+			// Control packets are transmitted over the one-hop path being
+			// protected by BFD."
+			pin.ifindex = link.index
+		}
+	}
+	if pin.isEmpty() {
 		_, err := conn.WriteToUDP(out.Bytes, to)
 		return err
 	}
-	if out.Interface == "" {
-		_, err := conn.WriteToUDP(out.Bytes, to)
-		return err
-	}
-	link, err := u.egressLinkOf(out.Interface)
+	// RFC 5883 Section 4.1 (multi-hop), and the RFC 5881 Section 6 subnet rule
+	// above (single-hop): the pinned source travels in the control message.
+	oob, err := u.sendControl(pin)
 	if err != nil {
 		return err
 	}
-	// RFC 5881 Section 6: "On a multiaccess network, BFD Control packets MUST
-	// be transmitted with source and destination addresses that are part of
-	// the subnet (addressed from and to interfaces on the subnet)."
-	if !link.reaches(out.To) {
-		return fmt.Errorf("%w: peer %s, interface %q", errUDPOffSubnet, out.To, out.Interface)
-	}
-	if !u.pinsToLink(out, to) {
+	if oob == nil {
+		if sourceUnpinned(pin, oob) {
+			u.warnSourceUnpinned(pin.source)
+		}
 		_, err = conn.WriteToUDP(out.Bytes, to)
 		return err
 	}
-	// RFC 5881 Section 6: "Implementations MUST ensure that all BFD Control
-	// packets are transmitted over the one-hop path being protected by BFD."
-	_, _, err = conn.WriteMsgUDP(out.Bytes, link.oob, to)
+	_, _, err = conn.WriteMsgUDP(out.Bytes, oob, to)
 	return err
+}
+
+// sendPin is what one packet is pinned to: the interface index the route lookup
+// must use, and the source address the packet must carry. An ifindex of 0 is
+// the kernel's own "no interface" in struct in_pktinfo and in6_pktinfo, and an
+// invalid source asks the kernel to choose one.
+type sendPin struct {
+	ifindex int
+	source  netip.Addr
+}
+
+// isEmpty answers whether the pin asks for nothing, so the packet is written
+// with no control message at all.
+func (p sendPin) isEmpty() bool {
+	if p.ifindex != 0 {
+		return false
+	}
+	return !p.source.IsValid()
+}
+
+// sendPinsMax bounds sendPins. A key is one (interface, local address) pair a
+// live session uses, so a box needs one entry per pinned session at most.
+const sendPinsMax = 1024
+
+// errUDPSourceFamily is returned by Send when a session's local address is of
+// the other address family than the socket the packet leaves on.
+var errUDPSourceFamily = errors.New("bfd: session local address is of the other address family than the socket")
+
+// sendControl answers the control message that carries pin: the interface
+// index, and the source address the session's key names.
+//
+// RFC 5883 Section 4.1: "Multiple sessions between the same pair of systems
+// must have at least one endpoint address distinct from one another." and "the
+// initial packet is demultiplexed to the appropriate BFD session based on the
+// source/destination address pair when Your Discriminator is set to zero." A
+// session whose key carries a local address is told apart from its siblings by
+// that address, so its packets MUST carry it as their source: from any other
+// address, the peer demultiplexes them onto the sibling's session.
+//
+// A nil answer with no error means the platform builds no control message
+// (pktinfoPin, udp_other.go). A source of the other family is refused rather
+// than dropped: the packet would leave from an address the session does not
+// name.
+func (u *UDP) sendControl(pin sendPin) ([]byte, error) {
+	isV6 := u.Bind.Addr().Is6() && !u.Bind.Addr().Is4In6()
+	if pin.source.IsValid() && pin.source.Unmap().Is6() != isV6 {
+		return nil, fmt.Errorf("%w: local %s, socket %s", errUDPSourceFamily, pin.source, u.Bind.Addr())
+	}
+	u.sendPinsMu.RLock()
+	oob, ok := u.sendPins[pin]
+	u.sendPinsMu.RUnlock()
+	if ok {
+		return oob, nil
+	}
+	oob = pktinfoPin(pin.ifindex, pin.source, isV6)
+	u.sendPinsMu.Lock()
+	if u.sendPins == nil || len(u.sendPins) >= sendPinsMax {
+		u.sendPins = make(map[sendPin][]byte, 4)
+	}
+	u.sendPins[pin] = oob
+	u.sendPinsMu.Unlock()
+	return oob, nil
+}
+
+// sourceUnpinned answers whether a packet pinned by pin, and written with the
+// control message oob, leaves without the source address its session names. It
+// is true only when the pin carries a source and the platform built no control
+// message (pktinfoPin, udp_other.go). A pin that names only an interface asked
+// for no source, so its packet loses nothing the session keyed on.
+func sourceUnpinned(pin sendPin, oob []byte) bool {
+	if oob != nil {
+		return false
+	}
+	return pin.source.IsValid()
+}
+
+// warnSourceUnpinned reports, once per transport, a packet whose session names
+// a local address this platform cannot set as its source.
+func (u *UDP) warnSourceUnpinned(local netip.Addr) {
+	u.sourceUnpinnedOnce.Do(func() {
+		transportLog().Warn("bfd transport cannot set a packet's source address on this platform; sessions pinned to a local address leave from the address the kernel chooses",
+			"local", local.String(), "bind", u.Bind.String())
+	})
 }
 
 // pinsToLink answers whether Send must pin this packet to out.Interface with
@@ -524,12 +637,12 @@ func (u *UDP) ingressInterface(ifindex int) string {
 }
 
 // egressLink is one cached answer about the interface a single-hop session
-// names: the control message that pins a packet to it, the subnets its
-// addresses sit in, whether it is a point-to-point link, and the moment it was
-// resolved. Every field is read-only once cached, so Send shares the slices
-// without a lock and without an allocation per packet.
+// names: its index, which Send pins a packet to, the subnets its addresses sit
+// in, whether it is a point-to-point link, and the moment it was resolved.
+// Every field is read-only once cached, so Send shares the slices without a
+// lock and without an allocation per packet.
 type egressLink struct {
-	oob         []byte
+	index       int
 	subnets     []netip.Prefix
 	pointToLink bool
 	at          time.Time
@@ -603,9 +716,8 @@ func (u *UDP) egressLinkOf(name string) (*egressLink, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %q addresses: %w", errUDPEgressUnknown, name, err)
 	}
-	isV6 := u.Bind.Addr().Is6() && !u.Bind.Addr().Is4In6()
 	resolved := &egressLink{
-		oob:         pktinfoPin(link.Index, isV6),
+		index:       link.Index,
 		subnets:     subnets,
 		pointToLink: link.Flags&net.FlagPointToPoint != 0,
 		at:          now,

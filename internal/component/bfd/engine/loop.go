@@ -246,7 +246,10 @@ func (l *Loop) tick() {
 // The VRF and Interface fields come from the session key so the transport
 // layer can bind to the correct interface (SO_BINDTODEVICE on Linux) and
 // tag inbound replies with the matching tuple. A peer's reply then matches
-// the byKey index on (peer, vrf, mode, interface) exactly.
+// the byKey index on (peer, vrf, mode, interface) exactly. Local is the key's
+// local address, which the transport sets as the packet's source: a session
+// keyed apart from a sibling by its local address is told apart by the peer
+// only if its packets carry that address (RFC 5883 Section 4.1).
 func (l *Loop) sendLocked(entry *sessionEntry, c packet.Control) {
 	pb := packet.Acquire()
 	defer packet.Release(pb)
@@ -264,8 +267,10 @@ func (l *Loop) sendLocked(entry *sessionEntry, c packet.Control) {
 	}
 
 	key := entry.machine.Key()
+	// RFC 5883 Section 4.1; RFC 5881 Section 6.
 	out := transport.Outbound{
 		To:        entry.machine.PeerAddr(),
+		Local:     key.Local,
 		VRF:       key.VRF,
 		Interface: key.Interface,
 		Mode:      key.Mode,

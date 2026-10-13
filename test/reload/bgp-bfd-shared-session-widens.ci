@@ -32,16 +32,17 @@
 # the link table (api.SessionRequest.Canonical): on Linux, lo holds
 # 127.0.0.0/8, so a single-hop A is keyed on local 127.0.0.1, B matches that
 # key exactly, and C from 127.0.0.2 rightly gets a second session (RFC 5883
-# Section 4.1). That second session's packets leave from 127.0.0.1 and loop
-# back with Your Discriminator zero, so the address demux hands them to S,
-# which reads the remote state Down and takes the BGP peer down. A multi-hop
-# request derives no local address (canonicalMultiHop), so A stays unpinned.
+# Section 4.1), which this test's one-session expectation cannot hold. That
+# second session sends from 127.0.0.2, so it leaves S alone:
+# bgp-bfd-pinned-source-keeps-sibling.ci proves it. A multi-hop request
+# derives no local address (canonicalMultiHop), so A stays unpinned.
 #
 # DISCRIMINATION: with the engine before ce9ee9c2df (the narrowed `joined` key
 # never widened on release), C fails to share and opens a second session: the
-# table then holds two sessions to 127.0.0.1 with refcount 1 each (darwin). On
-# Linux the second session's packets loop back to S, as described above, so S
-# goes Down, BGP sends Cease "BFD Down" and the say line never prints.
+# table then holds two sessions to 127.0.0.1 with refcount 1 each, and the
+# last `has ... "refcount":2` step fails. The L3 Linux red (2026-10-12) also saw S
+# go Down and BGP send Cease "BFD Down", because that engine sent the second
+# session's packets from 127.0.0.1 (Loop.sendLocked set no source address).
 option=timeout:value=60s
 option=env:var=ze.bfd.test-parallel:value=true
 # BFD binds the RFC 5881 and RFC 5883 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.

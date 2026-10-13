@@ -126,11 +126,15 @@ func parseReceivedTTL(_ []byte) uint8 { return 0 }
 func parseReceivedPktinfo(_ []byte) (netip.Addr, int) { return netip.Addr{}, 0 }
 
 // pktinfoPin returns no control message on non-Linux builds, so a single-hop
-// packet on a socket bound to no device follows the routing table. This is the
-// same platform limit as the missing SO_BINDTODEVICE in applySocketOptions:
-// the RFC 5881 Section 6 one-hop confinement is a Linux property
-// (ai/rules/platform-linux.md).
-func pktinfoPin(_ int, _ bool) []byte { return nil }
+// packet on a socket bound to no device follows the routing table, and a packet
+// whose session key carries a local address leaves from whatever source the
+// kernel chooses as it routes. The first is the same platform limit as the
+// missing SO_BINDTODEVICE in applySocketOptions: the RFC 5881 Section 6
+// one-hop confinement is a Linux property (ai/rules/platform-linux.md). The
+// second means two sessions to one peer from two local addresses (RFC 5883
+// Section 4.1) can leave from one address here, and the peer can then
+// demultiplex both onto one session; (*UDP).Send logs that once per transport.
+func pktinfoPin(_ int, _ netip.Addr, _ bool) []byte { return nil }
 
 // oobBufLen sizes the per-slot oob backing buffer; kept as a constant so
 // the portable readLoop code allocates the same slice shape on every

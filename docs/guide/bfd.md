@@ -494,6 +494,13 @@ Standalone sessions are useful for monitoring a default gateway, a tunnel
 endpoint, or any path whose liveness a script or external tool wants to
 react to via the event stream.
 
+`local` is the source address of every Control packet the session sends,
+and it must be an address the host holds: on Linux a send from any other
+address is refused and logged. Two sessions to the same peer from two local
+addresses stay two sessions (RFC 5883 §4.1), and each sends from its own
+address, so the peer can tell them apart. Off Linux the kernel chooses the
+source address, and ze logs that once.
+
 ## Administrative shutdown
 
 `shutdown;` on a session puts it into `AdminDown` (RFC 5880 §6.8.16)

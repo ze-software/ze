@@ -237,20 +237,36 @@ func parseReceivedPktinfo(oob []byte) (netip.Addr, int) {
 }
 
 // pktinfoPin builds the sendmsg control message that pins one datagram to the
-// interface ifindex names: IP_PKTINFO for an IPv4 socket, IPV6_PKTINFO for an
-// IPv6 one. Only the ifindex is set. The address fields stay zero, so the
-// kernel still chooses the source address, from the pinned interface.
+// interface ifindex names and to the source address source: IP_PKTINFO for an
+// IPv4 socket, IPV6_PKTINFO for an IPv6 one. An ifindex of 0 is the kernel's
+// own "no interface" in both structures, and an invalid source leaves the
+// address field zero, so the kernel still chooses the source as it routes.
 //
 // The payloads are the structures parseReceivedPktinfo reads (struct
 // in_pktinfo, 12 bytes; struct in6_pktinfo, 20 bytes). On send the kernel takes
 // ipi_ifindex / ipi6_ifindex as the output interface of the route lookup, as
 // SO_BINDTODEVICE does for the whole socket, so a more specific route to the
-// peer over another link is not taken.
-func pktinfoPin(ifindex int, isV6 bool) []byte {
+// peer over another link is not taken. It takes ipi_spec_dst / ipi6_addr as the
+// packet's source address, and refuses the send when that address is not one
+// of the host's own. ipi_addr, the IPv4 destination on receive, is ignored on
+// send, which is why the IPv4 source goes in ipi_spec_dst.
+//
+// The caller MUST pass a source of the socket's own family: netip.Addr.As4
+// panics on an IPv6 address. (*UDP).sendControl refuses the other family with
+// errUDPSourceFamily before it calls here.
+func pktinfoPin(ifindex int, source netip.Addr, isV6 bool) []byte {
 	if isV6 {
-		return unix.PktInfo6(&unix.Inet6Pktinfo{Ifindex: uint32(ifindex)})
+		info := unix.Inet6Pktinfo{Ifindex: uint32(ifindex)}
+		if source.IsValid() {
+			info.Addr = source.As16()
+		}
+		return unix.PktInfo6(&info)
 	}
-	return unix.PktInfo4(&unix.Inet4Pktinfo{Ifindex: int32(ifindex)})
+	info := unix.Inet4Pktinfo{Ifindex: int32(ifindex)}
+	if source.IsValid() {
+		info.Spec_dst = source.Unmap().As4()
+	}
+	return unix.PktInfo4(&info)
 }
 
 // oobBufLen is the size of a per-slot control-message backing buffer.

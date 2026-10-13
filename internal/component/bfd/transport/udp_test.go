@@ -78,3 +78,31 @@ func TestUDPLoopback(t *testing.T) {
 		t.Fatal("did not receive packet within 2s")
 	}
 }
+
+// VALIDATES: Send's off-Linux source warning fires only for a packet whose
+// session names a local address the platform could not set. The decision is a
+// pure function, so it runs on every build: a nil control message is what
+// pktinfoPin returns off Linux.
+// PREVENTS: a single-hop packet pinned only by interface, with no local
+// address, logging that its source address was lost, with local "invalid IP".
+func TestSourceUnpinned(t *testing.T) {
+	local := netip.MustParseAddr("192.0.2.1")
+	built := []byte{0}
+	cases := []struct {
+		name string
+		pin  sendPin
+		oob  []byte
+		want bool
+	}{
+		{"interface only, no control message", sendPin{ifindex: 3}, nil, false},
+		{"source, no control message", sendPin{source: local}, nil, true},
+		{"interface and source, no control message", sendPin{ifindex: 3, source: local}, nil, true},
+		{"source, control message built", sendPin{source: local}, built, false},
+		{"interface only, control message built", sendPin{ifindex: 3}, built, false},
+	}
+	for _, tc := range cases {
+		if got := sourceUnpinned(tc.pin, tc.oob); got != tc.want {
+			t.Errorf("%s: sourceUnpinned = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
