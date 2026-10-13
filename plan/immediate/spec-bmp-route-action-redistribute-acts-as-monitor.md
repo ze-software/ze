@@ -2,16 +2,30 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-10-13 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+**Research note (2026-10-13, HEAD 6b2f7cfa40).** The Task text below was
+written 2026-09-06. Two of its facts moved since and are corrected here rather
+than in place: the producer is now `(*BMPPlugin).applyReceiverConfig` in
+`internal/component/bgp/plugins/bmp/receiver.go` (it was `startReceiver` in
+`bmp.go`), and the YANG `description` of the leaf now admits the gap ("redistribute
+is accepted by the schema and is not implemented"), while the `ze:help` text the
+editor shows for the value still promises best-path entry. The defect is open at
+HEAD: the warning is still the only branch on the value. No other session holds
+this spec (no state file, no commit names it), and neither `dce906c381` (Peer
+Down only for a peer reported up, sender side) nor
+`plan/immediate/spec-bmp-sflow-export-rfc-defects.md` (Peer Down reasons, sFlow
+pool, all sender side) touches `receiver.go`, the receiver YANG, or
+`route_action_test.go`.
 
 **What the operator is promised.**
 `internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang` declares
@@ -69,54 +83,81 @@ no direction, so one change cannot fix both.
      survive compaction; track reading progress in the session state file. -->
 
 ### Architecture Docs
-- [ ] `docs/architecture/<doc>.md` - [why relevant]
-  → Decision: [specific architectural decision that constrains this spec]
-  → Constraint: [specific rule from the doc that applies here]
+- [ ] `docs/guide/bmp.md` - the page that documents the receiver and the leaf
+  → Constraint: the receiver field table row for `route-action` says `redistribute` is "future: also enter best-path", and the Looking Glass Integration section ("The `route-action` leaf controls future behavior") lists it as "not yet implemented". Both sentences become false the moment the value is gone, so they are edited in the same phase as the YANG.
+  → Constraint: the same section states "These routes are visible through `show bmp rib` and looking glass endpoints but never enter BGP best-path selection or the FIB." That is the `monitor` promise and it stays; it is proven by `test/plugin/bmp-lg-bestpath-isolation.ci` and `TestBMPRoutesExcludedFromBestPath`.
+- [ ] `docs/architecture/plugin/rib-storage-design.md` - two-level `ribInPool` keyed by source protocol
+  → Constraint: protocol namespaces other than BGP are stored but never offered as best-path candidates; the receiver change must not touch `internal/component/bgp/plugins/rib`.
+- [ ] `internal/component/config/validators.go`, `unimplementedVRFValidator` (precedent named by the Task)
+  → Decision: its comment records that deleting a LEAF does not refuse a config, because `ValidateTreeAllModules` never emits `ErrTypeUnknown` (`validate_sections.go`). Deleting an enum VALUE is different: `validateEnumeration` (`internal/component/config/yang/validator.go`) and the enum arm of `ValidateLeafValue` refuse a value outside the enumeration natively, with the message "invalid value for <leaf> ... expected one of <values>" (proven for `asn4` by `test/parse/asn4-refuses-boolean-spelling.ci`). So removing the value refuses the config with no custom validator.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfcNNNN.md` - [why relevant]
-  → Constraint: [specific RFC rule that applies here]
+- [ ] `rfc/short/rfc7854.md` and `rfc/full/rfc7854.txt` - BMP, the role Ze fills as receiver (monitoring station)
+  → Constraint: RFC 7854 defines no use of received routes by the station. Section 1: "BMP provides access to the Adj-RIB-In of a peer on an ongoing basis and a periodic dump of certain statistics the monitoring station can use for further analysis." Section 2 defines what Route Monitoring carries: "Adj-RIB-In: As defined in [RFC4271], "The Adj-RIBs-In contains unprocessed routing information that has been advertised to the local BGP speaker by its peers."" That is another router's unprocessed input, not routes offered to Ze.
+  → Constraint: Section 11 (Security Considerations): "Unless a transport that provides mutual authentication is used, an attacker could masquerade as the monitored router and trick a monitoring station into accepting false information, or they could masquerade as a monitoring station and gain unauthorized access to BMP data." Ze's receiver has no authentication; feeding received routes into best-path would turn that "false information" into installed routes.
+  → Constraint: Section 3.2: "No BMP message is ever sent from the monitoring station to the monitored router." The station has no channel to refuse or bound what it is fed.
+  → Decision: no `rfc/short/rfc7854.md` requirement row maps to `route-action`; no row, `Support` value, or `docs/features/rfc-status.md` line changes. The RFC is silent on station-side redistribution, so this is a Ze config-truth defect, not an RFC defect.
 
 **Key insights:** (minimal context to resume after compaction)
-- [insight from docs]
+- Producer: `applyReceiverConfig` (`receiver.go`) is the ONLY reader of `RouteAction`; it logs a warning and nothing else branches on the value.
+- `monitor` is real: `processRouteMonitoring` (`bmp.go`) calls `InjectWireRoute(protocolBMP, ...)`; `handleInjectWireRoute` (`rib/rib_inject.go`) stores into `ribInPool[bmpProtocolID]`; best-path candidates (`gatherPrefixCandidatesLocked`, `gatherKeyCandidatesLocked`, `rib_commands.go`) iterate `r.bgpPeers` only.
+- Removing `enum redistribute` from the YANG refuses the config natively; a custom validator is not needed.
+- No RFC-tagged test changes under the recommended design.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `path/to/file.go` - [what it currently does]
+- [ ] `internal/component/bgp/plugins/bmp/receiver.go` (128L) - `parseReceiverConfig` decodes `{"environment":{"bmp":{...}}}` with plain `json.Unmarshal` (unknown keys ignored); `applyReceiverConfig` warns "bmp: route-action redistribute is not yet implemented, using monitor" when `cfg.RouteAction == "redistribute"`, stores `max-sessions`, then reconciles listeners. Called at Stage-2 configure, reload apply, and rollback.
+- [ ] `internal/component/bgp/plugins/bmp/bmp.go` - `receiverConfig.RouteAction string` with json tag `route-action`; `processRouteMonitoring` injects every Route Monitoring UPDATE body under `protocolBMP`, with no reference to `RouteAction`.
+- [ ] `internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang` - `environment/bmp/route-action`, enumeration `monitor` | `redistribute`, default `monitor`; `ze:help` of `redistribute` is "Store in BMP RIB and redistribute into BGP best-path selection"; `description` already says redistribute "is not implemented: Ze writes a warning in the log and acts as monitor".
+- [ ] `internal/component/bgp/plugins/rib/rib_inject.go` - `handleInjectWireRoute` stores BMP routes in the protocol namespace, refuses protocol `bgp`, applies RFC 7606 validation.
+- [ ] `internal/component/bgp/plugins/rib/rib_commands.go`, `rib_pipeline_best.go` - candidates come from `bgpPeers` only, so BMP routes never win best-path.
+- [ ] `internal/component/bgp/plugins/bmp/route_action_test.go` - three tests: two exercise `processRouteMonitoring` with a nil plugin (no assertion beyond no-panic); `TestReceiverConfig_RouteActionDefault` asserts an empty struct field is empty, which proves nothing about the YANG default. None carries an `RFC requirement:` tag.
+- [ ] `test/parse/bmp-config.ci`, `test/plugin/bmp-lg-ingest.ci`, `test/plugin/bmp-lg-bestpath-isolation.ci` - receiver parse, ingest, and best-path isolation; none writes `route-action`. None carries an `RFC requirement:` tag.
+- [ ] `test/interop/scenarios/bmp-locrib-receiver-frr/ze.conf` - writes `route-action monitor;` (stays valid). Its checker entry `scenarioLocRIBReceiverFRR` (`internal/le/interoplab/bgp/checkers.go`) waits on `show bmp peers` only.
+- [ ] `internal/le/site/testdata/published-configuration.md`, `published-yang-config-tree.json` - carry the `redistribute` help text, but they are snapshots of the PUBLISHED site used as fixtures (`configurationPaths` in `config_test.go` copies the JSON in as input), not generated from the live YANG, so the YANG change does not redden them.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
-- [output format, function signature, or `.ci` expectation callers depend on]
+- `route-action monitor;` and an absent `route-action` keep committing, and Route Monitoring keeps landing in the BMP RIB, isolated from best-path and FIB.
+- `show bmp rib`, the looking-glass BMP endpoints, `show bgp rib` excluding BMP routes.
+- Listener reconcile in `applyReceiverConfig` (add, keep, close) and the `max-sessions` store.
+- `test/interop/scenarios/bmp-locrib-receiver-frr/ze.conf` loads unchanged.
 
 **Behavior to change:** (only what the user asked for)
-- [list, or "None - preserve all existing behavior"]
+- `route-action redistribute` is refused at parse/validate/commit instead of committing and acting as `monitor`.
+- The runtime warning, which can no longer fire, is deleted, and so is the `RouteAction` field nobody reads.
+- Help text and the guide stop promising best-path entry.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Config text `environment { bmp { route-action <value>; } }`, from a config file at daemon start, `ze config validate`, the CLI editor commit, or a reload.
+- Format at entry: a YANG enumeration leaf in module `ze-bmp-conf`.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. Parse: the schema-driven parser checks the leaf value against the enumeration (`ValidateLeafValue`, `internal/component/config/schema.go`); after the change `redistribute` fails here.
+2. Validate: `ValidateTreeAllModules` runs `validateEnumeration` (`internal/component/config/yang/validator.go`) over the tree; same refusal on the commit path.
+3. Delivery: `ExtractConfigSubtree` hands the plugin `{"environment":{"bmp":{...}}}`; `parseReceiverConfig` decodes it; `applyReceiverConfig` reconciles listeners. After the change nothing in the plugin reads `route-action`.
+4. Data plane (unchanged): `processRouteMonitoring` → `InjectWireRoute(protocolBMP)` → `handleInjectWireRoute` → `ribInPool[bmpProtocolID]`, outside best-path candidates.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | [JSON format, command syntax] | No |
+| Config → Plugin | JSON subtree `environment/bmp` via Stage-2 configure and reload config-apply | Yes, `parseReceiverConfig` read at HEAD |
+| Plugin → RIB | `InjectWireRoute(protocol, peerKey, updateBody)` over the bridge; unchanged | Yes, `handleInjectWireRoute` read at HEAD |
 
 ### Integration Points
-- [Existing function/type this connects to] - [how it integrates]
+- YANG enumeration validation (native) - the refusal; no new validator, no registry entry.
+- `docs/guide/bmp.md` - the page that describes the leaf.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | refusal happens in the schema layer every config path already runs |
+| No unintended coupling (components stay isolated) | Yes | only the BMP plugin's own YANG and Go change |
+| No duplicated functionality (extends existing, does not recreate) | Yes | reuses native enum refusal; no custom validator duplicating it |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | no data-path change |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | nothing is added to `internal/component/config/validators_register.go` (the alternative B would have added a central entry) |
 
 ## Risks & Assumptions
 
@@ -130,21 +171,29 @@ no direction, so one change cannot fix both.
      Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | [what this design assumes] | [where the assumption comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+| A-1 | The owner does not want BMP redistribution built now, so refusing the value is the fix rather than a placeholder | RFC 7854 defines no station-side use of received routes (Sections 1, 2) and warns of false information without mutual authentication (Section 11); `plan/README.md` immediate-bucket test is "Ze accepts a configuration and then does something else" | If redistribution is wanted, approach C replaces this spec's design and a trust and loop-prevention design is owed first; the refusal still lands as the interim per Q-1 | Owner answer to Q-1 | unvalidated |
+| A-2 | A value outside the enumeration is refused on EVERY config path: file load at start, `ze config validate`, editor commit, reload | `test/parse/asn4-refuses-boolean-spelling.ci` proves it for `asn4` via `ze config validate`; `validateEnumeration` is in the tree walk | A path that skips enum checking would still accept `redistribute` and the plugin would then silently ignore it | AC-1 `.ci` (validate), AC-2 `.ci` (daemon start refuses), AC-3 (reload refused) | unvalidated |
+| A-3 | No config in the repository, test, or interop scenario writes `route-action redistribute` | `grep -rn "route-action" test etc docs internal` at HEAD: only `bmp-locrib-receiver-frr/ze.conf` (`monitor`) and the guide | A fixture would go red at implementation | Re-run the grep in Phase 1 | unvalidated |
+| A-4 | The site fixtures `internal/le/site/testdata/published-*.{md,json}` are snapshots and do not follow the live YANG | `configurationPaths` copies `published-yang-config-tree.json` in as input | `TestTheConfigurationMirrorReadsAsThePublishedMirror` would redden | Run `./le go test package internal/le/site` scoped after the YANG edit | unvalidated |
+| A-5 | Nothing outside the BMP plugin reads `route-action` or `receiverConfig.RouteAction` | grep for `RouteAction` and `route-action` at HEAD: only `bmp.go`, `receiver.go`, `route_action_test.go` (the `redistevents.RouteAction` hits are an unrelated type) | Deleting the field breaks a build | `gopls references` on the field before deleting it | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+| R-1 | An operator's stored config holding `route-action redistribute` stops loading after upgrade, so the daemon does not start | parse error naming `route-action` at start | Ze is pre-release, so no stored config is owed a migration (`ai/rules/pre-release.md`); the error names the leaf and the allowed value, and the guide says to delete the line or write `monitor` |
+| R-2 | The native enum error says "expected one of monitor" but not WHY `redistribute` is gone, which `ai/rules/user-facing-errors.md` may judge insufficient | review of the AC-1 message | Q-2: if the owner wants the reason in the message, approach B (a `ze:validate` refusal with its own text) replaces approach A for the message, keeping the enum as is |
+| R-3 | A one-value enumeration reads as pointless and a later cleanup deletes the leaf, which (per the `unimplementedVRFValidator` note) would make `route-action redistribute` load SILENTLY again | a diff that removes the leaf | The YANG `description` states why the leaf stays with one value; the AC-1 `.ci` goes red if the leaf is removed and the value is then silently accepted (it asserts exit 1) |
+| R-4 | Deleting the warning branch and field leaves a comment elsewhere describing the warning | grep for "not yet implemented, using monitor" | Phase 2 greps and removes every occurrence (`ai/rules/stale-comments.md`) |
+| R-5 | Reload with the value refused leaves the old config running, and the operator reads that as success | reload returns an error | AC-3 asserts the reload is refused with the message and the listener set is unchanged |
 
 ## Blast Radius
 
 <!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
-| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
-| Who else touches this path? | [other plugins, components, or specs working the same files] |
+| What breaks if this is wrong? | A config holding `route-action redistribute` is rejected (intended); if the refusal leaked to `monitor` or to the absent leaf, every BMP receiver config would be rejected and the receiver would not start |
+| How is it reverted? | Single commit revert; no wire, storage, or config-format migration |
+| Who else touches this path? | `plan/immediate/spec-bmp-sflow-export-rfc-defects.md` (sender side, `bmp_events.go`, no shared file); the BMP sender YANG block in the same `ze-bmp-conf.yang` file (different container, `bgp/bmp/sender`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -154,7 +203,10 @@ no direction, so one change cannot fix both.
      by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| `ze config validate -` with `route-action redistribute` | → | `ValidateLeafValue` enum arm against the `ze-bmp-conf` enumeration | `test/parse/bmp-route-action-refuses-redistribute.ci` |
+| `ze -` daemon start with the value in the config file | → | config load, enum refusal before any plugin starts | `test/parse/bmp-route-action-refuses-redistribute.ci` (second command) |
+| SIGHUP reload to a config with the value | → | reload parse refused, running config kept | `test/reload/bmp-route-action-redistribute-refused.ci` |
+| `ze config validate -` with `route-action monitor` and with the leaf absent | → | same enum arm accepts | `test/parse/bmp-route-action-refuses-redistribute.ci` (accepted counterparts) and `test/parse/bmp-config.ci` |
 
 ## Acceptance Criteria
 
@@ -162,7 +214,14 @@ no direction, so one change cannot fix both.
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
+| AC-1 | `ze config validate -` on a config whose `environment bmp` writes `route-action redistribute;` | exit 1; output contains "invalid value for route-action" and "expected one of" and names `monitor` as the only value. Proof: `test/parse/bmp-route-action-refuses-redistribute.ci`, first command |
+| AC-2 | The same config as the daemon's startup config (`ze -`) | daemon exits non-zero before the BMP receiver listens; stderr carries the AC-1 refusal; no "bmp: receiver listening" line. Proof: same `.ci`, second command |
+| AC-3 | Daemon running a valid BMP receiver config, then SIGHUP to a config that adds `route-action redistribute;` | reload refused with the AC-1 message on stderr; the daemon keeps running and the BGP peer session in the test stays up (exit 0 after SIGTERM). Proof: `test/reload/bmp-route-action-redistribute-refused.ci` |
+| AC-4 | `route-action monitor;` written explicitly, and the leaf absent | both validate (exit 0). Proof: AC-1 `.ci` accepted counterparts; `test/parse/bmp-config.ci` unchanged |
+| AC-5 | A Route Monitoring message for a prefix also learned from a real BGP peer, and for a prefix only BMP knows, under default config | BMP routes appear in `show bmp rib`, never as a best-path candidate, unchanged. Proof: `test/plugin/bmp-lg-bestpath-isolation.ci` and `TestBMPRoutesExcludedFromBestPath` pass unchanged |
+| AC-6 | The editor completes values for `environment bmp route-action` | completion offers `monitor` only. Proof: `TestRouteActionEnumIsMonitorOnly` (reads the enumeration through `yangEnumValues`) |
+| AC-7 | Source after the change | the string "route-action redistribute is not yet implemented" appears nowhere; `receiverConfig` has no `RouteAction` field; the YANG `ze:help` and `description` and `docs/guide/bmp.md` no longer say `redistribute` exists or is planned. Proof: grep in the Deliverables table, plus the build |
+| AC-8 | Interop scenario `bmp-locrib-receiver-frr` (`ze.conf` writes `route-action monitor;`) | still loads and passes. Proof: `./le test integration` scenario run, recorded in the Goal Validation table |
 
 ## End-to-End User Stories
 
@@ -172,19 +231,25 @@ no direction, so one change cannot fix both.
      before proceeding. Delete this section when Scope is tooling or docs. -->
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | [for example "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+| 1 | writes `route-action redistribute` expecting best-path entry | config text → parser enum check → refusal naming the leaf and `monitor` | `test/parse/bmp-route-action-refuses-redistribute.ci` |
+| 2 | reloads a running daemon into that config | SIGHUP → reload parse → refusal, old config kept | `test/reload/bmp-route-action-redistribute-refused.ci` |
+| 3 | runs a BMP receiver with the default and reads monitored routes | BMP TCP → `processRouteMonitoring` → `InjectWireRoute(protocolBMP)` → `show bmp rib`; best-path untouched | `test/plugin/bmp-lg-bestpath-isolation.ci` (unchanged) |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
+| `TestRouteActionEnumIsMonitorOnly` (new) | `internal/component/bgp/plugins/bmp/yang_enum_agreement_test.go` | the `ze-bmp-conf` enumeration at `environment/bmp/route-action` is exactly `[monitor]` and its default is `monitor` (AC-6). Red before the YANG edit (two values) | |
+| `TestReceiverConfig_RouteActionDefault` (DELETE) | `internal/component/bgp/plugins/bmp/route_action_test.go` | asserts an empty Go field is empty; reads a field this spec deletes and proved nothing about the YANG default, which `TestRouteActionEnumIsMonitorOnly` now proves. Not RFC-tagged. Deleting it is replacing a vacuous test with a real one, not weakening coverage; named here so the reviewer can check that | |
+| `TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB`, `TestProcessRouteMonitoring_ShortUpdate_Skipped` | `internal/component/bgp/plugins/bmp/route_action_test.go` | unchanged; they do not read `RouteAction`. Their no-assertion shape is a pre-existing weakness, out of this spec's goal: one journal row (`plan/journal/`, class weak-test or equivalent after grep) | |
+
+**RFC-tagged tests that change: none.** `grep "RFC requirement"` over `route_action_test.go`, `rib_inject_test.go`, `test/parse/bmp-config.ci`, `test/plugin/bmp-lg-ingest.ci` and `test/plugin/bmp-lg-bestpath-isolation.ci` returns nothing, and the new tests carry no tag because no RFC 7854 row governs station-side use of routes. No owner approval for an RFC-tagged test is owed under approach A. Under approach C (implement redistribution) that answer would have to be re-derived.
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
+| none | the change touches an enumeration, no numeric input | N/A | N/A | N/A |
 
 ### Functional Tests
 <!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
@@ -192,7 +257,9 @@ no direction, so one change cannot fix both.
      Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+| `bmp-route-action-refuses-redistribute` (new) | `test/parse/bmp-route-action-refuses-redistribute.ci` | shape of `test/parse/asn4-refuses-boolean-spelling.ci`: stdin `redistribute` → `ze config validate -` exit 1 with "invalid value for route-action", "expected one of", "monitor" (no `:` in needles); stdin `monitor` and stdin with the leaf absent → exit 0; then `ze -` on the `redistribute` stdin exits non-zero with the same message and no "receiver listening" (AC-1, AC-2, AC-4) | |
+| `bmp-route-action-redistribute-refused` (new) | `test/reload/bmp-route-action-redistribute-refused.ci` | shape of `test/reload/config-reload-invalid-validator.ci`: daemon up with a BMP receiver and one test peer; `action=rewrite` to a config adding `route-action redistribute;`, `action=sighup`, then `sigterm`; stderr carries the refusal, the peer saw no NOTIFICATION, exit 0 (AC-3) | |
+| `bmp-lg-bestpath-isolation`, `bmp-lg-ingest`, `bmp-config` | `test/plugin/`, `test/parse/` | unchanged, must stay green (AC-4, AC-5) | |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -200,35 +267,50 @@ no direction, so one change cannot fix both.
      the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+| `bmp-locrib-receiver-frr` (existing, unchanged) | `test/interop/scenarios/bmp-locrib-receiver-frr/` | FRR `bgpd -M bmp` as monitored router, Ze as station | its `ze.conf` writes `route-action monitor;` and must still load and reach `show bmp peers` (AC-8). pmacct is NOT the peer here: pmacct `pmbmpd` is a COLLECTOR (`docs/architecture/testing/interop.md`) and reads Ze's SENDER stream, which this spec does not touch | |
+
+**Interop applicability.** `ai/rules/interop-and-goal-validation.md` lets interop be omitted for "a config-only feature with no protocol impact". This change refuses a config value and changes no byte Ze reads or writes, so no NEW scenario is owed; AC-8 runs the existing receiver scenario to prove the surviving value still loads. Vacuity walk for the new `.ci` files: revert the YANG edit (restore `enum redistribute`), rebuild `ze`, confirm both `.ci` go red (validate exits 0; reload is accepted), restore, confirm green, record the red output in the spec.
+
+### Goal Validation
+| Goal (from Task) | Evidence |
+|------------------|----------|
+| Ze no longer accepts a `route-action` value it does not honor | `test/parse/bmp-route-action-refuses-redistribute.ci` and `test/reload/bmp-route-action-redistribute-refused.ci` green, with the recorded red from the revert walk |
+| `monitor` still does what its help says (BMP RIB only, no best-path, no FIB) | `test/plugin/bmp-lg-bestpath-isolation.ci` green; `bmp-locrib-receiver-frr` scenario run green |
+| No surface still promises redistribution | Deliverables grep (AC-7) returns nothing in `internal/`, `docs/`, YANG |
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.
      Check each file's // Design: annotation: if the change alters behavior the
      referenced architecture doc describes, list that doc here too. -->
-- `internal/...` - [feature changes]
+- `internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang` - delete `enum redistribute`; rewrite the leaf `description` to say `monitor` is the only action, what it does, and why the leaf stays with one value (a removed leaf would be skipped silently, a removed value is refused); keep `ze:help` of `monitor`
+- `internal/component/bgp/plugins/bmp/receiver.go` - delete the `RouteAction == "redistribute"` warning in `applyReceiverConfig`
+- `internal/component/bgp/plugins/bmp/bmp.go` - delete `receiverConfig.RouteAction`
+- `internal/component/bgp/plugins/bmp/route_action_test.go` - delete `TestReceiverConfig_RouteActionDefault`
+- `internal/component/bgp/plugins/bmp/yang_enum_agreement_test.go` - add `TestRouteActionEnumIsMonitorOnly`
+- `docs/guide/bmp.md` - receiver field table row and the Looking Glass Integration paragraph (`// Design:` header of `receiver.go` names this page)
+- `plan/journal/unwired-feature.md` - the 2026-09-04 row naming `bmp/route-action` records the fix (append, do not rewrite the row's history)
 
 ## Files to Create
-- `internal/...` - [new feature file]
-- `test/.../*.ci` - [functional test for end-user behavior]
+- `test/parse/bmp-route-action-refuses-redistribute.ci` - AC-1, AC-2, AC-4
+- `test/reload/bmp-route-action-redistribute-refused.ci` - AC-3
 
 ### Integration Checklist
 <!-- Answer every row Yes / No / N-A. Never leave a bare marker: an unanswered
      row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
-| YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
-| YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
-| CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
-| Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
-| Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
-| Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
-| Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
-| BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
+| YANG schema (new RPCs/config) | Yes | `internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang`: one enum value removed, description rewritten; no new node |
+| YANG validation constraints | Yes | the `enumeration` itself is the constraint that refuses `redistribute` |
+| YANG custom validators | No | native enum refusal suffices (approach A); approach B would add one |
+| CLI commands/flags | N-A | no command changes |
+| CLI grammar (keyword before value) | N-A | no command changes |
+| Editor autocomplete | Yes | automatic from the enumeration; AC-6 proves `monitor` only |
+| Functional test for new RPC/API | N-A | no RPC; config refusal is covered by the two new `.ci` files |
+| Pipe completeness | N-A | no output command |
+| Env var registration | N-A | `environment/bmp` registers no `ze.bmp.*` env var at HEAD (grep of the plugin and `internal/core/env`), and this spec adds none |
+| Doctor check for runtime dependencies | N-A | no runtime dependency added |
+| Prometheus counters/metrics | N-A | no observable state added |
+| BGP family surface (new SAFI / capability / attribute) | N-A | no family, capability or attribute |
 
 ### Documentation Update Checklist (BLOCKING)
 <!-- Answer every row Yes / No / N-A. A No must be backed by a source-aware
@@ -236,23 +318,23 @@ no direction, so one change cannot fix both.
      files you changed. Any factual doc change carries a source anchor. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | | `docs/features.md` |
-| 2 | Config syntax changed? | | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
-| 3 | CLI command added/changed? | | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | | `docs/architecture/api/commands.md` |
-| 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
-| 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
-| 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
-| 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
-| 11 | Affects daemon comparison? | | `docs/comparison.md` |
-| 12 | Internal architecture changed? | | `docs/architecture/core-design.md` or subsystem doc |
-| 13 | Route metadata keys added/changed? | | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
-| 14 | Prometheus counters added/changed? | | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED, do not answer from memory: `./le spec citation anchors spec plan/<this-spec>.md` lists them. A doc DECLARED by a changed file's `// Design:` header BLOCKS until named here; a doc that only `<!-- source: -->` mentions it is advisory. Naming it as unaffected, with the reason, satisfies the check |
-| 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
+| 1 | New user-facing feature? | No | refusal of a value; `docs/features.md` and `features/` carry no `route-action` text (grep at HEAD) |
+| 2 | Config syntax changed? | Yes | `docs/guide/bmp.md` receiver field table (the leaf lives only there); `docs/guide/configuration.md` and `docs/architecture/config/syntax.md` do not mention `route-action` (grep) |
+| 3 | CLI command added/changed? | No | none |
+| 4 | API/RPC added/changed? | No | none |
+| 5 | Plugin added/changed? | No | plugin behavior on valid configs is unchanged |
+| 6 | Has a user guide page? | Yes | `docs/guide/bmp.md`: receiver field table and Looking Glass Integration section |
+| 7 | Wire format changed? | No | no byte changes |
+| 8 | Plugin SDK/protocol changed? | No | none |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | no RFC 7854 row governs station-side route use; RFC scope is frozen and no summary changes |
+| 10 | Test infrastructure changed? | No | two `.ci` in existing directories with existing directives |
+| 11 | Affects daemon comparison? | No | `docs/comparison.md` does not mention BMP redistribution (verify by grep in Phase 3) |
+| 12 | Internal architecture changed? | No | none |
+| 13 | Route metadata keys added/changed? | No | none |
+| 14 | Prometheus counters added/changed? | No | none |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/guide/bmp.md` (declared by `receiver.go` `// Design:`; source anchors on `bmp.go` and `ze-bmp-conf.yang`): updated. `docs/architecture/config/yang-config-design.md` (declared by `yang_enum_agreement_test.go`): unaffected, it describes how enum and validator layers work, not which BMP values exist; the new test follows its existing pattern. `docs/architecture/core-design.md` (declared by `bmp.go`): unaffected, it names no BMP receiver value or `route-action` (re-grep in Phase 3) |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/bmp.md` examples; verify none writes `route-action redistribute` (none at HEAD) |
 
 ## Implementation Steps
 
@@ -262,14 +344,19 @@ no direction, so one change cannot fix both.
      (write test -> fail -> implement -> pass) and ends with a self-critical
      review; fix what it finds before starting the next phase. -->
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- register entry points, write failing wiring tests
-   - Tests: [wiring test names from the Wiring Test table]
-   - Files: [register.go, handler skeleton, route registration]
-   - Verify: the entry point exists and is reachable. The wiring test fails because the feature is a stub
-2. **Phase: [name]** -- [what to implement]
-   - Tests: [test names from the TDD Plan]
-   - Files: [files from Files to Modify]
-   - Verify: tests fail → implement → tests pass → wiring test progresses
+Steps assume approach A and the owner's answer to Q-1 being "refuse". A different answer to Q-1 or Q-2 changes Phase 2.
+
+1. **Phase: Wiring (MANDATORY FIRST)** -- the failing tests through the real entry points
+   - Tests: `test/parse/bmp-route-action-refuses-redistribute.ci`, `test/reload/bmp-route-action-redistribute-refused.ci`, `TestRouteActionEnumIsMonitorOnly`
+   - Files: the two `.ci`, `yang_enum_agreement_test.go`; re-run the A-3 grep
+   - Verify: all three red against HEAD (validate exits 0, reload accepted, enum has two values); paste output
+2. **Phase: Schema** -- delete `enum redistribute`, rewrite the leaf `description`, edit `docs/guide/bmp.md` in the same phase
+   - Tests: the three above go green; `test/parse/bmp-config.ci`, `test/plugin/bmp-lg-bestpath-isolation.ci`, `test/plugin/bmp-lg-ingest.ci` stay green; scoped `internal/le/site` package test stays green (A-4)
+   - Files: `ze-bmp-conf.yang`, `docs/guide/bmp.md`
+3. **Phase: Dead code** -- delete the warning branch, `receiverConfig.RouteAction`, `TestReceiverConfig_RouteActionDefault`
+   - Tests: scoped `internal/component/bgp/plugins/bmp` package test green; `gopls references` on the field empty before deletion (A-5); grep for the warning text empty (R-4)
+   - Files: `receiver.go`, `bmp.go`, `route_action_test.go`
+4. **Phase: Proof** -- revert walk on the YANG edit (rebuild `ze`, both `.ci` red, restore, green, record); run `bmp-locrib-receiver-frr` (AC-8); append the fix to the `plan/journal/unwired-feature.md` row; add the weak-test journal row named in the TDD plan
 
 ### Critical Review Checklist
 
@@ -280,10 +367,11 @@ no direction, so one change cannot fix both.
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
 | Feature completeness | Every user story has a working path, no broken links |
-| Correctness | [feature-specific, for example "merge order correct", "error messages name the offending value"] |
-| Naming | [feature-specific, for example "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
-| Data flow | [feature-specific, for example "resolution in X only, reactor unaware of Y"] |
-| Rule: [relevant rule] | [what to check] |
+| Correctness | the refusal names `route-action`, the rejected value, and `monitor`; `monitor` and the absent leaf still commit |
+| Naming | no new names; the new `.ci` files follow the `<subject>-refuses-<value>` shape of `asn4-refuses-boolean-spelling.ci` |
+| Data flow | refusal in the schema layer only; the BMP plugin holds no knowledge of the removed value |
+| Rule: no-layering | the warning and field are deleted, not kept beside the refusal |
+| Rule: stale-comments | no comment, help, description or guide sentence still names `redistribute` as a value |
 
 ### Deliverables Checklist
 
@@ -291,7 +379,10 @@ no direction, so one change cannot fix both.
      verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| [concrete thing that must exist] | [grep/ls/test command] |
+| `redistribute` gone from schema, code and guide | `grep -rn "redistribute" internal/component/bgp/plugins/bmp docs/guide/bmp.md` returns only unrelated `redistribute_egress` mentions |
+| warning text gone | `grep -rn "not yet implemented, using monitor" internal` returns nothing |
+| refusal through real entry points | the two new `.ci` green, with the recorded red from the revert walk |
+| `monitor` unchanged | `test/plugin/bmp-lg-bestpath-isolation.ci` green; `bmp-locrib-receiver-frr` green |
 
 ### Security Review Checklist
 
@@ -299,7 +390,8 @@ no direction, so one change cannot fix both.
      leakage, authorization that could fail open. -->
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | [what inputs need validation and how] |
+| Input validation | the refusal holds on every config path (start, validate, commit, reload: A-2) so no path can enable a value the plugin silently ignores |
+| Fail-open | the change removes a path that could later fail open: an unauthenticated BMP feed (RFC 7854 Section 11) can no longer be configured toward best-path by a leftover value |
 
 ### Failure Routing
 
@@ -316,17 +408,42 @@ no direction, so one change cannot fix both.
 ## Design Insights
 <!-- LIVE: write immediately when you learn something. At closure these route to
      a subsystem arch doc, a rule, or the learned summary. -->
+- Removing an unhonored ENUM VALUE refuses it natively; removing an unhonored LEAF does not (unknown nodes are skipped by `ValidateTreeAllModules`). The cheap fix for a one-value lie is the value, never the leaf.
+- `monitor` isolation is structural, not a branch on the leaf: best-path candidates are gathered from `bgpPeers` only, so no config value could have turned redistribution on without new RIB code.
+
+## RFC annotations owed by this spec
+None. No code added here implements or calls an RFC 7854 obligation; the removed branch and field carried no RFC comment.
 
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| A (recommended): remove `enum redistribute` from the YANG; native enum refusal; delete warning and field | B: keep the value and refuse it with a `ze:validate` custom validator (the `unimplementedVRFValidator` shape). C: implement redistribution. D: delete the whole leaf | A is the minimum change and adds no central entry: B needs a validator registered in `internal/component/config/validators_register.go` (a central list) and keeps completing a value Ze refuses; its one gain is a refusal message that says WHY (Q-2). C is a feature, not a fix: RFC 7854 defines no station-side route use, Section 11 says an unauthenticated feed can "trick a monitoring station into accepting false information", and BMP Route Monitoring carries another router's pre-policy Adj-RIB-In with next hops that belong to that router's peers; a trust, next-hop and loop-prevention design is owed before any code (Q-1). D looks simpler but, per the `unimplementedVRFValidator` note, an unknown leaf is skipped by `ValidateTreeAllModules`, so `route-action redistribute` could load silently again (the parser's handling of an unknown leaf was not verified here, and A does not depend on it) |
+
+### Triple Challenge
+| Challenge | Answer |
+|-----------|--------|
+| Simplicity | One enum value deleted, one branch and one field deleted, two `.ci` and one unit test. Nothing simpler refuses the value |
+| Uniformity | Same refusal shape as `asn4` boolean spellings (native enum refusal, `test/parse/asn4-refuses-boolean-spelling.ci`) |
+| Performance | No runtime path changes; one branch less in `applyReceiverConfig` |
+
+### Failure Modes
+Recorded as R-1 to R-5 (stored config stops loading, message lacks the reason, later leaf deletion reopens a silent path, stale comments, reload refusal misread). Concurrent access: none; the change is schema-time.
+
+## Owner Questions
+| ID | Question | Recommended answer | Why it matters |
+|----|----------|--------------------|----------------|
+| Q-1 | Is BMP redistribution (routes learned as a monitoring station entering best-path and the FIB) wanted at all? If yes, it becomes its own spec in `plan/` with a trust and loop-prevention design, and this spec's refusal is the placeholder until it lands. If no, the refusal is the end state | No. RFC 7854 frames the station as an observer (Sections 1, 2) and warns it can be fed false information without mutual authentication (Section 11) | decides whether the refusal is final and whether a feature spec is created |
+| Q-2 | Is the native enum error ("invalid value for route-action ... expected one of monitor") enough, or must the refusal say why `redistribute` is gone (approach B, a custom validator with its own message)? | Native error is enough: it names the leaf, the value, and what is allowed, and the guide states the reason | B adds a central validator registration and keeps a refused value in completion |
+| Q-3 | The two existing `processRouteMonitoring` tests in `route_action_test.go` assert only "does not panic". Journal row only (recommended, out of this goal), or strengthen them here? | Journal row | scope; `ai/rules/rule-precedence.md` keeps unrelated fixes out of a closing commit |
+
+No owner approval is recorded as given. Status stays `design` until the owner answers Q-1 and Q-2 and approves the design.
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      is not a limitation: write it as its own spec, in the bucket that item
      belongs to, and name that spec here (ai/rules/planning.md). -->
-- [What was deliberately not done and why]
+- BMP redistribution is not built. Whether a spec for it exists depends on Q-1; if the owner answers yes, that spec is created in `plan/` and named here.
 
 ## RFC Documentation (Scope: protocol)
 
