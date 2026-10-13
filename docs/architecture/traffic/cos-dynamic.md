@@ -53,15 +53,20 @@ end state when no static config exists.
 - `UpdateVLANQoSMap` is part of the `Backend` interface. Every new backend
   implementation must provide it.
 - The CoA handler accepts a rate and a CoS Filter-Id in one request.
-  `extractRate` and `extractCoSProfile` iterate `FindAllAttr` independently.
+  `readCoAChange` walks every Filter-Id and Vendor-Specific attribute once and
+  records the rate and the profile through `setRate` and `setCoSProfile`, which
+  refuse a second value of either with NAK 407.
 - `AccessInterface` was added to `SessionUpPayload`. It is empty for a pure L2TP
   LNS, where the access VLAN is at the remote LAC, and the handler skips that
   case instead of failing.
+
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- readCoAChange, setRate, setCoSProfile -->
 
 ## Traps
 
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go -- enableVLANQoS, UpdateVLANQoSMap -->
 <!-- source: internal/component/l2tp/plugins/authradius/extract.go -- FindAllAttr for Filter-Id -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- readCoAChange walks pkt.Attrs -->
 
 - **govpp binapi generates `[]byte` for a fixed-size `u8[256]` array.**
   `QosEgressMapRow.Outputs` must be explicitly allocated with
@@ -70,5 +75,5 @@ end state when no static config exists.
   channel.
 - **A multi-valued attribute needs `FindAllAttr`.** `extractAuthMetadata` used
   `FindAttr`, which returns the first match, so a Filter-Id carrying both a rate
-  and a CoS profile lost one of them. The CoA `extractRate` was moved to
-  `FindAllAttr` for the same reason.
+  and a CoS profile lost one of them. The CoA path reads every attribute for
+  the same reason: `readCoAChange` walks the whole attribute list.
