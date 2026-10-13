@@ -1395,7 +1395,7 @@
       "claim-sha": "2ed4bbd64d86492d",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::sendLocked",
-      "producer-sha": "06133e5f2c064cda",
+      "producer-sha": "58b8acd91092e46a",
       "break": "body of sendLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

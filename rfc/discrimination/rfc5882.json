@@ -86,7 +86,7 @@
       "claim-sha": "6d73c30c5e381f56",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_bfd.go::verifyPeerBFDProfiles",
-      "producer-sha": "84f04d7b9d2ebabf",
+      "producer-sha": "802c5c9898d5e195",
       "break": "body of verifyPeerBFDProfiles replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "e8e03511ffe57282",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_bfd.go::verifyPeerBFDProfiles",
-      "producer-sha": "84f04d7b9d2ebabf",
+      "producer-sha": "802c5c9898d5e195",
       "break": "body of verifyPeerBFDProfiles replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "d61ad323ad035f56",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_bfd.go::verifyPeerBFDProfiles",
-      "producer-sha": "84f04d7b9d2ebabf",
+      "producer-sha": "802c5c9898d5e195",
       "break": "body of verifyPeerBFDProfiles replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "aaf03cb7638b5c38",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_bfd.go::verifyPeerBFDProfiles",
-      "producer-sha": "84f04d7b9d2ebabf",
+      "producer-sha": "802c5c9898d5e195",
       "break": "body of verifyPeerBFDProfiles replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +163,7 @@
       "claim-sha": "3bcb305523931909",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_bfd.go::runBFDSubscriber",
-      "producer-sha": "f587b0786d877eed",
+      "producer-sha": "532ff30776ffd082",
       "break": "body of runBFDSubscriber replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +174,7 @@
       "claim-sha": "2888c2dd37ad7a48",
       "route": "revert",
       "producer": "internal/plugins/ospf/bfd_client.go::runBFDSubscriber",
-      "producer-sha": "6e42f7e51383c1ff",
+      "producer-sha": "241cf940a0529dd8",
       "break": "body of runBFDSubscriber replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,7 +185,7 @@
       "claim-sha": "8e36615d4a32cb66",
       "route": "revert",
       "producer": "internal/plugins/ospf/bfd_client.go::runBFDSubscriber",
-      "producer-sha": "6e42f7e51383c1ff",
+      "producer-sha": "241cf940a0529dd8",
       "break": "body of runBFDSubscriber replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

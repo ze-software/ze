@@ -152,7 +152,7 @@
       "claim-sha": "ab34dd0e59edab63",
       "route": "revert",
       "producer": "internal/component/bfd/transport/udp.go::Send",
-      "producer-sha": "eddcdd219e3d1888",
+      "producer-sha": "70c1c3a4a38c6fa7",
       "break": "body of Send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -350,7 +350,7 @@
       "claim-sha": "dd3241d84896db94",
       "route": "revert",
       "producer": "internal/component/bfd/transport/udp.go::Send",
-      "producer-sha": "eddcdd219e3d1888",
+      "producer-sha": "70c1c3a4a38c6fa7",
       "break": "body of Send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -372,7 +372,7 @@
       "claim-sha": "3df1c4357781afa1",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::sendLocked",
-      "producer-sha": "06133e5f2c064cda",
+      "producer-sha": "58b8acd91092e46a",
       "break": "body of sendLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

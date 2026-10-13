@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-08",
+  "audited": "2026-10-13",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -323,15 +323,15 @@
       "verdict": "enforced"
     },
     "RFC8955-7.2-3": {
-      "note": "Literal packet-rate community 0x800c zero reaches the selected callback and real nft backend, with four target drops, exact four-packet/116-byte counters, unaffected-destination and positive-rate controls; the repaired sequence reinstalls zero, sends target token 7 and control token 8, requires only 8 plus a timeout, then withdraws that active discard and requires token 6 delivery, so stale zero-rate enforcement is now distinguishable from removal. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.",
+      "note": "Literal packet-rate community 0x800c zero reaches the selected callback and real nft backend, with four target drops, exact four-packet/116-byte counters, unaffected-destination and positive-rate controls; the repaired sequence reinstalls zero, sends target token 7 and control token 8, requires only 8 plus a timeout, then withdraws that active discard and requires token 6 delivery, so stale zero-rate enforcement is now distinguishable from removal. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage. Re-judged 2026-10-13 after 2ce54b1f91: both discard-probe checks moved from err.(net.Error) to errors.AsType[net.Error](err); ReadFromUDP returns *net.OpError, which satisfies net.Error at the top of the chain, so each timeout assertion accepts and refuses exactly the errors it did before and the verdict is unchanged.",
       "requirement_sha": "3339e6ba32c3d90a",
       "tests": {
-        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel": "4b06784d308985f2",
-        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel#2": "4b06784d308985f2"
+        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel": "61127ff1e6c7b614",
+        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel#2": "61127ff1e6c7b614"
       },
       "units": {
-        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel": "160317d8e10ce4d1",
-        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel#2": "160317d8e10ce4d1"
+        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel": "8c18c89e72cd7490",
+        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel#2": "8c18c89e72cd7490"
       },
       "verdict": "enforced"
     },
