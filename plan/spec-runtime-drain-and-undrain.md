@@ -29,8 +29,9 @@ daemon, and meets no wrong answer, only a missing maintenance verb.
 
 Known starting points, to be confirmed at design:
 
-- The stop drain's RPC carries a `reason`, so the runtime form can reuse it.
-  The runtime form also needs the reverse RPC (undrain), which the stop drain
+- The stop drain's RPC carries only kind, restart cause and deadline. Any
+  field the runtime form needs (an operator reason, for one) is designed
+  here, not inherited. The runtime form also needs the reverse RPC (undrain), which the stop drain
   never sends: the stop drain's state lives until the process exits.
 - The stop drain refuses a second `drain` request on a connection (its AC-28)
   and runs the handler on a one-time lifecycle goroutine. A runtime drain that
