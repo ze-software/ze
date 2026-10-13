@@ -492,7 +492,7 @@ Phase 4 builds the instance-removal hold instead of the refusal.
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      is not a limitation: write it as its own spec, in the bucket that item
      belongs to, and name that spec here (ai/rules/planning.md). -->
-- `on-shutdown` is refused, not built, until Q-1 is answered. If the owner picks (a), the daemon drain phase becomes its own spec (`plan/spec-daemon-shutdown-drain-phase.md`, to be written on approval) and this spec stays open until OSPF joins it.
+- `on-shutdown` is refused, not built, until Q-1 is answered. If the owner picks (a), the daemon drain phase becomes its own spec (`plan/immediate/spec-daemon-drain-before-stop.md`) and this spec stays open until OSPF joins it.
 - A startup window tied to BGP convergence ("until BGP is established") is not offered; RFC 6987 Section 1 motivates it, but no leaf promises it.
 - OSPFv3 uses MaxLinkMetric, as `always` does today; the R-bit alternative of RFC 6987 Section 2.1 is not used.
 
