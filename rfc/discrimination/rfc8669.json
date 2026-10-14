@@ -164,9 +164,9 @@
       "unit-sha": "0022f3c267bc0b2a",
       "claim-sha": "7a688c622499c0d3",
       "route": "revert",
-      "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDAttr",
-      "producer-sha": "ac23d8300234a864",
-      "break": "body of validatePrefixSIDAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+      "producer-sha": "00a49549792e5674",
+      "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8669-3.1-5",
@@ -241,9 +241,9 @@
       "unit-sha": "0022f3c267bc0b2a",
       "claim-sha": "e95734eceb00af43",
       "route": "revert",
-      "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDAttr",
-      "producer-sha": "ac23d8300234a864",
-      "break": "body of validatePrefixSIDAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+      "producer-sha": "00a49549792e5674",
+      "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8669-3.2-2",
@@ -263,9 +263,9 @@
       "unit-sha": "0022f3c267bc0b2a",
       "claim-sha": "598f7bf016162498",
       "route": "revert",
-      "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDAttr",
-      "producer-sha": "ac23d8300234a864",
-      "break": "body of validatePrefixSIDAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+      "producer-sha": "00a49549792e5674",
+      "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8669-3.2-4",
@@ -431,7 +431,7 @@
       "claim-sha": "21ad04e2d2da16c0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/rfc8669_duplicate_tlv.go::discardRepeatedPrefixSIDTLVs",
-      "producer-sha": "899738dc115f0629",
+      "producer-sha": "0e48dd446c47c80b",
       "break": "body of discardRepeatedPrefixSIDTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=2:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005A020000003F4001010040020602010000FDE940030401010101C02821050019000100150020010DB800000001000000000000000000001300090002AABBC00804FDE90001180A0002"
     },
