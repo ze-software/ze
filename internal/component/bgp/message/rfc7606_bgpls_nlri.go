@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
 )
 
 // RFC 9552 syntactic validation of the Link-State NLRI on the session path.
@@ -117,19 +118,11 @@ const (
 	bgplsTLVRemoteNodeDescriptors uint16 = 257
 )
 
-// NLRISyntaxRuled reports whether the family's own specification prescribes discarding an
-// individual malformed NLRI, so the receive path knows to call RetainWellFormedNLRI.
-//
-// It exists so the RFC 7606 Section 5.4 pass can skip locating the MP attribute at all for
-// a family nothing rules on, which is every family but BGP-LS today. The alternative is an
-// attribute-section walk on every UPDATE ze receives.
-func NLRISyntaxRuled(afi attribute.AFI, safi attribute.SAFI) bool {
-	return afi == afiBGPLS && (safi == safiBGPLS || safi == safiBGPLSVPN)
-}
-
-// RetainWellFormedNLRI returns section with every malformed NLRI removed, and the number
-// removed. It answers the skipable half of RFC 9552 Section 8.2.2 for BGP-LS, and returns
-// section unchanged for every family whose specification prescribes no per-NLRI discard.
+// RetainWellFormedNLRI is BGP-LS's registered nlrisyntax Retain answer (register_nlrisyntax.go):
+// it returns section with every malformed Link-State NLRI removed, and the number removed. It
+// answers the skipable half of RFC 9552 Section 8.2.2. The receive path reaches it only through
+// the registry, so it is only ever handed a BGP-LS or BGP-LS-VPN section; safi draws that
+// distinction, since a VPN NLRI carries a Route Distinguisher before its descriptors.
 //
 // ok is false when the NLRI framing cannot be walked at all. The boundaries between NLRIs
 // are then unknowable, so no discard decision is possible and the caller must reach for the
@@ -145,12 +138,11 @@ func NLRISyntaxRuled(afi attribute.AFI, safi attribute.SAFI) bool {
 // identifier, but a peer that negotiated ADD-PATH for the family sends one, and reading its
 // first two octets as an NLRI Type would condemn well-formed NLRIs.
 func RetainWellFormedNLRI(
-	afi attribute.AFI,
 	safi attribute.SAFI,
 	section []byte,
 	addPath bool,
 ) (kept []byte, dropped int, ok bool) {
-	if len(section) == 0 || !NLRISyntaxRuled(afi, safi) {
+	if len(section) == 0 {
 		return section, 0, true
 	}
 	vpn := safi == safiBGPLSVPN
@@ -365,7 +357,7 @@ func bgplsNodeDescriptorWellFormed(value []byte) bool {
 	return true
 }
 
-// validateBGPLSNLRISyntax answers the non-skipable half of RFC 9552 Section 8.2.2 for a
+// judgeBGPLSNLRISection answers the non-skipable half of RFC 9552 Section 8.2.2 for a
 // Link-State NLRI section: the first two bullets, "The sum of all TLV lengths found in the
 // BGP MP_REACH_NLRI attribute corresponds to the BGP MP_REACH_NLRI length" and the same
 // sentence for MP_UNREACH_NLRI. At this level a "TLV" is one Link-State NLRI, whose Type
@@ -381,18 +373,19 @@ func bgplsNodeDescriptorWellFormed(value []byte) bool {
 // ze does not implement, and its "Alternately, the router MUST perform a 'session reset'".
 // RFC 7606 Section 3(j) reaches the same verdict independently: treat-as-withdraw needs the
 // NLRI field parsed, and here it cannot be.
-func validateBGPLSNLRISyntax(code uint8, nlri []byte, addPath bool) *RFC7606ValidationResult {
+//
+// It is BGP-LS's registered nlrisyntax Judge (register_nlrisyntax.go).
+func judgeBGPLSNLRISection(nlri []byte, addPath bool) nlrisyntax.Judgement {
 	// Bounded by len(nlri), which the caller bounds-checked against the attribute value.
 	for off := 0; off < len(nlri); {
 		_, end, framed := bgplsNLRIBounds(nlri, off, addPath)
 		if !framed {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionSessionReset,
-				AttrCode:    code,
-				Description: "RFC 9552 Section 8.2.2: Link-State NLRI lengths do not sum to the MP attribute length",
+			return nlrisyntax.Judgement{
+				Action: nlrisyntax.ActionSessionReset,
+				Reason: "RFC 9552 Section 8.2.2: Link-State NLRI lengths do not sum to the MP attribute length",
 			}
 		}
 		off = end
 	}
-	return nil
+	return nlrisyntax.WellFormed
 }

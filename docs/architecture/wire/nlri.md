@@ -580,6 +580,49 @@ nlri.WriteNLRI(n, buf, 0, ctx)  // Prepends path ID when ctx.AddPath=true
 
 <!-- source: internal/core/bgp/nlri/nlri.go -- LenWithContext, WriteNLRI -->
 
+### NLRI Receive Validation: the Per-Family Syntax Registry
+
+RFC 7606 Section 5.3 judges the framing of the families whose NLRI is a plain
+prefix list (IPv4 and IPv6 unicast and multicast). A typed family whose own
+specification states a syntax rule registers it in `nlrisyntax`
+(`internal/core/bgp/nlri/nlrisyntax`), from the package that owns its layout,
+and the receive path reads it by family. No receive-path file names a family.
+
+A rule has two answers, each optional:
+
+| Answer | Read by | Question |
+|--------|---------|----------|
+| `Judge` | `message.validateMPNLRISyntax`, at the RFC 7606 walk | The verdict for the whole NLRI section of one MP attribute: well-formed, treat-as-withdraw, or session reset (NOTIFICATION 3/1, like every MP NLRI reset) |
+| `Retain` | `reactor.typedNLRIEdit`, after the Section 5.4 type filter | The section with the malformed NLRIs removed, so neither the RIB, a synthesized withdrawal nor a relay carries them; or "cannot be walked", which resets the session |
+
+| Family | Rule | Judge | Retain |
+|--------|------|-------|--------|
+| `bgp-ls/bgp-ls`, `bgp-ls/bgp-ls-vpn` | RFC 9552 Section 8.2.2 (`nlri-bgpls.md`) | session reset when the NLRI lengths do not sum to the attribute | removes each skipable malformed Link-State NLRI ('NLRI discard') |
+| `l2vpn/evpn` | RFC 7432 Section 7.1 (`nlri-evpn.md`) | none | removes nothing; an Ethernet A-D NLRI whose length is not 25 makes the section unwalkable |
+| `ipv4/sr-policy`, `ipv6/sr-policy` | RFC 9830 Section 5 | see below | removes each NLRI of the wrong length |
+
+SR Policy (SAFI 73). RFC 9830 Section 2.1 fixes the NLRI Length per AFI: "When
+AFI = 1, the value MUST be 96; when AFI = 2, the value MUST be 192." The rule and
+`SplitSRPolicy` share one framing walk, which skips the 4-octet RFC 7911 path
+identifier when ADD-PATH is negotiated for the family (Ze's default add-path
+direction applies to every multiprotocol family, SAFI 73 included).
+
+| Section | Verdict |
+|---------|---------|
+| every NLRI 96 bits (AFI 1) or 192 bits (AFI 2) | well-formed |
+| walkable, at least one NLRI of another length (13 octets, 24 under AFI 1, 12 under AFI 2) | treat-as-withdraw for the whole UPDATE (RFC 9830 Section 5); the malformed NLRIs are removed before synthesis, so the withdrawal carries only the well-formed ones, and an UPDATE of only malformed NLRIs is consumed with nothing relayed |
+| a length of 0, a length not a multiple of 8, an NLRI overrunning the attribute, or a path identifier cut short | session reset, NOTIFICATION 3/1 (RFC 9830 Section 5: Ze has no AFI/SAFI disable) |
+
+A treat-as-withdraw verdict on an UPDATE with no reachable NLRI is escalated to
+session reset by the RFC 7606 Section 5.2 check in `ValidateUpdateRFC7606AddPath`,
+including the MP_UNREACH_NLRI-only shape that Section 5.2 exempts; that
+pre-existing deviation is recorded in `plan/journal/gate-fires-outside-its-population.md`.
+
+<!-- source: internal/core/bgp/nlri/nlrisyntax/nlrisyntax.go -- Rule, Register, Get -->
+<!-- source: internal/component/bgp/message/rfc7606.go -- validateMPNLRISyntax, mpNLRIJudgementResult -->
+<!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- typedNLRIEdit -->
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/split.go -- SplitSRPolicy, judgeSRPolicySection, retainSRPolicySection -->
+
 ### ADD-PATH Decoding for Plugin Families (RFC 7911)
 
 A family with no dedicated in-process parser (mpls-vpn, evpn, flowspec, mup,

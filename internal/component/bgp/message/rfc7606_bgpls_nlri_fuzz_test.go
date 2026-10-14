@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
 )
 
 // FuzzRetainWellFormedNLRI drives the RFC 9552 Section 8.2.2 Link-State NLRI walk with
@@ -57,7 +58,7 @@ func FuzzRetainWellFormedNLRI(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, section []byte, addPath bool) {
 		for _, safi := range []attribute.SAFI{safiBGPLS, safiBGPLSVPN} {
-			kept, dropped, framed := RetainWellFormedNLRI(afiBGPLS, safi, section, addPath)
+			kept, dropped, framed := RetainWellFormedNLRI(safi, section, addPath)
 			if !framed {
 				if dropped != 0 {
 					t.Fatalf("an unwalkable section reported %d discards", dropped)
@@ -67,7 +68,7 @@ func FuzzRetainWellFormedNLRI(f *testing.F) {
 			if len(kept) > len(section) {
 				t.Fatalf("the walk kept %d octets of a %d octet section", len(kept), len(section))
 			}
-			again, droppedAgain, framedAgain := RetainWellFormedNLRI(afiBGPLS, safi, kept, addPath)
+			again, droppedAgain, framedAgain := RetainWellFormedNLRI(safi, kept, addPath)
 			if !framedAgain {
 				t.Fatalf("the survivors of a walkable section did not walk: %x", kept)
 			}
@@ -79,7 +80,7 @@ func FuzzRetainWellFormedNLRI(f *testing.F) {
 			}
 			// The framing walk judges the same octets, so it must agree that a section
 			// this one could walk is framed.
-			if result := validateBGPLSNLRISyntax(14, section, addPath); result != nil {
+			if judged := judgeBGPLSNLRISection(section, addPath); judged.Action != nlrisyntax.ActionWellFormed {
 				t.Fatalf("the framing walk called %x malformed where the discard walk did not", section)
 			}
 			_ = dropped

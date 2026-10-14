@@ -64,7 +64,9 @@ field is present even when its value is zero, as required for Ethernet A-D per
 ES. It is not a variable MPLS label stack. Received low bits are preserved;
 decoding does not require a bottom-of-stack bit. The session ingress validator
 rejects a Type 1 payload of any other length before RIB installation or
-propagation (RFC 7606 Sections 3 and 5.3).
+propagation (RFC 7606 Sections 3 and 5.3): EVPN registers the length check as its
+`nlrisyntax` Retain answer (`retainEVPNNLRI`), and `typedNLRIEdit` reaches it through
+that registry, so a wrong length resets the session.
 
 ### ExaBGP Offsets
 
@@ -74,7 +76,7 @@ propagation (RFC 7606 Sections 3 and 5.3).
 ```
 
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType1.WriteTo, EVPNType1.Len -->
-<!-- source: internal/component/bgp/message/evpn_nlri.go -- ValidEVPNNLRILengths -->
+<!-- source: internal/component/bgp/message/evpn_nlri.go -- validEVPNNLRILengths, retainEVPNNLRI -->
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- typedNLRIEdit -->
 
 ---

@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri.md -- SR-Policy NLRI plugin registration
 // RFC: rfc/short/rfc9830.md -- SAFI 73 (SR-Policy)
 // Related: types.go -- SRPolicy NLRI type
-// Related: split.go -- NLRI splitter
+// Related: split.go -- NLRI splitter and receive syntax rule
 
 package srpolicy
 
@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -24,6 +25,19 @@ var (
 func init() {
 	nlrisplit.Register(IPv4SRPolicy, SplitSRPolicy)
 	nlrisplit.Register(IPv6SRPolicy, SplitSRPolicy)
+
+	// RFC 9830 Section 5: the receive path judges every SAFI 73 NLRI section through
+	// this rule (message.validateMPNLRISyntax) and removes the malformed NLRIs
+	// (reactor.typedNLRIEdit). The NLRI Length is fixed per AFI (Section 2.1).
+	for _, one := range []struct {
+		fam      family.Family
+		nlriBits int
+	}{{IPv4SRPolicy, nlriBitsIPv4}, {IPv6SRPolicy, nlriBitsIPv6}} {
+		if err := nlrisyntax.Register(one.fam, srPolicySyntaxRule(one.nlriBits)); err != nil {
+			slog.Error("srpolicy: NLRI syntax rule registration failed", "family", one.fam, "error", err)
+			os.Exit(1)
+		}
+	}
 
 	reg := registry.Registration{
 		Name:                       "bgp-nlri-srpolicy",

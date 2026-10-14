@@ -228,7 +228,12 @@ and ATOMIC_AGGREGATE use attribute discard.
 An unrecognized well-known attribute still causes NOTIFICATION 3/2, with the
 complete attribute in its Data field. Invalid IPv4 NLRI or Withdrawn Routes
 syntax causes NOTIFICATION 3/10. Section-length overruns and duplicate MP
-attributes retain NOTIFICATION 3/1.
+attributes retain NOTIFICATION 3/1. NLRI carried in MP_REACH_NLRI or
+MP_UNREACH_NLRI is judged by the prefix walk for unicast and multicast and by a
+family's registered syntax rule otherwise (`nlri.md`, "NLRI Receive
+Validation"); its resets send 3/1, because RFC 4271 Section 6.3 assigns 3/10 to
+the legacy NLRI field only. An SR Policy NLRI of the wrong length for its AFI
+is treat-as-withdraw (RFC 9830 Section 5).
 
 <!-- source: internal/component/bgp/message/rfc7606.go -- ValidateUpdateRFC7606AddPath, validateNextHopAttr -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- rfc7606NLRISyntaxAction, rfc7606ResetNotification -->

@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- RFC 7606 UPDATE validation
 // RFC: rfc/short/rfc7606.md -- Section 5.4 typed NLRI; rfc/short/rfc9552.md -- Sections 5.2 and 8.2.2
 // Overview: session_validation.go -- enforceRFC7606, which applies this
-// Related: ../message/rfc7606_bgpls_nlri.go -- RetainWellFormedNLRI, the Section 8.2.2 walk
+// Related: ../../../core/bgp/nlri/nlrisyntax/nlrisyntax.go -- the per-family NLRI syntax rules
 //
 // RFC 7606 Section 5.4: "A BGP speaker advertising support for such a typed
 // address family MUST handle routes with unrecognized NLRI types within that
@@ -33,6 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -176,11 +177,12 @@ func (s *Session) applyTypedNLRIDiscard(
 // Section 8.2.2 names the same class for BGP-LS and prescribes the same verdict.
 // The caller applies it.
 //
-// Nothing upstream has already made this check for a typed family.
+// Nothing upstream has made this check for every typed family.
 // message.validateMPNLRISyntax runs the Section 5.3 walk only for IPv4 and IPv6
 // unicast and multicast, whose NLRI is a plain list of length-prefixed prefixes,
-// and for BGP-LS, whose own RFC states a walk. It returns nil for every other
-// typed family. Relaying the section unchanged on a framing error would therefore
+// and the registered Judge of a family whose own specification states a syntax
+// rule (nlrisyntax). It returns nil for every other typed family. Relaying the
+// section unchanged on a framing error would therefore
 // have handed a peer a one-byte way to bypass the Section 5.4 MUST: append one
 // truncated NLRI and the split fails, so no route in the attribute is judged.
 func (s *Session) typedNLRIEdit(
@@ -197,14 +199,15 @@ func (s *Session) typedNLRIEdit(
 	// One registry read, not two: the answer is carried into Retain rather than looked up
 	// again there. This is the gate every MP-bearing UPDATE passes, IPv6 unicast included.
 	recognize := nlritype.Get(fam)
-	// RFC 9552 Section 8.2.2 rules on the SYNTAX of an individual Link-State NLRI where
-	// Section 5.4 rules on the TYPE of an individual typed NLRI. Both prescribe discarding
-	// the NLRI and keeping the UPDATE, so one pass applies both and one rewrite carries
-	// them. A family with neither ruling leaves before the attribute is located.
-	afi := attribute.AFI(loc.AFI)
-	safi := attribute.SAFI(loc.SAFI)
-	isEVPN := fam.AFI == family.AFIL2VPN && fam.SAFI == family.SAFIEVPN
-	if recognize == nil && !isEVPN && !message.NLRISyntaxRuled(afi, safi) {
+	// A family's registered syntax rule (nlrisyntax) rules on the SYNTAX of an individual
+	// NLRI where Section 5.4 rules on its TYPE. Both remove the NLRI and keep the UPDATE,
+	// so one pass applies both and one rewrite carries them. A family with neither ruling
+	// leaves before the attribute is located.
+	syntax, syntaxRuled := nlrisyntax.Get(fam)
+	if syntax.Retain == nil {
+		syntaxRuled = false
+	}
+	if recognize == nil && !syntaxRuled {
 		return edits, true
 	}
 
@@ -226,11 +229,6 @@ func (s *Session) typedNLRIEdit(
 			"peer", s.settings.Address, "family", fam, "attr", code, "error", err)
 		return edits, false
 	}
-	if isEVPN && !message.ValidEVPNNLRILengths(kept, addPath) {
-		sessionLogger().Warn("RFC 7606 Section 5.3: Ethernet A-D NLRI has an invalid length",
-			"peer", s.settings.Address, "family", fam, "attr", code)
-		return edits, false
-	}
 	if dropped > 0 {
 		// RFC 7606 Section 6: name what was dropped, so an operator can trace a route
 		// that stopped arriving back to the type ze does not implement.
@@ -249,26 +247,29 @@ func (s *Session) typedNLRIEdit(
 			"peer", s.settings.Address, "family", fam, "attr", code, "discarded", dropped)
 	}
 
-	// RFC 9552 Section 8.2.2: "A BGP-LS Speaker MUST perform the following syntactic
-	// validation of the Link-State NLRI to determine if it is malformed", and a malformed
-	// NLRI it can skip past "MUST" be handled "as 'NLRI discard'". Runs on the survivors of
-	// the Section 5.4 filter, so the two rulings compose in one direction only.
+	// The family's registered syntax rule runs on the survivors of the Section 5.4 filter,
+	// so the two rulings compose in one direction only. RFC 9552 Section 8.2.2 (BGP-LS) and
+	// RFC 9830 Section 5 (SR Policy) remove a malformed NLRI the walk can skip past; RFC 7432
+	// Section 7.1 (EVPN) removes none and reports a wrong Ethernet A-D length unwalkable.
 	//
 	// A framing failure here means the same thing it means above, and takes the same route:
-	// the boundaries between NLRIs are unknowable, so no discard decision is possible.
-	// Section 8.2.2 calls that the non-skipable class and prescribes a session reset for it,
-	// which is the verdict the caller reaches on a false return.
-	kept, malformed, framed := message.RetainWellFormedNLRI(afi, safi, kept, addPath)
-	if !framed {
-		sessionLogger().Warn("RFC 9552 Section 8.2.2: Link-State NLRI lengths do not sum to the MP attribute length",
-			"peer", s.settings.Address, "family", fam, "attr", code)
-		return edits, false
+	// the boundaries between NLRIs are unknowable, so no removal decision is possible, and
+	// the caller reaches the session reset on a false return.
+	malformed := 0
+	if syntaxRuled {
+		var framed bool
+		kept, malformed, framed = syntax.Retain(kept, addPath)
+		if !framed {
+			sessionLogger().Warn("NLRI syntax rule: the MP NLRI section cannot be walked",
+				"peer", s.settings.Address, "family", fam, "attr", code, "rule", syntax.Citation)
+			return edits, false
+		}
 	}
 	if malformed > 0 {
 		// RFC 9552 Section 8.2.2: "An implementation SHOULD log a message for any errors
 		// found during syntax validation for further analysis." Debug for the reason the
-		// Section 5.4 line below gives: a peer decides how often it fires.
-		sessionLogger().Debug("RFC 9552 Section 8.2.2: discarded malformed Link-State NLRIs",
+		// Section 5.4 line above gives: a peer decides how often it fires.
+		sessionLogger().Debug(syntax.RemovedMessage,
 			"peer", s.settings.Address, "family", fam, "attr", code, "discarded", malformed)
 	}
 

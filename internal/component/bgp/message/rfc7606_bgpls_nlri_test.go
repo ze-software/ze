@@ -282,7 +282,7 @@ func TestRetainWellFormedNLRIBoundaries(t *testing.T) {
 
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			kept, dropped, framed := RetainWellFormedNLRI(afiBGPLS, one.safi, one.section, false)
+			kept, dropped, framed := RetainWellFormedNLRI(one.safi, one.section, false)
 			assert.Equal(t, one.framed, framed)
 			if !framed {
 				assert.Equal(t, one.section, kept, "an unwalkable section is returned unchanged")
@@ -295,20 +295,6 @@ func TestRetainWellFormedNLRIBoundaries(t *testing.T) {
 	}
 }
 
-// VALIDATES: nothing is dropped, and no copy is made, for a family whose specification
-// prescribes no per-NLRI syntactic discard, even when its bytes would fail the BGP-LS walk.
-// PREVENTS: the walk reaching a family whose NLRI is not a Link-State NLRI at all, where
-// every judgment it made would be nonsense read off the wrong layout.
-func TestRetainWellFormedNLRILeavesOtherFamiliesAlone(t *testing.T) {
-	section := []byte{0x00, 0x01, 0x00, 0xff, 0xaa} // malformed as a Link-State NLRI
-
-	kept, dropped, framed := RetainWellFormedNLRI(attribute.AFIIPv4, attribute.SAFIUnicast, section, false)
-	require.True(t, framed)
-	assert.Equal(t, 0, dropped)
-	require.NotEmpty(t, kept)
-	assert.Same(t, &section[0], &kept[0], "an unruled family must not be copied")
-}
-
 // VALIDATES: a conforming BGP-LS UPDATE costs no allocation in the walk, because the input
 // section is returned rather than rebuilt.
 // PREVENTS: an allocation for every BGP-LS UPDATE ze relays, which is the cost this walk was
@@ -316,7 +302,7 @@ func TestRetainWellFormedNLRILeavesOtherFamiliesAlone(t *testing.T) {
 func TestRetainWellFormedNLRIIsZeroCopyWhenNothingIsDropped(t *testing.T) {
 	section := bytesOf(lsWellFormedNode(), lsWellFormedNode())
 
-	kept, dropped, framed := RetainWellFormedNLRI(afiBGPLS, safiBGPLS, section, false)
+	kept, dropped, framed := RetainWellFormedNLRI(safiBGPLS, section, false)
 	require.True(t, framed)
 	require.Equal(t, 0, dropped)
 	require.NotEmpty(t, kept)
@@ -332,12 +318,12 @@ func TestRetainWellFormedNLRISkipsThePathIdentifier(t *testing.T) {
 	keep := bytesOf(pathID, lsWellFormedNode())
 	drop := bytesOf(pathID, lsNLRIOf(1, lsNodeBodyOf(0x01, 0x00)...))
 
-	kept, dropped, framed := RetainWellFormedNLRI(afiBGPLS, safiBGPLS, bytesOf(keep, drop), true)
+	kept, dropped, framed := RetainWellFormedNLRI(safiBGPLS, bytesOf(keep, drop), true)
 	require.True(t, framed)
 	assert.Equal(t, 1, dropped)
 	assert.Equal(t, keep, kept, "the surviving NLRI keeps the path identifier that names it")
 
-	_, _, framed = RetainWellFormedNLRI(afiBGPLS, safiBGPLS, pathID[:3], true)
+	_, _, framed = RetainWellFormedNLRI(safiBGPLS, pathID[:3], true)
 	assert.False(t, framed, "a section too short for the path identifier cannot be walked")
 }
 

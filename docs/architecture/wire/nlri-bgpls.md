@@ -552,19 +552,21 @@ half. Section 8.2.2 lists seven syntactic checks and assigns each malformedness 
 of two actions, so the walk has two entry points in
 `internal/component/bgp/message/rfc7606_bgpls_nlri.go`.
 
-`validateBGPLSNLRISyntax` reads the NLRI headers alone. An NLRI whose Total NLRI Length
+`judgeBGPLSNLRISection` reads the NLRI headers alone. An NLRI whose Total NLRI Length
 runs past the MP attribute, or a tail too short to hold another header, means the NLRI
 lengths do not sum to the attribute length and no boundary after it can be located.
 Section 8.2.2 calls that class non-skipable and prescribes 'AFI/SAFI disable' or, when
 that is not implemented, a session reset. Ze implements no AFI/SAFI disable, so the
-session resets. `validateMPNLRISyntax` (`rfc7606.go`) routes AFI 16388 here.
+session resets. Both functions are BGP-LS's registered `nlrisyntax` rule
+(`register_nlrisyntax.go`, see "NLRI Receive Validation" in `nlri.md`), so
+`validateMPNLRISyntax` (`rfc7606.go`) reaches this one through the registry by family.
 
 `RetainWellFormedNLRI` judges each NLRI inside its own boundaries and removes the ones
 Section 8.2.2 calls malformed in a way that lets a router "skip the malformed NLRI(s) and
 continue the processing of the rest of the BGP UPDATE message": a TLV or Node Descriptor
 sub-TLV length that overruns its container, TLV types that do not ascend as Section 5.1
 requires, and a Node Descriptor repeating one sub-TLV type as Section 5.2.1.4 forbids.
-The action is 'NLRI discard', which `typedNLRIEdit`
+The action is 'NLRI discard', which `typedNLRIEdit`, reading the rule's `Retain` answer from the registry,
 (`internal/component/bgp/reactor/session_validation_nlritype.go`) applies with the same
 rewrite it uses for the RFC 7606 Section 5.4 type discard.
 

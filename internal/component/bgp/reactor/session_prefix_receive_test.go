@@ -149,12 +149,18 @@ func TestReceivePrefixLimitSemanticRollback(t *testing.T) {
 
 // TestReceivePrefixLimitShortAddPathEntry rejects an incomplete Path Identifier
 // at the generic inventory boundary without trusting a registered splitter to
-// have checked it. The SR-Policy splitter currently visits 0800 as a two-octet
-// entry even with ADD-PATH enabled; this test does not claim SR-Policy support.
+// have checked it. The receive path no longer lets these bytes reach the
+// inventory: the RFC 9830 Section 5 rule resets the session over an SR Policy
+// path identifier cut short (TestRFC9830NLRILengthReceiveVerdicts). So the
+// inventory walk is called directly on the same UPDATE, which is the boundary
+// this test guards.
 func TestReceivePrefixLimitShortAddPathEntry(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFISRPolicy}
 	s := prefixReceiveSession(t, fam, PrefixCountInstalled, 1, true)
-	prefixReceive(t, s, prefixReceiveBody(fam, nil, []byte{8, 0}), true)
+	update := wireu.NewWireUpdate(prefixReceiveBody(fam, nil, []byte{8, 0}), s.recvCtxID)
+	if notif, _ := s.checkPrefixLimits(update); notif != nil {
+		t.Fatal("an incomplete ADD-PATH withdrawal triggered teardown")
+	}
 	prefixReceiveCount(t, s, fam, 0)
 	if len(s.prefixCounts.sets[familyKey(fam)]) != 0 {
 		t.Fatal("incomplete ADD-PATH entry entered the installed inventory")

@@ -9,6 +9,8 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -965,16 +967,13 @@ func validateMPNLRIField(code uint8, attrData []byte, addPathFor func(afi uint16
 // "last NLRI overruns the attribute" condition. Nothing here may assume it ran first: the
 // Section 5.4 pass runs after this one.
 //
-// BGP-LS is the one family with its own syntactic walk, because RFC 9552 Section 8.2.2
-// states one for it: "A BGP-LS Speaker MUST perform the following syntactic validation of
-// the Link-State NLRI to determine if it is malformed." Its NLRI is neither a plain prefix
-// list nor a typed family with a Section 5.4 recognizer, so neither route above reaches it.
-// validateBGPLSNLRISyntax answers only the part of Section 8.2.2 that a session reset is
-// the prescribed action for; the skipable part is RetainWellFormedNLRI, at the same pass
-// reactor.typedNLRIEdit runs.
+// A typed family whose own specification states a syntax rule for its NLRI registers it in
+// the nlrisyntax registry, and its Judge answers here: RFC 9552 Section 8.2.2 for BGP-LS, RFC
+// 9830 Section 5 for SR Policy. Its per-NLRI Retain answer runs at the same pass
+// reactor.typedNLRIEdit runs. This function names no family; it maps the Judge's verdict.
 func validateMPNLRISyntax(code uint8, afi attribute.AFI, safi attribute.SAFI, nlri []byte, addPath bool) *RFC7606ValidationResult {
-	if NLRISyntaxRuled(afi, safi) {
-		return validateBGPLSNLRISyntax(code, nlri, addPath)
+	if rule, ruled := nlrisyntax.Get(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}); ruled && rule.Judge != nil {
+		return mpNLRIJudgementResult(code, rule.Judge(nlri, addPath))
 	}
 	if (afi != attribute.AFIIPv4 && afi != attribute.AFIIPv6) ||
 		(safi != attribute.SAFIUnicast && safi != attribute.SAFIMulticast) {
@@ -985,6 +984,29 @@ func validateMPNLRISyntax(code uint8, afi attribute.AFI, safi attribute.SAFI, nl
 		return r
 	}
 	return nil
+}
+
+// mpNLRIJudgementResult maps a registered family rule's verdict on an MP NLRI section to the
+// RFC 7606 result. None of them sets Notification: an MP NLRI reset is attribute-level, so the
+// session sends it as UPDATE Message Error / Malformed Attribute List like every other MP NLRI
+// reset (RFC 4271 Section 6.3 assigns Invalid Network Field to the legacy NLRI field only).
+func mpNLRIJudgementResult(code uint8, judged nlrisyntax.Judgement) *RFC7606ValidationResult {
+	switch judged.Action {
+	case nlrisyntax.ActionWellFormed:
+		return nil
+	case nlrisyntax.ActionTreatAsWithdraw:
+		return &RFC7606ValidationResult{Action: RFC7606ActionTreatAsWithdraw, AttrCode: code, Description: judged.Reason}
+	case nlrisyntax.ActionSessionReset:
+		return &RFC7606ValidationResult{Action: RFC7606ActionSessionReset, AttrCode: code, Description: judged.Reason}
+	case nlrisyntax.ActionUnspecified:
+	}
+	// A rule that answered no verdict is a Ze defect. Nothing it judged can be trusted, so the
+	// section is handled as unwalkable rather than passed as well-formed.
+	return &RFC7606ValidationResult{
+		Action:      RFC7606ActionSessionReset,
+		AttrCode:    code,
+		Description: "NLRI syntax rule answered no verdict",
+	}
 }
 
 // AS_PATH segment type constants (RFC 4271 Section 4.3).

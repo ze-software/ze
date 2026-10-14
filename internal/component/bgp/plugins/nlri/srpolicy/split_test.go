@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -106,14 +107,14 @@ func TestSRPolicyWalkAllocatesNothing(t *testing.T) {
 	assert.Zero(t, allocs, "the count pass must allocate nothing")
 }
 
-// TestSRPolicyWalkStopsBeforeMalformedTail checks both native endpoint widths.
-// ADD-PATH remains ignored: neither flag value changes the first boundary.
+// TestSRPolicyWalkStopsBeforeMalformedTail checks both native endpoint widths, with and
+// without ADD-PATH. Under ADD-PATH every entry carries its 4-octet path identifier, and the
+// visited entry starts with it.
 func TestSRPolicyWalkStopsBeforeMalformedTail(t *testing.T) {
 	for _, bodyBytes := range []int{12, 24} {
-		first := make([]byte, 1+bodyBytes)
-		first[0] = byte(bodyBytes * 8)
-		data := append(append([]byte(nil), first...), first[:len(first)-1]...)
 		for _, addPath := range []bool{false, true} {
+			first := srPolicyEntry(bodyBytes*8, bodyBytes, addPath)
+			data := append(append([]byte(nil), first...), first[:len(first)-1]...)
 			for _, keepWalking := range []bool{false, true} {
 				visited := 0
 				count, err := SplitSRPolicy(data, addPath, func(entry []byte) bool {
@@ -144,5 +145,116 @@ func TestSRPolicyWalkStopsBeforeMalformedTail(t *testing.T) {
 				t.Errorf("body=%d ADD-PATH=%v nil visitor accepted malformed tail", bodyBytes, addPath)
 			}
 		}
+	}
+}
+
+// srPolicyEntry builds one NLRI section entry: an optional path identifier, a length octet
+// of lenBits, and bodyBytes octets of body.
+func srPolicyEntry(lenBits, bodyBytes int, addPath bool) []byte {
+	var out []byte
+	if addPath {
+		out = append(out, 0x00, 0x00, 0x00, 0x07)
+	}
+	out = append(out, byte(lenBits))
+	for i := range bodyBytes {
+		out = append(out, byte(0xA0+i))
+	}
+	return out
+}
+
+// VALIDATES: the registered RFC 9830 Section 5 rule per AFI. A walkable section whose NLRIs
+// all carry the AFI's one length is well-formed; one NLRI of another length makes it
+// treat-as-withdraw; a section that cannot be walked is session reset. ADD-PATH gives the
+// same verdicts behind a path identifier, and a cut-short path identifier is unwalkable. The
+// retain answer keeps exactly the well-formed NLRIs, and SplitSRPolicy frames one entry per
+// path identifier plus NLRI.
+// PREVENTS: a 13-octet NLRI entering the RIB or a relay, a 24-octet NLRI accepted under AFI
+// 1, and every NLRI from an ADD-PATH peer misjudged because the path identifier is read as
+// the length octet (spec AC-3, AC-6, AC-8).
+func TestSRPolicySyntaxRuleVerdicts(t *testing.T) {
+	type verdictCase struct {
+		name     string
+		nlriBits int
+		section  func(addPath bool) []byte
+		want     nlrisyntax.Action
+		kept     int // NLRIs the retain answer keeps, when walkable
+	}
+	cat := func(parts ...[]byte) []byte { return bytes.Join(parts, nil) }
+	e := srPolicyEntry
+	cases := []verdictCase{
+		{"AFI 1 12 octets", nlriBitsIPv4, func(ap bool) []byte { return e(96, 12, ap) }, nlrisyntax.ActionWellFormed, 1},
+		{"AFI 2 24 octets", nlriBitsIPv6, func(ap bool) []byte { return e(192, 24, ap) }, nlrisyntax.ActionWellFormed, 1},
+		{"AFI 1 two back to back", nlriBitsIPv4, func(ap bool) []byte { return cat(e(96, 12, ap), e(96, 12, ap)) }, nlrisyntax.ActionWellFormed, 2},
+		{"AFI 1 13 octets", nlriBitsIPv4, func(ap bool) []byte { return e(104, 13, ap) }, nlrisyntax.ActionTreatAsWithdraw, 0},
+		{"AFI 1 24 octets", nlriBitsIPv4, func(ap bool) []byte { return e(192, 24, ap) }, nlrisyntax.ActionTreatAsWithdraw, 0},
+		{"AFI 2 12 octets", nlriBitsIPv6, func(ap bool) []byte { return e(96, 12, ap) }, nlrisyntax.ActionTreatAsWithdraw, 0},
+		{"AFI 2 25 octets", nlriBitsIPv6, func(ap bool) []byte { return e(200, 25, ap) }, nlrisyntax.ActionTreatAsWithdraw, 0},
+		{"AFI 1 12 beside 13", nlriBitsIPv4, func(ap bool) []byte { return cat(e(96, 12, ap), e(104, 13, ap)) }, nlrisyntax.ActionTreatAsWithdraw, 1},
+		{"zero length", nlriBitsIPv4, func(ap bool) []byte { return e(0, 0, ap) }, nlrisyntax.ActionSessionReset, 0},
+		{"100 bits", nlriBitsIPv4, func(ap bool) []byte { return e(100, 12, ap) }, nlrisyntax.ActionSessionReset, 0},
+		{"overrun", nlriBitsIPv4, func(ap bool) []byte { return e(96, 11, ap) }, nlrisyntax.ActionSessionReset, 0},
+		{"13 then unwalkable tail", nlriBitsIPv4, func(ap bool) []byte { return cat(e(104, 13, ap), e(96, 3, ap)) }, nlrisyntax.ActionSessionReset, 0},
+	}
+	for _, addPath := range []bool{false, true} {
+		for _, c := range cases {
+			section := c.section(addPath)
+			rule := srPolicySyntaxRule(c.nlriBits)
+			judged := rule.Judge(section, addPath)
+			if judged.Action != c.want {
+				t.Errorf("%s ADD-PATH=%v: Judge = %v (%q), want %v", c.name, addPath, judged.Action, judged.Reason, c.want)
+			}
+			if c.want != nlrisyntax.ActionWellFormed && judged.Reason == "" {
+				t.Errorf("%s ADD-PATH=%v: verdict carries no reason", c.name, addPath)
+			}
+			kept, dropped, framed := rule.Retain(section, addPath)
+			if framed != (c.want != nlrisyntax.ActionSessionReset) {
+				t.Errorf("%s ADD-PATH=%v: Retain framed = %v", c.name, addPath, framed)
+				continue
+			}
+			if !framed {
+				continue
+			}
+			got, err := SplitSRPolicy(kept, addPath, nil)
+			if err != nil || got != c.kept {
+				t.Errorf("%s ADD-PATH=%v: Retain kept %d NLRIs (%v), want %d", c.name, addPath, got, err, c.kept)
+			}
+			total, _ := SplitSRPolicy(section, addPath, nil)
+			if dropped != total-c.kept {
+				t.Errorf("%s ADD-PATH=%v: Retain dropped %d, want %d", c.name, addPath, dropped, total-c.kept)
+			}
+			if dropped == 0 && len(section) > 0 && &kept[0] != &section[0] {
+				t.Errorf("%s ADD-PATH=%v: a section with nothing removed was copied", c.name, addPath)
+			}
+		}
+	}
+
+	// A path identifier cut short is unwalkable under ADD-PATH; the same three octets
+	// without ADD-PATH are a framed length octet the walk then judges.
+	short := []byte{0x00, 0x00, 0x00}
+	if got := srPolicySyntaxRule(nlriBitsIPv4).Judge(short, true).Action; got != nlrisyntax.ActionSessionReset {
+		t.Errorf("cut-short path identifier: Judge = %v, want session reset", got)
+	}
+	if _, err := SplitSRPolicy(short, true, nil); err == nil {
+		t.Error("cut-short path identifier: SplitSRPolicy accepted it")
+	}
+
+	// SplitSRPolicy frames one entry per path identifier plus NLRI under ADD-PATH.
+	two := cat(e(96, 12, true), e(96, 12, true))
+	var entries [][]byte
+	count, err := SplitSRPolicy(two, true, func(entry []byte) bool {
+		entries = append(entries, entry)
+		return true
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+	for _, entry := range entries {
+		assert.Equal(t, e(96, 12, true), entry)
+	}
+
+	// Both families are registered with their AFI's length.
+	for fam, bits := range map[family.Family]int{srPolicyV4: nlriBitsIPv4, srPolicyV6: nlriBitsIPv6} {
+		rule, ok := nlrisyntax.Get(fam)
+		require.True(t, ok, "%s: no syntax rule registered", fam)
+		assert.Equal(t, nlrisyntax.ActionWellFormed, rule.Judge(e(bits, bits/8, false), false).Action, "%s", fam)
 	}
 }
