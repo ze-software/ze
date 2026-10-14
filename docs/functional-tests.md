@@ -3120,9 +3120,10 @@ split-terminal debugging.
 <!-- source: internal/test/cli/cmd_exabgp.go -- waitExaBGPPort and split debug modes -->
 
 The RFC2545 pair `conf-llnh-update` / `conf-llnh-lla-only` needs explicit
-loopback provisioning: `fd00::2/128`, `fd00::3/127`, and `fe80::1/128` on the
-same interface. `./le setup install` and the verify workflow provision it;
-`./le setup check` checks ownership, exact prefixes, and bindability. See
+loopback provisioning: `fd00::2/128`, `fd00::3/127`, and `fe80::1` (any
+prefix length; macOS carries it as `/64` from boot) on the same interface.
+`./le setup install` and the verify workflow provision it; `./le setup check`
+checks ownership, the exact unique-local prefixes, and bindability. See
 [developer setup](guide/developer-setup.md#linux) for the privileged commands.
 The connected `fd00::2/127` contains the speaker/next-hop owner `fd00::2`
 and peer `fd00::3`; the owned `fe80::1` is the second address in the positive's

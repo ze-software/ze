@@ -973,6 +973,67 @@ func TestLoopbackRequiresJointPrefixAndOwnedLinkLocal(t *testing.T) {
 	}
 }
 
+// The link-local next hop is ready at whatever prefix the host owns it, while
+// the unique-local pair keeps its exact prefixes. macOS assigns fe80::1/64 to
+// lo0 at boot, and an alias at /128 does not replace it, so an exact /128 test
+// left `./le setup install` pending forever there. The method is a fake
+// loopback interface per platform: fe80::1/64 must read ready, an absent
+// fe80::1 must read missing and be added with the platform's command, and
+// fd00::3 at /128 must still read missing.
+func TestLoopbackLinkLocalReadyAtAnyPrefix(t *testing.T) {
+	boot := []netip.Prefix{
+		netip.MustParsePrefix("fd00::2/128"),
+		netip.MustParsePrefix("fd00::3/127"),
+		netip.MustParsePrefix("fe80::1/64"),
+	}
+	for _, platform := range []struct {
+		goos    string
+		addLink string
+	}{
+		{"linux", "ip -6 addr add fe80::1/128 dev lo"},
+		{"darwin", "ifconfig lo0 inet6 fe80::1/128 alias"},
+	} {
+		t.Run(platform.goos, func(t *testing.T) {
+			owned := &Setup{
+				GOOS:             platform.goos,
+				Bindable:         func(string) bool { return true },
+				LoopbackPrefixes: func() ([]netip.Prefix, error) { return boot, nil },
+			}
+			if owned.missingLoopback() != nil {
+				t.Errorf("fe80::1/64 owned and bindable reads missing %v", owned.missingLoopback())
+			}
+
+			rec := rootShell()
+			rec.euid = 0
+			absent := &Setup{
+				GOOS:             platform.goos,
+				Shell:            rec.shell(),
+				Bindable:         func(string) bool { return true },
+				LoopbackPrefixes: func() ([]netip.Prefix, error) { return boot[:2], nil },
+			}
+			missing := absent.missingLoopback()
+			if !slices.Equal(missing, []string{loopbackLinkLocalIPv6}) {
+				t.Fatalf("fe80::1 absent: missing %v", missing)
+			}
+			absent.applyLoopback(&Report{}, missing)
+			if !slices.Equal(rec.ran(), []string{platform.addLink}) {
+				t.Errorf("it ran %v, want %q", rec.ran(), platform.addLink)
+			}
+
+			hostRoute := &Setup{
+				GOOS:     platform.goos,
+				Bindable: func(string) bool { return true },
+				LoopbackPrefixes: func() ([]netip.Prefix, error) {
+					return []netip.Prefix{boot[0], netip.MustParsePrefix("fd00::3/128"), boot[2]}, nil
+				},
+			}
+			if !slices.Equal(hostRoute.missingLoopback(), []string{loopbackPeerIPv6}) {
+				t.Errorf("fd00::3/128 reads missing %v, want only fd00::3", hostRoute.missingLoopback())
+			}
+		})
+	}
+}
+
 // A functional run refuses to start on a host that lacks an address the suites
 // bind, and starts on a host that carries them all. The method is a fake
 // loopback interface: it serves the readiness probe a chosen prefix set, then

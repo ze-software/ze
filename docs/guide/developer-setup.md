@@ -326,16 +326,18 @@ NEXT_HOP, so a session whose two ends share one address has every originated
 route withheld. IPv4 spends 127.0.0.0/8, which Linux already routes to `lo` and
 macOS does not, so setup adds 127.0.0.2 through 127.0.0.5 there. IPv6 gives a
 host exactly `::1` on every platform. Setup adds `fd00::2/128` for the speaker
-and next-hop owner, `fd00::3/127` for the recipient, and `fe80::1/128` as the
-next-hop owner's link-local. The one connected prefix `fd00::2/127` contains
-exactly the two unique-local addresses. This makes the RFC2545 compatibility
+and next-hop owner, `fd00::3/127` for the recipient, and `fe80::1` as the
+next-hop owner's link-local. macOS already carries `fe80::1/64` on `lo0` from
+boot, so setup adds `fe80::1/128` only where it is absent, normally on Linux.
+The one connected prefix `fd00::2/127` contains exactly the two unique-local
+addresses. This makes the RFC2545 compatibility
 fixture's common-subnet condition real without routing all of `fd00::/64`
 locally. Setup checks this as `loopback-addresses` and, in install mode, runs:
 
 ```bash
 sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
 sudo ifconfig lo0 inet6 fd00::3/127 alias
-sudo ifconfig lo0 inet6 fe80::1/128 alias
+sudo ifconfig lo0 inet6 fe80::1/128 alias      # only if lo0 lacks fe80::1
 sudo ip -6 addr add fd00::2/128 dev lo         # Linux
 sudo ip -6 addr add fd00::3/127 dev lo
 sudo ip -6 addr add fe80::1/128 dev lo
@@ -344,9 +346,11 @@ sudo ip -6 addr add fe80::1/128 dev lo
 <!-- source: internal/le/setup/actions.go -- Answer -->
 
 Presence requires a successful socket bind. IPv6 additionally requires the
-exact address and prefix on `lo` (`lo0` on macOS); an address elsewhere, or
-`fd00::3/128`, does not establish this fixture's common subnet. The link-local
-bind probe includes the interface zone. An unreadable interface fails the
+address on `lo` (`lo0` on macOS), and the unique-local pair at its exact
+prefix; an address elsewhere, or `fd00::3/128`, does not establish this
+fixture's common subnet. `fe80::1` is ready at any prefix length, because the
+fixtures use it only as a next hop and bind address, and its bind probe
+includes the interface zone. An unreadable interface fails the
 ownership check closed. Setup never silently removes an existing address with
 a different prefix: resolve a conflicting assignment explicitly if the add
 command fails.

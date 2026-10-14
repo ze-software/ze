@@ -270,8 +270,11 @@ func (s *Setup) applyKvm(report *Report) bool {
 //
 // IPv6 needs explicit loopback addresses. fd00::2/128 is the speaker and next-hop
 // owner; fd00::3/127 supplies the recipient and their one common fd00::2/127
-// subnet for RFC 2545. fe80::1/128 belongs to that same interface and owner.
-// The /127 connects exactly those two unique-local addresses, not all of fd00::/64.
+// subnet for RFC 2545. fe80::1 belongs to that same interface and owner, as the
+// link-local next hop and bind address; its prefix length is immaterial to the
+// fixtures, and macOS assigns fe80::1/64 to lo0 at boot. Setup adds it as /128
+// where it is absent (Linux). The /127 connects exactly those two unique-local
+// addresses, not all of fd00::/64.
 //
 // This configuration belongs to setup because the runner cannot create it.
 // SIOCAIFADDR_IN6 returns EPERM to an unprivileged process on darwin. The Linux
@@ -343,27 +346,49 @@ func (s *Setup) loopbackPrefixes() ([]netip.Prefix, error) {
 	return prefixes, nil
 }
 
-// loopbackReady checks IPv6 ownership and the exact prefix as well as bindability.
-// A bind alone accepts a peer /128, which cannot prove the joint-subnet fixture.
+// loopbackReady checks IPv6 ownership as well as bindability.
+//
+// A unique-local address must sit at its exact prefix: a bind alone accepts a
+// peer /128, which cannot prove the joint-subnet fixture. A link-local address
+// is ready at any prefix length, because the fixtures use fe80::1 only as a
+// next hop and bind address, and macOS owns it as fe80::1/64 from boot. Holding
+// it to /128 left `./le setup install` pending forever on macOS (an alias does
+// not replace the boot /64) and would make `ip -6 addr add` fail with EEXIST on
+// a Linux lo that already holds it at another length.
 func (s *Setup) loopbackReady(addr string, prefixes []netip.Prefix) bool {
 	ip, err := netip.ParseAddr(addr)
 	if err != nil {
 		return false
 	}
-	if ip.Is6() {
-		bits := 128
-		if addr == loopbackPeerIPv6 {
-			bits = 127
-		}
-		if !slices.Contains(prefixes, netip.PrefixFrom(ip, bits)) {
+	if !ip.Is6() {
+		return s.loopbackBindable(addr)
+	}
+	if ip.IsLinkLocalUnicast() {
+		if !loopbackOwns(prefixes, ip) {
 			return false
 		}
-		if ip.IsLinkLocalUnicast() {
-			var tb textbuf.Buffer
-			return s.loopbackBindable(tb.Str(addr).Byte('%').Str(s.loopbackInterface()).String())
-		}
+		var tb textbuf.Buffer
+		return s.loopbackBindable(tb.Str(addr).Byte('%').Str(s.loopbackInterface()).String())
+	}
+	bits := 128
+	if addr == loopbackPeerIPv6 {
+		bits = 127
+	}
+	if !slices.Contains(prefixes, netip.PrefixFrom(ip, bits)) {
+		return false
 	}
 	return s.loopbackBindable(addr)
+}
+
+// loopbackOwns reports whether the loopback interface carries ip at any prefix
+// length.
+func loopbackOwns(prefixes []netip.Prefix, ip netip.Addr) bool {
+	for _, prefix := range prefixes {
+		if prefix.Addr() == ip {
+			return true
+		}
+	}
+	return false
 }
 
 // loopbackBindable reports whether a socket can bind addr now.
