@@ -345,6 +345,18 @@
       "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9252-3.4-1",
+      "polarity": "negative",
+      "unit": "test/plugin/prefixsid-malformed-receive.ci",
+      "unit-sha": "7425830268a64109",
+      "claim-sha": "13b4c9a2a491f662",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDValue",
+      "producer-sha": "65bfdeb7db074a4d",
+      "break": "body of validatePrefixSIDValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=2:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002C0200000015800F1200018070007D010000FDE9000000010A0002"
+    },
+    {
       "rid": "RFC9252-5-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestIsSRv6Ineligible_InvalidSIDStructure",
