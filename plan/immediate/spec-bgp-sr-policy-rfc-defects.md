@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | 5/6 |
 | Handoff | - |
 | Updated | 2026-10-14 |
 

@@ -140,7 +140,12 @@ permit them; this is not a global reachability or address-ownership test.
 Actual SR Policy carriers (AFI 1 or 2, SAFI 73) require exactly one type-15 TLV
 and ignore endpoint, color, UDP, and protocol sub-TLVs under RFC 9830 Sections
 2.2 and 2.3. IPv4 unicast with tunnel type 15 is not an SR Policy carrier.
-This validation does not provide SRPM/headend support, a tunnel dataplane
+A SAFI 73 MP_REACH_NLRI that carries NLRI in an UPDATE with no attribute 23 is
+treat-as-withdraw under RFC 9830 Section 4.2.1 ("The Tunnel Encapsulation
+Attribute MUST be attached to the BGP UPDATE message") and Section 5; an
+MP_REACH with no NLRI, or an MP_UNREACH-only withdrawal, needs no attribute 23.
+`applyTunnelEncap` makes this check before it returns for an UPDATE without
+the attribute. This validation does not provide SRPM/headend support, a tunnel dataplane
 consumer, or the optional origin-AS ownership procedure. AFI zero still means
 the next hop without classifying it here; unknown endpoint AFIs remain opaque.
 

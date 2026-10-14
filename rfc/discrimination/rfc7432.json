@@ -261,9 +261,9 @@
       "unit-sha": "3dfe4d65113cf7d2",
       "claim-sha": "90b5c3c6a07ecc6c",
       "route": "revert",
-      "producer": "internal/component/bgp/message/evpn_nlri.go::ValidEVPNNLRILengths",
-      "producer-sha": "00f628cb2c28941a",
-      "break": "body of ValidEVPNNLRILengths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/message/evpn_nlri.go::validEVPNNLRILengths",
+      "producer-sha": "89ead968a579e010",
+      "break": "body of validEVPNNLRILengths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7432-8.3-2",

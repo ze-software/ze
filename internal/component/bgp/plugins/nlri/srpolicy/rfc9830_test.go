@@ -141,7 +141,7 @@ func TestRFC9830NLRICarriesAllThreeFields(t *testing.T) {
 	parsed, err := Parse(family.AFIIPv4, wire[1:])
 	require.NoError(t, err)
 
-	// RFC requirement: RFC9830-4.2.1-2 positive -- the NLRI includes a Distinguisher, a Color and an Endpoint, each read back from its mandated offset in the 12-octet body
+	// Encoder and Parse guard (the receive rule RFC9830-4.2.1-2 is proven by the reactor receive test): the NLRI includes a Distinguisher, a Color and an Endpoint, each read back from its mandated offset in the 12-octet body
 	assert.Equal(t, uint32(7), parsed.Distinguisher())
 	assert.Equal(t, uint32(100), parsed.Color())
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), parsed.Endpoint())
@@ -149,7 +149,7 @@ func TestRFC9830NLRICarriesAllThreeFields(t *testing.T) {
 	assert.Equal(t, []byte{0, 0, 0, 100}, wire[5:9], "color at octets 4..7")
 	assert.Equal(t, []byte{10, 0, 0, 1}, wire[9:13], "endpoint at octets 8..11")
 
-	// RFC requirement: RFC9830-4.2.1-2 negative -- an NLRI that would be missing one of the three is refused rather than formed or read partially: a config naming only two of them fails, and a body one octet short of holding all three fails
+	// An NLRI that would be missing one of the three is refused rather than formed or read partially: a config naming only two of them fails, and a body one octet short of holding all three fails
 	for _, cfg := range []string{
 		"color 100 endpoint 10.0.0.1",
 		"distinguisher 7 endpoint 10.0.0.1",
@@ -213,7 +213,7 @@ func TestRFC9830SinglePolicyTLVPerAttribute(t *testing.T) {
 func TestRFC9830TunnelTypeIsSRPolicy(t *testing.T) {
 	t.Parallel()
 
-	// RFC requirement: RFC9830-4.2.1-6 positive -- every SR Policy route ze builds carries the Tunnel Encapsulation attribute (code 23, optional transitive), including one configured with no sub-TLV content at all
+	// Transmit guard (the receive rules RFC9830-4.2.1-6 and -4.2.1-7 are proven by the reactor receive test): every SR Policy route ze builds carries the Tunnel Encapsulation attribute (code 23, optional transitive), including one configured with no sub-TLV content at all
 	for _, cfg := range []string{"distinguisher 0 color 100 endpoint 10.0.0.1", srpDirty} {
 		pr, err := parseConfigRoute(cr(strings.Fields(cfg), "192.0.2.1", false))
 		require.NoError(t, err)
@@ -224,7 +224,7 @@ func TestRFC9830TunnelTypeIsSRPolicy(t *testing.T) {
 
 	value := attr(t, srpDirty)
 
-	// RFC requirement: RFC9830-4.2.1-7 positive -- the attribute's single TLV declares Tunnel Type 15 in its first two octets and its length covers exactly the sub-TLVs that follow
+	// The attribute's single TLV declares Tunnel Type 15 in its first two octets and its length covers exactly the sub-TLVs that follow
 	assert.Equal(t, []byte{0x00, 0x0F}, value[0:2])
 	te, err := attribute.ParseTunnelEncap(value)
 	require.NoError(t, err)
@@ -232,7 +232,7 @@ func TestRFC9830TunnelTypeIsSRPolicy(t *testing.T) {
 	assert.Equal(t, uint16(15), te.TLVs[0].TunnelType)
 	assert.Len(t, te.TLVs[0].Value, len(value)-4)
 
-	// RFC requirement: RFC9830-4.2.1-7 negative -- the sub-TLV payload on its own does not read as an SR Policy TLV, so the type-15 header is load-bearing rather than incidental: an encoder that omitted it would be caught
+	// The sub-TLV payload on its own does not read as an SR Policy TLV, so the type-15 header is load-bearing rather than incidental: an encoder that omitted it would be caught
 	bare, err := attribute.ParseTunnelEncap(value[4:])
 	if err == nil {
 		require.NotEmpty(t, bare.TLVs)
@@ -546,6 +546,7 @@ func srpLabel(value []byte, at int) uint32 {
 func TestRFC9830BindingSIDLabelRange(t *testing.T) {
 	t.Parallel()
 	const base = "distinguisher 0 color 100 endpoint 10.0.0.1 binding-sid mpls "
+	// RFC requirement: RFC9830-2.4.2-11 negative -- a configured Binding SID label of 0 or 15, a reserved MPLS label value, is refused by parseConfigRoute with an error naming the token, the value and the reserved range, so no sub-TLV carrying it is built
 	for _, label := range []string{"0", "15"} {
 		_, err := parseConfigRoute(cr(strings.Fields(base+label), "192.0.2.1", false))
 		require.Error(t, err, "label %s", label)
@@ -553,6 +554,7 @@ func TestRFC9830BindingSIDLabelRange(t *testing.T) {
 		assert.Contains(t, err.Error(), "16 to 1048575")
 		assert.Contains(t, err.Error(), "reserved")
 	}
+	// RFC requirement: RFC9830-2.4.2-11 positive -- Binding SID labels 16 and 1048575, the first and last values outside the reserved range, are accepted and encoded exactly in the label field of the 6-octet sub-TLV value
 	for _, label := range []uint32{16, 1048575} {
 		value := srpOne(t, srpSubs(t, base+strconv.FormatUint(uint64(label), 10)), subTLVBindingSID)
 		require.Len(t, value, 6)

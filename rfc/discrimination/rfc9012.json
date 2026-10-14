@@ -91,17 +91,6 @@
     },
     {
       "rid": "RFC9012-13-10",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
-      "unit-sha": "8f98639bfee45463",
-      "claim-sha": "9a7d37ac6b0a57ee",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
-      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9012-13-10",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
@@ -109,6 +98,17 @@
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
       "producer-sha": "6edda6ecbc3c717e",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9012-13-10",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
+      "unit-sha": "8f98639bfee45463",
+      "claim-sha": "9a7d37ac6b0a57ee",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -135,17 +135,6 @@
     },
     {
       "rid": "RFC9012-13-11",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
-      "unit-sha": "8f98639bfee45463",
-      "claim-sha": "65b78d2a75fd3e4e",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
-      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9012-13-11",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
@@ -156,14 +145,14 @@
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC9012-13-12",
+      "rid": "RFC9012-13-11",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
-      "claim-sha": "8f195fcec8cc442a",
+      "claim-sha": "65b78d2a75fd3e4e",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +163,18 @@
       "claim-sha": "8cd3aea54c8ae0fe",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9012-13-12",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
+      "unit-sha": "8f98639bfee45463",
+      "claim-sha": "8f195fcec8cc442a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -229,7 +229,7 @@
       "claim-sha": "308dc47a215f8402",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,7 +240,7 @@
       "claim-sha": "4ab4777713755b64",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -295,7 +295,7 @@
       "claim-sha": "4d00f6d0b49b413c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -306,7 +306,7 @@
       "claim-sha": "4cec6cd317f61cc6",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -317,7 +317,7 @@
       "claim-sha": "9544551ada1d3c18",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -328,7 +328,7 @@
       "claim-sha": "ec10570fa67a232a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -339,7 +339,7 @@
       "claim-sha": "389b6c720d75b455",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -350,18 +350,7 @@
       "claim-sha": "1afb5a9f37e68b61",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
-      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9012-13-18",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
-      "unit-sha": "8f98639bfee45463",
-      "claim-sha": "76767700851367b3",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -374,6 +363,17 @@
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
       "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9012-13-18",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
+      "unit-sha": "8f98639bfee45463",
+      "claim-sha": "76767700851367b3",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9012-13-18",
@@ -388,17 +388,6 @@
     },
     {
       "rid": "RFC9012-13-19",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
-      "unit-sha": "8f98639bfee45463",
-      "claim-sha": "51ac63ad8660f3ab",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
-      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9012-13-19",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
@@ -407,6 +396,17 @@
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
       "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9012-13-19",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
+      "unit-sha": "8f98639bfee45463",
+      "claim-sha": "51ac63ad8660f3ab",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9012-13-19",
@@ -438,7 +438,7 @@
       "claim-sha": "8cc611cebea17127",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,7 +449,7 @@
       "claim-sha": "c54bfb280a654f63",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -476,17 +476,6 @@
     },
     {
       "rid": "RFC9012-13-3",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
-      "unit-sha": "8f98639bfee45463",
-      "claim-sha": "88a219d31032599c",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
-      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9012-13-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
@@ -497,14 +486,14 @@
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC9012-13-5",
+      "rid": "RFC9012-13-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
-      "claim-sha": "95005ce89c1df19e",
+      "claim-sha": "88a219d31032599c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -519,14 +508,14 @@
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC9012-13-8",
+      "rid": "RFC9012-13-5",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
-      "claim-sha": "ce3d1e53463812ef",
+      "claim-sha": "95005ce89c1df19e",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -541,14 +530,14 @@
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC9012-13-9",
+      "rid": "RFC9012-13-8",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
-      "claim-sha": "a7c791f4b928ad25",
+      "claim-sha": "ce3d1e53463812ef",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -561,6 +550,17 @@
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
       "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9012-13-9",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
+      "unit-sha": "8f98639bfee45463",
+      "claim-sha": "a7c791f4b928ad25",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9012-3.1-2",
@@ -586,17 +586,6 @@
     },
     {
       "rid": "RFC9012-3.1-3",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
-      "unit-sha": "8f98639bfee45463",
-      "claim-sha": "8b186210c025b724",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
-      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9012-3.1-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
@@ -605,6 +594,17 @@
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
       "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9012-3.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
+      "unit-sha": "8f98639bfee45463",
+      "claim-sha": "8b186210c025b724",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9012-3.1-4",
@@ -696,17 +696,6 @@
     },
     {
       "rid": "RFC9012-3.2.1-2",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
-      "unit-sha": "8f98639bfee45463",
-      "claim-sha": "0450517dac873f98",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
-      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC9012-3.2.1-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
@@ -717,14 +706,14 @@
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC9012-3.5-3",
+      "rid": "RFC9012-3.2.1-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
-      "claim-sha": "2683604b6a59ab3d",
+      "claim-sha": "0450517dac873f98",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -739,14 +728,14 @@
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC9012-4.3-2",
+      "rid": "RFC9012-3.5-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
       "unit-sha": "8f98639bfee45463",
-      "claim-sha": "ab8dbc87355c4eb5",
+      "claim-sha": "2683604b6a59ab3d",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -759,6 +748,17 @@
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
       "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9012-4.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
+      "unit-sha": "8f98639bfee45463",
+      "claim-sha": "ab8dbc87355c4eb5",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

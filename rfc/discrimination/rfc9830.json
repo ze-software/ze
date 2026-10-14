@@ -75,7 +75,7 @@
       "claim-sha": "7c99aaa4d5912c5c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "18b5cacbe5dd8f6e",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "65f0efde34da9bb0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "8239a0f48754b2a7",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "15cf6d3a8a35ef91",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +152,7 @@
       "claim-sha": "ad0a8860f0cbfaa2",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,7 +185,7 @@
       "claim-sha": "aea16d922a2cbc3c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "9cd9bb98975d4cfd",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "6edda6ecbc3c717e",
+      "producer-sha": "c1496a1bdb3c536f",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -352,6 +352,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "579be1c9da3a0d46",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.2-11",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDLabelRange",
+      "unit-sha": "60f7f4a6d81c871b",
+      "claim-sha": "65c36edb5338d056",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::checkBindingSIDLabel",
+      "producer-sha": "e64047dd4b18b920",
+      "break": "body of checkBindingSIDLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.4.2-11",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDLabelRange",
+      "unit-sha": "60f7f4a6d81c871b",
+      "claim-sha": "f3a8f71ad6193931",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::checkBindingSIDLabel",
+      "producer-sha": "e64047dd4b18b920",
+      "break": "body of checkBindingSIDLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.2-4",
@@ -1056,6 +1078,160 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
       "producer-sha": "579be1c9da3a0d46",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-4.2.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "635e490d51ef2fdc",
+      "claim-sha": "55ffbdefc8649ba0",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
+      "producer-sha": "9822111b9c5ae63e",
+      "break": "body of judgeSRPolicySection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-4.2.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "635e490d51ef2fdc",
+      "claim-sha": "6d4cbdcc32d74bd5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
+      "producer-sha": "9822111b9c5ae63e",
+      "break": "body of judgeSRPolicySection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-4.2.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "635e490d51ef2fdc",
+      "claim-sha": "d3d25c897f3144eb",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
+      "producer-sha": "9822111b9c5ae63e",
+      "break": "body of judgeSRPolicySection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-4.2.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "635e490d51ef2fdc",
+      "claim-sha": "9f235bf1c060fb3e",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
+      "producer-sha": "9822111b9c5ae63e",
+      "break": "body of judgeSRPolicySection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-4.2.1-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed",
+      "unit-sha": "c629f8fd36dbde0a",
+      "claim-sha": "9683b283938942b0",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-4.2.1-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed",
+      "unit-sha": "c629f8fd36dbde0a",
+      "claim-sha": "cee66463ab60edea",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-4.2.1-7",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed",
+      "unit-sha": "c629f8fd36dbde0a",
+      "claim-sha": "f75d21f835de13ef",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-4.2.1-7",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed",
+      "unit-sha": "c629f8fd36dbde0a",
+      "claim-sha": "c985f2e63b7a9265",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+      "producer-sha": "c1496a1bdb3c536f",
+      "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "635e490d51ef2fdc",
+      "claim-sha": "85984aaac09df806",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
+      "producer-sha": "9822111b9c5ae63e",
+      "break": "body of judgeSRPolicySection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-5-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "635e490d51ef2fdc",
+      "claim-sha": "7febbc3c378fc2f6",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
+      "producer-sha": "9822111b9c5ae63e",
+      "break": "body of judgeSRPolicySection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-5-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "635e490d51ef2fdc",
+      "claim-sha": "f2f17c5667e306c9",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
+      "producer-sha": "9822111b9c5ae63e",
+      "break": "body of judgeSRPolicySection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-5-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "635e490d51ef2fdc",
+      "claim-sha": "0493c132d1cb20d2",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
+      "producer-sha": "9822111b9c5ae63e",
+      "break": "body of judgeSRPolicySection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-5-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "635e490d51ef2fdc",
+      "claim-sha": "5af74a8fccbadb9e",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
+      "producer-sha": "9822111b9c5ae63e",
+      "break": "body of judgeSRPolicySection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-5-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts",
+      "unit-sha": "635e490d51ef2fdc",
+      "claim-sha": "821fd8b848ea6c1b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection",
+      "producer-sha": "9822111b9c5ae63e",
+      "break": "body of judgeSRPolicySection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

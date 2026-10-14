@@ -471,10 +471,14 @@ func TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed(t *testing.T) {
 		}
 		nlri := srNLRI(bits, octets, false, 0x10)
 
+		// RFC requirement: RFC9830-4.2.1-7 negative -- a received AFI 1 or AFI 2 SAFI 73 UPDATE whose MP_REACH_NLRI carries an SR Policy NLRI and which has no Tunnel Encapsulation attribute is treat-as-withdraw through processMessage: the session stays Established and the route is withdrawn rather than delivered
+		// RFC requirement: RFC9830-4.2.1-6 negative -- the same UPDATE without attribute 23 is not accepted as an SR Policy route: processMessage withdraws it instead of delivering it unchanged
 		missing := srNoTunnelBody(afi, nlri)
 		got := srReceive(t, false, missing)
 		srRequireWithdrawn(t, "no attribute 23", got, missing)
 
+		// RFC requirement: RFC9830-4.2.1-7 positive -- the same NLRI with a Tunnel Encapsulation attribute carrying one Tunnel Type 15 TLV is accepted through processMessage with no RFC 7606 action and delivered unchanged
+		// RFC requirement: RFC9830-4.2.1-6 positive -- an SR Policy UPDATE that has the Tunnel Encapsulation attribute attached is delivered unchanged, so the attached attribute is what the acceptance turns on
 		present := srReceiveBody(fam, nlri, nil, false)
 		srRequireKept(t, "one type-15 TLV", srReceive(t, false, present), present)
 

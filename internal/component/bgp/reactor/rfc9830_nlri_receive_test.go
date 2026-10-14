@@ -159,6 +159,9 @@ func TestRFC9830NLRILengthReceiveVerdicts(t *testing.T) {
 		good6 := srNLRI(192, 24, addPath, 0x20)
 
 		// Well-formed: accepted unchanged, in each family.
+		// RFC requirement: RFC9830-4.2.1-2 positive -- a received SR Policy NLRI holding a distinguisher, a Color and an Endpoint (12 octets under AFI 1, 24 under AFI 2), with and without ADD-PATH, is accepted through processMessage with no RFC 7606 action and delivered unchanged
+		// RFC requirement: RFC9830-4.2.1-3 positive -- an NLRI of 12 octets under AFI 1 and of 24 octets under AFI 2 is accepted unchanged through processMessage, with and without ADD-PATH
+		// RFC requirement: RFC9830-5-1 positive -- the syntactic validation of each NLRI length, of the MP attribute's NLRI section and of the length against the AFI passes a well-formed AFI 1 and AFI 2 NLRI unchanged
 		for name, body := range map[string][]byte{
 			"AFI 1 12 octets": srReceiveBody(v4, good4, nil, false),
 			"AFI 2 24 octets": srReceiveBody(v6, good6, nil, false),
@@ -167,6 +170,11 @@ func TestRFC9830NLRILengthReceiveVerdicts(t *testing.T) {
 		}
 
 		// Walkable, wrong length for the AFI: treat-as-withdraw, session kept.
+		// RFC requirement: RFC9830-4.2.1-2 negative -- a received NLRI too long or too short to be exactly a distinguisher, a Color and an Endpoint (13 or 25 octets) is not accepted: processMessage treats the UPDATE as withdrawn with the session kept
+		// RFC requirement: RFC9830-4.2.1-3 negative -- an NLRI of 13 or 24 octets under AFI 1, or of 12 or 25 octets under AFI 2, in MP_REACH_NLRI or in MP_UNREACH_NLRI beside reachable NLRI, makes processMessage treat the UPDATE as withdrawn with the session kept
+		// RFC requirement: RFC9830-5-1 negative -- the length checked against the AFI catches 24 octets under AFI 1 and 12 octets under AFI 2, lengths a framing-only walk would accept
+		// RFC requirement: RFC9830-5-4 negative -- a walkable malformed NLRI beside reachable NLRI does not reset the session: it stays Established, so the reset is kept for the errors that cannot be skipped
+		// RFC requirement: RFC9830-5-2 positive -- a walkable malformed NLRI in an UPDATE that also carries reachable NLRI, in MP_REACH_NLRI or in MP_UNREACH_NLRI, is handled as treat-as-withdraw: the session stays Established and the UPDATE is withdrawn
 		for name, body := range map[string][]byte{
 			"AFI 1 13 octets":                srReceiveBody(v4, srNLRI(104, 13, addPath, 1), nil, false),
 			"AFI 1 24 octets":                srReceiveBody(v4, srNLRI(192, 24, addPath, 1), nil, false),
@@ -179,6 +187,8 @@ func TestRFC9830NLRILengthReceiveVerdicts(t *testing.T) {
 		}
 
 		// Unwalkable: session reset with 3/1, in MP_REACH and in MP_UNREACH.
+		// RFC requirement: RFC9830-5-4 positive -- an NLRI section that cannot be walked (zero length, a length of 100 bits, an NLRI overrunning the attribute), in MP_REACH_NLRI or MP_UNREACH_NLRI, resets the session with NOTIFICATION 3/1, since ze has no AFI/SAFI disable
+		// RFC requirement: RFC9830-5-2 negative -- an error that does not let the rest of the UPDATE be processed is not handled as treat-as-withdraw: the unwalkable cases reset the session and deliver nothing
 		for name, body := range map[string][]byte{
 			"zero length":         srReceiveBody(v4, srNLRI(0, 0, addPath, 1), nil, false),
 			"100 bits":            srReceiveBody(v4, srNLRI(100, 12, addPath, 1), nil, false),

@@ -1,3 +1,5 @@
+// RFC naming: untagged -- wiring test for validateMPNLRISyntax reading the per-family NLRI syntax registry; the RFC 7606, RFC 9552 and RFC 9830 verdicts it maps are proven by the tagged receive tests.
+
 package message
 
 import (

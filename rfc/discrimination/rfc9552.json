@@ -1043,9 +1043,9 @@
       "unit-sha": "0441e29f6c90d783",
       "claim-sha": "e224af5757de157a",
       "route": "revert",
-      "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::validateBGPLSNLRISyntax",
-      "producer-sha": "724d301f008f52f2",
-      "break": "body of validateBGPLSNLRISyntax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::judgeBGPLSNLRISection",
+      "producer-sha": "4bd48747b61d05be",
+      "break": "body of judgeBGPLSNLRISection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9552-8.2.3-5",
