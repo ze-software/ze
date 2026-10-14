@@ -78,10 +78,12 @@ Linux refuses a hard link to a root-owned GOROOT file that the user does not own
 
 | Part | Location | Role |
 |------|----------|------|
-| The patch | `internal/le/go/stdpatch/patches/<name>.patch` | A git unified diff with paths relative to GOROOT (`a/src/crypto/tls/handshake_server.go`). Its leading text names this page and quotes the requirement |
+| The patch | `internal/le/go/stdpatch/patches/<name>.patch` | A git unified diff with paths relative to GOROOT (`a/src/crypto/tls/handshake_server.go`). Its leading text, which `git apply` skips, names this page, quotes the requirement, and carries the review stamp `Ze-Reviewed-Against: go1.27.2` (see "The review stamp") |
 | The generator | `internal/le/go/stdpatch` | Builds the patched GOROOT for one toolchain. It imports only the standard library, so it compiles under the unpatched GOROOT, before any tree exists | <!-- doc-links: ignore (designed, not built: spec-ike-eap-rfc-defects creates this package) -->
 | The output | `cache/stdpatch/<key>/goroot` | The tree, keyed by a SHA-256 over a layout version, the `go version`, the real GOROOT path, the patch, and each original GOROOT file. The path is in the key because every symlink names an absolute path into that GOROOT and `cache/` is shared by every checkout |
-| The command | `./le go stdpatch goroot` | Prints the tree path for this checkout's toolchain, for plain `go` commands and editors |
+| The activation | `stdpatch.Activate` | Answers the tree and sets the three values of "What a build sets" in the calling process's environment. le's root handler calls it before any command runs |
+| The command | `./le go stdpatch goroot` | Prints the tree path for this checkout's toolchain, for plain `go` commands and editors, and for the routes that run before le exists |
+| The stamp check | `./le go patch-stamps check` | Compares every review stamp, standard-library and vendor, with the version it names. `./le verify` runs it in both modes | <!-- doc-links: ignore (designed, not built: spec-ike-eap-rfc-defects creates this command) -->
 
 The patch is stored as a diff, not as a patched copy of the file. A copy belongs
 to one Go version, so a toolchain bump would silently compile old upstream code.
@@ -94,15 +96,20 @@ The generator does this, each time:
    version than the go on PATH, the go command runs the pinned toolchain, whose
    GOROOT is under `GOMODCACHE`. An inherited `GOROOT` that points into
    `cache/stdpatch/` is ignored, so the generator never depends on its own output.
-2. When `cache/stdpatch/<key>/goroot` exists, answer it.
-3. Otherwise build the tree in a new directory under `cache/stdpatch/`, run
+2. Read each patch's review stamp and compare it with the `go version` of step 1.
+   A difference stops here with an error that names both versions, the patch
+   file, and the section "When the Go version changes", before any tree is built
+   and even when the diff would still apply. A patch with no stamp stops the
+   same way.
+3. When `cache/stdpatch/<key>/goroot` exists, answer it.
+4. Otherwise build the tree in a new directory under `cache/stdpatch/`, run
    `git apply` in it with `GIT_CEILING_DIRECTORIES` set so that git does not find
    the Ze repository, and check that `go list std cmd` under the new tree answers
    the same packages as under the real GOROOT. Then rename the directory to the
    key. The rename makes two sessions that race produce one result: the session
    that loses deletes its own directory and answers the winner's. The generator
    needs `git` wherever it runs.
-4. When `git apply` refuses, stop with an error that names the Go version, the
+5. When `git apply` refuses, stop with an error that names the Go version, the
    patch file, git's output, and the section "When the Go version changes". No
    caller builds without the tree after that error.
 
@@ -111,7 +118,8 @@ each tree, because a build in another session may be running under one of them.
 
 ## What a build sets
 
-Three settings select the tree, and each one is needed:
+Three settings select the tree, and each one is needed. All three come from one
+answer of the generator:
 
 | Setting | Why |
 |---------|-----|
@@ -124,21 +132,47 @@ govulncheck matches standard-library advisories against the right release.
 
 ## Every build gets the tree
 
-The tree reaches each Go command that compiles Ze from one producer:
+Inside le there is one producer, le's own process environment. Many le actions
+build a child environment from `os.Environ()` and run a plain `go`, without
+going through the toolchain package, so a setting made per command would miss
+them. le therefore sets the three values once, where it starts, and every child
+inherits them:
 
-- `./le` actions take their environment from `gotoolchain`
-  (`internal/le/go/toolchain`), which sets `GOROOT` and `GOTOOLCHAIN=local`,
-  puts `<tree>/bin` first on `PATH`, and starts every Go command with the tree's
-  go binary.
-- The `./le` launcher script builds `cmd/ze` with the `ze_le` tag, and that
-  binary links the EAP-TLS authenticator. The script runs the generator with
-  `go run` first, then builds under the tree.
-- Sites that build their own environment (the tracked build gate, which refuses
-  ambient settings on purpose; the gokrazy build; QEMU guests; the Docker images;
-  the CI workflows) each call the generator and set the three values. A QEMU
-  guest or a container has its own GOROOT, so it runs the generator itself.
-<!-- source: internal/le/go/toolchain/gotoolchain.go -- Toolchain.Overrides -->
+- le's root handler `run`, the entry of every le command and native hook, calls
+  `stdpatch.Activate` before it dispatches. That call answers the tree and sets
+  `GOROOT`, `GOTOOLCHAIN=local` and the `PATH` entry with `os.Setenv`. A le
+  started by le finds the entry already first and does not add it twice.
+- A plain `go` started by le then resolves to `<tree>/bin/go`, because
+  `exec.Command` looks the name up on le's current `PATH`, and every
+  `os.Environ()` child holds the three values. The toolchain package
+  (`internal/le/go/toolchain`) declares none of them again: its environment
+  inherits them with the rest of the process environment.
+- The tracked build gate refuses ambient `GOFLAGS` and workspaces on purpose, by
+  appending its own settings to the inherited environment. It removes no
+  `GOROOT`, `GOTOOLCHAIN` or `PATH`, so it inherits the tree like every other
+  site.
+- When the generator refuses, le still starts: the hooks, the commit flow and
+  `./le go stdpatch goroot` must keep working on the day a Go bump refuses, or
+  nobody could repair the patch. The three values are then left unset, every
+  action that builds through the toolchain package refuses with the generator's
+  error, and any other build fails at the guard below.
+<!-- source: internal/le/register.go -- run -->
+<!-- source: internal/le/repo/compiles/repositorytrackedbuild.go -- goEnv -->
+
+Outside le, each route runs the same generator itself:
+
+- The `./le` launcher script builds `cmd/ze` with the `ze_le` tag before le
+  exists, and that binary links the EAP-TLS authenticator. The script runs the
+  generator with `go run`, then builds that one command under the tree.
+- `ze appliance build`, in the ze-setup binary, runs the gokrazy build without
+  le. The function that prepares gok's environment calls `stdpatch.Activate`
+  first, so that route activates the tree, and under `./le build gokrazy` the
+  same call answers the tree le already carries.
+- A QEMU guest or a container has its own GOROOT, so it runs the generator in
+  the guest or the build stage and exports the three values. The CI workflows
+  that run go directly do the same in a step after `setup-go`.
 <!-- source: le -- build_le -->
+<!-- source: internal/appliance/cmd_build.go -- SetGokGoEnv -->
 
 `./le rfc discriminate-record` still compiles a deliberately broken copy of a
 repository file through `-overlay`. That overlay names only the repository file,
@@ -166,13 +200,14 @@ dependent code is built with the patch, or it is not built. A lint or
 vulnerability run under an unpatched GOROOT fails the same way, so no gate
 passes over code it did not see.
 
-Three checks cover what the constant cannot:
+Three more checks cover what the constant cannot:
 
 | Check | Catches |
 |-------|---------|
 | The constant | Any build without the tree: CI, a Dockerfile, a developer, a missed site |
 | A test of the patched behavior | A tree that adds the constant but not the change |
-| The generator's refusal | A Go version whose file no longer matches the patch |
+| The generator's refusal when `git apply` fails | A Go version whose file no longer matches the patch |
+| The review stamp | Any Go version other than the one the patch was reviewed against, even when the diff still applies |
 
 Two other guards were rejected. A test alone proves its own build, never the
 binary that ships. A runtime self-check makes plain builds work, but it ships a
@@ -197,25 +232,56 @@ the reference, while navigation, `gopls symbols`, definitions and references
 still work. Start the daemon from a shell that has the three exports, or expect
 that one diagnostic.
 
+## The review stamp
+
+A clean `git apply` proves only that the lines around the change did not move.
+Upstream can fix the defect, or change what the function does, in lines the
+diff never touches, and the patch would then apply over code nobody read. So
+each patch records the version it was reviewed against, in its leading text, and
+any other version refuses whether or not the diff applies:
+
+| Patch | Stamp | Compared with |
+|-------|-------|---------------|
+| standard library, `internal/le/go/stdpatch/patches/` | `Ze-Reviewed-Against: go1.27.2` | the `go version` the tree is built from | <!-- doc-links: ignore (designed, not built: spec-ike-eap-rfc-defects creates this directory) -->
+| vendored module, `internal/le/vendorpatch/patches/` | `Ze-Reviewed-Against: <module path> <version>`, for example `github.com/vishvananda/netlink v1.3.1` | the module's line in `vendor/modules.txt` |
+
+A patch with no stamp, or a vendor stamp naming a module the vendor directory
+does not hold, refuses the same way: nobody can say it was reviewed. Three places
+refuse. The generator refuses a standard-library stamp before it builds a tree
+(step 2 above). `./le setup install`, which re-vendors and then applies the
+vendor patches, refuses a vendor stamp before it applies the patch,
+so a re-vendor at a new module version stops before patching. And
+`./le go patch-stamps check` compares every stamp of both kinds, standard-library
+stamps against the version `go.mod` pins as well as the one in use; `./le verify`
+runs it in both modes, so a stale stamp turns the verification red.
+
 ## When the Go version changes
 
 1. Change the Go version in `go.mod` as usual.
-2. Build. When the patch still applies, the generator builds a new tree, and
-   the patched-behavior tests decide whether the change still holds.
-3. When the generator refuses, read the new upstream function. If upstream now
-   does what the patch did, delete the patch, the constant, the reference to it,
-   and the generator if no patch remains (`ai/rules/no-layering.md`).
-4. Otherwise, make the patch again from the new GOROOT file: copy the file,
-   apply the change by hand, and write the diff with
+2. The next `./le` command and `./le verify` refuse, because the stamp still
+   names the old version. Read the new upstream function the patch changes
+   (`doFullHandshake` in the new GOROOT's `crypto/tls`).
+3. If upstream now does what the patch did, delete the patch, the constant, the
+   reference to it, and the generator if no patch remains
+   (`ai/rules/no-layering.md`).
+4. Otherwise, change the stamp to the new version and build. When `git apply`
+   refuses, make the patch again from the new GOROOT file: copy the file, apply
+   the change by hand, and write the diff with
    `git diff --no-index <original> <patched>`, with the paths changed to
-   `a/src/...` and `b/src/...`. Keep the leading text. Run the patched-behavior
-   tests.
+   `a/src/...` and `b/src/...`. Keep the leading text and the new stamp.
+5. Run the patched-behavior tests.
+
+A vendored module at a new version takes the same path: read the upstream code
+the patch changes, then delete the patch or restamp it, and regenerate it if it
+no longer applies.
 
 ## Alternatives considered
 
 | Alternative | Why it was rejected |
 |-------------|---------------------|
 | `go build -overlay`, the article's delivery | golangci-lint, staticcheck and govulncheck cannot open a file an overlay adds (see above), and two of them are Ze gates |
+| Select the tree per command in the toolchain package | Many le sites run a plain `go` from `os.Environ()` and never reach the toolchain package, so they would build unpatched. A second route beside the process environment could only disagree with it |
+| Trust a clean `git apply` across Go versions | It proves the context lines did not move, never that upstream left the function alone; the review stamp forces the re-read |
 | Fork the Go toolchain | Every contributor, CI job, container and the gokrazy build must install the fork, and each Go release must be rebased by hand |
 | A full copy of GOROOT per toolchain | Hundreds of megabytes per key, for two changed files |
 | A copy of `crypto/tls` in the tree (vendored or `internal/`) | `crypto/tls` uses internal standard-library packages that code outside GOROOT cannot import. The copy also stays on old upstream code after each Go release, silently |
@@ -223,9 +289,10 @@ that one diagnostic.
 | Ask upstream for an API | Correct in the long term, and it does not fix the current release. If upstream adds the behavior, step 3 above deletes the patch |
 
 Ze changes vendored modules with a related mechanism: patches under
-`internal/le/vendorpatch/patches/`, with a guard test each. The difference is
-that a vendored file is in the tree, so the patch is applied once and committed.
-A GOROOT file is not in the tree, so the patch is applied at build time.
+`internal/le/vendorpatch/patches/`, with a guard test each and the same review
+stamp. The difference is that a vendored file is in the tree, so the patch is
+applied once and committed. A GOROOT file is not in the tree, so the patch is
+applied at build time.
 <!-- source: internal/le/vendorpatch/vendor_patch_test.go -- assertVendorPatchApplied -->
 
 ## Reference
