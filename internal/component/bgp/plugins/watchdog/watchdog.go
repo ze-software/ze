@@ -68,7 +68,8 @@ func setLogger(l *slog.Logger) {
 // This is the in-process entry point called via InternalPluginRunner.
 //
 // Lifecycle:
-//  1. OnConfigure — parses config tree, builds per-peer route pools
+//  1. Stage 2 configure parses config tree, builds per-peer route pools; a
+//     reload's verify, apply and rollback reconcile them (config_tx.go)
 //  2. SetStartupSubscriptions — subscribes to state events
 //  3. OnEvent — handles peer up/down, resends announced routes
 //  4. OnExecuteCommand — handles request bgp watchdog announce/withdraw commands
@@ -92,24 +93,10 @@ func runWatchdogPlugin(conn net.Conn) int {
 		}
 	})
 
-	// Stage 2: receive config, extract per-peer watchdog route definitions
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			peerPools, err := parseConfig(section.Data)
-			if err != nil {
-				logger().Error("config parse failed", "error", err)
-				return err
-			}
-			srv.mu.Lock()
-			srv.peerPools = peerPools
-			srv.mu.Unlock()
-			logger().Info("config loaded", "peers", len(peerPools))
-		}
-		return nil
-	})
+	// Stage 2 installs the per-peer route pools; a reload reconciles them
+	// (config_tx.go).
+	tx := &watchdogConfigTx{srv: srv}
+	tx.register(p)
 
 	// Subscribe to state events for peer up/down lifecycle
 	p.SetStartupSubscriptions([]string{"state"}, nil, "")

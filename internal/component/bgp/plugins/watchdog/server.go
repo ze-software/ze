@@ -20,7 +20,7 @@ import (
 // function instead of a real SDK plugin.
 type watchdogServer struct {
 	// peerPools holds per-peer route pools, keyed by peer address.
-	// Populated from config during OnConfigure.
+	// Installed at Stage 2 and reconciled by each reload (config_tx.go).
 	peerPools map[string]*poolSet
 
 	// peerUp tracks which peers currently have an established session.
