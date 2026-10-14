@@ -347,8 +347,10 @@ list.
 session mode too. Each records one structural op in your change file
 (`copy-entry`, `deactivate-leaf`, `activate-leaf`, `deactivate-path`,
 `activate-path`), shows as one change in `show | changes`, and is applied by
-`commit now` before your leaf edits. `copy` never overwrites: a destination that
-exists is refused, so delete it first.
+`commit now` before your leaf edits. `copy` and `rename` never overwrite: a
+destination that is another existing entry is refused, so delete it first, and
+a destination equal to the entry's own key is refused with "new key must differ
+from current key".
 <!-- source: internal/component/cli/editor_draft.go -- writeThroughCopy, writeThroughToggle, writeThroughStructuralOp, applyToggleOp -->
 
 `load` works in session mode and in file mode through one path. The input,
