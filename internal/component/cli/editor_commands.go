@@ -18,10 +18,7 @@ var (
 	errPathNotFound                    = errors.New("path not found")
 	errEmptyPath                       = errors.New("empty path")
 	errSchemaNotAvailable              = errors.New("schema not available")
-	errPathTooShortForListEntry        = errors.New("path too short for list entry")
-	errCannotRenameAnonymousListEntry  = errors.New("cannot rename anonymous list entry")
-	errPathDoesNotEndAtA               = errors.New("path does not end at a list entry")
-	errRenameTargetMustBeTheLast       = errors.New("rename target must be the last element in the path")
+	errNewKeyMustDiffer                = errors.New("new key must differ from current key")
 	errSaveNotAllowedWithActiveSession = errors.New("Save() not allowed with active session; use CommitSession()")
 	errNoSessionSet                    = errors.New("no session set")
 	errSessionEntryHasNoPath           = errors.New("commit apply: session entry has no path")
@@ -88,27 +85,16 @@ func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
 			currentSchema = n
 			i++
 		case *config.ListNode:
-			// Determine anonymous vs keyed: anonymous if no next element
-			// or next element is a schema child of the list.
-			var key string
-			var step int
-			if i+1 >= len(path) || n.Get(path[i+1]) != nil {
-				key = config.KeyDefault
-				step = 1
-			} else {
-				key = path[i+1]
-				step = 2
+			// The codec reads the entry address (anonymous when the next
+			// element is absent or a child of the list) and creates the
+			// entry with its key leaves written.
+			addr, err := config.ListPathStep(name, n, path[i+1:])
+			if err != nil {
+				return nil, err
 			}
-			entries := currentTree.GetList(name)
-			if entries == nil || entries[key] == nil {
-				entry := config.NewTree()
-				currentTree.AddListEntry(name, key, entry)
-				currentTree = entry
-			} else {
-				currentTree = entries[key]
-			}
+			currentTree = config.EnsureListEntry(currentTree, name, addr)
 			currentSchema = n
-			i += step
+			i += 1 + addr.Tokens
 		case *config.FlexNode:
 			currentTree = currentTree.GetOrCreateContainer(name)
 			currentSchema = n
@@ -345,22 +331,16 @@ func (e *Editor) DeleteByPath(fullPath []string) error {
 		return errSchemaNotAvailable
 	}
 
-	// Walk the schema to find what the second-to-last element is.
-	// If it's a ListNode, the last element is a key → DeleteListEntry.
-	// Otherwise, last element is a leaf or container name.
-	if len(fullPath) >= 2 {
-		possibleListName := fullPath[len(fullPath)-2]
-		possibleKey := fullPath[len(fullPath)-1]
-		parentPath := fullPath[:len(fullPath)-2]
-
-		// Walk schema to the parent of possibleListName
-		parentSchema := e.walkSchema(parentPath)
-		if parentSchema != nil {
-			schemaNode := parentSchema.Get(possibleListName)
-			if _, isList := schemaNode.(*config.ListNode); isList {
-				return e.DeleteListEntry(parentPath, possibleListName, possibleKey)
-			}
-		}
+	// A path that ends at a list entry's address deletes that entry. The
+	// codec's target walk reads the address, so a multi-leaf key's full
+	// address (`fe80::b interface zbl0`) names one entry, and a key leaf
+	// given twice is refused.
+	entryTarget, isEntry, err := config.WalkListEntryPath(e.schema, fullPath)
+	if err != nil {
+		return err
+	}
+	if isEntry && entryTarget.End == len(fullPath) {
+		return e.DeleteListEntry(entryTarget.ParentPath, entryTarget.ListName, entryTarget.Address.Key)
 	}
 
 	// Leaf-list member: path ends `<leaf-list> <member>` — delete one member,
@@ -417,9 +397,7 @@ func (e *Editor) walkSchema(path []string) schemaGetter {
 			current = n
 		case *config.ListNode:
 			current = n
-			if i+1 < len(path) && n.Get(path[i+1]) == nil {
-				i++
-			}
+			i += config.ListAddressLen(n, path[i+1:])
 		case *config.FlexNode:
 			current = n
 		case *config.InlineListNode:
@@ -436,7 +414,7 @@ func (e *Editor) walkSchema(path []string) schemaGetter {
 }
 
 // isListKeyLeafPath checks if the last two path elements are a list name
-// and its key leaf keyword. Uses the config schema which flattens choice/case.
+// and its first key leaf keyword. Uses the config schema which flattens choice/case.
 func (e *Editor) isListKeyLeafPath(path []string) bool {
 	if e.schema == nil || len(path) < 2 {
 		return false
@@ -457,9 +435,7 @@ func (e *Editor) isListKeyLeafPath(path []string) bool {
 			current = n
 		case *config.ListNode:
 			current = n
-			if i+1 < len(path)-2 && n.Get(path[i+1]) == nil {
-				i++
-			}
+			i += config.ListAddressLen(n, path[i+1:len(path)-2])
 		case *config.FlexNode:
 			current = n
 		default:
@@ -472,23 +448,42 @@ func (e *Editor) isListKeyLeafPath(path []string) bool {
 	if !ok {
 		return false
 	}
-	return listNode.KeyName == keyLeafName
+	// The entry is written under its FIRST key leaf: `set <list> peer X`
+	// creates entry X. The other key leaves of a multi-leaf key are
+	// addressed as pairs after it, never named on their own here.
+	return listNode.FirstKeyLeafName() == keyLeafName
 }
 
-// ensureListEntry creates a list entry if it does not already exist.
-// Validates the key value against the list's YANG key type.
-func (e *Editor) ensureListEntry(parentPath []string, listName, key string) error {
+// ensureListEntry creates the list entry an address names if it does not
+// already exist; address is the entry's address as path tokens (the first
+// key value, then `name value` for each other key leaf it names). Validates
+// the first value against the list's YANG key type and each pair against
+// its own leaf, and creates the entry through the codec's one creator, so
+// its key leaves are written.
+func (e *Editor) ensureListEntry(parentPath []string, listName string, address []string) error {
+	if len(address) == 0 {
+		return fmt.Errorf("missing key for %s", listName)
+	}
+	addr := config.ListAddress{Key: address[0], First: address[0], Tokens: 1}
 	if e.schema != nil {
-		listNode := e.resolveListNode(parentPath, listName)
-		if listNode != nil {
-			if err := config.ValidateListKey(listNode, key); err != nil {
-				return fmt.Errorf("invalid %s key %q: %w", listName, key, err)
+		if listNode := e.resolveListNode(parentPath, listName); listNode != nil {
+			if err := config.ValidateListKey(listNode, address[0]); err != nil {
+				return fmt.Errorf("invalid %s key %q: %w", listName, address[0], err)
 			}
+			parsed, err := config.ParseListAddress(listName, listNode, address)
+			if err != nil {
+				return err
+			}
+			addr = parsed
 		}
 	}
-	fullPath := make([]string, 0, len(parentPath)+2)
+	if addr.Tokens != len(address) {
+		return fmt.Errorf("invalid key for %s: %s is not a key leaf of %s", listName, address[addr.Tokens], listName)
+	}
+	fullPath := make([]string, 0, len(parentPath)+1+len(address))
 	fullPath = append(fullPath, parentPath...)
-	fullPath = append(fullPath, listName, key)
+	fullPath = append(fullPath, listName)
+	fullPath = append(fullPath, address...)
 	if e.session != nil {
 		return e.writeThroughCreate(fullPath)
 	}
@@ -496,11 +491,10 @@ func (e *Editor) ensureListEntry(parentPath []string, listName, key string) erro
 	if err != nil {
 		return err
 	}
-	entries := target.GetList(listName)
-	if entries != nil && entries[key] != nil {
+	if target.GetList(listName)[addr.Key] != nil {
 		return nil
 	}
-	target.AddListEntry(listName, key, config.NewTree())
+	config.EnsureListEntry(target, listName, addr)
 	e.dirty.Store(true)
 	return nil
 }
@@ -519,9 +513,7 @@ func (e *Editor) resolveListNode(parentPath []string, listName string) *config.L
 			current = n
 		case *config.ListNode:
 			current = n
-			if i+1 < len(parentPath) && n.Get(parentPath[i+1]) == nil {
-				i++
-			}
+			i += config.ListAddressLen(n, parentPath[i+1:])
 		case *config.FlexNode:
 			current = n
 		default:
@@ -695,10 +687,18 @@ func (e *Editor) writeThroughDeleteNamed(parentPath []string, name string, opTyp
 }
 
 // RenameListEntry renames a list entry key at the given path.
-// The parentPath navigates to the tree containing the list.
+// The parentPath navigates to the tree containing the list; dst is the
+// destination address as tokens. A rename changes only the first key value:
+// the other key leaves of a multi-leaf key carry over, and a destination
+// that changes one, or equals the source, is refused here, before either
+// mode changes anything (listEntryDestination).
 // In session mode, the rename is recorded as a structural op in the per-user
 // change file and the in-memory tree/meta are updated immediately.
-func (e *Editor) RenameListEntry(parentPath []string, listName, oldKey, newKey string) error {
+func (e *Editor) RenameListEntry(parentPath []string, listName, oldKey string, dst []string) error {
+	newKey, err := e.listEntryDestination("rename", parentPath, listName, oldKey, dst)
+	if err != nil {
+		return err
+	}
 	if e.session != nil {
 		return e.writeThroughRename(parentPath, listName, oldKey, newKey)
 	}
@@ -723,8 +723,13 @@ func (e *Editor) RenameListEntry(parentPath []string, listName, oldKey, newKey s
 // exists is refused in both modes: copy never overwrites.
 // In session mode the copy is one copy-entry structural op in the per-user
 // change file, applied before leaf edits, and the in-memory tree takes the
-// copy at once.
-func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
+// copy at once. dst is the destination address as tokens; the rule of
+// RenameListEntry applies: only the first key value may change.
+func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey string, dst []string) error {
+	dstKey, err := e.listEntryDestination("copy", parentPath, listName, srcKey, dst)
+	if err != nil {
+		return err
+	}
 	if e.session != nil {
 		return e.writeThroughCopy(parentPath, listName, srcKey, dstKey)
 	}
@@ -742,6 +747,29 @@ func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey, dstKey str
 	}
 	e.dirty.Store(true)
 	return nil
+}
+
+// listEntryDestination returns the key a rename or copy of the entry under
+// oldKey moves it to, by the codec's first-value-only rule. A list the
+// schema does not resolve takes a one-token destination as the key.
+func (e *Editor) listEntryDestination(verb string, parentPath []string, listName, oldKey string, dst []string) (string, error) {
+	if len(dst) == 0 {
+		return "", fmt.Errorf("%s refused: no destination key for %s", verb, listName)
+	}
+	var listNode *config.ListNode
+	if e.schema != nil {
+		listNode = e.resolveListNode(parentPath, listName)
+	}
+	if listNode == nil {
+		if len(dst) != 1 {
+			return "", fmt.Errorf("%s refused: %s is not a list the schema knows, so its key is one word", verb, listName)
+		}
+		if dst[0] == oldKey {
+			return "", errNewKeyMustDiffer
+		}
+		return dst[0], nil
+	}
+	return config.ListEntryDestination(verb, parentPath, listName, listNode, oldKey, dst)
 }
 
 // InsertLeafListValue inserts a value into a leaf-list at the specified position.
@@ -921,64 +949,17 @@ func (e *Editor) ActivatePath(path []string) error {
 	return nil
 }
 
-// resolveListTarget walks the schema-aware path and identifies the terminal
-// list entry. Returns the tree-level parent path (for WalkPath), the list name,
-// and the entry key. Returns an error if the path does not end at a list entry.
-func (e *Editor) resolveListTarget(fullPath []string) (parentPath []string, listName, key string, err error) {
+// resolveListTarget returns the list entry a rename or copy names, read from
+// the front of tokens by the codec's one target walk, which the web form and
+// the web terminal call too; verb names the operation in a refusal. The
+// returned End is where the source address ends, so the caller reads `to`
+// and the destination from there. An entry of a keyless list, or under one,
+// is refused.
+func (e *Editor) resolveListTarget(verb string, tokens []string) (config.ListEntryTarget, error) {
 	if e.schema == nil {
-		return nil, "", "", errSchemaNotAvailable
+		return config.ListEntryTarget{}, errSchemaNotAvailable
 	}
-	if len(fullPath) < 2 {
-		return nil, "", "", errPathTooShortForListEntry
-	}
-
-	var currentSchema schemaGetter = e.schema
-	lastListIdx := -1
-	var lastListName, lastKey string
-
-	i := 0
-	for i < len(fullPath) {
-		name := fullPath[i]
-		schemaNode := currentSchema.Get(name)
-		if schemaNode == nil {
-			return nil, "", "", fmt.Errorf("unknown path element: %s", name)
-		}
-
-		switch n := schemaNode.(type) {
-		case *config.ContainerNode:
-			currentSchema = n
-			i++
-		case *config.ListNode:
-			if i+1 >= len(fullPath) {
-				return nil, "", "", fmt.Errorf("list %s requires a key", name)
-			}
-			// Check if next element is a child (anonymous) or a key
-			if n.Get(fullPath[i+1]) != nil {
-				return nil, "", "", errCannotRenameAnonymousListEntry
-			}
-			lastListIdx = i
-			lastListName = name
-			lastKey = fullPath[i+1]
-			currentSchema = n
-			i += 2
-		case *config.FlexNode:
-			currentSchema = n
-			i++
-		default:
-			return nil, "", "", fmt.Errorf("cannot navigate into %s", name)
-		}
-	}
-
-	if lastListIdx == -1 {
-		return nil, "", "", errPathDoesNotEndAtA
-	}
-
-	// The last list entry must be at the end of the path
-	if lastListIdx+2 != len(fullPath) {
-		return nil, "", "", errRenameTargetMustBeTheLast
-	}
-
-	return fullPath[:lastListIdx], lastListName, lastKey, nil
+	return config.ResolveListEntryTarget(e.schema, verb, tokens)
 }
 
 // Save commits changes: creates backup of original, writes serialized tree.

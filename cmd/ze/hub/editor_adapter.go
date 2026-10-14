@@ -43,8 +43,8 @@ func (a *editorAdapter) DeleteValue(path []string, key string) error {
 func (a *editorAdapter) DeleteByPath(fullPath []string) error {
 	return a.ed.DeleteByPath(fullPath)
 }
-func (a *editorAdapter) RenameListEntry(parentPath []string, listName, oldKey, newKey string) error {
-	return a.ed.RenameListEntry(parentPath, listName, oldKey, newKey)
+func (a *editorAdapter) RenameListEntry(parentPath []string, listName, oldKey string, dst []string) error {
+	return a.ed.RenameListEntry(parentPath, listName, oldKey, dst)
 }
 func (a *editorAdapter) CommitSession() (*contract.CommitResult, error) {
 	return a.ed.CommitSession()
@@ -67,8 +67,8 @@ func (a *editorAdapter) PendingDiscardNotice() (string, int64) { return a.ed.Pen
 func (a *editorAdapter) AckDiscardNotice(through int64) error  { return a.ed.AckDiscardNotice(through) }
 func (a *editorAdapter) OriginalContent() string               { return a.ed.OriginalContent() }
 func (a *editorAdapter) WorkingContent() string                { return a.ed.WorkingContent() }
-func (a *editorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
-	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
+func (a *editorAdapter) CopyListEntry(parentPath []string, listName, srcKey string, dst []string) error {
+	return a.ed.CopyListEntry(parentPath, listName, srcKey, dst)
 }
 func (a *editorAdapter) ApplyActivation(fullPath []string, activate bool) (string, error) {
 	return a.ed.ApplyActivation(fullPath, activate)

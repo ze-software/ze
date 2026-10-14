@@ -8,6 +8,6 @@ import "errors"
 var (
 	errPathTooDeep      = errors.New("gnmi: path exceeds maximum depth")
 	errEmptyPathElement = errors.New("gnmi: empty path element name")
-	errMultipleKeys     = errors.New("gnmi: multiple list keys not supported")
+	errMultipleKeys     = errors.New("gnmi: more than one key for a list keyed by one leaf")
 	errEmptyPath        = errors.New("gnmi: empty path")
 )

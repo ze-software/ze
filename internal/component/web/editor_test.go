@@ -111,7 +111,7 @@ func TestEditorManagerRenameListEntry(t *testing.T) {
 	err = mgr.SetValue("alice", []string{"bgp", "peer", "london", "connection", "remote"}, "ip", "10.0.0.1")
 	require.NoError(t, err)
 
-	err = mgr.RenameListEntry("alice", []string{"bgp"}, "peer", "london", "paris")
+	err = mgr.RenameListEntry("alice", []string{"bgp"}, "peer", "london", []string{"paris"})
 	require.NoError(t, err)
 
 	tree := mgr.Tree("alice")

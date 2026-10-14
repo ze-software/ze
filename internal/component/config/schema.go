@@ -357,6 +357,8 @@ func (s *Schema) Children() []string {
 // no key at all, and the two cases are told apart the way walkSchemaNode tells
 // them apart: when the token after the list is a child of the list, the entry
 // is anonymous and the token is part of the path; otherwise the token is a key.
+// A multi-leaf key's whole address (`fe80::b interface zbl1`) is stepped over
+// by the codec's left-to-right rule (ListAddressLen).
 //
 // Lookup is the sibling for a slash-joined path with no keys in it.
 //
@@ -377,8 +379,10 @@ func (s *Schema) LookupTokenPath(path []string) Node {
 		}
 		i++
 
-		if list, isList := node.(*ListNode); isList && i < len(path) && list.Get(path[i]) == nil {
-			i++
+		if list, isList := node.(*ListNode); isList {
+			// Step over the entry address, a multi-leaf key's pairs included,
+			// by the codec's rule (none when a child name follows the list).
+			i += ListAddressLen(list, path[i:])
 		}
 		if i == len(path) {
 			break

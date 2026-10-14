@@ -36,7 +36,7 @@ session fe80::b { interface zbl1; profile fast; }
 	want := []string{"fe80::b interface zbl0", "fe80::b interface zbl1"}
 	check := func(t *testing.T, replayed *Tree) {
 		t.Helper()
-		if got := sortedListKeys(replayed, "session"); !slices.Equal(got, want) {
+		if got := sortedListKeys(replayed); !slices.Equal(got, want) {
 			t.Fatalf("replayed keys %q, want %q\n%s", got, want, out)
 		}
 		entries := replayed.GetList("session")
@@ -90,10 +90,34 @@ session fe80::b { interface zbl1; profile fast; }
 		}
 		entry := replayed.GetList("session")["fe80::b interface zbl0"]
 		if entry == nil {
-			t.Fatalf("replayed keys %q", sortedListKeys(replayed, "session"))
+			t.Fatalf("replayed keys %q", sortedListKeys(replayed))
 		}
 		if v, ok := entry.Get("vrf"); !ok || v != "default" {
 			t.Errorf("vrf %q present %v, want explicit default", v, ok)
+		}
+	})
+
+	t.Run("materialized pending delete prints under the full address", func(t *testing.T) {
+		content := "#alice @ssh %2026-10-10T01:02:03Z ^fast delete session fe80::b interface zbl1 profile\n"
+		changeTree, changeMeta, _, err := ParseChangeFile(content, NewSetParser(schema))
+		if err != nil {
+			t.Fatalf("ParseChangeFile: %v", err)
+		}
+		entry := changeTree.GetList("session")["fe80::b interface zbl1"]
+		if entry == nil {
+			t.Fatalf("materialized keys %q, want the entry fe80::b interface zbl1", sortedListKeys(changeTree))
+		}
+		if value, _ := entry.Get("interface"); value != "zbl1" {
+			t.Errorf("materialized entry interface = %q, want zbl1 (the creator writes the key leaves)", value)
+		}
+		printed := SerializeSetWithMeta(changeTree, changeMeta, schema)
+		if !strings.Contains(printed, "delete session fe80::b interface zbl1 profile") {
+			t.Errorf("pending delete not printed under the full address:\n%s", printed)
+		}
+		for line := range strings.SplitSeq(printed, "\n") {
+			if strings.Contains(line, "session fe80::b") && !strings.Contains(line, "session fe80::b interface zbl1") {
+				t.Errorf("line names the entry by its first value only: %q", line)
+			}
 		}
 	})
 
@@ -102,7 +126,7 @@ session fe80::b { interface zbl1; profile fast; }
 		if err != nil {
 			t.Fatalf("replay: %v", err)
 		}
-		if got := sortedListKeys(replayed, "session"); !slices.Equal(got, want[1:]) {
+		if got := sortedListKeys(replayed); !slices.Equal(got, want[1:]) {
 			t.Errorf("keys after delete %q, want %q", got, want[1:])
 		}
 	})

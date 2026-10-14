@@ -32,7 +32,7 @@ func TestSessionCopyWritesThrough(t *testing.T) {
 	session := NewEditSession("thomas", "ssh")
 	ed.SetSession(session)
 
-	require.NoError(t, ed.CopyListEntry([]string{"bgp"}, "peer", "peer1", "peer2"))
+	require.NoError(t, ed.CopyListEntry([]string{"bgp"}, "peer", "peer1", []string{"peer2"}))
 
 	changeData, err := store.ReadFile(ChangePath(configPath, session.User))
 	require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestSessionCopyWritesThrough(t *testing.T) {
 	assert.Equal(t, []string{"copy bgp peer peer2"}, pendingKinds(ed, session.ID))
 	require.NotNil(t, ed.tree.GetContainer("bgp").GetList("peer")["peer2"])
 
-	err = ed.CopyListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	err = ed.CopyListEntry([]string{"bgp"}, "peer", "peer1", []string{"peer2"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already exists")
 	after, err := store.ReadFile(ChangePath(configPath, session.User))
@@ -84,7 +84,7 @@ func TestSessionCopyCarriesPendingSourceEdits(t *testing.T) {
 
 	require.NoError(t, ed.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "receive-hold-time", "180"))
 	require.NoError(t, ed.DeleteValue([]string{"bgp", "peer", "peer1", "session", "asn"}, "remote"))
-	require.NoError(t, ed.CopyListEntry([]string{"bgp"}, "peer", "peer1", "peer2"))
+	require.NoError(t, ed.CopyListEntry([]string{"bgp"}, "peer", "peer1", []string{"peer2"}))
 	assert.Contains(t, pendingKinds(ed, session.ID), "copy bgp peer peer2")
 
 	result, err := ed.CommitSession()

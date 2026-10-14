@@ -92,8 +92,7 @@ func TestChangeNotifierNotifyChange(t *testing.T) {
 	ch := cn.Subscribe()
 	defer cn.Unsubscribe(ch)
 
-	listNames := map[string]bool{"neighbor": true}
-	cn.NotifyChange([]string{"bgp", "router-id"}, listNames, "1.2.3.4")
+	cn.NotifyChange([]string{"bgp", "router-id"}, nil, "1.2.3.4")
 
 	select {
 	case got := <-ch:

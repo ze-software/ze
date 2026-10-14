@@ -13,6 +13,7 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -78,8 +79,9 @@ func (c *Completer) validateTokenPath(tokens []string) error {
 			if isChild && !isKeyLeaf {
 				return fmt.Errorf("%s is a list — requires a key (e.g., %s <key> %s ...)", part, part, nextToken)
 			}
-			// Next token is the key value — skip it
-			i++
+			// Next token opens the entry address: skip it, and a multi-leaf
+			// key's `name value` pairs after it.
+			i += config.ListAddressSpan(strings.Fields(entry.Key), tokens[i+1:], func(string) bool { return false })
 		}
 	}
 

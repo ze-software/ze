@@ -79,6 +79,19 @@ type Server struct {
 
 	modelsOnce sync.Once
 	models     []*gpb.ModelData
+
+	schemaOnce sync.Once
+	schema     *zeconfig.Schema
+	schemaErr  error
+}
+
+// configSchema returns the config schema the path translation reads, built
+// once from the registered YANG. Safe for concurrent use.
+func (s *Server) configSchema() (*zeconfig.Schema, error) {
+	s.schemaOnce.Do(func() {
+		s.schema, s.schemaErr = zeconfig.YANGSchema()
+	})
+	return s.schema, s.schemaErr
 }
 
 // ServerStatus holds gNMI server state for the show command.

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 )
 
 func TestPathTranslation(t *testing.T) {
@@ -43,7 +45,7 @@ func TestPathTranslation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := pathToSegments(tt.path)
+			got, err := pathToSegments(nil, tt.path)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("pathToSegments() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -90,7 +92,7 @@ func TestPathWithListKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := pathToSegments(tt.path)
+			got, err := pathToSegments(nil, tt.path)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("pathToSegments() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -106,18 +108,24 @@ func TestPathDepthBoundary(t *testing.T) {
 	for i := range elems {
 		elems[i] = &gpb.PathElem{Name: "a"}
 	}
-	if _, err := pathToSegments(&gpb.Path{Elem: elems}); err != nil {
+	if _, err := pathToSegments(nil, &gpb.Path{Elem: elems}); err != nil {
 		t.Fatalf("maxPathDepth should be accepted, got: %v", err)
 	}
 
 	elems = append(elems, &gpb.PathElem{Name: "overflow"})
-	if _, err := pathToSegments(&gpb.Path{Elem: elems}); err == nil {
+	if _, err := pathToSegments(nil, &gpb.Path{Elem: elems}); err == nil {
 		t.Fatal("maxPathDepth+1 should be rejected")
 	}
 }
 
 func TestSegmentsToPath(t *testing.T) {
-	listNames := map[string]bool{"neighbor": true}
+	neighbor := zeconfig.List(zeconfig.TypeString, zeconfig.Field("description", zeconfig.Leaf(zeconfig.TypeString)))
+	neighbor.KeyName = "address"
+	schema := zeconfig.NewSchema()
+	schema.Define("bgp", zeconfig.Container(
+		zeconfig.Field("global", zeconfig.Container()),
+		zeconfig.Field("neighbor", neighbor),
+	))
 
 	tests := []struct {
 		name      string
@@ -138,7 +146,7 @@ func TestSegmentsToPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := segmentsToPath(tt.segments, listNames)
+			p := segmentsToPath(schema, tt.segments)
 			if len(p.Elem) != tt.wantElems {
 				t.Errorf("segmentsToPath() elem count = %d, want %d", len(p.Elem), tt.wantElems)
 			}

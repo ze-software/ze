@@ -872,17 +872,21 @@ func (c *Completer) navigateTreeToPath(contextPath []string) *config.Tree {
 			nextPart := contextPath[i+1]
 			children := effectiveChildren(entry)
 			if _, hasChild := children[nextPart]; !hasChild {
-				// Next element is a list key — navigate into the list entry
+				// Next element opens the entry address: navigate into the
+				// list entry. A multi-leaf address is matched as typed, so
+				// one that spells a key leaf at its default, or out of YANG
+				// order, finds no entry and completes nothing below it.
+				span := config.ListAddressSpan(strings.Fields(entry.Key), contextPath[i+1:], func(string) bool { return false })
 				entries := tree.GetList(part)
 				if entries == nil {
 					return nil
 				}
-				entryTree, ok := entries[nextPart]
+				entryTree, ok := entries[strings.Join(contextPath[i+1:i+1+span], " ")]
 				if !ok {
 					return nil
 				}
 				tree = entryTree
-				i++ // skip the key element
+				i += span // skip the entry address
 				continue
 			}
 		}
@@ -1216,8 +1220,9 @@ func (c *Completer) getEntry(path []string) *gyang.Entry {
 			_, hasChild := children[nextPart]
 			isKeyLeaf := entry.Key == nextPart
 			if !hasChild || isKeyLeaf {
-				// Next element is a key value, skip it
-				i++
+				// Next element opens the entry address: skip it, and a
+				// multi-leaf key's `name value` pairs after it.
+				i += config.ListAddressSpan(strings.Fields(entry.Key), path[i+1:], func(string) bool { return false })
 			}
 		}
 	}

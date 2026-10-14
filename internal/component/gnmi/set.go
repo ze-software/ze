@@ -14,6 +14,7 @@ import (
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
 	"github.com/ze-software/ze/internal/component/api"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -38,6 +39,12 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 		return nil, status.Error(codes.InvalidArgument, "no operations in set request")
 	}
 
+	schema, err := s.configSchema()
+	if err != nil {
+		s.recordError("Set", codes.Unavailable)
+		return nil, status.Errorf(codes.Unavailable, "config schema not available: %v", err)
+	}
+
 	sessionID, err := s.sessions.Enter(gnmiUsername)
 	if err != nil {
 		s.recordError("Set", codes.Internal)
@@ -47,7 +54,7 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 	results := make([]*gpb.UpdateResult, 0, total)
 
 	for _, del := range req.GetDelete() {
-		segments, pathErr := pathToSegments(del)
+		segments, pathErr := pathToSegments(schema, del)
 		if pathErr != nil {
 			s.recordError("Set", codes.InvalidArgument)
 			s.discardSession(ctx, sessionID)
@@ -71,7 +78,7 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 	}
 
 	for _, replace := range req.GetReplace() {
-		if replaceErr := s.applyUpdate(sessionID, replace); replaceErr != nil {
+		if replaceErr := s.applyUpdate(schema, sessionID, replace); replaceErr != nil {
 			s.recordError("Set", codes.InvalidArgument)
 			s.discardSession(ctx, sessionID)
 			return nil, replaceErr
@@ -83,7 +90,7 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 	}
 
 	for _, update := range req.GetUpdate() {
-		if updateErr := s.applyUpdate(sessionID, update); updateErr != nil {
+		if updateErr := s.applyUpdate(schema, sessionID, update); updateErr != nil {
 			s.recordError("Set", codes.InvalidArgument)
 			s.discardSession(ctx, sessionID)
 			return nil, updateErr
@@ -115,9 +122,12 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 	}, nil
 }
 
-// applyUpdate sets a single path/value via the config session.
-func (s *Server) applyUpdate(sessionID string, update *gpb.Update) error {
-	segments, err := pathToSegments(update.GetPath())
+// applyUpdate sets a single path/value via the config session. The path and
+// value are read together, as the CLI's `set` reads its tokens: a key leaf of
+// the addressed entry is part of its address, so setting it names the key
+// leaf twice and is refused, and nothing changes.
+func (s *Server) applyUpdate(schema *zeconfig.Schema, sessionID string, update *gpb.Update) error {
+	segments, err := pathToSegments(schema, update.GetPath())
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "update path: %v", err)
 	}
@@ -128,6 +138,9 @@ func (s *Server) applyUpdate(sessionID string, update *gpb.Update) error {
 	value, err := typedValueToString(update.GetVal())
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "update value: %v", err)
+	}
+	if _, _, addrErr := zeconfig.WalkListEntryPath(schema, append(append([]string{}, segments...), value)); addrErr != nil {
+		return status.Errorf(codes.InvalidArgument, "update path: %v", addrErr)
 	}
 
 	return s.sessions.SetSegments(gnmiUsername, sessionID, segments, value)

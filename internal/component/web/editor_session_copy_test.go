@@ -123,7 +123,7 @@ func checkWebSessionCopyAfterCommit(t *testing.T, base string) {
 	require.Empty(t, result.conflicts)
 	require.True(t, result.applied)
 
-	require.NoError(t, mgr.CopyListEntry("alice", []string{"bgp"}, "peer", "wbsrc", "wbdst"))
+	require.NoError(t, mgr.CopyListEntry("alice", []string{"bgp"}, "peer", "wbsrc", []string{"wbdst"}))
 
 	bgp := mgr.Tree("alice").GetContainer("bgp")
 	require.NotNil(t, bgp)
@@ -141,13 +141,14 @@ func checkWebSessionCopyAfterCommit(t *testing.T, base string) {
 // VALIDATES: "Copied peer a to b" and "Renamed peer a to b".
 // PREVENTS: the verb and a bare "d" glued together ("copyd").
 func TestWebTerminalListEntryOpWording(t *testing.T) {
-	ok := func([]string, string, string, string) error { return nil }
+	ok := func([]string, string, string, []string) error { return nil }
 	args := []string{"bgp", "peer", "a", "to", "b"}
+	schema, _ := buildTestSchemaAndTree()
 
-	_, copied := execListEntryOp(args, nil, listEntryCopy, ok)
+	_, copied := execListEntryOp(schema, args, nil, listEntryCopy, ok)
 	assert.Equal(t, "Copied peer a to b", copied)
 
-	_, renamed := execListEntryOp(args, nil, listEntryRename, ok)
+	_, renamed := execListEntryOp(schema, args, nil, listEntryRename, ok)
 	assert.Equal(t, "Renamed peer a to b", renamed)
 }
 

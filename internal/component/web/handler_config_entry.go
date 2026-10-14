@@ -16,9 +16,7 @@ import (
 )
 
 var (
-	errPathTooShortForListEntry       = errors.New("path too short for list entry")
-	errCannotRenameKeylessListEntries = errors.New("cannot rename keyless list entries")
-	errPathDoesNotEndAtA              = errors.New("path does not end at a named list entry")
+	errPathDoesNotEndAtA = errors.New("path does not end at a named list entry")
 )
 
 // suggestAutoDefault is written to a ze:suggest leaf the operator left blank
@@ -68,9 +66,19 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		path := parsed.Path
 
 		// Accept entry key from "name" form field (HTMX form) or URL path (JS).
-		// Keys are always lowercase.
-		if name := strings.ToLower(strings.TrimSpace(r.FormValue("name"))); name != "" {
+		// The first key value keeps its case, as the CLI's `set` stores it. For
+		// a multi-leaf key the address goes on with each other key leaf the
+		// form posted, as `name value` (`fe80::b interface zbl1`).
+		if name := strings.TrimSpace(r.FormValue("name")); name != "" {
+			listNode, isList := findListNode(schema, path)
 			path = append(path, name)
+			if isList && listNode.HasMultiLeafKey() {
+				for _, leaf := range listNode.KeyLeafNames()[1:] {
+					if value := strings.TrimSpace(r.FormValue("field:" + leaf)); value != "" {
+						path = append(path, leaf, value)
+					}
+				}
+			}
 		} else if len(path) > 0 {
 			// Keyless list: auto-generate a sequential key.
 			if listNode, ok := findListNode(schema, path); ok && listNode.KeyName == "" {
@@ -79,14 +87,20 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			}
 		}
 
-		if len(path) < 2 {
+		// The path ends at the entry's address, read by the codec's one rule.
+		target, atEntry, addrErr := config.WalkListEntryPath(schema, path)
+		if addrErr != nil {
+			http.Error(w, addrErr.Error(), http.StatusBadRequest)
+			return
+		}
+		if !atEntry || target.End != len(path) {
 			http.Error(w, "path must include list name and entry key", http.StatusBadRequest)
 			return
 		}
 
 		// Validate all fields BEFORE creating the entry.
-		entryKey := path[len(path)-1]
-		listPath := path[:len(path)-1]
+		entryKey := target.Address.Key
+		listPath := path[:len(target.ParentPath)+1]
 		tree := mgr.Tree(username)
 		listNode, walkErr := walkSchema(schema, listPath)
 		if walkErr != nil {
@@ -102,7 +116,7 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 
 		// Enforce ze:required fields: reject if missing and no inherited value.
 		if ln, ok := listNode.(*config.ListNode); ok && len(ln.Required) > 0 {
-			parentTree := resolveParentDefaults(tree, listPath)
+			parentTree := resolveParentDefaults(tree, schema, listPath)
 			for _, reqPath := range ln.Required {
 				fieldStr := textbuf.Join(reqPath, "/")
 				var tb textbuf.Buffer
@@ -128,6 +142,11 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			fieldPath := strings.TrimPrefix(formKey, "field:")
 			value := strings.TrimSpace(values[0])
 			if value == "" {
+				continue
+			}
+			// A non-first key leaf is part of the address, which already
+			// validated it and writes it on the entry it creates.
+			if slices.ContainsFunc(target.Address.Pairs, func(p config.ListKeyPair) bool { return p.Leaf == fieldPath }) {
 				continue
 			}
 			// The overlay prefills a secret field with the display placeholder
@@ -231,6 +250,15 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 
 			tree = mgr.Tree(username)
 			data := buildFragmentData(schema, tree, listPath)
+			// A list with no unique field renders no table, so there is no
+			// table to swap: reload the list view instead.
+			if data.ListTable == nil {
+				var tb textbuf.Buffer
+				target := tb.Str(showPathPrefix).Join(listPath, "/").Byte('/').String()
+				w.Header().Set("HX-Redirect", target)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
 			tableHTML := renderer.renderComponent("list_table", listTable(data))
 
 			count := mgr.ChangeCount(username)
@@ -287,12 +315,17 @@ func HandleConfigRenameWithAuthorizer(mgr *EditorManager, schema *config.Schema,
 			return
 		}
 
-		newKey := strings.ToLower(strings.TrimSpace(r.FormValue("new-key")))
-		if newKey == "" {
+		// The new key is a destination address: the first key value, then
+		// `name value` for a multi-leaf key's other leaves. Each token is
+		// validated, and the editor's funnel applies the first-value-only
+		// rule and refuses a destination equal to the source. Keys keep
+		// their case, as the SSH editor's `rename` keeps it.
+		dst := strings.Fields(r.FormValue("new-key"))
+		if len(dst) == 0 {
 			http.Error(w, "missing new-key", http.StatusBadRequest)
 			return
 		}
-		if err := ValidatePathSegments([]string{newKey}); err != nil {
+		if err := ValidatePathSegments(dst); err != nil {
 			http.Error(w, "invalid new key", http.StatusBadRequest)
 			return
 		}
@@ -302,13 +335,8 @@ func HandleConfigRenameWithAuthorizer(mgr *EditorManager, schema *config.Schema,
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		oldKey = strings.ToLower(oldKey)
-		if newKey == oldKey {
-			http.Error(w, "new key must differ from current key", http.StatusBadRequest)
-			return
-		}
 
-		if err := mgr.RenameListEntry(username, parentPath, listName, oldKey, newKey); err != nil {
+		if err := mgr.RenameListEntry(username, parentPath, listName, oldKey, dst); err != nil {
 			status := http.StatusBadRequest
 			if strings.Contains(err.Error(), "already exists") {
 				status = http.StatusConflict
@@ -321,54 +349,19 @@ func HandleConfigRenameWithAuthorizer(mgr *EditorManager, schema *config.Schema,
 	}
 }
 
+// resolveNamedListEntryPath returns the list entry a web rename names, by
+// the codec's one target walk (which the SSH editor and the web terminal
+// call too). The path must end at the entry's address, and an entry of a
+// keyless list, or under one, is refused.
 func resolveNamedListEntryPath(schema *config.Schema, fullPath []string) (parentPath []string, listName, key string, err error) {
-	if len(fullPath) < 2 {
-		return nil, "", "", errPathTooShortForListEntry
+	target, err := config.ResolveListEntryTarget(schema, "rename", fullPath)
+	if err != nil {
+		return nil, "", "", err
 	}
-
-	var currentSchema schemaGetter = schema
-	lastListIdx := -1
-
-	i := 0
-	for i < len(fullPath) {
-		name := fullPath[i]
-		schemaNode := currentSchema.Get(name)
-		if schemaNode == nil {
-			return nil, "", "", fmt.Errorf("unknown path element: %s", name)
-		}
-
-		switch n := schemaNode.(type) {
-		case *config.ContainerNode:
-			currentSchema = n
-			i++
-		case *config.ListNode:
-			if n.KeyName == "" {
-				return nil, "", "", errCannotRenameKeylessListEntries
-			}
-			if i+1 >= len(fullPath) {
-				return nil, "", "", fmt.Errorf("list %s requires a key", name)
-			}
-			if n.Get(fullPath[i+1]) != nil {
-				return nil, "", "", errPathDoesNotEndAtA
-			}
-			lastListIdx = i
-			listName = name
-			key = fullPath[i+1]
-			currentSchema = n
-			i += 2
-		case *config.FlexNode:
-			currentSchema = n
-			i++
-		default:
-			return nil, "", "", errPathDoesNotEndAtA
-		}
-	}
-
-	if lastListIdx == -1 || lastListIdx+2 != len(fullPath) {
+	if target.End != len(fullPath) {
 		return nil, "", "", errPathDoesNotEndAtA
 	}
-
-	return fullPath[:lastListIdx], listName, key, nil
+	return target.ParentPath, target.ListName, target.Address.Key, nil
 }
 
 // returnAddError returns the list table with an error notification for HTMX add requests,
@@ -381,8 +374,15 @@ func returnAddError(w http.ResponseWriter, r *http.Request, renderer *Renderer, 
 	tree := mgr.Tree(username)
 	data := buildFragmentData(schema, tree, listPath)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tableHTML := renderer.renderComponent("list_table", listTable(data))
 	notifHTML := renderer.renderComponent("notification_error", notificationError(notificationErrorData{Message: errMsg}))
+	// A list with no unique field renders no table: answer the notice alone.
+	if data.ListTable == nil {
+		if _, writeErr := w.Write([]byte(notifHTML)); writeErr != nil {
+			return
+		}
+		return
+	}
+	tableHTML := renderer.renderComponent("list_table", listTable(data))
 	if _, writeErr := w.Write([]byte(string(tableHTML) + string(notifHTML))); writeErr != nil {
 		return
 	}
@@ -428,7 +428,9 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 		displayKey := listNode.DisplayKey
 		workbench := r.URL.Query().Get("ui") == uiModeTokenWorkbench
 		heading := "New " + listName
-		keyLabel := listNode.KeyName
+		// The key input takes the first key value; a multi-leaf key's other
+		// key leaves are posted as fields (below) and complete the address.
+		keyLabel := listNode.FirstKeyLeafName()
 		keyInputID := "field-" + formFieldID(keyLabel)
 		if keyLabel == "" {
 			keyLabel = "name"
@@ -448,7 +450,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 			}(),
 			ListName:        listName,
 			Heading:         heading,
-			KeyName:         listNode.KeyName,
+			KeyName:         listNode.FirstKeyLeafName(),
 			KeyLabel:        keyLabel,
 			KeyInputID:      keyInputID,
 			Keyless:         keyless,
@@ -459,10 +461,24 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 
 		// Resolve inherited defaults from parent context in the config tree.
 		tree := mgr.Tree(username)
-		parentTree := resolveParentDefaults(tree, listPath)
+		parentTree := resolveParentDefaults(tree, schema, listPath)
 
 		// Track fields already added to avoid duplicates (required/suggest may overlap unique).
 		seen := make(map[string]bool)
+
+		// A multi-leaf key's other key leaves come first: the add handler reads
+		// them into the entry's address. Each is optional, absent meaning its
+		// YANG default.
+		if listNode.HasMultiLeafKey() {
+			for _, leaf := range listNode.KeyLeafNames()[1:] {
+				seen[leaf] = true
+				data.Fields = append(data.Fields, addFormField{
+					Path:        leaf,
+					Placeholder: resolveLeafDescription(listNode, leaf),
+					Category:    "suggest",
+				})
+			}
+		}
 
 		for _, field := range collectRequiredFields(listNode) {
 			seen[field] = true
@@ -509,34 +525,13 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 // resolveParentDefaults walks the config tree to find the parent context for a list path.
 // For bgp/group/<name>/peer, it returns the group entry tree (inheritable defaults).
 // For bgp/peer, it returns the bgp container tree (bgp-level defaults).
-// Returns nil if no tree or path is too short.
-func resolveParentDefaults(tree *config.Tree, listPath []string) *config.Tree {
+// Returns nil if no tree or path is too short. The walk is walkTree's, so a
+// list entry address spans the segments the codec reads.
+func resolveParentDefaults(tree *config.Tree, schema *config.Schema, listPath []string) *config.Tree {
 	if tree == nil || len(listPath) < 2 {
 		return nil
 	}
-	// Walk to the parent of the list. Segments alternate between container/list
-	// names and list entry keys.
-	parentPath := listPath[:len(listPath)-1]
-	current := tree
-	for i := 0; i < len(parentPath); i++ {
-		seg := parentPath[i]
-		// Try container first.
-		if child := current.GetContainer(seg); child != nil {
-			current = child
-			continue
-		}
-		// Try as a list name with the next segment as entry key.
-		if i+1 < len(parentPath) {
-			entries := current.GetList(seg)
-			if entry, ok := entries[parentPath[i+1]]; ok {
-				current = entry
-				i++ // Skip the key segment.
-				continue
-			}
-		}
-		return nil
-	}
-	return current
+	return walkTree(tree, schema, listPath[:len(listPath)-1])
 }
 
 // inheritedFieldValue is the value the add-entry overlay prefills for one

@@ -153,8 +153,12 @@ type Editor interface {
 	// that hold a full path MUST prefer it over DeleteValue, which can only
 	// remove a scalar leaf and silently no-ops on everything else.
 	DeleteByPath(fullPath []string) error
-	RenameListEntry(parentPath []string, listName, oldKey, newKey string) error
-	CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error
+	// RenameListEntry and CopyListEntry move the entry stored under oldKey
+	// (srcKey) to the destination address dst, as tokens. Only the first key
+	// value may change: a multi-leaf key's other key leaves carry over, and a
+	// destination that changes one, or equals the source, is refused.
+	RenameListEntry(parentPath []string, listName, oldKey string, dst []string) error
+	CopyListEntry(parentPath []string, listName, srcKey string, dst []string) error
 	// ApplyActivation deactivates (activate false) or activates the node a
 	// token path names (leaf-list value, leaf, container or list entry) and
 	// returns the status line the SSH editor prints.

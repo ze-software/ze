@@ -388,3 +388,74 @@ func TestChangeFileLeafDeleteSurvivesRewrite(t *testing.T) {
 	require.True(t, ok, "the delete metadata survives a second round trip")
 	assert.Equal(t, "old", entry.Previous)
 }
+
+// TestKeyMoveRecordRoundTripsQuotedKeys proves the rename and copy records
+// of a change file read back the keys they were written with.
+//
+// GOAL: a session-mode rename or copy of an entry whose key holds a space
+// (a multi-leaf address), a quote, a backslash or the word `to` reloads
+// with the same keys. METHOD: format each op with formatKeyMoveLine, read it
+// back through extractMeta and parseKeyMoveLine, and compare; then load old
+// raw records written before keys were quoted.
+//
+// VALIDATES: splitQuotedTokens is the inverse of quoteIfNeeded; `to` is read
+// at its fixed place; a ParentPath token starting with `"` round-trips; an
+// old raw record loads as it did; an unterminated `'` is refused naming the
+// line.
+// PREVENTS: strings.Fields splitting `fe80::b interface zbl0` into three
+// tokens, and the first `to` being taken for the separator.
+func TestKeyMoveRecordRoundTripsQuotedKeys(t *testing.T) {
+	keys := []string{
+		"fe80::b interface zbl0",
+		`a"b`,
+		`a\b`,
+		"it's",
+		`all "of\ 'them`,
+		"to",
+	}
+	for _, key := range keys {
+		assert.Equal(t, []string{key}, mustSplit(t, quoteIfNeeded(key)), "splitQuotedTokens(quoteIfNeeded(%q))", key)
+	}
+
+	for _, opType := range []StructuralOpType{StructuralOpRename, StructuralOpCopyEntry} {
+		for _, key := range keys {
+			op := StructuralOp{
+				Type: opType, User: "alice", Source: "local", Time: time.Unix(1700000000, 0).UTC(),
+				ParentPath: `bfd "odd`, ListName: "single-hop-session", OldKey: key, NewKey: "fe80::c " + key,
+			}
+			line := formatKeyMoveLine(op)
+			entry, cmdLine := extractMeta(line)
+			got, err := parseKeyMoveLine(1, entry, cmdLine, opType)
+			require.NoError(t, err, line)
+			assert.Equal(t, op.OldKey, got.OldKey, line)
+			assert.Equal(t, op.NewKey, got.NewKey, line)
+			assert.Equal(t, op.ParentPath, got.ParentPath, line)
+			assert.Equal(t, op.ListName, got.ListName, line)
+		}
+	}
+
+	t.Run("old raw record loads", func(t *testing.T) {
+		entry, cmdLine := extractMeta("#alice @local rename bfd single-hop-session fe80::b#2 to fe80::c")
+		got, err := parseKeyMoveLine(1, entry, cmdLine, StructuralOpRename)
+		require.NoError(t, err)
+		assert.Equal(t, "fe80::b#2", got.OldKey)
+		assert.Equal(t, "fe80::c", got.NewKey)
+		assert.Equal(t, "bfd", got.ParentPath)
+	})
+
+	t.Run("unterminated quote is refused naming the line", func(t *testing.T) {
+		entry, cmdLine := extractMeta("#alice @local rename bgp peer 'peer1 to peer2")
+		_, err := parseKeyMoveLine(7, entry, cmdLine, StructuralOpRename)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "line 7")
+		assert.Contains(t, err.Error(), "unterminated")
+	})
+}
+
+// mustSplit is splitQuotedTokens for a line the test knows is well formed.
+func mustSplit(t *testing.T, line string) []string {
+	t.Helper()
+	tokens, err := splitQuotedTokens(line)
+	require.NoError(t, err, line)
+	return tokens
+}

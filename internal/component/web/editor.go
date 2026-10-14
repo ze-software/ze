@@ -218,8 +218,9 @@ func (m *EditorManager) DeleteByPath(username string, path []string, leaf string
 	return us.editor.DeleteByPath(fullPath)
 }
 
-// RenameListEntry renames a list entry key in the user's working tree.
-func (m *EditorManager) RenameListEntry(username string, parentPath []string, listName, oldKey, newKey string) error {
+// RenameListEntry renames a list entry key in the user's working tree; dst
+// is the destination address as tokens.
+func (m *EditorManager) RenameListEntry(username string, parentPath []string, listName, oldKey string, dst []string) error {
 	us, err := m.GetOrCreate(username)
 	if err != nil {
 		return err
@@ -228,7 +229,7 @@ func (m *EditorManager) RenameListEntry(username string, parentPath []string, li
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	return us.editor.RenameListEntry(parentPath, listName, oldKey, newKey)
+	return us.editor.RenameListEntry(parentPath, listName, oldKey, dst)
 }
 
 // commit is Commit, and with force a LIVE or STALE conflict applies instead
@@ -628,8 +629,9 @@ func (m *EditorManager) ContentAtPath(username string, path []string) string {
 	return serializeTreeAtPath(tree, m.schema, path)
 }
 
-// CopyListEntry copies a list entry in the user's working tree.
-func (m *EditorManager) CopyListEntry(username string, parentPath []string, listName, srcKey, dstKey string) error {
+// CopyListEntry copies a list entry in the user's working tree; dst is the
+// destination address as tokens.
+func (m *EditorManager) CopyListEntry(username string, parentPath []string, listName, srcKey string, dst []string) error {
 	us, err := m.GetOrCreate(username)
 	if err != nil {
 		return err
@@ -638,7 +640,7 @@ func (m *EditorManager) CopyListEntry(username string, parentPath []string, list
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	return us.editor.CopyListEntry(parentPath, listName, srcKey, dstKey)
+	return us.editor.CopyListEntry(parentPath, listName, srcKey, dst)
 }
 
 // ApplyActivation deactivates (activate false) or activates the node a token

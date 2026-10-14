@@ -96,8 +96,8 @@ func (a *testEditorAdapter) DeleteValue(path []string, key string) error {
 func (a *testEditorAdapter) DeleteByPath(fullPath []string) error {
 	return a.ed.DeleteByPath(fullPath)
 }
-func (a *testEditorAdapter) RenameListEntry(parentPath []string, listName, oldKey, newKey string) error {
-	return a.ed.RenameListEntry(parentPath, listName, oldKey, newKey)
+func (a *testEditorAdapter) RenameListEntry(parentPath []string, listName, oldKey string, dst []string) error {
+	return a.ed.RenameListEntry(parentPath, listName, oldKey, dst)
 }
 func (a *testEditorAdapter) CommitSession() (*contract.CommitResult, error) {
 	if a.commitErr != nil {
@@ -130,8 +130,8 @@ func (a *testEditorAdapter) AckDiscardNotice(through int64) error {
 }
 func (a *testEditorAdapter) OriginalContent() string { return a.ed.OriginalContent() }
 func (a *testEditorAdapter) WorkingContent() string  { return a.ed.WorkingContent() }
-func (a *testEditorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
-	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
+func (a *testEditorAdapter) CopyListEntry(parentPath []string, listName, srcKey string, dst []string) error {
+	return a.ed.CopyListEntry(parentPath, listName, srcKey, dst)
 }
 func (a *testEditorAdapter) ApplyActivation(fullPath []string, activate bool) (string, error) {
 	return a.ed.ApplyActivation(fullPath, activate)

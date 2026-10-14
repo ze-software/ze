@@ -25,10 +25,10 @@ func multiKeySchema() *Schema {
 	return schema
 }
 
-// sortedListKeys returns the map keys of a list, sorted.
-func sortedListKeys(tree *Tree, name string) []string {
-	keys := make([]string, 0, len(tree.GetList(name)))
-	for key := range tree.GetList(name) {
+// sortedListKeys returns the map keys of multiKeySchema's `session` list, sorted.
+func sortedListKeys(tree *Tree) []string {
+	keys := make([]string, 0, len(tree.GetList("session")))
+	for key := range tree.GetList("session") {
 		keys = append(keys, key)
 	}
 	slices.Sort(keys)
@@ -50,7 +50,7 @@ session fe80::b { interface zbl1; profile fast; }
 			t.Fatalf("parse: %v", err)
 		}
 		want := []string{"fe80::b interface zbl0", "fe80::b interface zbl1"}
-		if got := sortedListKeys(tree, "session"); !slices.Equal(got, want) {
+		if got := sortedListKeys(tree); !slices.Equal(got, want) {
 			t.Fatalf("keys %q, want %q", got, want)
 		}
 		if v, _ := tree.GetList("session")["fe80::b interface zbl1"].Get("profile"); v != "fast" {
@@ -78,7 +78,7 @@ session fe80::b { interface zbl0; }
 			t.Fatalf("parse: %v", err)
 		}
 		want := []string{"fe80::b", "fe80::b interface zbl0"}
-		if got := sortedListKeys(tree, "session"); !slices.Equal(got, want) {
+		if got := sortedListKeys(tree); !slices.Equal(got, want) {
 			t.Fatalf("keys %q, want %q", got, want)
 		}
 	})
@@ -89,7 +89,7 @@ session fe80::b { interface zbl0; }
 			t.Fatalf("parse: %v", err)
 		}
 		want := []string{"fe80::b vrf blue interface zbl0"}
-		if got := sortedListKeys(tree, "session"); !slices.Equal(got, want) {
+		if got := sortedListKeys(tree); !slices.Equal(got, want) {
 			t.Fatalf("keys %q, want %q (YANG key order)", got, want)
 		}
 	})
@@ -135,7 +135,7 @@ session fe80::b { interface zbl1; }
 			t.Fatalf("re-parse of own output: %v\n%s", err, out)
 		}
 		want := []string{"fe80::b interface zbl0", "fe80::b interface zbl1"}
-		if got := sortedListKeys(again, "session"); !slices.Equal(got, want) {
+		if got := sortedListKeys(again); !slices.Equal(got, want) {
 			t.Fatalf("re-parsed keys %q, want %q", got, want)
 		}
 	})

@@ -112,9 +112,13 @@ func (e *Editor) walkMetaPath(meta *config.MetaTree, path []string) *config.Meta
 			if listMeta == nil {
 				return config.NewMetaTree()
 			}
-			if i+1 < len(path) && n.Get(path[i+1]) == nil {
-				// Keyed list entry -- resolve #N positional indexes using current tree depth
-				key := path[i+1]
+			addr, addrErr := config.ListPathStep(name, n, path[i+1:])
+			if addrErr != nil {
+				return config.NewMetaTree()
+			}
+			if addr.Tokens > 0 {
+				// Keyed list entry, addressed by the codec -- resolve #N positional indexes using current tree depth
+				key := addr.Key
 				entry := listMeta.GetListEntry(key)
 				if entry == nil {
 					if resolved := resolveMetaListKey(currentTree, name, key, listMeta); resolved != nil {
@@ -134,7 +138,7 @@ func (e *Editor) walkMetaPath(meta *config.MetaTree, path []string) *config.Meta
 					}
 				}
 				currentSchema = n
-				i += 2
+				i += 1 + addr.Tokens
 			} else {
 				// Anonymous list entry
 				entry := listMeta.GetListEntry(config.KeyDefault)

@@ -498,11 +498,11 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		var tb textbuf.Buffer
 		return nil, tb.Str("rolled back to ").Str(backups[n-1].Path).String()
 	case verbRename:
-		return execListEntryOp(cmd.Args, contextPath, listEntryRename, func(parent []string, list, src, dst string) error {
+		return execListEntryOp(schema, cmd.Args, contextPath, listEntryRename, func(parent []string, list, src string, dst []string) error {
 			return mgr.RenameListEntry(username, parent, list, src, dst)
 		})
 	case verbCopy:
-		return execListEntryOp(cmd.Args, contextPath, listEntryCopy, func(parent []string, list, src, dst string) error {
+		return execListEntryOp(schema, cmd.Args, contextPath, listEntryCopy, func(parent []string, list, src string, dst []string) error {
 			return mgr.CopyListEntry(username, parent, list, src, dst)
 		})
 	case verbInsert:
@@ -848,7 +848,7 @@ func serializeSetAtPath(tree *config.Tree, schema *config.Schema, path []string)
 	}
 	// Mask every secret leaf for display; MaskSecrets clones the tree.
 	tree = config.MaskSecrets(tree, schema)
-	return config.FilterSetByPath(config.SerializeSet(tree, schema), path)
+	return config.FilterSetByPath(config.SerializeSet(tree, schema), schema, path)
 }
 
 // executeTerminalSet handles the set command in terminal mode.
@@ -1190,25 +1190,36 @@ var (
 	listEntryRename = listEntryVerb{name: "rename", sourceLabel: "<old-name>", done: "Renamed"}
 )
 
-func execListEntryOp(args, contextPath []string, verb listEntryVerb, op func(parent []string, list, src, dst string) error) ([]string, string) {
-	if len(args) < 4 || args[len(args)-2] != "to" {
+// listEntryUsage is the usage line of a rename or copy.
+func listEntryUsage(verb listEntryVerb) string {
+	var tb textbuf.Buffer
+	return tb.Str("usage: ").Str(verb.name).Str(" <list> ").Str(verb.sourceLabel).Str(" to <destination>").String()
+}
+
+// execListEntryOp runs the web terminal's rename or copy: <path...>
+// <source address> to <destination address>, relative to contextPath.
+func execListEntryOp(schema *config.Schema, args, contextPath []string, verb listEntryVerb, op func(parent []string, list, src string, dst []string) error) ([]string, string) {
+	fullPath := append(append([]string{}, contextPath...), args...)
+	// The source address is read by the codec's one target walk, which the
+	// SSH editor and the web rename form call too; `to` must stand where it
+	// ends, and the tokens after it are the destination address.
+	target, err := config.ResolveListEntryTarget(schema, verb.name, fullPath)
+	if err != nil {
 		var tb textbuf.Buffer
-		return nil, tb.Str("usage: ").Str(verb.name).Str(" <list> ").Str(verb.sourceLabel).Str(" to <destination>").String()
+		return nil, tb.Str("error: ").Err(err).String()
 	}
-	dstKey := args[len(args)-1]
-	srcTokens := args[:len(args)-2]
-	fullPath := append(append([]string{}, contextPath...), srcTokens...)
-	if len(fullPath) < 2 {
-		var tb textbuf.Buffer
-		return nil, tb.Str(verb.name).Str(" requires at least a list name and entry key").String()
+	if target.End+1 >= len(fullPath) {
+		return nil, listEntryUsage(verb)
 	}
-	srcKey := fullPath[len(fullPath)-1]
-	listName := fullPath[len(fullPath)-2]
-	parentPath := fullPath[:len(fullPath)-2]
-	if err := op(parentPath, listName, srcKey, dstKey); err != nil {
+	if fullPath[target.End] != "to" {
+		return nil, listEntryUsage(verb)
+	}
+	dst := fullPath[target.End+1:]
+	if err := op(target.ParentPath, target.ListName, target.Address.Key, dst); err != nil {
 		var tb textbuf.Buffer
 		return nil, tb.Str("error: ").Err(err).String()
 	}
 	var tb textbuf.Buffer
-	return nil, tb.Str(verb.done).Byte(' ').Str(listName).Byte(' ').Str(srcKey).Str(" to ").Str(dstKey).String()
+	return nil, tb.Str(verb.done).Byte(' ').Str(target.ListName).Byte(' ').
+		Join(fullPath[len(target.ParentPath)+1:target.End], " ").Str(" to ").Join(dst, " ").String()
 }

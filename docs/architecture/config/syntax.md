@@ -190,9 +190,33 @@ and never a line that sets a key leaf the address carries. The set parser
 (with and without meta) reads an address left to right: the first token is the
 first key value, then a `name value` pair is consumed while the next token
 names another key leaf of the list and a token follows it; a key leaf named
-twice is refused. A list whose key names one leaf keeps its key exactly as
-written.
-<!-- source: internal/component/config/list_key.go -- BuildListKey, ParseListAddress, canonicalParsedListKey, ListKeyOpeningValue, setFormEntry, emitAddressLine -->
+twice is refused. The CLI editor reads every path by the same rule, so
+`set bfd single-hop-session fe80::b interface zbl1` creates the entry on
+`zbl1` (with its `interface` leaf written), a leaf after the address lands on
+that entry only, `delete` of a full address removes one entry, and a set-form
+`show` of `fe80::b` matches the address as one segment and prints none of the
+link entries' lines. A rename or copy changes only the first key value: the
+other key leaves carry over, a destination that changes one is refused with
+the delete and set lines that move the entry, and the session change file
+writes each key as one quoted token. A rename or copy of an entry of a keyless
+list, or of an entry under one, is refused. A list whose key names one leaf
+keeps its key exactly as written.
+
+The web editor addresses the entry by its address as path segments
+(`/show/bfd/single-hop-session/fe80::b/interface/zbl1/`); its list table heads
+the key column with the first key leaf and links each row to its own segments,
+and its add form posts the other key leaves as fields that complete the
+address. Neither the add form nor the rename form changes the case of a key.
+gNMI names the keys (`single-hop-session[peer=fe80::b][interface=zbl1]`): a
+path must name the first key leaf, `[vrf=default]` names the same entry as no
+`vrf`, a response path names every key leaf from the schema (an absent one at
+its default), and a Set of a key leaf is refused as naming it twice.
+<!-- source: internal/component/config/list_key.go -- BuildListKey, ParseListAddress, canonicalParsedListKey, ListKeyOpeningValue, setFormEntry, emitAddressLine, ListPathStep, ListAddressSpan, WalkListEntryPath, ResolveListEntryTarget, ListEntryDestination, splitQuotedTokens -->
+<!-- source: internal/component/config/serialize_set.go -- FilterSetByPath, setPathSegments -->
+<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet, listEntryMove -->
+<!-- source: internal/component/web/handler_config_walk.go -- walkSchema, walkTree, isListEntryPath -->
+<!-- source: internal/component/web/fragment.go -- buildListTable, buildContextHeading -->
+<!-- source: internal/component/gnmi/path.go -- pathToSegments, segmentsToPath -->
 <!-- source: internal/component/config/parser_list.go -- addParsedListEntry -->
 
 Read all three through `internal/core/configvalue` (`Bool`, `Int`, `LeafList`,

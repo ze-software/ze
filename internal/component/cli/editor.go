@@ -621,8 +621,8 @@ func (e *Editor) ResolveLeafListValue(fullPath []string) (parentPath []string, l
 		}
 		current = sg
 		i++
-		if _, isList := node.(*config.ListNode); isList {
-			i++ // skip list key
+		if listNode, isList := node.(*config.ListNode); isList && i < len(fullPath)-2 {
+			i += config.ListAddressLen(listNode, fullPath[i:len(fullPath)-2]) // skip the entry address
 		}
 	}
 	return nil, "", false
@@ -712,7 +712,8 @@ func (e *Editor) WalkPath(path []string) *config.Tree {
 
 // walkSchemaNode resolves one step of tree navigation based on the schema node type.
 // Returns (navigable, subtree, step). step is how many path elements were consumed
-// (2 for keyed list entries, 1 for containers and anonymous list entries).
+// (the list name plus its entry address for keyed list entries, 1 for
+// containers and anonymous list entries).
 func walkSchemaNode(schemaNode config.Node, tree *config.Tree, name string, path []string, i int) (bool, *config.Tree, int) {
 	switch n := schemaNode.(type) {
 	case *config.ContainerNode:
@@ -728,16 +729,20 @@ func walkSchemaNode(schemaNode config.Node, tree *config.Tree, name string, path
 			}
 			return true, entries[config.KeyDefault], 1
 		}
-		// Keyed list entry — next path element is the key
-		key := path[i+1]
+		// Keyed list entry: the address after the list name is the key.
+		addr, err := config.ListPathStep(name, n, path[i+1:])
+		if err != nil {
+			return false, nil, 0
+		}
+		step := 1 + addr.Tokens
 		if entries == nil {
-			return true, nil, 2
+			return true, nil, step
 		}
 		// Resolve #N positional index to actual key
-		if entry := resolveListKey(tree, name, key); entry != nil {
-			return true, entry, 2
+		if entry := resolveListKey(tree, name, addr.Key); entry != nil {
+			return true, entry, step
 		}
-		return true, entries[key], 2
+		return true, entries[addr.Key], step
 	case *config.FlexNode:
 		return true, tree.GetContainer(name), 1
 	case *config.LeafNode, *config.FreeformNode,
@@ -785,7 +790,8 @@ func (e *Editor) autoSelectListEntry(path []string) []string {
 	}
 
 	schemaNode := parentSchema.Get(lastElem)
-	if _, ok := schemaNode.(*config.ListNode); !ok {
+	listNode, ok := schemaNode.(*config.ListNode)
+	if !ok {
 		return path
 	}
 
@@ -794,8 +800,9 @@ func (e *Editor) autoSelectListEntry(path []string) []string {
 		return path
 	}
 
-	// Single entry — expand path with the entry's key
-	return append(path, entries[0].Key)
+	// Single entry: expand the path with the entry's address, a token per
+	// word, so a multi-leaf key reads back as the same address.
+	return append(path, config.ListKeyTokens(listNode, entries[0].Key)...)
 }
 
 // resolveListKey resolves a #N positional index to the actual list entry.

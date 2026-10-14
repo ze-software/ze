@@ -69,8 +69,9 @@ func (n *ListNode) isNonFirstKeyLeaf(name string) bool {
 	return slices.Contains(names[min(1, len(names)):], name)
 }
 
-// keyLeafDefault returns the YANG default of a non-first key leaf.
-func (n *ListNode) keyLeafDefault(name string) (string, bool) {
+// KeyLeafDefault returns the YANG default of a non-first key leaf, false when
+// it has none.
+func (n *ListNode) KeyLeafDefault(name string) (string, bool) {
 	leaf, ok := n.Get(name).(*LeafNode)
 	if !ok {
 		return "", false
@@ -118,7 +119,7 @@ func BuildListKey(listName string, node *ListNode, first string, valueOf func(le
 		if err := checkListKeyValue(listName, leaf, value); err != nil {
 			return "", err
 		}
-		if def, hasDefault := node.keyLeafDefault(leaf); hasDefault && value == def {
+		if def, hasDefault := node.KeyLeafDefault(leaf); hasDefault && value == def {
 			continue // A key leaf at its YANG default is omitted from the address.
 		}
 		b.Byte(' ').Str(leaf).Byte(' ').Str(value)
@@ -333,6 +334,69 @@ func quoteIfNeeded(s string) string {
 	return b.String()
 }
 
+// splitQuotedTokens splits a line into the tokens quoteIfNeeded wrote: a
+// token is a run of non-space characters, or a `"`-quoted string whose
+// escapes (\", \\, \n, \t) quoteIfNeeded wrote, or a `'`-quoted string
+// with no escapes (a record written by hand or before keys were quoted). It
+// is the inverse of quoteIfNeeded: splitQuotedTokens(quoteIfNeeded(s)) is
+// [s]. An unterminated quote is refused.
+func splitQuotedTokens(line string) ([]string, error) {
+	var tokens []string
+	for i := 0; i < len(line); {
+		c := line[i]
+		if isTokenSpace(c) {
+			i++
+			continue
+		}
+		if c != '"' && c != '\'' {
+			end := i
+			for end < len(line) && !isTokenSpace(line[end]) {
+				end++
+			}
+			tokens = append(tokens, line[i:end])
+			i = end
+			continue
+		}
+		token, next, err := readQuotedToken(line, i)
+		if err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, token)
+		i = next
+	}
+	return tokens, nil
+}
+
+// isTokenSpace reports whether c separates two tokens of a record.
+func isTokenSpace(c byte) bool { return c == ' ' || c == '\t' }
+
+// readQuotedToken reads the quoted token opening at line[start] and returns
+// it and the index after its closing quote.
+func readQuotedToken(line string, start int) (string, int, error) {
+	quote := line[start]
+	var b textbuf.Buffer
+	for i := start + 1; i < len(line); i++ {
+		c := line[i]
+		if c == quote {
+			return b.String(), i + 1, nil
+		}
+		if quote == '"' && c == '\\' && i+1 < len(line) {
+			i++
+			switch line[i] {
+			case 'n':
+				b.Byte('\n')
+			case 't':
+				b.Byte('\t')
+			default:
+				b.Byte(line[i])
+			}
+			continue
+		}
+		b.Byte(c)
+	}
+	return "", 0, errors.New("unterminated " + string(quote) + " quote in " + line)
+}
+
 // ListKeyOpeningValue returns what a brace-form opening line writes for a
 // stored key. A multi-leaf-key list writes the first value only, because the
 // entry's body already carries the other key leaves: writing the whole
@@ -362,4 +426,211 @@ func emitAddressLine(b *textbuf.Buffer, entry *Tree, addressTokens []string, ent
 		return // The nop line emitStructuralNop wrote addresses the entry.
 	}
 	b.Str("set ").Str(entryPath).Byte('\n')
+}
+
+// ListPathStep reads the entry a path addresses after a list name; rest is
+// the path after the name. A path that ends at the list, or whose next token
+// names a child of the list, addresses the anonymous entry (KeyDefault) and
+// consumes no token. Otherwise the address is read by ParseListAddress. It is
+// the one step every list path walker takes, so no walker reads an address
+// its own way.
+func ListPathStep(listName string, node *ListNode, rest []string) (ListAddress, error) {
+	if len(rest) == 0 {
+		return ListAddress{Key: KeyDefault, First: KeyDefault}, nil
+	}
+	if node.Get(rest[0]) != nil {
+		return ListAddress{Key: KeyDefault, First: KeyDefault}, nil
+	}
+	return ParseListAddress(listName, node, rest)
+}
+
+// ListAddressLen returns how many tokens of rest the entry address after a
+// list name spans, by the ListPathStep rule, without validating the values.
+// It serves the walkers that resolve the schema only.
+func ListAddressLen(node *ListNode, rest []string) int {
+	return ListAddressSpan(node.KeyLeafNames(), rest, func(name string) bool { return node.Get(name) != nil })
+}
+
+// ListAddressSpan is the ListPathStep rule over any schema representation:
+// keyLeaves are the list's key leaf names in YANG key order and isChild
+// says whether a name is a child of the list. A path that ends, or whose
+// next token is a child, spans no token (an anonymous entry); otherwise the
+// first token, then a `name value` pair while the next token names a
+// non-first key leaf and a token follows it. The CLI completer, which walks
+// the YANG entries rather than the config schema, calls it so both read one
+// address the same way.
+func ListAddressSpan(keyLeaves, rest []string, isChild func(name string) bool) int {
+	if len(rest) == 0 {
+		return 0
+	}
+	if isChild(rest[0]) {
+		return 0
+	}
+	n := 1
+	if len(keyLeaves) < 2 {
+		return n
+	}
+	for n+1 < len(rest) && slices.Contains(keyLeaves[1:], rest[n]) {
+		n += 2
+	}
+	return n
+}
+
+// ListEntryTarget is the list entry a token path ends at.
+type ListEntryTarget struct {
+	ParentPath []string    // tokens before the list name
+	ListName   string      // the list holding the entry
+	Node       *ListNode   // the list's schema
+	Address    ListAddress // the entry's address
+	End        int         // tokens consumed, through the end of the address
+	Keyless    string      // first keyless list the path crosses, empty when none
+}
+
+// errPathNotAtListEntry is the refusal of a path that does not name an entry.
+var errPathNotAtListEntry = errors.New("path does not end at a list entry")
+
+// WalkListEntryPath walks tokens from the schema root and reports the list
+// entry they end at. The walk stops after a list entry's address when the
+// next token is not a child of that list, so a caller may read more tokens
+// (`to`, a destination) from End. ok is false when the walk ends anywhere
+// but right after a keyed entry's address, and err is set only when an
+// address the walk crosses is refused. It is the one target walk of the
+// CLI editor, the web editor and the web terminal.
+func WalkListEntryPath(schema *Schema, tokens []string) (target ListEntryTarget, ok bool, err error) {
+	if schema == nil {
+		return target, false, nil
+	}
+	var current ChildProvider = schema
+	afterEntry := false
+	for i := 0; i < len(tokens); {
+		name := tokens[i]
+		node := current.Get(name)
+		if node == nil {
+			if afterEntry {
+				target.End = i
+				return target, true, nil
+			}
+			return target, false, nil // Not a schema path: no entry, and the caller's own check names the element.
+		}
+		afterEntry = false
+		switch n := node.(type) {
+		case *ContainerNode:
+			current = n
+			i++
+		case *FlexNode:
+			current = n
+			i++
+		case *ListNode:
+			if n.KeyName == "" && target.Keyless == "" {
+				target.Keyless = name
+			}
+			addr, stepErr := ListPathStep(name, n, tokens[i+1:])
+			if stepErr != nil {
+				return target, false, stepErr
+			}
+			current = n
+			if addr.Tokens == 0 {
+				i++
+				continue
+			}
+			target.ParentPath = tokens[:i]
+			target.ListName = name
+			target.Node = n
+			target.Address = addr
+			i += 1 + addr.Tokens
+			afterEntry = true
+		default:
+			return target, false, nil
+		}
+	}
+	target.End = len(tokens)
+	return target, afterEntry, nil
+}
+
+// ResolveListEntryTarget returns the list entry a rename or copy names; verb
+// is the operation, for the refusal. An entry of a keyless list, or under
+// one, is refused before anything changes: such an entry has no key a
+// destination could name.
+func ResolveListEntryTarget(schema *Schema, verb string, tokens []string) (ListEntryTarget, error) {
+	target, ok, err := WalkListEntryPath(schema, tokens)
+	if err != nil {
+		return target, err
+	}
+	if target.Keyless != "" {
+		return target, errors.New(verb + " refused: " + target.Keyless +
+			" has no key, so its entries cannot be renamed or copied.")
+	}
+	if !ok {
+		return target, errPathNotAtListEntry
+	}
+	return target, nil
+}
+
+// errSameListKey is the refusal of a rename or copy onto its own source.
+var errSameListKey = errors.New("new key must differ from current key")
+
+// ListEntryDestination returns the key a rename or copy of the entry stored
+// under oldKey moves it to; dst is the destination address as tokens and
+// parentPath the tokens before the list, for the refusal's fix lines. A
+// rename or copy changes only the first key value: every other key leaf
+// carries over from the source, and a destination that gives one another
+// value is refused, naming the leaf and saying to delete the entry and
+// create it again. A destination equal to the source is refused too.
+func ListEntryDestination(verb string, parentPath []string, listName string, node *ListNode, oldKey string, dst []string) (string, error) {
+	addr, err := ParseListAddress(listName, node, dst)
+	if err != nil {
+		return "", err
+	}
+	if addr.Tokens != len(dst) {
+		return "", errors.New("invalid destination for " + listName + ": " + dst[addr.Tokens] + " is not a key leaf of " + listName)
+	}
+	_, srcPairs := SplitListKey(node, oldKey)
+	source := ListAddress{Pairs: srcPairs}
+	sourceValue := func(leaf string) (string, bool) {
+		if value, ok := source.pairValue(leaf); ok {
+			return value, true
+		}
+		return node.KeyLeafDefault(leaf)
+	}
+	for _, pair := range addr.Pairs {
+		if value, ok := sourceValue(pair.Leaf); ok && value == pair.Value {
+			continue
+		}
+		return "", keyLeafMoveRefusal(verb, parentPath, listName, node, oldKey, addr, pair)
+	}
+	newKey, err := BuildListKey(listName, node, addr.First, source.pairValue)
+	if err != nil {
+		return "", err
+	}
+	if newKey == StripListKeySuffix(oldKey) {
+		return "", errSameListKey
+	}
+	return newKey, nil
+}
+
+// keyLeafMoveRefusal writes the refusal of a rename or copy that changes a
+// non-first key leaf, with the delete and set lines that move the entry.
+func keyLeafMoveRefusal(verb string, parentPath []string, listName string, node *ListNode, oldKey string, dst ListAddress, changed ListKeyPair) error {
+	_, srcPairs := SplitListKey(node, oldKey)
+	source := ListAddress{Pairs: srcPairs}
+	movedValue := func(leaf string) (string, bool) {
+		if value, ok := dst.pairValue(leaf); ok {
+			return value, true
+		}
+		return source.pairValue(leaf)
+	}
+	movedKey, err := BuildListKey(listName, node, dst.First, movedValue)
+	if err != nil {
+		return err
+	}
+	var b textbuf.Buffer
+	b.Str(verb).Str(" refused: ").Str(changed.Leaf).Str(" is part of the key of ").Str(listName).
+		Str(", and ").Str(verb).Str(" changes only ").Str(node.FirstKeyLeafName()).Str(".\n")
+	b.Str("To move the entry to ").Str(changed.Value).Str(", delete it and create it again:\n")
+	b.Str("  delete ")
+	writeListAddress(&b, append(append(append([]string{}, parentPath...), listName), ListKeyTokens(node, oldKey)...))
+	b.Str("\n  set ")
+	newTokens := append(append(append([]string{}, parentPath...), listName), ListKeyTokens(node, movedKey)...)
+	writeListAddress(&b, newTokens)
+	return errors.New(b.String())
 }

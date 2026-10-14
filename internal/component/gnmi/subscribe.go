@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 )
 
 const (
@@ -86,7 +88,8 @@ func (cn *ChangeNotifier) NotifyConfigReload() {
 }
 
 // NotifyChange creates and broadcasts a change notification for a path.
-func (cn *ChangeNotifier) NotifyChange(path []string, listNames map[string]bool, value any) {
+// The path's list entry addresses are named from schema (segmentsToPath).
+func (cn *ChangeNotifier) NotifyChange(path []string, schema *zeconfig.Schema, value any) {
 	data, err := json.Marshal(value)
 	if err != nil {
 		logger.Warn("gnmi: marshal change notification", "error", err)
@@ -95,7 +98,7 @@ func (cn *ChangeNotifier) NotifyChange(path []string, listNames map[string]bool,
 	n := &gpb.Notification{
 		Timestamp: time.Now().UnixNano(),
 		Update: []*gpb.Update{{
-			Path: segmentsToPath(path, listNames),
+			Path: segmentsToPath(schema, path),
 			Val: &gpb.TypedValue{
 				Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: data},
 			},
@@ -142,6 +145,11 @@ func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.S
 		s.recordError("Subscribe", codes.Unavailable)
 		return status.Error(codes.Unavailable, "config tree not available")
 	}
+	schema, err := s.configSchema()
+	if err != nil {
+		s.recordError("Subscribe", codes.Unavailable)
+		return status.Errorf(codes.Unavailable, "config schema not available: %v", err)
+	}
 
 	ts := time.Now().UnixNano()
 	subs := sub.GetSubscription()
@@ -167,12 +175,12 @@ func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.S
 	} else {
 		for _, subscription := range subs {
 			path := subscription.GetPath()
-			segments, pathErr := pathToSegments(path)
+			segments, pathErr := pathToSegments(schema, path)
 			if pathErr != nil {
 				s.recordError("Subscribe", codes.InvalidArgument)
 				return status.Errorf(codes.InvalidArgument, "subscribe path: %v", pathErr)
 			}
-			subtree, remaining := walkTree(tree, segments)
+			subtree, remaining := walkTree(tree, schema, segments)
 			if subtree == nil || len(remaining) > 0 {
 				continue
 			}

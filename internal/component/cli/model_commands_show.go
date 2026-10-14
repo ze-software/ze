@@ -178,7 +178,7 @@ func (m *Model) renderTreeAtPath(tree *config.Tree, path []string, format string
 	// align.
 	tree = config.MaskSecrets(tree, m.editor.schema)
 	if format == fmtConfig {
-		return config.FilterSetByPath(config.SerializeSet(tree, m.editor.schema), path)
+		return config.FilterSetByPath(config.SerializeSet(tree, m.editor.schema), m.editor.schema, path)
 	}
 	if len(path) == 0 {
 		return config.Serialize(tree, m.editor.schema)

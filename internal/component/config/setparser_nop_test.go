@@ -184,7 +184,7 @@ func TestFilterSetByPathNop(t *testing.T) {
 		"set neighbor 192.0.2.1 peer-as 65001\n" +
 		"set neighbor 198.51.100.1 peer-as 65002\n"
 
-	filtered := FilterSetByPath(input, []string{"neighbor", "192.0.2.1"})
+	filtered := FilterSetByPath(input, nil, []string{"neighbor", "192.0.2.1"})
 	assert.Contains(t, filtered, "nop neighbor 192.0.2.1 description \"test\"\n")
 	assert.Contains(t, filtered, "set neighbor 192.0.2.1 peer-as 65001\n")
 	assert.NotContains(t, filtered, "router-id")

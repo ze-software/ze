@@ -39,29 +39,16 @@ func (e *Editor) walkOrCreateIn(tree *config.Tree, path []string) (*config.Tree,
 		}
 
 		if listNode, ok := schemaNode.(*config.ListNode); ok {
-			// Anonymous vs keyed: anonymous if no next element
-			// or next element is a schema child of the list.
-			var key string
-			var step int
-			if i+1 >= len(path) || listNode.Get(path[i+1]) != nil {
-				key = config.KeyDefault
-				step = 1
-			} else {
-				key = path[i+1]
-				step = 2
+			// The codec reads the entry address (anonymous when the next
+			// element is absent or a child of the list) and creates the
+			// entry with its key leaves written.
+			addr, err := config.ListPathStep(name, listNode, path[i+1:])
+			if err != nil {
+				return nil, err
 			}
-			entries := currentTree.GetList(name)
-			if entries == nil {
-				entries = make(map[string]*config.Tree)
-			}
-			entry := entries[key]
-			if entry == nil {
-				entry = config.NewTree()
-				currentTree.AddListEntry(name, key, entry)
-			}
-			currentTree = entry
+			currentTree = config.EnsureListEntry(currentTree, name, addr)
 			currentSchema = listNode
-			i += step
+			i += 1 + addr.Tokens
 			continue
 		}
 
@@ -130,20 +117,20 @@ func walkOrCreateMeta(meta *config.MetaTree, schema *config.Schema, path []strin
 			currentSchema = n
 			i++
 		case *config.ListNode:
-			// List name -> container, then key -> list entry.
-			// Anonymous list detection: if the next path element is a schema
-			// child of the list, treat as anonymous (no key in path).
-			// Anonymous lists use KeyDefault to match walkOrCreateIn.
+			// List name -> container, then the entry address -> list entry,
+			// read by the codec as walkOrCreateIn reads it (KeyDefault for an
+			// anonymous entry). Every caller walks the tree with
+			// walkOrCreateIn first, which refuses an address the codec
+			// refuses, so the error branch keeps the first word only so as
+			// never to lose metadata.
 			listContainer := current.GetOrCreateContainer(name)
-			if i+1 < len(path) && n.Get(path[i+1]) == nil {
-				current = listContainer.GetOrCreateListEntry(path[i+1])
-				currentSchema = n
-				i += 2
-			} else {
-				current = listContainer.GetOrCreateListEntry(config.KeyDefault)
-				currentSchema = n
-				i++
+			addr, err := config.ListPathStep(name, n, path[i+1:])
+			if err != nil {
+				addr = config.ListAddress{Key: path[i+1], Tokens: 1}
 			}
+			current = listContainer.GetOrCreateListEntry(addr.Key)
+			currentSchema = n
+			i += 1 + addr.Tokens
 		case *config.FlexNode:
 			current = current.GetOrCreateContainer(name)
 			currentSchema = n
@@ -199,24 +186,19 @@ func walkMetaReadOnly(meta *config.MetaTree, schema *config.Schema, path []strin
 			if listContainer == nil {
 				return nil
 			}
-			if i+1 < len(path) && n.Get(path[i+1]) == nil {
-				entry := listContainer.GetListEntry(path[i+1])
-				if entry == nil {
-					return nil
-				}
-				current = entry
-				currentSchema = n
-				i += 2
-			} else {
-				// Anonymous list: use KeyDefault to match walkOrCreateMeta.
-				entry := listContainer.GetListEntry(config.KeyDefault)
-				if entry == nil {
-					return nil
-				}
-				current = entry
-				currentSchema = n
-				i++
+			// The entry address, KeyDefault for an anonymous entry, read
+			// as walkOrCreateMeta reads it.
+			addr, err := config.ListPathStep(name, n, path[i+1:])
+			if err != nil {
+				return nil
 			}
+			entry := listContainer.GetListEntry(addr.Key)
+			if entry == nil {
+				return nil
+			}
+			current = entry
+			currentSchema = n
+			i += 1 + addr.Tokens
 		case *config.FlexNode:
 			child := current.GetContainer(name)
 			if child == nil {
@@ -285,28 +267,18 @@ func walkPath(tree *config.Tree, schema *config.Schema, path []string) *config.T
 		}
 
 		if listNode, ok := schemaNode.(*config.ListNode); ok {
-			// Anonymous vs keyed: anonymous if no next element
-			// or next element is a schema child of the list.
-			var key string
-			var step int
-			if i+1 >= len(path) || listNode.Get(path[i+1]) != nil {
-				key = config.KeyDefault
-				step = 1
-			} else {
-				key = path[i+1]
-				step = 2
-			}
-			entries := current.GetList(name)
-			if entries == nil {
+			// The entry address, KeyDefault for an anonymous entry.
+			addr, err := config.ListPathStep(name, listNode, path[i+1:])
+			if err != nil {
 				return nil
 			}
-			entry := entries[key]
+			entry := current.GetList(name)[addr.Key]
 			if entry == nil {
 				return nil
 			}
 			current = entry
 			currentSchema = listNode
-			i += step
+			i += 1 + addr.Tokens
 			continue
 		}
 

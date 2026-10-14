@@ -31,6 +31,19 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	fullPath = append(fullPath, m.contextPath...)
 	fullPath = append(fullPath, args...)
 
+	// The address parse runs over every token before the value is split
+	// off: `... fe80::b interface zbl1` ends at the address of an entry of a
+	// multi-leaf-key list, so it creates that entry rather than setting the
+	// key leaf `interface` on entry `fe80::b`, and a key leaf given twice is
+	// refused before anything changes.
+	entry, endsAtEntry, err := config.WalkListEntryPath(m.editor.schema, fullPath)
+	if err != nil {
+		return commandResult{}, fmt.Errorf("set failed: %w", err)
+	}
+	if endsAtEntry && entry.End == len(fullPath) && len(entry.Address.Pairs) > 0 {
+		return m.createListEntry(entry, fullPath[len(entry.ParentPath)+1:])
+	}
+
 	value := fullPath[len(fullPath)-1]
 	path := fullPath[:len(fullPath)-1]
 
@@ -48,7 +61,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	if isListKey {
 		listName := containerPath[len(containerPath)-1]
 		listParent := containerPath[:len(containerPath)-1]
-		if err := m.editor.ensureListEntry(listParent, listName, value); err != nil {
+		if err := m.editor.ensureListEntry(listParent, listName, []string{value}); err != nil {
 			return commandResult{}, fmt.Errorf("set failed: %w", err)
 		}
 	} else {
@@ -89,6 +102,25 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 
 	return commandResult{
 		statusMessage: msg,
+		configView:    m.configViewAtPath(m.contextPath),
+		revalidate:    true,
+	}, nil
+}
+
+// createListEntry creates the entry a `set` path names by its full address
+// (a multi-leaf key's first value and pairs) and reports it.
+func (m *Model) createListEntry(entry config.ListEntryTarget, address []string) (commandResult, error) {
+	if err := m.editor.ensureListEntry(entry.ParentPath, entry.ListName, address); err != nil {
+		return commandResult{}, fmt.Errorf("set failed: %w", err)
+	}
+	m.refreshCompleter()
+	var tb textbuf.Buffer
+	tb.Str("created ").Str(entry.ListName).Byte(' ').Join(address, " ")
+	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
+		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
+	}
+	return commandResult{
+		statusMessage: tb.String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -277,119 +309,82 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 //
 //nolint:dupl // shares structure with cmdCopy but different operations (rename vs copy)
 func (m *Model) cmdRename(args []string) (commandResult, error) {
-	// "to" must be second-to-last: <path...> <old-key> to <new-key>
-	// Searching from a fixed position avoids ambiguity when a list key is literally "to".
-	if len(args) < 4 {
-		return commandResult{}, errUsageRenamePathOldNameTo
-	}
-	toIdx := len(args) - 2
-	if args[toIdx] != "to" {
-		return commandResult{}, errUsageRenamePathOldNameTo
-	}
-
-	newKey := args[toIdx+1]
-	oldTokens := args[:toIdx]
-
-	// Build full path to old entry: context + args before "to"
-	fullPath := make([]string, 0, len(m.contextPath)+len(oldTokens))
-	fullPath = append(fullPath, m.contextPath...)
-	fullPath = append(fullPath, oldTokens...)
-
-	// Identify list name, old key, and parent path using schema
-	parentPath, listName, oldKey, err := m.editor.resolveListTarget(fullPath)
-	if err != nil {
-		return commandResult{}, err
-	}
-
-	// Validate new key against YANG schema (same validation as set paths).
-	newPath := make([]string, 0, len(parentPath)+2)
-	newPath = append(newPath, parentPath...)
-	newPath = append(newPath, listName, newKey)
-	if err := m.completer.validateTokenPath(newPath); err != nil {
-		return commandResult{}, fmt.Errorf("invalid new name: %w", err)
-	}
-
-	// Perform the rename
-	if err := m.editor.RenameListEntry(parentPath, listName, oldKey, newKey); err != nil {
-		return commandResult{}, fmt.Errorf("rename failed: %w", err)
-	}
-
-	// Update completer with mutated tree
-	m.refreshCompleter()
-	m.searchCache = "" // tree changed, invalidate cached set-view
-
-	var tb8 textbuf.Buffer
-	tb8.Str("Renamed ").Str(listName).Byte(' ').Str(oldKey).Str(" to ").Str(newKey)
-
-	// Detect conflicts with other users' change files after each edit.
-	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
-		tb8.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
-	}
-	msg := tb8.String()
-
-	return commandResult{
-		statusMessage: msg,
-		configView:    m.configViewAtPath(m.contextPath),
-		revalidate:    true,
-	}, nil
+	return m.listEntryMove(args, listEntryMoveRename)
 }
 
 // cmdCopy clones a list entry under a new key, preserving the source.
 // JunOS syntax: copy <list> <old-key> to <new-key>
 // Works relative to current context.
-//
-//nolint:dupl // shares structure with cmdRename but different operations (copy vs rename)
 func (m *Model) cmdCopy(args []string) (commandResult, error) {
-	// "to" must be second-to-last: <path...> <src-key> to <dst-key>
-	if len(args) < 4 {
-		return commandResult{}, errUsageCopyPathSourceToDestination
-	}
-	toIdx := len(args) - 2
-	if args[toIdx] != "to" {
-		return commandResult{}, errUsageCopyPathSourceToDestination
-	}
+	return m.listEntryMove(args, listEntryMoveCopy)
+}
 
-	dstKey := args[toIdx+1]
-	srcTokens := args[:toIdx]
+// listEntryMoveVerb is what differs between rename and copy.
+type listEntryMoveVerb struct {
+	name  string // the command, in a refusal
+	done  string // the status line's verb
+	usage error
+	apply func(e *Editor, parentPath []string, listName, key string, dst []string) error
+}
 
-	// Build full path to source entry: context + args before "to"
-	fullPath := make([]string, 0, len(m.contextPath)+len(srcTokens))
+var (
+	listEntryMoveRename = listEntryMoveVerb{
+		name: "rename", done: "Renamed", usage: errUsageRenamePathOldNameTo,
+		apply: (*Editor).RenameListEntry,
+	}
+	listEntryMoveCopy = listEntryMoveVerb{
+		name: "copy", done: "Copied", usage: errUsageCopyPathSourceToDestination,
+		apply: (*Editor).CopyListEntry,
+	}
+)
+
+// listEntryMove runs `rename` or `copy`: <path...> <source address> to
+// <destination address>. The source address is read by the codec's one
+// target walk, which reports where it ends; `to` must stand there, and the
+// tokens after it are the destination address. Reading `to` at the end of
+// the source, never by searching for it, keeps a key spelled `to` exact.
+func (m *Model) listEntryMove(args []string, verb listEntryMoveVerb) (commandResult, error) {
+	fullPath := make([]string, 0, len(m.contextPath)+len(args))
 	fullPath = append(fullPath, m.contextPath...)
-	fullPath = append(fullPath, srcTokens...)
+	fullPath = append(fullPath, args...)
 
-	// Identify list name, source key, and parent path using schema
-	parentPath, listName, srcKey, err := m.editor.resolveListTarget(fullPath)
+	target, err := m.editor.resolveListTarget(verb.name, fullPath)
 	if err != nil {
 		return commandResult{}, err
 	}
+	if target.End+1 >= len(fullPath) {
+		return commandResult{}, verb.usage
+	}
+	if fullPath[target.End] != "to" {
+		return commandResult{}, verb.usage
+	}
+	dst := fullPath[target.End+1:]
 
-	// Validate destination key against YANG schema.
-	newPath := make([]string, 0, len(parentPath)+2)
-	newPath = append(newPath, parentPath...)
-	newPath = append(newPath, listName, dstKey)
+	// Validate the destination against the YANG schema (same validation as
+	// set paths).
+	newPath := make([]string, 0, len(target.ParentPath)+1+len(dst))
+	newPath = append(newPath, target.ParentPath...)
+	newPath = append(newPath, target.ListName)
+	newPath = append(newPath, dst...)
 	if err := m.completer.validateTokenPath(newPath); err != nil {
-		return commandResult{}, fmt.Errorf("invalid destination name: %w", err)
+		return commandResult{}, fmt.Errorf("invalid destination: %w", err)
 	}
 
-	// Perform the copy
-	if err := m.editor.CopyListEntry(parentPath, listName, srcKey, dstKey); err != nil {
-		return commandResult{}, fmt.Errorf("copy failed: %w", err)
+	if err := verb.apply(m.editor, target.ParentPath, target.ListName, target.Address.Key, dst); err != nil {
+		return commandResult{}, fmt.Errorf("%s failed: %w", verb.name, err)
 	}
 
-	// Update completer with mutated tree
 	m.refreshCompleter()
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
-	var tb9 textbuf.Buffer
-	tb9.Str("Copied ").Str(listName).Byte(' ').Str(srcKey).Str(" to ").Str(dstKey)
-
+	var tb textbuf.Buffer
+	tb.Str(verb.done).Byte(' ').Str(target.ListName).Byte(' ').
+		Join(fullPath[len(target.ParentPath)+1:target.End], " ").Str(" to ").Join(dst, " ")
 	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
-		tb9.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
+		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
-	msg := tb9.String()
-
 	return commandResult{
-		statusMessage: msg,
+		statusMessage: tb.String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil

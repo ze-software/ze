@@ -64,7 +64,7 @@ func TestRenameThenEditCommitsClean(t *testing.T) {
 	for _, tc := range cases {
 		for _, candidate := range []bool{false, true} {
 			ed, _, configPath := newLoadSessionEditor(t, validBGPConfig+bracketIfaceWithInactive("192.0.2.1/24", ""))
-			require.NoError(t, ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", "eth8"))
+			require.NoError(t, ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", []string{"eth8"}))
 			require.NoError(t, tc.edit(ed))
 			res, content := commitRound6(t, ed, configPath, candidate)
 			require.Empty(t, res.Conflicts, "%s candidate=%v: %s", tc.name, candidate, commitConflictsText(res.Conflicts))
@@ -102,7 +102,7 @@ func TestRenameThenMemberConflictFixKeepsRename(t *testing.T) {
 			ed, _, configPath := newLoadSessionEditor(t, validBGPConfig+bracketIfaceWithInactive("192.0.2.1/24 192.0.2.2/30", ""))
 			require.NoError(t, tc.edit(ed))
 			require.NoError(t, ed.SetValue([]string{"interface", "ethernet", "eth9", "unit", "0"}, "description", "renamed"))
-			require.NoError(t, ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", "eth8"))
+			require.NoError(t, ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", []string{"eth8"}))
 			require.NoError(t, ed.store.WriteFile(configPath, []byte(validBGPConfig+bracketIfaceWithInactive("192.0.2.1/24", "")), 0o600))
 
 			res, _ := commitRound6(t, ed, configPath, candidate)

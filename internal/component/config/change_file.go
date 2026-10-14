@@ -370,7 +370,7 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	materializeMetaPaths(tree, meta)
+	materializeMetaPaths(tree, meta, parser.schema)
 	return tree, meta, ops, nil
 }
 
@@ -381,29 +381,58 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 // delete under a path no pending set shares. The empty nodes serialize to
 // nothing, as the ones writeThroughDelete creates at the first write do.
 //
+// The schema is walked beside the meta: a list entry is created through the
+// codec's one creator with the key leaf pairs its key names, so an entry
+// materialized from a multi-leaf key alone holds `interface zbl1` like one
+// any other route created. A nil schema (a name the schema does not know)
+// creates the entry with no pairs.
+//
 // A metadata branch that holds no entry creates no node. The recursion is bounded by the YANG schema
 // depth the trees mirror.
-func materializeMetaPaths(tree *Tree, meta *MetaTree) {
+func materializeMetaPaths(tree *Tree, meta *MetaTree, schema ChildProvider) {
 	for name, child := range meta.Containers() {
+		childSchema := schemaChild(schema, name)
 		if lists := child.Lists(); len(lists) > 0 {
+			listNode, _ := childSchema.(*ListNode) // A name that is not a list creates entries with no pairs.
 			for key, entryMeta := range lists {
 				if !metaHoldsEntry(entryMeta) {
 					continue
 				}
-				entry := tree.GetList(name)[key]
-				if entry == nil {
-					entry = NewTree()
-					tree.AddListEntry(name, key, entry)
+				addr := ListAddress{Key: key}
+				if listNode != nil {
+					addr.First, addr.Pairs = SplitListKey(listNode, key)
 				}
-				materializeMetaPaths(entry, entryMeta)
+				materializeMetaPaths(EnsureListEntry(tree, name, addr), entryMeta, providerOf(listNode))
 			}
 			continue
 		}
 		if !metaHoldsEntry(child) {
 			continue
 		}
-		materializeMetaPaths(tree.GetOrCreateContainer(name), child)
+		materializeMetaPaths(tree.GetOrCreateContainer(name), child, providerOf(childSchema))
 	}
+}
+
+// schemaChild returns the schema node name names under schema, nil when the
+// schema is nil or does not know it.
+func schemaChild(schema ChildProvider, name string) Node {
+	if schema == nil {
+		return nil
+	}
+	return schema.Get(name)
+}
+
+// providerOf returns node as a ChildProvider, nil when it holds no children
+// (or is nil): the walk below it then creates nodes with no pairs.
+func providerOf(node Node) ChildProvider {
+	provider, ok := node.(ChildProvider)
+	if !ok {
+		return nil
+	}
+	if listNode, isList := node.(*ListNode); isList && listNode == nil {
+		return nil
+	}
+	return provider
 }
 
 // metaHoldsEntry reports whether meta holds an entry at or below it. The
@@ -481,10 +510,17 @@ func CoalesceRenameOps(ops []StructuralOp) []StructuralOp {
 
 // parseKeyMoveLine parses a rename or copy-entry line, the two ops that take
 // one keyed list entry to a new key.
-// Form: <token> <parent-path> <list-name> <old-key> to <new-key>.
+// Form: <token> <parent-path> <list-name> <old-key> to <new-key>, each a
+// token split by splitQuotedTokens, so a key holding spaces (a multi-leaf
+// address) is one quoted token. `to` is read at its fixed place, second to
+// last, so a key spelled `to` reads back exact. A record written raw before
+// keys were quoted loads as it did.
 func parseKeyMoveLine(lineNum int, entry MetaEntry, cmdLine string, opType StructuralOpType) (StructuralOp, error) {
 	token := string(opType)
-	tokens := strings.Fields(cmdLine)
+	tokens, err := splitQuotedTokens(cmdLine)
+	if err != nil {
+		return StructuralOp{}, fmt.Errorf("line %d: %s: %w", lineNum, token, err)
+	}
 	if len(tokens) < 5 {
 		return StructuralOp{}, fmt.Errorf("line %d: %s requires <parent-path> <list-name> <old-key> to <new-key>", lineNum, token)
 	}
@@ -495,14 +531,8 @@ func parseKeyMoveLine(lineNum int, entry MetaEntry, cmdLine string, opType Struc
 		return StructuralOp{}, fmt.Errorf("line %d: %s requires #user metadata", lineNum, token)
 	}
 
-	toIdx := -1
-	for i := 1; i < len(tokens); i++ {
-		if tokens[i] == ChangeFileToToken {
-			toIdx = i
-			break
-		}
-	}
-	if toIdx == -1 || toIdx != len(tokens)-2 {
+	toIdx := len(tokens) - 2
+	if tokens[toIdx] != ChangeFileToToken {
 		return StructuralOp{}, fmt.Errorf("line %d: %s must end with 'to <new-key>'", lineNum, token)
 	}
 	if toIdx < 3 {
@@ -513,7 +543,7 @@ func parseKeyMoveLine(lineNum int, entry MetaEntry, cmdLine string, opType Struc
 	listName := tokens[toIdx-2]
 	newKey := tokens[toIdx+1]
 	parentPath := textbuf.Join(tokens[1:toIdx-2], " ")
-	if newKey == "" {
+	if newKey == "" { // An empty key arrives only as a quoted `""`.
 		return StructuralOp{}, fmt.Errorf("line %d: %s requires a new key", lineNum, token)
 	}
 
@@ -540,17 +570,19 @@ func formatKeyMoveLine(op StructuralOp) string {
 		b.Str(ChangeFileRenameToken)
 	}
 	b.Byte(' ')
-	if op.ParentPath != "" {
-		b.Str(op.ParentPath)
+	// Each token goes through quoteIfNeeded, so parseKeyMoveLine splits the
+	// record back exactly (splitQuotedTokens is its inverse).
+	for parent := range strings.FieldsSeq(op.ParentPath) {
+		b.Str(quoteIfNeeded(parent))
 		b.Byte(' ')
 	}
-	b.Str(op.ListName)
+	b.Str(quoteIfNeeded(op.ListName))
 	b.Byte(' ')
-	b.Str(op.OldKey)
+	b.Str(quoteIfNeeded(op.OldKey))
 	b.Byte(' ')
 	b.Str(ChangeFileToToken)
 	b.Byte(' ')
-	b.Str(op.NewKey)
+	b.Str(quoteIfNeeded(op.NewKey))
 	return b.String()
 }
 

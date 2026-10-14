@@ -59,9 +59,9 @@ func TestFilterSetByPath(t *testing.T) {
 		"inactive neighbor 192.0.2.1\n" +
 		"set neighbor 198.51.100.1 local-as 65001\n"
 
-	assert.Equal(t, input, FilterSetByPath(input, nil))
+	assert.Equal(t, input, FilterSetByPath(input, nil, nil))
 
-	filtered := FilterSetByPath(input, []string{"neighbor", "192.0.2.1"})
+	filtered := FilterSetByPath(input, nil, []string{"neighbor", "192.0.2.1"})
 	assert.Contains(t, filtered, "set neighbor 192.0.2.1 local-as 65000\n")
 	assert.Contains(t, filtered, "inactive neighbor 192.0.2.1\n")
 	assert.NotContains(t, filtered, "router-id")

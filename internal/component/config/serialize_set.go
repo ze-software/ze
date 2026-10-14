@@ -1132,30 +1132,76 @@ func writeDeleteMetaLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, prefix 
 }
 
 // FilterSetByPath returns only the set/nop/inactive lines whose path matches
-// the given prefix. Returns all content when path is empty.
-func FilterSetByPath(content string, path []string) string {
+// the given prefix, segment by segment: the schema groups each list entry's
+// address into one segment (setPathSegments), so the path of entry
+// `fe80::b` never matches a line of entry `fe80::b interface zbl0`. Returns
+// all content when path is empty.
+func FilterSetByPath(content string, schema *Schema, path []string) string {
 	if len(path) == 0 {
 		return content
 	}
-	var tb textbuf.Buffer
-	setPrefix := tb.Str("set ").Join(path, " ").String()
-	setPrefixSpace := tb.Reset().Str("set ").Join(path, " ").Byte(' ').String()
-	nopPrefix := tb.Reset().Str("nop ").Join(path, " ").String()
-	nopPrefixSpace := tb.Reset().Str("nop ").Join(path, " ").Byte(' ').String()
-	inactivePrefix := tb.Reset().Str("inactive ").Join(path, " ").String()
-	inactivePrefixSpace := tb.Reset().Str("inactive ").Join(path, " ").Byte(' ').String()
+	want := setPathSegments(schema, path)
 	var buf textbuf.Buffer
 	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+		verb, rest, _ := strings.Cut(trimmed, " ")
+		if !isSetFormVerb(verb) {
 			continue
 		}
-		if trimmed == setPrefix || strings.HasPrefix(trimmed, setPrefixSpace) ||
-			trimmed == nopPrefix || strings.HasPrefix(trimmed, nopPrefixSpace) ||
-			trimmed == inactivePrefix || strings.HasPrefix(trimmed, inactivePrefixSpace) {
+		tokens, err := splitQuotedTokens(rest)
+		if err != nil {
+			continue // SerializeSet writes no unterminated quote; such a line names no path.
+		}
+		got := setPathSegments(schema, tokens)
+		if len(got) < len(want) {
+			continue
+		}
+		if slices.Equal(got[:len(want)], want) {
 			buf.Str(line)
 			buf.Byte('\n')
 		}
 	}
 	return buf.String()
+}
+
+// isSetFormVerb reports whether verb opens a set-form line FilterSetByPath
+// keeps.
+func isSetFormVerb(verb string) bool {
+	return verb == "set" || verb == "nop" || verb == "inactive"
+}
+
+// setPathSegments groups path tokens into segments: a list entry's address
+// (a multi-leaf key's first value and pairs) is ONE segment, every other
+// token one each. So `bfd single-hop-session fe80::b` is a prefix of the
+// lines of entry `fe80::b` and of no line of entry `fe80::b interface zbl0`.
+// A nil schema, or a token past a leaf, gives one segment per token.
+func setPathSegments(schema *Schema, tokens []string) []string {
+	segments := make([]string, 0, len(tokens))
+	var current ChildProvider
+	if schema != nil {
+		current = schema
+	}
+	for i := 0; i < len(tokens); {
+		name := tokens[i]
+		segments = append(segments, name)
+		i++
+		if current == nil {
+			continue
+		}
+		switch n := current.Get(name).(type) {
+		case *ListNode:
+			if spanned := ListAddressLen(n, tokens[i:]); spanned > 0 {
+				segments = append(segments, strings.Join(tokens[i:i+spanned], " "))
+				i += spanned
+			}
+			current = n
+		case *ContainerNode:
+			current = n
+		case *FlexNode:
+			current = n
+		default:
+			current = nil // A leaf, or a name the schema does not know: the rest is values.
+		}
+	}
+	return segments
 }

@@ -352,7 +352,7 @@ func TestRenameRebasesMemberOps(t *testing.T) {
 			if _, err := ed.ApplyActivation(seqAddress.member("192.0.2.3/30"), false); err != nil {
 				return err
 			}
-			if err := ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", "eth8"); err != nil {
+			if err := ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", []string{"eth8"}); err != nil {
 				return err
 			}
 			return ed.DeleteByPath(append(append([]string{}, eth8...), "address", "192.0.2.3/30"))
@@ -361,13 +361,13 @@ func TestRenameRebasesMemberOps(t *testing.T) {
 			if _, err := ed.ApplyActivation(seqAddress.member("192.0.2.1/24"), false); err != nil {
 				return err
 			}
-			return ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", "eth8")
+			return ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", []string{"eth8"})
 		}, "[!192.0.2.1/24]"},
 		{"set the whole list, rename", func(ed *Editor) error {
 			if err := ed.SetValue(ifaceIPv4Path, "address", "192.0.2.1/24 192.0.2.3/30"); err != nil {
 				return err
 			}
-			return ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", "eth8")
+			return ed.RenameListEntry([]string{"interface"}, "ethernet", "eth9", []string{"eth8"})
 		}, "[192.0.2.1/24 192.0.2.3/30]"},
 	}
 	for _, tc := range cases {

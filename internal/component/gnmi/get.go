@@ -34,11 +34,17 @@ func (s *Server) Get(_ context.Context, req *gpb.GetRequest) (*gpb.GetResponse, 
 		return nil, status.Error(codes.InvalidArgument, "at least one path required")
 	}
 
+	schema, err := s.configSchema()
+	if err != nil {
+		s.recordError("Get", codes.Unavailable)
+		return nil, status.Errorf(codes.Unavailable, "config schema not available: %v", err)
+	}
+
 	notifications := make([]*gpb.Notification, 0, len(req.GetPath()))
 	ts := time.Now().UnixNano()
 
 	for _, path := range req.GetPath() {
-		segments, err := pathToSegments(path)
+		segments, err := pathToSegments(schema, path)
 		if err != nil {
 			s.recordError("Get", codes.InvalidArgument)
 			return nil, status.Errorf(codes.InvalidArgument, "path: %v", err)
@@ -48,7 +54,7 @@ func (s *Server) Get(_ context.Context, req *gpb.GetRequest) (*gpb.GetResponse, 
 			return nil, status.Error(codes.InvalidArgument, errEmptyPath.Error())
 		}
 
-		subtree, remaining := walkTree(tree, segments)
+		subtree, remaining := walkTree(tree, schema, segments)
 		if subtree == nil || len(remaining) > 0 {
 			s.recordError("Get", codes.NotFound)
 			return nil, status.Errorf(codes.NotFound, "path not found: %s", pathString(segments))
@@ -63,7 +69,8 @@ func (s *Server) Get(_ context.Context, req *gpb.GetRequest) (*gpb.GetResponse, 
 		notifications = append(notifications, &gpb.Notification{
 			Timestamp: ts,
 			Update: []*gpb.Update{{
-				Path: path,
+				// The keys are named from the schema, however the request named them.
+				Path: segmentsToPath(schema, segments),
 				Val:  val,
 			}},
 		})
@@ -73,10 +80,19 @@ func (s *Server) Get(_ context.Context, req *gpb.GetRequest) (*gpb.GetResponse, 
 }
 
 // walkTree navigates the config tree following path segments.
-// Returns the deepest tree node reached and any remaining segments.
-func walkTree(tree *zeconfig.Tree, segments []string) (*zeconfig.Tree, []string) {
+// Returns the deepest tree node reached and any remaining segments. A list
+// entry address spans the segments the config codec reads
+// (config.ListPathStep); a list the schema does not hold takes one segment.
+func walkTree(tree *zeconfig.Tree, schema *zeconfig.Schema, segments []string) (*zeconfig.Tree, []string) {
 	current := tree
-	for i, seg := range segments {
+	var node zeconfig.ChildProvider
+	if schema != nil {
+		node = schema
+	}
+	for i := 0; i < len(segments); i++ {
+		seg := segments[i]
+		schemaChild := schemaNode(node, seg)
+		node, _ = schemaChild.(zeconfig.ChildProvider)
 		child := current.GetContainer(seg)
 		if child != nil {
 			current = child
@@ -87,9 +103,18 @@ func walkTree(tree *zeconfig.Tree, segments []string) (*zeconfig.Tree, []string)
 			if i+1 >= len(segments) {
 				return listToTree(list), nil
 			}
-			entry, ok := list[segments[i+1]]
-			if ok {
-				return walkTree(entry, segments[i+2:])
+			key, span := segments[i+1], 1
+			if listNode, ok := schemaChild.(*zeconfig.ListNode); ok {
+				addr, err := zeconfig.ListPathStep(seg, listNode, segments[i+1:])
+				if err != nil {
+					return nil, segments[i:]
+				}
+				key, span = addr.Key, addr.Tokens
+			}
+			if entry, ok := list[key]; ok {
+				current = entry
+				i += span
+				continue
 			}
 		}
 		if _, ok := current.Get(seg); ok && i == len(segments)-1 {

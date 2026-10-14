@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -603,17 +604,28 @@ func buildFinderColumns(schema *config.Schema, tree *config.Tree, path []string)
 	var columns []FinderColumn
 
 	// Build a column for each level from root to current.
-	for depth := 0; depth <= len(path); depth++ {
+	// A list entry's address can span several segments (a multi-leaf key:
+	// `fe80::b/interface/zbl1`). The list's column selects the whole address,
+	// and no column is built for a prefix ending inside it.
+	for depth := 0; depth <= len(path); {
 		prefix := path[:depth]
-		var selectedName string
+		var selected []string
+		step := 1
 		if depth < len(path) {
-			selectedName = path[depth]
+			selected = path[depth : depth+1]
+			if listNode, ok := findListNode(schema, prefix); ok && !isListEntryPath(schema, prefix) {
+				if span := config.ListAddressLen(listNode, path[depth:]); span > 0 {
+					selected = path[depth : depth+span]
+					step = span
+				}
+			}
 		}
 
-		col := buildColumnAt(schema, tree, prefix, selectedName)
+		col := buildColumnAt(schema, tree, prefix, selected)
 		if col != nil {
 			columns = append(columns, *col)
 		}
+		depth += step
 	}
 
 	// Keep at most 3 columns visible.
@@ -624,8 +636,14 @@ func buildFinderColumns(schema *config.Schema, tree *config.Tree, path []string)
 	return columns
 }
 
-// buildColumnAt builds one Finder column showing children of the node at prefix.
-func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, selectedName string) *FinderColumn {
+// buildColumnAt builds one Finder column showing children of the node at
+// prefix. selected is the path segment the column selects: one child name, or
+// a list entry's whole address.
+func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix, selected []string) *FinderColumn {
+	selectedName := ""
+	if len(selected) == 1 {
+		selectedName = selected[0]
+	}
 	var provider childLister
 
 	if len(prefix) == 0 {
@@ -642,7 +660,7 @@ func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, se
 				if len(collectUniqueFields(listNode)) > 0 {
 					return nil
 				}
-				return buildListColumn(tree, schema, prefix, listNode, selectedName)
+				return buildListColumn(tree, schema, prefix, listNode, selected)
 			}
 			// Entry view: fall through to show schema children.
 		}
@@ -694,7 +712,7 @@ func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, se
 
 // buildListColumn builds a column showing list entries (e.g., peer names).
 // Lists with unique constraints render their table in the detail panel (not here).
-func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, listNode *config.ListNode, selectedName string) *FinderColumn {
+func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, listNode *config.ListNode, selected []string) *FinderColumn {
 	col := &FinderColumn{}
 	keys := collectListKeys(tree, schema, prefix)
 	var tb textbuf.Buffer
@@ -703,13 +721,15 @@ func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, 
 	// Show entries in the column.
 	keyless := listNode.KeyName == ""
 	for _, k := range keys {
-		entryPath := tb.Reset().Join(prefix, "/").Byte('/').Str(k).String()
+		// The entry is addressed by its address segments, one per token.
+		address := config.ListKeyTokens(listNode, k)
+		entryPath := tb.Reset().Join(prefix, "/").Byte('/').Join(address, "/").String()
 		displayName := k
 		hasName := false
 		if keyless {
 			// For keyless lists, show a summary from the entry content
 			// instead of the meaningless numeric key.
-			entryTree := walkTree(tree, schema, append(append([]string{}, prefix...), k))
+			entryTree := walkTree(tree, schema, append(append([]string{}, prefix...), address...))
 			if summary := keylessEntrySummary(entryTree, listNode); summary == "" {
 				displayName = tb.Reset().Byte('#').Str(k).String()
 			} else {
@@ -719,9 +739,9 @@ func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, 
 		}
 		item := ColumnItem{
 			Name:        displayName,
-			URL:         tb.Reset().Str(url).Str(k).Byte('/').String(),
+			URL:         tb.Reset().Str(url).Join(address, "/").Byte('/').String(),
 			HxPath:      entryPath,
-			Selected:    k == selectedName,
+			Selected:    slices.Equal(address, selected),
 			HasChildren: true,
 		}
 		// Named keyless entries before numbered ones.
@@ -787,22 +807,26 @@ func buildListTable(tree *config.Tree, schema *config.Schema, prefix []string, l
 		SetURL:  tb.Reset().Str("/config/set/").Str(joinedPrefix).Byte('/').String(),
 	}
 
-	// Key column first, then unique field columns.
-	table.Columns = append(table.Columns, ListTableColumn{Name: listNode.KeyName, Key: true})
+	// Key column first, then unique field columns. The key column holds the
+	// stored key and is headed by the first key leaf (a multi-leaf key's
+	// KeyName names every leaf: "peer vrf interface").
+	table.Columns = append(table.Columns, ListTableColumn{Name: listNode.FirstKeyLeafName(), Key: true})
 	for _, f := range uniqueFields {
 		table.Columns = append(table.Columns, ListTableColumn{Name: f})
 	}
 
 	// Build rows from configured entries.
 	for _, key := range keys {
+		// Each row links to its entry's own address segments.
+		address := config.ListKeyTokens(listNode, key)
 		row := ListTableRow{
 			KeyValue: key,
-			URL:      tb.Reset().Str(baseURL).Str(key).Byte('/').String(),
-			HxPath:   tb.Reset().Str(joinedPrefix).Byte('/').Str(key).String(),
+			URL:      tb.Reset().Str(baseURL).Join(address, "/").Byte('/').String(),
+			HxPath:   tb.Reset().Str(joinedPrefix).Byte('/').Join(address, "/").String(),
 		}
 
 		// Resolve each unique field's value from the entry's subtree.
-		entryPath := append(append([]string{}, prefix...), key)
+		entryPath := append(append([]string{}, prefix...), address...)
 		entryTree := walkTree(tree, schema, entryPath)
 		for _, field := range uniqueFields {
 			// Split "remote/ip" into parent path "remote" and leaf "ip".
@@ -903,10 +927,12 @@ func buildContextHeading(schema *config.Schema, path []string) []ContextEntry {
 			break
 		}
 		if listNode, ok := node.(*config.ListNode); ok {
-			if i+1 < len(path) && listNode.Get(path[i+1]) == nil {
-				entries = append(entries, ContextEntry{ListName: path[i], Key: path[i+1]})
+			// One entry per list address, however many segments it spans:
+			// `fe80::b/interface/zbl1` is the key "fe80::b interface zbl1".
+			if span := config.ListAddressLen(listNode, path[i+1:]); span > 0 {
+				entries = append(entries, ContextEntry{ListName: path[i], Key: textbuf.Join(path[i+1:i+1+span], " ")})
 				current = listNode
-				i += 2
+				i += 1 + span
 				continue
 			}
 			current = listNode

@@ -898,7 +898,7 @@ func TestEditorEnsureListEntry(t *testing.T) {
 
 	err = ed.ensureListEntry(
 		[]string{"static", "table", "default", "route", "0.0.0.0/0", "next"},
-		"hop", "10.104.1.254",
+		"hop", []string{"10.104.1.254"},
 	)
 	require.NoError(t, err)
 	assert.True(t, ed.Dirty(), "editor should be dirty after EnsureListEntry")
@@ -912,7 +912,7 @@ func TestEditorEnsureListEntry(t *testing.T) {
 	// Idempotent: second call should not error
 	err = ed.ensureListEntry(
 		[]string{"static", "table", "default", "route", "0.0.0.0/0", "next"},
-		"hop", "10.104.1.254",
+		"hop", []string{"10.104.1.254"},
 	)
 	require.NoError(t, err)
 }
@@ -1362,7 +1362,7 @@ func TestEditorWriteThroughRenameListEntry(t *testing.T) {
 
 	err = ed.SetValue([]string{"bgp", "peer", "peer1", "session", "asn"}, "remote", "65002")
 	require.NoError(t, err)
-	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", []string{"peer2"})
 	require.NoError(t, err)
 
 	changePath := ChangePath(configPath, session.User)
@@ -1420,9 +1420,9 @@ func TestEditorWriteThroughRenameChainCoalesced(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", []string{"peer2"})
 	require.NoError(t, err)
-	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer2", "peer3")
+	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer2", []string{"peer3"})
 	require.NoError(t, err)
 
 	changeData, err := store.ReadFile(ChangePath(configPath, session.User))
@@ -1446,7 +1446,7 @@ func TestSaveDraftAppliesRenameListEntry(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", []string{"peer2"})
 	require.NoError(t, err)
 	err = ed.SaveDraft()
 	require.NoError(t, err)
@@ -1479,7 +1479,7 @@ func TestEditorWriteThroughRenameListEntryWithPendingLeafEdits(t *testing.T) {
 	err = ed.SetValue([]string{"bgp", "peer", "peer1", "connection", "remote"}, "ip", "10.99.99.1")
 	require.NoError(t, err)
 
-	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", "renamed")
+	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", []string{"renamed"})
 	require.NoError(t, err)
 
 	changeData, err := store.ReadFile(ChangePath(configPath, session.User))
@@ -1522,7 +1522,7 @@ func TestEditorRenameListEntryRejectsLiveConflict(t *testing.T) {
 	newSession := NewEditSession("bob", "local")
 	ed2.SetSession(newSession)
 
-	err = ed2.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	err = ed2.RenameListEntry([]string{"bgp"}, "peer", "peer1", []string{"peer2"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pending change conflict")
 
@@ -1559,7 +1559,7 @@ func TestEditorRenameListEntryRejectsSavedDraftConflict(t *testing.T) {
 	newSession := NewEditSession("bob", "local")
 	ed2.SetSession(newSession)
 
-	err = ed2.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	err = ed2.RenameListEntry([]string{"bgp"}, "peer", "peer1", []string{"peer2"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pending change conflict")
 
@@ -3812,7 +3812,7 @@ func TestCommitRenameOnlyPreservesExistingMetadata(t *testing.T) {
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 	renameSession := NewEditSession("bob", "ssh")
 	ed2.SetSession(renameSession)
-	err = ed2.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	err = ed2.RenameListEntry([]string{"bgp"}, "peer", "peer1", []string{"peer2"})
 	require.NoError(t, err)
 	result, err = ed2.CommitSession()
 	require.NoError(t, err)
@@ -5334,7 +5334,7 @@ func TestEditorAdoptSessionRenameOp(t *testing.T) {
 
 	oldSession := NewEditSession("thomas", "local")
 	ed1.SetSession(oldSession)
-	err = ed1.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	err = ed1.RenameListEntry([]string{"bgp"}, "peer", "peer1", []string{"peer2"})
 	require.NoError(t, err)
 	err = ed1.SaveDraft()
 	require.NoError(t, err)

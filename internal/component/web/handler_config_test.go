@@ -61,6 +61,9 @@ func buildTestSchemaAndTree() (*config.Schema, *config.Tree) {
 			config.Field("hold-time", config.Leaf(config.TypeUint16)),
 		)),
 	)
+	// The bgp peer list ze-bgp-conf.yang models is keyed by "name"; a list
+	// with no KeyName is keyless, and rename and copy refuse its entries.
+	peerList.KeyName = "name"
 
 	bgpContainer := config.Container(
 		config.Field("router-id", config.LeafWithDefault(config.TypeIPv4, "0.0.0.0")),
@@ -946,7 +949,9 @@ func TestHandleConfigRename(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", value)
 }
 
-// TestHandleConfigRenameNormalizesKey verifies rename input is trimmed and lowercased.
+// TestHandleConfigRenameNormalizesKey verifies rename input is trimmed and
+// keeps its case, as the CLI's rename stores it (spec-bfd-link-local-peer-zone
+// round 6: the form no longer lowercases a key).
 func TestHandleConfigRenameNormalizesKey(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
 	handler := handleConfigRename(mgr, schema)
@@ -964,7 +969,8 @@ func TestHandleConfigRenameNormalizesKey(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
 	assert.Nil(t, peers["london"])
-	require.NotNil(t, peers["paris"])
+	require.NotNil(t, peers["Paris"], "the key is trimmed and keeps its case")
+	assert.Nil(t, peers["paris"])
 }
 
 // TestHandleConfigRenameInvalidKey verifies invalid rename targets are rejected before mutation.
@@ -1333,6 +1339,8 @@ func TestCommitErrorNonHTMX(t *testing.T) {
 // VALIDATES: AC-6 -- group-level values resolved for form.
 // PREVENTS: Required fields shown as empty when group provides defaults.
 func TestResolveInheritedDefaults_Group(t *testing.T) {
+	yangSchema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
 	// Build a tree: bgp { group ibgp { session { asn { remote 65000 } } } }
 	tree := config.NewTree()
 	bgp := config.NewTree()
@@ -1345,7 +1353,7 @@ func TestResolveInheritedDefaults_Group(t *testing.T) {
 	bgp.AddListEntry("group", "ibgp", groupEntry)
 	tree.SetContainer("bgp", bgp)
 
-	parentTree := resolveParentDefaults(tree, []string{"bgp", "group", "ibgp", "peer"})
+	parentTree := resolveParentDefaults(tree, yangSchema, []string{"bgp", "group", "ibgp", "peer"})
 	require.NotNil(t, parentTree, "should resolve to group entry tree")
 
 	val := resolveInheritedValue(parentTree, "session/asn/remote")
@@ -1357,6 +1365,8 @@ func TestResolveInheritedDefaults_Group(t *testing.T) {
 // VALIDATES: AC-7 -- bgp-level values resolved for form.
 // PREVENTS: Required fields shown as empty when bgp-level provides defaults.
 func TestResolveInheritedDefaults_BGPLevel(t *testing.T) {
+	yangSchema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
 	// Build a tree: bgp { session { asn { local 65000 } } }
 	tree := config.NewTree()
 	bgp := config.NewTree()
@@ -1367,7 +1377,7 @@ func TestResolveInheritedDefaults_BGPLevel(t *testing.T) {
 	bgp.SetContainer("session", session)
 	tree.SetContainer("bgp", bgp)
 
-	parentTree := resolveParentDefaults(tree, []string{"bgp", "peer"})
+	parentTree := resolveParentDefaults(tree, yangSchema, []string{"bgp", "peer"})
 	require.NotNil(t, parentTree, "should resolve to bgp container tree")
 
 	val := resolveInheritedValue(parentTree, "session/asn/local")
