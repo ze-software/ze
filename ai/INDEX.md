@@ -25,7 +25,7 @@ Ask the question from Bash instead
 | Which `.go` files implement design doc Y? | `ai/DOCS-TO-CODE.md` (inverse of the per-file `// Design:` headers) |
 | Which docs describe code path Z? | `ai/CODE-TO-DOCS.md` (inverse of doc `<!-- source: -->` anchors) |
 | Why is the code shaped this way? | `plan/learned/DESIGN-HISTORY.md` |
-| Which problems recur? | `plan/journal/` (one file per class; `./le spec journal report` prints classes with 2+ rows, the 10+ row classes first as due for a fix pass) |
+| Which problems recur? | `plan/journal/` (one file per class; `./le spec journal report` prints classes with 2+ rows, their open rows and capture; a class is due when its rows counted since its capture reach the threshold the report prints, and due classes come first) |
 | Which rule covers a topic? | `ai/rules/INDEX.md` |
 | How does data flow through a subsystem? | `docs/architecture/core-design.md` (START HERE), then the subsystem doc below |
 | Fast subsystem orientation (entry→exit, with `file:line`) | `ai/digests/<subsystem>.md` — living flow digests; index + list in `ai/digests/README.md`. Anchors gated by `./le ai digest` |
@@ -253,7 +253,7 @@ Reach for one of these before inventing a new mechanism.
 | Which tests enforce an RFC MUST, and what the backlog is | `./le rfc index-update`. Read `rfc/requirements/<stem>.md` for one RFC, `ai/RFC-REQUIREMENTS.md` for the rollup over all of them. Coverage is gated by `./le rfc check`, freshness by `./le doc check verify`. Which of those tests is PROVEN to discriminate its claim is `./le rfc discriminate stem <stem>` |
 | What each package does | grep `ai/PACKAGE-MAP.md`, which is derived and rebuilt when a Bash command names it. `./le repo package-map update` writes it on demand |
 | Which `.go` files implement a design doc | read `ai/DOCS-TO-CODE.md`, the inverse of `// Design:` |
-| Which problems recur | `./le spec journal report`; read `plan/journal/`, one file per class, where the row count is the recurrence |
+| Which problems recur | `./le spec journal report`; read `plan/journal/`, one file per class, where the recurrence is the rows dated after the class's `Captured:` line, every row when it has none |
 | Whether every path a tracked file names still resolves | `./le doc check links`. It is its own `./le verify current mode full` stage, and `sweepTracked` in `internal/le/doc/check/links.go` sweeps every tracked file, not only the instruction corpus. Repair the reference, or mark its line with a `doc-links: ignore` marker that states why the path cannot resolve. The record trees are excluded, because their paths are facts about a past moment rather than claims about the tree today: `citation.Excluded` in `internal/le/doc/citation/policed.go` names them, and `citation.Policed` gives the whole answer, keeping a `citation.CorpusGlobs` file under a record tree policed |
 | Whether every symbol a `docs/` source anchor names is declared where the anchor points | `./le doc check verify` (`checkAnchors` in `internal/le/doc/index/codetodocs.go`) |
 | How data flows through a subsystem | read `ai/digests/<subsystem>.md`; `ai/digests/README.md` lists them and `./le ai digest` validates their anchors |
