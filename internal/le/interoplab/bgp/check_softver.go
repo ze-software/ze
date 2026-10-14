@@ -96,6 +96,45 @@ func requireFRRRefusesDraftForm(ctx context.Context, lab interoplab.CheckerLab, 
 	if value == stateEstablished {
 		return fmt.Errorf("draft form: FRR refused ze's OPEN yet shows the session with ze at %s as %s", zeAddress, stateEstablished)
 	}
+	return requireZeWarnsOpenRefused(ctx, lab, frrAddress)
+}
+
+// requireZeWarnsOpenRefused requires ze's log to carry the one WARN line a
+// received NOTIFICATION leaves (Session.logNotificationReceived): FRR's 2/0
+// for the draft form, named with code and subcode numbers, at ze's default log
+// level. Before that line existed the refusal reached only `show bgp peer` and
+// the counters, so an operator reading the log saw a session that never came up
+// and nothing saying why.
+func requireZeWarnsOpenRefused(ctx context.Context, lab interoplab.CheckerLab, frrAddress string) error {
+	var text textbuf.Buffer
+	peerAttr := text.Str("peer=").Str(frrAddress).Str(" ").String()
+	const refusal = `code="OPEN Message Error" code-number=2 subcode=Unspecific subcode-number=0`
+	logs, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout:     60 * time.Second,
+		Interval:    2 * time.Second,
+		Description: "ze's WARN line for FRR's NOTIFICATION to the draft form",
+	}, func(probeCtx context.Context) (string, error) {
+		result, logErr := lab.Logs(probeCtx, "ze", 400)
+		if logErr != nil {
+			return "", logErr
+		}
+		if !result.Available {
+			return "", errors.New("ze's container log is unavailable")
+		}
+		return result.Text, nil
+	}, func(output string) bool {
+		for line := range strings.SplitSeq(output, "\n") {
+			if strings.Contains(line, `level=WARN msg="notification received"`) &&
+				strings.Contains(line, peerAttr) && strings.Contains(line, refusal) {
+				return true
+			}
+		}
+		return false
+	})
+	if err != nil {
+		return fmt.Errorf("draft form: ze recorded FRR's 2/0 but its log carries no WARN "+
+			"`notification received` line for peer %s naming %s: %w\n%s", frrAddress, refusal, err, strings.TrimSpace(logs))
+	}
 	return nil
 }
 
