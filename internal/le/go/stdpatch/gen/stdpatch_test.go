@@ -402,7 +402,10 @@ func TestStdpatchTreeServesTheWholeStdlib(t *testing.T) {
 // The fake tree's bin and pkg/tool are links to the real toolchain's, which is
 // the shape the builder writes. A go invoked through the link on darwin, where
 // os.Executable answers the unresolved path, finds the tree as its root, so a
-// Resolve that runs the first go on PATH by name answers the tree.
+// Resolve that runs the first go on PATH by name answers the tree. The test
+// discriminates only on darwin: on Linux os.Executable reads /proc/self/exe,
+// which the kernel already resolved, so even the go run by name answers the
+// real root there and the test stays green without the fix.
 func TestResolveAnswersTheRealRootUnderATreeFirstOnPath(t *testing.T) {
 	t.Setenv("GOROOT", "")
 	t.Setenv("PATH", pathWithoutTrees(os.Getenv("PATH")))
@@ -437,6 +440,64 @@ func TestResolveAnswersTheRealRootUnderATreeFirstOnPath(t *testing.T) {
 	}
 	if resolvedGot != resolvedReal {
 		t.Errorf("with %s/bin first on PATH, Resolve answered %s, want the real %s", tree, got.GOROOT, real.GOROOT)
+	}
+}
+
+// argv0Dispatcher is a version manager's dispatcher in miniature: one binary
+// that every shim links to, choosing the tool from the name in argv[0]. As go
+// it answers `go env GOROOT GOVERSION` with a fixed root; under any other
+// name it refuses, as mise does when run as itself with go's arguments.
+const argv0Dispatcher = `package main
+
+import (
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	if filepath.Base(os.Args[0]) != "go" {
+		os.Stderr.WriteString("dispatched as " + os.Args[0] + ", not as go\n")
+		os.Exit(2)
+	}
+	os.Stdout.WriteString("/dispatched/goroot\ngo0.0-dispatched\n")
+}
+`
+
+// TestResolveKeepsThePathNameAsArgv0 proves Resolve runs the go on PATH with
+// the PATH name as argv[0] while executing the resolved file, so a version
+// manager whose go shim is a link to one dispatcher (mise's symlink shims)
+// still runs go. It builds argv0Dispatcher, puts a link named go to it alone on
+// PATH, and expects the root the dispatcher answers only when argv[0] is go.
+// A Resolve that passes the resolved path as argv[0] reaches the dispatcher
+// under its own name, which refuses, on every platform.
+func TestResolveKeepsThePathNameAsArgv0(t *testing.T) {
+	t.Setenv("GOROOT", "")
+	t.Setenv("PATH", pathWithoutTrees(os.Getenv("PATH")))
+	real := realToolchain(t, t.TempDir())
+
+	source := t.TempDir()
+	if err := os.WriteFile(filepath.Join(source, "main.go"), []byte(argv0Dispatcher), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dispatcher := filepath.Join(t.TempDir(), "dispatcher")
+	build := exec.CommandContext(context.Background(), filepath.Join(real.GOROOT, "bin", "go"), "build", "-o", dispatcher, "main.go") //nolint:gosec // the test's own toolchain and temp paths
+	build.Dir = source
+	build.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=", "GOWORK=off", "GO111MODULE=off")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("building the dispatcher: %v\n%s", err, out)
+	}
+	shims := t.TempDir()
+	if err := os.Symlink(dispatcher, filepath.Join(shims, "go")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", shims)
+
+	got, err := Resolve(repoRoot(t), t.TempDir(), shippedPatches(t))
+	if err != nil {
+		t.Fatalf("Resolve through a link to an argv[0] dispatcher: %v", err)
+	}
+	if got.GOROOT != "/dispatched/goroot" {
+		t.Errorf("Resolve answered %s, want the dispatcher's /dispatched/goroot", got.GOROOT)
 	}
 }
 
