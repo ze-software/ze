@@ -160,7 +160,10 @@ func runInject(args []string) int {
 }
 
 func bgpOpenExchange(conn net.Conn, localAS uint32, holdTime uint16, routerID net.IP) error {
-	openBody := bgpBuildOpen(localAS, holdTime, routerID)
+	openBody, err := bgpBuildOpen(localAS, holdTime, routerID)
+	if err != nil {
+		return err
+	}
 	if err := bgpWrite(conn, 1, openBody); err != nil {
 		return err
 	}

@@ -292,7 +292,7 @@ func TestReceiverRecordsThePeerUpAddressFamilies(t *testing.T) {
 	bp := &BMPPlugin{state: newBMPState()}
 	bp.state.addRouter("10.0.0.1")
 
-	open := fabricateLocRIBOpen(localIdentity{asn: 65000, routerID: 0x01020305})
+	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 65000, routerID: 0x01020305})
 	bp.processPeerUp("10.0.0.1", &PeerUp{
 		Peer:            PeerHeader{PeerType: PeerTypeLocRIB, PeerAS: 65000, PeerBGPID: 0x01020305},
 		SentOpenMsg:     open,
@@ -414,7 +414,7 @@ func TestOpenMultiprotocolFamiliesRefusesAMalformedOPEN(t *testing.T) {
 
 	// The fabricated Loc-RIB OPEN is the shape that DOES answer, so the refusals
 	// above are about the input rather than about the parser never working.
-	open := fabricateLocRIBOpen(localIdentity{asn: 65000, routerID: 1})
+	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 65000, routerID: 1})
 	if got := openMultiprotocolFamilies(open); len(got) != len(dumpFamilies) {
 		t.Errorf("families = %v, want %d", got, len(dumpFamilies))
 	}

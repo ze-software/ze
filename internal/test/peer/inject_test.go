@@ -11,6 +11,8 @@ import (
 	"net/netip"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
 // TestBuildUpdatesV4Exact verifies byte-for-byte RFC 4271 §4.3 output for a
@@ -608,5 +610,35 @@ func reservePort(t *testing.T) int {
 func closeIgnoreErr(c io.Closer) {
 	if err := c.Close(); err != nil {
 		_ = err // best-effort teardown in tests
+	}
+}
+
+// TestActiveOpenUsesOnePacker proves AC-1q for the test peer's active-role
+// OPEN: buildActiveOpen packs through capability.PackOptionalParams and its
+// bytes are unchanged.
+//
+// VALIDATES: the OPEN equals the bytes the inline packing wrote for an empty
+// config (AS 0, IPv4, router ID 1.1.1.1, hold 180) and its parameters
+// round-trip through capability.ParseFromOptionalParams.
+// PREVENTS: a byte change in the active test peer's OPEN, or a second packer.
+func TestActiveOpenUsesOnePacker(t *testing.T) {
+	msg, err := buildActiveOpen(&Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := append(append([]byte{}, Marker...), 0x00, 0x2B, MsgOPEN,
+		4, 0, 0, 0, 180, 1, 1, 1, 1, 14,
+		2, 12,
+		1, 4, 0, 1, 0, 1,
+		65, 4, 0, 0, 0, 0)
+	if !bytes.Equal(msg, want) {
+		t.Fatalf("OPEN = % x\nwant   % x", msg, want)
+	}
+	caps, err := capability.ParseFromOptionalParams(msg[HeaderLen+10:], false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(caps) != 2 {
+		t.Fatalf("decoded %d capabilities, want 2", len(caps))
 	}
 }

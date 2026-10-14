@@ -60,8 +60,9 @@ var openingPeer = netip.MustParseAddr("192.0.2.9")
 
 // addOpeningPeer shows the plugin a second peer that exchanged OPENs and sent
 // one UPDATE but whose session never reported Up.
-func addOpeningPeer(bp *BMPPlugin) {
-	open := fabricateLocRIBOpen(localIdentity{asn: 65009, routerID: 0xc0000209})
+func addOpeningPeer(t testing.TB, bp *BMPPlugin) {
+	t.Helper()
+	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 65009, routerID: 0xc0000209})
 	for _, direction := range []rpc.MessageDirection{rpc.DirectionSent, rpc.DirectionReceived} {
 		bp.handleStructuredEvent(&rpc.StructuredEvent{
 			PeerAddress: openingPeer.String(), PeerAS: 65009, Direction: direction,
@@ -87,7 +88,7 @@ func openingStream(t *testing.T) []any {
 	t.Helper()
 	bp := replayPlugin(t)
 	replayUpdate(bp, rpc.DirectionReceived, announceBody(1), time.Time{}, 0)
-	addOpeningPeer(bp)
+	addOpeningPeer(t, bp)
 	_, conn := primeReplayCollector(t, bp)
 	return decodeBMPStream(t, conn.written())
 }

@@ -195,7 +195,10 @@ func serveBGPOpen(conn net.Conn, localAS uint32, routerID net.IP, holdTime uint1
 	}
 
 	// Send our OPEN + KEEPALIVE
-	openBody := bgpBuildOpen(localAS, holdTime, routerID)
+	openBody, err := bgpBuildOpen(localAS, holdTime, routerID)
+	if err != nil {
+		return 0, err
+	}
 	if err := bgpWrite(conn, 1, openBody); err != nil {
 		return 0, err
 	}

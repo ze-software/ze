@@ -97,7 +97,7 @@ func bmpTLVSeeds() [][]byte {
 // PREVENTS: regression where a future edit drops a bound in extractBGPOpen and
 // a crafted Peer Up over-reads the session buffer.
 func FuzzDecodeLocRIBPeerUp(f *testing.F) {
-	for _, seed := range locRIBPeerUpSeeds() {
+	for _, seed := range locRIBPeerUpSeeds(f) {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -120,8 +120,9 @@ func FuzzDecodeLocRIBPeerUp(f *testing.F) {
 // Peer Up carrying the fabricated OPEN twice, the same message truncated at each
 // boundary the decoder checks, and a message whose sent OPEN declares a length
 // past the end of the buffer.
-func locRIBPeerUpSeeds() [][]byte {
-	open := fabricateLocRIBOpen(localIdentity{asn: 65044, routerID: 0xAC1E0002})
+func locRIBPeerUpSeeds(t testing.TB) [][]byte {
+	t.Helper()
+	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 65044, routerID: 0xAC1E0002})
 	body := &PeerUp{
 		Peer:            locRIBPeerHeader(localIdentity{asn: 65044, routerID: 0xAC1E0002}, time.Time{}),
 		SentOpenMsg:     open,

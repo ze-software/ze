@@ -17,6 +17,7 @@ package bmp
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
 	"net/netip"
 	"sync/atomic"
@@ -35,14 +36,10 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-// The two BGP constants the fabricated Loc-RIB OPEN needs.
+// bgpVersion is the BGP version the fabricated Loc-RIB OPEN carries.
 //
 // RFC 4271 Section 4.2: "Version: ... The current BGP version number is 4."
-// RFC 5492 Section 4: the Capabilities Optional Parameter is "Parameter Type: 2".
-const (
-	bgpVersion           uint8 = 4
-	optParamCapabilities byte  = 2
-)
+const bgpVersion uint8 = 4
 
 // locRIBTableName is the VRF/Table Name ze reports for its one Loc-RIB.
 //
@@ -181,7 +178,11 @@ func locRIBPeerHeader(id localIdentity, installed time.Time) PeerHeader {
 //
 // The Hold Time is 0. RFC 4271 Section 4.2 allows "either zero or at least three
 // seconds", and this peer has no session to keep alive.
-func fabricateLocRIBOpen(id localIdentity) []byte {
+//
+// The capabilities ride in one Capabilities parameter packed by
+// capability.PackOptionalParams; its size error is returned, although four
+// capabilities of 8 octets or fewer cannot reach it.
+func fabricateLocRIBOpen(id localIdentity) ([]byte, error) {
 	caps := make([]capability.Capability, 0, 2+len(dumpFamilies))
 	caps = append(caps, &capability.ASN4{ASN: id.asn})
 	for _, fam := range dumpFamilies {
@@ -197,19 +198,10 @@ func fabricateLocRIBOpen(id localIdentity) []byte {
 	// [RFC5492] with the Extended Next Hop Encoding capability".
 	caps = append(caps, &capability.ExtendedNextHop{Families: locRIBExtendedNextHop[:]})
 
-	capBytes := 0
-	for _, capa := range caps {
-		capBytes += capa.Len()
-	}
-
-	// RFC 5492 Section 4: the Capabilities Optional Parameter is parameter type
-	// 2, whose value is the sequence of capability triples.
-	params := make([]byte, 2+capBytes)
-	params[0] = optParamCapabilities
-	params[1] = byte(capBytes) // bounded: four capabilities of 8 octets or fewer each
-	off := 2
-	for _, capa := range caps {
-		off += capa.WriteTo(params, off)
+	// RFC 9072 Section 2
+	params, extended, err := capability.PackOptionalParams([]capability.OptionalParam{capability.CapabilitiesParam(caps)})
+	if err != nil {
+		return nil, fmt.Errorf("loc-rib OPEN: %w", err)
 	}
 
 	open := &message.Open{
@@ -218,6 +210,7 @@ func fabricateLocRIBOpen(id localIdentity) []byte {
 		BGPIdentifier:  id.routerID,
 		ASN4:           id.asn,
 		OptionalParams: params,
+		ExtendedParams: extended,
 	}
 	// RFC 6793 Section 3: a speaker whose ASN does not fit the two-octet field
 	// sends AS_TRANS in it, which Open.WriteTo substitutes from ASN4.
@@ -226,7 +219,7 @@ func fabricateLocRIBOpen(id localIdentity) []byte {
 	}
 
 	buf := make([]byte, open.Len(nil))
-	return buf[:open.WriteTo(buf, 0, nil)]
+	return buf[:open.WriteTo(buf, 0, nil)], nil
 }
 
 // encodeNLRIPrefix encodes a prefix as RFC 4271 Section 4.3 NLRI:
@@ -701,7 +694,11 @@ func (bp *BMPPlugin) ensureLocRIBPeerUp(senders []*senderSession) {
 	}
 	// Zero Timestamp: a Peer Up encapsulates no route (RFC 9069 Section 5.1).
 	peer := locRIBPeerHeader(id, time.Time{})
-	open := fabricateLocRIBOpen(id)
+	open, err := fabricateLocRIBOpen(id)
+	if err != nil {
+		logger().Warn("bmp: loc-rib peer up suppressed: the Loc-RIB OPEN cannot be built", "error", err)
+		return
+	}
 	tlvs := []TLV{locRIBTableNameTLV()}
 	var zeroAddr [16]byte
 	announced := false
@@ -766,7 +763,13 @@ func (bp *BMPPlugin) primeLocRIBPeerUp(ss *senderSession) {
 			"collector", ss.name)
 		return
 	}
-	open := fabricateLocRIBOpen(id)
+	open, err := fabricateLocRIBOpen(id)
+	if err != nil {
+		ss.locRIBUpSent.Store(false) // nothing reached the collector; let the next batch retry
+		logger().Warn("bmp: loc-rib peer up suppressed: the Loc-RIB OPEN cannot be built",
+			"collector", ss.name, "error", err)
+		return
+	}
 	var zeroAddr [16]byte
 	peer := locRIBPeerHeader(id, time.Time{}) // a Peer Up encapsulates no route
 	if err := ss.writePeerUpLocked(peer, zeroAddr, 0, 0, open, open, []TLV{locRIBTableNameTLV()}); err != nil {

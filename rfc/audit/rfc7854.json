@@ -5,6 +5,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -39,9 +40,9 @@
       "note": "after reconnect Peer Up precedes the surviving route and each family gets EOR after its routes; an incremental UPDATE and another collector's reconnect produce no EOR, and an incomplete snapshot never emits EOR",
       "requirement_sha": "9e950d05f2096cce",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "de39a86aea269f0a",
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily": "de39a86aea269f0a",
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854IncompleteAdjReplayCannotClaimCompletion": "de39a86aea269f0a"
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "54df4950a18893be",
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily": "54df4950a18893be",
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854IncompleteAdjReplayCannotClaimCompletion": "54df4950a18893be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "fc92d70bcfce5e19",
@@ -320,8 +321,8 @@
       "note": "replayed routes and EORs with unknown receipt time carry 0.0; a known receipt time survives replay exactly",
       "requirement_sha": "403c4cad7eea7c97",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854KnownRouteTimeSurvivesReplay": "de39a86aea269f0a",
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854UnknownRouteTimeIsZero": "de39a86aea269f0a"
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854KnownRouteTimeSurvivesReplay": "54df4950a18893be",
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854UnknownRouteTimeIsZero": "54df4950a18893be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854KnownRouteTimeSurvivesReplay": "bfcbce2005f0cae9",
@@ -346,7 +347,7 @@
       "note": "rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue receives one prefix three times with ORIGIN IGP, INCOMPLETE, IGP and requires exactly three Route Monitoring messages, each body byte-equal to the UPDATE carrying that ORIGIN, so a sender that suppresses or dedupes the return to an earlier value fails (record: handleSenderUpdate break observed red). One attribute (ORIGIN) samples 'such as an attribute change'. {single-polarity: positive} holds: every route change is compliant input to the router, which has no refusal path.",
       "requirement_sha": "188789eb497d3328",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue": "de39a86aea269f0a"
+        "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue": "54df4950a18893be"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue": "26b2024bb749b686"
@@ -437,8 +438,8 @@
       "note": "Re-judged 2026-09-29. The wrong tags on TestConcurrentDumpsStayAddressedToTheirOwnCollector are gone. rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers primes a new collector (primeSender) over one Established peer and one peer that exchanged OPENs and sent an UPDATE but never reported Up; it counts Peer Ups per address on the collector's bytes: exactly 1 for the Established peer, 0 for the other, and the first message is the Peer Up. A producer that announced every peer with cached OPENs, or none, goes red.",
       "requirement_sha": "55b9ac733d60f375",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers": "cb0d93469e3bcca9",
-        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers#2": "cb0d93469e3bcca9"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers": "524ea12738fd2dfc",
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers#2": "524ea12738fd2dfc"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers": "b70c239ed27fa05c",
@@ -450,8 +451,8 @@
       "note": "Re-judged 2026-09-29. rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp reads the same two-peer session in order: no Route Monitoring before the Peer Up, the Established peer's received route (exact UPDATE body announceBody(1)) arrives as a pre-policy Route Monitoring (L clear, the default pre-policy selection), and nothing is dumped for the peer that never reached Established. Order, content and scope of the Adj-RIB-In dump are each asserted.",
       "requirement_sha": "80e43f66d7f245b7",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp": "cb0d93469e3bcca9",
-        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp#2": "cb0d93469e3bcca9"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp": "524ea12738fd2dfc",
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp#2": "524ea12738fd2dfc"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp": "664fe9fd6cc44840",
@@ -466,7 +467,7 @@
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestBMPInitiationMissingSysNameEndsSession": "4c8de7d703105fd1",
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationEmptyIdentityValuesAccepted": "4c8de7d703105fd1",
         "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationMissingSysDescrEndsSession": "4c8de7d703105fd1",
-        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName": "cb0d93469e3bcca9",
+        "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName": "524ea12738fd2dfc",
         "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854InitiationCarriesSysDescr": "94e84131af3555be"
       },
       "units": {

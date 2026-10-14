@@ -22,6 +22,18 @@ import (
 // findAttr walks an RFC 4271 path-attribute block and returns the value of the
 // first attribute with the given type code, or nil if absent. Attribute wire:
 // flags(1) + type(1) + length(1 or 2 with the Extended-Length flag) + value.
+
+// mustFabricateLocRIBOpen builds the Loc-RIB OPEN and fails the test on the
+// packer's error.
+func mustFabricateLocRIBOpen(t testing.TB, id localIdentity) []byte {
+	t.Helper()
+	open, err := fabricateLocRIBOpen(id)
+	if err != nil {
+		t.Fatalf("fabricateLocRIBOpen: %v", err)
+	}
+	return open
+}
+
 func findAttr(attrs []byte, code byte) []byte {
 	off := 0
 	for off+3 <= len(attrs) {
@@ -283,7 +295,7 @@ func TestBuildLocRIBUpdateBody_IPv6Withdraw(t *testing.T) {
 // value for such a router: an implementation that wrote the low sixteen bits of
 // the ASN into My AS would publish an autonomous system ze does not have.
 func TestFabricatedOpenUsesASTransForFourByteASN(t *testing.T) {
-	open := fabricateLocRIBOpen(localIdentity{asn: 4259905000, routerID: 0x01020305})
+	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 4259905000, routerID: 0x01020305})
 
 	body := open[message.HeaderLen:]
 	if got := binary.BigEndian.Uint16(body[1:3]); got != message.AS_TRANS {
@@ -310,7 +322,7 @@ func TestFabricatedOpenUsesASTransForFourByteASN(t *testing.T) {
 
 	// A 16-bit ASN goes in the fixed field unchanged, so AS_TRANS is not a
 	// blanket substitution.
-	small := fabricateLocRIBOpen(localIdentity{asn: 65044, routerID: 0x01020305})
+	small := mustFabricateLocRIBOpen(t, localIdentity{asn: 65044, routerID: 0x01020305})
 	if got := binary.BigEndian.Uint16(small[message.HeaderLen+1 : message.HeaderLen+3]); got != 65044 {
 		t.Errorf("My AS = %d for a 16-bit ASN, want 65044", got)
 	}
@@ -325,7 +337,7 @@ func TestFabricatedOpenUsesASTransForFourByteASN(t *testing.T) {
 // router's own ASN, and carries one Multiprotocol capability for each family the dump
 // delivers -- and none for a family it does not.
 func TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities(t *testing.T) {
-	open := fabricateLocRIBOpen(localIdentity{asn: 4200000001, routerID: 0x01020305})
+	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 4200000001, routerID: 0x01020305})
 
 	if got := msgtype.MessageType(open[message.MarkerLen+2]); got != msgtype.TypeOPEN {
 		t.Fatalf("message type = %d, want OPEN", got)

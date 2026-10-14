@@ -26,7 +26,7 @@ func replayPlugin(t *testing.T) *BMPPlugin {
 		dedupState:         make(map[string]map[uint64]struct{}),
 		dedupCount:         make(map[string]uint32),
 	}
-	open := fabricateLocRIBOpen(localIdentity{asn: 65001, routerID: 0xc0000201})
+	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 65001, routerID: 0xc0000201})
 	for _, direction := range []rpc.MessageDirection{rpc.DirectionSent, rpc.DirectionReceived} {
 		bp.handleStructuredEvent(&rpc.StructuredEvent{
 			PeerAddress: "192.0.2.1", PeerAS: 65001, Direction: direction,

@@ -59,23 +59,34 @@
     {
       "rid": "RFC9069-5.2-1",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities",
+      "unit-sha": "f3013d35e54cab13",
+      "claim-sha": "aee56989790ba53f",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::fabricateLocRIBOpen",
+      "producer-sha": "2427ae982c091589",
+      "break": "body of fabricateLocRIBOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9069-5.2-1",
+      "polarity": "positive",
       "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses",
-      "unit-sha": "709867a9d9ed0cd7",
+      "unit-sha": "621be8c2e5edd932",
       "claim-sha": "da435ce4310a4708",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::fabricateLocRIBOpen",
-      "producer-sha": "a1ee47548ba2bca9",
+      "producer-sha": "2427ae982c091589",
       "break": "body of fabricateLocRIBOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9069-5.2-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop",
-      "unit-sha": "d0c0dd74d1abc31f",
+      "unit-sha": "5b4de35e41af74f5",
       "claim-sha": "3d2119616254c256",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::fabricateLocRIBOpen",
-      "producer-sha": "a1ee47548ba2bca9",
+      "producer-sha": "2427ae982c091589",
       "break": "body of fabricateLocRIBOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -115,7 +126,7 @@
       "rid": "RFC9069-6.1.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies",
-      "unit-sha": "bcc53b9474711ed3",
+      "unit-sha": "e6d6ee8c017fba70",
       "claim-sha": "976ac7f46f0db5c9",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp.go::processPeerUp",
@@ -141,7 +152,7 @@
       "claim-sha": "6b28cb7f2508346c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::fabricateLocRIBOpen",
-      "producer-sha": "a1ee47548ba2bca9",
+      "producer-sha": "2427ae982c091589",
       "break": "body of fabricateLocRIBOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

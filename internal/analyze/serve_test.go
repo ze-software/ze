@@ -42,7 +42,10 @@ func TestServeBGPOpen_Success(t *testing.T) {
 
 	// Simulate peer sending OPEN then KEEPALIVE
 	go func() {
-		openBody := bgpBuildOpen(65001, 90, net.IP{1, 0, 0, 1})
+		openBody, buildErr := bgpBuildOpen(65001, 90, net.IP{1, 0, 0, 1})
+		if buildErr != nil {
+			return
+		}
 		if err := bgpWrite(client, 1, openBody); err != nil {
 			return
 		}
@@ -79,7 +82,10 @@ func TestServeBGPOpen_NotKeepalive(t *testing.T) {
 	defer func() { _ = server.Close() }()
 
 	go func() {
-		openBody := bgpBuildOpen(65002, 90, net.IP{3, 0, 0, 1})
+		openBody, buildErr := bgpBuildOpen(65002, 90, net.IP{3, 0, 0, 1})
+		if buildErr != nil {
+			return
+		}
 		_ = bgpWrite(client, 1, openBody)
 		_, _, _ = bgpReadMsg(client) // read OPEN
 		_, _, _ = bgpReadMsg(client) // read KEEPALIVE

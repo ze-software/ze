@@ -96,7 +96,7 @@ func TestReceiverKeepsEachPeersAddressFamiliesApart(t *testing.T) {
 // every capability code, not only Multiprotocol. Method: decode the OPEN and
 // classify every capability it carries.
 func TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses(t *testing.T) {
-	open := fabricateLocRIBOpen(localIdentity{asn: 4200000001, routerID: 0x01020305})
+	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 4200000001, routerID: 0x01020305})
 	parsed, err := message.UnpackOpen(open[message.HeaderLen:])
 	if err != nil {
 		t.Fatalf("the fabricated OPEN does not decode: %v", err)
@@ -171,7 +171,7 @@ func TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop(t *testing.T) {
 		t.Fatalf("MP_REACH_NLRI AFI %d next-hop length %d, want AFI 1 with a 16-octet IPv6 next hop", afi, nhLen)
 	}
 
-	open := fabricateLocRIBOpen(localIdentity{asn: 65001, routerID: 0x01020305})
+	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 65001, routerID: 0x01020305})
 	parsed, err := message.UnpackOpen(open[message.HeaderLen:])
 	if err != nil {
 		t.Fatalf("the fabricated OPEN does not decode: %v", err)

@@ -23,6 +23,8 @@ import (
 	"net"
 	"net/netip"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
 const (
@@ -440,7 +442,10 @@ func (p *Peer) runActive(ctx context.Context) Result {
 		}
 	}
 
-	ourOpen := buildActiveOpen(p.config)
+	ourOpen, err := buildActiveOpen(p.config)
+	if err != nil {
+		return Result{Error: err}
+	}
 	p.printPayload("open sent", ourOpen[:HeaderLen], ourOpen[HeaderLen:])
 	if _, werr := conn.Write(ourOpen); werr != nil {
 		return Result{Error: fmt.Errorf("write OPEN: %w", werr)}
@@ -481,7 +486,7 @@ func (p *Peer) runActive(ctx context.Context) Result {
 // each fact, and they share it by calling one function for it rather than by
 // each stating the rule: myASField narrows the AS, and Config.resolveOpenAS
 // answers which AS the .ci declared.
-func buildActiveOpen(cfg *Config) []byte {
+func buildActiveOpen(cfg *Config) ([]byte, error) {
 	asn := uint32(0)
 	family := uint16(1) // AFI=1 IPv4 by default
 	if cfg.Inject != nil {
@@ -497,19 +502,21 @@ func buildActiveOpen(cfg *Config) []byte {
 	if declared, ok := cfg.resolveOpenAS(netip.Addr{}, dialTargetAddr(cfg.Dial)); ok {
 		asn = declared
 	}
-	// Capabilities (RFC 5492 bundled in one type-2 optional parameter):
-	//   MP-BGP: code 1, len 4, AFI(2) + reserved(1=0) + SAFI(1)
-	//   4-byte ASN: code 65, len 4, ASN(4)
-	var asnBytes [4]byte
-	binary.BigEndian.PutUint32(asnBytes[:], asn)
-	caps := make([]byte, 0, 16)
-	caps = append(caps, 1, 4, byte(family>>8), byte(family), 0, 1, 65, 4)
-	caps = append(caps, asnBytes[:]...)
-
-	// Optional parameter wrapper: type 2 (Capability), length, caps.
-	optParam := make([]byte, 0, 2+len(caps))
-	optParam = append(optParam, 2, byte(len(caps)))
-	optParam = append(optParam, caps...)
+	// MP-BGP and 4-byte ASN in one Capabilities parameter, packed by the one
+	// packer. RFC 9072 Section 2
+	caps := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFI(family), SAFI: capability.SAFIUnicast},
+		&capability.ASN4{ASN: asn},
+	}
+	optParam, extended, err := capability.PackOptionalParams([]capability.OptionalParam{capability.CapabilitiesParam(caps)})
+	if err != nil {
+		return nil, fmt.Errorf("active OPEN: %w", err)
+	}
+	// This OPEN body has no RFC 9072 envelope, so it refuses rather than write
+	// extended parameters behind a one-octet Opt Parm Len.
+	if extended {
+		return nil, errActiveOpenTooLarge
+	}
 
 	// Router ID: derive from --dial host (active-side local identity is
 	// less important than being unique; a fixed 1.1.1.1 fallback works if
@@ -540,8 +547,12 @@ func buildActiveOpen(cfg *Config) []byte {
 	msg = append(msg, Marker...)
 	msg = append(msg, byte(msgLen>>8), byte(msgLen), MsgOPEN)
 	msg = append(msg, body...)
-	return msg
+	return msg, nil
 }
+
+// errActiveOpenTooLarge reports capabilities past the 255 octets the RFC 4271
+// OPEN body buildActiveOpen writes can carry.
+var errActiveOpenTooLarge = errors.New("active OPEN: capabilities exceed 255 octets of Optional Parameters")
 
 // dialTargetAddr reads the address out of a "host:port" dial target, or returns
 // the zero Addr when it carries none.

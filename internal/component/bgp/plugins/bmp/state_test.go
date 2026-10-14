@@ -178,7 +178,7 @@ func TestStateLocRIBIdentityChangeKeepsReportsSeparate(t *testing.T) {
 	second := first
 	second.PeerBGPID = 0xc0000202
 	for _, peer := range []PeerHeader{first, second} {
-		open := fabricateLocRIBOpen(localIdentity{asn: peer.PeerAS, routerID: peer.PeerBGPID})
+		open := mustFabricateLocRIBOpen(t, localIdentity{asn: peer.PeerAS, routerID: peer.PeerBGPID})
 		bp.processPeerUp(remote, &PeerUp{Peer: peer, SentOpenMsg: open, ReceivedOpenMsg: open})
 	}
 	bp.processPeerDown(remote, &PeerDown{Peer: first, Reason: PeerDownTLVData})
