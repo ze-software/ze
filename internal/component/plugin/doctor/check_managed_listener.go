@@ -47,7 +47,7 @@ func checkManagedListener(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 // A block that both of them pick is bound by the acceptor first.
 // ManagedServer.Start then logs the failed bind and skips the block. Every
 // managed client that dials it is refused by an acceptor that routes only to a
-// WaitForPlugin waiter.
+// PluginWaiter that ExpectPlugin registered.
 //
 // A block that carries a plugin secret AND client entries is NOT the condition.
 // The central-hub configuration in docs/architecture/fleet-config.md carries

@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/process-protocol.md — TLS transport for external plugins
 // Related: rpc.go — PluginConn typed RPC wrapper
 // Related: socketpair.go — package marker for plugin IPC
-// Related: ../process/process.go — startExternal calls WaitForPlugin after forking
+// Related: ../process/process.go — startExternal calls ExpectPlugin before forking, then Wait
 // Related: ../../../../pkg/plugin/sdk/sdk.go — NewFromTLSEnv dials TLS and calls SendAuth
 // Related: ../acceptor.go — NewHubAcceptor issues the served leaf from the daemon root
 
@@ -494,7 +494,7 @@ func (pa *PluginAcceptor) RootPEM() []byte {
 }
 
 // Start begins the accept loop in a goroutine. Each accepted connection is
-// authenticated and routed to the matching WaitForPlugin caller.
+// authenticated and routed to the matching PluginWaiter.
 func (pa *PluginAcceptor) Start() {
 	go pa.acceptLoop()
 }
@@ -505,28 +505,54 @@ func (pa *PluginAcceptor) Stop() {
 	pa.listener.Close() //nolint:errcheck,gosec // shutdown cleanup
 }
 
-// WaitForPlugin blocks until a plugin with the given name connects and
-// authenticates, or until ctx expires. Returns the authenticated connection.
-func (pa *PluginAcceptor) WaitForPlugin(ctx context.Context, name string) (net.Conn, error) {
-	ch := make(chan net.Conn, 1)
-	pa.pending.Store(name, ch)
+// PluginWaiter is one engine-side expectation that a named plugin connects
+// back. ExpectPlugin creates it before the plugin process exists, so a plugin
+// that dials and authenticates before the engine reaches Wait is held for
+// Wait rather than dropped for having no waiter. Not safe for concurrent use:
+// one goroutine calls Wait or Cancel, once.
+type PluginWaiter struct {
+	acceptor *PluginAcceptor
+	name     string
+	ch       chan net.Conn
+}
 
+// ExpectPlugin registers the waiter for name. It MUST be called before the
+// process that dials back is started, and the caller MUST then call Wait, or
+// Cancel when the process never started. A plugin that authenticates while no
+// waiter is registered is closed (handleConn), so registering after the start
+// loses every plugin that wins the race to the hub.
+func (pa *PluginAcceptor) ExpectPlugin(name string) *PluginWaiter {
+	waiter := &PluginWaiter{acceptor: pa, name: name, ch: make(chan net.Conn, 1)}
+	pa.pending.Store(name, waiter.ch)
+	return waiter
+}
+
+// Wait blocks until the expected plugin has connected and authenticated, or
+// until ctx expires or the acceptor stops. Returns the authenticated
+// connection. It MUST be called after ExpectPlugin, at most once.
+func (w *PluginWaiter) Wait(ctx context.Context) (net.Conn, error) {
 	select {
-	case conn := <-ch:
-		pa.pending.Delete(name)
+	case conn := <-w.ch:
+		w.acceptor.pending.CompareAndDelete(w.name, w.ch)
 		return conn, nil
 	case <-ctx.Done():
-		pa.pending.Delete(name)
-		// Drain any connection that arrived concurrently.
-		// The channel may have received a conn between ctx.Done firing
-		// and pending.Delete -- must close it to prevent leak.
-		pa.drainConnChan(ch)
+		w.Cancel()
 		return nil, ctx.Err()
-	case <-pa.ctx.Done():
-		pa.pending.Delete(name)
-		pa.drainConnChan(ch)
+	case <-w.acceptor.ctx.Done():
+		w.Cancel()
 		return nil, errAcceptorStopped
 	}
+}
+
+// Cancel withdraws the waiter, and closes a connection that was delivered to
+// it and never taken. A caller whose plugin process failed to start MUST call
+// it in place of Wait; Wait calls it when it gives up.
+func (w *PluginWaiter) Cancel() {
+	// CompareAndDelete leaves a later ExpectPlugin for the same name in place.
+	w.acceptor.pending.CompareAndDelete(w.name, w.ch)
+	// A connection may have been delivered between the give-up and the
+	// delete, so the channel is drained and anything in it closed.
+	w.acceptor.drainConnChan(w.ch)
 }
 
 // drainConnChan spawns a goroutine that waits for a connection on ch
@@ -633,7 +659,7 @@ func (pa *PluginAcceptor) handleConn(conn net.Conn) {
 	// close the connection instead of leaking it in the channel buffer.
 	select {
 	case ch <- conn:
-		// Delivered to WaitForPlugin.
+		// Delivered to the PluginWaiter.
 	case <-pa.ctx.Done():
 		conn.Close() //nolint:errcheck,gosec // acceptor stopped
 	}

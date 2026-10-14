@@ -93,11 +93,15 @@ func TestPluginDialValidatesTheChain(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// The waiter is registered before the dial, as startExternal registers it
+	// before the fork: the hub closes a plugin that authenticates with nobody
+	// waiting, and a dial that returns before the test waited would be lost.
+	waiter := acceptor.ExpectPlugin("sdk-dial-test")
 	conn, err := sdk.DialAndAuth(ctx, "sdk-dial-test")
 	require.NoError(t, err, "a plugin holding the hub root was refused by its own hub")
 	defer conn.Close() //nolint:errcheck // test cleanup
 
-	accepted, err := acceptor.WaitForPlugin(ctx, "sdk-dial-test")
+	accepted, err := waiter.Wait(ctx)
 	require.NoError(t, err, "the hub did not authenticate the plugin that dialed it")
 	require.NoError(t, accepted.Close())
 }
@@ -140,6 +144,7 @@ func TestPluginDialRefusesWithNoAnchor(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	waiter := acceptor.ExpectPlugin("sdk-dial-test")
 	conn, err := sdk.DialAndAuth(ctx, "sdk-dial-test")
 	if err == nil {
 		conn.Close() //nolint:errcheck,gosec // test cleanup on the failing path
@@ -150,7 +155,7 @@ func TestPluginDialRefusesWithNoAnchor(t *testing.T) {
 	// Nothing reached the hub: the refusal happened before the dial.
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer waitCancel()
-	if accepted, waitErr := acceptor.WaitForPlugin(waitCtx, "sdk-dial-test"); waitErr == nil {
+	if accepted, waitErr := waiter.Wait(waitCtx); waitErr == nil {
 		accepted.Close() //nolint:errcheck,gosec // test cleanup on the failing path
 		t.Fatal("the hub authenticated a plugin that had no trust anchor")
 	}

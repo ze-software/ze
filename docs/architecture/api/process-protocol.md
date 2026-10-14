@@ -2066,13 +2066,13 @@ plugin a grandchild, which no death signal reaches.
 
 1. Engine reads `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` from config
 2. Engine starts TLS listener(s) (one per `server` entry), creates `PluginAcceptor` holding the certificate authority root that issued the served certificate
-3. Engine generates per-plugin token, forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (unique per plugin), `ZE_PLUGIN_CA_PEM`, `ZE_PLUGIN_NAME` env vars
+3. Engine generates per-plugin token, registers the waiter for the plugin's name (`ExpectPlugin`) so a child that authenticates before the engine waits is held rather than dropped, then forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (unique per plugin), `ZE_PLUGIN_CA_PEM`, `ZE_PLUGIN_NAME` env vars
 4. Child validates the engine chain against that root, connects via TLS, sends `#0 auth {"token":"...","name":"..."}`
 5. Engine authenticates: per-plugin token lookup by name (constant-time comparison), name binding enforced
 6. Token cleared from child OS environment after first read
 7. Single `MuxConn` handles bidirectional RPC (responses by `#<id>`, requests via `Requests()` channel)
 8. Standard 5-stage handshake proceeds over the same connection
-<!-- source: internal/component/plugin/ipc/tls.go -- combinedLookup, AuthenticateWithLookup -->
+<!-- source: internal/component/plugin/ipc/tls.go -- combinedLookup, AuthenticateWithLookup, ExpectPlugin -->
 
 ### Config
 

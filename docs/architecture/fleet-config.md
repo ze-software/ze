@@ -114,7 +114,7 @@ The hub already provides the auth and transport primitives:
 <!-- source: pkg/plugin/rpc/ -- MuxConn -->
 
 Managed clients do NOT flow through the plugin `PluginAcceptor`: that acceptor routes an
-authenticated connection to a `WaitForPlugin(name)` waiter, and only engine-spawned plugin
+authenticated connection to an `ExpectPlugin(name)` waiter, and only engine-spawned plugin
 processes register as waiters, so a managed client (which connects inbound at any time, with no
 waiter) would be dropped. Instead the hub runs a **dedicated managed-config TLS listener** bound
 to each `server` block that declares `client` entries. It reuses `AuthenticateWithLookup` (per-

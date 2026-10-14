@@ -315,7 +315,7 @@ func TestPluginAcceptorStartStop(t *testing.T) {
 
 // TestPluginAcceptorWaitForPlugin verifies end-to-end connect-back flow.
 //
-// VALIDATES: Plugin connects via TLS, authenticates, WaitForPlugin returns the connection.
+// VALIDATES: Plugin connects via TLS, authenticates, Wait returns the connection.
 // PREVENTS: Auth or routing failure in the acceptor pipeline.
 func TestPluginAcceptorWaitForPlugin(t *testing.T) {
 	t.Parallel()
@@ -329,6 +329,9 @@ func TestPluginAcceptorWaitForPlugin(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// Engine registers the waiter before the plugin exists, as startExternal does.
+	waiter := acceptor.ExpectPlugin("test-plugin")
 
 	// Plugin connects and authenticates in background.
 	go func() {
@@ -348,15 +351,65 @@ func TestPluginAcceptorWaitForPlugin(t *testing.T) {
 	}()
 
 	// Engine waits for the plugin.
-	conn, err := acceptor.WaitForPlugin(ctx, "test-plugin")
+	conn, err := waiter.Wait(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.NoError(t, conn.Close())
 }
 
-// TestPluginAcceptorWaitTimeout verifies WaitForPlugin returns on context expiry.
+// TestPluginAcceptorHoldsAPluginThatArrivesBeforeTheWait drives a plugin that
+// dials, authenticates and reads its auth answer before the engine calls Wait,
+// then checks the hub kept the connection open and hands it to Wait.
 //
-// VALIDATES: WaitForPlugin respects context deadline.
+// VALIDATES: a waiter registered before the plugin starts receives a
+// connection that authenticated before Wait was called.
+// PREVENTS: the startExternal race in which a fast child authenticated before
+// the engine registered its waiter, the hub closed it for having no waiter,
+// and the engine then waited out its whole timeout. TestPluginDialValidatesTheChain
+// went red that way under a loaded unit pass.
+//
+// MUTATION: make ExpectPlugin skip pending.Store and this fails: the hub closes
+// the connection, so the plugin reads EOF where its read should time out.
+func TestPluginAcceptorHoldsAPluginThatArrivesBeforeTheWait(t *testing.T) {
+	t.Parallel()
+
+	const secret = "early-secret-at-least-32-chars-xx"
+	serverTLS, clientTLS := selfSignedTLSConfig(t)
+	ln := startTestListener(t, serverTLS)
+
+	acceptor := NewPluginAcceptor(ln, secret, nil)
+	acceptor.Start()
+	defer acceptor.Stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	waiter := acceptor.ExpectPlugin("early-plugin")
+
+	plugin, err := (&tls.Dialer{Config: clientTLS}).DialContext(ctx, "tcp", acceptor.Addr().String())
+	require.NoError(t, err)
+	defer plugin.Close() //nolint:errcheck // test cleanup
+	require.NoError(t, SendAuth(ctx, plugin, secret, "early-plugin"))
+	_, err = ReadLineRaw(plugin, 4096)
+	require.NoError(t, err, "the hub did not answer the auth request")
+
+	// The hub routes the connection right after it answers. A hub that found
+	// no waiter closes it, which this read sees as EOF; a held one stays open
+	// and the read times out.
+	require.NoError(t, plugin.SetReadDeadline(time.Now().Add(500*time.Millisecond)))
+	_, err = plugin.Read(make([]byte, 1))
+	var timeout net.Error
+	require.ErrorAs(t, err, &timeout, "the hub closed a plugin that authenticated before the wait: %v", err)
+	require.True(t, timeout.Timeout(), "the hub closed a plugin that authenticated before the wait: %v", err)
+
+	accepted, err := waiter.Wait(ctx)
+	require.NoError(t, err, "the waiter did not receive the plugin that arrived first")
+	require.NoError(t, accepted.Close())
+}
+
+// TestPluginAcceptorWaitTimeout verifies Wait returns on context expiry.
+//
+// VALIDATES: Wait respects context deadline.
 // PREVENTS: Indefinite blocking when plugin never connects.
 func TestPluginAcceptorWaitTimeout(t *testing.T) {
 	t.Parallel()
@@ -371,14 +424,14 @@ func TestPluginAcceptorWaitTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	_, err := acceptor.WaitForPlugin(ctx, "never-connects")
+	_, err := acceptor.ExpectPlugin("never-connects").Wait(ctx)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
-// TestPluginAcceptorWaitAfterStop verifies WaitForPlugin returns when acceptor stops.
+// TestPluginAcceptorWaitAfterStop verifies Wait returns when acceptor stops.
 //
-// VALIDATES: WaitForPlugin unblocks on acceptor stop.
+// VALIDATES: Wait unblocks on acceptor stop.
 // PREVENTS: Goroutine hanging after server shutdown.
 func TestPluginAcceptorWaitAfterStop(t *testing.T) {
 	t.Parallel()
@@ -390,12 +443,13 @@ func TestPluginAcceptorWaitAfterStop(t *testing.T) {
 	acceptor.Start()
 
 	errCh := make(chan error, 1)
+	waiter := acceptor.ExpectPlugin("will-stop")
 	go func() {
-		_, waitErr := acceptor.WaitForPlugin(context.Background(), "will-stop")
+		_, waitErr := waiter.Wait(context.Background())
 		errCh <- waitErr
 	}()
 
-	// Verify WaitForPlugin is blocked (not returning prematurely).
+	// Verify Wait is blocked (not returning prematurely).
 	require.Never(t, func() bool {
 		select {
 		case <-errCh:
@@ -403,7 +457,7 @@ func TestPluginAcceptorWaitAfterStop(t *testing.T) {
 		default:
 			return false
 		}
-	}, 50*time.Millisecond, 10*time.Millisecond, "WaitForPlugin should be blocked before Stop")
+	}, 50*time.Millisecond, 10*time.Millisecond, "Wait should be blocked before Stop")
 	acceptor.Stop()
 
 	select {
@@ -411,7 +465,7 @@ func TestPluginAcceptorWaitAfterStop(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "acceptor stopped")
 	case <-time.After(5 * time.Second):
-		t.Fatal("WaitForPlugin did not unblock after Stop")
+		t.Fatal("Wait did not unblock after Stop")
 	}
 }
 

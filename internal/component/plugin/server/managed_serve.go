@@ -3,7 +3,7 @@
 //
 // ManagedServer is a dedicated TLS listener that serves managed fleet clients. It is
 // independent of the plugin PluginAcceptor (which only routes engine-spawned plugin
-// processes to WaitForPlugin waiters): a managed client connects inbound at any time
+// processes to ExpectPlugin waiters): a managed client connects inbound at any time
 // and has no waiter, so it needs its own accept path. It reuses the ipc auth and rpc
 // (MuxConn) transport primitives -- no new auth or wire protocol -- so "No New Server"
 // (fleet-config.md) holds in spirit: only a listener bound to the managed server block.

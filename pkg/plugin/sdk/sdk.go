@@ -5,7 +5,7 @@
 // Detail: sdk_types.go — re-exported RPC type aliases
 // Detail: union.go — event stream correlation
 // Related: ../../../internal/component/plugin/ipc/tls.go — TLS transport and auth (SendAuth, PluginAcceptor)
-// Related: ../../../internal/component/plugin/process/process.go — engine-side process lifecycle (startExternal forks + WaitForPlugin)
+// Related: ../../../internal/component/plugin/process/process.go — engine-side process lifecycle (startExternal registers ExpectPlugin, forks, then Waits)
 //
 // Package sdk provides a high-level SDK for creating ze plugins using the
 // YANG RPC protocol over a single bidirectional connection.

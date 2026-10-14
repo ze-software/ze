@@ -3,7 +3,7 @@
 // Detail: manager.go — multi-process coordination and respawn
 // Detail: sysproc_linux.go — Linux-specific process isolation
 // Detail: sysproc_other.go — non-Linux process isolation
-// Related: ../ipc/tls.go — PluginAcceptor used by startExternal (WaitForPlugin for TLS connect-back)
+// Related: ../ipc/tls.go — PluginAcceptor used by startExternal (ExpectPlugin then Wait for TLS connect-back)
 // Related: ../../../../pkg/plugin/sdk/sdk.go — plugin-side SDK that connects back via TLS
 
 package process
@@ -673,7 +673,13 @@ func (p *Process) startExternal() error {
 	// (stderrRelayReader).
 	plugin.KillGroupOnCancel(p.cmd)
 
+	// The waiter exists before the child does: a child that dials back and
+	// authenticates before this goroutine reaches Wait is held for it, where a
+	// waiter registered after Start would find the connection already closed
+	// for having nobody to take it.
+	waiter := p.acceptor.ExpectPlugin(p.config.Name)
 	if err := p.cmd.Start(); err != nil {
+		waiter.Cancel()
 		stderrWrite.Close() //nolint:errcheck,gosec // cleanup on error
 		stderrRead.Close()  //nolint:errcheck,gosec // cleanup on error
 		return fmt.Errorf("plugin %s: start: %w", p.config.Name, startFailure(err, plugin.ShellAvailable()))
@@ -699,7 +705,7 @@ func (p *Process) startExternal() error {
 	waitCtx, waitCancel := context.WithTimeout(p.ctx, 30*time.Second)
 	defer waitCancel()
 
-	conn, waitErr := p.acceptor.WaitForPlugin(waitCtx, p.config.Name)
+	conn, waitErr := waiter.Wait(waitCtx)
 	if waitErr != nil {
 		// Stop the child, and everything it started, to prevent orphaning. The
 		// timeout is not a cancellation of p.ctx, so the Cancel above has not
