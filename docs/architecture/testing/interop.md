@@ -1796,6 +1796,7 @@ is not packet-forwarding evidence.
 | 35 | srv6-frr | Ze, FRR | SRv6 VPNv6 route exchange and Prefix-SID handling |
 | 36 | remove-private-as-frr | Ze, FRR, GoBGP | remove-private-as export policy to FRR |
 | 37 | remove-private-as-as4path-frr | Ze, FRR, BIRD | remove-private-as handling for AS4_PATH private ASNs |
+| 38 | vpn-addpath-frr | Ze, FRR | ipv4/mpls-vpn over ADD-PATH with no path-information: FRR holds the exact RD, prefix and label, so ze wrote Path Identifier 0 (RFC 7911 Section 3) |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running

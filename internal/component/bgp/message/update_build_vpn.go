@@ -248,6 +248,8 @@ func (ub *UpdateBuilder) buildMPReachVPN(p *VPNParams) *rawAttribute {
 // RFC 4364 Section 4.3.4 - VPN-IPv4 NLRI:
 // Length (1 octet) + Labels (3 octets each) + RD (8 octets) + Prefix (variable).
 // RFC 8277 Section 2 - Multiple labels support.
+// RFC 7911 Section 3 - with ADD-PATH negotiated, a 4-octet Path Identifier
+// precedes the Length octet.
 func (ub *UpdateBuilder) buildVPNNLRIBytes(p *VPNParams) []byte {
 	// Prefix bytes
 	prefixBits := p.Prefix.Bits()
@@ -262,7 +264,12 @@ func (ub *UpdateBuilder) buildVPNNLRIBytes(p *VPNParams) []byte {
 	// Build: [path-id] + length + labels + RD + prefix
 	// Write labels directly via WriteLabelValues (zero-alloc).
 	var buf []byte
-	if ub.AddPath && p.PathID != 0 {
+	// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+	// message, the NLRI encoding MUST be extended by prepending the Path
+	// Identifier field, which is of four octets."
+	// The negotiated flag alone decides: the field reserves no value, so a Path
+	// Identifier of 0 is written like any other.
+	if ub.AddPath {
 		buf = ub.alloc(4 + 1 + labelLen + 8 + prefixBytes)
 		buf[0] = byte(p.PathID >> 24)
 		buf[1] = byte(p.PathID >> 16)
