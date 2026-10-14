@@ -752,10 +752,10 @@ following ingest and export rules can remove or change the attribute:
 | A repeated single-occurrence TLV (RFC 8669 Section 6, RFC 9252 Section 7) | Every copy after the first is discarded at ingest, so every consumer sees the attribute without it | `discardRepeatedPrefixSIDTLVs`, described below |
 | The effective next-hop entity changes toward a destination, after export policy and configured rewriting (RFC 9252 Section 2) | The SRv6 L3 and L2 Service TLVs are removed and every other TLV is kept; an attribute left with no TLV is removed. An explicit rewrite to the received address preserves the Service TLVs | `applyEgressPrefixSIDNextHop`, `prefixSIDNextHopHandler` |
 | An EBGP destination the operator has not configured for propagation (RFC 8669 Section 8) | The attribute is removed, on every rail that writes an UPDATE | `prefixSIDAllowedTo`, see [SRv6](../../features/srv6.md) |
-| A transmitted Label-Index TLV (RFC 8669 Section 3.1) | Its Reserved octet and both Flags octets are cleared in the private outgoing buffer; received storage and Originator SRGB bytes are unchanged | `clearTransmittedLabelIndex` |
+| A transmitted Label-Index TLV (RFC 8669 Section 3.1) | Its Reserved octet and both Flags octets are cleared in the private outgoing buffer; received storage and Originator SRGB bytes are unchanged | `clearLabelIndexTLVs` |
 
 <!-- source: internal/component/bgp/reactor/session_validation.go -- Session.enforceRFC7606 and discardRepeatedPrefixSIDTLVs -->
-<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearTransmittedLabelIndex -->
+<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearLabelIndexTLVs -->
 <!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDAllowedTo -->
 
 The comparison uses the original received address and the final address for the

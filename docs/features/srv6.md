@@ -212,7 +212,7 @@ body unmodified. This applies to forwarded routes as well as originated routes, 
 extra buffer or a change to the borrowed received UPDATE. The Section 3.2
 unchanged-propagation rule applies specifically to Originator SRGB: its bytes
 are never normalized on relay.
-<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearTransmittedLabelIndex -->
+<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearLabelIndexTLVs -->
 
 Forwarding compares the received next-hop entity with the effective address
 after export policy, configured rewriting and Link-Local scope normalization.
