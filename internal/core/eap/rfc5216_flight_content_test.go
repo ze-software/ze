@@ -438,15 +438,26 @@ func ticketedTLS12Attempt(t *testing.T, pki *eapTLSPKI, server, peerStore *Resum
 	return peer, flight, parseTLSFlight(t, peerSent[1])
 }
 
-// stockTLS12Resumption removes ze's UnwrapSession from the authenticator's
-// tls.Config, so crypto/tls redeems a TLS 1.2 ticket with its default
-// decryption: a test server that resumes TLS 1.2 sessions, which ze's own
-// authenticator never does (redeemTLS13Only, resumption.go).
-func stockTLS12Resumption(cfg *tls.Config) { cfg.UnwrapSession = nil }
+// issueTLS12Tickets removes ze's per-handshake choice of a config
+// (GetConfigForClient, eap_tls.go) from the authenticator's tls.Config, so its
+// TLS 1.2 handshake issues a session ticket under ze's ticket keys: a test
+// server that mints the TLS 1.2 ticket ze's own authenticator never issues.
+// ze's UnwrapSession stays, so the server still redeems no TLS 1.2 ticket.
+func issueTLS12Tickets(cfg *tls.Config) { cfg.GetConfigForClient = nil }
+
+// stockTLS12Resumption removes ze's UnwrapSession and its per-handshake
+// choice of a config from the authenticator's tls.Config, so crypto/tls
+// issues a TLS 1.2 ticket and redeems one with its default decryption: a test
+// server that resumes TLS 1.2 sessions, which ze's own authenticator never
+// does (tls12WithoutTickets, eap_tls.go; redeemTLS13Only, resumption.go).
+func stockTLS12Resumption(cfg *tls.Config) {
+	issueTLS12Tickets(cfg)
+	cfg.UnwrapSession = nil
+}
 
 // TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake hands the peer
-// a TLS 1.2 ticket in one conversation and offers it to ze's authenticator in
-// the next.
+// a TLS 1.2 ticket in one conversation, from a test server that issues one
+// (issueTLS12Tickets), and offers it to ze's authenticator in the next.
 //
 // RFC requirement: RFC5216-2.1.2-1 positive -- ze's authenticator never resumes
 // a TLS 1.2 session, so it never owes the resumed flight: offered the ticket,
@@ -455,7 +466,7 @@ func stockTLS12Resumption(cfg *tls.Config) { cfg.UnwrapSession = nil }
 func TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	server, peerStore := NewResumption(time.Now, true), NewResumption(time.Now, true)
-	tls12Exchange(t, pki, server, peerStore, nil)
+	tls12Exchange(t, pki, server, peerStore, issueTLS12Tickets)
 
 	peer, flight, _ := ticketedTLS12Attempt(t, pki, server, peerStore, nil)
 	if peer.Resumed() {

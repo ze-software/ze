@@ -33,7 +33,6 @@ func authenticatorTLSConfigForTest(t *testing.T, cfg MethodConfig) *tls.Config {
 	return method.tlsConfig
 }
 
-// RFC requirement: RFC5216-2.1.1-4 positive -- the authenticator installs redeemable session ticket keys and leaves session tickets enabled, so a new session can be established under an identity it chose.
 // RFC requirement: RFC5216-2.1.1-5 positive -- the authenticator installs its own UnwrapSession when resumption is on, so crypto/tls's default ticket decryption, which would match a TLS 1.2 session, is not the one that runs.
 // RFC requirement: RFC5216-2.1.1-6 positive -- the authenticator installs exactly one certificate, the server_certificate of every full handshake.
 // RFC requirement: RFC5216-2.1.1-9 positive -- the authenticator demands and verifies the peer certificate, and the peer installs exactly one certificate to send in that flight.
@@ -86,7 +85,6 @@ func TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5216-2.1.1-4 negative -- an authenticator with no resumption state builds no tls.Config, so it never chooses a sessionId it could not redeem.
 // RFC requirement: RFC5216-2.1.1-5 negative -- an authenticator whose operator turned resumption off answers no session from its UnwrapSession, at TLS 1.2 and at TLS 1.3, for a ticket encrypted under its own ticket keys from a session a real exchange established; a resumption-on authenticator redeems the same session at TLS 1.3, so the ticket is one a matching authenticator would resume.
 // RFC requirement: RFC5216-2.1.1-6 negative -- an authenticator whose certificate does not parse builds no tls.Config, so no full handshake without a server_certificate can start.
 // RFC requirement: RFC5216-2.1.1-9 negative -- a peer with resumption off installs no session cache, so it never sends the shorter resumed flight in place of the full one.

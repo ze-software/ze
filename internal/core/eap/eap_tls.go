@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -396,6 +397,47 @@ type tlsMethod struct {
 // carried in an encrypted TLS record.
 var eapTLSSuccessIndication = []byte{0x00}
 
+// _ references the marker the patched GOROOT's crypto/tls adds, so the
+// authenticator does not compile against a crypto/tls that leaves the TLS 1.2
+// ServerHello session_id empty. RFC 5216 Section 2.1.1: "If the peer's
+// sessionId is null or unrecognized by the server, the server MUST choose the
+// sessionId to establish a new session."
+// docs/contributing/patching-the-standard-library.md says how the tree is
+// built and selected.
+const _ = tls.ZeServerChoosesSessionID
+
+// supportedVersionsExtension is the TLS extension number of
+// supported_versions (RFC 8446 Section 4.2).
+const supportedVersionsExtension = 43
+
+// negotiatesTLS13 answers whether crypto/tls will negotiate TLS 1.3 for hello
+// under base: base allows TLS 1.3 (MaxVersion zero or at least 1.3), the
+// ClientHello carries the supported_versions extension, AND that extension
+// lists TLS 1.3. Without the extension crypto/tls negotiates TLS 1.2 or
+// earlier even when legacy_version says 0x0304, while SupportedVersions still
+// lists 1.3 (readClientHello, clientHelloInfo in
+// crypto/tls/handshake_server.go), so SupportedVersions alone is not the
+// answer. base is read per handshake, so a MaxVersion set after
+// newTLSMethod returns is the one that counts.
+func negotiatesTLS13(base *tls.Config, hello *tls.ClientHelloInfo) bool {
+	return (base.MaxVersion == 0 || base.MaxVersion >= tls.VersionTLS13) &&
+		slices.Contains(hello.Extensions, supportedVersionsExtension) &&
+		slices.Contains(hello.SupportedVersions, tls.VersionTLS13)
+}
+
+// tls12WithoutTickets answers the authenticator config with session tickets
+// disabled, for a handshake negotiatesTLS13 classifies as TLS 1.2.
+//
+// RFC 5216 Section 2.1.1: "If the peer's sessionId is null or unrecognized by
+// the server, the server MUST choose the sessionId to establish a new
+// session." The patched doFullHandshake chooses it when no ticket is issued
+// (docs/contributing/patching-the-standard-library.md).
+func tls12WithoutTickets(base *tls.Config) *tls.Config {
+	config := base.Clone()
+	config.SessionTicketsDisabled = true
+	return config
+}
+
 func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 	cert, err := tls.X509KeyPair(config.ServerCertPEM, config.ServerKeyPEM)
 	if err != nil {
@@ -496,8 +538,9 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 
 	// RFC 9190 Section 2.1.3: "the EAP-TLS server MAY choose to require a full
 	// handshake". The operator's session-resumption leaf is that choice, and it
-	// governs ACCEPTING alone: the ticket above goes out either way, because
-	// Section 2.1.2 puts no condition on issuing one.
+	// governs ACCEPTING alone: on TLS 1.3 the ticket above goes out either way,
+	// because Section 2.1.2 puts no condition on issuing one. TLS 1.2 issues
+	// none (tls12WithoutTickets below).
 	//
 	// The refusal is UnwrapSession rather than VerifyConnection. crypto/tls reads
 	// a nil session from UnwrapSession as "no such session" and runs the full
@@ -512,6 +555,24 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		tlsCfg.UnwrapSession = authenticatorTickets{cfg: tlsCfg}.redeemTLS13Only
 	} else {
 		tlsCfg.UnwrapSession = refuseResumption
+	}
+
+	// RFC 5216 Section 2.1.1: "If the peer's sessionId is null or unrecognized
+	// by the server, the server MUST choose the sessionId to establish a new
+	// session." The patched GOROOT's doFullHandshake chooses it whenever the
+	// TLS 1.2 handshake issues no session ticket, so a TLS 1.2 handshake
+	// answers a config with tickets disabled
+	// (docs/contributing/patching-the-standard-library.md).
+	//
+	// RFC 9190 Section 2.1.2: "the EAP-TLS server MUST send one or more
+	// post-handshake NewSessionTicket messages". handshake_server_tls13.go
+	// reads the same SessionTicketsDisabled, so the base config keeps tickets
+	// on and the choice is made per handshake.
+	tlsCfg.GetConfigForClient = func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+		if negotiatesTLS13(tlsCfg, hello) {
+			return tlsCfg, nil // the base config, tickets on
+		}
+		return tls12WithoutTickets(tlsCfg), nil
 	}
 
 	return &tlsMethod{
