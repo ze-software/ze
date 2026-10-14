@@ -256,6 +256,11 @@ func awaitReadLoop(t *testing.T, result <-chan error, within time.Duration) erro
 // ze writes is the KeepAlive Timer Expired Notification, and ReadLoop reports the
 // expiry. Method: bare ReadLoop over net.Pipe with a 100 ms KeepAlive Timer; the
 // peer compares every octet of the PDU it reads.
+//
+// RFC requirement: RFC5036-2.5.4-3 positive -- when the KeepAlive Timer of an
+// OPERATIONAL session expires, the one PDU ze writes is the fatal KeepAlive Timer
+// Expired Notification (the state table's Shutdown msg), octet for octet, and
+// ReadLoop returns errKeepaliveExpiry.
 func TestReadLoopKeepaliveExpirySendsFatalNotification(t *testing.T) {
 	local, remote := sessionPipe(t)
 	sess := expirySession(local, DefaultKeepaliveTime, &logCapture{})
@@ -266,6 +271,77 @@ func TestReadLoopKeepaliveExpirySendsFatalNotification(t *testing.T) {
 	raw := readRawPDU(t, remote)
 	if !bytes.Equal(raw, expiryNotificationPDU) {
 		t.Fatalf("PDU = % x, want % x", raw, expiryNotificationPDU)
+	}
+	if err := awaitReadLoop(t, result, ldpReadTimeout); !errors.Is(err, errKeepaliveExpiry) {
+		t.Fatalf("ReadLoop = %v, want %v", err, errKeepaliveExpiry)
+	}
+}
+
+// Goal: the KeepAlive Timer times out a silent session only. A peer that sends a
+// KeepAlive inside every KeepAlive Time keeps the session OPERATIONAL, and the
+// timer is still armed: once the peer stops, the expiry Notification follows.
+// Method: bare ReadLoop over net.Pipe with a 300 ms KeepAlive Timer; the peer
+// writes a KeepAlive every 50 ms for 900 ms while a reader collects ze's PDUs.
+//
+// RFC requirement: RFC5036-2.5.4-3 negative -- an OPERATIONAL session whose peer
+// sends a KeepAlive inside every KeepAlive Time does not take the Timeout
+// transition: for three times the timer ze writes no PDU and ReadLoop keeps
+// running. Once the peer goes silent, the next PDU is the KeepAlive Timer Expired
+// Notification and ReadLoop returns errKeepaliveExpiry.
+func TestReadLoopKeepaliveTrafficRestartsTimer(t *testing.T) {
+	local, remote := sessionPipe(t)
+	sess := expirySession(local, DefaultKeepaliveTime, &logCapture{})
+	sess.state = StateOperational
+	const hold = 300 * time.Millisecond
+	const interval = hold / 6
+	sess.holdTime = hold
+
+	written := make(chan []byte, 4)
+	go func() {
+		defer close(written)
+		for {
+			var hdr [ldpHeaderLen]byte
+			if _, err := io.ReadFull(remote, hdr[:]); err != nil {
+				return
+			}
+			pdu, err := decodePDUHeader(hdr[:])
+			if err != nil {
+				return
+			}
+			raw := make([]byte, ldpHeaderLen+int(pdu.PDULength)-6)
+			copy(raw, hdr[:])
+			if _, err := io.ReadFull(remote, raw[ldpHeaderLen:]); err != nil {
+				return
+			}
+			written <- raw
+		}
+	}()
+
+	result := runReadLoop(sess, nil)
+	keepalive := encodeKeepAlivePDU()
+	for sent := time.Duration(0); sent < 3*hold; sent += interval {
+		if _, err := remote.Write(keepalive); err != nil {
+			t.Fatalf("write peer KeepAlive: %v", err)
+		}
+		select {
+		case err := <-result:
+			t.Fatalf("ReadLoop returned %v while the peer sent a KeepAlive every %v", err, interval)
+		case raw := <-written:
+			t.Fatalf("ze wrote % x while the peer sent a KeepAlive every %v", raw, interval)
+		case <-time.After(interval):
+		}
+	}
+
+	select {
+	case raw, ok := <-written:
+		if !ok {
+			t.Fatal("the connection closed before ze wrote the expiry Notification")
+		}
+		if !bytes.Equal(raw, expiryNotificationPDU) {
+			t.Fatalf("PDU = % x, want % x", raw, expiryNotificationPDU)
+		}
+	case <-time.After(ldpReadTimeout):
+		t.Fatalf("no PDU within %v of the peer going silent", ldpReadTimeout)
 	}
 	if err := awaitReadLoop(t, result, ldpReadTimeout); !errors.Is(err, errKeepaliveExpiry) {
 		t.Fatalf("ReadLoop = %v, want %v", err, errKeepaliveExpiry)
@@ -377,6 +453,11 @@ func TestReadLoopKeepaliveExpiryNotificationWriteBounded(t *testing.T) {
 // receives the KeepAlive Timer Expired Notification, then end of file, and the
 // session is NON EXISTENT, all through the production runSession. Method: both
 // sides propose 1 s; the peer reads ze's KeepAlives until the Notification.
+//
+// RFC requirement: RFC5036-2.5.4-3 positive -- through runSession, an OPERATIONAL
+// session whose KeepAlive Timer expires transmits the fatal KeepAlive Timer
+// Expired Notification, then closes the transport connection (the peer reads end
+// of file) and ends in NON EXISTENT.
 func TestRunSessionKeepaliveExpiryNotifiesThenCloses(t *testing.T) {
 	local, remote := sessionPipe(t)
 	sess := expirySession(local, time.Second, &logCapture{})
