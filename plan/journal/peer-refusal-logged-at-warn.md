@@ -7,4 +7,4 @@ volume. The sibling refusals in the same file usually log at Debug with a
 
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
-| 2026-10-09 | spec-pppoe-padt-ends-session | PPPoE AC discovery, `InterfaceServer.handlePADT` (`internal/component/l2tp/pppoe/server.go`) | A PADT naming a live SESSION_ID with a different source MAC logs `pppoe: PADT MAC mismatch` at Warn for every frame. Any host on the access segment can repeat it at line rate. The PADI and PADR refusals in the same file log at Debug with `reason` | not fixed: found during the closure review of spec-pppoe-padt-ends-session; the behavior predates it |
+| 2026-10-09 | spec-pppoe-padt-ends-session | PPPoE AC discovery, `InterfaceServer.handlePADT` (`internal/component/l2tp/pppoe/server.go`) | A PADT naming a live SESSION_ID with a different source MAC logs `pppoe: PADT MAC mismatch` at Warn for every frame. Any host on the access segment can repeat it at line rate. The PADI and PADR refusals in the same file log at Debug with `reason` | open: not fixed: found during the closure review of spec-pppoe-padt-ends-session; the behavior predates it |

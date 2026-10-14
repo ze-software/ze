@@ -459,15 +459,15 @@ func TestClosureStemReadsRemovalsAndNotJournalRows(t *testing.T) {
 	root := newCommitRepository(t)
 	journalPath := "plan/journal/native.md"
 	header := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
-	writeCommitFixture(t, root, journalPath, header+"| 2026-08-01 | old-spec | cli | old | fixed |\n")
+	writeCommitFixture(t, root, journalPath, header+"| 2026-08-01 | old-spec | cli | old | fixed: done |\n")
 	runCommitGit(t, root, "add", "--", journalPath)
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "journal baseline")
 	if stem, err := closureStem(root, []string{journalPath}, nil); err != nil || stem != "" {
 		t.Fatalf("unchanged journal closure = %q, %v", stem, err)
 	}
 	writeCommitFixture(t, root, journalPath, header+
-		"| 2026-08-01 | old-spec | cli | old | fixed |\n"+
-		"| 2026-08-27 | new-spec | cli | new | fixed |\n")
+		"| 2026-08-01 | old-spec | cli | old | fixed: done |\n"+
+		"| 2026-08-27 | new-spec | cli | new | fixed: done |\n")
 	if stem, err := closureStem(root, []string{journalPath}, nil); err != nil || stem != "" {
 		t.Fatalf("added journal row closure = %q, %v: a row is evidence about a spec, never its closure", stem, err)
 	}
@@ -508,7 +508,7 @@ func TestCreateRefusesAnAddedJournalRowOverTheCap(t *testing.T) {
 	header := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
 	row := func(date string, chars int) string {
 		prefix := "| " + date + " | - | cli | "
-		return prefix + strings.Repeat("s", chars-len(prefix)-len(" | fix |")) + " | fix |\n"
+		return prefix + strings.Repeat("s", chars-len(prefix)-len(" | fixed: fix |")) + " | fixed: fix |\n"
 	}
 	long := row("2026-08-01", specjournal.RowCharsMax+400)
 	writeCommitFixture(t, root, journalPath, header+long)
@@ -528,6 +528,29 @@ func TestCreateRefusesAnAddedJournalRowOverTheCap(t *testing.T) {
 	want := fmt.Sprintf("row-too-long at line 4: added or rewritten row is %d characters", specjournal.RowCharsMax+1)
 	if !strings.Contains(err.Error(), want) {
 		t.Fatalf("Create refusal = %q, want it to contain %q", err, want)
+	}
+}
+
+// TestCreateRefusesAnUnmarkedJournalRow drives the Fix marker through the
+// commit entry point. A row whose Fix cell starts with neither `fixed: ` nor
+// `open: ` refuses the commit with its line, and the same row marked lands.
+func TestCreateRefusesAnUnmarkedJournalRow(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-journal-unmarked-fixture")
+	root := newCommitRepository(t)
+	writeCommitFixture(t, root, "ai/.keep", "")
+	journalPath := "plan/journal/native.md"
+	header := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
+	writeCommitFixture(t, root, journalPath, header+"| 2026-08-02 | - | cli | symptom | not fixed |\n")
+	_, err := Create(root, &Options{Subject: "journal: an unmarked row", Files: []string{journalPath}})
+	if err == nil {
+		t.Fatal("Create accepted a row whose Fix cell carries no marker")
+	}
+	if !strings.Contains(err.Error(), "unmarked-fix at line 3") {
+		t.Fatalf("Create refusal = %q, want unmarked-fix at line 3", err)
+	}
+	writeCommitFixture(t, root, journalPath, header+"| 2026-08-02 | - | cli | symptom | open: not fixed |\n")
+	if _, err := Create(root, &Options{Subject: "journal: a marked row", Files: []string{journalPath}, Replace: true}); err != nil {
+		t.Fatalf("Create refused a marked row: %v", err)
 	}
 }
 

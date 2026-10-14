@@ -41,8 +41,9 @@ type journalRow struct {
 }
 
 type journalClass struct {
-	name string
-	rows []journalRow
+	name     string
+	rows     []journalRow
+	captures []captureLine
 }
 
 type gitAnswer struct {
@@ -121,16 +122,20 @@ func Check(tree string) (Report, error) {
 		return Report{}, nil
 	}
 
-	report := Report{Unread: unreadPaths(paths, onDisk)}
+	report := Report{Unread: unreadPaths(paths, onDisk), Thresholds: thresholds()}
 	classes, err := readClasses(tree, paths)
 	if err != nil {
 		return Report{}, err
 	}
-	for _, class := range classes {
-		appendClass(&report, class)
+	verdicts, err := headCaptureVerdicts(tree, classes)
+	if err != nil {
+		return Report{}, err
 	}
-	// Due classes lead, the largest first. The sort is stable, so the classes
-	// that are not due keep the name order readClasses gave them.
+	for index, class := range classes {
+		appendClass(&report, class, verdicts[index])
+	}
+	// Due classes lead, the most counted rows first. The sort is stable, so the
+	// classes that are not due keep the name order readClasses gave them.
 	slices.SortStableFunc(report.Classes, func(left, right Class) int {
 		if left.Due != right.Due {
 			if left.Due {
@@ -139,11 +144,46 @@ func Check(tree string) (Report, error) {
 			return 1
 		}
 		if left.Due {
-			return right.Rows - left.Rows
+			return right.CountedRows - left.CountedRows
 		}
 		return 0
 	})
 	return report, nil
+}
+
+// headCaptureVerdicts judges every class's Captured: line against git HEAD:
+// dated no later than the HEAD commit, naming what HEAD declares. The HEAD
+// date is read only when some class carries a capture line.
+func headCaptureVerdicts(tree string, classes []journalClass) ([]captureVerdict, error) {
+	verdicts := make([]captureVerdict, len(classes))
+	latest := ""
+	for index, class := range classes {
+		if len(class.captures) == 0 {
+			continue
+		}
+		if latest == "" {
+			date, err := headCommitDate(tree)
+			if err != nil {
+				return nil, err
+			}
+			latest = date
+		}
+		verdicts[index] = judgeCaptureLines(class.captures, latest, "dated after HEAD")
+	}
+	if latest == "" {
+		return verdicts, nil
+	}
+	source, err := newHeadCaptureSource(tree, verdicts)
+	if err != nil {
+		return nil, err
+	}
+	for index := range verdicts {
+		verdicts[index], err = resolveCapture(verdicts[index], source)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return verdicts, nil
 }
 
 func classFilesAtHead(tree string) ([]string, error) {
@@ -229,11 +269,12 @@ func readClasses(tree string, paths []string) ([]journalClass, error) {
 		}
 
 		rows := journalRows(content)
-		if len(rows) == 0 {
+		captures := captureLinesOf(content)
+		if len(rows) == 0 && len(captures) == 0 {
 			continue
 		}
 		name := strings.TrimSuffix(strings.TrimPrefix(path, journalPrefix), markdownExt)
-		classes = append(classes, journalClass{name: name, rows: rows})
+		classes = append(classes, journalClass{name: name, rows: rows, captures: captures})
 	}
 	sort.Slice(classes, func(left, right int) bool { return classes[left].name < classes[right].name })
 	return classes, nil
@@ -367,6 +408,11 @@ func parseJournalRow(line string) (journalRow, bool) {
 	if !strings.ContainsRune(line, '|') {
 		return journalRow{}, false
 	}
+	// A Captured: line is judged as a capture, never as a row, even when it
+	// carries a pipe.
+	if isCaptureLine(line) {
+		return journalRow{}, false
+	}
 	if !strings.HasPrefix(strings.TrimLeftFunc(line, unicode.IsSpace), "|") {
 		return journalRow{malformed: true}, true
 	}
@@ -428,7 +474,11 @@ func isSeparatorCell(cell string) bool {
 	return true
 }
 
-func appendClass(report *Report, class journalClass) {
+// appendClass counts one class, or refuses it. Counted rows are the rows dated
+// strictly after the capture date, or every row of an uncaptured class, and
+// the class is due when they reach its kind's threshold. A row dated on the
+// capture day belongs to the pass that set it.
+func appendClass(report *Report, class journalClass, verdict captureVerdict) {
 	malformed := 0
 	for _, row := range class.rows {
 		if row.malformed {
@@ -465,8 +515,59 @@ func appendClass(report *Report, class journalClass) {
 		})
 		return
 	}
+	refused := false
+	if verdict.problem != nil {
+		report.Problems = append(report.Problems, Problem{
+			Class:  class.name,
+			Path:   path,
+			Kind:   verdict.problem.kind,
+			Line:   verdict.problem.line,
+			Detail: verdict.problem.detail,
+		})
+		refused = true
+	}
+	var unmarked []string
+	open := 0
+	for _, row := range class.rows {
+		switch fixMarkerOf(row.cells[4]) {
+		case fixUnmarked:
+			unmarked = append(unmarked, row.cells[0])
+		case fixOpen:
+			open++
+		case fixFixed:
+		}
+	}
+	if len(unmarked) > 0 {
+		report.Problems = append(report.Problems, Problem{
+			Class: class.name,
+			Path:  path,
+			Kind:  ProblemUnmarkedFix,
+			Rows:  len(unmarked),
+			Dates: unmarked[:min(3, len(unmarked))],
+		})
+		refused = true
+	}
+	if refused {
+		return
+	}
 	if len(class.rows) < 2 {
 		return
+	}
+
+	counted := len(class.rows)
+	kind := CaptureNone
+	var captured *Capture
+	if verdict.parsed != nil {
+		capture := verdict.parsed.capture
+		captured = &capture
+		kind = capture.Kind
+		counted = 0
+		for _, row := range class.rows {
+			// Both are YYYY-MM-DD, already parsed, so text order is date order.
+			if row.cells[0] > capture.Date {
+				counted++
+			}
+		}
 	}
 
 	first := dates[0]
@@ -479,13 +580,18 @@ func appendClass(report *Report, class journalClass) {
 			last = parsed
 		}
 	}
+	dueAt := dueAtOf(kind)
 	report.Classes = append(report.Classes, Class{
-		Name:     class.name,
-		Rows:     len(class.rows),
-		Due:      len(class.rows) >= DueRowsMin,
-		SpanDays: int(last.Sub(first).Hours() / 24),
-		First:    first.Format(time.DateOnly),
-		Last:     last.Format(time.DateOnly),
+		Name:        class.name,
+		Rows:        len(class.rows),
+		CountedRows: counted,
+		Open:        open,
+		DueAt:       dueAt,
+		Due:         counted >= dueAt,
+		Captured:    captured,
+		SpanDays:    int(last.Sub(first).Hours() / 24),
+		First:       first.Format(time.DateOnly),
+		Last:        last.Format(time.DateOnly),
 	})
 }
 
@@ -537,25 +643,34 @@ func validSpecStem(stem string) bool {
 	return stem != ""
 }
 
-// heldRows counts HEAD's rows by their five canonical cells, so a worktree row
-// that only reformats a committed row pairs with it and is not "added".
+// heldRows counts HEAD's rows by their five canonical cells with the Fix
+// marker stripped, so a worktree row that only reformats a committed row, or
+// only adds, flips or drops its marker, pairs with it and is not "added".
 type heldRows map[[5]string]int
 
 func newHeldRows(rows []journalRow) heldRows {
 	held := make(heldRows, len(rows))
 	for _, row := range rows {
-		held[row.cells]++
+		held[heldKey(row.cells)]++
 	}
 	return held
+}
+
+// heldKey is a row's pairing key: its cells with an exact leading "fixed: " or
+// "open: " stripped from the Fix cell, and no other spelling.
+func heldKey(cells [5]string) [5]string {
+	cells[4] = withoutFixMarker(cells[4])
+	return cells
 }
 
 // claim reports whether cells pair with a HEAD row, and consumes that row so a
 // duplicated worktree row pairs at most as often as HEAD holds it.
 func (held heldRows) claim(cells [5]string) bool {
-	if held[cells] == 0 {
+	key := heldKey(cells)
+	if held[key] == 0 {
 		return false
 	}
-	held[cells]--
+	held[key]--
 	return true
 }
 

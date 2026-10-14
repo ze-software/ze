@@ -11,8 +11,8 @@ import (
 func TestValidateFileAcceptsCanonicalJournalShard(t *testing.T) {
 	path := "plan/journal/nested/valid.md"
 	root := journalFixture(t, map[string]string{path: journalTableHead +
-		"| 2026-08-27 | spec-a, spec-b (shared fix) | cli | symptom | fix |\n" +
-		"| 2026-08-27 | none (outside a spec) | api | symptom | fix |\n"})
+		"| 2026-08-27 | spec-a, spec-b (shared fix) | cli | symptom | fixed: fix |\n" +
+		"| 2026-08-27 | none (outside a spec) | api | symptom | fixed: fix |\n"})
 	report, err := ValidateFile(root, path)
 	if err != nil || report.ExitCode() != 0 || report.Rows != 2 || len(report.Problems) != 0 {
 		t.Fatalf("ValidateFile(valid) = %#v, %v", report, err)
@@ -36,17 +36,17 @@ func TestValidateFileNamesEveryMalformedContract(t *testing.T) {
 		},
 		{
 			name: "cell count",
-			body: journalTableHead + "| 2026-08-27 | spec-a | cli | raw | pipe | fix |\n",
+			body: journalTableHead + "| 2026-08-27 | spec-a | cli | raw | pipe | fixed: fix |\n",
 			kind: "malformed-row",
 		},
 		{
 			name: "date",
-			body: journalTableHead + "| 27 August | spec-a | cli | symptom | fix |\n",
+			body: journalTableHead + "| 27 August | spec-a | cli | symptom | fixed: fix |\n",
 			kind: "invalid-date",
 		},
 		{
 			name: "spec",
-			body: journalTableHead + "| 2026-08-27 | future work | cli | symptom | fix |\n",
+			body: journalTableHead + "| 2026-08-27 | future work | cli | symptom | fixed: fix |\n",
 			kind: "unreadable-spec",
 		},
 	}
@@ -97,7 +97,7 @@ func TestValidateFileRefusesUnsafeAndNonJournalPaths(t *testing.T) {
 func journalRowOf(t *testing.T, date string, chars int) string {
 	t.Helper()
 	prefix := "| " + date + " | - | cli | "
-	suffix := " | fix |"
+	suffix := " | fixed: fix |"
 	pad := chars - len(prefix) - len(suffix)
 	if pad < 1 {
 		t.Fatalf("row of %d characters is shorter than its cells", chars)
@@ -121,7 +121,7 @@ func TestValidateFileCapsAddedRowLength(t *testing.T) {
 		{name: "new row at the cap", worktree: long + "\n" + journalRowOf(t, "2026-08-02", RowCharsMax) + "\n"},
 		{name: "unchanged long head row", worktree: long + "\n"},
 		{name: "re-spaced long head row", worktree: strings.Replace(long, "| - |", "|   -   |", 1) + "\n"},
-		{name: "rewritten long row", worktree: strings.Replace(long, "| fix |", "| better fix |", 1) + "\n", wantLine: 3},
+		{name: "rewritten long row", worktree: strings.Replace(long, "| fixed: fix |", "| fixed: better fix |", 1) + "\n", wantLine: 3},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -167,5 +167,104 @@ func TestValidateFileCapsEveryRowOfANewShard(t *testing.T) {
 	}
 	if !strings.Contains(report.Problems[0].Message, "700 characters") {
 		t.Fatalf("message %q does not name the length", report.Problems[0].Message)
+	}
+}
+
+// validationKinds returns the problem kinds of a report, in order.
+func validationKinds(report ValidationReport) []string {
+	kinds := make([]string, len(report.Problems))
+	for index, problem := range report.Problems {
+		kinds[index] = problem.Kind
+	}
+	return kinds
+}
+
+// TestValidateFileRefusesUnmarkedAndBadCaptures validates AC-4 to AC-8 through
+// the working-tree reader: an unmarked row, new or held at HEAD, and every
+// capture refusal, each resolved against the working tree.
+func TestValidateFileRefusesUnmarkedAndBadCaptures(t *testing.T) {
+	path := "plan/journal/edited.md"
+	held := "| 2026-08-01 | - | cli | held | not fixed |\n"
+	tests := []struct {
+		name     string
+		head     string
+		worktree string
+		kind     string
+	}{
+		{name: "new unmarked row", worktree: journalTableHead + "| 2026-08-02 | - | cli | new | fix |\n", kind: ProblemUnmarkedFix},
+		{name: "held unmarked row", head: journalTableHead + held, worktree: journalTableHead + held, kind: ProblemUnmarkedFix},
+		{name: "malformed capture", worktree: "Captured: 2026-08-12 policy x\n" + journalTableHead, kind: ProblemCaptureMalformed},
+		{name: "future capture", worktree: "Captured: 2999-01-01 rule area/directives/point\n" + journalTableHead, kind: ProblemCaptureMalformed},
+		{name: "unresolved check", worktree: "Captured: 2026-08-12 check internal/guard.Absent proof internal/guard.TestGuard\n" + journalTableHead, kind: ProblemCaptureUnresolved},
+		{name: "unresolved point", worktree: "Captured: 2026-08-12 rule area/directives/absent\n" + journalTableHead, kind: ProblemCaptureUnresolved},
+		{name: "duplicated capture", worktree: checkCapture + ruleCapture + journalTableHead, kind: ProblemCaptureDuplicated},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			files := map[string]string{}
+			if test.head != "" {
+				files[path] = test.head
+			}
+			root := journalFixture(t, captureFiles(files))
+			writeJournalFile(t, root, path, test.worktree)
+			report, err := ValidateFile(root, path)
+			if err != nil {
+				t.Fatalf("ValidateFile: %v", err)
+			}
+			if kinds := validationKinds(report); !slices.Contains(kinds, test.kind) || report.ExitCode() != 1 {
+				t.Fatalf("problem kinds = %q, want %q; text %q", kinds, test.kind, report.Text())
+			}
+		})
+	}
+	root := journalFixture(t, captureFiles(nil))
+	writeJournalFile(t, root, "internal/guard/later.go", "package guard\n\nfunc Later() {}\n")
+	writeJournalFile(t, root, path, "Captured: 2026-08-12 check internal/guard.Later proof internal/guard.TestGuard\n"+
+		journalTableHead+"| 2026-08-02 | - | cli | new | fixed: fix |\n")
+	report, err := ValidateFile(root, path)
+	if err != nil || report.ExitCode() != 0 {
+		t.Fatalf("a check in the working tree resolves for validate: %#v, %v", report, err)
+	}
+}
+
+// TestValidateFileHoldsARowWhoseOnlyChangeIsTheMarker validates AC-13 and the
+// row-length boundary: an over-cap HEAD row whose only change is an exact added
+// marker is held, any other change or a misspelled marker is measured, and a
+// flipped or dropped marker still pairs, with the drop raising unmarked-fix.
+func TestValidateFileHoldsARowWhoseOnlyChangeIsTheMarker(t *testing.T) {
+	t.Parallel()
+	marked := journalRowOf(t, "2026-08-01", 1200)
+	unmarked := strings.Replace(marked, "| fixed: fix |", "| fix |", 1)
+	tests := []struct {
+		name     string
+		head     string
+		worktree string
+		tooLong  bool
+		unmarked bool
+	}{
+		{name: "fixed added", head: unmarked, worktree: marked},
+		{name: "open added", head: unmarked, worktree: strings.Replace(unmarked, "| fix |", "| open: fix |", 1)},
+		{name: "marker and prose", head: unmarked, worktree: strings.Replace(unmarked, "| fix |", "| fixed: fix more |", 1), tooLong: true},
+		{name: "capital marker", head: unmarked, worktree: strings.Replace(unmarked, "| fix |", "| Fixed: fix |", 1), tooLong: true, unmarked: true},
+		{name: "marker without space", head: unmarked, worktree: strings.Replace(unmarked, "| fix |", "| fixed:fix |", 1), tooLong: true, unmarked: true},
+		{name: "flipped marker", head: marked, worktree: strings.Replace(marked, "| fixed: fix |", "| open: fix |", 1)},
+		{name: "dropped marker", head: marked, worktree: unmarked, unmarked: true},
+		{name: "new over-cap row", head: marked, worktree: marked + "\n" + journalRowOf(t, "2026-08-02", RowCharsMax+1), tooLong: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			path := "plan/journal/held.md"
+			root := journalFixture(t, map[string]string{path: journalTableHead + test.head + "\n"})
+			writeJournalFile(t, root, path, journalTableHead+test.worktree+"\n")
+			report, err := ValidateFile(root, path)
+			if err != nil {
+				t.Fatalf("ValidateFile: %v", err)
+			}
+			kinds := validationKinds(report)
+			if slices.Contains(kinds, "row-too-long") != test.tooLong ||
+				slices.Contains(kinds, ProblemUnmarkedFix) != test.unmarked {
+				t.Fatalf("problem kinds = %q, want row-too-long %v, unmarked-fix %v", kinds, test.tooLong, test.unmarked)
+			}
+		})
 	}
 }

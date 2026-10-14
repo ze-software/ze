@@ -82,7 +82,7 @@ func TestSessionStartNamesDueJournalClasses(t *testing.T) {
 			}
 			journal := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
 			for day := 1; day <= test.rows; day++ {
-				journal += fmt.Sprintf("| 2026-09-%02d | - | cli | symptom %d | fix |\n", day, day)
+				journal += fmt.Sprintf("| 2026-09-%02d | - | cli | symptom %d | fixed: fix |\n", day, day)
 			}
 			writeHookFixture(t, root, "plan/journal/recurring.md", journal)
 			if test.git {
@@ -97,6 +97,44 @@ func TestSessionStartNamesDueJournalClasses(t *testing.T) {
 			}
 			if !test.want && strings.Contains(printed, "journal:") {
 				t.Fatalf("the hook printed %q, want no journal line on stdout", printed)
+			}
+		})
+	}
+}
+
+// TestSessionStartCountsOnlyUncapturedOrRecurredClasses drives the due line
+// through the hook over a class captured by a check. Twelve rows dated on or
+// before the capture print no due line, where the same rows uncaptured would;
+// one row dated after it prints the line, because a check capture is due on
+// its first recurrence.
+func TestSessionStartCountsOnlyUncapturedOrRecurredClasses(t *testing.T) {
+	const line = "journal: 1 problem classes are due for a fix pass (./le spec journal report)"
+	for _, test := range []struct {
+		name  string
+		after int
+		want  bool
+	}{{name: "rows before the capture", after: 0, want: false}, {name: "one row after", after: 1, want: true}} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			for _, artifact := range derived.All() {
+				writeHookFixture(t, root, artifact.Path, "# derived\n")
+			}
+			writeHookFixture(t, root, "internal/guard/guard.go", "package guard\n\nfunc Guard() {}\n")
+			writeHookFixture(t, root, "internal/guard/guard_test.go",
+				"package guard\n\nimport \"testing\"\n\nfunc TestGuard(t *testing.T) {}\n")
+			journal := "Captured: 2026-09-12 check internal/guard.Guard proof internal/guard.TestGuard\n\n" +
+				"| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
+			for day := 1; day <= 12+test.after; day++ {
+				journal += fmt.Sprintf("| 2026-09-%02d | - | cli | symptom %d | fixed: fix |\n", day, day)
+			}
+			writeHookFixture(t, root, "plan/journal/captured.md", journal)
+			commitHookFixture(t, root)
+			printed, noted := runSessionStartStreams(t, root)
+			if strings.Contains(noted, "journal:") {
+				t.Fatalf("the hook wrote %q to stderr, want the journal counted", noted)
+			}
+			if strings.Contains(printed, line) != test.want {
+				t.Fatalf("the hook printed %q, want the due line %v", printed, test.want)
 			}
 		})
 	}

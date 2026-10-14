@@ -2,6 +2,7 @@ package docwiring
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -81,5 +82,39 @@ func TestTheDocVerifyStageNoLongerJudgesTheRFCLedger(t *testing.T) {
 	}
 	if code != 0 {
 		t.Errorf("the stage exits %d over a tree holding no generated RFC file:\n%s", code, text)
+	}
+}
+
+// TestJournalStageRedOnACaptureThatDoesNotResolve drives the doc-verify
+// journal stage over a committed class whose Captured: line names a check HEAD
+// does not declare. The stage exits 1 and names the refusal, because a capture
+// that resolves to nothing is a label, not a capture.
+func TestJournalStageRedOnACaptureThatDoesNotResolve(t *testing.T) {
+	root := t.TempDir()
+	body := "Captured: 2026-08-12 check internal/guard.Absent proof internal/guard.TestAbsent\n\n" +
+		"| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n" +
+		"| 2026-08-01 | - | cli | first | fixed: x |\n| 2026-08-02 | - | cli | second | open: x |\n"
+	path := filepath.Join(root, "plan", "journal", "unresolved.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"init", "--quiet", "--initial-branch=main"},
+		{"add", "--all"},
+		{"-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "seed"},
+	} {
+		if output, err := exec.CommandContext(t.Context(), "git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", args[0], err, output)
+		}
+	}
+	page, code := journalStage(root)
+	if code != 1 {
+		t.Fatalf("journal stage code = %d, want 1", code)
+	}
+	if text := pageText(t, page); !strings.Contains(text, "CAPTURE UNRESOLVED: plan/journal/unresolved.md:1: internal/guard.Absent") {
+		t.Fatalf("journal stage text = %q, want the unresolved capture named", text)
 	}
 }

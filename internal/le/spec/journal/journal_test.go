@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,21 +23,22 @@ const journalTableHead = "| Date | Spec | Surface | Symptom | Fix |\n|------|---
 func TestCheckReportsRecurringClassesInStableOrder(t *testing.T) {
 	tree := journalFixture(t, map[string]string{
 		"plan/journal/zebra.md": journalTableHead +
-			"| 2026-08-20 | z | config | later | fix |\n" +
-			"| 2026-08-01 | z | config | earlier | fix |\n",
+			"| 2026-08-20 | z | config | later | fixed: fix |\n" +
+			"| 2026-08-01 | z | config | earlier | fixed: fix |\n",
 		"plan/journal/alpha.md": journalTableHead +
-			"| 2026-07-15 | a | reactor | first | fix |\n" +
-			"| 2026-07-16 | a | reactor | second | fix |\n",
+			"| 2026-07-15 | a | reactor | first | fixed: fix |\n" +
+			"| 2026-07-16 | a | reactor | second | fixed: fix |\n",
 		"plan/journal/singleton.md": journalTableHead +
-			"| 2026-08-21 | one | cli | once | fix |\n",
+			"| 2026-08-21 | one | cli | once | fixed: fix |\n",
 	})
 
 	report, err := Check(tree)
 	if err != nil {
 		t.Fatalf("Check: %v", err)
 	}
-	want := "alpha: 2 rows, 1d span (2026-07-15 .. 2026-07-16)\n" +
-		"zebra: 2 rows, 19d span (2026-08-01 .. 2026-08-20)\n"
+	want := "due at: 1 row since a check capture, 10 rows since a rule capture, 10 rows uncaptured\n" +
+		"alpha: 2 rows, 0 open, 1d span (2026-07-15 .. 2026-07-16)\n" +
+		"zebra: 2 rows, 0 open, 19d span (2026-08-01 .. 2026-08-20)\n"
 	if got := report.Text(); got != want {
 		t.Fatalf("Text() = %q, want %q", got, want)
 	}
@@ -54,18 +56,18 @@ func TestCheckReportsRecurringClassesInStableOrder(t *testing.T) {
 func TestCheckReadsHeadAndNamesAWorktreeOnlyClass(t *testing.T) {
 	tree := journalFixture(t, map[string]string{
 		"plan/journal/committed.md": journalTableHead +
-			"| 2026-08-01 | a | cli | first | fix |\n" +
-			"| 2026-08-03 | b | cli | second | fix |\n",
+			"| 2026-08-01 | a | cli | first | fixed: fix |\n" +
+			"| 2026-08-03 | b | cli | second | fixed: fix |\n",
 	})
 	writeJournalFile(t, tree, "plan/journal/worktree-only.md", journalTableHead+
-		"| 2026-08-04 | c | cli | first | fix |\n"+
-		"| 2026-08-05 | d | cli | second | fix |\n")
+		"| 2026-08-04 | c | cli | first | fixed: fix |\n"+
+		"| 2026-08-05 | d | cli | second | fixed: fix |\n")
 
 	report, err := Check(tree)
 	if err != nil {
 		t.Fatalf("Check: %v", err)
 	}
-	if got, want := report.Text(), "committed: 2 rows, 2d span (2026-08-01 .. 2026-08-03)\n"; got != want {
+	if got, want := report.Text(), thresholdText()+"\ncommitted: 2 rows, 0 open, 2d span (2026-08-01 .. 2026-08-03)\n"; got != want {
 		t.Fatalf("Text() = %q, want %q", got, want)
 	}
 	wantUnread := []string{"plan/journal/worktree-only.md"}
@@ -89,8 +91,8 @@ func TestCheckReadsHeadAndNamesAWorktreeOnlyClass(t *testing.T) {
 func TestRunRefusesMalformedPipeRows(t *testing.T) {
 	tree := journalFixture(t, map[string]string{
 		"plan/journal/bad-pipes.md": journalTableHead +
-			"2026-08-01 | a | cli | missing leading pipe | fix |\n" +
-			"| 2026-08-02 | b | cli | raw | pipe | fix |\n",
+			"2026-08-01 | a | cli | missing leading pipe | fixed: fix |\n" +
+			"| 2026-08-02 | b | cli | raw | pipe | fixed: fix |\n",
 	})
 
 	var errOut bytes.Buffer
@@ -132,7 +134,7 @@ func TestRunRefusesAnUnreadableHead(t *testing.T) {
 func TestRunRefusesAnUnparseableDate(t *testing.T) {
 	tree := journalFixture(t, map[string]string{
 		"plan/journal/undated.md": journalTableHead +
-			"| - | a | cli | no date | fix |\n",
+			"| - | a | cli | no date | fixed: fix |\n",
 	})
 
 	var errOut bytes.Buffer
@@ -179,13 +181,13 @@ func TestActionsPublishTheNativeRegistryRows(t *testing.T) {
 	if action.Writes {
 		t.Fatal("journal report is marked as writing")
 	}
-	if action.Why != journalWhy {
-		t.Fatalf("why = %q, want %q", action.Why, journalWhy)
+	if action.Why != journalWhy() {
+		t.Fatalf("why = %q, want %q", action.Why, journalWhy())
 	}
 	validate := list.Actions[1]
 	if validate.Verb != "validate" || validate.Writes ||
 		validate.Why != "validate one edited plan/journal class file's header, rows, dates, Spec keys, "+
-			"and the 600-character cap on a row added or rewritten against HEAD" {
+			"Fix markers, Captured: line, and the 600-character cap on a row added or rewritten against HEAD" {
 		t.Fatalf("validate action = %#v", validate)
 	}
 }
@@ -195,8 +197,8 @@ func TestActionsPublishTheNativeRegistryRows(t *testing.T) {
 func TestAnswerReturnsTheStructuredReport(t *testing.T) {
 	tree := journalFixture(t, map[string]string{
 		"plan/journal/recurring.md": journalTableHead +
-			"| 2026-08-01 | a | cli | first | fix |\n" +
-			"| 2026-08-02 | b | cli | second | fix |\n",
+			"| 2026-08-01 | a | cli | first | fixed: fix |\n" +
+			"| 2026-08-02 | b | cli | second | fixed: fix |\n",
 	})
 	t.Setenv("ZE_REPO_ROOT", tree)
 	env.ResetCache()
@@ -218,7 +220,7 @@ func TestAnswerReturnsTheStructuredReport(t *testing.T) {
 func TestValidateActionUsesClosedFileKeywordGrammar(t *testing.T) {
 	tree := journalFixture(t, map[string]string{
 		"plan/journal/valid.md": journalTableHead +
-			"| 2026-08-27 | spec-a | cli | symptom | fix |\n",
+			"| 2026-08-27 | spec-a | cli | symptom | fixed: fix |\n",
 	})
 	t.Setenv("ZE_REPO_ROOT", tree)
 	env.ResetCache()
@@ -300,10 +302,10 @@ func TestSpecStemsReadsEveryCanonicalCellShape(t *testing.T) {
 func TestHeadSpecEvidenceNormalizesCellsAndRejectsUnreadableShard(t *testing.T) {
 	tree := journalFixture(t, map[string]string{
 		"plan/journal/good.md": journalTableHead +
-			"| 2026-08-27 | spec-a, spec-b (shared fix) | cli | symptom | fix |\n" +
-			"| 2026-08-27 | none (outside a spec) | cli | symptom | fix |\n",
+			"| 2026-08-27 | spec-a, spec-b (shared fix) | cli | symptom | fixed: fix |\n" +
+			"| 2026-08-27 | none (outside a spec) | cli | symptom | fixed: fix |\n",
 		"plan/journal/bad.md": journalTableHead +
-			"| 2026-08-27 | future work | cli | symptom | fix |\n",
+			"| 2026-08-27 | future work | cli | symptom | fixed: fix |\n",
 	})
 	evidence, malformed, err := HeadSpecEvidence(tree)
 	if err != nil {
@@ -325,7 +327,7 @@ func TestHeadSpecEvidenceNormalizesCellsAndRejectsUnreadableShard(t *testing.T) 
 func journalOfRows(rows int) string {
 	body := journalTableHead
 	for day := 1; day <= rows; day++ {
-		body += fmt.Sprintf("| 2026-08-%02d | - | cli | symptom %d | fix |\n", day, day)
+		body += fmt.Sprintf("| 2026-08-%02d | - | cli | symptom %d | fixed: fix |\n", day, day)
 	}
 	return body
 }
@@ -368,7 +370,7 @@ func TestCheckMarksDueClassesAndOrdersThemFirst(t *testing.T) {
 		t.Fatalf("DueCount = %d, want 3", report.DueCount())
 	}
 	text := report.Text()
-	if !strings.HasPrefix(text, "3 problem classes have 10+ rows and are due for a fix pass\nDUE gamma: 12 rows") {
+	if !strings.HasPrefix(text, "3 problem classes are due for a fix pass\n"+thresholdText()+"\nDUE gamma: 12 rows") {
 		t.Fatalf("Text() = %q, want the count line then DUE gamma", text)
 	}
 	if !strings.Contains(text, "\nalpha: 9 rows") || strings.Contains(text, "DUE alpha") {
@@ -403,5 +405,301 @@ func TestHeadFilesReadsAMissingPathWithASpaceAsAbsent(t *testing.T) {
 	}
 	if contents["plan/journal/seed.md"] != journalOfRows(1) || contents["plan/journal/tail.md"] != journalOfRows(2) {
 		t.Fatalf("contents = %#v, want seed and tail at HEAD", contents)
+	}
+}
+
+// captureFiles is the Go check, its proof test and the rule point that the
+// capture fixtures name, so a capture resolves at the fixture's HEAD.
+func captureFiles(files map[string]string) map[string]string {
+	merged := map[string]string{
+		"internal/guard/guard.go":                  "package guard\n\n// Guard is the fixture check.\nfunc Guard() {}\n",
+		"internal/guard/guard_test.go":             "package guard\n\nimport \"testing\"\n\nfunc TestGuard(t *testing.T) {}\n",
+		"ai/rules/points/area/directives/point.md": "point\n",
+	}
+	maps.Copy(merged, files)
+	return merged
+}
+
+const (
+	checkCapture = "Captured: 2026-08-12 check internal/guard.Guard proof internal/guard.TestGuard\n"
+	ruleCapture  = "Captured: 2026-08-12 rule area/directives/point\n"
+)
+
+// markedRows returns count rows dated from 2026-<month>-<firstDay>, one a day,
+// each carrying fix as its Fix cell.
+func markedRows(month string, firstDay, count int, fix string) string {
+	body := ""
+	for day := firstDay; day < firstDay+count; day++ {
+		body += fmt.Sprintf("| 2026-%s-%02d | - | cli | symptom %d | %s |\n", month, day, day, fix)
+	}
+	return body
+}
+
+func classNamed(t *testing.T, report Report, name string) Class {
+	t.Helper()
+	for _, class := range report.Classes {
+		if class.Name == name {
+			return class
+		}
+	}
+	t.Fatalf("class %s absent from %#v (problems %#v)", name, report.Classes, report.Problems)
+	return Class{}
+}
+
+// TestCheckCountsOnlyRowsAfterTheCapture validates AC-1, AC-2 and AC-11: rows
+// dated on or before a check capture are not counted, the first row dated after
+// it makes the class due, and due classes sort by counted rows.
+func TestCheckCountsOnlyRowsAfterTheCapture(t *testing.T) {
+	before := "# Captured\n\n" + checkCapture + "\n" + journalTableHead + markedRows("08", 1, 12, "fixed: x")
+	tree := journalFixture(t, captureFiles(map[string]string{"plan/journal/captured.md": before}))
+	report, err := Check(tree)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	class := classNamed(t, report, "captured")
+	wantCapture := Capture{Date: "2026-08-12", Kind: CaptureCheck, Check: "internal/guard.Guard", Proof: "internal/guard.TestGuard"}
+	if class.CountedRows != 0 || class.Rows != 12 || class.Due || class.DueAt != DueRowsAfterCheck ||
+		class.Captured == nil || *class.Captured != wantCapture {
+		t.Fatalf("class = %#v, want 0 counted of 12, not due, due-at 1, capture %#v", class, wantCapture)
+	}
+	encoded, err := json.Marshal(class)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{`"counted-rows":0`, `"rows":12`, `"due-at":1`,
+		`"captured":{"date":"2026-08-12","kind":"check","check":"internal/guard.Guard","proof":"internal/guard.TestGuard"}`} {
+		if !strings.Contains(string(encoded), field) {
+			t.Fatalf("json %s lacks %s", encoded, field)
+		}
+	}
+
+	after := before + markedRows("08", 13, 1, "open: x")
+	tree = journalFixture(t, captureFiles(map[string]string{
+		"plan/journal/captured.md":   after,
+		"plan/journal/uncaptured.md": journalTableHead + markedRows("08", 1, DueRowsMin, "open: x"),
+	}))
+	report, err = Check(tree)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if len(report.Classes) != 2 || report.Classes[0].Name != "uncaptured" || report.Classes[1].Name != "captured" {
+		t.Fatalf("Classes = %#v, want uncaptured (10 counted) before captured (1 counted)", report.Classes)
+	}
+	if got := report.Classes[1]; got.CountedRows != 1 || !got.Due || got.Rows != 13 {
+		t.Fatalf("captured class = %#v, want 1 counted, due, 13 rows", got)
+	}
+}
+
+// TestRuleCaptureKeepsTheCountThreshold validates AC-2b: a rule capture keeps
+// DueRowsMin over the rows dated after it, 9 not due and 10 due.
+func TestRuleCaptureKeepsTheCountThreshold(t *testing.T) {
+	for _, test := range []struct {
+		after int
+		due   bool
+	}{{after: DueRowsMin - 1, due: false}, {after: DueRowsMin, due: true}} {
+		body := ruleCapture + journalTableHead + markedRows("08", 1, 12, "fixed: x") +
+			markedRows("09", 1, test.after, "open: x")
+		tree := journalFixture(t, captureFiles(map[string]string{"plan/journal/ruled.md": body}))
+		report, err := Check(tree)
+		if err != nil {
+			t.Fatalf("Check: %v", err)
+		}
+		class := classNamed(t, report, "ruled")
+		if class.CountedRows != test.after || class.Due != test.due || class.DueAt != DueRowsMin ||
+			class.Captured == nil || class.Captured.Point != "area/directives/point" {
+			t.Fatalf("after %d: class = %#v, want counted %d due %v due-at %d", test.after, class,
+				test.after, test.due, DueRowsMin)
+		}
+	}
+}
+
+// TestCheckWithoutCaptureCountsEveryRow validates AC-3: an uncaptured class
+// counts every row against DueRowsMin.
+func TestCheckWithoutCaptureCountsEveryRow(t *testing.T) {
+	tree := journalFixture(t, map[string]string{
+		"plan/journal/plain.md": journalTableHead + markedRows("08", 1, DueRowsMin, "open: x"),
+	})
+	report, err := Check(tree)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	class := classNamed(t, report, "plain")
+	if !class.Due || class.CountedRows != class.Rows || class.DueAt != DueRowsMin || class.Captured != nil {
+		t.Fatalf("class = %#v, want due with every row counted", class)
+	}
+}
+
+// TestThresholdsComeFromTheKindTable validates AC-3b: changing one kind's
+// threshold in the table changes the text threshold line, the JSON thresholds
+// and due-at, and the report action's help together.
+func TestThresholdsComeFromTheKindTable(t *testing.T) {
+	saved := captureKinds
+	t.Cleanup(func() { captureKinds = saved })
+	captureKinds[0].dueAt = 3
+
+	body := checkCapture + journalTableHead + markedRows("08", 10, 6, "fixed: x")
+	tree := journalFixture(t, captureFiles(map[string]string{"plan/journal/captured.md": body}))
+	report, err := Check(tree)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	line := "due at: 3 rows since a check capture, 10 rows since a rule capture, 10 rows uncaptured"
+	if !strings.Contains(report.Text(), line+"\n") {
+		t.Fatalf("Text() = %q, want threshold line %q", report.Text(), line)
+	}
+	if !strings.Contains(journalWhy(), line) {
+		t.Fatalf("journalWhy() = %q, want %q", journalWhy(), line)
+	}
+	class := classNamed(t, report, "captured")
+	if class.DueAt != 3 || class.CountedRows != 3 || !class.Due {
+		t.Fatalf("class = %#v, want due-at 3, 3 counted, due", class)
+	}
+	encoded, err := json.Marshal(report)
+	if err != nil || !strings.Contains(string(encoded), `"thresholds":{"check":3,"rule":10,"uncaptured":10}`) {
+		t.Fatalf("json = %s, %v; want the thresholds object from the table", encoded, err)
+	}
+}
+
+// runProblems runs the report over files and returns its problems, requiring
+// exit 1.
+func runProblems(t *testing.T, files map[string]string) ([]Problem, string) {
+	t.Helper()
+	tree := journalFixture(t, captureFiles(files))
+	var errOut bytes.Buffer
+	report, code := Run(tree, &errOut)
+	if code != 1 {
+		t.Fatalf("Run code = %d, want 1: %s", code, errOut.String())
+	}
+	return report.Problems, errOut.String()
+}
+
+// TestRunRefusesAMalformedCaptureLine validates AC-4 and AC-7: every line that
+// starts Captured: and breaks the grammar is a capture-malformed problem
+// naming its line, never an uncaptured class.
+func TestRunRefusesAMalformedCaptureLine(t *testing.T) {
+	for _, line := range []string{
+		"Captured: 2026-8-12 rule area/directives/point",
+		"Captured: 2026-08-12 policy area/directives/point",
+		"Captured: 2026-08-12 check internal/guard.Guard",
+		"Captured: 2026-08-12 check internal/guard.Guard proof internal/guard.Guard",
+		"Captured: 2026-08-12 rule area/directives/point | extra",
+		"Captured: 2026-08-12 check internal/../guard.Guard proof internal/guard.TestGuard",
+		"Captured: 2026-08-12 check /abs/guard.Guard proof internal/guard.TestGuard",
+		"Captured: 2026-08-12 rule area/\x00point",
+		"Captured: 2026-08-12 rule area/directives/point.md",
+		"Captured: 2999-01-01 rule area/directives/point",
+		"Captured:",
+	} {
+		body := "# Class\n" + line + "\n" + journalTableHead + markedRows("08", 1, 2, "fixed: x")
+		problems, stderr := runProblems(t, map[string]string{"plan/journal/bad.md": body})
+		if len(problems) != 1 || problems[0].Kind != ProblemCaptureMalformed || problems[0].Line != 2 {
+			t.Fatalf("line %q: problems = %#v, want one capture-malformed at line 2", line, problems)
+		}
+		if !strings.HasPrefix(stderr, "CAPTURE MALFORMED: plan/journal/bad.md:2: ") {
+			t.Fatalf("line %q: stderr = %q", line, stderr)
+		}
+	}
+	problems, _ := runProblems(t, map[string]string{"plan/journal/late.md": "Captured: 2999-01-01 rule area/directives/point\n" +
+		journalTableHead + markedRows("08", 1, 2, "fixed: x")})
+	if !strings.Contains(problems[0].Detail, "dated after HEAD") {
+		t.Fatalf("late capture detail = %q, want dated after HEAD", problems[0].Detail)
+	}
+}
+
+// TestRunRefusesACaptureThatDoesNotResolve validates AC-5: a check, a proof or
+// a point HEAD does not declare is capture-unresolved, and a function present
+// only in the working tree does not resolve at HEAD.
+func TestRunRefusesACaptureThatDoesNotResolve(t *testing.T) {
+	rows := journalTableHead + markedRows("08", 1, 2, "fixed: x")
+	for _, test := range []struct{ line, missing string }{
+		{"Captured: 2026-08-12 check internal/guard.Absent proof internal/guard.TestGuard", "internal/guard.Absent"},
+		{"Captured: 2026-08-12 check internal/guard.Guard proof internal/guard.TestAbsent", "internal/guard.TestAbsent"},
+		{"Captured: 2026-08-12 rule area/directives/absent", "ai/rules/points/area/directives/absent.md"},
+		{"Captured: 2026-08-12 check internal/nowhere.Guard proof internal/guard.TestGuard", "internal/nowhere.Guard"},
+	} {
+		problems, _ := runProblems(t, map[string]string{"plan/journal/bad.md": test.line + "\n" + rows})
+		if len(problems) != 1 || problems[0].Kind != ProblemCaptureUnresolved ||
+			!strings.Contains(problems[0].Detail, test.missing) || !strings.Contains(problems[0].Detail, "at HEAD") {
+			t.Fatalf("%q: problems = %#v, want capture-unresolved naming %s", test.line, problems, test.missing)
+		}
+	}
+	tree := journalFixture(t, captureFiles(map[string]string{"plan/journal/bad.md": "Captured: 2026-08-12 check " +
+		"internal/guard.Later proof internal/guard.TestGuard\n" + rows}))
+	writeJournalFile(t, tree, "internal/guard/later.go", "package guard\n\nfunc Later() {}\n")
+	var errOut bytes.Buffer
+	report, code := Run(tree, &errOut)
+	if code != 1 || len(report.Problems) != 1 || report.Problems[0].Kind != ProblemCaptureUnresolved {
+		t.Fatalf("working-tree-only check: code %d problems %#v", code, report.Problems)
+	}
+}
+
+// TestRunRefusesTwoCaptureLines validates AC-6.
+func TestRunRefusesTwoCaptureLines(t *testing.T) {
+	problems, _ := runProblems(t, map[string]string{"plan/journal/twice.md": checkCapture + ruleCapture +
+		journalTableHead + markedRows("08", 1, 2, "fixed: x")})
+	if len(problems) != 1 || problems[0].Kind != ProblemCaptureDuplicated || problems[0].Line != 2 {
+		t.Fatalf("problems = %#v, want one capture-duplicated at line 2", problems)
+	}
+}
+
+// TestRunRefusesAnUnmarkedFixCell validates AC-8 in the report: a Fix cell that
+// does not start with the exact marker refuses the class, with the count and
+// the first three dates.
+func TestRunRefusesAnUnmarkedFixCell(t *testing.T) {
+	body := journalTableHead + markedRows("08", 1, 1, "Fixed: capital") + markedRows("08", 2, 1, "fixed:tight") +
+		markedRows("08", 3, 1, "fixed: marked") + markedRows("08", 4, 2, "not fixed")
+	problems, stderr := runProblems(t, map[string]string{"plan/journal/unmarked.md": body})
+	want := []string{"2026-08-01", "2026-08-02", "2026-08-04"}
+	if len(problems) != 1 || problems[0].Kind != ProblemUnmarkedFix || problems[0].Rows != 4 ||
+		!reflect.DeepEqual(problems[0].Dates, want) {
+		t.Fatalf("problems = %#v, want one unmarked-fix of 4 rows first dated %q", problems, want)
+	}
+	wantText := "UNMARKED FIX: plan/journal/unmarked.md: 4 row(s) whose Fix cell starts with neither " +
+		"`fixed: ` nor `open: ` (first dated 2026-08-01, 2026-08-02, 2026-08-04)\n"
+	if stderr != wantText {
+		t.Fatalf("stderr = %q, want %q", stderr, wantText)
+	}
+}
+
+// TestReportTextShowsCaptureAndOpenCounts validates AC-9 and AC-10: the exact
+// text of a captured due class, an uncaptured class, the capture summary and
+// the threshold line, and the JSON open and due-at fields.
+func TestReportTextShowsCaptureAndOpenCounts(t *testing.T) {
+	tree := journalFixture(t, captureFiles(map[string]string{
+		"plan/journal/captured.md": checkCapture + journalTableHead + markedRows("08", 11, 2, "fixed: x") +
+			markedRows("08", 13, 2, "open: x"),
+		"plan/journal/ruled.md":  ruleCapture + journalTableHead + markedRows("08", 1, 3, "open: x"),
+		"plan/journal/opened.md": journalTableHead + markedRows("08", 1, 5, "open: x"),
+		"plan/journal/single.md": journalTableHead + markedRows("08", 1, 1, "open: x"),
+	}))
+	report, err := Check(tree)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	want := "1 problem classes are due for a fix pass\n" +
+		"2 classes captured: 1 by check, 1 by rule\n" +
+		"due at: 1 row since a check capture, 10 rows since a rule capture, 10 rows uncaptured\n" +
+		"DUE captured: 2 rows since capture 2026-08-12 (check), 4 total, 2 open, 3d span (2026-08-11 .. 2026-08-14)\n" +
+		"opened: 5 rows, 5 open, 4d span (2026-08-01 .. 2026-08-05)\n" +
+		"ruled: 0 rows since capture 2026-08-12 (rule), 3 total, 3 open, 2d span (2026-08-01 .. 2026-08-03)\n"
+	if got := report.Text(); got != want {
+		t.Fatalf("Text() =\n%s\nwant\n%s", got, want)
+	}
+	encoded, err := json.Marshal(classNamed(t, report, "opened"))
+	if err != nil || !strings.Contains(string(encoded), `"open":5`) || !strings.Contains(string(encoded), `"due-at":10`) {
+		t.Fatalf("json = %s, %v; want open 5 and due-at 10", encoded, err)
+	}
+}
+
+// TestHeadSpecEvidenceIgnoresTheCaptureLine validates AC-12.
+func TestHeadSpecEvidenceIgnoresTheCaptureLine(t *testing.T) {
+	rows := journalTableHead + "| 2026-08-27 | spec-a | cli | symptom | fixed: fix |\n"
+	plain := journalFixture(t, map[string]string{"plan/journal/good.md": rows})
+	captured := journalFixture(t, captureFiles(map[string]string{"plan/journal/good.md": "# Good\n\n" + checkCapture + rows}))
+	for _, tree := range []string{plain, captured} {
+		evidence, malformed, err := HeadSpecEvidence(tree)
+		if err != nil || len(malformed) != 0 || !reflect.DeepEqual(evidence, map[string]string{"spec-a": "plan/journal/good.md"}) {
+			t.Fatalf("HeadSpecEvidence = %#v, %q, %v", evidence, malformed, err)
+		}
 	}
 }

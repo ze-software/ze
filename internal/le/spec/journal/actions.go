@@ -5,19 +5,28 @@
 package specjournal
 
 import (
+	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-const journalWhy = "every problem class in plan/journal/ with 2+ occurrences, its row count and the span between first and last date; a class with 10+ rows is due for a fix pass and is listed first, marked DUE. Prints nothing when every class has one row"
+// journalWhy is the report action's help. Its thresholds come from the kind
+// table, so the help never carries a copy of either number.
+func journalWhy() string {
+	var tb textbuf.Buffer
+	return tb.Str("every problem class in plan/journal/ with 2+ occurrences: its rows, open rows, capture and ").
+		Str("the span between first and last date. A class is due for a fix pass when its rows counted since ").
+		Str("its capture, every row when uncaptured, reach its kind's threshold (").Str(thresholdText()).
+		Str("); due classes are listed first, marked DUE. Prints nothing when every class has one row").String()
+}
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "report", Why: journalWhy,
+	leaction.Action{Verb: "report", Why: journalWhy(),
 		Writes: false,
 		Answer: reportHere},
 	leaction.Action{
 		Verb:       "validate",
-		Why:        "validate one edited plan/journal class file's header, rows, dates, Spec keys, and the 600-character cap on a row added or rewritten against HEAD",
+		Why:        "validate one edited plan/journal class file's header, rows, dates, Spec keys, Fix markers, Captured: line, and the 600-character cap on a row added or rewritten against HEAD",
 		Parameters: []leaction.Parameter{{Keyword: "file", Value: "path", Requirement: leaction.Required}},
 		AnswerArgs: validateHere,
 	},

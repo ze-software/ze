@@ -128,9 +128,9 @@ func TestAJournalCarryingSeveralSessionsRowsClosesNothing(t *testing.T) {
 		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "journal baseline")
 
 	writeCommitFixture(t, root, path, header+
-		"| 2026-08-30 | spec-one | cli | theirs | fixed |\n"+
-		"| 2026-08-30 | spec-two | web | theirs | fixed |\n"+
-		"| 2026-08-30 | - | doc | mine | fixed |\n")
+		"| 2026-08-30 | spec-one | cli | theirs | fixed: done |\n"+
+		"| 2026-08-30 | spec-two | web | theirs | fixed: done |\n"+
+		"| 2026-08-30 | - | doc | mine | fixed: done |\n")
 
 	stem, err := closureStem(root, []string{path}, nil)
 	if err != nil {
@@ -153,7 +153,7 @@ func TestARemovedSpecOutranksForeignJournalRows(t *testing.T) {
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
 		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "journal baseline")
 
-	writeCommitFixture(t, root, path, header+"| 2026-08-30 | spec-theirs | cli | theirs | fixed |\n")
+	writeCommitFixture(t, root, path, header+"| 2026-08-30 | spec-theirs | cli | theirs | fixed: done |\n")
 
 	stem, err := closureStem(root, []string{path}, []string{"plan/spec-mine.md"})
 	if err != nil {

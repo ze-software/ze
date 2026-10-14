@@ -69,13 +69,16 @@ func (r ValidationReport) Text() string {
 	return text.Str("  A row is exactly | Date | Spec | Surface | Symptom | Fix |. ").
 		Str("Raw pipes add cells; a backslash does not escape one. Keep one table in the file.\n").
 		Str("  The Spec cell is a review-artifact key. Write - for no spec, or comma-separated ").
-		Str("spec stems with an optional trailing (note). See plan/journal/README.md.\n").String()
+		Str("spec stems with an optional trailing (note). The Fix cell starts `fixed: ` or `open: `. ").
+		Str("See plan/journal/README.md.\n").String()
 }
 
 // ValidateFile validates exactly one edited journal class file without reading
 // other shards or creating commit/session artifacts. It reads the same file at
 // git HEAD to tell an added or rewritten row, which the length cap binds, from
-// a committed one, so the checkout MUST be a git repository.
+// a committed one, so the checkout MUST be a git repository. Every row's Fix
+// marker is checked, held or not, and the Captured: line is resolved against
+// the working tree.
 func ValidateFile(root, rawPath string) (ValidationReport, error) {
 	relative, err := journalRelativePath(root, rawPath)
 	if err != nil {
@@ -94,7 +97,7 @@ func ValidateFile(root, rawPath string) (ValidationReport, error) {
 		return ValidationReport{}, fmt.Errorf("close journal checkout: %w", closeErr)
 	}
 	// A row whose five cells match a HEAD row is unchanged, however it is
-	// spaced, and is exempt from the length cap.
+	// spaced and whatever its Fix marker, and is exempt from the length cap.
 	committed, err := headFiles(root, []string{relative})
 	if err != nil {
 		return ValidationReport{}, err
@@ -132,6 +135,12 @@ func ValidateFile(root, rawPath string) (ValidationReport, error) {
 				Message: "Spec names no safe spec stem; use - for no spec or a stem with an optional trailing (note)",
 			})
 		}
+		if fixMarkerOf(row.cells[4]) == fixUnmarked {
+			report.Problems = append(report.Problems, ValidationProblem{
+				Line: lineNumber, Kind: ProblemUnmarkedFix, Content: row.cells[4],
+				Message: "Fix cell must start with `fixed: ` or `open: `, then the prose",
+			})
+		}
 		if held.claim(row.cells) {
 			continue
 		}
@@ -145,6 +154,19 @@ func ValidateFile(root, rawPath string) (ValidationReport, error) {
 				Message: message.String(),
 			})
 		}
+	}
+	// The working tree is about to be committed, so a capture may carry today's
+	// date; the report, which reads HEAD, refuses one dated after HEAD.
+	today := time.Now().Format(time.DateOnly)
+	verdict, err := resolveCapture(judgeCaptureLines(captureLinesOf(string(content)), today, "dated after today"),
+		treeCaptureSource{root: root})
+	if err != nil {
+		return ValidationReport{}, err
+	}
+	if verdict.problem != nil {
+		report.Problems = append(report.Problems, ValidationProblem{
+			Line: verdict.problem.line, Kind: verdict.problem.kind, Message: verdict.problem.detail,
+		})
 	}
 	if !headerFound {
 		report.Problems = append([]ValidationProblem{{

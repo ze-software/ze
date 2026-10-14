@@ -63,10 +63,10 @@ var (
 	// Stop hook no longer matches phrases, and the agent-brief gate, the LSP gate
 	// and the two per-prompt reminders are gone with their fixtures.
 	fixtureCategoryDigest = [sha256.Size]byte{
-		0x5d, 0x67, 0x7d, 0x99, 0x74, 0x70, 0x43, 0x84,
-		0x85, 0x8c, 0xfa, 0xa7, 0xb9, 0x99, 0x02, 0x47,
-		0xca, 0xcf, 0xfd, 0x46, 0x5a, 0xc1, 0x14, 0x3b,
-		0xc5, 0xe1, 0x82, 0x41, 0xf1, 0x8c, 0x48, 0x42,
+		0x5e, 0xde, 0x8a, 0xd9, 0x52, 0x3e, 0x3a, 0x21,
+		0x69, 0x70, 0xab, 0x3a, 0x8a, 0xe4, 0x3f, 0x4e,
+		0x67, 0x62, 0x64, 0x49, 0x5e, 0x6f, 0x16, 0x9e,
+		0xd8, 0x46, 0x3b, 0xa7, 0xd8, 0x2e, 0x40, 0xaf,
 	}
 	// Re-sealed 2026-09-25 for spec-le-subject-first-command-tree:
 	// the weakened-test action and proposed-edit owners moved from
@@ -244,7 +244,7 @@ var fixtureCategories = [...]fixtureCategory{
 	{categorySessionStateLocation, "run_session_state_location", hookLifecycleFile, "func stateFile(", "/state/session-state-", "tmp/session/shared/"},
 	{categorySubagentContext, "run_subagent_context", hookLifecycleFile, "func hookSubagentContext(", probeClaimedSpec, "no-claimed-spec"},
 	{categoryRawJobAdmission, "run_raw_job_admission", hookBashFile, "func bashRawHeavy(", "./le test unit core", "go test ./..."},
-	{categoryJournalRowShape, "run_journal_row_shape", hookPostWriteFile, "func postJournal(", "| 2026-08-22 | spec-x | hooks | symptom | fix |", "| 2026-08-22 | spec-x | hooks | broken |"},
+	{categoryJournalRowShape, "run_journal_row_shape", hookPostWriteFile, "func postJournal(", "| 2026-08-22 | spec-x | hooks | symptom | fixed: fix |", "| 2026-08-22 | spec-x | hooks | broken |"},
 	{categoryScriptWeakeningArms, "run_script_weakening_arms", hookWriteEditFile, writeWeakeningAnchor, "self.assertEqual(1, f())", "@pytest.mark.xfail\nself.assertEqual(1, f())"},
 	{categoryCISleepMarker, "run_ci_sleep_marker", hookWriteEditFile, "func writeCISleep(", "# sleep(timer): tracker ticks\ntime.sleep(2)", "time.sleep(2)"},
 	{categoryYangDescription, "run_yang_description", hookWriteEditFile, "func writeYangDescription(", yangProbeAllow, yangProbeRefuse},

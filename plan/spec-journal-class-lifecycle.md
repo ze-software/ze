@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 4/6 |
 | Handoff | - |
 | Updated | 2026-10-14 |
 
@@ -157,12 +157,12 @@ against the definition in AC-17, or AC-21 when a check-captured class recurs.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No prose line in any class file starts with `Captured:` today | Class headers sampled on 2026-10-05 | A prose line becomes a malformed capture and the report goes red at landing | `git grep -n '^Captured:' plan/journal` returns nothing before Phase 1 lands | unvalidated |
+| A-1 | No prose line in any class file starts with `Captured:` today | Class headers sampled on 2026-10-05 | A prose line becomes a malformed capture and the report goes red at landing | `git grep -n '^Captured:' plan/journal` returns nothing before Phase 1 lands | confirmed 2026-10-14: no hit at HEAD or in the working tree |
 | A-2 | Every row's Fix cell can carry a marker inside the 600-character cap | The cap binds added or rewritten rows; the backfill rewrites every row | Long rows refuse the backfill commit | Counted at HEAD `636166a75d` on 2026-10-14 | refuted: 1,675 of 2,403 rows already exceed 600 characters (1,702 exceed 591), and 1,445 would exceed 600 with the marker even with an empty Fix cell. `heldRows` pairs by all five cells, so every backfilled row reads as rewritten and `closureStem` refuses the commit. Replaced by the marker-stripped pairing in Behavior to change; no prose is shortened |
 | A-3 | A Go function named by directory and function name is enough to resolve a check of every kind in use (hook verdict, le gate, analyzer run function, Go test) | All four are Go functions in a directory at HEAD | A check that is not a Go function (a `.ci` file, a shell stage) cannot be captured | Survey the checks the existing captures name during Phase 5; if one is a `.ci` test, add a `ci` reference kind resolved as a path at HEAD before landing | unvalidated |
 | A-4 | Rows dated on the capture day belong to the pass that set it | Passes write their own rows the same day | A genuine same-day recurrence is not counted, which matters more under a check capture's threshold of 1 | Documented in the README; the pass's proof test, not the row count, catches same-day regressions; a row dated the day after is counted | unvalidated |
 | A-5 | The preliminary merge and split verdicts in Design Insights hold | 3 to 12 rows sampled per class on 2026-10-05 | A merge joins two causes one check cannot capture | Phase 4 reads every row of every candidate and records a per-row destination before moving anything | unvalidated |
-| A-6 | `plan/spec-knowledge-routing.md` (status design) does not land a conflicting change to the report first | Its AC-6 adds an unrouted-age count to the same report | Text and JSON shapes collide | Check its status before Phase 1; build the text format on whatever landed | unvalidated (2026-10-14: still `design`, still cites the old `internal/le/journal/` paths; no collision yet) |
+| A-6 | `plan/spec-knowledge-routing.md` (status design) does not land a conflicting change to the report first | Its AC-6 adds an unrouted-age count to the same report | Text and JSON shapes collide | Check its status before Phase 1; build the text format on whatever landed | confirmed 2026-10-14 at implementation start: `plan/spec-knowledge-routing.md` is still `design`, nothing of it landed in the report, so Phase 1 builds on the current report |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -434,6 +434,9 @@ each with a verdict from every row.
 ## Owner Decisions
 | Date | Question | Decision | Effect on this spec |
 |------|----------|----------|---------------------|
+| 2026-10-14 | (main thread, owner delegation) How does the scratch classifier write `plan/journal`? | Through `ZE_ADMIT_GOVERNED_WRITE`, re-reading each file and rewriting only when its bytes are unchanged since that read, refusing any row without a decision, touching no Date, Spec, Surface or Symptom cell | Phase 2 applied that way; two LDP rows appended after classification were read and decided like the others |
+| 2026-10-14 | (main thread) The backfill marks 1,239 of 2,419 rows `fixed:`, above the 700-900 estimate | Accepted. The excess is 421 of the 590 rows with another lead, each read: they are terse repair descriptions ("replaced literal with registry query", "ran gofmt -w on the file", "Removed the disposable lint cache"). The estimate counted repair verbs from a short keyword list. Of the 590, 169 are `open:`: "not reproduced", "worked around", "mitigated", "not a defect", "Not changed", a half left open, or verification owed. Of the 106 "fixed"-lead rows with an open phrase, 16 are `open:` (a half left, "(designed)", a run owed); of the 158 already marked, one `fixed:` flipped to `open:` ("Left open: ..."). At the write: 2,420 rows, 1,242 `fixed:`, 1,178 `open:` | Phase 2 |
+| 2026-10-14 | (main thread) AC-10 says the threshold line is "always printed"; the report prints nothing when every class has one row | The threshold line is printed whenever the report lists a class; an empty report stays empty (`TestRunKeepsAnEmptyJournalEmpty`) | AC-10, `Report.Text` |
 | 2026-10-05 | After a check capture, should a class be due sooner than 10 new rows? | Yes: a class captured by a check is DUE again after one row dated after the capture ("a single repeat means the check has a gap"); a class captured by a rule only, or uncaptured, keeps 10. The next pass repairs the check | Task direction 7; Behavior to change; Transformation step 4; AC-1, AC-2, AC-2b, AC-3, AC-3b, AC-10, AC-11, AC-17, AC-18, AC-19, AC-21; R-8, R-9; A-4; Boundary Tests; Key Design Decisions; Phase 5 |
 
 ## Checklist
