@@ -17,6 +17,7 @@ Ze development is expected on macOS or Linux. Windows is not a supported develop
 | `testing.md` | How the test suites are organised and run (unit, functional, fuzz, race) |
 | `committing.md` | How `./le commit create` works: its keywords, what it refuses, what the generated script contains, and what to do when a commit or a push fails |
 | `running-commands.md` | How the `./le` action surface behaves: feature build tags, the changed-set selector, session scratch and binaries, verify logs, the job registry, the Bash guard |
+| `patching-the-standard-library.md` | How Ze changes a Go standard-library package at build time with `go build -overlay`, the guard that stops an unpatched build, and what to do when the Go version changes. The mechanism is designed and not built yet |
 | `documentation-testing.md` | The `./le doc check verify` drift and contract checks, and how to fix failures |
 | `ci-test-coverage.md` | Functional `.ci`/`.et` coverage map and known gaps |
 | `navigating-the-code.md` | How to answer a question without reading a whole file: the `gopls` routes for a Go symbol, and which generated index answers which question |

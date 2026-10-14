@@ -606,6 +606,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | IPsec, IKE, IKEv2, SA, child SA | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
 | EAP, NAT-T, MOBIKE | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
 | XFRM, xfrm interface, VTI, netlink, go mod vendor | `ai/digests/ipsec-ike.md`, `internal/component/ike/`, `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (vendored netlink patch, recovery command, and owning gate), `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` |
+| standard library patch, crypto/tls patch, go build -overlay, GOROOT, TLS session_id | `docs/contributing/patching-the-standard-library.md` (not built yet; `plan/immediate/spec-ike-eap-rfc-defects.md` builds it) |
 | subscriber, session, PPPoE, L2TP | `ai/digests/subscriber.md`, `internal/component/l2tp/pppoe/` |
 | editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `ai/rules/testing.md` (Editor Tests section) |
 | diagnostic, doctor, health, readiness, plugin setup, setup outcome, show plugin list, why is this feature absent | `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/diagnostics/production-diagnostics.md`, `ai/rules/repo-maintenance.md` |
