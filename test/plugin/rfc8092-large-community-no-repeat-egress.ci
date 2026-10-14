@@ -1,0 +1,137 @@
+# rfc8092-large-community-no-repeat-egress -- RFC 8092 Section 3, an export policy that adds
+# Large Community values the route already carries, from a peer's socket to another's.
+#
+# RFC requirement: RFC8092-3-1 positive -- a route received with LARGE_COMMUNITY [65000:1:1 65000:3:3], whose export policy on the destination adds 65000:1:1, then 65000:2:2, then 65000:2:2, leaves with [65000:1:1 65000:3:3 65000:2:2], each value once, attribute length 36, and the path attribute and message lengths shortened to match.
+#
+# RFC 8092 Section 3: "Duplicate BGP Large Community values MUST NOT be transmitted." The
+# bgp-filter-community handler appends every added value with no membership check, so the
+# body it hands the writer holds [X Z X Y Y]; normalizeTransmittedUpdate
+# (reactor/session_egress_normalize.go), called by writeUpdateBody, keeps the first
+# occurrence of each value. A writer that sends the policy's body as built fails the
+# expectation: 60 octets of values, not 36. The handler writes the attribute in Extended
+# Length form (0xD0), which the writer keeps.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=20s
+option=bind:value=0.0.0.0
+option=conn_map:value=remote-ip
+
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004A020000002F4001010040020602010000FDE940030401010101C020180000FDE800000001000000010000FDE80000000300000003180A0000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005B02000000404001010040020A02020000FDE80000FDE940030401010101D02000240000FDE800000001000000010000FDE800000003000000030000FDE80000000200000002180A0000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	external shutdown-after-up {
+		run "le test fixture plugin/bgp-rs-reactor-fastpath"
+		encoder json
+	}
+}
+bgp {
+	community {
+		large add-present {
+			value [ 65000:1:1 65000:2:2 ]
+		}
+		large add-again {
+			value [ 65000:2:2 ]
+		}
+	}
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer receiver {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		filter {
+			egress {
+				community {
+					tag [ add-present add-again ]
+				}
+			}
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-community -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=forward-cached failed
+reject=stderr:pattern=release-cached failed

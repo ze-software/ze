@@ -1,5 +1,5 @@
 // Design: docs/features/srv6.md -- Prefix-SID transmission rules
-// Overview: session_prefix_sid.go -- clearTransmittedLabelIndex, the family-gated egress clear
+// Overview: session_prefix_sid.go -- clearLabelIndexTLVs, the family-gated egress clear
 
 package reactor
 
@@ -72,4 +72,13 @@ func TestClearTransmittedLabelIndexOnlyOnLabeledUnicast(t *testing.T) {
 			}
 		})
 	}
+}
+
+// clearTransmittedLabelIndex runs the egress normalization over body, whose
+// Prefix-SID step (clearLabelIndexTLVs) the unit above drives. Its cases carry
+// no flags octet with a low-order bit set and no LARGE_COMMUNITY, so the other
+// two steps of normalizeTransmittedUpdate leave them as they are and the body
+// keeps its length.
+func clearTransmittedLabelIndex(body []byte) {
+	normalizeTransmittedUpdate(body)
 }

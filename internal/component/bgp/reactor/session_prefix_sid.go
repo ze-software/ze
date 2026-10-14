@@ -1,15 +1,18 @@
 // Design: docs/features/srv6.md -- Prefix-SID transmission rules.
 // Related: session_write.go -- owned final wire buffers on every UPDATE writer.
+// Related: session_egress_normalize.go -- the attribute walk that calls this.
 package reactor
 
 import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
-// clearTransmittedLabelIndex clears only Label-Index Reserved and Flags in an
-// owned outgoing UPDATE body. Callers MUST pass the session's private write
-// buffer after policy; borrowed received bytes MUST NOT be modified.
+// clearLabelIndexTLVs clears only Label-Index Reserved and Flags in the
+// Prefix-SID attribute value of an owned outgoing UPDATE. attrs is the whole
+// path attribute section the value sits in, read only for the route family.
+// It is the Prefix-SID step of normalizeTransmittedUpdate, the one attribute
+// walk every written UPDATE takes; callers MUST pass the session's private
+// write buffer after policy; borrowed received bytes MUST NOT be modified.
 //
 // RFC 8669 Section 3.1: "RESERVED: 8-bit field. It MUST be clear on transmission
 // and MUST be ignored on reception." "The Flags field MUST be clear on
@@ -22,7 +25,7 @@ import (
 // combinations." Elsewhere a type 1 TLV is unrecognized, and RFC 8669 Section 6
 // says "For future extensibility, unknown TLVs MUST be ignored and propagated
 // unmodified." The family (attribute.PrefixSIDRouteFamily) is read only once a
-// TLV that needs clearing is met. When it cannot be read the body goes out
+// TLV that needs clearing is met. When it cannot be read the value goes out
 // unmodified: nothing then shows the TLV is one Ze recognizes.
 //
 // Label-Index TLV (RFC 8669 Section 3.1):
@@ -32,18 +35,9 @@ import (
 //	       |Type=1|Length=7| Reserved |  Flags  | Label Index |
 //	       +------+--------+----------+---------+-------------+
 //
-// Both walks are bounded by their enclosing wire length. Malformed framing is
-// left to the validator, never repaired by guessing a subsequent TLV boundary.
-func clearTransmittedLabelIndex(body []byte) {
-	sections, err := wire.ParseUpdateSections(body)
-	if err != nil {
-		return
-	}
-	attrs := sections.Attrs(body)
-	_, _, value, found := attribute.AttrFind(attrs, attribute.AttrPrefixSID)
-	if !found {
-		return
-	}
+// The TLV walk is bounded by the attribute length. Malformed framing is left
+// to the validator, never repaired by guessing a subsequent TLV boundary.
+func clearLabelIndexTLVs(attrs, value []byte) {
 	familyChecked := false
 	for len(value) != 0 {
 		octets, ok := prefixSIDTLVOctets(value)

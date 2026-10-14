@@ -55,6 +55,14 @@ All path attributes share a common header:
 | 4-7 | Reserved | | Must be 0 |
 <!-- source: internal/core/bgp/attribute/attribute.go -- FlagOptional, FlagTransitive, FlagPartial, FlagExtLength -->
 
+**The reserved bits are cleared on every UPDATE Ze writes.** Received bits 4-7
+are ignored, and a relay that copies the received attribute bytes would send
+them on. `writeUpdateBody`, the writer every UPDATE funnels through, clears them
+in the session's private copy of the body, the raw diagnostic write included,
+in the same walk that removes LARGE_COMMUNITY repeats and clears the Prefix-SID
+Label-Index fields. No other flag bit is touched.
+<!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- normalizeTransmittedUpdate -->
+
 ### Flag Combinations
 
 | Attribute Type | Flags |
@@ -689,6 +697,15 @@ the peer's flags and length-field width. `ParseLargeCommunities` removes repeats
 as well, for a caller that decodes the value itself.
 <!-- source: internal/component/bgp/reactor/rfc8092_large_community.go -- removeRedundantLargeCommunities -->
 <!-- source: internal/core/bgp/attribute/community.go -- ParseLargeCommunities -->
+
+**A repeated value is never transmitted.** RFC 8092 Section 3 also forbids
+sending one, whatever produced it: an export policy that adds a value the route
+already carries, an ingress tag, a plugin's raw body. `writeUpdateBody` compacts
+the attribute in place in its private copy, keeping the first occurrence of each
+value, and shortens the attribute length, the Total Path Attribute Length and
+the message to match. It allocates nothing. COMMUNITIES and EXTENDED COMMUNITIES
+are left as produced: neither RFC 1997 nor RFC 4360 forbids sending a repeat.
+<!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- compactLargeCommunities -->
 
 ---
 

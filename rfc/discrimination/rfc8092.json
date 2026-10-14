@@ -2,6 +2,51 @@
   "rfc": "rfc8092",
   "records": [
     {
+      "rid": "RFC8092-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce",
+      "unit-sha": "dbfc80b251362d8a",
+      "claim-sha": "7d07e20cba99e9a2",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_egress_normalize.go::compactLargeCommunities",
+      "producer-sha": "58352fa655e74593",
+      "break": "body of compactLargeCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8092-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteKeepsDistinctLargeCommunities",
+      "unit-sha": "e1ef06e58e4fa64f",
+      "claim-sha": "e0d2fbbb6f73aa26",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_egress_normalize.go::normalizeTransmittedUpdate",
+      "producer-sha": "fff3b13bba8e8594",
+      "break": "body of normalizeTransmittedUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8092-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity",
+      "unit-sha": "5814802d3e34620f",
+      "claim-sha": "188e85dc6357fef0",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_egress_normalize.go::compactLargeCommunities",
+      "producer-sha": "58352fa655e74593",
+      "break": "body of compactLargeCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8092-3-1",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc8092-large-community-no-repeat-egress.ci",
+      "unit-sha": "1c564bc6d1113129",
+      "claim-sha": "d7f01fa5e5e29658",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_egress_normalize.go::compactLargeCommunities",
+      "producer-sha": "58352fa655e74593",
+      "break": "body of compactLargeCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005B02000000404001010040020A02020000FDE80000FDE940030401010101D02000240000FDE800000001000000010000FDE800000003000000030000FDE80000000200000002180A0000"
+    },
+    {
       "rid": "RFC8092-3-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DistinctLargeCommunitiesKeptWhole",
