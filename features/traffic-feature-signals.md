@@ -12,7 +12,7 @@
 | Real-path tests | test/plugin/traffic-feature-show.ci |
 | Docs | docs/guide/anomaly.md |
 | Doc review | 2026-10-07: every source anchor resolves; fan-out, port-entropy, new-peer, rare-port and beaconing are named in internal/component/trafficfeature |
-| Defect review | 2026-10-07: audit found no open immediate spec against trafficfeature; journal rows naming a Component, not each re-verified here: comment-describes-superseded-behaviour.md:34, unwired-feature.md:132 |
+| Defect review | 2026-10-07: audit found no open immediate spec against trafficfeature; journal rows naming a Component, not each re-verified here: comment-describes-superseded-behaviour.md:36, unwired-feature.md:132 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
 ## Description

@@ -10,6 +10,8 @@ The cost is paid by a reader who trusts the comment instead of the producer.
 That reader is often a documentation pass, so the wrong contract reaches an
 operator-facing page before anybody runs the code.
 
+Captured: 2026-08-07 rule stale-comments/directives/update-or-remove-comments-that-describe-old-behavior
+
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
 | 2026-10-14 | - (bgp-rs WantsConfig fix) | `docs/architecture/plugin/plugin-relationships.md` section 7 | Rows say bgp-gr, -route-refresh, -role, -llnh, -hostname, -softver, -filter-community, -watchdog, -healthcheck and -rpki do not participate, and bgp-rib has no WantsConfig. Each declares `WantsConfig: ["bgp"]` in its `sdk.Registration`, so `server/reload.go` makes it a participant (rpki applies its own). The other bgp filters are absent. | open: re-derive the table from the registrations. |

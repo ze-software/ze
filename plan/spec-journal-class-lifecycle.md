@@ -159,8 +159,8 @@ against the definition in AC-17, or AC-21 when a check-captured class recurs.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No prose line in any class file starts with `Captured:` today | Class headers sampled on 2026-10-05 | A prose line becomes a malformed capture and the report goes red at landing | `git grep -n '^Captured:' plan/journal` returns nothing before Phase 1 lands | confirmed 2026-10-14: no hit at HEAD or in the working tree |
 | A-2 | Every row's Fix cell can carry a marker inside the 600-character cap | The cap binds added or rewritten rows; the backfill rewrites every row | Long rows refuse the backfill commit | Counted at HEAD `636166a75d` on 2026-10-14 | refuted: 1,675 of 2,403 rows already exceed 600 characters (1,702 exceed 591), and 1,445 would exceed 600 with the marker even with an empty Fix cell. `heldRows` pairs by all five cells, so every backfilled row reads as rewritten and `closureStem` refuses the commit. Replaced by the marker-stripped pairing in Behavior to change; no prose is shortened |
-| A-3 | A Go function named by directory and function name is enough to resolve a check of every kind in use (hook verdict, le gate, analyzer run function, Go test) | All four are Go functions in a directory at HEAD | A check that is not a Go function (a `.ci` file, a shell stage) cannot be captured | Survey the checks the existing captures name during Phase 5; if one is a `.ci` test, add a `ci` reference kind resolved as a path at HEAD before landing | unvalidated |
-| A-4 | Rows dated on the capture day belong to the pass that set it | Passes write their own rows the same day | A genuine same-day recurrence is not counted, which matters more under a check capture's threshold of 1 | Documented in the README; the pass's proof test, not the row count, catches same-day regressions; a row dated the day after is counted | unvalidated |
+| A-3 | A Go function named by directory and function name is enough to resolve a check of every kind in use (hook verdict, le gate, analyzer run function, Go test) | All four are Go functions in a directory at HEAD | A check that is not a Go function (a `.ci` file, a shell stage) cannot be captured | Survey the checks the existing captures name during Phase 5; if one is a `.ci` test, add a `ci` reference kind resolved as a path at HEAD before landing | confirmed 2026-10-14 by the Phase 5 survey: no candidate check is a `.ci` test or a shell stage (Design Insights) |
+| A-4 | Rows dated on the capture day belong to the pass that set it | Passes write their own rows the same day | A genuine same-day recurrence is not counted, which matters more under a check capture's threshold of 1 | Documented in the README; the pass's proof test, not the row count, catches same-day regressions; a row dated the day after is counted | not exercised 2026-10-14: no fix pass has landed, and neither backfilled capture (2026-08-07) has a row dated on its day, so the exclusion drops no row today. The Known Limitations entry stands |
 | A-5 | The preliminary merge and split verdicts in Design Insights hold | 3 to 12 rows sampled per class on 2026-10-05 | A merge joins two causes one check cannot capture | Phase 4 reads every row of every candidate and records a per-row destination before moving anything | partly refuted 2026-10-14: 3 of 4 merges dropped, the pair merge holds; splits hold for 4 of 5, bound-wraps dropped (Design Insights) |
 | A-6 | `plan/spec-knowledge-routing.md` (status design) does not land a conflicting change to the report first | Its AC-6 adds an unrouted-age count to the same report | Text and JSON shapes collide | Check its status before Phase 1; build the text format on whatever landed | confirmed 2026-10-14 at implementation start: `plan/spec-knowledge-routing.md` is still `design`, nothing of it landed in the report, so Phase 1 builds on the current report |
 
@@ -470,7 +470,7 @@ classes, split out a row the class's check would miss.
 | Split `guard-demands-what-the-model-cannot-supply` | 3 (2026-08-31 .. 2026-09-15) | Split 1 row | 2026-09-06 (`continue` on a next-hop error skips the peer) to `silent-fall-through` |
 | Split `paraphrase-becomes-the-authority` | 4 (2026-09-11 .. 2026-10-13) | Split 2 rows into a new class | 2026-09-27 (RFC 7474's AuType 3 rule applied to AuType 2) and 2026-10-13 (a BGP 3x habit applied to LDP KeepAlive) to `requirement-applied-outside-the-case-it-names`: each borrows another case's requirement, neither paraphrases one |
 | Split `bound-wraps-before-it-refuses` | 5 (2026-08-22 .. 2026-10-06) | Drop | 2026-09-17 (zero-column resize gives a negative width) is subtraction on an input-stated dimension before any bound, the mirror of the add-before-compare rows; the class's check (bound the stated value before arithmetic) catches it |
-| Split `test-against-broken-path` | 88 (2026-03-21 .. 2026-10-14) | Split 3 rows; 1 deferred; no new class | 2026-09-22 (PPP test package duplicate declarations), 2026-08-16 (`setAPIConfigDir` undefined) and 2026-08-16 (renamed listener-migration types) to `committed-tree-does-not-build`. DEFERRED: 2026-09-06 (`api-multiple-api` sends next-hop 127.0.0.1 to the peer at 127.0.0.1) belongs in `fixture-encodes-an-impossible-state`, which on 2026-10-14 holds another session's uncommitted over-cap row, so the move waits for that file to land. The rest (topology, stale oracle, fixture init, races) are tests whose path to the producer is broken, the class itself |
+| Split `test-against-broken-path` | 88 (2026-03-21 .. 2026-10-14) | Split 3 rows; 1 deferred; no new class | 2026-09-22 (PPP test package duplicate declarations), 2026-08-16 (`setAPIConfigDir` undefined) and 2026-08-16 (renamed listener-migration types) to `committed-tree-does-not-build`. 2026-09-06 (`api-multiple-api` sends next-hop 127.0.0.1 to the peer at 127.0.0.1) to `fixture-encodes-an-impossible-state`, moved with Phase 5 once another session's row in that file had landed (7d37dcd562). The rest (topology, stale oracle, fixture init, races) are tests whose path to the producer is broken, the class itself |
 
 Seen while reading, for the fix pass of AC-17 (a), not moved here: rows whose
 cause is outside their class, in `silent-fall-through` (2026-09-04 YANG module
@@ -482,6 +482,28 @@ resolution in a test binary, 2026-08-12 two red tests, 2026-09-24 SIGHUP before
 The line citations `<class>.md:<line>` in `features/*.md` were remapped by row
 content, so each still names the row it named before the move; several were
 already off by the rows prepended since 2026-10-07.
+
+Phase 5 captures (2026-10-14, AC-18). The survey read, for every class, the
+header and every `fixed:` Fix cell naming a gate, analyzer, hook, ratchet,
+lint rule, refusal or rule point (65 classes), the Fix cells of 33 classes
+whose name reads as tool-checkable, and every Go comment under `internal/le`,
+`internal/ai` and `.golangci` that cites a class file. Almost every repair is a
+per-row patch: it fixes the site and names no check over the class's shape.
+
+| Class | Named check or rule | Verdict |
+|-------|---------------------|---------|
+| `comment-describes-superseded-behaviour` | header: `ai/rules/stale-comments.md` governs the write side | `rule` capture, point `stale-comments/directives/update-or-remove-comments-that-describe-old-behavior`, dated 2026-08-07 (2993340636 added the point) |
+| `command-takes-an-untyped-positional-value` | header: `ai/rules/cli.md` requires a closed keyword before any value | `rule` capture, point `cli/cli-grammar-keywords-before-values/the-first-token-after-the-noun-must-be-a-keyword`, dated 2026-08-07 (2993340636) |
+| `fixture-encodes-an-impossible-state` | header: point `testing/functional-test-gate/a-fixture-must-encode-a-topology-that-can-exist` | No capture: 9ee958b7fa (2026-08-30) deleted the point. The header now says so |
+| `output-lost-to-an-exit-past-the-flush` | 2026-09-11: ruleguard `crashlogExec` (`.golangci/ruleguard/modern.go`) refuses `syscall.Exec` and `unix.Exec` outside `crashlog` | No capture: proven by probe only, with no Go test that fails without the rule, and the class's `os.Exit` half (2026-09-06) is outside it |
+| `check-mode-mutates-the-tree` | 2026-08-26: `leaction` refuses an undeclared verb | No capture: it covers `le` verbs only, so the 2026-08-17 scripts, the 2026-08-14 `templ` check and the 2026-10-11 reload are outside it, and it has no proof test named in the class |
+| `failing-gate-prints-no-cause`, `concurrent-session-corruption`, `gate-fires-outside-its-population`, `gate-verdict-depends-on-the-machine`, `full-disk-false-red` | a Go comment at one repaired site (`hookcheck.Text`, `commit` snapshot, `review.go`, `staticcheck` trim, `LintCache`) | No capture: each repairs one site and refuses nothing over the class |
+| `guard-blocks-its-own-authors-repair`, `reference-checked-claim-unchecked` | a rule point named in one row's Fix | No capture: the point governs that row's lesson, not the class's cause |
+
+No class gets a `check` capture, so no check-captured class is DUE at landing
+and R-9's list in the commit body is empty. A-3 holds over the survey: the one
+class-wide check found, `crashlogExec`, is a Go function, and no candidate
+names a `.ci` test or a shell stage, so no `ci` reference kind is added.
 
 Preliminary candidate verdicts from sampled rows (2026-10-05), kept as the
 record the verdicts above replaced:

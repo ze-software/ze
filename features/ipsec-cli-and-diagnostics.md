@@ -13,7 +13,7 @@
 | Real-path tests | test/ipsec/ipsec-sa-show.ci, test/ipsec/ipsec-status-show.ci, test/ipsec/ipsec-peer-show.ci, test/ipsec/ipsec-clear-sa.ci, test/ipsec/ipsec-dataplane-show.ci, test/ipsec/ipsec-show-dataplane-kernel.ci, test/ipsec/ipsec-show-sa-counters.ci |
 | Docs | docs/guide/ipsec.md |
 | Doc review | 2026-10-07: every source anchor resolves; ze_ipsec_sa_count, ze_ipsec_tunnel_up, ze_ipsec_tunnel_degraded, ze_ipsec_dataplane_sa_count and ze_ipsec_dataplane_drift are registered under internal/component/ike/, and page_vpn_ipsec.go serves the ipsec web page |
-| Defect review | 2026-10-07: audit found no open immediate spec against the IPsec command surface; journal rows naming a Component, not each re-verified here: comment-describes-superseded-behaviour.md:18 |
+| Defect review | 2026-10-07: audit found no open immediate spec against the IPsec command surface; journal rows naming a Component, not each re-verified here: comment-describes-superseded-behaviour.md:20 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
 ## Description

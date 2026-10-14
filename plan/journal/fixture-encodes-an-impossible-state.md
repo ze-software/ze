@@ -10,8 +10,9 @@ the fixture reddens, and the session that meets the red has to prove the guard
 right before it can call the fixture wrong. The cheap move at that moment is to
 weaken the guard, which is the move that must not happen.
 
-The rule this class produced is
-`ai/rules/points/testing/functional-test-gate/a-fixture-must-encode-a-topology-that-can-exist.md`.
+The rule this class produced,
+`ai/rules/points/testing/functional-test-gate/a-fixture-must-encode-a-topology-that-can-exist.md`,
+was deleted by 9ee958b7fa (2026-08-30), and no rule point names this class now.
 
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
@@ -41,3 +42,4 @@ The rule this class produced is
 | 2026-09-22 | - | `localAuth.handle` and `TestLocalAuthMethodNoneAccepted` | The test invented a username for no-auth. Real PPP requests have none, so credential lookup rejected explicitly permitted no-auth sessions before the acceptance branch. | fixed: Owner-approved branch move and fixture correction. The regression failed before the fix; local-auth race tests and Linux 7.2 xl2tpd/pppd interop now pass. |
 | 2026-09-23 | verification-baseline | `TestReactorReauthIntervalFromParams`, `deliverOwnedKernelSuccess` | The full L2TP package run panics when the test helper inserts a session into an uninitialized tunnel map. | open: Left red as test scaffolding under the baseline directive. Focused consumer tests and independent native LCP restart pass separately. |
 | 2026-10-14 | spec-bgp-prefix-sid-rfc-defects (found, not caused) | `internal/component/bgp/reactor` tests through the decoder check in `reactor.go` | Six reactor tests (FlowSpec route server, RFC 8654 length, RFC 9012 endpoint) fail with "family ipv4/mpls-vpn has no decoder plugin": their fixtures configure families the test binary registers no decoder for. Reproduced at `8c1c4013f2^` | open: register the decoders of the configured families, or build the fixtures through the plugin registry |
+| 2026-09-06 | fixit-send-names-its-destination | `originatedNextHopIsPeerOwn` (`internal/component/bgp/reactor/forward_next_hop.go`) against `test/exabgp-compat/etc/api-multiple-api.conf` | `api-multiple-api` announces `next-hop 127.0.0.1` to a peer whose own address is 127.0.0.1, so ze withholds both routes under RFC 4271 Section 5.1.3 and the mock never sees the two frames the `.ci` expects. Same artefact `test/exabgp-compat/etc/api-nexthop-self.conf` already carries a comment about and already solved, by moving its peer to 127.0.0.2 so `self` and the peer stop being one address. Third recurrence of this pair: the 2026-08-15 rows on this class and on `concurrent-rfc-gate-stale` name the same guard and the same loopback collision, and the exemption that used to cover it, `sessionEndsShareOneAddress`, was deleted then | open: not fixed: the repair is a change to a compatibility fixture whose two neighbours decide which mock connection carries which frame, so it is the corpus owner's call rather than the bridge's. The bridge defect this case was measuring IS fixed and proven by `TestFleetSendsAnUnaddressedCommandToTheScriptsOwnPeers`; the withholding is what remains between it and green |
