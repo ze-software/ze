@@ -134,6 +134,17 @@
       "break": "body of tls12WithoutTickets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5216-2.1.1-4",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc5216_session_id_test.go::TestRFC5216TLS12NullSessionIDServerChooses",
+      "unit-sha": "14c5168d028806dd",
+      "claim-sha": "4ba82e7636752509",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::tls12WithoutTickets",
+      "producer-sha": "6595e24aae25ed7a",
+      "break": "body of tls12WithoutTickets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5216-2.1.1-5",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished",

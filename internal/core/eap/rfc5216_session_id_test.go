@@ -4,7 +4,8 @@
 // ServerHello whose session_id is 32 octets the server chose, never the
 // client's, and issues no session ticket: whether the client offers the
 // ticket extension, offers none, or sends legacy_version 0x0304 with no
-// supported_versions extension.
+// supported_versions extension, and whether its session_id is a random one
+// or the null one.
 // PREVENTS: the empty ServerHello session_id unpatched crypto/tls sends, and
 // a TLS 1.2 ticket issued to a client the ticket suppression misclassifies.
 
@@ -209,4 +210,57 @@ func TestRFC5216TLS12FullHandshakeServerHelloSessionID(t *testing.T) {
 		}
 		requireChosenSessionID(t, flight, clientHelloSession(record))
 	})
+}
+
+// withEmptySessionID answers a ClientHello record whose session_id is empty,
+// the null sessionId of RFC 5216 Section 2.1.1, with the record and handshake
+// lengths shortened by the octets removed (RFC 5246 Section 7.4.1.2).
+func withEmptySessionID(t *testing.T, record []byte) []byte {
+	t.Helper()
+	at := tlsRecordHeaderLen + 4 + 2 + tlsClientHelloRandomOctets
+	if at >= len(record) || at+1+int(record[at]) > len(record) {
+		t.Fatalf("a ClientHello record of %d octets", len(record))
+	}
+	removed := int(record[at])
+	out := append(append(slices.Clone(record[:at]), 0), record[at+1+removed:]...)
+	binary.BigEndian.PutUint16(out[3:5], uint16(len(out)-tlsRecordHeaderLen)) //nolint:gosec // a ClientHello record fits in 16 bits
+	hsLen := len(out) - tlsRecordHeaderLen - 4
+	out[tlsRecordHeaderLen+1] = byte(hsLen >> 16)
+	out[tlsRecordHeaderLen+2] = byte(hsLen >> 8)
+	out[tlsRecordHeaderLen+3] = byte(hsLen)
+	return out
+}
+
+// TestRFC5216TLS12NullSessionIDServerChooses replays a TLS 1.2 ClientHello
+// whose session_id is empty at two fresh authenticators and reads each
+// ServerHello. ze's own peer always offers a random 32-octet session_id, so
+// the record is rewritten to carry the null one a peer starting with no
+// session sends.
+//
+// RFC 5216 Section 2.1.1: "If the peer's sessionId is null or unrecognized by
+// the server, the server MUST choose the sessionId to establish a new
+// session."
+//
+// RFC requirement: RFC5216-2.1.1-4 positive -- on a TLS 1.2 full handshake
+// whose ClientHello carries an empty (null) session_id, the authenticator's
+// ServerHello carries a 32-octet session_id and no SessionTicket extension,
+// the server flight carries no NewSessionTicket, and two such handshakes
+// answer different session_ids, so each is chosen fresh for the new session.
+func TestRFC5216TLS12NullSessionIDServerChooses(t *testing.T) {
+	pki := newEAPTLSPKI(t)
+	record := withEmptySessionID(t, tls12ClientHello(t, pki))
+	if got := clientHelloSession(record); len(got) != 0 {
+		t.Fatalf("the rewritten ClientHello offers a %d-octet session_id, want the null one", len(got))
+	}
+
+	first := firstServerFlight(t, pki, record)
+	requireChosenSessionID(t, first, nil)
+	second := firstServerFlight(t, pki, record)
+	requireChosenSessionID(t, second, nil)
+
+	firstID, _ := serverHelloSession(t, first.bodies[tlsHSServerHello])
+	secondID, _ := serverHelloSession(t, second.bodies[tlsHSServerHello])
+	if bytes.Equal(firstID, secondID) {
+		t.Errorf("two new sessions answer the same session_id %x, want one chosen for each", firstID)
+	}
 }
