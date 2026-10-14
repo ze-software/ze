@@ -68,6 +68,33 @@ Section 3.1.2's third alternative for transport mode, which
 
 <!-- source: internal/component/ike/engine/child.go -- createFirstChildSA -->
 
+**A Child SA's UDP encapsulation ports come from its IKE SA, never from a constant.**
+RFC 3948 Section 2.1 says "the Source Port and Destination Port MUST be the same as
+that used by IKE traffic," and RFC 4555 Section 3.3 adds that the tunnel header
+"(and port, if doing UDP encapsulation)" is "taken from the IKE_SA". Every Child SA
+that needs encapsulation passes through one derivation, `childEncapPorts`, called by
+`takeEncapPorts` from `newChildSA` (IKE_AUTH, CREATE_CHILD_SA in either direction)
+and after `newRekeyedChild` (a rekey in either direction, which does not copy the
+retired child's ports). The peer's port is the port of the IKE SA's authenticated
+endpoint (`sa.peerEndpoint`), so a peer behind a NAT that rewrote its IKE source
+port to Y gets ESP on Y, and a NAT-mapped peer port of 500 is followed like any
+other. Ze's own port is the port of the NAT-T socket it sends IKE from (the MOBIKE
+local path where MOBIKE recorded one), which the test-port hook binds off 4500, and
+it is never 500 (RFC 7296 Section 2.23, "UDP encapsulation MUST NOT be done on port
+500."). `installChildSA` writes those two ports and defaults nothing.
+
+With no authenticated endpoint, or no NAT-T socket, there is no port to answer, so
+the Child SA is refused with `errChildEncapPort` and nothing is installed. Where Ze
+answers the exchange it refuses before sending (a childless IKE_AUTH response, or an
+error notify). Where Ze initiated it, the peer has already installed its half, so Ze
+sends a Delete listing its own inbound SPI of the pair, the SPI "as they would be
+expected in the headers of inbound packets" (RFC 7296 Section 1.4.1), and keeps the
+IKE SA; a refused rekey leaves the old Child SA in use. Both responders adopt the
+authenticated endpoint before they build the first Child SA, so no production path
+is expected to reach the refusal.
+
+<!-- source: internal/component/ike/engine/create_child.go -- childEncapPorts -->
+
 **Which kernel object holds the inbound SA's selectors depends on the mode.** RFC
 4301 Section 4.4.2 makes the inbound SAD entry carry the negotiated selectors, and
 Linux checks a decrypted packet against them in two places. In tunnel mode
