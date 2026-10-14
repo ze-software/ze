@@ -293,10 +293,22 @@ runs it in both modes, so a stale stamp turns the verification red.
    too, so the steps below are plain edits that need no le. Read the new
    upstream function the patch changes, from the repository so that the
    `go.mod` pin selects the toolchain:
-   `grep -n doFullHandshake "$(go env GOROOT)/src/crypto/tls/handshake_server.go"`.
+   `grep -n doFullHandshake "$(env -u GOROOT -u GOTOOLCHAIN go env GOROOT)/src/crypto/tls/handshake_server.go"`.
+   The `env -u` matters: a shell that ran the appliance command line, or a
+   session under le, carries `GOROOT` set to the patched tree and
+   `GOTOOLCHAIN=local`, and `go env GOROOT` would then answer the tree, whose
+   file is the patched one, without the pin selecting the toolchain. If the
+   path printed is under `cache/stdpatch/`, the tree's `bin` is first on
+   `PATH`: take it out of `PATH` and run the command again.
 3. If upstream now does what the patch did, delete the patch, the constant, the
    reference to it, and the generator if no patch remains
-   (`ai/rules/no-layering.md`).
+   (`ai/rules/no-layering.md`). The appliance build checks the marker file by
+   name, so also delete its marker path constant, the marker check in the
+   function that prepares gok's environment, and the test that compares that
+   constant with the patch: a check left behind refuses every
+   `ze appliance build`. When no patch remains, the rest of that tree check
+   goes with the generator, because its refusal names `./le go stdpatch goroot`,
+   and the function sets `GOTOOLCHAIN=local` itself again.
 4. Otherwise, change the `Ze-Reviewed-Against` line in the patch header to the
    new version and run `./le go stdpatch goroot`, which builds le again if it
    has to. When `git apply`
