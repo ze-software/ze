@@ -309,16 +309,17 @@ func ensureModcacheRW() error {
 //     would silently resolve to a NEWER version than the pins choose. off makes
 //     that a loud failure instead. ze-gokrazy-deps-download is a separate,
 //     network-using target, so an explicit GOPROXY wins.
-//   - GOTOOLCHAIN is local. le pins GOTOOLCHAIN to go.mod's version for its
-//     linter (internal/le/go/toolchain), and a host go of any other version
-//     then switches by fetching the pinned toolchain from GOMODCACHE. The
-//     checked-in modcache holds no host toolchain and GOPROXY is off, so every
-//     go command answers "toolchain not available", and gok reports its failed
-//     `go list` as "go get ze.invalid/kernel". The image builds with the host
-//     go, so a host go older than go.mod's go directive cannot switch up:
-//     CheckGoToolchain refuses it before the build starts, naming both
-//     versions and where to install a newer go.
+//   - Nothing is set until the process runs under the patched GOROOT
+//     (requirePatchedTree): the image links ze's EAP-TLS authenticator, which
+//     compiles only against it. GOTOOLCHAIN=local is part of that environment,
+//     so it is checked rather than set: a toolchain switch overwrites GOROOT.
+//     The image builds with the go of that tree, so a go older than go.mod's
+//     go directive cannot switch up: CheckGoToolchain refuses it before the
+//     build starts, naming both versions and where to install a newer go.
 func SetGokGoEnv(modcache string) error {
+	if err := requirePatchedTree(); err != nil {
+		return err
+	}
 	if err := os.Setenv("GOMODCACHE", modcache); err != nil {
 		return fmt.Errorf("set GOMODCACHE: %w", err)
 	}
@@ -330,10 +331,45 @@ func SetGokGoEnv(modcache string) error {
 			return fmt.Errorf("set GOPROXY: %w", err)
 		}
 	}
-	if err := os.Setenv("GOTOOLCHAIN", "local"); err != nil {
-		return fmt.Errorf("set GOTOOLCHAIN: %w", err)
-	}
 	return nil
+}
+
+// StdpatchMarker is the GOROOT-relative file the patched crypto/tls adds
+// (internal/le/go/stdpatch/patches). Its presence is how ze-setup, which links
+// no le package, tells the patched GOROOT from a plain one. RFC 5216 Section
+// 2.1.1: "If the peer's sessionId is null or unrecognized by the server, the
+// server MUST choose the sessionId to establish a new session." The patch is
+// what makes the authenticator do it on TLS 1.2
+// (docs/contributing/patching-the-standard-library.md).
+const StdpatchMarker = "src/crypto/tls/zz_ze_server_session_id.go"
+
+// patchedTreeCommand is the command line a requirePatchedTree refusal ends with.
+const patchedTreeCommand = `GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH" && ze appliance build <name>`
+
+// requirePatchedTree refuses unless this process runs under the patched
+// GOROOT: GOROOT set, GOTOOLCHAIN=local, the go on PATH being $GOROOT/bin/go,
+// and the GOROOT holding StdpatchMarker. gok's go subprocesses inherit this
+// environment, and ze's EAP-TLS authenticator does not compile under any
+// other. le's process carries all four already (./le build gokrazy).
+func requirePatchedTree() error {
+	goroot := os.Getenv("GOROOT")
+	problem := ""
+	if goroot == "" {
+		problem = "GOROOT is not set"
+	} else if toolchain := os.Getenv("GOTOOLCHAIN"); toolchain != "local" {
+		problem = fmt.Sprintf("GOTOOLCHAIN is %q, not local, so the go command may switch to a toolchain outside GOROOT %s", toolchain, goroot)
+	} else if path, err := exec.LookPath("go"); err != nil {
+		problem = fmt.Sprintf("no go on PATH: %v", err)
+	} else if filepath.Clean(path) != filepath.Clean(filepath.Join(goroot, "bin", "go")) {
+		problem = fmt.Sprintf("the go on PATH is %s, not $GOROOT/bin/go of GOROOT %s", path, goroot)
+	} else if _, err := os.Stat(filepath.Join(goroot, filepath.FromSlash(StdpatchMarker))); err != nil {
+		problem = fmt.Sprintf("GOROOT %s holds no %s, so it is not the patched GOROOT", goroot, StdpatchMarker)
+	}
+	if problem == "" {
+		return nil
+	}
+	return fmt.Errorf("appliance build: %s. The image links ze's EAP-TLS authenticator, which compiles only against the patched GOROOT "+
+		"(docs/contributing/patching-the-standard-library.md). Under le, run ./le build gokrazy. Otherwise run: %s", problem, patchedTreeCommand)
 }
 
 // runGokInProcess runs the gokrazy builder (gok) embedded in-process rather

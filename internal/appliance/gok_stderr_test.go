@@ -42,7 +42,12 @@ func TestGokExitReachesStderr(t *testing.T) {
 	work := t.TempDir()
 	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=^TestGokExitReachesStderr$")
 	cmd.Dir = work
-	cmd.Env = append(os.Environ(), gokExitChildEnv+"=1", "ze_crash_dir="+filepath.Join(work, "crash"))
+	// The child runs under a fixture of the patched GOROOT, set here rather than
+	// inherited, so it reaches the fake gok whatever environment launched this
+	// test instead of exiting at SetGokGoEnv's refusal (AC-28).
+	goroot := patchedTreeFixture(t, true)
+	cmd.Env = append(os.Environ(), gokExitChildEnv+"=1", "ze_crash_dir="+filepath.Join(work, "crash"),
+		"GOROOT="+goroot, "GOTOOLCHAIN=local", "PATH="+filepath.Join(goroot, "bin")+string(os.PathListSeparator)+os.Getenv("PATH"))
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err := cmd.Run()

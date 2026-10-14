@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"debug/buildinfo"
+	"go/build/constraint"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,13 +25,77 @@ const internalLeImport = "github.com/ze-software/ze/internal/le"
 
 const leArtifactTimeout = 10 * time.Minute
 
+// TestNormalZeLinksNoInternalLe proves no shipped build flavor, ze_setup
+// included, links an internal/le package (AC-29). The flavors are derived
+// from the //go:build lines of cmd/ze/build_tag_*_test.go, so a new flavor
+// file joins the check without an edit here.
 func TestNormalZeLinksNoInternalLe(t *testing.T) {
 	root := personalityRepoRoot(t)
-	for _, pkg := range personalityDeps(t, root, normalZeTags(t, root)) {
-		if pkg == internalLeImport || strings.HasPrefix(pkg, internalLeImport+"/") {
-			t.Errorf("normal ze links development package %s", pkg)
-		}
+	featureTags := personalityFeatureTags(t, root)
+	for name, tags := range shippedFlavors(t, root) {
+		t.Run(name, func(t *testing.T) {
+			for _, pkg := range personalityDeps(t, root, append(tags, featureTags...)) {
+				if pkg == internalLeImport || strings.HasPrefix(pkg, internalLeImport+"/") {
+					t.Errorf("the %s flavor (%v) links development package %s", name, tags, pkg)
+				}
+			}
+		})
 	}
+}
+
+// shippedFlavors answers each cmd/ze/build_tag_<name>_test.go flavor and the
+// tags its //go:build expression requires true. A file with no constraint, an
+// expression this cannot read as a conjunction, or positive tags that do not
+// satisfy their own expression fail the test.
+func shippedFlavors(t *testing.T, root string) map[string][]string {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join(root, "cmd", "ze", "build_tag_*_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no cmd/ze/build_tag_*_test.go flavor file")
+	}
+	flavors := make(map[string][]string, len(files))
+	for _, file := range files {
+		body, err := os.ReadFile(file) //nolint:gosec // a file of this repository
+		if err != nil {
+			t.Fatal(err)
+		}
+		var expr constraint.Expr
+		for line := range strings.SplitSeq(string(body), "\n") {
+			if constraint.IsGoBuild(line) {
+				if expr, err = constraint.Parse(line); err != nil {
+					t.Fatalf("%s: %v", file, err)
+				}
+				break
+			}
+		}
+		if expr == nil {
+			t.Fatalf("%s carries no //go:build constraint, so its flavor is unknown", file)
+		}
+		var tags []string
+		var positive func(constraint.Expr)
+		positive = func(e constraint.Expr) {
+			switch e := e.(type) {
+			case *constraint.AndExpr:
+				positive(e.X)
+				positive(e.Y)
+			case *constraint.TagExpr:
+				tags = append(tags, e.Tag)
+			case *constraint.NotExpr:
+			default:
+				t.Fatalf("%s: the constraint %s is not a conjunction of tags and negations", file, expr)
+			}
+		}
+		positive(expr)
+		if !expr.Eval(func(tag string) bool { return slices.Contains(tags, tag) }) {
+			t.Fatalf("%s: the tags %v do not satisfy its own constraint %s", file, tags, expr)
+		}
+		name := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(file), "build_tag_"), "_test.go")
+		flavors[name] = tags
+	}
+	return flavors
 }
 
 func TestStandaloneLeAndZeLeHaveIdenticalSurface(t *testing.T) {
@@ -272,11 +337,6 @@ func internalLeDeps(packages []string) []string {
 		}
 	}
 	return selected
-}
-
-func normalZeTags(t *testing.T, root string) []string {
-	t.Helper()
-	return append([]string{"ze_core", "ze_distro"}, personalityFeatureTags(t, root)...)
 }
 
 // personalityFeatureTags answers the gates a normal ze carries, through
