@@ -374,3 +374,63 @@ func TestCompleterEditOffersTheKeyLeavesOfAMultiLeafKeyAddress(t *testing.T) {
 
 	assert.Empty(t, c.Complete("edit single-hop-session fe80::b interface ", []string{"bfd"}), "the value is due")
 }
+
+// TestEditorMultiLeafKeyAbsentLeafComparesAsItsDefault is the CLI editor
+// route of AC-14 of spec-bfd-link-local-peer-zone. The file parser and
+// SetParser routes are TestMultiLeafKeyAbsentLeafComparesAsItsDefault in
+// internal/component/config.
+//
+// VALIDATES: `vrf default` and an absent `vrf` address one entry; an absent
+// `interface` addresses a different entry from `interface zbl0`; a key value
+// holding a space or an empty one is refused, naming the list and the leaf.
+// PREVENTS: an editor `set` storing an entry under a key the file parser
+// would refuse or read as another entry.
+func TestEditorMultiLeafKeyAbsentLeafComparesAsItsDefault(t *testing.T) {
+	t.Run("vrf absent and vrf default address one entry", func(t *testing.T) {
+		m := newTestModel(t)
+		for _, line := range []string{
+			"bfd single-hop-session fe80::b interface zbl0 profile slow",
+			"bfd single-hop-session fe80::b vrf default interface zbl0 profile fast",
+		} {
+			_, err := m.cmdSet(splitArgs(line))
+			require.NoError(t, err, line)
+		}
+		assert.Equal(t, []string{"fe80::b interface zbl0"}, sessionKeys(t, m.editor))
+		value, _ := sessionEntry(t, m.editor, "fe80::b interface zbl0").Get("profile")
+		assert.Equal(t, "fast", value, "the second set lands on the one entry")
+	})
+
+	t.Run("interface absent differs from interface zbl0", func(t *testing.T) {
+		m := newTestModel(t)
+		for _, line := range []string{
+			"bfd single-hop-session fe80::b profile p",
+			"bfd single-hop-session fe80::b interface zbl0 profile q",
+		} {
+			_, err := m.cmdSet(splitArgs(line))
+			require.NoError(t, err, line)
+		}
+		assert.Equal(t, []string{"fe80::b", "fe80::b interface zbl0"}, sessionKeys(t, m.editor))
+	})
+
+	// The tokens are what the command line tokenizer hands cmdSet for
+	// `interface "zbl 0"` and `vrf ""`.
+	refusals := []struct {
+		name string
+		args []string
+		leaf string
+	}{
+		{"whitespace in a key value", []string{"bfd", "single-hop-session", "fe80::b", "interface", "zbl 0", "profile", "p"}, "interface"},
+		{"empty vrf", []string{"bfd", "single-hop-session", "fe80::b", "interface", "zbl0", "vrf", "", "profile", "p"}, "vrf"},
+		{"empty interface", []string{"bfd", "single-hop-session", "fe80::b", "interface", "", "profile", "p"}, "interface"},
+	}
+	for _, tc := range refusals {
+		t.Run(tc.name, func(t *testing.T) {
+			m := newTestModel(t)
+			_, err := m.cmdSet(tc.args)
+			require.Error(t, err, "accepted %q", tc.args)
+			for _, want := range []string{"single-hop-session", tc.leaf, "cannot be empty or hold a space", "remove the " + tc.leaf + " leaf or give it a value"} {
+				assert.Contains(t, err.Error(), want)
+			}
+		})
+	}
+}

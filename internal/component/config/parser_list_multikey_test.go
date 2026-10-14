@@ -139,6 +139,60 @@ session fe80::b { interface zbl1; }
 			t.Fatalf("re-parsed keys %q, want %q", got, want)
 		}
 	})
+
+	// The SetParser route: a set line addresses an entry, so the two
+	// spellings of one canonical address land on one entry rather than
+	// being refused as a duplicate, and the refusals are the file parser's.
+	t.Run("set form: vrf absent and vrf default address one entry", func(t *testing.T) {
+		tree, err := NewSetParser(schema).Parse(`set session fe80::b interface zbl0 profile slow
+set session fe80::b vrf default interface zbl0 profile fast
+`)
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		want := []string{"fe80::b interface zbl0"}
+		if got := sortedListKeys(tree); !slices.Equal(got, want) {
+			t.Fatalf("keys %q, want %q", got, want)
+		}
+		if v, _ := tree.GetList("session")[want[0]].Get("profile"); v != "fast" {
+			t.Errorf("profile %q, want the second line's fast on the one entry", v)
+		}
+	})
+
+	t.Run("set form: interface absent differs from interface zbl0", func(t *testing.T) {
+		tree, err := NewSetParser(schema).Parse(`set session fe80::b profile p
+set session fe80::b interface zbl0 profile q
+`)
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		want := []string{"fe80::b", "fe80::b interface zbl0"}
+		if got := sortedListKeys(tree); !slices.Equal(got, want) {
+			t.Fatalf("keys %q, want %q", got, want)
+		}
+	})
+
+	setRefusals := []struct {
+		name, text, leaf string
+	}{
+		{"set form: whitespace in a key value", "set session fe80::b interface \"zbl 0\" profile p\n", "interface"},
+		{"set form: empty vrf", "set session fe80::b interface zbl0 vrf \"\" profile p\n", "vrf"},
+		{"set form: empty interface", "set session fe80::b interface \"\" profile p\n", "interface"},
+	}
+	for _, tc := range setRefusals {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewSetParser(schema).Parse(tc.text)
+			if err == nil {
+				t.Fatal("accepted")
+			}
+			msg := err.Error()
+			for _, want := range []string{"session", tc.leaf, "cannot be empty or hold a space", "remove the " + tc.leaf + " leaf or give it a value"} {
+				if !strings.Contains(msg, want) {
+					t.Errorf("error %q does not say %q", msg, want)
+				}
+			}
+		})
+	}
 }
 
 // TestParseListAddressReadsLeftToRight proves the address rule over path
