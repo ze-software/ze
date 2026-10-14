@@ -36,11 +36,16 @@ func fakeZePeer(t *testing.T, ln net.Listener, done chan<- int) {
 	}
 
 	// Send our OPEN.
-	open := BuildOpen(SessionConfig{
+	open, buildErr := BuildOpen(SessionConfig{
 		ASN:      65000,
 		RouterID: netip.MustParseAddr("10.0.0.1"),
 		HoldTime: 90,
 	})
+	if buildErr != nil {
+		t.Logf("fakeZe: building OPEN: %v", buildErr)
+		done <- -1
+		return
+	}
 	data := serializeMessage(open)
 	if _, writeErr := conn.Write(data); writeErr != nil {
 		done <- -1

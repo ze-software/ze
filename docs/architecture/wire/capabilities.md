@@ -44,6 +44,28 @@ All capabilities share a common TLV (Type-Length-Value) format:
 
 ---
 
+## Packing Capabilities into the OPEN
+
+Ze carries all of an OPEN's capabilities in one Capabilities Optional Parameter
+(type 2). `capability.PackOptionalParams` is the one packer: it takes typed
+parameters (a capability list, written in place by each capability's
+`WriteTo`, or raw octets for a parameter given as bytes) and allocates its
+output once.
+
+| Capability total (one parameter) | Optional Parameters field | Encoding |
+|----------------------------------|---------------------------|----------|
+| 0 | none | no parameter |
+| 2 to 253 octets | 2 + total, at most 255 | RFC 4271: one-octet Parameter Length |
+| 254 to 65532 octets | 3 + total, behind the 255/255 envelope | RFC 9072 Section 2: two-octet Parameter Length |
+| 65533 octets and above | none | refused with `ErrOptionalParamsTooLarge`; the OPEN is not built |
+
+The boundary is the whole field, parameter headers included, not the
+capability total: RFC 9072 Section 2 switches encodings when "the length of the
+Optional Parameters in the BGP OPEN message does exceed 255". The decoder,
+`ParseFromOptionalParams`, reads both framings.
+
+<!-- source: internal/core/bgp/capability/optional_params.go -- PackOptionalParams -->
+
 ## Capability Codes
 
 | Code | Hex | Name | RFC | Length | Ze handling |

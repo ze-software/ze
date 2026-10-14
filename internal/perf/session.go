@@ -53,8 +53,10 @@ func lookupPerfFamily(name string) (family.Family, bool) {
 }
 
 // BuildOpen constructs a serialized BGP OPEN message with capabilities:
-// ASN4, Multiprotocol (for the configured family), and RouteRefresh.
-func BuildOpen(cfg SessionConfig) []byte {
+// ASN4, Multiprotocol (for the configured family), and RouteRefresh, in one
+// Capabilities parameter packed by capability.PackOptionalParams, whose size
+// error it returns.
+func BuildOpen(cfg SessionConfig) ([]byte, error) {
 	fam := cfg.Family
 	if fam == "" {
 		fam = family.IPv4Unicast.String()
@@ -71,7 +73,12 @@ func BuildOpen(cfg SessionConfig) []byte {
 
 	caps = append(caps, &capability.ASN4{ASN: cfg.ASN}, &capability.RouteRefresh{})
 
-	optParams := packOptionalParams(caps)
+	// One Capabilities parameter for every capability, framed by the one packer.
+	// RFC 9072 Section 2
+	optParams, extended, err := capability.PackOptionalParams([]capability.OptionalParam{capability.CapabilitiesParam(caps)})
+	if err != nil {
+		return nil, fmt.Errorf("perf OPEN: %w", err)
+	}
 
 	myAS := uint16(cfg.ASN) //nolint:gosec // Truncation intended for AS_TRANS
 	if cfg.ASN > 65535 {
@@ -87,35 +94,10 @@ func BuildOpen(cfg SessionConfig) []byte {
 		BGPIdentifier:  binary.BigEndian.Uint32(rid[:]),
 		ASN4:           cfg.ASN,
 		OptionalParams: optParams,
+		ExtendedParams: extended,
 	}
 
-	return serializeMsg(open)
-}
-
-// packOptionalParams builds optional parameters from capabilities.
-// Each capability is wrapped in its own parameter (type 2) per RFC 5492.
-func packOptionalParams(caps []capability.Capability) []byte {
-	if len(caps) == 0 {
-		return nil
-	}
-
-	total := 0
-	for _, c := range caps {
-		total += 2 + c.Len() // param type (1) + param length (1) + cap TLV
-	}
-
-	buf := make([]byte, total)
-	off := 0
-
-	for _, c := range caps {
-		capLen := c.Len()
-		buf[off] = 2              // Parameter type: Capabilities (RFC 5492)
-		buf[off+1] = byte(capLen) //nolint:gosec // Capability TLVs are always <256 bytes
-		off += 2
-		off += c.WriteTo(buf, off)
-	}
-
-	return buf
+	return serializeMsg(open), nil
 }
 
 // buildKeepalive constructs a serialized BGP KEEPALIVE message (19 bytes).
@@ -284,7 +266,11 @@ func WriteMessage(conn net.Conn, msg []byte) error {
 func doHandshake(conn net.Conn, cfg SessionConfig) (time.Duration, error) {
 	start := time.Now()
 
-	if err := WriteMessage(conn, BuildOpen(cfg)); err != nil {
+	open, err := BuildOpen(cfg)
+	if err != nil {
+		return 0, err
+	}
+	if err := WriteMessage(conn, open); err != nil {
 		return 0, fmt.Errorf("sending OPEN: %w", err)
 	}
 

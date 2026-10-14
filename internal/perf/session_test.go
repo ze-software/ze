@@ -8,8 +8,20 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
+
+// mustBuildOpen builds the perf sender's OPEN and fails the test on the
+// packer's error.
+func mustBuildOpen(t testing.TB, cfg SessionConfig) []byte {
+	t.Helper()
+	data, err := BuildOpen(cfg)
+	if err != nil {
+		t.Fatalf("BuildOpen: %v", err)
+	}
+	return data
+}
 
 func TestBuildOpen(t *testing.T) {
 	t.Parallel()
@@ -21,7 +33,7 @@ func TestBuildOpen(t *testing.T) {
 		Family:   "ipv4/unicast",
 	}
 
-	data := BuildOpen(cfg)
+	data := mustBuildOpen(t, cfg)
 
 	// Minimum OPEN is 29 bytes (header 19 + body 10).
 	// With capabilities it must be larger.
@@ -52,7 +64,7 @@ func TestBuildOpenIPv6(t *testing.T) {
 		Family:   "ipv6/unicast",
 	}
 
-	data := BuildOpen(cfg)
+	data := mustBuildOpen(t, cfg)
 
 	// Must contain a multiprotocol capability with AFI=2 (IPv6).
 	// Walk optional parameters to find it.
@@ -368,5 +380,32 @@ func TestBuildCeaseNotification(t *testing.T) {
 	// Error subcode at offset 20 must be 2 (Administrative Shutdown).
 	if data[20] != 2 {
 		t.Fatalf("error subcode: got %d, want 2 (Administrative Shutdown)", data[20])
+	}
+}
+
+// TestPerfOpenUsesOnePacker proves AC-1q for the perf sender: its OPEN carries
+// one Capabilities parameter from capability.PackOptionalParams and
+// round-trips through the one decoder.
+//
+// VALIDATES: one type-2 parameter holding Multiprotocol, ASN4 and Route
+// Refresh, decoded by message.UnpackOpen and capability.ParseFromOptionalParams.
+// PREVENTS: a second packer in the perf sender.
+func TestPerfOpenUsesOnePacker(t *testing.T) {
+	t.Parallel()
+
+	data := mustBuildOpen(t, SessionConfig{ASN: 65001, RouterID: netip.MustParseAddr("1.1.1.1"), HoldTime: 90})
+	open, err := message.UnpackOpen(data[message.HeaderLen:])
+	if err != nil {
+		t.Fatalf("UnpackOpen: %v", err)
+	}
+	if open.OptionalParams[0] != 2 || int(open.OptionalParams[1]) != len(open.OptionalParams)-2 {
+		t.Fatalf("parameters = % x, want one type-2 parameter", open.OptionalParams)
+	}
+	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
+	if err != nil {
+		t.Fatalf("ParseFromOptionalParams: %v", err)
+	}
+	if len(caps) != 3 {
+		t.Fatalf("decoded %d capabilities, want 3", len(caps))
 	}
 }

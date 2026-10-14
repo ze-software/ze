@@ -87,7 +87,7 @@ func TestMRTMigrationEpochUsesActualLocalOPEN(t *testing.T) {
 	s, client, localOpen := connect()
 	require.Equal(t, uint16(migrationLegacyAS), uint16(localOpen[20])<<8|uint16(localOpen[21]))
 	caps := []capability.Capability{&capability.ASN4{ASN: migrationLocalAS}, &capability.Multiprotocol{AFI: 1, SAFI: 1}, &capability.Multiprotocol{AFI: 2, SAFI: 1}, &capability.AddPath{Families: []capability.AddPathFamily{{AFI: 1, SAFI: 1, Mode: capability.AddPathReceive}, {AFI: 2, SAFI: 1, Mode: capability.AddPathSend}}}}
-	params, extended := buildOptionalParams(caps)
+	params, extended := packPeerOptionalParams(t, caps)
 	remoteOpen := message.PackTo(&message.Open{Version: 4, MyAS: migrationLocalAS, ASN4: migrationLocalAS, HoldTime: 90, BGPIdentifier: 0x0a000001, OptionalParams: params, ExtendedParams: extended}, nil)
 	_, err = client.Write(remoteOpen)
 	require.NoError(t, err)

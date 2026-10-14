@@ -152,7 +152,7 @@
       "claim-sha": "6ac62c7e130db953",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
-      "producer-sha": "ba1931134eb7f3c9",
+      "producer-sha": "81084a84390d2e32",
       "break": "body of buildOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +163,7 @@
       "claim-sha": "3346812a7f83cf2d",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
-      "producer-sha": "ba1931134eb7f3c9",
+      "producer-sha": "81084a84390d2e32",
       "break": "body of buildOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

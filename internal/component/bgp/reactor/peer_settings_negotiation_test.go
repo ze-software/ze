@@ -56,7 +56,7 @@ func establishNegotiatedSession(t *testing.T, p *Peer, peerCaps ...capability.Ca
 	open, err := s.buildOpen(p.settings, p.settings.Capabilities)
 	require.NoError(t, err)
 	s.localOpen = open
-	peerParams, peerExtended := buildOptionalParams(peerCaps)
+	peerParams, peerExtended := packPeerOptionalParams(t, peerCaps)
 	s.peerOpen = &message.Open{
 		Version:        4,
 		MyAS:           uint16(p.settings.PeerAS), //nolint:gosec // test ASN is 65002

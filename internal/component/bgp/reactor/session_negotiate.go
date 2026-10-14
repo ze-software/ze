@@ -7,7 +7,6 @@ package reactor
 import (
 	"encoding/binary"
 	"fmt"
-	"log/slog"
 	"net"
 	"time"
 
@@ -263,8 +262,17 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 		return nil, err
 	}
 
-	// Build optional parameters (capabilities).
-	optParams, extendedParams := buildOptionalParams(caps)
+	// Every capability rides in one type-2 parameter; the packer chooses the
+	// framing from the whole field length.
+	// RFC 9072 Section 2
+	var params []capability.OptionalParam
+	if len(caps) > 0 {
+		params = []capability.OptionalParam{capability.CapabilitiesParam(caps)}
+	}
+	optParams, extendedParams, err := capability.PackOptionalParams(params)
+	if err != nil {
+		return nil, fmt.Errorf("build OPEN: %w", err)
+	}
 
 	// Determine AS to put in header (AS_TRANS if > 65535).
 	//
@@ -347,65 +355,3 @@ func coalescePathsLimit(caps []capability.Capability) ([]capability.Capability, 
 	}
 	return caps[:count], nil
 }
-
-// buildOptionalParams packs capabilities into a single type-2 optional
-// parameter, and reports whether it used the RFC 9072 Section 2 framing.
-//
-// RFC 5492 Section 4 carries capabilities in a type-2 optional parameter. Its
-// Parameter Length is one octet, so RFC 4271 framing holds at most 255 octets of
-// capabilities. RFC 9072 Section 2 extends that field to two octets, and one
-// parameter then holds every capability ze can send.
-//
-// The returned flag is the second half of a decision the encoder makes: Open.
-// WriteTo chooses the ENVELOPE from the total length, and this chooses the
-// framing of the parameters inside it. They are in different packages, and when
-// they disagreed ze wrapped one-octet parameters in an extended envelope. A peer
-// reading it per RFC 9072 takes the first parameter's type and the high half of
-// its length as a two-octet length, and misframes every parameter after it. It
-// went unnoticed because ze read back what ze wrote.
-//
-// Splitting across several parameters is gone with it. It existed only to keep
-// each length under 256, which the extended framing makes unnecessary, and a
-// split cannot be expressed at all once one parameter can hold everything.
-func buildOptionalParams(caps []capability.Capability) ([]byte, bool) {
-	if len(caps) == 0 {
-		return nil, false
-	}
-
-	capTotal := 0
-	for _, c := range caps {
-		capTotal += c.Len()
-	}
-
-	if capTotal <= 255 {
-		buf := make([]byte, 2+capTotal)
-		buf[0] = 2
-		buf[1] = byte(capTotal) //nolint:gosec // guarded by <= 255 check above
-		off := 2
-		for _, c := range caps {
-			off += c.WriteTo(buf, off)
-		}
-		return buf, false
-	}
-
-	// RFC 9072 Section 2: one type-2 parameter with a two-octet Parameter Length.
-	if capTotal > maxExtendedParamLen {
-		slog.Error("capabilities exceed the RFC 9072 two-octet parameter length, truncating",
-			"bytes", capTotal, "limit", maxExtendedParamLen)
-		return nil, false
-	}
-
-	buf := make([]byte, 3+capTotal)
-	buf[0] = 2
-	binary.BigEndian.PutUint16(buf[1:3], uint16(capTotal)) //nolint:gosec // bounded above
-	off := 3
-	for _, c := range caps {
-		off += c.WriteTo(buf, off)
-	}
-
-	return buf, true
-}
-
-// maxExtendedParamLen is the largest value the RFC 9072 Section 2 two-octet
-// Parameter Length field can carry.
-const maxExtendedParamLen = 65535

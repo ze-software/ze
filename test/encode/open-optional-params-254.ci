@@ -1,0 +1,58 @@
+# Test: an OPEN whose capabilities total 254 octets uses the RFC 9072 encoding
+# VALIDATES: 254 octets of capabilities give Optional Parameters of 256 octets, so
+#   ze writes the RFC 9072 Section 2 form throughout: Non-Ext OP Len 255, Non-Ext
+#   OP Type 255, Extended Opt. Parm. Length 0x0101 (257 = 3 + 254), and one
+#   type-2 parameter with the two-octet Parameter Length 0x00FE (254).
+# PREVENTS: D1, a one-octet Parameter Length (02 FE) inside the extended envelope,
+#   which a conformant receiver misframes.
+#
+# Capabilities (254 octets): MP ipv4/unicast (6), ASN4 65533 (6), FQDN (242):
+#   code 49, length F2, host length 78 (120 x "h"), domain length 76 (118 x "d").
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=open:value=inspect-open-message
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF01210104FFFD00B40A000002FFFF01010200FE01040001000141040000FFFD49F0786868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868686868687664646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464646464
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	group default {
+		peer peer1 {
+			connection {
+				remote {
+					ip 127.0.0.1
+				}
+				local {
+					ip 127.0.0.1
+					accept false
+				}
+			}
+			session {
+				asn {
+					local 65533
+					remote 65533
+				}
+				router-id 10.0.0.2
+				family {
+					ipv4/unicast { prefix { maximum 10000; } }
+				}
+				capability {
+					hostname {
+						host hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+						domain dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+					}
+				}
+			}
+			timer {
+				receive-hold-time 180
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-hostname -:stdin=ze-bgp:timeout=10s

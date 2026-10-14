@@ -197,7 +197,11 @@ func (f *testForwarder) doHandshake(conn net.Conn) error {
 	}
 
 	// Send our OPEN.
-	if err := WriteMessage(conn, BuildOpen(forwarderSessionConfig)); err != nil {
+	open, err := BuildOpen(forwarderSessionConfig)
+	if err != nil {
+		return err
+	}
+	if err := WriteMessage(conn, open); err != nil {
 		return fmt.Errorf("sending OPEN: %w", err)
 	}
 
@@ -397,7 +401,11 @@ func (f *testSinkForwarder) doHandshake(conn net.Conn) error {
 		return fmt.Errorf("expected OPEN, got type %d", msgType)
 	}
 
-	if err := WriteMessage(conn, BuildOpen(forwarderSessionConfig)); err != nil {
+	open, err := BuildOpen(forwarderSessionConfig)
+	if err != nil {
+		return err
+	}
+	if err := WriteMessage(conn, open); err != nil {
 		return fmt.Errorf("sending OPEN: %w", err)
 	}
 

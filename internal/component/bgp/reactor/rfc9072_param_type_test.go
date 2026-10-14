@@ -42,7 +42,7 @@ func rfc9072ParamTypes(t *testing.T, params []byte, extended bool) (types []byte
 // TestRFC9072ParameterType255OnlyAsTheExtendedMarker proves that Ze uses
 // Optional Parameter type 255 only as the RFC 9072 envelope marker.
 //
-// VALIDATES: the Optional Parameters buildOptionalParams produces, below and
+// VALIDATES: the Optional Parameters capability.PackOptionalParams produces, below and
 // above 255 octets, are written by the OPEN encoder as parameters of type 2
 // only; 255 appears only as the Non-Ext OP Type of the extended envelope, and
 // only when the parameters exceed 255 octets.
@@ -64,7 +64,7 @@ func TestRFC9072ParameterType255OnlyAsTheExtendedMarker(t *testing.T) {
 		&capability.ASN4{ASN: 0xFFFFFFFF},
 		&capability.Multiprotocol{AFI: capability.AFI(0xFFFF), SAFI: capability.SAFI(0xFF)},
 	}
-	params, extended := buildOptionalParams(small)
+	params, extended := packPeerOptionalParams(t, small)
 	types, envelope := rfc9072ParamTypes(t, params, extended)
 	require.False(t, envelope, "parameters of 255 octets or fewer take the classic encoding")
 	require.Equal(t, []byte{2}, types)
@@ -74,7 +74,7 @@ func TestRFC9072ParameterType255OnlyAsTheExtendedMarker(t *testing.T) {
 		large = append(large, &capability.Multiprotocol{AFI: capability.AFI(0xFFFF), SAFI: capability.SAFI(0xFF)})
 	}
 	large = append(large, &capability.ASN4{ASN: 0xFFFFFFFF})
-	params, extended = buildOptionalParams(large)
+	params, extended = packPeerOptionalParams(t, large)
 	require.Greater(t, len(params), 255)
 	types, envelope = rfc9072ParamTypes(t, params, extended)
 	require.True(t, envelope, "parameters above 255 octets take the extended envelope")

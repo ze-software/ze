@@ -108,6 +108,16 @@ each parameter carries a two-octet Parameter Length. The body ahead of the
 parameters is then 13 octets instead of 10, and the message ends with the last
 parameter.
 
+Every OPEN writer builds its Optional Parameters through one packer,
+`capability.PackOptionalParams`, which chooses the framing from the whole
+field: the base form while the sum over parameters of 2 + value length is at
+most 255, so a single Capabilities parameter stays in the base form up to 253
+octets of capabilities and switches from 254. It returns the extended flag the
+`Open` stores, so the envelope and the parameters agree, and it refuses
+parameters whose Extended Opt. Parm. Length would exceed 65535 (one parameter
+above 65532 octets of capabilities) rather than send an OPEN missing them.
+
+<!-- source: internal/core/bgp/capability/optional_params.go -- PackOptionalParams -->
 <!-- source: internal/component/bgp/message/open.go -- Open struct -->
 <!-- source: internal/component/bgp/message/open.go -- writeToExtended -->
 

@@ -45,7 +45,7 @@ func firstASSession(t *testing.T, settings *PeerSettings, peerCaps, pluginCaps [
 	}
 	startSession(t, s)
 	readOpen(t, s, server, client)
-	params, extended := buildOptionalParams(peerCaps)
+	params, extended := packPeerOptionalParams(t, peerCaps)
 	open := &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: 0, BGPIdentifier: 0x02020302,
 		OptionalParams: params, ExtendedParams: extended,

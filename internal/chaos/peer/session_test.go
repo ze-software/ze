@@ -9,7 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
+
+// mustBuildOpen builds the chaos peer's OPEN and fails the test on the
+// packer's error.
+func mustBuildOpen(t testing.TB, cfg SessionConfig) *message.Open {
+	t.Helper()
+	open, err := BuildOpen(cfg)
+	require.NoError(t, err)
+	return open
+}
 
 // TestOpenMessageBuild verifies that BuildOpen produces a valid OPEN
 // message with correct ASN, capabilities, and router ID.
@@ -23,7 +33,7 @@ func TestOpenMessageBuild(t *testing.T) {
 		HoldTime: 90,
 	}
 
-	open := BuildOpen(cfg)
+	open := mustBuildOpen(t, cfg)
 
 	assert.Equal(t, uint8(4), open.Version)
 	assert.Equal(t, uint16(65001), open.MyAS)
@@ -48,7 +58,7 @@ func TestOpenMessageASN4Large(t *testing.T) {
 		HoldTime: 90,
 	}
 
-	open := BuildOpen(cfg)
+	open := mustBuildOpen(t, cfg)
 
 	assert.Equal(t, uint16(message.AS_TRANS), open.MyAS)
 	assert.Equal(t, uint32(200000), open.ASN4)
@@ -65,7 +75,7 @@ func TestOpenMessageWriteTo(t *testing.T) {
 		HoldTime: 90,
 	}
 
-	open := BuildOpen(cfg)
+	open := mustBuildOpen(t, cfg)
 	buf := make([]byte, open.Len(nil))
 	n := open.WriteTo(buf, 0, nil)
 
@@ -135,7 +145,7 @@ func TestOpenMultiFamily(t *testing.T) {
 		Families: []string{"ipv4/unicast", "ipv6/unicast", "l2vpn/evpn"},
 	}
 
-	open := BuildOpen(cfg)
+	open := mustBuildOpen(t, cfg)
 
 	// Serialized OPEN should be larger than one with just ipv4/unicast.
 	singleCfg := SessionConfig{
@@ -143,7 +153,7 @@ func TestOpenMultiFamily(t *testing.T) {
 		RouterID: netip.MustParseAddr("10.255.0.1"),
 		HoldTime: 90,
 	}
-	singleOpen := BuildOpen(singleCfg)
+	singleOpen := mustBuildOpen(t, singleCfg)
 
 	assert.Greater(t, len(open.OptionalParams), len(singleOpen.OptionalParams),
 		"multi-family OPEN should have more capability bytes")
@@ -159,14 +169,43 @@ func TestOpenMultiFamily(t *testing.T) {
 // VALIDATES: Backward compatibility when Families is nil.
 // PREVENTS: Empty OPEN when no families specified.
 func TestOpenDefaultFamily(t *testing.T) {
-	withFamilies := BuildOpen(SessionConfig{
+	withFamilies := mustBuildOpen(t, SessionConfig{
 		ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), HoldTime: 90,
 		Families: []string{"ipv4/unicast"},
 	})
-	withoutFamilies := BuildOpen(SessionConfig{
+	withoutFamilies := mustBuildOpen(t, SessionConfig{
 		ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), HoldTime: 90,
 	})
 
 	assert.Equal(t, len(withFamilies.OptionalParams), len(withoutFamilies.OptionalParams),
 		"nil families should produce same OPEN as explicit ipv4/unicast")
+}
+
+// TestChaosPeerOpenRoundTripsAbove255 proves AC-1b: the chaos peer's OPEN,
+// with capabilities past 255 octets of Optional Parameters, decodes with every
+// capability intact.
+//
+// VALIDATES: BuildOpen reaches capability.PackOptionalParams, so the one
+// Capabilities parameter uses the RFC 9072 two-octet Parameter Length whenever
+// the envelope is extended.
+// PREVENTS: one-octet parameters wrapped in the extended envelope, which a
+// conformant receiver misframes.
+//
+// Method: 50 repetitions of one family give 50 Multiprotocol capabilities (300
+// octets); the OPEN is written, decoded by message.UnpackOpen and
+// capability.ParseFromOptionalParams, and the capability count compared.
+func TestChaosPeerOpenRoundTripsAbove255(t *testing.T) {
+	families := make([]string, 50)
+	for i := range families {
+		families[i] = "ipv4/unicast"
+	}
+	open := mustBuildOpen(t, SessionConfig{ASN: 65001, RouterID: netip.MustParseAddr("10.0.0.1"), HoldTime: 90, Families: families})
+	require.True(t, open.ExtendedParams, "above 255 octets the parameters use the RFC 9072 framing")
+
+	wire := message.PackTo(open, nil)
+	decoded, err := message.UnpackOpen(wire[message.HeaderLen:])
+	require.NoError(t, err)
+	caps, err := capability.ParseFromOptionalParams(decoded.OptionalParams, decoded.ExtendedParams)
+	require.NoError(t, err)
+	require.Len(t, caps, 52, "50 Multiprotocol, ASN4 and Route Refresh")
 }

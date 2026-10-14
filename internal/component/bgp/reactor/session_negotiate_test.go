@@ -191,7 +191,7 @@ func TestOpenAdvertisesVPNv6Capability(t *testing.T) {
 	require.NoError(t, err)
 
 	// sendOpen encodes settings.Capabilities into the OPEN's optional params.
-	params, extended := buildOptionalParams(ps.Capabilities)
+	params, extended := packPeerOptionalParams(t, ps.Capabilities)
 	open := &message.Open{Version: 4, OptionalParams: params, ExtendedParams: extended}
 	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
 	require.NoError(t, err)
@@ -235,47 +235,17 @@ func TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability(t *testing.T) {
 		"VPNv6 must not be active when the peer did not negotiate AFI=2/SAFI=128")
 }
 
-// TestBuildOptionalParams_Empty verifies nil return for no capabilities.
-func TestBuildOptionalParams_Empty(t *testing.T) {
-	result, _ := buildOptionalParams(nil)
-	assert.Nil(t, result)
-}
-
-// TestBuildOptionalParams_SingleCap verifies correct TLV encoding for one capability.
-func TestBuildOptionalParams_SingleCap(t *testing.T) {
-	caps := []capability.Capability{
-		&capability.ASN4{ASN: 65001},
+// packPeerOptionalParams packs a peer's capabilities into one type-2
+// Optional Parameter through the one packer, as a peer's OPEN carries them.
+// No capabilities give no parameter, as Session.buildOpen sends none.
+func packPeerOptionalParams(t testing.TB, caps []capability.Capability) ([]byte, bool) {
+	t.Helper()
+	if len(caps) == 0 {
+		return nil, false
 	}
-
-	result, _ := buildOptionalParams(caps)
-	require.NotNil(t, result)
-
-	// Param type=2, param length=6 (ASN4: code=65, len=4, data=4 bytes)
-	assert.Equal(t, byte(2), result[0], "param type")
-	assert.Equal(t, byte(6), result[1], "param length")
-	assert.Equal(t, byte(65), result[2], "cap code = ASN4")
-	assert.Equal(t, byte(4), result[3], "cap length")
-}
-
-// TestBuildOptionalParams_MultipleCaps verifies bundled encoding (RFC 5492 §4).
-// All capabilities are packed in a single type-2 parameter.
-func TestBuildOptionalParams_MultipleCaps(t *testing.T) {
-	caps := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
-		&capability.ASN4{ASN: 65001},
-	}
-
-	result, _ := buildOptionalParams(caps)
-	require.NotNil(t, result)
-
-	// Single type-2 param wrapping both capabilities.
-	// MP: code=1, len=4, data=4 bytes (6 total)
-	// ASN4: code=65, len=4, data=4 bytes (6 total)
-	// Param: type=2, len=12, then 12 bytes of capability TLVs.
-	assert.Equal(t, byte(2), result[0], "param type")
-	assert.Equal(t, byte(12), result[1], "param length = 6+6")
-	assert.Equal(t, byte(1), result[2], "first cap code = Multiprotocol")
-	assert.Equal(t, byte(65), result[8], "second cap code = ASN4")
+	params, extended, err := capability.PackOptionalParams([]capability.OptionalParam{capability.CapabilitiesParam(caps)})
+	require.NoError(t, err)
+	return params, extended
 }
 
 // newNoFamilySession returns a Session whose settings declare no capability at

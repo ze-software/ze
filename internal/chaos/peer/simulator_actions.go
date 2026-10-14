@@ -220,7 +220,12 @@ func executeReconnectStorm(ctx context.Context, addr string, p SimProfile, diale
 		}
 
 		// Minimal OPEN/KEEPALIVE handshake.
-		open := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime, Families: p.Families})
+		open, buildErr := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime, Families: p.Families})
+		if buildErr != nil {
+			stormConn.Close() //nolint:errcheck,gosec // closing the connection the OPEN could not be built for
+			emit(Event{Type: EventError, Err: fmt.Errorf("storm OPEN: %w", buildErr)})
+			break
+		}
 		if writeErr := writeMsg(stormConn, open); writeErr != nil {
 			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
 			break
@@ -266,7 +271,12 @@ func executeConnectionCollision(ctx context.Context, addr string, p SimProfile, 
 	}
 
 	// Send OPEN with the same RouterID to trigger collision detection.
-	open := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime, Families: p.Families})
+	open, buildErr := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime, Families: p.Families})
+	if buildErr != nil {
+		collisionConn.Close() //nolint:errcheck,gosec // closing the connection the OPEN could not be built for
+		emit(Event{Type: EventError, Err: fmt.Errorf("collision OPEN: %w", buildErr)})
+		return
+	}
 	if writeErr := writeMsg(collisionConn, open); writeErr != nil {
 		collisionConn.Close() //nolint:errcheck,gosec // closing failed connection
 		return

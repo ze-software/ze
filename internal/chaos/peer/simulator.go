@@ -217,12 +217,16 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		}
 	}
 
-	open := BuildOpen(SessionConfig{
+	open, err := BuildOpen(SessionConfig{
 		ASN:      p.ASN,
 		RouterID: p.RouterID,
 		HoldTime: p.HoldTime,
 		Families: p.Families,
 	})
+	if err != nil {
+		emit(Event{Type: EventError, Err: fmt.Errorf("building OPEN: %w", err)})
+		return
+	}
 	if writeErr := writeMsg(conn, open); writeErr != nil {
 		emit(Event{Type: EventError, Err: fmt.Errorf("sending OPEN: %w", writeErr)})
 		return

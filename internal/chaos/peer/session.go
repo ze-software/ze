@@ -7,6 +7,7 @@ package peer
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -36,7 +37,11 @@ type SessionConfig struct {
 // Family names are resolved via family.LookupFamily; unregistered names are
 // silently skipped (matching the previous behavior when the hardcoded lookup
 // table did not cover the entry).
-func BuildOpen(cfg SessionConfig) *message.Open {
+//
+// Every capability rides in one Capabilities parameter through
+// capability.PackOptionalParams, so the parameters use the RFC 9072 framing
+// whenever the envelope is extended; its size error is returned.
+func BuildOpen(cfg SessionConfig) (*message.Open, error) {
 	families := cfg.Families
 	if len(families) == 0 {
 		families = []string{"ipv4/unicast"}
@@ -55,7 +60,12 @@ func BuildOpen(cfg SessionConfig) *message.Open {
 	}
 	caps = append(caps, &capability.ASN4{ASN: cfg.ASN}, &capability.RouteRefresh{})
 
-	optParams := buildOptionalParams(caps)
+	// One Capabilities parameter for every capability, framed by the one packer.
+	// RFC 9072 Section 2
+	optParams, extended, err := capability.PackOptionalParams([]capability.OptionalParam{capability.CapabilitiesParam(caps)})
+	if err != nil {
+		return nil, fmt.Errorf("chaos OPEN: %w", err)
+	}
 
 	myAS := uint16(cfg.ASN) //nolint:gosec // Truncation intended for AS_TRANS
 	if cfg.ASN > 65535 {
@@ -71,33 +81,8 @@ func BuildOpen(cfg SessionConfig) *message.Open {
 		BGPIdentifier:  binary.BigEndian.Uint32(rid[:]),
 		ASN4:           cfg.ASN,
 		OptionalParams: optParams,
-	}
-}
-
-// buildOptionalParams builds optional parameters from capabilities.
-// Each capability is wrapped in its own parameter (type 2) per RFC 5492.
-func buildOptionalParams(caps []capability.Capability) []byte {
-	if len(caps) == 0 {
-		return nil
-	}
-
-	total := 0
-	for _, c := range caps {
-		total += 2 + c.Len() // param type (1) + param length (1) + cap TLV
-	}
-
-	buf := make([]byte, total)
-	off := 0
-
-	for _, c := range caps {
-		capLen := c.Len()
-		buf[off] = 2              // Parameter type: Capabilities (RFC 5492)
-		buf[off+1] = byte(capLen) //nolint:gosec // Capability TLVs are always <256 bytes
-		off += 2
-		off += c.WriteTo(buf, off)
-	}
-
-	return buf
+		ExtendedParams: extended,
+	}, nil
 }
 
 // BuildCeaseNotification creates a NOTIFICATION message for clean shutdown.

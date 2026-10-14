@@ -110,6 +110,17 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::validateUpdateFamilies",
       "producer-sha": "182720c5a9566e8f",
       "break": "body of validateUpdateFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestOpenAdvertisesVPNv6Capability",
+      "unit-sha": "78d84b51fb9fbe5d",
+      "claim-sha": "1974911124eafd41",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/config.go::parsePeerFromTree",
+      "producer-sha": "2da70d4b66fff4a1",
+      "break": "body of parsePeerFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -177,7 +177,7 @@ func (o *Open) writeToExtended(buf []byte, off int) int {
 	buf[bodyOff+9] = ExtendedParamMarker  // Non-Ext OP Len = 255
 	buf[bodyOff+10] = ExtendedParamMarker // Non-Ext OP Type = 255
 	// Extended Length
-	binary.BigEndian.PutUint16(buf[bodyOff+11:], uint16(optLen)) //nolint:gosec // optLen validated ≤ maxOptLen (65535)
+	binary.BigEndian.PutUint16(buf[bodyOff+11:], uint16(optLen)) //nolint:gosec // G115: capability.PackOptionalParams refuses optLen above 65535
 	// Optional Parameters
 	copy(buf[bodyOff+13:], o.OptionalParams)
 
