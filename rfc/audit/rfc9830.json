@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-09",
+  "audited": "2026-10-14",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -980,28 +980,30 @@
       "verdict": "enforced"
     },
     "RFC9830-4.2.1-2": {
-      "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRICarriesAllThreeFields. WEAK: the sentence is a receive-validation rule (Section 4.2.1 'When a BGP speaker receives'). The tagged unit proves the encoder writes Distinguisher, Color and Endpoint at their offsets and that Parse (require.ErrorIs ErrSRPolicyTruncated) and parseConfigRoute (errSRPolicyMissingFields) refuse a body or config missing one, but the session receive path splits with SplitSRPolicy (split.go), which accepts any byte-aligned length, so a received body lacking the Endpoint is carried; no tagged unit drives a received UPDATE, and no assertion goes red on a receiver that accepts it.",
+      "code": {},
+      "note": "Re-judged 2026-10-14 (independent auditor). RFC 9830 Section 4.2.1: 'The SR Policy NLRI MUST include a distinguisher, Color, and Endpoint field that implies that the length of the NLRI MUST be either 12 or 24 octets'. The tags now sit on reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts, which drives received UPDATEs through processMessage on an Established session with and without ADD-PATH. Positive: 12 octets under AFI 1 and 24 under AFI 2 are accepted with no write and dispatched byte-identical (srRequireKept). Negative: 13 and 24 octets under AFI 1, 12 and 25 under AFI 2, and a 13-octet NLRI beside a good one are treat-as-withdraw: session Established, nothing written, the received body never dispatched (srRequireWithdrawn). Producer: srpolicy/split.go srPolicySyntaxRule/judgeSRPolicySection with nlriBitsIPv4/IPv6. A receiver that accepted any byte-aligned length (the earlier weak finding) goes red on the negative. The NLRI that lacks only the IPv6 endpoint's tail (12 octets under AFI 2) is the missing-field case.",
       "requirement_sha": "6c8518fcdfb5abb9",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRICarriesAllThreeFields": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRICarriesAllThreeFields#2": "f1e61f246e4da117"
+        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "8c78e6e4c280da80",
+        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts#2": "8c78e6e4c280da80"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRICarriesAllThreeFields": "f7afdea61c0e1b8a",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRICarriesAllThreeFields#2": "f7afdea61c0e1b8a"
+        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "e35a6b064fb4e240",
+        "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts#2": "e35a6b064fb4e240"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-4.2.1-7": {
-      "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830TunnelTypeIsSRPolicy. WEAK: the sentence is a receive-validation rule. The tagged unit proves only that ze's own encoder wraps the sub-TLVs in a Tunnel Type 15 TLV (assert.Equal([]byte{0x00,0x0F}, value[0:2])); nothing checks a received SR Policy update for a type-15 TLV or for the attribute at all (attribute 23 has no validator, per the RFC9830-4.2.1-8 gap). The negative is conditional: when ParseTunnelEncap errors on the bare payload it asserts nothing.",
+      "code": {},
+      "note": "Re-judged 2026-10-14 (independent auditor). RFC 9830 Section 4.2.1: 'The Tunnel Encapsulation Attribute MUST be attached to the BGP UPDATE message and MUST have a Tunnel Type TLV set to SR Policy (code point is 15).' Tags sit on reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed. The negative proves only the first clause: an AFI 1/2 SAFI 73 UPDATE with NLRI and no attribute 23 is treat-as-withdraw through processMessage (applyTunnelEncap, !TunnelEncapPresent branch). The second clause, the one that distinguishes this row from RFC9830-4.2.1-6, has no failing assertion in the tagged unit: no case sends attribute 23 whose only TLV is a non-15 tunnel type, and the positive (one type-15 TLV accepted) also passes if the policy-SAFI type-15 check in applyTunnelEncap ('non-SR-Policy tunnel type on SAFI 73') is removed. The producer enforces it; this row's tests do not prove it.",
       "requirement_sha": "fcd09105784bc7cb",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830TunnelTypeIsSRPolicy": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830TunnelTypeIsSRPolicy#2": "f1e61f246e4da117"
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed": "ac5740422f61d1f1",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed#2": "ac5740422f61d1f1"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830TunnelTypeIsSRPolicy": "a1eb44bfdbd41cce",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830TunnelTypeIsSRPolicy#2": "a1eb44bfdbd41cce"
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed": "8c73fca37bd87675",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed#2": "8c73fca37bd87675"
       },
       "verdict": "weak"
     },
