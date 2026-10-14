@@ -570,6 +570,67 @@ var scenarioOperations = map[string][]operation{
 	"bgp-rfc7606-speaker-dup-attr": {
 		{kind: opWaitLogFields, peer: peerSpeaker, timeout: 120 * time.Second, fields: map[string]string{fieldEstablished: logValueYes, "result": speakerResultPass}, minimum: map[string]int{"route-bearing-updates": 1}},
 	},
+	// RFC 4271 Section 4.3, judged by GoBGP. The injector sends attribute 241
+	// flagged 0xCF; GoBGP's JSON prints the flags octet of an unrecognized
+	// attribute, and 224 (0xE0) is Optional, Transitive and the Partial bit
+	// RFC 4271 Section 5 stamps, with the low nibble cleared. 239 (0xEF) is the
+	// same octet with the nibble left set. The GoBGP-originated 10.20.0.0/24 is
+	// the injector's barrier: Ze relays it there once the GoBGP session is up.
+	"bgp-attr-flags-low-nibble-gobgp": {
+		{kind: opGoBGPSession, argument: zeLabAddress},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.0.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
+		{kind: opGoBGPRoute, argument: injectPrefixFirst, timeout: 90 * time.Second},
+		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst, "-j"}, contains: []string{`"type":241`, `"flags":224`}},
+		{kind: opRequireAbsent, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst, "-j"}, absent: []string{`"flags":239`}, proof: []string{`"type":241`}},
+		{kind: opGoBGPSession, argument: zeLabAddress},
+	},
+	// RFC 8092 Section 3, judged by GoBGP. The relayed route carries 65000:1:1
+	// and 65000:3:3, and Ze's export policy adds 65000:1:1 and 65000:2:2 twice.
+	// GoBGP prints the values in wire order inside one brace pair, so the whole
+	// attribute is matched: each value once, in the order Ze appends them.
+	"bgp-large-community-no-repeat-gobgp": {
+		{kind: opGoBGPSession, argument: zeLabAddress},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.0.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
+		{kind: opGoBGPRoute, argument: injectPrefixFirst, timeout: 90 * time.Second},
+		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst}, contains: []string{"{LargeCommunity: 65000:1:1, 65000:3:3, 65000:2:2}"}},
+		{kind: opGoBGPSession, argument: zeLabAddress},
+	},
+	// draft-ietf-bess-mup-safi Section 3.1.3.1, judged by GoBGP. K
+	// (10.0.0.1/32) arrives well-formed first; then K' (same key, malformed)
+	// and L (10.0.0.2/32) arrive in one UPDATE. Ze treats K' as withdrawn, so
+	// GoBGP must lose K, hold L, and keep the session up.
+	"bgp-mup-malformed-t1st-withdraw-gobgp": {
+		{kind: opGoBGPSession, argument: zeLabAddress},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.0.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "ipv4-mup"}, contains: []string{"10.0.0.1/32"}, timeout: 90 * time.Second},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "ipv4-mup"}, contains: []string{"10.0.0.2/32"}, timeout: 120 * time.Second},
+		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "ipv4-mup"}, absent: []string{"10.0.0.1/32"}, proof: []string{"10.0.0.2/32"}, timeout: 30 * time.Second},
+		{kind: opGoBGPSession, argument: zeLabAddress},
+	},
+	// RFC 9234 Section 3.1, judged by FRR as Ze's Provider. Ze's own control
+	// route proves the session carries Ze's routes, and Ze's RIB counting the
+	// injected route proves it reached Ze, so its absence at FRR is the
+	// egress filter's verdict.
+	"bgp-role-rs-client-learned-not-upward-frr": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opFRRRoute, argument: "10.77.4.0/24", timeout: 60 * time.Second},
+		{kind: opWaitJSONFields, peer: "ze", command: zeCommand(zeShowBGPRIBStatus), minimum: map[string]int{fieldRoutesIn: 1}, timeout: 60 * time.Second},
+		{kind: opFRRRouteAbsent, argument: injectPrefixFirst, timeout: 30 * time.Second},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
+	// RFC 7999 Section 3.1, judged by FRR, an eBGP neighbor with no BLACKHOLE
+	// agreement. BIRD sends the tagged 10.200.0.1/32 and the untagged
+	// 10.201.0.0/24 in one session; Ze's RIB counts both, FRR holds the
+	// control and never the tagged route.
+	"bgp-rfc7999-blackhole-readvertise-frr": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opBIRDSession, argument: birdZeProtocol},
+		{kind: opFRRRoute, argument: "10.201.0.0/24", timeout: 60 * time.Second},
+		{kind: opWaitJSONFields, peer: "ze", command: zeCommand(zeShowBGPRIBStatus), minimum: map[string]int{fieldRoutesIn: 2}, timeout: 60 * time.Second},
+		{kind: opFRRRouteAbsent, argument: "10.200.0.1/32", timeout: 30 * time.Second},
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opBIRDSession, argument: birdZeProtocol},
+	},
 	"bgp-role-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: peerPrefixFirst, timeout: 30 * time.Second},

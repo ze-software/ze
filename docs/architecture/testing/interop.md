@@ -1874,6 +1874,11 @@ is not packet-forwarding evidence.
 | 37 | remove-private-as-as4path-frr | Ze, FRR, BIRD | remove-private-as handling for AS4_PATH private ASNs |
 | 38 | vpn-addpath-frr | Ze, FRR | ipv4/mpls-vpn over ADD-PATH with no path-information: FRR holds the exact RD, prefix and label, so ze wrote Path Identifier 0 (RFC 7911 Section 3) |
 | 39 | ldp-keepalive-expiry-frr | Ze, FRR ldpd | ze's LDP KeepAlive Timer expires after FRR's TCP toward ze is dropped in ze's container (an `ldplab` nft table); FRR logs a received Notification naming KeepAlive Timer Expired (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Ships its own `daemons` (`ldpd=yes`) and gives ze transport address 172.30.0.250 so ze is the active LSR |
+| 40 | bgp-attr-flags-low-nibble-gobgp | Ze, GoBGP, raw injector | RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF |
+| 41 | bgp-large-community-no-repeat-gobgp | Ze, GoBGP, raw injector | RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once |
+| 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up |
+| 43 | bgp-role-rs-client-learned-not-upward-frr | Ze, FRR 10.4.1, raw injector | RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does |
+| 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.4.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running

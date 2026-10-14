@@ -1,0 +1,14 @@
+# RFC 8092 Section 3, judged by GoBGP: GoBGP prints every Large Community value
+# it decoded off Ze's wire, in wire order, so a repeated value is visible.
+[global.config]
+  as = 65002
+  router-id = "172.30.0.5"
+  port = 179
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.2"
+    peer-as = 65001
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
