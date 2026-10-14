@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-14",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -10,15 +10,26 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC6286-2.1-1": {
-      "note": "The only tag (config_test zero_router_id_rejected) proves the non-zero clause for a peer-level router-id. No tagged assertion covers the global router-id leaf, or 'the same for every local interface and every BGP peer': Ze accepts a per-peer router-id override (parsePeerFromTree, session router-id), so a configuration giving peers different identifiers is accepted and nothing tagged goes red on it.",
-      "requirement_sha": "922fb6533dd43d00",
+      "code": {
+        "internal/component/bgp/reactor/config.go::GlobalsFromTree": "cdda6a47a330c020",
+        "internal/component/bgp/reactor/config.go::parsePeerSettings": "ede03c442050f254",
+        "internal/component/bgp/reactor/config.go::parseRouterID": "725c2d1de404f605"
+      },
+      "note": "Re-judged 2026-10-14 (independent auditor) after d667673f7e; supersedes the pending rejudge-rfc6286.json. Row is {partial}. Tested: 'non-zero integer'. Gap: 'is the same for every local interface and every BGP peer', an owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, 2026-10-13): the per-peer session router-id override read by Producer internal/component/bgp/reactor/config.go::parsePeerSettings gives a peer an identifier different from the others'; not counted conformant. Within Tested: config_test.go::TestParsePeerFromTreeInvalid zero_router_id_rejected requires a peer-level 0.0.0.0 to be refused with the RFC 6286 Section 2.1 error; rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected requires PeersFromTree to refuse a global bgp router-id of 0.0.0.0 with that error and to accept 0.0.0.1, inherited by an override-less peer as identifier 1; TestRFC6286NonZeroRouterIDAccepted requires a peer-level 0.0.0.1 to become identifier 1. Auditor overlay mutants, all red: removing the zero check in parseRouterID (both zero negatives), bypassing parseRouterID in GlobalsFromTree only (the global-leaf test alone), widening the check to id < 2 (both 0.0.0.1 positives). Limit: a config with no router-id at either level reaches PeersFromTree as identifier 0; only the config mandatory check (validate_mandatory_bgp.go) refuses it, and no test tagged to this row exercises that path.",
+      "requirement_sha": "0e867927f5cc8f4c",
       "tests": {
-        "internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid": "51ed6b39f4291bcc"
+        "internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid": "51ed6b39f4291bcc",
+        "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected": "c50ce7d9ac200072",
+        "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected#2": "c50ce7d9ac200072",
+        "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286NonZeroRouterIDAccepted": "c50ce7d9ac200072"
       },
       "units": {
-        "internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid": "61ffe75fea998ee2"
+        "internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid": "61ffe75fea998ee2",
+        "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected": "6f110489a22c15e9",
+        "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected#2": "6f110489a22c15e9",
+        "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286NonZeroRouterIDAccepted": "f3fa0f9f57e38220"
       },
-      "verdict": "weak"
+      "verdict": "partial"
     },
     "RFC6286-2.1-2": {
       "note": "{single-polarity: positive} valid: lowercase should, the duplicate is the operator's allow-shared-router-id opt-out. Both halves of 'unique within an AS' now covered: remote peers by TestRouterIDClaimConcurrentOnlyOneWins (accepted == 1, routerIDConflictError); this speaker's own identifier by TestRFC6286LocalIdentifierUniqueWithinItsAS, which presents the local identifier 0x01020301 from an internal peer (AS 65001 both sides) on handleOpen and requires ErrBadBGPIdentifier, NOTIFICATION 2/3 on the wire and no OpenConfirm. Producer read: Open.ValidateBGPIdentifier (internal && id == localID). Judge break (overlay, open.go: the self check gated on !internal) turned the new unit red, the remote-peer unit green. Revert record on ValidateBGPIdentifier for the new unit; the HEAD unit still carries no record (proof by reading: the exact accepted == 1 assertion).",
