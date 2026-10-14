@@ -25,6 +25,16 @@ import (
 // RFC 9234 Section 4.1: BGP Role Capability (Code 9, Length 1).
 const roleCapCode = 9
 
+// roleCapabilities computes role's declaration from the bgp root, and
+// roleCapabilityLeaves names the leaf that sets each code. RunRolePlugin
+// registers both; the tests drive the same pair through the SDK's comparison.
+var (
+	roleCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+		return extractRoleCapabilities(data), nil
+	})
+	roleCapabilityLeaves = map[uint8]string{roleCapCode: "role"}
+)
+
 const configRootBGP = "bgp"
 
 // loggerPtr is the package-level logger, disabled by default.
@@ -327,9 +337,7 @@ func RunRolePlugin(conn net.Conn) int {
 	// The role capability declaration is fixed for the process life: a reload
 	// that changes it is refused at config-verify
 	// (sdk.Plugin.DeclareCapabilitiesFrom).
-	p.DeclareCapabilitiesFrom(configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
-		return extractRoleCapabilities(data), nil
-	}), map[uint8]string{roleCapCode: "role"})
+	p.DeclareCapabilitiesFrom(roleCapabilities, roleCapabilityLeaves)
 
 	// RFC 9234 Section 4.2: Validate OPEN pairs for role compatibility.
 	// WantsValidateOpen is auto-set by SDK when this callback is registered.

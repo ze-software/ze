@@ -73,6 +73,20 @@ func (c *fqdnConfig) encodeValue() string {
 // set by the hostname container.
 const fqdnCapCode = 73
 
+// hostnameCapabilities computes hostname's declaration from the bgp root, and
+// hostnameCapabilityLeaves names the leaf that sets each code.
+// runHostnamePlugin registers both; the tests drive the same pair through the
+// SDK's comparison.
+var (
+	hostnameCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+		return extractHostnameCapabilities(data), nil
+	})
+	hostnameCapabilityLeaves = map[uint8]string{fqdnCapCode: hostnameCapabilityLeaf}
+)
+
+// hostnameCapabilityLeaf is the capability container that sets code 73.
+const hostnameCapabilityLeaf = "hostname"
+
 // runHostnamePlugin runs the hostname plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 // It receives per-peer hostname/domain config during Stage 2 and registers
@@ -86,9 +100,7 @@ func runHostnamePlugin(conn net.Conn) int {
 	// The per-peer hostname/domain declaration is fixed for the process life:
 	// a reload that changes it is refused at config-verify
 	// (sdk.Plugin.DeclareCapabilitiesFrom).
-	p.DeclareCapabilitiesFrom(configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
-		return extractHostnameCapabilities(data), nil
-	}), map[uint8]string{fqdnCapCode: "hostname"})
+	p.DeclareCapabilitiesFrom(hostnameCapabilities, hostnameCapabilityLeaves)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -109,7 +121,7 @@ func parseFQDNFromCapability(capMap map[string]any) *fqdnConfig {
 	if capMap == nil {
 		return nil
 	}
-	hostnameData, ok := capMap["hostname"].(map[string]any)
+	hostnameData, ok := capMap[hostnameCapabilityLeaf].(map[string]any)
 	if !ok {
 		return nil
 	}

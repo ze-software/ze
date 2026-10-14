@@ -148,16 +148,55 @@ func CapabilitySelector(name string, origin PeerOrigin) string {
 	return name
 }
 
-// CapabilitySelectors returns the CapabilitySelector of every visit ForEachPeer
-// makes in bgpTree: each configured peer and each dynamic group's template. It
-// is the candidate peer set a capability extractor reports beside its
-// declarations, and it reads the same traversal the extractors do, so an
-// unchanged peer can never read as removed and added.
+// CapabilitySelectors returns every selector a plugin can have declared a
+// capability under for the visits ForEachPeer makes in bgpTree: a configured
+// peer's name and its remote IP address (PeerSelectors), and a dynamic group
+// template's group selector. It is the candidate peer set a capability extractor
+// reports beside its declarations, and it reads the same traversal the
+// extractors do, so an unchanged peer can never read as removed and added.
+//
+// The remote IP is offered because a plugin may key its declaration by it (role
+// does, see role/config.go extractPeerRoleConfigs). A declaration under a
+// selector missing from this set reads as a removed peer, and a change to it
+// would be accepted rather than refused.
 func CapabilitySelectors(bgpTree map[string]any) []string {
 	var selectors []string
-	ForEachPeer(bgpTree, func(name string, _, _ map[string]any, origin PeerOrigin) {
-		selectors = append(selectors, CapabilitySelector(name, origin))
+	ForEachPeer(bgpTree, func(name string, peerMap, groupMap map[string]any, origin PeerOrigin) {
+		if origin.Template {
+			selectors = append(selectors, PeerSelectors("", netip.Addr{}, origin.Group)...)
+			return
+		}
+		addr, _ := netip.ParseAddr(PeerRemoteIP(peerMap, groupMap)) //nolint:errcheck // an absent IP or the "dynamic" placeholder leaves addr invalid, which PeerSelectors skips: no plugin declares under it
+		selectors = append(selectors, PeerSelectors(name, addr, "")...)
 	})
+	return selectors
+}
+
+// PeerSelectors returns the selectors one peer's plugin capabilities can be
+// declared under, in lookup order: its name, its address (plugins may key by
+// either), then the group selector of the dynamic group it was built from. An
+// empty name, an invalid address or an empty group contributes nothing, and an
+// address equal to the name is listed once.
+//
+// It is the one declaration of that set: the reactor asks it which selectors to
+// inject for a live peer (reactor capabilitySelectors), and CapabilitySelectors
+// asks it which selectors a reload candidate offers, so the two cannot disagree.
+// dynamicGroup MUST be empty for a static peer: a peer and a group may share a
+// name, and only a peer built from the group's template may draw what the group
+// declared.
+func PeerSelectors(name string, addr netip.Addr, dynamicGroup string) []string {
+	selectors := make([]string, 0, 3)
+	if name != "" {
+		selectors = append(selectors, name)
+	}
+	if addr.IsValid() {
+		if a := addr.String(); a != name {
+			selectors = append(selectors, a)
+		}
+	}
+	if dynamicGroup != "" {
+		selectors = append(selectors, CapabilityGroupKey(dynamicGroup))
+	}
 	return selectors
 }
 

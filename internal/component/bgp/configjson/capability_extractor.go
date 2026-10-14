@@ -5,7 +5,9 @@ package configjson
 
 import (
 	"errors"
+	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -36,8 +38,26 @@ func BGPCapabilityExtractor(extract func(data string) ([]sdk.CapabilityDecl, err
 				return sdk.CapabilityDeclaration{}, err
 			}
 			declaration.Capabilities = append(declaration.Capabilities, caps...)
-			declaration.Peers = append(declaration.Peers, CapabilitySelectors(bgpTree)...)
+			for _, selector := range CapabilitySelectors(bgpTree) {
+				declaration.Peers = append(declaration.Peers, selector)
+				group, isGroup := strings.CutPrefix(selector, GroupKeyPrefix)
+				if !isGroup {
+					continue
+				}
+				if declaration.Labels == nil {
+					declaration.Labels = map[string]string{}
+				}
+				declaration.Labels[selector] = dynamicGroupLabel(group)
+			}
 		}
 		return declaration, nil
 	}
+}
+
+// dynamicGroupLabel names a dynamic group's template in a refusal. Its
+// selector carries GroupKeyPrefix, and "peer group:ix" would send the operator
+// to a peer that does not exist.
+func dynamicGroupLabel(group string) string {
+	var tb textbuf.Buffer
+	return tb.Str("peers of dynamic group ").Str(group).String()
 }

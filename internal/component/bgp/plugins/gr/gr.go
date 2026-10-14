@@ -29,7 +29,6 @@ import (
 
 	"net/netip"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
@@ -163,13 +162,7 @@ func runGRPlugin(conn net.Conn) int {
 	// changes it, a session family edit on a peer with no graceful-restart
 	// family list included, is refused at config-verify
 	// (sdk.Plugin.DeclareCapabilitiesFrom).
-	p.DeclareCapabilitiesFrom(configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
-		// RFC 9494: LLGR capability (code 71) declared alongside GR (code 64)
-		return append(extractGRCapabilities(data), extractLLGRCapabilities(data)...), nil
-	}), map[uint8]string{
-		grCapCode:   "graceful-restart",
-		llgrCapCode: "graceful-restart long-lived-stale-time",
-	})
+	p.DeclareCapabilitiesFrom(grCapabilities, grCapabilityLeaves)
 
 	// OnConfigure callback: refuse a graceful-restart family the session does
 	// not carry, then install the LLGR egress filter state.

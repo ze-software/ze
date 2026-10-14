@@ -21,6 +21,9 @@ func declarationExtractor(sections []ConfigSection) (CapabilityDeclaration, erro
 		}
 		all.Capabilities = append(all.Capabilities, one.Capabilities...)
 		all.Peers = append(all.Peers, one.Peers...)
+		if one.Labels != nil {
+			all.Labels = one.Labels
+		}
 	}
 	return all, nil
 }
@@ -167,6 +170,16 @@ func TestDeclareCapabilitiesFrom(t *testing.T) {
 			},
 		},
 		{
+			name: "a selector the extractor labels is named by its label",
+			candidate: CapabilityDeclaration{
+				Capabilities: append(slices.Clone(startupDeclaration.Capabilities),
+					CapabilityDecl{Code: 75, Encoding: CapEncodingHex, Payload: "01", Peers: []string{"group:ix"}}),
+				Peers:  []string{"a", "b", "group:ix"},
+				Labels: map[string]string{"group:ix": "peers of dynamic group ix"},
+			},
+			refused: []string{"peers of dynamic group ix: capability software-version"},
+		},
+		{
 			name: "several changes are one line each, sorted",
 			candidate: CapabilityDeclaration{
 				Capabilities: []CapabilityDecl{
@@ -186,6 +199,17 @@ func TestDeclareCapabilitiesFrom(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := startedPlugin(t)
 			status, text := verifyCandidate(t, p, tc.candidate)
+			// CheckCapabilityReload, which plugin tests drive, gives the
+			// composed verify's answer for the same pair of configurations.
+			checked := CheckCapabilityReload("test-plugin", declarationExtractor, softverLeaves,
+				declarationSections(t, startupDeclaration), declarationSections(t, tc.candidate))
+			if checked == nil {
+				if status != rpc.StatusOK {
+					t.Errorf("CheckCapabilityReload accepted what config-verify refused: %s", text)
+				}
+			} else if checked.Error() != text {
+				t.Errorf("CheckCapabilityReload = %q, config-verify = %q", checked.Error(), text)
+			}
 			if len(tc.refused) == 0 {
 				if status != rpc.StatusOK {
 					t.Fatalf("refused, want accepted: %s", text)

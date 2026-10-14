@@ -6,6 +6,7 @@ package sdk
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -25,6 +26,10 @@ type CapabilityDeclaration struct {
 	// declaration may differ. An all-peer declaration (empty Peers on the
 	// CapabilityDecl) needs no selector here.
 	Peers []string
+	// Labels maps a selector that is not a peer's own name to the config
+	// object a refusal names for it, a dynamic group's template selector for
+	// one. A selector absent from it is named "peer <selector>".
+	Labels map[string]string
 }
 
 // CapabilityExtractor computes a plugin's capability declaration from the
@@ -121,19 +126,48 @@ func (p *Plugin) composeCapabilityVerify() {
 		if err := json.Unmarshal(params, &input); err != nil {
 			return marshalStatusError("unmarshal config-verify: " + err.Error())
 		}
-		candidate, err := source.extract(input.Sections)
-		if err != nil {
-			return marshalStatusError(err.Error())
-		}
 		p.mu.Lock()
 		declared := p.capabilities
 		p.mu.Unlock()
-		changes := capabilityChanges(declared, &candidate)
-		if len(changes) == 0 {
-			return answer, nil
+		if err := source.verifyCandidate(p.name, declared, input.Sections); err != nil {
+			return marshalStatusError(err.Error())
 		}
-		return marshalStatusError(capabilityRefusal(p.name, source.leaves, changes))
+		return answer, nil
 	}
+}
+
+// CheckCapabilityReload answers what config-verify answers, once the plugin's
+// own verify handler has accepted, for a plugin that registered extract and
+// leaves with DeclareCapabilitiesFrom, started on the startup sections, and is
+// offered the candidate sections: nil when the candidate keeps every
+// declaration a running OPEN carries, else the refusal. It runs the comparison
+// the composed config-verify runs, so a plugin's own tests prove that the
+// extractor and leaves it registers make the SDK refuse a change of its
+// capability and accept an unchanged one. Safe for concurrent use when extract
+// is.
+func CheckCapabilityReload(plugin string, extract CapabilityExtractor, leaves map[uint8]string, startup, candidate []ConfigSection) error {
+	declared, err := extract(startup)
+	if err != nil {
+		return fmt.Errorf("capabilities: %w", err)
+	}
+	source := capabilitySource{extract: extract, leaves: leaves}
+	return source.verifyCandidate(plugin, declared.Capabilities, candidate)
+}
+
+// verifyCandidate is the comparison behind config-verify: the candidate
+// sections' declaration against the Stage 3 declaration. It returns the
+// extractor's error, or the refusal text when a peer that stays configured
+// would need a different OPEN.
+func (source *capabilitySource) verifyCandidate(plugin string, declared []CapabilityDecl, sections []ConfigSection) error {
+	candidate, err := source.extract(sections)
+	if err != nil {
+		return err
+	}
+	changes := capabilityChanges(declared, &candidate)
+	if len(changes) == 0 {
+		return nil
+	}
+	return errors.New(capabilityRefusal(plugin, source.leaves, candidate.Labels, changes))
 }
 
 // verifyAnswerRefuses reports whether a config-verify answer is a refusal.
@@ -235,18 +269,14 @@ func declarationIndex(decls []CapabilityDecl) map[string]map[uint8][]string {
 }
 
 // capabilityRefusal is the text of a refused reload: one line per change, the
-// reason once, then the restart advice.
-func capabilityRefusal(plugin string, leaves map[uint8]string, changes []capabilityChange) string {
+// reason once, then the restart advice. labels is the candidate's
+// CapabilityDeclaration.Labels.
+func capabilityRefusal(plugin string, leaves map[uint8]string, labels map[string]string, changes []capabilityChange) string {
 	var text strings.Builder
 	selectors := map[string]bool{}
 	for _, change := range changes {
 		selectors[change.selector] = true
-		if change.selector == allPeersSelector {
-			text.WriteString("every peer")
-		} else {
-			text.WriteString("peer ")
-			text.WriteString(change.selector)
-		}
+		text.WriteString(selectorLabel(labels, change.selector))
 		text.WriteString(": capability ")
 		text.WriteString(capabilityLeaf(leaves, change.code))
 		text.WriteString(" cannot change while ze runs (plugin ")
@@ -267,6 +297,18 @@ func capabilityLeaf(leaves map[uint8]string, code uint8) string {
 		return leaf
 	}
 	return "code " + strconv.Itoa(int(code))
+}
+
+// selectorLabel names the config object a change is about: every peer for an
+// all-peer declaration, the extractor's label where it gave one, else the peer.
+func selectorLabel(labels map[string]string, selector string) string {
+	if selector == allPeersSelector {
+		return "every peer"
+	}
+	if label, ok := labels[selector]; ok {
+		return label
+	}
+	return "peer " + selector
 }
 
 // refusalAudience is who would keep receiving the old OPEN.

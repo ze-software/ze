@@ -30,6 +30,9 @@ import (
 // draft-ietf-idr-linklocal-capability: code 77, empty payload.
 const llnhCapCode = 77
 
+// llnhCapabilityLeaf is the capability leaf that sets code 77.
+const llnhCapabilityLeaf = "link-local-nexthop"
+
 // modeEnable and modeDisable are the two values of the link-local-nexthop
 // leaf (ze-link-local-nexthop.yang): advertise capability 77, or do not.
 const (
@@ -75,9 +78,7 @@ func runLLNHPlugin(conn net.Conn) int {
 	// Link-Local address to send; the declaration then runs after it, and is
 	// fixed for the process life (sdk.Plugin.DeclareCapabilitiesFrom).
 	p.OnConfigure(refuseLinkLocalCapabilityWithoutAddressSections)
-	p.DeclareCapabilitiesFrom(configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
-		return extractLLNHCapabilities(data), nil
-	}), map[uint8]string{llnhCapCode: "link-local-nexthop"})
+	p.DeclareCapabilitiesFrom(llnhCapabilities, llnhCapabilityLeaves)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -102,7 +103,7 @@ func isLLNHEnabled(capMap map[string]any) (explicit, enabled bool, err error) {
 	if capMap == nil {
 		return false, false, nil
 	}
-	llnhVal, exists := capMap["link-local-nexthop"]
+	llnhVal, exists := capMap[llnhCapabilityLeaf]
 	if !exists {
 		return false, false, nil
 	}
@@ -143,6 +144,16 @@ func llnhEnabledFor(peerMap, groupMap map[string]any) (bool, error) {
 	}
 	return groupEnabled, nil
 }
+
+// llnhCapabilities computes llnh's declaration from the bgp root, and
+// llnhCapabilityLeaves names the leaf that sets each code. runLLNHPlugin
+// registers both; the tests drive the same pair through the SDK's comparison.
+var (
+	llnhCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+		return extractLLNHCapabilities(data), nil
+	})
+	llnhCapabilityLeaves = map[uint8]string{llnhCapCode: llnhCapabilityLeaf}
+)
 
 // refuseLinkLocalCapabilityWithoutAddressSections runs
 // refuseLinkLocalCapabilityWithoutAddress over every bgp section delivered.

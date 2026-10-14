@@ -133,6 +133,17 @@ func encodeValue(encoding valueEncoding) string {
 // (draft-ietf-idr-software-version), set by the software-version leaf.
 const softverCapCode = 75
 
+// softverCapabilityLeaf is the capability container that sets code 75.
+const softverCapabilityLeaf = "software-version"
+
+// softverCapabilities computes softver's declaration from the bgp root, and
+// softverCapabilityLeaves names the leaf that sets each code. RunSoftverPlugin
+// registers both; the tests drive the same pair through the SDK's comparison.
+var (
+	softverCapabilities     = configjson.BGPCapabilityExtractor(extractSoftverCapabilities)
+	softverCapabilityLeaves = map[uint8]string{softverCapCode: softverCapabilityLeaf}
+)
+
 // RunSoftverPlugin runs the softver plugin using the SDK RPC protocol.
 func RunSoftverPlugin(conn net.Conn) int {
 	Logger.Debug("softver plugin starting (RPC)")
@@ -142,8 +153,7 @@ func RunSoftverPlugin(conn net.Conn) int {
 
 	// The declaration is fixed for the process life: a reload that changes
 	// it is refused at config-verify (sdk.Plugin.DeclareCapabilitiesFrom).
-	p.DeclareCapabilitiesFrom(configjson.BGPCapabilityExtractor(extractSoftverCapabilities),
-		map[uint8]string{softverCapCode: "software-version"})
+	p.DeclareCapabilitiesFrom(softverCapabilities, softverCapabilityLeaves)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -201,9 +211,9 @@ func extractSoftverCapabilities(jsonStr string) ([]sdk.CapabilityDecl, error) {
 	var firstErr error
 
 	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
-		raw, exists := configjson.GetCapability(peerMap)["software-version"]
+		raw, exists := configjson.GetCapability(peerMap)[softverCapabilityLeaf]
 		if !exists && groupMap != nil {
-			raw, exists = configjson.GetCapability(groupMap)["software-version"]
+			raw, exists = configjson.GetCapability(groupMap)[softverCapabilityLeaf]
 		}
 		if !exists {
 			return

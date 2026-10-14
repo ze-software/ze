@@ -1305,27 +1305,23 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 // group. One plugin declaring one global capability was enough to cost every peer its
 // own declarations.
 func capabilitySelectors(settings *PeerSettings) []string {
-	selectors := make([]string, 0, 3)
-	if settings.Name != "" {
-		selectors = append(selectors, settings.Name)
+	// A dynamic peer is created from its group's template when the connection
+	// arrives (reactor.tryCreateDynamicPeer), so neither its generated name
+	// ("dyn-<addr>") nor its address appears in the config a plugin read. Its
+	// group's name does, and buildDynamicPeerSettings put it here.
+	//
+	// Gated on IsDynamic so a STATIC peer can never draw a capability declared
+	// for a group: a peer and a group may share a name (nothing compares the
+	// two namespaces in config.ResolveBGPTree), and the prefix
+	// configjson.CapabilityGroupKey adds is what separates them in the one
+	// string space rpc.CapabilityDecl.Peers gives both.
+	var dynamicGroup string
+	if settings.IsDynamic {
+		dynamicGroup = settings.GroupName
 	}
-	if settings.Address.IsValid() {
-		selectors = append(selectors, settings.Address.String())
-	}
-	if settings.IsDynamic && settings.GroupName != "" {
-		// A dynamic peer is created from its group's template when the connection
-		// arrives (reactor.tryCreateDynamicPeer), so neither its generated name
-		// ("dyn-<addr>") nor its address appears in the config a plugin read. Its
-		// group's name does, and buildDynamicPeerSettings put it here.
-		//
-		// Gated on IsDynamic so a STATIC peer can never draw a capability declared
-		// for a group: a peer and a group may share a name (nothing compares the
-		// two namespaces in config.ResolveBGPTree), and the prefix
-		// configjson.CapabilityGroupKey adds is what separates them in the one
-		// string space rpc.CapabilityDecl.Peers gives both.
-		selectors = append(selectors, configjson.CapabilityGroupKey(settings.GroupName))
-	}
-	return selectors
+	// configjson.PeerSelectors is the one declaration of this set: a reload's
+	// candidate peer set (configjson.CapabilitySelectors) reads it too.
+	return configjson.PeerSelectors(settings.Name, settings.Address, dynamicGroup)
 }
 
 // openPolicyPlugins names the plugins that hold OPEN-validation policy for THIS peer
