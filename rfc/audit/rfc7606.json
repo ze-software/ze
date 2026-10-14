@@ -57,6 +57,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -173,9 +174,9 @@
         "internal/component/bgp/message/rfc7606_flags_optional_test.go::TestRFC7606FlagsOptionalAttributeConflict": "60359f14a91ec4e9",
         "internal/component/bgp/message/rfc7606_flags_plugin_test.go::TestRFC7606FlagsPluginAttributeAsSpecifiedAccepted": "3c00bdc455473898",
         "internal/component/bgp/message/rfc7606_flags_plugin_test.go::TestRFC7606FlagsPluginAttributeConflict": "3c00bdc455473898",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownMarkedOptional": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownNotTransitive": "4705f786b678f7e9",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownMarkedOptional": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownNotTransitive": "0aa8e78db18e49c6",
         "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "7f12ec998cbec524"
       },
       "units": {
@@ -195,11 +196,11 @@
       "note": "MissingOrigin and MissingASPath assert exact treat-as-withdraw and identify the missing attribute; ValidUpdate accepts the complete mandatory set, and MandatoryAttributesAcrossUpdateForms distinguishes a missing legacy NEXT_HOP from MP-only reception; the corrected empty-MP systematic cases still detect missing ORIGIN/AS_PATH but now require the stronger Section 5.2 session reset rather than an invalid withdrawal of no routes",
       "requirement_sha": "5acef4812d356633",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingASPath": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingOrigin": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingASPath": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingOrigin": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingASPath": "2c564263c38a67e8",
@@ -214,10 +215,10 @@
       "note": "Malformed ORIGIN length, unrecognized AS_PATH segment, invalid IBGP LOCAL_PREF and isolated NEXT_HOP/MED length cases assert exact treat-as-withdraw rather than accepting session reset as a severity floor; exact accepted EBGP/IBGP baselines guard against indiscriminate rejection, and receive controls exercise withdrawal dispatch rather than a producer halt",
       "requirement_sha": "d38ac6bc2b5bc3ec",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType": "9f23d5bbe528f31a",
@@ -233,9 +234,9 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes#2": "c6ef70edfa51afe7",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
@@ -250,9 +251,9 @@
       "note": "Duplicate MP_REACH and MP_UNREACH cases select reset, including duplicates encountered before an abandoned attribute walk with reachable NLRI preventing Section 5.2 from supplying a substitute verdict; real-session tests observe NOTIFICATION 3/1 and no route dispatch, including the separate MP_UNREACH wire carrier, while single-MP controls remain accepted",
       "requirement_sha": "e5e5758114e8c992",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6",
         "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "25c96de03fee2bc0",
         "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "25c96de03fee2bc0",
         "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "63addcbc92d19c5a",
@@ -292,7 +293,7 @@
       "note": "TestRFC7606CollectAllErrors (rfc7606_test.go:1393) uses two attribute-discard errors (ATOMIC_AGG + AGGREGATOR) and asserts require.Equal(AttributeDiscard) with DiscardEntries len 2 covering codes 6 and 7 \u2014 fails on escalation or on dropping either entry. The {single-polarity,negative} annotation is sound: 'multiple attribute errors exist' has no error-free instance, so no positive can be constructed. Exact assertion, isolated buffer. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "44614555a945eb21",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CollectAllErrors": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CollectAllErrors": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CollectAllErrors": "43f463753b5a4bfa"
@@ -303,7 +304,7 @@
       "note": "TestRFC7606MultipleErrorsStrongest (rfc7606_test.go:1369) combines ATOMIC_AGG discard (weaker) with COMMUNITY TAW (stronger) and asserts require.Equal(TreatAsWithdraw) AttrCode 8 \u2014 fails if the weaker action wins or if it over-escalates to SessionReset. The {single-polarity,negative} annotation holds (premise is that errors exist). The stronger boundary (TAW vs SessionReset) is separately pinned by 2-6. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "9656e4f2463c24cc",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleErrorsStrongest": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleErrorsStrongest": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleErrorsStrongest": "302d5b3fc3419dcd"
@@ -327,13 +328,13 @@
       "note": "Re-audited 2026-08-27. Exact SessionReset negatives cover MP_REACH length 4, MP_UNREACH length 2, IPv4 /33, IPv6 /129, and an NLRI overrun; descriptions or AttrCode isolate the failing parser rule. Parseable IPv4 and IPv6 NLRIs require no error. TestEnforceRFC7606_InvalidTrailingNLRI drives the production Session.enforceRFC7606 path, and test/plugin/rfc7606-reset.ci observes the resulting code-3/subcode-1 NOTIFICATION on the wire. The compiled passivePlugin13 replacement only runs the plugin lifecycle and cannot satisfy that ze-peer expectation. Any downgrade to TreatAsWithdraw, acceptance of an unparseable field, or reset of a parseable field fails an exact assertion. Re-confirmed 2026-09-19 after the fixture gained option=linger. The peer enters its linger loop only with every expectation matched, so the code-3/subcode-1 NOTIFICATION stays a precondition of the pass, and the TCP close this requirement names was asserted by this carrier in neither revision: the exact SessionReset classification is what the message-level and reactor units above pin. 2026-09-25 re-audit: commit 1fb33e8098 renamed the carrier's exec heads (ze-peer to le test peer, ze-test fixture to le test fixture) and changed no assertion, so the judgement above still describes what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "b98e8b1fcee7628c",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachTooShort": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachTooShort": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIOverrun": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv4": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv4": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv6": "4705f786b678f7e9",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachTooShort": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachTooShort": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIOverrun": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv4": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv4": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv6": "0aa8e78db18e49c6",
         "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidTrailingNLRI": "00ea84393819df2b",
         "test/plugin/rfc7606-reset.ci": "a2f7f6cbe618358c"
       },
@@ -357,7 +358,7 @@
         "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw": "a8996fb398de9acf",
         "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw#2": "a8996fb398de9acf",
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "669936946251c215",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw": "a02beace3815f0ac",
@@ -372,8 +373,8 @@
       "requirement_sha": "4c2a9a9c45d4976a",
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606ZeroLengthAttributeMalformed": "669936946251c215",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606ZeroLengthAttributeMalformed": "232c90b703220ea8",
@@ -441,7 +442,7 @@
         "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPUnreachAfterOtherAttributes": "b2618235905384c1",
         "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPUnreachWithLegacyNLRI": "b2618235905384c1",
         "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsReachAndUnreachTogether": "b2618235905384c1",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "4705f786b678f7e9",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "0aa8e78db18e49c6",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate": "f5f441d25f0d5702",
         "test/plugin/rfc7606-receive-combinations.ci": "eb4533acb6353793",
         "test/plugin/rfc7606-relay-one-field.ci": "27d002d1ed30df6a"
@@ -463,11 +464,11 @@
       "requirement_sha": "eebc85d439ba43a8",
       "tests": {
         "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset": "757239f190198c52",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachMinValid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NoNLRIAttributeDiscardNoEscalation": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NoNLRIEscalation": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "4705f786b678f7e9",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachMinValid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NoNLRIAttributeDiscardNoEscalation": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NoNLRIEscalation": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "0aa8e78db18e49c6",
         "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "7f12ec998cbec524",
         "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "f7788746939ead18",
         "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "f7788746939ead18"
@@ -490,7 +491,7 @@
       "requirement_sha": "ac66f2dcc7b7ba7f",
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRIMaxPrefixLengthAccepted": "669936946251c215",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv4": "4705f786b678f7e9",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv4": "0aa8e78db18e49c6",
         "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidTrailingNLRI": "00ea84393819df2b"
       },
       "units": {
@@ -522,7 +523,7 @@
       "requirement_sha": "9a82ef9a86e029a1",
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPNLRILengthConsistentWithAFIAccepted": "669936946251c215",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6": "4705f786b678f7e9",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6": "0aa8e78db18e49c6",
         "internal/component/bgp/message/rfc7606_withdraw_test.go::TestRFC7606MPReachWellFormedAccepted": "7025a5ad1f355e1f"
       },
       "units": {
@@ -637,11 +638,11 @@
       "note": "Re-audited 2026-08-27. Isolated exact negatives cover both Section 7.1 clauses: ORIGIN length 2 and defined-length value 3 each require TreatAsWithdraw, AttrCode 1, and a Section 7.1 description. Three positives accept exactly values 0, 1 and 2 with ActionNone. test/plugin/rfc7606-withdraw.ci adds end-to-end session-survival proof: after the malformed ORIGIN, a second valid route must reach the peer. The compiled rfc7606Withdraw13 observer waits for establishment, sends the first route, gates on the post-malformation update counter, then sends the second route; it cannot make the peer expectation pass after a reset. Acceptance, SessionReset over-reaction, the wrong attribute, or rejecting a defined value each fail. 2026-09-25 re-audit: commit 1fb33e8098 renamed the carrier's exec heads (ze-peer to le test peer, ze-test fixture to le test fixture) and changed no assertion, so the judgement above still describes what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "ed41dd867c1d91d9",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueEGP": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIGP": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIncomplete": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueInvalid": "4705f786b678f7e9",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueEGP": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIGP": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIncomplete": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueInvalid": "0aa8e78db18e49c6",
         "test/plugin/rfc7606-withdraw.ci": "aeb0ed73d53fef7c"
       },
       "units": {
@@ -659,8 +660,8 @@
       "requirement_sha": "e558837ba8a237b3",
       "tests": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListEBGPDiscard": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListEBGPDiscard": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
@@ -675,8 +676,8 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed": "a8996fb398de9acf",
         "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed#2": "a8996fb398de9acf",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPInvalid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPInvalid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed": "be0aa9b6ab82b57b",
@@ -690,13 +691,13 @@
       "note": "Three negatives assert the exact SessionReset + AttrCode 14 + \"7.11\" across families for an inconsistent next-hop length: IPv6 NH_LEN=5 (rfc7606_test.go:557), IPv4 NH_LEN=3 (:609), VPNv4 NH_LEN=4 (:660). Four positives assert ActionNone for consistent lengths (IPv6/16 :504, IPv6/32 :529, IPv4/4 :586, VPNv4/12 :634). validateMPReachNextHop (rfc7606.go:695-720) checks nhLen against the per-AFI/SAFI ValidNextHopLens table, so the reset fires for NH inconsistency specifically, not a structural cascade. Would fail if Ze weakened the action below session reset. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "fb5216e1ccb7346a",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopInvalid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopDualValid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopInvalid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopValid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachVPNv4NextHopInvalid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachVPNv4NextHopValid": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopInvalid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopDualValid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopInvalid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopValid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachVPNv4NextHopInvalid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachVPNv4NextHopValid": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopInvalid": "c04fe46c3cd2d1a5",
@@ -728,8 +729,8 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed": "a8996fb398de9acf",
         "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed#2": "a8996fb398de9acf",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityValid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityZeroLength": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityValid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityZeroLength": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed": "0e441ce429d2e920",
@@ -743,7 +744,7 @@
       "note": "Single-polarity (positive-only) argument holds: \u00a77.14 is a MUST NOT prohibition ('MUST NOT treat an unrecognized Extended Community Type or Sub-Type as an error'), so acceptance is the only conforming observation. Positive rfc7606_test.go:247 uses valid length 8 with unrecognized Type 0x3f/Sub-Type 0xee and asserts ActionNone; length kept valid so the 7.14-1 length clause cannot mask the type question. validateExtCommunityAttr (rfc7606.go:550-560) inspects only length, never type, so introducing a type allowlist would flip this test to TreatAsWithdraw and fail it. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "1a59a38e257ba31f",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityUnrecognizedType": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityUnrecognizedType": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityUnrecognizedType": "f912c6bb54e659cf"
@@ -805,14 +806,14 @@
       "note": "All four \u00a77.2 malformation types have isolated exact negatives, each asserting TreatAsWithdraw + AttrCode 2 plus a distinguishing Description substring: unrecognized segment type (rfc7606_test.go:344 'segment type'), overrun (:366 'overrun'), underrun (:389 'underrun'), zero-length segment (:414 'zero'). The substring assertions prevent passing via a neighbouring rule; buffers keep ORIGIN/NEXT_HOP valid so only AS_PATH is malformed. Positives :290/:312 accept valid AS_SEQUENCE/AS_SET (Action None). 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote spells out all four malformations (unrecognized segment type, overrun, underrun, zero Path Segment Length); each has an isolated tagged negative. Verdict unchanged.",
       "requirement_sha": "4c2066d0971c798e",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASN": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASNOverrun": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentOverrun": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentUnderrun": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSequence": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSet": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathZeroSegmentLength": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASN": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASNOverrun": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentOverrun": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentUnderrun": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSequence": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSet": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathZeroSegmentLength": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASN": "8af8ded3670d3571",
@@ -830,8 +831,8 @@
       "note": "SystematicLengthCorruption's isolated padded NEXT_HOP length-eight case uses an exact treat-as-withdraw assertion with AttrCode 3, not the surrounding tables' severity-floor assertion; ValidUpdate accepts length four, while RFC6368 inner NEXT_HOP is correctly ignored in its distinct ATTR_SET context",
       "requirement_sha": "ff549f0ecdd9105a",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "07b9d95ed1e789a5",
@@ -843,8 +844,8 @@
       "note": "SystematicLengthCorruption's isolated padded MED length-eight case requires exact treat-as-withdraw and AttrCode 4; FlagsOptionalAttributeValid accepts an otherwise valid four-octet MED, and the zero-length MED case independently exercises malformed length zero without a framing cascade",
       "requirement_sha": "9eaa52ca7343b402",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid": "c95c9823d725fbbc",
@@ -857,8 +858,8 @@
       "requirement_sha": "30203e9dd56aa914",
       "tests": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefEBGPDiscard": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "4705f786b678f7e9",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefEBGPDiscard": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "0aa8e78db18e49c6",
         "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "aeb6993b67f2a376"
       },
       "units": {
@@ -873,8 +874,8 @@
       "note": "Negative rfc7606_test.go:888 TestRFC7606LocalPrefIBGPInvalid sends iBGP LOCAL_PREF len 3 and asserts require.Equal TreatAsWithdraw + AttrCode 5 + '7.5'; buffer isolates the malformed LOCAL_PREF. Positive :868 accepts iBGP LOCAL_PREF len 4 (Action None). The exact Action equal fails on both non-detection and over-reaction. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "bdfa8a5f769fc8b9",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid": "3273d68e3c0de569",
@@ -887,8 +888,8 @@
       "requirement_sha": "30af924767938614",
       "tests": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
@@ -902,10 +903,10 @@
       "requirement_sha": "59d3a534cda7c029",
       "tests": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6NoASN4": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6WithASN4Invalid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8WithASN4": "4705f786b678f7e9",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6NoASN4": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6WithASN4Invalid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8WithASN4": "0aa8e78db18e49c6",
         "internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go::TestForwardDiscardsMalformedAggregatorAtMatchingWidth": "ec40e05c3ba8c587",
         "internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go::TestForwardRelaysWellFormedAggregatorAtMatchingWidth": "ec40e05c3ba8c587"
       },
@@ -924,9 +925,9 @@
       "note": "MalformedCommunityLength requires exact treat-as-withdraw for length five and identifies COMMUNITY; the zero-length COMMUNITY case separately checks the nonzero requirement, and the exact valid EBGP baseline accepts a four-octet community; floor-only length-corruption cases are supplementary and are not used to establish the required action",
       "requirement_sha": "ab09b50f676f9da1",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CommunityZeroLength": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedCommunityLength": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CommunityZeroLength": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedCommunityLength": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CommunityZeroLength": "e3e2baba9dd5cacc",
@@ -940,8 +941,8 @@
       "requirement_sha": "6e604485fdbefbc9",
       "tests": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDEBGPDiscard": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPValid": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDEBGPDiscard": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPValid": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
@@ -954,8 +955,8 @@
       "note": "Positive rfc7606_test.go:935 (len-4 iBGP ORIGINATOR_ID) asserts ActionNone; negative rfc7606_test.go:954 (len-5 iBGP) asserts the exact TreatAsWithdraw + AttrCode 9 + Description \"7.9\", matching validateOriginatorIDAttr (rfc7606.go:517). Fails if a malformed-length iBGP ORIGINATOR_ID were accepted. Minor: only len 5 exercises the !=4 predicate, so a hypothetical >4 bug would slip len 3, but the len-4-accept/len-5-reject boundary is pinned. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "335d5d8ce05287d1",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPInvalid": "4705f786b678f7e9",
-        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPValid": "4705f786b678f7e9"
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPInvalid": "0aa8e78db18e49c6",
+        "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPValid": "0aa8e78db18e49c6"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPInvalid": "0805cbd835e724e5",

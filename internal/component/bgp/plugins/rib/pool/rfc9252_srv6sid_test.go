@@ -214,18 +214,20 @@ func TestApplyTransposition_ZeroLength(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC9252-3.2.1-3 negative -- a SID Structure whose LBL+LNL+FL+AL sum exceeds 128 is rejected (no transposition applied).
+// RFC requirement: RFC9252-3.2.1-3 negative -- a SID Structure whose LBL+LNL+FL+AL sum exceeds 128 makes the SID invalid: no SID is answered.
 func TestExtractSRv6SIDFull_InvalidSIDStructure(t *testing.T) {
 	sid := netip.MustParseAddr("2001:db8::1")
 	ip6 := sid.As16()
 
-	// LBL+LNL+FL+AL = 200 > 128 (invalid).
-	subTLV := buildSIDInfoSubTLVWithStructure(ip6, 64, 64, 64, 8, 16, 48)
+	// LBL+LNL+FL = 192 > 128 (invalid), AL 0 so only the sum bound fires.
+	subTLV := buildSIDInfoSubTLVWithStructure(ip6, 64, 64, 64, 0, 16, 48)
 	tlv := buildServiceTLV(5, subTLV)
 
+	// RFC 9252 Section 7: the SID "is invalid when ... any of the conditions
+	// for the fields of the Sub-Sub-TLV, as specified in Section 3.2.1, is not met".
 	r := ExtractSRv6SIDFull(tlv)
-	if !r.SID.IsValid() {
-		t.Error("SID should still be valid even with invalid SID Structure")
+	if r.SID.IsValid() {
+		t.Errorf("SID = %v, want none: the SID Structure sum 192 exceeds 128", r.SID)
 	}
 	if r.HasTranspos {
 		t.Error("HasTranspos should be false for invalid SID Structure")
@@ -233,7 +235,7 @@ func TestExtractSRv6SIDFull_InvalidSIDStructure(t *testing.T) {
 }
 
 // RFC requirement: RFC9252-3.2.1-3 negative -- a SID Structure whose LBL+LNL+FL+AL sum is
-// less than TransposOffset+TransposLen is rejected (errata 7817: the constraint uses >=).
+// less than TransposOffset+TransposLen makes the SID invalid (errata 7817: the constraint uses >=).
 func TestExtractSRv6SIDFull_SumBelowTransposition(t *testing.T) {
 	sid := netip.MustParseAddr("2001:db8::1")
 	ip6 := sid.As16()
@@ -244,8 +246,8 @@ func TestExtractSRv6SIDFull_SumBelowTransposition(t *testing.T) {
 	tlv := buildServiceTLV(5, subTLV)
 
 	r := ExtractSRv6SIDFull(tlv)
-	if !r.SID.IsValid() {
-		t.Error("SID should still be valid even with an out-of-range SID Structure")
+	if r.SID.IsValid() {
+		t.Errorf("SID = %v, want none: the SID Structure sum 64 is below offset+length 76", r.SID)
 	}
 	if r.HasTranspos {
 		t.Error("HasTranspos should be false when the sum is below TransposOffset+TransposLen")

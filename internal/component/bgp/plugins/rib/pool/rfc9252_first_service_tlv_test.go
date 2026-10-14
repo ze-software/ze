@@ -7,8 +7,8 @@ import (
 
 // RFC 9252 Section 7: "If multiple instances of the SRv6 L3 Service TLV are encountered,
 // all but the first instance MUST be ignored", and the same for the L2 Service TLV.
-// ExtractSRv6SIDFull walks the Prefix-SID attribute in order and returns the SID of the
-// first Service TLV that carries one.
+// ExtractSRv6SIDFull reads only the first instance of each Service TLV type; the case of
+// a first instance that carries no valid SID is in rfc9252_service_tlv_first_instance_test.go.
 
 // TestRFC9252FirstServiceTLVWins pins which instance the SID comes from.
 //
@@ -29,9 +29,9 @@ func TestRFC9252FirstServiceTLVWins(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// RFC requirement: RFC9252-7-1 positive -- with two SRv6 L3 Service TLVs each carrying a SID Information Sub-TLV, the SID used is the first instance's (§7).
-			// RFC requirement: RFC9252-7-1 negative -- the second SRv6 L3 Service TLV instance's SID is never the one used (§7).
+			// RFC requirement: RFC9252-7-1 negative -- with a valid first instance, the second SRv6 L3 Service TLV instance's SID is not used (§7).
 			// RFC requirement: RFC9252-7-2 positive -- with two SRv6 L2 Service TLVs each carrying a SID Information Sub-TLV, the SID used is the first instance's (§7).
-			// RFC requirement: RFC9252-7-2 negative -- the second SRv6 L2 Service TLV instance's SID is never the one used (§7).
+			// RFC requirement: RFC9252-7-2 negative -- with a valid first instance, the second SRv6 L2 Service TLV instance's SID is not used (§7).
 			attr := append(
 				buildServiceTLV(tc.tlvType, buildSIDInfoSubTLV(first.As16())),
 				buildServiceTLV(tc.tlvType, buildSIDInfoSubTLV(second.As16()))...,

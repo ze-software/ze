@@ -1251,7 +1251,7 @@ func releaseCandidates(candidates []*Candidate) {
 // same for every family.
 func (r *RIBManager) candidateAdmitted(fam family.Family, peerRIB *storage.PeerRIB, entry storage.RouteEntry, selfNextHops *[]netip.Addr) bool {
 	// RFC 9252 Section 5: path with SRv6 Service TLVs but no valid SID is ineligible.
-	if isSRv6Ineligible(entry) {
+	if isSRv6Ineligible(fam, entry) {
 		return false
 	}
 	// RFC 4271 Section 5.1.3: "A BGP speaker SHALL NOT install a route with

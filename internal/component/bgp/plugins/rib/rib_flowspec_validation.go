@@ -391,7 +391,7 @@ func (r *RIBManager) reconcileFlowSpecs() {
 				}
 				routes.IterateFamily(fam, func(raw []byte, entry storage.RouteEntry) bool {
 					domain, prefix := flowSpecUnicastPrefix(fam, raw, flags[fam])
-					if !prefix.IsValid() || isSRv6Ineligible(entry) || isSelfNextHop(r.selfNextHops.Load(), entryNextHopAddr(fam, entry)) {
+					if !prefix.IsValid() || isSRv6Ineligible(fam, entry) || isSelfNextHop(r.selfNextHops.Load(), entryNextHopAddr(fam, entry)) {
 						return true
 					}
 					relevant := false

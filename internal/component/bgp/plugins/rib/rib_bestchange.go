@@ -18,6 +18,7 @@ import (
 	"net/netip"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
@@ -1270,61 +1271,76 @@ func entrySRv6SID(fam family.Family, p storedPath, entry storage.RouteEntry) net
 //
 // It answers an invalid address in three cases, and the route keeps its next
 // hop rather than gaining a SID ze cannot vouch for: the attribute carried no
-// SID; the transposition is wider than the label field that must carry it, so
-// Section 7 says the SID value "is invalid"; or the family's label field is one
-// ze cannot read, which nlrisplit.TranspositionLabel names.
+// valid SID; the SID is invalid for fam (srv6SIDValidForFamily); or the
+// family's label field is one ze cannot read, which nlrisplit.TranspositionLabel
+// names.
 //
 // Marking such a path INELIGIBLE for best-path selection, which Section 7 also
 // requires, is not done here. isSRv6Ineligible owns that question.
 func srv6SIDFromResult(fam family.Family, nlriBytes []byte, addPath bool, result pool.SRv6SIDResult) netip.Addr {
-	if !result.SID.IsValid() {
+	if !srv6SIDValidForFamily(fam, result) {
 		return netip.Addr{}
 	}
 	if !result.HasTranspos {
 		return result.SID
 	}
-	if result.TransposLen > labelWidthForSAFI(fam.SAFI) {
-		return netip.Addr{}
-	}
+	// RFC 9252 Section 3.2.1
 	label, ok := nlrisplit.TranspositionLabel(fam, nlriBytes, addPath)
 	if !ok {
 		return netip.Addr{}
 	}
-	return pool.ApplyTransposition(result.SID, label, result.TransposOffset, result.TransposLen, labelWidthForSAFI(fam.SAFI))
+	return pool.ApplyTransposition(result.SID, label, result.TransposOffset, result.TransposLen, nlrisplit.TranspositionLabelWidth(fam))
 }
 
-// labelWidthForSAFI returns the width in bits of the label field that carries
-// transposed SRv6 SID bits for safi.
+// srv6SIDValidForFamily reports whether the SID extraction produced is a
+// valid SRv6 SID for a route of fam. pool.ExtractSRv6SIDFull has already
+// judged the SID Structure against Section 3.2.1, family-free; what is left
+// needs the family: the label field the transposition rides.
 //
-// RFC 9252 Sections 5.1 and 5.2 give the VPN families an RFC 8277 field with
-// "the 20-bit Label Value set to the whole or a portion of the Function part
-// of the SRv6 SID", and bound the transposition: "the Transposition Length
-// MUST be less than or equal to 20". Sections 6.1.2, 6.2 and 6.5 give EVPN a
-// three-octet field where "the value is set in the 24 bits", bounded at 24.
-// Every other family has no such field, so nothing may be transposed into
-// one; Section 7 requires the offset and length to be 0 there, and the
-// 20 returned makes any non-zero length above it invalid.
-func labelWidthForSAFI(safi family.SAFI) uint8 {
-	if safi == family.SAFIEVPN {
-		return 24
+// RFC 9252 Section 7: "The SRv6 SID value in the SRv6 SID Information
+// Sub-TLV is invalid when the SID Structure Sub-Sub-TLV transposition length
+// is greater than the number of bits of the label field". On a family the
+// scheme does not apply to the field has 0 bits, which also holds Section 7's
+// "The transposition offset and length MUST be 0 when the Sub-Sub-TLV is
+// advertised along with routes where the Transposition Scheme is not
+// applicable": a zero length with a non-zero offset is refused by the pool.
+func srv6SIDValidForFamily(fam family.Family, result pool.SRv6SIDResult) bool {
+	if !result.SID.IsValid() {
+		return false
 	}
-	return 20
+	return result.TransposLen <= nlrisplit.TranspositionLabelWidth(fam)
 }
 
-// isSRv6Ineligible reports whether a route entry is ineligible for best-path
-// per RFC 9252 Section 5: a route with PrefixSID containing SRv6 Service TLVs
-// (type 5 or 6) but no extractable valid SID MUST be excluded from best-path.
-// Returns false (eligible) when no SRv6 TLVs are present or SID extraction succeeds.
-func isSRv6Ineligible(entry storage.RouteEntry) bool {
+// srv6UnreadableLogged latches the one log line isSRv6Ineligible writes when
+// a path's OtherAttrs handle no longer resolves. It is package-level and
+// atomic because isSRv6Ineligible is a free function called without a lock;
+// once per handle would need a set that grows with the handles.
+var srv6UnreadableLogged atomic.Bool
+
+// isSRv6Ineligible reports whether a path of fam is excluded from best-path
+// selection because its Prefix-SID carries SRv6 Service TLVs (type 5 or 6)
+// but no SRv6 SID that is valid for fam.
+//
+// RFC 9252 Section 7: "The path having any such Prefix-SID attribute without
+// any valid SRv6 SID information MUST be considered ineligible during the
+// selection of the best path for the corresponding prefix."
+//
+// A path with no attribute 40, or one with no Service TLV, is eligible. A
+// path whose OtherAttrs cannot be read is excluded, because the bytes that
+// would answer the question are the ones missing: it fails closed, and the
+// first such failure in the process is logged.
+func isSRv6Ineligible(fam family.Family, entry storage.RouteEntry) bool {
 	b := entry.GetBundle()
 	if !b.HasOtherAttrs() {
 		return false
 	}
 	data, err := pool.OtherAttrs.Get(b.OtherAttrs)
 	if err != nil {
-		return false
+		if srv6UnreadableLogged.CompareAndSwap(false, true) {
+			logger().Error("rib: path excluded from best-path, its attributes cannot be read to judge its SRv6 SID (RFC 9252 Section 7)", "family", fam.String(), "handle", b.OtherAttrs, "error", err)
+		}
+		return true
 	}
-	var hasSRv6TLV bool
 	off := 0
 	for off+4 <= len(data) {
 		typeCode := data[off]
@@ -1334,17 +1350,15 @@ func isSRv6Ineligible(entry storage.RouteEntry) bool {
 			break
 		}
 		if typeCode == 40 {
-			if prefixSIDHasSRv6TLVs(data[off : off+length]) {
-				hasSRv6TLV = true
-				if sid := pool.ExtractSRv6SID(data[off : off+length]); sid.IsValid() {
-					return false // Valid SID found, eligible.
-				}
+			value := data[off : off+length]
+			if !prefixSIDHasSRv6TLVs(value) {
+				return false
 			}
-			break
+			return !srv6SIDValidForFamily(fam, pool.ExtractSRv6SIDFull(value))
 		}
 		off += length
 	}
-	return hasSRv6TLV
+	return false
 }
 
 // prefixSIDHasSRv6TLVs checks if PrefixSID attribute value contains any

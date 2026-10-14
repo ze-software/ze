@@ -6,7 +6,12 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
+
+// ipv4VPN is the family the eligibility tests judge paths of: one the
+// Transposition Scheme applies to, with a 20-bit label field.
+var ipv4VPN = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 
 // buildOtherAttrsWithPrefixSID constructs OtherAttrs bytes containing a PrefixSID
 // attribute (code 40) with the given value. Format: [type(1)][flags(1)][length(2)][value(n)].
@@ -75,18 +80,23 @@ func TestIsSRv6Ineligible_ValidSID(t *testing.T) {
 	entry := makeRouteEntryWithOtherAttrs(otherAttrs)
 	defer entry.Release()
 
-	if isSRv6Ineligible(entry) {
+	if isSRv6Ineligible(ipv4VPN, entry) {
 		t.Error("route with valid SRv6 SID should be eligible")
 	}
 }
 
-// RFC requirement: RFC9252-5-1 negative -- a path whose Prefix-SID carries SRv6 Service TLVs but no extractable valid SID is ineligible for best-path selection.
+// TestIsSRv6Ineligible_InvalidSID guards a structurally malformed SID
+// Information Sub-TLV (5 octets, under the 21 RFC 9252 Section 7 calls
+// malformed). The RFC 7606 walk withdraws such a route before the RIB stores
+// it, so this is not the Section 7 invalid SID; that case is
+// TestIsSRv6Ineligible_InvalidSIDStructure. This keeps the reader excluding
+// the path should such bytes ever reach it.
 func TestIsSRv6Ineligible_InvalidSID(t *testing.T) {
 	otherAttrs := buildOtherAttrsWithPrefixSID(buildInvalidSRv6PrefixSID())
 	entry := makeRouteEntryWithOtherAttrs(otherAttrs)
 	defer entry.Release()
 
-	if !isSRv6Ineligible(entry) {
+	if !isSRv6Ineligible(ipv4VPN, entry) {
 		t.Error("route with SRv6 TLVs but no valid SID should be ineligible")
 	}
 }
@@ -96,7 +106,7 @@ func TestIsSRv6Ineligible_NoSRv6TLVs(t *testing.T) {
 	entry := makeRouteEntryWithOtherAttrs(otherAttrs)
 	defer entry.Release()
 
-	if isSRv6Ineligible(entry) {
+	if isSRv6Ineligible(ipv4VPN, entry) {
 		t.Error("route with only SR-MPLS TLVs (no SRv6) should be eligible")
 	}
 }
@@ -105,7 +115,7 @@ func TestIsSRv6Ineligible_NoOtherAttrs(t *testing.T) {
 	entry := makeRouteEntryWithOtherAttrs(nil)
 	defer entry.Release()
 
-	if isSRv6Ineligible(entry) {
+	if isSRv6Ineligible(ipv4VPN, entry) {
 		t.Error("route with no OtherAttrs should be eligible")
 	}
 }

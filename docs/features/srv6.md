@@ -22,9 +22,9 @@ SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.
 |---------|-------------|
 | Attribute parsing | PrefixSID (code 40) stored as opaque bytes; SRv6 SID extracted lazily at best-path time |
 | L3/L2 Service TLVs | Types 5 (L3 Service) and 6 (L2 Service) per RFC 9252 Section 3.1 |
-| SID extraction | First SRv6 SID Information Sub-TLV (type 1) within the Service TLV |
+| SID extraction | First SRv6 SID Information Sub-TLV (type 1) within the first L3 (type 5) and the first L2 (type 6) Service TLV; a later instance of a type is ignored even when the first holds no valid SID |
 | Transposition | SID Structure Sub-Sub-TLV reconstructs full SID from NLRI label bits (VPN/EVPN) |
-| Path ineligibility | Partial: excludes paths with no extractable SID, but invalid SID Structure parameters can still pass best-path admission |
+| Path ineligibility | Excludes a path whose Service TLVs leave it no SID valid for its family: no SID, an invalid SID Structure, a transposition wider than the label field, or any transposition on a family without one |
 | SID resolvability | SRv6 SID must have a covering route in Loc-RIB before FIB installation |
 | EBGP filtering | PrefixSID from EBGP peers discarded unless `accept-srv6-prefix-sid` is set |
 | EBGP propagation | PrefixSID removed on every rail that writes an UPDATE unless `propagate-srv6-prefix-sid` is set: the two forward rails, the two origination rails, and the API/readvertise announce rail |
@@ -170,7 +170,7 @@ RFC 7606 validator: checks TLV structure, rejects malformed
 EBGP filter: discards attr 40 unless accept-srv6-prefix-sid is set
   |
   v
-RIB best-path: isSRv6Ineligible() excludes SRv6 paths with no extractable SID
+RIB best-path: isSRv6Ineligible(fam, entry) excludes SRv6 paths with no SID valid for the family
   |
   v
 Best-path emission: storedPathSRv6SID() extracts SID from the winner's OtherAttrs
@@ -263,7 +263,18 @@ NLRI instead of in the SID Information Sub-TLV. Ze reconstructs the full SID:
 4. OR label bits into SID at the specified bit offset
 
 When Transposition Length is 0, no reconstruction is needed (the full SID is
-in the Sub-TLV). This is the common case for IPv6 unicast.
+in the Sub-TLV). This is the common case for IPv6 unicast, and the only one
+valid there: RFC 9252 Section 7 requires the offset and length to be 0 on a
+family the Transposition Scheme does not apply to, so a non-zero length on
+IPv6 unicast or labeled unicast leaves the path with no valid SID.
+
+A SID Structure that fails a Section 3.2.1 condition makes the SID invalid,
+and nothing is installed from it: a length other than 6, LBL+LNL+FL+AL above
+128 or below Transposition Offset + Transposition Length (erratum 7817), a
+Transposition Length of 0 with a non-zero offset, or a non-zero Argument
+Length (ze knows no Endpoint Behavior, so it ignores every SID with
+arguments). The family-free checks are in `parseSIDStructure`; the label
+width bound, 20 bits on VPN and 24 on EVPN, is `nlrisplit.TranspositionLabelWidth`.
 
 ## FIB Backends
 
@@ -316,15 +327,17 @@ the VPP dispatch logic.
 | First SID Sub-TLV preferred | 3.2 SHOULD | Implemented |
 | SID Structure Sub-Sub-TLV | 3.2.1 | Implemented |
 | Transposition reconstruction | 3.2.1 | Implemented (VPN/EVPN) |
-| LBL+LNL+FL+AL <= 128 validation | 3.2.1 | Partial: the sum is checked (errata 7817), but a SID Structure that fails it is only dropped from transposition, and the SID is still used whole instead of being invalid (`plan/immediate/spec-bgp-prefix-sid-rfc-defects.md`, D3) |
+| LBL+LNL+FL+AL <= 128 validation | 3.2.1 | Implemented: a SID Structure that fails the sum (errata 7817), is not 6 octets, carries a zero length with a non-zero offset, or carries a non-zero AL makes the SID invalid |
+| Second L3 or L2 Service TLV ignored | 7 | Implemented: only the first instance of each type is read, whatever it holds |
 | NH unchanged: preserve TLVs | 2 | Implemented: effective address identity, including explicit A-to-A; Reserved and unknown nested bytes are retained |
 | NH changed: SRv6 Service TLVs removed, other TLVs kept | 2 | Implemented removal after policy and configured rewrites, including policy-only changes under `auto` or `unchanged`. Local SID allocation/rebuilding remains unimplemented |
 | Malformed Service TLV: treat-as-withdraw | 7 | Implemented: on every family, including a Service TLV whose length overruns the attribute and stray octets inside a SID Information Sub-TLV; off labeled unicast a framing error met after a Service TLV is that TLV's length disagreeing with the attribute, so treat-as-withdraw too |
-| Path ineligibility (no valid SID) | 7 | Partial: invalid SID Structure parameters and transposition widths can still pass best-path admission (spec D3, D4) |
+| Path ineligibility (no valid SID) | 7 | Implemented: `candidateAdmitted` excludes a path whose only SID is invalid, or whose transposition is wider than its family's label field; an unreadable attribute set is excluded too, logged once |
 | SID resolvability before best-path selection | 5 | Partial: sysrib blocks FIB installation without a resolvable SID; BGP pre-selection filtering is not implemented |
 
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- isSRv6Ineligible, srv6SIDFromResult -->
-<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- ExtractSRv6SID, parseSIDStructure -->
+<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- ExtractSRv6SIDFull, parseSIDStructure -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/transposition.go -- TranspositionLabelWidth -->
 
 ## Limitations
 

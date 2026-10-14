@@ -44,7 +44,20 @@ func ExtractSRv6SID(prefixSIDValue []byte) netip.Addr {
 // ExtractSRv6SIDFull parses the BGP Prefix-SID attribute and returns the
 // SRv6 SID along with transposition parameters. Use this when the caller
 // needs to apply transposition (VPN/EVPN SAFIs where label carries SID bits).
+//
+// Only the first SRv6 L3 Service TLV and the first SRv6 L2 Service TLV are
+// read. A later instance of a type already met is skipped whatever it holds,
+// so a first instance with no valid SID leaves that type with no SID rather
+// than handing the question to the second. When the first L3 instance holds
+// no valid SID, the first L2 instance is still consulted: the sentences below
+// each bind one type.
+//
+// The SID Structure Sub-Sub-TLV is judged here, family-free: a SID whose
+// structure fails a Section 3.2.1 condition is answered as no SID. The
+// family-bound checks (label width, Transposition Scheme applicability) are
+// the caller's, because the attribute does not carry the route family.
 func ExtractSRv6SIDFull(prefixSIDValue []byte) SRv6SIDResult {
+	var seenL3, seenL2 bool
 	off := 0
 	for off+3 <= len(prefixSIDValue) {
 		tlvType := prefixSIDValue[off]
@@ -53,20 +66,40 @@ func ExtractSRv6SIDFull(prefixSIDValue []byte) SRv6SIDResult {
 		if off+tlvLen > len(prefixSIDValue) {
 			return SRv6SIDResult{}
 		}
-		if tlvType == tlvTypeSRv6L3Service || tlvType == tlvTypeSRv6L2Service {
-			if r := extractSIDFromServiceTLV(prefixSIDValue[off : off+tlvLen]); r.SID.IsValid() {
-				return r
-			}
-		}
+		value := prefixSIDValue[off : off+tlvLen]
 		off += tlvLen
+		switch tlvType {
+		case tlvTypeSRv6L3Service:
+			// RFC 9252 Section 7: "If multiple instances of the SRv6 L3 Service
+			// TLV are encountered, all but the first instance MUST be ignored."
+			if seenL3 {
+				continue
+			}
+			seenL3 = true
+		case tlvTypeSRv6L2Service:
+			// RFC 9252 Section 7: "If multiple instances of the SRv6 L2 Service
+			// TLV are encountered, all but the first instance MUST be ignored."
+			if seenL2 {
+				continue
+			}
+			seenL2 = true
+		default:
+			continue
+		}
+		if r := extractSIDFromServiceTLV(value); r.SID.IsValid() {
+			return r
+		}
 	}
 	return SRv6SIDResult{}
 }
 
 // extractSIDFromServiceTLV parses Sub-TLVs within an SRv6 L3/L2 Service TLV
 // and returns the first SRv6 SID with its SID Structure parameters.
-// RFC 9252 Section 3.1: Service TLV value = Reserved(1) + Sub-TLVs.
-// RFC 9252 Section 3.2: SID Info Sub-TLV value = Reserved(1) + SID(16) + Flags(1) + Behavior(2) + Reserved(1) + Sub-Sub-TLVs.
+// RFC 9252 Section 2: Service TLV value = Reserved(1) + Sub-TLVs.
+// RFC 9252 Section 3.1: SID Info Sub-TLV value = Reserved(1) + SID(16) + Flags(1) + Behavior(2) + Reserved(1) + Sub-Sub-TLVs.
+//
+// A SID whose SID Structure Sub-Sub-TLV fails Section 3.2.1 is answered as no
+// SID (sidStructureValid).
 func extractSIDFromServiceTLV(data []byte) SRv6SIDResult {
 	if len(data) < 1 {
 		return SRv6SIDResult{}
@@ -80,18 +113,24 @@ func extractSIDFromServiceTLV(data []byte) SRv6SIDResult {
 		if off+subLen > len(data) {
 			return SRv6SIDResult{}
 		}
-		// RFC 9252 Section 3.2: min length 21 = Reserved(1) + SID(16) + Flags(1) + Behavior(2) + Reserved(1)
+		// RFC 9252 Section 3.1: min length 21 = Reserved(1) + SID(16) + Flags(1) + Behavior(2) + Reserved(1)
 		if subType == subTLVTypeSRv6SIDInfo && subLen >= 21 {
 			var ip6 [16]byte
 			// Value: Reserved(1) + SRv6 SID(16) + ...
 			copy(ip6[:], data[off+1:off+17])
-			sid := netip.AddrFrom16(ip6)
 
-			result := SRv6SIDResult{SID: sid}
-
-			// Parse Sub-Sub-TLVs if present (after Reserved(1)+SID(16)+Flags(1)+Behavior(2)+Reserved(1) = 21 bytes).
+			result := SRv6SIDResult{SID: netip.AddrFrom16(ip6)}
+			// Sub-Sub-TLVs follow the 21 fixed octets.
 			if subLen > 21 {
-				result.HasTranspos, result.TransposOffset, result.TransposLen = parseSIDStructure(data[off+21 : off+subLen])
+				valid, offset, length := parseSIDStructure(data[off+21 : off+subLen])
+				// RFC 9252 Section 7: "The SRv6 SID value in the SRv6 SID
+				// Information Sub-TLV is invalid when ... any of the conditions
+				// for the fields of the Sub-Sub-TLV, as specified in Section
+				// 3.2.1, is not met."
+				if !valid {
+					return SRv6SIDResult{}
+				}
+				result.TransposOffset, result.TransposLen, result.HasTranspos = offset, length, length > 0
 			}
 			return result
 		}
@@ -100,10 +139,28 @@ func extractSIDFromServiceTLV(data []byte) SRv6SIDResult {
 	return SRv6SIDResult{}
 }
 
-// parseSIDStructure looks for the SID Structure Sub-Sub-TLV (type 1) and
-// extracts transposition parameters. Returns (found, offset, length).
-// RFC 9252 Section 3.2.1: Sub-Sub-TLV format = Type(1) + Length(2) + 6 bytes.
-func parseSIDStructure(subSubTLVs []byte) (bool, uint8, uint8) {
+// sidStructureLength is the value length of the SID Structure Sub-Sub-TLV.
+//
+// RFC 9252 Section 3.2.1: "This field contains a total length of 6 octets."
+// A structure of any other length makes the SID invalid.
+const sidStructureLength = 6
+
+// parseSIDStructure finds the SID Structure Sub-Sub-TLV (type 1) among the
+// Sub-Sub-TLVs of one SID Information Sub-TLV and judges it against Section
+// 3.2.1. It answers valid=false when the structure makes the SID invalid,
+// and valid=true with the transposition (zero length when nothing is
+// transposed) otherwise. No SID Structure at all is valid with no
+// transposition. A Sub-Sub-TLV overrunning its Sub-TLV is malformed, which
+// the RFC 7606 walk turns into treat-as-withdraw before the RIB stores the
+// route; it answers invalid here so this reader never trusts what follows.
+//
+// RFC 9252 Section 3.2.1 SID Structure Sub-Sub-TLV value:
+//
+//	0        1        2        3        4        5
+//	+--------+--------+--------+--------+--------+--------+
+//	|  LBL   |  LNL   |   FL   |   AL   | T.Len  | T.Off  |
+//	+--------+--------+--------+--------+--------+--------+
+func parseSIDStructure(subSubTLVs []byte) (valid bool, transposOffset, transposLen uint8) {
 	off := 0
 	for off+3 <= len(subSubTLVs) {
 		ssType := subSubTLVs[off]
@@ -112,31 +169,46 @@ func parseSIDStructure(subSubTLVs []byte) (bool, uint8, uint8) {
 		if off+ssLen > len(subSubTLVs) {
 			return false, 0, 0
 		}
-		if ssType == subSubTLVTypeSIDStructure && ssLen >= 6 {
-			// Bytes: LBL(1) + LNL(1) + FL(1) + AL(1) + TransposLen(1) + TransposOffset(1)
-			lbl := subSubTLVs[off]
-			lnl := subSubTLVs[off+1]
-			fl := subSubTLVs[off+2]
-			al := subSubTLVs[off+3]
-			transposLen := subSubTLVs[off+4]
-			transposOffset := subSubTLVs[off+5]
-
-			// RFC 9252 Section 3.2.1 validation (errata 7817: >=).
-			sum := uint16(lbl) + uint16(lnl) + uint16(fl) + uint16(al)
-			if sum > 128 {
-				return false, 0, 0
-			}
-			if transposLen > 0 && sum < uint16(transposOffset)+uint16(transposLen) {
-				return false, 0, 0
-			}
-			if transposLen == 0 {
-				return false, 0, 0
-			}
-			return true, transposOffset, transposLen
+		if ssType != subSubTLVTypeSIDStructure {
+			off += ssLen
+			continue
 		}
-		off += ssLen
+		// A length other than 6 fails the Section 3.2.1 field definition: the
+		// SID is invalid (Section 7 lists only an inconsistent length as
+		// malformed, so it is not a malformation).
+		if ssLen != sidStructureLength {
+			return false, 0, 0
+		}
+		v := subSubTLVs[off : off+sidStructureLength]
+		lbl, lnl, fl, al, length, offset := v[0], v[1], v[2], v[3], v[4], v[5]
+
+		// RFC 9252 Section 3.2.1: "A Transposition Length of 0 indicates nothing
+		// is transposed and that the entire SRv6 SID value is encoded in the SID
+		// Information Sub-TLV. In this case, the Transposition Offset MUST be
+		// set to 0."
+		if length == 0 && offset != 0 {
+			return false, 0, 0
+		}
+		// RFC 9252 Section 3.2.1: "the sum of the Locator Block Length (LBL),
+		// Locator Node Length (LNL), Function Length (FL), and Argument Length
+		// (AL) fields MUST be less than or equal to 128 and greater than the
+		// sum of Transposition Offset and Transposition Length." Erratum 7817
+		// corrects "greater than" to "greater than or equal to".
+		sum := uint16(lbl) + uint16(lnl) + uint16(fl) + uint16(al)
+		if sum > 128 || sum < uint16(offset)+uint16(length) {
+			return false, 0, 0
+		}
+		// RFC 9252 Section 3.2.1: "A receiver is unable to validate the
+		// applicability of arguments for SRv6 Endpoint Behaviors that are
+		// unknown to it and hence MUST ignore SRv6 SIDs with arguments
+		// (indicated by a non-zero AL) with unknown SRv6 Endpoint Behaviors."
+		// Ze knows no Endpoint Behavior, so every behavior is unknown to it.
+		if al != 0 {
+			return false, 0, 0
+		}
+		return true, offset, length
 	}
-	return false, 0, 0
+	return true, 0, 0
 }
 
 // ApplyTransposition reconstructs the full SRv6 SID by merging transposed bits

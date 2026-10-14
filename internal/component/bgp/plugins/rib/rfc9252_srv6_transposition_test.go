@@ -219,7 +219,38 @@ func TestSRv6TranspositionWiderThanLabelFieldIsIneligible(t *testing.T) {
 		t.Errorf("SID = %v, want none: a %d-bit transposition does not fit a 20-bit label field", sid, tooWide)
 	}
 
-	// Section 7 also requires such a path to be INELIGIBLE for best-path
-	// selection, which is a separate change to isSRv6Ineligible and is asserted
-	// with it. What this test owns is the SID: there is none to install.
+	// Section 7: "The path having any such Prefix-SID attribute without any
+	// valid SRv6 SID information MUST be considered ineligible during the
+	// selection of the best path for the corresponding prefix."
+	if storedPathAdmitted(t, r, fam, nlriKey, peer) {
+		t.Errorf("path admitted to best-path selection, want excluded: a %d-bit transposition leaves it no valid SID", tooWide)
+	}
+}
+
+// storedPathAdmitted answers whether the one path peer stored under nlri may
+// enter the decision process, by asking candidateAdmitted, the gate
+// checkRouteBestChange applies to every stored path.
+func storedPathAdmitted(t *testing.T, r *RIBManager, fam family.Family, nlri []byte, peer netip.Addr) bool {
+	t.Helper()
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	routeKey, ok := routeIdentity(fam, nlri, false, false, scratch[:])
+	if !ok {
+		t.Fatalf("no route key for NLRI %x", nlri)
+	}
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
+	peerRIB := r.bgpPeers[peer]
+	if peerRIB == nil {
+		t.Fatalf("peer %s holds no RIB", peer)
+	}
+	paths, _ := peerRIB.AppendKeyPathsRetained(fam, routeKey, nil)
+	defer func() {
+		for i := range paths {
+			paths[i].Release()
+		}
+	}()
+	if len(paths) != 1 {
+		t.Fatalf("peer %s stores %d paths for NLRI %x, want 1", peer, len(paths), nlri)
+	}
+	return r.candidateAdmitted(fam, peerRIB, paths[0].Entry, r.selfNextHops.Load())
 }

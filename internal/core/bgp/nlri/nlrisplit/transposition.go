@@ -11,6 +11,37 @@ import "github.com/ze-software/ze/internal/core/family"
 // label stack: one octet of length, per RFC 4364 Section 4.3.4.
 const vpnLabelStackOffset = 1
 
+// Label field widths, in bits, of the families the Transposition Scheme
+// applies to.
+const (
+	vpnTranspositionLabelWidth  = 20
+	evpnTranspositionLabelWidth = 24
+)
+
+// TranspositionLabelWidth returns the width in bits of the label field that
+// may carry transposed SRv6 SID bits for fam, and 0 for a family the
+// Transposition Scheme does not apply to. It is the one declaration of that
+// family set: TranspositionLabel and the RIB's SID validity both read it.
+//
+// RFC 9252 Sections 5.1 and 5.2 give the IPv4 and IPv6 VPN families an RFC
+// 8277 field with "the 20-bit Label Value set to the whole or a portion of
+// the Function part of the SRv6 SID", and Section 3.2.1 says "the size of the
+// MPLS Label field is 20 bits in [RFC4364] and [RFC8277], and the size is 24
+// bits in [RFC7432]", the EVPN field. Every other family has no label field
+// for the scheme, labeled unicast included: RFC 9252 defines no SRv6 service
+// over it. Section 7: "The transposition offset and length MUST be 0 when the
+// Sub-Sub-TLV is advertised along with routes where the Transposition Scheme
+// is not applicable".
+func TranspositionLabelWidth(fam family.Family) uint8 {
+	switch {
+	case fam.SAFI == family.SAFIVPN && (fam.AFI == family.AFIIPv4 || fam.AFI == family.AFIIPv6):
+		return vpnTranspositionLabelWidth
+	case fam.SAFI == family.SAFIEVPN && fam.AFI == family.AFIL2VPN:
+		return evpnTranspositionLabelWidth
+	}
+	return 0
+}
+
 // TranspositionLabel returns the value of the label field that carries
 // transposed SRv6 SID bits for one NLRI of fam, right-aligned in that
 // field, and reports whether ze can read it.
@@ -37,10 +68,7 @@ const vpnLabelStackOffset = 1
 // nlri is one NLRI as returned by Split for fam. Under ADD-PATH (RFC 7911)
 // its first four octets are the path identifier and are skipped here.
 func TranspositionLabel(fam family.Family, nlri []byte, addPath bool) (uint32, bool) {
-	if fam.SAFI != family.SAFIVPN {
-		return 0, false
-	}
-	if fam.AFI != family.AFIIPv4 && fam.AFI != family.AFIIPv6 {
+	if TranspositionLabelWidth(fam) != vpnTranspositionLabelWidth {
 		return 0, false
 	}
 	off := vpnLabelStackOffset
