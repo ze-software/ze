@@ -371,8 +371,23 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 	}()
 }
 
+// rrOpenUnreadable is the warning for a received OPEN the route reflector
+// cannot decode. The reactor refuses the same OPEN, and at the default level
+// this is the only line that says why in the operator's terms. The peer address
+// and the decoder error go in the record's peer and error attributes.
+const rrOpenUnreadable = "The route reflector cannot read this peer's OPEN message, " +
+	"so it records no address families for this peer. " +
+	"ze refuses this OPEN, so the session with this peer does not come up. " +
+	"Next step: check the capabilities configured on this peer, then compare them with the error attribute."
+
 // handleStructuredOpen processes OPEN events from DirectBridge.
 // Decodes raw OPEN wire bytes to extract peer capabilities and families.
+//
+// An OPEN that does not decode records nothing: no ASN, no families and no
+// implicit ipv4/unicast, because a default stored for an OPEN nobody could read
+// is a wrong answer. An entry from an earlier session of the peer stays, and
+// the next accepted OPEN overwrites it; its readers skip it while the peer is
+// down.
 func (rr *routeReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) {
 	if se.PeerAddress == "" || msg.RawBytes == nil {
 		return
@@ -380,46 +395,30 @@ func (rr *routeReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgp
 
 	open, err := message.UnpackOpen(msg.RawBytes)
 	if err != nil {
+		logger().Warn(rrOpenUnreadable, "peer", se.PeerAddress, "error", err)
+		return
+	}
+	// RFC 9072 Section 2: the OPEN's own framing decides the Parameter Length width.
+	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
+	if err != nil {
+		logger().Warn(rrOpenUnreadable, "peer", se.PeerAddress, "error", err)
 		return
 	}
 
 	asn := uint32(open.MyAS)
-	if open.ASN4 > 0 {
-		asn = open.ASN4
-	}
-
 	families := make(map[family.Family]bool)
 	capabilities := make(map[string]bool)
 	hasMP := false
-
-	offset := 0
-	for offset < len(open.OptionalParams) {
-		if offset+2 > len(open.OptionalParams) {
-			break
+	for _, c := range caps {
+		if mp, ok := c.(*capability.Multiprotocol); ok {
+			hasMP = true
+			capabilities["multiprotocol"] = true
+			families[family.Family{AFI: mp.AFI, SAFI: mp.SAFI}] = true
 		}
-		paramType := open.OptionalParams[offset]
-		paramLen := int(open.OptionalParams[offset+1])
-		offset += 2
-		if offset+paramLen > len(open.OptionalParams) {
-			break
+		if asn4, ok := c.(*capability.ASN4); ok {
+			asn = asn4.ASN
+			capabilities["asn4"] = true
 		}
-		if paramType == 2 { // Capability (RFC 3392)
-			caps, parseErr := capability.Parse(open.OptionalParams[offset : offset+paramLen])
-			if parseErr == nil {
-				for _, c := range caps {
-					if mp, ok := c.(*capability.Multiprotocol); ok {
-						hasMP = true
-						capabilities["multiprotocol"] = true
-						families[family.Family{AFI: mp.AFI, SAFI: mp.SAFI}] = true
-					}
-					if asn4, ok := c.(*capability.ASN4); ok {
-						asn = asn4.ASN
-						capabilities["asn4"] = true
-					}
-				}
-			}
-		}
-		offset += paramLen
 	}
 
 	// RFC 4760 Section 1: ipv4/unicast is the implicit default only when
@@ -546,14 +545,30 @@ func (rr *routeReflector) peerStatus() any {
 
 	peers := make([]map[string]any, 0, len(rr.peers))
 	for _, p := range rr.peers {
-		peers = append(peers, map[string]any{
+		row := map[string]any{
 			"address": p.Address,
 			"remote":  map[string]any{"as": p.ASN},
 			"up":      p.Up,
-		})
+		}
+		// The families key is absent, never empty, while the peer is down or no
+		// OPEN is recorded: a down entry may hold an earlier session's set.
+		if p.Up && p.Families != nil {
+			row["families"] = recordedFamilyNames(p.Families)
+		}
+		peers = append(peers, row)
 	}
 
 	return map[string]any{"peers": peers}
+}
+
+// recordedFamilyNames is the recorded family set as sorted family names.
+func recordedFamilyNames(families map[family.Family]bool) []string {
+	names := make([]string, 0, len(families))
+	for f := range families {
+		names = append(names, f.String())
+	}
+	slices.Sort(names)
+	return names
 }
 
 // replayForPeer replays existing routes to a newly-connected peer via adj-rib-in,

@@ -768,50 +768,46 @@ func parseStructuredState(se *rpc.StructuredEvent) *Event {
 	}
 }
 
+// rsOpenUnreadable is the warning for a received OPEN the route server cannot
+// decode. The reactor refuses the same OPEN, and at the default level this is
+// the only line that says why in the operator's terms. The peer address and the
+// decoder error go in the record's peer and error attributes.
+const rsOpenUnreadable = "The route server cannot read this peer's OPEN message, " +
+	"so it records no capabilities for this peer. " +
+	"ze refuses this OPEN, so the session with this peer does not come up. " +
+	"Next step: check the capabilities configured on this peer, then compare them with the error attribute."
+
 // parseStructuredOpen converts a StructuredEvent OPEN to an rs Event.
-// Decodes raw OPEN wire bytes using message.UnpackOpen + capability.Parse directly
-// (avoiding bgp/format import which creates an import cycle).
+// Decodes raw OPEN wire bytes using message.UnpackOpen and
+// capability.ParseFromOptionalParams directly (avoiding bgp/format import which
+// creates an import cycle).
+//
+// An OPEN that does not decode answers nil, so handleOpen records nothing for
+// it: no capabilities and no implicit ipv4/unicast, because a default stored for
+// an OPEN nobody could read is a wrong answer.
 func parseStructuredOpen(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) *Event {
 	if se.PeerAddress == "" || msg.RawBytes == nil {
 		return nil
 	}
 	open, err := message.UnpackOpen(msg.RawBytes)
 	if err != nil {
+		logger().Warn(rsOpenUnreadable, "peer", se.PeerAddress, "error", err)
+		return nil
+	}
+	// RFC 9072 Section 2: the OPEN's own framing decides the Parameter Length width.
+	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
+	if err != nil {
+		logger().Warn(rsOpenUnreadable, "peer", se.PeerAddress, "error", err)
 		return nil
 	}
 
 	asn := uint32(open.MyAS)
-	if open.ASN4 > 0 {
-		asn = open.ASN4
-	}
-
-	// Parse capabilities from optional params (RFC 3392: type 2).
 	var infoCaps []CapabilityInfo
-	offset := 0
-	for offset < len(open.OptionalParams) {
-		if offset+2 > len(open.OptionalParams) {
-			break
+	for _, c := range caps {
+		infoCaps = append(infoCaps, formatCapInfo(c)...)
+		if asn4, ok := c.(*capability.ASN4); ok {
+			asn = asn4.ASN
 		}
-		paramType := open.OptionalParams[offset]
-		paramLen := int(open.OptionalParams[offset+1])
-		offset += 2
-		if offset+paramLen > len(open.OptionalParams) {
-			break
-		}
-		if paramType == 2 {
-			caps, parseErr := capability.Parse(open.OptionalParams[offset : offset+paramLen])
-			if parseErr == nil {
-				for _, c := range caps {
-					for _, ic := range formatCapInfo(c) {
-						infoCaps = append(infoCaps, ic)
-						if asn4, ok := c.(*capability.ASN4); ok {
-							asn = asn4.ASN
-						}
-					}
-				}
-			}
-		}
-		offset += paramLen
 	}
 
 	return &Event{

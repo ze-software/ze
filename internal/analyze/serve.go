@@ -185,13 +185,12 @@ func serveBGPOpen(conn net.Conn, localAS uint32, routerID net.IP, holdTime uint1
 	if err != nil {
 		return 0, err
 	}
-	if msgType != 1 || len(body) < 10 {
+	if msgType != 1 {
 		return 0, errBGPProtocol
 	}
-	peerAS := uint32(binary.BigEndian.Uint16(body[1:3]))
-	optLen := int(body[9])
-	if 10+optLen <= len(body) {
-		peerAS = bgpExtractAS4(body[10:10+optLen], peerAS)
+	peerAS, err := bgpPeerAS(body)
+	if err != nil {
+		return 0, err
 	}
 
 	// Send our OPEN + KEEPALIVE

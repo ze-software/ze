@@ -39,3 +39,69 @@ func TestAnalyzeOpenUsesOnePacker(t *testing.T) {
 		t.Fatalf("decoded %d capabilities, want 3", len(caps))
 	}
 }
+
+// analyzePeerOpenBody is an OPEN body (no header) with My AS 23456 and params,
+// framed by the one packer, with the RFC 9072 Section 2 envelope written by
+// hand when the packer chose the extended form.
+func analyzePeerOpenBody(t *testing.T, params ...capability.OptionalParam) []byte {
+	t.Helper()
+	optional, extended, err := capability.PackOptionalParams(params)
+	if err != nil {
+		t.Fatalf("pack: %v", err)
+	}
+	body := []byte{4, 0x5b, 0xa0, 0, 90, 1, 2, 3, 4}
+	if extended {
+		body = append(body, 255, 255, byte(len(optional)>>8), byte(len(optional)))
+	} else {
+		body = append(body, byte(len(optional)))
+	}
+	return append(body, optional...)
+}
+
+// TestAnalyzePeerASReadsExtendedOpen proves ze analyze reads the peer's AS
+// through the one Optional Parameters decoder in the framing the OPEN states.
+//
+// VALIDATES: the Four-octet AS capability is read from a base OPEN and from an
+// RFC 9072 extended OPEN whose several type-2 parameters exceed 255 octets; an
+// OPEN without it answers My AS; an OPEN the decoder refuses, and one shorter
+// than its stated length, are errors rather than the My AS fallback.
+// PREVENTS: a one-octet Optional Parameters walk that reads the extended
+// envelope as 255 octets of parameters and misses the AS.
+func TestAnalyzePeerASReadsExtendedOpen(t *testing.T) {
+	asn4 := capability.RawParam(2, []byte{65, 4, 0xfa, 0x56, 0xea, 0x01})
+	filler := capability.RawParam(2, append([]byte{0xee, 200}, make([]byte, 200)...))
+	for _, tc := range []struct {
+		name string
+		body []byte
+		want uint32
+	}{
+		{"base form", analyzePeerOpenBody(t, asn4), 4200000001},
+		{"RFC 9072 form", analyzePeerOpenBody(t, filler, filler, asn4), 4200000001},
+		{"no four-octet AS", analyzePeerOpenBody(t, capability.RawParam(2, []byte{1, 4, 0, 1, 0, 1})), 23456},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := bgpPeerAS(tc.body)
+			if err != nil {
+				t.Fatalf("bgpPeerAS: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("AS %d, want %d", got, tc.want)
+			}
+		})
+	}
+
+	short := analyzePeerOpenBody(t, asn4)
+	for _, tc := range []struct {
+		name string
+		body []byte
+	}{
+		{"a non-type-2 parameter", analyzePeerOpenBody(t, asn4, capability.RawParam(7, []byte{1}))},
+		{"shorter than its stated length", short[:len(short)-1]},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got, err := bgpPeerAS(tc.body); err == nil {
+				t.Fatalf("an unreadable OPEN answered AS %d", got)
+			}
+		})
+	}
+}

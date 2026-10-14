@@ -5,6 +5,7 @@ package analyze
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
 
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -101,37 +102,64 @@ func bgpBuildOpen(localAS uint32, holdTime uint16, routerID net.IP) ([]byte, err
 // 4271 OPEN body bgpBuildOpen writes can carry.
 var errAnalyzeOpenTooLarge = errors.New("analyze: OPEN capabilities exceed 255 octets of Optional Parameters")
 
-// bgpExtractAS4 extracts the 4-byte ASN from optional parameters if present.
-func bgpExtractAS4(opts []byte, fallback uint32) uint32 {
-	off := 0
-	for off+2 <= len(opts) {
-		pType := opts[off]
-		pLen := int(opts[off+1])
-		off += 2
-		if off+pLen > len(opts) {
-			break
-		}
-		if pType != 2 {
-			off += pLen
-			continue
-		}
-		capData := opts[off : off+pLen]
-		cOff := 0
-		for cOff+2 <= len(capData) {
-			code := capData[cOff]
-			cLen := int(capData[cOff+1])
-			cOff += 2
-			if cOff+cLen > len(capData) {
-				break
-			}
-			if code == 65 && cLen == 4 {
-				return binary.BigEndian.Uint32(capData[cOff : cOff+4])
-			}
-			cOff += cLen
-		}
-		off += pLen
+// errAnalyzePeerOpenShort reports a peer OPEN body shorter than its fixed
+// fields or than the Optional Parameters length it states.
+var errAnalyzePeerOpenShort = errors.New("analyze: peer OPEN is shorter than the length it states")
+
+// bgpPeerAS answers the AS a peer's OPEN body advertises: the Four-octet AS
+// capability when the OPEN carries one, else the two-octet My Autonomous System.
+//
+// The capabilities are read by capability.ParseFromOptionalParams, the one
+// Optional Parameters decoder, in the framing the OPEN states. An OPEN that
+// decoder refuses is an error, never the My AS fallback: an AS answered for an
+// OPEN nobody could read is a wrong AS.
+func bgpPeerAS(body []byte) (uint32, error) {
+	if len(body) < 10 {
+		return 0, errAnalyzePeerOpenShort
 	}
-	return fallback
+	peerAS := uint32(binary.BigEndian.Uint16(body[1:3]))
+	params, extended, err := bgpPeerOptionalParams(body)
+	if err != nil {
+		return 0, err
+	}
+	// RFC 9072 Section 2
+	caps, err := capability.ParseFromOptionalParams(params, extended)
+	if err != nil {
+		return 0, fmt.Errorf("analyze: peer OPEN: %w", err)
+	}
+	for _, c := range caps {
+		if asn4, ok := c.(*capability.ASN4); ok {
+			return asn4.ASN, nil
+		}
+	}
+	return peerAS, nil
+}
+
+// bgpPeerOptionalParams cuts the Optional Parameters out of an OPEN body and
+// reports whether they carry the RFC 9072 two-octet framing.
+//
+// RFC 9072 Section 2: "In parsing an OPEN message, if the one-octet Optional
+// Parameters Length field (labeled "Non-Ext OP Len." in Figure 1) is non-zero,
+// a BGP speaker MUST use the value of the octet following the one-octet
+// Optional Parameters Length field (labeled "Non-Ext OP Type" in Figure 1) to
+// determine both the encoding of the Optional Parameters length and the size
+// of the Parameter Length field of individual Optional Parameters."
+func bgpPeerOptionalParams(body []byte) ([]byte, bool, error) {
+	paramsLen := int(body[9])
+	if paramsLen > 0 && len(body) > 10 && body[10] == 255 {
+		if len(body) < 13 {
+			return nil, false, errAnalyzePeerOpenShort
+		}
+		extendedLen := int(binary.BigEndian.Uint16(body[11:13]))
+		if len(body) < 13+extendedLen {
+			return nil, false, errAnalyzePeerOpenShort
+		}
+		return body[13 : 13+extendedLen], true, nil
+	}
+	if len(body) < 10+paramsLen {
+		return nil, false, errAnalyzePeerOpenShort
+	}
+	return body[10 : 10+paramsLen], false, nil
 }
 
 // BMP v3 header sizes (RFC 7854).

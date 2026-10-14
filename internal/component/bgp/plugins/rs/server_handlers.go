@@ -753,14 +753,33 @@ func (rs *routeServer) peerStatus() any {
 	peers := make([]map[string]any, 0, len(addresses))
 	for _, address := range addresses {
 		p := rs.peers[address]
-		peers = append(peers, map[string]any{
+		row := map[string]any{
 			tokenAddress: p.Address,
 			"remote":     map[string]any{"as": p.ASN},
 			"up":         p.Up,
-		})
+		}
+		// The families key is absent, never empty, while the peer is down or no
+		// OPEN is recorded: a down entry may hold an earlier session's set, and a
+		// nil set means SupportsFamily applies no filter, which an empty list
+		// would misstate. It is not a declared column, because it is absent on
+		// some rows.
+		if p.Up && p.Families != nil {
+			row["families"] = recordedFamilyNames(p.Families)
+		}
+		peers = append(peers, row)
 	}
 
 	return map[string]any{"peers": peers}
+}
+
+// recordedFamilyNames is the recorded family set as sorted family names.
+func recordedFamilyNames(families map[family.Family]bool) []string {
+	names := make([]string, 0, len(families))
+	for f := range families {
+		names = append(names, f.String())
+	}
+	slices.Sort(names)
+	return names
 }
 
 // comparePeerAddress orders two peer address keys the way an operator reads a

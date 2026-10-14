@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
@@ -519,15 +520,13 @@ func exabgpSessionFacts(connection net.Conn, openBody []byte, mockASN uint32) br
 // This mock mirrors the speaker's OPEN back to it, so what the speaker
 // advertised is what the session negotiated.
 func exabgpNegotiatedEncoding(openBody []byte) *capability.EncodingCaps {
-	const openFixedLength = 10 // version, AS, hold time, router id, param length
-	if len(openBody) < openFixedLength {
+	open, err := message.UnpackOpen(openBody)
+	if err != nil {
 		return nil
 	}
-	paramLength := int(openBody[9])
-	if openFixedLength+paramLength > len(openBody) {
-		return nil
-	}
-	caps, err := capability.ParseFromOptionalParams(openBody[openFixedLength:openFixedLength+paramLength], false)
+	// RFC 9072 Section 2: ExaBGP sends the extended form above 255 octets, and
+	// the OPEN's own framing decides the Parameter Length width.
+	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
 	if err != nil {
 		return nil
 	}
