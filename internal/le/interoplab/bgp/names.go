@@ -622,6 +622,25 @@ const (
 	frrShowPrefixSIDDuplicatePrefix = "show bgp ipv4 vpn " + prefixSIDDuplicatePrefix
 )
 
+// The bgp-prefix-sid-malformed-frr scenario, where a raw injector sends the
+// frames of test/plugin/prefixsid-malformed-receive.ci and ze relays them to
+// FRR over iBGP. prefixSIDMalformedLabelIndexPrefix carries a 6-octet
+// Label-Index and prefixSIDMalformedSRGBOnlyPrefix an SRGB-only Prefix-SID,
+// both on labeled unicast; prefixSIDMalformedControlPrefix is the valid VPN
+// route; prefixSIDMalformedWithdrawnPrefix is the VPN route re-announced with
+// an overrunning SRv6 L3 Service TLV. prefixSIDMalformedFRRLabelIndex is the
+// word FRR prints in a route's detail when it holds a label index.
+const (
+	prefixSIDMalformedLabelIndexPrefix = "10.0.1.0/24"
+	prefixSIDMalformedWithdrawnPrefix  = "10.0.2.0/24"
+	prefixSIDMalformedControlPrefix    = "10.0.3.0/24"
+	prefixSIDMalformedSRGBOnlyPrefix   = "10.0.4.0/24"
+	prefixSIDMalformedFRRLabelIndex    = "label-index"
+
+	frrShowPrefixSIDMalformedLabelIndexPrefix = "show bgp ipv4 labeled-unicast " + prefixSIDMalformedLabelIndexPrefix
+	frrShowPrefixSIDMalformedSRGBOnlyPrefix   = "show bgp ipv4 labeled-unicast " + prefixSIDMalformedSRGBOnlyPrefix
+)
+
 // flowspecMatchSCTP is the protocol word nft(8) prints for the SCTP match the
 // flowspec scenario lowers, and whose absence proves the rule was withdrawn.
 const flowspecMatchSCTP = "sctp"

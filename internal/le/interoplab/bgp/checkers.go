@@ -198,6 +198,37 @@ var scenarioOperations = map[string][]operation{
 		},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
+	// RFC 8669 Sections 3.1, 4.1 and 6 and RFC 9252 Section 7, judged by FRR
+	// on what ze relays. The VPN control comes first: it proves the VPN
+	// session carries routes, so the absence of the treat-as-withdraw prefix
+	// later is not an empty table. Each labeled-unicast prefix must arrive,
+	// and its own answer must name it without a label index, because ze
+	// discarded the attribute (under the family-blind judge it was relayed or
+	// kept). NOT RUN: written 2026-10-14 where the Docker kernel refuses the
+	// lab, so FRR's "label-index" wording (spec assumption A-4) and the red
+	// phase are both unobserved.
+	"bgp-prefix-sid-malformed-frr": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opFRRRoute, argument: prefixSIDMalformedControlPrefix, family: frrFamilyIPv4VPN, timeout: 90 * time.Second},
+		{kind: opFRRRoute, argument: prefixSIDMalformedLabelIndexPrefix, family: frrFamilyIPv4Labeled, timeout: 30 * time.Second},
+		{kind: opFRRRoute, argument: prefixSIDMalformedSRGBOnlyPrefix, family: frrFamilyIPv4Labeled, timeout: 30 * time.Second},
+		{
+			kind:    opRequireAbsent,
+			peer:    peerFRR,
+			command: []string{cmdVtysh, "-c", frrShowPrefixSIDMalformedLabelIndexPrefix},
+			absent:  []string{prefixSIDMalformedFRRLabelIndex},
+			proof:   []string{prefixSIDMalformedLabelIndexPrefix},
+		},
+		{
+			kind:    opRequireAbsent,
+			peer:    peerFRR,
+			command: []string{cmdVtysh, "-c", frrShowPrefixSIDMalformedSRGBOnlyPrefix},
+			absent:  []string{prefixSIDMalformedFRRLabelIndex},
+			proof:   []string{prefixSIDMalformedSRGBOnlyPrefix},
+		},
+		{kind: opFRRRouteAbsent, argument: prefixSIDMalformedWithdrawnPrefix, family: frrFamilyIPv4VPN, timeout: 30 * time.Second},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	// RFC 6793 Section 4.2.2, judged by FRR rather than by ze's own encoder. Ze
 	// prepends its non-mappable local AS twice toward a peer that refused the
 	// four-octet AS capability, so the segment ze splices into the AS_PATH has
