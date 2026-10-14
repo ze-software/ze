@@ -1,0 +1,39 @@
+# Test: the looking glass answers a command the daemon does not serve as a
+# refusal, never as an empty answer.
+#
+# VALIDATES: docs/architecture/api/birdwatcher-compat.md Section 3.1 on a real
+#            daemon. With no `bgp` block and no `environment bmp`, the bgp-bmp
+#            plugin does not load (ConfigRoots, bgp/plugins/bmp/register.go),
+#            so the dispatcher refuses `show bmp peers`. protocols/bmp then
+#            answers 502 with a body naming the command and the class
+#            "engine error" (engineAnswer, lg/handler_api.go).
+# PREVENTS: the failure answered as data. Until 2026-10-14 query
+#           (lg/server.go) rendered a failed dispatch as {"error": ...},
+#           which parsed, so protocols/bmp answered 200 with an empty
+#           protocols object: "no BMP peers" where the truth was "this daemon
+#           runs no BMP". The whole body is asserted, which also proves the dispatcher's own
+#           error text stays in the daemon log and off this unauthenticated
+#           API.
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	looking-glass {
+		enabled true
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented opt-out from the TLS default.
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+
+# Wait on a page that answers from no command, so readiness says nothing about
+# the refusal below.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/lg/help:status=200:timeout=20s
+
+http=get:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bmp:status=502:contains={"error":"show bmp peers: engine error"}

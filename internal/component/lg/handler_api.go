@@ -49,6 +49,8 @@ const (
 	cmdShowUptime = "show uptime"
 	// cmdShowReloadStatus answers when the last config reload finished.
 	cmdShowReloadStatus = "show reload-status"
+	// cmdShowBMPPeers answers the peers the BMP plugin monitors.
+	cmdShowBMPPeers = "show bmp peers"
 )
 
 // handleAPIStatus returns router status in birdwatcher format (GET /api/looking-glass/status).
@@ -99,57 +101,73 @@ func (s *LGServer) handleAPIStatus(w http.ResponseWriter, _ *http.Request) {
 
 // engineAnswer dispatches one command and returns the answer it parsed.
 //
-// A failed dispatch is not an answer. query renders the failure as
-// {"error": ...} and parseJSON returns nil for a reply that is not JSON at all,
-// so a handler that reads only the keys it wants renders whatever the zero
-// value of each key looks like: an empty identity, with HTTP 200 over it. This
-// writes the refusal itself and reports false, naming the command that failed
-// so an operator reading the body knows which one (ai/rules/principles.md).
-//
-// The two codes name two different failures. 503 says the engine produced
-// nothing this server could parse. 502 says the engine answered, and its answer
-// was an error.
+// A failed dispatch is not an answer, and neither is an error envelope or a
+// reply that is not JSON at all: a handler that read only the keys it wants
+// would render whatever the zero value of each key looks like, with HTTP 200
+// over it. This writes the refusal itself and reports false, naming the command
+// that failed so an operator reading the body knows which one
+// (ai/rules/principles.md).
 func (s *LGServer) engineAnswer(w http.ResponseWriter, command string) (map[string]any, bool) {
-	ze := parseJSON(s.query(command))
-	if ze == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable: "+command)
-		return nil, false
-	}
-
-	if reason := engineError(ze); reason != "" {
-		writeJSONError(w, http.StatusBadGateway, command+": "+reason)
+	ze, failure := s.ask(command)
+	if failure != nil {
+		writeEngineFailure(w, failure)
 		return nil, false
 	}
 
 	return ze, true
 }
 
+// writeEngineFailure writes the refusal one failed command owes: its status,
+// and a body naming the command and the failure class, never the
+// dispatcher's own error (engineFailure.message).
+//
+// The two codes name two different failures. 503 says the engine produced
+// nothing this server could parse. 502 says the engine answered, and its answer
+// was an error.
+func writeEngineFailure(w http.ResponseWriter, failure *engineFailure) {
+	writeJSONError(w, failure.status, failure.message())
+}
+
+// peerRoutesAnswer dispatches a peer-scoped routes command and returns the
+// answer, or writes the refusal and reports false.
+//
+// An error envelope answers 404 carrying the engine's refusal: bgp-rib refuses
+// with one, and these endpoints have always read that refusal as the named
+// peer having nothing to list. Any other failure is an engine failure and
+// answers as engineAnswer does.
+func (s *LGServer) peerRoutesAnswer(w http.ResponseWriter, command string) (map[string]any, bool) {
+	ze, failure := s.ask(command)
+	if failure == nil {
+		return ze, true
+	}
+
+	if failure.envelope {
+		writeJSONError(w, http.StatusNotFound, failure.refusal)
+		return nil, false
+	}
+
+	writeEngineFailure(w, failure)
+	return nil, false
+}
+
 // handleAPIProtocols returns the peer list in birdwatcher format (GET /api/looking-glass/protocols/bgp).
 func (s *LGServer) handleAPIProtocols(w http.ResponseWriter, _ *http.Request) {
-	result := s.query(cmdBGPOverview)
-
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+	zeData, ok := s.engineAnswer(w, cmdBGPOverview)
+	if !ok {
 		return
 	}
 
-	bw := transformProtocols(zeData)
-	writeJSON(w, bw)
+	writeJSON(w, transformProtocols(zeData))
 }
 
 // handleAPIProtocolsShort returns short protocol status in birdwatcher format.
 func (s *LGServer) handleAPIProtocolsShort(w http.ResponseWriter, _ *http.Request) {
-	result := s.query(cmdBGPOverview)
-
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+	zeData, ok := s.engineAnswer(w, cmdBGPOverview)
+	if !ok {
 		return
 	}
 
-	bw := transformProtocolsShort(zeData)
-	writeJSON(w, bw)
+	writeJSON(w, transformProtocolsShort(zeData))
 }
 
 // serveRoutesForPeer runs "show bgp rib received peer <peer>" and writes the
@@ -168,16 +186,8 @@ func (s *LGServer) serveRoutesForPeer(w http.ResponseWriter, r *http.Request, pe
 	}
 
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib received peer ").Str(peer).String())
-
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
-		return
-	}
-
-	if errMsg, ok := zeData["error"].(string); ok {
-		writeJSONError(w, http.StatusNotFound, errMsg)
+	zeData, ok := s.peerRoutesAnswer(w, tb.Str("show bgp rib received peer ").Str(peer).String())
+	if !ok {
 		return
 	}
 
@@ -255,16 +265,12 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 
 // handleAPIBMPProtocols returns BMP-monitored peers (GET /api/looking-glass/protocols/bmp).
 func (s *LGServer) handleAPIBMPProtocols(w http.ResponseWriter, _ *http.Request) {
-	result := s.query("show bmp peers")
-
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+	zeData, ok := s.engineAnswer(w, cmdShowBMPPeers)
+	if !ok {
 		return
 	}
 
-	bw := transformBMPProtocols(zeData)
-	writeJSON(w, bw)
+	writeJSON(w, transformBMPProtocols(zeData))
 }
 
 // handleAPIBMPRoutes returns routes from a BMP-monitored peer (GET /api/looking-glass/routes/bmp/{name}).
@@ -281,16 +287,8 @@ func (s *LGServer) handleAPIBMPRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib-protocol bmp ").Str(name).String())
-
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
-		return
-	}
-
-	if errMsg, ok := zeData["error"].(string); ok {
-		writeJSONError(w, http.StatusNotFound, errMsg)
+	zeData, ok := s.peerRoutesAnswer(w, tb.Str("show bgp rib-protocol bmp ").Str(name).String())
+	if !ok {
 		return
 	}
 
@@ -367,16 +365,8 @@ func (s *LGServer) handleAPIRoutesExport(w http.ResponseWriter, r *http.Request)
 	}
 
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib sent peer ").Str(name).String())
-
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
-		return
-	}
-
-	if errMsg, ok := zeData["error"].(string); ok {
-		writeJSONError(w, http.StatusNotFound, errMsg)
+	zeData, ok := s.peerRoutesAnswer(w, tb.Str("show bgp rib sent peer ").Str(name).String())
+	if !ok {
 		return
 	}
 
@@ -447,11 +437,8 @@ func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request)
 	// keyword the plugin answers `sent-received` (parsePipelineArgs), and a
 	// route Ze sent a peer reads as learned from that peer.
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib received prefix ").Str(prefix).String())
-
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+	zeData, ok := s.engineAnswer(w, tb.Str("show bgp rib received prefix ").Str(prefix).String())
+	if !ok {
 		return
 	}
 

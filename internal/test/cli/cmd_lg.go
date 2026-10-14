@@ -17,8 +17,10 @@ import (
 )
 
 // errLGEngineUnavailable is what the stubbed dispatcher answers with. The
-// looking glass turns a dispatch failure into this text, in the page banner and
-// in the peer stream, so the browser reads the words this error carries.
+// looking glass logs this text and shows the browser only the command and the
+// failure class, `show bgp: engine error`, in the page banner and in the peer
+// stream, so test/web/lg-stream-error.wb asserts the class and refuses these
+// words.
 var errLGEngineUnavailable = errors.New("bgp engine unavailable")
 
 // CmdLG is the harness command `le test lg`, registered by

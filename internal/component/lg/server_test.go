@@ -40,6 +40,11 @@ func mockDispatch() CommandDispatcher {
 			out = `{"start-time":"2026-01-01T00:00:00Z","uptime":"1h0m0s"}`
 		case cmd == cmdShowReloadStatus:
 			out = `{"generation":1,"last-outcome":"applied","last-reload-at":"2026-03-01T12:00:00Z"}`
+		case cmd == cmdShowBMPPeers:
+			// What peersCommand (bgp/plugins/bmp/state.go) answers while it
+			// monitors no peer. Without this arm the protocols/bmp golden
+			// captured a refusal of a command the daemon serves.
+			out = `{"peers":[]}`
 		case cmd == "show bgp rib", strings.HasPrefix(cmd, "show bgp rib "):
 			// The answers bgp-rib produces, and the spellings it refuses
 			// (ribfake_test.go).
@@ -50,8 +55,8 @@ func mockDispatch() CommandDispatcher {
 			// The daemon refuses a command it does not serve by returning an
 			// error, which is what the looking glass met on the live router
 			// while it asked for `bgp status`. Answering an error envelope
-			// here instead would have hidden that: query renders both to the
-			// same string, but only this one exercises the failure path.
+			// here instead would have hidden that: query returns this one as
+			// an error, so only this one exercises the dispatch failure path.
 			return nil, errUnknownCommand
 		}
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(out)), nil

@@ -83,7 +83,13 @@ object from a command that failed.
 The server MUST answer `502 Bad Gateway` when the engine returns an error, and
 `503 Service Unavailable` when the engine returns nothing the server can parse.
 The body MUST be a JSON object carrying `error`, and that message MUST name the
-command that failed.
+command that failed. It names it as `<command>: <class>`, where the class is
+`engine error` (the dispatch failed, or the engine answered its error object),
+`engine unavailable` (the engine answered nothing) or `unreadable reply` (the
+answer is not a JSON object). The message MUST NOT carry the dispatcher's own
+error: this API answers anybody who can reach it, and that text can name a
+socket path or another detail of the host. The server logs the full reason.
+<!-- source: internal/component/lg/server.go -- ask, engineFailure.message -->
 
 Before 2026-09-20 the endpoint asked for `bgp status`, which the daemon does not
 serve. The dispatch failed on every request, and the endpoint answered 200 with
@@ -100,10 +106,21 @@ which `bgp-rib` refuses because nothing may follow a terminal, and rendered the
 refusal as a count of 0. A count answer that carries no `count` is refused the
 same way, and is never reported as 0.
 
-The other endpoints do not hold this requirement yet. `protocols/bgp`,
-`protocols/short` and `protocols/bmp` still answer 200 over an engine error,
-each one rendering whatever its transform builds from an answer that is not one.
-<!-- source: internal/component/lg/handler_api.go -- engineAnswer -->
+`protocols/bgp`, `protocols/short`, `protocols/bmp` and `routes/prefix` hold
+it too. Before 2026-10-14 the server turned a failed dispatch into the string
+`{"error": ...}` and handed it on as the answer. It parsed, so these four
+transformed the refusal into an empty protocols object or an empty routes
+array and answered 200 over it. A failed dispatch is now an error the handler
+receives in place of an answer.
+
+`routes/protocol/{name}`, `routes/peer/{peer}`, `routes/export/{name}` and
+`routes/bmp/{name}` answer a failed dispatch the same way, with 502 or 503.
+They answer 404 when the engine's answer is an error object, which is how
+`bgp-rib` refuses a command it cannot parse, and that body carries the
+engine's own refusal: it is the engine's verdict on the request, not a
+transport error.
+<!-- source: internal/component/lg/server.go -- query, ask -->
+<!-- source: internal/component/lg/handler_api.go -- engineAnswer, peerRoutesAnswer -->
 <!-- source: internal/component/lg/handler_api.go -- handleAPIRoutesTable, handleAPIRoutesCount -->
 
 ### 3.2 Which direction each endpoint answers

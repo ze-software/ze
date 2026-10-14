@@ -26,17 +26,23 @@ const maxFormBytes = 4096
 
 // handleUIPeers renders the peer dashboard page.
 func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
-	result := s.query(cmdBGPOverview)
-	zeData := parseJSON(result)
+	zeData, failure := s.ask(cmdBGPOverview)
 
-	bmpResult := s.query("show bmp peers")
-	bmpData := parseJSON(bmpResult)
+	// The BMP plugin is optional, and a daemon that runs none refuses
+	// `show bmp peers` as an unknown command. The page then shows no BMP
+	// section rather than a banner over the BGP table it exists to show; ask
+	// has already logged the refusal. protocols/bmp is where a client asks
+	// for BMP peers and is refused (handleAPIBMPProtocols).
+	var bmpPeers []bmpPeerRow
+	if bmpData, bmpFailure := s.ask(cmdShowBMPPeers); bmpFailure == nil {
+		bmpPeers = s.extractBMPPeers(bmpData)
+	}
 
 	v := peersView{
 		Title: "Peers", ActiveTab: fieldPeers, Page: pgPeersPage,
 		Peers:    s.extractPeers(zeData),
-		BMPPeers: s.extractBMPPeers(bmpData),
-		Error:    engineError(zeData),
+		BMPPeers: bmpPeers,
+		Error:    failure.message(),
 	}
 
 	if isHTMXRequest(r) {
@@ -128,8 +134,7 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 		tb.Str(" family ").Str(fam)
 	}
 
-	result := s.query(tb.String())
-	zeData := parseJSON(result)
+	zeData, failure := s.ask(tb.String())
 	routes := extractRoutes(zeData)
 
 	if len(routes) > maxSearchResults {
@@ -146,7 +151,7 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 		Family:     fam,
 		Routes:     rows,
 		Count:      len(rows),
-		Error:      engineError(zeData),
+		Error:      failure.message(),
 	}
 
 	s.renderSearch(w, r, v)
@@ -207,8 +212,12 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get peer info first to confirm the peer exists.
-	peerResult := s.query(cmdBGPOverview)
-	peerData := parseJSON(peerResult)
+	// A refused overview is not an absent peer, so it is not a 404.
+	peerData, peerFailure := s.ask(cmdBGPOverview)
+	if peerFailure != nil {
+		http.Error(w, peerFailure.message(), peerFailure.status)
+		return
+	}
 	peerInfo := findPeer(peerData, address)
 
 	if peerInfo == nil {
@@ -225,21 +234,20 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	var tb textbuf.Buffer
 	// `histogram` is a terminal, and bgp-rib refuses anything after a terminal
 	// (parsePipelineArgs), so the peer selector comes first.
-	result := s.query(tb.Str("show bgp rib received peer ").Str(address).Str(" histogram").String())
-	zeData := parseJSON(result)
+	zeData, failure := s.ask(tb.Str("show bgp rib received peer ").Str(address).Str(" histogram").String())
 
 	totalCount := 0
 	var histogram []histogramRow
 
-	if zeData != nil {
-		if _, isErr := zeData["error"].(string); !isErr {
-			totalCount = getInt(zeData, "count")
-			histogram = flattenHistogram(zeData)
-		}
+	if failure == nil {
+		totalCount = getInt(zeData, "count")
+		histogram = flattenHistogram(zeData)
 	}
 
-	// The routes Ze sent the peer, counted beside the routes it sent Ze.
-	sentData := parseJSON(s.query(tb.Reset().Str("show bgp rib sent peer ").Str(address).Str(" count").String()))
+	// The routes Ze sent the peer, counted beside the routes it sent Ze. A
+	// refused count leaves RoutesSent empty, which the page shows as unknown,
+	// never as 0 (ribCount).
+	sentData, _ := s.ask(tb.Reset().Str("show bgp rib sent peer ").Str(address).Str(" count").String())
 
 	v := peerRoutesView{
 		Title:          tb.Reset().Str("Routes from ").Str(address).String(),
@@ -250,17 +258,16 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 		RoutesReceived: ribCount(zeData),
 		RoutesSent:     ribCount(sentData),
 		Histogram:      histogram,
-		Error:          engineError(zeData),
+		Error:          failure.message(),
 	}
 
 	// For small route tables, also fetch individual routes.
 	if totalCount > 0 && totalCount <= maxDisplayRoutes {
-		routeResult := s.query(tb.Reset().Str("show bgp rib received peer ").Str(address).String())
-		routeData := parseJSON(routeResult)
-		if routeData != nil {
-			if _, isErr := routeData["error"].(string); !isErr {
-				v.Routes = routeRows(extractRoutes(routeData))
-			}
+		routeData, routeFailure := s.ask(tb.Reset().Str("show bgp rib received peer ").Str(address).String())
+		if routeFailure == nil {
+			v.Routes = routeRows(extractRoutes(routeData))
+		} else {
+			v.Error = routeFailure.message()
 		}
 	}
 
@@ -286,15 +293,9 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 
 	var tb2 textbuf.Buffer
 	// The routes the peer sent Ze, as the page lists them: `received` scope.
-	result := s.query(tb2.Str("show bgp rib received peer ").Str(address).String())
-	zeData := parseJSON(result)
-
-	if zeData == nil {
-		http.Error(w, "engine unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	if errMsg, ok := zeData["error"].(string); ok {
-		http.Error(w, errMsg, http.StatusInternalServerError)
+	zeData, failure := s.ask(tb2.Str("show bgp rib received peer ").Str(address).String())
+	if failure != nil {
+		http.Error(w, failure.message(), failure.status)
 		return
 	}
 
@@ -367,14 +368,11 @@ func flattenHistogram(ze map[string]any) []histogramRow {
 }
 
 // ribCount reads the count a bgp-rib `count` or `histogram` terminal answers,
-// as the string the page renders. An answer that is missing, an error, or
-// carries no number is the empty string, so the page shows an empty cell and
-// never a zero the engine did not send.
+// as the string the page renders. An answer that is missing (ask refused it)
+// or carries no number is the empty string, so the page shows an empty cell
+// and never a zero the engine did not send.
 func ribCount(zeData map[string]any) string {
 	if zeData == nil {
-		return ""
-	}
-	if _, isErr := zeData["error"].(string); isErr {
 		return ""
 	}
 	n, ok := numValue(zeData, "count")
@@ -535,8 +533,13 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 	// keyword the plugin answers `sent-received` (parsePipelineArgs), and a
 	// route Ze sent a peer reads as learned from that peer.
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib received prefix ").Str(prefix).String())
-	zeData := parseJSON(result)
+	command := tb.Str("show bgp rib received prefix ").Str(prefix).String()
+	zeData, failure := s.ask(command)
+	if failure != nil {
+		// A refusal is not a route the prefix lacks.
+		http.Error(w, failure.message(), failure.status)
+		return
+	}
 	routes := extractRoutes(zeData)
 
 	// Find the specific route from the given peer.
@@ -635,15 +638,15 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 // peerStreamBody renders the table body that one stream message carries: the
 // peer rows, or a single row naming the reason the engine could not answer.
 //
-// engineError is the producer the peers page reads for its banner, so a
-// dispatch failure now reaches a watching operator as well as a reloading one.
-// Until this, only a nil response was reported, it was reported as a named
-// event nothing consumed, and a dispatch error pushed an empty table instead.
+// ask is the producer the peers page reads for its banner, so a dispatch
+// failure reaches a watching operator as well as a reloading one. Before this,
+// only a nil response was reported, it was reported as a named event nothing
+// consumed, and a dispatch error pushed an empty table instead.
 func (s *LGServer) peerStreamBody() (string, error) {
-	zeData := parseJSON(s.query(cmdBGPOverview))
+	zeData, failure := s.ask(cmdBGPOverview)
 
-	if message := engineError(zeData); message != "" {
-		return renderToString(peersStreamError(message))
+	if failure != nil {
+		return renderToString(peersStreamError(failure.message()))
 	}
 
 	return renderToString(peersTableBody(s.extractPeers(zeData)))
@@ -894,18 +897,6 @@ func findPeer(ze map[string]any, address string) map[string]any {
 	}
 
 	return nil
-}
-
-// engineError returns an error message when the engine is unreachable (nil data)
-// or when the response contains an "error" key from a dispatch failure.
-func engineError(ze map[string]any) string {
-	if ze == nil {
-		return "BGP engine unavailable"
-	}
-	if errMsg, ok := ze["error"].(string); ok {
-		return errMsg
-	}
-	return ""
 }
 
 // isHTMXRequest checks if the request was made by HTMX (HX-Request header).

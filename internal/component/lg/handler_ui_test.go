@@ -3,6 +3,7 @@ package lg
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -58,8 +59,13 @@ func TestEngineUnavailableReachesTheBrowser(t *testing.T) {
 			t.Errorf("body carries no error row: %s", body)
 		}
 
-		if !strings.Contains(body, errTestEngineDown.Error()) {
-			t.Errorf("body does not name the reason %q: %s", errTestEngineDown, body)
+		if want := cmdBGPOverview + ": " + failureEngineError; !strings.Contains(body, want) {
+			t.Errorf("body does not name the failure %q: %s", want, body)
+		}
+
+		// The stream is public: the dispatcher's own error stays in the log.
+		if strings.Contains(body, errTestEngineDown.Error()) {
+			t.Errorf("body carries the dispatcher's own error: %s", body)
 		}
 
 		var out strings.Builder
@@ -355,14 +361,77 @@ func TestFindPeer(t *testing.T) {
 	})
 }
 
-func TestEngineError(t *testing.T) {
-	// VALIDATES: error message for nil vs non-nil engine data.
-	if got := engineError(nil); got != "BGP engine unavailable" {
-		t.Errorf("nil: got %q, want BGP engine unavailable", got)
+// TestAsk proves ask tells each of the four non-answers apart from an answer,
+// and from each other, by driving it over dispatchers that produce each one.
+//
+// VALIDATES: a failed dispatch is 502 "engine error", an error envelope is 502
+// "engine error" marked as one and carrying its refusal, an empty reply is 503
+// "engine unavailable", a reply that is not JSON is 503 "unreadable reply",
+// each message names the command and never the dispatcher's own error, and an
+// answer is returned with no failure.
+// PREVENTS: a failure reaching a handler as data it then renders, and a
+// transport error reaching an unauthenticated client.
+func TestAsk(t *testing.T) {
+	answering := func(out string) CommandDispatcher {
+		return func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			if out == "" {
+				return plugin.NewResponse(plugin.StatusDone, nil), nil
+			}
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(out)), nil
+		}
 	}
-	if got := engineError(map[string]any{}); got != "" {
-		t.Errorf("non-nil: got %q, want empty", got)
+	failing := func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+		return nil, errTestEngineDown
 	}
+
+	tests := []struct {
+		name     string
+		dispatch CommandDispatcher
+		status   int
+		class    string
+		envelope bool
+		refusal  string
+	}{
+		{"dispatch failure", failing, http.StatusBadGateway, failureEngineError, false, ""},
+		{"error envelope", answering(`{"error":"refused"}`), http.StatusBadGateway, failureEngineError, true, "refused"},
+		{"empty reply", answering(""), http.StatusServiceUnavailable, failureEngineUnavailable, false, ""},
+		{"not an object", answering(`42`), http.StatusServiceUnavailable, failureUnreadableReply, false, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := testServerWithDispatch(tt.dispatch)
+			ze, failure := srv.ask("show bgp")
+			if ze != nil {
+				t.Errorf("answer = %v, want none", ze)
+			}
+			if failure == nil {
+				t.Fatal("failure = nil, want one")
+			}
+			if failure.status != tt.status || failure.class != tt.class {
+				t.Errorf("failure = %+v, want status %d class %q", *failure, tt.status, tt.class)
+			}
+			if failure.envelope != tt.envelope || failure.refusal != tt.refusal {
+				t.Errorf("failure = %+v, want envelope %v refusal %q", *failure, tt.envelope, tt.refusal)
+			}
+			if got, want := failure.message(), "show bgp: "+tt.class; got != want {
+				t.Errorf("message = %q, want %q", got, want)
+			}
+		})
+	}
+
+	t.Run("answer", func(t *testing.T) {
+		srv := testServerWithDispatch(answering(`{"router-id":"1.2.3.4"}`))
+		ze, failure := srv.ask("show bgp")
+		if failure != nil {
+			t.Fatalf("failure = %+v, want none", *failure)
+		}
+		if getStr(ze, "router-id") != "1.2.3.4" {
+			t.Errorf("answer = %v, want router-id 1.2.3.4", ze)
+		}
+		if got := failure.message(); got != "" {
+			t.Errorf("message of no failure = %q, want empty", got)
+		}
+	})
 }
 
 func TestResolveASN(t *testing.T) {

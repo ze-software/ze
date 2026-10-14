@@ -630,10 +630,14 @@ func (s *LGServer) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
 }
 
-// query dispatches a command to the engine and returns the result string.
-// On dispatch error, returns a JSON error envelope so callers can surface
-// the failure reason instead of showing a generic "engine unavailable".
-func (s *LGServer) query(cmd string) string {
+// query dispatches a command to the engine and returns the JSON answer.
+//
+// A failed dispatch returns its error and no answer. It used to come back as
+// the string {"error": ...}, which parsed, so every handler that branched only
+// on a nil parse read the failure as data and answered 200 over it
+// (plan/journal/zero-value-as-valid-answer.md, 2026-09-20). Callers MUST
+// handle the error; ask does that for every page and endpoint.
+func (s *LGServer) query(cmd string) (string, error) {
 	// The looking glass is public and read-only: dispatch with a zero-value
 	// caller identity (no username/remote-addr; the injected dispatcher supplies
 	// the fixed surface). Render the typed response to its JSON string here.
@@ -641,10 +645,90 @@ func (s *LGServer) query(cmd string) string {
 	defer result.TransportComplete()
 	if err != nil {
 		s.logger.Warn("dispatch error", "command", cmd, "error", err)
-		b, _ := json.Marshal(map[string]any{"error": err.Error()})
-		return string(b)
+		return "", err
 	}
-	return result.Output
+	return result.Output, nil
+}
+
+// The three classes a public refusal names. The looking glass answers anybody
+// who can reach it, so a refusal names the command and one of these, and never
+// the dispatcher's own error: that text can carry a socket path or another
+// detail of the host. ask and query log the full reason for the operator.
+const (
+	// failureEngineError: the dispatch failed, or the engine answered with its
+	// error envelope.
+	failureEngineError = "engine error"
+	// failureEngineUnavailable: the engine answered nothing at all.
+	failureEngineUnavailable = "engine unavailable"
+	// failureUnreadableReply: the engine answered, and the answer is not a
+	// JSON object.
+	failureUnreadableReply = "unreadable reply"
+)
+
+// engineFailure says why a command produced no answer, and which HTTP status
+// that failure owes (docs/architecture/api/birdwatcher-compat.md Section 3.1).
+type engineFailure struct {
+	// status is http.StatusBadGateway when the engine answered with an error,
+	// and http.StatusServiceUnavailable when it answered nothing parseable.
+	status int
+	// command is the command that produced no answer.
+	command string
+	// class is one of the failure constants above, the only part of the
+	// reason a client is shown.
+	class string
+	// envelope is true when the engine answered done and the answer itself was
+	// an {"error": ...} object, which is how bgp-rib refuses a command it
+	// cannot parse. The peer-scoped route endpoints answer that one with 404.
+	envelope bool
+	// refusal is the envelope's own message, set only when envelope is true.
+	// It is the engine's verdict on the request, never a transport error.
+	refusal string
+}
+
+// message returns the text a page or an endpoint shows for the failure:
+// the command and the failure class. It returns the empty string when there is
+// no failure, which is what a view's Error field means by no error.
+func (f *engineFailure) message() string {
+	if f == nil {
+		return ""
+	}
+	return f.command + ": " + f.class
+}
+
+// ask dispatches one command and returns the answer it parsed, or the failure
+// that stands in place of one. Exactly one of the two is non-nil. Every
+// failure is logged here or in query, so a caller that drops one has not hidden
+// it from the operator.
+//
+// Four replies are not answers: a dispatch that failed, an empty reply, a
+// reply that is not a JSON object, and a reply that is the engine's error
+// envelope.
+func (s *LGServer) ask(command string) (map[string]any, *engineFailure) {
+	output, err := s.query(command)
+	if err != nil {
+		return nil, &engineFailure{status: http.StatusBadGateway, command: command, class: failureEngineError}
+	}
+
+	if output == "" {
+		s.logger.Warn("engine answered nothing", "command", command)
+		return nil, &engineFailure{status: http.StatusServiceUnavailable, command: command, class: failureEngineUnavailable}
+	}
+
+	ze := parseJSON(output)
+	if ze == nil {
+		s.logger.Warn("engine reply is not a JSON object", "command", command, "octets", len(output))
+		return nil, &engineFailure{status: http.StatusServiceUnavailable, command: command, class: failureUnreadableReply}
+	}
+
+	if refusal, refused := ze["error"].(string); refused {
+		s.logger.Warn("engine refused command", "command", command, "error", refusal)
+		return nil, &engineFailure{
+			status: http.StatusBadGateway, command: command, class: failureEngineError,
+			envelope: true, refusal: refusal,
+		}
+	}
+
+	return ze, nil
 }
 
 // writeJSONError writes a JSON error response with the given HTTP status code.

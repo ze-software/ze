@@ -64,8 +64,14 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 	// keyword the plugin answers `sent-received` (parsePipelineArgs), and a
 	// route Ze sent a peer reads as learned from that peer.
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib received prefix ").Str(prefix).String())
-	zeData := parseJSON(result)
+	command := tb.Str("show bgp rib received prefix ").Str(prefix).String()
+	zeData, failure := s.ask(command)
+	if failure != nil {
+		// A refusal is not an empty graph: "No routes found" over a failed
+		// dispatch would tell the operator the prefix is absent.
+		http.Error(w, failure.message(), failure.status)
+		return
+	}
 	routes := extractRoutes(zeData)
 
 	if mode == graphModeNextHop {
