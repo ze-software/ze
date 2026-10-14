@@ -486,3 +486,56 @@ func TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed(t *testing.T) {
 		srRequireKept(t, "MP_REACH with no NLRI", srReceive(t, false, empty), empty)
 	}
 }
+
+// srTunnelTypeBody is srNoTunnelBody with a Tunnel Encapsulation attribute whose value is
+// value attached, so the attribute is present and only its Tunnel Type TLV is under test.
+func srTunnelTypeBody(afi byte, reach, value []byte) []byte {
+	mp := []byte{0, afi, 73, 4, 192, 0, 2, 1, 0}
+	mp = append(mp, reach...)
+	attrs := []byte{0x90, byte(attribute.AttrMPReachNLRI), byte(len(mp) >> 8), byte(len(mp))}
+	attrs = append(attrs, mp...)
+	attrs = append(attrs, 0x40, 1, 1, 0, 0x40, 2, 0, 0x40, 5, 4, 0, 0, 0, 100,
+		0xC0, byte(attribute.AttrExtCommunity), 8, 1, 2, 192, 0, 2, 2, 0, 0,
+		0xD0, byte(attribute.AttrTunnelEncap), byte(len(value)>>8), byte(len(value)))
+	attrs = append(attrs, value...)
+	return makeUpdateBody(nil, attrs, nil)
+}
+
+// TestRFC9830SRPolicyTunnelTypeNot15IsMalformed drives SAFI 73 UPDATEs that carry the
+// Tunnel Encapsulation attribute through processMessage, with one TLV whose Tunnel Type
+// is not 15, and with the same NLRI carrying one type-15 TLV.
+//
+// RFC 9830 Section 4.2.1: "The Tunnel Encapsulation Attribute MUST be attached to the BGP
+// UPDATE message and MUST have a Tunnel Type TLV set to SR Policy (code point is 15)."
+// Section 5: "An SR Policy update that is determined not to be valid (and, therefore,
+// malformed) based on the rules described in Section 4.2.1 MUST be handled by the
+// "treat-as-withdraw" strategy."
+// VALIDATES: an attached attribute whose only TLV is VXLAN (8) or an unassigned type is
+// treat-as-withdraw with the session kept; the type-15 TLV in the same position is
+// accepted unchanged, so the tunnel type is what the verdict turns on.
+// PREVENTS: an SR Policy accepted because attribute 23 is present, whatever its TLV.
+func TestRFC9830SRPolicyTunnelTypeNot15IsMalformed(t *testing.T) {
+	for _, afi := range []byte{1, 2} {
+		bits, octets := 96, 12
+		if afi == 2 {
+			bits, octets = 192, 24
+		}
+		nlri := srNLRI(bits, octets, false, 0x20)
+
+		// RFC requirement: RFC9830-4.2.1-7 negative -- a received AFI 1 or AFI 2 SAFI 73 UPDATE that carries the Tunnel Encapsulation attribute with one TLV whose Tunnel Type is VXLAN (8) or 0xFFFE rather than SR Policy (15) is treat-as-withdraw through processMessage: the session stays Established, nothing is written, and the UPDATE is not delivered as received
+		for _, tc := range []struct {
+			name  string
+			value []byte
+		}{
+			{"vxlan", teTLV(8, teSub(6, 0, 0, 0, 0, 0, 0))},
+			{"unassigned", teTLV(0xFFFE, teSub(99, 1))},
+		} {
+			wrong := srTunnelTypeBody(afi, nlri, tc.value)
+			srRequireWithdrawn(t, tc.name, srReceive(t, false, wrong), wrong)
+		}
+
+		// RFC requirement: RFC9830-4.2.1-7 positive -- the same UPDATE with its Tunnel Encapsulation attribute carrying one Tunnel Type 15 TLV is accepted through processMessage with no RFC 7606 action and delivered unchanged
+		policy := srTunnelTypeBody(afi, nlri, teSRPolicyValue(0, false))
+		srRequireKept(t, "type 15", srReceive(t, false, policy), policy)
+	}
+}
