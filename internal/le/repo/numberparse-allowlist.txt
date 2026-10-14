@@ -120,6 +120,6 @@
 1 internal/test/fixture/tunnel_fixture_l2tp_ppp.go
 1 internal/test/mock/peeringdb/peeringdb.go
 3 internal/test/mock/rtr/rtr.go
-4 internal/test/peer/expect.go
+3 internal/test/peer/expect.go
 1 internal/test/plugins/fakeas112/fakeas112.go
 3 internal/test/plugins/fakefib/fakefib.go
