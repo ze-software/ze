@@ -626,35 +626,42 @@ func addedParams(cfg *Config) []openParam {
 	return append(out, openParam{kind: paramTypeCapability, caps: [][]byte{tlv}})
 }
 
-// encodeOpen writes the whole OPEN: the header, the fixed body fields resolved
-// from id, and the parameters.
+// encodeOpen writes the whole OPEN: the fixed body fields resolved from id, and
+// the parameters in the order and layout params gives them.
 //
-// RFC 9072 Section 2 framing is used when the parameters exceed the 255 octets a
-// one-octet length can state, and refused above the 65535 a two-octet one can.
-// Truncating is the failure this replaces: the harness wrote the low octet of
-// the real length and sent a message whose first parameter no reader could frame.
+// The parameters go through capability.PackOptionalParams and the message
+// through message.Open.WriteTo, the packer and the envelope writer ze itself
+// sends with, so the test peer cannot frame RFC 9072 differently from ze. Each
+// parameter keeps its Type and its octets: a type-2 parameter hands its TLVs
+// joined in order, any other type its raw octets verbatim. The packer chooses
+// the RFC 9072 Section 2 two-octet framing when the parameters exceed the 255
+// octets a one-octet length can state, and refuses above the 65535 a two-octet
+// one can.
 func encodeOpen(zeBody []byte, id openIdentity, params []openParam) ([]byte, error) {
-	extended := false
-	paramsLen := 0
+	typed := make([]capability.OptionalParam, 0, len(params))
 	for _, param := range params {
-		paramsLen += 2 + paramValueLen(param)
+		typed = append(typed, capability.RawParam(param.kind, paramValue(param)))
 	}
-	if paramsLen > 255 {
-		extended = true
-		paramsLen = 0
-		for _, param := range params {
-			paramsLen += 3 + paramValueLen(param)
-		}
+	optional, extended, err := capability.PackOptionalParams(typed)
+	if err != nil {
+		return nil, fmt.Errorf("the reconciled OPEN's parameters: %w", err)
 	}
-	envelopeLen := 1
-	if extended {
-		envelopeLen = 4
+
+	open := message.Open{
+		Version: zeBody[0], // BGP version, mirrored: ze-peer speaks the version ze offered.
+		MyAS:    myASField(id.as),
+		// RFC 4271 Section 4.2 makes the Hold Time the SENDER's proposal, and the
+		// negotiation takes the smaller of the two. Mirroring it made the two
+		// values equal, so session_negotiate's min-selection had nothing to choose
+		// between and could not be reached from any .ci.
+		HoldTime:       id.holdTime,
+		BGPIdentifier:  id.routerID,
+		OptionalParams: optional,
+		ExtendedParams: extended,
 	}
-	total := HeaderLen + openBodyFixedLen + envelopeLen + paramsLen
+	total := open.Len(nil)
 	// The MESSAGE is what the two-octet Length field states, so the message is
-	// what the bound is on. Bounding the parameters alone leaves 65504 to 65535
-	// octets of parameters passing the check and the header length wrapping,
-	// which sends a frame no reader can cut at the right place.
+	// what the bound is on.
 	//
 	// RFC 4271 Section 4.1: "The value of the Length field MUST always be at
 	// least 19 and no greater than 4096". RFC 8654 Section 6 raises that number
@@ -663,55 +670,9 @@ func encodeOpen(zeBody []byte, id openIdentity, params []openParam) ([]byte, err
 	if total > openMsgMax {
 		return nil, fmt.Errorf("the reconciled OPEN is %d octets, RFC 4271 Section 4.1 states at most %d", total, openMsgMax)
 	}
-	open := make([]byte, total)
-
-	copy(open, Marker)
-	binary.BigEndian.PutUint16(open[16:], uint16(total)) //nolint:gosec // bounded by openMsgMax above
-	open[18] = MsgOPEN
-
-	body := open[HeaderLen:]
-	body[0] = zeBody[0] // BGP version, mirrored: ze-peer speaks the version ze offered.
-	binary.BigEndian.PutUint16(body[1:], myASField(id.as))
-	// RFC 4271 Section 4.2 makes the Hold Time the SENDER's proposal, and the
-	// negotiation takes the smaller of the two. Mirroring it made the two values
-	// equal, so session_negotiate's min-selection had nothing to choose between
-	// and could not be reached from any .ci.
-	binary.BigEndian.PutUint16(body[3:], id.holdTime)
-	binary.BigEndian.PutUint32(body[5:], id.routerID)
-
-	at := openBodyFixedLen
-	if extended {
-		body[at] = message.ExtendedParamMarker
-		body[at+1] = message.ExtendedParamMarker
-		binary.BigEndian.PutUint16(body[at+2:], uint16(paramsLen)) //nolint:gosec // bounded by optParamsMax above
-		at += 4
-	} else {
-		body[at] = byte(paramsLen)
-		at++
-	}
-
-	for _, param := range params {
-		valueLen := paramValueLen(param)
-		body[at] = param.kind
-		if extended {
-			binary.BigEndian.PutUint16(body[at+1:], uint16(valueLen)) //nolint:gosec // bounded by optParamsMax above
-			at += 3
-		} else {
-			body[at+1] = byte(valueLen)
-			at += 2
-		}
-		if param.kind != paramTypeCapability {
-			copy(body[at:], param.raw)
-			at += valueLen
-			continue
-		}
-		for _, tlv := range param.caps {
-			copy(body[at:], tlv)
-			at += len(tlv)
-		}
-	}
-
-	return open, nil
+	buf := make([]byte, total)
+	open.WriteTo(buf, 0, nil)
+	return buf, nil
 }
 
 // myASField is the two-octet My Autonomous System field for an AS.
@@ -727,16 +688,17 @@ func myASField(as uint32) uint16 {
 	return uint16(as) //nolint:gosec // the branch bounds it at 65535
 }
 
-// paramValueLen is the octet count of one parameter's value.
-func paramValueLen(param openParam) int {
+// paramValue is one parameter's value octets: a type-2 parameter's TLVs joined
+// in their order, any other parameter's raw octets as read.
+func paramValue(param openParam) []byte {
 	if param.kind != paramTypeCapability {
-		return len(param.raw)
+		return param.raw
 	}
-	total := 0
+	var value []byte
 	for _, tlv := range param.caps {
-		total += len(tlv)
+		value = append(value, tlv...)
 	}
-	return total
+	return value
 }
 
 // openIdentity resolves every fact ze-peer's OPEN asserts about ze-peer, from
