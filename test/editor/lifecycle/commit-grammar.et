@@ -28,6 +28,21 @@ bgp {
   		}
   	}
   }
+  peer peer2 {
+  	connection {
+  		remote {
+  			ip 2.2.2.2
+  		}
+  		local {
+  			ip auto
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65002
+  		}
+  	}
+  }
 }
 EOF_CONF
 
@@ -137,14 +152,25 @@ input=enter
 expect=status:contains=rolled back
 expect=error:none
 
-# AC-30: copy and rename never overwrite
-input=type:text=copy bgp peer peer1 to peer1
+# AC-30: copy and rename never overwrite: onto another existing entry they
+# are refused with "delete it first"
+input=type:text=copy bgp peer peer1 to peer2
 input=enter
 expect=error:contains=delete it first
 
-input=type:text=rename bgp peer peer1 to peer1
+input=type:text=rename bgp peer peer1 to peer2
 input=enter
 expect=error:contains=delete it first
+
+# onto the entry's own key they are refused before the existence check: the
+# new key must differ from the current one
+input=type:text=copy bgp peer peer1 to peer1
+input=enter
+expect=error:contains=must differ
+
+input=type:text=rename bgp peer peer1 to peer1
+input=enter
+expect=error:contains=must differ
 
 # AC-12 positive half: commit now on a valid candidate applies
 input=type:text=set bgp router-id 7.7.7.7
