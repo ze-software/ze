@@ -27,7 +27,7 @@ func vpnWithdrawalInventory(ctx context.Context, args []string) error {
 			return fmt.Errorf("unsupported inventory role %q", role)
 		}
 	}
-	peerCommand := "show bgp rs peers"
+	peerCommand := commandShowRSPeers
 	if role == "rr" {
 		peerCommand = "show rr peers"
 	}

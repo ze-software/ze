@@ -216,7 +216,7 @@ func plugin15ShowBGPChildren(ctx context.Context, p *sdk.Plugin) error {
 	var failures []string
 	for _, command := range []string{
 		"show bgp rpki status",
-		"show bgp rs peers",
+		commandShowRSPeers,
 		"show bgp adj-rib-in",
 		"show bgp healthcheck",
 	} {

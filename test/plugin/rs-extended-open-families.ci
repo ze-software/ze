@@ -1,0 +1,72 @@
+# Test: rs reads an RFC 9072 extended OPEN
+# VALIDATES: spec-bgp-open-session-rfc-defects AC-1r and AC-1s for rs: ze-peer
+# answers with several type-2 parameters above 255 octets (two add-capability
+# lines of 200 octets with codes ze decodes as unknown), so its OPEN takes the
+# RFC 9072 Section 2 form; the rs plugin reads it through
+# capability.ParseFromOptionalParams and `show bgp rs peers` lists exactly the family
+# ze-peer's Multiprotocol capability names.
+# PREVENTS: the one-octet Optional Parameters walk misframing the extended OPEN
+# and recording the ipv4/unicast default (the row then lists ipv4/unicast).
+# MUTATION: restore the one-octet walk in the rs OPEN reader.
+
+stdin=peer:terminator=EOF_PEER
+# The session must stay up while the observer reads the row.
+option=linger:value=true
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=open:value=add-capability:code=238:hex=ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB
+# ze's ipv6/unicast End-of-RIB (RFC 4724 Section 2: MP_UNREACH_NLRI only, as in
+# rr-ipv6-config.ci) gives the check-mode peer the expectation it needs.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+option=open:value=add-capability:code=239:hex=ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB
+EOF_PEER
+
+# Native observer fixture: plugin/peer-families-show rs.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal relay { use bgp-rs; }
+	external peer-families-show {
+		run "le test fixture plugin/peer-families-show rs"
+		encoder json
+	}
+}
+bgp {
+	peer peer-src {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		attach process relay {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+await=stderr:contains=PASS: show bgp rs peers families ipv6/unicast
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

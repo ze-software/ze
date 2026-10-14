@@ -500,7 +500,7 @@ func opaqueWithdraw13(ctx context.Context, args []string) error {
 	const source, receiver = "127.0.0.1", "127.0.0.2"
 	return runPlugin13(ctx, "bgpls-withdraw", nil, func(ctx context.Context, plugin *sdk.Plugin) error {
 		rsPeersUp := func() map[string]bool {
-			result := command13(ctx, plugin, "show bgp rs peers")
+			result := command13(ctx, plugin, commandShowRSPeers)
 			up := make(map[string]bool)
 			if !done13(result) {
 				return up
