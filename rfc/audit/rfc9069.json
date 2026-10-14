@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-14",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -38,17 +38,18 @@
       "verdict": "enforced"
     },
     "RFC9069-5.2-1": {
-      "note": "Re-judged 2026-09-29 after the D-8 fix. Producer read: fabricateLocRIBOpen now adds one Extended Next Hop capability (1,1,2), because rib entryNextHopAddr answers an IPv4 unicast next hop from MP_REACH_NLRI when no legacy NEXT_HOP exists and buildLocRIBUpdateBody then writes MP_REACH AFI 1 with a 16-octet next hop. 'All necessary': rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop encodes that route, reads AFI 1 and NH length 16 off the MP_REACH octets, and requires the ENH pair in the decoded OPEN. 'Only include': ::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses fails on any capability other than ASN4, Multiprotocol and ENH, and requires exactly one ASN4, Multiprotocol set == dumpFamilies, exactly one ENH naming only (1,1,2). {single-polarity: positive} holds: one list, no divergent input. bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities carries no discrimination record; the two recorded units carry the whole requirement.",
+      "code": {},
+      "note": "Re-judged 2026-10-14 (independent auditor). The three units changed only by calling mustFabricateLocRIBOpen, which fails the test on the error fabricateLocRIBOpen now returns from the one packer. Their assertions are unchanged: the fabricated OPEN carries 4-octet ASN, one Multiprotocol per dump family and Extended Next Hop only when the Route Monitoring encoding needs it, with the count asserted, and an IPv4 route with an IPv6 next hop is backed by Extended Next Hop. Single-polarity annotation stands.",
       "requirement_sha": "7b21af20b10bac12",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "6c7c67660027ad63",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "107cf26dcd8c573a",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "107cf26dcd8c573a"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "0d66046a7112fdb8",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "eb1b3423b571c819",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "eb1b3423b571c819"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "164e730b6f344d09",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "a4ad6fefad4d3336",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "60ac7cec48f35afd"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "2ea3c8fc72d8a140",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "065764775481077a",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "25824e3c421fb550"
       },
       "verdict": "enforced"
     },
@@ -90,16 +91,17 @@
       "verdict": "enforced"
     },
     "RFC9069-6.1.1-1": {
-      "note": "Re-judged 2026-09-29. rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart sends two Peer Ups on ONE router, IPv4 unicast for BGP ID 10.0.0.1 and IPv6 unicast for 10.0.0.2, and reads back through the peers command that each peer holds exactly its own family, so a router-keyed or merged association goes red. With TestReceiverRecordsThePeerUpAddressFamilies (positive) and TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone (no MP capability records no family, not a default), both polarities of processing the capabilities per peer hold.",
+      "code": {},
+      "note": "Re-judged 2026-10-14 (independent auditor). TestReceiverRecordsThePeerUpAddressFamilies changed only by calling mustFabricateLocRIBOpen; it still reads back through the receiver the families the Peer Up OPEN advertised. With TestReceiverKeepsEachPeersAddressFamiliesApart (two peers of one router keep their own family) and TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone (negative), a receiver that ignored, defaulted or merged the capabilities goes red. Separate finding: the discrimination record for the positive at TestReceiverKeepsEachPeersAddressFamiliesApart is producer-changed and needs re-recording.",
       "requirement_sha": "b2ca77bfe76964e1",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "72246a1d68265311",
-        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "72246a1d68265311",
-        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart": "107cf26dcd8c573a"
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "5fb0f6e9f181c421",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "5fb0f6e9f181c421",
+        "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart": "eb1b3423b571c819"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "cef0cb7eb915d31a",
-        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "605ab38739f5fb2e",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "ae705929981ae428",
         "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart": "f1f1c6512a581a99"
       },
       "verdict": "enforced"
