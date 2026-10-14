@@ -1,18 +1,23 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-14",
   "requirements": {
     "RFC9072-2-1": {
-      "note": "Unit changed only by D-15: TestOpenPackExtendedParams now asserts the exact extended body (13+params, the off-by-one D-8 fix) plus the markers and 2-octet length. Still weak: the procedure's two-octet Parameter Length per parameter is not asserted in this row's units (the reactor TestRFC9072ParameterType255OnlyAsTheExtendedMarker parses it but is tagged to 3-2 only). Row is in the child spec's Blocked-by list.",
+      "code": {},
+      "note": "Re-judged 2026-10-14 (independent auditor). RFC 9072 Section 2: 'if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below.' The new reactor unit TestRFC9072OptionalParamsBoundary builds the OPEN through Session.buildOpen and Open.WriteTo for capability totals 0, 2, 253, 254, 255, 256, 300 and asserts exact octets: at 254 and above (Optional Parameters above 255) Non-Ext OP Len 255, Non-Ext OP Type 255, Extended Opt. Parm. Length 3+capTotal, Parm. Type 2 and the TWO-OCTET Parameter Length capTotal, body length 16+capTotal; at 253 and below the classic form with one-octet lengths. The two-octet Parameter Length the earlier weak verdict found unasserted is now asserted, and the 253/254 edge catches the off-by-two. A conforming decode returns every capability.",
       "requirement_sha": "a19a7161810084e8",
       "tests": {
         "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "9a2a4c8f9ca41e49",
-        "internal/component/bgp/message/rfc9072_extended_open_test.go::TestTheExtendedEnvelopeAndItsParametersAgree": "5e1d5078b11393d9"
+        "internal/component/bgp/message/rfc9072_extended_open_test.go::TestTheExtendedEnvelopeAndItsParametersAgree": "5e1d5078b11393d9",
+        "internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go::TestRFC9072OptionalParamsBoundary": "49c4a6abc721fb35",
+        "internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go::TestRFC9072OptionalParamsBoundary#2": "49c4a6abc721fb35"
       },
       "units": {
         "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "cbb4380d23e4e649",
-        "internal/component/bgp/message/rfc9072_extended_open_test.go::TestTheExtendedEnvelopeAndItsParametersAgree": "8480aa5620c244dd"
+        "internal/component/bgp/message/rfc9072_extended_open_test.go::TestTheExtendedEnvelopeAndItsParametersAgree": "8480aa5620c244dd",
+        "internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go::TestRFC9072OptionalParamsBoundary": "d7082ba108e9c0e2",
+        "internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go::TestRFC9072OptionalParamsBoundary#2": "d7082ba108e9c0e2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9072-2-2": {
       "note": "TestRFC9072ShortExtendedOpenIsAccepted: an extended OPEN with 9 parameter octets decodes with no error, ExtendedParams true, parameters exact, ASN4 4200000001 parsed; a classic reading of the same octets does not recover it; the classic OPEN of the same capability decodes ExtendedParams false to the same capability.",
@@ -56,17 +61,18 @@
       "verdict": "enforced"
     },
     "RFC9072-3-2": {
-      "note": "Marker removed; genuine negative (R1b): TestRFC9072ParameterType255OnlyAsTheExtendedMarker builds capabilities full of 0xFF (AS 0xFFFFFFFF, AFI 0xFFFF, SAFI 0xFF) through buildOptionalParams and requires no parameter type 255 and framing ending exactly at the end, classic below 256 octets, extended above; positive body[10]==0xFF on TestOpenPackExtendedParams.",
+      "code": {},
+      "note": "Re-judged 2026-10-14 (independent auditor). Unit changed only by the move to the one packer (capability.PackOptionalParams via packPeerOptionalParams). TestRFC9072ParameterType255OnlyAsTheExtendedMarker fills capability values with 0xFF octets, writes the OPEN and walks the framing the OPEN announces: below 256 octets no envelope and types [2]; above, the 255/255 envelope and every parameter type 2, framing ending exactly at the OPEN's end. TestOpenPackExtendedParams carries the positive marker position. A packer emitting 255 as a parameter type, or the marker on a short OPEN, goes red.",
       "requirement_sha": "0ec0274767359d45",
       "tests": {
         "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "9a2a4c8f9ca41e49",
-        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker": "fd6e9d60c2a40d6d",
-        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker#2": "fd6e9d60c2a40d6d"
+        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker": "e713fe444a3988b8",
+        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker#2": "e713fe444a3988b8"
       },
       "units": {
         "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "cbb4380d23e4e649",
-        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker": "ee8ae6c79a2e8e84",
-        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker#2": "ee8ae6c79a2e8e84"
+        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker": "f6708dfe30f6cf64",
+        "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker#2": "f6708dfe30f6cf64"
       },
       "verdict": "enforced"
     }
