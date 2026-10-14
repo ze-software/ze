@@ -193,6 +193,8 @@ functional suite checks the host first, before it builds or runs anything:
 | `./le test functional gating`, `./le test functional <suite>`, `./le test functional exabgp-test` | Always |
 | `./le verify worktree`, `./le verify current` | When the population holds a functional stage |
 | `./le commit debt-clear` | When a piece the pass will run holds a functional stage, for every such piece before the first starts |
+| `./le feature record-run feature <id>`, `./le feature record-run due <days>`, `./le site build refresh` | When a feature's real-path tests hold a `.ci` that runs on this host, before its first test runs. A Go test, an editor test and a `.ci` whose home is the QEMU guest bind none of the addresses. Each due or stale feature is judged on its own, so every one is refused and none runs |
+| `./le rfc discriminate-record` | When the tagged unit's carrier is a functional `.ci`, before the break is built. An escape (`route no-break`) runs nothing and is not checked, and neither is `./le rfc discriminate`, which only reads records |
 
 A missing address refuses the run with a non-zero exit. The refusal names each
 missing address and the fix: `./le setup install`, or the `sudo` line for each
@@ -205,6 +207,8 @@ so `./le setup check` says the same thing before you start.
 <!-- source: internal/le/verify/preflight.go -- HostPreflight -->
 <!-- source: internal/le/test/functional/actions.go -- hostReady -->
 <!-- source: internal/le/commit/actions.go -- clearDebtWith -->
+<!-- source: internal/le/feature/recordrun.go -- repoRunner.preflight -->
+<!-- source: internal/le/rfc/discriminate_action.go -- observeFor -->
 
 ## The lint gate
 

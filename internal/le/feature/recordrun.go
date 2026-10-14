@@ -31,6 +31,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/setup"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 	testqemu "github.com/ze-software/ze/internal/le/test/qemu"
 	testrunner "github.com/ze-software/ze/internal/test/runner"
@@ -79,10 +80,12 @@ type runItem func(item string) (observation, error)
 // finish.
 type runScenario func(item string) (interoplab.SuiteReport, error)
 
-// runners is what record-run runs items with: one runner per item kind.
+// runners is what record-run runs items with: one runner per item kind, and
+// the host preflight that judges the real-path items before the first runs.
 type runners struct {
-	item     runItem
-	scenario runScenario
+	item      runItem
+	scenario  runScenario
+	preflight func(items []string) error
 }
 
 // RecordRun runs every real-path test item and every counted Interop entry of
@@ -97,10 +100,12 @@ func RecordRun(tree, id string) (RunRecord, error) {
 	if err != nil {
 		return RunRecord{}, err
 	}
-	runner := &repoRunner{tree: tree, toolchain: toolchain, needsGuest: testrunner.NeedsGuest}
+	runner := &repoRunner{tree: tree, toolchain: toolchain, needsGuest: testrunner.NeedsGuest,
+		hostReady: setup.FunctionalHostPreflight}
 	defer runner.release()
 
-	return recordRun(tree, id, runners{item: runner.run, scenario: catalogScenarioRunner(tree)}, commit,
+	return recordRun(tree, id, runners{item: runner.run, scenario: catalogScenarioRunner(tree),
+		preflight: runner.preflight}, commit,
 		time.Now().UTC().Format(time.DateOnly))
 }
 
@@ -116,6 +121,11 @@ func recordRun(tree, id string, run runners, commit, date string) (RunRecord, er
 	if len(declaration.RealPathTests) == 0 && len(scenarios) == 0 {
 		return RunRecord{}, errors.New("feature " + id + " lists no real-path test and no counted interop " +
 			"scenario, so there is nothing to run")
+	}
+	// The host is judged before the first item runs, so a host that cannot run
+	// one .ci refuses the whole record before any build or any other item.
+	if err := run.preflight(declaration.RealPathTests); err != nil {
+		return RunRecord{}, err
 	}
 	record := RunRecord{Feature: id, Runs: make([]TestRun, 0, len(declaration.RealPathTests))}
 	for _, item := range declaration.RealPathTests {
@@ -339,6 +349,33 @@ type repoRunner struct {
 	// because its home is the QEMU guest" (runner.NeedsGuest).
 	needsGuest func(path string) (bool, error)
 	guestBuilt bool
+	// hostReady is the functional host preflight (setup.FunctionalHostPreflight).
+	hostReady func() error
+}
+
+// preflight answers nil when this host can run every item of items, and
+// otherwise the refusal hostReady gives. Only a .ci that runs on this host
+// binds the loopback addresses the preflight checks, so a Go test, an editor
+// test and a .ci whose home is the QEMU guest never consult it.
+func (r *repoRunner) preflight(items []string) error {
+	for _, item := range items {
+		file, _, named := strings.Cut(item, goTestSeparator)
+		if named {
+			continue
+		}
+		if path.Ext(file) != ciSuffix {
+			continue
+		}
+		guest, err := r.needsGuest(filepath.Join(r.tree, file))
+		if err != nil {
+			return err
+		}
+		if guest {
+			continue
+		}
+		return r.hostReady()
+	}
+	return nil
 }
 
 func (r *repoRunner) run(item string) (observation, error) {

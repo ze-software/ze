@@ -59,7 +59,7 @@ func requireNoRecord(t *testing.T, tree string) {
 // record, and the check then lets the declaration stand at Supported.
 func TestRecordRunWritesWhatTheCheckAccepts(t *testing.T) {
 	tree := recordedTree(t)
-	if _, err := recordRun(tree, "widget", runners{item: fakeRunner(passOutputs)}, "abc", "2026-10-07"); err != nil {
+	if _, err := recordRun(tree, "widget", runners{item: fakeRunner(passOutputs), preflight: hostFine}, "abc", "2026-10-07"); err != nil {
 		t.Fatal(err)
 	}
 	verdict := judgeOne(t, tree)
@@ -95,7 +95,7 @@ func TestRecordRunRefusesWhatItDidNotObserve(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			tree := recordedTree(t)
-			_, err := recordRun(tree, "widget", runners{item: tc.run}, "abc", "2026-10-07")
+			_, err := recordRun(tree, "widget", runners{item: tc.run, preflight: hostFine}, "abc", "2026-10-07")
 			if err == nil {
 				t.Fatal("recorded a run it did not observe passing")
 			}
@@ -115,7 +115,7 @@ func TestRecordRunRefusesAFileChangedMidRun(t *testing.T) {
 		writeFile(t, tree, "test/plugin/widget.ci", "cmd=foreground:seq=1:exec=ze edited\n")
 		return fakeRunner(passOutputs)(item)
 	}
-	_, err := recordRun(tree, "widget", runners{item: run}, "abc", "2026-10-07")
+	_, err := recordRun(tree, "widget", runners{item: run, preflight: hostFine}, "abc", "2026-10-07")
 	if err == nil || !strings.Contains(err.Error(), "changed while it ran") {
 		t.Fatalf("error %v, want a changed-while-it-ran refusal", err)
 	}
@@ -150,7 +150,8 @@ func TestRecordRunRecordsAnObservedScenarioPass(t *testing.T) {
 		ran = append(ran, item)
 		return scenarioPass(), nil
 	}
-	record, err := recordRun(tree, "widget", runners{item: fakeRunner(passOutputs), scenario: scenario}, "abc", "2026-10-07")
+	record, err := recordRun(tree, "widget", runners{item: fakeRunner(passOutputs), scenario: scenario,
+		preflight: hostFine}, "abc", "2026-10-07")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +211,8 @@ func TestRecordRunRefusesAScenarioItDidNotObserve(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			tree := recordedTreeOf(t, protocolWith(fixtureScenario))
-			_, err := recordRun(tree, "widget", runners{item: fakeRunner(passOutputs), scenario: tc.run(tree)},
+			_, err := recordRun(tree, "widget", runners{item: fakeRunner(passOutputs), scenario: tc.run(tree),
+				preflight: hostFine},
 				"abc", "2026-10-07")
 			if err == nil {
 				t.Fatal("recorded a scenario run it did not observe passing")

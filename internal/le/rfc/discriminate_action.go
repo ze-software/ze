@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/setup"
 )
 
 // The keywords `discriminate` and `discriminate-record` take their values
@@ -200,7 +201,8 @@ func recordDiscrimination(tree string, request recordRequest) (discriminationRec
 		Producer: request.producer, Citation: request.citation, Reason: request.reason,
 		Source: discriminationSource(stem),
 	}
-	observed, err := observeFor(tree, reader, index, carrier, tag, &record, request)
+	observed, err := observeFor(tree, reader, index, carrier, tag, &record, request,
+		setup.FunctionalHostPreflight)
 	if err != nil {
 		return discriminationRecordReport{}, err
 	}
@@ -337,10 +339,23 @@ func tagUnitKey(reader *sourceReader, index *scopeIndex, tag Tag) (string, error
 // path: sealAndStore runs verifyOneDiscrimination before the record lands, which
 // reaches escapeCheck. A guard that ran only here would be invisible to a record
 // authored by hand, and the gate is what has to hold.
+//
+// hostReady is the functional host preflight (setup.FunctionalHostPreflight),
+// asked before the break is built when the carrier is a .ci: the observation
+// builds the isolated binaries and runs that .ci clean first, and a host
+// without the loopback addresses the fixtures bind would fail that clean run,
+// after the build, for a reason no break caused. A parameter so a test can name
+// a host without them.
 func observeFor(tree string, reader *sourceReader, index *scopeIndex, carrier Carrier,
-	tag Tag, record *DiscriminationRecord, request recordRequest) (ObservedRed, error) {
+	tag Tag, record *DiscriminationRecord, request recordRequest,
+	hostReady func() error) (ObservedRed, error) {
 	if record.Route == RouteNoBreak {
 		return ObservedRed{}, nil
+	}
+	if carrier.Kind == kindFunctional {
+		if err := hostReady(); err != nil {
+			return ObservedRed{}, err
+		}
 	}
 	broken, err := brokenSource(tree, reader, index, record, request)
 	if err != nil {
