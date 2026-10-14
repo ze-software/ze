@@ -13,7 +13,7 @@
 
 | Key | Type | Stage | How Used | Description |
 |-----|------|-------|----------|-------------|
-| `src-role` | `string` | Egress filter | `resolveSrcRole(meta, srcCfg)` | Suppression frame: the value is OUR role toward the source, so `customer`/`peer`/`rs-client` mean the source peer IS a Provider/Peer/RS. A route from one of those is suppressed toward a destination that IS a Provider/Peer/RS. `provider` is the accepted case (the source is our Customer, whose routes may transit). If we don't configure a role, we don't filter. |
+| `src-role` | `string` | Egress filter | `resolveSrcRole(meta, srcCfg)` | Suppression frame: the value is OUR role toward the source, so `customer`/`peer`/`rs-client`/`rs` mean the source peer IS a Provider/Peer/RS/RS-Client. A route from one of those is suppressed toward a destination that IS a Provider/Peer/RS (RFC 9234 Section 3.1, "All other routes MUST NOT be propagated"). `provider` is the only accepted case (the source is our Customer, whose routes may transit). If we don't configure a role, we don't filter. |
 
 ## Absence
 

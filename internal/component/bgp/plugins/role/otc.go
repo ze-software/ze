@@ -604,7 +604,8 @@ func resolvePeerRole(capRole string, cfg *peerRoleConfig) string {
 //
 // Two independent egress checks:
 //  1. Wire-bytes OTC check (unconditional): if route has OTC, MUST NOT propagate to Provider/Peer/RS.
-//  2. Meta-based Gao-Rexford check: if source role is Provider/Peer/RS, suppress to Provider/Peer/RS.
+//  2. Meta-based Gao-Rexford check: if the source peer is a Provider, Peer, RS or RS-Client
+//     (anything but a Customer), suppress to Provider/Peer/RS (RFC 9234 Section 3.1).
 func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) bool {
 	// RFC 9234 Section 5: OTC MUST NOT be applied to other address families by default.
 	if !isPayloadUnicast(payload) {
@@ -632,14 +633,22 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	}
 
 	// Gao-Rexford leak prevention (meta-based safety net):
-	// Routes from a Provider/Peer/RS source must not be sent to a Provider/Peer/RS destination.
+	// Routes from a Provider/Peer/RS/RS-Client source must not be sent to a
+	// Provider/Peer/RS destination.
 	// meta["src-role"] stores our LOCAL role for the source peer (from config "import" keyword).
 	// Our local role maps to the source peer's type:
 	//   customer  → source IS Provider    peer     → source IS Peer
-	//   rs-client → source IS RS          provider → source IS Customer (allowed to transit)
+	//   rs-client → source IS RS          rs       → source IS RS-Client
+	//   provider  → source IS Customer (the only source allowed to transit)
+	// RFC 9234 Section 3.1: "Customer: MAY propagate any route learned from a
+	// Customer, or that is locally originated, to a Provider. All other routes
+	// MUST NOT be propagated." The RS-Client and Peer roles carry the same
+	// sentence towards an RS and a Peer. An RS-Client is not a Customer, and
+	// Section 5 ingress rule 3 adds no OTC to a route received from one, so this
+	// source-role check is the only thing that stops it.
 	if destRemoteRole == roleProvider || destRemoteRole == rolePeer || destRemoteRole == roleRS {
 		srcRole := resolveSrcRole(meta, srcCfg)
-		if srcRole == roleCustomer || srcRole == rolePeer || srcRole == roleRSClient {
+		if srcRole == roleCustomer || srcRole == rolePeer || srcRole == roleRSClient || srcRole == roleRS {
 			recordDrop(dropSourceRole, dest.Address, destRemoteRole)
 			logger().Debug("OTC egress suppress (src-role)",
 				"src", src.Address, "src-role", srcRole, "dest", dest.Address, "dest-role", destRemoteRole)

@@ -1,0 +1,165 @@
+# Test: a route learned from an RS-Client is not propagated to a Provider
+# VALIDATES: RFC 9234 Section 3.1 -- "Customer: MAY propagate any route learned from a Customer, or that is locally originated, to a Provider. All other routes MUST NOT be propagated." Ze's role toward the source is rs, so the source IS an RS-Client, not a Customer
+# PREVENTS: an RS-Client-learned route leaking upward; RFC 9234 Section 5 ingress rule 3 adds no OTC to it, so only the source-role gate stops it
+# The source's export set names provider explicitly, so the operator policy
+# admits the destination and only the RFC 9234 gate can withhold the route.
+
+# ze-peer: acts as an RS-Client (role capability code 9, value 2=rs-client)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# A check-mode ze-peer closes the instant its expect=bgp rule matches, and ze
+# reads that close as session-down. For the SOURCE that costs two things the
+# observer below depends on: adj-rib-in deletes the peer's routes on down
+# (adj_rib_in/rib.go:649-652), and the closed peer's opQueue never drains, so
+# the DrainPeerSync quiescer (reactor/peer.go:1172) burns the full 10s
+# quiesceTimeout. linger holds the session open until teardown, as in
+# role-otc-egress-stamp.ci and community-strip.ci.
+option=linger:value=true
+# Drop ze-peer's default mirrored role then advertise RS-Client (0x02).
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=02
+# Send UPDATE without OTC: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+# AS_PATH=[65001]: an eBGP speaker prepends its own AS (RFC 4271 Section 5.1.2),
+# and ze checks the leftmost AS against the neighbor (RFC 4271 Section 6.3).
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Dest peer (Provider, ASN 65002) on 127.0.0.2. If egress suppression works,
+# it should see EOR and a withdrawal, never an announcement of the RS-Client route.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=15s
+# The dest must still BE a forward target when the source's route arrives. Its
+# expect=bgp rule matches on ze's End-of-RIB, which ze sends before the source's
+# UPDATE has been forwarded, so without linger the peer closes first and
+# selectForwardTargets (rs/server_forward.go:123) skips it as !Up. The route is
+# then withheld because there is no destination left, not because the role
+# filter refused it, and the EOR-only assertion above passes for the wrong
+# reason -- one run in three, measured. linger keeps the session established
+# until teardown so the egress rule is actually reached.
+option=linger:value=true
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=00
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:withdrawn=180A0000
+reject=bgp:conn=1:scope=announced:pattern=180A0000
+EOF_DEST
+
+# Native compiled fixture: plugin/role-otc-egress-filter
+# ze configuration: local role rs toward the source (an RS-Client), customer toward the dest (a Provider)
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+	external test-egress {
+		run "le test fixture plugin/role-otc-egress-filter"
+		encoder json
+	}
+}
+bgp {
+	# A declared RFC 9234 role requires each bound chain to name a filter that
+	# can refuse a path through a transit provider (RFC 7454 Section 9). What
+	# this test exercises is elsewhere, so the decision is recorded and the
+	# filter is left deactivated: the chain names it, and it never runs.
+	policy {
+		reject-asn NO-TRANSIT {
+			indirect [ 3356 ]
+		}
+	}
+	filter {
+		import [ NO-TRANSIT ]
+		export [ NO-TRANSIT ]
+		inactive: import NO-TRANSIT
+		inactive: export NO-TRANSIT
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import rs
+			export [ provider ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import customer
+			export default
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# recordDrop's first-occurrence WARN (role/metrics.go): the role plugin is what
+# withheld the route, not a peer that happened to be down. Without this the two
+# counter assertions above are satisfied by any daemon that simply never
+# forwarded, which is exactly the state this test used to pass in.
+expect=stderr:contains=role dropped a route
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

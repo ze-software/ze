@@ -714,13 +714,51 @@ func TestOTCEgressFilter(t *testing.T) {
 			"src IS RS (our role=rs-client), dest=provider: suppress")
 	})
 
-	t.Run("src_role_rs_to_provider_accept", func(t *testing.T) {
-		// src-role "rs" = we are RS = source IS RS-Client → accept to Provider.
+	// RFC requirement: RFC9234-3.1-1 positive -- a route learned from an RS-Client (our role RS) is not propagated to a Provider destination, because an RS-Client is not a Customer.
+	t.Run("src_role_rs_to_provider_suppress", func(t *testing.T) {
+		// src-role "rs" = we are RS = source IS RS-Client → suppress to Provider.
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
 		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
 		meta := map[string]any{"src-role": "rs"}
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
+			"src IS RS-Client (our role=rs), dest=provider: suppress")
+	})
+
+	// RFC requirement: RFC9234-3.1-1 positive -- a route learned from an RS-Client (our role RS) is not propagated to a Peer destination.
+	t.Run("src_role_rs_to_peer_suppress", func(t *testing.T) {
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.12")} // peer
+		meta := map[string]any{"src-role": "rs"}
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
+			"src IS RS-Client (our role=rs), dest=peer: suppress")
+	})
+
+	// RFC requirement: RFC9234-3.1-1 positive -- a route learned from an RS-Client (our role RS) is not propagated to an RS destination.
+	t.Run("src_role_rs_to_rs_suppress", func(t *testing.T) {
+		setFilterRemoteRole("10.0.0.15", "", roleRS)
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.15")} // RS
+		meta := map[string]any{"src-role": "rs"}
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
+			"src IS RS-Client (our role=rs), dest=RS: suppress")
+	})
+
+	// RFC requirement: RFC9234-3.1-1 negative -- a route learned from an RS-Client (our role RS) still reaches a Customer destination, so the suppression is scoped to Provider, Peer and RS destinations.
+	t.Run("src_role_rs_to_customer_accept", func(t *testing.T) {
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")} // customer
+		meta := map[string]any{"src-role": "rs"}
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
-			"src IS RS-Client (our role=rs), dest=provider: accept")
+			"src IS RS-Client (our role=rs), dest=customer: accept")
+	})
+
+	// RFC requirement: RFC9234-3.1-1 negative -- a route learned from an RS-Client (our role RS) still reaches an RS-Client destination.
+	t.Run("src_role_rs_to_rs_client_accept", func(t *testing.T) {
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.13")} // rs-client
+		meta := map[string]any{"src-role": "rs"}
+		assert.True(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
+			"src IS RS-Client (our role=rs), dest=rs-client: accept")
 	})
 }
 

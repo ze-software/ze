@@ -92,7 +92,7 @@ Four checks run in order. The first one that fires decides.
 | # | Check | Action |
 |---|-------|--------|
 | 1 | The route carries OTC and the destination is a Provider, Peer, or RS | Suppress (RFC 9234 Section 5, no source config needed) |
-| 2 | The destination is a Provider, Peer, or RS, and ze's role toward the SOURCE is customer, peer, or rs-client | Suppress. This is the Gao-Rexford check |
+| 2 | The destination is a Provider, Peer, or RS, and ze's role toward the SOURCE is customer, peer, rs-client, or rs (the source is not a Customer) | Suppress. This is the Gao-Rexford check of RFC 9234 Section 3.1: only a route learned from a Customer, or locally originated, goes upward or sideways |
 | 3 | The source states `export` and the destination's capability role is outside that set | Suppress. Operator policy, not an RFC gate |
 | 4 | The destination is a Customer, Peer, or RS-Client, the UPDATE advertises a route, and OTC is absent | Add OTC with ze's local AS for this session |
 
