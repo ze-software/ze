@@ -100,6 +100,15 @@ bgp {
 }
 ```
 
+The global `router-id` is the BGP Identifier every peer sends by default. A peer
+or group may override it with its own `router-id` (`session router-id` in the YANG
+model), and that peer's OPEN then carries the override. This departs from RFC 6286
+Section 2.1, which says the identifier "is the same for every local interface and
+every BGP peer". Ze keeps the override on purpose, as an owner decision, and does
+not count that sentence as met. The override must still be non-zero.
+
+<!-- source: internal/component/bgp/reactor/config.go — parsePeerSettings, parseRouterID; internal/component/bgp/yang/ze-bgp-conf.yang — session router-id -->
+
 By default Ze enforces AS-wide BGP Identifier uniqueness: the first peer of an AS to
 present a router-id holds it, and a second peer of the same AS presenting the same
 router-id is rejected with a Bad BGP Identifier NOTIFICATION (RFC 6286 Section 2.1

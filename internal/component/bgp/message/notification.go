@@ -230,7 +230,7 @@ func UnpackNotification(data []byte) (*Notification, error) {
 
 // String returns a human-readable representation of the notification.
 func (n *Notification) String() string {
-	subcodeStr := n.subcodeString()
+	subcodeStr := n.SubcodeString()
 	if len(n.Data) > 0 {
 		return n.ErrorCode.String() + "/" + subcodeStr + " (data: " + hex.EncodeToString(n.Data) + ")"
 	}
@@ -352,9 +352,9 @@ func BuildShutdownData(msg string) []byte {
 	return data
 }
 
-// RFC 4271 Section 4.5 - subcodeString returns a human-readable subcode name.
+// RFC 4271 Section 4.5 - SubcodeString returns a human-readable subcode name.
 // If no appropriate Error Subcode is defined, a zero (Unspecific) value is used.
-func (n *Notification) subcodeString() string {
+func (n *Notification) SubcodeString() string {
 	switch n.ErrorCode {
 	case NotifyMessageHeader:
 		return headerSubcodeString(n.ErrorSubcode)

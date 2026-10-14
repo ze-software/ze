@@ -364,7 +364,8 @@ func updateIsUnexpected(state fsm.State) bool {
 }
 
 // handleNotification processes a received NOTIFICATION message.
-// RFC 8203: logs shutdown communication for Cease/Admin Shutdown and Admin Reset.
+// It logs one WARN line for it (logNotificationReceived), the RFC 9003 Shutdown
+// Communication included.
 func (s *Session) handleNotification(body []byte) error {
 	notif, err := message.UnpackNotification(body)
 	if err != nil {
@@ -378,19 +379,7 @@ func (s *Session) handleNotification(body []byte) error {
 
 	s.noteASMigrationRejection(notif)
 
-	// RFC 8203 Section 2: log shutdown communication message if present.
-	if msg, msgErr := notif.ShutdownMessage(); msgErr == nil && msg != "" {
-		sessionLogger().Info("peer shutdown communication",
-			"peer", s.settings.Address,
-			"subcode", message.CeaseSubcodeString(notif.ErrorSubcode),
-			"message", msg,
-		)
-	} else if msgErr != nil {
-		sessionLogger().Warn("invalid shutdown communication",
-			"peer", s.settings.Address,
-			"error", msgErr,
-		)
-	}
+	s.logNotificationReceived(notif)
 
 	s.timers.StopAll()
 	// OpenSent files Event 25 under "any other event", so there the FSM
@@ -405,6 +394,35 @@ func (s *Session) handleNotification(body []byte) error {
 	s.closeConn()
 
 	return fmt.Errorf("%w: %s", ErrNotificationRecv, notif.String())
+}
+
+// logNotificationReceived writes the one WARN line a received NOTIFICATION
+// leaves, at the level an operator runs at by default: a peer that refuses
+// Ze's OPEN answers with a NOTIFICATION, and this line is the only place the
+// log says why the session never came up. It names the peer, the FSM state the
+// NOTIFICATION arrived in, and the code and subcode as names and numbers.
+func (s *Session) logNotificationReceived(notif *message.Notification) {
+	attrs := []any{
+		"peer", s.settings.Address,
+		"state", s.fsm.State().String(),
+		"code", notif.ErrorCode.String(),
+		"code-number", uint8(notif.ErrorCode),
+		"subcode", notif.SubcodeString(),
+		"subcode-number", notif.ErrorSubcode,
+	}
+	// RFC 9003 Section 2: the Shutdown Communication a Cease / Administrative
+	// Shutdown or Administrative Reset NOTIFICATION carries rides in the same
+	// line, so one NOTIFICATION is one line.
+	msg, msgErr := notif.ShutdownMessage()
+	if msgErr != nil {
+		// RFC 9003 Section 4: "If a Shutdown Communication with an invalid
+		// UTF-8 sequence is received, a message indicating this event SHOULD
+		// be logged for the attention of the operator."
+		attrs = append(attrs, "message-error", msgErr.Error())
+	} else if msg != "" {
+		attrs = append(attrs, "message", msg)
+	}
+	sessionLogger().Warn("notification received", attrs...)
 }
 
 // notificationEvent names the FSM event a received NOTIFICATION stands for.

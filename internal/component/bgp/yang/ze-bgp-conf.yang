@@ -838,7 +838,10 @@ module ze-bgp-conf {
             leaf router-id {
                 type zt:ipv4-address;
                 ze:validate "nonzero-ipv4";
-                description "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer.";
+                description "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer, so Ze
+                    rejects 0.0.0.0. The same section says the identifier is the same for every BGP peer; this override
+                    departs from that, by owner decision: a peer or group that sets it sends its own identifier in its
+                    OPEN instead of the global router-id.";
                 ze:help "Override the router ID for this peer.";
             }
 

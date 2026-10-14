@@ -1,0 +1,49 @@
+# Test: a peer that refuses ze's OPEN leaves one WARN line saying why
+# AC: spec-bgp-open-session-rfc-defects AC-3 (D3, plan/journal/silent-fall-through.md)
+# Exercises: ze-peer answers ze's OPEN with NOTIFICATION OPEN Message Error /
+# Unspecific (2/0) -> Session.handleNotification -> logNotificationReceived ->
+# one `notification received` WARN naming the peer, the FSM state, and the code
+# and subcode as names and numbers. No ze.log override: the line is visible at
+# the default WARN level, which is the whole point (before D3 the reason reached
+# only the counters and `show errors`).
+
+# ze-peer: after its OPEN, send a raw NOTIFICATION 2/0 instead of carrying on.
+# Marker (16 x FF), length 21 (0x0015), type 3, code 2, subcode 0.
+stdin=peer:terminator=EOF_PEER
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030200
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+await=stderr:contains=msg="notification received":then=stop
+expect=stderr:pattern=level=WARN msg="notification received" peer=127\.0\.0\.1 state=OPEN(SENT|CONFIRM) code="OPEN Message Error" code-number=2 subcode=Unspecific subcode-number=0

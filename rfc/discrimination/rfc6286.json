@@ -2,6 +2,17 @@
   "rfc": "rfc6286",
   "records": [
     {
+      "rid": "RFC6286-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286NonZeroRouterIDAccepted",
+      "unit-sha": "ec8e1be7a2b67af3",
+      "claim-sha": "6ef7c3998b5b20ff",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/config.go::parseRouterID",
+      "producer-sha": "9761e405ad03c72b",
+      "break": "body of parseRouterID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC6286-2.1-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS",
