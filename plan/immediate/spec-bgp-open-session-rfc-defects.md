@@ -172,15 +172,23 @@ reduce what a reload can do; Known Limitations and the owner report state them.
 
 Refusal text (`ai/rules/user-facing-errors.md`: problem first, why, then the
 command on its own line). One line per changed peer and capability, sorted by
-peer, then the fix once. Sample for one change:
+peer, then the fix once. Lines 3 to 6 are one route per line, the same shape
+`spec-plugin-reload-applies-or-refuses` AC-8 prints, and they come from one
+helper both specs call, `sdk.RestartSteps() string` in
+`pkg/plugin/sdk/restart_text.go`; whichever spec lands first creates it, the
+other calls it (aligned 2026-10-14 with that spec's design review round 3,
+ISSUE-2 and ISSUE-3, decided by the main thread under the owner's delegation:
+the earlier line 5 joined the non-systemd and appliance routes, and no test
+pinned it). Sample for one change:
 
 | Line | Text |
 |------|------|
 | 1 | `peer 192.0.2.1: capability software-version cannot change while ze runs (plugin bgp-softver).` |
 | 2 | `The plugin sends its capabilities only when ze starts, so ze would keep sending the old value in its OPEN to this peer.` |
-| 3 | `To apply the change, stop the ze daemon and start it again. Under systemd, run:` |
-| 4 | `  systemctl restart ze` |
-| 5 | `Without systemd, run 'ze signal stop', then start ze again the way it was started ('ze start', or 'ze start <config-file>'). On the ze appliance, run 'request reboot' in the ze CLI, or 'ze signal reboot' from a shell.` |
+| 3 | `To apply the change, stop the ze daemon and start it again:` |
+| 4 | `  under systemd: systemctl restart ze` |
+| 5 | `  without systemd: ze signal stop, then start ze the way it was started (ze start, or ze start <config-file>)` |
+| 6 | `  on the ze appliance: request reboot in the ze CLI, or ze signal reboot from a shell` |
 
 For an all-peer declaration, line 1 reads `every peer:` in place of the peer.
 
@@ -215,7 +223,7 @@ and `docs/guide/plugins.md` carries it. On the appliance `ze signal restart` is
 not a route either: it exits 0 ("Ze stopped.", `hub.Run`), and
 `docs/guide/appliance.md` states that gokrazy's init restarts ze only on a
 non-zero status ("Gokrazy's init restarts Ze if it exits with a non-zero status
-(except 125, which means \"don't restart\")"), so ze would stay stopped; line 5
+(except 125, which means \"don't restart\")"), so ze would stay stopped; line 6
 names `request reboot` and `ze signal reboot` (settled from that page, round-4
 review N2; the gokrazy source is not in this module, so the page is the basis).
 
@@ -966,6 +974,7 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 
 ## Files to Create
 - `internal/core/bgp/capability/optional_params.go` - `PackOptionalParams`, with the RFC 9072 Section 2 and RFC 5492 Section 4 quotes (Q4)
+- `pkg/plugin/sdk/restart_text.go` and `restart_text_test.go` - `RestartSteps() string`, lines 3 to 6 of the D2 refusal, the one restart-advice text this spec's D2 refusal and every refusal of `spec-plugin-reload-applies-or-refuses` (its AC-8) append; whichever spec lands first creates it with `TestRestartStepsNamesEveryRouteAndNeverSignalRestart`, the other only calls it (constraint aligned 2026-10-14 with that spec's design review round 3, ISSUE-2)
 - the unit tests, `.ci` tests and interop scenarios named above, each with its typed checker in `internal/le/interoplab/bgp`
 - `internal/test/fixture/` - the native observer fixture `plugin/peer-families-show` (argument `rr` or `rs`), on the `register_vpn_withdrawal.go` model (Q6 = a)
 
@@ -1121,6 +1130,7 @@ Add `// RFC 9072 Section 2: "However, if the length of the Optional Parameters i
 | 2026-10-14 | review round 4 applied (`tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-open-session-r4.md`: 0 BLOCKER, 3 ISSUE, 6 NIT), producers re-read 2026-10-14 | ISSUE-1: "The warning" written: one WARN record per refused OPEN, three lines (problem, why, next step) with `peer` and `error` attributes, separate rr and rs constants differing only in plugin name and what is recorded; asserted in `TestRouteReflectorReadsExtendedOpen` and `TestRouteServerReadsExtendedOpen`, and in AC-1r. The reviewer's "only log line at WARN" is corrected at the producer: `session_write.go` also logs `notification sent` at WARN (code and subcode, no cause), so this is the only line that says why. ISSUE-2: Wiring rows 5 and 6 and the two `.ci` rows assert what the families drive, not `peerStatus` (which returns `address`, `remote.as`, `up`): rr the ipv6/unicast End-of-RIB from `sendEOR`, rs the forwarded ipv6/unicast UPDATE selected by `SupportsFamily` (two sessions, `conn_map` by remote IP). Beyond the reviewer's proposal: the reactor's initial sync sends an End-of-RIB for every negotiated family (`peer_initial_sync.go`, deduplicated with rr's through `claimInitialSyncEOR`), so an rr EOR assertion alone cannot go red; the rr `.ci` sets `behavior { manual-eor true }` so `AnnounceEOR` from rr is the only producer. ISSUE-3: one concrete struct with private fields, a Capabilities constructor (Type fixed to 2) and a Raw constructor (Type and octets); zero value is a type-0 empty Raw parameter, written as `00 00`; the both-set refusal and its `TestPackOptionalParams` case dropped; the size error is the packer's only error; steps 2 and 6, step 2 of Implementation, and the D1 decision row follow. N1: stray "A" deleted. N2: settled from `docs/guide/appliance.md` (gokrazy restarts only on non-zero), `ze signal restart` exits 0 so is no appliance route. N3: "`buildOptionalParams` allocates once today". N4: both decode failures (`UnpackOpen`, `ParseFromOptionalParams`) warn with the same text, both refused by the reactor through `rejectOpenCapabilityError`. N5: every reader of an earlier session's entry named (`Up` gates: forwarding, rs refresh and validation; `ReplayGen` gates: both `sendEOR`). N6: "R-4 records the separate 4096-octet limit (not fixed here)". **Round 5 owed, narrow, on one point only: the `manual-eor` discriminator in `rr-extended-open-families.ci`, which this round added beyond the reviewer's proposal and which no independent reader has checked. Everything else applies the reviewer's own proposals and adds no design** |
 | 2026-10-14 | review round 5 applied (`tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-open-session-r5.md`: 1 BLOCKER, 3 ISSUE, 4 NIT), producers re-read 2026-10-14 | B1 (rr `sendEOR` only when `replayed > 0`, so a single session never gets rr's End-of-RIB) and I1 (rs's `SupportsFamily` filter bypassed by `rs-fast-path` and by the peer-up adj-rib-in replay): confirmed at `rr.go::replayForPeer` and `rs/server_handlers.go`. Resolved by changing the observable rather than forcing order: each `show rr peers` / `show bgp rs peers` row gains a read-only `families` key ("Recorded-families field", AC-1s, Q6 = a, owner confirmation owed as an additive CLI output change), and both `.ci` poll it through a native observer (`plugin/peer-families-show`, model `register_vpn_withdrawal.go`); one session each, no `manual-eor`, no second session, no `rs-fast-path`; `rs-extended-open-capabilities` renamed `rs-extended-open-families`. The order-forced design the reviewer proposed is option (b) of Q6. I2 (the `AnnounceEOR` dropped-marker window under `manual-eor`): moot under (a), recorded in R-8 for (b). I3: the message is a constant without the peer or the decoder error, line 3 names "the error attribute", and a rendered one-line sample shows both attributes after the message. N1, N4: confirmations, nothing to change. N2: how ze-peer reaches the RFC 9072 form with two `add-capability` lines and where its ipv6/unicast comes from, under "Wiring Test". N3: left to the recorded red, stated there. Also: the absent-key rule for down peers and unrecorded OPENs, rs `Columns` unchanged (`TestDeclaredColumnsExistInPayload`), R-8, user story 4, Integration and Documentation rows 3. **Round 6 owed, narrow: the two tests and the field they read (the observer's poll and pass condition, the absent-key rule, the event-order reading, the red at HEAD), checked by a reader who did not write them** |
 | 2026-10-14 | review round 6 applied (`tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-open-session-r6.md`: 0 BLOCKER, 1 ISSUE, 5 NIT) | I1: the HEAD red of both `.ci` is "no `families` key, the observer fails naming the absent field" (`peerStatus` writes only `address`, `remote`, `up`); the discriminating `ipv4/unicast` red is recorded in Step 2 after the AC-1s key lands, by restoring the one-octet walk; the Wiring note, both `.ci` Functional rows and Implementation Steps 1 and 2 follow, the two `.ci` staying in Step 1 as the Wiring Test requires. N1: the test ends with the observer's `request shutdown` (`runPlugin13(..., shutdown=true)`) and `expect=exit:code=0`. N2: ze's config attaches rr/rs with `receive [ ... state open-received ... ]`, in the Wiring note and both `.ci` rows. N3: the empty-list sentence scoped to rs; rr's list is never empty when Multiprotocol is present. N4: the blocking `Result` wait cited under "Recorded-families field"; the stale `rs/peer.go::SupportsFamily` comment added to Files to Modify. N5: a `show bgp rs peers` row added to `docs/architecture/api/commands.md` in Files and Documentation row 3. **Round 7 not owed: every change applies the reviewer's own proposal and adds no design** |
+| 2026-10-14 | cross-spec alignment from `spec-plugin-reload-applies-or-refuses` design review round 3 (ISSUE-2, ISSUE-3), decided by the main thread under the owner's delegation ("Do what you think is right", 2026-10-14) | The D2 refusal's restart routes are one per line (lines 3 to 6; the earlier line 5 joined the non-systemd and appliance routes, and no test pinned it), and they come from the shared helper `sdk.RestartSteps()` in `pkg/plugin/sdk/restart_text.go`, which whichever spec lands first creates (Files to Create). The "line 5" reference to the appliance routes now reads line 6 |
 
 ## Checklist
 
