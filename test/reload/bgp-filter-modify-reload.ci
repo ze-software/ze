@@ -1,0 +1,171 @@
+# Test: a reload that edits a modify definition's set value makes
+#       bgp-filter-modify answer with the new definition.
+# Initial config: one dynamic group (iBGP, AS 65533) whose import chain is
+#                 `bgp-filter-modify:SET-MED`. The test peer dials Ze.
+# Live change:    the staged fixture (reload/live-stages, run inside the
+#                 daemon) rewrites the MED SET-MED sets (100 -> 200) and sends
+#                 SIGHUP. Nothing else changes.
+# Expected:       the same UPDATE (no MED, 10.0.0.0/24) evaluated against the
+#                 peer's live chain answers med 100 before the reload and med
+#                 200 after it, which it can only do when the plugin installed
+#                 the edited definition at config-apply.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 for bgp-filter-modify.
+# PREVENTS: the silent reload: with OnConfigure alone the SDK answered
+#           config-apply OK and the plugin kept its startup definitions.
+#
+# DISCRIMINATION: with newModifyConfigTx().Register(p) replaced by
+# p.OnConfigure(newModifyConfigTx().Configure), the after-reload policy test
+# still answers med 100 and the stage fails.
+option=timeout:value=60s
+option=env:var=ze.log.bgp.reactor:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65533
+option=tcp_connections:value=1
+option=timeout:value=50s
+# ze-peer creates this file on the daemon's first UPDATE; the staged fixture
+# holds its first read until it exists.
+option=established-file:path=established
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# The clean shutdown after the last stage, on the SAME connection: Cease (6) /
+# Administrative Shutdown (2, RFC 4486) with the RFC 8203 default text.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	policy {
+		modify SET-MED {
+			set {
+				med 100
+			}
+		}
+	}
+
+	group ix {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.0/8
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					mode enable
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		filter {
+			import [ bgp-filter-modify:SET-MED ]
+		}
+	}
+}
+EOF_CONF
+
+# The second config: the MED SET-MED sets (100 -> 200) is the ONLY difference.
+# The chain and the plugin block are byte-identical, so no peer is touched and
+# the staged fixture survives.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	policy {
+		modify SET-MED {
+			set {
+				med 200
+			}
+		}
+	}
+
+	group ix {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.0/8
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					mode enable
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		filter {
+			import [ bgp-filter-modify:SET-MED ]
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+# Before the reload: SET-MED sets MED 100.
+await-file established
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => med 100
+reload config2.conf
+# After it: it sets MED 200.
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => med 200
+say MODIFY-RELOAD: the edited modify sets the new MED
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --dial 127.0.0.1:$PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-modify -:stdin=ze-bgp:timeout=60s
+
+expect=stderr:contains=MODIFY-RELOAD: the edited modify sets the new MED
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=LIVE-STAGES line
+reject=stderr:pattern=dynamic peer restart required
+# The session under test is a DYNAMIC peer's, built once, before the reload.
+expect=stderr:contains=dynamic peer created
+reject=stderr:pattern=received SIGHUP[\s\S]*dynamic peer created
