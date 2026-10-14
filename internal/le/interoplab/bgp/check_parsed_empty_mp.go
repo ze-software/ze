@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
-	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // checkParsedEmptyMPFRR seeds an owned route only after both Ze peers and FRR
@@ -22,15 +21,7 @@ import (
 // Each epoch ends at an independently installed FRR route and a complete wire
 // fence. Initial-sync EORs remain outside the negative assertion.
 func checkParsedEmptyMPFRR(ctx context.Context, check *interoplab.CheckContext) (resultErr error) {
-	root, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	paths, err := lepath.ResolveSession(root, true)
-	if err != nil {
-		return err
-	}
-	directory, err := os.MkdirTemp(paths.Scratch, check.Source.Name+"-")
+	directory, err := retainedProofDirectory(check)
 	if err != nil {
 		return err
 	}

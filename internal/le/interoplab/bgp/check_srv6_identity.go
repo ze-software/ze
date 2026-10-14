@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
-	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // checkSRv6Identity proves forwarding, not ordinary SDK origination. The SDK
@@ -30,15 +29,7 @@ import (
 // loses Service bytes and/or policy-only A-to-B retains them. Both byte verdicts
 // are collected, and neither route/session/control requirement is weakened.
 func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (resultErr error) {
-	root, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	paths, err := lepath.ResolveSession(root, true)
-	if err != nil {
-		return err
-	}
-	directory, err := os.MkdirTemp(paths.Scratch, check.Source.Name+"-")
+	directory, err := retainedProofDirectory(check)
 	if err != nil {
 		return err
 	}

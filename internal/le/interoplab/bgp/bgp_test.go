@@ -166,9 +166,10 @@ func TestEveryCheckerFailsClosedWithoutPeerEvidence(t *testing.T) {
 	}
 	for name, checker := range checkers() {
 		if err := checker(ctx, &interoplab.CheckContext{
-			Source:  interoplab.ScenarioSource{Name: name},
-			Lab:     noEvidenceLab{},
-			Network: network,
+			Source:   interoplab.ScenarioSource{Name: name},
+			Lab:      noEvidenceLab{},
+			Network:  network,
+			Checkout: t.TempDir(),
 		}); err == nil {
 			t.Errorf("checker %s passed with no peer evidence", name)
 		}

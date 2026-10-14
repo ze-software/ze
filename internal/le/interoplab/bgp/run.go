@@ -119,6 +119,7 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 		}, pinned...),
 		Scenarios: plans,
 		NoBuild:   options.NoBuild,
+		Checkout:  root,
 	}, nil
 }
 

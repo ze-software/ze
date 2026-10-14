@@ -77,6 +77,11 @@ type Suite struct {
 	Images    []ImageBuild
 	Scenarios []ScenarioPlan
 	NoBuild   bool
+	// Checkout is the repository root the suite runs from. Each CheckContext
+	// carries it, so a checker that retains proof resolves the session scratch
+	// against the checkout rather than against the process working directory,
+	// which `go test` sets to the package directory inside the source tree.
+	Checkout string
 }
 
 // SuiteReport is the structured result for one gate invocation.
@@ -149,6 +154,10 @@ type CheckContext struct {
 	Source  ScenarioSource
 	Network Network
 	Lab     CheckerLab
+	// Checkout is the root a checker that retains proof writes under, through
+	// that root's session scratch. Empty means the caller declared none, and
+	// such a checker MUST refuse rather than fall back to the working directory.
+	Checkout string
 }
 
 // Lab exposes peer commands, fail-closed queries, and bounded log reads.
@@ -353,7 +362,7 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 			return result
 		}
 	}
-	check := &CheckContext{Source: plan.Source, Network: network, Lab: lab}
+	check := &CheckContext{Source: plan.Source, Network: network, Lab: lab, Checkout: s.Checkout}
 	if err := plan.Source.Checker(ctx, check); err != nil {
 		result.Error = err.Error()
 		return result

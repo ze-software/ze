@@ -188,10 +188,14 @@ The checker requires FRR installation and removal, complete source and recipient
 wire histories, the negotiated AS_PATH widths, and unchanged FRR daemon/session
 identity. A mixed withdrawal must not manufacture an EOR; the later genuine
 marker must survive. Before teardown, pass and failure both retain `proof.json`
-under the native session scratch directory, including fixture inputs, captures,
-FRR table, PID, version and logs. Required capture or write failures fail the
-proof. Diagnostic collection has a cancellation-independent fifteen-second bound.
+under the native session scratch directory of the checkout the suite runs from,
+including fixture inputs, captures, FRR table, PID, version and logs. The checker
+resolves that directory against `CheckContext.Checkout`, never the working
+directory, and refuses when no checkout is given. Required capture or write
+failures fail the proof. Diagnostic collection has a cancellation-independent
+fifteen-second bound.
 <!-- source: internal/le/interoplab/bgp/check_parsed_empty_mp.go -- checkParsedEmptyMPFRR, parsedEmptyMPDiagnostics -->
+<!-- source: internal/le/interoplab/bgp/proof_directory.go -- retainedProofDirectory -->
 <!-- source: internal/le/interoplab/bgp/check_parsed_empty_mp_wire.go -- parsedEmptyMPCapture, parsedEmptyMPHistory -->
 
 ## Prerequisites
