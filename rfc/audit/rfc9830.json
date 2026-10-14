@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -11,8 +12,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies. Forbidden: a length octet other than 96 for AFI 1 or other than 192 for AFI 2. Red: assert.Equal(byte(96), v4[0]) and assert.Equal(byte(192), v6[0]) on EncodeNLRIHex output, with assert.Len on the 12/24-octet body. Negative: Parse(AFIIPv6, 12-octet body) require.ErrorIs ErrSRPolicyTruncated, and SplitSRPolicy refuses a 100-bit length.",
       "requirement_sha": "f6271708d3fe7b20",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies": "7da4d468ba80b959",
@@ -24,8 +25,8 @@
       "note": "Both halves now proven. MP_UNREACH_NLRI: TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes (planBatchAttrs records, unchanged). MP_REACH_NLRI: TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes finds MP_REACH 00 01 49, ORIGIN 40/00 and the eBGP AS_PATH 40/02 01 0000FDE8 by attribute.AttrFind over the parsed path attribute section, iBGP MP_REACH and ORIGIN likewise; TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath forces the iBGP empty-path input (R1(b)) and requires AS_PATH present, flags 40, zero-length value. BuildPlugin is the producer the reactor's config send shares (peer_initial_sync.go). Judge break (overlay, update_build_plugin.go: drop every attribute appendASPath wrote on iBGP) turned the new negative red and the new positive green; the c32 author's probes cover dropped ORIGIN (positive red). Revert records on BuildPlugin for the two new units and the two HEAD tags of TestRFC9830UpdateCarriesMandatoryAttributes. Residual: the HEAD negative (LOCAL_PREF only on iBGP) proves attribute categorisation rather than presence of the mandatory set, supplementary here.",
       "requirement_sha": "89e9de484f71fc82",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes#2": "f1e61f246e4da117",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes#2": "450f2364530acf19",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes": "35c12d1922010b90",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath": "35c12d1922010b90",
         "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes": "38048ce0e9d32912",
@@ -45,8 +46,8 @@
       "note": "Independent whole-clause rejudgment against RFC 9830 \u00a72.3: \"The Tunnel Egress Endpoint and Color sub-TLVs of the Tunnel Encapsulation Attribute, as defined in [RFC9012], are not utilized for SR Policy encodings. Consequently, their values are not relevant within the context of the SR Policy SAFI NLRI. If these sub-TLVs are present, a BGP speaker MUST ignore them and MAY remove them from the Tunnel Encapsulation Attribute during propagation.\" The current summary has no partial/gap annotation for this requirement. All four current tags were read: both polarities in reactor TestRFC9830InapplicableSubTLVsIgnoredOnReceipt and attribute TestRFC9830EgressEndpointAndColorSubTLVsIgnored. The reactor's positive cases compare a clean policy with individually added endpoint and Color sub-TLVs on actual AFI 1/73 and 2/73 carriers, requiring no error, exactly RFC7606ActionNone, unchanged MP_REACH including its NLRI and next hop, one retained type-15 tunnel, and readable Preference 100. Its negative controls add duplicate endpoints or an endpoint with a one-octet value and require the same outcomes, catching erroneous application of unicast endpoint-count/value validation to an SR Policy. These inputs isolate applicability: teSub/teTLV encode their actual lengths, so the short endpoint has invalid endpoint content but intact sub-TLV and outer framing; teSRPolicyBody supplies a single type-15 TLV, correctly sized policy NLRI, ORIGIN, four-octet AS_SEQUENCE 65002 and an IPv4-format Route Target, with no legacy announcement. The attribute positive control reads equal Preference values with and without endpoint/Color; its separate negative control changes the applicable Preference from 4242 to 9999 and requires a changed result, excluding blanket disregard of all sub-TLVs. Round-trip equality additionally pins Ze's permitted retention choice. Source inspection confirms applyRFC7606 calls applyTunnelEncap and consumes both returned values; applyTunnelEncap identifies the policy from MP_REACH AFI/SAFI, and tunnelTLVLayout still validates framing but skips endpoint semantic/count checks when policy is true and assigns no meaning to Color. TunnelTLV.Preference consumes only type 12 with the required six-octet value; its readback is a codec assertion, not evidence of SRPM selection. processValidatedMessage forwards accepted announcements through onMessageReceived; notifyMessageReceiver caches the accepted WireUpdate before dispatch. teForwardedAttrs exercises that real receive/cache/ForwardUpdate path to an iBGP socket and a downstream processMessage consumer, both without the MED policy and with an actual MED=50 rebuild, asserting preserved attributes/MP_REACH, one announcement and no synthesized withdrawal. Ignoring these contents does not require erasing their wire bytes: byte retention is a conforming implementation choice under MAY, not an additional RFC MUST. Stored native records for this reactor cover name replacement of applyTunnelEncap by panic; those establish sensitivity to that producer halt only, not selective endpoint/Color discrimination. Historical records naming the former carry-test cover likewise do not extend current semantic proof. No checks, mutations, hashes or canonical edits were performed for this rejudgment. Credit is limited to the implemented receive, codec and cached propagation behavior demonstrated by these assertions; no separate route-server rail, SR Policy Manager, attribute-driven steering or dataplane proof is claimed, and absent consumers remain separately unimplemented scope. RFC9830-2.3-3 is not rejudged. No code map is needed for this enforced pending entry.",
       "requirement_sha": "8fa04c271531948b",
       "tests": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "2f370bfac5e3c897",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "2f370bfac5e3c897",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "cd227ea5764f94be",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "cd227ea5764f94be",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored#2": "a929cacac0d74fc0"
       },
@@ -62,8 +63,8 @@
       "note": "Independent RFC 9830 Section 2.3 rejudgment retains enforced for ignoring sub-TLVs without explicitly defined applicability to the SR Policy SAFI; the same full sentence permits their removal during propagation. TestRFC9012MeaninglessSubTLVIgnoredNotRemoved proves the applicable Preference counter-control but is not the sole proof. TestRFC9830InapplicableSubTLVsIgnoredOnReceipt isolates well-framed VXLAN, Embedded Label Handling and UDP sub-TLVs on both SAFI 73 AFIs and requires exact no-action, intact MP_REACH and readable Preference. teForwardedAttrs traverses actual receive/cache/ForwardUpdate/Session output/downstream receipt with unchanged and MED-rebuilt cached forwarding. The corrected tag now describes those two cached modes rather than claiming the separate RS rail. applyTunnelEncap/tunnelTLVLayout ignore inapplicable semantics while retaining framing checks; Preference consumes only its applicable type. A native four-octet next hop on AFI-2 SR Policy remains legal under the independent wire-family contract. Preserving the bytes is a conforming choice, not a prohibition on the RFC\u2019s MAY removal. No SRPM, dataplane, full-RFC or fresh selective execution claim is made.",
       "requirement_sha": "58c3a539f651edbd",
       "tests": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "2f370bfac5e3c897",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "2f370bfac5e3c897",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "cd227ea5764f94be",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "cd227ea5764f94be",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "e8576a1ee12543a9",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "e8576a1ee12543a9"
       },
@@ -105,8 +106,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: two Preference sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPreference), 1) for a config naming preference twice. Negative: a config with no preference emits none (assert.Empty), so the count is real.",
       "requirement_sha": "53932a2d63ef18be",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "b4f8573bcddb0e83",
@@ -118,7 +119,7 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: a Preference length other than 6. Red: require.Len(value, 6) on a value srpSubs cut at the declared length (a wrong declared length also fails the walk's require.NoError), with the preference in value[2:6]. Negative (internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored): 4- and 8-octet values are not read.",
       "requirement_sha": "54221ad66a2575a4",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "f1e61f246e4da117",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "450f2364530acf19",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored": "a929cacac0d74fc0"
       },
       "units": {
@@ -131,8 +132,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: a non-zero Preference Flags octet on transmission. Red: assert.Equal(byte(0), value[0]) on the srpDirty encoding. Negative: assert.NotEqual(make([]byte, 6), value), preference 0xDEADBEEF beside it.",
       "requirement_sha": "510e8ef6796a80df",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "b4f8573bcddb0e83",
@@ -168,8 +169,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: a non-zero Preference RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]) on the srpDirty encoding. Negative: assert.NotEqual(make([]byte, 6), value).",
       "requirement_sha": "55d8293f9dc70a3a",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "b4f8573bcddb0e83",
@@ -239,8 +240,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: two Binding SID sub-TLVs. Red: assert.Len(srpAll(repeated, subTLVBindingSID), 1) for 'binding-sid mpls 24000 binding-sid null'. Negative: none configured, none emitted (assert.Empty).",
       "requirement_sha": "e60461388f148763",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "6eaba5e67a485e4c",
@@ -252,8 +253,8 @@
       "note": "Row narrowed to the two clauses ze produces: 6 with an SR-MPLS BSID, 2 with none (the 18-octet SRv6 clause split to RFC9830-2.4.2-12, a {gap}). TestRFC9830BindingSIDSubTLV asserts require.Len(withBSID, 6) from a binding-sid mpls config and require.Len(noBSID, 2) from binding-sid null, through the sub-TLV the config encoder emits; a constant-length or swapped encoder fails one of them. Revert records observed red for both tags (buildBindingSIDSubTLV, buildBindingSIDNullSubTLV). The label-width defect (spec-bgp-sr-policy-rfc-defects D2) will change buildBindingSIDSubTLV and stale the positive record",
       "requirement_sha": "2f3d1ac097d58295",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "6eaba5e67a485e4c",
@@ -304,8 +305,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: a non-zero Binding SID RESERVED octet. Red: assert.Equal(byte(0), withBSID[1]) and assert.Equal(byte(0), noBSID[1]). Negative: assert.NotEqual(make([]byte, 6), withBSID) beside label 0xFFFFF.",
       "requirement_sha": "98730ec9022f1d59",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "6eaba5e67a485e4c",
@@ -341,8 +342,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: non-zero TC, S or TTL in the transmitted label stack entry. Red: assert.Equal(byte(0), withBSID[4]&0x0E) (TC), withBSID[4]&0x01 (S), withBSID[5] (TTL). Negative: the 20-bit label reads 0xFFFFF, so the zeroes are field layout, not a small label.",
       "requirement_sha": "0f66d44610fc1d2b",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "6eaba5e67a485e4c",
@@ -354,7 +355,7 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV. Forbidden: a length other than 18 without the Endpoint Behavior and SID Structure. Red: require.Len(value, 18). The 26 case has no producer (buildSRv6BindingSIDSubTLV never appends the structure), carried by the row's single-polarity annotation.",
       "requirement_sha": "4dedfecf69bfd236",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "3c28273914b6db0b"
@@ -365,8 +366,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV. Forbidden: non-zero unassigned Flags bits on transmission (ze sets no assigned flag). Red: assert.Equal(byte(0), value[0]). Negative: assert.NotEqual(make([]byte, 18), value), SID octets non-zero.",
       "requirement_sha": "7270986e76dec5ad",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "3c28273914b6db0b",
@@ -402,8 +403,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV. Forbidden: a non-zero RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]). Negative: assert.NotEqual(make([]byte, 18), value).",
       "requirement_sha": "636a3e51ef50c878",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "3c28273914b6db0b",
@@ -439,8 +440,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a non-zero Segment List RESERVED octet on transmission. Red: assert.Equal(byte(0), value[0]). Negative: the following sub-TLVs are non-empty (require.NotEmpty(inner)) and the value is not blank.",
       "requirement_sha": "958f225d63e19a03",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "967814ae57450c29",
@@ -476,8 +477,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a second Weight sub-TLV in one Segment List. Red: require.Len(weights, 1) on the srpDirty encoding, and require.Error on parseConfigRoute for 'segment-list weight 1 weight 2 ...', so the config path cannot produce a second one.",
       "requirement_sha": "ac2b95afa530c35f",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "967814ae57450c29",
@@ -489,8 +490,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a Weight length other than 6 (e.g. the 8-octet total). Red: require.Len(weight, 6) on a value cut at the declared length, srpSegSubs require.NoError on the walk, and assert.Len(value, 1+8+8+28) on the whole segment list.",
       "requirement_sha": "82f7e2652db7695a",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "967814ae57450c29",
@@ -502,8 +503,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a non-zero Weight Flags octet. Red: assert.Equal(byte(0), weight[0]). Negative: assert.NotEqual(make([]byte, 6), weight), weight 0xCAFEBABE.",
       "requirement_sha": "cdf2bfbc07661f0f",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "967814ae57450c29",
@@ -539,8 +540,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a non-zero Weight RESERVED octet on transmission. Red: assert.Equal(byte(0), weight[1]) on the srpDirty encoding. Negative: assert.NotEqual(make([]byte, 6), weight) with weight[2:6] pinned to 0xCAFEBABE, so the zero is written, not a blank buffer.",
       "requirement_sha": "1c551ef0c0c36ffb",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "967814ae57450c29",
@@ -576,8 +577,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV. Forbidden: a Type A length other than 6 (e.g. the 8-octet total). Red: require.Len(value, 6) on a value srpSegSubs cut at the declared length. Negative: assert.Len(inner, 3), which a length of 8 breaks by swallowing the Type B sub-TLV header that follows.",
       "requirement_sha": "d8858489d6e0bcf3",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "33514a40260fa5b4",
@@ -589,8 +590,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV. Forbidden: a non-zero Type A RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]). Negative: assert.NotEqual(make([]byte, 6), value) with the label pinned to 0xFFFFF.",
       "requirement_sha": "3dd3159a633855fb",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "33514a40260fa5b4",
@@ -626,8 +627,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV. Forbidden: S bit set in the transmitted Type A label stack entry. Red: assert.Equal(byte(0), value[4]&0x01). Negative: assert.Equal(uint32(0xFFFFF), label), so every label bit is set beside the clear S bit and the zero is not a blank low octet.",
       "requirement_sha": "2a3a20e1a4808d39",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "33514a40260fa5b4",
@@ -663,8 +664,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: a length other than 26 with the Endpoint Behavior and SID Structure, or other than 18 without it. Red: require.Len(value, 26) on the srpDirty segment and require.Len(bare[0], 18) on the bare type-b segment; both clauses have an assertion and the pair shows the length tracks the content.",
       "requirement_sha": "c9eaeae04b8c9efc",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "bcfcf99bdcd49711",
@@ -676,8 +677,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: a non-zero Type B RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]) and assert.Equal(byte(0), bare[0][1]), with and without the structure. Negative: assert.NotEqual(make([]byte, 26), value) and value[2] pinned to 0xFC.",
       "requirement_sha": "c71bbfda5907beb0",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "bcfcf99bdcd49711",
@@ -713,8 +714,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: the Endpoint Behavior and SID Structure encoded without an SRv6 SID. Red: require.Error on parseSegmentList and on parseConfigRoute for 'segment endpoint-behavior ...' with no preceding type-b srv6 SID, the only route to a structure ze has. Positive: the structure follows a 16-octet SID (assert.Equal(byte(0xEF), value[17])).",
       "requirement_sha": "9dded3ee31e03c06",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "bcfcf99bdcd49711",
@@ -726,9 +727,9 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV and TestRFC9830SegmentTypeBSubTLV. Forbidden: any unassigned Segment Flags bit set on transmission. Red: assert.Equal(byte(0), value[0]) on Type A and assert.Equal(byte(0), value[0]&^byte(0x10)) on Type B. Negative: the Type B Flags octet is 0x10 (the assigned B-Flag, bit 3 per Figure 13) and not zero, and 0 without the structure, so the assertion is on which bits are set, not on a blank byte.",
       "requirement_sha": "f8e1365ffcc19b87",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "33514a40260fa5b4",
@@ -783,8 +784,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: non-zero Reserved octets in the Endpoint Behavior and SID Structure on transmission. Red: assert.Equal([]byte{0x00, 0x00}, value[20:22]). Negative: endpoint behavior 0xFFFF at value[18:20] and structure 32/16/16/64 at value[22:26], so the zeros are written at the right offset.",
       "requirement_sha": "d609e2ceb438be85",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "bcfcf99bdcd49711",
@@ -820,8 +821,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV. Forbidden: two Priority sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPriority), 1) for a config naming priority twice. Negative (control): a config with no priority emits none (assert.Empty), so the instance is counted rather than always written; a violating output cannot be built from a conforming encoder.",
       "requirement_sha": "a8d314fc61f59e87",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "bcaa7e59da5da517",
@@ -833,8 +834,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV and TestRFC9830PriorityLengthIsValueLength. Forbidden: a Priority length other than 2 (e.g. the 4-octet total). Red: require.Len(value, 2) on a value cut at the declared length, and assert.Equal([]byte{15, 2, 255, 0}, only[4:]) pinning the length octet itself.",
       "requirement_sha": "5f0f7a4f9830a7a8",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PriorityLengthIsValueLength": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PriorityLengthIsValueLength": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PriorityLengthIsValueLength": "1b00301763158894",
@@ -846,8 +847,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV. Forbidden: a non-zero Priority RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]). Negative: assert.NotEqual([]byte{0,0}, value) with value[0] pinned to 255, so the zero is written and the fields are not transposed.",
       "requirement_sha": "dcef8c71d0ec3278",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "bcaa7e59da5da517",
@@ -883,8 +884,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: two Candidate Path Name sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVCandidatePathNam), 1) for a config naming the candidate path twice. Negative (control): an unnamed candidate path emits none (assert.Empty); a violating output cannot be built from a conforming encoder.",
       "requirement_sha": "f0ad488b84da83a1",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "4d7575ed7e5b51b7",
@@ -896,8 +897,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: a non-zero Candidate Path Name RESERVED octet on transmission. Red: assert.Equal(byte(0), value[0]) in the loop case for 'primary'. Negative: require.Len(value, 1+len(want)) and assert.Equal(want, string(value[1:])), so the zero is a separate written octet ahead of the whole name.",
       "requirement_sha": "f67b19e56b55dfc1",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "4d7575ed7e5b51b7",
@@ -933,8 +934,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: two SR Policy Name sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPolicyName), 1) for a config naming the policy twice. Negative (control): an unnamed policy emits none (assert.Empty); a violating output cannot be built from a conforming encoder.",
       "requirement_sha": "dca7849b5b33aad0",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "4d7575ed7e5b51b7",
@@ -946,8 +947,8 @@
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: a non-zero SR Policy Name RESERVED octet on transmission. Red: assert.Equal(byte(0), value[0]) in the loop case for 'alpha'. Negative: assert.NotEqual(make([]byte, 6), ...) and assert.Equal(want, string(value[1:])), so the zero is written ahead of the whole name.",
       "requirement_sha": "cdade31fe3da99de",
       "tests": {
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "f1e61f246e4da117",
-        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "f1e61f246e4da117"
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "450f2364530acf19",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "450f2364530acf19"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "4d7575ed7e5b51b7",

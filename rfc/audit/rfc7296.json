@@ -14,6 +14,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -52,8 +53,8 @@
       "note": "Positive: TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors decrypts ze's initiateChildRekey request at the peer: exactly one SA, one Ni, one TSi and one TSr with selectors, KEi present with pfs enable and absent with pfs disable (the optional clause both ways). Negative (receive side): TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused removes SA, Ni, TSi or TSr one at a time from a peer request: each refused with errMalformedRequest and INVALID_SYNTAX, nothing installed; the complete request is answered. TestRekeyWithoutTrafficSelectorsIsRefused (moved from 2.9-1) adds the no-TS request refusal and its answered twin.",
       "requirement_sha": "f415c51b9c64aa9c",
       "tests": {
-        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "8d0e2e1789602a48",
-        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "8d0e2e1789602a48",
+        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "8b6f1465d0257d95",
+        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "8b6f1465d0257d95",
         "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors": "bd9484104305f061",
         "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused": "bd9484104305f061"
       },
@@ -154,7 +155,7 @@
       "note": "TestRFC7296ReplyLandsOnTheRequestSourcePort reads the reply datagram on the socket bound to the request's odd source port (response flag, request Message ID, decrypts under the IKE SA). The negative is now TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint alone: the configured remote, the violating destination, receives nothing. The NAT-T unauthenticated-packet unit moved to RFC7296-2.23-13, the row it proves. The older natt positive asserts only the stored endpoint and is supplementary.",
       "requirement_sha": "0d57af8ddbfd3571",
       "tests": {
-        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "030e172cfa9dc572",
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "c80ce9c50f9d983a",
         "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint": "10566beea1d5b441",
         "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyLandsOnTheRequestSourcePort": "10566beea1d5b441"
       },
@@ -425,8 +426,8 @@
       "note": "every Child SA accepts both ESP forms inbound (AcceptBothESPForms) and both forms are programmable; kernel behavior measured by the cited QEMU tests",
       "requirement_sha": "f3ea7ec017873610",
       "tests": {
-        "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsAreReachable": "6a655475396b0532",
-        "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsReceivedOnOneChildSA": "6a655475396b0532"
+        "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsAreReachable": "54e305e7bb842fcf",
+        "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsReceivedOnOneChildSA": "54e305e7bb842fcf"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsAreReachable": "d2da5f9a3068b806",
@@ -457,7 +458,7 @@
       "tests": {
         "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketDoesNotMoveTheSAOutsideTheRow": "999bc4e0b6651e29",
         "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketFromANewEndpointMovesTheSA": "999bc4e0b6651e29",
-        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "030e172cfa9dc572"
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "c80ce9c50f9d983a"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketDoesNotMoveTheSAOutsideTheRow": "a38d66c259de5d5f",
@@ -692,8 +693,8 @@
         "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationNoMatch": "a6de5fb37ffc1f6e",
         "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "c6cc102fdb5f482d",
         "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "c6cc102fdb5f482d",
-        "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "003e378e0cfce500",
-        "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "003e378e0cfce500"
+        "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "3b64a3eac1d4d2c6",
+        "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "3b64a3eac1d4d2c6"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch": "eb95e994924bfa94",
@@ -709,7 +710,7 @@
       "note": "no lifetime transform or attribute reaches the wire (TestLifetimesNotNegotiatedOnWire); lifetime state derives from the local value (TestSALifetimeTime)",
       "requirement_sha": "a8e4d60828a97692",
       "tests": {
-        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestSALifetimeTime": "8d0e2e1789602a48",
+        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestSALifetimeTime": "8b6f1465d0257d95",
         "internal/component/ike/engine/rfc7296_test.go::TestLifetimesNotNegotiatedOnWire": "e032382b6fba7977"
       },
       "units": {
