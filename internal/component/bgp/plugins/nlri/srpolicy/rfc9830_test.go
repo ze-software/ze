@@ -12,6 +12,7 @@ package srpolicy
 import (
 	"encoding/hex"
 	"net/netip"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -527,4 +528,36 @@ func TestRFC9830PriorityLengthIsValueLength(t *testing.T) {
 	assert.Equal(t, []byte{subTLVPriority, 2, 255, 0}, only[4:],
 		"the whole TLV payload is one 4-octet Priority sub-TLV declaring a 2-octet value")
 	assert.Len(t, srpAll(srpSubs(t, "distinguisher 0 color 100 endpoint 10.0.0.1 priority 255"), subTLVPriority), 1)
+}
+
+// srpLabel reads the 20-bit label of a 4-octet label stack entry at value[at:].
+func srpLabel(value []byte, at int) uint32 {
+	return uint32(value[at])<<12 | uint32(value[at+1])<<4 | uint32(value[at+2])>>4
+}
+
+// TestRFC9830BindingSIDLabelRange checks the Binding SID MPLS label range on
+// origination, through parseConfigRoute, the parser config and `ze bgp encode` share.
+// RFC 9830 Section 2.4.2: "The Label field is validated by the SRPM but MUST NOT contain
+// the reserved MPLS label values (0-15)."
+// VALIDATES: labels 0 and 15 are refused naming the token, the value and the range; 16 and
+// 1048575 are accepted and read back exactly from bytes 2..4 of the sub-TLV value, with
+// TC, S and TTL zero.
+// PREVENTS: a reserved Binding SID label sent to a peer (spec D2, AC-2).
+func TestRFC9830BindingSIDLabelRange(t *testing.T) {
+	t.Parallel()
+	const base = "distinguisher 0 color 100 endpoint 10.0.0.1 binding-sid mpls "
+	for _, label := range []string{"0", "15"} {
+		_, err := parseConfigRoute(cr(strings.Fields(base+label), "192.0.2.1", false))
+		require.Error(t, err, "label %s", label)
+		assert.Contains(t, err.Error(), "binding-sid mpls "+label)
+		assert.Contains(t, err.Error(), "16 to 1048575")
+		assert.Contains(t, err.Error(), "reserved")
+	}
+	for _, label := range []uint32{16, 1048575} {
+		value := srpOne(t, srpSubs(t, base+strconv.FormatUint(uint64(label), 10)), subTLVBindingSID)
+		require.Len(t, value, 6)
+		assert.Equal(t, label, srpLabel(value, 2))
+		assert.Equal(t, byte(0), value[4]&0x0F, "TC and S")
+		assert.Equal(t, byte(0), value[5], "TTL")
+	}
 }

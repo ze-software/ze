@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/6 |
 | Handoff | - |
 | Updated | 2026-10-14 |
 
@@ -365,8 +365,8 @@ the `.ci` refusals (config and `ze bgp encode`), not by interop.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | GoBGP v3.31.0 negotiates and displays `ipv4-srpolicy` / `ipv6-srpolicy` with BSID and segment labels in `-j` output | GoBGP's documented SR Policy family support; not yet run against Ze | Interop must use FRR instead, whose SAFI 73 support in bgpd is also unverified here | first run of the scenario's GoBGP side with a static policy, before writing the checker | unvalidated |
-| A-2 | A treat-as-withdraw result recorded by `validateMPNLRIField` reaches the same synthesis and dispatch path as an attribute-level one, when the UPDATE carries reachable NLRI | `ValidateUpdateRFC7606AddPath` records non-reset results through `recordError` inside its attribute walk; `applyRFC7606` handles every non-`syntaxField` result as attribute-level | D3 needs reactor plumbing | `TestRFC9830NLRILengthReceiveVerdicts` asserts the delivered body is the synthesized withdrawal | unvalidated |
-| A-3 | No live config or test uses a Binding SID label 0..15 or any label above 1048575 | grep over `internal`, `test`, `docs`, `etc` for `binding-sid mpls` / `type-a mpls` found only 24000, 16001, 16002, 1048575 | an existing test would go red on refusal | the same grep re-run at implementation | validated 2026-10-13 by grep |
+| A-2 | A treat-as-withdraw result recorded by `validateMPNLRIField` reaches the same synthesis and dispatch path as an attribute-level one, when the UPDATE carries reachable NLRI | `ValidateUpdateRFC7606AddPath` records non-reset results through `recordError` inside its attribute walk; `applyRFC7606` handles every non-`syntaxField` result as attribute-level | D3 needs reactor plumbing | `TestRFC9830NLRILengthReceiveVerdicts` asserts the delivered body is the synthesized withdrawal | confirmed 2026-10-14: `TestSRPolicyMalformedWithdrawalSynthesis` receives the dispatched synthesized MP_UNREACH through `processMessage`, with no reactor plumbing added |
+| A-3 | No live config or test uses a Binding SID label 0..15 or any label above 1048575 | grep over `internal`, `test`, `docs`, `etc` for `binding-sid mpls` / `type-a mpls` found only 24000, 16001, 16002, 1048575 | an existing test would go red on refusal | the same grep re-run at implementation | validated 2026-10-13 by grep; re-run 2026-10-14 at implementation: out-of-range values occur only in the new `config_test.go` refusal cases |
 | A-4 | Every reactor fixture that sends SAFI 73 MP_REACH already carries attribute 23 and 12/24-octet NLRIs, except `TestReceivePrefixLimitShortAddPathEntry` | grep of reactor tests for `SAFISRPolicy`: `teSRPolicyBody`, `teSRPolicyValue` users carry type 15 and 96/192-bit lengths | more fixtures change | package test run of `internal/component/bgp/reactor` after the change | unvalidated |
 | A-5 | ADD-PATH CAN be negotiated for SAFI 73 by production config, so the rule and `SplitSRPolicy` honour `addPath` | `parseAddPathFromTree` applies the default direction to every `capability.Multiprotocol` with no family exclusion; YANG `add-path` description "The default direction applies to every negotiated multiprotocol family"; RFC 9830 does not forbid a path identifier; `TestReceivePrefixLimitShortAddPathEntry` already builds a negotiated ADD-PATH receive context for ipv4/sr-policy | (assumption replaced: the earlier "never negotiated" reading was wrong) | AC-8 tests | validated 2026-10-14 at the producer |
 

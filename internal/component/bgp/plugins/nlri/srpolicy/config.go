@@ -138,6 +138,9 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 				if err != nil {
 					return registry.PluginRoute{}, fmt.Errorf("invalid binding-sid label: %w", err)
 				}
+				if err := checkBindingSIDLabel(v); err != nil {
+					return registry.PluginRoute{}, err
+				}
 				bsidMPLS = uint32(v)
 				hasBSID = true
 				i += 3
@@ -248,6 +251,36 @@ type srpSegmentList struct {
 	segments []srpSegment
 }
 
+// MPLS label bounds for SR Policy origination.
+const (
+	// mplsLabelMax is the largest 20-bit label value. RFC 3032 Section 2.1: "This
+	// 20-bit field carries the actual value of the Label."
+	mplsLabelMax = 1<<20 - 1
+	// bindingSIDLabelMin is the smallest Binding SID label outside the reserved range.
+	bindingSIDLabelMin = 16
+)
+
+// checkBindingSIDLabel refuses a configured Binding SID MPLS label that cannot be sent
+// as configured. It runs on origination only: RFC 9830 Section 5 forbids a receiver
+// from judging these fields ("A BGP implementation MUST NOT perform semantic
+// verification of such fields").
+func checkBindingSIDLabel(label uint64) error {
+	// RFC 9830 Section 2.4.2: "The Label field is validated by the SRPM but MUST NOT
+	// contain the reserved MPLS label values (0-15)."
+	if label < bindingSIDLabelMin {
+		return fmt.Errorf("binding-sid mpls %d: labels 0 to 15 are reserved (RFC 9830 Section 2.4.2); use %d to %d",
+			label, bindingSIDLabelMin, mplsLabelMax)
+	}
+	// RFC 9830 Section 2.4.2: "If the length is 6, then the BSID is encoded in 4 octets
+	// using the format below." Figure 6 gives the Label its first 20 bits, so a wider
+	// value would be truncated by buildBindingSIDSubTLV.
+	if label > mplsLabelMax {
+		return fmt.Errorf("binding-sid mpls %d: an MPLS label is 20 bits; use %d to %d",
+			label, bindingSIDLabelMin, mplsLabelMax)
+	}
+	return nil
+}
+
 func parseSegmentList(tokens []string) (srpSegmentList, int, error) {
 	sl := srpSegmentList{}
 	i := 0
@@ -281,6 +314,12 @@ func parseSegmentList(tokens []string) (srpSegmentList, int, error) {
 			label, err := strconv.ParseUint(tokens[i+1], 10, 32)
 			if err != nil {
 				return sl, 0, fmt.Errorf("invalid MPLS label: %w", err)
+			}
+			// RFC 9830 Section 2.4.4.2.1: "Label:  20 bits of label value." A wider value
+			// has no encoding and would be truncated by buildSegmentTypeA. The section
+			// reserves no value for a Type A segment, so 0 to 15 are accepted.
+			if label > mplsLabelMax {
+				return sl, 0, fmt.Errorf("type-a mpls %d: an MPLS label is 20 bits; use 0 to %d", label, mplsLabelMax)
 			}
 			seg.typeA = true
 			seg.mplsLabel = uint32(label)

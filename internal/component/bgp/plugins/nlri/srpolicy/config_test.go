@@ -1,6 +1,7 @@
 package srpolicy
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -159,5 +160,40 @@ func TestParseConfigRoute_TruncatedEndpointBehavior(t *testing.T) {
 	_, err := parseConfigRoute(cr(content, "192.0.2.1", false))
 	if err == nil {
 		t.Fatal("expected error for truncated endpoint-behavior")
+	}
+}
+
+// TestSRPolicyLabelWidthRefused checks the 20-bit width of every configured MPLS label.
+// RFC 3032 Section 2.1: "This 20-bit field carries the actual value of the Label." A wider
+// value has no encoding, and the builders write the label through byte() truncation.
+// VALIDATES: binding-sid mpls 1048576 and type-a mpls 1048576 and 4294967295 are refused
+// naming the token, the value and the range; type-a mpls 0 and 1048575 are accepted and
+// read back exactly.
+// PREVENTS: a peer receiving a label other than the one configured (spec D2, AC-2).
+func TestSRPolicyLabelWidthRefused(t *testing.T) {
+	const base = "distinguisher 0 color 100 endpoint 10.0.0.1 "
+	for cfg, want := range map[string]string{
+		"binding-sid mpls 1048576":                    "binding-sid mpls 1048576",
+		"segment-list segment type-a mpls 1048576":    "type-a mpls 1048576",
+		"segment-list segment type-a mpls 4294967295": "type-a mpls 4294967295",
+	} {
+		_, err := parseConfigRoute(cr(strings.Fields(base+cfg), "192.0.2.1", false))
+		if err == nil {
+			t.Fatalf("%s: accepted", cfg)
+		}
+		if !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), "1048575") {
+			t.Fatalf("%s: error %q does not name the token, value and range", cfg, err)
+		}
+	}
+	for _, label := range []uint32{0, 1048575} {
+		cfg := base + "segment-list segment type-a mpls " + strconv.FormatUint(uint64(label), 10)
+		inner := srpSegSubs(t, srpAll(srpSubs(t, cfg), subTLVSegmentList)[0])
+		segments := srpAll(inner, segSubTLVTypeA)
+		if len(segments) != 1 {
+			t.Fatalf("type-a mpls %d: %d Type A segments, want 1", label, len(segments))
+		}
+		if got := srpLabel(segments[0], 2); got != label {
+			t.Fatalf("type-a mpls %d: encoded label %d", label, got)
+		}
 	}
 }
