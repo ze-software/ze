@@ -7,7 +7,7 @@
 | Depends | `plan/immediate/spec-lifecycle-invariants.md` (applied-result contract, AC-3/AC-4; gates AC-8 only); `plan/immediate/spec-radius-rfc-defects.md` (D2 replay key and D3 Acct-Session-Id format touch the same file; land order in R-6) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-13 |
+| Updated | 2026-10-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -90,17 +90,17 @@ The commit cited is the earliest at this path carrying the fixing text (`git log
 | T-1 | `readCoAChange` / `addFilterID` / `matchVendorCoS`; consumer `internal/plugins/cos/handler.go::onCoSChange` | Section 2.3: "If one or more authorization changes specified in a CoA-Request cannot be carried out, the NAS MUST send a CoA-NAK." Section 2.2: "The NAS responds to a CoA-Request sent by a Dynamic Authorization Client with a CoA-ACK if the NAS is able to successfully change the authorizations for the user session(s), or a CoA-NAK if the CoA- Request is unsuccessful." | A CoS profile name is parsed (`coreCos.ParseFilterID`) and never looked up, so `cos:no-such-profile` is ACKed; `onCoSChange` then logs "CoA profile not found" and returns. `onCoSChange` also stores the new `profileName` before `updateQoS` succeeds |
 | T-2 | `applySubscriberCoA` | Section 2.3: "State changes resulting from a CoA-Request MUST be atomic: if the CoA-Request is successful for all matching sessions, the NAS MUST send a CoA-ACK in reply, and all requested authorization changes MUST be made." | Rate and CoS events are fire-and-forget (`events.Event.Emit`, handlers are `func(T)` with no result). When the rate applies and the CoS `updateQoS` fails, the rate stays changed and the DAC has already been ACKed. Needs the applied-result contract of `spec-lifecycle-invariants` AC-3/AC-4 |
 
-### Owner questions (each states the reading the design proceeds under; only Q-5 is answered, by the owner on 2026-10-13)
+### Owner questions (each states the reading the design proceeds under; Q-5 is answered by the owner on 2026-10-13, Q-1 and Q-7 on 2026-10-14 through `spec-radius-rfc-defects` Q-6 and Q-7)
 
 | ID | Question | Design proceeds under | Why it needs the owner |
 |----|----------|-----------------------|------------------------|
-| Q-1 (S-1 scope) | Take the stale-Acct-Session-Id defect (`spec-radius-rfc-defects` Q-6) into this spec? | yes: AC-1 here; `spec-radius-rfc-defects` keeps D2/D3 and its prefix-preserving R-5, and this spec's exact match does not depend on the id format D3 chooses | Scope move between two specs; it changes which Disconnect tears down which session |
+| Q-1 (S-1 scope) | Take the stale-Acct-Session-Id defect (`spec-radius-rfc-defects` Q-6) into this spec? | **Answered by the owner, 2026-10-14, through `spec-radius-rfc-defects` Q-6: "whatever"; the recommendation is taken: yes.** The stale Acct-Session-Id prefix-match defect is in this spec: AC-1 here; `spec-radius-rfc-defects` keeps D2/D3 and its prefix-preserving R-5, and this spec's exact match does not depend on the id format D3 chooses | Scope move between two specs; it changes which Disconnect tears down which session |
 | Q-2 (S-1/S-2 design) | One session table: (B) the subscriber registry is the only table the CoA matcher reads, and `Session.AcctSessionID` is redefined as the Acct-Session-Id Ze put on the wire (written by the accountant when it issues one, empty when none was issued); or (A) an authradius-owned table of issued ids beside the L2TP snapshot, with the registry consulted only for the access interface | (B) | (B) changes the meaning of a registry field and deletes the L2TP-only fallback (`ai/rules/no-layering.md`); (A) leaves a field holding a value no packet carries and two lookups that disagree (S-2) |
 | Q-3 (S-3) | An identification attribute Ze holds no fact to compare (Called-Station-Id, Acct-Multi-Session-Id, Chargeable-User-Identity, NAS-IPv6-Address): (i) drop it from the accepted sets, so the request is NAKed 401; (ii) keep it accepted and let it match nothing, NAK 503; (iii) keep ignoring it | (i) | Changes which requests a deployed DAC gets answered. Ze sends none of the four in any Access-Request or Accounting-Request, so a DAC that copies accounting attributes never carries them; (iii) is the current RFC 5176 Section 3 breach |
 | Q-4 (T-2) | Atomic multi-change: (alpha) apply in order and, when a later part reports failure, re-apply the prior state of the parts already applied, then NAK 506; (beta) merge rate and CoS into one desired-state `traffic` backend Apply per interface | (alpha), started only after `spec-lifecycle-invariants` AC-4 gives a synchronous applied result | (beta) merges the shaper and CoS plugins' state; (alpha) can itself fail, and AC-8 then reports the breach rather than hiding it |
 | Q-5 (tests) | Approve changing the RFC-tagged tests in "Tagged tests that change". Revised 2026-10-13 after the RFC-tagged test review: `TestRFC5176IdentificationAttributesIdentifyOnly` (RFC5176-3.6-1, both units now drop Called-Station-Id), `TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed` (RFC5176-3-1 negative, prose narrows; its claim turns on Q-3), `TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession` (RFC5176-3.5-8, now a body change: matching NAS-Identifier, since AC-3 is now 403 per Section 3.5 "NAS Identification Mismatch"), the 2.3-6 premise changes, the 2.3-5/2.3-6 re-records, and the fixture-only units. `TestDisconnectReplayReturnsCachedResponse` is also edited by `spec-radius-rfc-defects` Q-3 | **Answered by the owner, 2026-10-13: "approve all RFC-tagged test changes".** It covers every unit in "Tagged tests that change", the behaviour edits and the fixture-only units alike. Q-2 and Q-3 are still open and this answers neither: the fixture-only edits apply under Q-2 (B), the Called-Station-Id edits and the `TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed` claim are written for whichever Q-3 answer is recorded, and `TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession` takes either form its row offers. Commands under "Owner approval commands" in the TDD plan | `ai/rules/rule-precedence.md`: changing an RFC-tagged test needs the owner |
 | Q-6 (AC-9) | Termination-Action (RFC 2865 Section 5.29, optional): select the reauthentication feature, or keep the recorded `feature-out-of-scope` exclusion | keep the exclusion; nothing implemented | Optional-feature scope (`ai/rules/rfc-compliance.md`); the skeleton already requires Thomas to decide before closure |
-| Q-7 (interop) | Interop needs FreeRADIUS `radclient` beside a live L2TP session, which no lab has. Share one FreeRADIUS-in-L2TP lab change with `spec-radius-rfc-defects` Q-7 and the planned `radius-coa-disconnect-freeradius` of `spec-rfc-verdict-fix-access` | one shared lab change; two scenarios named here | Lab work larger than the producer fixes; one lab for three specs is an ordering decision |
+| Q-7 (interop) | Interop needs FreeRADIUS `radclient` beside a live L2TP session, which no lab has. Where does FreeRADIUS run, shared with `spec-radius-rfc-defects` Q-7 and the planned `radius-coa-disconnect-freeradius` of `spec-rfc-verdict-fix-access`? | **Answered by the owner, 2026-10-14, through `spec-radius-rfc-defects` Q-7: "Make Free radius, its own lab."** FreeRADIUS gets its own lab, `interop-radius-subscriber` (scenarios under `test/interop-radius-subscriber/scenarios/`, plumbing in `internal/le/interoplab/radiussubscriber/`), shared with `spec-radius-rfc-defects`, which defines it under "The `interop-radius-subscriber` lab"; whichever spec lands first builds it. No FreeRADIUS container is added to the L2TP lab, whose RADIUS peer stays `radiusmock`. The two scenarios named here go into that lab | Lab work larger than the producer fixes; one lab for three specs is an ordering decision |
 | Q-8 (PPPoE) | PPPoE sessions have no Ze-issued Acct-Session-Id (the only issuer, `acct.go`, subscribes to `l2tpevents` only). Should the matcher select PPPoE sessions by the other identifiers (User-Name, Framed-IP-Address) | yes, the same evaluator runs over PPPoE registry entries; a PPPoE Disconnect still answers 504 and PPPoE CoA delivery stays with `spec-lifecycle-invariants` AC-3 and I-4 | Today a PPPoE session is reachable only by its internal id, which no DAC can know; opening it by User-Name changes which requests act |
 
 ## Required Reading
@@ -115,7 +115,7 @@ The commit cited is the earliest at this path carrying the fixing text (`git log
 - [ ] `docs/research/l2tpv2-ze-integration.md` - the `// Design:` document of `coa.go` and `acct.go`
   → Decision: lines 395-396 and 438 set CoA rate changes and DM teardown for live sessions as the integration goal; nothing there fixes how a session is selected, so the selector design here adds no conflict.
 - [ ] `docs/architecture/testing/interop.md` - suites, the FreeRADIUS admin-login lab, scenario naming
-  → Constraint: scenario directories are named, never numbered; the FreeRADIUS suite (`internal/le/interoplab/radius/`) has no L2TP, and the L2TP lab's RADIUS peer is Ze's own `radiusmock`, so a FreeRADIUS-against-live-session scenario needs a lab change (Q-7).
+  → Constraint: scenario directories are named, never numbered; the FreeRADIUS suite (`internal/le/interoplab/radius/`) has no L2TP, and the L2TP lab's RADIUS peer is Ze's own `radiusmock`, so a FreeRADIUS-against-live-session scenario needs a new lab: `interop-radius-subscriber` (Q-7, owner 2026-10-14).
   → Constraint: every checker reads both sides (Ze log and the server's record), and a forced red is recorded by reverting the producer and rebuilding the image.
 - [ ] `docs/architecture/l2tp/subscriber-session-model.md` - the registry's page; its source anchor names `LookupByAcctSessionID`
   → Constraint: Q-2 B changes what `Session.AcctSessionID` means and removes `LookupByAcctSessionID`; this page and its anchor change in the phase that changes the field (Documentation row 12).
@@ -412,8 +412,8 @@ Approved by the owner on 2026-10-13 (Q-5). The gate reads approvals from the com
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `l2tp-radius-coa-stale-session-freeradius` | `test/interop-l2tp/scenarios/` (lab change per Q-7) | FreeRADIUS `radclient` plus its `detail` accounting log, xl2tpd/pppd client | the server's recorded Acct-Session-Id of a reconnected subscriber's first session draws Disconnect-NAK 503 and the live session stays up (Ze log and pppd both read); the current id draws Disconnect-ACK and pppd sees the session end | |
-| `l2tp-radius-coa-identification-freeradius` | `test/interop-l2tp/scenarios/` | FreeRADIUS `radclient` | the attribute set FreeRADIUS copies from accounting (A-8) selects the session and a rate CoA is ACKed with the new rate visible in `tc`; the same request with one mismatched identifier is NAKed 503 and `tc` is unchanged | |
+| `l2tp-radius-coa-stale-session-freeradius` | `test/interop-radius-subscriber/scenarios/` (the `interop-radius-subscriber` lab, Q-7) | FreeRADIUS `radclient` plus its `detail` accounting log, xl2tpd/pppd client | the server's recorded Acct-Session-Id of a reconnected subscriber's first session draws Disconnect-NAK 503 and the live session stays up (Ze log and pppd both read); the current id draws Disconnect-ACK and pppd sees the session end | |
+| `l2tp-radius-coa-identification-freeradius` | `test/interop-radius-subscriber/scenarios/` | FreeRADIUS `radclient` | the attribute set FreeRADIUS copies from accounting (A-8) selects the session and a rate CoA is ACKed with the new rate visible in `tc`; the same request with one mismatched identifier is NAKed 503 and `tc` is unchanged | |
 
 Each scenario records a forced red: revert the selector producer, rebuild the Ze image, observe the scenario fail, restore.
 
@@ -427,7 +427,7 @@ Each scenario records a forced red: revert the selector producer, rebuild the Ze
 - `internal/component/l2tp/plugins/shaper/shaper.go` - none in this spec's own phases; the applied result is `spec-lifecycle-invariants`' change, consumed by T-2
 - `internal/component/l2tp/plugins/authradius/*_test.go` - the helpers and units in "Tagged tests that change", only after Q-5 approval
 - `internal/test/fixture/tunnel_fixture_l2tp_radius.go`, `tunnel_fixture_l2tp.go` - fixture `l2tp/radius-coa-acct-id` (CoA/Disconnect with a captured id)
-- `internal/le/interoplab/l2tp/` - FreeRADIUS container and checkers, per Q-7 (shared with `spec-radius-rfc-defects`)
+- `internal/le/interoplab/radiussubscriber/` - the `interop-radius-subscriber` lab's checkers for this spec's two scenarios, per Q-7 (the lab is shared with `spec-radius-rfc-defects` and built by whichever spec lands first). The spec that builds it also owes the lab rows of `spec-radius-rfc-defects` Files to Modify: the move of the `/dev/ppp` half of BOTH the L2TP lab (`internal/le/interoplab/l2tp/l2tp.go`) and the PPPoE lab (`internal/le/interoplab/pppoe/pppoe.go`), and of their tests, into one shared file in `internal/le/interoplab/` (that spec's Q-7 Preflight row). This list does not copy those rows
 - `docs/guide/l2tp.md` - CoA/DM check table and source anchors (AC-11), in the phase that changes each row
 - `rfc/audit/rfc5176.json` - re-judged verdicts (stamped by an independent judge); `rfc/discrimination/rfc5176.json` (tool-written)
 - `rfc/short/rfc5176.md`, `rfc/extraction/rfc5176.json` - no new rows (scope frozen); edited only if a judge finds a row's prose names the old behaviour
@@ -436,7 +436,7 @@ Each scenario records a forced red: revert the selector producer, rebuild the Ze
 - `internal/component/l2tp/plugins/authradius/rfc5176_session_selector_test.go` - AC-1..AC-6 units
 - `internal/component/l2tp/plugins/authradius/acct_session_id_registry_test.go` - issued-id lifecycle
 - `test/l2tp/radius-coa-stale-acct-session-id.ci`, `test/l2tp/radius-coa-identification-mismatch.ci`
-- `test/interop-l2tp/scenarios/l2tp-radius-coa-stale-session-freeradius/`, `test/interop-l2tp/scenarios/l2tp-radius-coa-identification-freeradius/`
+- `test/interop-radius-subscriber/scenarios/l2tp-radius-coa-stale-session-freeradius/`, `test/interop-radius-subscriber/scenarios/l2tp-radius-coa-identification-freeradius/`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -466,7 +466,7 @@ Each scenario records a forced red: revert the selector producer, rebuild the Ze
 | 7 | Wire format changed? | No | same packets; different answers |
 | 8 | Plugin SDK/protocol changed? | No | none |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/audit/rfc5176.json` re-judged rows; `docs/features/rfc-status.md` regenerated if any verdict moves |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if the new fixture is listed there; `docs/architecture/testing/interop.md` for the FreeRADIUS-in-L2TP lab and the two scenarios |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if the new fixture is listed there; `docs/architecture/testing/interop.md` for the `interop-radius-subscriber` lab section and suites row, and the two scenarios; if this spec builds the lab, also the L2TP and PPPoE preflight text named by `spec-radius-rfc-defects` Documentation row 10 (the shared `/dev/ppp` probe) |
 | 11 | Affects daemon comparison? | No | none |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/l2tp/subscriber-session-model.md`: `AcctSessionID` meaning and the removed `LookupByAcctSessionID` anchor; `docs/architecture/traffic/cos-dynamic.md` lines 55-56 (stale `extractRate`/`extractCoSProfile` names) in the T-1 phase |
 | 13 | Route metadata keys added/changed? | No | none |
@@ -500,7 +500,7 @@ Each scenario records a forced red: revert the selector producer, rebuild the Ze
 4. **Phase: unknown CoS profile (T-1)**
    - Tests: `TestRFC5176UnknownCoSProfileIsNAKed`, `TestCoSChangeRecordsProfileOnlyAfterApply`
    - Files: `coa.go`, `internal/plugins/cos/handler.go`, `docs/guide/l2tp.md` 407 row
-5. **Phase: interop** -- FreeRADIUS in the L2TP lab (Q-7), both scenarios, forced reds recorded
+5. **Phase: interop** -- the `interop-radius-subscriber` lab (Q-7; built here unless `spec-radius-rfc-defects` built it first), both scenarios, forced reds recorded
 6. **Phase: rollback (T-2)** -- only after `spec-lifecycle-invariants` AC-4 lands (A-7)
    - Tests: `TestRFC5176FailedCoSApplicationRestoresTheRate`, `TestRFC5176FailedRollbackIsNAKedAndLogged`
    - Files: `coa.go`, `docs/guide/l2tp.md` 506 row
@@ -557,6 +557,13 @@ code, and every tagged test it adds carries a discrimination record written by
 - PPPoE Disconnect teardown (504 today) and PPPoE CoA delivery belong to `spec-lifecycle-invariants` (AC-3, I-4).
 - With accounting not configured Ze issues no Acct-Session-Id, so a DAC must select by User-Name, NAS-Port or Framed-IP-Address (R-3).
 - Termination-Action stays excluded unless Q-6 selects it.
+
+## Design Review Log
+
+| Date | Round | Outcome |
+|------|-------|---------|
+| 2026-10-14 | owner answers recorded | Q-1 answered through `spec-radius-rfc-defects` Q-6 ("whatever", recommendation taken: the stale-id prefix match stays here as S-1/AC-1); Q-7 answered through `spec-radius-rfc-defects` Q-7 ("Make Free radius, its own lab."): every FreeRADIUS-in-L2TP lab reference now names the shared `interop-radius-subscriber` lab (Required Reading, Interop Tests, Files to Modify, Files to Create, Documentation row 10, Implementation step 5); scenario names unchanged. Other questions unchanged. Review round owed |
+| 2026-10-14 | consistency edit from `spec-radius-rfc-defects` review round 2 (its NIT-5) | Files to Modify and Documentation row 10 point at that spec's lab rows: the shared `/dev/ppp` move out of the L2TP and PPPoE labs, and the L2TP and PPPoE preflight doc text, owed by whichever spec builds the lab. No other change |
 
 ## Checklist
 
