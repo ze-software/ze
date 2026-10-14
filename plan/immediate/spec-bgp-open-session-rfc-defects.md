@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-13 |
+| Updated | 2026-10-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -54,22 +54,24 @@ owed because an operator meets it, and its journal row is its record.
 
 | Row | Question | Owner answer |
 |-----|----------|--------------|
-| D1 | One Optional Parameters packer, or the threshold fixed in place in each packer? (Q4) | **Owner, 2026-10-13: "Consolidate".** Read as one packer for every copy (main thread, 2026-10-13): it serves the reactor, the chaos peer, the perf sender, the BMP Loc-RIB OPEN, `ze analyze`'s OPEN and the test peer's active-role OPEN, and the six copies are deleted. A seventh writer, the test peer's `encodeOpen`, is open as Q5 |
+| D1 | One Optional Parameters packer, or the threshold fixed in place in each packer? (Q4) | **Owner, 2026-10-13: "Consolidate".** Read as one packer for every copy (main thread, 2026-10-13): it serves the reactor, the chaos peer, the perf sender, the BMP Loc-RIB OPEN, `ze analyze`'s OPEN and the test peer's active-role OPEN, and the six copies are deleted. Q5: **owner, 2026-10-14: "a"**: one packer takes typed parameters and serves all seven writers, the test peer's passive-role `encodeOpen` included |
 | D2 | How does a reload that changes a plugin-declared capability behave? (Q1) | **Owner, 2026-10-13: "b".** The reload is refused, naming the plugin, the peer and the capability, and saying that ze must be restarted to apply it |
 | D4 | Remove the per-peer `router-id` override, or keep it as an owner-approved deviation from RFC 6286 Section 2.1? (Q2); is the live global `router-id` reload part of the ruling? (Q3) | Q2: **owner, 2026-10-13: "we should have a global router-id which can be overwritten per peer which is over what the RFC allows"** (deviation). Q3: **owner, 2026-10-13: "Out of scope"**: the live global `router-id` reload stays as it ships |
 
 ### Owner questions (design phase, 2026-10-13)
 
-Each question asks which way to fix, never whether. Q1 to Q4 are answered and
-the design below follows them; Q5 is open.
+Each question asks which way to fix, never whether. Q1 to Q5 are answered and
+the design below follows them. Q6 is designed under answer (a) and awaits the
+owner's confirmation.
 
 | # | Row | Question | Answer | Consequence |
 |---|-----|----------|--------|-------------|
 | Q1 | D2 | Re-declare on apply, refuse the reload, or restart the plugin process? | **Owner, 2026-10-13: "b"**: config-verify refuses a reload that changes a plugin-declared capability, including a peer added on reload that would carry one | AC-2 to AC-2e are the refusal and its acceptance polarity. No RPC, injector or engine change: each capability plugin hands the SDK its capability extractor once, and the SDK runs it at stage 2 and again at config-verify and refuses a changed set; no plugin writes a verify handler for it (see "D2 refusal design"). New restriction against today: a family edit on a `gr` peer with no `graceful-restart family` list, and adding a peer that carries a plugin-declared capability, now need a daemon restart (Known Limitations) |
 | Q2 | D4 | Remove the peer- and group-level `session router-id` leaf (one BGP Identifier per speaker), or keep it as an owner-approved deviation | **Answered by the owner, 2026-10-13: "we should have a global router-id which can be overwritten per peer which is over what the RFC allows". The leaf stays as an owner-approved deviation from RFC 6286 Section 2.1: AC-6 documents it, RFC6286-2.1-1 leaves the conformance count** | No config or test-corpus change; RFC6286-2.1-1 becomes `{partial}`/deviation in `rfc/short/rfc6286.md` and leaves the conformance count; AC-4 brings RFC9072-2-1 to `enforced` and RFC6286-2.1-1 carries the deviation record |
 | Q3 | D4 | The same Section 2.1 sentence says the identifier is "determined on startup". Ze applies a changed global `router-id` on SIGHUP and restarts sessions (`bgp-reload-global-router-id`, `test/reload/reload-global-router-id.ci`). Is that live change part of the D4 ruling, or out of scope? | **Owner, 2026-10-13: "Out of scope"** | The live reload stays as it ships: `reactorAPIAdapter.applyGlobalsJournaled` (`internal/component/bgp/reactor/reload_globals.go`) stores the new `Globals.RouterID` in `r.config.RouterID`, and the peer diff that follows restarts every peer whose effective Identifier (`PeerSettings.RouterID`) changed, so each restarted peer gets the new Identifier in a new OPEN. No AC, test or code here touches it; recorded under Known Limitations |
-| Q4 | D1 | Fix the threshold in place in the packers, or consolidate the Optional Parameters packers into one producer? | **Owner, 2026-10-13: "Consolidate"** (asked against a list of four; the main thread reads it as every copy, 2026-10-13) | One packer, `capability.PackOptionalParams` in `internal/core/bgp/capability` (see "D1 consolidation design"); the six copies are deleted. The D1 threshold fix and the 253/254/255/256 boundary tests stay, now on the one packer. The RFC-tagged units the consolidation changes move under the owner's approval of 2026-10-13 ("approve all RFC-tagged test changes"), each with a fresh discrimination record; the list is under "RFC-tagged tests that change" |
-| Q5 | D1 | Open, for the main thread (found 2026-10-13 while verifying ISSUE-2): the test peer's passive-role `encodeOpen` (`internal/test/peer/open.go`) is a seventh Optional Parameters writer. It already frames RFC 9072 correctly (extended when the sum of 2 + value length over its parameters exceeds 255, refused above the 4096-octet OPEN), but it writes a LIST of typed parameters, including non-capability parameters mirrored from ze's OPEN as raw bytes, where `PackOptionalParams` writes one type-2 parameter from a capability list. Which way: (a) the one packer takes typed parameters, so all seven share it; or (b) `encodeOpen` stays, with the reason (it reproduces ze's parameter layout, which the capability packer has no reason to accept) written above it | unanswered | Until answered, AC-1q and the no-layering grep name six writers and exclude `encodeOpen` by name |
+| Q4 | D1 | Fix the threshold in place in the packers, or consolidate the Optional Parameters packers into one producer? | **Owner, 2026-10-13: "Consolidate"** (asked against a list of four; the main thread reads it as every copy, 2026-10-13) | One packer, `capability.PackOptionalParams` in `internal/core/bgp/capability` (see "D1 consolidation design"); the six copies are deleted, and under Q5 "a" `encodeOpen`'s own framing too. The D1 threshold fix and the 253/254/255/256 boundary tests stay, now on the one packer. The RFC-tagged units the consolidation changes move under the owner's approval of 2026-10-13 ("approve all RFC-tagged test changes"), each with a fresh discrimination record; the list is under "RFC-tagged tests that change" |
+| Q6 | D1 (AC-1r tests) | Found 2026-10-14 by review round 5: neither `.ci` can discriminate through the behaviour the recorded families drive without forcing replay order (rr sends its End-of-RIB only after a non-empty replay; rs's forward filter is bypassed by `rs-fast-path` and by the peer-up replay). Which observable: (a) a read-only `families` field on each row of `show rr peers` and `show bgp rs peers`, an additive CLI output change (see "Recorded-families field"); or (b) the order-forced behaviour tests (rr: a second source session whose route is in adj-rib-in before the receiver's peer-up, the replayed UPDATE before the ipv6 End-of-RIB, `manual-eor` with its dropped-marker window; rs: no `rs-fast-path`, the source UPDATE held until the receiver is Established) | **Design phase, 2026-10-14: (a)**, chosen under the main thread's delegation as the simpler test that is still a real operator path; **owner confirmation owed** because it adds operator-visible output | The two `.ci` rows, the Wiring rows, AC-1s, the two peer-status unit tests, the observer fixture and the docs rows follow (a). If the owner chooses (b), the round-5 review's B1, I1 and I2 fixes apply instead and the field is not added |
+| Q5 | D1 | Found 2026-10-13 while verifying ISSUE-2: the test peer's passive-role `encodeOpen` (`internal/test/peer/open.go`) is a seventh Optional Parameters writer. It already frames RFC 9072 correctly (extended when the sum of 2 + value length over its parameters exceeds 255, refused above the 4096-octet OPEN), but it writes a LIST of typed parameters, including non-capability parameters mirrored from ze's OPEN as raw bytes, where `PackOptionalParams` writes one type-2 parameter from a capability list. Which way: (a) the one packer takes typed parameters, so all seven share it; or (b) `encodeOpen` stays, with the reason (it reproduces ze's parameter layout, which the capability packer has no reason to accept) written above it | **Owner, 2026-10-14: "a"**: one packer takes typed parameters and serves all seven writers, `encodeOpen` included | `capability.PackOptionalParams` takes a list of typed parameters (see "D1 consolidation design"); `encodeOpen`'s own framing is deleted and it calls the packer; its parameter layout (order, several type-2 parameters, raw non-capability parameters) is kept as the list it hands the packer. AC-1q names seven writers and the no-layering grep has no exception; AC-1p is the `encodeOpen` row |
 
 ### D2 refusal design (Q1 = b, 2026-10-13)
 
@@ -81,10 +83,14 @@ the design below follows them; Q5 is open.
 | `CapabilityInjector.AddPluginCapabilities` / `RemovePluginCapabilities` (`internal/component/plugin/registration.go`) | holds each plugin's set for `buildOpen`; removal only on plugin restart | the engine does not know a plugin's capability semantics, so it cannot compute the candidate set |
 | `peerSettingsSwapPlan` (`internal/component/bgp/reactor/peer_settings_apply.go`), `Session.negotiationOutcomeUnchanged` (`peer_settings_negotiation.go`) | compare the reactor's own settings (`CapabilityConfigJSON`) and an OPEN built from the stage-3 store | they decide restart against swap; they see no plugin re-computation |
 | `extractSoftverCapabilities`, `extractHostnameCapabilities`, `extractRoleCapabilities`, `extractLLNHCapabilities`, `extractGRCapabilities` and `extractLLGRCapabilities` | compute each plugin's declaration from a `bgp` config section; every entry's `Peers` selector is `configjson.CapabilitySelector` (the peer's name, or `group:<name>` for a dynamic group's template) | called only from `OnConfigure` (stage 2) |
-| `capabilityDecls` (`internal/plugins/exabgp/bridgeplugin/internal.go`), called by `bridgeRunner.applyConfig` | route-refresh (code 2) and add-path (code 69) from the `exabgp.bridge` config; no `Peers` selector, so both apply to every peer | `applyConfig` returns nil once the bridge started ("family/capability changes need a plugin restart"), so a reload that changes them is accepted and silently not applied: the D2 class in a sixth plugin |
+| `capabilityDecls` (`internal/plugins/exabgp/bridgeplugin/internal.go`), called by `bridgeRunner.applyConfig` | route-refresh (code 2) and add-path (code 69) from the bridge container under the `exabgp` root (`configRoot = "exabgp"`, `bridgeplugin/config.go`); the add-path payload is built from the bridge's families (`bridge.EncodeAddPathHex(cfg.Families, cfg.AddPath)`); no `Peers` selector, so both apply to every peer | `applyConfig` returns nil once the bridge started ("family/capability changes need a plugin restart"), so a reload that changes them is accepted and silently not applied: the D2 class in a sixth plugin |
 
 The external `internal/plugins/exabgp/main_sdk.go` also calls `SetCapabilities`,
-but from command-line flags before `Run`, so no reload can change its set.
+from command-line flags before `Run`, so no reload can change its set. It
+registers `WantsConfig: []string{"bgp"}` and no `OnConfigure`, and stage 2 is
+still served for it (`sdk.go`, `serveOne(ctx, callbackConfigure, p.handleConfigure)`),
+so it can register a constant extractor over the sections it already receives
+(read 2026-10-14, review round 2 ISSUE-2).
 
 `OnConfigVerify` already delivers the full candidate sections to a plugin
 inside the reload transaction, before any apply ("The handler receives the full
@@ -97,22 +103,45 @@ only the declared set), so the plugin supplies the computation. The SDK owns
 the comparison, so no plugin can skip it and stage 2 and verify cannot compute
 the declaration two ways.
 
-**One SDK registration, no per-plugin verify handler.** The plugin hands the SDK
-its capability extractor once, before `Run`. The SDK runs it on the stage-2
-sections and stores the result as the stage-3 declaration, which replaces each
-plugin's own `SetCapabilities` loop. On config-verify, the SDK runs the plugin's
-own verify handler first when one is registered (the `llnh` and `gr` refusals
-keep answering first), then the extractor on the candidate sections, and
-compares the two declarations under the verdict table below.
+**One SDK registration, no per-plugin verify handler, one declaration path.**
+The plugin hands the SDK its capability extractor once, before `Run`.
+`SetCapabilities` is deleted: every plugin that declares capabilities, the
+external `main_sdk.go` included, registers an extractor, so the SDK has one
+declaration path and needs no rule keeping two paths exclusive.
+
+1. Stage 2, inside `Run` only: after the stage-2 `serveOne` returns, `Run` runs
+   the extractor on the sections that stage-2 configure delivered and stores the
+   result as the stage-3 declaration; an extractor error fails stage 2 the way
+   an `OnConfigure` error does. `handleConfigure` itself never runs the
+   extractor.
+2. After stage 3 the stored declaration is never rewritten. The engine
+   redelivers `configure` at runtime after a refused removal
+   (`internal/component/plugin/server/startup_removal.go`, `conn.SendConfigure`
+   with the committed sections), and the SDK routes it to `handleConfigure`
+   (`sdk_callbacks.go`, `callbackConfigure`), which reruns `OnConfigure`. Were the
+   extractor run there, that redelivery would overwrite the baseline with the
+   committed config's declaration, which lacks peers removed by accepted
+   reloads, while the injector still holds their declarations; a later re-add of
+   such a peer would then be refused. Running it only on the `Run` path closes
+   that.
+3. Config-verify: the SDK composes the plugin's own verify handler with the
+   comparison at `Run`, whatever order `OnConfigVerify` and the extractor were
+   registered in. `OnConfigVerify` overwrites `p.callbacks[callbackConfigVerify]`
+   (`sdk_callbacks.go`), so installing the comparison as that callback at
+   registration would be lost when `llnh` (`OnConfigVerify` in its run function)
+   or `gr` registers its handler afterwards. The plugin's own handler answers
+   first (the `llnh` and `gr` refusals keep answering first), then the extractor
+   runs on the candidate sections and the two declarations are compared under
+   the verdict table below.
 
 | Piece | Home | What it does |
 |-------|------|--------------|
-| `Plugin.DeclareCapabilitiesFrom` (new method; final name set at implementation) | `pkg/plugin/sdk/sdk_callbacks.go`, beside `SetCapabilities` | Registered before `Run`. Carries the config root the extractor reads, the extractor, and the plugin's capability leaf names by code. Stage 2: runs the extractor and stores its declaration in `Plugin.capabilities`; an extractor error fails stage 2 the way an `OnConfigure` error does. Config-verify: after the plugin's own verify handler, runs the extractor on the candidate and refuses a changed declaration. No RPC, engine or injector change |
-| The extractor | each plugin | Input: the config sections of the registered root. Output: the declaration list and the candidate's peer selectors, or an error. A pure function of the sections (A-6) |
+| `Plugin.DeclareCapabilitiesFrom` (new method; final name set at implementation) | `pkg/plugin/sdk/sdk_callbacks.go`, where `SetCapabilities` was | Registered before `Run`. Carries the extractor and the plugin's capability leaf names by code, and no config root: the SDK hands the extractor the sections it was given, as `OnConfigure` does, and the registration's `WantsConfig` stays the one declaration of the roots (a second root here could name one the engine never sends a candidate for, `reload.go` dispatching verify only to plugins whose `WantsConfigRoots` changed, and the comparison would silently never run). Steps 1 to 3 above: the stage-2 run inside `Run`, no rewrite after stage 3, the composed config-verify. No RPC, engine or injector change |
+| The extractor | each plugin | Input: the config sections the plugin received; it filters `section.Root` itself, as every extractor's `OnConfigure` and the bridge (`internal.go`, `s.Root != configRoot`) already do. Output: the declaration list and the candidate's peer selectors, or an error. A pure function of the sections (A-6) |
 | `configjson.CapabilitySelectors` (new function) | `internal/component/bgp/configjson/traverse.go` | Every peer and dynamic-group selector of a `bgp` tree, from the same `ForEachPeer` and `CapabilitySelector` the extractors use, so the two sets cannot disagree; the `bgp`-rooted extractors return it as their selectors |
-| Callers | `softver`, `hostname`, `role`, `llnh`, `gr` (`extractGRCapabilities` and `extractLLGRCapabilities`), the exabgp bridge | each deletes its `SetCapabilities` call and registers its extractor; `OnConfigure` keeps the plugin's other config work (for example `role`'s `filterPeerConfigs`). The bridge's extractor is `capabilityDecls` over the `exabgp.bridge` root, with no selectors |
+| Callers | `softver`, `hostname`, `role`, `llnh`, `gr` (`extractGRCapabilities` and `extractLLGRCapabilities`), the exabgp bridge, the external `main_sdk.go` | each deletes its `SetCapabilities` call and registers its extractor; `OnConfigure` keeps the plugin's other config work (for example `role`'s `filterPeerConfigs`). The bridge's extractor is `parseConfig` then `capabilityDecls(cfg bridgeConfig)`, over the sections whose root is `exabgp`, with no selectors. `main_sdk.go` registers a constant extractor: it ignores the `bgp` sections and returns the flag-built set with no selectors, so its declaration cannot change on reload and the comparison always accepts |
 | Leaf names | each plugin, beside its capability code constant | The `capability` leaf the operator wrote (`software-version`, `hostname`, `role`, the llnh and gr leaves, the bridge's `route-refresh` and `add-path`), so the refusal names configuration, not a code number |
-| `SetCapabilities` | unchanged, for a declaration no config can change | its one remaining caller is the external `main_sdk.go` (flags). A plugin that both registers an extractor and calls `SetCapabilities` is refused at `Run`, so one plugin has one declaration path. The simpler design, deleting `SetCapabilities` and having `main_sdk.go` hand a constant extractor, was not taken: that plugin reads no config root, and the registration would gain a no-root case for one caller. Next review round to confirm |
+| `SetCapabilities` | deleted (no layering) | its last caller, `main_sdk.go`, registers a constant extractor instead. The earlier reason for keeping it ("that plugin reads no config root") was false: `main_sdk.go` registers `WantsConfig: []string{"bgp"}` (review round 2, ISSUE-2). With one declaration path there is no `Run` refusal of a plugin using both |
 
 | Candidate against the stage-3 declaration, per selector | Verdict |
 |--------------------------------------------------------|---------|
@@ -125,13 +154,15 @@ compares the two declarations under the verdict table below.
 
 **New restriction against today.** Today a reload that edits a peer's
 capability block is accepted: the peer restarts, and its new OPEN carries the
-stale plugin store. After this spec two reloads that work today are refused and
-need a daemon restart:
+stale plugin store. After this spec the reloads below, accepted today, are
+refused and need a daemon restart (the bridge row is accepted today and silently
+not applied):
 
 | Reload | Why it is refused now |
 |--------|-----------------------|
 | A session family added or removed on a `gr` peer whose `graceful-restart` container has no `family` list | `grAdvertisedFamilies` (`gr_capability.go`) returns the session families when the list is absent, so the Graceful Restart payload changes |
 | A peer added that carries a `softver`, `hostname`, `role`, `llnh` or `gr` capability | the injector holds no declaration for the new selector |
+| A family edit under the exabgp bridge while its `add-path` is set | the bridge's add-path payload is built from the bridge's families (`bridge.EncodeAddPathHex(cfg.Families, cfg.AddPath)`), so the payload changes; the refusal names `add-path` |
 
 With an explicit `graceful-restart family` list, the GR payload is that list
 (`grAdvertisedFamilies` returns it), so adding a session family leaves the
@@ -150,7 +181,7 @@ peer, then the fix once. Sample for one change:
 | 2 | `The plugin sends its capabilities only when ze starts, so ze would keep sending the old value in its OPEN to this peer.` |
 | 3 | `To apply the change, stop the ze daemon and start it again. Under systemd, run:` |
 | 4 | `  systemctl restart ze` |
-| 5 | `Without systemd, run 'ze signal stop', then start ze again with 'ze start <config>'. On the ze appliance, run 'reboot' from the ze CLI.` |
+| 5 | `Without systemd, run 'ze signal stop', then start ze again the way it was started ('ze start', or 'ze start <config-file>'). On the ze appliance, run 'request reboot' in the ze CLI, or 'ze signal reboot' from a shell.` |
 
 For an all-peer declaration, line 1 reads `every peer:` in place of the peer.
 
@@ -170,18 +201,24 @@ named instead:
 | Where ze runs | Command | Producer read |
 |---------------|---------|---------------|
 | systemd | `systemctl restart ze` | `serviceName = "ze.service"` (`internal/plugins/systemd/unit.go`); systemd stops with SIGTERM, which `hub.Run` takes on `stopCh` (`signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)`) and shuts down as `ze signal stop` does, then starts ze again |
-| no supervisor | `ze signal stop`, then `ze start <config>` | `docs/guide/lifecycle.md` action table and start line |
-| the appliance | `reboot` from the ze CLI | `SetRebootFunc` (`service_ssh.go`) sets `rebootRequested`, writes the GR marker through `stopForRestart`, and `hub.Run` calls `reboot.Reboot()` after the stop |
+| no supervisor | `ze signal stop`, then ze started again the way it was (`ze start`, or `ze start <config-file>`) | `docs/guide/lifecycle.md` action table and start line; `cmd/ze/ze_core_start.go` usage `ze start [<config-file>] [options]`: the config file is optional and the default is the live store |
+| the appliance | `request reboot` in the ze CLI, or `ze signal reboot` from a shell | `request reboot` is `container reboot` under `container request` in `internal/core/ipc/yang/ze-system-cmd.yang` (`ze-plugin:system-daemon-reboot`), listed by `internal/component/plugin/server/system.go` and served by `handleDaemonReboot`; `ze signal reboot` is the exec verb of `internal/plugins/signal/main.go`. A bare `reboot` is not a ze CLI command: it is an SSH exec lifecycle verb that `execMiddleware` (`internal/component/ssh/ssh.go`) handles only for a non-interactive command ("Interactive sessions (no command) pass through"), and the CLI dispatcher registers no lifecycle verb. `request reboot` reaches `apiSrv.SetRebootFunc` (`cmd/ze/hub/infra_setup.go`) and `ze signal reboot` reaches `sshSrv.SetRebootFunc` (`cmd/ze/hub/service_ssh.go`, which also writes the GR marker through `stopForRestart`); both set `rebootRequested`, and `hub.Run` (`cmd/ze/hub/main.go`) calls `reboot.Reboot()` after the stop. Both routes call the same `stopForRestart` closure (`infra_setup.go`: `infra.WriteGRMarker(...)` then `r.StopForRestart()`, which is `r.stop(false)` in `reactor.go`, no NOTIFICATION; handed to the SSH wiring as `StopForRestart`), so both write the Graceful Restart marker and stop without a NOTIFICATION (read 2026-10-14, round-3 review ISSUE-3) |
 
 Trade-off stated: `systemctl restart ze` and `ze signal stop` end each session
-with a normal teardown, so peers withdraw Ze's routes until it is back. A
-restart that keeps the Graceful Restart marker under systemd is `ze signal
+with a normal teardown, so peers withdraw Ze's routes until it is back.
+The appliance routes do not: `request reboot` and `ze signal reboot` write the
+Graceful Restart marker and stop without a NOTIFICATION (`stopForRestart`), so
+peers that negotiated Graceful Restart retain Ze's routes for the restart time.
+A restart that keeps the Graceful Restart marker under systemd is `ze signal
 restart`, a wait until the process has exited, then `systemctl start ze`; the
 refusal does not print it, because a start issued before the exit is a no-op,
-and `docs/guide/plugins.md` carries it. Review item (unverified here, the
-gokrazy source is not in this module): if gokrazy restarts ze after a 0 exit,
-`ze signal restart` alone is the appliance route and keeps the marker, and line
-5 names it instead of `reboot`.
+and `docs/guide/plugins.md` carries it. On the appliance `ze signal restart` is
+not a route either: it exits 0 ("Ze stopped.", `hub.Run`), and
+`docs/guide/appliance.md` states that gokrazy's init restarts ze only on a
+non-zero status ("Gokrazy's init restarts Ze if it exits with a non-zero status
+(except 125, which means \"don't restart\")"), so ze would stay stopped; line 5
+names `request reboot` and `ze signal reboot` (settled from that page, round-4
+review N2; the gokrazy source is not in this module, so the page is the basis).
 
 Interop: the refusal changes no wire behaviour (the running session keeps its
 startup OPEN), so it falls under the config-only exemption of
@@ -191,9 +228,12 @@ point.
 
 ### D1 consolidation design (Q4 = Consolidate, 2026-10-13)
 
-The six packers, read at the producers on 2026-10-13 (the last two found by the
-review of 2026-10-13, ISSUE-2; a tree grep for a type-2 parameter written with
-a one-octet length finds these six and no other, and `encodeOpen` is Q5):
+The seven Optional Parameters writers, read at the producers on 2026-10-13 and
+2026-10-14 (`bgpBuildOpen` and `buildActiveOpen` found by the review of
+2026-10-13, ISSUE-2; `encodeOpen` by Q5; a tree grep for a type-2 parameter
+written with a one-octet length finds the first six and no other, and a grep for
+`ExtendedParamMarker` finds the extended envelope written only by
+`message/open.go` and `encodeOpen`):
 
 | Packer | Framing today | Defect |
 |--------|---------------|--------|
@@ -203,13 +243,14 @@ a one-octet length finds these six and no other, and `encodeOpen` is Q5):
 | inline packing in `fabricateLocRIBOpen` (`internal/component/bgp/plugins/bmp/bmp_locrib.go`), constant `optParamCapabilities` | one type-2 parameter, one-octet length | none reachable: four capabilities of 8 octets or fewer |
 | inline packing in `bgpBuildOpen` (`internal/analyze/bgpconn.go`), called by `ze analyze`'s `inject.go` and `serve.go` | one type-2 parameter, one-octet length, three fixed capabilities (MP IPv4, MP IPv6, 4-octet AS) | none reachable: 18 octets |
 | inline packing in `buildActiveOpen` (`internal/test/peer/inject.go`), the test peer's active-role OPEN | one type-2 parameter, one-octet length (MP and 4-octet AS) | none reachable: a fixed small set |
+| `encodeOpen` (`internal/test/peer/open.go`), the test peer's passive-role OPEN, over `openParam{kind, caps [][]byte, raw []byte}` | a LIST of typed parameters in the order ze's OPEN carried them: type-2 parameters of whole capability TLVs (several, since `addedParams` makes one per `add-capability` override and one for `send-unknown-capability`), and any other parameter type as raw bytes; base form while the sum over parameters of 2 + value length is at most 255, else every length two octets; writes the header and the 255/255 envelope itself; refuses an OPEN above 4096 octets (`openMsgMax`) | none: it frames RFC 9072 correctly. It is a second packer and a second envelope writer (Q5 "a") |
 
 **Home: `internal/core/bgp/capability`, as `capability.PackOptionalParams`.** It
 is a core library (`ai/rules/architecture.md`: no config lifecycle, no registry
 side effect) whose non-test imports are `internal/core/family` and
 `internal/core/textbuf` only (`go list`, 2026-10-13); and it holds the inverse,
 `ParseFromOptionalParams(optParams, extended)`, so encoder and decoder sit
-together. Five of the six callers already import it; `internal/analyze` does not
+together. Six of the seven callers already import it; `internal/analyze` does not
 (`go list`: it imports `internal/core/bgp/asn`, `msgtype` and other
 `internal/core` packages) and gains this one `internal/core` import, the same
 direction it already takes. `./le arch tier check` (the tool behind the
@@ -218,17 +259,78 @@ violations no touched package is in (for example
 `internal/component/bgp/reactor/reactor.go` importing
 `internal/component/bgp/plugins/cmd/cache`, review of 2026-10-13), so the proof
 owed is that its report names neither `internal/core/bgp/capability` nor any of
-the six changed caller packages, with its "core import direction clean" line.
-`internal/component/bgp/message` was rejected: it does not import `capability`
-today, and the packer would add that edge for no reader.
+the seven changed caller packages, with its "core import direction clean" line.
+`internal/component/bgp/message` was rejected: it imports
+`internal/component/plugin/registry` (`go list`), so `internal/analyze`, which
+imports neither package today, would gain a component import to reach the
+packer (review round 2, N5).
 
-The packer, as steps:
+**The packer takes typed parameters (Q5 "a").** Its input is a list of
+parameters. A parameter is ONE concrete struct with no interface field, the shape
+the test peer's `openParam{kind, caps, raw}` (`internal/test/peer/open.go`)
+already has, but its fields are private to `internal/core/bgp/capability` and
+only two constructors build it (round-4 review, ISSUE-3; final names set at
+implementation):
 
-1. No capabilities: no parameters, base form.
-2. capTotal is the sum of the capabilities' lengths.
-3. While 2 + capTotal is at most 255: one type-2 parameter with a one-octet Parameter Length; extended false (RFC 4271 / RFC 5492 form; RFC 9072 Section 2 SHOULD).
-4. While 3 + capTotal is at most 65535: one type-2 parameter with a two-octet Parameter Length; extended true (RFC 9072 Section 2 MUST).
-5. Above that: an error naming the size and the limit, no parameters. Today's `slog.Error` with nil parameters is a silently wrong OPEN (`ai/rules/principles.md`); `buildOpen` already returns an error, so the reactor propagates it. R-4 keeps the separate 4096-octet OPEN limit.
+| Private field | Type | Description |
+|---------------|------|-------------|
+| type | one octet | the Optional Parameter Type (2 for Capabilities, RFC 5492 Section 4) |
+| capabilities | a list of `capability.Capability` | the Parameter Value as capabilities: its length is the sum of their `Len`, and each writes itself in place with `WriteTo` at its offset |
+| raw | octets | the Parameter Value as given: its length is the octet count, and the packer copies it |
+
+| Constructor | Takes | Builds |
+|-------------|-------|--------|
+| the Capabilities constructor | a list of `capability.Capability` | type fixed to 2, the list in `capabilities`, `raw` empty |
+| the Raw constructor | a Type and octets | that type, the octets in `raw`, `capabilities` empty |
+
+Outside the package a parameter that carries both value forms, or a capability
+list under a Type other than 2, cannot be built, so the packer has no refusal for
+either (`docs/contributing/ze-go-style.md`, "One state, one variant" and
+"Validated at construction";
+`ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md`).
+A sealed interface with one variant per form was rejected because it brings back
+the heap escape the struct removes (below). Zero-value contract: the zero value
+is a Raw parameter of Type 0 with an empty value, which is a well-formed
+parameter (two octets, `00 00`), so the packer writes it as given and refuses
+nothing. Nothing in this spec builds one; a receiver refuses type 0 as an
+unsupported parameter (`ParseFromOptionalParams`, `ErrUnsupportedParameter`),
+which is the same answer any other non-type-2 Raw parameter gets.
+
+| Constructor used | Who calls it |
+|------------------|--------------|
+| Capabilities | the reactor (its whole capability set as one type-2 parameter), chaos, perf, bmp, `ze analyze`, the active test peer |
+| Raw | `encodeOpen`: each type-2 `openParam` hands its whole TLVs joined in their order (they are well formed: `splitCapabilityTLVs` checks the TLVs it mirrors, `addedParams` bounds each at 255, and the TLVs the test peer adds come from capability `WriteTo`), and any other parameter type hands its raw octets verbatim |
+
+The value is a struct field rather than an interface (round-3 review, ISSUE-1,
+probed under go1.27.2 with `-gcflags=-m`): a capability list converted to an
+interface value escapes to the heap when it flows into the interface's
+`Len`/`WriteTo` calls, so a reactor that builds its parameter list per OPEN
+would allocate twice, where a slice of concrete structs does not escape and the
+output buffer stays the one allocation `buildOptionalParams` makes today. The
+Raw field is also why no exported constructor for `capability.Unknown` is
+added: the test peer's TLVs pass through as octets, where wrapping each in an
+`Unknown` would reproduce the same bytes through a new core API that only test
+tooling calls (round-3 review, N1, `ai/rules/simplicity.md`).
+
+The packer, as steps (one code path for every caller):
+
+1. No parameters: no octets, base form. A caller with no capabilities hands no parameter.
+2. base is the sum over parameters of 2 + the value length (a parameter from the Capabilities constructor: the sum of its capabilities' `Len`; from the Raw constructor: the octet count).
+3. While base is at most 255: each parameter written as Type, a one-octet Parameter Length, then its value; extended false (RFC 4271 / RFC 5492 form; RFC 9072 Section 2 SHOULD).
+4. Else ext is the sum over parameters of 3 + the value length; while ext is at most 65535: each parameter written with a two-octet Parameter Length; extended true (RFC 9072 Section 2 MUST).
+5. Above that: an error naming the size and the limit, no octets. Today's `slog.Error` with nil parameters is a silently wrong OPEN (`ai/rules/principles.md`); `buildOpen` already returns an error, so the reactor propagates it. This size error is the packer's only error. R-4 records the separate 4096-octet OPEN limit (not fixed here).
+6. The output is allocated once, at the size step 3 or 4 chose, and each capability writes itself into it at its offset with `WriteTo` (a Raw constructor's octets are copied in): no per-parameter or per-capability intermediate buffer, and no allocation besides the output, the parameter list being a slice of concrete structs. The result is the Optional Parameters octets and the extended flag, which the caller stores in `message.Open.OptionalParams` and `ExtendedParams`.
+
+For one parameter the boundaries are unchanged: base form up to a value of 253
+octets (2 + 253 = 255), extended from 254, and the error from 65533 (3 + 65533
+above 65535). For `encodeOpen` the rule is the one it applies today, so its
+bytes do not change.
+
+Raw octets as the ONLY value form were rejected: the reactor would serialise its
+capabilities into an intermediate buffer and copy it, which breaks the
+one-allocation property of `buildOptionalParams` (`session_negotiate.go`, the
+in-place `c.WriteTo(buf, off)` loop) and adds a third form on the way to the wire
+(`ai/rules/performance.md`).
 
 | Caller | Change |
 |--------|--------|
@@ -238,6 +340,7 @@ The packer, as steps:
 | `fabricateLocRIBOpen` | calls the packer; bytes unchanged; `optParamCapabilities` is deleted (its only reader is this packing, grep 2026-10-13) |
 | `bgpBuildOpen` | calls the packer; bytes unchanged (one parameter of 18 octets); gains an error return |
 | `buildActiveOpen` | calls the packer; bytes unchanged; gains an error return, and `inject.go`'s handshake returns it as `Result{Error: ...}` the way its `write OPEN` failure does |
+| `encodeOpen` | its own length sums and parameter framing are deleted; it maps its `openParam` list to typed parameters (each parameter's Type kept, its value in Raw: a type-2 parameter's TLVs joined in order, any other type's octets verbatim; parameter order kept) and calls the packer; the header and envelope move to `message.Open.WriteTo` (below); it keeps its 4096-octet OPEN refusal and its existing error return; bytes unchanged for every existing `.ci`, multi-parameter layout kept |
 
 None of chaos `BuildOpen`, perf `BuildOpen`, `fabricateLocRIBOpen`,
 `bgpBuildOpen` or `buildActiveOpen` returns an error today. Each gains one and
@@ -260,14 +363,182 @@ Error propagation, resolved 2026-10-13 by reading every call site:
 | bmp `primeLocRIBPeerUp` | resets `ss.locRIBUpSent` (the claim is held), logs and returns, the way its `writePeerUpLocked` failure does |
 | `ze analyze` `bgpOpenExchange` (`inject.go`) and the `serve.go` handshake | return the error, as their `bgpWrite` failure does |
 | test peer `inject.go` | returns `Result{Error: ...}` |
+| test peer `encodeOpen` caller (`open.go`, `return encodeOpen(zeBody, id, params)`) | unchanged: `encodeOpen` already returns an error, and the packer's error joins it |
 
-The chaos peer and the active test peer now share Ze's encoder, so an encoder
+The chaos peer and both test peer roles now share Ze's encoder, so an encoder
 bug would reach them too; the decoder (`ParseFromOptionalParams`) is separate
-code, so the AC-1b and AC-1q round trips still catch an asymmetric error.
+code, so the AC-1b, AC-1p and AC-1q round trips still catch an asymmetric
+error, and AC-1p's byte-identity over the existing `.ci` corpus pins the
+passive peer's bytes independently of the encoder.
+
+**One envelope writer (N6, verified 2026-10-14).** `encodeOpen` is the only
+envelope writer outside `message/open.go` (a tree grep for
+`ExtendedParamMarker` writes finds `writeToExtended` and `encodeOpen` alone), so
+it moves onto `message.Open.WriteTo`: it fills a `message.Open` (Version
+mirrored from ze's OPEN, My AS from `myASField`, its Hold Time and BGP
+Identifier, the packer's octets and extended flag, and no `ASN4`, so My AS is
+written as given), sizes it with `Open.Len`, refuses above `openMsgMax` (4096)
+before allocating the message (the packer has already allocated the parameter
+octets by then), allocates the message once and calls `Open.WriteTo`. The packer returns
+only the parameter octets and the flag; the envelope stays with `Open`, whose
+`ExtendedParams` rule already makes the two agree.
 
 Deleted, no layering: reactor `buildOptionalParams` and `maxExtendedParamLen`,
 chaos `buildOptionalParams`, perf `packOptionalParams`, the bmp inline packing,
-the `bgpBuildOpen` inline packing, the `buildActiveOpen` inline packing.
+the `bgpBuildOpen` inline packing, the `buildActiveOpen` inline packing, and
+`encodeOpen`'s length sums, parameter framing, header and envelope writing
+(`paramValueLen` goes with them if nothing else reads it).
+
+### Received-OPEN readers (RFC 9072 decode, brought in 2026-10-14)
+
+Found by the review of 2026-10-14 (out of scope there) and brought into this
+spec by the main thread, because it is RFC 9072 decoding and D1 makes Ze emit
+extended OPENs: once D1 lands, Ze's own OPEN at capTotal 254 and up is one these
+readers misframe. Read at the producers on 2026-10-14:
+
+| Reader | What it does | Defect |
+|--------|--------------|--------|
+| `routeReflector.handleStructuredOpen` (`internal/component/bgp/plugins/rr/rr.go`) | `message.UnpackOpen`, then walks `open.OptionalParams` with a one-octet Parameter Length, `capability.Parse` on each type-2 value, collects families (Multiprotocol) and ASN4 | ignores `open.ExtendedParams`: an RFC 9072 OPEN's two-octet lengths are read as one octet, so the walk misframes from the first parameter and rr sees wrong or no families and capabilities |
+| `parseStructuredOpen` (`internal/component/bgp/plugins/rs/server.go`) | the same walk, `formatCapInfo` per capability, ASN4 | the same |
+| `exabgpNegotiatedEncoding` (`internal/le/interoplab/bgp/exabgp_server.go`), interop test tooling | reads the length from `openBody[9]` and calls `capability.ParseFromOptionalParams(..., false)` | an extended OPEN (255/255 marker) is read as 255 octets of one-octet parameters: ADD-PATH is missed or the parse fails |
+
+`plan/journal/helper-bypassed-by-an-open-coded-copy.md` carries the HEAD defect
+(2026-10-14, "designed in spec-bgp-open-session-rfc-defects").
+
+**Design: one reader.** `capability.ParseFromOptionalParams(optParams, extended)`
+already decodes both framings and is what the reactor, bmp, mrt and the CLI
+decoder call.
+
+| Reader | Change |
+|--------|--------|
+| rr `handleStructuredOpen` | the parameter walk is deleted; it calls `ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)` and reads families and ASN4 from the result; on an error from `message.UnpackOpen` (today a silent `return`) or from `ParseFromOptionalParams` it logs the rr warning below and returns before taking `rr.mu`, so it records nothing for that OPEN (no ASN, no families, no capabilities, and no implicit ipv4/unicast); the dead `if open.ASN4 > 0 { asn = open.ASN4 }` branch is deleted, since `UnpackOpen` never sets `ASN4` (`message/open.go`: a receiver must not read it) |
+| rs `parseStructuredOpen` | the same call, then `formatCapInfo` per capability; on an error from `message.UnpackOpen` (today a silent `return nil`) or from `ParseFromOptionalParams` it logs the rs warning below and returns nil, so `handleOpen` (`server_handlers.go`) is not called and nothing is recorded; the same dead `open.ASN4` branch is deleted |
+
+**The warning (round-4 review, ISSUE-1 and N4).** Both decode failures warn with
+the same text, because they have the same outcome: the reactor refuses the same
+OPEN (an `UnpackOpen` error and a `ParseFromOptionalParams` error both reach
+`rejectOpenCapabilityError` in `session_handlers.go::handleOpen` and
+`session_open_as.go::validateOpenPeerAS`), and the plugin records nothing. At
+the default WARN level this is the only line that says why in the operator's
+terms. The reactor's own lines give a code and no cause: the NOTIFICATION it
+sends logs `notification sent` at WARN with the peer, code and subcode
+(`session_write.go`; a failed send logs `notification send failed` through
+`logNotifyErr` in `session.go`), and `peer_run.go` logs the returned error only
+at DEBUG (`safeRunOnce returned`). The round-4 review read this line as the only
+one at WARN; `session_write.go` shows the success WARN too (read 2026-10-14). One
+WARN record per refused OPEN, through the plugin's `logger().Warn`
+(`ai/rules/user-facing-errors.md`: the problem first, why it matters, then the
+next step; the decoder error follows as evidence, never as the whole message).
+The record's message is the three lines joined by a space, a constant that
+carries neither the peer address nor the decoder error: the peer address is in
+the `peer` attribute and the decoder error in the `error` attribute, the
+attribute names rr and rs already use, and the logger renders both after the
+message on the same line (round-5 review, I3). Message lines for rr:
+
+| Line | Text |
+|------|------|
+| 1 | `The route reflector cannot read this peer's OPEN message, so it records no address families for this peer.` |
+| 2 | `ze refuses this OPEN, so the session with this peer does not come up.` |
+| 3 | `Next step: check the capabilities configured on this peer, then compare them with the error attribute.` |
+
+Rendered record (output sample, one line): `level=WARN msg="<lines 1 to 3>"
+peer=192.0.2.1 error="capability: unsupported optional parameter"`.
+
+rs uses the same three lines with line 1 reading `The route server cannot read
+this peer's OPEN message, so it records no capabilities for this peer.` The two
+texts are separate constants, one in each plugin, because each names its own
+plugin and what it records; nothing else differs. `TestRouteReflectorReadsExtendedOpen`
+and `TestRouteServerReadsExtendedOpen` capture the plugin's logger and assert,
+for each refused case and for a body `UnpackOpen` refuses, one WARN record whose
+message holds the three sentences and whose `peer` and `error` attributes carry
+the peer address and the decoder error.
+| `exabgpNegotiatedEncoding` | the hand length read is deleted; it calls `message.UnpackOpen(openBody)` (the package already imports `message` elsewhere, `check_ospf_bgpls.go`) and then `ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)` |
+
+Behaviour that changes beyond the framing, in rr and rs only (round-3 review,
+ISSUE-2, read 2026-10-14). The OPEN event reaches them BEFORE the reactor
+validates the OPEN: `session_read.go` calls `s.onMessageReceived(...)` ahead of
+`case msgtype.TypeOPEN: err = s.handleOpen(body)`, and the callback runs
+`peer_run.go` `p.messageCallback`, `reactor_notify.go::notifyMessageReceiver`,
+`server/events.go::messageTypeToEventKind` (OPEN to `EventKindOpen`), then
+`rr.go` `case rpc.EventKindOpen` and `rs/server.go` `parseStructuredOpen`. So
+an OPEN carrying a non-type-2 parameter, an empty type-2 parameter, or one
+malformed type-2 parameter among several does reach them. The open-coded walks
+skip that parameter and keep the others; rr then stores the implicit
+ipv4/unicast default when no Multiprotocol capability survived, and rs, handed
+an empty capability list, does the same in `handleOpen`.
+`ParseFromOptionalParams` fails the whole OPEN instead
+(`ErrUnsupportedParameter`, `ErrInvalidLength` for a Parameter Length of 0, or
+the `capability.Parse` error), and the reactor refuses that same OPEN right
+after (`handleOpen`, `validateOpenPeerAS` in `session_open_as.go`,
+`ParseFromOptionalParams`, `rejectOpenCapabilityError`), so the session never
+reaches Established. On that error rr and rs record nothing and log a warning,
+and never fall back to ipv4/unicast: a default stored for an OPEN that could not
+be read is a silently wrong value (`ai/rules/principles.md`). An entry left
+from an earlier session of the same peer stays in place, and the next accepted
+OPEN overwrites it. Its readers, read 2026-10-14 (round-4 review, N5): rr
+forwarding (`validation.go`), rs forwarding (`server_forward.go`), rs
+`handleRefresh` and rs `server_validation.go` test `peer.Up`, so they skip it
+while the peer is down; rr `sendEOR` (`rr.go`) and rs `sendEOR`
+(`server_handlers.go`) test `ReplayGen`, which only an up event advances
+(`handleStructuredState` does not bump it on down), so a replay goroutine
+started for the earlier session can still read the entry's families after a
+down. That is no worse under this design: it reads the earlier session's real
+families, where the old walk would have stored the partial or default set. The exabgp mock changes nothing here: it
+already calls `ParseFromOptionalParams` (with `extended` false), and ExaBGP only
+ever emits type-2 parameters (`capabilities.py::pack_capabilities`: one
+Capabilities parameter), although it does emit the RFC 9072 form above 255
+octets, which is why the mock needs AC-1r (round-3 review, N5). Each call
+carries `// RFC 9072 Section 2` (`ai/rules/rfc-compliance.md`, callers).
+These units carry no RFC tag: RFC9072-2-2 ("MUST accept") is met by the
+reactor's decode, which already reads the framing; the rr and rs misread is a
+Ze-internal reader defect behind it.
+
+### Recorded-families field (round 5, 2026-10-14; owner question Q6)
+
+The two `.ci` tests read what rr and rs recorded through the operator's peer
+command (see "Why these assertions" under "Wiring Test"). Each row of
+`show rr peers` (`rr.go::peerStatus`) and `show bgp rs peers`
+(`rs/server_handlers.go::peerStatus`) gains one read-only key. No command,
+argument or YANG node is added: neither command declares an output schema
+(`rr/yang/ze-rr-cmd.yang` declares the command only; rs registers its commands
+in `server.go`), and the payload stays structured data, so `| json`, `| table`
+and the row operators render it unchanged (`ai/rules/cli.md`).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `families` | list of family names (`ipv6/unicast` form, `family.Family.String`), sorted | The families the plugin recorded from the peer's received OPEN for the current session: the Multiprotocol families, or `ipv4/unicast` alone when the OPEN carried no Multiprotocol capability (RFC 4760 Section 1). rs: an empty list means the OPEN carried Multiprotocol capabilities naming no family the plugin knows (`handleOpen` filters through `family.LookupFamily`); rr stores every Multiprotocol AFI/SAFI pair (`handleStructuredOpen`), so its list is never empty when Multiprotocol is present |
+
+When the key is absent, and why absence is the answer rather than an empty
+list (`ai/rules/principles.md`, no silently wrong value):
+
+| Row state | `families` | Why |
+|-----------|------------|-----|
+| `up` false | absent | the entry may hold an earlier session's families (a refused OPEN records nothing, "Received-OPEN readers"); no reader uses them while the peer is down (A-7), so the row shows none |
+| `up` true, no OPEN recorded (`Families` nil in either plugin) | absent | nothing is recorded; for rs a nil set means `SupportsFamily` applies no filter (`rs/peer.go`), which an empty list would misstate |
+| `up` true, OPEN read | present | the recorded set, as defined above |
+
+A stale set under `up` true is not reachable: the received OPEN is delivered
+before the reactor handles it (A-7), so before Established and before the
+state-up event, and each plugin has one delivery queue (`plugin/process/delivery.go`,
+one event channel per process, cited in `rs/server_handlers.go`), so the current
+session's OPEN is recorded before its row turns up. Stronger still (round-6
+review, N4): `onMessageReceived` (`bgp/server/events.go`) blocks on every
+delivery's `Result`, which `deliverBatch` (`plugin/process/delivery.go`) signals
+after `sendBatch` returns, and `session_read.go` calls it before `handleOpen`;
+rr and rs handle the OPEN inline in their structured handler. This is a reading
+of the producers; the two `.ci` polls do not rest on it. The comment on
+`rs/peer.go::SupportsFamily` still describes "the window between state-up and
+OPEN processing", which this reading contradicts; it is corrected under Files
+to Modify.
+
+The key name is kebab-case and matches the term the plugins' own code uses
+(`peer.Families`). rs's command declaration (`server.go`, `show bgp rs peers`:
+`Columns` address, remote, up) is left unchanged: `families` is not declared as
+a column because `server_shape_test.go::TestDeclaredColumnsExistInPayload`
+requires every declared column in every row and the key is absent on some rows,
+and an undeclared key still renders after the declared ones, alphabetically
+(`internal/component/command/column_order.go`). rr declares no column order. Unit tests: `TestRouteReflectorPeerStatusFamilies` and
+`TestRouteServerPeerStatusFamilies` (TDD Test Plan).
 
 ## Re-verification at HEAD `3e2770062b` (2026-10-13)
 
@@ -331,13 +602,19 @@ No row is fixed. Nothing is dropped.
 - [ ] `internal/analyze/bgpconn.go` - `bgpBuildOpen` packs three fixed capabilities into one type-2 parameter inline
   → Decision: the inline packing is deleted; it calls the one packer, bytes unchanged, and returns its error (Q4)
 - [ ] `internal/test/peer/inject.go` - `buildActiveOpen` packs MP and 4-octet AS into one type-2 parameter inline; `internal/test/peer/open.go::encodeOpen` writes a list of typed parameters with RFC 9072 framing
-  → Decision: `buildActiveOpen`'s packing is deleted and it calls the one packer (Q4); `encodeOpen` waits on Q5
+  → Decision: `buildActiveOpen`'s packing is deleted and it calls the one packer (Q4); `encodeOpen`'s framing and envelope are deleted, it hands its parameter list to the packer as typed parameters and writes through `message.Open.WriteTo`, keeping its 4096-octet refusal (Q5 "a")
+- [ ] `internal/component/bgp/plugins/rr/rr.go::handleStructuredOpen`, `internal/component/bgp/plugins/rs/server.go::parseStructuredOpen`, `internal/le/interoplab/bgp/exabgp_server.go::exabgpNegotiatedEncoding` - received-OPEN readers with a one-octet Parameter Length that ignore `ExtendedParams`
+  → Decision: each calls `capability.ParseFromOptionalParams` with the OPEN's own framing; the open-coded walks are deleted (AC-1r)
 - [ ] `internal/plugins/exabgp/bridgeplugin/internal.go` - `capabilityDecls` (route-refresh, add-path, no `Peers`), `bridgeRunner.applyConfig` (returns nil once started)
   → Decision: its extractor is `capabilityDecls`, registered with the SDK like the five bgp plugins (Q1 = b)
 - [ ] `internal/core/bgp/capability/capability.go` - `ParseFromOptionalParams(optParams, extended)`, the decoder; package imports only `internal/core/family` and `internal/core/textbuf`
   → Decision: home of `PackOptionalParams` (Q4)
-- [ ] `pkg/plugin/sdk/sdk_callbacks.go`, `pkg/plugin/sdk/sdk.go` - `SetCapabilities` stores the set in `Plugin.capabilities` for stage 3; `OnConfigVerify` receives the full candidate sections inside the reload transaction
-  → Decision: home of `Plugin.DeclareCapabilitiesFrom`, the one capability registration that runs the extractor at stage 2 and at config-verify (Q1 = b)
+- [ ] `pkg/plugin/sdk/sdk_callbacks.go`, `pkg/plugin/sdk/sdk.go`, `pkg/plugin/sdk/sdk_dispatch.go` - `SetCapabilities` stores the set in `Plugin.capabilities` for stage 3; `OnConfigVerify` receives the full candidate sections inside the reload transaction and overwrites `p.callbacks[callbackConfigVerify]`; `Run` serves stage 2 through `serveOne(ctx, callbackConfigure, p.handleConfigure)`, and a runtime `configure` redelivery reaches the same `handleConfigure`
+  → Decision: home of `Plugin.DeclareCapabilitiesFrom`, the one capability registration: the extractor runs for the declaration only on the stage-2 path inside `Run`, never in `handleConfigure`, and again at config-verify for the comparison, composed with the plugin's own verify handler at `Run`; `SetCapabilities` is deleted (Q1 = b)
+- [ ] `internal/plugins/exabgp/main_sdk.go` - flag-built capabilities through `SetCapabilities`; `WantsConfig: []string{"bgp"}`, no `OnConfigure`
+  → Decision: registers a constant extractor
+- [ ] `internal/component/plugin/server/startup_removal.go` - after a refused removal the engine redelivers `configure` with the committed sections (`conn.SendConfigure`)
+  → Constraint: the redelivery must not rewrite the stored declaration
 - [ ] `internal/component/plugin/server/startup.go` - `onCapabilities` converts and `capInjector.AddPluginCapabilities`; a conflict is an error
 - [ ] `internal/component/plugin/registration.go` - `CapabilityInjector.AddPluginCapabilities`, `RemovePluginCapabilities`
   → Constraint: unchanged under Q1 = b; the injector keeps the stage-3 sets, which is why a change to them is refused
@@ -365,9 +642,9 @@ No row is fixed. Nothing is dropped.
 - The live global `router-id` reload (`applyGlobalsJournaled` and the peer diff restart, `test/reload/reload-global-router-id.ci`), out of scope by Q3
 - The BMP Loc-RIB OPEN bytes (`fabricateLocRIBOpen`), which the one packer reproduces
 
-**Behavior to change:** D1 and its sibling in the one packer (Q4), D2 as a refusal (Q1 = b), D3, and D4 as the documented deviation (Q2); the false RFC6286-2.1-1 annotation. The chaos and perf OPENs move from one parameter per capability to one parameter for all.
+**Behavior to change:** D1 and its sibling in the one packer (Q4), D2 as a refusal (Q1 = b), D3, and D4 as the documented deviation (Q2); the false RFC6286-2.1-1 annotation. The chaos and perf OPENs move from one parameter per capability to one parameter for all. The rr, rs and exabgp-mock readers of a received OPEN decode the RFC 9072 framing through `capability.ParseFromOptionalParams` (AC-1r).
 
-**New restriction (Q1 = b), stated as one:** a reload that today is accepted is refused and needs a daemon restart in two cases: a session family added or removed on a `gr` peer with no `graceful-restart family` list (the GR payload follows the session families, `grAdvertisedFamilies`), and a peer added that carries a plugin-declared capability (`softver`, `hostname`, `role`, `llnh`, `gr`). A reload that changes the exabgp bridge's `route-refresh` or `add-path` is refused too; today it is accepted and not applied.
+**New restriction (Q1 = b), stated as one:** a reload that today is accepted is refused and needs a daemon restart in two cases: a session family added or removed on a `gr` peer with no `graceful-restart family` list (the GR payload follows the session families, `grAdvertisedFamilies`), and a peer added that carries a plugin-declared capability (`softver`, `hostname`, `role`, `llnh`, `gr`). A reload that changes the exabgp bridge's `route-refresh` or `add-path`, or edits the bridge's families while `add-path` is set, is refused too; today it is accepted and not applied.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -379,10 +656,11 @@ No row is fixed. Nothing is dropped.
 
 ### Transformation Path
 1. Config load: plugins receive the `bgp` section at stage 2 and declare per-peer capabilities at stage 3; the engine stores them in `CapabilityInjector`
-2. `buildOpen` merges configured capabilities with `pluginCapGetter` (injector), coalesces PATHS-LIMIT, calls `capability.PackOptionalParams`, returns `message.Open`; the chaos peer, the perf sender, the BMP Loc-RIB OPEN, `ze analyze` and the test peer's active-role OPEN call the same packer
+2. `buildOpen` merges configured capabilities with `pluginCapGetter` (injector), coalesces PATHS-LIMIT, calls `capability.PackOptionalParams`, returns `message.Open`; the chaos peer, the perf sender, the BMP Loc-RIB OPEN, `ze analyze` and the test peer's active-role and passive-role OPENs call the same packer, the passive role through typed parameters that keep its parameter layout
 3. `Open.WriteTo` chooses the envelope; `writeMessage` sends it
 4. Reload: verify sections to plugins (in each capability plugin the SDK runs the plugin's own verify handler, then the registered extractor on the candidate, and refuses a changed declaration, Q1 = b), apply coarse plugin sections, then peer operations; a changed capability block the reload accepted restarts the peer, and the new connection repeats 2-3
 5. Receive: `handleNotification` counts, reports, runs the FSM event, closes; the peer loop reconnects after backoff
+6. Receive OPEN in rr and rs: the structured OPEN event's raw bytes → `message.UnpackOpen` → `capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)` → families and capabilities
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -394,16 +672,17 @@ No row is fixed. Nothing is dropped.
 ### Integration Points
 - `sdk.Plugin.DeclareCapabilitiesFrom` - the one capability registration: the SDK runs the plugin's extractor at stage 2 for the declaration and at config-verify for the comparison (Q1 = b)
 - `configjson.CapabilitySelectors` - the candidate's peer selectors (Q1 = b)
-- The six capability plugins (`softver`, `hostname`, `role`, `llnh`, `gr`, the exabgp bridge) - each registers its extractor; none writes a comparison
-- `capability.PackOptionalParams` - the one Optional Parameters packer for six callers (Q4)
+- The six capability plugins (`softver`, `hostname`, `role`, `llnh`, `gr`, the exabgp bridge) and the external `main_sdk.go` - each registers its extractor (a constant one for `main_sdk.go`); none writes a comparison
+- `capability.PackOptionalParams` - the one Optional Parameters packer, over typed parameters, for seven callers (Q4, Q5 "a")
+- `capability.ParseFromOptionalParams` - the one Optional Parameters reader, now also for rr, rs and the exabgp mock (AC-1r)
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers | Yes (design) | capabilities still reach the OPEN only through the injector and `buildOpen` |
 | No unintended coupling | Yes (design) | the reactor does not learn plugin capability semantics; plugins still own their declarations |
-| No duplicated functionality | Yes (design) | one Optional Parameters packer (Q4; `encodeOpen` per Q5); one capability extractor per plugin, run by the SDK for both the stage-2 declaration and the verify comparison, so the two cannot be computed differently (Q1 = b) |
-| Zero-copy preserved | Yes | the OPEN path allocates once per connection today; the packer keeps that one allocation, on a cold path |
+| No duplicated functionality | Yes (design) | one Optional Parameters packer for all seven writers (Q4, Q5 "a"); one envelope writer, `message.Open.WriteTo`; one Optional Parameters reader, `ParseFromOptionalParams` (AC-1r); one capability extractor per plugin, run by the SDK for both the stage-2 declaration and the verify comparison, so the two cannot be computed differently, and one declaration path (`SetCapabilities` deleted) (Q1 = b) |
+| Zero-copy preserved | Yes (design) | `buildOptionalParams` allocates once today (the rest of `buildOpen` allocates its `caps`/`otherCaps` slices, the `ASN4` capability, the `seen` map and the `Open`, unchanged here); the packer keeps that one allocation, on a cold path, because each capability writes itself in place (`WriteTo` at an offset) rather than handing the packer bytes to copy, and a parameter is a concrete struct (no interface value, which would escape to the heap and make the reactor's per-OPEN parameter list a second allocation, round-3 review ISSUE-1); `TestPackOptionalParams` asserts 1 allocation with the parameter list built inside the measured function, as the reactor builds it |
 | Registration over hardcoding, outbound | Yes (design) | each plugin registers its own extractor with the SDK; no per-plugin case in the engine or the SDK |
 | Registration over hardcoding, inbound | Yes (design) | the SDK reads the plugin's own name, its registered extractor and the stage-3 set; the leaf names live in each plugin beside its code, no central list learns a plugin or a capability |
 | Module tiers | Yes (design) | `internal/core/bgp/capability` gains no import; `internal/analyze` gains one `internal/core` import; `./le arch tier check` names no touched package (it exits 2 today on unrelated violations) |
@@ -416,6 +695,65 @@ No row is fixed. Nothing is dropped.
 | SIGHUP with a changed softver `encoding` | → | reload verify → SDK config-verify → softver's registered extractor → comparison with the stage-3 declaration → refusal | `test/reload/reload-softver-encoding-refused.ci` (new; model `test/reload/bgp-bfd-disable-refused-live.ci`: the reload is refused naming `bgp-softver`, the peer and `software-version`, and the session stays up on one TCP connection) |
 | SIGHUP adding a peer with `software-version` | → | same path, new selector | `test/reload/reload-add-peer-softver-refused.ci` (new) |
 | ze-peer answers Ze's OPEN with NOTIFICATION 2/0 | → | `handleNotification` WARN line | `test/plugin/open-refused-notification-warn.ci` (new: `expect=stderr` on the WARN) |
+| ze-peer sends an RFC 9072 extended OPEN (two `add-capability` lines push the parameters above 255 octets) to a ze running the route reflector with ipv6/unicast configured; the operator runs `show rr peers` | → | structured OPEN event → rr `handleStructuredOpen` → `ParseFromOptionalParams` → `peer.Families` → `show rr peers` → `forwardShowRRPeers` (`rr/cmd_show.go`) → rr `handleCommand` → `peerStatus` → the row's `families` field | `test/plugin/rr-extended-open-families.ci` (new: the peer's row lists exactly `ipv6/unicast`) |
+| the same extended OPEN to a ze running the route server; the operator runs `show bgp rs peers` | → | rs `parseStructuredOpen` → `ParseFromOptionalParams` → `handleOpen` → `peer.Families` → `show bgp rs peers` → rs `handleCommand` → `peerStatus` → the row's `families` field | `test/plugin/rs-extended-open-families.ci` (new: the peer's row lists exactly `ipv6/unicast`) |
+
+Why these assertions (round-5 review, B1 and I1, re-read 2026-10-14). The
+observable is what each plugin recorded, read through the operator's own
+command, so it depends on no replay order and no forwarding path. Round 4 chose
+behaviour the families drive, because `show rr peers` and `show bgp rs peers`
+returned only `address`, `remote.as` and `up` (`rr.go::peerStatus`,
+`rs/server_handlers.go::peerStatus`). Round 5 showed both choices could not
+discriminate: rr's `replayForPeer` calls `sendEOR` only when `replayed > 0`, so
+a single session gets no rr End-of-RIB before or after the fix (B1); rs forwards
+through `reactorForwardRS` when `rs-fast-path` is on, bypassing
+`SupportsFamily`, and a source UPDATE that reaches ze before the receiver's
+peer-up is delivered by the adj-rib-in replay, which has no `SupportsFamily`
+filter (I1). Forcing those orders needed a second session, a reconnect and the
+`manual-eor` marker window (I2). Each peer row therefore gains a read-only
+`families` field (see "Recorded-families field"), a CLI output change under
+`ai/rules/cli.md` (owner question Q6). The red at HEAD (round-6 review, I1):
+`peerStatus` in both plugins writes only `address`, `remote` and `up`, so the
+row carries no `families` key; the observer keeps polling a row that is up
+without the field, exhausts its poll and fails naming the absent field. The
+discriminating red is recorded later, in Implementation Step 2, after the AC-1s
+key lands and before the reader fix: rr and rs misframe the extended OPEN, find
+no Multiprotocol capability and record the ipv4/unicast default, so the row
+lists `ipv4/unicast`; the Deliverables row records it by restoring the
+one-octet walk. After the fix the row lists `ipv6/unicast`: green. `behavior { manual-eor true }`, the second session and `rs-fast-path` are
+no longer part of either test.
+
+How ze-peer produces the extended OPEN (round-5 review, N2, read at the
+producers 2026-10-14): ze-peer mirrors ze's OPEN, so its families come from ze's
+family config (`ipv6/unicast` only, so ze-peer's Multiprotocol capability names
+it), not from `add-capability`. Each `add-capability` line (value at most 255
+octets, `parseOptionConfig`) becomes its own type-2 parameter (`addedParams`,
+`internal/test/peer/open.go`), and `encodeOpen` switches to the RFC 9072 form
+when the parameter total exceeds 255 octets. Two `add-capability` lines of 200
+octets each, with codes no ze capability decodes (chosen at implementation from
+the registered codes), give several type-2 parameters above 255 octets; RFC 5492
+Section 3 has ze ignore the unknown codes. Whether today's one-octet walk reads
+no Multiprotocol capability from those exact bytes (round-5 review, N3) is
+settled by the recorded red the Deliverables row requires.
+
+How each test ends: one ze-peer session in check mode with
+`option=linger:value=true` and no expectation, so it holds the session open. A
+native observer fixture, `plugin/peer-families-show` with argument `rr` or `rs`
+(model: `plugin/vpn-withdrawal-inventory`, `register_vpn_withdrawal.go`, which
+polls the same two commands with `Poll`), polls the plugin's peer command until
+the row for 127.0.0.1 has `up` true and a `families` field, then prints
+`PASS: <command> families ipv6/unicast` when that field is exactly
+`["ipv6/unicast"]`, and fails naming the field it read otherwise. The `.ci`
+awaits that PASS line (`await=`) and rejects the observer's failure line. The
+test ends from the fixture, as the model does (round-6 review, N1): a lingering
+peer never exits by itself (ci-format.md "Await"), so on completion the
+observer dispatches `request shutdown` (`runPlugin13(..., shutdown=true)`,
+`plugin_fixture_13.go`) and the `.ci` expects `expect=exit:code=0`. ze's
+config attaches the rr or rs process with `receive [ ... state open-received ... ]`
+(model `test/draft/plugin/vpn-withdrawal-inventory-rr-ipv4.ci`), so the plugin
+receives the OPEN (round-6 review, N2). A row
+that is up without the field keeps the poll going, so the result does not rest
+on the event order argued under "Recorded-families field".
 
 Q2 = deviation (answered 2026-10-13) leaves no config refusal for a peer-level `router-id`, so no wiring row is owed for it.
 
@@ -427,24 +765,29 @@ because the default level is WARN.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1q | The reactor, the chaos peer, the perf sender, the BMP Loc-RIB OPEN, `ze analyze`'s OPEN and the test peer's active-role OPEN (Q4) | Each builds its Optional Parameters through `capability.PackOptionalParams`; reactor `buildOptionalParams` and `maxExtendedParamLen`, chaos `buildOptionalParams`, perf `packOptionalParams`, and the inline packing in `fabricateLocRIBOpen`, `bgpBuildOpen` and `buildActiveOpen` no longer exist; a tree grep finds no other type-2 parameter writer outside the packer, except `encodeOpen` pending Q5; the BMP Loc-RIB, `ze analyze` and active test peer OPEN bytes are unchanged; no `./le arch tier check` violation names `internal/core/bgp/capability` or a touched caller package |
+| AC-1q | The reactor, the chaos peer, the perf sender, the BMP Loc-RIB OPEN, `ze analyze`'s OPEN, and the test peer's active-role and passive-role OPENs (Q4, Q5 "a") | Each builds its Optional Parameters through `capability.PackOptionalParams` over typed parameters; reactor `buildOptionalParams` and `maxExtendedParamLen`, chaos `buildOptionalParams`, perf `packOptionalParams`, the inline packing in `fabricateLocRIBOpen`, `bgpBuildOpen` and `buildActiveOpen`, and `encodeOpen`'s own framing and envelope no longer exist; a tree grep finds no Optional Parameter writer outside the packer and no extended-envelope writer outside `message/open.go`, with no exception; the BMP Loc-RIB, `ze analyze` and both test peer roles' OPEN bytes are unchanged; no `./le arch tier check` violation names `internal/core/bgp/capability` or a touched caller package |
+| AC-1p | The test peer's passive-role OPEN (`encodeOpen`) over every existing `.ci`, and over a parameter list of several type-2 parameters plus a non-capability raw parameter, below and above 255 octets of parameters | Bytes identical to today's `encodeOpen` output for the same list: the order, the several type-2 parameters and the raw parameter are kept; base form while the sum of 2 + value length is at most 255, extended (two-octet lengths, 255/255 envelope written by `message.Open.WriteTo`) above; an OPEN above 4096 octets is still refused: with today's 4096 error while the parameters fit the packer (Extended Opt. Parm. Length at most 65535), and with the packer's size error above 65535 octets of parameters, because the packer now runs before the 4096 check where today `encodeOpen` sums the total and answers the 4096 error at any size |
+| AC-1r | rr, rs and the exabgp interop mock receive an RFC 9072 extended OPEN (several type-2 parameters, two-octet lengths, above 255 octets) and a base-form OPEN | Each reads every capability through `capability.ParseFromOptionalParams` with the OPEN's own `ExtendedParams`: rr records the peer's families and ASN4, rs its capability list and ASN4, the mock its ADD-PATH modes, identically for both framings; an OPEN `ParseFromOptionalParams` refuses (a non-type-2 parameter, an empty type-2 parameter, one malformed type-2 parameter among several) and an OPEN `message.UnpackOpen` refuses leave rr and rs with nothing recorded for it and one WARN record with the text of "The warning" (problem, why, next step; peer and decoder error as attributes), never the ipv4/unicast default; the open-coded parameter walks in `rr.go` and `server.go` and the `openBody[9]` length read in `exabgp_server.go` no longer exist |
+| AC-1s | `show rr peers` and `show bgp rs peers` while a peer that sent an RFC 9072 extended OPEN advertising ipv6/unicast is up (Q6 = a) | The peer's row carries `families` listing exactly `ipv6/unicast`, the set the plugin recorded; a row whose peer is down, or for which no OPEN is recorded, carries no `families` key; the other keys (`address`, `remote.as`, `up`) are unchanged ("Recorded-families field") |
 | AC-1x | capabilities totalling 65533 octets or more | The packer returns an error naming the size and the limit, and `buildOpen` returns it; no OPEN with missing capabilities is sent |
 | AC-1 | `buildOpen` with capabilities totalling 254 or 255 octets (and 256) | The OPEN carries Non-Ext OP Len 255, Non-Ext OP Type 255, Extended Opt. Parm. Length = 3 + capTotal, and one type-2 parameter whose two-octet Parameter Length = capTotal; a conforming decode (`message.UnpackOpen` then `capability.ParseFromOptionalParams`) returns every capability unchanged |
 | AC-1n | capabilities totalling 253 octets (and 0, 1) | The OPEN uses the RFC 4271 form: Opt Parm Len = 2 + capTotal (255 at 253), no 255/255 marker, one-octet Parameter Length; bytes identical to today |
 | AC-1b | chaos test peer with a capability set whose parameters exceed 255 octets | The chaos peer's OPEN round-trips through `message.UnpackOpen` and `capability.ParseFromOptionalParams` with every capability intact (its parameters use the RFC 9072 two-octet framing whenever the envelope is extended) |
-| AC-2 | SIGHUP that changes `capability software-version encoding` on a running peer (legacy → draft) | The reload is refused with the text of "D2 refusal design": it names the peer, `software-version`, plugin `bgp-softver`, that the change cannot apply while ze runs because ze would keep sending the old value in its OPEN, and `systemctl restart ze` on its own line, followed by the unsupervised and appliance routes; it never names `ze signal restart`. Nothing is applied: the session is not restarted and keeps its startup OPEN |
+| AC-2 | SIGHUP that changes `capability software-version encoding` on a running peer (legacy → draft) | The reload is refused with the text of "D2 refusal design": it names the peer, `software-version`, plugin `bgp-softver`, that the change cannot apply while ze runs because ze would keep sending the old value in its OPEN, and `systemctl restart ze` on its own line, followed by the unsupervised route (`ze signal stop`, then `ze start` or `ze start <config-file>`) and the appliance route (`request reboot` in the ze CLI, or `ze signal reboot` from a shell); it never names `ze signal restart` or a bare `reboot`. Nothing is applied: the session is not restarted and keeps its startup OPEN |
 | AC-2b | SIGHUP that adds a new peer with `software-version` (own or inherited from its group) | Refused the same way, naming the new peer |
 | AC-2c | SIGHUP that removes `software-version` from a peer that stays configured | Refused the same way |
 | AC-2d | The same changes for the `hostname`, `role`, `llnh` and `gr` capabilities, including a session family added on a `gr` peer whose `graceful-restart` container has no `family` list (the GR payload follows the session families) | Each is refused naming its plugin and its `capability` leaf |
 | AC-2g | A session family added on a `gr` peer with an explicit `graceful-restart family` list that does not name it | Accepted: the GR payload is the explicit list and does not change; the peer restarts as today for the capability-block change |
-| AC-2f | SIGHUP that changes the exabgp bridge's `route-refresh` or `add-path` | Refused naming `every peer`, plugin `exabgp-bridge` and the leaf |
+| AC-2f | SIGHUP that changes the exabgp bridge's `route-refresh` or `add-path`, or edits the bridge's families while `add-path` is set (the add-path payload is built from those families) | Refused naming `every peer`, plugin `exabgp-bridge` and the leaf (`add-path` for the family edit) |
 | AC-2e | A reload that leaves every plugin-declared capability unchanged, one that only removes a peer, one that adds a peer with no plugin capability, and one that adds a peer while the exabgp bridge declares an unchanged all-peer set | Each is accepted; no refusal line appears |
+| AC-2h | A runtime `configure` redelivery (the engine's resend after a refused removal, `startup_removal.go`) to a capability plugin, after an accepted reload removed a peer that carries a plugin capability | The stored stage-3 declaration is unchanged (the extractor runs for the declaration only on the stage-2 path inside `Run`), so a later reload re-adding that peer with the same capability is accepted, as the injector still holds its declaration |
+| AC-2i | The SDK after this spec | `SetCapabilities` no longer exists; every declaring plugin, the external `main_sdk.go` included (a constant extractor), registers through `DeclareCapabilitiesFrom`; the plugin's own verify handler answers before the comparison whichever of `OnConfigVerify` and the extractor was registered first |
 | AC-3 | A NOTIFICATION received in OpenSent or OpenConfirm (Ze's OPEN refused) | Exactly one WARN line per received NOTIFICATION naming the peer, the FSM state, the code and subcode as names and numbers, and the RFC 8203 message when present; visible with no `ze.log` override |
 | AC-3n | A NOTIFICATION received in Established | The same one WARN line (one line per NOTIFICATION, whatever the state); the existing INFO "peer shutdown communication" line is folded into it, not duplicated (no-layering) |
 | AC-4 | The `weak` verdicts of RFC9072-2-1 and RFC6286-2.1-1, after this spec's producer fix | RFC9072-2-1 reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. RFC6286-2.1-1 carries the deviation record (`{partial}`, reason, not counted conformant), and its verdict is re-judged against that record. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3, 2026-09-28) |
 | AC-5 | `rfc/short/rfc6286.md` RFC6286-2.1-1 annotation and the `docs/features/rfc-status.md` RFC 6286 row | Neither claims the identifier is the same for every peer while the per-peer override exists; done FIRST, before any code, because `ai/rules/rfc-compliance.md` does not let a false claim wait |
 | AC-6 | A config with a peer-level `router-id` (Q2 = deviation) | Accepted as today; the YANG description and `docs/guide/configuration.md` say the override departs from RFC 6286 Section 2.1 |
-| AC-7 | `plan/journal/unwired-feature.md` (2026-09-27) and `plan/journal/silent-fall-through.md` (2026-09-27) rows | Marked fixed with the commit, in the closing commit |
+| AC-7 | `plan/journal/unwired-feature.md` (2026-09-27), `plan/journal/silent-fall-through.md` (2026-09-27) and `plan/journal/helper-bypassed-by-an-open-coded-copy.md` (2026-10-14, received-OPEN readers) rows | Marked fixed with the commit, in the closing commit |
 
 ## End-to-End User Stories
 
@@ -453,6 +796,7 @@ because the default level is WARN.
 | 1 | Configures enough families and capabilities that the set is 254 octets, peers with FRR | config → plugins stage 3 → `buildOpen` → `capability.PackOptionalParams` → `Open.WriteTo` → FRR | `bgp-open-extended-params-boundary-frr` |
 | 2 | Changes `software-version encoding` and sends SIGHUP | transaction verify → SDK config-verify → softver's registered extractor → comparison → refusal naming the restart; the session stays up | `reload-softver-encoding-refused.ci` |
 | 3 | Peers with a speaker that refuses Ze's OPEN, reads the log | wire NOTIFICATION → `handleNotification` → WARN | `open-refused-notification-warn.ci`, `frr-software-version` (log assertion added) |
+| 4 | Peers with a speaker whose OPEN uses the RFC 9072 extended form, runs `show rr peers` or `show bgp rs peers` | wire OPEN → structured OPEN event → rr / rs → `ParseFromOptionalParams` → `peerStatus` → the row's `families` | `rr-extended-open-families.ci`, `rs-extended-open-families.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -460,15 +804,21 @@ because the default level is WARN.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestRFC9072OptionalParamsBoundary` (table: capTotal 0, 1, 253, 254, 255, 256, 300) | `internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go` (new) | AC-1, AC-1n: builds the OPEN through `buildOpen` (which reaches `capability.PackOptionalParams`) plus `Open.WriteTo`, reads the envelope octets and walks the parameters with the framing the envelope announces; tagged `RFC9072-2-1 positive` (254, 255, 256 extended with two-octet Parameter Length) and `RFC9072-2-1 negative` (253 and below carry no marker and one-octet length; the tag quotes the Section 2 SHOULD sentence, see the audit table below) | |
-| `TestPackOptionalParams` (table: empty, one capability, several, capTotal 253, 254, 65532, 65533) | `internal/core/bgp/capability/optional_params_test.go` (new) | the packer's own framing and flag, round-tripped through `ParseFromOptionalParams`, and the AC-1x error; replaces `TestBuildOptionalParams_Empty`, `_SingleCap`, `_MultipleCaps` (`reactor/session_negotiate_test.go`, untagged), which are deleted with the function they call | |
+| `TestPackOptionalParams` (table: empty, one capability, several, capTotal 253, 254, 65532, 65533; several type-2 parameters whose sum of 2 + length is 255 and 256; a raw non-capability parameter beside a type-2 one, below and above 255) | `internal/core/bgp/capability/optional_params_test.go` (new) | the packer's own framing and flag over typed parameters, the type-2 cases round-tripped through `ParseFromOptionalParams` and the raw case read back octet by octet, the one-allocation property on the reactor's real shape (`testing.AllocsPerRun` is 1 with the parameter list, one type-2 parameter over a capability list, built inside the measured closure per call, as `Session.buildOpen` builds it per OPEN), the zero-value parameter written as `00 00`, and the AC-1x error, the packer's only error (no both-forms case: the two constructors cannot build one); replaces `TestBuildOptionalParams_Empty`, `_SingleCap`, `_MultipleCaps` (`reactor/session_negotiate_test.go`, untagged), which are deleted with the function they call | |
 | `TestChaosPeerOpenRoundTripsAbove255` | `internal/chaos/peer/session_test.go` | AC-1b, and that the chaos peer reaches the one packer | |
 | `TestPerfOpenUsesOnePacker` | `internal/perf/session_test.go` | AC-1q for perf: the OPEN round-trips through `message.UnpackOpen` and `capability.ParseFromOptionalParams`; `TestBuildOpenIPv6` reads the one-parameter form | |
 | `TestAnalyzeOpenUsesOnePacker` | `internal/analyze/bgpconn_test.go` (new) | AC-1q for `ze analyze`: `bgpBuildOpen`'s bytes are unchanged and round-trip through `capability.ParseFromOptionalParams` | |
 | `TestActiveOpenUsesOnePacker` | `internal/test/peer/inject_test.go` | AC-1q for the active test peer: `buildActiveOpen`'s bytes are unchanged and round-trip | |
+| `TestPassiveOpenUsesOnePacker` (table: one type-2 parameter; several type-2 parameters from `addedParams`; a raw non-capability parameter; parameters above 255 octets; an OPEN above 4096 octets) | `internal/test/peer/open_test.go` | AC-1p: `encodeOpen`'s bytes equal a golden captured from today's `encodeOpen` for each list (captured before the edit), order and layout kept, extended above 255, the 4096 refusal kept (an OPEN above 4096 with parameters under 65535 octets gets the 4096 error, one above 65535 octets of parameters the packer's size error) | |
+| `TestRouteReflectorReadsExtendedOpen` (base form and RFC 9072 form, several type-2 parameters; refused cases: a non-type-2 parameter, an empty type-2 parameter, one malformed type-2 parameter among several) | `internal/component/bgp/plugins/rr/rr_test.go` | AC-1r for rr: `handleStructuredOpen` records the same families and ASN4 for both framings, red today on the extended form; for each refused case, and for a body `message.UnpackOpen` refuses, `rr.peers` holds no entry for the peer (no ipv4/unicast default) and the captured logger holds one WARN record with the rr text of "The warning" (its three sentences, `peer` and `error` attributes), red today because the walk skips the parameter and stores the default and nothing is logged | |
+| `TestRouteServerReadsExtendedOpen` (the same two forms and the same three refused cases) | `internal/component/bgp/plugins/rs/server_test.go` | AC-1r for rs: `parseStructuredOpen` returns the same capability list and ASN4 for both framings, red today on the extended form; for each refused case, and for a body `message.UnpackOpen` refuses, it returns nil and the captured logger holds one WARN record with the rs text of "The warning", red today because it returns an event whose empty list `handleOpen` turns into the ipv4/unicast default, and the `UnpackOpen` case returns nil with nothing logged | |
+| `TestRouteReflectorPeerStatusFamilies` (rows: up with a recorded set of several families; up with the ipv4/unicast default; down with an earlier session's set; up with no OPEN recorded) | `internal/component/bgp/plugins/rr/rr_test.go` | AC-1s for rr: `peerStatus` emits `families` sorted for the first two rows and no `families` key for the last two; red today because the key does not exist | |
+| `TestRouteServerPeerStatusFamilies` (the same four rows, the last with `Families` nil) | `internal/component/bgp/plugins/rs/server_test.go` | AC-1s for rs, the same assertions | |
+| `TestExabgpMockReadsExtendedOpen` | `internal/le/interoplab/bgp/exabgp_server_test.go` (new) | AC-1r for the mock: `exabgpNegotiatedEncoding` reads ADD-PATH from an extended OPEN body as from a base one | |
 | existing bmp Loc-RIB OPEN tests (the tagged ones are listed under "RFC-tagged tests that change") | `internal/component/bgp/plugins/bmp/` | AC-1q for BMP: every direct caller of `fabricateLocRIBOpen` handles its new error return, and the OPEN bytes stay identical | |
-| `TestDeclareCapabilitiesFrom` (table over the six rows of the D2 verdict table) | `pkg/plugin/sdk/` | AC-2 to AC-2g at the comparison: changed payload, removed code on a live peer, new code, new peer refused; unchanged and peer-removed accepted; an all-peer declaration changed is refused naming `every peer`, unchanged with a peer added is accepted; the stage-2 declaration is the extractor's output; the plugin's own verify handler answers first; a plugin that registers an extractor and calls `SetCapabilities` is refused at `Run`; the text names plugin, peer, leaf and `systemctl restart ze` and never `ze signal restart` | |
+| `TestDeclareCapabilitiesFrom` (table over the six rows of the D2 verdict table) | `pkg/plugin/sdk/` | AC-2 to AC-2g at the comparison: changed payload, removed code on a live peer, new code, new peer refused; unchanged and peer-removed accepted; an all-peer declaration changed is refused naming `every peer`, unchanged with a peer added is accepted; the stage-2 declaration is the extractor's output; a runtime `configure` redelivery through `handleConfigure` leaves the stored declaration unchanged (AC-2h); the plugin's own verify handler answers first whether `OnConfigVerify` was called before or after the extractor was registered (AC-2i); a constant extractor (the `main_sdk.go` shape) always accepts; the text names plugin, peer, leaf, `systemctl restart ze`, `ze start` and `request reboot`, and never `ze signal restart` or a bare `reboot` | |
 | `TestCapabilitySelectors` | `internal/component/bgp/configjson/` | standalone, grouped and dynamic-group-template selectors, the same strings the extractors emit | |
-| `TestSoftverCapabilityExtractorRegistered` and the same for `hostname`, `role`, `llnh`, `gr` and the exabgp bridge | each plugin's `_test.go` | each plugin registers its extractor, the SDK refuses a change of its own capability and accepts an unchanged one (AC-2, AC-2d, AC-2e, AC-2f, AC-2g); for `llnh` and `gr` the existing refusal still answers first | |
+| `TestSoftverCapabilityExtractorRegistered` and the same for `hostname`, `role`, `llnh`, `gr` and the exabgp bridge | each plugin's `_test.go` | each plugin registers its extractor, the SDK refuses a change of its own capability and accepts an unchanged one (AC-2, AC-2d, AC-2e, AC-2f, AC-2g); for `llnh` and `gr` the existing refusal still answers first; for the bridge a family edit with `add-path` set is refused naming `add-path` | |
 | `TestHandleNotificationLogsWarn` | `internal/component/bgp/reactor/session_handlers_test.go` | AC-3, AC-3n: a captured logger at WARN sees exactly one line with peer, state, code, subcode; with an RFC 8203 message the message is in that line and no second line exists | |
 
 ### Boundary Tests (numeric inputs)
@@ -577,6 +927,8 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 | `reload-exabgp-bridge-capability-refused` | `test/reload/` | AC-2f: a changed `route-refresh` under `exabgp bridge` is refused naming `every peer` and `exabgp-bridge` | |
 | `reload-capability-unchanged-accepted` | `test/reload/` | AC-2e: a reload that changes a non-capability leaf on a `software-version` peer and removes another peer is accepted | |
 | `open-refused-notification-warn` | `test/plugin/` | ze-peer answers the OPEN with 2/0; `expect=stderr:contains=` the WARN with peer, state, code, subcode; no `ze.log` override | |
+| `rr-extended-open-families` | `test/draft/plugin/` while iterated, then `test/plugin/` | AC-1r and AC-1s through the real entry: one ze-peer session whose two `add-capability` lines push its OPEN above 255 octets of parameters (RFC 9072 form, several type-2 parameters), ze configured with ipv6/unicast only and the route reflector loaded; the `plugin/peer-families-show rr` observer polls `show rr peers` until the peer's row is up with a `families` field and passes only when it is exactly `["ipv6/unicast"]` (see "Wiring Test"). ze's config attaches the rr process with `receive [ ... state open-received ... ]` (model `test/draft/plugin/vpn-withdrawal-inventory-rr-ipv4.ci`): without `open-received` the plugin gets no OPEN and the key stays absent. Red at HEAD: the row has no `families` key, so the observer fails naming the absent field. Discriminating red, recorded in Step 2 after the AC-1s key lands by restoring the one-octet walk: rr records the ipv4/unicast default and the row lists `ipv4/unicast` | |
+| `rs-extended-open-families` | `test/draft/plugin/` while iterated, then `test/plugin/` | AC-1r and AC-1s for rs: the same session and OPEN, the route server loaded, the `plugin/peer-families-show rs` observer on `show bgp rs peers`; ze's config attaches the rs process with `receive [ ... state open-received ... ]`, as for rr. Red at HEAD: the row has no `families` key, so the observer fails naming the absent field. Discriminating red, recorded in Step 2 after the AC-1s key lands by restoring the one-octet walk: rs records the ipv4/unicast default and the row lists `ipv4/unicast` | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -591,10 +943,18 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 - `internal/component/bgp/plugins/bmp/bmp_locrib.go` - inline packing and `optParamCapabilities` deleted; `fabricateLocRIBOpen` calls the packer and returns the error (Q4)
 - `internal/analyze/bgpconn.go` - `bgpBuildOpen`'s inline packing deleted; it calls the packer and returns the error (Q4)
 - `internal/test/peer/inject.go` - `buildActiveOpen`'s inline packing deleted; it calls the packer and returns the error (Q4)
+- `internal/test/peer/open.go` - `encodeOpen`'s length sums, parameter framing, header and envelope writing deleted; it maps `openParam` to typed parameters, calls the packer, fills a `message.Open` and writes it with `Open.WriteTo`, keeping the 4096-octet refusal (Q5 "a"); the `encodeOpen` comment updated (stale-comments rule)
+- `internal/component/bgp/plugins/rr/rr.go` - `handleStructuredOpen`'s parameter walk and dead `open.ASN4` branch deleted; it calls `capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)`, and on its error logs a warning and records nothing (AC-1r, A-7)
+- `internal/component/bgp/plugins/rs/server.go` - `parseStructuredOpen`'s parameter walk and dead `open.ASN4` branch deleted; the same call, and on its error a warning and nil (AC-1r, A-7)
+- `internal/component/bgp/plugins/rr/rr.go` `peerStatus` and `internal/component/bgp/plugins/rs/server_handlers.go` `peerStatus` - each row carries the `families` key of "Recorded-families field" (AC-1s, Q6 = a); the `show bgp rs peers` declaration comment in `rs/server.go` names the new key and why it is not a declared column
+- `internal/component/bgp/plugins/rs/peer.go` `SupportsFamily` - the comment's "window between state-up and OPEN processing" is stale: the OPEN is delivered and handled before the state-up event (the blocking `Result` wait under "Recorded-families field"), so the comment says a nil `Families` means no OPEN was recorded for the session, and accept-all is the answer then (round-6 review, N4; pre-existing, stale-comments rule)
+- `docs/architecture/api/commands.md` (the `ze-bgp:show-rr-peers` row, and a new row for `show bgp rs peers`, which has none today, so rs's key is not left documented only in the guide; round-6 review N5) and `docs/guide/route-reflection.md` (which names neither peer command today; it gains both, with the `families` key) - the `families` key, and when it is absent (AC-1s)
+- `internal/le/interoplab/bgp/exabgp_server.go` - `exabgpNegotiatedEncoding`'s `openBody[9]` length read deleted; `message.UnpackOpen` then `ParseFromOptionalParams` with the OPEN's framing (AC-1r)
 - the callers of chaos `BuildOpen`, perf `BuildOpen`, `fabricateLocRIBOpen`, `bgpBuildOpen` and `buildActiveOpen` - handle the new error (table in "D1 consolidation design")
 - `internal/component/bgp/message/open.go` - the `writeToExtended` comment "optLen validated ≤ maxOptLen (65535)" names a validation no code performs today; after Q4 the packer performs it for every caller of the packer, so the comment names `capability.PackOptionalParams` (stale-comments rule)
 - the reactor and bmp tests listed under "RFC-tagged tests that change" - calls move to the packer, or handle the new error
-- `pkg/plugin/sdk/sdk_callbacks.go` (and `sdk.go` for the stage-2 run and the `Run` refusal) - `Plugin.DeclareCapabilitiesFrom` (Q1 = b)
+- `pkg/plugin/sdk/sdk_callbacks.go` (and `sdk.go` for the stage-2 run inside `Run` and the composed config-verify) - `Plugin.DeclareCapabilitiesFrom`; `SetCapabilities` deleted (Q1 = b)
+- `internal/plugins/exabgp/main_sdk.go` - its `SetCapabilities` call replaced by a constant extractor (Q1 = b)
 - `internal/component/bgp/configjson/traverse.go` - `CapabilitySelectors` (Q1 = b)
 - `internal/component/bgp/plugins/softver/softver.go`, `hostname/hostname.go`, `role/role.go`, `llnh/llnh.go`, `gr/gr.go` (and `gr_capability.go`), `internal/plugins/exabgp/bridgeplugin/internal.go` - `SetCapabilities` call deleted, extractor registered, leaf names beside the codes (Q1 = b); the bridge's `applyConfig` comment ("family/capability changes need a plugin restart") is replaced by the refusal it now gets
 - `internal/component/bgp/reactor/peer_settings_negotiation.go` - the `negotiatedCapabilitySettings` comment that records the stale plugin store: it now says the plugins refuse that reload (stale-comments rule)
@@ -603,11 +963,12 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 - `docs/guide/configuration.md` - the peer-level `router-id` text says the same (AC-6)
 - `rfc/short/rfc6286.md`, `rfc/short/rfc9072.md`, `rfc/audit/rfc6286.json`, `rfc/audit/rfc9072.json`
 - `rfc/discrimination/rfc9072.json`, `rfc9069.json`, `rfc2918.json`, `rfc7705.json`, `rfc8050.json`, `rfc4659.json`, `draft-ietf-idr-bgp-bfd-strict-mode.json` - the re-records and first records of "Discrimination records Q4 stales"
-- `plan/journal/unwired-feature.md`, `plan/journal/silent-fall-through.md`
+- `plan/journal/unwired-feature.md`, `plan/journal/silent-fall-through.md`, `plan/journal/helper-bypassed-by-an-open-coded-copy.md` (the 2026-10-14 received-OPEN reader row marked fixed)
 
 ## Files to Create
 - `internal/core/bgp/capability/optional_params.go` - `PackOptionalParams`, with the RFC 9072 Section 2 and RFC 5492 Section 4 quotes (Q4)
 - the unit tests, `.ci` tests and interop scenarios named above, each with its typed checker in `internal/le/interoplab/bgp`
+- `internal/test/fixture/` - the native observer fixture `plugin/peer-families-show` (argument `rr` or `rs`), on the `register_vpn_withdrawal.go` model (Q6 = a)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -615,11 +976,11 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 | YANG schema (new RPCs/config) | No | no leaf added or removed; the `peer-fields` `router-id` description changes only (Q2 = deviation) |
 | YANG validation constraints | No | no new leaf |
 | YANG custom validators | No | no new leaf |
-| CLI commands/flags | No | none added |
+| CLI commands/flags | Output only (Q6 = a) | no command or flag added; `show rr peers` and `show bgp rs peers` rows gain the `families` key, structured data in the existing payload (`ai/rules/cli.md`: kebab-case key, `ResponseData`) |
 | CLI grammar (keyword before value) | N-A | no command |
 | Editor autocomplete | No | the schema keeps every leaf |
 | Functional test for new RPC/API | No new RPC | the refusal travels in the existing config-verify answer; the `test/reload/` `.ci` files exercise it |
-| Pipe completeness | N-A | no command output |
+| Pipe completeness | Yes | the `families` key is part of the payload the pipes already render; rs's declared `Columns` are unchanged and the key renders after them (`column_order.go`) |
 | Env var registration | No | none |
 | Doctor check for runtime dependencies | N-A | no file, socket, port, module or binary added |
 | Prometheus counters/metrics | No | the NOTIFICATION counters exist; D3 adds a log line only |
@@ -628,11 +989,11 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or scope changed? | No | defects |
+| 1 | New user-facing feature, or scope changed? | One output key, pending the owner's Q6 confirmation; otherwise defects | the `families` key is documented under row 3 |
 | 2 | Config syntax changed? | No syntax change; the peer-level `router-id` text changes (Q2 = deviation) | `docs/guide/configuration.md` and the `ze-bgp-conf.yang` `peer-fields` `router-id` description: the override departs from RFC 6286 Section 2.1 (AC-6) |
-| 3 | CLI command added/changed? | No | - |
+| 3 | CLI command added/changed? | Output of two existing commands (Q6 = a) | `docs/architecture/api/commands.md` (the `ze-bgp:show-rr-peers` row, and a new row for `show bgp rs peers`, round-6 review N5) and `docs/guide/route-reflection.md`: the `families` key and when it is absent |
 | 4 | API/RPC added/changed? | No | the engine RPC is plugin protocol, row 8 |
-| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`: a capability plugin refuses a reload that changes its capability, the two new restrictions (a family edit on a `gr` peer with no `graceful-restart family` list, a peer added with a plugin capability), and how to restart: `systemctl restart ze`; without systemd `ze signal stop` then `ze start <config>`; on the appliance `reboot`; and the Graceful-Restart-keeping sequence (`ze signal restart`, wait for the exit, `systemctl start ze`). `docs/plugin-development/` page for the SDK: a plugin whose capabilities come from config registers its extractor and never calls `SetCapabilities` |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`: a capability plugin refuses a reload that changes its capability, the two new restrictions (a family edit on a `gr` peer with no `graceful-restart family` list, a peer added with a plugin capability), and how to restart: `systemctl restart ze`; without systemd `ze signal stop` then `ze start` or `ze start <config-file>`, the way it was started; on the appliance `request reboot` in the ze CLI, or `ze signal reboot` from a shell; which of these end sessions with a normal teardown (`systemctl restart ze`, `ze signal stop`) and which write the Graceful Restart marker and stop without a NOTIFICATION (both appliance routes, through `stopForRestart`); and the Graceful-Restart-keeping sequence under systemd (`ze signal restart`, wait for the exit, `systemctl start ze`). `docs/plugin-development/` page for the SDK: `SetCapabilities` is gone; every plugin that declares capabilities registers an extractor (a constant one when the set does not come from config), and the SDK runs it at stage 2 and at config-verify |
 | 6 | Has a user guide page? | Yes | `docs/guide/monitoring.md` (the NOTIFICATION WARN line) |
 | 7 | Wire format changed? | Yes | `docs/architecture/wire/capabilities.md` (the one packer, the 254-octet boundary, the 65532 limit) |
 | 8 | Plugin SDK/protocol changed? | SDK method only, no protocol change (Q1 = b) | `docs/architecture/api/process-protocol.md` (declarations fixed for the process life; capability plugins refuse a reload that would change them) |
@@ -643,7 +1004,7 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 | 13 | Route metadata keys? | No | - |
 | 14 | Prometheus counters? | No | - |
 | 15 | Registered plugin/capability inventory changed? | No | - |
-| 16 | Changed sources referenced by doc anchors? | Derived at implementation | `./le spec citation anchors spec plan/immediate/spec-bgp-open-session-rfc-defects.md`. Declared by `// Design:` headers of files this spec changes: `docs/architecture/chaos-web-dashboard.md` (`internal/chaos/peer/session.go`): unaffected, it describes the chaos dashboard, not the chaos peer's OPEN framing; `docs/architecture/core-design.md` (`internal/component/bgp/reactor/config.go`): unaffected by D1-D3 (it states no capability-declaration or router-id rule); `rfc/short/rfc9069.md` (`internal/component/bgp/plugins/bmp/bmp_locrib.go`): unaffected, the Loc-RIB OPEN keeps its capabilities and bytes; `docs/architecture/wire/capabilities.md` (`internal/core/bgp/capability/capability.go`): gains the one packer and its 254-octet boundary (row 7); `docs/architecture/api/process-protocol.md` (`pkg/plugin/sdk/sdk_callbacks.go`): gains the refusal sentence (row 8); `docs/architecture/config/syntax.md` (`internal/component/bgp/configjson/traverse.go`): re-read for the selector helper, expected unaffected; `internal/perf/session.go` declares none; `docs/architecture/wire/messages.md` (`internal/component/bgp/message/open.go`): its RFC 9072 paragraph ("When the Optional Parameters exceed 255 octets ... Ze writes the RFC 9072 extended form") stays true and gains that the one packer chooses the form at 2 + capTotal above 255 and refuses above 65535; `docs/architecture/mrt.md` (`internal/analyze/bgpconn.go`): unaffected, the `ze analyze` OPEN bytes do not change; `docs/architecture/testing/ci-format.md` (`internal/test/peer/inject.go`, `internal/test/peer/open.go`): unaffected, the active test peer's OPEN bytes do not change and `encodeOpen` waits on Q5; `docs/architecture/exabgp-bridge.md` (`internal/plugins/exabgp/bridgeplugin/internal.go`): its "Stage ordering constrains the family declaration" section gains that a reload changing the bridge's capabilities is refused |
+| 16 | Changed sources referenced by doc anchors? | Derived at implementation | `./le spec citation anchors spec plan/immediate/spec-bgp-open-session-rfc-defects.md`. Declared by `// Design:` headers of files this spec changes: `docs/architecture/chaos-web-dashboard.md` (`internal/chaos/peer/session.go`): unaffected, it describes the chaos dashboard, not the chaos peer's OPEN framing; `docs/architecture/core-design.md` (`internal/component/bgp/reactor/config.go`): unaffected by D1-D3 (it states no capability-declaration or router-id rule); `rfc/short/rfc9069.md` (`internal/component/bgp/plugins/bmp/bmp_locrib.go`): unaffected, the Loc-RIB OPEN keeps its capabilities and bytes; `docs/architecture/wire/capabilities.md` (`internal/core/bgp/capability/capability.go`): gains the one packer and its 254-octet boundary (row 7); `docs/architecture/api/process-protocol.md` (`pkg/plugin/sdk/sdk_callbacks.go`): gains the refusal sentence (row 8); `docs/architecture/config/syntax.md` (`internal/component/bgp/configjson/traverse.go`): re-read for the selector helper, expected unaffected; `internal/perf/session.go` declares none; `docs/architecture/wire/messages.md` (`internal/component/bgp/message/open.go`): its RFC 9072 paragraph ("When the Optional Parameters exceed 255 octets ... Ze writes the RFC 9072 extended form") stays true and gains that the one packer chooses the form at 2 + capTotal above 255 and refuses above 65535; `docs/architecture/mrt.md` (`internal/analyze/bgpconn.go`): unaffected, the `ze analyze` OPEN bytes do not change; `docs/architecture/testing/ci-format.md` (`internal/test/peer/inject.go`, `internal/test/peer/open.go`): unaffected, both test peer roles' OPEN bytes do not change (`encodeOpen` moves onto the one packer and `message.Open.WriteTo`, Q5 "a"); re-read for any sentence that says ze-peer frames its own parameters; the `// Design:` headers of `rr/rr.go`, `rs/server.go` and `interoplab/bgp/exabgp_server.go` are read at implementation for a page describing their OPEN read; `docs/architecture/exabgp-bridge.md` (`internal/plugins/exabgp/bridgeplugin/internal.go`): its "Stage ordering constrains the family declaration" section gains that a reload changing the bridge's capabilities is refused |
 | 17 | Existing docs show examples for this area? | No | the peer-level `router-id` stays (Q2 = deviation), so no example changes |
 
 ## Risks & Assumptions
@@ -651,12 +1012,13 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every capability plugin receives config-verify for its root (`bgp`, or `exabgp` for the bridge) on a reload, before any apply, whether or not it registered its own verify handler | `OnConfigVerify` doc ("full candidate config sections"); `llnh` and `gr` already refuse there | the SDK's comparison never runs for a plugin without a verify handler; the SDK registers the config-verify callback itself when an extractor is registered, and the engine's verify dispatch must reach every plugin that declared capabilities | `reload-softver-encoding-refused.ci`, `reload-exabgp-bridge-capability-refused.ci` | unvalidated |
+| A-1 | Every capability plugin receives config-verify for its root (`bgp`, or `exabgp` for the bridge) on a reload, before any apply, whether or not it registered its own verify handler | `OnConfigVerify` doc ("full candidate config sections"); `llnh` and `gr` already refuse there | the SDK's comparison never runs for a plugin without a verify handler; the SDK registers the config-verify callback itself when an extractor is registered, and the engine's verify dispatch must reach every plugin that declared capabilities | read at the producers 2026-10-14 (review round 2, N7): verify dispatch picks plugins by `WantsConfigRoots` overlapping the changed roots (`internal/component/plugin/server/reload.go`, `reload_compensation.go::reloadConfigSections`), not by whether a verify handler is registered, and the SDK's default config-verify answers OK (`sdk_callbacks.go`, `callbackConfigVerify: marshalStatusOK`). The one condition is that the plugin's root changed, which suffices under A-6: an unchanged root yields an unchanged declaration. `reload-softver-encoding-refused.ci` and `reload-exabgp-bridge-capability-refused.ci` still prove it end to end | validated by reading, with that condition |
 | A-2 | The live-stages reload fixture can assert a refusal's text, as `bgp-bfd-disable-refused-live.ci` does | that test's header ("the reload is refused, naming the peer") | fixture extension, `docs/functional-tests.md` row | first D2 `.ci` | unvalidated |
-| A-3 | `Plugin.capabilities` still holds the stage-3 set when config-verify runs | today `SetCapabilities` is its only writer (`sdk_callbacks.go`); after this spec the stage-2 extractor run is its second writer, and nothing writes it after stage 3 | the comparison runs against a wrong baseline | `TestDeclareCapabilitiesFrom` | unvalidated |
+| A-3 | `Plugin.capabilities` still holds the stage-3 set when config-verify runs | after this spec its one writer is the stage-2 extractor run inside `Run` (`SetCapabilities` deleted). Today's basis "nothing writes it after stage 3" was false (review round 2, ISSUE-3): the engine redelivers `configure` at runtime after a refused removal (`startup_removal.go`, `conn.SendConfigure`), the SDK routes it to `handleConfigure` (`sdk_callbacks.go` `callbackConfigure`, `sdk_dispatch.go`), and that reruns `OnConfigure`, which calls `SetCapabilities` today. The design therefore keeps the extractor out of `handleConfigure` | the comparison runs against a wrong baseline: a redelivery would drop the declarations of peers removed by accepted reloads, and a re-add would be refused | `TestDeclareCapabilitiesFrom` redelivery case (AC-2h) | unvalidated |
 | A-4 | ze-peer can answer Ze's OPEN with a NOTIFICATION before or instead of a KEEPALIVE (`action=notification` at conn 1 seq 1) | `expect.go` action list | a ze-peer `open` option to refuse | first D3 `.ci` | unvalidated |
 | A-5 | FRR accepts an RFC 9072 OPEN of 254+ octets and reaches Established | FRR implements RFC 9072 (`bgp_open.c` extended opt params) | interop scenario uses another daemon (GoBGP, BIRD) | `bgp-open-extended-params-boundary-frr` | unvalidated |
 | A-6 | `softver`, `hostname`, `role`, `llnh`, `gr` and the exabgp bridge derive their declaration only from the config the reload delivers (the review of 2026-10-13 found no `os.Hostname`, clock or random read in the five bgp extractors; `capabilityDecls` reads only `bridgeConfig`), so the same config yields the same declaration | each plugin's `OnConfigure` | a declaration that reads host state (a hostname default, say) could differ with no config change and refuse a reload the operator did not change; that plugin needs its own design | Phase 4 per plugin | unvalidated |
+| A-7 | rr and rs receive a received OPEN BEFORE the reactor validates it, so an OPEN `ParseFromOptionalParams` refuses (a non-type-2 parameter, an empty type-2 parameter, a malformed type-2 parameter) does reach them; the changed outcome (nothing recorded and a warning logged, where the walks skipped the parameter and stored the ipv4/unicast default) applies only to an OPEN the reactor then refuses, so no Established session is affected | `session_read.go` calls `s.onMessageReceived` before `s.handleOpen(body)`, which reaches rr `case rpc.EventKindOpen` and rs `parseStructuredOpen` through `peer_run.go`, `reactor_notify.go::notifyMessageReceiver` and `server/events.go::messageTypeToEventKind`; the reactor then refuses through `validateOpenPeerAS` (`session_open_as.go`), `ParseFromOptionalParams` and `rejectOpenCapabilityError`; rr and rs read stored families only for a peer that is up (`rr/validation.go`, `rs/server_forward.go`) | if the reactor accepted an OPEN the decoder refuses, rr or rs would hold no entry for an Established peer; that would be a disagreement between the reactor and the one decoder they share, not something rr or rs could repair | read 2026-10-14 at the producers named (round-3 review, ISSUE-2) | validated by reading |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -665,6 +1027,7 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 | R-2 | The candidate selectors and the declared selectors disagree in form, so an unchanged peer reads as removed and added | `TestCapabilitySelectors`, AC-2e red | both come from `configjson.CapabilitySelector`; no second spelling |
 | R-4 | An OPEN above RFC 8654's 4096 octets is still sent | code reading | the one packer now refuses above 65532 octets (AC-1x), which closes the `maxExtendedParamLen` half; the 4096-octet half gets one row in `plan/journal/silent-fall-through.md` at implementation start, not fixed here (rule-precedence: closing first) |
 | R-5 | The D3 WARN floods the log when a peer refuses every retry | ConnectRetry cadence in `frr-software-version` (nine refusals) | one line per received NOTIFICATION is bounded by the reconnect backoff; FRR and BIRD log every received NOTIFICATION at their default level too |
+| R-8 | A consumer of `show rr peers` or `show bgp rs peers` asserts the exact row keys and breaks on the added `families` key (Q6 = a) | a red in `rs/server_shape_test.go`, `rs/server_peer_order_test.go`, `rr/cmd_show_test.go`, `internal/test/fixture/plugin_fixture_15_show.go` or `ui_fixture_show_bgp_plugin_shapes.go` | each reads named keys or counts today (read 2026-10-14); a test asserting the whole row is corrected to the new row, which is the behaviour this spec adds. Under Q6 = b instead, the risk is rr's End-of-RIB dropped by `AnnounceEOR` while `shouldQueue() \|\| initialSyncEOROwed` (`reactor_api_forward.go`, `logEORSuppressed`) with `manual-eor` leaving no reactor marker as fallback; that test must then reject the `end-of-rib suppressed` WARN (round-5 review, I2) |
 | R-7 | The chaos or perf OPEN's move to one parameter for all capabilities changes a byte expectation somewhere | a chaos or perf test red | every RFC 5492 receiver accepts it; correct the expectation, which asserted framing no RFC requires |
 
 ## Blast Radius
@@ -678,9 +1041,9 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 ## Implementation Steps
 
 1. **Phase: Wiring and the false claim (FIRST)** - AC-5 edit of `rfc/short/rfc6286.md` and the rfc-status row; write the failing wiring tests of the Wiring Test table
-   - Verify: each new test fails for the stated reason
-2. **Phase: D1 (Q4 = Consolidate)** - `TestPackOptionalParams` and `TestRFC9072OptionalParamsBoundary` red at 254/255; delete reactor `buildOptionalParams` and `maxExtendedParamLen`, then write `capability.PackOptionalParams` with the RFC 9072 Section 2 quote above the threshold; move `buildOpen`, then delete chaos `buildOptionalParams`, perf `packOptionalParams`, and the inline packing in `fabricateLocRIBOpen`, `bgpBuildOpen` and `buildActiveOpen`, and move their callers, with the new error handled; `encodeOpen` per Q5; correct the `writeToExtended` comment; move the tests of "RFC-tagged tests that change" (owner runs the seven approval commands); green; `./le arch tier check` names no touched package; `./le rfc discriminate-record` for each new RFC9072-2-1 / RFC9072-2-7 tag and for every row of "Discrimination records Q4 stales" plus the two first records; `open-optional-params-254.ci`
-3. **Phase: D2 registration (Q1 = b)** - `TestDeclareCapabilitiesFrom` and `TestCapabilitySelectors` red; `Plugin.DeclareCapabilitiesFrom` (stage-2 run, config-verify comparison after the plugin's own handler, `Run` refusal of a plugin that also calls `SetCapabilities`), `configjson.CapabilitySelectors`; green
+   - Verify: each new test fails for the stated reason; for `rr-extended-open-families.ci` and `rs-extended-open-families.ci` that reason is the HEAD red (no `families` key, the observer fails naming the absent field), and their discriminating `ipv4/unicast` red is recorded in Step 2 after the AC-1s key lands
+2. **Phase: D1 (Q4 = Consolidate, Q5 = a)** - capture `encodeOpen`'s output for the `TestPassiveOpenUsesOnePacker` lists as goldens BEFORE any edit; `TestPackOptionalParams` and `TestRFC9072OptionalParamsBoundary` red at 254/255; delete reactor `buildOptionalParams` and `maxExtendedParamLen`, then write `capability.PackOptionalParams` over typed parameters (one concrete struct with private fields built only by the Capabilities constructor, Type fixed to 2, and the Raw constructor, Type and octets; zero value a type-0 empty Raw parameter) with the RFC 9072 Section 2 quote above the threshold; move `buildOpen`, then delete chaos `buildOptionalParams`, perf `packOptionalParams`, the inline packing in `fabricateLocRIBOpen`, `bgpBuildOpen` and `buildActiveOpen`, and `encodeOpen`'s framing and envelope, and move their callers, with the new error handled (`encodeOpen` onto the packer and `message.Open.WriteTo`, its 4096 refusal kept); then AC-1s: `TestRouteReflectorPeerStatusFamilies` and `TestRouteServerPeerStatusFamilies` red, the `families` key in both `peerStatus`, green, and the `plugin/peer-families-show` fixture; then AC-1r: `TestRouteReflectorReadsExtendedOpen`, `TestRouteServerReadsExtendedOpen`, `TestExabgpMockReadsExtendedOpen` and the two `.ci` (written in Step 1 in `test/draft/plugin/`, red there on the absent key) now red with the row listing `ipv4/unicast`, the discriminating red, delete the rr and rs walks and the mock's length read, call `ParseFromOptionalParams`, green; correct the `writeToExtended` comment; move the tests of "RFC-tagged tests that change" (owner runs the seven approval commands); green; `./le arch tier check` names no touched package; `./le rfc discriminate-record` for each new RFC9072-2-1 / RFC9072-2-7 tag and for every row of "Discrimination records Q4 stales" plus the two first records; `open-optional-params-254.ci`
+3. **Phase: D2 registration (Q1 = b)** - `TestDeclareCapabilitiesFrom` and `TestCapabilitySelectors` red; delete `SetCapabilities`, then write `Plugin.DeclareCapabilitiesFrom` (no root parameter; the stage-2 run inside `Run` only, never in `handleConfigure`; the config-verify comparison composed after the plugin's own handler at `Run`, whatever the registration order), `configjson.CapabilitySelectors`; `main_sdk.go` registers its constant extractor; green
 4. **Phase: D2 plugins** - softver first (the journal row), then hostname, role, llnh, gr and the exabgp bridge: delete the `SetCapabilities` call, register the extractor and the leaf names, each plugin's test; reload `.ci` per AC-2 to AC-2g; correct the `negotiatedCapabilitySettings` and bridge `applyConfig` comments
 5. **Phase: D4 (Q2 = deviation)** - `rfc/short/rfc6286.md` RFC6286-2.1-1 `{partial}` with the deviation reason; the YANG `router-id` description and `docs/guide/configuration.md` wording (AC-6)
 6. **Phase: D3** - `TestHandleNotificationLogsWarn` red, WARN line, fold the RFC 8203 INFO into it, `.ci`
@@ -695,14 +1058,15 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 | Correctness | the WARN carries code and subcode names and numbers and the FSM state; one line, not two, when an RFC 8203 message exists |
 | Data flow | capabilities still enter the OPEN only through `buildOpen`; no reactor code learns softver/hostname/role semantics |
 | Rule: rfc-compliance | RFC 9072 Section 2 quote above the threshold; new tags carry discrimination records; AC-5 done first |
-| Rule: no-layering | the INFO RFC 8203 line is replaced, not kept beside the WARN; no Optional Parameters packing survives outside `capability.PackOptionalParams`: a tree-wide grep over `internal`, `pkg` and `cmd` for a type-2 parameter write finds only the packer (and `encodeOpen` while Q5 is open); no capability plugin whose set comes from config still calls `SetCapabilities` |
+| Rule: no-layering | the INFO RFC 8203 line is replaced, not kept beside the WARN; no Optional Parameters packing survives outside `capability.PackOptionalParams`: a tree-wide grep over `internal`, `pkg` and `cmd` for an Optional Parameter write finds only the packer, and for an extended-envelope write only `message/open.go`, with no exception; no Optional Parameters walk survives outside `ParseFromOptionalParams` in rr, rs and the exabgp mock; `SetCapabilities` no longer exists |
+| Correctness | the `families` key is absent, never an empty list, on a row whose peer is down or whose plugin recorded no OPEN; it is not added to rs's declared `Columns` (AC-1s) |
 | Correctness | the refusal compares per selector and per code, treats an empty `Peers` as one "every peer" selector, accepts a removed peer, and names plugin, peer, leaf and `systemctl restart ze`, never `ze signal restart` |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
 | D1 fixed | `TestRFC9072OptionalParamsBoundary` and `open-optional-params-254.ci` pass; revert red recorded |
-| D1 consolidated | one packer, six callers; no `./le arch tier check` violation names a touched package; every row of "Discrimination records Q4 stales" re-recorded and the two first records written |
+| D1 consolidated | one packer over typed parameters, seven callers, `encodeOpen` bytes golden-identical; one reader for rr, rs and the exabgp mock, `rr-extended-open-families.ci` and `rs-extended-open-families.ci` pass with a red recorded by restoring the one-octet walk (the row lists `ipv4/unicast`); no `./le arch tier check` violation names a touched package; every row of "Discrimination records Q4 stales" re-recorded and the two first records written |
 | D2 fixed | reload `.ci` files pass; red recorded by removing the SDK's config-verify comparison |
 | D3 fixed | `open-refused-notification-warn.ci` passes |
 | D4 applied as a deviation | YANG description and `docs/guide/configuration.md` name the departure from RFC 6286 Section 2.1; `rfc/short/rfc6286.md` row is `{partial}` with the reason |
@@ -721,14 +1085,16 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 | Compilation error | Fix in the phase that introduced it |
 | Test fails for the wrong reason | Fix the test assertion or setup |
 | Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
-| A-1 broken (a capability plugin gets no config-verify) | DESIGN: route verify to every plugin that declared capabilities |
+| A-1 broken (a capability plugin gets no config-verify although its root changed; A-1 is validated by reading, so this is a regression in `reload.go` dispatch) | DESIGN: route verify to every plugin that declared capabilities |
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| D1: one packer, `capability.PackOptionalParams`, comparing 2 + capTotal with 255 (owner, 2026-10-13: "Consolidate") | home in `internal/component/bgp/message` | the capability package is a core leaf every caller already imports and holds the decoder; `message` would gain an import for no reader |
+| D1: one packer, `capability.PackOptionalParams`, over typed parameters (one concrete struct with private fields: Type, a capability list written in place by each capability's `WriteTo`, raw octets; built only by a Capabilities constructor with Type fixed to 2 and a Raw constructor from Type and octets, so no both-forms refusal; no interface), base form while the sum of 2 + value length is at most 255 (owner, 2026-10-13: "Consolidate"; Q5, 2026-10-14: "a") | home in `internal/component/bgp/message`; a raw-bytes value per parameter; `encodeOpen` kept as a second packer (Q5 "b"); exported fields with a both-set refusal (round 3); a sealed interface per value form | the capability package is a core leaf six of the seven callers already import and holds the decoder, while `message` imports `internal/component/plugin/registry`, so `internal/analyze` would gain a component import; a raw-bytes value would make the reactor serialise into an intermediate buffer and copy it, losing the one allocation; Q5 "a" chose one packer; exported fields let a caller build both value forms, or a capability list under a Type other than 2, which `ze-go-style.md` "One state, one variant" forbids (round-4 review, ISSUE-3); a sealed interface would escape to the heap and cost the reactor a second allocation per OPEN (round-3 review, ISSUE-1) |
+| D1: rr, rs and the exabgp mock read a received OPEN through `ParseFromOptionalParams` | fix the one-octet walk in place in each (read `ExtendedParams` there) | three copies of a walk the decoder already performs would stay; one reader is the fix at the root (`ai/rules/simplicity.md`) |
+| D2: `SetCapabilities` deleted, `main_sdk.go` registers a constant extractor | keep `SetCapabilities` for the flag-built set and refuse a plugin using both at `Run` | the kept path existed only for `main_sdk.go`, whose stated reason (no config root) was false; deleting it removes the second declaration path and the refusal that kept the two exclusive (`ai/rules/no-layering.md`) |
 | D2: refuse a reload that changes a plugin-declared capability (owner, 2026-10-13: "b"), through one SDK registration of the plugin's extractor | the comparison in the engine; one SDK comparison method plus a verify handler in each plugin | only the plugin can compute its candidate declaration, so the engine cannot compare; a per-plugin verify handler is opt-in and already missed the exabgp bridge (review of 2026-10-13, ISSUE-6), while a registration that the SDK runs at stage 2 and at verify cannot be skipped and cannot compute the two declarations differently |
 | D2: compare per selector and accept a removed peer | compare the whole lists | a whole-list compare would refuse every peer removal, which leaves no stale OPEN |
 | D3: one WARN per received NOTIFICATION in `handleNotification` | WARN only before Established; raise the reconnect-loop DEBUG to WARN | the producer is the one place that knows code, subcode and state; one rule for all states matches FRR and BIRD defaults; the reconnect loop sees only an error string |
@@ -737,8 +1103,8 @@ Approved by the owner on 2026-10-13: "approve all RFC-tagged test changes". Q4 i
 - R-4: the 4096-octet OPEN limit is recorded as a journal row, not fixed here; the two-octet limit is refused by the one packer (AC-1x)
 - Out of scope by Q3 (owner, 2026-10-13: "Out of scope"): the live global `router-id` reload stays as it ships. RFC 6286 Section 2.1 says the identifier "is determined on startup"; Ze applies a changed global `router-id` on SIGHUP (`reactorAPIAdapter.applyGlobalsJournaled`, `internal/component/bgp/reactor/reload_globals.go`) and the peer diff restarts every peer whose effective Identifier changed, so every restarted peer sees the new identifier in a new OPEN (`test/reload/reload-global-router-id.ci`). Not refused, not counted as a deviation here
 - A plugin-declared capability change (softver, hostname, role, llnh, gr, the exabgp bridge) needs a daemon restart (Q1 = b); the reload refuses it and says so
-- New restriction against today (Q1 = b): two reloads that are accepted today are refused and need a daemon restart: a session family added or removed on a `gr` peer whose `graceful-restart` container has no `family` list (`grAdvertisedFamilies` derives the GR payload from the session families), and a peer added that carries a plugin-declared capability. An explicit `graceful-restart family` list avoids the first
-- The restart the refusal names (`systemctl restart ze`, `ze signal stop` then `ze start <config>`, or `reboot` on the appliance) ends sessions with a normal teardown; the Graceful-Restart-keeping sequence is in `docs/guide/plugins.md`, not in the refusal
+- New restriction against today (Q1 = b): two reloads that are accepted today are refused and need a daemon restart: a session family added or removed on a `gr` peer whose `graceful-restart` container has no `family` list (`grAdvertisedFamilies` derives the GR payload from the session families), and a peer added that carries a plugin-declared capability. An explicit `graceful-restart family` list avoids the first. A family edit under the exabgp bridge while `add-path` is set is refused as well (accepted and not applied today)
+- Of the restarts the refusal names, `systemctl restart ze` and `ze signal stop` then `ze start` or `ze start <config-file>` end sessions with a normal teardown, so peers withdraw Ze's routes until it is back; the appliance routes, `request reboot` in the ze CLI and `ze signal reboot` from a shell, both call `stopForRestart` (`cmd/ze/hub/infra_setup.go`), which writes the Graceful Restart marker and stops without a NOTIFICATION, so peers retain Ze's routes for the restart time; the Graceful-Restart-keeping sequence is in `docs/guide/plugins.md`, not in the refusal
 - RFC 4271 Section 4.2 carries the same "same for every local interface and BGP peer" sentence and has no row; RFC scope is frozen, so no row is added
 
 ## RFC Documentation (Scope: protocol)
@@ -751,6 +1117,11 @@ Add `// RFC 9072 Section 2: "However, if the length of the Optional Parameters i
 |------|-------|--------|
 | 2026-10-13 | owner answers applied 2026-10-13; review round owed (Q1 refusal, Q4 consolidation) | Q1 "b", Q3 "Out of scope", Q4 "Consolidate" recorded; D2 refusal design and D1 consolidation design written; review items named in both designs (the restart command; error propagation from chaos, perf and bmp OPEN builders) |
 | 2026-10-13 | review of the owner-answer edits applied (`tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-open-session-owner-answers.md`: 0 BLOCKER, 8 ISSUE, 6 NIT) | ISSUE-1: eleven stale records and two first records listed, seven approval commands. ISSUE-2: six packers (`bgpBuildOpen`, `buildActiveOpen` added), all deleted onto the one packer, grep widened to the tree; a seventh writer, `encodeOpen`, opened as Q5. ISSUE-3: AC-1q names no tier violation in a touched package. ISSUE-4: refusal names `systemctl restart ze`, the unsupervised and appliance routes, never `ze signal restart` (exits 0, `Restart=on-failure`). ISSUE-5: new restriction stated in Behavior to change, Known Limitations and R-1; GR claim scoped to no `graceful-restart family` list; AC-2d scoped, AC-2g accepted polarity. ISSUE-6: one SDK registration (`DeclareCapabilitiesFrom`) covering the five bgp plugins and the exabgp bridge, no per-plugin verify handler; empty-`Peers` verdict row; AC-2f. ISSUE-7: "ze would keep sending". ISSUE-8: every Q2-remove branch deleted; deviation names the YANG description and `docs/guide/configuration.md` throughout. NITs: N1 left; N2 sentence; N3 line; N4 resolved table; N5 `writeToExtended` comment in Files to Modify; N6 nothing. **Next round owed, narrow: the SDK registration (its shape, the kept `SetCapabilities`, A-1 dispatch to plugins without a verify handler) and the six-packer consolidation (plus Q5)** |
+| 2026-10-14 | review round 2 applied (`tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-open-session-r2.md`: 0 BLOCKER, 5 ISSUE, 7 NIT) | ISSUE-1: owner Q5 "a" (2026-10-14) recorded in the Q5 row and the D1 owner row; the packer takes typed parameters (Type plus a value with `Len` and `WriteTo`: capability lists, `Unknown` TLVs, raw bytes), one code path, base form while the sum of 2 + length is at most 255, extended while the sum of 3 + length is at most 65535, else error; seven writers, `encodeOpen` included, with AC-1p, `TestPassiveOpenUsesOnePacker` and `internal/test/peer/open.go` in Files; the one-allocation row kept true. ISSUE-2: `SetCapabilities` deleted, `main_sdk.go` registers a constant extractor, no `Run` refusal (AC-2i). ISSUE-3: the extractor runs for the declaration only on the stage-2 path inside `Run`, the baseline is never rewritten after stage 3, A-3 basis corrected, AC-2h and the redelivery test case. ISSUE-4: the appliance route is `request reboot` in the ze CLI or `ze signal reboot` from a shell, everywhere. ISSUE-5: `DeclareCapabilitiesFrom` has no root parameter; extractors filter `section.Root`. N1: verify composed at `Run` whatever the order. N2: `ze start` or `ze start <config-file>`. N3: bridge root `exabgp`, `parseConfig` then `capabilityDecls`. N4: bridge family edit with `add-path` refused (New restriction, AC-2f). N5: home rationale restated (`message` imports `plugin/registry`). N6: `encodeOpen` is the only other envelope writer (grep), so it moves onto `message.Open.WriteTo`. N7: A-1 validated by reading, with its condition. Out-of-scope find brought in by the main thread: rr, rs and the exabgp mock read a received OPEN with a one-octet length, ignoring `ExtendedParams` (verified at the producers); routed through `ParseFromOptionalParams` (AC-1r, three unit tests, two `.ci`, A-7); journal row in `plan/journal/helper-bypassed-by-an-open-coded-copy.md`. **Next round owed, narrow: the typed-parameter packer (value kinds, `Unknown` constructor, `encodeOpen` on `message.Open.WriteTo`) and the rr/rs/mock move onto the one decoder (A-7)** |
+| 2026-10-14 | review round 3 applied (`tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-open-session-r3.md`: 0 BLOCKER, 3 ISSUE, 5 NIT), producers re-read 2026-10-14 | ISSUE-1: a parameter is a concrete struct (Type, Capabilities, Raw; no interface), the `openParam` shape, so the reactor's per-OPEN list does not escape and the output stays the one allocation; a parameter with both value fields set is refused; `TestPackOptionalParams` asserts AllocsPerRun 1 with the list built inside the measured closure; Zero-copy row and D1 decision row follow. N1: the `Unknown` constructor is dropped (Files entry removed); `encodeOpen` hands its type-2 TLVs as Raw. ISSUE-2: A-7 rewritten and validated by reading (OPEN delivery precedes `handleOpen`); on a `ParseFromOptionalParams` error rr and rs record nothing and log a warning, never the ipv4/unicast default; the three refused cases added to AC-1r and both unit tests. ISSUE-3: both appliance routes call `stopForRestart` (GR marker, no NOTIFICATION); "normal teardown" limited to `systemctl restart ze` and `ze signal stop` in the restart table, the trade-off, Known Limitations and docs row 5. N2: AC-1p and `TestPassiveOpenUsesOnePacker` name which error each size range gets. N3: "before allocating the message". N4: dead `open.ASN4` branches deleted in the rr and rs rows and Files. N5: the skip-to-error change named as rr and rs only; the mock and ExaBGP's emission stated. **Next round owed, narrow, because ISSUE-2 adds design: the rr and rs error path (return before `rr.mu` / nil from `parseStructuredOpen`, the warning line an operator sees, and an earlier session's entry left in place but read only while the peer is up), plus the packer's both-fields refusal from ISSUE-1** |
+| 2026-10-14 | review round 4 applied (`tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-open-session-r4.md`: 0 BLOCKER, 3 ISSUE, 6 NIT), producers re-read 2026-10-14 | ISSUE-1: "The warning" written: one WARN record per refused OPEN, three lines (problem, why, next step) with `peer` and `error` attributes, separate rr and rs constants differing only in plugin name and what is recorded; asserted in `TestRouteReflectorReadsExtendedOpen` and `TestRouteServerReadsExtendedOpen`, and in AC-1r. The reviewer's "only log line at WARN" is corrected at the producer: `session_write.go` also logs `notification sent` at WARN (code and subcode, no cause), so this is the only line that says why. ISSUE-2: Wiring rows 5 and 6 and the two `.ci` rows assert what the families drive, not `peerStatus` (which returns `address`, `remote.as`, `up`): rr the ipv6/unicast End-of-RIB from `sendEOR`, rs the forwarded ipv6/unicast UPDATE selected by `SupportsFamily` (two sessions, `conn_map` by remote IP). Beyond the reviewer's proposal: the reactor's initial sync sends an End-of-RIB for every negotiated family (`peer_initial_sync.go`, deduplicated with rr's through `claimInitialSyncEOR`), so an rr EOR assertion alone cannot go red; the rr `.ci` sets `behavior { manual-eor true }` so `AnnounceEOR` from rr is the only producer. ISSUE-3: one concrete struct with private fields, a Capabilities constructor (Type fixed to 2) and a Raw constructor (Type and octets); zero value is a type-0 empty Raw parameter, written as `00 00`; the both-set refusal and its `TestPackOptionalParams` case dropped; the size error is the packer's only error; steps 2 and 6, step 2 of Implementation, and the D1 decision row follow. N1: stray "A" deleted. N2: settled from `docs/guide/appliance.md` (gokrazy restarts only on non-zero), `ze signal restart` exits 0 so is no appliance route. N3: "`buildOptionalParams` allocates once today". N4: both decode failures (`UnpackOpen`, `ParseFromOptionalParams`) warn with the same text, both refused by the reactor through `rejectOpenCapabilityError`. N5: every reader of an earlier session's entry named (`Up` gates: forwarding, rs refresh and validation; `ReplayGen` gates: both `sendEOR`). N6: "R-4 records the separate 4096-octet limit (not fixed here)". **Round 5 owed, narrow, on one point only: the `manual-eor` discriminator in `rr-extended-open-families.ci`, which this round added beyond the reviewer's proposal and which no independent reader has checked. Everything else applies the reviewer's own proposals and adds no design** |
+| 2026-10-14 | review round 5 applied (`tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-open-session-r5.md`: 1 BLOCKER, 3 ISSUE, 4 NIT), producers re-read 2026-10-14 | B1 (rr `sendEOR` only when `replayed > 0`, so a single session never gets rr's End-of-RIB) and I1 (rs's `SupportsFamily` filter bypassed by `rs-fast-path` and by the peer-up adj-rib-in replay): confirmed at `rr.go::replayForPeer` and `rs/server_handlers.go`. Resolved by changing the observable rather than forcing order: each `show rr peers` / `show bgp rs peers` row gains a read-only `families` key ("Recorded-families field", AC-1s, Q6 = a, owner confirmation owed as an additive CLI output change), and both `.ci` poll it through a native observer (`plugin/peer-families-show`, model `register_vpn_withdrawal.go`); one session each, no `manual-eor`, no second session, no `rs-fast-path`; `rs-extended-open-capabilities` renamed `rs-extended-open-families`. The order-forced design the reviewer proposed is option (b) of Q6. I2 (the `AnnounceEOR` dropped-marker window under `manual-eor`): moot under (a), recorded in R-8 for (b). I3: the message is a constant without the peer or the decoder error, line 3 names "the error attribute", and a rendered one-line sample shows both attributes after the message. N1, N4: confirmations, nothing to change. N2: how ze-peer reaches the RFC 9072 form with two `add-capability` lines and where its ipv6/unicast comes from, under "Wiring Test". N3: left to the recorded red, stated there. Also: the absent-key rule for down peers and unrecorded OPENs, rs `Columns` unchanged (`TestDeclaredColumnsExistInPayload`), R-8, user story 4, Integration and Documentation rows 3. **Round 6 owed, narrow: the two tests and the field they read (the observer's poll and pass condition, the absent-key rule, the event-order reading, the red at HEAD), checked by a reader who did not write them** |
+| 2026-10-14 | review round 6 applied (`tmp/session/2026-10-12-0c3648c8-b9d7-45d8-b3f0-2473bceefb25/scratch/review-open-session-r6.md`: 0 BLOCKER, 1 ISSUE, 5 NIT) | I1: the HEAD red of both `.ci` is "no `families` key, the observer fails naming the absent field" (`peerStatus` writes only `address`, `remote`, `up`); the discriminating `ipv4/unicast` red is recorded in Step 2 after the AC-1s key lands, by restoring the one-octet walk; the Wiring note, both `.ci` Functional rows and Implementation Steps 1 and 2 follow, the two `.ci` staying in Step 1 as the Wiring Test requires. N1: the test ends with the observer's `request shutdown` (`runPlugin13(..., shutdown=true)`) and `expect=exit:code=0`. N2: ze's config attaches rr/rs with `receive [ ... state open-received ... ]`, in the Wiring note and both `.ci` rows. N3: the empty-list sentence scoped to rs; rr's list is never empty when Multiprotocol is present. N4: the blocking `Result` wait cited under "Recorded-families field"; the stale `rs/peer.go::SupportsFamily` comment added to Files to Modify. N5: a `show bgp rs peers` row added to `docs/architecture/api/commands.md` in Files and Documentation row 3. **Round 7 not owed: every change applies the reviewer's own proposal and adds no design** |
 
 ## Checklist
 
