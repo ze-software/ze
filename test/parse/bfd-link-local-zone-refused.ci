@@ -1,0 +1,21 @@
+# Test: a single-hop BFD peer written with an IPv6 zone is refused.
+#
+# VALIDATES: `ze config validate` refuses `single-hop-session fe80::b%zbl0`,
+#            naming the leaf and its value and saying to write the link in
+#            `interface` (AC-7 of spec-bfd-link-local-peer-zone).
+# PREVENTS: the link spelled twice, in the zone and in `interface`, where the
+#           two can disagree.
+
+stdin=config:terminator=EOF_CONF
+bfd {
+    enabled true;
+    bind-v6 true;
+    single-hop-session fe80::b%zbl0 {
+        interface zbl0;
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=bfd: single-hop-session fe80::b%zbl0: peer "fe80::b%zbl0" carries a zone: write the address as fe80::b and the link in interface

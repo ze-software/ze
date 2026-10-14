@@ -797,6 +797,24 @@ that floor are discarded before reaching the FSM. Pick `min-ttl` to be
 
 ### Multi-VRF and interface binding
 
+A single-hop session to an IPv6 link-local peer (`fe80::/10`) must name its
+link in `interface`, in the default VRF and in any other: the same address can
+be in use on every link, and the interface is what says which one. One peer on
+two links is two entries:
+
+```
+bfd {
+    single-hop-session fe80::b { interface eth0; }
+    single-hop-session fe80::b { interface eth1; }
+}
+```
+
+Ze refuses a link-local entry with no `interface`, and refuses a `peer` or
+`local` written with a zone (`fe80::b%eth0`): write the address without the
+zone and the link in `interface`. A global IPv6 or an IPv4 peer needs no
+`interface`.
+<!-- source: internal/component/bfd/config.go -- parseSingleHopSession -->
+
 Single-hop pinned sessions may specify an `interface` leaf. When every
 pinned session in the same `(vrf, single-hop)` pair names the same
 interface, the plugin binds the socket to that interface via

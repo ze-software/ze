@@ -102,7 +102,17 @@ at all, so a zone there is dropped rather than moved.
 peer is written to a `net.UDPAddr` carrying the session's interface as its
 zone, because an address alone does not say which link to send it on.
 
+The config holds the link in `interface` alone, so a pinned single-hop session
+gives the engine no second spelling to reconcile. `parseSingleHopSession`
+refuses a `peer` or `local` written with a zone (`fe80::b%eth0`), saying to
+write the link in `interface`, and refuses an IPv6 link-local peer (fe80::/10)
+whose entry names no `interface`, in every VRF: RFC 5881 §3 binds the session to
+its interface, and a VRF device can enslave several links. An IPv4 link-local
+peer carries no zone and is not refused. The refusal runs in the plugin's
+verify, so a commit, a reload and `ze config validate` all stop on it.
+
 <!-- source: internal/component/bfd/engine/engine.go -- firstPacketKey, firstPacketIndex, firstPacketObserved, reconcileZone -->
+<!-- source: internal/component/bfd/config.go -- parseSingleHopSession, refuseZone, isIPv6LinkLocal -->
 <!-- source: internal/component/bfd/transport/udp.go -- destination, sendZone -->
 
 ### One session per neighbor, whatever asks for it

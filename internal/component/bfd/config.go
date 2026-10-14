@@ -1,4 +1,5 @@
 // Design: rfc/short/rfc5880.md -- BFD configuration model
+// RFC: rfc/short/rfc5881.md -- Section 3 (a single-hop session is bound to its interface)
 // Related: bfd.go -- plugin lifecycle that consumes the parsed config
 //
 // BFD plugin config parser. Consumes the JSON-encoded `bfd` section
@@ -421,6 +422,11 @@ func parseSingleHopSession(listKey string, fields map[string]any, profiles map[s
 		vrf:     defaultVRF(stringField(fields, "vrf")),
 		profile: stringField(fields, "profile"),
 	}
+	// The link is held once, in `interface`: a zone on `peer` or `local`
+	// would be a second spelling of it that could disagree.
+	if peer.Zone() != "" {
+		return sessionConfig{}, refuseZone(peerStr, "peer", peerStr, peer)
+	}
 	if v := stringField(fields, "interface"); v != "" {
 		s.iface = v
 	}
@@ -429,7 +435,18 @@ func parseSingleHopSession(listKey string, fields map[string]any, profiles map[s
 		if lerr != nil {
 			return sessionConfig{}, fmt.Errorf("bfd: single-hop-session %s: invalid local %q: %w", peer, v, lerr)
 		}
+		if local.Zone() != "" {
+			return sessionConfig{}, refuseZone(peerStr, "local", v, local)
+		}
 		s.local = local
+	}
+	// RFC 5881 Section 3: "The BFD session must be bound to this interface."
+	// A link-local peer exists on every link at once, so the interface is
+	// the only thing that says which one. The VRF does not: a VRF device
+	// can enslave several links.
+	if s.iface == "" && isIPv6LinkLocal(peer) {
+		return sessionConfig{}, fmt.Errorf(
+			"bfd: single-hop-session %s: a link-local peer is on one link only: add interface naming the link it is on", peerStr)
 	}
 	if v, ok := fields["shutdown"].(string); ok {
 		s.shutdown = parseBool(v, false)
@@ -440,6 +457,22 @@ func parseSingleHopSession(listKey string, fields map[string]any, profiles map[s
 		}
 	}
 	return s, nil
+}
+
+// refuseZone builds the refusal of a single-hop `peer` or `local` written
+// with an IPv6 zone. entry is the peer as the entry writes it, leaf the leaf
+// that carries the zone, and written that leaf's value as the config writes
+// it.
+func refuseZone(entry, leaf, written string, addr netip.Addr) error {
+	return fmt.Errorf("bfd: single-hop-session %s: %s %q carries a zone: write the address as %s and the link in interface",
+		entry, leaf, written, addr.WithZone(""))
+}
+
+// isIPv6LinkLocal reports whether addr is an IPv6 link-local unicast address
+// (fe80::/10). An IPv4 link-local address, mapped or not, is not one: it
+// carries no zone, and the subnet check routes it like any IPv4 peer.
+func isIPv6LinkLocal(addr netip.Addr) bool {
+	return addr.Is6() && !addr.Is4In6() && addr.IsLinkLocalUnicast()
 }
 
 // parseMultiHopSession decodes one entry under `multi-hop-session`. Same

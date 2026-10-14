@@ -150,3 +150,87 @@ func TestSetFormReplayKeepsTwoLinkLocalSessions(t *testing.T) {
 		})
 	}
 }
+
+// TestSingleHopLinkLocalPeerNeedsInterface is AC-5, AC-6 and AC-6a of
+// spec-bfd-link-local-peer-zone.
+//
+// GOAL: a link-local single-hop peer is configured only together with the
+// link it is on. METHOD: config text through the config file parser and the
+// plugin's parseSections, as a commit, a reload and a start all do.
+//
+// VALIDATES: a `fe80::/10` peer with no `interface` is refused in the default
+// VRF and in `vrf blue`, the error naming the peer and `interface`; the same
+// peer with `interface`, a global IPv6 peer and an IPv4 peer (link-local
+// included) without one are accepted.
+// PREVENTS: a link-local session that names no link loading and then sending
+// on whichever link the kernel's route lookup picks (RFC 5881 Section 3).
+func TestSingleHopLinkLocalPeerNeedsInterface(t *testing.T) {
+	cases := []struct {
+		name    string
+		session string
+		refused bool
+	}{
+		{"link-local without interface", `single-hop-session fe80::b { local fe80::a; }`, true},
+		{"link-local without interface in vrf blue", `single-hop-session fe80::b { vrf blue; }`, true},
+		{"link-local with interface", `single-hop-session fe80::b { interface zbl0; }`, false},
+		{"link-local with interface in vrf blue", `single-hop-session fe80::b { interface zbl0; vrf blue; }`, false},
+		{"global IPv6 without interface", `single-hop-session 2001:db8::b { }`, false},
+		{"IPv4 without interface", `single-hop-session 192.0.2.9 { }`, false},
+		{"IPv4 link-local without interface", `single-hop-session 169.254.0.9 { }`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parseBFDConfigText(t, "bfd {\n\tenabled true;\n\tbind-v6 true;\n\t"+tc.session+"\n}\n")
+			if !tc.refused {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("accepted a link-local peer that names no interface")
+			}
+			want := "bfd: single-hop-session fe80::b: a link-local peer is on one link only: add interface naming the link it is on"
+			if err.Error() != want {
+				t.Errorf("error %q, want %q", err, want)
+			}
+		})
+	}
+}
+
+// TestSingleHopPeerRefusesAZone is AC-7 of spec-bfd-link-local-peer-zone.
+//
+// GOAL: the link of a session is written once, in `interface`. METHOD:
+// `peer` (the entry's first key value) and `local` each written with a zone,
+// through the config file parser and parseSections.
+//
+// VALIDATES: each is refused, the error naming the leaf and its value and
+// saying to write the address without the zone and the link in `interface`.
+// PREVENTS: a second spelling of the link that can disagree with `interface`.
+func TestSingleHopPeerRefusesAZone(t *testing.T) {
+	cases := []struct {
+		name    string
+		session string
+		want    string
+	}{
+		{
+			"peer", `single-hop-session fe80::b%zbl0 { interface zbl0; }`,
+			`bfd: single-hop-session fe80::b%zbl0: peer "fe80::b%zbl0" carries a zone: write the address as fe80::b and the link in interface`,
+		},
+		{
+			"local", `single-hop-session fe80::b { interface zbl0; local fe80::a%zbl0; }`,
+			`bfd: single-hop-session fe80::b: local "fe80::a%zbl0" carries a zone: write the address as fe80::a and the link in interface`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parseBFDConfigText(t, "bfd {\n\tenabled true;\n\tbind-v6 true;\n\t"+tc.session+"\n}\n")
+			if err == nil {
+				t.Fatalf("accepted a zoned %s", tc.name)
+			}
+			if err.Error() != tc.want {
+				t.Errorf("error %q, want %q", err, tc.want)
+			}
+		})
+	}
+}

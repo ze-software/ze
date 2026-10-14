@@ -203,14 +203,17 @@ module ze-bfd-conf {
                 description "The value is the first word after the list name, so single-hop-session
                     203.0.113.9 names this peer. Ze refuses an address it cannot parse, and IPv4 and IPv6
                     are both accepted. RFC 5881 Section 5 requires a received TTL of 255, so Ze discards
-                    a Control packet from this peer that crossed a router.";
+                    a Control packet from this peer that crossed a router. An IPv6 link-local peer
+                    (fe80::/10) is refused unless the entry names its link in interface, and an address
+                    written with a zone (fe80::b%eth0) is refused: the link is written in interface.";
                 ze:help "Peer IPv4 or IPv6 address.";
             }
             leaf local {
                 type string;
                 description "While the leaf is absent, the kernel selects the source address. The address
                     is part of the session key. A change to it therefore releases the running session,
-                    and creates a new one at the next config load.";
+                    and creates a new one at the next config load. An address written with a zone is
+                    refused: the link is written in interface.";
                 ze:help "Local source address (optional).";
             }
             leaf interface {
@@ -219,7 +222,8 @@ module ze-bfd-conf {
                     socket serves every session of one VRF and hop mode. Ze binds it only when each
                     session in the default VRF names the same interface. A mix of names leaves the
                     socket unbound, with a warning in the log. In a VRF other than default the VRF
-                    device wins, and this leaf is dropped.";
+                    device wins, and this leaf is dropped from the socket binding; it still names the
+                    session's link. An IPv6 link-local peer needs this leaf in every VRF.";
                 ze:help "Egress interface name.";
             }
             leaf vrf {

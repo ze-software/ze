@@ -1,0 +1,22 @@
+# Test: a link-local single-hop BFD peer that names no interface is refused.
+#
+# VALIDATES: `ze config validate` refuses `single-hop-session fe80::b` with no
+#            `interface`, naming the peer and saying to add `interface` (AC-5 of
+#            spec-bfd-link-local-peer-zone). The bfd plugin's verify runs
+#            parseSingleHopSession over the committed tree.
+# PREVENTS: a link-local session loading with no link and sending on whichever
+#           link the kernel's fe80::/64 route lookup picks (RFC 5881 Section 3).
+
+stdin=config:terminator=EOF_CONF
+bfd {
+    enabled true;
+    bind-v6 true;
+    single-hop-session fe80::b {
+        local fe80::a;
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=bfd: single-hop-session fe80::b: a link-local peer is on one link only: add interface naming the link it is on
