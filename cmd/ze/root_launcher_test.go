@@ -393,9 +393,22 @@ func main() {
 	}
 	// Hold the real compiler's output open at its publication boundary. No
 	// output is fabricated: this only makes the writable-inode window stable.
+	// le builds with the go of the tree its goroot step printed, not the go on
+	// PATH, so the hold sits in that tree: the goroot step runs for real and its
+	// answer is swapped for a tree whose bin/go runs the real tree's compiler
+	// and then holds. Every other call reaches the real go unchanged.
 	writeExecutable(t, filepath.Join(fixture, "fakebin", "go"), `#!/bin/sh
 set -eu
-"$ZE_REAL_GO" "$@"
+if [ "${1-}" != run ]; then
+	exec "$ZE_REAL_GO" "$@"
+fi
+real_tree=$("$ZE_REAL_GO" "$@")
+tree=$PWD/barriergoroot
+mkdir -p "$tree/bin"
+{
+	printf '#!/bin/sh\nset -eu\nreal_tree=%s\n' "'$real_tree'"
+	cat <<'EOF_BARRIER'
+GOROOT=$real_tree "$real_tree/bin/go" "$@"
 out=
 previous=
 for arg do
@@ -406,6 +419,10 @@ exec 3>>"$out"
 printf 'publication pending\n'
 read release
 exec 3>&-
+EOF_BARRIER
+} > "$tree/bin/go"
+chmod +x "$tree/bin/go"
+printf '%s\n' "$tree"
 `)
 	second := exec.CommandContext(ctx, filepath.Join(fixture, "le"), "--name", buildNameProbe)
 	second.Dir = fixture
@@ -685,6 +702,7 @@ func launcherFixture(t *testing.T, root, launcher string) string {
 	if err := os.WriteFile(filepath.Join(fixture, "feature-tags"), reader, 0o600); err != nil {
 		t.Fatalf("write feature-tags: %v", err)
 	}
+	writeFakeStdpatchGoroot(t, fixture)
 	if err := os.WriteFile(filepath.Join(fixture, "go.mod"), []byte("module launcher.test/fixture\n\ngo 1.27\ntoolchain go1.27.0\n"), 0o600); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
@@ -693,6 +711,34 @@ func launcherFixture(t *testing.T, root, launcher string) string {
 		t.Fatalf("write feature-gates.txt: %v", err)
 	}
 	return fixture
+}
+
+// writeFakeStdpatchGoroot gives the fixture module the program le's build_le
+// runs first, `go run ./internal/le/go/stdpatch/goroot`, for the tests that
+// build with the real compiler. The real program builds Ze's patched standard
+// library from the checkout's patch set; the fixture has no patch set and no Ze
+// import path, so this one keeps the contract the launcher relies on and no
+// more: print a GOROOT holding bin/go on standard output, or fail. It answers
+// the toolchain the go.mod pin selected, so the build that follows compiles
+// with the same Go as the goroot step did.
+func writeFakeStdpatchGoroot(t *testing.T, fixture string) {
+	t.Helper()
+	writeExecutable(t, filepath.Join(fixture, "internal", "le", "go", "stdpatch", "goroot", "main.go"), `package main
+
+import (
+	"os"
+	"os/exec"
+)
+
+func main() {
+	tree, err := exec.Command("go", "env", "GOROOT").Output()
+	if err != nil {
+		os.Stderr.WriteString(err.Error() + "\n")
+		os.Exit(1)
+	}
+	os.Stdout.Write(tree)
+}
+`)
 }
 
 // launcherEnv removes every spelling of the outer launcher's identity and root.
@@ -736,9 +782,27 @@ func writeFakeGo(t *testing.T, root string) {
 	writeFakeGoProducing(t, root, fakeBuiltBinary)
 }
 
+// writeFakeGoProducing installs a fake go that answers the two calls the
+// launchers make. `go run ./internal/le/go/stdpatch/goroot` is le's first step
+// (build_le): the real program prints the patched GOROOT, a tree holding bin/go,
+// so the fake prints a tree whose bin/go is a copy of itself. Every other call
+// is the build: it records its environment and arguments and writes produced at
+// its -o path. le's build therefore runs through the tree's go, as it does in
+// the checkout, and ze's through the go on PATH.
 func writeFakeGoProducing(t *testing.T, root, produced string) {
 	t.Helper()
 	writeExecutable(t, filepath.Join(root, "fakebin", "go"), `#!/bin/sh
+if [ "${1-}" = run ]; then
+	if [ "${2-}" != ./internal/le/go/stdpatch/goroot ]; then
+		echo "fake go: unexpected go run $*" >&2
+		exit 2
+	fi
+	tree=$PWD/fakegoroot
+	mkdir -p "$tree/bin"
+	cp "$0" "$tree/bin/go"
+	printf '%s\n' "$tree"
+	exit 0
+fi
 {
 	printf 'cwd=%s\n' "$PWD"
 	printf 'GOCACHE=%s\n' "$GOCACHE"
