@@ -1,6 +1,7 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-14",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -8,19 +9,29 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9234-3.1-1": {
-      "note": "the quote holds three MUST NOTs: Customer, RS-Client and Peer roles propagate only Customer-learned or local routes. TestOTCEgressFilter asserts suppression for Provider-learned->Provider, Peer-learned->Peer, Peer-learned->RS, RS-learned->Provider; TestOTCEgressSuppressProviderLearnedWithoutMeta for Provider-learned->Provider with no meta. Provider-learned->Peer/RS, RS-learned->Peer/RS and Peer-learned->Provider have no assertion (question 4). The same unit's untagged subtest src_role_rs_to_provider_accept asserts an RS-Client-learned route IS sent to a Provider, which the Customer rule's 'All other routes MUST NOT be propagated' forbids (question 1; see findings)",
+      "note": "Re-judged 2026-10-14 (independent auditor, D4, owner Q-D4 (a)). RFC 9234 Section 3.1: Customer, RS-Client and Peer \"MAY propagate any route learned from a Customer, or that is locally originated\" to a Provider, an RS and a Peer, and \"All other routes MUST NOT be propagated.\" Producer OTCEgressFilter (role/otc.go) suppresses when the destination remote role is provider, peer or rs and the source role (our role toward the source) is customer, peer, rs-client or rs. TestOTCEgressFilter asserts suppression for every member of both sets: Provider-learned to Provider, Peer-learned to Peer and RS, RS-learned to Provider, RS-Client-learned to Provider, Peer and RS (the rs case the earlier verdict found propagated now asserts suppression); TestOTCEgressSuppressProviderLearnedWithoutMeta covers the config fallback with nil meta. Negatives: Customer-learned reaches a Provider and a Customer, RS-Client-learned reaches a Customer and an RS-Client, so the suppression is scoped. Each set member is pinned by at least one exact assertion, so dropping a role from either set goes red; not every source-destination pair is asserted, which the set-membership producer makes redundant.",
       "requirement_sha": "dd09c11c76e8af3a",
       "tests": {
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#2": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "885cc967d56945b1"
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#2": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#3": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#4": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#5": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#6": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#7": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "7b0a9e434ba435f3"
       },
       "units": {
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter": "65bedd0efe068003",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#2": "65bedd0efe068003",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter": "4da3b60ddbe7c227",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#2": "4da3b60ddbe7c227",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#3": "4da3b60ddbe7c227",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#4": "4da3b60ddbe7c227",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#5": "4da3b60ddbe7c227",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#6": "4da3b60ddbe7c227",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#7": "4da3b60ddbe7c227",
         "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "5ae3d32f3d68b57d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9234-4.1-1": {
       "note": "Positive on the wire: dynamic-peer-gets-group-role-capability.ci asserts ze's whole OPEN octet for octet ending 09 01 01 (role rs configured); revert record on extractRoleCapabilities, plus a mutant record on extractPeerRoleConfigs for TestExtractRoleCapabilities_ParseBGPConfig. Negative (no, invalid or empty role: no capability 9) is a table case in that same unit, recorded 2026-09-29 by the judge (revert extractRoleCapabilities, observed red).",
@@ -127,8 +138,8 @@
       "requirement_sha": "af215f89cdddb4ff",
       "tests": {
         "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "2ac8fba09ccdee06",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress#2": "885cc967d56945b1"
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress#2": "7b0a9e434ba435f3"
       },
       "units": {
         "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "d248f6d80a39daa8",
@@ -141,11 +152,11 @@
       "note": "non-compliant: OTC procedures applied to a non AFI1/2 SAFI1 family. Egress stamp: TestOTCEgressUnicastOnly (ipv4 multicast, mods.Len()==0) and TestOTCEgressNonUnicastWithdrawalNotProcessed (VPNv4); egress rule 2: TestOTCNonUnicastWithdrawalSkipsOTCProcedures egress_rule_2_does_not_suppress; ingress rule 1: its ingress_rule_1_does_not_reject subtest; family gate: TestIsPayloadUnicastMPUnreachFamily. Negative TestOTCEgressStampMod stamps IPv4 unicast",
       "requirement_sha": "2374441580699bca",
       "tests": {
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNonUnicastWithdrawalNotProcessed": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressUnicastOnly": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCNonUnicastWithdrawalSkipsOTCProcedures": "885cc967d56945b1"
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNonUnicastWithdrawalNotProcessed": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressUnicastOnly": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCNonUnicastWithdrawalSkipsOTCProcedures": "7b0a9e434ba435f3"
       },
       "units": {
         "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "951fbe646d051a7b",
@@ -161,7 +172,7 @@
       "requirement_sha": "78a1a888b502be21",
       "tests": {
         "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings": "790b5f8818e8d37c",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "885cc967d56945b1"
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "7b0a9e434ba435f3"
       },
       "units": {
         "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings": "d6f3c3590e72fb78",
@@ -175,8 +186,8 @@
       "tests": {
         "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw": "a264ab1f5def86dc",
         "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw": "a264ab1f5def86dc",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "885cc967d56945b1"
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "7b0a9e434ba435f3"
       },
       "units": {
         "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw": "1b3051612748420a",
@@ -190,8 +201,8 @@
       "note": "non-compliant: Peer route whose OTC differs from the Peer's AS accepted. TestOTCIngressFilter reject_peer_otc_mismatch asserts accept=false (OTC 65099 vs PeerAS 65003); negative accept_peer_otc_matches asserts accept=true and no rewrite; TestCheckOTCIngress also pins reject_peer_otc_wrong and zero ASN",
       "requirement_sha": "d6339ba62c2c3e53",
       "tests": {
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter#2": "885cc967d56945b1"
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter#2": "7b0a9e434ba435f3"
       },
       "units": {
         "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "5c8a60dca8e82b66",
@@ -203,10 +214,10 @@
       "note": "non-compliant: a route without OTC from Provider, Peer or RS left unstamped or stamped with another ASN. TestOTCIngressFilter stamp_from_provider finds OTC == remote AS 65002 in the rewritten payload; TestCheckOTCIngress stamp_from_provider/peer/rs assert stampASN == remote ASN for each of the three roles. Negatives: Customer/RS-Client not stamped, pure withdrawal and MP_UNREACH-only not stamped",
       "requirement_sha": "2ee81cb8e6e90e03",
       "tests": {
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnMPUnreachOnly": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnPureWithdrawal": "885cc967d56945b1"
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnMPUnreachOnly": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnPureWithdrawal": "7b0a9e434ba435f3"
       },
       "units": {
         "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "a8f63ea4d0fba230",
@@ -222,12 +233,12 @@
       "tests": {
         "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCNotStampedOutsideTheDownstreamScope": "790b5f8818e8d37c",
         "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCStampedToEveryDownstreamDestination": "790b5f8818e8d37c",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNoStampOnMPUnreachOnly": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNoStampOnPureWithdrawal": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNoStampProvider": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsMixedWithdrawAndAnnounce": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig": "885cc967d56945b1",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNoStampOnMPUnreachOnly": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNoStampOnPureWithdrawal": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNoStampProvider": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsMixedWithdrawAndAnnounce": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig": "7b0a9e434ba435f3",
         "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal": "f5f441d25f0d5702",
         "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2": "f5f441d25f0d5702",
         "test/plugin/role-otc-fwd-withdraw.ci": "291620aeb22446f9",
@@ -259,8 +270,8 @@
       "note": "non-compliant: an OTC-carrying route sent to a Provider, Peer or RS. TestOTCEgressWireBytesCheck asserts OTCEgressFilter false for each of the three destinations with no source config, true for an OTC route to a Customer and for a no-OTC route to a Provider",
       "requirement_sha": "041f5055e7ddc27a",
       "tests": {
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck#2": "885cc967d56945b1"
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck#2": "7b0a9e434ba435f3"
       },
       "units": {
         "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "e23814d1392c7383",
@@ -272,8 +283,8 @@
       "note": "non-compliant: an existing OTC value rewritten. TestOTCAttrModHandlerExistingPreserved plans OTC 65001 from source against a set op of 65000 and asserts the emitted value is 65001. Negative TestOTCAttrModHandlerNewAttr: no prior OTC, so the op's value is emitted. The confederation parenthetical has no ze code path (RFC9234-5-7/5-8 are not-applicable)",
       "requirement_sha": "19c8a7485552c882",
       "tests": {
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerExistingPreserved": "885cc967d56945b1",
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerNewAttr": "885cc967d56945b1"
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerExistingPreserved": "7b0a9e434ba435f3",
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerNewAttr": "7b0a9e434ba435f3"
       },
       "units": {
         "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCAttrModHandlerExistingPreserved": "8016e32b59b373aa",
@@ -285,7 +296,7 @@
       "note": "single-polarity positive. non-compliant: egress OTC carrying a value other than the local (internet-facing) AS. TestOTCEgressStampLocalASN asserts the stamped value is dest.LocalAS 64999, not src AS 65001 nor dest peer AS 65002",
       "requirement_sha": "0d1b5fb6f1229d3e",
       "tests": {
-        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN": "885cc967d56945b1"
+        "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN": "7b0a9e434ba435f3"
       },
       "units": {
         "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN": "d3c54cf60f14c3ea"
