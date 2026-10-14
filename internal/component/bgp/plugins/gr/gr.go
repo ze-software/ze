@@ -33,6 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -318,22 +319,19 @@ func (gp *grPlugin) handleStructuredOpen(peerAddr string, msg *bgptypes.RawMessa
 	}
 
 	var foundGR bool
-	// Walk optional parameters looking for type 2 (capabilities).
-	offset := 0
-	for offset < len(open.OptionalParams) {
-		if offset+2 > len(open.OptionalParams) {
-			break
-		}
-		paramType := open.OptionalParams[offset]
-		paramLen := int(open.OptionalParams[offset+1])
-		offset += 2
-		if offset+paramLen > len(open.OptionalParams) {
-			break
-		}
+	// RFC 9072 Section 2: the OPEN's own framing decides the Parameter Length
+	// width, so an extended OPEN's GR capability is read, not misframed.
+	err = capability.WalkOptionalParams(open.OptionalParams, open.ExtendedParams, func(paramType uint8, value []byte) error {
 		if paramType == 2 {
-			foundGR = gp.extractGRCaps(peerAddr, open.OptionalParams[offset:offset+paramLen], foundGR)
+			foundGR = gp.extractGRCaps(peerAddr, value, foundGR)
 		}
-		offset += paramLen
+		return nil
+	})
+	if err != nil {
+		// The reactor refuses the same OPEN (rejectOpenCapabilityError), so no
+		// session follows it and the earlier capability is left as it was.
+		logger().Debug("gr: failed to read OPEN optional parameters", "peer", peerAddr, "err", err)
+		return
 	}
 
 	// RFC 4724 Section 4.2, RFC 9494 Section 4.5.

@@ -137,7 +137,7 @@ above 65532 octets of capabilities) rather than send an OPEN missing them.
 |-----------|------|-----|
 | 2 | Capabilities | RFC 5492 |
 
-<!-- source: internal/core/bgp/capability/capability.go -- ParseFromOptionalParams -->
+<!-- source: internal/core/bgp/capability/optional_params.go -- ParseFromOptionalParams -->
 
 An unknown Optional Parameter type causes OPEN Message Error / Unsupported
 Optional Parameters (2/4). A malformed recognized parameter, including a
@@ -158,7 +158,7 @@ advertised values. In particular, an ASN4 tuple carries four value octets, not a
 empty value. Per-family ADD-PATH rejection carries code 69 and the advertised
 family direction rather than a Multiprotocol tuple.
 
-<!-- source: internal/core/bgp/capability/capability.go -- ParseFromOptionalParams -->
+<!-- source: internal/core/bgp/capability/optional_params.go -- ParseFromOptionalParams -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go -- rejectOpenCapabilityError -->
 
 ### Capability TLV (within Optional Parameter Type 2)

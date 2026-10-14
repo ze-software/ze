@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -94,7 +95,9 @@ func (e *OpenValidationUnavailableError) NotifyCodes() (uint8, uint8) {
 
 // openMessageToRPC converts a message.Open to rpc.ValidateOpenMessage for plugin IPC.
 // Extracts capabilities as raw {code, hex} pairs from the OptionalParams TLV structure.
-func openMessageToRPC(open *message.Open) rpc.ValidateOpenMessage {
+// An OPEN whose Optional Parameters do not frame is an error, never an empty
+// capability list a policy plugin would judge as the peer's.
+func openMessageToRPC(open *message.Open) (rpc.ValidateOpenMessage, error) {
 	asn := uint32(open.MyAS)
 	if open.ASN4 > 0 {
 		asn = open.ASN4
@@ -110,44 +113,27 @@ func openMessageToRPC(open *message.Open) rpc.ValidateOpenMessage {
 		HoldTime: open.HoldTime,
 	}
 
-	// Extract capabilities from OptionalParams TLV structure.
-	// RFC 5492: Optional Parameters are type(1) + length(1) + value(variable).
-	// Type 2 = Capabilities Optional Parameter, containing capability TLVs.
-	msg.Capabilities = extractCapabilitiesFromOptParams(open.OptionalParams)
-
-	return msg
+	// RFC 9072 Section 2: the OPEN's own framing decides the Parameter Length width.
+	caps, err := extractCapabilitiesFromOptParams(open.OptionalParams, open.ExtendedParams)
+	if err != nil {
+		return rpc.ValidateOpenMessage{}, err
+	}
+	msg.Capabilities = caps
+	return msg, nil
 }
 
 // extractCapabilitiesFromOptParams extracts raw capability {code, hex} pairs
-// from the BGP OPEN OptionalParams field.
+// from the BGP OPEN OptionalParams field, framed as extended says
+// (message.Open.ExtendedParams).
 // Does NOT parse capability values — just extracts code and raw value bytes.
-func extractCapabilitiesFromOptParams(optParams []byte) []rpc.ValidateOpenCapability {
-	if len(optParams) == 0 {
-		return nil
-	}
-
+// A parameter that runs past the field is an error (capability.ErrShortRead); a
+// capability TLV that runs past its parameter ends that parameter's list.
+func extractCapabilitiesFromOptParams(optParams []byte, extended bool) ([]rpc.ValidateOpenCapability, error) {
 	var caps []rpc.ValidateOpenCapability
-	offset := 0
-
-	for offset < len(optParams) {
-		if offset+2 > len(optParams) {
-			break
-		}
-
-		paramType := optParams[offset]
-		paramLen := int(optParams[offset+1])
-		offset += 2
-
-		if offset+paramLen > len(optParams) {
-			break
-		}
-
-		paramData := optParams[offset : offset+paramLen]
-		offset += paramLen
-
+	err := capability.WalkOptionalParams(optParams, extended, func(paramType uint8, paramData []byte) error {
 		// Type 2 = Capabilities Optional Parameter (RFC 3392/5492)
 		if paramType != 2 {
-			continue
+			return nil
 		}
 
 		// Parse capability TLVs within this parameter
@@ -173,9 +159,12 @@ func extractCapabilitiesFromOptParams(optParams []byte) []rpc.ValidateOpenCapabi
 				Hex:  hex.EncodeToString(capValue),
 			})
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("OPEN optional parameters: %w", err)
 	}
-
-	return caps
+	return caps, nil
 }
 
 // validateOpenTimeout is the timeout for a single validate-open RPC call.
@@ -219,11 +208,19 @@ func broadcastValidateOpen(s *pluginserver.Server, peerAddr, group string, polic
 	// pending is empty. The unanswered check below still governs this exit: it is the
 	// one place that decides what an unasked policy means.
 	if pm := s.ProcessManager(); pm != nil {
+		localMsg, err := openMessageToRPC(localOpen)
+		if err != nil {
+			return fmt.Errorf("broadcastValidateOpen: local %w", err)
+		}
+		remoteMsg, err := openMessageToRPC(remoteOpen)
+		if err != nil {
+			return fmt.Errorf("broadcastValidateOpen: remote %w", err)
+		}
 		input := &rpc.ValidateOpenInput{
 			Peer:   peerAddr,
 			Group:  group,
-			Local:  openMessageToRPC(localOpen),
-			Remote: openMessageToRPC(remoteOpen),
+			Local:  localMsg,
+			Remote: remoteMsg,
 		}
 
 		if err := askOpenValidators(s.Context(), pm.AllProcesses(), input, pending); err != nil {

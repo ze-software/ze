@@ -62,9 +62,14 @@ output once.
 The boundary is the whole field, parameter headers included, not the
 capability total: RFC 9072 Section 2 switches encodings when "the length of the
 Optional Parameters in the BGP OPEN message does exceed 255". The decoder,
-`ParseFromOptionalParams`, reads both framings.
+`ParseFromOptionalParams`, reads both framings through `WalkOptionalParams`,
+the one reader of the parameter framing. A reader that needs a capability's
+raw value octets (the GR plugin, the OPEN validation RPC to policy plugins, the
+MRT decoder) walks the parameters with `WalkOptionalParams` and the OPEN's own
+`ExtendedParams`, never with a one-octet loop of its own.
 
 <!-- source: internal/core/bgp/capability/optional_params.go -- PackOptionalParams -->
+<!-- source: internal/core/bgp/capability/optional_params.go -- WalkOptionalParams -->
 
 ## Capability Codes
 

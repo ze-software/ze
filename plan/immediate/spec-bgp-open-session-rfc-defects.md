@@ -409,13 +409,20 @@ readers misframe. Read at the producers on 2026-10-14:
 | `parseStructuredOpen` (`internal/component/bgp/plugins/rs/server.go`) | the same walk, `formatCapInfo` per capability, ASN4 | the same |
 | `exabgpNegotiatedEncoding` (`internal/le/interoplab/bgp/exabgp_server.go`), interop test tooling | reads the length from `openBody[9]` and calls `capability.ParseFromOptionalParams(..., false)` | an extended OPEN (255/255 marker) is read as 255 octets of one-octet parameters: ADD-PATH is missed or the parse fails |
 | `bgpExtractAS4` (`internal/analyze/bgpconn.go`), called by `serveBGPOpen` (`serve.go`) for `ze analyze serve` (brought in by the main thread, 2026-10-14) | reads the length from `body[9]` and walks the parameters with a one-octet length for the Four-octet AS capability, answering My AS on any failure | an extended OPEN is read as 255 octets of one-octet parameters, so the AS is missed; an unreadable OPEN answers My AS. Fixed: `bgpPeerAS` reads the RFC 9072 envelope (`bgpPeerOptionalParams`, `internal/analyze` imports no `message`, see the D1 home rationale) and the parameters through `ParseFromOptionalParams`, and an unreadable OPEN is an error; `TestAnalyzePeerASReadsExtendedOpen` (red with the old walk restored: RFC 9072 form AS 23456) |
+| `grPlugin.handleStructuredOpen` (`internal/component/bgp/plugins/gr/gr.go`), brought in by the main thread under the owner's delegation, 2026-10-14 | `message.UnpackOpen`, then walks `open.OptionalParams` with a one-octet Parameter Length and hands each type-2 value to `extractGRCaps`, which decodes codes 64 and 71 from the raw octets (the N bit and the per-family flags `capability.GracefulRestart` does not carry) | an extended OPEN is misframed, so the peer's Graceful Restart Capability is missed and its routes are purged rather than retained: a protocol defect. Fixed: walks with `capability.WalkOptionalParams(open.OptionalParams, open.ExtendedParams, ...)`; a framing error logs at DEBUG and leaves the earlier capability (the reactor refuses that OPEN); `TestGRReadsExtendedOpen` (red with one-octet framing forced: capability not stored, open-impl/readers3-red.log) |
+| `extractCapabilitiesFromOptParams` (`internal/component/bgp/server/validate.go`), called by `openMessageToRPC` for the validate-open RPC (brought in 2026-10-14) | the same one-octet walk, raw `{code, hex}` pairs per capability | an extended OPEN reaches the policy plugins (role) as a misframed or empty capability list. Fixed: walks with `WalkOptionalParams` and `open.ExtendedParams`; a framing error is an error, so `openMessageToRPC` returns `(msg, error)` and `broadcastValidateOpen` refuses the pair instead of sending a shorter list; `TestOpenMessageToRPCReadsExtendedOpen` (red: short read on the RFC 9072 form) |
+| `parseOpen` and `parseCapabilities` (`internal/mrt/bgp.go`), the offline MRT decoder (brought in 2026-10-14) | reads the length from `body[9]` and walks with a one-octet Parameter Length | an extended OPEN is read as 255 octets of one-octet parameters: AS 23456 and no capabilities. Fixed: `openOptionalParams` reads the RFC 9072 envelope (mrt imports no component package; `message` imports `plugin/registry`, the same reason as `bgpPeerOptionalParams`), `parseCapabilities` walks with `WalkOptionalParams`, and a parameter past the field is an error; `TestParseOpenReadsExtendedOpen` (red: AS 23456, no capabilities) |
 
 `plan/journal/helper-bypassed-by-an-open-coded-copy.md` carries the HEAD defect
 (2026-10-14, "designed in spec-bgp-open-session-rfc-defects").
 
 **Design: one reader.** `capability.ParseFromOptionalParams(optParams, extended)`
-already decodes both framings and is what the reactor, bmp, mrt and the CLI
-decoder call.
+already decodes both framings and is what the reactor, bmp and the CLI decoder
+call.
+It now decodes through `capability.WalkOptionalParams(optParams, extended, fn)`,
+the one reader of the parameter framing, which the readers that need a
+capability's raw octets (gr, the validate-open RPC, mrt) call directly; it moved
+with `ParseFromOptionalParams` into `optional_params.go` beside the packer.
 
 | Reader | Change |
 |--------|--------|

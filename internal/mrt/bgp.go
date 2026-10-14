@@ -155,11 +155,15 @@ func parseOpen(body []byte) (*ParsedOpen, error) {
 	o.ASN = uint32(asn16)
 	copy(o.RouterID[:], body[5:9])
 
-	optLen := int(body[9])
-	if 10+optLen > len(body) {
-		return nil, errShortMessage
+	optParams, extended, err := openOptionalParams(body)
+	if err != nil {
+		return nil, err
 	}
-	o.Caps = parseCapabilities(body[10 : 10+optLen])
+	caps, err := parseCapabilities(optParams, extended)
+	if err != nil {
+		return nil, err
+	}
+	o.Caps = caps
 
 	for _, cap := range o.Caps {
 		if cap.Code == 65 && len(cap.Value) == 4 {
@@ -169,21 +173,47 @@ func parseOpen(body []byte) (*ParsedOpen, error) {
 	return o, nil
 }
 
-func parseCapabilities(optParams []byte) []Capability {
+// openOptionalParams cuts the Optional Parameters out of an OPEN body and
+// reports whether they carry the RFC 9072 two-octet framing. mrt reads the
+// envelope itself rather than through message.UnpackOpen because
+// internal/component/bgp/message imports internal/component/plugin/registry,
+// and this offline decoder imports no component package (the same reason as
+// internal/analyze's bgpPeerOptionalParams).
+func openOptionalParams(body []byte) ([]byte, bool, error) {
+	paramsLen := int(body[9])
+	// RFC 9072 Section 2: "In parsing an OPEN message, if the one-octet Optional
+	// Parameters Length field (labeled "Non-Ext OP Len." in Figure 1) is non-zero,
+	// a BGP speaker MUST use the value of the octet following the one-octet
+	// Optional Parameters Length field (labeled "Non-Ext OP Type" in Figure 1) to
+	// determine both the encoding of the Optional Parameters length and the size
+	// of the Parameter Length field of individual Optional Parameters."
+	if paramsLen > 0 && len(body) > 10 && body[10] == 255 {
+		if len(body) < 13 {
+			return nil, false, errShortMessage
+		}
+		extendedLen := int(binary.BigEndian.Uint16(body[11:13]))
+		if len(body) < 13+extendedLen {
+			return nil, false, errShortMessage
+		}
+		return body[13 : 13+extendedLen], true, nil
+	}
+	if len(body) < 10+paramsLen {
+		return nil, false, errShortMessage
+	}
+	return body[10 : 10+paramsLen], false, nil
+}
+
+// parseCapabilities copies every capability TLV out of the type-2 Optional
+// Parameters, framed as extended says. Parameters of another type are skipped:
+// an MRT dump records what a peer sent, and the decoder shows it rather than
+// judging it. A parameter that runs past the field is an error.
+func parseCapabilities(optParams []byte, extended bool) ([]Capability, error) {
 	var caps []Capability
-	off := 0
-	for off+2 <= len(optParams) {
-		pType := optParams[off]
-		pLen := int(optParams[off+1])
-		off += 2
-		if off+pLen > len(optParams) {
-			break
-		}
+	// RFC 9072 Section 2: the OPEN's own framing decides the Parameter Length width.
+	err := capability.WalkOptionalParams(optParams, extended, func(pType uint8, capData []byte) error {
 		if pType != 2 {
-			off += pLen
-			continue
+			return nil
 		}
-		capData := optParams[off : off+pLen]
 		cOff := 0
 		for cOff+2 <= len(capData) {
 			code := capData[cOff]
@@ -197,9 +227,12 @@ func parseCapabilities(optParams []byte) []Capability {
 			caps = append(caps, Capability{Code: code, Value: val})
 			cOff += cLen
 		}
-		off += pLen
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("mrt: OPEN optional parameters: %w", err)
 	}
-	return caps
+	return caps, nil
 }
 
 // UpdateAttributeBytes returns the raw Path Attributes section of an UPDATE

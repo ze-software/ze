@@ -161,7 +161,8 @@ func TestOpenMessageToRPC(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := openMessageToRPC(tt.open)
+			got, err := openMessageToRPC(tt.open)
+			require.NoError(t, err)
 			assert.Equal(t, tt.wantASN, got.ASN)
 			assert.Equal(t, tt.wantRID, got.RouterID)
 			assert.Equal(t, tt.wantHold, got.HoldTime)
@@ -186,7 +187,8 @@ func TestBroadcastValidateOpenCapabilityHexEncoding(t *testing.T) {
 		OptionalParams: []byte{2, 8, 64, 6, 0x40, 0x78, 0x00, 0x01, 0x01, 0x00},
 	}
 
-	msg := openMessageToRPC(open)
+	msg, err := openMessageToRPC(open)
+	require.NoError(t, err)
 	require.Equal(t, 1, len(msg.Capabilities))
 	assert.Equal(t, uint8(64), msg.Capabilities[0].Code)
 	// hex.EncodeToString produces lowercase
