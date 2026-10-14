@@ -1,10 +1,11 @@
 // Design: docs/architecture/core-design.md -- route modify filter config parsing
 // Related: config.go -- parseAttributeDefaults, the reader of bgp/defaults/attribute
-// Related: filter_modify.go -- applyBGPConfig, one delivery of the bgp subtree
+// Related: config_tx.go -- newModifyConfigTx, the transaction a delivery runs through
 
 package filter_modify
 
 import (
+	"encoding/json"
 	"maps"
 	"strings"
 	"testing"
@@ -25,6 +26,14 @@ import (
 //
 //	refused delivery leaving the modifiers of one config computing from
 //	the base of another.
+
+// bgpSections wraps a bgp subtree in the delivery the SDK hands the plugin.
+func bgpSections(t *testing.T, bgpCfg map[string]any) []sdk.ConfigSection {
+	t.Helper()
+	data, err := json.Marshal(map[string]any{configRootBGP: bgpCfg})
+	require.NoError(t, err)
+	return []sdk.ConfigSection{{Root: configRootBGP, Data: string(data)}}
+}
 
 // attributeDefaultsTree wraps one bgp { defaults { attribute { } } } block in
 // the config subtree the plugin is delivered, beside the modifier the tests
@@ -53,11 +62,11 @@ func attributeDefaultsTree(localPreference string, extraModifiers map[string]any
 //
 // The route is driven through handleFilterUpdate rather than through
 // buildDynamicDelta, because the RPC is where a route reaches this plugin, and
-// applyBGPConfig is the body the SDK's OnConfigure callback runs.
+// each delivery runs through the plugin's config transaction.
 func TestAttributeDefaultsReloadTakesEffect(t *testing.T) {
 	previousDefs := defsByName.Load()
 	t.Cleanup(func() { defsByName.Store(previousDefs) })
-	storeAbsentBase(t, absentBase.Load())
+	tx := newModifyConfigTx()
 
 	update := func() string {
 		out := handleFilterUpdate(&sdk.FilterUpdateInput{
@@ -70,16 +79,23 @@ func TestAttributeDefaultsReloadTakesEffect(t *testing.T) {
 		return out.Update
 	}
 
-	require.NoError(t, applyBGPConfig(attributeDefaultsTree("100", nil)))
+	require.NoError(t, tx.Configure(bgpSections(t, attributeDefaultsTree("100", nil))))
 	require.Equal(t, "local-preference 150", update(), "100 plus 50")
 
-	require.NoError(t, applyBGPConfig(attributeDefaultsTree("80", nil)))
+	require.NoError(t, tx.Verify(bgpSections(t, attributeDefaultsTree("80", nil))))
+	require.Equal(t, "local-preference 150", update(), "verify installed the candidate before apply")
+	require.NoError(t, tx.Apply())
 	require.Equal(t, "local-preference 130", update(), "the reload moved the base to 80")
 
 	// And back, because a reload that only ever moves one way would pass the
 	// two lines above with a base that latched on the first delivery.
-	require.NoError(t, applyBGPConfig(attributeDefaultsTree("100", nil)))
+	require.NoError(t, tx.Verify(bgpSections(t, attributeDefaultsTree("100", nil))))
+	require.NoError(t, tx.Apply())
 	require.Equal(t, "local-preference 150", update(), "the base follows every delivery")
+
+	// A rollback reinstalls the replaced definitions with their own base.
+	require.NoError(t, tx.Rollback())
+	require.Equal(t, "local-preference 130", update(), "rollback restored the 80 base with its modifiers")
 }
 
 // TestAttributeDefaultsRefusedConfigInstallsNothing covers the failure half of
@@ -88,16 +104,16 @@ func TestAttributeDefaultsReloadTakesEffect(t *testing.T) {
 func TestAttributeDefaultsRefusedConfigInstallsNothing(t *testing.T) {
 	previousDefs := defsByName.Load()
 	t.Cleanup(func() { defsByName.Store(previousDefs) })
-	storeAbsentBase(t, absentBase.Load())
+	tx := newModifyConfigTx()
 
-	require.NoError(t, applyBGPConfig(attributeDefaultsTree("80", nil)))
+	require.NoError(t, tx.Configure(bgpSections(t, attributeDefaultsTree("80", nil))))
 
 	// The base moves too, so a delivery that installed the base and then
 	// refused the modifiers would be caught by the assertion below.
 	refused := attributeDefaultsTree("42", map[string]any{
 		"BAD": map[string]any{"increment": map[string]any{"no-such-attribute": float64(1)}},
 	})
-	require.Error(t, applyBGPConfig(refused))
+	require.Error(t, tx.Verify(bgpSections(t, refused)))
 
 	out := handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter:    "INC-LP",

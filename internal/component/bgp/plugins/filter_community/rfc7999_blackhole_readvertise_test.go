@@ -147,7 +147,9 @@ func TestRFC7999ReadvertiseGateAllocatesNothing(t *testing.T) {
 // AC-12a: verify stages the candidate, apply swaps it in, rollback restores
 // the previous set, and a verify that fails leaves the installed set alone.
 func TestRFC7999AgreementReloadTransaction(t *testing.T) {
-	configureReadvertise(t)
+	withCleanConfig(t)
+	tx := newCommunityConfigTx()
+	require.NoError(t, tx.Configure([]sdk.ConfigSection{{Root: configRootBGP, Data: readvertiseConfig}}))
 	tagged := blackholePayload(uint32(attribute.CommunityBlackhole))
 	b, c := ebgpDest("192.0.2.2"), ebgpDest("192.0.2.3")
 
@@ -156,27 +158,26 @@ func TestRFC7999AgreementReloadTransaction(t *testing.T) {
 		"b":{"connection":{"remote":{"ip":"192.0.2.2"}}},
 		"c":{"connection":{"remote":{"ip":"192.0.2.3"}},"blackhole":{"communities":["blackhole"]}}}}}`}}
 
-	var tx configTx
-	require.NoError(t, tx.verify(candidate))
+	require.NoError(t, tx.Verify(candidate))
 	assert.True(t, readvertised(b, tagged), "verify only stages: B keeps its agreement until apply")
 
-	tx.apply()
+	require.NoError(t, tx.Apply())
 	assert.False(t, readvertised(b, tagged), "after apply B no longer agreed")
 	assert.True(t, readvertised(c, tagged), "after apply C agreed")
 
-	tx.rollback()
+	require.NoError(t, tx.Rollback())
 	assert.True(t, readvertised(b, tagged), "rollback restores B's agreement")
 	assert.False(t, readvertised(c, tagged), "rollback removes C's")
 
 	bad := []sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{"peer":{"b":{
 		"connection":{"remote":{"ip":"192.0.2.2"}},"blackhole":{"communities":["not-a-community"]}}}}}`}}
-	require.Error(t, tx.verify(bad), "a malformed community is refused at verify")
-	tx.apply()
-	assert.True(t, readvertised(b, tagged), "a failed verify stages nothing, so the apply changes nothing")
+	require.Error(t, tx.Verify(bad), "a malformed community is refused at verify")
+	require.ErrorIs(t, tx.Apply(), sdk.ErrConfigApplyUnverified, "a failed verify stages nothing to apply")
+	assert.True(t, readvertised(b, tagged), "a failed verify leaves the installed set")
 
-	require.NoError(t, tx.verify([]sdk.ConfigSection{{Root: "interface", Data: `{}`}}))
-	tx.apply()
-	tx.rollback()
+	require.NoError(t, tx.Verify([]sdk.ConfigSection{{Root: "interface", Data: `{}`}}))
+	require.NoError(t, tx.Apply())
+	require.NoError(t, tx.Rollback())
 	assert.True(t, readvertised(b, tagged), "a transaction without a bgp root neither swaps nor restores")
 }
 

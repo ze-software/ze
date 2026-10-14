@@ -9,7 +9,7 @@
 //
 // The plugin loads named family-filter definitions from
 // bgp { policy { family-filter NAME { family ipv4/flow; action remove } } }
-// at OnConfigure. At runtime, peer filter chains reference an instance as
+// at Stage 2 and on every reload (config_tx.go). At runtime, peer filter chains reference an instance as
 // bgp-filter-family:NAME. The engine dispatches each match via CallFilterUpdate
 // (filter-update RPC); the plugin handles it in OnFilterUpdate by extracting the
 // UPDATE's address family from the raw wire body (declared raw=true) and applying
@@ -27,11 +27,9 @@ package filter_family
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -43,8 +41,8 @@ var logger = slogutil.LazyLogger("bgp.filter.family")
 const configRootBGP = "bgp"
 
 // instancesByName is the runtime-loaded set of family-filter instances, keyed by
-// the YANG list name. Updated atomically on every OnConfigure delivery so the hot
-// path reads without a lock.
+// the YANG list name. Stored whole by installFamilyFilters (Stage 2 and each
+// reload's apply and rollback) so the hot path reads without a lock.
 var instancesByName atomic.Pointer[map[string]*familyFilter]
 
 // runFilterFamily runs the family filter plugin using the SDK RPC protocol.
@@ -53,42 +51,7 @@ func runFilterFamily(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-family", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-			if !ok {
-				return errFilterFamilyInvalidBgpConfigJSON
-			}
-			instances, err := parseFamilyFilters(bgpCfg)
-			if err != nil {
-				return fmt.Errorf("filter-family: %w", err)
-			}
-			instancesByName.Store(&instances)
-			logger().Debug("configured", "family-filters", len(instances))
-		}
-		return nil
-	})
-
-	// Verify the candidate config (AC-7: tear-down not allowed in export chains)
-	// before it is applied, so a bad config is rejected at validate/reload time.
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-			if !ok {
-				return errFilterFamilyInvalidBgpConfigJSON
-			}
-			if _, err := parseFamilyFilters(bgpCfg); err != nil {
-				return fmt.Errorf("filter-family: %w", err)
-			}
-		}
-		return nil
-	})
+	newFamilyConfigTx().Register(p)
 
 	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 		return handleFilterUpdate(in), nil

@@ -228,3 +228,9 @@ func TestPositionBoundsFireWhenTheTreeIsWalked(t *testing.T) {
 func policyOnly(list string) string {
 	return "bgp {\n    router-id 1.2.3.4;\n    session { asn { local 65000; } }\n    policy {\n" + list + "\n    }\n}\n"
 }
+
+// configure runs one Stage 2 delivery through a fresh config transaction, as
+// the plugin's Register binds it.
+func configure(sections []sdk.ConfigSection) error {
+	return newRejectASNConfigTx().Configure(sections)
+}

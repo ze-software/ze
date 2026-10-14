@@ -1253,7 +1253,10 @@ is separate from the RIB's mandatory FlowSpec-origin validation.
 The route attribute modifier (`bgp-filter-modify`) computes an `increment` or a
 `decrement` from the value the subject carries. When the subject carries none,
 the value it starts from comes from `bgp { defaults { attribute { } } }`, read
-at each config delivery rather than per route. The two leaves and their RFC
+at each config delivery rather than per route. Each modifier definition carries
+the base of the delivery it came from, so a reload installs modifiers and base
+with one store and a route never computes one config's modifier from another
+config's base. The two leaves and their RFC
 reasoning are declared there, in `ze-bgp-conf.yang`, and the plugin holds no
 number of its own. The operator-facing table is "Route Attribute Modifier" in
 `docs/guide/plugins.md`.

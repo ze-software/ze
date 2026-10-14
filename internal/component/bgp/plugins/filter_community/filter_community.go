@@ -36,8 +36,8 @@ var logger = slogutil.LazyLogger("bgp.filter.community")
 
 const configRootBGP = "bgp"
 
-// state holds the plugin's runtime state, populated via OnConfigure
-// callback. Protected by mu for concurrent access from filter closures.
+// state holds the plugin's runtime state, the fields of the installed
+// communityConfig. Protected by mu for concurrent access from filter closures.
 var (
 	mu          sync.RWMutex
 	definitions communityDefs
@@ -51,73 +51,37 @@ var (
 	agreements *blackholeAgreements
 )
 
-// configTx is the reload transaction's state for this plugin. The SDK
-// serializes the verify, apply and rollback callbacks, so it needs no lock of
-// its own; the installed state it swaps stays under mu.
-//
-// Verify parses the candidate and stages it; apply installs the staged value
-// and keeps the one it replaced; rollback reinstalls that one. Only the
-// blackhole agreements take part today: definitions and peerConfigs change at
-// startup only. plan/immediate/spec-plugin-reload-applies-or-refuses.md joins
-// them to this same transaction, with no second apply handler.
-type configTx struct {
-	pending    *blackholeAgreements
-	hasPending bool
-	// previous is what the last accepted apply replaced. hasPrevious separates
-	// "nothing to restore" from a nil set, which is a legitimate installed value
-	// before the first configuration.
-	previous    *blackholeAgreements
-	hasPrevious bool
+// communityConfig is everything the filter reads from the bgp subtree: one
+// value, installed whole under mu, so a filter call sees the definitions, the
+// per-peer configs and the agreements of one config and never a mix.
+type communityConfig struct {
+	definitions communityDefs
+	peerConfigs map[string]filterConfig
+	agreements  *blackholeAgreements
 }
 
-// verify parses the candidate's bgp root and stages it. A verify that carries
-// no bgp section stages nothing, so the apply that follows changes nothing.
-func (tx *configTx) verify(sections []sdk.ConfigSection) error {
-	tx.pending, tx.hasPending = nil, false
-	// Rollback belongs to this transaction, not to the last successful apply.
-	tx.previous, tx.hasPrevious = nil, false
-	for _, section := range sections {
-		if section.Root != configRootBGP {
-			continue
-		}
-		bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-		if !ok {
-			return errFilterCommunityInvalidBgpConfigJson
-		}
-		set, err := parseBlackholeAgreements(bgpCfg)
-		if err != nil {
-			return fmt.Errorf("filter-community: %w", err)
-		}
-		tx.pending, tx.hasPending = set, true
-	}
+// newCommunityConfigTx is the plugin's side of the config transaction: Stage 2
+// installs the parsed config, a reload's verify parses the candidate, apply
+// installs it and keeps the replaced one, and rollback installs that back.
+// Before any install no community is defined and no session agreed.
+func newCommunityConfigTx() *sdk.ConfigTx[communityConfig] {
+	parse := configjson.BGPSectionParser("filter-community", errFilterCommunityInvalidBgpConfigJson, parseCommunityConfig)
+	return sdk.NewConfigTx(communityConfig{}, parse, installCommunityConfig)
+}
+
+// installCommunityConfig makes cfg what every later filter call reads. It
+// cannot fail.
+func installCommunityConfig(cfg communityConfig) error {
+	mu.Lock()
+	definitions = cfg.definitions
+	peerConfigs = cfg.peerConfigs
+	agreements = cfg.agreements
+	mu.Unlock()
+	logger().Debug("configured",
+		"definitions", len(cfg.definitions),
+		"peers-with-filters", len(cfg.peerConfigs),
+	)
 	return nil
-}
-
-// apply installs the staged agreements and keeps the replaced set for
-// rollback. An apply with nothing staged changes nothing and keeps no undo
-// set, as the SDK's OnConfigApply contract requires.
-func (tx *configTx) apply() {
-	if !tx.hasPending {
-		tx.previous, tx.hasPrevious = nil, false
-		return
-	}
-	mu.Lock()
-	tx.previous, tx.hasPrevious = agreements, true
-	agreements = tx.pending
-	mu.Unlock()
-	tx.pending, tx.hasPending = nil, false
-}
-
-// rollback reinstalls the set the last accepted apply replaced, once.
-func (tx *configTx) rollback() {
-	tx.pending, tx.hasPending = nil, false
-	if !tx.hasPrevious {
-		return
-	}
-	mu.Lock()
-	agreements = tx.previous
-	mu.Unlock()
-	tx.previous, tx.hasPrevious = nil, false
 }
 
 // parseBlackholeAgreements resolves and re-keys every session's blackhole
@@ -137,32 +101,7 @@ func runFilterCommunity(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-community", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-			if !ok {
-				return errFilterCommunityInvalidBgpConfigJson
-			}
-			if err := configureCommunityFilter(bgpCfg); err != nil {
-				return fmt.Errorf("filter-community: %w", err)
-			}
-		}
-		return nil
-	})
-
-	var tx configTx
-	p.OnConfigVerify(tx.verify)
-	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		tx.apply()
-		return nil
-	})
-	p.OnConfigRollback(func(_ string) error {
-		tx.rollback()
-		return nil
-	})
+	newCommunityConfigTx().Register(p)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -176,14 +115,14 @@ func runFilterCommunity(conn net.Conn) int {
 	return 0
 }
 
-// configureCommunityFilter parses community definitions and per-peer filter
+// parseCommunityConfig parses community definitions and per-peer filter
 // configs from the raw BGP config subtree, accumulating filter tag/strip
 // lists across bgp-level, group-level. Peer-level (same inheritance as
-// ResolveBGPTree).
-func configureCommunityFilter(bgpCfg map[string]any) error {
+// ResolveBGPTree). It changes no state: a refused verify runs it too.
+func parseCommunityConfig(bgpCfg map[string]any) (communityConfig, error) {
 	defs, err := parseCommunityDefinitions(bgpCfg)
 	if err != nil {
-		return fmt.Errorf("community definitions: %w", err)
+		return communityConfig{}, fmt.Errorf("community definitions: %w", err)
 	}
 
 	// BGP-level filter config (applies to all peers as base).
@@ -231,31 +170,19 @@ func configureCommunityFilter(bgpCfg map[string]any) error {
 	for subject, fc := range configs {
 		for _, refs := range [][]string{fc.ingressTag, fc.ingressStrip, fc.egressTag, fc.egressStrip} {
 			if err := validateCommunityRefs(defs, refs); err != nil {
-				return fmt.Errorf("%s: %w", configLabel(subject), err)
+				return communityConfig{}, fmt.Errorf("%s: %w", configLabel(subject), err)
 			}
 		}
 		if err := validateScrubKeepList(fc); err != nil {
-			return fmt.Errorf("%s: %w", configLabel(subject), err)
+			return communityConfig{}, fmt.Errorf("%s: %w", configLabel(subject), err)
 		}
 	}
 
 	agreed, err := parseBlackholeAgreements(bgpCfg)
 	if err != nil {
-		return err
+		return communityConfig{}, err
 	}
-
-	mu.Lock()
-	definitions = defs
-	peerConfigs = configs
-	agreements = agreed
-	mu.Unlock()
-
-	logger().Debug("configured",
-		"definitions", len(defs),
-		"peers-with-filters", len(configs),
-	)
-
-	return nil
+	return communityConfig{definitions: defs, peerConfigs: configs, agreements: agreed}, nil
 }
 
 // configLabel names the config object an error is about, reading the key back.

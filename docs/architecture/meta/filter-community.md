@@ -82,13 +82,15 @@ a destination with no community policy still owes the agreement, and in the
 order cheapest first: the session type (`PeerFilterInfo.IsIBGP`, `RSClient`),
 then the 4-octet COMMUNITIES scan, then the lookup. The lookup reads the
 `blackholecfg.Parse` map re-keyed once at config time into an address map and a
-group-template map, so no string is built per route. The cache is installed by
-`OnConfigure` and replaced by the reload transaction (`configTx`: verify stages,
-apply swaps under `mu`, rollback restores). A miss, the empty cache included,
-means "not agreed".
+group-template map, so no string is built per route. The cache is one part of
+the plugin's config value (`communityConfig`: definitions, per-peer filter
+configs, agreements), which `sdk.ConfigTx` installs at Stage 2 and replaces
+on a reload: verify parses, apply swaps all three under `mu`, rollback
+restores the previous value. A miss, the empty cache included, means "not
+agreed".
 
 <!-- source: internal/component/bgp/plugins/filter_community/blackhole.go -- blackholeReadvertiseRefused, blackholeAgreements -->
-<!-- source: internal/component/bgp/plugins/filter_community/filter_community.go -- configTx, egressFilter -->
+<!-- source: internal/component/bgp/plugins/filter_community/filter_community.go -- newCommunityConfigTx, installCommunityConfig, egressFilter -->
 
 <!-- source: internal/component/bgp/plugins/filter_community/filter.go -- applyRelationTag, applyIngressFilter -->
 <!-- source: internal/component/bgp/plugins/filter_community/blackhole.go -- blackholePropagationGuard -->

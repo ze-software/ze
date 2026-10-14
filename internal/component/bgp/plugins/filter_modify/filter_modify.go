@@ -7,7 +7,7 @@
 //
 // The plugin loads named modifier definitions from
 // bgp { policy { modify NAME { set { local-preference 200; } } } }
-// at OnConfigure (Stage 2). At runtime, peer filter chains reference a
+// at Stage 2 and on every reload (config_tx.go). At runtime, peer filter chains reference a
 // modifier as bgp-filter-modify:NAME or modify:NAME. The engine dispatches
 // each call via CallFilterUpdate (filter-update RPC); the plugin returns
 // action "modify" with a pre-built text delta. The engine merges the delta
@@ -25,11 +25,9 @@ package filter_modify
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -76,39 +74,18 @@ var logger = slogutil.LazyLogger("bgp.filter.modify")
 
 const configRootBGP = "bgp"
 
-// defsByName is the runtime-loaded set of modify definitions.
-// Updated atomically on every OnConfigure delivery.
+// defsByName is the installed set of modify definitions, stored whole by
+// installModifyDefs (Stage 2 and each reload's apply and rollback). Each
+// definition carries its delivery's absent-attribute base, so one load reads
+// the modifiers and the base of one config.
 var defsByName atomic.Pointer[map[string]*modifyDef]
-
-// absentBase is the value the arithmetic starts from for an attribute the route
-// does not carry, one entry per leaf bgp { defaults { attribute { } } }
-// declares. Updated atomically on every OnConfigure delivery, so a reload
-// changes what routes arriving after it compute from.
-//
-// nil until the first delivery, and absentBaseFor (modify.go) answers that
-// window from the schema's own defaults rather than from a zero value.
-var absentBase atomic.Pointer[map[string]uint32]
 
 // runFilterModify runs the route modify plugin using the SDK RPC protocol.
 func runFilterModify(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-modify", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-			if !ok {
-				return errFilterModifyInvalidBgpConfigJson
-			}
-			if err := applyBGPConfig(bgpCfg); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	newModifyConfigTx().Register(p)
 
 	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 		return handleFilterUpdate(in), nil
@@ -123,41 +100,6 @@ func runFilterModify(conn net.Conn) int {
 		return 1
 	}
 	return 0
-}
-
-// applyBGPConfig installs one delivery of the bgp config subtree: the named
-// modifier definitions, and the base the arithmetic starts from for an
-// attribute a route does not carry. Every delivery replaces both, so a reload
-// changes what routes arriving after it compute from.
-//
-// The base is stored FIRST, and that ordering buys one property: an update that
-// passes handleFilterUpdate's defsByName gate never finds a nil base. It does
-// NOT pair the two stores. buildDynamicDelta loads the base once per attribute,
-// so a reload landing mid-delta can give one delivery's modifier the next
-// delivery's base. Both numbers are the operator's, a reload is not retroactive
-// for a route already handled, and no caller needs more than the property above.
-//
-// A DELIVERY that does not parse installs NOTHING, and the previous
-// configuration keeps running. Half a delivery would leave the modifiers of one
-// config computing from the base of another for every route after it, which is
-// the durable version of the race the paragraph above bounds to one delta.
-func applyBGPConfig(bgpCfg map[string]any) error {
-	base, err := parseAttributeDefaults(bgpCfg)
-	if err != nil {
-		return fmt.Errorf("filter-modify: %w", err)
-	}
-	defs, err := parseModifyDefs(bgpCfg)
-	if err != nil {
-		return fmt.Errorf("filter-modify: %w", err)
-	}
-
-	absentBase.Store(&base)
-	defsByName.Store(&defs)
-
-	logger().Debug("configured", "modifiers", len(defs),
-		"absent-base-med", base[medAttr],
-		"absent-base-local-preference", base[localPreferenceAttr])
-	return nil
 }
 
 // handleFilterUpdate dispatches a single filter-update RPC.

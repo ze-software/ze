@@ -29,6 +29,16 @@ func withCleanConfig(t *testing.T) {
 	})
 }
 
+// configureCommunityFilter parses bgpCfg and installs it as the running
+// config, as Stage 2 does.
+func configureCommunityFilter(bgpCfg map[string]any) error {
+	cfg, err := parseCommunityConfig(bgpCfg)
+	if err != nil {
+		return err
+	}
+	return installCommunityConfig(cfg)
+}
+
 // A group name and a peer name share no uniqueness check: config.ResolveBGPTree
 // refuses a duplicate PEER name and never compares a group's against it, so
 // `bgp { peer ix {...} group ix {...} }` loads. The two must therefore occupy

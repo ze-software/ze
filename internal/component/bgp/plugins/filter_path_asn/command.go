@@ -23,7 +23,6 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -48,16 +47,6 @@ type attachment struct {
 	importPeers int
 	exportPeers int
 }
-
-// attachmentsByList holds the counts the last configure delivery produced,
-// keyed by list name. It is replaced whole on every delivery.
-//
-// A nil pointer means no delivery has arrived; the show command then reports
-// zero for every list, which is the truth: no peer chain has been read yet.
-//
-// Safe for concurrent use. The map it points at MUST NOT be written after the
-// Store.
-var attachmentsByList atomic.Pointer[map[string]attachment]
 
 // countAttachments counts, for each list name a peer chain references, the peers
 // that reference it on import and on export.
@@ -159,7 +148,7 @@ func handleCommand(command string, args []string) (string, any, error) {
 
 // showRejectASN answers every configured list, sorted by name.
 func showRejectASN() (string, any, error) {
-	held := listsByName.Load()
+	held := installedRejectASN.Load()
 	if held == nil {
 		return statusError, nil, errors.New("no config delivery has reached the reject-asn filter yet")
 	}
@@ -168,11 +157,11 @@ func showRejectASN() (string, any, error) {
 	defer b.Release()
 
 	b.Str(`{"lists":[`)
-	for i, name := range slices.Sorted(maps.Keys(*held)) {
+	for i, name := range slices.Sorted(maps.Keys(held.lists)) {
 		if i > 0 {
 			b.Byte(',')
 		}
-		appendList(b, (*held)[name])
+		appendList(b, held.lists[name], held.attachments[name])
 	}
 	b.Str(`]}`)
 	return statusDone, json.RawMessage(b.String()), nil
@@ -187,11 +176,11 @@ func showRejectASNName(args []string) (string, any, error) {
 	if len(args) == 0 || args[0] == "" {
 		return statusError, nil, errors.New("usage: show bgp reject-asn name <name>")
 	}
-	held := listsByName.Load()
+	held := installedRejectASN.Load()
 	if held == nil {
 		return statusError, nil, errors.New("no config delivery has reached the reject-asn filter yet")
 	}
-	list, ok := (*held)[args[0]]
+	list, ok := held.lists[args[0]]
 	if !ok {
 		return statusError, nil, fmt.Errorf("no reject-asn list named %q", args[0])
 	}
@@ -199,7 +188,7 @@ func showRejectASNName(args []string) (string, any, error) {
 	b := textbuf.Get()
 	defer b.Release()
 
-	appendList(b, list)
+	appendList(b, list, held.attachments[list.name])
 	return statusDone, json.RawMessage(b.String()), nil
 }
 
@@ -213,11 +202,11 @@ func showRejectASNName(args []string) (string, any, error) {
 // table does not hold (AC-25). Omitting the key would drop the column from the
 // rendered table, and guessing a name would put an invention beside an ASN the
 // operator has to make a policy decision about.
-func appendList(b *textbuf.Buffer, list *rejectList) {
-	counts := attachment{}
-	if held := attachmentsByList.Load(); held != nil {
-		counts = (*held)[list.name]
-	}
+//
+// counts is the list's entry in the attachment counts of the same installed
+// config; a list no peer chain names has none, and its zero counts are the
+// truth.
+func appendList(b *textbuf.Buffer, list *rejectList, counts attachment) {
 
 	b.Str(`{"name":`).Quoted(list.name)
 	b.Str(`,"import-peers":`).Int(int64(counts.importPeers))

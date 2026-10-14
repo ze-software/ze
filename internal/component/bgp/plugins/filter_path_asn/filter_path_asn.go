@@ -7,7 +7,7 @@
 //
 // The plugin loads named reject-asn definitions from
 // bgp { policy { reject-asn NAME { indirect [ N N ]; regex [ "P" ]; } } }
-// at OnConfigure (Stage 2). At runtime, a peer filter chain names a list by its
+// at Stage 2 and on every reload. At runtime, a peer filter chain names a list by its
 // bare name, or as reject-asn:NAME, or as bgp-filter-path-asn:NAME. The engine
 // dispatches each match through CallFilterUpdate (the filter-update RPC) and
 // the plugin answers it in OnFilterUpdate.
@@ -32,7 +32,6 @@ package filter_path_asn
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"sync/atomic"
 
@@ -55,16 +54,25 @@ const (
 	directionImport = "import"
 )
 
-// listsByName holds the reject-asn lists the last configure delivery carried,
-// keyed by the list name an operator wrote. It is replaced whole on every
-// delivery so the hot path reads it without a lock.
+// rejectASNConfig is one installed config: the reject-asn lists keyed by the
+// list name an operator wrote, and the attachment counts of the same delivery.
+// They live in one value so a reader that loaded the lists reads the counts
+// of the same config, never the counts of the next one.
+type rejectASNConfig struct {
+	lists       map[string]*rejectList
+	attachments map[string]attachment
+}
+
+// installedRejectASN holds the installed config. It is replaced whole by
+// installRejectASN (Stage 2 and each reload's apply and rollback) so the hot
+// path reads it without a lock.
 //
 // A nil pointer means no delivery has arrived yet, which handleFilterUpdate
 // answers by rejecting: it is a state, not an empty list.
 //
-// Safe for concurrent use. The map it points at MUST NOT be written after the
-// Store, because every filter-update reads it without a lock.
-var listsByName atomic.Pointer[map[string]*rejectList]
+// Safe for concurrent use. The value it points at MUST NOT be written after
+// the Store, because every filter-update reads it without a lock.
+var installedRejectASN atomic.Pointer[rejectASNConfig]
 
 // runFilterPathASN runs the reject-asn filter plugin over the SDK RPC protocol.
 // This is the in-process entry point called through InternalPluginRunner.
@@ -72,7 +80,7 @@ func runFilterPathASN(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-path-asn", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
-	p.OnConfigure(configure)
+	newRejectASNConfigTx().Register(p)
 
 	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 		return handleFilterUpdate(in), nil
@@ -94,32 +102,34 @@ func runFilterPathASN(conn net.Conn) int {
 	return 0
 }
 
-// configure reads one Stage 2 config delivery and replaces the lists whole.
-//
-// A delivery that does not parse stops the load, so a config an operator
+// newRejectASNConfigTx is the filter's side of the config transaction:
+// Stage 2 installs the parsed config, a reload's verify parses the candidate,
+// apply installs it and keeps the replaced one, and rollback installs that
+// back. A delivery that does not parse is refused, so a config an operator
 // believes is filtering never reaches a session half-applied.
-func configure(sections []sdk.ConfigSection) error {
-	for _, section := range sections {
-		if section.Root != configRootBGP {
-			continue
-		}
-		bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-		if !ok {
-			return errInvalidBGPConfigJSON
-		}
-		lists, err := parseRejectASNLists(bgpCfg)
-		if err != nil {
-			return fmt.Errorf("filter-path-asn: %w", err)
-		}
-		listsByName.Store(&lists)
+func newRejectASNConfigTx() *sdk.ConfigTx[*rejectASNConfig] {
+	parse := configjson.BGPSectionParser("filter-path-asn", errInvalidBGPConfigJSON, parseRejectASNConfig)
+	return sdk.NewConfigTx[*rejectASNConfig](nil, parse, installRejectASN)
+}
 
-		// The attachment counts are stored after the lists and only when the
-		// parse succeeded, so `show bgp reject-asn` can never report a peer
-		// count against a set of lists the plugin refused.
-		counts := countAttachments(bgpCfg)
-		attachmentsByList.Store(&counts)
+// parseRejectASNConfig reads the lists and, only when they parse, the counts,
+// so `show bgp reject-asn` can never report a peer count against a set of
+// lists the plugin refused.
+func parseRejectASNConfig(bgpCfg map[string]any) (*rejectASNConfig, error) {
+	lists, err := parseRejectASNLists(bgpCfg)
+	if err != nil {
+		return nil, err
+	}
+	return &rejectASNConfig{lists: lists, attachments: countAttachments(bgpCfg)}, nil
+}
 
-		logger().Debug("configured", "reject-asn-lists", len(lists))
+// installRejectASN makes cfg what every later filter-update and show reads.
+// A rollback of the first apply installs nil, the "no delivery" state. It
+// cannot fail.
+func installRejectASN(cfg *rejectASNConfig) error {
+	installedRejectASN.Store(cfg)
+	if cfg != nil {
+		logger().Debug("configured", "reject-asn-lists", len(cfg.lists))
 	}
 	return nil
 }
@@ -161,14 +171,14 @@ func senderOf(in *sdk.FilterUpdateInput) senderASN {
 // the chain reference before the RPC, so a chain naming
 // bgp-filter-path-asn:NO-TRANSIT reaches here as NO-TRANSIT.
 func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
-	held := listsByName.Load()
+	held := installedRejectASN.Load()
 	if held == nil {
 		recordReject(in.Direction, slotUnconfigured)
 		logger().Warn("reject-asn filter-update before configure -- fail-closed",
 			"filter", in.Filter, "direction", in.Direction, "peer", in.Peer)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
-	list, ok := (*held)[in.Filter]
+	list, ok := held.lists[in.Filter]
 	if !ok {
 		recordReject(in.Direction, slotUnknownList)
 		logger().Warn("unknown reject-asn list -- fail-closed",

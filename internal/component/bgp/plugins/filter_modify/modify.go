@@ -42,6 +42,13 @@ type modifyDef struct {
 	// because the engine honors it on an import chain only, and the direction
 	// is known per call rather than at config time (handleFilterUpdate).
 	medRemove bool
+	// absentBase is the base of the delivery this definition came from: the
+	// value the arithmetic starts from for an attribute the route does not
+	// carry. Holding it here makes a delivery's definitions and its base one
+	// snapshot behind defsByName, so a reload cannot pair one delivery's
+	// modifier with another delivery's base. nil only for a definition no
+	// delivery built, which absentBaseFor answers from the schema.
+	absentBase map[string]uint32
 }
 
 // isDynamic returns true if this modifier needs the update text at runtime.
@@ -94,7 +101,7 @@ func buildDynamicDelta(def *modifyDef, updateText string) string {
 
 	for i := range def.increments {
 		op := &def.increments[i]
-		current, run := currentForArithmetic(updateText, op.attr)
+		current, run := currentForArithmetic(def.absentBase, updateText, op.attr)
 		if !run {
 			continue
 		}
@@ -107,7 +114,7 @@ func buildDynamicDelta(def *modifyDef, updateText string) string {
 
 	for i := range def.decrements {
 		op := &def.decrements[i]
-		current, run := currentForArithmetic(updateText, op.attr)
+		current, run := currentForArithmetic(def.absentBase, updateText, op.attr)
 		if !run {
 			continue
 		}
@@ -155,24 +162,25 @@ const (
 // aigp has no leaf at all. Nothing here restates those sentences
 // (ai/rules/principles.md).
 //
-// Before OnConfigure has delivered a config section, the answer is the schema's
-// own defaults. declaredAbsentBase reads the same container with no operator
-// value over it, so a route handled in that window computes from the declared
-// number rather than from a zero nobody chose.
-func absentBaseFor(attrName string) (uint32, bool) {
-	base := absentBase.Load()
+// base is the definition's delivery base. A definition no delivery built has
+// none, and the answer is then the schema's own defaults: declaredAbsentBase
+// reads the same container with no operator value over it, so such a
+// definition computes from the declared number rather than from a zero nobody
+// chose.
+func absentBaseFor(base map[string]uint32, attrName string) (uint32, bool) {
 	if base == nil {
-		base = declaredAbsentBase()
+		declaredBase := declaredAbsentBase()
+		if declaredBase == nil {
+			return 0, false
+		}
+		base = *declaredBase
 	}
-	if base == nil {
-		return 0, false
-	}
-	value, declared := (*base)[attrName]
+	value, declared := base[attrName]
 	return value, declared
 }
 
-// declaredAbsentBase reads the schema defaults once, for the window between
-// daemon start and the first OnConfigure delivery.
+// declaredAbsentBase reads the schema defaults once, for a definition no
+// delivery built.
 //
 // It answers nil when the schema cannot be read. Refusing the arithmetic is
 // what an attribute with no declared base already gets, and it is the only safe
@@ -210,17 +218,18 @@ func readUint32Attr(updateText, attrName string) (uint32, attrReading) {
 // attribute the route does not carry. It does NOT run when no base is declared,
 // and it does NOT run on a value ze rendered and cannot read back: computing
 // from a substituted 0 there would write a metric the route never had.
-func currentForArithmetic(updateText, attrName string) (uint32, bool) {
+// base is the definition's delivery base (modifyDef.absentBase).
+func currentForArithmetic(base map[string]uint32, updateText, attrName string) (uint32, bool) {
 	value, reading := readUint32Attr(updateText, attrName)
 	switch reading {
 	case attrPresent:
 		return value, true
 	case attrAbsent:
-		base, declared := absentBaseFor(attrName)
+		value, declared := absentBaseFor(base, attrName)
 		if !declared {
 			return 0, false
 		}
-		return base, true
+		return value, true
 	case attrUnreadable:
 		logger().Warn("filter-modify: attribute value did not parse, arithmetic skipped",
 			"attribute", attrName)

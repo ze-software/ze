@@ -40,9 +40,9 @@ func TestHandleFilterUpdateUnknownListRejects(t *testing.T) {
 // PREVENTS: the store's nil pointer reading as "no list rejects this", which
 // would open every attached session for the whole startup window.
 func TestHandleFilterUpdateBeforeConfigureRejects(t *testing.T) {
-	held := listsByName.Load()
-	t.Cleanup(func() { listsByName.Store(held) })
-	listsByName.Store(nil)
+	held := installedRejectASN.Load()
+	t.Cleanup(func() { installedRejectASN.Store(held) })
+	installedRejectASN.Store(nil)
 
 	out := handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,

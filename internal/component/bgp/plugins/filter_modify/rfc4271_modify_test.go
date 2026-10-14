@@ -624,13 +624,13 @@ func TestAbsentValueTableCoversEveryArithmeticAttribute(t *testing.T) {
 		_, declared := declaredBase[attr]
 		require.Equalf(t, wantBase, declared, "%s: the table and the decision disagree", attr)
 
-		_, run := currentForArithmetic("origin igp nlri ipv4/unicast add 10.0.0.0/24", attr)
+		_, run := currentForArithmetic(nil, "origin igp nlri ipv4/unicast add 10.0.0.0/24", attr)
 		require.Equalf(t, wantBase, run, "%s: arithmetic on an absent attribute", attr)
 	}
 
 	require.Len(t, declaredBase, 2, "a new leaf under bgp/defaults/attribute needs a row in this test's decision map")
 
-	_, run := currentForArithmetic("origin igp nlri ipv4/unicast add 10.0.0.0/24", "no-such-attribute")
+	_, run := currentForArithmetic(nil, "origin igp nlri ipv4/unicast add 10.0.0.0/24", "no-such-attribute")
 	require.False(t, run, "an attribute with no declared base gets no arithmetic")
 }
 
@@ -855,30 +855,17 @@ func TestDecrementMedComputesFromTheRouteValue(t *testing.T) {
 // which is the case every test below is about.
 const absentSubject = "origin igp as-path 65001 nlri ipv4/unicast add 10.0.0.0/24"
 
-// configureAttributeDefaults installs one bgp { defaults { attribute { } } }
-// block the way OnConfigure installs it: through parseAttributeDefaults, so the
-// test drives the config path rather than a map written by hand. The previous
-// base is restored, because the store is package state several tests share.
-func configureAttributeDefaults(t *testing.T, attributeBlock map[string]any) {
+// configuredBase parses one bgp { defaults { attribute { } } } block the way a
+// delivery does: through parseAttributeDefaults, so the test drives the config
+// path rather than a map written by hand. A definition carries the result as
+// its absentBase.
+func configuredBase(t *testing.T, attributeBlock map[string]any) map[string]uint32 {
 	t.Helper()
 	base, err := parseAttributeDefaults(map[string]any{
 		"defaults": map[string]any{"attribute": attributeBlock},
 	})
 	require.NoError(t, err)
-	storeAbsentBase(t, &base)
-}
-
-// storeAbsentBase installs a base for one test and restores what was there.
-//
-// The parameter is a POINTER because the store is one, and because nil is a
-// state a test needs: it is what the plugin holds before the first configure.
-//
-//nolint:gocritic // ptrToRefParam: nil is the pre-configure state under test
-func storeAbsentBase(t *testing.T, base *map[string]uint32) {
-	t.Helper()
-	previous := absentBase.Load()
-	t.Cleanup(func() { absentBase.Store(previous) })
-	absentBase.Store(base)
+	return base
 }
 
 // TestAbsentBaseComesFromConfig covers AC-10: the two numbers are declared once,
@@ -901,9 +888,8 @@ func TestAbsentBaseComesFromConfig(t *testing.T) {
 		require.Equalf(t, uint32(declared), base[leaf], "%s: the base is not the schema's number", leaf) //nolint:gosec // G115: a YANG uint32 default
 	}
 
-	storeAbsentBase(t, &map[string]uint32{})
 	for _, attr := range []string{medAttr, localPreferenceAttr} {
-		_, run := currentForArithmetic(absentSubject, attr)
+		_, run := currentForArithmetic(map[string]uint32{}, absentSubject, attr)
 		require.Falsef(t, run, "%s: a base that declares nothing must leave no compiled-in number behind", attr)
 	}
 }
@@ -914,9 +900,9 @@ func TestAbsentBaseComesFromConfig(t *testing.T) {
 //
 // The value is the STRING form, which is what a YANG leaf is delivered as.
 func TestConfiguredLocalPrefBaseFeedsTheArithmetic(t *testing.T) {
-	configureAttributeDefaults(t, map[string]any{localPreferenceAttr: "80"})
+	base := configuredBase(t, map[string]any{localPreferenceAttr: "80"})
 
-	def := &modifyDef{name: "INC-LP", increments: []incdec{{attr: localPreferenceAttr, value: 50}}}
+	def := &modifyDef{name: "INC-LP", increments: []incdec{{attr: localPreferenceAttr, value: 50}}, absentBase: base}
 	require.Equal(t, "local-preference 130", buildDynamicDelta(def, absentSubject), "80 plus 50")
 }
 
@@ -927,12 +913,12 @@ func TestConfiguredLocalPrefBaseFeedsTheArithmetic(t *testing.T) {
 // The value is the JSON number form, which is what the config section carries
 // when it arrives as JSON rather than as a native tree.
 func TestConfiguredMedBaseFeedsTheArithmetic(t *testing.T) {
-	configureAttributeDefaults(t, map[string]any{medAttr: float64(50)})
+	base := configuredBase(t, map[string]any{medAttr: float64(50)})
 
-	subtract30 := &modifyDef{name: "DEC-MED", decrements: []incdec{{attr: medAttr, value: 30}}}
+	subtract30 := &modifyDef{name: "DEC-MED", decrements: []incdec{{attr: medAttr, value: 30}}, absentBase: base}
 	require.Equal(t, "med 20", buildDynamicDelta(subtract30, absentSubject), "50 less 30")
 
-	subtract80 := &modifyDef{name: "DEC-MED-FLOOR", decrements: []incdec{{attr: medAttr, value: 80}}}
+	subtract80 := &modifyDef{name: "DEC-MED-FLOOR", decrements: []incdec{{attr: medAttr, value: 80}}, absentBase: base}
 	require.Equal(t, "med 0", buildDynamicDelta(subtract80, absentSubject), "the decrement floors at 0")
 }
 
@@ -940,17 +926,17 @@ func TestConfiguredMedBaseFeedsTheArithmetic(t *testing.T) {
 // answers for an attribute the route does NOT carry, and this is the case that
 // tells a base that is read too widely from one that is read correctly.
 func TestConfiguredBaseIsUnusedWhenTheRouteCarriesTheAttribute(t *testing.T) {
-	configureAttributeDefaults(t, map[string]any{
+	base := configuredBase(t, map[string]any{
 		medAttr:             "50",
 		localPreferenceAttr: "80",
 	})
 
 	carried := "origin igp med 100 local-preference 200 as-path 65001 nlri ipv4/unicast add 10.0.0.0/24"
 
-	incMed := &modifyDef{name: "INC-MED", increments: []incdec{{attr: medAttr, value: 30}}}
+	incMed := &modifyDef{name: "INC-MED", increments: []incdec{{attr: medAttr, value: 30}}, absentBase: base}
 	require.Equal(t, "med 130", buildDynamicDelta(incMed, carried), "100 from the route, not 50 from the config")
 
-	incPref := &modifyDef{name: "INC-LP", increments: []incdec{{attr: localPreferenceAttr, value: 30}}}
+	incPref := &modifyDef{name: "INC-LP", increments: []incdec{{attr: localPreferenceAttr, value: 30}}, absentBase: base}
 	require.Equal(t, "local-preference 230", buildDynamicDelta(incPref, carried), "200 from the route, not 80")
 }
 
@@ -961,26 +947,26 @@ func TestConfiguredBaseIsUnusedWhenTheRouteCarriesTheAttribute(t *testing.T) {
 func TestConfiguredBaseArithmeticHoldsAtTheBoundaries(t *testing.T) {
 	const uint32Max = "4294967295"
 
-	configureAttributeDefaults(t, map[string]any{medAttr: uint32Max, localPreferenceAttr: uint32Max})
+	base := configuredBase(t, map[string]any{medAttr: uint32Max, localPreferenceAttr: uint32Max})
 
-	incMed := &modifyDef{name: "INC-MED", increments: []incdec{{attr: medAttr, value: 1}}}
+	incMed := &modifyDef{name: "INC-MED", increments: []incdec{{attr: medAttr, value: 1}}, absentBase: base}
 	require.Equal(t, "med "+uint32Max, buildDynamicDelta(incMed, absentSubject), "the sum saturates")
 
-	decMed := &modifyDef{name: "DEC-MED", decrements: []incdec{{attr: medAttr, value: 1}}}
+	decMed := &modifyDef{name: "DEC-MED", decrements: []incdec{{attr: medAttr, value: 1}}, absentBase: base}
 	require.Equal(t, "med 4294967294", buildDynamicDelta(decMed, absentSubject))
 
-	configureAttributeDefaults(t, map[string]any{medAttr: "0", localPreferenceAttr: "0"})
+	zero := configuredBase(t, map[string]any{medAttr: "0", localPreferenceAttr: "0"})
+	incMed.absentBase, decMed.absentBase = zero, zero
 
 	require.Equal(t, "med 1", buildDynamicDelta(incMed, absentSubject), "0 is a value an operator can write")
 	require.Equal(t, "med 0", buildDynamicDelta(decMed, absentSubject), "and the decrement floors on it")
 }
 
-// TestDefaultsApplyBeforeConfigure covers AC-8 and validates assumption A-2. The
-// ordering between the first filter update and the first configure delivery is
-// not guaranteed, so the window is answered from the schema's own numbers.
-// Nothing computes from a zero the operator did not choose.
+// TestDefaultsApplyBeforeConfigure covers AC-8 and validates assumption A-2. A
+// definition no delivery built carries no base, and it is answered from the
+// schema's own numbers. Nothing computes from a zero the operator did not
+// choose.
 func TestDefaultsApplyBeforeConfigure(t *testing.T) {
-	storeAbsentBase(t, nil)
 
 	incPref := &modifyDef{name: "INC-LP", increments: []incdec{{attr: localPreferenceAttr, value: 50}}}
 	require.Equal(t, "local-preference 150", buildDynamicDelta(incPref, absentSubject), "100 plus 50")

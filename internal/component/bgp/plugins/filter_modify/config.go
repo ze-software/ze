@@ -144,6 +144,13 @@ func parseAttributeDefaults(bgpCfg map[string]any) (map[string]uint32, error) {
 }
 
 func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
+	// The base is read first and refused first: a delivery whose defaults do
+	// not parse installs no modifier, so it cannot leave one config's modifiers
+	// computing from another's base.
+	base, err := parseAttributeDefaults(bgpCfg)
+	if err != nil {
+		return nil, err
+	}
 	result := make(map[string]*modifyDef)
 
 	policyBlock, ok := bgpCfg["policy"].(map[string]any)
@@ -228,6 +235,7 @@ func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
 			return nil, fmt.Errorf("modify %q: no operations defined", name)
 		}
 
+		def.absentBase = base
 		result[name] = def
 	}
 	return result, nil

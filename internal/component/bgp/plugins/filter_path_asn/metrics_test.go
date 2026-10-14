@@ -164,9 +164,9 @@ func TestRejectIncrementsCounter(t *testing.T) {
 	// The fail-closed reject before any delivery. It runs last because it drops
 	// the configured lists.
 	t.Run("before_configure_on_import", func(t *testing.T) {
-		held := listsByName.Load()
-		t.Cleanup(func() { listsByName.Store(held) })
-		listsByName.Store(nil)
+		held := installedRejectASN.Load()
+		t.Cleanup(func() { installedRejectASN.Store(held) })
+		installedRejectASN.Store(nil)
 
 		out := handleFilterUpdate(&sdk.FilterUpdateInput{
 			Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
