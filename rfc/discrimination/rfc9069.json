@@ -141,7 +141,7 @@
       "claim-sha": "4377af3886ae53fd",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/state.go::peerUp",
-      "producer-sha": "040f48ef389c35ec",
+      "producer-sha": "bb1edc5bbba95ec5",
       "break": "body of peerUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
