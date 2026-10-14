@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-12",
+  "audited": "2026-10-14",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -11,45 +11,59 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8669-3-1": {
-      "note": "Re-judged after the D-8 fix (applyFactsNextHop records Remove{5,6} on code 40; prefixSIDNextHopHandler rewrites the attribute per route). Clause 'ignored': message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored pins RFC7606ActionNone and intact bytes for an unallocated TLV (no discrimination record; supplementary). Clause 'propagated unmodified': reactor TestRFC8669UnknownTLVPropagatedAcrossANextHopChange reads attribute 40 on the wire over both relay rails (forwardUpdateCore, reactorForwardRS): positive, next hop unchanged, [LabelIndex, L3 Svc, type 200, L2 Svc, SRGB] byte-identical; negative (R1b: the input that used to violate), next-hop-self with NEXT_HOP really 10.0.0.254, attribute == LabelIndex+type200+SRGB byte-identical in received order. Observed red: positive with applyFactsNextHop broken, negative with prefixSIDNextHopHandler broken. Buffers isolated (well-formed TLVs, only type 200 unknown).",
+      "note": "Re-judged after the D-8 fix (applyFactsNextHop records Remove{5,6} on code 40; prefixSIDNextHopHandler rewrites the attribute per route). Clause 'ignored': message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored pins RFC7606ActionNone and intact bytes for an unallocated TLV (no discrimination record; supplementary). Clause 'propagated unmodified': reactor TestRFC8669UnknownTLVPropagatedAcrossANextHopChange reads attribute 40 on the wire over both relay rails (forwardUpdateCore, reactorForwardRS): positive, next hop unchanged, [LabelIndex, L3 Svc, type 200, L2 Svc, SRGB] byte-identical; negative (R1b: the input that used to violate), next-hop-self with NEXT_HOP really 10.0.0.254, attribute == LabelIndex+type200+SRGB byte-identical in received order. Observed red: positive with applyFactsNextHop broken, negative with prefixSIDNextHopHandler broken. Buffers isolated (well-formed TLVs, only type 200 unknown). Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). Two covers added, judged against Section 3 ('unknown TLVs MUST be ignored and propagated unmodified'): reactor TestClearTransmittedLabelIndexOnlyOnLabeledUnicast asserts that a body whose Label-Index TLV carries Reserved A5 and Flags 5AFF on IPv4 VPN, where the TLV is unrecognized, leaves clearTransmittedLabelIndex octet-equal (the egress clear only); test/plugin/prefixsid-malformed-receive.ci frame (f) relays an IPv4 VPN Label-Index with Reserved AA and Flags BBCC octet-equal through the daemon. The earlier covers are unchanged. Verdict unchanged.",
       "requirement_sha": "86075c5141e1f486",
       "tests": {
-        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "5dadd0d40640d538",
-        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "35a0672bf6b8628a",
-        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "35a0672bf6b8628a"
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "43a22ffce691e1e9",
+        "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "9b5c77bc0e1b6086",
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "6adacdb5c2b444a1",
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "6adacdb5c2b444a1",
+        "test/plugin/prefixsid-malformed-receive.ci": "88d6a95ab28704cc"
       },
       "units": {
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "7f0ca5f0dffb7627",
+        "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "dff529a65e1207a3",
         "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "5ac8116748d03d10",
-        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "5ac8116748d03d10"
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "5ac8116748d03d10",
+        "test/plugin/prefixsid-malformed-receive.ci": "88d6a95ab28704cc"
       },
       "verdict": "enforced"
     },
     "RFC8669-3.1-2": {
-      "note": "RA33 strict re-audit: weak (agrees with blind reader). The unit proves only that the SRv6 extractor steps over TLV type 1. The {single-polarity} premise that no other reader of TLV type 1 exists in internal/core/bgp is false: attribute/prefixsid_wire.go validatePrefixSIDTLVs refuses a Label-Index whose length is not 7, and the JSON formatter emits sr-label-index, both regardless of AFI/SAFI. No tagged unit feeds a Label-Index on a non-labeled-unicast route through validation or decode, so acting on it there (erroring or reporting it) stays green.",
+      "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 8669 Section 3.1: 'It MUST be ignored when received for other BGP AFI/SAFI combinations.' The RA33 finding (the parser refused a Label-Index whose length is not 7 on every family, and no tagged unit fed one off labeled unicast through validation or decode) is answered by the new covers: message TestRFC8669LabelIndexAnyLengthIgnoredOffLabeledUnicast asserts RFC7606ActionNone for a 6-octet Label-Index on IPv4 VPN and IPv6 unicast; attribute TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength asserts ParsePrefixSID accepts it, re-emits it octet-equal and renders it attribute-not-implemented-1; reactor TestClearTransmittedLabelIndexOnlyOnLabeledUnicast asserts the egress clear leaves an IPv4 unicast body octet-equal; prefixsid-malformed-receive.ci frame (c) relays the 6-octet TLV on IPv4 VPN octet-equal; the pool test still asserts the SRv6 extractor ignores it. The producer ClassifyPrefixSID skips type 1 and 3 TLVs off labeled unicast without judging their length. Single-polarity stands: there is no Label-Index behavior off labeled unicast to drive negatively. Not asserted: a 7-octet Label-Index off labeled unicast through the JSON formatter.",
       "requirement_sha": "30f781814532f3d1",
       "tests": {
-        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily": "880d4dcf544fb926"
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexAnyLengthIgnoredOffLabeledUnicast": "e0956d7b07b9415d",
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily": "880d4dcf544fb926",
+        "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "9b5c77bc0e1b6086",
+        "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength": "c1ece5c8f901efd5",
+        "test/plugin/prefixsid-malformed-receive.ci": "88d6a95ab28704cc"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily": "8151d23cfc7d9244"
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexAnyLengthIgnoredOffLabeledUnicast": "3c08825fe221779d",
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily": "8151d23cfc7d9244",
+        "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "dff529a65e1207a3",
+        "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength": "7ca27c75ad71e18b",
+        "test/plugin/prefixsid-malformed-receive.ci": "88d6a95ab28704cc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8669-3.1-3": {
-      "note": "RFC 8669 \u00a73.1 whole field sentence: \"RESERVED: 8-bit field. It MUST be clear on transmission and MUST be ignored on reception.\" This row owns the transmission clause; reception remains RFC8669-3.1-4. Both internal/component/bgp/config/rfc8669_test.go tagged units (TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission and TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission) pin the reserved octet and independent bare-index/SRGB encoders internal/core/bgp/attribute/prefixsid.go::EncodePrefixSID/parsePrefixSIDWithSRGB. internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags separately supplies clean and dirty Label-Index values to raw, whole-packet, parsed, filter-override, general and route-server paths, then checks exact attribute bytes on the real session writer. clearTransmittedLabelIndex in session_prefix_sid.go clears only the bounded type-1 fields in an owned outgoing buffer; session_write.go invokes it after policy. Whole-value equality also requires unchanged unknown TLV, Originator SRGB, source buffer and NLRI. These distinct input cases fail if a dirty Reserved octet escapes or normalization corrupts adjacent content. This repairs the earlier origination-only proof limitation. No SRv6 SID allocation, transposition, VPP or RFC9252 feature claim follows; no runtime result asserted.",
+      "note": "RFC 8669 \u00a73.1 whole field sentence: \"RESERVED: 8-bit field. It MUST be clear on transmission and MUST be ignored on reception.\" This row owns the transmission clause; reception remains RFC8669-3.1-4. Both internal/component/bgp/config/rfc8669_test.go tagged units (TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission and TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission) pin the reserved octet and independent bare-index/SRGB encoders internal/core/bgp/attribute/prefixsid.go::EncodePrefixSID/parsePrefixSIDWithSRGB. internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags separately supplies clean and dirty Label-Index values to raw, whole-packet, parsed, filter-override, general and route-server paths, then checks exact attribute bytes on the real session writer. clearTransmittedLabelIndex in session_prefix_sid.go clears only the bounded type-1 fields in an owned outgoing buffer; session_write.go invokes it after policy. Whole-value equality also requires unchanged unknown TLV, Originator SRGB, source buffer and NLRI. These distinct input cases fail if a dirty Reserved octet escapes or normalization corrupts adjacent content. This repairs the earlier origination-only proof limitation. No SRv6 SID allocation, transposition, VPP or RFC9252 feature claim follows; no runtime result asserted. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). The transmit test now builds an IPv4 labeled-unicast route (rfc8669LabeledUnicastBody), the family Section 3.1 defines the TLV for, with the same exact-bytes assertions; the new TestClearTransmittedLabelIndexOnlyOnLabeledUnicast asserts the Reserved octet cleared on IPv4 and IPv6 labeled unicast with attribute 40 before and after MP_REACH_NLRI. Verdict unchanged.",
       "requirement_sha": "fdafa7899931e228",
       "tests": {
         "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
         "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
-        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "080ab9ed98905cbb",
-        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "080ab9ed98905cbb"
+        "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "9b5c77bc0e1b6086",
+        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "e74c5003c1202fd9",
+        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "e74c5003c1202fd9"
       },
       "units": {
         "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9",
         "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "8b66a6174ef13b32",
-        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "520fee7e94091a80",
-        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "520fee7e94091a80"
+        "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "dff529a65e1207a3",
+        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "c1824b9ebe0ed48a",
+        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "c1824b9ebe0ed48a"
       },
       "verdict": "enforced"
     },
@@ -71,19 +85,21 @@
       "verdict": "enforced"
     },
     "RFC8669-3.1-5": {
-      "note": "RFC 8669 \u00a73.1 whole field sentence: \"Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception.\" This row owns transmission; reception remains RFC8669-3.1-6. internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission and TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission assert both Flags octets zero for internal/core/bgp/attribute/prefixsid.go::EncodePrefixSID and parsePrefixSIDWithSRGB. The clean/dirty subcases of internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags drive six final writer/relay paths, including filter overrides, and demand the full expected Prefix-SID with Flags 0000. session_prefix_sid.go::clearTransmittedLabelIndex and its session_write.go callers operate only on owned outgoing bytes after policy. Exact source, unknown-TLV, SRGB and NLRI preservation isolates the type-1 normalization from unrelated dropping or rewriting. Genuine clean and nonzero cases distinguish both polarities; this is no longer only a configuration-encoder assertion. RFC8669 explicitly defers SRv6 data-plane behavior, so this verdict grants no SRv6/VPP implementation scope. Runtime proof remains the parent recorder responsibility.",
+      "note": "RFC 8669 \u00a73.1 whole field sentence: \"Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception.\" This row owns transmission; reception remains RFC8669-3.1-6. internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission and TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission assert both Flags octets zero for internal/core/bgp/attribute/prefixsid.go::EncodePrefixSID and parsePrefixSIDWithSRGB. The clean/dirty subcases of internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags drive six final writer/relay paths, including filter overrides, and demand the full expected Prefix-SID with Flags 0000. session_prefix_sid.go::clearTransmittedLabelIndex and its session_write.go callers operate only on owned outgoing bytes after policy. Exact source, unknown-TLV, SRGB and NLRI preservation isolates the type-1 normalization from unrelated dropping or rewriting. Genuine clean and nonzero cases distinguish both polarities; this is no longer only a configuration-encoder assertion. RFC8669 explicitly defers SRv6 data-plane behavior, so this verdict grants no SRv6/VPP implementation scope. Runtime proof remains the parent recorder responsibility. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). The transmit test now builds an IPv4 labeled-unicast route, with the same exact-bytes assertions (Flags 0000); the new TestClearTransmittedLabelIndexOnlyOnLabeledUnicast asserts Flags cleared on IPv4 and IPv6 labeled unicast. Verdict unchanged.",
       "requirement_sha": "00eec3b1db3275a6",
       "tests": {
         "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
         "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
-        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "080ab9ed98905cbb",
-        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "080ab9ed98905cbb"
+        "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "9b5c77bc0e1b6086",
+        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "e74c5003c1202fd9",
+        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "e74c5003c1202fd9"
       },
       "units": {
         "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9",
         "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "8b66a6174ef13b32",
-        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "520fee7e94091a80",
-        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "520fee7e94091a80"
+        "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "dff529a65e1207a3",
+        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "c1824b9ebe0ed48a",
+        "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "c1824b9ebe0ed48a"
       },
       "verdict": "enforced"
     },
@@ -133,15 +149,19 @@
       "verdict": "enforced"
     },
     "RFC8669-3.2-4": {
-      "note": "RA33 strict re-audit: weak. The unit proves only that the SRv6 extractor steps over TLV type 3. The {single-polarity} premise that the only SRGB code is the config-side encoder is false: attribute/prefixsid_wire.go validatePrefixSIDTLVs refuses an Originator SRGB whose length is not 2 + 6N, and the JSON formatter decodes it, regardless of AFI/SAFI. No tagged unit covers an SRGB on a non-labeled-unicast route through those paths.",
+      "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 8669 Section 3.2: 'It MUST be ignored when received for other BGP AFI/SAFI combinations.' The RA33 finding (the parser refused an Originator SRGB whose length is not 2 + 6N on every family, untested off labeled unicast) is answered: message TestRFC8669SRGBAnyLengthIgnoredOffLabeledUnicast asserts RFC7606ActionNone for a 3-octet SRGB on IPv4 VPN; attribute TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength asserts ParsePrefixSID accepts it, re-emits it octet-equal and renders it attribute-not-implemented-3; the pool test asserts the SRv6 extractor ignores it. ClassifyPrefixSID judges SRGB length on labeled unicast only. Single-polarity stands. Not asserted: an end-to-end relay of an SRGB off labeled unicast.",
       "requirement_sha": "4117e88ffffd020d",
       "tests": {
-        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669SRGBIgnoredOnNonLabeledUnicastFamily": "880d4dcf544fb926"
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBAnyLengthIgnoredOffLabeledUnicast": "e0956d7b07b9415d",
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669SRGBIgnoredOnNonLabeledUnicastFamily": "880d4dcf544fb926",
+        "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength": "c1ece5c8f901efd5"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669SRGBIgnoredOnNonLabeledUnicastFamily": "3377f5bbf00be1c6"
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBAnyLengthIgnoredOffLabeledUnicast": "619e6e0b19d22017",
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669SRGBIgnoredOnNonLabeledUnicastFamily": "3377f5bbf00be1c6",
+        "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength": "7ca27c75ad71e18b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8669-4-1": {
       "note": "Clause 'MUST discard': a Prefix-SID kept from an unconfigured EBGP peer goes red at reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPDiscardedByDefault assert.False(found) after enforceRFC7606, and for repeated copies at rfc8669_multi_test.go::TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP. Clause 'unless configured': an over-firing strip goes red at TestRFC8669PrefixSIDFromEBGPAcceptedWhenConfigured assert.True(found); IBGP not affected is pinned in TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy.",
@@ -162,42 +182,53 @@
     },
     "RFC8669-4.1-15": {
       "code": {
-        "internal/component/bgp/message/rfc7606.go::validatePrefixSIDAttr": "5468d93cff1cffa5"
+        "internal/component/bgp/reactor/session_validation.go::applyRFC7606": "d991709d844086df",
+        "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID": "d6d0f66964945efc"
       },
-      "note": "RFC 8669 Section 4.1 states: \"In the case of an \"invalid\" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. A BGP speaker SHOULD log an error for further analysis.\" The same section requires an attribute received without a Label-Index TLV to be considered invalid. validatePrefixSIDAttr checks TLV framing and SRv6 Service TLVs, but does not require Label-Index on labeled-unicast routes or compute that invalid state. Its registered receive path is reachable; the generic discard logger does not supply the absent trigger. This is the disclosed SR-MPLS invalid-state gap, distinct from conflicting-attribute warnings, EBGP boundary logging and conditional logging upon an actual discard. No missing SR-MPLS implementation is commissioned.",
+      "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 8669 Section 4.1: 'In the case of an \"invalid\" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. A BGP speaker SHOULD log an error for further analysis.' The invalid state is now computed: ClassifyPrefixSID returns PrefixSIDInvalidAttribute for a labeled-unicast attribute with no Label-Index TLV, and validatePrefixSIDValue maps it to attribute-discard. The only log of that discard is the Debug-level 'RFC 7606 attribute-discard' line in Session.applyRFC7606 and rfc7606DiagnosticsWithWire, which returns at once unless Debug is enabled, so no error is logged at the default level and the SHOULD is not met. No tagged unit exists. The row's {gap} text names validatePrefixSIDAttr, which no longer exists, and says the invalid state is not computed: that annotation is stale.",
       "requirement_sha": "be03dc7f94b681b5",
       "verdict": "unimplemented"
     },
     "RFC8669-6-1": {
-      "note": "Malformed via TLV overrun: message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised asserts discard and absence after ApplyAttrDiscard; trailing bytes: TestRFC8669TrailingBytesDiscarded asserts discard only, not removal. Unasserted clauses: (1) 'invalid' (no Label-Index TLV, per 4.1) is never computed, so an invalid attribute is kept and advertised and no tagged unit goes red; (2) 'a TLV length that doesn't conform to the length constraints for the TLV' is not checked by validatePrefixSIDAttr (a Label-Index TLV of length 6 or an SRGB TLV of length 3 is accepted), and no test drives it; (3) 'not meeting the minimum attribute length' (e.g. a zero-length attribute) is accepted and untested.",
+      "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 8669 Section 6, malformed or invalid attribute on IPv4/IPv6 labeled unicast: 'it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers.' The three RA findings are answered. TLV length constraints: TestRFC8669LabelIndexLengthMalformedOnLabeledUnicast (Label-Index 6 and 8, both families, attribute 40 before and after MP_REACH_NLRI) and TestRFC8669SRGBLengthMalformedOnLabeledUnicast (2, 3, 9) assert attribute-discard of exactly code 40. Minimum attribute length: TestRFC8669EmptyAttributeMalformed asserts attribute-discard of code 40. Positive: TestRFC8669ConformingTLVLengthsAcceptedOnLabeledUnicast asserts no action for Label-Index 7 alone and with SRGB 8 or 14. 'Not advertise': prefixsid-malformed-receive.ci, octet for octet, relays (a) Label-Index 6, (d) no Label-Index (the 'invalid' case, RFC 8669 Section 4.1) and (e1) empty attribute on IPv4 labeled unicast with attribute 40 absent, replaced by an ATTR_TOMBSTONE (type 252) naming code 40. The earlier overrun and trailing-byte units still assert discard. Producer: ClassifyPrefixSID via validatePrefixSIDValue.",
       "requirement_sha": "66fc373820ba8477",
       "tests": {
-        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised": "5dadd0d40640d538",
-        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669TrailingBytesDiscarded": "5dadd0d40640d538",
-        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669WellFormedAttributeAccepted": "5dadd0d40640d538"
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised": "43a22ffce691e1e9",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669TrailingBytesDiscarded": "43a22ffce691e1e9",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669WellFormedAttributeAccepted": "43a22ffce691e1e9",
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669ConformingTLVLengthsAcceptedOnLabeledUnicast": "e0956d7b07b9415d",
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669EmptyAttributeMalformed": "e0956d7b07b9415d",
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexLengthMalformedOnLabeledUnicast": "e0956d7b07b9415d",
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBLengthMalformedOnLabeledUnicast": "e0956d7b07b9415d",
+        "test/plugin/prefixsid-malformed-receive.ci": "88d6a95ab28704cc"
       },
       "units": {
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised": "586d04d5cd526763",
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669TrailingBytesDiscarded": "da00864ad34bf411",
-        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669WellFormedAttributeAccepted": "2e552c52d3356afa"
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669WellFormedAttributeAccepted": "2e552c52d3356afa",
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669ConformingTLVLengthsAcceptedOnLabeledUnicast": "d32ca24bd9d3c42a",
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669EmptyAttributeMalformed": "9d5bb169d33a044f",
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexLengthMalformedOnLabeledUnicast": "28b5137b5b05d8c1",
+        "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBLengthMalformedOnLabeledUnicast": "ed4ce60c9cd08cd5",
+        "test/plugin/prefixsid-malformed-receive.ci": "88d6a95ab28704cc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8669-6-3": {
-      "note": "Re-judged after 465af38f1d against rfc/full/rfc8669.txt Sections 3, 3.1, 3.2 and 6 and rfc/full/rfc9252.txt Section 7. Positive TestRFC8669DuplicateServiceTLVDiscardedOnReceive drives the real receive entry (enforceRFC7606 to publishBase) on an internal and a route-server-client session and asserts no error, RFC7606ActionNone, exactly one attribute 40 equal to the received TLVs less the repeat in received order, the peer's header width, the received attributes after code 40 octet for octet, and the same TLVs on the forward path; its cases are repeated SRv6 L3 and L2 Service TLVs on labelled unicast, Label-Index twice with an unknown TLV between, an unknown TLV after the repeat, a COMMUNITIES attribute after code 40, an Extended Length header, and L3 Service twice on IPv4 unicast (RFC 9252 Section 7 names no family). Negative TestRFC8669SingleOccurrencePrefixSIDKeptWhole pins the 'only allows for a single occurrence' qualifier and the Section 6 MUST 'unknown TLVs MUST be ignored and propagated unmodified': each type once, an unknown TLV twice, an Originator SRGB TLV twice (Section 3.2 'MUST NOT be changed during the propagation', so keeping both copies is the conforming answer) and a Label-Index TLV twice on IPv4 unicast must publish the received body octet-equal and forward every TLV. test/plugin/prefixsid-duplicate-tlv-relay.ci proves the session-in to session-out path with two byte-identical controls (unknown repeat; Label-Index repeat off labelled unicast) and an L3 Service repeat trimmed with the trailing unknown TLV and COMMUNITIES kept. The judge ran five -overlay mutants on HEAD, none recorded: Label-Index single on every family, stop copying after the first discard, family always read as IPv4 unicast, Extended Length header read as 3 octets, and the attributes after code 40 dropped; each turned a tagged reactor test red. Recorded discrimination records cover all three reactor/.ci tags (producer disabled). Readings, not findings: RFC 8669 sets no explicit occurrence limit for Label-Index; Ze treats it as single on IPv4/IPv6 labelled unicast from 'the label index for a given prefix', and off labelled unicast, where Section 3.1 says it 'MUST be ignored when received for other BGP AFI/SAFI combinations', as unrecognized and propagated unmodified (owner decision 2026-10-03). This is a defensible reading of an RFC that is silent, not RFC text. An UPDATE carrying both RFC 4271 NLRI and an MP_REACH_NLRI is judged by the MP_REACH family (prefixSIDRouteFamily), and no test covers it. The pool pair TestRFC8669DuplicateRecognizedTLVFirstWins / CannotOverrideFirst is one read-side first-wins assertion wearing two hats (the SIDs are swapped), so the polarity pair rests on the reactor and .ci tests, not on these two. A malformed repeat stays treat-as-withdraw first (untagged TestRFC8669DuplicateMalformedServiceTLVStillWithdrawn), which is RFC 9252 Section 7 and outside this row.",
+      "note": "Re-judged after 465af38f1d against rfc/full/rfc8669.txt Sections 3, 3.1, 3.2 and 6 and rfc/full/rfc9252.txt Section 7. Positive TestRFC8669DuplicateServiceTLVDiscardedOnReceive drives the real receive entry (enforceRFC7606 to publishBase) on an internal and a route-server-client session and asserts no error, RFC7606ActionNone, exactly one attribute 40 equal to the received TLVs less the repeat in received order, the peer's header width, the received attributes after code 40 octet for octet, and the same TLVs on the forward path; its cases are repeated SRv6 L3 and L2 Service TLVs on labelled unicast, Label-Index twice with an unknown TLV between, an unknown TLV after the repeat, a COMMUNITIES attribute after code 40, an Extended Length header, and L3 Service twice on IPv4 unicast (RFC 9252 Section 7 names no family). Negative TestRFC8669SingleOccurrencePrefixSIDKeptWhole pins the 'only allows for a single occurrence' qualifier and the Section 6 MUST 'unknown TLVs MUST be ignored and propagated unmodified': each type once, an unknown TLV twice, an Originator SRGB TLV twice (Section 3.2 'MUST NOT be changed during the propagation', so keeping both copies is the conforming answer) and a Label-Index TLV twice on IPv4 unicast must publish the received body octet-equal and forward every TLV. test/plugin/prefixsid-duplicate-tlv-relay.ci proves the session-in to session-out path with two byte-identical controls (unknown repeat; Label-Index repeat off labelled unicast) and an L3 Service repeat trimmed with the trailing unknown TLV and COMMUNITIES kept. The judge ran five -overlay mutants on HEAD, none recorded: Label-Index single on every family, stop copying after the first discard, family always read as IPv4 unicast, Extended Length header read as 3 octets, and the attributes after code 40 dropped; each turned a tagged reactor test red. Recorded discrimination records cover all three reactor/.ci tags (producer disabled). Readings, not findings: RFC 8669 sets no explicit occurrence limit for Label-Index; Ze treats it as single on IPv4/IPv6 labelled unicast from 'the label index for a given prefix', and off labelled unicast, where Section 3.1 says it 'MUST be ignored when received for other BGP AFI/SAFI combinations', as unrecognized and propagated unmodified (owner decision 2026-10-03). This is a defensible reading of an RFC that is silent, not RFC text. An UPDATE carrying both RFC 4271 NLRI and an MP_REACH_NLRI is judged by the MP_REACH family (prefixSIDRouteFamily), and no test covers it. The pool pair TestRFC8669DuplicateRecognizedTLVFirstWins / CannotOverrideFirst is one read-side first-wins assertion wearing two hats (the SIDs are swapped), so the polarity pair rests on the reactor and .ci tests, not on these two. A malformed repeat stays treat-as-withdraw first (untagged TestRFC8669DuplicateMalformedServiceTLVStillWithdrawn), which is RFC 9252 Section 7 and outside this row. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). Both units' labeled-unicast cases now lead with a Label-Index TLV, because a labeled-unicast Prefix-SID without one is invalid (Section 4.1) and would be discarded before the repeat rule is reached; the assertions are unchanged, so each buffer still isolates this rule. Verdict unchanged.",
       "requirement_sha": "f72d6db1a19968f4",
       "tests": {
         "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst": "880d4dcf544fb926",
         "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins": "880d4dcf544fb926",
-        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669DuplicateServiceTLVDiscardedOnReceive": "2da5739060578ead",
-        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669SingleOccurrencePrefixSIDKeptWhole": "2da5739060578ead",
+        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669DuplicateServiceTLVDiscardedOnReceive": "0d07d0f8e423f328",
+        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669SingleOccurrencePrefixSIDKeptWhole": "0d07d0f8e423f328",
         "test/plugin/prefixsid-duplicate-tlv-relay.ci": "edd3f723202b52c7"
       },
       "units": {
         "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst": "98375fef4cd15f32",
         "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins": "99938dd144ab230b",
-        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669DuplicateServiceTLVDiscardedOnReceive": "2dbf4c7d7668f4c5",
-        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669SingleOccurrencePrefixSIDKeptWhole": "de30de36da1c2ceb",
+        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669DuplicateServiceTLVDiscardedOnReceive": "2ad093df191738bb",
+        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669SingleOccurrencePrefixSIDKeptWhole": "f15712c567723ab4",
         "test/plugin/prefixsid-duplicate-tlv-relay.ci": "edd3f723202b52c7"
       },
       "verdict": "enforced"
