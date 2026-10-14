@@ -15,6 +15,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -26,8 +27,8 @@
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890",
         "internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go::TestForwardReflectionLeavesAWithdrawalUntouched": "bfb433482506ffdc",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "0a12e4314a688e0c",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "0a12e4314a688e0c"
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "4f52751012f1966c",
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "4f52751012f1966c"
       },
       "units": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58",
@@ -44,8 +45,8 @@
       "tests": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "0a12e4314a688e0c",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "0a12e4314a688e0c"
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "4f52751012f1966c",
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "4f52751012f1966c"
       },
       "units": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58",
