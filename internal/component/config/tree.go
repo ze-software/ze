@@ -745,6 +745,9 @@ func (t *Tree) GetList(name string) map[string]*Tree {
 }
 
 // AddListEntry adds an entry to a list.
+// For a list whose YANG key names several leaves, key is the entry's
+// canonical address (list_key.go), so two entries differing in any key leaf
+// are two keys and never reach the suffix below.
 // For duplicate keys, generates unique keys by appending #N suffix.
 // This supports ADD-PATH routes with same prefix but different path-info.
 func (t *Tree) AddListEntry(name, key string, entry *Tree) {
@@ -1233,7 +1236,10 @@ func (t *Tree) ToPluginMap() map[string]any {
 }
 
 // toMap is the one walker behind both lowerings. withListOrder decides whether
-// a multi-entry list is followed by its order.
+// a multi-entry list is followed by its order. A list entry is emitted under
+// its map key, which for a multi-leaf-key list is the canonical address
+// (`fe80::b interface zbl1`), the contract docs/architecture/config/syntax.md
+// states.
 func (t *Tree) toMap(withListOrder bool) map[string]any {
 	if t == nil {
 		return nil

@@ -920,10 +920,17 @@ func hasAllowUnknownExtension(entry *gyang.Entry) bool {
 
 // yangToList converts YANG list to ListNode.
 func yangToList(entry *gyang.Entry, path string) *ListNode {
-	// Determine key type from first key leaf
+	// The key type and the key leaf come from the FIRST key leaf. A YANG
+	// key names one leaf or several ("peer vrf interface"); the first is the
+	// value an entry is written under, and the others are addressed by name
+	// (list_key.go).
+	firstKey := ""
+	if keys := strings.Fields(entry.Key); len(keys) > 0 {
+		firstKey = keys[0]
+	}
 	keyType := TypeString
-	if entry.Key != "" && entry.Dir != nil {
-		if keyEntry, ok := entry.Dir[entry.Key]; ok {
+	if firstKey != "" && entry.Dir != nil {
+		if keyEntry, ok := entry.Dir[firstKey]; ok {
 			keyType = yangTypeToValueType(keyEntry.Type)
 		}
 	}
@@ -957,9 +964,9 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 		}
 	}
 	l := List(keyType, fields...)
-	if entry.Key != "" && entry.Dir != nil {
-		if keyEntry, ok := entry.Dir[entry.Key]; ok {
-			l.KeyLeaf = yangToLeaf(keyEntry, AppendPath(path, entry.Key))
+	if firstKey != "" && entry.Dir != nil {
+		if keyEntry, ok := entry.Dir[firstKey]; ok {
+			l.KeyLeaf = yangToLeaf(keyEntry, AppendPath(path, firstKey))
 		}
 	}
 

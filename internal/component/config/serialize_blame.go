@@ -378,7 +378,7 @@ func serializeBlameList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name stri
 		b.Str(name)
 		if key != KeyDefault {
 			b.Str(" ")
-			b.Str(quoteIfNeeded(displayKey))
+			b.Str(quoteIfNeeded(ListKeyOpeningValue(node, displayKey)))
 		}
 		b.Str(" {\n")
 		serializeBlameTree(b, entry, entryMeta, node, indent+1)

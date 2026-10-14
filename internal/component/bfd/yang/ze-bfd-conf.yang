@@ -227,7 +227,7 @@ module ze-bfd-conf {
                 default "default";
                 description "A name other than default binds the socket to the VRF device of that name. The
                     interface leaf of every session in that VRF is then dropped, and Ze logs the names it
-                    dropped once for each loop. An empty value is read as default.";
+                    dropped once for each loop. An empty value is refused: the leaf is part of the key.";
                 ze:help "Routing instance the session runs in. The default instance is named default.";
             }
             leaf profile {
@@ -282,7 +282,7 @@ module ze-bfd-conf {
                 default "default";
                 description "A name other than default binds the socket to the VRF device of that name. Ze
                     runs one socket for each pair of VRF and hop mode, so every multi-hop session in one
-                    VRF shares it. An empty value is read as default.";
+                    VRF shares it. An empty value is refused: the leaf is part of the key.";
                 ze:help "Routing instance the session runs in. The default instance is named default.";
             }
             leaf min-ttl {

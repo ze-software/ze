@@ -400,7 +400,7 @@ func serializeAnnotatedList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 		b.Str(name)
 		if key != KeyDefault {
 			b.Str(" ")
-			b.Str(quoteIfNeeded(displayKey))
+			b.Str(quoteIfNeeded(ListKeyOpeningValue(node, displayKey)))
 		}
 		// One line in `show configuration` is one line here too, so the two views
 		// show one shape. The gutter written above already inherits the entry's

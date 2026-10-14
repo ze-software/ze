@@ -170,6 +170,24 @@ drops the value at exactly one member. A list is never a slice at any count.
 Its key leaf is the map key rather than a field inside the entry, so asserting a
 slice drops it at every count.
 
+A list whose YANG key names several leaves (`key "peer vrf interface"`, the
+BFD `single-hop-session` list) is keyed by the entry's canonical ADDRESS, not
+by its first word: the first key leaf's value, then `name value` for each other
+key leaf in YANG key order whose value is not its YANG `default`. A key leaf
+with no default is omitted only when absent. So the entries
+`single-hop-session fe80::b { interface zbl0; }` and
+`single-hop-session fe80::b { interface zbl1; }` are stored, and delivered to
+the plugin, under `fe80::b interface zbl0` and `fe80::b interface zbl1`, and
+`vrf default` written or omitted is the same entry. The other key leaves stay
+leaves of the entry as written. A key value of such a list that is empty or
+holds whitespace is refused at parse, because it would make the address
+ambiguous, and two entries with one address are refused as a duplicate list
+key. Brace form writes the first value alone on the opening line, because the
+body carries the other key leaves. A list whose key names one leaf keeps its
+key exactly as written.
+<!-- source: internal/component/config/list_key.go -- BuildListKey, canonicalParsedListKey, ListKeyOpeningValue -->
+<!-- source: internal/component/config/parser_list.go -- addParsedListEntry -->
+
 Read all three through `internal/core/configvalue` (`Bool`, `Int`, `LeafList`,
 `ListEntries`) rather than asserting a type. The obligation is stated in the
 configuration rule.

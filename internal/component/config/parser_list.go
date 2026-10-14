@@ -278,7 +278,20 @@ func (p *Parser) setInlineLastChild(entry *Tree, name string, node *ListNode, ch
 	return nil
 }
 
+// addParsedListEntry stores an entry the parser read under its first word.
+// A list whose YANG key names several leaves stores it under the canonical
+// address (list_key.go), built from the first word and the body's key
+// leaves, so the duplicate check below compares whole keys: two entries for
+// one peer on two interfaces are two entries, and `vrf default` written or
+// omitted is one.
 func (p *Parser) addParsedListEntry(tree *Tree, name string, node *ListNode, key string, entry *Tree, line int) error {
+	if node != nil && key != KeyDefault {
+		canonical, err := canonicalParsedListKey(name, node, key, entry)
+		if err != nil {
+			return p.errorf(token{line: line}, "%v", err)
+		}
+		key = canonical
+	}
 	if entries := tree.GetList(name); entries != nil {
 		incomingInactive := entry.IsInactive()
 		allowDuplicate := allowsDuplicateParsedListEntries(node, key)

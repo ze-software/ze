@@ -529,7 +529,7 @@ func serializeListMultiBlock(b *textbuf.Buffer, name string, entries map[string]
 		}
 		displayKey := StripListKeySuffix(key)
 		b.Str(innerPrefix)
-		b.Str(quoteIfNeeded(displayKey))
+		b.Str(quoteIfNeeded(ListKeyOpeningValue(node, displayKey)))
 
 		// Positional children in definition order
 		for _, childName := range node.Children() {
@@ -572,7 +572,7 @@ func serializeListBlocks(b *textbuf.Buffer, entries map[string]*Tree, name strin
 		// Skip outputting KeyDefault - it's the implicit default
 		if key != KeyDefault {
 			b.Str(" ")
-			b.Str(quoteIfNeeded(key))
+			b.Str(quoteIfNeeded(ListKeyOpeningValue(node, key)))
 		}
 		if members, ok := inlineLeafListEntry(entry, node, key); ok {
 			writeInlineLeafListMembers(b, members)
@@ -781,43 +781,4 @@ func bracketBody(tree *Tree, name string) (string, bool) {
 	}
 	v, ok := tree.values[name]
 	return v, ok
-}
-
-// quoteIfNeeded quotes a string if it contains spaces or special characters.
-func quoteIfNeeded(s string) string {
-	if s == "" {
-		return `""`
-	}
-
-	needsQuote := false
-	for _, c := range s {
-		if c == ' ' || c == '\t' || c == '"' || c == '\'' || c == '{' || c == '}' || c == ';' || c == '#' {
-			needsQuote = true
-			break
-		}
-	}
-
-	if !needsQuote {
-		return s
-	}
-
-	// Escape quotes and backslashes
-	var b textbuf.Buffer
-	b.Byte('"')
-	for _, c := range s {
-		switch c {
-		case '"':
-			b.Str(`\"`)
-		case '\\':
-			b.Str(`\\`)
-		case '\n':
-			b.Str(`\n`)
-		case '\t':
-			b.Str(`\t`)
-		default:
-			b.WriteRune(c)
-		}
-	}
-	b.Byte('"')
-	return b.String()
 }

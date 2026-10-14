@@ -1127,7 +1127,13 @@ delivery adds one more shape on top.
 | `list` | any count, one included | `map[string]any` keyed by the list key | `map[string]any` keyed by the list key |
 
 A `list` is never a slice, and its key leaf is the map key rather than a field
-inside the entry.
+inside the entry. A list whose key names several leaves is keyed by the entry's
+canonical address instead (`fe80::b interface zbl1`: the first key value, then
+`name value` for each other key leaf not at its YANG default), and those other
+key leaves are also fields inside the entry. A consumer takes the first key
+value as the map key's first space-separated token. The address is stated on
+`syntax.md`, "What a reader receives".
+<!-- source: internal/component/config/list_key.go -- BuildListKey -->
 
 <!-- source: internal/core/configvalue -- LeafList, ListEntries -->
 <!-- source: internal/core/configorder -- Entries, OrderKey -->

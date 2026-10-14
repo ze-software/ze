@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/netip"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/packet"
@@ -152,11 +153,15 @@ func parseBFDSection(data string) (*pluginConfig, error) {
 		}
 	}
 
+	written := make(map[sessionIdentity]string)
 	if singleMap, ok := bfdMap["single-hop-session"].(map[string]any); ok {
 		for key, raw := range singleMap {
 			fields, _ := raw.(map[string]any)
 			s, err := parseSingleHopSession(key, fields, cfg.profiles)
 			if err != nil {
+				return nil, err
+			}
+			if err := refuseSecondEntryForSession(written, "single-hop-session", key, s); err != nil {
 				return nil, err
 			}
 			cfg.sessions = append(cfg.sessions, s)
@@ -168,6 +173,9 @@ func parseBFDSection(data string) (*pluginConfig, error) {
 			fields, _ := raw.(map[string]any)
 			s, err := parseMultiHopSession(key, fields, cfg.profiles)
 			if err != nil {
+				return nil, err
+			}
+			if err := refuseSecondEntryForSession(written, "multi-hop-session", key, s); err != nil {
 				return nil, err
 			}
 			cfg.sessions = append(cfg.sessions, s)
@@ -351,17 +359,54 @@ func keyedSHA1(wire uint8) bool {
 	return wire == packet.AuthTypeMeticulousKeyedSHA1
 }
 
+// sessionIdentity is what makes two config entries one BFD session: the
+// fields the session key is built from.
+type sessionIdentity struct {
+	mode  api.HopMode
+	peer  netip.Addr
+	local netip.Addr
+	iface string
+	vrf   string
+}
+
+// refuseSecondEntryForSession refuses an entry that resolves to the same
+// session as an entry already read. The config component keys a list entry
+// on its address as written, and `peer` is a string there, so `fe80::b` and
+// `fe80:0::b` are two entries that netip.ParseAddr reads as one peer.
+func refuseSecondEntryForSession(written map[sessionIdentity]string, list, key string, s sessionConfig) error {
+	id := sessionIdentity{mode: s.mode, peer: s.peer, local: s.local, iface: s.iface, vrf: s.vrf}
+	first, seen := written[id]
+	if !seen {
+		written[id] = key
+		return nil
+	}
+	where := ""
+	if s.iface != "" {
+		where = " on interface " + s.iface
+	}
+	return fmt.Errorf("bfd: %s entries %s and %s%s name one session: remove one of them",
+		list, addressFirstValue(first), addressFirstValue(key), where)
+}
+
+// addressFirstValue returns the first key value of a list entry's address.
+// The config component delivers a multi-leaf-key entry under its canonical
+// address, the first key value (`peer`) followed by `name value` pairs for
+// the other key leaves that are not at their default
+// (`fe80::b interface zbl1`); the pairs are also leaves of the entry.
+func addressFirstValue(listKey string) string {
+	first, _, _ := strings.Cut(listKey, " ")
+	return first
+}
+
 // parseSingleHopSession decodes one entry under `single-hop-session`. The
-// YANG list key is "peer vrf interface", but ze's config file parser only
-// carries the first positional value as the list key, so operators write
-// `single-hop-session 203.0.113.9 { interface eth0; vrf default }` and
-// the peer address comes from listKey. Fall back to fields["peer"] when
-// the config is delivered via an API writer that populated the leaves
-// directly.
+// YANG list key is "peer vrf interface"; the entry arrives under its
+// address (`fe80::b interface zbl1`), whose first value is the peer, and
+// its `interface` and `vrf` leaves. Fall back to fields["peer"] when the
+// config is delivered via an API writer that populated the leaves directly.
 func parseSingleHopSession(listKey string, fields map[string]any, profiles map[string]profileConfig) (sessionConfig, error) {
 	peerStr, _ := fields["peer"].(string)
 	if peerStr == "" {
-		peerStr = listKey
+		peerStr = addressFirstValue(listKey)
 	}
 	if peerStr == "" {
 		return sessionConfig{}, errBfdSingleHopSessionMissingPeer
@@ -398,13 +443,13 @@ func parseSingleHopSession(listKey string, fields map[string]any, profiles map[s
 }
 
 // parseMultiHopSession decodes one entry under `multi-hop-session`. Same
-// listKey/peer fallback as parseSingleHopSession; the YANG key is
-// "peer local vrf" but the config file writer carries only the first
-// positional value.
+// address/peer fallback as parseSingleHopSession; the YANG key is
+// "peer local vrf", so the address carries `local` too
+// (`198.51.100.9 local 10.0.0.1`).
 func parseMultiHopSession(listKey string, fields map[string]any, profiles map[string]profileConfig) (sessionConfig, error) {
 	peerStr, _ := fields["peer"].(string)
 	if peerStr == "" {
-		peerStr = listKey
+		peerStr = addressFirstValue(listKey)
 	}
 	if peerStr == "" {
 		return sessionConfig{}, errBfdMultiHopSessionMissingPeer

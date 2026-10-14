@@ -367,7 +367,7 @@ func diffList(lines *[]diffLine, orig, mod *config.Tree, name string, node *conf
 		if displayKey == config.KeyDefault {
 			opening = tb.Str(name).Str(" {").String()
 		} else {
-			opening = tb.Reset().Str(name).Byte(' ').Str(diffQuoteIfNeeded(displayKey)).Str(" {").String()
+			opening = tb.Reset().Str(name).Byte(' ').Str(diffQuoteIfNeeded(config.ListKeyOpeningValue(node, displayKey))).Str(" {").String()
 		}
 		closeLine := tb.Reset().Str(prefix).Byte('}').String()
 
