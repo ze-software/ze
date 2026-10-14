@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | ready |
 | Scope | tooling |
-| Depends | - (the capture record in Phase 5 cross-references `plan/spec-journal-class-lifecycle.md`, see A-7) |
+| Depends | - (the capture record in Phase 5 follows `plan/journal/README.md`, "The capture line", see A-7) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-05 |
@@ -28,7 +28,7 @@ occurrences are fixed only when a change touches their lines.
 
 Out of scope: fixing the existing occurrences; dev tooling (anything the shipped
 binaries do not link); designing how a journal class records its capture (owned
-by `plan/spec-journal-class-lifecycle.md`).
+by spec-journal-class-lifecycle, now documented in `plan/journal/README.md`).
 
 The owner answered the three open questions on 2026-10-05 (Owner Decisions,
 under Key Design Decisions): the clock class covers every `time` function the
@@ -156,7 +156,7 @@ counts as new.
 | A-4 | The allowed discards are exactly the explicit `exclude-functions` entries of `.golangci.yml` and `//nolint:errcheck // reason`; errcheck's implicit built-in list applies to neither tool | Owner decision Q-2 (2026-10-05); go-standards: a discarded error needs `//nolint:errcheck // <why>` | a built-in default left implicit would be a second, unreasoned declaration | owner answer to Q-2 | validated (owner, 2026-10-05) |
 | A-5 | Approximate scale: within the shipped closure (3,860 non-test files outside `internal/core/clock`, linux and darwin, distro and appliance personalities with every gate tag, plus the installer), 649 non-test lines in 316 files name a refused `time` function: `Now` 400, `Since` 47, `Until` 13, `Sleep` 22, `After` 23, `AfterFunc` 17, `NewTimer` 42, `NewTicker` 77, `Tick` 0. The original three alone are 468 lines in 250 files (the earlier 446 in 229 was measured on a narrower build set). No shipped file imports `time` under an alias. About 1,488 lines match a textual blank-assignment pattern (not type-filtered, so an upper bound for the error class) | textual grep excluding comment lines over the `go list -deps -f GoFiles` union, 2026-10-05 | none: the gate does not depend on the number | `./le arch ... check` output at implementation | unvalidated |
 | A-6 | A changed line in another session's uncommitted work reaching `./le verify current` is acceptable, as it is for compound-guard; `./le verify worktree` judges a commit and so sees only committed work | `ze-go-style-background.md`; compound-guard precedent | a session sees reds it did not write | compound-guard history | unvalidated |
-| A-7 | `plan/spec-journal-class-lifecycle.md` (status ready on 2026-10-05) defines how a journal class records its capture: a `Captured:` line of kind `check` naming the gate function and a proof test. Under that spec a class captured by a check goes DUE again after one row dated after the capture | that spec's capture grammar and owner decision of 2026-10-05 | Phase 5 has no format to follow | read that spec when Phase 5 starts; use its format only once it has landed | unvalidated |
+| A-7 | `plan/journal/README.md`, "The capture line" (landed by spec-journal-class-lifecycle in 9a30ea31ba, 2026-10-14), defines how a journal class records its capture: a `Captured:` line of kind `check` naming the gate function and a proof test. Under that spec a class captured by a check goes DUE again after one row dated after the capture | that spec's capture grammar and owner decision of 2026-10-05 | Phase 5 has no format to follow | read that spec when Phase 5 starts; use its format only once it has landed | unvalidated |
 | A-8 | errcheck's arg-qualified entries (`fmt.Fprintf(os.Stderr)`, `fmt.Fprint(*bytes.Buffer)`) can be matched by the gate the way errcheck matches them: the first argument's type, or for `os.Stderr` the package-level variable itself | errcheck v1.20.0 exclusion syntax in `excludes.go` and its embedded-symbol matching | the gate allows or refuses a call errcheck treats the other way | selftest fixtures for `os.Stderr` allowed and another `*os.File` refused | unvalidated |
 
 ### Risks
@@ -326,7 +326,7 @@ Discrimination (owed before claiming the gates work, `ai/rules/interop-and-goal-
    - Tests: `TestShippedScopeIsTheTargetClosure`, `TestShippedScopeIncludesHostAndLinuxFiles`, `TestAFileNoFlavorAdmitsIsExitTwo`, `TestShippedPersonalitiesFeedTheDerivedTagFiles`; `./le repo feature-tags check` stays green
 3. **Phase: clock-bypass detector** - the refused-set builder over the `Clock` method set and the three-row replacement table, AC-1..AC-5 (with AC-2b, AC-2c), AC-12, AC-18, selftest fixtures; page subsection written in this phase.
 4. **Phase: discarded-error detector** - the `.golangci.yml` edit (defaults disabled, 28 built-ins listed, a reason on every entry) lands in this phase with the reader that refuses an unreasoned entry; AC-6..AC-11 (with AC-8b, AC-8c), AC-18, selftest fixtures; page section rewritten in this phase. The main thread's `./le go lint run` proves AC-16.
-5. **Phase: Capture record and rules** - INDEX rows, go-standards point + condensed regeneration, background page; the two journal files record their capture in the format `plan/spec-journal-class-lifecycle.md` defines (cross-reference only; this spec does not design it). If that spec has not landed when this phase starts, ask the main thread which format to use rather than inventing one. Each class takes a `check` capture naming its gate's check function and the upstream test as proof; under that spec one row dated after the capture makes the class DUE again, and the pass that follows repairs the gate.
+5. **Phase: Capture record and rules** - INDEX rows, go-standards point + condensed regeneration, background page; the two journal files record their capture in the format `plan/journal/README.md` defines under "The capture line" (cross-reference only; this spec does not design it). If that spec has not landed when this phase starts, ask the main thread which format to use rather than inventing one. Each class takes a `check` capture naming its gate's check function and the upstream test as proof; under that spec one row dated after the capture makes the class DUE again, and the pass that follows repairs the gate.
 6. **Phase: Discrimination** - break each detector, record red, restore.
 
 Gates owed by the implementer's main thread (not runnable inside a five-minute agent window): `./le go lint run`, `./le verify worktree`.

@@ -384,6 +384,33 @@ func runGitInput(tree, input string, args ...string) gitAnswer {
 	return answer
 }
 
+// headUnborn reports whether HEAD names a branch that holds no commit yet, the
+// state of a repository before its first commit. A HEAD that resolves is not
+// unborn, and any other git failure is an error, never an empty HEAD.
+func headUnborn(tree string) (bool, error) {
+	resolved := runGit(tree, "rev-parse", "--verify", "--quiet", "HEAD")
+	if resolved.startErr != nil {
+		return false, resolved.startErr
+	}
+	if resolved.code == 0 {
+		return false, nil
+	}
+	if resolved.code != 1 {
+		return false, gitReadError("git rev-parse --verify HEAD failed: ", resolved)
+	}
+	// HEAD does not resolve. It is unborn only when it is a symbolic ref, the
+	// branch a first commit would create; a detached HEAD naming a missing
+	// object is a broken repository.
+	branch := runGit(tree, "symbolic-ref", "--quiet", "HEAD")
+	if branch.startErr != nil {
+		return false, branch.startErr
+	}
+	if branch.code != 0 {
+		return false, gitReadError("git HEAD resolves to no commit and names no branch: ", branch)
+	}
+	return true, nil
+}
+
 func gitReadError(prefix string, answer gitAnswer) error {
 	var tb textbuf.Buffer
 	tb.Str(prefix)
@@ -670,6 +697,15 @@ func heldKey(cells [5]string) [5]string {
 // validated file: a row copied into two classes pairs in each, which the cap
 // does not judge, because the copy adds no prose.
 func rowsMovedFromOtherClasses(tree, relative string) (heldRows, error) {
+	unborn, err := headUnborn(tree)
+	if err != nil {
+		return nil, err
+	}
+	// A repository with no commit holds no class file, so no row was moved
+	// from one. git ls-tree refuses a HEAD that does not resolve.
+	if unborn {
+		return heldRows{}, nil
+	}
 	paths, err := classFilesAtHead(tree)
 	if err != nil {
 		return nil, err

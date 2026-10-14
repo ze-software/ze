@@ -119,9 +119,13 @@ artifact their spec could not yet produce, and charged a session with other
 sessions' specs where a class file is shared. A journal file the
 commit changes is still validated whole, by `specjournal.ValidateFile`. A file
 with no journal header refuses the commit, and so does any row in it, added or
-not, that is not five cells, carries a Date that is not `YYYY-MM-DD`, or has a
-Spec cell that names no readable stem. A row that HEAD does not already hold
-must also stay within the 600-character cap.
+not, that is not five cells, carries a Date that is not `YYYY-MM-DD`, has a
+Spec cell that names no readable stem, or has a Fix cell that starts with
+neither `fixed: ` nor `open: `. A `Captured:` line that breaks its grammar,
+names what the working tree does not declare, or is the file's second refuses
+it too. A row that HEAD does not already hold, in this file or unchanged in
+another class file, must also stay within the 600-character cap; the pairing
+ignores the Fix marker, so a row whose only change is its marker is held.
 <!-- source: internal/le/spec/journal/validate.go -- ValidateFile -->
 
 What this gives up: commit A of the two-commit closure below lands its code

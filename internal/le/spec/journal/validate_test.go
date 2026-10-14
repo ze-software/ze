@@ -307,3 +307,37 @@ func TestValidateFileHoldsARowMovedFromAnotherClass(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateFileJudgesAFileInARepositoryWithNoCommit validates that an
+// unborn HEAD, which holds no class file, is judged as an empty HEAD and never
+// as a failed read: ValidateFile answers the file's own verdict, accepting a
+// marked row and refusing an unmarked one. The post-write hook's probe tree is
+// such a repository. PREVENTS: the moved-row pairing running git ls-tree over
+// a HEAD that does not resolve and refusing every file it validates.
+func TestValidateFileJudgesAFileInARepositoryWithNoCommit(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		fix  string
+		exit int
+	}{
+		{name: "marked", fix: "fixed: fix", exit: 0},
+		{name: "unmarked", fix: "fix", exit: 1},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			path := "plan/journal/unborn.md"
+			root := t.TempDir()
+			writeJournalFile(t, root, path, journalTableHead+"| 2026-08-22 | spec-x | hooks | symptom | "+test.fix+" |\n")
+			journalGit(t, root, "init", "--quiet", "--initial-branch=main")
+			report, err := ValidateFile(root, path)
+			if err != nil {
+				t.Fatalf("ValidateFile over an unborn HEAD: %v", err)
+			}
+			if report.ExitCode() != test.exit {
+				t.Fatalf("ValidateFile exit = %d, want %d: %#v", report.ExitCode(), test.exit, report)
+			}
+		})
+	}
+}

@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 4/6 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-10-14 |
 
@@ -476,7 +476,7 @@ classes, split out a row the class's check would miss.
 | Split `guard-demands-what-the-model-cannot-supply` | 3 (2026-08-31 .. 2026-09-15) | Split 1 row | 2026-09-06 (`continue` on a next-hop error skips the peer) to `silent-fall-through` |
 | Split `paraphrase-becomes-the-authority` | 4 (2026-09-11 .. 2026-10-13) | Split 2 rows into a new class | 2026-09-27 (RFC 7474's AuType 3 rule applied to AuType 2) and 2026-10-13 (a BGP 3x habit applied to LDP KeepAlive) to `requirement-applied-outside-the-case-it-names`: each borrows another case's requirement, neither paraphrases one |
 | Split `bound-wraps-before-it-refuses` | 5 (2026-08-22 .. 2026-10-06) | Drop | 2026-09-17 (zero-column resize gives a negative width) is subtraction on an input-stated dimension before any bound, the mirror of the add-before-compare rows; the class's check (bound the stated value before arithmetic) catches it |
-| Split `test-against-broken-path` | 88 (2026-03-21 .. 2026-10-14) | Split 3 rows; 1 deferred; no new class | 2026-09-22 (PPP test package duplicate declarations), 2026-08-16 (`setAPIConfigDir` undefined) and 2026-08-16 (renamed listener-migration types) to `committed-tree-does-not-build`. 2026-09-06 (`api-multiple-api` sends next-hop 127.0.0.1 to the peer at 127.0.0.1) to `fixture-encodes-an-impossible-state`, moved with Phase 5 once another session's row in that file had landed (7d37dcd562). The rest (topology, stale oracle, fixture init, races) are tests whose path to the producer is broken, the class itself |
+| Split `test-against-broken-path` | 88 (2026-03-21 .. 2026-10-14) | Split 3 rows; 1 deferred, then moved in Phase 5 (7743ed895d); no new class | 2026-09-22 (PPP test package duplicate declarations), 2026-08-16 (`setAPIConfigDir` undefined) and 2026-08-16 (renamed listener-migration types) to `committed-tree-does-not-build`. 2026-09-06 (`api-multiple-api` sends next-hop 127.0.0.1 to the peer at 127.0.0.1) to `fixture-encodes-an-impossible-state`, moved with Phase 5 once another session's row in that file had landed (7d37dcd562). The rest (topology, stale oracle, fixture init, races) are tests whose path to the producer is broken, the class itself |
 
 Seen while reading, for the fix pass of AC-17 (a), not moved here: rows whose
 cause is outside their class, in `silent-fall-through` (2026-09-04 YANG module
@@ -612,3 +612,177 @@ record the verdicts above replaced:
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/spec-journal-class-lifecycle.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1+2, 9a30ea31ba: the capture line parser and resolver (`internal/le/spec/journal/capture.go`: `parseCapture`, `resolveCapture`, `headCaptureSource`, `treeCaptureSource`, `headCommitDate`), the Fix marker (`fixMarkerOf`, `withoutFixMarker`), counted rows and per-kind thresholds (`journal.go` `appendClass`, `headCaptureVerdicts`; `report.go` `captureKinds`, `DueRowsAfterCheck`, `thresholdText`, `Class`, `Report.Text`), the working-tree reader (`validate.go` `ValidateFile`), marker-stripped pairing (`heldKey`), `journalWhy` from the kind table, the README, and the backfill of 213 class files (2,420 rows: 1,242 `fixed:`, 1,178 `open:`).
+- Phase 6a, f873a99409: completion point, `ai/rules/completion.md` regenerated, both `ai/INDEX.md` rows.
+- Phase 4, 2e16a9e2a6: one merge, four splits, verdicts in Design Insights; `rowsMovedFromOtherClasses` so a moved over-cap row is held, not measured. 8ae7d0c6ca and 7d0e632c8d: report pasted; one journal row.
+- Phase 5, 7743ed895d: two `rule` captures; the deferred row move. Phase 6b, 67304623d9: `RECURRING-PATTERNS.md` frozen with 35 class pointers.
+- Closure: `headUnborn` (`journal.go`), so `rowsMovedFromOtherClasses` answers an empty set over a repository with no commit; `docs/contributing/spec-workflow.md` refusal list; citers repointed.
+
+### Bugs Found/Fixed
+- `ValidateFile` refused every file in a repository with no commit: `rowsMovedFromOtherClasses` ran `git ls-tree HEAD`, which fails on an unborn HEAD, and `postJournal` turned the error into a refusal. `TestEveryBehavioralCategoryDiscriminates/journal-row-shape` and `TestEveryProbeSeparatesItsAllowFromItsRefusal` in `internal/le/ai/hooks` were red. Covered now by `TestValidateFileJudgesAFileInARepositoryWithNoCommit` (red observed: "git ls-tree HEAD -- plan/journal failed: fatal: Not a valid object name HEAD"; green after `headUnborn`).
+- 2e16a9e2a6: a moved over-cap row measured as added; `TestValidateFileHoldsARowMovedFromAnotherClass`.
+
+### Documentation Updates
+- `plan/journal/README.md`: marker, capture line, problem kinds, counting, thresholds pointed at the report's `due at:` line, fix pass (AC-17), check repair (AC-21), move pairing (9a30ea31ba, 2e16a9e2a6).
+- `ai/rules/points/completion/directives/spec-a-found-problem-close-then-ask.md`, `ai/rules/completion.md`, both `ai/INDEX.md` "Which problems recur" rows (f873a99409). `plan/learned/RECURRING-PATTERNS.md` intro (67304623d9).
+- Closure: `docs/contributing/spec-workflow.md` "A journal row NEVER makes a commit a closure" paragraph listed the old refusals only; now names the Fix marker, the capture refusals and the moved/marker-only pairing, under its existing `<!-- source: internal/le/spec/journal/validate.go -- ValidateFile -->` anchor.
+- `./le doc check verify` exit 1 at closure, none of it from this spec's pages: the wiki command catalog drift, four `ai/digests/` anchors to `ai/PACKAGE-MAP.md` (a derived file the hook removed), and the journal stage's two UNMARKED FIX files (below). Source anchors, rules render and round trip passed. `./le doc check links` exit 0.
+
+### Deviations from Plan
+- AC-10: the threshold line is printed whenever the report lists a class, not on an empty report (Owner Decisions, 2026-10-14).
+- Backfill: 1,242 `fixed:` against the 700-900 estimate (Owner Decisions, 2026-10-14).
+- A-2 refuted: replaced by the marker-stripped pairing before implementation (Design Review Log).
+- Phase 4: 3 of 4 merges and 1 of 5 splits dropped on reading (A-5).
+- Phase 5: no `check` capture; two `rule` captures (Design Insights).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: the marker fits in the 600-character cap | 1,675 of 2,403 rows already exceeded it | Count at HEAD before Phase 1 | Marker-stripped pairing (AC-13) |
+| assumption | A-5: sampled merge verdicts hold | 3 of 4 merges and the bound-wraps split failed on reading every row | Phase 4 read | Dropped, recorded in Design Insights |
+| approach | Phase 4 tested the journal, commit, hookruntime and feature packages but not `internal/le/ai/hooks`, whose probe runs `ValidateFile` in a repository with no commit | The probe went red with `rowsMovedFromOtherClasses` | Closure's scoped test run | `headUnborn`, test added |
+| approach | spec-workflow.md's `ValidateFile` paragraph was judged "stays true" in Documentation row 16 | It listed refusals and omitted the two new ones, and its cap sentence missed moved rows | Closure documentation review | Paragraph rewritten |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Direction 1: machine-readable capture | Done | `capture.go` `parseCapture`, `resolveCapture` | check and rule kinds |
+| Direction 2: rows kept, pre-capture rows uncounted | Done | `journal.go` `appendClass` | row total unchanged across every phase |
+| Direction 3: Fix marker, backfilled, unmarked refused | Done | `capture.go` `fixMarkerOf`; `validate.go` `ValidateFile`; 9a30ea31ba | |
+| Direction 4: fix pass ends with a check | Done | `plan/journal/README.md` "What a fix pass delivers" | |
+| Direction 5: merges and splits by reading rows | Done | 2e16a9e2a6, 7743ed895d | Design Insights |
+| Direction 6: no layering | Done | `appendClass` counts only post-capture rows for a captured class | one reader, no old counting path |
+| Direction 7: check capture due at 1 | Done | `report.go` `DueRowsAfterCheck`, `captureKinds` | |
+| `DueRowsMin` comment cites rule-precedence | Done | `report.go` comment above `DueRowsMin` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCheckCountsOnlyRowsAfterTheCapture` | |
+| AC-2 | Done | `TestCheckCountsOnlyRowsAfterTheCapture` | |
+| AC-2b | Done | `TestRuleCaptureKeepsTheCountThreshold` | |
+| AC-3 | Done | `TestCheckWithoutCaptureCountsEveryRow` | |
+| AC-3b | Done | `TestThresholdsComeFromTheKindTable`; grep below | |
+| AC-4 | Done | `TestRunRefusesAMalformedCaptureLine`, `TestValidateFileRefusesUnmarkedAndBadCaptures` | |
+| AC-5 | Done | `TestRunRefusesACaptureThatDoesNotResolve`, `TestJournalStageRedOnACaptureThatDoesNotResolve` | |
+| AC-6 | Done | `TestRunRefusesTwoCaptureLines` | |
+| AC-7 | Done | `TestRunRefusesAMalformedCaptureLine` | HEAD committer date, `headCommitDate` |
+| AC-8 | Done | `TestRunRefusesAnUnmarkedFixCell`, `TestCreateRefusesAnUnmarkedJournalRow` | |
+| AC-9 | Done | `TestReportTextShowsCaptureAndOpenCounts` | |
+| AC-10 | Changed | `TestReportTextShowsCaptureAndOpenCounts`, `TestRunKeepsAnEmptyJournalEmpty` | Owner decision on the empty report |
+| AC-11 | Done | `TestCheckCountsOnlyRowsAfterTheCapture` | |
+| AC-12 | Done | `TestHeadSpecEvidenceIgnoresTheCaptureLine` | |
+| AC-13 | Done | `TestValidateFileHoldsARowWhoseOnlyChangeIsTheMarker`; scratch `ac13.py`: 0 changed cells, 0 unmarked | |
+| AC-14 | Done | 9a30ea31ba backfill; Owner Decisions row on the 1,242 count | |
+| AC-15 | Done | Design Insights; `git grep` for both absorbed paths: no hit | |
+| AC-16 | Done | Design Insights; `TestValidateFileHoldsARowMovedFromAnotherClass` | |
+| AC-17 | Done | `plan/journal/README.md` "What a fix pass delivers" | |
+| AC-18 | Done | 7743ed895d; Design Insights Phase 5 table | R-9 list empty |
+| AC-19 | Done | f873a99409; `report.go` `DueRowsMin` comment | |
+| AC-20 | Done | 67304623d9: 35 live entries, each naming an existing class file | |
+| AC-21 | Done | `plan/journal/README.md` "Repairing a check after a recurrence" | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 15 named tests of the Unit Tests table | Done | `journal_test.go`, `validate_test.go`, `commit_test.go`, `lifecycle_test.go`, `docverify_test.go` | each `func` found by `git grep` at closure |
+| `TestValidateFileHoldsARowMovedFromAnotherClass` | Done | `validate_test.go` | added in Phase 4 |
+| `TestValidateFileJudgesAFileInARepositoryWithNoCommit` | Done | `validate_test.go` | added at closure |
+| Functional: report over the committed journal | Done | pasted above, re-run at closure | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/spec/journal/{journal,report,validate,actions}.go` | Done | plus new `capture.go` |
+| `internal/le/spec/journal/rows.go` | Changed | `HeadRows` needed no edit: it reads the Fix cell with its marker; the feature tests pass |
+| test files, `fixtures.go`, README, point, INDEX, RECURRING-PATTERNS, `plan/journal/*.md` | Done | |
+
+### Audit Summary
+- **Total items:** 8 requirements, 23 ACs, 18 tests, 3 file groups
+- **Done:** all but the two Changed rows
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-10 (owner decision), `rows.go` (no edit needed)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| DUE means "recurred after capture" | functional | `./le spec journal report` at closure: `comment-describes-superseded-behaviour: 28 rows since capture 2026-08-07 (rule)`; session start through the hook, `TestSessionStartCountsOnlyUncapturedOrRecurredClasses` |
+| Fixed/open is machine-readable and enforced | functional | report shows `O open` per class; `./le commit create` refuses an unmarked row (`TestCreateRefusesAnUnmarkedJournalRow`); the report refuses the two files still unmarked at HEAD |
+| A fix pass ends with a check | documentation | `plan/journal/README.md` "What a fix pass delivers", "Repairing a check after a recurrence" |
+| Classes judged by rows, citations valid | functional | Design Insights; `./le doc check links` exit 0 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every AC is done. Fix passes on DUE classes were out of scope from the start (Task) | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/journal-class-lifecycle-9d2e6c21-74c1-4c42-b9ef-30145b95cfb1.md` (4 files: `journal.go`, `validate_test.go`, `spec-workflow.md`, `spec-lint-ratchet-clock-and-discarded-errors.md`) |
+| `./le spec review check` | OK: 2 code files, clean, hashes match |
+| Rounds | 2 |
+| Reviewer lenses used | wiring, documentation drift, logic, security (capture references, symlinks), performance, Go style (panic reachability: `dueAtOf` panics only on a kind `parseCapture` cannot produce, no peer input) |
+
+Round 1 over the seven implementation commits, run by the closing agent which did not write them: one BLOCKER and one ISSUE, both fixed. NOTEs: `treeCaptureSource.declares` follows a symlinked directory through `os.ReadDir` while `hasPoint` uses `Lstat`, read-only and inside the checkout; `rowsMovedFromOtherClasses` reads every HEAD class file once for each validated file (0.29 s on the real tree); the Design Insights "1 deferred" cell omitted the Phase 5 move, corrected. Round 2 over `headUnborn` and the doc edit: 0 BLOCKER, 0 ISSUE.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `ValidateFile` errors over an unborn HEAD, so the post-write hook's journal probe refuses its allow value; two `internal/le/ai/hooks` tests red | `journal.go` `rowsMovedFromOtherClasses` | `headUnborn`; `TestValidateFileJudgesAFileInARepositoryWithNoCommit` |
+| 2 | ISSUE | `docs/contributing/spec-workflow.md` listed the `ValidateFile` refusals without the Fix marker and capture refusals, and said a row HEAD does not hold is measured, which a moved row is not | `docs/contributing/spec-workflow.md` | paragraph rewritten |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `plan/journal/requirement-applied-outside-the-case-it-names.md` | yes | created in 2e16a9e2a6 |
+| `plan/journal/acceptance-criterion-written-as-an-absence.md` | yes | created in 67304623d9 |
+| `internal/le/spec/journal/capture.go` | yes | created in 9a30ea31ba |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-16 | tests pass | `go test` at closure: `internal/le/spec/journal`, `commit`, `hookruntime`, `doc/wiring`, `ai/hooks`, `feature` all ok (`ai/hooks` after finding 1) |
+| AC-3b | no other threshold literal | `git grep` over `internal/le/spec/journal/*.go` (non-test) and `lifecycle.go`: only `DueRowsMin = 10` and `DueRowsAfterCheck = 1`; the point carries no number |
+| AC-13 | report shows no unmarked row except the two held files | closure report: exactly two UNMARKED FIX problems, both the held files |
+| AC-20 | 35 live entries point at existing classes | every `plan/journal/*.md` path in the file exists; each non-retired `###` entry carries one |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le spec journal report`, `validate`, `./le commit create`, session start, `./le doc verify` | none: le tooling, each driven through its entry point by the Wiring Test table's Go tests | the six tests exist and pass at closure; the report run over the real journal is pasted above |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | no `^Captured:` line before Phase 1 |
+| A-2 | broken | counts in the row; Mistake Log |
+| A-3 | confirmed | Phase 5 survey |
+| A-4 | confirmed, not exercised | no capture-day row; Known Limitations states it |
+| A-5 | broken in part | Design Insights; Mistake Log |
+| A-6 | confirmed | `spec-knowledge-routing` still `design` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| README capture examples | `ValidateFile`, `TestValidateFileAcceptsCanonicalJournalShard` and point `completion/directives/fix-a-defect-that-blocks-your-goal` exist | yes |
+| spec-workflow.md refusals | `validate.go` `ValidateFile`: `ProblemUnmarkedFix` per row, `resolveCapture` over the working tree, `held` then `moved` pairing before the cap | yes |
+| completion point and INDEX rows name no threshold number | read at closure | yes |
+| RFC, CLI grammar, config, plugin rows | No: le tooling only; `./le spec citation anchors` names no other page | yes |
+
+Known reds at closure, none from this spec: `./le spec journal report` exits 1 only for `plan/journal/gate-verdict-depends-on-the-machine.md` and `plan/journal/green-that-could-not-have-been-red.md`, held uncommitted by the `.ci` harness change under review, whose working-tree copies carry the markers; `./le feature check` is red tree-wide on stale Doc review dates (pre-existing, row in `claim-outlives-the-evidence-it-cites`); `./le spec citation` red on `plan/spec-runtime-drain-and-undrain.md`, which cites the absent `plan/spec-bgp-peer-graceful-shutdown.md`; `./le commit audit base 9a30ea31ba~1` lists 23 WEAKENED findings, all in BGP, L2TP and IKE test files of other commits in the range, none in this spec's files.
