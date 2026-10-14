@@ -7,20 +7,20 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-05 |
+| Updated | 2026-10-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
 `plan/journal/<class>.md` holds one file per problem class and one row per
-occurrence. On 2026-10-05 it held 197 class files and 2,133 rows. A class with
+occurrence. On 2026-10-14 (HEAD `636166a75d`) it held 217 class files and 2,403 rows. A class with
 10 or more rows is DUE for a fix pass, and DUE counts every row the class has
 ever collected. No tool reads the Fix cell, so whether an occurrence is fixed is
 free prose. Rows are never deleted: the two fix passes so far (`b6a0de6daa`,
 `01a1443c76`, both 2026-09-20) rewrote Fix cells and deliberately kept every row
 to keep the first-seen dates. A class therefore stays DUE forever, whatever its
-fix pass delivered, and the DUE count (49 classes) cannot tell a class nobody
+fix pass delivered, and the DUE count (51 classes on 2026-10-14) cannot tell a class nobody
 has touched from one that was captured months ago.
 
 A main-thread audit of 60 fully-fixed classes found 34 with no rule or check
@@ -64,21 +64,24 @@ against the definition in AC-17, or AC-21 when a check-captured class recurs.
   → Decision: this is the sentence `DueRowsMin`'s comment misattributes; the comment is repointed here
 - [ ] `docs/contributing/rule-authoring.md` "Binding a hook check to a point" - the existing identity scheme for checks
   → Constraint: only hook checks carry a `// ze point:` binding; gates, analyzers and tests do not. A capture reference cannot rely on bindings and names a Go function directly
-- [ ] `docs/contributing/spec-workflow.md` "Journal rows" (line 278) - defers to the README
+- [ ] `docs/contributing/spec-workflow.md` "Journal rows" - defers to the README
   → Decision: no edit beyond confirming it still defers to the README
 - [ ] `plan/learned/RECURRING-PATTERNS.md` (1,272 lines, 37 `###` entries, 2 retired) - the seed source of the journal
   → Decision: frozen as history with per-entry pointers; see Key Design Decisions
   → Constraint: it is in the policed citation set (`internal/le/doc/citation/policed.go`, `internal/le/doc/check/names.go`) and cited by `internal/le/repo/numberparse.go`, so it is neither deleted nor renamed
-- [ ] `docs/architecture/core-design.md` "le tools" (line 55 onwards) - declared by every journal package file
+- [ ] `docs/architecture/core-design.md` "Command engine and composition roots" (the le tools paragraph) - declared by every journal package file
   → Constraint: answers stay structured until rendering, so the new `counted-rows`, `open` and `captured` fields go on `Class` and reach text and JSON through the shared renderer, never a private JSON mode
+- [ ] `docs/contributing/feature-maturity.md` "S5 defects" row - declared by `internal/le/feature/staleness.go`, whose `staleDefectReview` reads journal rows through `HeadRows`
+  → Decision: unaffected; it states that a journal row newer than the Defect review naming a Components path owes a re-review, and a Fix marker changes neither the row's date nor the paths it names
 - [ ] `docs/architecture/testing/verify-freshness-scope.md` - declared by `internal/le/hookruntime/lifecycle_test.go`
   → Decision: unaffected; it covers verification certificates and debt, and the new lifecycle test adds no certificate behavior
-- [ ] `ai/INDEX.md` lines 28 and 254 - "Which problems recur?" rows describe the report
+- [ ] `ai/INDEX.md` "Which problems recur?" row under "Understand Existing Code (not change it)" and "Which problems recur" row under "Which surface answers a discovery question" - both describe the report
   → Constraint: both describe the row count as the recurrence; they change to name the capture and the counted rows
 
 **Key insights:**
-- Five readers of journal rows exist, and only five: `Check` (report and session start), `Run` (doc-verify stage), `HeadSpecEvidence` (closure detector), `ValidateFile` (post-write hook and `./le commit create`). Every other Go reference to `plan/journal` is a comment citation.
-- Fix cells today: 757 open with "fixed", 844 open with "not fixed", "open", "recorded", "left", "partly", "half", "unfixed" or "still", and 532 open with something else. 60 of the "fixed" ones also say "still open", "not fixed", "partly", "not yet" or "unfixed".
+- Five readers of journal rows exist, and only five, all exported: `Check` (report and session start), `Run` (doc-verify stage), `HeadSpecEvidence` (closure detector), `ValidateFile` (post-write hook and `./le commit create`), and `HeadRows` (`internal/le/spec/journal/rows.go`, consumed by `internal/le/feature/check.go` for `internal/le/feature/staleness.go::staleDefectReview`). Every other Go reference to `plan/journal` is a comment citation.
+- Fix cells on 2026-10-14: 815 open with "fixed", 990 open with "not fixed", "open", "recorded", "left", "partly", "half", "unfixed" or "still", and 598 open with something else. 60 of the "fixed" ones also say "still open", "not fixed", "partly", "not yet" or "unfixed". Only 98 rows start with exactly `fixed: ` and 55 with `open: `, so about 94% need a marker.
+- Row length on 2026-10-14: 1,675 of 2,403 rows already exceed the 600-character cap (1,702 exceed 591), and 1,445 would exceed it with the marker even with an empty Fix cell. The backfill can pass the cap only if a marker-only change counts as held (A-2, refuted).
 - 98 class files start with the table; the rest carry a heading and prose above it, which contains no pipe.
 
 ## Current Behavior (MANDATORY)
@@ -86,7 +89,8 @@ against the definition in AC-17, or AC-21 when a check-captured class recurs.
 **Source files read:**
 - [ ] `internal/le/spec/journal/report.go` - `DueRowsMin = 10`, `Class` (class, rows, due, span-days, first-date, last-date), `Problem` kinds `malformed-row` and `unparseable-date`, `Report.Text` printing the count line then `DUE` lines of the form class, rows, span, first .. last
 - [ ] `internal/le/spec/journal/journal.go` - `Check` lists class files at HEAD; `readClasses` reads them through one cat-file batch; `journalRows`/`parseJournalRow` keep every pipe line that is not header or separator; `appendClass` refuses malformed or undated classes, drops singletons, and sets `Due` from the total row count; classes sort due first, largest first. `HeadSpecEvidence` reads Spec cells for the closure detector
-- [ ] `internal/le/spec/journal/validate.go` - `ValidateFile` checks one working-tree file: header present, five cells, Date, Spec stem, and the 600-character cap on a row added or rewritten against HEAD (`heldRows` pairs unchanged rows by their five cells)
+- [ ] `internal/le/spec/journal/validate.go` - `ValidateFile` checks one working-tree file: header present, five cells, Date, Spec stem, and the 600-character cap on a row added or rewritten against HEAD. The pairing is `heldRows` in `internal/le/spec/journal/journal.go`, keyed by all five cells exactly, so a row whose only change is a Fix prefix is not held and is measured against the cap
+- [ ] `internal/le/spec/journal/rows.go` - `HeadRows` answers every well-formed row at HEAD through `classFilesAtHead` and `readClasses`, leaving malformed rows out; its consumer `internal/le/feature/staleness.go::staleDefectReview` substring-matches a feature's Components paths against Surface, Symptom and Fix joined, so a marker prefix changes no verdict
 - [ ] `internal/le/spec/journal/actions.go` - `report` and `validate file <path>`; the `journalWhy` string states the 2+ and 10+ thresholds as literals
   → Decision: `journalWhy` builds its threshold text from the capture-kind table, so it stops carrying a hand-written copy of either number
 - [ ] `internal/le/hookruntime/lifecycle.go` - `reportDueJournal` calls `Check` and prints `journal: <N> problem classes are due for a fix pass (./le spec journal report)` when `DueCount` is non-zero
@@ -100,7 +104,7 @@ against the definition in AC-17, or AC-21 when a check-captured class recurs.
 - Rows are never deleted; every row's Date, Spec, Surface and Symptom cells stay byte-identical through the backfill (only the Fix cell gains its marker)
 - The report reads HEAD only, names worktree-only files as `NOT AT HEAD`, refuses malformed and undated classes, omits singletons, and exits 0 when the only news is DUE
 - `HeadSpecEvidence` returns the same stems for the same rows
-- The 600-character cap applies to the whole row including the marker, and only to rows added or rewritten against HEAD
+- The 600-character cap applies to the whole row including the marker, and only to rows added or rewritten against HEAD; a row whose only change is the added marker is held, not rewritten (Behavior to change)
 - The session-start line text and its stderr fallback
 
 **Behavior to change:**
@@ -110,6 +114,7 @@ against the definition in AC-17, or AC-21 when a check-captured class recurs.
 - The report shows capture and open counts
 - Merge and split the candidate classes that hold after reading their rows
 - Correct the `DueRowsMin` comment's attribution
+- `heldRows` pairs a working-tree row with a HEAD row by its five cells with the Fix marker stripped from both sides, so a row whose only change is the added marker counts as held and the 600-character cap does not apply to it; a row whose prose changed in any cell is still measured and refused over the cap
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -121,7 +126,7 @@ against the definition in AC-17, or AC-21 when a check-captured class recurs.
 1. `classFilesAtHead` lists `plan/journal/*.md` at HEAD except the README
 2. `readClasses` reads each file; new: the capture line is parsed from the pipe-free lines before the rows are parsed
 3. `journalRows` parses rows; new: each row's Fix cell yields its marker (fixed, open, or absent)
-4. `appendClass` refuses malformed, undated, unmarked or badly captured classes; new: counted rows are the rows dated strictly after the capture date (every row when uncaptured), and `Due` is counted rows at or above the threshold the kind table gives the class's capture kind (`check`: `DueRowsAfterCheck`, 1; `rule` and uncaptured: `DueRowsMin`, 10)
+4. `appendClass` refuses malformed, undated, unmarked or badly captured classes; new: counted rows are the rows dated strictly after the capture date (every row when uncaptured), and `Due` is counted rows at or above the threshold the kind table gives the class's capture kind (`check`: `DueRowsAfterCheck`, 1; `rule` and uncaptured: `DueRowsMin`, 10). On the validate path, `heldRows` keys each HEAD row and each working-tree row by its five cells with an exact, case-sensitive leading `fixed: ` or `open: ` stripped from the Fix cell (no other spelling, such as "Fixed: " or "fixed:", is stripped), so a row that differs from HEAD only by the marker is claimed as held and skips the cap; a working-tree row that changes any other byte of any cell is not claimed and is measured
 5. Capture references are resolved against HEAD (report) or the working tree (validate)
 6. `Report.Text` and JSON render; `DueCount` feeds the session-start line
 
@@ -153,17 +158,17 @@ against the definition in AC-17, or AC-21 when a check-captured class recurs.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No prose line in any class file starts with `Captured:` today | Class headers sampled on 2026-10-05 | A prose line becomes a malformed capture and the report goes red at landing | `git grep -n '^Captured:' plan/journal` returns nothing before Phase 1 lands | unvalidated |
-| A-2 | Every row's Fix cell can carry a marker inside the 600-character cap | The cap binds added or rewritten rows; the backfill rewrites every row | Long rows refuse the backfill commit | Count rows over 591 characters before the backfill; shorten only the Fix prose of those, never another cell, and name each in the commit body | unvalidated |
+| A-2 | Every row's Fix cell can carry a marker inside the 600-character cap | The cap binds added or rewritten rows; the backfill rewrites every row | Long rows refuse the backfill commit | Counted at HEAD `636166a75d` on 2026-10-14 | refuted: 1,675 of 2,403 rows already exceed 600 characters (1,702 exceed 591), and 1,445 would exceed 600 with the marker even with an empty Fix cell. `heldRows` pairs by all five cells, so every backfilled row reads as rewritten and `closureStem` refuses the commit. Replaced by the marker-stripped pairing in Behavior to change; no prose is shortened |
 | A-3 | A Go function named by directory and function name is enough to resolve a check of every kind in use (hook verdict, le gate, analyzer run function, Go test) | All four are Go functions in a directory at HEAD | A check that is not a Go function (a `.ci` file, a shell stage) cannot be captured | Survey the checks the existing captures name during Phase 5; if one is a `.ci` test, add a `ci` reference kind resolved as a path at HEAD before landing | unvalidated |
 | A-4 | Rows dated on the capture day belong to the pass that set it | Passes write their own rows the same day | A genuine same-day recurrence is not counted, which matters more under a check capture's threshold of 1 | Documented in the README; the pass's proof test, not the row count, catches same-day regressions; a row dated the day after is counted | unvalidated |
 | A-5 | The preliminary merge and split verdicts in Design Insights hold | 3 to 12 rows sampled per class on 2026-10-05 | A merge joins two causes one check cannot capture | Phase 4 reads every row of every candidate and records a per-row destination before moving anything | unvalidated |
-| A-6 | `plan/spec-knowledge-routing.md` (status design) does not land a conflicting change to the report first | Its AC-6 adds an unrouted-age count to the same report | Text and JSON shapes collide | Check its status before Phase 1; build the text format on whatever landed | unvalidated |
+| A-6 | `plan/spec-knowledge-routing.md` (status design) does not land a conflicting change to the report first | Its AC-6 adds an unrouted-age count to the same report | Text and JSON shapes collide | Check its status before Phase 1; build the text format on whatever landed | unvalidated (2026-10-14: still `design`, still cites the old `internal/le/journal/` paths; no collision yet) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A capture line is added to silence DUE without a real check | A capture whose proof test does not fail when the check is removed | The capture names a proof test, which must resolve (AC-5); the pass definition (AC-17) requires its recorded red; review of the capturing commit reads both |
-| R-2 | The backfill marks an open row fixed | A `fixed:` row whose prose says "still", "partly", "not yet" | Conservative default: a row is `fixed:` only when its prose says the occurrence was repaired; every ambiguous row is `open:`; the 60 "fixed"-lead rows with open phrases are each read |
+| R-2 | The backfill marks an open row fixed | A `fixed:` row whose prose says "still", "partly", "not yet", "(designed)" or "half fixed" | Conservative default: a row is `fixed:` only when its prose says the occurrence was repaired; every ambiguous row is `open:`; the 60 "fixed"-lead rows with open phrases are each read; traps seen on 2026-10-14, both `open:`: "fixed by spec-... (designed)" and "half fixed" |
 | R-3 | A merged or split class leaves a dangling citation | `git grep` for the removed class path returns hits | AC-15 and AC-16 require zero hits; `./le doc check links` covers the markdown corpus |
 | R-4 | Capture resolution makes session start slower than its budget | `reportDueJournal` exceeds `sessionStartBudget` | Resolution reads only the directories captured classes name, through the existing single cat-file batch; measured in Phase 1 |
 | R-5 | Concurrent sessions append unmarked rows while the backfill is in flight | `./le commit create` refuses their commits after landing | The marker requirement lands in the same commit as the backfill; the refusal names the two markers, so the repair is one word; rows appended between the backfill read and the commit are marked before it runs |
@@ -218,13 +223,13 @@ The capture line and marker grammar the ACs refer to:
 | AC-11 | A captured class with zero rows after its capture and 2+ rows in total | Not due, whatever its kind; still listed with its capture shown |
 | AC-21 | A fix pass on a class DUE after a check capture (documented in `plan/journal/README.md` beside AC-17) | The pass repairs the check: (a) every row dated after the capture read; (b) a row whose cause the check is not meant to catch is moved to its own class under AC-16 instead, and the class is then re-judged without it; (c) otherwise the check is extended to refuse the shape it missed, and the proof test reproduces the recurring row, cited by date, going red without the extension, the red recorded in the commit body; (d) the recurring rows marked `fixed:` once the repaired check is green over the tree; (e) the capture line rewritten with the repair date, naming the repaired check and proof. A pass may not replace a check capture with a `rule` capture, and per-row patches without (c) leave the capture date unchanged, so the class stays DUE |
 | AC-12 | A class file carrying a capture line and prose | `HeadSpecEvidence` returns the same stems as without the capture line |
-| AC-13 | After the backfill commit | Every row at HEAD carries a marker; `./le spec journal report` reports no `unmarked-fix`; for every row, Date, Spec, Surface and Symptom equal HEAD^'s cells, and the Fix cell equals HEAD^'s Fix prose with only the marker prefixed (rows shortened under A-2 named in the commit body); the total row count equals HEAD^'s |
+| AC-13 | After the backfill commit | Every row at HEAD carries a marker; `./le spec journal report` reports no `unmarked-fix`; for every row, Date, Spec, Surface and Symptom equal HEAD^'s cells, and the Fix cell equals HEAD^'s Fix prose with only the marker prefixed (the old lead kept byte-for-byte), no row shortened; the total row count equals HEAD^'s. `./le commit create` accepts the backfill because `heldRows` pairs each row with its HEAD^ row with the exact `fixed: ` or `open: ` prefix stripped (exact-prefix strip only), so no over-cap row is measured; a row that also changed its prose is measured and refused over the cap |
 | AC-14 | Rows whose prose states the occurrence is not, or only partly, repaired | Marked `open:`, including each of the 60 rows that open with "fixed" and say "still open", "not fixed", "partly", "not yet" or "unfixed", and every row of the misclassified classes the audit named; a class whose rows are all `fixed:` is one whose prose says every occurrence was repaired |
 | AC-15 | Each merge candidate | A verdict (merge or drop) recorded in Design Insights with the row dates read; on merge, every row lands unchanged in the surviving class file, the absorbed file is removed, `git grep` for the absorbed path returns nothing, and each dated-row citation names the surviving file with the same date |
 | AC-16 | Each split candidate | A per-row destination recorded in Design Insights; moved rows land unchanged in an existing class or a new class file with a prose header; citations of moved rows repointed; the source class keeps its name and its remaining rows |
 | AC-17 | `plan/journal/README.md` after landing | Documents the marker, the capture line, the counting rule, the three new problem kinds, and what a fix pass delivers before it may set a capture: (a) every row of the class read, and the class split first when one check cannot cover it; (b) a check that refuses the class's shape on a path that runs before commit or in `./le verify`; (c) a proof test reproducing at least one historical row, cited by date, that goes red when the check is removed, the red recorded in the commit body; (d) the check green over the tree, so every open occurrence it can see is fixed in the pass and marked `fixed:`; (e) the capture line dated the day the check lands. A pass that cannot build a check sets a `rule` capture naming the point it added or tightened, states in the commit body why no check can be built, and the report shows it as the weaker kind with its threshold of 10. Per-row patches without (b) and (c) set no capture. The README also documents the per-kind thresholds by pointing at the report's threshold line rather than restating the numbers, and the repair pass of AC-21 |
 | AC-18 | Classes whose Fix prose names a check or rule that already prevents the cause | The backfill sets a capture only where the named check and a proof test that fails without it both exist at HEAD (check kind), or the named point exists (rule kind); the date is the committer date of the commit that introduced that check or point. A class with a check and no proof test gets no capture. The commit body lists every check-captured class that is DUE at landing with its rows dated after the capture (R-9) |
-| AC-19 | `DueRowsMin` comment, `journalWhy`, `ai/INDEX.md` rows 28 and 254, the completion point | The comment cites `ai/rules/rule-precedence.md`; `journalWhy` and both index rows describe counted rows and captures; the point reads that a class is due when the report marks it DUE, a check-captured class on its first row after the capture and any other class at the threshold the report prints, with no number in the point; `./le ai rules render-update` and `./le ai rules condensed-update` regenerate the rendered files |
+| AC-19 | `DueRowsMin` comment, `journalWhy`, the two `ai/INDEX.md` "Which problems recur" rows, the completion point | The comment cites `ai/rules/rule-precedence.md`; `journalWhy` and both index rows describe counted rows and captures; the point reads that a class is due when the report marks it DUE, a check-captured class on its first row after the capture and any other class at the threshold the report prints, with no number in the point; `./le ai rules render-update` and `./le ai rules condensed-update` regenerate the rendered files |
 | AC-20 | `plan/learned/RECURRING-PATTERNS.md` after landing | Its intro states it is frozen history and that the live surface is `plan/journal/` with capture lines; every non-retired `###` entry carries one line naming the class file that holds its occurrences; no entry is deleted |
 
 ## 🧪 TDD Test Plan
@@ -243,6 +248,7 @@ The capture line and marker grammar the ACs refer to:
 | `TestReportTextShowsCaptureAndOpenCounts` | `internal/le/spec/journal/journal_test.go` | AC-9, AC-10 exact text and JSON fields | |
 | `TestHeadSpecEvidenceIgnoresTheCaptureLine` | `internal/le/spec/journal/journal_test.go` | AC-12 | |
 | `TestValidateFileRefusesUnmarkedAndBadCaptures` | `internal/le/spec/journal/validate_test.go` | AC-4 to AC-8 through the working-tree reader | |
+| `TestValidateFileHoldsARowWhoseOnlyChangeIsTheMarker` | `internal/le/spec/journal/validate_test.go` | AC-13 and the row-length boundary: an over-cap row held at HEAD whose only change is the added `fixed: ` or `open: ` validates with no `row-too-long`; the same over-cap row with its prose also changed is refused `row-too-long`; the same over-cap held row whose Fix gains a malformed marker, "Fixed: " (capital) or "fixed:" (no space), is refused `row-too-long`; a new over-cap row is refused. A flipped or removed marker still pairs as held, and AC-8 still raises `unmarked-fix` on a held row that lost it | |
 | `TestCreateRefusesAnUnmarkedJournalRow` | `internal/le/commit/commit_test.go` | AC-8 at the commit boundary | |
 | `TestSessionStartCountsOnlyUncapturedOrRecurredClasses` | `internal/le/hookruntime/lifecycle_test.go` | the session-start count follows counted rows | |
 | `TestJournalStageRedOnACaptureThatDoesNotResolve` | `internal/le/doc/wiring/docverify_test.go` | doc-verify stage exits 1 on a new problem kind | |
@@ -255,7 +261,7 @@ The capture line and marker grammar the ACs refer to:
 | Counted rows vs `DueRowsAfterCheck` (check capture) | 0..n | 0 not due, 1 due | N/A | N/A |
 | Row date vs capture date | calendar days | row on D not counted, row on D+1 counted | N/A | N/A |
 | Capture date vs HEAD committer date | calendar days | equal to the HEAD date | N/A | HEAD date + 1 refused |
-| Row length with marker | 1..600 | 600 | N/A | 601 refused when added or rewritten |
+| Row length with marker | 1..600 | 600 | N/A | 601 refused when added or rewritten; not measured when the row differs from its HEAD row only by the added marker (`heldRows` pairs with the marker stripped) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -266,10 +272,11 @@ The capture line and marker grammar the ACs refer to:
 N-A: tooling with no protocol peer.
 
 ## Files to Modify
-- `internal/le/spec/journal/journal.go` - parse the capture line and the Fix marker, counted rows, resolution at HEAD
+- `internal/le/spec/journal/journal.go` - parse the capture line and the Fix marker, counted rows, resolution at HEAD; `heldRows` pairs rows with the Fix marker stripped
 - `internal/le/spec/journal/report.go` - `Class` fields (`counted-rows`, `open`, `captured`, `due-at`), the `thresholds` report field, the capture-kind table with `DueRowsMin` and the new `DueRowsAfterCheck`, three problem kinds and their text, `Report.Text` with the threshold line, the `DueRowsMin` comment
 - `internal/le/spec/journal/validate.go` - marker and capture checks against the working tree
 - `internal/le/spec/journal/actions.go` - `journalWhy`, its threshold text read from the kind table
+- `internal/le/spec/journal/rows.go` - `HeadRows`, the fifth reader, stays on the shared reader; its `Row` carries the Fix cell with its marker, which `internal/le/feature/staleness.go::staleDefectReview` substring-matches without effect on its verdict; the feature tests' journal fixtures gain markers
 - `internal/le/spec/journal/journal_test.go`, `internal/le/spec/journal/validate_test.go` - new tests; fixtures gain markers
 - `internal/le/commit/commit_test.go`, `internal/le/commit/relocation_test.go` - fixtures gain markers; one new test
 - `internal/le/hookruntime/lifecycle_test.go` - new test
@@ -278,7 +285,7 @@ N-A: tooling with no protocol peer.
 - `plan/journal/*.md` - backfilled markers, capture lines, merges, splits
 - `plan/journal/README.md` - format, counting, per-kind thresholds (pointing at the report's threshold line), problem kinds, the fix-pass definition (AC-17) and the check-repair pass (AC-21)
 - `ai/rules/points/completion/directives/spec-a-found-problem-close-then-ask.md` - DUE wording; regenerate `ai/rules/completion.md`, `ai/rules/CORE.md`, `ai/rules/TRIGGERS.md`
-- `ai/INDEX.md` - rows 28 and 254
+- `ai/INDEX.md` - the two "Which problems recur" rows named in Required Reading
 - `plan/learned/RECURRING-PATTERNS.md` - frozen-history intro, per-entry class pointers
 - Every file citing a merged or moved class path, found by `git grep`
 
@@ -315,7 +322,7 @@ N-A: tooling with no protocol peer.
 | 9 | RFC behavior implemented, changed, or newly proven? | No | - |
 | 10 | Test infrastructure changed? | No | - |
 | 11 | Affects daemon comparison? | No | - |
-| 12 | Internal architecture changed? | Yes | `plan/journal/README.md`, the completion point, `ai/INDEX.md` rows 28 and 254, the `plan/learned/RECURRING-PATTERNS.md` intro |
+| 12 | Internal architecture changed? | Yes | `plan/journal/README.md`, the completion point, the two `ai/INDEX.md` "Which problems recur" rows, the `plan/learned/RECURRING-PATTERNS.md` intro |
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | No | - |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
@@ -329,9 +336,11 @@ N-A: tooling with no protocol peer.
    - Files: the `internal/le/spec/journal/` files, the four test files outside it, `fixtures.go`, `plan/journal/README.md`
    - Verify: tests fail on the current reader, then pass, under `./le job run` with the scoped package tests; the report over the real journal is red (unmarked rows) until Phase 2
 2. **Phase: Backfill the marker**
-   - Rows whose Fix starts with "not fixed", "open", "unfixed", "recorded", "left", "partly", "half" or "still": `open:`
-   - Rows whose Fix starts with "fixed": `fixed:`, except the 60 that also say "still open", "not fixed", "partly", "not yet" or "unfixed", each read and marked by what it says
-   - The other 532 rows: each read; `fixed:` only when the prose says the occurrence was repaired, otherwise `open:`
+   - Classification ignores case and the punctuation after the lead word. The backfill only prefixes the marker: it writes `fixed: ` or `open: ` before the existing Fix prose and keeps the old lead byte-for-byte, so "Fixed: x" becomes "fixed: Fixed: x" and "not fixed. Owed: y" becomes "open: not fixed. Owed: y" (as AC-8's example reads). No lead word is rewritten, normalized or removed, because the marker-stripped pairing (Transformation step 4, AC-13) strips only an exact leading `fixed: ` or `open: `, and a rewritten lead would leave the row unpaired and measured against the cap (426 HEAD rows carry such a lead, 263 of them over 600). Non-conforming openings found on 2026-10-14, each kept and prefixed: bare "open", "Open", "Open:", "Open.", "open;", "FIXED 2026-..:", "Fixed:", "Fixed (owner...)", "fixed 2026-10-12:", "not fixed", "not fixed:", "not fixed. Owed:", "Not fixed:", and "designed in spec-..." (which is `open:`). A row already starting `fixed: ` or `open: ` is still read and gains no second marker; where its prose contradicts its marker, only the marker changes
+   - Rows whose Fix starts with "not fixed", "open", "unfixed", "recorded", "left", "partly", "half", "still" or "designed": `open:`
+   - Rows whose Fix starts with "fixed": `fixed:`, except the 60 that also say "still open", "not fixed", "partly", "not yet" or "unfixed", and the rows that name designed, owed or pending work (53 on 2026-10-14), each read and marked by what it says. R-2 traps: "fixed by spec-... (designed)" and "half fixed" are `open:`
+   - Expected outcome (2026-10-14 estimate): about 700 to 900 of 2,403 rows become `fixed:` (about 700 sure from the "fixed" lead, up to about 156 more from the 598 other rows that carry a repair verb and no open phrase); every other row is `open:`. A result outside that range is re-read before the commit
+   - The other 598 rows: each read; `fixed:` only when the prose says the occurrence was repaired, otherwise `open:`
    - The audit's misclassified classes: every row read and marked by its prose
    - The classifier is a scratch script under `./le session scratch ensure`, never committed, so no reader of unmarked rows survives the change
    - Verify: AC-13 by a scratch comparison of HEAD^ and HEAD cells; the report shows no `unmarked-fix`
@@ -416,6 +425,11 @@ each with a verdict from every row.
 - A same-day recurrence after a capture is not counted (A-4), even under a check capture's threshold of 1.
 - A capture proves a check and a proof test exist; it does not prove the check is wired into a gate. Wiring is a pass deliverable (AC-17 b) checked in the review of the capturing commit.
 - No individual DUE class is fixed here; each pass is its own work against AC-17, or AC-21 for a check repair.
+
+## Design Review Log
+| Date | Round | Change |
+|------|-------|--------|
+| 2026-10-14 | staleness amendment after owner approval | heldRows marker-stripped pairing; five readers; counts; owner re-confirms at implementation. A-2 refuted (1,675 of 2,403 rows over the cap); the pairing lands in Behavior to change, Transformation step 4, AC-13, the row-length boundary row and `TestValidateFileHoldsARowWhoseOnlyChangeIsTheMarker`; `HeadRows` added as the fifth reader; counts refreshed (217 files, 2,403 rows, 51 DUE, Fix leads 815/990/598); hand-typed line numbers replaced by heading and row names; Phase 2 gains the non-conforming openings, the R-2 traps and the 700-900 `fixed:` estimate; A-6 noted. Amendment review applied (prefix-only backfill; malformed-marker test; five readers) |
 
 ## Owner Decisions
 | Date | Question | Decision | Effect on this spec |
