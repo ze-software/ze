@@ -1,0 +1,19 @@
+# RFC 9830 Section 5, judged by GoBGP, which negotiates ipv4-srpolicy and keeps
+# a decoded RIB of the SR Policies Ze relays to it. GoBGP accepts only 96-bit or
+# 192-bit SR Policy NLRIs, so a 13-octet NLRI relayed by Ze would reset this
+# session instead of appearing in the RIB.
+[global.config]
+  as = 65002
+  router-id = "172.30.0.5"
+  port = 179
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.2"
+    peer-as = 65001
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-srpolicy"

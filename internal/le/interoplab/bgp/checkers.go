@@ -599,6 +599,18 @@ var scenarioOperations = map[string][]operation{
 	// (10.0.0.1/32) arrives well-formed first; then K' (same key, malformed)
 	// and L (10.0.0.2/32) arrive in one UPDATE. Ze treats K' as withdrawn, so
 	// GoBGP must lose K, hold L, and keep the session up.
+	// RFC 9830: GoBGP reads Ze's originated SR Policies. The NLRI and label
+	// assertions are in scenarioExtras.
+	scenarioSRPolicyGoBGP: {
+		{kind: opGoBGPSession, argument: zeLabAddress},
+	},
+	// RFC 9830 Section 5, judged by GoBGP downstream of Ze. The route added
+	// here is the injector's barrier: Ze relays it upstream once GoBGP is up.
+	// The SR Policy assertions are in scenarioExtras.
+	scenarioSRPolicyMalformedReceiveGoBGP: {
+		{kind: opGoBGPSession, argument: zeLabAddress},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.0.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
+	},
 	"bgp-mup-malformed-t1st-withdraw-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.0.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},

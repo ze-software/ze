@@ -47,6 +47,28 @@ var scenarioExtras = map[string][]operation{
 	scenarioEVPNGoBGP: {
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "evpn", "-j"}, contains: []string{"00:11:22:33:44:55", "00:11:22:33:44:66"}, timeout: 30 * time.Second},
 	},
+	// RFC 9830 origination: both policies arrive with their NLRI fields, the
+	// Binding SID label at the top of the 20-bit range and both Type A segment
+	// labels exactly as configured.
+	scenarioSRPolicyGoBGP: {
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, contains: []string{srPolicyOriginatedIPv4, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv6SRPolicy}, contains: []string{srPolicyOriginatedIPv6, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop}, timeout: 60 * time.Second},
+		{kind: opGoBGPSession, argument: zeLabAddress},
+	},
+	// RFC 9830 Section 5: A, B and the control C arrive well-formed; A beside
+	// a 13-octet NLRI is treat-as-withdraw, then B without attribute 23 is.
+	// Each absence carries C as its proof, so a dead Ze-GoBGP session or a
+	// reset injector session (Ze withdraws C with it, and the injector takes
+	// one connection only) fails the step instead of passing it. GoBGP resets
+	// its session on an NLRI of a length other than 96 or 192 bits, so the
+	// session holding at the end is the proof no 13-octet NLRI reached it.
+	scenarioSRPolicyMalformedReceiveGoBGP: {
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, contains: []string{srPolicyReceivedA, srPolicyReceivedB, srPolicyReceivedControl}, timeout: 120 * time.Second},
+		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, absent: []string{srPolicyReceivedA}, proof: []string{srPolicyReceivedControl}, timeout: 120 * time.Second},
+		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, absent: []string{srPolicyReceivedB}, proof: []string{srPolicyReceivedControl}, timeout: 120 * time.Second},
+		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4SRPolicy}, contains: []string{srPolicyReceivedControl}},
+		{kind: opGoBGPSession, argument: zeLabAddress},
+	},
 	scenarioFlowspecFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"ipv4Flowspec", frrCapabilityNegotiated}},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 flowspec json"}, contains: []string{peerPrefixFirst, peerPrefixSecond}, timeout: 30 * time.Second},

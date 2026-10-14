@@ -85,6 +85,8 @@ const (
 	frrFamilyIPv6Unicast    = "ipv6 unicast"
 	gobgpFamilyIPv4         = "ipv4"
 	gobgpFamilyIPv4Flowspec = "ipv4-flowspec"
+	gobgpFamilyIPv4SRPolicy = "ipv4-srpolicy"
+	gobgpFamilyIPv6SRPolicy = "ipv6-srpolicy"
 )
 
 // gobgp client words.
@@ -485,6 +487,8 @@ const (
 	scenarioPathASNLeakFRR                   = "bgp-path-asn-leak-frr"
 	scenarioRPKIFRR                          = "rpki-frr"
 	scenarioShutdownCeaseFRR                 = "shutdown-cease-frr"
+	scenarioSRPolicyGoBGP                    = "bgp-sr-policy-gobgp"
+	scenarioSRPolicyMalformedReceiveGoBGP    = "bgp-sr-policy-malformed-receive-gobgp"
 	scenarioVPNFRR                           = "bgp-vpn-frr"
 	scenarioVPNGoBGP                         = "bgp-vpn-gobgp"
 	scenarioWireEditAPIOriginBIRD            = "bgp-wire-edit-api-origin-bird"
@@ -673,4 +677,20 @@ const transitAreaLabel = "transit_area"
 const (
 	reloadRouterIDBefore = "10.255.0.1"
 	reloadRouterIDAfter  = "10.255.0.2"
+)
+
+// RFC 9830 SR Policy text as GoBGP's `gobgp global rib -a <family>` prints it:
+// the NLRI through SRPolicyNLRI.String, the Binding SID through BSID.String and
+// a Type A segment through SegmentTypeA.String (pkg/packet/bgp/sr_policy.go,
+// read at GoBGP v4.4.0). The text is matched, not `-j`: GoBGP's JSON marshals
+// the endpoint as its raw octets, so no endpoint is readable there.
+const (
+	srPolicyOriginatedIPv4  = "Distinguisher: 0, Color 100, Endpoint: 10.0.0.1"
+	srPolicyOriginatedIPv6  = "Distinguisher: 0, Color 200, Endpoint: 2001:db8::1"
+	srPolicyBindingSIDTop   = "BSID: 1048575}"
+	srPolicySegmentLabel16  = "Label: 16 TC: 0"
+	srPolicySegmentLabelTop = "Label: 1048575 TC: 0"
+	srPolicyReceivedA       = "Color 100, Endpoint: 10.0.0.1 "
+	srPolicyReceivedB       = "Color 300, Endpoint: 10.0.0.3 "
+	srPolicyReceivedControl = "Color 400, Endpoint: 10.0.0.5 "
 )

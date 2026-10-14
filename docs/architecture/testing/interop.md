@@ -1882,6 +1882,8 @@ is not packet-forwarding evidence.
 | 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up |
 | 43 | bgp-role-rs-client-learned-not-upward-frr | Ze, FRR 10.4.1, raw injector | RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does |
 | 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.4.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is |
+| 45 | bgp-sr-policy-gobgp | Ze, GoBGP | RFC 9830: GoBGP's text RIB holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns it red |
+| 46 | bgp-sr-policy-malformed-receive-gobgp | Ze, GoBGP, raw injector | RFC 9830 Section 5: after policies A, B and control C reach GoBGP, A beside a 13-octet NLRI and then B without its Tunnel Encapsulation attribute are each treat-as-withdraw, so GoBGP loses A, then B, keeps C, and its session with Ze stays up (GoBGP resets a session that carries an SR Policy NLRI whose length is neither 96 nor 192 bits) |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running
