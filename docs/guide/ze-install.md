@@ -163,8 +163,16 @@ Use the structured appliance builder (full reference:
 ze appliance init prod
 # For real hardware: set image.kernel-profile to "hardware" and
 # image.arch to match the target CPU in appliance.json before build.
+# The build runs under Ze's patched Go tree (see below).
+GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
 ze appliance build prod
 ```
+
+The image's ze compiles only against Ze's patched standard library, so
+`ze appliance build` refuses unless its environment selects the patched
+GOROOT: the line before it sets `GOROOT`, `GOTOOLCHAIN=local` and the tree's
+`bin` first on `PATH`. Why, and every other build route:
+[patching the standard library](../contributing/patching-the-standard-library.md).
 
 This produces `~/.config/ze/appliances/prod/ze-<timestamp>.img` with TLS, SSH
 credentials, and a seed config baked into `/perm/ze/database.zefs`. Match
@@ -280,7 +288,8 @@ ISO; the installer initrd decompresses it during installation. Create it with:
 <!-- source: internal/appliance/cmd_iso.go -- runIso -->
 
 ```bash
-ze appliance build prod
+GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
+ze appliance build prod                       # under the patched Go tree, see "Build the disk image"
 ze appliance kernel --profile hardware prod   # download or build installer kernel (reads arch from config)
 ze appliance initrd                           # download or build installer initrd
 ze appliance iso prod

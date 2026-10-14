@@ -35,7 +35,10 @@ same command inventory as `ze le`; no shipped build enables the tag.
 
 **The rule is directional.** `ze` never links an `internal/le` package, and
 `TestNormalZeLinksNoInternalLe` (`cmd/ze/ze_le_personality_test.go`) measures
-that with `go list -deps` over every build flavor. `le` MAY link the product
+that with `go list -deps` over every shipped build flavor, `ze_setup` included;
+the flavors are derived from the `//go:build` lines of
+`cmd/ze/build_tag_*_test.go`, so a new flavor is measured the day it exists.
+`le` MAY link the product
 composition root `internal/component/plugin/all`, because a command inventory, a
 CLI-grammar check or a YANG-leaf check answers what `ze` REGISTERS and cannot be
 computed without loading that registry. Loading it runs the product's `init()`
@@ -48,6 +51,26 @@ the registry for it. So `le interface` is an unknown command, not `ze`'s
 interface editor.
 <!-- source: cmd/ze/ze_le_personality_test.go -- TestNormalZeLinksNoInternalLe -->
 <!-- source: internal/le/le/root/leroot.go -- Owns, CommandPath -->
+
+**le compiles Ze against a patched standard library, and its own process
+environment carries it.** Ze's EAP-TLS authenticator compiles only against a
+patched `crypto/tls`, so the le root handler calls `gen.Activate`
+(`internal/le/go/stdpatch/gen`) first, before any before-dispatch hook or
+action runs. It builds the patched GOROOT from the toolchain `go.mod` pins, then
+sets `GOROOT` to it, `GOTOOLCHAIN` to `local` and its `bin` first on `PATH`, in
+le's own process, once. Every child le starts from `os.Environ()` inherits the
+tree, including the many actions that never reach `internal/le/go/toolchain`.
+`gotoolchain.New` calls the same `Activate`, returns its refusal as its own
+error, and declares none of the three values again. A refusal never stops the
+dispatch, so the hooks, `./le spec` and the commit flow keep working on the day
+a Go bump refuses; an action that compiles through `gotoolchain.New` reports
+it. A shipped `ze` links none of this, which is why `ze appliance build`
+refuses an environment that does not already select the tree. The technique,
+the review stamps and every build route are in
+`docs/contributing/patching-the-standard-library.md`.
+<!-- source: internal/le/register.go -- activatePatchedGOROOT -->
+<!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- Activate -->
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- New -->
 
 To add a repository tool, add one package under `internal/le/`, register its
 area through `leroot.Register`, and add one blank import to

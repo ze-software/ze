@@ -138,6 +138,13 @@ process that writes nothing still names `go build` and its error; an expired
 context also names the deadline. The build and its package/anchor queries
 disable persisted Go settings, ambient `GOFLAGS`, and enclosing workspaces.
 They retain the shared build cache and the launcher's toolchain selection.
+`goEnv` appends its overrides to `os.Environ()` and scrubs no `GOROOT`,
+`GOTOOLCHAIN` or `PATH`, and `GOENV=off` disables only the go env file, never
+an environment variable. The patched GOROOT that le's root handler sets in its
+own process (`GOROOT`, `GOTOOLCHAIN=local`, its `bin` first on `PATH`) therefore
+reaches the tracked build by inheritance, so the archived tree compiles against
+the same standard library as every other le build
+(`docs/contributing/patching-the-standard-library.md`).
 <!-- source: internal/le/repo/compiles/repositorytrackedbuild.go -- Build, goEnv -->
 
 All three Go commands set `-buildvcs=false`. An archived tree has no `.git`
