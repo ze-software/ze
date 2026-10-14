@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-12",
+  "audited": "2026-10-14",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -129,28 +129,40 @@
       "verdict": "enforced"
     },
     "RFC4271-4.3-3": {
-      "note": "{single-polarity} accepted, but the assertion (flags&0x0F==0) covers only the five well-known encoders plus MED via WriteAttrTo. Opaque/relayed attributes are written with the flags octet as received (attribute/opaque.go Flags 'preserved for forwarding'; no low-nibble mask found in attribute/ or reactor/), so a received low nibble set on an unrecognized transitive attribute is untested on the relay and forward rails and may be re-sent non-zero.",
+      "note": "Re-judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects D1). RFC 4271 Section 4.3: \"The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero when sent\". Producer: normalizeTransmittedUpdate (reactor/session_egress_normalize.go) clears 0x0F in the private write buffer from writeUpdateBody, which SendUpdate, sendRawUpdateBody, both SendRawMessage UPDATE modes (via writeOriginatedRawUpdate) and the AIGP-strip path all reach. Positive TestRFC4271WriteClearsLowNibbleEveryAttribute: ORIGIN/AS_PATH/NEXT_HOP 0x4F, unknown 241 0xCF, unknown 242 0xD5 (Extended Length) through the raw, parsed, filter-override and relay writers leave with flags&0xF0 exactly, values and NLRI unchanged, source bytes unedited; TestRFC4271RelayedLowNibbleClearedOnBothRails and the .ci assert zero low nibble on the general and route-server relay rails with exact octets (0x40, 0xE0); TestRFC4271AttributeFlagsLowNibbleZeroOnSend pins the local encoders. Negative TestRFC4271WriteLeavesCleanFlagsUnchanged: clean flags with Extended Length leave byte for byte, red on an over-broad mask. The earlier finding (relayed opaque attributes re-sent with the received nibble) is closed by the egress walk and its relay assertions.",
       "requirement_sha": "b37ec5ac4690ae20",
       "tests": {
-        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "4d1e0cbb7558949b"
+        "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteClearsLowNibbleEveryAttribute": "b3621d1829a570fa",
+        "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteLeavesCleanFlagsUnchanged": "b3621d1829a570fa",
+        "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "7fcb9a72da7cbf62",
+        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "4d1e0cbb7558949b",
+        "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "a21d858df3a646da"
       },
       "units": {
-        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "64a11a9539271936"
+        "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteClearsLowNibbleEveryAttribute": "69e3fdadc3a4be72",
+        "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteLeavesCleanFlagsUnchanged": "30c37d25913231c0",
+        "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "4cc006b6bba6010d",
+        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "64a11a9539271936",
+        "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "a21d858df3a646da"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-4.3-4": {
-      "note": "The quote carries both clauses. 'ignored when received': TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive asserts RFC7606ActionNone with 0x4F flags on ORIGIN/AS_PATH/NEXT_HOP (validator only). 'zero when sent': no assertion in this row's units (it lives under RFC4271-4.3-3, itself limited to the local encoders). The tagged negative (Optional/Transitive bits still enforced) proves RFC 7606 3(c), a neighbouring rule.",
+      "note": "Re-judged 2026-10-14 (independent auditor). RFC 4271 Section 4.3: \"They MUST be zero when sent and MUST be ignored when received.\" Receive clause: TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive asserts RFC7606ActionNone for ORIGIN/AS_PATH/NEXT_HOP flagged 0x4F; TestRFC4271RelayedLowNibbleClearedOnBothRails asserts ActionNone for the same plus unknown 241 at 0xCF and that the route is relayed; the .ci shows the route installed and relayed to an rs-client and an eBGP peer. Send clause: the same relay unit and .ci assert every relayed flags octet has bits 0-3 zero with exact octets (0x40, 0xE0), over writeUpdateBody's normalizeTransmittedUpdate, the funnel of every writer. Negative TestRFC4271AttrFlagsHighBitsNotIgnored: with the low nibble set, a wrong Optional or Transitive bit on ORIGIN still yields TreatAsWithdraw AttrCode 1, red on a validator that ignores the whole octet. Minor: that unit's comment says 0x4F carries Extended Length; it does not (0x4F &^ 0x10 == 0x4F), which changes no assertion.",
       "requirement_sha": "c348224c8014594e",
       "tests": {
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsHighBitsNotIgnored": "abbe4d642c22df9a",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive": "abbe4d642c22df9a"
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive": "abbe4d642c22df9a",
+        "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "7fcb9a72da7cbf62",
+        "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "a21d858df3a646da"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsHighBitsNotIgnored": "a8e00216f929109e",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive": "42bad8b4004bef8c"
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive": "42bad8b4004bef8c",
+        "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "4cc006b6bba6010d",
+        "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "a21d858df3a646da"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-4.3-5": {
       "note": "single-polarity annotated; structured, pool and injection paths each process an UPDATE naming 10.0.0.0/8 in WITHDRAWN and NLRI and assert the prefix installed with no withdrawal",
