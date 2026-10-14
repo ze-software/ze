@@ -24,7 +24,7 @@ var (
 	errMissingCommand              = errors.New("missing command")
 	errDispatcherNotAvailable      = errors.New("dispatcher not available")
 	errRebootFunctionNotConfigured = errors.New("reboot function not configured")
-	errShutdownNotConfigured       = errors.New("shutdown not available: no reactor and no shutdown function configured")
+	errShutdownNotConfigured       = errors.New("shutdown not available: no daemon shutdown function configured")
 )
 
 // messageConfigReloaded is the answer every reload path gives once the new

@@ -886,7 +886,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// reaches the teardown block, so a shutdown function wired down there is
 	// absent exactly when a fast plugin asks. handleDaemonShutdown
 	// (internal/component/plugin/server/system.go) then answers "shutdown not
-	// available: no reactor and no shutdown function configured" and the daemon
+	// available: no daemon shutdown function configured" and the daemon
 	// runs to its test timeout. Measured on test/bfd/bfd-detection-interval.ci,
 	// whose fixture answers 60ms after the BFD plugin reports running.
 	//

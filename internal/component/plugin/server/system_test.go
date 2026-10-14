@@ -236,7 +236,16 @@ func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
 		command string
 		wire    func(*Server, *gatedStopReactor)
 	}{
-		{name: "shutdown", command: "request shutdown"},
+		// shutdown and quit stop the daemon only through shutdownFunc (the
+		// route SIGTERM takes, so the stop drain runs first), and reboot only
+		// through rebootFunc, so each verb wires the gated Stop as its function.
+		{
+			name:    "shutdown",
+			command: "request shutdown",
+			wire: func(s *Server, r *gatedStopReactor) {
+				s.SetShutdownFunc(r.Stop)
+			},
+		},
 		{
 			name:    "reboot",
 			command: "request reboot",
@@ -244,7 +253,13 @@ func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
 				s.SetRebootFunc(r.Stop)
 			},
 		},
-		{name: "quit", command: "request halt"},
+		{
+			name:    "quit",
+			command: "request halt",
+			wire: func(s *Server, r *gatedStopReactor) {
+				s.SetShutdownFunc(r.Stop)
+			},
+		},
 	}
 
 	for _, tt := range tests {
