@@ -144,35 +144,25 @@ func handleSystemVersionAPI(_ *CommandContext, _ command.ValidatedArgs) (*plugin
 
 // handleDaemonShutdown accepts a daemon stop. Command transports defer the
 // lifecycle action until after they have written the accepted response, so
-// teardown cannot close the requesting process connection first. A BGP daemon
-// stops its real reactor; a reactorless daemon uses the daemon-provided
-// shutdownFunc that triggers the same signal-based teardown as SIGTERM.
+// teardown cannot close the requesting process connection first.
+//
+// It stops nothing itself, with or without a BGP reactor: it hands the stop to
+// the daemon through shutdownFunc, the route SIGTERM takes, so the hub fences
+// config, runs the stop drain while every session is still up, and only then
+// tears down, where BGP sends its Cease. Stopping the reactor here first would
+// send the Cease before the drain could make Ze unattractive
+// (spec-daemon-drain-before-stop AC-8).
 func handleDaemonShutdown(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
-	// Coordinator.FullReactor returns the coordinator ITSELF as a no-op fallback
-	// when no BGP reactor is registered, so ctx.Reactor() is non-nil even for an
-	// OSPF-only daemon and its Stop() does nothing. Only a real reactor (not the
-	// *plugin.Coordinator fallback) is stopped directly; otherwise fall back to
-	// the daemon shutdownFunc (signal-based teardown). Without this a reactorless
-	// daemon hangs until timeout on `request shutdown`.
-	r := ctx.Reactor()
-	if _, isFallback := r.(*plugin.Coordinator); r != nil && !isFallback {
-		return shutdownInitiated(func() {
-			r.Stop()
-			if ctx.Server != nil {
-				ctx.Server.SignalShutdownRequested()
-			}
-		}), nil
+	if ctx.Server == nil || ctx.Server.shutdownFunc == nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  "shutdown not available: no daemon shutdown function configured",
+		}, errShutdownNotConfigured
 	}
-	if ctx.Server != nil && ctx.Server.shutdownFunc != nil {
-		return shutdownInitiated(func() {
-			ctx.Server.shutdownFunc()
-			ctx.Server.SignalShutdownRequested()
-		}), nil
-	}
-	return &plugin.Response{
-		Status: plugin.StatusError,
-		Error:  "shutdown not available: no reactor and no shutdown function configured",
-	}, errShutdownNotConfigured
+	return shutdownInitiated(func() {
+		ctx.Server.shutdownFunc()
+		ctx.Server.SignalShutdownRequested()
+	}), nil
 }
 
 func shutdownInitiated(action func()) *plugin.Response {
@@ -227,33 +217,24 @@ func (s *Server) SetRebootFunc(fn func()) {
 }
 
 // handleDaemonQuit dumps all goroutine stacks and accepts daemon shutdown. The
-// lifecycle action follows the written accepted response, and it does not rely
-// on a BGP reactor: a reactorless daemon uses shutdownFunc instead of the no-op
-// Coordinator fallback.
+// lifecycle action follows the written accepted response. The stack dump is its
+// only difference from handleDaemonShutdown: the stop goes to the daemon through
+// shutdownFunc, so the stop drain runs before any teardown.
 func handleDaemonQuit(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	buf := make([]byte, 1<<20) // 1MB
 	n := runtime.Stack(buf, true)
 	slog.Warn("goroutine dump (quit)", "stacks", string(buf[:n]))
 
-	r := ctx.Reactor()
-	if _, isFallback := r.(*plugin.Coordinator); r != nil && !isFallback {
-		return quitInitiated(func() {
-			r.Stop()
-			if ctx.Server != nil {
-				ctx.Server.SignalShutdownRequested()
-			}
-		}), nil
+	if ctx.Server == nil || ctx.Server.shutdownFunc == nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  "quit not available: no daemon shutdown function configured",
+		}, errShutdownNotConfigured
 	}
-	if ctx.Server != nil && ctx.Server.shutdownFunc != nil {
-		return quitInitiated(func() {
-			ctx.Server.shutdownFunc()
-			ctx.Server.SignalShutdownRequested()
-		}), nil
-	}
-	return &plugin.Response{
-		Status: plugin.StatusError,
-		Error:  "quit not available: no reactor and no shutdown function configured",
-	}, errShutdownNotConfigured
+	return quitInitiated(func() {
+		ctx.Server.shutdownFunc()
+		ctx.Server.SignalShutdownRequested()
+	}), nil
 }
 
 func quitInitiated(action func()) *plugin.Response {

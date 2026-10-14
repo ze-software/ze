@@ -126,7 +126,17 @@ type DrainRound struct {
 // BeginDrain snapshots the live drain callers, ordered by plugin name so the
 // logs read the same on every stop. A plugin whose process has exited is not
 // in the snapshot.
+//
+// It also ends respawning: from here the stop is terminal, so a plugin that
+// exits during the drain stays down until teardown (ProcessManager.Respawn
+// answers ErrDaemonStopping), rather than coming back and announcing again
+// what its drain made unattractive. The hub MUST call it once, on the stop
+// path, before it runs or skips the round.
 func (s *Server) BeginDrain() *DrainRound {
+	if pm := s.procManager.Load(); pm != nil {
+		pm.RefuseRespawns()
+	}
+
 	s.drainMu.Lock()
 	callers := make([]*drainCaller, 0, len(s.drainCallers))
 	for _, caller := range s.drainCallers {

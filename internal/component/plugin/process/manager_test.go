@@ -416,3 +416,35 @@ func TestRespawnJoinsTheProcessItReplaces(t *testing.T) {
 	assert.NoError(t, first.Wait(ctx),
 		"Respawn replaced a process that still had a goroutine running, and no later Stop can reach it")
 }
+
+// TestRespawnRefusedWhileDraining proves spec-daemon-drain-before-stop AC-17 at
+// the manager: once the stop drain has begun, a crashed plugin is not started
+// again, and the process it would have replaced stays the registered one.
+// Method: a plugin whose engine returns at once (a crash), RefuseRespawns, then
+// Respawn; the control is the same Respawn before the refusal, which succeeds.
+func TestRespawnRefusedWhileDraining(t *testing.T) {
+	registerRunEngine(t, "test-respawn-draining", func(_ net.Conn) int {
+		return 0
+	})
+
+	pm := NewProcessManager([]plugin.PluginConfig{{
+		Name: "test-respawn-draining", Internal: true, Encoder: "json",
+	}})
+	require.NoError(t, pm.Start())
+	t.Cleanup(pm.Stop)
+
+	first := pm.GetProcess("test-respawn-draining")
+	require.NotNil(t, first)
+	require.Eventually(t, func() bool { return !first.Running() }, 5*time.Second, time.Millisecond)
+
+	second, err := pm.Respawn("test-respawn-draining")
+	require.NoError(t, err, "control: before the drain a crashed plugin is started again")
+	require.Eventually(t, func() bool { return !second.Running() }, 5*time.Second, time.Millisecond)
+
+	pm.RefuseRespawns()
+	third, err := pm.Respawn("test-respawn-draining")
+	require.ErrorIs(t, err, ErrDaemonStopping)
+	assert.Nil(t, third)
+	assert.Same(t, second, pm.GetProcess("test-respawn-draining"),
+		"a refused respawn must leave the exited process in place, so the plugin stays down")
+}

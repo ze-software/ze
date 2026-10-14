@@ -1004,6 +1004,9 @@ func TestRemovingLastConfigPluginDoesNotStopServer(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, s.StartWithContext(context.Background()))
 	t.Cleanup(s.Stop)
+	// The daemon wires this; request shutdown hands the stop to it.
+	shutdownCalls := 0
+	s.SetShutdownFunc(func() { shutdownCalls++ })
 
 	pm := process.NewProcessManager(nil)
 	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName})
@@ -1031,7 +1034,7 @@ func TestRemovingLastConfigPluginDoesNotStopServer(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	resp.TransportComplete()
-	assert.True(t, reactor.stopped)
+	assert.Equal(t, 1, shutdownCalls, "request shutdown must hand the stop to the daemon")
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second)
 	defer shutdownCancel()
@@ -1048,6 +1051,7 @@ func TestExplicitShutdownReleasesWaitBeforeRuntimeHandlerDrain(t *testing.T) {
 	s, err := NewServer(&ServerConfig{}, reactor)
 	require.NoError(t, err)
 	require.NoError(t, s.StartWithContext(context.Background()))
+	s.SetShutdownFunc(func() {})
 
 	pluginSide, engineSide := net.Pipe()
 	t.Cleanup(func() {

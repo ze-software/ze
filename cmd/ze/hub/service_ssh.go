@@ -26,6 +26,7 @@ import (
 	zessh "github.com/ze-software/ze/internal/component/ssh"
 	coreenv "github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 var errNoCommandProvided = errors.New("no command provided")
@@ -178,28 +179,32 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 		return apiServer.HandleAdHocPluginSession(reader, writer)
 	})
 	// `shutdown` ends the daemon, so its peers are told why (Cease /
-	// Administrative Shutdown). `restart` and `reboot` come back, so they take
-	// stopForRestart, which writes the graceful-restart marker and stops in
-	// silence: RFC 4724 Section 5 has a peer delete every route of a connection
-	// that ends in a NOTIFICATION, with no condition on it. A bare TCP close is
-	// the only end a peer can ever retain across, so it is the only one a
-	// restart can use. See infra_setup.go, where the pair is built.
+	// Administrative Shutdown), but only after the stop drain: it stops
+	// nothing itself and hands the stop to the hub, whose teardown sends the
+	// Cease once the drain has made Ze unattractive. `restart` and `reboot`
+	// come back, so they take stopForRestart, which writes the
+	// graceful-restart marker and stops in silence: RFC 4724 Section 5 has a
+	// peer delete every route of a connection that ends in a NOTIFICATION,
+	// with no condition on it. A bare TCP close is the only end a peer can
+	// ever retain across, so it is the only one a restart can use. See
+	// infra_setup.go, where the pair is built. They first record the restart
+	// cause, so the drain RPC carries kind restart (requestRestartStop).
 	//
 	// Each one then signals the plugin server, as `request shutdown` and
 	// `request reboot` do (handleDaemonShutdown, handleDaemonReboot): the
-	// daemon's waitLoop blocks on Server.Wait, and a stopped reactor alone
-	// does not end it, so the daemon stayed up after telling the client
-	// "stopping daemon".
+	// daemon's waitLoop blocks on Server.Wait, so without the signal the
+	// daemon stayed up after telling the client "stopping daemon".
 	sshSrv.SetShutdownFunc(func() {
-		r.Stop()
 		apiServer.SignalShutdownRequested()
 	})
 	sshSrv.SetRestartFunc(func() {
+		requestRestartStop(rpc.DrainRestartInPlace)
 		stopForRestart()
 		apiServer.SignalShutdownRequested()
 	})
 	sshSrv.SetRebootFunc(func() {
 		rebootRequested.Store(true)
+		requestRestartStop(rpc.DrainRestartReboot)
 		stopForRestart()
 		apiServer.SignalShutdownRequested()
 	})

@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | 2/6 |
 | Handoff | - |
 | Updated | 2026-10-14 |
 
@@ -764,6 +764,7 @@ Interop check code: new `check_*` files under `internal/le/interoplab/bgp/` besi
    - Tests: `TestBuildUnitFileStopTimeoutDerivedFromCeiling`, `TestDoctorUnitStopTimeoutBelowCeiling`
 4. **Phase: BGP drain** - YANG leaf, verify, drain scope and verdict, the `drainverdict` leaf package, f at `Session.writeUpdateBody` with provenance from the `sentForward` item's `writePath` owner and the adj-out owner (A-18), the near-maximum split by f's exact growth, from U's own pool copy after the ownership section ends, with the isolation after a split refusal (A-19: the oversized NLRI or the attributes-too-large section written alone, the rest split again with f; the remainder write only on a framing refusal), the send-community answer (Q-11), U on the sent event and in `ribOut`, the ordering sequence with the message-ID cut, the withhold by f's change, the `replay` kind (`replayFromMeta`, `NLRIBatch.Replay`, `session_ownership.go` readers), bgp-rib's hidden `request bgp rib drain-replay`, refusals and the walk-failure path (AC-36), wait, reply with the four counts
    - Tests: BGP unit tests, `bgp-graceful-shutdown-drain.ci`, interop `bgp-graceful-shutdown-drain-frr` with recorded red
+   - AC-24 lands here, with BGP's `OnDrain` (main-thread decision under the owner's delegation, 2026-10-14): the `redistevents` disposition (`drained by <plugin>` / `no drain: <reason>`), `TestRedistRegistryDeclaresDrain`, `TestRegisterProtocolRepeatedNameSameDisposition` and the startup refusal of a `drained by` plugin with no `OnDrain` or no `DrainBudget`. OSPF and IS-IS add their `drained by` in phases 5 and 6, each with its own handler, so the refusal never fires on a protocol whose handler has not landed. `RegisterProtocol` in `internal/component/ike/engine/redistribute.go` belongs to the IKE-EAP work in flight: coordinate before editing it.
 5. **Phase: OSPF drain** - the Q-6 rename first (old leaf deleted, `ospf drain-on-shutdown` added, Files to Modify); `drain-on-shutdown` originates MaxLinkMetric (v2 and v3) and raises the injected externals, stub links and stub prefixes (Q-8); `show ospf` reports it; on kind `restart` with the restarter role, `prepareRestart` with the reason from the restart cause and the wait for Grace-LSA acknowledgements; if the dependent spec landed first, its interim refusal, its two refusal tests, its refused `.ci`, and the "refused" YANG and guide text are removed or rewritten per the Files to Modify row "OSPF interim refusal" (round 9, I-4)
    - Tests: OSPF unit tests, `.ci`, interop `ospf-drain-on-shutdown-frr`, `ospfv3-drain-on-shutdown-frr` and `ospf-graceful-restart-on-restart-frr` with recorded reds
 6. **Phase: IS-IS drain** - `drain-on-shutdown`: overload bit in LSP 0 and the IP reachability drain metrics (Q-8)

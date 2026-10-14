@@ -111,26 +111,47 @@ func TestHandleDaemonShutdownReactorlessUsesShutdownFunc(t *testing.T) {
 	assert.True(t, called, "reactorless shutdown must invoke the daemon shutdownFunc, not coordinator.Stop()")
 }
 
-// TestHandleDaemonShutdownRealReactorStops verifies a BGP daemon (real reactor,
-// not the coordinator fallback) still stops via the reactor and does NOT use the
-// shutdownFunc, preserving graceful BGP shutdown.
-func TestHandleDaemonShutdownRealReactorStops(t *testing.T) {
+// TestHandleDaemonShutdownRoutesThroughHub proves spec-daemon-drain-before-stop
+// AC-8 at the handler: `request shutdown` on a BGP daemon (a real reactor, not
+// the coordinator fallback) stops nothing itself and hands the stop to the
+// daemon through shutdownFunc, so the hub drains before BGP sends its Cease.
+// Method: a mock reactor and a recording shutdownFunc; after the transport
+// completes, the reactor is still running and the function ran once.
+func TestHandleDaemonShutdownRoutesThroughHub(t *testing.T) {
 	reactor := &mockReactor{}
-	funcCalled := false
+	calls := 0
 	srv := &Server{reactor: reactor}
-	srv.SetShutdownFunc(func() { funcCalled = true })
+	srv.SetShutdownFunc(func() { calls++ })
 
 	resp, err := handleDaemonShutdown(&CommandContext{Server: srv}, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	assert.False(t, reactor.stopped, "shutdown must wait for transport completion")
+	assert.Zero(t, calls, "shutdown must wait for transport completion")
 	resp.TransportComplete()
-	assert.True(t, reactor.stopped, "a real reactor must be stopped directly")
-	assert.False(t, funcCalled, "a real reactor must not fall back to shutdownFunc")
+	assert.Equal(t, 1, calls, "the stop must reach the daemon through shutdownFunc")
+	assert.False(t, reactor.stopped, "the reactor must not be stopped before the hub's drain")
 }
 
-// TestHandleDaemonShutdownNoReactorNoFuncErrors verifies a clean error when
-// neither a reactor nor a shutdownFunc is available (fail closed, no panic).
+// TestHandleDaemonQuitRoutesThroughHub proves AC-8 for `quit`: the goroutine
+// dump is its only difference from `request shutdown`, so it too hands the stop
+// to the daemon through shutdownFunc and stops no reactor itself.
+func TestHandleDaemonQuitRoutesThroughHub(t *testing.T) {
+	reactor := &mockReactor{}
+	calls := 0
+	srv := &Server{reactor: reactor}
+	srv.SetShutdownFunc(func() { calls++ })
+
+	resp, err := handleDaemonQuit(&CommandContext{Server: srv}, commandtest.Args())
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.Zero(t, calls, "quit must wait for transport completion")
+	resp.TransportComplete()
+	assert.Equal(t, 1, calls, "the stop must reach the daemon through shutdownFunc")
+	assert.False(t, reactor.stopped, "the reactor must not be stopped before the hub's drain")
+}
+
+// TestHandleDaemonShutdownNoReactorNoFuncErrors verifies a clean error when no
+// shutdownFunc is available (fail closed, no panic).
 func TestHandleDaemonShutdownNoReactorNoFuncErrors(t *testing.T) {
 	resp, err := handleDaemonShutdown(&CommandContext{Server: &Server{}}, commandtest.Args())
 	require.Error(t, err)

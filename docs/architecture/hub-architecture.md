@@ -255,8 +255,29 @@ up while it waits. The hub names no protocol: it drains whoever registered,
 and with none registered the stop is as fast as before. The RPC, the budget
 and the deadline are in `docs/architecture/api/process-protocol.md`, "The stop
 drain".
+
+Every stop enters the hub the same way. `request shutdown`, `quit`, SSH `stop`
+and a plugin failure under the `fatal` policy stop nothing themselves: they
+hand the stop to the hub through the daemon shutdown function, so BGP sends
+its Cease from teardown, after the drain. Those stops, and SIGTERM, carry kind
+`stop`. `request reboot`, SSH `restart` and SSH `reboot` record kind `restart`
+with the cause `in-place` (SSH `restart`) or `reboot` before they stop BGP in
+silence for graceful restart. From the start of the drain the stop is
+terminal: a plugin that exits is not started again.
+
+A signal during the stop follows one table. During the config fence it skips
+the drain and the fence goes on ("drain skipped by signal"); during the drain
+it aborts the round and teardown goes on ("drain aborted by signal"); after
+either, or once teardown has begun, it forces exit 1. The value
+`request shutdown` injects is not an operator's signal, so after it the first
+Ctrl+C is the one that aborts the drain. Each phase prints what the next
+Ctrl+C does: "Stopping: finishing config changes (Ctrl+C again to skip the
+drain)...", "Draining routing protocols for up to N s (Ctrl+C again to stop
+now)..." and "Shutting down (Ctrl+C again to force)...".
 <!-- source: cmd/ze/hub/main.go -- run, runStopDrain after commitReloads.close -->
-<!-- source: cmd/ze/hub/drain.go -- runStopDrain -->
+<!-- source: cmd/ze/hub/drain.go -- runStopDrain, stopSignals, requestRestartStop -->
+<!-- source: internal/component/plugin/server/system.go -- handleDaemonShutdown, handleDaemonQuit -->
+<!-- source: internal/component/plugin/process/manager.go -- RefuseRespawns -->
 
 The hub also answers two `request data` RPCs beside `request reload`. The
 storage component owns their YANG and registers their handlers

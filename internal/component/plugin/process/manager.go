@@ -53,6 +53,10 @@ var (
 	ErrRespawnLimitExceeded = errors.New("respawn limit exceeded")
 	ErrProcessDisabled      = errors.New("process disabled due to respawn limit")
 	ErrProcessNotFound      = errors.New("process not found")
+	// ErrDaemonStopping refuses a respawn once the stop drain has begun: the
+	// stop is terminal, and a respawned plugin would announce again what its
+	// drain just made unattractive.
+	ErrDaemonStopping = errors.New("respawn refused: ze is stopping")
 )
 
 // pluginMetrics holds Prometheus metrics for plugin health.
@@ -91,6 +95,18 @@ type ProcessManager struct {
 	// (startConfigs). A second entry to Stop returns at once instead of waiting for
 	// the engines a first entry is already waiting for. See Stop for why.
 	stopping atomic.Bool
+
+	// respawnRefused is set once by RefuseRespawns when the daemon's stop
+	// drain begins, and never cleared: the stop is terminal.
+	respawnRefused atomic.Bool
+}
+
+// RefuseRespawns makes every later Respawn fail with ErrDaemonStopping. The
+// daemon calls it when its stop drain begins, so a plugin that exits during
+// the drain stays down until teardown. It MUST be called only on the stop
+// path: nothing clears it. Safe for concurrent use.
+func (pm *ProcessManager) RefuseRespawns() {
+	pm.respawnRefused.Store(true)
 }
 
 // SetAcceptor sets the TLS acceptor for external plugin connect-back.
@@ -448,6 +464,7 @@ func (pm *ProcessManager) ReportCrash(name string) {
 // Returns ErrRespawnLimitExceeded if limit exceeded within window.
 // Returns ErrProcessDisabled if process was previously disabled.
 // Returns ErrProcessNotFound if process name not in configuration.
+// Returns ErrDaemonStopping once RefuseRespawns has been called.
 // Returns error if ProcessManager was not started (ctx is nil).
 func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	pm.mu.Lock()
@@ -456,6 +473,10 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	// Check if ProcessManager was started
 	if pm.ctx == nil {
 		return nil, errors.New("process manager not started")
+	}
+
+	if pm.respawnRefused.Load() {
+		return nil, ErrDaemonStopping
 	}
 
 	// Check if already disabled

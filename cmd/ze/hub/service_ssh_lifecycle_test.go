@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/infra"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	zessh "github.com/ze-software/ze/internal/component/ssh"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // lifecycleReactor counts the two reactor stops an SSH lifecycle command can
@@ -41,6 +42,9 @@ func (r *lifecycleReactor) StopForRestart()                      { r.stopsForRes
 // handleDaemonReboot); `reboot` also sets rebootRequested, which runYANGConfig
 // reads after waitLoop to reboot the host.
 // PREVENTS: a stop that reports success and does not stop.
+// It also asserts the stop kind and restart cause the hub's drain RPC will
+// carry (stopDrainInput, AC-7), and that `stop` no longer stops the reactor
+// before the drain (AC-8).
 // MUTATION: drop apiServer.SignalShutdownRequested from any callback in
 // sshWireImpl and its subtest times out; drop rebootRequested.Store(true) from
 // the reboot callback and the reboot subtest fails its last assertion.
@@ -51,10 +55,16 @@ func TestSSHLifecycleEndsServerWait(t *testing.T) {
 		stops           int32
 		stopsForRestart int32
 		reboot          bool
+		drain           rpc.DrainInput
 	}{
-		{name: "stop", action: func(s *zessh.Server) func() { return s.ShutdownFunc() }, stops: 1},
-		{name: "restart", action: func(s *zessh.Server) func() { return s.RestartFunc() }, stopsForRestart: 1},
-		{name: "reboot", action: func(s *zessh.Server) func() { return s.RebootFunc() }, stopsForRestart: 1, reboot: true},
+		// stop stops no reactor itself: the hub's teardown sends the Cease
+		// after the drain (spec-daemon-drain-before-stop AC-8).
+		{name: "stop", action: func(s *zessh.Server) func() { return s.ShutdownFunc() },
+			drain: rpc.DrainInput{Kind: rpc.DrainKindStop}},
+		{name: "restart", action: func(s *zessh.Server) func() { return s.RestartFunc() }, stopsForRestart: 1,
+			drain: rpc.DrainInput{Kind: rpc.DrainKindRestart, RestartCause: rpc.DrainRestartInPlace}},
+		{name: "reboot", action: func(s *zessh.Server) func() { return s.RebootFunc() }, stopsForRestart: 1, reboot: true,
+			drain: rpc.DrainInput{Kind: rpc.DrainKindRestart, RestartCause: rpc.DrainRestartReboot}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -69,6 +79,8 @@ func TestSSHLifecycleEndsServerWait(t *testing.T) {
 			// leave it as every other test expects to find it.
 			rebootRequested.Store(false)
 			t.Cleanup(func() { rebootRequested.Store(false) })
+			stopRestartCause.Store(nil)
+			t.Cleanup(func() { stopRestartCause.Store(nil) })
 
 			reactor := &lifecycleReactor{}
 			sshSrv, err := zessh.NewServer(zessh.Config{HostKeyPath: filepath.Join(t.TempDir(), "host-key")})
@@ -94,6 +106,7 @@ func TestSSHLifecycleEndsServerWait(t *testing.T) {
 			assert.Equal(t, tt.stops, reactor.stops.Load(), "reactor Stop calls")
 			assert.Equal(t, tt.stopsForRestart, reactor.stopsForRestart.Load(), "reactor StopForRestart calls")
 			assert.Equal(t, tt.reboot, rebootRequested.Load(), "rebootRequested after the %s", tt.name)
+			assert.Equal(t, tt.drain, stopDrainInput(), "the drain RPC's kind and cause after the %s", tt.name)
 		})
 	}
 }

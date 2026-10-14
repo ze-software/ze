@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
@@ -115,7 +114,13 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 // Started once during shutdown to handle impatient Ctrl+C.
 func forceExitOnSignal(sigCh <-chan os.Signal) {
 	<-sigCh
-	fmt.Fprintf(os.Stderr, "forced exit\n")
+	exitForced()
+}
+
+// exitForced ends the process at once with exit 1, for an operator who will
+// not wait for the stop to finish.
+func exitForced() {
+	_, _ = os.Stderr.WriteString("forced exit\n") //nolint:errcheck // the process exits next; a failed stderr write has no reader
 	os.Exit(1)
 }
 
@@ -1519,22 +1524,25 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// so the config fence below spends from it.
 	stopStart := time.Now()
 
-	// A second INTERRUPT forces immediate exit. Shutdown below stops plugins,
-	// gNMI, the API servers and the reactor, each with its own grace period,
-	// so a wedged component can hold the process past the point an operator
-	// is willing to wait. The web-only path has had this since it was
-	// written; the daemon is the path an operator actually runs.
+	// A signal during the stop follows the signal state table (stopSignals,
+	// drain.go): before the drain has finished it skips the drain (fence) or
+	// aborts it (drain) and the ordered teardown continues; after that it
+	// forces exit 1, because teardown stops plugins, gNMI, the API servers and
+	// the reactor, each with its own grace period, and a wedged component can
+	// hold the process past the point an operator is willing to wait.
 	//
 	// It gets its OWN channel rather than reusing stopCh, because
 	// apiServer.SetShutdownFunc injects a SIGTERM into stopCh on every
-	// `request shutdown`. forceExitOnSignal reads the next VALUE and never asks
-	// which signal it is, so sharing the channel made a config-reload SIGHUP
-	// arriving mid-shutdown kill the daemon with exit 1. Notify only what an
-	// operator means as "stop waiting".
+	// `request shutdown`, and that value is not an operator's signal: after
+	// `request shutdown` the operator's first OS signal is the one counted.
+	// Sharing the channel also made a config-reload SIGHUP arriving
+	// mid-shutdown kill the daemon with exit 1. Notify only what an operator
+	// means as "stop waiting".
 	// Lifecycle goroutine, not a hot path.
 	forceCh := make(chan os.Signal, 1)
 	signal.Notify(forceCh, syscall.SIGINT, syscall.SIGTERM)
-	go forceExitOnSignal(forceCh)
+	signals := newStopSignals(exitForced)
+	go signals.run(forceCh)
 
 	close(reloadCh)
 	awaitReloadWorker(reloadDone, reloadShutdownGrace, reloadCancel)
@@ -1546,9 +1554,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	commitReloads.close()
 
 	// The drain runs while every plugin connection, the reactor and
-	// management are still up, and after config is fenced.
-	runStopDrain(stopStart, apiServer.BeginDrain(), rpc.DrainKindStop)
-	fmt.Println("\nShutting down (Ctrl+C again to force)...")
+	// management are still up, and after config is fenced. BeginDrain runs
+	// even when a signal skipped the drain, because it also ends respawning:
+	// the stop is terminal from here.
+	runStopDrain(stopStart, apiServer.BeginDrain(), stopDrainInput(), signals)
+	signals.enterTeardown()
 
 	// MCP shuts down through the construction registry's builtServices defer
 	// (like web/lg), so it is not stopped explicitly here.
@@ -1565,10 +1575,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		apiCancel()
 	}
 
+	apiServer.Stop()
+
+	// The engine's grace starts after apiServer.Stop returns: created before
+	// it, the context lost up to the server's own two grace periods and
+	// often reached eng.Stop already spent.
 	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	apiServer.Stop()
 	if err := eng.Stop(stopCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: shutdown timeout: %v\n", err)
 	}
