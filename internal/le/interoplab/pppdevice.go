@@ -65,9 +65,8 @@ func PPPDeviceMissing(checks map[string]string) (string, bool) {
 // before the probe starts when the host has no PPP device and says so on
 // stderr; only then does the refusal add the host command that loads it.
 func PPPPreflightRunRefusal(lab string, err error) error {
-	var refused *commandError
 	stderr := err.Error()
-	if errors.As(err, &refused) {
+	if refused, ok := errors.AsType[*commandError](err); ok {
 		stderr = refused.Stderr
 	}
 	if !strings.Contains(stderr, PPPDevice) {
