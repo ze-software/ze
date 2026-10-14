@@ -13,10 +13,13 @@ action=open:path=/lg/peers
 
 # POSITIVE CONTROL. The page rendered, and the engine really is unreachable:
 # the banner is the page's own render of the same producer the stream reads
-# (engineError, internal/component/lg/handler_ui.go).
+# (ask, internal/component/lg/server.go). It names the command and the
+# failure class. The dispatcher's own error, `bgp engine unavailable`
+# (internal/test/cli/cmd_lg.go), stays in the log: this page is public.
 expect=element:text=BGP Peers
 expect=html:contains=error-banner
-expect=html:contains=bgp engine unavailable
+expect=html:contains=show bgp: engine error
+expect=html:not-contains=bgp engine unavailable
 
 # PRE-CONDITION. The table body is empty at load, so the assertion below reads
 # a state that CHANGED. `stream-error` is written by peersStreamError alone,
@@ -28,4 +31,5 @@ expect=html:not-contains=stream-error
 # the DOM had no such row in it.
 action=wait:ms=8000
 expect=html:contains=<tr class="stream-error">
-expect=html:contains=>bgp engine unavailable</td>
+expect=html:contains=>show bgp: engine error</td>
+expect=html:not-contains=bgp engine unavailable
