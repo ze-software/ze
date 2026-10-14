@@ -38,6 +38,18 @@ jobs:
             paths-ignore:
               - gokrazy/modcache
 
+      # ze compiles only against Ze's patched crypto/tls, so every later go
+      # command in this job runs under the patched GOROOT the generator answers
+      # (docs/contributing/patching-the-standard-library.md).
+      - name: Select the patched Go standard library
+        if: matrix.build-mode == 'manual'
+        shell: bash
+        run: |
+          tree="$(go run ./internal/le/go/stdpatch/goroot)"
+          echo "GOROOT=$tree" >> "$GITHUB_ENV"
+          echo "GOTOOLCHAIN=local" >> "$GITHUB_ENV"
+          echo "$tree/bin" >> "$GITHUB_PATH"
+
       # A bare build excludes the feature-gated daemon and appliance surface.
       # These shipped combinations are generated from feature-gates.txt by
       # internal/le/repo/featuretags/actions.go (`./le repo feature-tags write`).

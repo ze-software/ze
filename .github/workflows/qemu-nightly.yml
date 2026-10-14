@@ -52,6 +52,16 @@ jobs:
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      # ze compiles only against Ze's patched crypto/tls, so every later go
+      # command in this job runs under the patched GOROOT the generator answers
+      # (docs/contributing/patching-the-standard-library.md).
+      - name: Select the patched Go standard library
+        shell: bash
+        run: |
+          tree="$(go run ./internal/le/go/stdpatch/goroot)"
+          echo "GOROOT=$tree" >> "$GITHUB_ENV"
+          echo "GOTOOLCHAIN=local" >> "$GITHUB_ENV"
+          echo "$tree/bin" >> "$GITHUB_PATH"
       - name: Cross-build native guest binaries
         run: |
           FEATURES='ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
@@ -184,6 +194,16 @@ jobs:
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      # ze compiles only against Ze's patched crypto/tls, so every later go
+      # command in this job runs under the patched GOROOT the generator answers
+      # (docs/contributing/patching-the-standard-library.md).
+      - name: Select the patched Go standard library
+        shell: bash
+        run: |
+          tree="$(go run ./internal/le/go/stdpatch/goroot)"
+          echo "GOROOT=$tree" >> "$GITHUB_ENV"
+          echo "GOTOOLCHAIN=local" >> "$GITHUB_ENV"
+          echo "$tree/bin" >> "$GITHUB_PATH"
       - name: Cross-build native guest binaries
         run: |
           FEATURES='ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
