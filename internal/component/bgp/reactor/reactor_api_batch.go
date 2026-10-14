@@ -2138,6 +2138,10 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 		// after peer construction (see forward_rs.go), so no lock is needed.
 		Name:      peer.Settings().Name,
 		GroupName: peer.Settings().GroupName,
+		// RSClient and IsIBGP complete the session facts buildForwardFacts fills,
+		// so a filter that opts into readvertise never reads a silent false here.
+		RSClient: peer.Settings().RSClient,
+		IsIBGP:   peer.IsIBGP(),
 	}
 	outcome, modified := a.decideStaleReadvertise(dest, body, batch.Stale)
 

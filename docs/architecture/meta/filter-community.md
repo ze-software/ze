@@ -74,5 +74,21 @@ would give every destination a distinct edit set and defeat that dedup
 RFC 7999 guard costs nothing at all when its leaf is `none`: the leaf is read
 before the payload is, so a peer that did not ask for it pays no wire scan.
 
+The egress filter also refuses one route class, for RFC 7999 Section 3.1: a
+route carrying BLACKHOLE towards an eBGP destination that is not a route-server
+client and whose `blackhole` container does not list the community
+(`blackholeReadvertiseRefused`). It runs before the filter-config lookup, since
+a destination with no community policy still owes the agreement, and in the
+order cheapest first: the session type (`PeerFilterInfo.IsIBGP`, `RSClient`),
+then the 4-octet COMMUNITIES scan, then the lookup. The lookup reads the
+`blackholecfg.Parse` map re-keyed once at config time into an address map and a
+group-template map, so no string is built per route. The cache is installed by
+`OnConfigure` and replaced by the reload transaction (`configTx`: verify stages,
+apply swaps under `mu`, rollback restores). A miss, the empty cache included,
+means "not agreed".
+
+<!-- source: internal/component/bgp/plugins/filter_community/blackhole.go -- blackholeReadvertiseRefused, blackholeAgreements -->
+<!-- source: internal/component/bgp/plugins/filter_community/filter_community.go -- configTx, egressFilter -->
+
 <!-- source: internal/component/bgp/plugins/filter_community/filter.go -- applyRelationTag, applyIngressFilter -->
 <!-- source: internal/component/bgp/plugins/filter_community/blackhole.go -- blackholePropagationGuard -->

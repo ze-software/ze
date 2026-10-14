@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -43,7 +44,91 @@ var (
 	// peerConfigs is keyed by peer name, and by configjson.CapabilityGroupKey for
 	// a dynamic group's template. lookupPeerConfigLocked resolves both.
 	peerConfigs map[string]filterConfig
+	// agreements is the RFC 7999 Section 3.1 agreement of every session, read by
+	// the egress gate. It is not inside filterConfig: a peer whose only statement
+	// is a blackhole container has no filterConfig (hasAnyRule drops it) and
+	// still holds an agreement.
+	agreements *blackholeAgreements
 )
+
+// configTx is the reload transaction's state for this plugin. The SDK
+// serializes the verify, apply and rollback callbacks, so it needs no lock of
+// its own; the installed state it swaps stays under mu.
+//
+// Verify parses the candidate and stages it; apply installs the staged value
+// and keeps the one it replaced; rollback reinstalls that one. Only the
+// blackhole agreements take part today: definitions and peerConfigs change at
+// startup only. plan/immediate/spec-plugin-reload-applies-or-refuses.md joins
+// them to this same transaction, with no second apply handler.
+type configTx struct {
+	pending    *blackholeAgreements
+	hasPending bool
+	// previous is what the last accepted apply replaced. hasPrevious separates
+	// "nothing to restore" from a nil set, which is a legitimate installed value
+	// before the first configuration.
+	previous    *blackholeAgreements
+	hasPrevious bool
+}
+
+// verify parses the candidate's bgp root and stages it. A verify that carries
+// no bgp section stages nothing, so the apply that follows changes nothing.
+func (tx *configTx) verify(sections []sdk.ConfigSection) error {
+	tx.pending, tx.hasPending = nil, false
+	// Rollback belongs to this transaction, not to the last successful apply.
+	tx.previous, tx.hasPrevious = nil, false
+	for _, section := range sections {
+		if section.Root != configRootBGP {
+			continue
+		}
+		bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
+		if !ok {
+			return errFilterCommunityInvalidBgpConfigJson
+		}
+		set, err := parseBlackholeAgreements(bgpCfg)
+		if err != nil {
+			return fmt.Errorf("filter-community: %w", err)
+		}
+		tx.pending, tx.hasPending = set, true
+	}
+	return nil
+}
+
+// apply installs the staged agreements and keeps the replaced set for
+// rollback. An apply with nothing staged changes nothing and keeps no undo
+// set, as the SDK's OnConfigApply contract requires.
+func (tx *configTx) apply() {
+	if !tx.hasPending {
+		tx.previous, tx.hasPrevious = nil, false
+		return
+	}
+	mu.Lock()
+	tx.previous, tx.hasPrevious = agreements, true
+	agreements = tx.pending
+	mu.Unlock()
+	tx.pending, tx.hasPending = nil, false
+}
+
+// rollback reinstalls the set the last accepted apply replaced, once.
+func (tx *configTx) rollback() {
+	tx.pending, tx.hasPending = nil, false
+	if !tx.hasPrevious {
+		return
+	}
+	mu.Lock()
+	agreements = tx.previous
+	mu.Unlock()
+	tx.previous, tx.hasPrevious = nil, false
+}
+
+// parseBlackholeAgreements resolves and re-keys every session's blackhole
+// container. A malformed value is refused, as blackholecfg.Parse refuses it.
+func parseBlackholeAgreements(bgpCfg map[string]any) (*blackholeAgreements, error) {
+	rules, err := blackholecfg.Parse(bgpCfg)
+	if err != nil {
+		return nil, fmt.Errorf("blackhole: %w", err)
+	}
+	return newBlackholeAgreements(rules)
+}
 
 // runFilterCommunity runs the community filter plugin using the SDK RPC
 // protocol. This is the in-process entry point called via
@@ -65,6 +150,17 @@ func runFilterCommunity(conn net.Conn) int {
 				return fmt.Errorf("filter-community: %w", err)
 			}
 		}
+		return nil
+	})
+
+	var tx configTx
+	p.OnConfigVerify(tx.verify)
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		tx.apply()
+		return nil
+	})
+	p.OnConfigRollback(func(_ string) error {
+		tx.rollback()
 		return nil
 	})
 
@@ -143,9 +239,15 @@ func configureCommunityFilter(bgpCfg map[string]any) error {
 		}
 	}
 
+	agreed, err := parseBlackholeAgreements(bgpCfg)
+	if err != nil {
+		return err
+	}
+
 	mu.Lock()
 	definitions = defs
 	peerConfigs = configs
+	agreements = agreed
 	mu.Unlock()
 
 	logger().Debug("configured",
@@ -272,18 +374,31 @@ func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta ma
 	return true, modified
 }
 
-// egressFilter is the registered EgressFilterFunc. Looks up the destination
-// peer's filter config and accumulates ops.
-func egressFilter(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
+// egressFilter is the registered EgressFilterFunc. It withholds a
+// BLACKHOLE-tagged route from a bilateral eBGP destination that did not agree
+// to the community, then looks up the destination peer's filter config and
+// accumulates ops.
+//
+// The agreement gate runs before the filterConfig lookup's early return,
+// because a destination with no community policy still owes the agreement.
+func egressFilter(_, dest filterapi.PeerFilterInfo, payload []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
 	mu.RLock()
 	defs := definitions
+	agreed := agreements
 	fc, hasCfg := lookupPeerConfigLocked(dest.Name, dest.GroupName)
 	mu.RUnlock()
+
+	// RFC 7999 Section 3.1.
+	if blackholeReadvertiseRefused(agreed, dest, payload) {
+		logger().Debug("blackhole route withheld: destination did not agree to the BLACKHOLE community",
+			"dest", dest.Address, "dest-name", dest.Name)
+		return false
+	}
 
 	if !hasCfg {
 		return true
 	}
 
 	applyEgressFilter(defs, fc, mods)
-	return true // Community filter never suppresses routes.
+	return true
 }

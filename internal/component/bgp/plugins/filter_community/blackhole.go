@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md — community filter ingress path
 // RFC: rfc/short/rfc7999.md — Section 3.2, the propagation guard implemented here
 // RFC: rfc/short/rfc1997.md — NO_EXPORT and NO_ADVERTISE, the two communities it adds
+// RFC: rfc/short/rfc7999.md — Section 3.1, the re-advertisement agreement gate implemented here
 // Overview: filter_community.go — plugin entry point
 // Related: scrub.go — Section 11 scrub that must not reach these values
 // Related: filter.go — applyIngressFilter, which runs this after the scrub
@@ -9,7 +10,12 @@ package filter_community
 
 import (
 	"encoding/binary"
+	"fmt"
+	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
@@ -115,4 +121,115 @@ func hasStandardCommunity(payload []byte, value uint32) bool {
 		}
 	}
 	return false
+}
+
+// blackholeAgreements is every session's RFC 7999 agreement, the map
+// blackholecfg.Parse returns re-keyed once at config time so the egress gate
+// looks a destination up without building a string per route.
+//
+// A configured peer's entry is keyed by its remote address: blackholecfg.Parse
+// keys every non-template entry by the remote IP and refuses a peer without one.
+// A dynamic group's template is keyed by configjson.GroupKey. The split reads
+// PeerConfigKey.Template and never whether the ID parses as an address, because
+// naming.ValidateNodeName accepts a group named 10.0.0.1.
+//
+// A value is immutable once built: a reload builds a new set and swaps the
+// pointer under mu, so a reader that copied the pointer keeps a whole set.
+type blackholeAgreements struct {
+	byAddress  map[netip.Addr]blackholecfg.Rule
+	byTemplate map[configjson.PeerConfigKey]blackholecfg.Rule
+}
+
+// newBlackholeAgreements re-keys the rules blackholecfg.Parse returned.
+func newBlackholeAgreements(rules map[configjson.PeerConfigKey]blackholecfg.Rule) (*blackholeAgreements, error) {
+	set := &blackholeAgreements{
+		byAddress:  make(map[netip.Addr]blackholecfg.Rule, len(rules)),
+		byTemplate: make(map[configjson.PeerConfigKey]blackholecfg.Rule),
+	}
+	for key, rule := range rules {
+		if key.Template {
+			set.byTemplate[key] = rule
+			continue
+		}
+		addr, err := netip.ParseAddr(key.ID)
+		if err != nil {
+			// Parse keys a peer by configjson.PeerRemoteIP, so this is a Ze defect,
+			// refused rather than dropped: a dropped entry is an agreement the
+			// operator reads as in force and which does nothing.
+			return nil, fmt.Errorf("blackhole agreement for peer %q has no remote address: %w", key.ID, err)
+		}
+		set.byAddress[addr.Unmap()] = rule
+	}
+	return set, nil
+}
+
+// lookup resolves one destination's agreement in configjson.LookupPeerConfig's
+// order: address first, then name, then the template of the dynamic group the
+// peer was built from. A name entry cannot exist by Parse's construction, so
+// the name step always misses; it stays so the order matches every other
+// reader of the same map. The second value is false on a miss, which the
+// caller MUST read as "not agreed". A nil set misses everything.
+func (s *blackholeAgreements) lookup(dest filterapi.PeerFilterInfo) (blackholecfg.Rule, bool) {
+	if s == nil {
+		return blackholecfg.Rule{}, false
+	}
+	if rule, ok := s.byAddress[dest.Address.Unmap()]; ok {
+		return rule, true
+	}
+	if dest.Name != "" {
+		if rule, ok := s.byTemplate[configjson.PeerConfigKey{ID: dest.Name}]; ok {
+			return rule, true
+		}
+	}
+	if dest.GroupName != "" {
+		if rule, ok := s.byTemplate[configjson.GroupKey(dest.GroupName)]; ok {
+			return rule, true
+		}
+	}
+	return blackholecfg.Rule{}, false
+}
+
+// wellKnownBlackhole is the want set the gate scans for, held at package level
+// so the scan allocates nothing per route.
+var wellKnownBlackhole = []attribute.Community{attribute.CommunityBlackhole}
+
+// blackholeReadvertiseRefused reports whether RFC 7999 Section 3.1 withholds
+// this route from dest.
+//
+// RFC 7999 Section 3.1: "In a bilateral peering relationship, use of the
+// BLACKHOLE community MUST be agreed upon by the two networks before
+// advertising it. In a multilateral peering relationship, the decision to
+// honor or ignore the BLACKHOLE community is to be made according to the
+// operator's routing policy."
+//
+// The agreement is stated in terms of the community, not of who created the
+// route, so it binds a re-advertisement as it binds origination
+// (cmd/announce's agreedSelector). An iBGP session is one network, so it is
+// not a bilateral relationship between two, and a customer's RTBH signal keeps
+// spreading inside the AS, which Section 3.2 assumes. A route-server client is
+// the multilateral case the second sentence hands to operator policy. Ze has no
+// confederation config, so every other session is a bilateral eBGP one.
+//
+// The checks run cheapest first, because this runs once per route per
+// destination: the session type, then the 4-octet scan of COMMUNITIES, and
+// only for a tagged route the agreement lookup. It allocates nothing.
+func blackholeReadvertiseRefused(agreements *blackholeAgreements, dest filterapi.PeerFilterInfo, payload []byte) bool {
+	if dest.IsIBGP {
+		return false
+	}
+	if dest.RSClient {
+		return false
+	}
+	_, _, dataStart, dataEnd, found := findAttribute(payload, attribute.AttrCommunity)
+	if !found {
+		return false
+	}
+	if !blackholecfg.Carries(payload[dataStart:dataEnd], wellKnownBlackhole) {
+		return false
+	}
+	rule, agreedSession := agreements.lookup(dest)
+	if !agreedSession {
+		return true
+	}
+	return !rule.Agreed(attribute.CommunityBlackhole)
 }

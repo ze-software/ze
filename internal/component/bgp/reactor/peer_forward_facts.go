@@ -174,6 +174,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	exportFilters := s.ExportFilters
 	peerAS := s.PeerAS
 	isEBGP := s.IsEBGP()
+	isIBGP := s.IsIBGP()
 	aigpEnabled := s.AIGPEnabled()
 	p.mu.RUnlock()
 
@@ -227,6 +228,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 			Name:      s.Name,
 			GroupName: s.GroupName,
 			RSClient:  s.RSClient,
+			IsIBGP:    isIBGP,
 		},
 	}
 

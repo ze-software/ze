@@ -2,6 +2,28 @@
   "rfc": "rfc7999",
   "records": [
     {
+      "rid": "RFC7999-3.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_readvertise_test.go::TestRFC7999ReadvertiseReachesAgreedAndExemptDestinations",
+      "unit-sha": "453f556f633bd2f8",
+      "claim-sha": "2817f401639061db",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/filter_community/blackhole.go::blackholeReadvertiseRefused",
+      "producer-sha": "eea23f10a94641c5",
+      "break": "body of blackholeReadvertiseRefused replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7999-3.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_readvertise_test.go::TestRFC7999ReadvertiseWithheldWithoutAgreement",
+      "unit-sha": "b98e832022b068db",
+      "claim-sha": "99af06cf64c68a10",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/filter_community/blackhole.go::blackholeReadvertiseRefused",
+      "producer-sha": "eea23f10a94641c5",
+      "break": "body of blackholeReadvertiseRefused replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7999-3.2-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity",

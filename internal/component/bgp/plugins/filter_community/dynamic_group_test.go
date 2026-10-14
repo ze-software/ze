@@ -21,10 +21,10 @@ import (
 // withCleanConfig restores the package-level filter state after one test.
 func withCleanConfig(t *testing.T) {
 	t.Helper()
-	prevPeers, prevDefs := peerConfigs, definitions
+	prevPeers, prevDefs, prevAgreements := peerConfigs, definitions, agreements
 	t.Cleanup(func() {
 		mu.Lock()
-		peerConfigs, definitions = prevPeers, prevDefs
+		peerConfigs, definitions, agreements = prevPeers, prevDefs, prevAgreements
 		mu.Unlock()
 	})
 }

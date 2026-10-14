@@ -45,7 +45,7 @@ const ObligationTransitLeak = "transit-leak"
 type PeerFilterInfo struct {
 	Address      netip.Addr // Peer IP address
 	PeerAS       uint32     // Remote AS number
-	LocalAS      uint32     // Local AS number (for iBGP detection)
+	LocalAS      uint32     // Local AS number on this session; never compare it with PeerAS to classify the session, read IsIBGP
 	RouterID     uint32     // Local Router ID (for ORIGINATOR_ID/CLUSTER_LIST loop detection)
 	ASN4         bool       // 4-byte ASN negotiated (affects AS_PATH parsing)
 	Name         string     // Peer name from config (for filter config lookup)
@@ -54,6 +54,11 @@ type PeerFilterInfo struct {
 	ClusterID    uint32     // Loop detection: explicit cluster-id (0 = use RouterID)
 	LoopDisabled bool       // Loop detection deactivated for this peer (FilterRef.Inactive)
 	RSClient     bool       // Configured route-server client; policy belongs to the plugin.
+	// IsIBGP reports an internal session, filled from PeerSettings.IsIBGP, the one
+	// rule that also counts an RFC 7705 migration session as internal. A filter
+	// that needs the session type reads this field rather than comparing PeerAS
+	// with LocalAS, which gets the migration session wrong.
+	IsIBGP bool
 }
 
 // FilterRef is one entry in a peer's import/export filter chain: the canonical
@@ -115,7 +120,7 @@ type IngressFilterFunc func(source PeerFilterInfo, payload []byte, meta map[stri
 // only the one non-decision it causes itself, a recovered panic.
 //
 // NO REGISTERED FILTER IS IN THAT STATE TODAY, re-derived from all three on
-// 2026-08-03. OTCEgressFilter (plugins/role/otc.go) was the live instance; it
+// 2026-08-03 and again on 2026-10-14. OTCEgressFilter (plugins/role/otc.go) was the live instance; it
 // stopped being one when Thomas ruled that an unrecorded destination role is
 // covered by the operator's `unknown` token, which makes its export-set
 // suppression a decision (R6-1 / Q-1,
@@ -126,7 +131,13 @@ type IngressFilterFunc func(source PeerFilterInfo, payload []byte, meta map[stri
 // the LLGR Capability "has been received", and nothing recorded means it has
 // not, so the destination takes the treatment written for a peer known to lack
 // it (plan/spec-fixit-egress-filter-non-decision-channel.md).
-// filter_community's egress filter never suppresses at all.
+// filter_community's egress filter suppresses one route class: a
+// BLACKHOLE-tagged route towards a bilateral eBGP destination that did not
+// agree to the community (RFC 7999 Section 3.1). That suppression is a
+// decision too. Its agreement cache has no state in which it cannot answer: a
+// miss, the empty cache before the first config apply included, means "not
+// agreed", the answer cmd/announce's agreedSelector gives, so the refusal is
+// the treatment written for a peer known not to have agreed.
 //
 // So widening this signature is NOT currently owed. What the seam did owe was
 // smaller: two of the three call sites of safeEgressFilter DISCARDED the
