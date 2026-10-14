@@ -73,18 +73,22 @@
       "verdict": "enforced"
     },
     "RFC5216-2.1.1-4": {
-      "code": {},
-      "note": "Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator's GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. RFC 5216 Section 2.1.1: 'If the peer's sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session.' rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID drives ze's authenticator over four TLS 1.2 ClientHellos and requires a 32-octet ServerHello session_id differing from the client's, no SessionTicket extension and no NewSessionTicket: that proves the UNRECOGNIZED half. The NULL half is never sent: every ClientHello is ze's peer's (which always offers TLS 1.3, so crypto/tls fills a random 32-octet legacy session_id) or derived from it with extensions removed, and the first subtest fails when that id is empty. A producer that chose an id only when the client offered one passes every assertion. The tagged config units no longer carry this row.",
+      "code": {
+        "internal/core/eap/eap_tls.go::tls12WithoutTickets": "5bc17ed854d88108"
+      },
+      "note": "Re-judged 2026-10-14 (independent auditor) after 53c17be5e3. RFC 5216 Section 2.1.1: 'If the peer's sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session.' Producer: the patched GOROOT doFullHandshake (internal/le/go/stdpatch/patches/crypto-tls-server-session-id.patch) writes a fresh 32-octet session_id when the TLS 1.2 full handshake issues no ticket, and eap_tls.go::tls12WithoutTickets disables tickets for every handshake negotiatesTLS13 classifies as TLS 1.2. UNRECOGNIZED half: rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID offers ze's peer's non-empty random id and requires a 32-octet ServerHello session_id differing from it, no SessionTicket extension and no NewSessionTicket. NULL half: TestRFC5216TLS12NullSessionIDServerChooses rewrites the TLS 1.2 ClientHello to an empty session_id (asserted), replays it at two fresh authenticators and requires each ServerHello to carry a 32-octet id, no ticket, and the two ids to differ. Its recorded break is a panic in tls12WithoutTickets, which shows reachability only, so the auditor ran targeted mutants through go test overlays: a patched doFullHandshake that chooses an id only when the client offered one ('!ticketSupported && len(clientHello.sessionId) > 0') leaves the unrecognized-id test green and turns the null-id test red on 'session_id is 0 octets'; tls12WithoutTickets without SessionTicketsDisabled turns both red. Limit: the null-id ClientHello still carries the SessionTicket extension; the null-id ClientHello without it is not sent.",
       "requirement_sha": "aed07a9f6964af4f",
       "tests": {
-        "internal/core/eap/rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID": "4e7346585e267e26",
-        "internal/core/eap/rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID#2": "4e7346585e267e26"
+        "internal/core/eap/rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID": "db3ebe806b5a8c87",
+        "internal/core/eap/rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID#2": "db3ebe806b5a8c87",
+        "internal/core/eap/rfc5216_session_id_test.go::TestRFC5216TLS12NullSessionIDServerChooses": "db3ebe806b5a8c87"
       },
       "units": {
         "internal/core/eap/rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID": "b1b3fd2757e519a0",
-        "internal/core/eap/rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID#2": "b1b3fd2757e519a0"
+        "internal/core/eap/rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID#2": "b1b3fd2757e519a0",
+        "internal/core/eap/rfc5216_session_id_test.go::TestRFC5216TLS12NullSessionIDServerChooses": "31785225b417314c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-2.1.1-5": {
       "code": {},
