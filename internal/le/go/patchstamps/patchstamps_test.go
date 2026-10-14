@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/vendorpatch"
 )
@@ -33,7 +33,7 @@ func stampFixture(t *testing.T, stdStamp, vendorStamp string) string {
 		}
 	}
 	write("go.mod", "module fixture\n\ngo 1.27.2\n")
-	write(stdpatch.PatchDir+"/std.patch", "Ze-Reviewed-Against: "+stdStamp+"\n\n"+
+	write(gen.PatchDir+"/std.patch", "Ze-Reviewed-Against: "+stdStamp+"\n\n"+
 		"diff --git a/src/crypto/tls/x.go b/src/crypto/tls/x.go\n--- a/src/crypto/tls/x.go\n+++ b/src/crypto/tls/x.go\n")
 	write("vendor/modules.txt", "# github.com/vishvananda/netlink v1.3.1\n## explicit\ngithub.com/vishvananda/netlink\n")
 	write(vendorpatch.Dir+"/vendor.patch", "Ze-Reviewed-Against: github.com/vishvananda/netlink "+vendorStamp+"\n\n"+
@@ -56,7 +56,7 @@ func TestPatchStampsCheckRefusesAStaleToolchainStamp(t *testing.T) {
 			if err == nil {
 				t.Fatal("the stale stamp was accepted")
 			}
-			for _, want := range []string{stdpatch.PatchDir + "/std.patch", tc.stamp, tc.active, "src/crypto/tls/x.go", "Then run: ./le go stdpatch goroot"} {
+			for _, want := range []string{gen.PatchDir + "/std.patch", tc.stamp, tc.active, "src/crypto/tls/x.go", "Then run: ./le go stdpatch goroot"} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("refusal does not name %q:\n%v", want, err)
 				}
@@ -83,15 +83,15 @@ func TestPatchStampsCheckRefusesAStaleVendorStamp(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		patches, err := stdpatch.Patches(root)
+		patches, err := gen.Patches(root)
 		if err != nil {
 			t.Fatal(err)
 		}
-		cache, err := stdpatch.CacheDir(root)
+		cache, err := gen.CacheDir(root)
 		if err != nil {
 			t.Fatal(err)
 		}
-		toolchain, err := stdpatch.Resolve(root, cache, patches)
+		toolchain, err := gen.Resolve(root, cache, patches)
 		if err != nil {
 			t.Fatal(err)
 		}

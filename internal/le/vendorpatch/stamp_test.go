@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 )
 
 // vendorFixture writes a checkout holding vendor/modules.txt and one patch
@@ -98,7 +98,7 @@ func TestVendorStampIsComparedWithModulesTxt(t *testing.T) {
 	})
 
 	t.Run("no-stamp-sentinel", func(t *testing.T) {
-		if _, _, err := Stamp([]byte("diff --git a/x b/x\n")); !errors.Is(err, stdpatch.ErrNoStamp) {
+		if _, _, err := Stamp([]byte("diff --git a/x b/x\n")); !errors.Is(err, gen.ErrNoStamp) {
 			t.Fatalf("Stamp answered %v, want ErrNoStamp", err)
 		}
 	})

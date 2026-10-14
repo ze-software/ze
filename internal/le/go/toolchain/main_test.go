@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 			_, _ = os.Stderr.WriteString(err.Error() + "\n") //nolint:errcheck // the exit code reports it
 			os.Exit(2)
 		}
-		if _, err := stdpatch.Activate(checkout); err != nil {
+		if _, err := gen.Activate(checkout); err != nil {
 			_, _ = os.Stderr.WriteString(err.Error() + "\n") //nolint:errcheck // the exit code reports it
 			os.Exit(2)
 		}

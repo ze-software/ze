@@ -2,7 +2,7 @@
 // Overview: stdpatch.go -- the generator and the activation
 // RFC: rfc/short/rfc5216.md
 
-package stdpatch
+package gen
 
 import (
 	"bytes"

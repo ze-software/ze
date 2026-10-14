@@ -13,7 +13,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 )
 
 // Dir is where the vendor patches live, relative to the checkout. The
@@ -44,7 +44,7 @@ func Patches(root string) ([]string, error) {
 // Stamp answers the module and version a vendor patch was reviewed against,
 // from its `Ze-Reviewed-Against: <module path> <version>` line.
 func Stamp(body []byte) (module, version string, err error) {
-	value, err := stdpatch.ReviewStamp(body)
+	value, err := gen.ReviewStamp(body)
 	if err != nil {
 		return "", "", err
 	}

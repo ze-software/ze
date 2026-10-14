@@ -1,14 +1,15 @@
 // Design: docs/contributing/patching-the-standard-library.md -- the command that prints the patched GOROOT
 //
 // actions.go carries the table of `le go stdpatch`. The generator itself is
-// internal/le/go/stdpatch, which imports only the standard library; this
+// internal/le/go/stdpatch/gen, which imports only the standard library; this
 // package is the le surface over it, so the generator stays buildable before
-// le exists.
+// le exists. The surface lives here, not in gen, because le finds a command
+// at the path its name predicts (internal/le/go/stdpatch for `go stdpatch`).
 
-package stdpatchcmd
+package stdpatch
 
 import (
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -40,7 +41,7 @@ func runGoroot() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	tree, err := stdpatch.Activate(root)
+	tree, err := gen.Activate(root)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

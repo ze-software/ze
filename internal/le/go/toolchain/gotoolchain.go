@@ -24,7 +24,7 @@
 //     run requests it.
 //
 //   - GOROOT, GOTOOLCHAIN and the head of PATH are NOT set here. New calls
-//     stdpatch.Activate, which builds the patched GOROOT from the toolchain
+//     gen.Activate, which builds the patched GOROOT from the toolchain
 //     go.mod pins and sets GOROOT to it, GOTOOLCHAIN to local and its bin
 //     first on PATH in this process (docs/contributing/patching-the-standard-library.md).
 //     Environment inherits the three with the rest of os.Environ(), so one
@@ -64,7 +64,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
@@ -177,7 +177,7 @@ func New(root string) (Toolchain, error) {
 		return Toolchain{}, err
 	}
 
-	pin, err := stdpatch.Pin(root)
+	pin, err := gen.Pin(root)
 	if err != nil {
 		return Toolchain{}, err
 	}
@@ -199,7 +199,7 @@ func New(root string) (Toolchain, error) {
 	if err != nil {
 		return Toolchain{}, err
 	}
-	if _, err := stdpatch.Activate(checkout); err != nil {
+	if _, err := gen.Activate(checkout); err != nil {
 		return Toolchain{}, err
 	}
 
@@ -534,7 +534,7 @@ type EnvOptions struct {
 // GOLANGCI_LINT_CACHE and CGO_ENABLED always, and GOMAXPROCS, GOMEMLIMIT,
 // GOOS and GOARCH when opts asks. It returns KEY=VALUE entries in a fixed
 // order. It sets no GOROOT and no GOTOOLCHAIN: the process environment holds
-// both, set by stdpatch.Activate, and a second declaration here could only
+// both, set by gen.Activate, and a second declaration here could only
 // disagree with it.
 //
 // Overrides is separate from Environment so that a test can verify

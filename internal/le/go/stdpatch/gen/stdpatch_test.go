@@ -3,7 +3,7 @@
 // PREVENTS: a tree that silently misses packages, a patch applied over code
 // nobody reviewed, and an activation that leaves part of the environment set.
 
-package stdpatch
+package gen
 
 import (
 	"context"

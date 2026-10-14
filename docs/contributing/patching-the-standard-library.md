@@ -3,7 +3,7 @@
 How Ze changes one file of a Go standard-library package at build time,
 without a fork of the toolchain and without a copy of the package in the tree.
 
-**Status: partly built.** The generator (`internal/le/go/stdpatch`), the patch, `./le go stdpatch goroot`, le's activation at its root handler and the launcher's bootstrap route exist. The step 1a stamp refusal, the vendor stamps and their refusal in `./le setup install`, `./le go patch-stamps check` in both `./le verify` modes, the EAP-TLS marker reference and ticket suppression, and the ze-setup refusal are built; the guest, Docker and CI routes are not built yet (spec-ike-eap-rfc-defects, D2).
+**Status: partly built.** The generator (`internal/le/go/stdpatch/gen`), the patch, `./le go stdpatch goroot`, le's activation at its root handler and the launcher's bootstrap route exist. The step 1a stamp refusal, the vendor stamps and their refusal in `./le setup install`, `./le go patch-stamps check` in both `./le verify` modes, the EAP-TLS marker reference and ticket suppression, and the ze-setup refusal are built; the guest, Docker and CI routes are not built yet (spec-ike-eap-rfc-defects, D2).
 `plan/immediate/spec-ike-eap-rfc-defects.md` ("D2 design") builds it. Until that
 spec lands, every build uses the unmodified standard library. When it lands, this
 page is restated as a description of the built mechanism.
@@ -79,10 +79,10 @@ Linux refuses a hard link to a root-owned GOROOT file that the user does not own
 | Part | Location | Role |
 |------|----------|------|
 | The patch | `internal/le/go/stdpatch/patches/<name>.patch` | A git unified diff with paths relative to GOROOT (`a/src/crypto/tls/handshake_server.go`). Its leading text, which `git apply` skips, names this page, quotes the requirement, and carries the review stamp `Ze-Reviewed-Against: go1.27.2` (see "The review stamp") |
-| The generator | `internal/le/go/stdpatch` | Builds the patched GOROOT for one toolchain. It imports only the standard library, so it compiles under the unpatched GOROOT, before any tree exists |
+| The generator | `internal/le/go/stdpatch/gen` | Builds the patched GOROOT for one toolchain. It imports only the standard library, so it compiles under the unpatched GOROOT, before any tree exists. `internal/le/go/stdpatch/goroot` is its bootstrap entry, which the routes that run before le exists start with `go run` |
 | The output | `cache/stdpatch/<key>/goroot` | The tree, keyed by a SHA-256 over a layout version, the `go version`, the real GOROOT path, the patch, and each original GOROOT file. The path is in the key because every symlink names an absolute path into that GOROOT and `cache/` is shared by every checkout |
-| The activation | `stdpatch.Activate` | Answers the tree and sets the three values of "What a build sets" in the calling process's environment. le's root handler calls it before any command runs |
-| The command | `./le go stdpatch goroot` | Prints the tree path for this checkout's toolchain, for plain `go` commands and editors, and for the routes that run before le exists |
+| The activation | `gen.Activate` | Answers the tree and sets the three values of "What a build sets" in the calling process's environment. le's root handler calls it before any command runs |
+| The command | `./le go stdpatch goroot` (`internal/le/go/stdpatch`) | Prints the tree path for this checkout's toolchain, for plain `go` commands and editors, and for the routes that run before le exists |
 | The stamp check | `./le go patch-stamps check` (`internal/le/go/patchstamps`) | Compares every review stamp, standard-library and vendor, with the version it names. `./le verify` runs it in both modes. It is a package of its own because the generator imports only the standard library |
 
 The patch is stored as a diff, not as a patched copy of the file. A copy belongs
@@ -141,7 +141,7 @@ them. le therefore sets the three values once, where it starts, and every child
 inherits them:
 
 - le's root handler `run`, the entry of every le command and native hook, calls
-  `stdpatch.Activate` before it dispatches. That call answers the tree and sets
+  `gen.Activate` before it dispatches. That call answers the tree and sets
   `GOROOT`, `GOTOOLCHAIN=local` and the `PATH` entry with `os.Setenv`. A le
   started by le finds the entry already first and does not add it twice.
 - A plain `go` started by le then resolves to `<tree>/bin/go`, because

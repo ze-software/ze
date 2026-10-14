@@ -3,7 +3,7 @@
 // Related: tree.go -- the link tree a patched GOROOT is built as
 // RFC: rfc/short/rfc5216.md
 
-// Package stdpatch builds the patched GOROOT Ze compiles with, and selects it
+// Package gen builds the patched GOROOT Ze compiles with, and selects it
 // for every Go command le starts.
 //
 // Ze changes the Go standard library at build time, from a diff applied to the
@@ -23,7 +23,7 @@
 // The package imports only the standard library. It MUST stay that way: it
 // compiles under the unpatched GOROOT, before any tree exists, when the
 // launcher, a QEMU guest, a Dockerfile or CI runs `go run ./internal/le/go/stdpatch/goroot`.
-package stdpatch
+package gen
 
 import (
 	"context"

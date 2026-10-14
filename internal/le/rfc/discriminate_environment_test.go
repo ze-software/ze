@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
@@ -23,7 +23,7 @@ func TestDiscriminateEnvironmentCarriesThePatchedGOROOT(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tree, err := stdpatch.Activate(root)
+	tree, err := gen.Activate(root)
 	if err != nil {
 		t.Fatal(err)
 	}

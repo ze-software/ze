@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	if _, err := stdpatch.Activate(checkout); err != nil {
+	if _, err := gen.Activate(checkout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}

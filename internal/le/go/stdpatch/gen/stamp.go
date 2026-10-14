@@ -1,7 +1,7 @@
 // Design: docs/contributing/patching-the-standard-library.md -- the review stamp
 // Overview: stdpatch.go -- the generator and the activation
 
-package stdpatch
+package gen
 
 import (
 	"bytes"

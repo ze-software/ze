@@ -14,7 +14,7 @@ package main
 import (
 	"os"
 
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	tree, err := stdpatch.Tree(root)
+	tree, err := gen.Tree(root)
 	if err != nil {
 		fail(err)
 	}

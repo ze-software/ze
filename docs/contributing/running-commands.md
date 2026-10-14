@@ -94,7 +94,7 @@ command`, that never read the profile adding Go to PATH.
 
 Every Go command le starts compiles against Ze's patched standard library
 (`docs/contributing/patching-the-standard-library.md`). le's root handler calls
-`stdpatch.Activate` before it dispatches: it builds the patched GOROOT from the
+`gen.Activate` (`internal/le/go/stdpatch/gen`) before it dispatches: it builds the patched GOROOT from the
 toolchain go.mod pins, on first use, and sets `GOROOT` to it, `GOTOOLCHAIN=local`
 and the tree's `bin` first on `PATH` in le's own environment, so every child
 inherits them. `./le go stdpatch goroot` prints that tree; a plain `go` command
@@ -107,7 +107,7 @@ patch's review stamp, standard-library and vendor, with the version it names,
 and `./le verify` runs it in both modes.
 <!-- source: internal/le/register.go -- activatePatchedGOROOT -->
 <!-- source: internal/le/go/patchstamps/patchstamps.go -- runPatchStampsCheck -->
-<!-- source: internal/le/go/stdpatch/stdpatch.go -- Activate -->
+<!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- Activate -->
 
 A named build does not stay forever. The hourly store trim (see "When the disk
 is full") removes `bin/le-<name>/` once its `le` and the directory itself are

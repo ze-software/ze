@@ -23,7 +23,7 @@ import (
 	"context"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -103,7 +103,7 @@ func TestTheGoDirectivePinsTheToolchainWhenNoToolchainLineDoes(t *testing.T) {
 		t.Errorf("GoToolchain = %q, want go1.27.0 derived from the go directive", chain.GoToolchain)
 	}
 	// The pin selects the toolchain the patched GOROOT is built from, and
-	// stdpatch.Activate selects that tree; no override repeats it.
+	// gen.Activate selects that tree; no override repeats it.
 	if slices.ContainsFunc(chain.Overrides(EnvOptions{}), func(entry string) bool { return strings.HasPrefix(entry, "GOTOOLCHAIN=") }) {
 		t.Error("Overrides sets GOTOOLCHAIN, which would discard the activated tree")
 	}
@@ -574,12 +574,12 @@ func TestToolchainOverridesLeaveTheToolchainToTheProcess(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		patches, err := stdpatch.Patches(repo)
+		patches, err := gen.Patches(repo)
 		if err != nil {
 			t.Fatal(err)
 		}
 		stale := strings.Replace(string(patches[0].Body), "Ze-Reviewed-Against: go1.27.2", "Ze-Reviewed-Against: go1.26.0", 1)
-		dir := filepath.Join(checkout, filepath.FromSlash(stdpatch.PatchDir))
+		dir := filepath.Join(checkout, filepath.FromSlash(gen.PatchDir))
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatal(err)
 		}

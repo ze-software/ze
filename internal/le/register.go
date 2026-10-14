@@ -52,8 +52,8 @@ import (
 	_ "github.com/ze-software/ze/internal/le/go/module"
 	_ "github.com/ze-software/ze/internal/le/go/patchstamps"
 	_ "github.com/ze-software/ze/internal/le/go/staticcheck"
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
-	_ "github.com/ze-software/ze/internal/le/go/stdpatch/stdpatchcmd"
+	_ "github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	_ "github.com/ze-software/ze/internal/le/go/versionpin"
 	_ "github.com/ze-software/ze/internal/le/go/vetplatforms"
 	_ "github.com/ze-software/ze/internal/le/job"
@@ -200,7 +200,7 @@ func run(_ *registry.RuntimeContext, args []string) int {
 // leroot.BeforeDispatch hook, because that contract forbids slow work and the
 // first call per toolchain builds the tree. A refusal never stops the
 // dispatch: the hooks, ./le spec, the commit flow and ./le go stdpatch goroot
-// keep working on the day a Go bump refuses, and stdpatch.Activate keeps the
+// keep working on the day a Go bump refuses, and gen.Activate keeps the
 // error for every action that compiles through gotoolchain.New.
 func activatePatchedGOROOT() {
 	root, err := lepath.Root()
@@ -208,7 +208,7 @@ func activatePatchedGOROOT() {
 		return // no checkout: no le action here compiles Ze
 	}
 	// RFC 5216 Section 2.1.1
-	_, _ = stdpatch.Activate(root) //nolint:errcheck // kept by stdpatch and returned by gotoolchain.New and ./le go stdpatch goroot
+	_, _ = gen.Activate(root) //nolint:errcheck // kept by stdpatch and returned by gotoolchain.New and ./le go stdpatch goroot
 }
 
 func invocationName() string {

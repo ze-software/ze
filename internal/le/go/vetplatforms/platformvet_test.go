@@ -132,7 +132,7 @@ func TestBothPlansUseTheExactCommandAndDistinctGOOS(t *testing.T) {
 				t.Errorf("Plan(%s) %s = %q (present=%v), want %q", test.goos, key, got, found, want)
 			}
 		}
-		// The toolchain is the process's (stdpatch.Activate): the plan pins none.
+		// The toolchain is the process's (gen.Activate): the plan pins none.
 		if got, _ := platformVetEnvValue(plan.Environment, "GOTOOLCHAIN"); got == "go1.26.6" {
 			t.Errorf("Plan(%s) pins GOTOOLCHAIN=%s; the toolchain is the process's", test.goos, got)
 		}

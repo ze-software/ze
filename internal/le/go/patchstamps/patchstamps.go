@@ -11,7 +11,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	goversionpin "github.com/ze-software/ze/internal/le/go/versionpin"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -44,17 +44,17 @@ func runPatchStampsCheck() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	cache, err := stdpatch.CacheDir(root)
+	cache, err := gen.CacheDir(root)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	patches, err := stdpatch.Patches(root)
+	patches, err := gen.Patches(root)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	toolchain, err := stdpatch.Resolve(root, cache, patches)
+	toolchain, err := gen.Resolve(root, cache, patches)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
@@ -73,7 +73,7 @@ func runPatchStampsCheck() (any, int) {
 // vendor/modules.txt.
 func checkPatchStamps(root, goVersion string) error {
 	var failures []error
-	patches, err := stdpatch.Patches(root)
+	patches, err := gen.Patches(root)
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func checkPatchStamps(root, goVersion string) error {
 		return fmt.Errorf("patch-stamps: %w", err)
 	}
 	for _, version := range []string{"go" + release, goVersion} {
-		if err := stdpatch.CheckStamps(patches, version); err != nil {
+		if err := gen.CheckStamps(patches, version); err != nil {
 			failures = append(failures, err)
 		}
 	}
