@@ -38,6 +38,29 @@ func TestProposedWriteRequiresMatchingWeakeningRow(t *testing.T) {
 	}
 }
 
+// VALIDATES: a session or approval-session named on stdin that is not an
+// eight-hex commit namespace is refused before any file is named after it.
+// PREVENTS: a payload steering ShardPath or rfc.ApprovalPath outside tmp/ or
+// onto another session's approvals with a crafted name.
+func TestProposedRefusesAMalformedNamespace(t *testing.T) {
+	root := t.TempDir()
+	path := "pkg/a_test.go"
+	oldText := "package a\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n}\n"
+	newText := strings.Replace(oldText, "\trequire.NoError", "\tt.Skip(\"later\")\n\trequire.NoError", 1)
+	writeProposedFile(t, root, path, oldText)
+	commitProposedFixture(t, root)
+	for _, request := range []ProposedRequest{
+		{Session: "../../escape"},
+		{ApprovalSession: "../x"},
+		{ApprovalSession: "ABCDEF01"},
+	} {
+		request.Path, request.Tool, request.ToolInput = path, "Write", ProposedToolInput{Content: newText}
+		if _, err := proposedFixture(root, request); err == nil || !strings.Contains(err.Error(), "not a commit namespace") {
+			t.Errorf("Proposed(session %q, approval %q) error = %v, want a namespace refusal", request.Session, request.ApprovalSession, err)
+		}
+	}
+}
+
 func TestProposedEditAndMultiEditReconstructWholeFile(t *testing.T) {
 	root := t.TempDir()
 	path := "pkg/a_test.go"

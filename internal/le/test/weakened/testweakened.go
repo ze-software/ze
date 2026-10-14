@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 const cannotRunPrefix = "check could not run: "
@@ -34,7 +35,12 @@ type Request struct {
 	// Session is the commit namespace whose ledger shard this request reads.
 	// Empty resolves the running harness's own, which is what every live
 	// caller wants; a test names two sessions to drive two authors.
-	Session     string       `json:"session,omitempty"`
+	Session string `json:"session,omitempty"`
+	// Children is the commit namespaces of the subagents of the main thread
+	// that owns Session, whose shards a commit of Session may carry: the main
+	// thread commits work a subagent did, row included. Empty with an empty
+	// Session resolves the running harness's own (lepath.ChildCommitSessions).
+	Children    []string     `json:"children,omitempty"`
 	Paths       []string     `json:"paths,omitempty"`
 	Removed     []string     `json:"removed,omitempty"`
 	RenamePairs []RenamePair `json:"rename-pairs,omitempty"`
@@ -63,10 +69,11 @@ type Result struct {
 	// rows. The live shape check answers it, so an author reads whose rows
 	// are in the ledger without preparing a commit.
 	Shards []Shard `json:"shards,omitempty"`
-	// Keep is the rows of this session's shard that the commit under test
-	// uses. Every other row in that shard is one this commit already landed,
-	// which is what PruneLanded removes.
-	Keep []Row `json:"keep,omitempty"`
+	// Keep is, for each shard the commit under test carries, the rows of it
+	// that commit uses. PruneLanded removes every other row git already holds
+	// at HEAD, and leaves a row that has not landed for the writer who has
+	// yet to commit it.
+	Keep map[string][]Row `json:"keep,omitempty"`
 	// Landed counts the rows ignored because git holds them at HEAD.
 	Landed int `json:"landed,omitempty"`
 }
@@ -97,6 +104,11 @@ func check(request Request, ledgerCarried bool) Result {
 		return result
 	}
 	session, shard, problem := sessionShard(request.Root, WeakenedDir, request.Session)
+	if problem != "" {
+		result.Problems = []string{problem}
+		return result
+	}
+	children, problem := requestChildren(request)
 	if problem != "" {
 		result.Problems = []string{problem}
 		return result
@@ -143,7 +155,7 @@ func check(request Request, ledgerCarried bool) Result {
 	}
 
 	if !ledgerCarried {
-		result.Problems = unmatchedProblems(shard, nil, nil, findings)
+		result.Problems = unmatchedProblems(shard, nil, findings)
 		var text textbuf.Buffer
 		result.Problems = append(result.Problems, text.Str("this commit weakens ").
 			Int(int64(len(findings))).Str(" test(s) and does not carry ").
@@ -152,23 +164,65 @@ func check(request Request, ledgerCarried bool) Result {
 			Str(shard).String())
 		return result
 	}
-	rows, exists, readProblem := loadLedger(request.Root, shard)
-	if readProblem != "" {
-		result.Problems = []string{readProblem}
-		return result
+	// The rows that may accept this commit are those of the shards it
+	// carries, its own and its subagents'. A check that names no shard (the
+	// live action) reads this session's own.
+	carried := CarriedShards(session, children, request.Paths)
+	if len(carried) == 0 {
+		carried = []string{shard}
 	}
-	if !exists {
+	ledgers := make([]ledger, 0, len(carried))
+	for _, path := range carried {
+		rows, exists, readProblem := loadLedger(request.Root, path)
+		if readProblem != "" {
+			result.Problems = []string{readProblem}
+			return result
+		}
+		if !exists {
+			continue
+		}
+		parsed, parseProblems := parseLedger(rows, path)
+		result.Rows += len(parsed)
+		result.Problems = slices.Concat(result.Problems, parseProblems,
+			liveScopeProblems(path, request.Removed, parsed, findings))
+		ledgers = append(ledgers, ledger{path: path, rows: parsed, landed: LandedRows(request.Root, path)})
+	}
+	if len(ledgers) == 0 {
 		result.Problems = []string{writeTheShard(shard, findings)}
 		return result
 	}
-	parsed, parseProblems := parseLedger(rows, shard)
-	result.Rows = len(parsed)
-	landed := LandedRows(request.Root, shard)
-	result.Problems = slices.Concat(parseProblems,
-		liveScopeProblems(shard, request.Removed, parsed, findings),
-		unmatchedProblems(shard, landed, parsed, findings))
-	result.Keep, result.Landed = keptRows(parsed, findings)
+	result.Problems = append(result.Problems, unmatchedProblems(shard, ledgers, findings)...)
+	result.Keep = make(map[string][]Row, len(ledgers))
+	for _, held := range ledgers {
+		keep, landed := keptRows(held.rows, findings)
+		result.Keep[held.path] = keep
+		result.Landed += landed
+	}
 	return result
+}
+
+// ledger is one carried shard as the check reads it: its rows and the rows git
+// already holds for it at HEAD.
+type ledger struct {
+	path   string
+	rows   []Row
+	landed map[string]bool
+}
+
+// requestChildren answers the subagent namespaces whose shards this request's
+// commit may carry. A request naming its session names its children too, so a
+// test drives a parent and its agents without the ambient identity.
+func requestChildren(request Request) ([]string, string) {
+	if request.Session != "" {
+		return request.Children, ""
+	}
+	children, err := lepath.ChildCommitSessions(request.Root)
+	if err != nil {
+		var text textbuf.Buffer
+		return nil, text.Str(cannotRunPrefix).
+			Str("cannot resolve this session's subagent commit namespaces: ").Err(err).String()
+	}
+	return children, ""
 }
 
 func normalizeRequestPaths(request *Request) error {
@@ -505,11 +559,41 @@ func distinctPackages(findings []Finding, hits []int) int {
 	return len(seen)
 }
 
-func unmatchedProblems(shard string, landed map[string]bool, rows []Row, findings []Finding) []string {
+// unmatchedProblems judges every row of every carried ledger against the
+// findings as one population, so a finding a subagent's row accepts is
+// claimed whichever shard holds the row. shard is this session's own, the one
+// an unclaimed finding is told to add its row to.
+func unmatchedProblems(shard string, ledgers []ledger, findings []Finding) []string {
 	problems := make([]string, 0)
 	claimed := make([]bool, len(findings))
+	for _, held := range ledgers {
+		problems = append(problems, ledgerRowProblems(held, findings, claimed)...)
+	}
 	var text textbuf.Buffer
-	for _, row := range rows {
+	for index, finding := range findings {
+		if claimed[index] {
+			continue
+		}
+		text.Reset().Str(finding.Path).Str(" weakens ").Str(finding.Name).Str(" and ").
+			Str(shard).Str(" has no row for it:\n")
+		for _, detail := range finding.Details {
+			text.Str("    - ").Str(detail).Byte('\n')
+		}
+		qualify := findingNameCount(findings, finding.Name) > 1
+		text.Str("    Add the row, then commit the file with the change:\n    ").
+			Str(rowToWrite(finding, qualify))
+		problems = append(problems, text.String())
+	}
+	return problems
+}
+
+// ledgerRowProblems judges one carried ledger's rows against the findings,
+// marking in claimed each finding a row accepts, and answers the refusals its
+// rows earn. Each message names the shard that holds the row.
+func ledgerRowProblems(held ledger, findings []Finding, claimed []bool) []string {
+	problems := make([]string, 0)
+	var text textbuf.Buffer
+	for _, row := range held.rows {
 		hits := make([]int, 0, 1)
 		for index, finding := range findings {
 			if rowMatches(row.Name, finding) {
@@ -520,10 +604,10 @@ func unmatchedProblems(shard string, landed map[string]bool, rows []Row, finding
 			// A row this session already committed is not a leftover the
 			// author has to clear: git holds it, it accepts nothing more,
 			// and PruneLanded drops it from the shard this commit carries.
-			if landed[row.Key()] {
+			if held.landed[row.Key()] {
 				continue
 			}
-			problems = append(problems, text.Reset().Str(shard).Byte(':').Int(int64(row.Line)).
+			problems = append(problems, text.Reset().Str(held.path).Byte(':').Int(int64(row.Line)).
 				Str(" names ").Str(row.Name).
 				Str(", which this commit does not weaken. Delete the row, or name the file it explains.").
 				String())
@@ -535,7 +619,7 @@ func unmatchedProblems(shard string, landed map[string]bool, rows []Row, finding
 		// collision (the same test name in two packages), and only that
 		// shape needs the operator to write one qualified row per package.
 		if len(hits) > 1 && !isScopedRowName(row.Name) && distinctPackages(findings, hits) > 1 {
-			text.Reset().Str(shard).Byte(':').Int(int64(row.Line)).
+			text.Reset().Str(held.path).Byte(':').Int(int64(row.Line)).
 				Str(" names ").Str(row.Name).
 				Str(", which this commit weakens in ").Int(int64(len(hits))).Str(" packages: ")
 			for index, hit := range hits {
@@ -559,20 +643,6 @@ func unmatchedProblems(shard string, landed map[string]bool, rows []Row, finding
 		for _, hit := range hits {
 			claimed[hit] = true
 		}
-	}
-	for index, finding := range findings {
-		if claimed[index] {
-			continue
-		}
-		text.Reset().Str(finding.Path).Str(" weakens ").Str(finding.Name).Str(" and ").
-			Str(shard).Str(" has no row for it:\n")
-		for _, detail := range finding.Details {
-			text.Str("    - ").Str(detail).Byte('\n')
-		}
-		qualify := findingNameCount(findings, finding.Name) > 1
-		text.Str("    Add the row, then commit the file with the change:\n    ").
-			Str(rowToWrite(finding, qualify))
-		problems = append(problems, text.String())
 	}
 	return problems
 }

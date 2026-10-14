@@ -145,7 +145,7 @@ func approvalRows(root, session string) (map[string]string, error) {
 // is a checkout that cannot be read, and the check reports it rather than
 // judging without the rows.
 func sessionApprovals(tree string) (map[string]string, error) {
-	session, err := lepath.CommitSession(tree, "")
+	session, err := lepath.SessionCommitSession(tree)
 	if err != nil {
 		return nil, err
 	}

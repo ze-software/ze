@@ -102,12 +102,25 @@ func ReadShards(root, dir, session string) ([]Shard, error) {
 // others. It is the guard against the failure that has no other tell, where a
 // commit lands carrying somebody else's justification and both the file and
 // the row count look right.
-func ForeignShardProblems(session string, paths []string) []string {
+//
+// children is the commit namespaces of the subagents of the main thread that
+// owns session (lepath.ChildCommitSessions), and their shards are not
+// foreign to it: the main thread commits the work its subagents did, and the
+// row is the subagent's own record of that work. A subagent's children are
+// none, so a sibling's shard and the parent's stay foreign to it, and so does
+// every shard of an unrelated session.
+func ForeignShardProblems(session string, children, paths []string) []string {
 	problems := make([]string, 0)
 	var text textbuf.Buffer
 	for _, path := range paths {
 		owner, isShard := ShardSession(WeakenedDir, path)
-		if !isShard || owner == session {
+		if !isShard {
+			continue
+		}
+		if owner == session {
+			continue
+		}
+		if slices.Contains(children, owner) {
 			continue
 		}
 		problems = append(problems, text.Reset().Str(path).
@@ -117,6 +130,26 @@ func ForeignShardProblems(session string, paths []string) []string {
 			Str(ShardPath(WeakenedDir, session)).Str(" instead.").String())
 	}
 	return problems
+}
+
+// CarriedShards answers the ledger shards of session and of its children that
+// paths names, in the order paths names them. They are the shards whose rows
+// may accept the commit paths describes.
+func CarriedShards(session string, children, paths []string) []string {
+	carried := make([]string, 0, 1)
+	for _, path := range paths {
+		owner, isShard := ShardSession(WeakenedDir, path)
+		if !isShard {
+			continue
+		}
+		if slices.Contains(carried, path) {
+			continue
+		}
+		if owner == session || slices.Contains(children, owner) {
+			carried = append(carried, path)
+		}
+	}
+	return carried
 }
 
 // shardPopulation renders one line per session holding rows, and names the
@@ -184,35 +217,48 @@ func LandedRows(root, shard string) map[string]bool {
 	return landed
 }
 
-// PruneLanded rewrites shard with the rows keep names, in the order they were
-// written, under the header the file already carries. It is how the gate keeps
-// the promise the file's own contract used to make an author keep: the shard
-// carries the rows of THIS commit and never accumulates.
+// PruneLanded rewrites shard without the rows git already holds at HEAD that
+// keep does not name, preserving every other line in the order it was written.
+// It is how the gate keeps the promise the file's own contract used to make an
+// author keep: a row whose commit landed does not accumulate.
+//
+// A row is dropped only on proof that it landed. A row its writer has not
+// committed yet is not this commit's to remove, even when this commit uses no
+// row at all: a main thread prunes the shard of a subagent whose next commit
+// may still need a row, and a prune that dropped every unused row deleted a
+// sibling's uncommitted rows in the days siblings shared one shard
+// (plan/journal/concurrent-session-corruption.md).
+// Rows are matched by their text, never by line number: the file is re-read
+// here, and a row a sibling inserted or appended after the check read it
+// moves every line number the check recorded.
 func PruneLanded(root, shard string, keep []Row) error {
 	content, err := readRepositoryFile(root, shard)
 	if err != nil {
 		return err
 	}
-	lines := strings.Split(string(content), "\n")
-	var page textbuf.Buffer
-	kept := make(map[int]bool, len(keep))
-	for _, row := range keep {
-		kept[row.Line] = true
-	}
 	rows, problems := parseLedger(string(content), shard)
 	if len(problems) != 0 {
 		return errors.New(strings.Join(problems, "; "))
 	}
+	landed := LandedRows(root, shard)
+	kept := make(map[string]bool, len(keep))
+	for _, row := range keep {
+		kept[row.Key()] = true
+	}
 	dropped := make(map[int]bool, len(rows))
 	for _, row := range rows {
-		if !kept[row.Line] {
+		if !landed[row.Key()] {
+			continue
+		}
+		if !kept[row.Key()] {
 			dropped[row.Line] = true
 		}
 	}
 	if len(dropped) == 0 {
 		return nil
 	}
-	for index, line := range lines {
+	var page textbuf.Buffer
+	for index, line := range strings.Split(string(content), "\n") {
 		if dropped[index+1] {
 			continue
 		}

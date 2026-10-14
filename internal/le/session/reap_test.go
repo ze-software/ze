@@ -43,7 +43,10 @@ func TestReapKeepsEveryLiveSourceAndRemovesDeadState(t *testing.T) {
 	}
 	deadMarker := filepath.Join(sessions, ".lsp-loaded-dead")
 	specMarker := filepath.Join(sessions, ".closure-ack-spec-name")
-	for _, path := range []string{deadMarker, specMarker} {
+	// An agent's spec claim goes with its dead session and stays with a live one.
+	deadAgentClaim := filepath.Join(sessions, ".session-dead+agent-one")
+	liveAgentClaim := filepath.Join(sessions, ".session-own+agent-one")
+	for _, path := range []string{deadMarker, specMarker, deadAgentClaim, liveAgentClaim} {
 		if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -65,7 +68,7 @@ func TestReapKeepsEveryLiveSourceAndRemovesDeadState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.RemovedDirs != 1 || report.RemovedMarkers != 1 || report.Kept != 4 {
+	if report.RemovedDirs != 1 || report.RemovedMarkers != 2 || report.Kept != 4 {
 		t.Fatalf("report = %#v, text %q", report, report.Text())
 	}
 	if _, err := os.Stat(filepath.Join(sessions, "2026-01-01-dead")); !os.IsNotExist(err) {
@@ -81,6 +84,12 @@ func TestReapKeepsEveryLiveSourceAndRemovesDeadState(t *testing.T) {
 	}
 	if _, err := os.Stat(specMarker); err != nil {
 		t.Errorf("spec marker was removed: %v", err)
+	}
+	if _, err := os.Stat(deadAgentClaim); !os.IsNotExist(err) {
+		t.Errorf("dead session's agent claim remains: %v", err)
+	}
+	if _, err := os.Stat(liveAgentClaim); err != nil {
+		t.Errorf("live session's agent claim was removed: %v", err)
 	}
 }
 

@@ -10,6 +10,8 @@ package hookruntime
 import (
 	"strings"
 	"testing"
+
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 func agentPayload(agentType, tool string, input map[string]any) map[string]any {
@@ -77,6 +79,37 @@ func TestAgentCallBudgetBindsOnlyTheEditingAgent(t *testing.T) {
 		if code, _, message := runHook(t, root, "pretool-bash", main); code != 0 {
 			t.Fatalf("main call %d: code=%d message=%q", call, code, message)
 		}
+	}
+}
+
+// VALIDATES: every agent id the session identity accepts (lepath.ValidAgentID,
+// which admits '.') is counted by the budget and refused past it, and an id
+// the identity refuses is reported as uncounted.
+// PREVENTS: a second agent-id character set in the budget that lets an agent
+// the identity names run uncounted.
+func TestAgentCallBudgetCountsEveryIdTheIdentityAccepts(t *testing.T) {
+	agent := "a1.b2_c-3"
+	if !lepath.ValidAgentID(agent) {
+		t.Fatalf("lepath.ValidAgentID(%q) = false, want the identity to accept it", agent)
+	}
+	root := t.TempDir()
+	bash := agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "echo ok"})
+	bash["agent_id"] = agent
+	for call := 1; call <= agentCallBudget; call++ {
+		if code, _, message := runHook(t, root, "pretool-bash", bash); code != 0 || message != "" {
+			t.Fatalf("call %d: code=%d message=%q", call, code, message)
+		}
+	}
+	if code, _, message := runHook(t, root, "pretool-bash", bash); code != 2 || !strings.Contains(message, "its budget is 100") {
+		t.Fatalf("call 101 for %q: code=%d message=%q, want the budget refusal", agent, code, message)
+	}
+	edit := agentPayload(budgetedAgentType, "Edit", map[string]any{"file_path": "notes.md", "old_string": "a", "new_string": "b"})
+	edit["agent_id"] = "a1+b2"
+	if lepath.ValidAgentID("a1+b2") {
+		t.Fatal(`lepath.ValidAgentID("a1+b2") = true, want the separator refused`)
+	}
+	if _, _, message := runHook(t, t.TempDir(), "pretool-writeedit", edit); !strings.Contains(message, "is not a file name, so this agent is not counted") {
+		t.Fatalf("unsafe agent id: message=%q, want the uncounted report", message)
 	}
 }
 

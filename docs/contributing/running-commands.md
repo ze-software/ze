@@ -283,6 +283,55 @@ the durable Go build cache `internal/le/go/toolchain` assigns), stay where they
 are.
 <!-- source: internal/le/test/functional/binaries.go -- binaryRoot, throwawaySetPrefix -->
 
+## Session identity, and what each agent owns
+
+Every `./le` command resolves one harness session id: `CLAUDE_CODE_SESSION_ID`
+first, then the `--session-id` of an ancestor process, then the access token, and
+last a minted id (`resolveSessionID`, `internal/le/le/path/session.go`). The id
+names the dated session directory and its `scratch/`.
+
+A subagent runs under its parent's session. The pretool Bash hook prefixes each
+of its calls with `export ZE_AGENT_ID=<agent_id>; export
+CLAUDE_CODE_SESSION_ID=<parent>` from the hook payload
+(`writeParentSessionPrefix`, `internal/le/hookruntime/session.go`). An agent id
+that cannot name a file blocks the Bash call (hook exit 2) rather than run it
+under the parent's id alone. A payload that names an agent but carries an
+absent or unsafe `session_id` blocks the same way, and the pretool Write/Edit
+weakening check refuses its edits (`writeWeakening`,
+`internal/le/hookruntime/writeedit.go`), because either one would otherwise
+act as the main thread. The budget counts every agent id this identity accepts
+(`lepath.ValidAgentID`). A fork subagent (`CLAUDE_CODE_FORK_SUBAGENT`, no
+`agent_id` in its payload) gets only the session id, so it shares the main
+thread's identity and everything below. Every agent of a session shares the
+session directory and its scratch, and owns what follows:
+
+| Artifact | Keyed on | Main thread's file | An agent's file | Producer |
+|----------|----------|--------------------|-----------------|----------|
+| Commit namespace (8 hex): the commit script, the message, `test/weakened/<ns>.md`, `plan/verification-debt/<ns>.md` | session and agent | `tmp/commit-session-id-<session>` | `tmp/commit-session-id-<session>+<agent>` | `lepath.CommitSession` |
+| Spec claim | session and agent | `tmp/session/.session-<session>` | `tmp/session/.session-<session>+<agent>` | `lepath.SpecClaimMarker` |
+| RFC approval | the session alone, because the owner approves to the main thread | `tmp/commit-rfc-approved-<ns>.md`, `<ns>` the main thread's namespace | the main thread's file | `lepath.SessionCommitSession` |
+
+A session id and an agent id hold only letters, digits, `.`, `_` and `-`, so the
+`+` splits a name one way only, and no session can pose as another's agent.
+The session reaper removes a dead session's agent markers with its own
+(`lepath.MarkerOwnedBy`).
+
+An agent that claimed no spec reads its parent's claim, and its `release`
+removes only its own claim. A main thread commits the work its subagents did:
+`lepath.ChildCommitSessions` reads the namespaces of this session's agents from
+the file names above, and `ForeignShardProblems` lets the main thread carry
+their shards. The shard of an unrelated session's agent stays refused, and so
+does a sibling's or the parent's shard carried by an agent.
+
+The shared scratch still means one file name is one file for every agent. A tool
+that writes into it picks a per-run name (`cover-<pid>.out`, the discrimination
+`run-*/` directory in `writeOverlay`). A file you write there yourself carries
+a name of your own.
+<!-- source: internal/le/le/path/commitsession.go -- CommitSession, ChildCommitSessions, SessionCommitSession -->
+<!-- source: internal/le/le/path/session.go -- SpecClaimMarker, MarkerOwnedBy -->
+<!-- source: internal/le/hookruntime/session.go -- writeParentSessionPrefix -->
+<!-- source: internal/le/test/weakened/shard.go -- ForeignShardProblems, CarriedShards -->
+
 ## When the storage stalls
 
 The Linux development VM keeps the checkout on a network drive that can freeze

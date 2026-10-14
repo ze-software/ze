@@ -227,39 +227,59 @@ func Create(root string, options *Options) (Prepared, error) {
 // obligation. Each one reads a file only the Ze checkout holds, so Create runs
 // this over that checkout alone.
 func checkSourceGates(root string, options *Options, result *Prepared, paths, removed []string, session string) error {
-	if problems := testweakened.ForeignShardProblems(session, slices.Concat(paths, removed)); len(problems) != 0 {
+	// A main thread commits the work its subagents did, so their shards are
+	// its to carry; every other session's shard is foreign. Each subagent owns
+	// its commit namespace (lepath.CommitSession keys it on ZE_AGENT_ID).
+	children, err := lepath.ChildCommitSessions(root)
+	if err != nil {
+		return fmt.Errorf("resolve this session's subagent commit namespaces: %w", err)
+	}
+	if problems := testweakened.ForeignShardProblems(session, children, slices.Concat(paths, removed)); len(problems) != 0 {
 		return errors.New(strings.Join(problems, "\n\n"))
 	}
 	prospective, problems := testweakened.ProspectiveCommit(root, paths, removed)
 	if len(problems) != 0 {
 		return errors.New(strings.Join(problems, "\n"))
 	}
-	weakenedShard := testweakened.ShardPath(testweakened.WeakenedDir, session)
-	carriesLedger := slices.Contains(paths, weakenedShard)
+	carried := testweakened.CarriedShards(session, children, paths)
 	weakening := testweakened.CheckCommit(testweakened.Request{
-		Root: root, Session: session, Paths: paths, Removed: removed,
+		Root: root, Session: session, Children: children, Paths: paths, Removed: removed,
 		RenamePairs: prospective.RenamePairs,
-	}, carriesLedger)
+	}, len(carried) != 0)
 	result.Weakened = weakening.Findings
 	if len(weakening.Problems) != 0 {
 		return errors.New(strings.Join(weakening.Problems, "\n\n"))
 	}
-	rfcChanges, rfcApprovals, rfcProblems := rfcChangeProblems(root, session, prospective)
+	// An RFC approval is keyed on the main thread's namespace, not on the
+	// agent's (lepath.SessionCommitSession). A caller that named its session
+	// named the namespace its approvals are under too.
+	approvalSession := session
+	if options.Session == "" {
+		approvalSession, err = lepath.SessionCommitSession(root)
+		if err != nil {
+			return fmt.Errorf("resolve this session's RFC approval namespace: %w", err)
+		}
+	}
+	rfcChanges, rfcApprovals, rfcProblems := rfcChangeProblems(root, approvalSession, prospective)
 	result.RFCChanges = rfcChanges
 	result.RFCApprovals = rfcApprovals
 	if len(rfcProblems) != 0 && strings.TrimSpace(options.RFCChangeOK) == "" {
 		return errors.New(strings.Join(rfcProblems, "\n\n"))
 	}
-	// The shard this commit carries holds the rows this commit uses. Every
-	// other row in it is one an earlier commit of this session landed, and
-	// the gate drops it here rather than asking the author to. That deletion
-	// by hand is what made a stale row block three commits it had nothing to
-	// do with (plan/journal/concurrent-session-corruption.md). The RFC
-	// approval rows are pruned by the SCRIPT instead, after the commit that
-	// carries their trailers succeeds (renderApprovalPrune).
-	if !options.DryRun && carriesLedger {
-		if err := testweakened.PruneLanded(root, weakenedShard, weakening.Keep); err != nil {
-			return fmt.Errorf("prune landed rows from %s: %w", weakenedShard, err)
+	// Each shard this commit carries holds the rows this commit uses. Every
+	// other row in it that git holds at HEAD is one an earlier commit
+	// landed, and the gate drops it here rather than asking the author to. A
+	// row that has not landed stays: its writer, a subagent whose shard this
+	// main thread carries among them, may not have committed it yet. That
+	// deletion by hand is what made a stale row block three commits it had
+	// nothing to do with (plan/journal/concurrent-session-corruption.md). The
+	// RFC approval rows are pruned by the SCRIPT instead, after the commit
+	// that carries their trailers succeeds (renderApprovalPrune).
+	if !options.DryRun {
+		for _, shard := range carried {
+			if err := testweakened.PruneLanded(root, shard, weakening.Keep[shard]); err != nil {
+				return fmt.Errorf("prune landed rows from %s: %w", shard, err)
+			}
 		}
 	}
 

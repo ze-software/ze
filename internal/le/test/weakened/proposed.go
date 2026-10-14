@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
@@ -32,13 +33,18 @@ type ProposedRequest struct {
 	// Session is the commit namespace whose ledger shards authorize this
 	// edit. The hook passes the identity it was called with, so the row the
 	// author writes and the row the commit gate reads are one file.
-	Session   string            `json:"session,omitempty"`
-	Exists    *bool             `json:"exists,omitempty"`
-	ToolInput ProposedToolInput `json:"tool-input"`
-	Old       *string           `json:"old,omitempty"`
-	New       *string           `json:"new,omitempty"`
-	OldBase64 *string           `json:"old-base64,omitempty"`
-	NewBase64 *string           `json:"new-base64,omitempty"`
+	Session string `json:"session,omitempty"`
+	// ApprovalSession is the commit namespace whose RFC approvals authorize
+	// this edit: the main thread's, which an agent's Session is not
+	// (lepath.SessionCommitSession). Empty takes Session when Session is
+	// named, and otherwise resolves the running harness's main thread.
+	ApprovalSession string            `json:"approval-session,omitempty"`
+	Exists          *bool             `json:"exists,omitempty"`
+	ToolInput       ProposedToolInput `json:"tool-input"`
+	Old             *string           `json:"old,omitempty"`
+	New             *string           `json:"new,omitempty"`
+	OldBase64       *string           `json:"old-base64,omitempty"`
+	NewBase64       *string           `json:"new-base64,omitempty"`
 }
 
 // ProposedToolInput carries the native Write/Edit/MultiEdit payload subset.
@@ -188,6 +194,9 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 	if filepath.Dir(path) == "." {
 		packageName = ""
 	}
+	if err := validProposedSessions(request); err != nil {
+		return ProposedReport{}, err
+	}
 	session, weakenedShard, problem := sessionShard(root, WeakenedDir, request.Session)
 	if problem != "" {
 		return ProposedReport{}, errors.New(problem)
@@ -207,7 +216,11 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 			report.Messages = append(report.Messages,
 				"RFC-TAGGED test changed: "+change.Name+" ("+strings.Join(change.Tags, ", ")+")")
 		}
-		ledger := proposedApprovals(root, rfc.ApprovalPath(session), path, packageName, names)
+		approvalSession, err := proposedApprovalSession(root, request, session)
+		if err != nil {
+			return ProposedReport{}, err
+		}
+		ledger := proposedApprovals(root, rfc.ApprovalPath(approvalSession), path, packageName, names)
 		report.Ledgers = append(report.Ledgers, ledger)
 		if len(ledger.Missing) != 0 || len(ledger.Problems) != 0 {
 			report.Blocking = true
@@ -640,4 +653,28 @@ func appendUniqueName(names []string, name string) []string {
 		return names
 	}
 	return append(names, name)
+}
+
+// proposedApprovalSession answers the namespace whose RFC approval file
+// authorizes request, as ProposedRequest.ApprovalSession describes.
+func proposedApprovalSession(root string, request ProposedRequest, session string) (string, error) {
+	if request.ApprovalSession != "" {
+		return request.ApprovalSession, nil
+	}
+	if request.Session != "" {
+		return session, nil
+	}
+	return lepath.SessionCommitSession(root)
+}
+
+// validProposedSessions refuses a stdin-named namespace that is not one, before
+// ShardPath or rfc.ApprovalPath names a file under tmp/ after it.
+func validProposedSessions(request ProposedRequest) error {
+	if request.Session != "" && !lepath.ValidCommitSession(request.Session) {
+		return fmt.Errorf("proposed edit: session %q is not a commit namespace (8 lowercase hexadecimal characters)", request.Session)
+	}
+	if request.ApprovalSession != "" && !lepath.ValidCommitSession(request.ApprovalSession) {
+		return fmt.Errorf("proposed edit: approval-session %q is not a commit namespace (8 lowercase hexadecimal characters)", request.ApprovalSession)
+	}
+	return nil
 }

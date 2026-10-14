@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -245,12 +246,7 @@ func writeSpecStatus(ctx context) *verdict {
 	if id == "" {
 		return nil
 	}
-	marker := filepath.Join(ctx.root, "tmp", "session", ".session-"+id)
-	body, err := os.ReadFile(marker) //nolint:gosec // a session marker under the checkout tmp directory
-	if err != nil {
-		return nil
-	}
-	spec := strings.TrimSpace(string(body))
+	spec := strings.TrimSpace(specClaim(ctx, id))
 	if spec == "" || spec == specUnassigned {
 		return nil
 	}
@@ -272,21 +268,20 @@ const styleGuidePath = "docs/contributing/ze-go-style.md"
 // styleGuideMarker names the file that records this context's read of the Go
 // style guide. A subagent's hook payload carries its PARENT's session_id and
 // its own agent_id, so a subagent gets a marker of its own: a read in the
-// parent's context put nothing into the subagent's. It answers "" when the
-// session or the agent cannot be named, and every caller reads "" as no record.
+// parent's context put nothing into the subagent's. The name joins the two the
+// way every per-agent file does (lepath.AgentFingerprint), so the session
+// reaper removes it with its session. It answers "" when the session or the
+// agent cannot be named, and every caller reads "" as no record.
 func styleGuideMarker(ctx context) string {
 	id := resolvedSessionID(ctx)
 	if id == "" {
 		return ""
 	}
-	name := ".style-guide-read-" + id
-	if ctx.payload.AgentID != "" {
-		if !safeAgentID.MatchString(ctx.payload.AgentID) {
-			return ""
-		}
-		name += "-agent-" + ctx.payload.AgentID
+	fingerprint, err := lepath.AgentFingerprint(id, ctx.payload.AgentID)
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(ctx.root, "tmp", "session", name)
+	return filepath.Join(ctx.root, "tmp", "session", ".style-guide-read-"+fingerprint)
 }
 
 // ze point: go-standards/directives/read-the-ze-style-guide-before-the-first-go-edit
@@ -436,15 +431,31 @@ func writeWeakening(ctx context) *verdict {
 		FilePath: ctx.path, Content: stringInput(ctx.input, "content"), OldString: stringInput(ctx.input, "old_string"), NewString: stringInput(ctx.input, "new_string"),
 	}}
 	// The ledger shards are named after the commit namespace, so the hook
-	// judges the edit against the shard the SAME session's commit will carry.
+	// judges the edit against the shard the SAME agent writes: a subagent's
+	// payload names its agent, and its shard is its own.
 	// The payload identity wins over ambient process state for the same reason
 	// it does everywhere else in this package.
-	if id := resolvedSessionID(ctx); id != "" {
-		session, err := lepath.CommitSessionFor(ctx.root, id)
+	// A subagent with no usable payload session id would leave the request
+	// unnamed, and Proposed would judge it against the ambient namespace,
+	// which is the main thread's: refuse rather than share that shard.
+	id, _ := payloadSessionID(ctx.payload)
+	if id == "" && ctx.payload.AgentID != "" {
+		return &verdict{2, red + bold + "BLOCKED: native weakening check cannot name this subagent's shard" + reset +
+			"\n  agent " + strconv.Quote(ctx.payload.AgentID) + " arrived with a session_id that is absent or not a file name, so its commit namespace is unknown." +
+			"\n  Judged without it, the edit would be checked against the main thread's shard." +
+			"\n  Next: stop and report the payload's session_id to the main thread."}
+	}
+	if id != "" {
+		session, err := lepath.CommitSessionFor(ctx.root, id, ctx.payload.AgentID)
 		if err != nil {
 			return &verdict{2, red + bold + "BLOCKED: native weakening check could not resolve the commit namespace" + reset + "\n  " + err.Error()}
 		}
+		approval, err := lepath.CommitSessionFor(ctx.root, id, "")
+		if err != nil {
+			return &verdict{2, red + bold + "BLOCKED: native weakening check could not resolve the RFC approval namespace" + reset + "\n  " + err.Error()}
+		}
 		request.Session = session
+		request.ApprovalSession = approval
 	}
 	if value, ok := ctx.input["replace_all"].(bool); ok {
 		request.ToolInput.ReplaceAll = value

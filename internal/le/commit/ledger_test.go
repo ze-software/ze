@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/env"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
@@ -150,6 +151,90 @@ func TestALandedRowIsDroppedRatherThanBlockingTheNextCommit(t *testing.T) {
 	_, err := ledgerCreate(t, root, sessionOne, "pkg/two_test.go", shard)
 	if err == nil || !strings.Contains(err.Error(), "TestGone") {
 		t.Fatalf("Create with an unlanded stale row = %v, want it refused", err)
+	}
+}
+
+// TestANoFindingsCommitKeepsASiblingsUnlandedRow is evidence commit
+// 8bd1742581, run through Create. Two subagents of one parent share one commit
+// session, so they share one shard. One of them commits a change that weakens
+// nothing and names the shard only to drop its landed row. The other's row is
+// in the working tree, not at HEAD, and it MUST survive: the gate proves a row
+// landed before it removes it, and an unlanded row has no such proof.
+func TestANoFindingsCommitKeepsASiblingsUnlandedRow(t *testing.T) {
+	root := newLedgerRepository(t)
+	shard := testweakened.ShardPath(testweakened.WeakenedDir, sessionOne)
+
+	weakenLedgerTest(t, root, "pkg/one_test.go", "TestOne")
+	writeCommitFixture(t, root, shard, ledgerHeader+"| TestOne | the landed reason |\n")
+	runCommitGit(t, root, "add", "--", "pkg/one_test.go", shard)
+	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
+		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "session one's first commit")
+
+	writeCommitFixture(t, root, shard, ledgerHeader+
+		"| TestOne | the landed reason |\n"+
+		"| TestTwo | the sibling's reason, not yet committed |\n")
+	writeCommitFixture(t, root, "pkg/three_test.go", ledgerTestBody("TestThree"))
+	if _, err := ledgerCreate(t, root, sessionOne, "pkg/three_test.go", shard); err != nil {
+		t.Fatalf("Create of a commit that weakens nothing = %v", err)
+	}
+	after := readLedgerFile(t, root, shard)
+	if strings.Contains(after, "| TestOne |") {
+		t.Fatalf("shard after Create = %q, want the landed row dropped", after)
+	}
+	if !strings.Contains(after, "| TestTwo |") {
+		t.Fatalf("shard after Create = %q, want the sibling's unlanded row kept", after)
+	}
+}
+
+// TestTheParentCommitsItsSubagentsShardAndNoOneElses drives the main thread
+// committing work a subagent did. Each subagent owns its commit namespace, so
+// its justification row is in a shard named for it rather than for the
+// parent. The parent's commit carries that shard and is accepted, the
+// weakening is judged against the child's row, and the child's row is kept in
+// the commit. A shard of an unrelated session's subagent stays foreign.
+func TestTheParentCommitsItsSubagentsShardAndNoOneElses(t *testing.T) {
+	root := newLedgerRepository(t)
+	namespaceAs := func(session, agent string) string {
+		t.Helper()
+		t.Setenv("CLAUDE_CODE_SESSION_ID", session)
+		t.Setenv("ZE_AGENT_ID", agent)
+		env.ResetCache()
+		namespace, err := lepath.CommitSession(root, "")
+		if err != nil {
+			t.Fatalf("CommitSession(%s, %s) = %v", session, agent, err)
+		}
+		return namespace
+	}
+	t.Cleanup(env.ResetCache)
+	child := namespaceAs("parent-sid", "agent-one")
+	sibling := namespaceAs("parent-sid", "agent-two")
+	foreign := namespaceAs("other-sid", "agent-one")
+	parent := namespaceAs("parent-sid", "")
+	if child == sibling {
+		t.Fatalf("two sibling agents share commit namespace %s", child)
+	}
+	childShard := testweakened.ShardPath(testweakened.WeakenedDir, child)
+	foreignShard := testweakened.ShardPath(testweakened.WeakenedDir, foreign)
+
+	weakenLedgerTest(t, root, "pkg/one_test.go", "TestOne")
+	writeCommitFixture(t, root, childShard, ledgerHeader+"| TestOne | the subagent accepts the skip |\n")
+	writeCommitFixture(t, root, foreignShard, ledgerHeader+"| TestOne | an unrelated agent's reason |\n")
+
+	_, err := ledgerCreate(t, root, parent, "pkg/one_test.go", foreignShard)
+	if err == nil || !strings.Contains(err.Error(), "is session "+foreign+"'s ledger shard") {
+		t.Fatalf("parent carrying an unrelated session's agent shard = %v", err)
+	}
+	if _, err := ledgerCreate(t, root, parent, "pkg/one_test.go", childShard); err != nil {
+		t.Fatalf("parent carrying its own subagent's shard = %v", err)
+	}
+	if got := readLedgerFile(t, root, childShard); !strings.Contains(got, "| TestOne |") {
+		t.Fatalf("child shard after the parent's Create = %q, want its used row kept", got)
+	}
+
+	namespaceAs("parent-sid", "agent-two")
+	_, err = ledgerCreate(t, root, sibling, "pkg/one_test.go", childShard)
+	if err == nil || !strings.Contains(err.Error(), "is session "+child+"'s ledger shard") {
+		t.Fatalf("a sibling carrying another sibling's shard = %v", err)
 	}
 }
 

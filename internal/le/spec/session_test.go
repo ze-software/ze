@@ -226,3 +226,52 @@ func setAnswerRoot(t *testing.T, root string) {
 		env.ResetCache()
 	})
 }
+
+// VALIDATES: each agent of one session owns its claim, an agent with no claim
+// of its own answers its parent's, and an agent's release removes only its own
+// claim.
+// PREVENTS: the shared marker, where the last sibling to claim won and one
+// sibling's release cleared every other one's claim
+// (concurrent-session-corruption journal, 2026-08-14 and 2026-09-05).
+func TestAgentClaimsAreTheirOwnAndFallBackToTheParent(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte("| Field | Value |\n|-------|-------|\n| Status | in-progress |\n| Updated | 2026-08-27 |\n")
+	for _, name := range []string{"spec-parent.md", "spec-one.md", "spec-two.md"} {
+		if err := os.WriteFile(filepath.Join(root, "plan", name), body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	parent := specOwner{Root: root, SessionID: "sid"}
+	one := specOwner{Root: root, SessionID: "sid", AgentID: "one"}
+	two := specOwner{Root: root, SessionID: "sid", AgentID: "two"}
+	for owner, spec := range map[*specOwner]string{&parent: "spec-parent.md", &one: "spec-one.md"} {
+		if _, err := owner.Claim(spec); err != nil {
+			t.Fatalf("claim %s: %v", spec, err)
+		}
+	}
+	current := func(owner specOwner, want string) {
+		t.Helper()
+		got, err := owner.currentSpec()
+		if err != nil || got != want {
+			t.Errorf("currentSpec(agent %q) = %q, %v; want %q", owner.AgentID, got, err, want)
+		}
+	}
+	current(parent, "spec-parent.md")
+	current(one, "spec-one.md")
+	current(two, "spec-parent.md")
+	if _, err := two.Claim("spec-two.md"); err != nil {
+		t.Fatal(err)
+	}
+	current(one, "spec-one.md")
+	current(two, "spec-two.md")
+	current(parent, "spec-parent.md")
+	if err := one.Release(); err != nil {
+		t.Fatal(err)
+	}
+	current(one, "spec-parent.md")
+	current(two, "spec-two.md")
+	current(parent, "spec-parent.md")
+}

@@ -578,12 +578,21 @@ func (o *observationRunner) environment(overlay string) []string {
 //
 // Go's own overlay, which is what gomu applies its mutants through: the
 // compiler reads the replacement and the file on disk is never touched.
+//
+// Each run stages both files in a directory of its own. The session scratch is
+// shared by every subagent of the session, and a replacement keyed on the
+// producer's basename alone let one agent's break of register.go compile
+// against a sibling's (plan/journal/concurrent-session-corruption.md).
 func writeOverlay(tree string, broken overlayFile) (string, error) {
-	scratch, err := observationScratch(tree)
+	shared, err := observationScratch(tree)
 	if err != nil {
 		return "", err
 	}
 	var tb textbuf.Buffer
+	scratch, err := os.MkdirTemp(shared, "run-*")
+	if err != nil {
+		return "", parseErr(tb.Str("cannot create this run's break directory: ").Err(err))
+	}
 	replacement := filepath.Join(scratch, tb.Str("broken-").Str(filepath.Base(broken.rel)).String())
 	if err := os.WriteFile(replacement, []byte(broken.content), 0o600); err != nil {
 		return "", parseErr(tb.Reset().Str("cannot write the broken source: ").Err(err))

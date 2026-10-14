@@ -57,8 +57,104 @@ func TestBashRuntimePrefixesOnlySafeForkIdentity(t *testing.T) {
 		"session_id": "../shared", "agent_id": "agent-1", "tool_name": "Bash",
 		"tool_input": map[string]any{"command": "echo ok"},
 	})
-	if code != 0 || output != "" {
-		t.Fatalf("unsafe identity changed input: code=%d output=%q", code, output)
+	// An agent whose session id is unsafe blocks rather than run unprefixed as
+	// the main thread; TestBashRuntimeBlocksAnAgentWithNoSessionID covers the
+	// message.
+	if code != 2 || output != "" {
+		t.Fatalf("unsafe identity: code=%d output=%q, want exit 2 and no updated input", code, output)
+	}
+}
+
+// VALIDATES: a subagent's Bash call carries its own agent id beside the
+// parent's session id, a fork with no agent id carries none, and an agent id
+// that cannot name a file blocks the call (exit 2, no updated input) with a
+// message naming the cause and the next step.
+// PREVENTS: sibling subagents resolving one identity, which made them share a
+// commit namespace, a weakened-test shard and a spec claim
+// (plan/journal/concurrent-session-corruption.md), and an unsafe agent id
+// running the call silently as the main thread.
+func TestBashRuntimeExportsTheAgentIdentity(t *testing.T) {
+	root := t.TempDir()
+	code, output, _ := runHook(t, root, "pretool-bash", map[string]any{
+		"session_id": "parent-17", "agent_id": "agent-1", "tool_name": "Bash",
+		"tool_input": map[string]any{"command": "echo ok"},
+	})
+	if code != 0 || !strings.Contains(output, "export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; echo ok") {
+		t.Fatalf("agent prefix: code=%d output=%q", code, output)
+	}
+	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "1")
+	code, output, _ = runHook(t, root, "pretool-bash", map[string]any{
+		"session_id": "parent-17", "tool_name": "Bash",
+		"tool_input": map[string]any{"command": "echo ok"},
+	})
+	if code != 0 || strings.Contains(output, "ZE_AGENT_ID") || !strings.Contains(output, "export CLAUDE_CODE_SESSION_ID=parent-17; echo ok") {
+		t.Fatalf("fork prefix: code=%d output=%q", code, output)
+	}
+	for _, agent := range []string{"../agent", "agent+x"} {
+		code, output, errOutput := runHook(t, root, "pretool-bash", map[string]any{
+			"session_id": "parent-17", "agent_id": agent, "tool_name": "Bash",
+			"tool_input": map[string]any{"command": "echo ok"},
+		})
+		if code != 2 || output != "" {
+			t.Fatalf("unsafe agent %q: code=%d output=%q, want exit 2 and no updated input", agent, code, output)
+		}
+		if !strings.Contains(errOutput, "BLOCKED") || !strings.Contains(errOutput, "main thread") || !strings.Contains(errOutput, "Next:") {
+			t.Fatalf("unsafe agent %q: message %q lacks what, why or next step", agent, errOutput)
+		}
+	}
+}
+
+// VALIDATES: a subagent's Bash call whose payload names an agent but carries
+// an absent or unsafe session_id blocks (exit 2, no updated input) with a
+// what/why/next-step message, while a fork subagent (no agent id) with the
+// same payload still runs unprefixed.
+// PREVENTS: a subagent with no usable session id running its call silently
+// as the main thread.
+func TestBashRuntimeBlocksAnAgentWithNoSessionID(t *testing.T) {
+	root := t.TempDir()
+	for _, payload := range []map[string]any{
+		{"agent_id": "agent-1", "tool_name": "Bash", "tool_input": map[string]any{"command": "echo ok"}},
+		{"session_id": "../parent", "agent_id": "agent-1", "tool_name": "Bash", "tool_input": map[string]any{"command": "echo ok"}},
+		{"session_id": 17, "agent_id": "agent-1", "tool_name": "Bash", "tool_input": map[string]any{"command": "echo ok"}},
+	} {
+		code, output, errOutput := runHook(t, root, "pretool-bash", payload)
+		if code != 2 || output != "" {
+			t.Fatalf("session_id %v: code=%d output=%q, want exit 2 and no updated input", payload["session_id"], code, output)
+		}
+		if !strings.Contains(errOutput, "BLOCKED") || !strings.Contains(errOutput, "main thread") || !strings.Contains(errOutput, "Next:") {
+			t.Fatalf("session_id %v: message %q lacks what, why or next step", payload["session_id"], errOutput)
+		}
+	}
+	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "1")
+	for _, payload := range []map[string]any{
+		{"tool_name": "Bash", "tool_input": map[string]any{"command": "echo ok"}},
+		{"session_id": "../parent", "tool_name": "Bash", "tool_input": map[string]any{"command": "echo ok"}},
+	} {
+		code, output, errOutput := runHook(t, root, "pretool-bash", payload)
+		if code != 0 || output != "" {
+			t.Fatalf("fork session_id %v: code=%d output=%q message=%q, want exit 0 unprefixed", payload["session_id"], code, output, errOutput)
+		}
+	}
+}
+
+// VALIDATES: an Edit from a subagent whose payload names an agent but carries
+// an absent or unsafe session_id is refused by the weakening check (exit 2)
+// with a message naming the cause and the next step.
+// PREVENTS: the weakening check judging a subagent's edit against the main
+// thread's ambient shard.
+func TestWriteRuntimeWeakeningRefusesAnAgentWithNoSessionID(t *testing.T) {
+	root := t.TempDir()
+	for _, payload := range []map[string]any{
+		{"agent_id": "agent-1", "tool_name": "Edit", "tool_input": map[string]any{"file_path": filepath.Join(root, "notes.md"), "old_string": "a", "new_string": "b"}},
+		{"session_id": "../parent", "agent_id": "agent-1", "tool_name": "Edit", "tool_input": map[string]any{"file_path": filepath.Join(root, "notes.md"), "old_string": "a", "new_string": "b"}},
+	} {
+		code, _, errOutput := runHook(t, root, "pretool-writeedit", payload)
+		if code != 2 {
+			t.Fatalf("session_id %v: code=%d message=%q, want exit 2", payload["session_id"], code, errOutput)
+		}
+		if !strings.Contains(errOutput, "weakening check cannot name this subagent's shard") || !strings.Contains(errOutput, "main thread's shard") || !strings.Contains(errOutput, "Next:") {
+			t.Fatalf("session_id %v: message %q lacks what, why or next step", payload["session_id"], errOutput)
+		}
 	}
 }
 

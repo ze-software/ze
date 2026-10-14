@@ -166,11 +166,23 @@ var (
 	// runtime.go checkName uses strings.CutLast (59e2927e52), lifecycle.go
 	// reads the spec Status vocabulary from specstatus (69893c680c), and the
 	// bash.go staging refusal names `remove` without a prior rm (07ad5adb5d).
+	//
+	// Re-sealed 2026-10-14 over the per-agent identity: session.go exports
+	// ZE_AGENT_ID beside the parent session id and reads a spec claim per
+	// agent with the parent's as fallback, lifecycle.go and writeedit.go read
+	// claims through it, and writeWeakening keys the shard on the payload's
+	// agent and the RFC approval on the main thread's namespace. Review round
+	// 1: the prefix writer blocks (exit 2) an agent id that cannot name a file
+	// instead of prefixing nothing, runtime.go returns that code, and the
+	// style-guide marker joins session and agent through
+	// lepath.AgentFingerprint. Review round 2: an agent id with an absent or
+	// unsafe payload session id blocks the Bash prefix and the weakening check
+	// (exit 2) instead of running as the main thread.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x80, 0x17, 0xd5, 0xf5, 0x6d, 0x85, 0x57, 0x1b,
-		0xd1, 0xff, 0xfd, 0x55, 0x2a, 0x7f, 0x27, 0x37,
-		0x52, 0x28, 0x89, 0x16, 0x84, 0x39, 0x0e, 0x89,
-		0x49, 0xe5, 0x2a, 0xfb, 0x48, 0x89, 0x5f, 0x57,
+		0xed, 0x37, 0x36, 0x47, 0x9a, 0x8a, 0x9d, 0x8d,
+		0x18, 0xbf, 0x43, 0x94, 0x7e, 0xbd, 0x6a, 0xe7,
+		0xbf, 0x34, 0xfb, 0x8b, 0x94, 0xe4, 0x26, 0xc1,
+		0x4c, 0x1e, 0xb9, 0x4f, 0x65, 0x4d, 0xdc, 0x7a,
 	}
 )
 
@@ -824,13 +836,13 @@ func rfcGuardTree(string) (string, error) {
 // rfcApprovalTree adds the session's RFC approval file, the one `./le rfc
 // approve` writes under tmp/, to two tagged units, one of which a row names.
 func rfcApprovalTree(string) (string, error) {
-	return probeLedgerTree("rfc-approval", probeTwoTaggedTests, rfc.ApprovalPath)
+	return probeLedgerTree("rfc-approval", probeTwoTaggedTests, lepath.SessionCommitSession, rfc.ApprovalPath)
 }
 
 // weakenedHatchTree adds the weakening ledger to two untagged units, one of
 // which a row names.
 func weakenedHatchTree(string) (string, error) {
-	return probeLedgerTree("weakened-hatch", probeUntaggedTests, func(session string) string {
+	return probeLedgerTree("weakened-hatch", probeUntaggedTests, commitSessionOf, func(session string) string {
 		return testweakened.ShardPath(testweakened.WeakenedDir, session)
 	})
 }
@@ -839,12 +851,14 @@ func weakenedHatchTree(string) (string, error) {
 // the running session, rather than at a fixed file name. The hook derives the
 // same path from the same identity, so the fixture proves the derivation as
 // well as the row matching: a file written anywhere else would read as absent.
-func probeLedgerTree(name, test string, ledgerPath func(session string) string) (string, error) {
+// namespace is the resolver the reader keys the file on: the running agent's
+// own namespace for a weakening shard, the main thread's for an RFC approval.
+func probeLedgerTree(name, test string, namespace func(root string) (string, error), ledgerPath func(session string) string) (string, error) {
 	root, err := committedProbeTree(name, map[string]string{probeTestPath: test})
 	if err != nil {
 		return root, err
 	}
-	session, err := lepath.CommitSession(root, "")
+	session, err := namespace(root)
 	if err != nil {
 		return root, err
 	}
@@ -1339,3 +1353,9 @@ const proposedVerbAnchor = `Verb:   "proposed"`
 const (
 	labelTrailingNewline = "trailing-newline"
 )
+
+// commitSessionOf is the running process's own commit namespace, agent
+// included, which is the one a weakening shard is named after.
+func commitSessionOf(root string) (string, error) {
+	return lepath.CommitSession(root, "")
+}

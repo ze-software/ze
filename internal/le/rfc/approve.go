@@ -122,7 +122,9 @@ func approveAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	session, err := lepath.CommitSession(root, "")
+	// The approval is the owner's, given to the main thread, so it is keyed
+	// on the main thread's namespace even when an agent records it.
+	session, err := lepath.SessionCommitSession(root)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

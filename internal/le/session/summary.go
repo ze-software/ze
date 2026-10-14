@@ -91,8 +91,26 @@ func endSummary(root string, paths lepath.SessionPaths, at time.Time, query gitQ
 	return report, nil
 }
 
+// selectedSpec answers the spec this process's identity claimed: a subagent's
+// own claim, else its session's, which is the claim it was spawned under.
 func selectedSpec(root, id string) string {
-	marker := filepath.Join(root, "tmp", "session", ".session-"+id)
+	agent, err := lepath.Agent()
+	if err != nil {
+		return ""
+	}
+	if agent != "" {
+		if spec := claimedSpec(root, id, agent); spec != "" {
+			return spec
+		}
+	}
+	return claimedSpec(root, id, "")
+}
+
+func claimedSpec(root, id, agent string) string {
+	marker, err := lepath.SpecClaimMarker(root, id, agent)
+	if err != nil {
+		return ""
+	}
 	content, err := os.ReadFile(marker) //nolint:gosec // the path is a session state file under the checkout root
 	if err != nil {
 		return ""

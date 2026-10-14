@@ -262,7 +262,9 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 		fmt.Fprintln(errOut, strings.Join(messages, "\n")) //nolint:errcheck // hook protocol
 	}
 	if kind == "pretool-bash" && worst < 2 {
-		writeParentSessionPrefix(ctx, out)
+		if code := writeParentSessionPrefix(ctx, out, errOut); code > worst {
+			worst = code
+		}
 	}
 	return worst
 }

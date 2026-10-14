@@ -152,7 +152,7 @@ func hookSessionStart(ctx context, out, errOut io.Writer) {
 		}
 	}
 	state := sessionStart{ctx: ctx}
-	state.claim = readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+resolvedSessionID(ctx)))
+	state.claim = specClaim(ctx, resolvedSessionID(ctx))
 	if state.claim == specUnassigned {
 		state.claim = ""
 	}
@@ -421,7 +421,7 @@ func stateFile(ctx context) string {
 	if err != nil {
 		return ""
 	}
-	claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+paths.ID))
+	claim := specClaim(ctx, paths.ID)
 	name := "session-state-" + paths.ID + ".md"
 	if claim != "" && claim != specUnassigned {
 		stem := strings.TrimSuffix(strings.TrimPrefix(claim, "spec-"), ".md")
@@ -456,7 +456,7 @@ func hookPreCompact(ctx context, errOut io.Writer) {
 // and does not refuse.
 func hookStop(ctx context, errOut io.Writer) int {
 	id := resolvedSessionID(ctx)
-	claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+id))
+	claim := specClaim(ctx, id)
 	if claim == "" {
 		return 0
 	}
@@ -540,7 +540,7 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 	if id != "" {
 		paths, err := lepath.SessionForID(ctx.root, id)
 		if err == nil {
-			claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+id))
+			claim := specClaim(ctx, id)
 			if claim != "" && claim != specUnassigned {
 				text.Str("\nSpec claimed by the session that spawned you: plan/").Str(claim).
 					Str("\nRead it before acting. Its acceptance criteria are what your work is judged against.\n")

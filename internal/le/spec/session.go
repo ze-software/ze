@@ -33,22 +33,35 @@ var wipCapEntry = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
-// specOwner owns this session's marker and its per-spec state path. It is safe
-// for concurrent use after construction; callers MUST NOT mutate its fields.
+// specOwner owns this session's marker, or one agent's marker inside it, and
+// its per-spec state path. AgentID is "" for a main thread. It is safe for
+// concurrent use after construction; callers MUST NOT mutate its fields.
 type specOwner struct {
 	Root      string
 	SessionID string
+	AgentID   string
 	Now       func() time.Time
 	WIPCap    int
 }
 
-// currentSpec returns this session's claimed spec. A missing marker and the
-// historical unassigned marker both return an empty claim.
+// currentSpec returns this owner's claimed spec. An agent that claimed nothing
+// answers its parent session's claim, which is the spec it was spawned under.
+// A missing marker and the historical unassigned marker both return an empty
+// claim.
 func (o specOwner) currentSpec() (string, error) {
 	if err := o.validate(); err != nil {
 		return "", err
 	}
-	body, err := os.ReadFile(o.markerPath())
+	marker, err := o.markerPath()
+	if err != nil {
+		return "", err
+	}
+	body, err := os.ReadFile(marker) //nolint:gosec // the path is a session marker under the checkout root
+	if errors.Is(err, os.ErrNotExist) && o.AgentID != "" {
+		parent := o
+		parent.AgentID = ""
+		return parent.currentSpec()
+	}
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", nil
@@ -67,7 +80,7 @@ func (o specOwner) currentSpec() (string, error) {
 		return "", nil
 	}
 	if !validSpecMarker(line) {
-		return "", fmt.Errorf("malformed spec claim in %s: %q", filepath.ToSlash(o.markerPath()), line)
+		return "", fmt.Errorf("malformed spec claim in %s: %q", filepath.ToSlash(marker), line)
 	}
 	return line, nil
 }
@@ -112,7 +125,11 @@ func (o specOwner) Claim(spec string) (ClaimReport, error) {
 				return nil
 			}
 		}
-		if err := writeAtomic(o.markerPath(), []byte(spec+"\n"), 0o600); err != nil {
+		marker, err := o.markerPath()
+		if err != nil {
+			return err
+		}
+		if err := writeAtomic(marker, []byte(spec+"\n"), 0o600); err != nil {
 			return err
 		}
 		if status != statusReady {
@@ -137,13 +154,19 @@ func (o specOwner) Claim(spec string) (ClaimReport, error) {
 	return report, err
 }
 
-// Release removes this session's claim. A missing claim is already released.
+// Release removes this owner's own claim and no other: an agent's release
+// leaves its parent's and its siblings' claims in place. A missing claim is
+// already released.
 func (o specOwner) Release() error {
 	if err := o.validate(); err != nil {
 		return err
 	}
+	marker, err := o.markerPath()
+	if err != nil {
+		return err
+	}
 	return o.withLock(func() error {
-		err := os.Remove(o.markerPath())
+		err := os.Remove(marker)
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
@@ -253,7 +276,11 @@ func newSpecOwner(root string) (specOwner, error) {
 	if err != nil {
 		return specOwner{}, err
 	}
-	return specOwner{Root: absolute, SessionID: paths.ID}, nil
+	agent, err := lepath.Agent()
+	if err != nil {
+		return specOwner{}, err
+	}
+	return specOwner{Root: absolute, SessionID: paths.ID, AgentID: agent}, nil
 }
 
 func transitionReadySpec(body, today string) (string, error) {
@@ -297,8 +324,8 @@ func transitionReadySpec(body, today string) (string, error) {
 	return strings.Join(lines, "\n"), nil
 }
 
-func (o specOwner) markerPath() string {
-	return filepath.Join(o.Root, "tmp", "session", ".session-"+o.SessionID)
+func (o specOwner) markerPath() (string, error) {
+	return lepath.SpecClaimMarker(o.Root, o.SessionID, o.AgentID)
 }
 
 func (o specOwner) cap() int {

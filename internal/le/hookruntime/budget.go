@@ -24,10 +24,7 @@ const (
 	budgetedAgentType = "ze-work"
 )
 
-var (
-	handoffCommand = regexp.MustCompile(`session-state-|spec (session )?state`)
-	safeAgentID    = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
-)
+var handoffCommand = regexp.MustCompile(`session-state-|spec (session )?state`)
 
 // ze point: context-economy/directives/an-editing-agent-hands-off-at-one-hundred-tool-calls
 // bashCallBudget counts a Bash call against the editing agent's budget. The
@@ -50,7 +47,7 @@ func agentCallBudgetCheck(ctx context) *verdict {
 	if ctx.payload.AgentID == "" || ctx.payload.AgentType != budgetedAgentType {
 		return nil
 	}
-	if !safeAgentID.MatchString(ctx.payload.AgentID) {
+	if !lepath.ValidAgentID(ctx.payload.AgentID) {
 		return &verdict{1, "agent-call-budget: agent id " + strconv.Quote(ctx.payload.AgentID) + " is not a file name, so this agent is not counted"}
 	}
 	parent, present := payloadSessionID(ctx.payload)

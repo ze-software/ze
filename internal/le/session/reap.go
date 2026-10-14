@@ -418,7 +418,7 @@ func flatMarkers(root string, dead map[string]string) []string {
 			continue
 		}
 		for sid := range dead {
-			if strings.HasSuffix(entry.Name(), "-"+sid) {
+			if lepath.MarkerOwnedBy(entry.Name(), sid) {
 				markers = append(markers, filepath.Join(root, entry.Name()))
 				break
 			}

@@ -184,6 +184,19 @@ shard holds whose text git already has at HEAD, because a row whose commit
 landed explains a diff history holds: it accepts nothing further, and it must
 not refuse the commit in front of it. A row that matches nothing and has NOT
 landed is still refused, because that one is a mistake rather than a record.
+The gate never deletes a row that has not landed, even from a commit that
+weakens nothing, because its writer may still owe the commit it explains. The
+prune matches rows by their text, so a row written after the check read the
+shard survives it.
+<!-- source: internal/le/test/weakened/shard.go -- PruneLanded -->
+
+Each subagent owns its commit session, and so its shard, apart from its
+parent and its siblings (`docs/contributing/running-commands.md`, "Session
+identity, and what each agent owns"). A main thread that commits a subagent's
+work names that subagent's shard. The gate accepts it, judges the weakening
+against the rows of every shard the commit carries, and prunes each of them.
+A shard of any other session is still refused as foreign.
+<!-- source: internal/le/test/weakened/shard.go -- ForeignShardProblems, CarriedShards -->
 
 Deleting a landed row by hand was the old contract, and it failed in one
 specific way often enough to be measured: a row left behind blocks the next

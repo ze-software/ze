@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md -- native le support paths
+// Design: docs/contributing/running-commands.md -- session identity, and what each agent owns
 //
 // This file resolves the canonical session identity and its checkout-local
 // directories without invoking the shell or Python helpers that native le replaces.
@@ -83,6 +83,38 @@ func resolveSession(root string, ensureScratch bool, process sessionProcess) (Se
 		return SessionPaths{}, fmt.Errorf("create session scratch %s: %w", paths.Scratch, err)
 	}
 	return paths, nil
+}
+
+// SpecClaimMarker answers the file holding the spec claim of one harness
+// session, or of one of its agents when agent is not "". Each agent owns its
+// marker, so a claim by one never replaces a sibling's or the parent's; a
+// reader that finds no agent marker reads the parent's, which is the claim
+// the agent was spawned under. An unsafe or ambiguous identity is an error.
+func SpecClaimMarker(root, session, agent string) (string, error) {
+	if !safeSessionID(session) {
+		return "", fmt.Errorf("spec claim marker: unsafe session id %q", session)
+	}
+	fingerprint, err := AgentFingerprint(session, agent)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "tmp", sessionRoot, ".session-"+fingerprint), nil
+}
+
+// MarkerOwnedBy reports whether a flat marker file name under tmp/session
+// belongs to one harness session: <prefix>-<session> for the session itself,
+// or <prefix>-<session>+<agent> for one of its agents (AgentFingerprint, so
+// SpecClaimMarker's names among them). A reaper matches on it, so an agent's
+// markers go with the session they were made under. No marker prefix holds
+// agentSeparator, so the first one is the join.
+func MarkerOwnedBy(name, session string) bool {
+	if base, agent, joined := strings.Cut(name, agentSeparator); joined {
+		if !ValidAgentID(agent) {
+			return false
+		}
+		name = base
+	}
+	return strings.HasSuffix(name, "-"+session)
 }
 
 // SessionForID resolves paths for a validated hook payload identity without
