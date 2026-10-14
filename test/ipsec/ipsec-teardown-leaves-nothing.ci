@@ -155,6 +155,8 @@ vpn {
 EOF_INITIATOR
 
 cmd=background:seq=1:exec=ze -:stdin=responder:name=responder
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
 # The initiator's dataplane, and ONLY the initiator's: option=env applies to every
 # process the runner launches, so the per-daemon override rides in front of the command.
 # `env` rather than a shell, because a shell is free to drop an assignment whose name is
@@ -199,5 +201,3 @@ expect=stdout:contains=INSTALLED:
 expect=stdout:contains=TORN-DOWN:
 expect=stdout:contains=RESIDUE: none
 expect=stderr:contains=engine-steps: all steps passed
-reject=stderr:pattern=panic recovered
-reject=stderr:pattern=fatal error

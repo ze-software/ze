@@ -168,6 +168,9 @@ EOF_CONF
 # Both processes inherit this run's work directory; no previous run can release it.
 cmd=background:seq=1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-path-asn -:stdin=ze-bgp:timeout=20s
+# Export rejection withdraws the route without a NOTIFICATION, so the same
+# session remains available for the permitted fence.
+reject=stderr:pattern=notification (sent|send failed).*code="[^"]*Error"
 cmd=foreground:seq=3:exec=le test fixture plugin/wait-file path-asn-export.ready:timeout=10s
 cmd=background:seq=4:exec=le test peer --dial 127.0.0.4:$PORT:stdin=peer
 expect=exit:code=0
@@ -181,6 +184,3 @@ expect=stderr:pattern=reject-asn reject.*as-path="65001 3356 65004"
 # The as-path is named because an end-of-rib is an empty update and is accepted
 # too: a bare "reject-asn accept" would be satisfied without the fence.
 expect=stderr:pattern=reject-asn accept.*as-path="65001 65005"
-# Export rejection withdraws the route without a NOTIFICATION, so the same
-# session remains available for the permitted fence.
-reject=stderr:pattern=notification (sent|send failed).*code="[^"]*Error"

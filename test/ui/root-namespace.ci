@@ -13,7 +13,7 @@
 
 # traffic control routes to the tc/VPP tool (usage line is unique to `traffic control`)
 cmd=foreground:seq=1:exec=ze traffic control --help:exit=0
-expect=stdout:contains=ze traffic control <command>
+expect=stderr:contains=ze traffic control <command>
 
 # bare `ze traffic` enumerates its members (AC-10); the "usage: ze traffic <command>"
 # line is emitted ONLY by the bare-root dispatcher, not by `traffic control`.
@@ -22,7 +22,7 @@ expect=stderr:contains=usage: ze traffic <command>
 
 # isis decode routes to the offline codec
 cmd=foreground:seq=3:exec=ze isis decode --help:exit=0
-expect=stdout:contains=usage: ze isis decode
+expect=stderr:contains=usage: ze isis decode
 
 # bare `ze isis` enumerates its members (AC-10)
 cmd=foreground:seq=4:exec=ze isis:exit=1
@@ -30,7 +30,7 @@ expect=stderr:contains=usage: ze isis <command>
 
 # ospf decode routes to the offline codec
 cmd=foreground:seq=5:exec=ze ospf decode --help:exit=0
-expect=stdout:contains=usage: ze ospf decode
+expect=stderr:contains=usage: ze ospf decode
 
 # bare `ze ospf` enumerates its members (AC-10)
 cmd=foreground:seq=6:exec=ze ospf:exit=1

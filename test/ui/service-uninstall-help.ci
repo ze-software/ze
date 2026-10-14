@@ -3,4 +3,4 @@
 
 cmd=foreground:seq=1:exec=ze uninstall systemd -h
 expect=exit:code=0
-expect=stdout:contains=ze systemd uninstall
+expect=stderr:contains=ze systemd uninstall

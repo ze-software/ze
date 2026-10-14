@@ -398,7 +398,14 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 			if pattern == "" {
 				return errors.New("expect=stderr:pattern= must not be empty (an empty regex matches everything)")
 			}
-			r.ExpectStderr = append(r.ExpectStderr, pattern)
+			if _, err := regexp.Compile(pattern); err != nil {
+				return fmt.Errorf("invalid expect=stderr pattern %q: %w", pattern, err)
+			}
+			target, err := r.assertionTarget("expect=stderr:pattern=")
+			if err != nil {
+				return err
+			}
+			target.ExpectStderrRe = append(target.ExpectStderrRe, pattern)
 		}
 		if contains := kv["contains"]; contains != "" {
 			target, err := r.assertionTarget("expect=stderr:contains=")
@@ -513,10 +520,9 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 	}
 	switch rejType {
 	case directiveTypeStderr:
-		// pattern= is a regex over the daemon's stderr alone (validateLogging).
-		// contains= is a substring over the same accumulated stdout+stderr
-		// buffer its expect=stderr:contains= mirror reads, so the two answer one
-		// question with opposite polarity (runner_exec.go).
+		// Both forms are held on the cmd= line above. contains= reads both
+		// streams of that command's span (rejectSpan); pattern= is a log
+		// check over the whole run's stderr (validateLogging).
 		if err := checkKeys("reject=stderr", kv, "pattern", "contains"); err != nil {
 			return err
 		}
@@ -534,7 +540,14 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 			if pattern == "" {
 				return errors.New("reject=stderr:pattern= must not be empty (an empty regex matches everything)")
 			}
-			r.RejectStderr = append(r.RejectStderr, pattern)
+			if _, err := regexp.Compile(pattern); err != nil {
+				return fmt.Errorf("invalid reject=stderr pattern %q: %w", pattern, err)
+			}
+			target, err := r.assertionTarget("reject=stderr:pattern=")
+			if err != nil {
+				return err
+			}
+			target.RejectStderrRe = append(target.RejectStderrRe, pattern)
 		}
 
 	case directiveTypeSyslog:

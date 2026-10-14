@@ -413,7 +413,7 @@ and name, plus periodic progress while tests are still running.
 | Parse | `le test bgp parse` | `test/parse/*.ci` | Runs foreground config validation commands and checks exit code plus stdout/stderr expectations. |
 | Decode | `le test bgp decode` | `test/decode/*.{ci,test}` | Feeds BGP message bytes to decode commands and compares JSON output with volatile fields normalized. |
 | Reload | `le test bgp reload` | `test/reload/*.ci` | Starts Ze, rewrites config, sends SIGHUP, then checks post-reload behavior. |
-| UI | `le test ui` | `test/ui/*.ci` | Runs foreground CLI commands and checks terminal output and exit status. The three `bgp-decode-pcap-*` tests carry their capture as a base64 `tmpfs=` block, because `test/decode/` cannot express them: its driver reads the flags off the `exec=` line and then builds its own `ze bgp decode <hex>` argv, so it never runs the command as written. `bgp-decode-pcap-stdin` and `bgp-decode-stdin-hex` cover the standard-input forms: since 2026-09-07 the runner pipes a stdin block whenever the `-` belongs to a verb rather than to a daemon config argument (`routeStdinBlock`, `internal/test/runner/runner_exec_util.go`). Before that it replaced the first `-` in argv with a file and piped nothing, so `bgp-decode-stdin-hex` failed on a path where hexadecimal was expected and `bgp-decode-pcap-stdin` passed for a reason it does not assert (`plan/journal/green-that-could-not-have-been-red.md`). |
+| UI | `le test ui` | `test/ui/*.ci` | Runs foreground CLI commands and checks terminal output and exit status. The three `bgp-decode-pcap-*` tests carry their capture as a base64 `tmpfs=` block, because `test/decode/` cannot express them: its driver pipes only a hexadecimal `stdin=` block, one line, to the `exec=` command. `bgp-decode-pcap-stdin` and `bgp-decode-stdin-hex` cover the standard-input forms: since 2026-09-07 the runner pipes a stdin block whenever the `-` belongs to a verb rather than to a daemon config argument (`routeStdinBlock`, `internal/test/runner/runner_exec_util.go`). Before that it replaced the first `-` in argv with a file and piped nothing, so `bgp-decode-stdin-hex` failed on a path where hexadecimal was expected and `bgp-decode-pcap-stdin` passed for a reason it does not assert (`plan/journal/green-that-could-not-have-been-red.md`). |
 | Editor | `le test editor` | `test/editor/**/*.et` | Runs headless editor keystroke scripts through the CLI testing harness. |
 | Managed | `le test managed` | `test/managed/*.ci` | Exercises managed config, hub, auth, and fleet workflows through `.ci` process tests. |
 | L2TP | `le test l2tp` | `test/l2tp/*.ci` | Runs L2TP control-plane scenarios over loopback UDP with fake test plugins where needed. |
@@ -1942,8 +1942,14 @@ require full-stack integration tests to cover every undo / reconcile branch.
 
 BGP message decoding tests verify that wire bytes decode to the expected JSON.
 They use `.ci` files for command-based tests and still accept legacy `.test`
-fixtures.
+fixtures. The runner executes the `exec=` line as written, with `ze` replaced by
+the binary under test and the named `stdin=` block piped to it as one line, so a
+flag `ze bgp decode` does not know fails the test. A legacy `.test` or `decode=`
+file names a message type rather than a command, so the runner builds
+`ze bgp decode --<type> [-f <family>] <hex>` for it and refuses a type it has no
+flag for.
 <!-- source: internal/test/runner/decoding.go -- DecodingTests.Discover, DecodingRunner.Run -->
+<!-- source: internal/test/runner/decoding_ci.go -- parseDecodeCmdLine, legacyDecodeArgs -->
 
 **Format:**
 ```
@@ -2188,11 +2194,11 @@ expect=json:conn=1:seq=1:json={...}
 | `cmd=stop:` | `cmd=stop:seq=3:name=responder[:signal=kill\|term]` | Terminate a named background process mid-test (SIGKILL default) |
 | `expect=bgp:` | `expect=bgp:conn=1:seq=1:hex=...` | Expected wire bytes |
 | `expect=json:` | `expect=json:conn=1:seq=1:json=...` | Expected JSON |
-| `expect=stdout:` | `expect=stdout:contains=text` | Substring match in stdout |
-| `expect=stderr:` | `expect=stderr:pattern=...` or `contains=...` | Regex or substring match in stderr |
+| `expect=stdout:` | `expect=stdout:contains=text` | Substring match in the stdout of the `cmd=` above it, never its stderr |
+| `expect=stderr:` | `expect=stderr:pattern=...` or `contains=...` | Regex or substring match in the stderr of the `cmd=` above it |
 | `expect=syslog:` | `expect=syslog:pattern=...` | Regex pattern in syslog |
-| `reject=stdout:` | `reject=stdout:contains=text` or `pattern=...` | Fail if stdout contains the substring, or matches the regex |
-| `reject=stderr:` | `reject=stderr:contains=text` or `pattern=...` | Fail if the output contains the substring, or stderr matches the regex |
+| `reject=stdout:` | `reject=stdout:contains=text` or `pattern=...` | Fail if the output (stdout or stderr) of the `cmd=` above it contains the substring, or matches the regex |
+| `reject=stderr:` | `reject=stderr:contains=text` or `pattern=...` | `contains=`: fail if the output (stdout or stderr) of the `cmd=` above it contains the substring. `pattern=`: fail if the whole run's stderr matches the regex, wherever the line sits |
 | `reject=syslog:` | `reject=syslog:pattern=...` | Fail if syslog matches regex |
 | `action=notification:` | `action=notification:conn=1:seq=1:text=...` | Send NOTIFICATION |
 | `action=rewrite:` | `action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf` | Rewrite config file |
@@ -2470,8 +2476,13 @@ option=file:path=mytest.conf
 option=env:var=ze.bgp.log.server:value=debug
 
 expect=bgp:conn=1:seq=1:hex=FFFF...
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
 expect=stderr:pattern=subsystem=server
 ```
+
+An expected stderr pattern reads the stderr of the `cmd=` line above it, so a
+pattern about the daemon's log sits under the line that runs the daemon.
 
 **Example: Verify DEBUG messages are filtered at INFO level**
 ```
@@ -2479,8 +2490,15 @@ option=file:path=mytest.conf
 option=env:var=ze.bgp.log.server:value=info
 
 expect=bgp:conn=1:seq=1:hex=FFFF...
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
 reject=stderr:pattern=level=DEBUG
 ```
+
+A `reject=stderr:pattern=` is a log check over the whole run's stderr: it
+reads every command's stderr wherever it sits in the file, so it also sees a
+daemon started after it. Every other reject reads both streams of the command
+above it.
 
 **Example: Verify syslog backend**
 ```

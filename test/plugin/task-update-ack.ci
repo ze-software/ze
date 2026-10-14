@@ -65,6 +65,7 @@ EOF_CONF
 option=tcp_connections:value=0
 
 cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+reject=stderr:pattern=code \-32021
 cmd=foreground:seq=2:exec=le test mcp --port $PORT2 --tasks:stdin=mcp:timeout=20s
 expect=exit:code=0
 # Both acknowledgements landed.
@@ -78,6 +79,5 @@ expect=stdout:contains=completed
 expect=stdout:pattern=probe status=200 code=-32602
 # Not a capability refusal -- the client declared the extension.
 reject=stdout:contains=code=-32021
-reject=stderr:pattern=code \-32021
 # And tasks/update is not an unknown method.
 reject=stdout:contains=code=-32601

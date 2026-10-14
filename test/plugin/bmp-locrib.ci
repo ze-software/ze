@@ -90,10 +90,10 @@ plugin {
 EOF_CONF
 
 cmd=background:seq=1:exec=le test fixture plugin/bmp-locrib-collector $PORT2:ready=BMP-COLLECTOR: listening on
+expect=stderr:pattern=BMP-COLLECTOR: listening on
+expect=stderr:pattern=BMP-COLLECTOR: valid-locrib-route-monitoring
+expect=stderr:pattern=BMP-COLLECTOR: done
 cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 expect=exit:code=0
-expect=stderr:pattern=BMP-COLLECTOR: listening on
-expect=stderr:pattern=BMP-COLLECTOR: valid-locrib-route-monitoring
 reject=stderr:pattern=BMP-COLLECTOR: invalid-pdu
-expect=stderr:pattern=BMP-COLLECTOR: done

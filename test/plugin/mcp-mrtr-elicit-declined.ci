@@ -56,12 +56,12 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+# One round trip only. The client bounds itself at maxInputRounds and reports
+# "still required input after N attempts" if the server kept prompting; seeing
+# the decline text instead is what proves the loop terminated on the answer.
+reject=stderr:pattern=still required input
 cmd=foreground:seq=2:exec=le test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
 # le test mcp prints the tool error to stderr and exits non-zero.
 expect=exit:code=1
 expect=stderr:contains=declined
 expect=stderr:contains=command error
-# One round trip only. The client bounds itself at maxInputRounds and reports
-# "still required input after N attempts" if the server kept prompting; seeing
-# the decline text instead is what proves the loop terminated on the answer.
-reject=stderr:pattern=still required input

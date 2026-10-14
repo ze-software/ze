@@ -156,8 +156,8 @@ has sha256
 EOF_SCRIPT
 
 cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=responder
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
 cmd=foreground:seq=2:exec=ze start ipsec-added-live.conf:timeout=80s
 cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT3 ipsec-added-live.conf ipsec-added-live.script:timeout=80s
 expect=exit:code=0
-reject=stderr:pattern=panic recovered
-reject=stderr:pattern=fatal error

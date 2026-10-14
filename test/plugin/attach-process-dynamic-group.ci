@@ -60,11 +60,6 @@ option=linger:value=true
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A0000
 EOF_DYNAMIC
 
-
-expect=stderr:pattern=DYN-GROUP: the dynamic member was fed its group's list
-expect=stderr:pattern=DYN-GROUP: the member that states no block kept its group's list
-expect=stderr:pattern=DYN-GROUP: the member that restates it replaced its group's list
-expect=stderr:pattern=DYN-GROUP: no peer was fed outside its list
 # The dynamic peer really was built from the group rather than matched to a
 # configured address. Without this the three lines above would hold for any
 # peer ze accepted. "dynamic peer created" is Info on the reactor subsystem.
@@ -179,6 +174,10 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=inherits
 cmd=background:seq=2:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=restates
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=45s
+expect=stderr:pattern=DYN-GROUP: the dynamic member was fed its group's list
+expect=stderr:pattern=DYN-GROUP: the member that states no block kept its group's list
+expect=stderr:pattern=DYN-GROUP: the member that restates it replaced its group's list
+expect=stderr:pattern=DYN-GROUP: no peer was fed outside its list
 # Asserted under the daemon that writes it. These lines used to sit
 # above every cmd=, where the runner checked them against the whole
 # test's output and they could have been satisfied by any command.

@@ -96,6 +96,19 @@ EOF_CONF
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+# And it was not refused instead of served: none of the rejection codes.
+#
+# // the two stdout needles under the client (`contains=code -32021` and
+# `contains=code -32602`) were removed, not weakened. They could never match
+# whatever the server did: formatProbeResult prints `code=<n>` and the
+# space-separated spelling exists only in a client error string that goes to
+# stderr -- and this file sends no probe at all, so stdout carries no `code=`
+# token in either spelling. The stderr rejects below are the live guards and
+# are unchanged; a refusal here fails the client, which `expect=exit:code=0`
+# already catches. A needle that cannot fire is not coverage, it is noise that
+# reads as protection.
+reject=stderr:pattern=code \-32021
+reject=stderr:pattern=code \-32602
 # NOTE the absent --tasks flag. That is the whole experiment.
 cmd=foreground:seq=3:exec=le test mcp --port $PORT2:stdin=mcp:timeout=20s
 expect=exit:code=0
@@ -115,16 +128,3 @@ expect=stdout:contains=routes
 # CreateTaskResult would carry both of these, and neither may appear.
 reject=stdout:contains=taskId
 reject=stdout:pattern="resultType":"task"
-# And it was not refused instead of served: none of the rejection codes.
-#
-# // the two stdout needles here (`contains=code -32021` and
-# `contains=code -32602`) were removed, not weakened. They could never match
-# whatever the server did: formatProbeResult prints `code=<n>` and the
-# space-separated spelling exists only in a client error string that goes to
-# stderr -- and this file sends no probe at all, so stdout carries no `code=`
-# token in either spelling. The stderr rejects below are the live guards and
-# are unchanged; a refusal here fails the client, which `expect=exit:code=0`
-# already catches. A needle that cannot fire is not coverage, it is noise that
-# reads as protection.
-reject=stderr:pattern=code \-32021
-reject=stderr:pattern=code \-32602

@@ -47,6 +47,7 @@ func TestParseCILoggingOptions(t *testing.T) {
 		{
 			name: "single_env_var",
 			ciContent: `option=file:path=test.conf
+cmd=foreground:seq=1:exec=ze -
 option=env:var=ze.log.bgp.server:value=debug
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 			confContent:   minimalConfig,
@@ -58,6 +59,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 		{
 			name: "multiple_env_vars",
 			ciContent: `option=file:path=test.conf
+cmd=foreground:seq=1:exec=ze -
 option=env:var=ze.log.bgp.server:value=debug
 option=env:var=ze.log.bgp.filter:value=info
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
@@ -70,6 +72,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 		{
 			name: "expect_stderr_pattern",
 			ciContent: `option=file:path=test.conf
+cmd=foreground:seq=1:exec=ze -
 expect=stderr:pattern=subsystem=server
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 			confContent:   minimalConfig,
@@ -81,6 +84,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 		{
 			name: "reject_stderr_pattern",
 			ciContent: `option=file:path=test.conf
+cmd=foreground:seq=1:exec=ze -
 reject=stderr:pattern=level=DEBUG
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 			confContent:   minimalConfig,
@@ -92,6 +96,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 		{
 			name: "expect_syslog_pattern",
 			ciContent: `option=file:path=test.conf
+cmd=foreground:seq=1:exec=ze -
 expect=syslog:pattern=subsystem=server
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 			confContent:   minimalConfig,
@@ -103,6 +108,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 		{
 			name: "combined_logging_options",
 			ciContent: `option=file:path=test.conf
+cmd=foreground:seq=1:exec=ze -
 option=env:var=ze.log.bgp.server:value=debug
 option=env:var=ze.log.bgp.backend:value=syslog
 expect=stderr:pattern=subsystem=server
@@ -118,6 +124,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 		{
 			name: "regex_patterns",
 			ciContent: `option=file:path=test.conf
+cmd=foreground:seq=1:exec=ze -
 expect=stderr:pattern=level=(INFO|DEBUG)
 expect=stderr:pattern=subsystem=\w+
 reject=stderr:pattern=error.*fatal
@@ -154,8 +161,10 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 
 			// Verify logging options
 			assert.Equal(t, tt.wantEnvVars, rec.EnvVars, "EnvVars mismatch")
-			assert.Equal(t, tt.wantExpStderr, rec.ExpectStderr, "ExpectStderr mismatch")
-			assert.Equal(t, tt.wantRejStderr, rec.RejectStderr, "RejectStderr mismatch")
+			require.Len(t, rec.RunCommands, 1)
+			cmd := rec.RunCommands[0]
+			assert.Equal(t, tt.wantExpStderr, cmd.ExpectStderrRe, "ExpectStderrRe mismatch")
+			assert.Equal(t, tt.wantRejStderr, cmd.RejectStderrRe, "RejectStderrRe mismatch")
 			assert.Equal(t, tt.wantExpSyslog, rec.ExpectSyslog, "ExpectSyslog mismatch")
 		})
 	}
@@ -205,6 +214,7 @@ func TestParseCILoggingOptionsNotAffectOthers(t *testing.T) {
 
 	ciContent := `option=file:path=test.conf
 option=asn:value=65000
+cmd=foreground:seq=1:exec=ze -
 option=env:var=ze.log.bgp.server:value=debug
 expect=stderr:pattern=subsystem=server
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
@@ -227,7 +237,8 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 
 	// Verify logging options also work
 	assert.Equal(t, []string{"ze.log.bgp.server=debug"}, rec.EnvVars)
-	assert.Equal(t, []string{"subsystem=server"}, rec.ExpectStderr)
+	require.Len(t, rec.RunCommands, 1)
+	assert.Equal(t, []string{"subsystem=server"}, rec.RunCommands[0].ExpectStderrRe)
 }
 
 func TestParseCIStdoutPattern(t *testing.T) {

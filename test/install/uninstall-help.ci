@@ -2,7 +2,7 @@
 
 cmd=foreground:seq=1:exec=ze uninstall local -h
 expect=exit:code=0
-expect=stdout:contains=--prefix
-expect=stdout:contains=--purge
-expect=stdout:contains=--dry-run
-expect=stdout:contains=--yes
+expect=stderr:contains=--prefix
+expect=stderr:contains=--purge
+expect=stderr:contains=--dry-run
+expect=stderr:contains=--yes

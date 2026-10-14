@@ -78,6 +78,14 @@ EOF_CONF
 option=tcp_connections:value=0
 
 cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+# The acknowledgement did not grow a payload. This replaces a
+# `reject=stdout:contains=code -32021` that could never match: probe prints
+# `code=<n>` (cmd_mcp.go formatProbeResult) and the space-separated form exists
+# only in a client error string, which goes to stderr -- and this file sends no
+# probe at all, so stdout never carries a `code=` token in either spelling.
+reject=stderr:pattern=acknowledgement is not empty
+reject=stderr:pattern=code \-32021
+reject=stderr:pattern=code \-32602
 cmd=foreground:seq=2:exec=le test mcp --port $PORT2 --tasks:stdin=mcp:timeout=15s
 expect=exit:code=0
 # The acknowledgement was EMPTY. task-cancel prints this line only after
@@ -93,11 +101,3 @@ expect=stdout:contains=completed
 # The cancel did not rewrite the terminal state. A cancel applied to an already
 # completed task must not move it to `cancelled`.
 reject=stdout:contains=cancelled
-# The acknowledgement did not grow a payload. This replaces a
-# `reject=stdout:contains=code -32021` that could never match: probe prints
-# `code=<n>` (cmd_mcp.go formatProbeResult) and the space-separated form exists
-# only in a client error string, which goes to stderr -- and this file sends no
-# probe at all, so stdout never carries a `code=` token in either spelling.
-reject=stderr:pattern=acknowledgement is not empty
-reject=stderr:pattern=code \-32021
-reject=stderr:pattern=code \-32602

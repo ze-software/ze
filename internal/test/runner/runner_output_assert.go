@@ -7,6 +7,7 @@ package runner
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/test/trace"
@@ -70,21 +71,21 @@ func closeOpenSpans(rec *Record, stdoutLen, stderrLen int) {
 // silently skipped and then fell through to a default "unknown" failure
 // (handover 3).
 //
-// Every assertion is checked against the output of the command it was written
-// under, and against nothing else. It used to read rec.ClientOutput, the
-// accumulated stdout AND stderr of every command in the file, so an assertion
-// could be satisfied by a command its author never named and a reject could
-// trip on one. Two files did exactly that:
+// Every expect= is checked against the stream it names in the output of the
+// command it was written under, and against nothing else. It used to read
+// rec.ClientOutput, the accumulated stdout AND stderr of every command in the
+// file, so an assertion could be satisfied by a command its author never
+// named. Two files did exactly that:
 // test/plugin/kernel-capability-unknown-starts.ci and
 // kernel-capability-doctor-reports.ci each asserted that `ze doctor` printed a
-// diagnostic code and then ran `ze show diagnostic <that code>`, whose output satisfied
-// the assertion on a host where the doctor check does not run at all.
+// diagnostic code and then ran `ze show diagnostic <that code>`, whose output
+// satisfied the assertion on a host where the doctor check does not run at all.
 //
-// The stream name still selects nothing for a `contains=`: a command's span
-// covers both its streams, because a program is free to write a message to
-// either and a test that pins which one is asserting the wrong thing.
-// expect=stderr:pattern= is a different mechanism over the daemon's relayed
-// stderr and stays with validateLogging.
+// An expect= reads only the stream it names. It used to read the two streams
+// joined, so a stdout assertion passed on a line the command wrote to stderr.
+//
+// A reject= never reads less than it did before the scoping, because a
+// narrower reject is a weaker test. rejectScope decides what each kind reads.
 func checkOutputAssertions(rec *Record) bool {
 	for i := range rec.RunCommands {
 		if !checkCommandAssertions(rec, &rec.RunCommands[i]) {
@@ -94,16 +95,20 @@ func checkOutputAssertions(rec *Record) bool {
 	return true
 }
 
-// commandSpan answers the output one command produced, as the half-open slice
-// of each accumulator it wrote between starting and finishing.
+// commandStdout and commandStderr answer the output one command wrote to
+// each stream, as the half-open slice of that accumulator it wrote between
+// starting and finishing.
 //
 // A span that was never closed answers empty rather than the whole buffer. A
 // command the run never reached produced nothing, and reading the accumulator
 // from its start offset to the end would hand it every later command's output,
 // which is the defect this scoping exists to remove.
-func commandSpan(rec *Record, cmd *RunCommand) string {
-	return spanOf(rec.ClientStdout, cmd.stdoutFrom, cmd.stdoutTo) +
-		spanOf(rec.ClientStderr, cmd.stderrFrom, cmd.stderrTo)
+func commandStdout(rec *Record, cmd *RunCommand) string {
+	return spanOf(rec.ClientStdout, cmd.stdoutFrom, cmd.stdoutTo)
+}
+
+func commandStderr(rec *Record, cmd *RunCommand) string {
+	return spanOf(rec.ClientStderr, cmd.stderrFrom, cmd.stderrTo)
 }
 
 func spanOf(buf string, from, to int) string {
@@ -119,32 +124,102 @@ func spanOf(buf string, from, to int) string {
 	return buf[from:to]
 }
 
-// commandHolding answers the command whose span satisfies holds, skipping the
-// one that asserted it. It is the diagnosis for the authoring slip this scoping
-// exposes: an assertion written under a command that does not produce what it
-// names. nil when no command wrote it, which is the ordinary failure.
-func commandHolding(rec *Record, asserting *RunCommand, holds func(string) bool) *RunCommand {
-	for i := range rec.RunCommands {
+// commandHolding answers the command whose stream satisfies holds, skipping
+// the one that asserted it. It is the diagnosis for the authoring slip this
+// scoping exposes: an assertion written under a command that does not produce
+// what it names. nil when no command wrote it, which is the ordinary failure.
+//
+// The search runs from the last command back. A daemon's span stays open until
+// the run ends, so it also covers every byte a later command wrote; the latest
+// command whose span holds the needle is the narrowest, and the likeliest
+// writer.
+func commandHolding(rec *Record, asserting *RunCommand, stream func(*Record, *RunCommand) string, holds func(string) bool) *RunCommand {
+	for i := len(rec.RunCommands) - 1; i >= 0; i-- {
 		other := &rec.RunCommands[i]
 		if other == asserting {
 			continue
 		}
-		if holds(commandSpan(rec, other)) {
+		if holds(stream(rec, other)) {
 			return other
 		}
 	}
 	return nil
 }
 
-// checkCommandAssertions evaluates one command's own assertions against its own
-// span, naming the command in every failure so a multi-command file says WHICH
-// step disagreed.
+// commandWithin answers the latest command, other than asserting, whose span
+// on st lies inside asserting's span and holds the text. It narrows where a
+// forbidden line that a reject under a daemon saw sits: the daemon's span
+// covers every later command's bytes, and a span inside it is narrower. It
+// cannot say which process wrote the line, only whose span it was found
+// inside. A span that merely overlaps is not inside, so a reject under a
+// helper never points at the daemon whose span is wider than its own. nil
+// when no narrower span holds it.
+func commandWithin(rec *Record, asserting *RunCommand, st streamOf, holds func(string) bool) *RunCommand {
+	from, to := st.bounds(asserting)
+	for i := len(rec.RunCommands) - 1; i >= 0; i-- {
+		other := &rec.RunCommands[i]
+		if other == asserting {
+			continue
+		}
+		otherFrom, otherTo := st.bounds(other)
+		if otherFrom < from {
+			continue
+		}
+		if otherTo > to {
+			continue
+		}
+		if holds(st.read(rec, other)) {
+			return other
+		}
+	}
+	return nil
+}
+
+// streamOf pairs the stream an assertion reads with the one it does not, so a
+// miss can say the command wrote the needle to the other stream.
+type streamOf struct {
+	name, otherName string
+	read, other     func(*Record, *RunCommand) string
+	bounds          func(*RunCommand) (from, to int)
+}
+
+var (
+	streamStdout = streamOf{name: "stdout", otherName: "stderr", read: commandStdout, other: commandStderr,
+		bounds: func(c *RunCommand) (int, int) { return c.stdoutFrom, c.stdoutTo }}
+	streamStderr = streamOf{name: "stderr", otherName: "stdout", read: commandStderr, other: commandStdout,
+		bounds: func(c *RunCommand) (int, int) { return c.stderrFrom, c.stderrTo }}
+)
+
+// rejectSpan is what every reject= except reject=stderr:pattern= reads: both
+// streams of its own command's span, joined, so the stream name on such a
+// reject selects nothing. That is what the command-scoped contains= rejects
+// and reject=stdout:pattern= read before expect= learned to select a stream;
+// a reject that read one stream would check less than it did.
+//
+// reject=stderr:pattern= is the other kind: a log check over the WHOLE run's
+// stderr wherever it sits in the file, read by validateLogging exactly as it
+// was when the pattern lived on Record. These two are the only places a
+// reject's scope is decided.
+//
+// The last foreground helper's rejects read from its start to the end of the
+// run, past the end its expects stop at (RunCommand.rejectsToRunEnd).
+func rejectSpan(rec *Record, cmd *RunCommand) string {
+	if cmd.rejectsToRunEnd {
+		return spanOf(rec.ClientStdout, cmd.stdoutFrom, len(rec.ClientStdout)) +
+			spanOf(rec.ClientStderr, cmd.stderrFrom, len(rec.ClientStderr))
+	}
+	return commandStdout(rec, cmd) + commandStderr(rec, cmd)
+}
+
+// checkCommandAssertions evaluates one command's own assertions: each expect=
+// against the stream it names within this command's span, and each reject=
+// other than reject=stderr:pattern= against both streams of that span
+// (rejectSpan). Every failure names the command, so a multi-command file says
+// WHICH step disagreed.
 func checkCommandAssertions(rec *Record, cmd *RunCommand) bool {
 	if !cmd.assertsAStream() {
 		return true
 	}
-	out := commandSpan(rec, cmd)
-
 	fail := func(assert string, err error) bool {
 		rec.Error = fmt.Errorf("cmd seq=%d (%s): %w", cmd.Seq, cmd.Exec, err)
 		rec.FailureType = FailTypeStdoutMismatch
@@ -152,47 +227,87 @@ func checkCommandAssertions(rec *Record, cmd *RunCommand) bool {
 		return false
 	}
 
-	// An assertion that names the wrong command is the common authoring slip,
-	// and the runner can answer it rather than leaving the author to bisect: it
-	// holds every command's span. So a miss says WHICH command wrote the needle,
-	// when one did.
-	missing := func(assert, needle string) bool {
-		if other := commandHolding(rec, cmd, func(span string) bool { return strings.Contains(span, needle) }); other != nil {
-			return fail(assert, fmt.Errorf("output does not contain %q, but cmd seq=%d (%s) wrote it: "+
-				"move the assertion under that command", needle, other.Seq, other.Exec))
+	// An assertion that names the wrong command or the wrong stream is the
+	// common authoring slip, and the runner can answer it rather than leaving
+	// the author to bisect: it holds both streams of every command. So a miss
+	// says WHERE the needle was written, when it was.
+	diagnose := func(assert string, st streamOf, what string, holds func(string) bool) bool {
+		if holds(st.other(rec, cmd)) {
+			return fail(assert, fmt.Errorf("output %s on %s, but this command wrote it to %s: "+
+				"assert on %s, or write it to %s", what, st.name, st.otherName, st.otherName, st.name))
 		}
-		return fail(assert, fmt.Errorf("output does not contain %q", needle))
+		if other := commandHolding(rec, cmd, st.read, holds); other != nil {
+			return fail(assert, fmt.Errorf("output %s, but cmd seq=%d (%s) wrote it: "+
+				"move the assertion under that command", what, other.Seq, other.Exec))
+		}
+		return fail(assert, fmt.Errorf("output %s", what))
+	}
+	missing := func(assert string, st streamOf, needle string) bool {
+		return diagnose(assert, st, "does not contain "+strconv.Quote(needle),
+			func(span string) bool { return strings.Contains(span, needle) })
+	}
+	unmatched := func(assert string, st streamOf, re *regexp.Regexp) bool {
+		return diagnose(assert, st, "does not match regex "+strconv.Quote(re.String()), re.MatchString)
+	}
+	// A reject reads both streams, and a daemon's span covers every byte a
+	// later command wrote. So the failure names the stream the text is on and
+	// the narrowest command span inside this one that holds it.
+	forbid := func(assert, what string, holds func(string) bool) bool {
+		for _, st := range [...]streamOf{streamStdout, streamStderr} {
+			if !holds(st.read(rec, cmd)) {
+				continue
+			}
+			if inner := commandWithin(rec, cmd, st, holds); inner != nil {
+				return fail(assert, fmt.Errorf("output %s on %s, found inside the output span of cmd seq=%d (%s)",
+					what, st.name, inner.Seq, inner.Exec))
+			}
+			return fail(assert, fmt.Errorf("output %s on %s", what, st.name))
+		}
+		return fail(assert, fmt.Errorf("output %s across stdout and stderr joined", what))
+	}
+	forbidText := func(assert, needle string) bool {
+		return forbid(assert, "unexpectedly contains "+strconv.Quote(needle),
+			func(span string) bool { return strings.Contains(span, needle) })
+	}
+	forbidMatch := func(assert string, re *regexp.Regexp) bool {
+		return forbid(assert, "matches forbidden regex "+strconv.Quote(re.String()), re.MatchString)
 	}
 
-	unmatched := func(assert string, re *regexp.Regexp) bool {
-		if other := commandHolding(rec, cmd, re.MatchString); other != nil {
-			return fail(assert, fmt.Errorf("output does not match regex %q, but cmd seq=%d (%s) matches it: "+
-				"move the assertion under that command", re.String(), other.Seq, other.Exec))
-		}
-		return fail(assert, fmt.Errorf("output does not match regex %q", re.String()))
-	}
-
+	stdout, stderr := commandStdout(rec, cmd), commandStderr(rec, cmd)
+	both := rejectSpan(rec, cmd)
 	for _, expected := range cmd.ExpectStderrHas {
-		if !strings.Contains(out, expected) {
-			return missing("stderr-contains", expected)
+		if !strings.Contains(stderr, expected) {
+			return missing("stderr-contains", streamStderr, expected)
 		}
 		rec.recordStep("stderr-contains", true, "")
 	}
 	for _, forbidden := range cmd.RejectStderrHas {
-		if strings.Contains(out, forbidden) {
-			return fail("stderr-reject-contains", fmt.Errorf("output unexpectedly contains %q", forbidden))
+		if strings.Contains(both, forbidden) {
+			return forbidText("stderr-reject-contains", forbidden)
 		}
 		rec.recordStep("stderr-reject-contains", true, "")
 	}
+	for _, pattern := range cmd.ExpectStderrRe {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return fail("stderr-regex", fmt.Errorf("invalid stderr regex %q: %w", pattern, err))
+		}
+		if !re.MatchString(stderr) {
+			return unmatched("stderr-regex", streamStderr, re)
+		}
+		rec.recordStep("stderr-regex", true, "")
+	}
+	// cmd.RejectStderrRe is not read here: it is a whole-run log check
+	// (validateLogging), see rejectSpan.
 	for _, expected := range cmd.ExpectStdout {
-		if !strings.Contains(out, expected) {
-			return missing("stdout-contains", expected)
+		if !strings.Contains(stdout, expected) {
+			return missing("stdout-contains", streamStdout, expected)
 		}
 		rec.recordStep("stdout-contains", true, "")
 	}
 	for _, forbidden := range cmd.RejectStdout {
-		if strings.Contains(out, forbidden) {
-			return fail("stdout-not-contains", fmt.Errorf("output unexpectedly contains %q", forbidden))
+		if strings.Contains(both, forbidden) {
+			return forbidText("stdout-not-contains", forbidden)
 		}
 		rec.recordStep("stdout-not-contains", true, "")
 	}
@@ -201,8 +316,8 @@ func checkCommandAssertions(rec *Record, cmd *RunCommand) bool {
 		if err != nil {
 			return fail("stdout-regex", fmt.Errorf("invalid stdout regex %q: %w", pattern, err))
 		}
-		if !re.MatchString(out) {
-			return unmatched("stdout-regex", re)
+		if !re.MatchString(stdout) {
+			return unmatched("stdout-regex", streamStdout, re)
 		}
 		rec.recordStep("stdout-regex", true, "")
 	}
@@ -211,8 +326,8 @@ func checkCommandAssertions(rec *Record, cmd *RunCommand) bool {
 		if err != nil {
 			return fail("stdout-reject-regex", fmt.Errorf("invalid stdout regex %q: %w", pattern, err))
 		}
-		if re.MatchString(out) {
-			return fail("stdout-reject-regex", fmt.Errorf("output matches forbidden regex %q", pattern))
+		if re.MatchString(both) {
+			return forbidMatch("stdout-reject-regex", re)
 		}
 		rec.recordStep("stdout-reject-regex", true, "")
 	}

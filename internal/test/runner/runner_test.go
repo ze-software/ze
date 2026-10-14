@@ -36,7 +36,7 @@ func TestValidateLoggingExpectStderr(t *testing.T) {
 			patterns:  []string{"subsystem=server"},
 			stderr:    "level=INFO subsystem=filter msg=test",
 			wantError: true,
-			errMsg:    "expect=stderr pattern not found: subsystem=server",
+			errMsg:    `output does not match regex "subsystem=server"`,
 		},
 		{
 			name:      "regex_pattern_found",
@@ -55,24 +55,14 @@ func TestValidateLoggingExpectStderr(t *testing.T) {
 			patterns:  []string{"subsystem=server", "level=DEBUG"},
 			stderr:    "level=INFO subsystem=server msg=test",
 			wantError: true,
-			errMsg:    "expect=stderr pattern not found: level=DEBUG",
+			errMsg:    `output does not match regex "level=DEBUG"`,
 		},
 		{
 			name:      "invalid_regex",
 			patterns:  []string{"[invalid"},
 			stderr:    "level=INFO",
 			wantError: true,
-			errMsg:    "invalid expect=stderr pattern",
-		},
-		{
-			// An empty pattern compiles to a regex that matches every string,
-			// so it would pass vacuously regardless of stderr. validateLogging
-			// must reject it so a typo'd expect=stderr can never falsely pass.
-			name:      "empty_pattern_rejected",
-			patterns:  []string{""},
-			stderr:    "any text here",
-			wantError: true,
-			errMsg:    "expect=stderr pattern is empty",
+			errMsg:    "invalid stderr regex",
 		},
 		{
 			name:      "empty_stderr_no_patterns",
@@ -84,10 +74,7 @@ func TestValidateLoggingExpectStderr(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Runner{}
-			rec := &Record{ExpectStderr: tt.patterns}
-
-			err := r.validateLogging(rec, tt.stderr, nil)
+			err := checkStderrPatterns(tt.patterns, nil, tt.stderr)
 
 			if tt.wantError {
 				require.Error(t, err)
@@ -96,6 +83,33 @@ func TestValidateLoggingExpectStderr(t *testing.T) {
 				require.NoError(t, err)
 			}
 		})
+	}
+}
+
+// checkStderrPatterns runs expect=stderr:pattern= and reject=stderr:pattern=
+// over one command whose stderr span is the whole of stderr, through the two
+// checks a run makes in order (checkOutputAssertions, then validateLogging),
+// and answers the error the run would report, nil when every assertion held.
+func checkStderrPatterns(expect, reject []string, stderr string) error {
+	rec := &Record{RunCommands: []RunCommand{{
+		Seq: 1, ExpectStderrRe: expect, RejectStderrRe: reject,
+		stderrFrom: 0, stderrTo: len(stderr),
+	}}}
+	rec.ClientStderr, rec.ClientOutput = stderr, stderr
+	if !checkOutputAssertions(rec) {
+		return rec.Error
+	}
+	return (&Runner{}).validateLogging(rec, stderr, nil)
+}
+
+// TestStderrPatternEmptyIsRefused proves an empty pattern never reaches a run:
+// an empty regex matches every string, so an expect would pass vacuously and a
+// reject would fail every test.
+func TestStderrPatternEmptyIsRefused(t *testing.T) {
+	for _, line := range []string{"expect=stderr:pattern=", "reject=stderr:pattern="} {
+		_, err := parseCILines(t, "cmd=foreground:seq=1:exec=ze version", line)
+		require.Error(t, err, line)
+		assert.Contains(t, err.Error(), "must not be empty", line)
 	}
 }
 
@@ -122,14 +136,14 @@ func TestValidateLoggingRejectStderr(t *testing.T) {
 			patterns:  []string{"level=ERROR"},
 			stderr:    "level=ERROR subsystem=server",
 			wantError: true,
-			errMsg:    "reject=stderr pattern found: level=ERROR",
+			errMsg:    "reject=stderr pattern found in the run's stderr: level=ERROR",
 		},
 		{
 			name:      "regex_pattern_found",
 			patterns:  []string{"error.*fatal"},
 			stderr:    "error: something fatal happened",
 			wantError: true,
-			errMsg:    "reject=stderr pattern found: error.*fatal",
+			errMsg:    "reject=stderr pattern found in the run's stderr: error.*fatal",
 		},
 		{
 			name:      "invalid_regex",
@@ -138,24 +152,11 @@ func TestValidateLoggingRejectStderr(t *testing.T) {
 			wantError: true,
 			errMsg:    "invalid reject=stderr pattern",
 		},
-		{
-			// An empty reject pattern matches every string, so it would fail
-			// every test unconditionally. Reject it at validation so the
-			// directive's intent ("this line must be absent") stays meaningful.
-			name:      "empty_pattern_rejected",
-			patterns:  []string{""},
-			stderr:    "level=INFO",
-			wantError: true,
-			errMsg:    "reject=stderr pattern is empty",
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Runner{}
-			rec := &Record{RejectStderr: tt.patterns}
-
-			err := r.validateLogging(rec, tt.stderr, nil)
+			err := checkStderrPatterns(nil, tt.patterns, tt.stderr)
 
 			if tt.wantError {
 				require.Error(t, err)
@@ -452,20 +453,16 @@ func TestValidateLoggingExpectSyslog(t *testing.T) {
 // VALIDATES: All pattern types work together correctly.
 // PREVENTS: Interaction bugs between different pattern types.
 func TestValidateLoggingCombined(t *testing.T) {
-	r := &Runner{}
-	rec := &Record{
-		ExpectStderr: []string{"subsystem=server"},
-		RejectStderr: []string{"level=ERROR"},
-	}
+	expect, reject := []string{"subsystem=server"}, []string{"level=ERROR"}
 
 	// Both conditions satisfied
-	err := r.validateLogging(rec, "level=INFO subsystem=server", nil)
+	err := checkStderrPatterns(expect, reject, "level=INFO subsystem=server")
 	require.NoError(t, err)
 
 	// Expect passes but reject fails
-	err = r.validateLogging(rec, "level=ERROR subsystem=server", nil)
+	err = checkStderrPatterns(expect, reject, "level=ERROR subsystem=server")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "reject=stderr pattern found")
+	assert.Contains(t, err.Error(), "reject=stderr pattern found in the run's stderr")
 }
 
 // TestValidateJSONJsonOnlyUnsupportedFamily verifies that a json-only message

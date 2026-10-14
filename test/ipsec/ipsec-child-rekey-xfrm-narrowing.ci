@@ -172,6 +172,8 @@ EOF_PEER_A
 # 192.0.2.64/26 and does not cover it, which is the whole point: the proposal covers no
 # pair of the scope in use.
 cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze_test_ike_rekey_ts_local=192.0.2.96/27 ze -:stdin=peer-b:name=peer-b
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
 cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
 cmd=foreground:seq=3:exec=le test fixture ipsec/child-rekey-xfrm-narrowing:timeout=110s
 # Asserted under the fixture that PRINTS these markers. They used to sit
@@ -183,8 +185,6 @@ expect=stderr:contains=the rekey proposal narrows the scope in use
 expect=stderr:contains=hard lifetime expired
 reject=stdout:pattern=POLICY-MOVED
 reject=stdout:pattern=REKEY-ACCEPTED
-reject=stderr:pattern=panic recovered
-reject=stderr:pattern=fatal error
 # signal=term, not the default kill: peer-a's policies are REAL and node-wide, and the
 # release that removes them runs on the way out of runEngine. A SIGKILLed peer-a leaves
 # them in the kernel for the rest of the suite, where ipsec-teardown-leaves-nothing.ci

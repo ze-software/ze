@@ -59,6 +59,10 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+# The regression tell: a form-mode prompt sent to this client is refused by the
+# client with this phrase, so its ABSENCE plus the missing-argument error the
+# client prints under seq=2 is what proves the server never sent one.
+reject=stderr:pattern=did not declare
 cmd=foreground:seq=2:exec=le test mcp --port $PORT --elicit url:stdin=mcp:timeout=20s
 expect=exit:code=1
 expect=stdout:pattern=probe status=200 code=ok
@@ -69,8 +73,4 @@ expect=stderr:contains=missing required argument
 reject=stdout:contains=input_required
 reject=stdout:contains=inputRequests
 reject=stdout:pattern="mode":"form"
-# The regression tell: a form-mode prompt sent to this client is refused by the
-# client with this phrase, so its ABSENCE plus the missing-argument error above
-# is what proves the server never sent one.
-reject=stderr:pattern=did not declare
 reject=stdout:contains=peer1

@@ -9,11 +9,11 @@
 
 cmd=foreground:seq=1:exec=ze interface help
 expect=exit:code=0
-expect=stdout:contains=create bridge
-expect=stdout:contains=up <name>
-expect=stdout:contains=down <name>
-expect=stdout:contains=mtu <name>
-expect=stdout:contains=mac <name>
-expect=stdout:contains=neighbors
-expect=stdout:contains=routes
-expect=stdout:contains=clear counters
+expect=stderr:contains=create bridge
+expect=stderr:contains=up <name>
+expect=stderr:contains=down <name>
+expect=stderr:contains=mtu <name>
+expect=stderr:contains=mac <name>
+expect=stderr:contains=neighbors
+expect=stderr:contains=routes
+expect=stderr:contains=clear counters

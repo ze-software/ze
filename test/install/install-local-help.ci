@@ -3,5 +3,5 @@
 
 cmd=foreground:seq=1:exec=ze install local -h
 expect=exit:code=0
-expect=stdout:contains=--prefix
-expect=stdout:contains=--dry-run
+expect=stderr:contains=--prefix
+expect=stderr:contains=--dry-run

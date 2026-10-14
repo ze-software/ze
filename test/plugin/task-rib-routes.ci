@@ -100,6 +100,19 @@ EOF_CONF
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+# The terminal state is asserted by `task-wait $LAST completed` above: it errors
+# out if the task reaches any OTHER terminal state and times out if it reaches
+# none.
+# // the two stdout needles under the client (`contains=code -32021` and
+# `contains=code -32602`) were removed, not weakened. They could never match
+# whatever the server did: formatProbeResult prints `code=<n>` and the
+# space-separated spelling exists only in a client error string that goes to
+# stderr -- and this file sends no probe at all, so stdout carries no `code=`
+# token in either spelling. The stderr rejects below are the live guards and
+# are unchanged; a refusal here fails the client, which `expect=exit:code=0`
+# already catches.
+reject=stderr:pattern=code \-32021
+reject=stderr:pattern=code \-32602
 cmd=foreground:seq=3:exec=le test mcp --port $PORT2 --tasks:stdin=mcp:timeout=20s
 # Declaring an exit code is what makes the runner wait on -- and judge -- the
 # MCP client at all; without it the peer's EOR would be the only thing checked.
@@ -115,16 +128,3 @@ expect=stdout:contains=10.0.0.0/24
 # and says which way it went, where the key only proved an envelope existed.
 expect=stdout:contains=direction
 expect=stdout:contains=routes
-# The terminal state is asserted by `task-wait $LAST completed` above: it errors
-# out if the task reaches any OTHER terminal state and times out if it reaches
-# none.
-# // the two stdout needles here (`contains=code -32021` and
-# `contains=code -32602`) were removed, not weakened. They could never match
-# whatever the server did: formatProbeResult prints `code=<n>` and the
-# space-separated spelling exists only in a client error string that goes to
-# stderr -- and this file sends no probe at all, so stdout carries no `code=`
-# token in either spelling. The stderr rejects below are the live guards and
-# are unchanged; a refusal here fails the client, which `expect=exit:code=0`
-# already catches.
-reject=stderr:pattern=code \-32021
-reject=stderr:pattern=code \-32602

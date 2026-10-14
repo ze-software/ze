@@ -71,6 +71,8 @@ bgp {
 }
 EOF_CONF
 
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=stderr:pattern=UNATTACHED-SERVED: fed by the peer that attaches it
 expect=stderr:pattern=UNATTACHED-SILENT: fed nothing, as no peer attaches it
 # The daemon SAYS it, and this is the assertion for the one disagreement that
@@ -80,7 +82,4 @@ expect=stderr:pattern=UNATTACHED-SILENT: fed nothing, as no peer attaches it
 # pattern pins the process name: every other unattached program in this daemon
 # gets its own line, and the one under test must be among them.
 expect=stderr:pattern=no peer attaches it.*process=unattached-silent
-
-cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0

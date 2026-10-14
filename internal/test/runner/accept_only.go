@@ -57,9 +57,8 @@ var setEnableErrExit = regexp.MustCompile(`(?m)^[ \t]*set[ \t]+(-[a-zA-Z]*e[a-zA
 //   - no value-observing assertion is populated (BGP/JSON messages, ze-peer
 //     expects/actions, stdout/stderr/syslog contains/pattern, await fence, file
 //     checks, HTTP checks, or engine steps);
-//   - no reject= is present (RejectStderr/RejectStderrMatch/RejectSyslog/
-//     RejectStdoutRegex, and the reject=stdout:contains= form that populates
-//     ExpectStdoutNotMatch);
+//   - no reject= is present (RejectSyslog, and the reject=stdout: and
+//     reject=stderr: forms on RunCommand, which hasStreamAssertion covers);
 //   - no embedded tmpfs script enables `set -e` (it would do its own checking).
 //
 // This is the single definition of "weak"; the lint and the baseline generator
@@ -96,7 +95,6 @@ func isAcceptOnly(r *Record) bool {
 	// Any value-observing assertion disqualifies (the test observes a value).
 	if len(r.Messages) != 0 ||
 		len(r.Expects) != 0 ||
-		len(r.ExpectStderr) != 0 ||
 		len(r.ExpectSyslog) != 0 ||
 		r.hasStreamAssertion() ||
 		len(r.AwaitStderr) != 0 ||
@@ -107,8 +105,8 @@ func isAcceptOnly(r *Record) bool {
 		return false
 	}
 	// Any reject= disqualifies (a negative expectation observes output).
-	// The scoped reject= forms are covered by hasStreamAssertion above.
-	if len(r.RejectStderr) != 0 || len(r.RejectSyslog) != 0 {
+	// The reject= forms held on RunCommand are covered by hasStreamAssertion above.
+	if len(r.RejectSyslog) != 0 {
 		return false
 	}
 	// An embedded errexit script does its own checking.

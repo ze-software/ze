@@ -3,6 +3,6 @@
 
 cmd=foreground:seq=1:exec=ze install -h
 expect=exit:code=0
-expect=stdout:contains=local
-expect=stdout:contains=systemd
-expect=stdout:contains=remote
+expect=stderr:contains=local
+expect=stderr:contains=systemd
+expect=stderr:contains=remote

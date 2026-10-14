@@ -81,10 +81,10 @@ vpn {
 EOF_RESPONDER
 
 cmd=background:seq=1:exec=ze -:stdin=responder
+reject=stderr:pattern=FAIL:
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
 cmd=foreground:seq=2:exec=le test fixture ipsec/error-notify-no-loop:timeout=30s
 
 expect=exit:code=0
 expect=stdout:contains=probe: all out-of-SA notification assertions passed
-reject=stderr:pattern=FAIL:
-reject=stderr:pattern=panic recovered
-reject=stderr:pattern=fatal error

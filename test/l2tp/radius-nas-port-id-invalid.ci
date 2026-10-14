@@ -28,5 +28,5 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stderr:contains=nas-port-id-format: unknown placeholder "interface"
-expect=stderr:contains=supported placeholders: {nas-id}, {tunnel-id}, {session-id}
+expect=stdout:contains=nas-port-id-format: unknown placeholder "interface"
+expect=stdout:contains=supported placeholders: {nas-id}, {tunnel-id}, {session-id}

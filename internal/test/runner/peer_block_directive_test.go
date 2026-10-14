@@ -82,6 +82,18 @@ func TestRejectBGPOutsidePeerBlockNamesTheRemedy(t *testing.T) {
 		"a real directive in the wrong place must not read as a typo")
 }
 
+// TestPeerBlockStderrPatternReachesTheLastCommand proves a reject=stderr:pattern=
+// in a peer block is scoped like any other: the block is parsed after the cmd=
+// lines, so it binds to the last one, which runs the daemon here.
+func TestPeerBlockStderrPatternReachesTheLastCommand(t *testing.T) {
+	rec, err := peerBlockCI(t, "reject=stderr:pattern=level=DEBUG")
+	require.NoError(t, err)
+	require.Len(t, rec.RunCommands, 2)
+	assert.Empty(t, rec.RunCommands[0].RejectStderrRe, "the peer is not the command a daemon log names")
+	assert.Equal(t, []string{"level=DEBUG"}, rec.RunCommands[1].RejectStderrRe,
+		"reject=stderr reaches the daemon's command")
+}
+
 // TestPeerBlockAcceptsRunnerDirective proves a directive ze-peer hands to the
 // runner is now parsed where it stands rather than dropped.
 //
@@ -89,11 +101,9 @@ func TestRejectBGPOutsidePeerBlockNamesTheRemedy(t *testing.T) {
 func TestPeerBlockAcceptsRunnerDirective(t *testing.T) {
 	rec, err := peerBlockCI(t,
 		"option=timeout:value=42s",
-		"reject=stderr:pattern=level=DEBUG",
 		"expect=json:conn=1:seq=1:json={\"a\":1}",
 	)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"level=DEBUG"}, rec.RejectStderr, "reject=stderr reaches the record")
 	assert.Equal(t, "42s", rec.Extra["timeout"],
 		"this fixture declares no file-level timeout, so the block's is adopted")
 }

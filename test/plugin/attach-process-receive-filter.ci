@@ -87,9 +87,8 @@ bgp {
 }
 EOF_CONF
 
-expect=stderr:pattern=FILTER-STATE: state event delivered
-expect=stderr:pattern=FILTER-UPDATE: received update delivered
-
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=stderr:pattern=FILTER-STATE: state event delivered
+expect=stderr:pattern=FILTER-UPDATE: received update delivered
 expect=exit:code=0

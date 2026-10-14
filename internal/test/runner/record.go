@@ -188,8 +188,6 @@ type Record struct {
 
 	// Logging test options
 	EnvVars      []string // option:env:var=KEY:value=VALUE
-	ExpectStderr []string // expect=stderr:pattern=PATTERN (regex)
-	RejectStderr []string // reject=stderr:pattern=PATTERN (regex)
 	ExpectSyslog []string // expect=syslog:pattern=PATTERN (regex)
 	RejectSyslog []string // reject=syslog:pattern=PATTERN (regex)
 	SyslogPort   int      // Dynamically assigned port for test-syslog
@@ -335,11 +333,12 @@ type RunCommand struct {
 	Signal string
 
 	// The stream assertions authored UNDER this command: every expect=stdout,
-	// reject=stdout and expect=stderr:contains / reject=stderr:contains line
-	// between this cmd= line and the next one in the file. Each is checked
-	// against this command's own output span and nothing else
+	// reject=stdout, expect=stderr and reject=stderr line between this cmd=
+	// line and the next one in the file. Each expect= is checked against the
+	// stream it names in this command's own output span and nothing else
 	// (checkOutputAssertions), which is what makes the line mean what its
-	// position says it means.
+	// position says it means. A reject= reads both streams of that span
+	// (rejectSpan), except reject=stderr:pattern=, below.
 	//
 	// They used to be six flat slices on Record, checked against the whole
 	// test's accumulated stdout AND stderr. A file could therefore satisfy an
@@ -349,16 +348,20 @@ type RunCommand struct {
 	// doctor-ipsec-xfrm-unknown`, whose output satisfied the assertion on a
 	// host where the doctor check does not run at all.
 	//
-	// expect=stderr:pattern= and reject=stderr:pattern= are deliberately NOT
-	// here. Those are the daemon-logging mechanism validateLogging owns; they
-	// read the daemon's relayed stderr rather than a command's span, and they
-	// stay on Record.
+	// expect=stderr:pattern= is scoped the same way. It used to stay on Record
+	// and read the whole run's stderr, so a pattern written under one command
+	// matched a line another command wrote. reject=stderr:pattern= is held
+	// here too, but it is a log check over the WHOLE run's stderr wherever it
+	// sits (validateLogging), exactly as it read when it lived on Record: a
+	// command-scoped log reject would check less than that.
 	ExpectStdout    []string // expect=stdout:contains=
 	RejectStdout    []string // reject=stdout:contains=
 	ExpectStdoutRe  []string // expect=stdout:pattern=
 	RejectStdoutRe  []string // reject=stdout:pattern=
 	ExpectStderrHas []string // expect=stderr:contains=
 	RejectStderrHas []string // reject=stderr:contains=
+	ExpectStderrRe  []string // expect=stderr:pattern=
+	RejectStderrRe  []string // reject=stderr:pattern=
 
 	// The half-open byte span this command wrote into the run's two
 	// accumulators. A span is MARKED rather than captured into a buffer of its
@@ -377,6 +380,14 @@ type RunCommand struct {
 	stdoutFrom, stdoutTo int
 	stderrFrom, stderrTo int
 
+	// rejectsToRunEnd is set on the last foreground helper. Its span closes at
+	// its exit, so an expect under it reads only what it wrote, but its rejects
+	// read from its start to the end of the run (rejectSpan): before the helper
+	// was waited for, its span stayed open to the end, so a reject under it saw
+	// the daemon teardown that follows, and closing the span must not narrow
+	// what a reject forbids.
+	rejectsToRunEnd bool
+
 	// ExitCode is the exit code asserted for THIS command (cmd=...:exit=N), as
 	// opposed to the file-level expect=exit:code=, which only ever reaches the
 	// last quick-exit ze command (Record.ExpectExitCode is a single value and
@@ -391,7 +402,8 @@ type RunCommand struct {
 func (c *RunCommand) assertsAStream() bool {
 	return len(c.ExpectStdout) != 0 || len(c.RejectStdout) != 0 ||
 		len(c.ExpectStdoutRe) != 0 || len(c.RejectStdoutRe) != 0 ||
-		len(c.ExpectStderrHas) != 0 || len(c.RejectStderrHas) != 0
+		len(c.ExpectStderrHas) != 0 || len(c.RejectStderrHas) != 0 ||
+		len(c.ExpectStderrRe) != 0 || len(c.RejectStderrRe) != 0
 }
 
 // hasStreamAssertion reports whether any command in this test asserts on a

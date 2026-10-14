@@ -66,6 +66,9 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+# reject=stderr takes a regex, not contains= (parseReject, record_parse.go):
+# a contains= here parses as an empty pattern and is a hard parse error.
+reject=stderr:pattern=elicitation/create
 cmd=foreground:seq=2:exec=le test mcp --port $PORT:stdin=mcp:timeout=15s
 expect=exit:code=1
 # pattern= rather than contains= because the needle carries a colon, and a
@@ -76,6 +79,3 @@ expect=stderr:pattern=missing required argument: command
 # refusal: the request itself was conformant and only its arguments were wrong.
 expect=stderr:contains=command error
 reject=stdout:contains=elicitation/create
-# reject=stderr takes a regex, not contains= (parseReject, record_parse.go):
-# a contains= here parses as an empty pattern and is a hard parse error.
-reject=stderr:pattern=elicitation/create

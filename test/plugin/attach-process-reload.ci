@@ -174,9 +174,8 @@ bgp {
 }
 EOF_CONF2
 
-expect=stderr:pattern=RELOAD-ADDED: told up, reason attached, by the reload
-expect=stderr:pattern=RELOAD-KEPT: fed before and after the reload, on one session
-
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=stderr:pattern=RELOAD-ADDED: told up, reason attached, by the reload
+expect=stderr:pattern=RELOAD-KEPT: fed before and after the reload, on one session
 expect=exit:code=0

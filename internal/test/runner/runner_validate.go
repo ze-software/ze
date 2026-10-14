@@ -325,8 +325,11 @@ func extractObserverFailLine(stderr string, idx int) string {
 // plan/known-failures/README.md for background.
 const observerFailSentinel = "ZE-OBSERVER-FAIL"
 
-// validateLogging validates logging expectations against stderr and syslog output.
-// Returns nil if all validations pass or no logging expectations exist.
+// validateLogging validates the syslog expectations, and on the whole run's
+// stderr the observer sentinel and every reject=stderr:pattern=. Returns nil if
+// all validations pass or no logging expectations exist. expect=stderr:pattern=
+// is not here: it reads the stderr span of its own command
+// (checkOutputAssertions).
 func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.Server) error {
 	// Implicit universal check: the observer-failure sentinel. Applies to every
 	// test, even those without explicit expect/reject patterns, so a compiled
@@ -338,31 +341,29 @@ func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.S
 		return serr
 	}
 
-	// Check expected stderr patterns
-	for _, pattern := range rec.ExpectStderr {
-		if pattern == "" {
-			return errors.New("expect=stderr pattern is empty (an empty regex matches everything); use a specific pattern")
-		}
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return fmt.Errorf("invalid expect=stderr pattern %q: %w", pattern, err)
-		}
-		if !re.MatchString(stderr) {
-			return fmt.Errorf("expect=stderr pattern not found: %s", pattern)
-		}
-	}
-
-	// Check rejected stderr patterns
-	for _, pattern := range rec.RejectStderr {
-		if pattern == "" {
-			return errors.New("reject=stderr pattern is empty (an empty regex matches everything); use a specific pattern")
-		}
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return fmt.Errorf("invalid reject=stderr pattern %q: %w", pattern, err)
-		}
-		if re.MatchString(stderr) {
-			return fmt.Errorf("reject=stderr pattern found: %s", pattern)
+	// reject=stderr:pattern= is a log check over the whole run's stderr,
+	// wherever it sits in the file. The line is held on the command it was
+	// written under, but its scope is the run, exactly what this check read
+	// when the pattern lived on Record: scoped to its command, a reject under
+	// one daemon was blind to the log of a daemon started after it. rejectSpan
+	// carries the scope of every other reject.
+	for i := range rec.RunCommands {
+		cmd := &rec.RunCommands[i]
+		for _, pattern := range cmd.RejectStderrRe {
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				return fmt.Errorf("invalid reject=stderr pattern %q: %w", pattern, err)
+			}
+			if !re.MatchString(stderr) {
+				continue
+			}
+			if inner := commandHolding(rec, nil, commandStderr, re.MatchString); inner != nil {
+				return fmt.Errorf("reject=stderr pattern found in the run's stderr: %s "+
+					"(written under cmd seq=%d; found inside the stderr span of cmd seq=%d (%s))",
+					pattern, cmd.Seq, inner.Seq, inner.Exec)
+			}
+			return fmt.Errorf("reject=stderr pattern found in the run's stderr: %s (written under cmd seq=%d)",
+				pattern, cmd.Seq)
 		}
 	}
 
@@ -886,4 +887,15 @@ func truncate(s string, maxLen int) string {
 	}
 	var tb textbuf.Buffer
 	return tb.Str(s[:maxLen]).Str("...").String()
+}
+
+// rejectsRunStderr reports whether any command carries a reject=stderr:pattern=,
+// the whole-run log check validateLogging evaluates.
+func (r *Record) rejectsRunStderr() bool {
+	for i := range r.RunCommands {
+		if len(r.RunCommands[i].RejectStderrRe) != 0 {
+			return true
+		}
+	}
+	return false
 }

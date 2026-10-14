@@ -135,10 +135,8 @@ func TestParseCIKnownKeysStillParse(t *testing.T) {
 	assert.Equal(t, []string{"forbidden"}, cmd.RejectStdout)
 	assert.Equal(t, []string{`error.*fatal`}, cmd.RejectStdoutRe)
 	assert.Equal(t, []string{"deprecated"}, cmd.RejectStderrHas)
-	// The pattern= forms stay file-level: they are the daemon-stderr mechanism
-	// validateLogging owns, over a buffer no command span indexes.
-	assert.Equal(t, []string{"subsystem=server"}, rec.ExpectStderr)
-	assert.Equal(t, []string{"level=ERROR"}, rec.RejectStderr)
+	assert.Equal(t, []string{"subsystem=server"}, cmd.ExpectStderrRe)
+	assert.Equal(t, []string{"level=ERROR"}, cmd.RejectStderrRe)
 	assert.Equal(t, []string{"daemon"}, rec.ExpectSyslog)
 	require.Len(t, rec.FileChecks, 1)
 	assert.Equal(t, "old", rec.FileChecks[0].NotContains)
@@ -207,9 +205,16 @@ func TestNonContainmentBothPolarities(t *testing.T) {
 			// declares one and the output is that command's whole span.
 			rec, err := parseCILines(t, "cmd=foreground:seq=1:exec=ze version", tt.line)
 			require.NoError(t, err)
-			setClientOutput(rec, tt.output, "")
+			// The stream name selects the stream, so the output is written
+			// to the one the line names.
 			require.Len(t, rec.RunCommands, 1)
-			rec.RunCommands[0].stdoutFrom, rec.RunCommands[0].stdoutTo = 0, len(tt.output)
+			if strings.HasPrefix(tt.line, "reject=stderr:") {
+				setClientOutput(rec, "", tt.output)
+				rec.RunCommands[0].stderrFrom, rec.RunCommands[0].stderrTo = 0, len(tt.output)
+			} else {
+				setClientOutput(rec, tt.output, "")
+				rec.RunCommands[0].stdoutFrom, rec.RunCommands[0].stdoutTo = 0, len(tt.output)
+			}
 
 			assert.Equal(t, tt.wantPassed, checkOutputAssertions(rec))
 

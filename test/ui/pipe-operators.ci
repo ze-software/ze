@@ -96,14 +96,14 @@ expect=stdout:contains=ip-name
 # fails if the page ever stops being derived. They are matched with a leading
 # space so `json` cannot satisfy the check for a name inside `ndjson`.
 cmd=foreground:seq=13:exec=ze pipe --help:exit=0
-expect=stdout:contains=Global Operators
-expect=stdout:contains=Row Operators
-expect=stdout:contains= raw
-expect=stdout:contains= log
-expect=stdout:contains= save
-expect=stdout:contains= origin
-expect=stdout:contains= display
-expect=stdout:contains= fill
+expect=stderr:contains=Global Operators
+expect=stderr:contains=Row Operators
+expect=stderr:contains= raw
+expect=stderr:contains= log
+expect=stderr:contains= save
+expect=stderr:contains= origin
+expect=stderr:contains= display
+expect=stderr:contains= fill
 
 # no args -> usage, exit 1 (inline exit is the real per-command proof)
 cmd=foreground:seq=14:exec=ze pipe:exit=1

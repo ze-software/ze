@@ -9,7 +9,6 @@
 # VALIDATES: AC-4 -- startup with expired marker produces R=0, marker removed.
 # PREVENTS: Stale marker causing R=1 after restart window expired.
 
-
 # The fixture seeds the marker through the same tree store the daemon opens.
 
 # Enable GR subsystem logging to confirm marker is NOT detected as valid
@@ -26,11 +25,6 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
-
-# Marker was expired -- "GR restart marker found" must NOT appear.
-# reject= must be outside the peer block (only expect=/action= are parsed inside).
-# Uses pattern= (not contains=) because parseReject only supports pattern=.
-reject=stderr:pattern=GR restart marker found
 
 # ze bgp configuration (identical to gr-marker-cold-start)
 stdin=ze-bgp:terminator=EOF_CONF
@@ -73,7 +67,6 @@ bgp {
 			group-updates disable
 		}
 
-
 		update {
 			attribute {
 				origin igp
@@ -104,3 +97,6 @@ EOF_CONF
 cmd=foreground:seq=1:exec=le test fixture plugin/gr-marker-expired-create
 cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s
+# Marker was expired -- "GR restart marker found" must NOT appear.
+# reject=stderr:pattern= reads the whole run's stderr, wherever it sits.
+reject=stderr:pattern=GR restart marker found

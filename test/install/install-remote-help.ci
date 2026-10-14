@@ -3,9 +3,9 @@
 
 cmd=foreground:seq=1:exec=ze install remote -h
 expect=exit:code=0
-expect=stdout:contains=--interface
-expect=stdout:contains=--network
-expect=stdout:contains=--image
-expect=stdout:contains=--ssh-username
-expect=stdout:contains=--ssh-password
-expect=stdout:contains=--address
+expect=stderr:contains=--interface
+expect=stderr:contains=--network
+expect=stderr:contains=--image
+expect=stderr:contains=--ssh-username
+expect=stderr:contains=--ssh-password
+expect=stderr:contains=--address

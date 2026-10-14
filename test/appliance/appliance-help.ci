@@ -3,11 +3,11 @@
 
 cmd=foreground:seq=1:exec=ze appliance --help
 expect=exit:code=0
-expect=stdout:contains=init
-expect=stdout:contains=build
-expect=stdout:contains=iso
-expect=stdout:contains=push
-expect=stdout:contains=list
-expect=stdout:contains=show
-expect=stdout:contains=export
-expect=stdout:contains=import
+expect=stderr:contains=init
+expect=stderr:contains=build
+expect=stderr:contains=iso
+expect=stderr:contains=push
+expect=stderr:contains=list
+expect=stderr:contains=show
+expect=stderr:contains=export
+expect=stderr:contains=import

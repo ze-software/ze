@@ -146,6 +146,8 @@ vpn {
 EOF_PEER_A
 
 cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-b:name=peer-b
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
 cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
 cmd=foreground:seq=3:exec=le test fixture ipsec/child-rekey-xfrm:timeout=110s
 # Asserted under the fixture that PRINTS these markers. They used to sit
@@ -156,8 +158,6 @@ expect=stdout:contains=REKEYED:
 expect=stdout:contains=RETIRED:
 expect=stdout:contains=POLICY-STABLE:
 reject=stdout:pattern=POLICY-MOVED
-reject=stderr:pattern=panic recovered
-reject=stderr:pattern=fatal error
 # signal=term, not the default kill: peer-a's policies are REAL and node-wide, and the
 # release that removes them runs on the way out of runEngine. A SIGKILLed peer-a leaves
 # them in the kernel for the rest of the suite, where ipsec-teardown-leaves-nothing.ci

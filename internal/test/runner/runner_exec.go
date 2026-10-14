@@ -453,8 +453,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 			rec.recordStep("logging", false, logErr.Error())
 			return false
 		}
-		if len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
-			len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 {
+		if len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 || rec.rejectsRunStderr() {
 			rec.recordStep("logging", true, "")
 		}
 		if fileErr := r.validateFileChecks(rec); fileErr != nil {
@@ -652,6 +651,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// fed into the expect=exit check when there is no daemon fgProc to wait on.
 	var lastQuickZeErr error
 	quickZeRan := false
+	// lastHelperErr is the exit of a foreground helper that is the last cmd=
+	// line: expect=exit:code= asserts it, and a non-zero exit with no such
+	// assertion fails the test like any other helper's.
+	var lastHelperErr error
+	lastHelperRan := false
 
 	// Track temp files for cleanup after loop (avoid defer in loop)
 	var tmpFilesToClean []string
@@ -1122,8 +1126,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// precedes other commands: wait for completion before starting the
 			// next command. Without this, the setup script may not finish before
 			// ze reads its output, causing races under concurrent test load.
-			// Only applies when followed by more commands; if it's the last
-			// command, fall through to normal exit code handling.
+			// The last command is the arm below, whose exit is the test's own.
 			if err := proc.Wait(); err != nil {
 				// Collect the output first. This early return skips the
 				// collection at the bottom of the function. A barrier script
@@ -1138,7 +1141,49 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				setClientOutput(rec, clientStdout.String(), clientStderr.String())
 				rec.PeerOutput = collectPeerOutput(peerOutputs)
 				rec.Duration = time.Since(rec.StartTime)
+				// The deadline killing the helper's process group is a
+				// timeout, and says so, rather than a bare "signal: killed".
+				if testCtx.Err() != nil {
+					rec.Error = fmt.Errorf("cmd seq=%d (%s): foreground helper did not exit within %s; "+
+						"a process the test does not wait for is cmd=background", cmd.Seq, cmd.Exec, timeout)
+					rec.SetState(StateTimeout)
+					rec.FailureType = stateTimeout
+					return false
+				}
 				rec.Error = fmt.Errorf("setup script %s: %w", binName, err)
+				return false
+			}
+			continue // Already finished, don't track for cleanup
+		case cmd.Mode == modeForeground && binName != binNameZe && binName != binNamePeer:
+			// The last command is a foreground helper. It is waited for like
+			// every other helper, so its output reaches its assertions and its
+			// exit is what expect=exit:code= asserts. It used to fall to the
+			// daemon arm below: started, never waited, and torn down, so its
+			// output counted only if it won that race, and a helper that never
+			// exited passed as a daemon. A process the test does not wait for is
+			// cmd=background. Its span closes here for its expects; its
+			// rejects still read to the end of the run (rejectsToRunEnd).
+			lastHelperErr = proc.Wait()
+			cmd.stdoutTo, cmd.stderrTo = clientStdout.mark(), clientStderr.mark()
+			cmd.rejectsToRunEnd = true
+			lastHelperRan = true
+			if testCtx.Err() != nil {
+				setClientOutput(rec, clientStdout.String(), clientStderr.String())
+				rec.PeerOutput = collectPeerOutput(peerOutputs)
+				rec.Duration = time.Since(rec.StartTime)
+				rec.Error = fmt.Errorf("cmd seq=%d (%s): foreground helper did not exit within %s; "+
+					"a process the test does not wait for is cmd=background", cmd.Seq, cmd.Exec, timeout)
+				rec.SetState(StateTimeout)
+				rec.FailureType = stateTimeout
+				return false
+			}
+			if lastHelperErr != nil && rec.ExpectExitCode == nil {
+				// A non-zero exit no assertion claims fails the test the way
+				// a helper earlier in the file does.
+				setClientOutput(rec, clientStdout.String(), clientStderr.String())
+				rec.PeerOutput = collectPeerOutput(peerOutputs)
+				rec.Duration = time.Since(rec.StartTime)
+				rec.Error = fmt.Errorf("cmd seq=%d (%s): helper: %w", cmd.Seq, cmd.Exec, lastHelperErr)
 				return false
 			}
 			continue // Already finished, don't track for cleanup
@@ -1169,9 +1214,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			bgProcs = append(bgProcs, proc) // Track for cleanup
 
 			// Write daemon PID to tmpfs dir so background helpers can send signals.
-			// Guard on ze: a foreground helper that is the last command also lands
-			// here and must NOT clobber daemon.pid with its own pid. A helper that
-			// reads daemon.pid to signal the daemon would otherwise signal itself.
+			// Guard on ze: a foreground helper never lands here (the arms above
+			// wait for it), and only a ze daemon's pid belongs in daemon.pid. A
+			// helper that reads daemon.pid to signal the daemon would otherwise
+			// signal itself.
 			if zeReadyFileEnabled(cmd.Mode, binName, rec.WorkDir) && proc.Process != nil {
 				// When no ze-peer provides BGP-level synchronization, wait for
 				// the process readiness file before writing daemon.pid. This
@@ -1290,6 +1336,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// classifier arm matches, so the record landed in state "unknown".
 		// The reject-fence bucket starts no peer, so this waits on nothing there.
 		err = waitForPeers(peerOutputs)
+	case rec.ExpectExitCode != nil && lastHelperRan:
+		// Exit-code test whose last command is a foreground helper, already
+		// waited in the loop: the code asserted is that helper's own.
+		err = lastHelperErr
 	case rec.ExpectExitCode != nil && fgProc != nil:
 		// Testing exit code: wait for foreground process
 		err = fgProc.Wait()
@@ -1477,8 +1527,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		rec.recordStep("logging", false, logErr.Error())
 		return false
 	}
-	if len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
-		len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 {
+	if len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 || rec.rejectsRunStderr() {
 		rec.recordStep("logging", true, "")
 	}
 	if fileErr := r.validateFileChecks(rec); fileErr != nil {

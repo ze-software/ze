@@ -8,10 +8,13 @@
 
 option=timeout:value=20s
 
-# Run through a native fixture so the runner treats the server as a foreground
-# daemon rather than as a `ze update` subcommand. The fixture directly replaces
-# itself with the product binary, preserving its environment, stdio, and signals.
-cmd=foreground:seq=1:exec=le test fixture ui/update-serve $PORT:timeout=20s
+# Run through a native fixture so the runner does not class the server as a
+# quick-exit `ze update` subcommand. The fixture directly replaces itself with
+# the product binary, preserving its environment, stdio, and signals. The server
+# never exits by itself, so it is cmd=background: the runner waits for a
+# foreground helper (since 2026-10-14), and this line passed as foreground only
+# because the runner used to class a last foreground helper as a daemon.
+cmd=background:seq=1:exec=le test fixture ui/update-serve $PORT:timeout=20s
 
 # http=wait polls until the listener is up; http=get is a real check (populates
 # HTTPChecks) so the test is self-validated and the runner does not fall through
