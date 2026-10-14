@@ -1,0 +1,77 @@
+# srpolicy-receive-nlri-length -- RFC 9830 Section 5, a received SR Policy NLRI of the
+# wrong length, over a live iBGP session.
+#
+# Section 5: "When the error determined allows for the router to skip the malformed
+# NLRI(s) and continue the processing of the rest of the BGP UPDATE message, then it MUST
+# handle such malformed NLRIs as 'treat-as-withdraw'." and "the router MUST perform
+# "session reset" when the session is only being used for SR Policy or when a "AFI/SAFI
+# disable" action is not possible." The IPv4 length is 96 bits (Section 2.1). A length
+# that is not a whole number of octets leaves the NLRI section unwalkable, and this
+# session carries SR Policy only, so that is a session reset (judgeSRPolicySection, the
+# srpolicy syntax rule registered in internal/core/bgp/nlri/nlrisyntax and consulted by
+# validateMPNLRISyntax).
+#
+# Three UPDATEs, in TCP order on one session, each an AFI 1 / SAFI 73 MP_REACH_NLRI with
+# next hop 192.0.2.1, ORIGIN IGP, an empty AS_PATH, LOCAL_PREF 100 and one Tunnel
+# Encapsulation attribute holding a type-15 SR Policy TLV (the bytes ze itself encodes in
+# test/encode/bgp-srpolicy-1-encode.ci):
+#   U1: policy A, length 0x60 (96 bits): distinguisher 0, color 100, endpoint 10.0.0.1.
+#   U2: A again, then N, length 0x68 (104 bits, 13 octets): color 200, endpoint 10.0.0.2.
+#       The section walks, N has the wrong length: treat-as-withdraw, session kept.
+#   U3: one NLRI of length 0x64 (100 bits): the section cannot be walked, so ze resets the
+#       session with NOTIFICATION 3/1 (Malformed Attribute List).
+# ze reads one connection on one goroutine in TCP order, so the NOTIFICATION answering U3
+# proves U2 was already judged, and that the session survived U2.
+
+option=env:var=ze.log.bgp.reactor.session:value=debug
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=linger:value=true
+
+# End-of-RIB for ipv4/sr-policy: an MP_UNREACH_NLRI (extended length) holding AFI 1 / SAFI 73 alone.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000149
+
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006902000000524001010040020040050400000064800E1600014904C0000201006000000000000000640A000001C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007702000000604001010040020040050400000064800E2400014904C0000201006000000000000000640A0000016800000000000000C80A00000200C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006A02000000534001010040020040050400000064800E1700014904C0000201006400000000000000C80A00000400C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000
+
+# NOTIFICATION code 3 (UPDATE Message Error), subcode 1 (Malformed Attribute List), for U3.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030301
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/sr-policy { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+# U2 is treat-as-withdraw for the wrong length, and is not a session reset.
+expect=stderr:contains=RFC 9830 Section 5: SR Policy NLRI length 104 bits, the family requires 96
+reject=stderr:pattern=session-reset.*SR Policy NLRI length
+# U3 is the session reset for the unwalkable section.
+expect=stderr:contains=RFC 9830 Section 5: SR Policy NLRI section cannot be walked
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

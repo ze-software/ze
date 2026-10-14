@@ -1,0 +1,75 @@
+# srpolicy-receive-no-tunnel-encap -- RFC 9830 Section 4.2.1, a received SR Policy UPDATE
+# with no Tunnel Encapsulation attribute, over a live iBGP session.
+#
+# Section 4.2.1: "The Tunnel Encapsulation Attribute MUST be attached to the BGP UPDATE
+# message and MUST have a Tunnel Type TLV set to SR Policy (code point is 15)." Section 5:
+# "An SR Policy update that is determined not to be valid (and, therefore, malformed) based
+# on the rules described in Section 4.2.1 MUST be handled by the "treat-as-withdraw"
+# strategy." The branch is in applyTunnelEncap
+# (internal/component/bgp/reactor/session_tunnel_encap.go), before its early return for an
+# UPDATE that carries no attribute 23.
+#
+# Three UPDATEs, in TCP order on one session, each an AFI 1 / SAFI 73 MP_REACH_NLRI with
+# next hop 192.0.2.1, ORIGIN IGP, an empty AS_PATH and LOCAL_PREF 100:
+#   U1: policy B (distinguisher 0, color 300, endpoint 10.0.0.3) with one Tunnel
+#       Encapsulation attribute holding a type-15 SR Policy TLV (the bytes ze itself
+#       encodes in test/encode/bgp-srpolicy-1-encode.ci).
+#   U2: B again with an IPv4-address Route Target 12.0.0.2:0 (type 0x01, subtype 0x02)
+#       and no Tunnel Encapsulation attribute: treat-as-withdraw, session kept.
+#   U3: one NLRI of length 0x64 (100 bits), with the U1 tunnel: the NLRI section cannot
+#       be walked, so ze resets the session with NOTIFICATION 3/1. It is the fence: ze
+#       reads one connection on one goroutine in TCP order, so the NOTIFICATION answering
+#       U3 proves U2 was already judged, and that the session survived U2.
+
+option=env:var=ze.log.bgp.reactor.session:value=debug
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=linger:value=true
+
+# End-of-RIB for ipv4/sr-policy: an MP_UNREACH_NLRI (extended length) holding AFI 1 / SAFI 73 alone.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000149
+
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006902000000524001010040020040050400000064800E1600014904C00002010060000000000000012C0A000003C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004902000000324001010040020040050400000064800E1600014904C00002010060000000000000012C0A000003C0100801020C0000020000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006A02000000534001010040020040050400000064800E1700014904C0000201006400000000000000C80A00000400C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000
+
+# NOTIFICATION code 3 (UPDATE Message Error), subcode 1 (Malformed Attribute List), for U3.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030301
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/sr-policy { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+# U2 is treat-as-withdraw for the missing attribute, and is not a session reset.
+expect=stderr:contains=RFC 9830 Section 4.2.1: SR Policy UPDATE carries no Tunnel Encapsulation attribute
+reject=stderr:pattern=session-reset.*Tunnel Encapsulation
+# U3 is the session reset that fences U2.
+expect=stderr:contains=RFC 9830 Section 5: SR Policy NLRI section cannot be walked
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
