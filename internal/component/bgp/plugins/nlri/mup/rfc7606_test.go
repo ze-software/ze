@@ -34,7 +34,7 @@ func TestImplementedMatchesRouteTypeNames(t *testing.T) {
 // PREVENTS: an implemented type being discarded, which would drop working MUP routes.
 func TestRecognizeNLRIAcceptsImplementedTypes(t *testing.T) {
 	for _, rt := range []MUPRouteType{MUPISD, MUPDSD, MUPT1ST, MUPT2ST} {
-		if !RecognizeNLRI(mupWireNLRI(byte(MUPArch3GPP5G), uint16(rt), 0xaa, 0xbb), false) {
+		if RecognizeNLRI(mupWireNLRI(byte(MUPArch3GPP5G), uint16(rt), 0xaa, 0xbb), false) != nlritype.Keep {
 			t.Errorf("route type %d is implemented and must be recognized", rt)
 		}
 	}
@@ -50,12 +50,12 @@ func TestRecognizeNLRIAcceptsImplementedTypes(t *testing.T) {
 // RFC requirement: RFC7606-5.4-1 positive -- a BGP-MUP architecture and route type pair ze does not implement is not recognized, so the Section 5.4 discard removes it.
 func TestRecognizeNLRIRejectsUnimplementedTypes(t *testing.T) {
 	for _, rt := range []uint16{0, 5, 6, 99, 0xffff} {
-		if RecognizeNLRI(mupWireNLRI(byte(MUPArch3GPP5G), rt, 0xaa), false) {
+		if RecognizeNLRI(mupWireNLRI(byte(MUPArch3GPP5G), rt, 0xaa), false) != nlritype.Discard {
 			t.Errorf("route type %d is not defined by the draft and must not be recognized", rt)
 		}
 	}
 	for _, arch := range []byte{0, 2, 3, 255} {
-		if RecognizeNLRI(mupWireNLRI(arch, uint16(MUPISD), 0xaa), false) {
+		if RecognizeNLRI(mupWireNLRI(arch, uint16(MUPISD), 0xaa), false) != nlritype.Discard {
 			t.Errorf("architecture type %d is not implemented and must not be recognized", arch)
 		}
 	}
@@ -67,10 +67,10 @@ func TestRecognizeNLRIRejectsUnimplementedTypes(t *testing.T) {
 func TestRecognizeNLRISkipsPathID(t *testing.T) {
 	withPathID := append([]byte{0x00, 0x00, 0x00, 0x63},
 		mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPDSD), 0xaa)...)
-	if !RecognizeNLRI(withPathID, true) {
+	if RecognizeNLRI(withPathID, true) != nlritype.Keep {
 		t.Fatal("the pair after the path id is implemented and must be recognized")
 	}
-	if RecognizeNLRI(withPathID, false) {
+	if RecognizeNLRI(withPathID, false) != nlritype.Discard {
 		t.Fatal("without add-path the leading byte is 0x00, not an implemented architecture")
 	}
 }
@@ -79,13 +79,13 @@ func TestRecognizeNLRISkipsPathID(t *testing.T) {
 // rather than read past.
 // PREVENTS: an out-of-range read, and a truncated NLRI being relayed as recognized.
 func TestRecognizeNLRIRefusesTruncated(t *testing.T) {
-	if RecognizeNLRI(nil, false) {
+	if RecognizeNLRI(nil, false) != nlritype.Discard {
 		t.Error("an empty NLRI carries no type")
 	}
-	if RecognizeNLRI([]byte{byte(MUPArch3GPP5G), 0x00}, false) {
+	if RecognizeNLRI([]byte{byte(MUPArch3GPP5G), 0x00}, false) != nlritype.Discard {
 		t.Error("two bytes cannot hold a one-octet architecture and a two-octet route type")
 	}
-	if RecognizeNLRI([]byte{0x00, 0x00, 0x00, byte(MUPArch3GPP5G), 0x00}, true) {
+	if RecognizeNLRI([]byte{0x00, 0x00, 0x00, byte(MUPArch3GPP5G), 0x00}, true) != nlritype.Discard {
 		t.Error("a slice shorter than the path id plus the type carries no type")
 	}
 }
@@ -99,10 +99,12 @@ func TestRecognizerIsRegisteredForBothMUPFamilies(t *testing.T) {
 		if fn == nil {
 			t.Fatalf("the mup plugin must register its Section 5.4 recognizer for %s", fam)
 		}
-		if !fn(mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT1ST), 0x00), false) {
-			t.Errorf("%s: the registered recognizer must accept an implemented pair", fam)
+		// An implemented pair is never discarded. This one-octet body is malformed, so the
+		// registered recognizer withdraws it (draft-ietf-bess-mup-safi Section 3.1.3.1).
+		if got := fn(mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT1ST), 0x00), false); got != nlritype.Withdraw {
+			t.Errorf("%s: the registered recognizer must withdraw a malformed implemented pair, got %d", fam, got)
 		}
-		if fn(mupWireNLRI(byte(MUPArch3GPP5G), 99, 0x00), false) {
+		if fn(mupWireNLRI(byte(MUPArch3GPP5G), 99, 0x00), false) != nlritype.Discard {
 			t.Errorf("%s: the registered recognizer must refuse an undefined route type", fam)
 		}
 	}

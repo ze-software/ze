@@ -21,16 +21,26 @@ func evpnNLRI(routeType byte, body ...byte) []byte {
 }
 
 // recognizeUpToFive accepts EVPN route types 1..5, the set ze implements.
-func recognizeUpToFive(nlriBytes []byte, addPath bool) bool {
+func recognizeUpToFive(nlriBytes []byte, addPath bool) Verdict {
 	off := 0
 	if addPath {
 		off = 4
 	}
 	if off >= len(nlriBytes) {
-		return false
+		return Discard
 	}
-	rt := nlriBytes[off]
-	return rt >= 1 && rt <= 5
+	if rt := nlriBytes[off]; rt >= 1 && rt <= 5 {
+		return Keep
+	}
+	return Discard
+}
+
+// retain runs Retain over an announcement and reads the two results the discard tests
+// assert, so those tests keep their shape.
+func retain(fn Recognizer, fam family.Family, data []byte, addPath bool) ([]byte, int, error) {
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	r, err := Retain(fn, fam, data, addPath, true, scratch[:])
+	return r.Kept, r.Discarded, err
 }
 
 func withEVPNRecognizer(t *testing.T) {
@@ -48,7 +58,7 @@ func TestRetainLeavesUnruledFamilyUntouched(t *testing.T) {
 	ResetForTest()
 	data := append(evpnNLRI(1, 0xaa), evpnNLRI(99, 0xbb)...)
 
-	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, data, false)
+	kept, dropped, err := retain(Get(evpnFamily), evpnFamily, data, false)
 	if err != nil {
 		t.Fatalf("unruled family must not error: %v", err)
 	}
@@ -67,7 +77,7 @@ func TestRetainKeepsRecognizedTypesZeroCopy(t *testing.T) {
 	withEVPNRecognizer(t)
 	data := append(evpnNLRI(2, 0xaa, 0xbb), evpnNLRI(5, 0xcc)...)
 
-	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, data, false)
+	kept, dropped, err := retain(Get(evpnFamily), evpnFamily, data, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -94,7 +104,7 @@ func TestRetainDropsOnlyTheUnrecognized(t *testing.T) {
 	data = append(data, drop...)
 	data = append(data, keepB...)
 
-	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, data, false)
+	kept, dropped, err := retain(Get(evpnFamily), evpnFamily, data, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -116,7 +126,7 @@ func TestRetainReportsEverythingDropped(t *testing.T) {
 	withEVPNRecognizer(t)
 	data := append(evpnNLRI(99, 0xaa), evpnNLRI(200, 0xbb)...)
 
-	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, data, false)
+	kept, dropped, err := retain(Get(evpnFamily), evpnFamily, data, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -138,7 +148,7 @@ func TestRetainSkipsPathIDUnderAddPath(t *testing.T) {
 	keep := append(append([]byte{}, pathID...), evpnNLRI(2, 0xaa)...)
 	drop := append(append([]byte{}, pathID...), evpnNLRI(99, 0xbb)...)
 
-	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, append(append([]byte{}, keep...), drop...), true)
+	kept, dropped, err := retain(Get(evpnFamily), evpnFamily, append(append([]byte{}, keep...), drop...), true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -158,7 +168,7 @@ func TestRetainLeavesMalformedFramingAlone(t *testing.T) {
 	// Declares 200 body octets but only two follow.
 	data := []byte{0x02, 0xc8, 0xaa, 0xbb}
 
-	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, data, false)
+	kept, dropped, err := retain(Get(evpnFamily), evpnFamily, data, false)
 	if err == nil {
 		t.Fatal("malformed framing must be reported")
 	}
@@ -174,7 +184,7 @@ func TestRetainLeavesMalformedFramingAlone(t *testing.T) {
 // PREVENTS: an MP_UNREACH with no withdrawn routes being treated as malformed.
 func TestRetainAcceptsEmptySection(t *testing.T) {
 	withEVPNRecognizer(t)
-	kept, dropped, err := Retain(Get(evpnFamily), evpnFamily, nil, false)
+	kept, dropped, err := retain(Get(evpnFamily), evpnFamily, nil, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -240,5 +250,75 @@ func TestGetReturnsOnlyRuledFamilies(t *testing.T) {
 	}
 	if Get(family.IPv4Unicast) != nil {
 		t.Fatal("ipv4/unicast has no recognizer, so nothing binds it")
+	}
+}
+
+var mupFamily = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMUP}
+
+// mupISD frames an IPv4 Interwork Segment Discovery NLRI (draft-ietf-bess-mup-safi
+// Section 3.1.1): architecture 1, route type 1, RD 0:0, the prefix, then trailing octets.
+func mupISD(prefixBits byte, prefix []byte, trailing ...byte) []byte {
+	body := append(make([]byte, 8), prefixBits)
+	body = append(append(body, prefix...), trailing...)
+	return append([]byte{1, 0, 1, byte(len(body))}, body...)
+}
+
+// withdrawAll answers Withdraw for every NLRI, so the tests below see only what Retain does
+// with that verdict.
+func withdrawAll([]byte, bool) Verdict { return Withdraw }
+
+// VALIDATES: in an announcement a Withdraw verdict moves the NLRI to Withdrawn, path
+// identifier included, and an NLRI whose route key cannot form is discarded into Unkeyable.
+// PREVENTS: a malformed route staying installed, or a withdrawal that names no route being
+// relayed.
+func TestRetainSplitsWithdrawnFromUnkeyable(t *testing.T) {
+	keyable := mupISD(24, []byte{10, 0, 0})
+	unkeyableISD := mupISD(24, []byte{10, 0, 1}, 0xff) // one octet past the prefix
+	pathID := []byte{0, 0, 0, 7}
+	data := append(append(append([]byte{}, pathID...), keyable...), append(append([]byte{}, pathID...), unkeyableISD...)...)
+
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	r, err := Retain(withdrawAll, mupFamily, data, true, true, scratch[:])
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(r.Kept) != 0 {
+		t.Fatalf("nothing should survive, kept %x", r.Kept)
+	}
+	if want := append(append([]byte{}, pathID...), keyable...); !bytes.Equal(r.Withdrawn, want) || r.WithdrawnCount != 1 {
+		t.Fatalf("withdrawn %x (%d), want %x (1)", r.Withdrawn, r.WithdrawnCount, want)
+	}
+	if want := append(append([]byte{}, pathID...), unkeyableISD...); !bytes.Equal(r.Unkeyable, want) || r.Discarded != 1 {
+		t.Fatalf("unkeyable %x (discarded %d), want %x (1)", r.Unkeyable, r.Discarded, want)
+	}
+}
+
+// VALIDATES: in a withdrawal section a Withdraw verdict keeps the NLRI, zero copy.
+// PREVENTS: the withdrawal of a malformed route, which an upstream speaker relays after
+// its own treat-as-withdraw, being dropped so the route stays installed downstream.
+func TestRetainKeepsWithdrawVerdictInAWithdrawal(t *testing.T) {
+	data := mupISD(24, []byte{10, 0, 1}, 0xff)
+	r, err := Retain(withdrawAll, mupFamily, data, false, false, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if r.Removed() || &r.Kept[0] != &data[0] {
+		t.Fatalf("a withdrawal section must be returned unchanged, got %+v", r)
+	}
+}
+
+// VALIDATES: the per-NLRI verdict, key check included, allocates nothing.
+// PREVENTS: the key check that decides withdraw against discard costing an allocation per
+// malformed NLRI a peer sends. (Splitting the section allocates, as it did before.)
+func TestRetainVerdictAllocatesNothing(t *testing.T) {
+	one := mupISD(24, []byte{10, 0, 0})
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	key := nlrisplit.GetPrefixKey(mupFamily)
+	if n := testing.AllocsPerRun(100, func() {
+		if judge(withdrawAll, key, one, false, scratch[:]) != Withdraw {
+			t.Fatal("a keyable ISD must stay a withdrawal")
+		}
+	}); n != 0 {
+		t.Fatalf("judge allocated %v times", n)
 	}
 }

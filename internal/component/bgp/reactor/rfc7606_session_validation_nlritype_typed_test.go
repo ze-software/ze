@@ -52,15 +52,15 @@ func mupWireNLRI(routeType uint16, body ...byte) []byte {
 func registerTypeLenRecognizer(t *testing.T, fam family.Family, hi byte) {
 	t.Helper()
 	t.Cleanup(nlritype.SnapshotForTest())
-	require.NoError(t, nlritype.Register(fam, func(nlriBytes []byte, addPath bool) bool {
+	require.NoError(t, nlritype.Register(fam, func(nlriBytes []byte, addPath bool) nlritype.Verdict {
 		off := 0
 		if addPath {
 			off = 4
 		}
 		if off >= len(nlriBytes) {
-			return false
+			return nlritype.Discard
 		}
-		return nlriBytes[off] >= 1 && nlriBytes[off] <= hi
+		return keepIf(nlriBytes[off] >= 1 && nlriBytes[off] <= hi)
 	}))
 }
 
@@ -71,16 +71,16 @@ func registerTypeLenRecognizer(t *testing.T, fam family.Family, hi byte) {
 func registerMUPRecognizer(t *testing.T) {
 	t.Helper()
 	t.Cleanup(nlritype.SnapshotForTest())
-	require.NoError(t, nlritype.Register(mupFam, func(nlriBytes []byte, addPath bool) bool {
+	require.NoError(t, nlritype.Register(mupFam, func(nlriBytes []byte, addPath bool) nlritype.Verdict {
 		off := 0
 		if addPath {
 			off = 4
 		}
 		if off+3 > len(nlriBytes) {
-			return false
+			return nlritype.Discard
 		}
 		rt := uint16(nlriBytes[off+1])<<8 | uint16(nlriBytes[off+2])
-		return nlriBytes[off] == 1 && rt >= 1 && rt <= 4
+		return keepIf(nlriBytes[off] == 1 && rt >= 1 && rt <= 4)
 	}))
 }
 

@@ -28,6 +28,7 @@ package reactor
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -39,9 +40,20 @@ import (
 // mpNLRIEdit is one MP attribute's replacement NLRI section.
 type mpNLRIEdit struct {
 	code    uint8
+	afi     uint16
+	safi    uint8
 	nlri    []byte // the surviving NLRIs; empty means drop the whole attribute
 	dropped int
+	// withdrawn holds the announced NLRIs the family's recognizer answered
+	// treat-as-withdraw for, path identifiers included. Only an MP_REACH edit has any.
+	withdrawn []byte
 }
+
+// Label values of ze_bgp_update_nlri_malformed_total.
+const (
+	typedNLRIActionWithdrawn = "withdrawn"
+	typedNLRIActionDiscarded = "discarded"
+)
 
 // typedNLRIOutcome is what the Section 5.4 pass decided about the UPDATE as a
 // whole, as opposed to about the individual routes inside it.
@@ -62,9 +74,13 @@ const (
 // applyTypedNLRIDiscard removes from the UPDATE's MP attributes every route its
 // family's own rules discard one at a time: an unrecognized NLRI type under
 // RFC 7606 Section 5.4, and a malformed Link-State NLRI under RFC 9552
-// Section 8.2.2. It returns the UPDATE downstream consumers will see, that
-// UPDATE's attribute section, and what the pass decided about the UPDATE as a
-// whole.
+// Section 8.2.2. An announced route its family's recognizer answers
+// treat-as-withdraw for (draft-ietf-bess-mup-safi Section 3.1.3.1) leaves the
+// MP_REACH_NLRI and is withdrawn: in an MP_UNREACH_NLRI added to the UPDATE, or,
+// when the UPDATE already carries one, in the returned withdrawBody, a
+// withdraw-only UPDATE the caller dispatches. It returns the UPDATE downstream
+// consumers will see, that UPDATE's attribute section, what the pass decided
+// about the UPDATE as a whole, and that withdraw body (nil when none).
 //
 // Returns wu and pathAttrs unchanged, sharing the received wire bytes, whenever
 // nothing was discarded. That covers every family with no Section 5.4 ruling and
@@ -94,34 +110,49 @@ func (s *Session) applyTypedNLRIDiscard(
 	attrsOffset int,
 	mpReach, mpUnreach message.MPNLRILocation,
 	addPathFor func(afi uint16, safi uint8) bool,
-) (*wireu.WireUpdate, []byte, typedNLRIOutcome) {
+) (out *wireu.WireUpdate, outAttrs []byte, outcome typedNLRIOutcome, withdrawBody []byte) {
 	edits := make([]mpNLRIEdit, 0, 2)
 	edits, ok := s.typedNLRIEdit(edits, uint8(attribute.AttrMPReachNLRI), mpReach, pathAttrs, addPathFor)
 	if !ok {
-		return wu, pathAttrs, typedNLRIUnparseable
+		return wu, pathAttrs, typedNLRIUnparseable, nil
 	}
 	edits, ok = s.typedNLRIEdit(edits, uint8(attribute.AttrMPUnreachNLRI), mpUnreach, pathAttrs, addPathFor)
 	if !ok {
-		return wu, pathAttrs, typedNLRIUnparseable
+		return wu, pathAttrs, typedNLRIUnparseable, nil
 	}
 	if len(edits) == 0 {
-		return wu, pathAttrs, typedNLRIKept
+		return wu, pathAttrs, typedNLRIKept, nil
 	}
 
 	newAttrs := rewriteMPNLRISections(pathAttrs, edits)
+
+	// RFC 7606 Section 2 treat-as-withdraw, per route: the NLRIs the family's own
+	// specification answers that way (draft-ietf-bess-mup-safi Section 3.1.3.1) left
+	// the MP_REACH above and become a withdrawal here, so an earlier generation of the
+	// same route leaves the Adj-RIB-In and is withdrawn wherever it was relayed.
+	// RFC 7606 Section 3(g) refuses a second MP_UNREACH_NLRI in one UPDATE, so when the
+	// rewritten UPDATE still carries one the withdrawal rides its own withdraw-only
+	// UPDATE, which the caller dispatches; otherwise it joins this one.
+	if reach, found := findEdit(edits, uint8(attribute.AttrMPReachNLRI)); found && len(reach.withdrawn) > 0 {
+		if _, _, _, hasUnreach := attribute.AttrFind(newAttrs, attribute.AttrMPUnreachNLRI); hasUnreach {
+			withdrawBody = message.BuildMPUnreachBody(reach.afi, reach.safi, reach.withdrawn)
+		} else {
+			newAttrs = message.AppendMPUnreachNLRI(newAttrs, reach.afi, reach.safi, reach.withdrawn)
+		}
+	}
 	oldCtxID := wu.SourceCtxID()
 	oldSourceID := wu.SourceID()
 	newBody := message.RebuildUpdateBody(wu.Payload(), newAttrs)
 	rebuilt := wireu.NewWireUpdate(newBody, oldCtxID)
 	rebuilt.SetSourceID(oldSourceID)
 
-	outcome := typedNLRIKept
+	outcome = typedNLRIKept
 	if updateCarriesNoRoutes(newBody) {
 		outcome = typedNLRIEmptied
 	}
 	// Keep pathAttrs a subslice of the body the caller now holds, so the
 	// attribute-discard branch's in-place rewrite still shows through.
-	return rebuilt, newBody[attrsOffset : attrsOffset+len(newAttrs)], outcome
+	return rebuilt, newBody[attrsOffset : attrsOffset+len(newAttrs)], outcome, withdrawBody
 }
 
 // typedNLRIEdit appends the edit for one MP attribute, or nothing when that
@@ -129,7 +160,10 @@ func (s *Session) applyTypedNLRIDiscard(
 //
 // Two rulings can remove a route here and a family may carry either or both.
 // RFC 7606 Section 5.4 removes a route whose NLRI TYPE ze does not implement, in
-// a family that has not overridden the rule. RFC 9552 Section 8.2.2 removes a
+// a family that has not overridden the rule; the same recognizer moves an
+// announced route with a malformed body to the edit's withdrawn NLRIs when its
+// family prescribes treat-as-withdraw, or discards it when its route key cannot
+// form. RFC 9552 Section 8.2.2 removes a
 // Link-State NLRI whose SYNTAX is malformed in a way that lets ze skip it and
 // keep processing the UPDATE. Both are per route and both keep the UPDATE, so one
 // pass applies them in that order and one rewrite carries the result.
@@ -184,7 +218,9 @@ func (s *Session) typedNLRIEdit(
 	}
 
 	addPath := addPathFor != nil && addPathFor(loc.AFI, loc.SAFI)
-	kept, dropped, err := nlritype.Retain(recognize, fam, value[start:], addPath)
+	announce := code == uint8(attribute.AttrMPReachNLRI)
+	retained, err := nlritype.Retain(recognize, fam, value[start:], addPath, announce, s.typedNLRIKeyScratch[:])
+	kept, dropped := retained.Kept, retained.Discarded
 	if err != nil {
 		sessionLogger().Warn("RFC 7606 Section 5.3: MP NLRI framing overruns the attribute",
 			"peer", s.settings.Address, "family", fam, "attr", code, "error", err)
@@ -236,10 +272,44 @@ func (s *Session) typedNLRIEdit(
 			"peer", s.settings.Address, "family", fam, "attr", code, "discarded", malformed)
 	}
 
-	if dropped+malformed == 0 {
+	if retained.WithdrawnCount+retained.UnkeyableCount > 0 {
+		s.logTypedNLRIMalformed(fam, code, retained)
+	}
+
+	if dropped+malformed+retained.WithdrawnCount == 0 {
 		return edits, true
 	}
-	return append(edits, mpNLRIEdit{code: code, nlri: kept, dropped: dropped + malformed}), true
+	return append(edits, mpNLRIEdit{
+		code: code, afi: loc.AFI, safi: loc.SAFI,
+		nlri: kept, dropped: dropped + malformed, withdrawn: retained.Withdrawn,
+	}), true
+}
+
+// logTypedNLRIMalformed records the NLRIs a family's recognizer answered
+// treat-as-withdraw for: logged with their bytes, as RFC 7606 Section 6 asks for
+// "an error listing the NLRI involved", and counted per peer.
+//
+// Debug, for the reason the Section 5.4 line in typedNLRIEdit gives: a peer decides
+// how often it fires. The counter is what an operator watches.
+func (s *Session) logTypedNLRIMalformed(fam family.Family, code uint8, retained nlritype.Retained) {
+	if retained.WithdrawnCount > 0 {
+		sessionLogger().Debug("RFC 7606 Section 2: malformed NLRIs treated as withdrawn",
+			"peer", s.settings.Address, "family", fam, "attr", code,
+			"withdrawn", retained.WithdrawnCount, "nlri", hex.EncodeToString(retained.Withdrawn))
+	}
+	if len(retained.Unkeyable) > 0 {
+		sessionLogger().Debug("RFC 7606 Section 2: malformed NLRIs discarded, no route key forms to withdraw them by",
+			"peer", s.settings.Address, "family", fam, "attr", code, "nlri", hex.EncodeToString(retained.Unkeyable))
+	}
+	if s.prefixMetrics == nil {
+		return
+	}
+	if retained.WithdrawnCount > 0 {
+		s.prefixMetrics.typedNLRIMalformed.With(s.addrLabel, typedNLRIActionWithdrawn).Add(float64(retained.WithdrawnCount))
+	}
+	if retained.UnkeyableCount > 0 {
+		s.prefixMetrics.typedNLRIMalformed.With(s.addrLabel, typedNLRIActionDiscarded).Add(float64(retained.UnkeyableCount))
+	}
 }
 
 // updateCarriesNoRoutes reports whether an UPDATE body conveys no reachability at

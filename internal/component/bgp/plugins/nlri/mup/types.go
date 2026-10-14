@@ -154,8 +154,39 @@ type MUP struct {
 // the caller cannot tell a zero prefix length from a prefix length ze failed to
 // read (ai/rules/principles.md).
 func ParseMUP(afi AFI, data []byte) (*MUP, []byte, error) {
+	mup := &MUP{}
+	rest, err := mup.decode(afi, data)
+	if err != nil {
+		return nil, nil, err
+	}
+	return mup, rest, nil
+}
+
+// ValidateNLRI runs every check ParseMUP makes over one MUP NLRI, without its
+// RFC 7911 path identifier, and builds no route. It is the receive path's body
+// verdict: one implementation holds the rules, ParseMUP's, and this entry point
+// allocates nothing, because the route it fills lives on the stack.
+//
+// An NLRI whose architecture and route type ze does not implement passes: Section
+// 3.1 has it silently ignored, which is the type verdict's business, not the
+// body's. Octets past the NLRI's own Length are a framing disagreement and fail.
+func ValidateNLRI(afi AFI, nlriBytes []byte) error {
+	var m MUP
+	rest, err := m.decode(afi, nlriBytes)
+	if err != nil {
+		return err
+	}
+	if len(rest) != 0 {
+		return ErrMUPBodyLength
+	}
+	return nil
+}
+
+// decode fills m from the MUP NLRI at the start of data and returns the octets
+// that follow it. It is ParseMUP without the allocation.
+func (m *MUP) decode(afi AFI, data []byte) ([]byte, error) {
 	if len(data) < mupHeaderLen {
-		return nil, nil, ErrMUPTruncated
+		return nil, ErrMUPTruncated
 	}
 
 	archType := MUPArchType(data[0])
@@ -163,10 +194,10 @@ func ParseMUP(afi AFI, data []byte) (*MUP, []byte, error) {
 	bodyLen := int(data[3])
 
 	if len(data) < mupHeaderLen+bodyLen {
-		return nil, nil, ErrMUPTruncated
+		return nil, ErrMUPTruncated
 	}
 
-	mup := &MUP{
+	*m = MUP{
 		body:      data[mupHeaderLen : mupHeaderLen+bodyLen],
 		afi:       afi,
 		archType:  archType,
@@ -179,15 +210,15 @@ func ParseMUP(afi AFI, data []byte) (*MUP, []byte, error) {
 	// means the octets are skipped by their Length, which the walk above already
 	// did, and the route is reported as one ze did not read.
 	if !routeType.Implemented(archType) {
-		return mup, rest, nil
+		return rest, nil
 	}
 
-	if err := mup.parseBody(); err != nil {
-		return nil, nil, err
+	if err := m.parseBody(); err != nil {
+		return nil, err
 	}
-	mup.parsed = true
+	m.parsed = true
 
-	return mup, rest, nil
+	return rest, nil
 }
 
 // parseBody reads the Route Type specific field into the parsed fields.

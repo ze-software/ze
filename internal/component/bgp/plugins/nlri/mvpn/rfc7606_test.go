@@ -31,7 +31,7 @@ func TestRecognizeNLRIAcceptsImplementedTypes(t *testing.T) {
 		MVPNIntraASIPMSIAD, MVPNInterASIPMSIAD, MVPNSPMSIAD, MVPNLeafAD,
 		MVPNSourceActive, MVPNSharedTreeJoin, MVPNSourceTreeJoin,
 	} {
-		if !RecognizeNLRI([]byte{byte(rt), 0x02, 0xaa, 0xbb}, false) {
+		if RecognizeNLRI([]byte{byte(rt), 0x02, 0xaa, 0xbb}, false) != nlritype.Keep {
 			t.Errorf("route type %d is implemented and must be recognized", rt)
 		}
 	}
@@ -45,7 +45,7 @@ func TestRecognizeNLRIAcceptsImplementedTypes(t *testing.T) {
 // RFC requirement: RFC7606-5.4-1 positive -- an MCAST-VPN route type ze does not implement is not recognized, so the Section 5.4 discard removes it.
 func TestRecognizeNLRIRejectsUnimplementedTypes(t *testing.T) {
 	for _, rt := range []byte{0, 8, 9, 10, 99, 255} {
-		if RecognizeNLRI([]byte{rt, 0x02, 0xaa, 0xbb}, false) {
+		if RecognizeNLRI([]byte{rt, 0x02, 0xaa, 0xbb}, false) != nlritype.Discard {
 			t.Errorf("route type %d is not defined by RFC 6514 and must not be recognized", rt)
 		}
 	}
@@ -56,10 +56,10 @@ func TestRecognizeNLRIRejectsUnimplementedTypes(t *testing.T) {
 func TestRecognizeNLRISkipsPathID(t *testing.T) {
 	// Path id 0x63 (99) would read as an undefined route type if not skipped.
 	withPathID := []byte{0x00, 0x00, 0x00, 0x63, byte(MVPNSPMSIAD), 0x02, 0xaa, 0xbb}
-	if !RecognizeNLRI(withPathID, true) {
+	if RecognizeNLRI(withPathID, true) != nlritype.Keep {
 		t.Fatal("the route type after the path id is implemented and must be recognized")
 	}
-	if RecognizeNLRI(withPathID, false) {
+	if RecognizeNLRI(withPathID, false) != nlritype.Discard {
 		t.Fatal("without add-path the leading byte is 0x00, a reserved type; must be refused")
 	}
 }
@@ -67,10 +67,10 @@ func TestRecognizeNLRISkipsPathID(t *testing.T) {
 // VALIDATES: a slice too short to hold a route type is refused rather than read past.
 // PREVENTS: an out-of-range read, and a truncated NLRI being relayed as recognized.
 func TestRecognizeNLRIRefusesTruncated(t *testing.T) {
-	if RecognizeNLRI(nil, false) {
+	if RecognizeNLRI(nil, false) != nlritype.Discard {
 		t.Error("an empty NLRI carries no route type")
 	}
-	if RecognizeNLRI([]byte{0x00, 0x00, 0x00}, true) {
+	if RecognizeNLRI([]byte{0x00, 0x00, 0x00}, true) != nlritype.Discard {
 		t.Error("a slice shorter than the path id carries no route type")
 	}
 }
@@ -85,10 +85,10 @@ func TestRecognizerIsRegisteredForBothMVPNFamilies(t *testing.T) {
 		if fn == nil {
 			t.Fatalf("the mvpn plugin must register its Section 5.4 recognizer for %s", fam)
 		}
-		if !fn([]byte{byte(MVPNSPMSIAD), 0x00}, false) {
+		if fn([]byte{byte(MVPNSPMSIAD), 0x00}, false) != nlritype.Keep {
 			t.Errorf("%s: the registered recognizer must accept an implemented type", fam)
 		}
-		if fn([]byte{99, 0x00}, false) {
+		if fn([]byte{99, 0x00}, false) != nlritype.Discard {
 			t.Errorf("%s: the registered recognizer must refuse an undefined type", fam)
 		}
 	}

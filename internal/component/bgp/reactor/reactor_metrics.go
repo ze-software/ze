@@ -122,6 +122,12 @@ type reactorMetrics struct {
 	// daemon.
 	attrSpanSpill metrics.CounterVec // labels: peer
 
+	// Received NLRIs of a typed family that its own specification answers with
+	// treat-as-withdraw (draft-ietf-bess-mup-safi Section 3.1.3.1): action
+	// "withdrawn" when the route left the announcement as a withdrawal, "discarded"
+	// when its route key could not form, so no withdrawal could name it.
+	typedNLRIMalformed metrics.CounterVec // labels: peer, action
+
 	// A received OPEN refused with NOTIFICATION 2/2 Bad Peer AS: an advertised AS of
 	// zero (RFC 7607 Section 2) or one the peer is not configured for, migration pair
 	// included (RFC 4271 Section 6.2, RFC 7705 Section 4.2). Before that check existed
@@ -215,6 +221,8 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		wireWriteErrors: reg.CounterVec("ze_wire_write_errors_total", "Socket write failures.", []string{metricLabelPeer}),
 		attrSpanSpill: reg.CounterVec("ze_bgp_update_span_spill_total",
 			"Received UPDATEs whose attribute count exceeded the inline span capacity.", []string{metricLabelPeer}),
+		typedNLRIMalformed: reg.CounterVec("ze_bgp_update_nlri_malformed_total",
+			"Received typed NLRIs with a malformed body, by what was done with them.", []string{metricLabelPeer, "action"}),
 		openBadPeerAS: reg.CounterVec("ze_bgp_open_rejected_bad_peer_as_total",
 			"Received OPENs refused with NOTIFICATION 2/2 Bad Peer AS.", []string{metricLabelPeer}),
 

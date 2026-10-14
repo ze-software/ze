@@ -17,6 +17,8 @@
 
 package mvpn
 
+import "github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
+
 // Implemented reports whether ze implements this MCAST-VPN route type.
 //
 // This is Section 5.4's "recognized" set for the family. RecognizeNLRI reads it,
@@ -43,13 +45,13 @@ func (t MVPNRouteType) Implemented() bool {
 // A slice too short to hold a route type is not recognized. That is the
 // fail-closed answer, and it costs nothing real: the framing walk that carved
 // this slice would have reported the truncation first.
-func RecognizeNLRI(nlriBytes []byte, addPath bool) bool {
+func RecognizeNLRI(nlriBytes []byte, addPath bool) nlritype.Verdict {
 	off := 0
 	if addPath {
 		off = 4
 	}
-	if off >= len(nlriBytes) {
-		return false
+	if off >= len(nlriBytes) || !MVPNRouteType(nlriBytes[off]).Implemented() {
+		return nlritype.Discard
 	}
-	return MVPNRouteType(nlriBytes[off]).Implemented()
+	return nlritype.Keep
 }

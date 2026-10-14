@@ -234,3 +234,19 @@ func appendMPUnreach(dst, value []byte) []byte {
 	dst = append(dst, mpUnreachFlags, byte(attribute.AttrMPUnreachNLRI), byte(len(value)))
 	return append(dst, value...)
 }
+
+// AppendMPUnreachNLRI appends an MP_UNREACH_NLRI attribute withdrawing nlri, one or
+// more NLRIs of afi/safi in wire form, to dst (RFC 4760 Section 4: AFI(2) SAFI(1)
+// Withdrawn Routes). The Extended Length bit is set only when the value needs it.
+func AppendMPUnreachNLRI(dst []byte, afi uint16, safi uint8, nlri []byte) []byte {
+	value := make([]byte, mpReachAFISAFILen, mpReachAFISAFILen+len(nlri))
+	binary.BigEndian.PutUint16(value[0:2], afi)
+	value[2] = safi
+	return appendMPUnreach(dst, append(value, nlri...))
+}
+
+// BuildMPUnreachBody returns a withdraw-only UPDATE body whose one attribute is an
+// MP_UNREACH_NLRI withdrawing nlri under afi/safi (RFC 4760 Section 4).
+func BuildMPUnreachBody(afi uint16, safi uint8, nlri []byte) []byte {
+	return buildWithdrawBody(nil, nil, AppendMPUnreachNLRI(nil, afi, safi, nlri))
+}

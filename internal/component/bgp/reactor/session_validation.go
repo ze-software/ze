@@ -134,7 +134,7 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 	// symmetry the design claims for withdrawals untrue on this one path.
 	if result.Action != message.RFC7606ActionSessionReset {
 		var outcome typedNLRIOutcome
-		wu, pathAttrs, outcome = s.applyTypedNLRIDiscard(
+		wu, pathAttrs, outcome, validation.typedWithdrawBody = s.applyTypedNLRIDiscard(
 			wu, pathAttrs, offset, result.MPReachNLRI, result.MPUnreachNLRI, addPathFor)
 		body = wu.Payload()
 		switch outcome {

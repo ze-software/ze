@@ -24,7 +24,7 @@ func TestSnapshotForTestRestoresRegistrations(t *testing.T) {
 
 	// Stand in for what a plugin's init() would have left here.
 	preexisting := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
-	require.NoError(t, Register(preexisting, func([]byte, bool) bool { return true }))
+	require.NoError(t, Register(preexisting, func([]byte, bool) Verdict { return Keep }))
 	require.NotNil(t, Get(preexisting))
 
 	restore := SnapshotForTest()
@@ -32,7 +32,7 @@ func TestSnapshotForTestRestoresRegistrations(t *testing.T) {
 		"the snapshot must hand the test an empty registry to work in")
 
 	other := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}
-	require.NoError(t, Register(other, func([]byte, bool) bool { return false }))
+	require.NoError(t, Register(other, func([]byte, bool) Verdict { return Discard }))
 
 	restore()
 

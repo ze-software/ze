@@ -228,6 +228,17 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			// session-reset: error propagated, no dispatch
 			return err, false
 		}
+		if validation.typedWithdrawBody != nil && s.onMessageReceived != nil {
+			// RFC 7606 Section 2 treat-as-withdraw for malformed typed NLRIs, carried
+			// in its own withdraw-only UPDATE because this one already holds an
+			// MP_UNREACH_NLRI (Section 3(g)). Dispatched like the treat-as-withdraw
+			// extra bodies below: a fresh heap body under the noPoolBufID sentinel, so
+			// the forward cache finds it and eviction frees no pool slot.
+			extra := validation.typedWithdrawBody
+			extraWU := wireu.NewWireUpdate(extra, wireUpdate.SourceCtxID())
+			extraWU.SetSourceID(wireUpdate.SourceID())
+			s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, extra, extraWU, ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "", 0)
+		}
 
 		if action < message.RFC7606ActionTreatAsWithdraw && s.invalidReceiveNextHop(wireUpdate) {
 			// RFC 4271 Section 6.3: "the error SHOULD be logged", "the route

@@ -28,6 +28,11 @@ type rfc7606Validation struct {
 	as4Prepared       bool
 	as4Plan           wireu.AS4FamilyPlan
 	diagnosticWireHex string
+	// typedWithdrawBody is a withdraw-only UPDATE body the typed NLRI pass built for
+	// malformed NLRIs it could not withdraw inside the UPDATE itself, because that
+	// UPDATE still carries an MP_UNREACH_NLRI (applyTypedNLRIDiscard). Nil otherwise.
+	// processValidatedMessage dispatches it.
+	typedWithdrawBody []byte
 }
 
 // classifyRFC7606 separates validation from side effects, so an earlier valid

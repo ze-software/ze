@@ -32,6 +32,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/memguard"
@@ -523,6 +524,11 @@ type Session struct {
 	// prefixMetrics is a reference to reactor-level Prometheus prefix metrics.
 	// Set by Peer in runOnce(). Nil when metrics are not enabled.
 	prefixMetrics *reactorMetrics
+
+	// typedNLRIKeyScratch is the route key scratch the typed NLRI pass
+	// (typedNLRIEdit) hands nlritype.Retain, so deciding whether a malformed NLRI
+	// can be withdrawn allocates nothing. Only the receive path reads it.
+	typedNLRIKeyScratch [nlrisplit.PrefixKeyScratchSize]byte
 
 	// addrLabel caches settings.Address.String() to avoid per-message allocations.
 	addrLabel string

@@ -48,15 +48,15 @@ func nlriTypeTestSession() *Session {
 func registerEVPNRecognizer(t *testing.T) {
 	t.Helper()
 	t.Cleanup(nlritype.SnapshotForTest())
-	err := nlritype.Register(evpnFam, func(nlriBytes []byte, addPath bool) bool {
+	err := nlritype.Register(evpnFam, func(nlriBytes []byte, addPath bool) nlritype.Verdict {
 		off := 0
 		if addPath {
 			off = 4
 		}
 		if off >= len(nlriBytes) {
-			return false
+			return nlritype.Discard
 		}
-		return nlriBytes[off] >= 1 && nlriBytes[off] <= 5
+		return keepIf(nlriBytes[off] >= 1 && nlriBytes[off] <= 5)
 	})
 	require.NoError(t, err)
 }

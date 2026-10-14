@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
 )
 
@@ -20,14 +21,16 @@ import (
 // RD 65001:100, prefix 10.0.0.0/24.
 const isdNLRIHex = "0100010c0000fde900000064180a0000"
 
-// retainMUP runs the registered ingress recognizer of fam over one NLRI section.
+// retainMUP runs the registered ingress recognizer of fam over one NLRI section and
+// reports what survives and how many NLRIs left it, discarded or withdrawn.
 func retainMUP(t *testing.T, fam Family, section []byte) (kept []byte, dropped int) {
 	t.Helper()
 	recognize := nlritype.Get(fam)
 	require.NotNil(t, recognize, "the mup plugin registers its ingress recognizer for %s", fam)
-	kept, dropped, err := nlritype.Retain(recognize, fam, section, false)
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	r, err := nlritype.Retain(recognize, fam, section, false, true, scratch[:])
 	require.NoError(t, err, "a well-framed section is never an error")
-	return kept, dropped
+	return r.Kept, r.Discarded + r.WithdrawnCount
 }
 
 // concatNLRI joins NLRIs into one MP_REACH NLRI section.
@@ -73,11 +76,17 @@ func TestMUPOtherRouteTypesSilentlyIgnoredAtIngress(t *testing.T) {
 func TestMUPDefinedRouteTypesSurviveIngress(t *testing.T) {
 	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1-1 negative -- route types 1 to 4 are not other route types: a section carrying one route of each is kept whole, with nothing dropped, under both MUP families
 	for _, fam := range []Family{IPv4MUP, IPv6MUP} {
+		// Each body is a well-formed route of its type, because the recognizer also runs
+		// ParseMUP's body checks and withdraws a malformed one (Section 3.1.3.1).
+		w := addrOctets(fam.AFI)
+		rd := make([]byte, 8)
+		addr := func() []byte { return make([]byte, w) }
+		cat := func(parts ...[]byte) []byte { return concatNLRI(parts...) }
 		section := concatNLRI(
-			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPISD), 0xaa),
-			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPDSD), 0xbb),
-			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT1ST), 0xcc),
-			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT2ST), 0xdd),
+			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPISD), cat(rd, []byte{byte(w * 8)}, addr())...),
+			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPDSD), cat(rd, addr())...),
+			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT1ST), cat(rd, []byte{byte(w * 8)}, addr(), []byte{0, 0, 0, 1, 9, 32, 192, 0, 2, 1})...),
+			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT2ST), cat(rd, []byte{byte(w*8 + 32)}, addr(), []byte{1, 2, 3, 4})...),
 		)
 		kept, dropped := retainMUP(t, fam, section)
 		assert.Zero(t, dropped, "%s: no defined route type is ignored", fam)

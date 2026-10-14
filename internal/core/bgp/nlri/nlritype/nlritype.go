@@ -41,14 +41,33 @@ var (
 	ErrDuplicate = errors.New("nlritype: duplicate recognizer for family")
 )
 
-// Recognizer reports whether one carved NLRI carries a route type this speaker
-// implements. nlriBytes is a single NLRI exactly as it appears on the wire; when
-// addPath is true it starts with the 4-byte RFC 7911 path identifier, which the
-// recognizer must skip before reading the type.
+// Verdict is a recognizer's answer about one carved NLRI.
+type Verdict uint8
+
+const (
+	// Keep: the NLRI carries a type this speaker implements and, where the family's
+	// recognizer judges the body, a well-formed one.
+	Keep Verdict = iota
+	// Discard: the NLRI carries a type this speaker does not implement. RFC 7606
+	// Section 5.4: "MUST handle routes with unrecognized NLRI types within that
+	// address family by discarding them".
+	Discard
+	// Withdraw: the NLRI's type is implemented but its body is malformed in a way
+	// the family's specification answers with treat-as-withdraw (RFC 7606
+	// Section 2), so the route leaves the announcement and becomes a withdrawal.
+	Withdraw
+)
+
+// Recognizer judges one carved NLRI. nlriBytes is a single NLRI exactly as it
+// appears on the wire; when addPath is true it starts with the 4-byte RFC 7911
+// path identifier, which the recognizer must skip before reading the type.
 //
-// A recognizer answers about the TYPE only. It never validates the body: a
-// well-typed but malformed NLRI is a Section 5.3 concern, not a Section 5.4 one.
-type Recognizer func(nlriBytes []byte, addPath bool) bool
+// Every recognizer answers about the TYPE. A family whose specification prescribes
+// treat-as-withdraw for a malformed body may also judge the body and answer
+// Withdraw; one that does not answers only Keep or Discard. Framing the NLRI is not
+// the recognizer's job: the family's splitter carved it, and a framing failure is
+// an RFC 7606 Section 5.3 concern Retain reports as an error.
+type Recognizer func(nlriBytes []byte, addPath bool) Verdict
 
 var (
 	mu          sync.RWMutex
@@ -92,59 +111,134 @@ func Get(fam family.Family) Recognizer {
 	return recognizers[fam]
 }
 
-// Retain returns data with every unrecognized-type NLRI removed, and the number
-// removed.
+// Retained is what Retain decided about one MP NLRI section.
+type Retained struct {
+	// Kept is the section with every discarded and withdrawn NLRI removed. It is the
+	// input itself, sharing the caller's backing array, whenever nothing was removed.
+	Kept []byte
+	// Withdrawn holds, in wire order and with their path identifiers, the NLRIs of an
+	// announcement the recognizer answered Withdraw for and whose route key forms.
+	// Always nil for a withdrawal section, where such an NLRI is already a withdrawal
+	// and stays in Kept.
+	Withdrawn []byte
+	// Unkeyable holds the NLRIs answered Withdraw whose route key cannot form. No
+	// withdrawal can name such a route, so it is discarded instead of withdrawn.
+	Unkeyable []byte
+	// Discarded counts the NLRIs removed as unrecognized types plus the unkeyable ones.
+	Discarded int
+	// WithdrawnCount counts the NLRIs in Withdrawn.
+	WithdrawnCount int
+	// UnkeyableCount counts the NLRIs in Unkeyable, which Discarded includes.
+	UnkeyableCount int
+}
+
+// Removed reports whether any NLRI left the section.
+func (r Retained) Removed() bool { return r.Discarded+r.WithdrawnCount > 0 }
+
+// Retain applies fn to every NLRI of one MP NLRI section and reports the routes
+// that survive, the routes to withdraw, and the routes discarded.
 //
 // fn is the family's recognizer, which the caller has already looked up with Get.
 // Passing it rather than looking it up again is what lets the receive path answer
 // "does Section 5.4 bind this family at all" and "which routes survive" from ONE
 // registry read. A nil fn means no ruling, and the answer is to change nothing.
 //
-// It returns data itself, sharing the caller's backing array, whenever nothing
-// was removed. That covers every family with no ruling, every conforming UPDATE,
-// and every malformed section, so the caller allocates and rewrites the wire
-// only when a route is genuinely being discarded.
+// announce says data is an MP_REACH_NLRI section. There a Withdraw verdict moves the
+// NLRI to Withdrawn, provided the family's route key (nlrisplit.GetPrefixKey) forms
+// over it: a withdrawal that names no route removes nothing anywhere and cannot be
+// relayed as a route, so an unkeyable NLRI is discarded and reported in Unkeyable.
+// scratch is the caller-owned key scratch, nlrisplit.PrefixKeyScratchSize octets, so
+// the key check allocates nothing. In an MP_UNREACH_NLRI section a Withdraw verdict
+// keeps the NLRI: a malformed route withdrawn is still the withdrawal of that route.
+//
+// The common "nothing removed" answer costs no allocation. Removing a route
+// allocates the rewritten section, which happens only on input a peer got wrong.
 //
 // A non-nil error means the NLRI framing could not be trusted, and data is
-// returned unchanged with a zero count. When the length fields do not agree with
-// the section, the boundaries between NLRIs are unknowable, so no discard
-// decision can be made and inventing one would rewrite the wire from a guess.
-// Framing errors belong to RFC 7606 Section 5.3, which runs before this.
-func Retain(fn Recognizer, fam family.Family, data []byte, addPath bool) (kept []byte, dropped int, err error) {
+// returned unchanged. When the length fields do not agree with the section, the
+// boundaries between NLRIs are unknowable, so no decision can be made and
+// inventing one would rewrite the wire from a guess. Framing errors belong to
+// RFC 7606 Section 5.3, which runs before this.
+func Retain(fn Recognizer, fam family.Family, data []byte, addPath, announce bool, scratch []byte) (Retained, error) {
 	if len(data) == 0 || fn == nil {
-		return data, 0, nil
+		return Retained{Kept: data}, nil
 	}
 
 	nlris, splitErr := nlrisplit.Split(fam, data, addPath)
 	if splitErr != nil {
-		return data, 0, splitErr
+		return Retained{Kept: data}, splitErr
 	}
 
-	// One pass to count, so the common "nothing dropped" answer costs no
+	// A nil key means a withdrawal section, where Withdraw keeps the NLRI.
+	var key nlrisplit.PrefixKeyFunc
+	if announce {
+		if len(scratch) < nlrisplit.PrefixKeyScratchSize {
+			panic("BUG: nlritype.Retain: key scratch shorter than nlrisplit.PrefixKeyScratchSize")
+		}
+		key = nlrisplit.GetPrefixKey(fam)
+	}
+
+	// One pass to count, so the common "nothing removed" answer costs no
 	// allocation and the rewrite below is sized exactly.
+	var out Retained
 	keepBytes := 0
 	for _, one := range nlris {
-		if fn(one, addPath) {
+		switch judge(fn, key, one, addPath, scratch) {
+		case Keep:
 			keepBytes += len(one)
-			continue
+		case Withdraw:
+			out.WithdrawnCount++
+		case Discard:
+			out.Discarded++
+		case unkeyable:
+			out.Discarded++
+			out.UnkeyableCount++
 		}
-		dropped++
 	}
-	if dropped == 0 {
-		return data, 0, nil
-	}
-	if keepBytes == 0 {
-		return nil, dropped, nil
+	if !out.Removed() {
+		return Retained{Kept: data}, nil
 	}
 
-	out := make([]byte, 0, keepBytes)
+	if keepBytes > 0 {
+		out.Kept = make([]byte, 0, keepBytes)
+	}
 	for _, one := range nlris {
-		if fn(one, addPath) {
-			out = append(out, one...)
+		switch judge(fn, key, one, addPath, scratch) {
+		case Keep:
+			out.Kept = append(out.Kept, one...)
+		case Withdraw:
+			out.Withdrawn = append(out.Withdrawn, one...)
+		case unkeyable:
+			out.Unkeyable = append(out.Unkeyable, one...)
+		case Discard:
 		}
 	}
-	return out, dropped, nil
+	return out, nil
 }
+
+// judge applies fn to one NLRI and, for an announcement (key non-nil), turns a
+// Withdraw verdict whose route key cannot form into unkeyable.
+func judge(fn Recognizer, key nlrisplit.PrefixKeyFunc, one []byte, addPath bool, scratch []byte) Verdict {
+	v := fn(one, addPath)
+	if v != Withdraw {
+		return v
+	}
+	if key == nil {
+		return Keep
+	}
+	raw := one
+	if addPath {
+		raw = one[4:]
+	}
+	if _, err := key(raw, scratch, true); err != nil {
+		return unkeyable
+	}
+	return Withdraw
+}
+
+// unkeyable is Retain's private fourth answer: a Withdraw verdict over an NLRI
+// whose route key cannot form. It never leaves this package.
+const unkeyable Verdict = Withdraw + 1
 
 // ResetForTest clears every registered recognizer. Tests call it to start from a
 // clean slate. NOT for production use.
