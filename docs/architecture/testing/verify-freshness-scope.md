@@ -64,11 +64,15 @@ The retained rows are then cut across six stages, `check part 1 of 6` through `c
 The graph query selects package identity, direct and test imports, and error
 fields from `go list -e` JSON. Package errors, incomplete records, malformed
 JSON, absent directories, and deadlines retain their cause and widen to
-`./...` plus every feature. A partial graph is never published. The query uses
-the module's toolchain pin and disables persisted Go settings, ambient
-`GOFLAGS`, and enclosing workspaces. Selected JSON fields avoid unrelated
+`./...` plus every feature. A partial graph is never published. The query runs
+under the patched GOROOT that `gotoolchain.New` activates for the checkout le
+runs in, the tree le's root handler already selected, so a refused activation
+(a stale review stamp, a patch that no longer applies) widens the same way and
+names its cause. It disables persisted Go settings, ambient `GOFLAGS`, and
+enclosing workspaces. Selected JSON fields avoid unrelated
 VCS/build-info and embed-file scans without dropping import edges.
 <!-- source: internal/le/repo/changed/selector.go -- loadPackageGraphContext, parsePackageGraph, resolveSelector -->
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- New -->
 
 ### What each changed path selects
 

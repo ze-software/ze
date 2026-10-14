@@ -780,7 +780,8 @@ func loadPackageGraphContext(ctx context.Context, root string, featureTags []str
 	cmd := exec.CommandContext(ctx, "go", "list", "-e", "-tags", strings.Join(tags, ","), fields, "./...") //nolint:gosec // tags come from the tracked feature manifest
 	cmd.Dir = root
 	// The graph belongs to this module and tag set, not an enclosing workspace
-	// or a user's persisted Go flags. The toolchain pin comes from this go.mod.
+	// or a user's persisted Go flags. The toolchain is the patched GOROOT that
+	// gotoolchain.New activated, inherited through the process environment.
 	cmd.Env = append(toolchain.Environment(gotoolchain.EnvOptions{Procs: true}),
 		"GOENV=off", "GOFLAGS=", "GOWORK=off")
 	out, err := cmd.Output()
