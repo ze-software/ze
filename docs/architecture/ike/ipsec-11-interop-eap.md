@@ -48,6 +48,14 @@ authenticator such as strongSwan. The responder half is described in
 - RFC 9190 Section 2.1.3 leaves resumption to each end: "It is up to the EAP-TLS
   peer to use resumption". The peer offers a ticket when its peering carries a
   resumption store, which is what the `session-resumption` leaf decides.
+- RFC 5216 Section 2.1.1 binds the authenticator on TLS 1.2: "If the peer's
+  sessionId is null or unrecognized by the server, the server MUST choose the
+  sessionId to establish a new session." Ze runs a TLS 1.2 handshake with
+  session tickets off (`tls12WithoutTickets`, through `GetConfigForClient`), so
+  it issues and redeems no TLS 1.2 ticket, and the patched `crypto/tls` then
+  chooses a 32-octet session_id for the full-handshake server_hello
+  (`docs/contributing/patching-the-standard-library.md`).
+<!-- source: internal/core/eap/eap_tls.go -- tls12WithoutTickets, newTLSMethod -->
 - RFC 9190 Section 5.7 caps how long a peer keeps what a resumption needs at
   604800 seconds, "regardless of the PSK or ticket lifetime". `eap.Resumption`
   drops a stored ticket at that age on both `Put` and `Get`.

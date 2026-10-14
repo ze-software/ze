@@ -8,6 +8,19 @@ The build host is Linux or macOS. gokrazy's packer reads block device sizes
 only on those two systems, so on any other host `ze appliance build` and
 `le build gokrazy` refuse with that reason rather than failing to compile.
 
+gok's go subprocesses compile the image's ze, which links the EAP-TLS
+authenticator and compiles only against Ze's patched `crypto/tls`. So
+`SetGokGoEnv` first refuses, before it sets `GOMODCACHE`, `GOPROXY` or `GOFLAGS`,
+unless the environment already selects the patched GOROOT: `GOROOT` set,
+`GOTOOLCHAIN=local`, the first `go` on `PATH` being `$GOROOT/bin/go`, and the
+marker file the patch adds present under `$GOROOT`. It sets no `GOTOOLCHAIN`
+itself, so gok inherits all three from the caller. `le build gokrazy` passes
+because le selects the tree at startup; `ze appliance build` ships in the
+ze-setup binary, which links no `internal/le` package, so its refusal names the
+command line that selects the tree
+(`docs/contributing/patching-the-standard-library.md`).
+<!-- source: internal/appliance/cmd_build.go -- SetGokGoEnv, requirePatchedTree -->
+
 <!-- source: internal/appliance/main.go -- command dispatch, built at call time -->
 <!-- source: internal/appliance/gok_execute.go -- ExecuteGok, the one gok entry point -->
 <!-- source: internal/appliance/gok_execute_other.go -- the refusal on any other host -->

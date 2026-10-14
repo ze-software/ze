@@ -3,7 +3,7 @@
 How Ze changes one file of a Go standard-library package at build time,
 without a fork of the toolchain and without a copy of the package in the tree.
 
-**Status: partly built.** The generator (`internal/le/go/stdpatch/gen`), the patch, `./le go stdpatch goroot`, le's activation at its root handler and the launcher's bootstrap route exist. The step 1a stamp refusal, the vendor stamps and their refusal in `./le setup install`, `./le go patch-stamps check` in both `./le verify` modes, the EAP-TLS marker reference and ticket suppression, and the ze-setup refusal are built; the guest, Docker and CI routes are not built yet (spec-ike-eap-rfc-defects, D2).
+**Status: partly built.** The generator (`internal/le/go/stdpatch/gen`), the patch, `./le go stdpatch goroot`, le's activation at its root handler and the launcher's bootstrap route exist. The step 1a stamp refusal, the vendor stamps and their refusal in `./le setup install`, `./le go patch-stamps check` in both `./le verify` modes, the EAP-TLS marker reference and ticket suppression, and the ze-setup refusal are built, and so are the QEMU guest profiles, the two Dockerfiles, the CI steps and `./le scratch cache-clean` keeping the trees. A QEMU guest run, a Docker image build and a CI run under those routes are not recorded yet (spec-ike-eap-rfc-defects, D2).
 `plan/immediate/spec-ike-eap-rfc-defects.md` ("D2 design") builds it. Until that
 spec lands, every build uses the unmodified standard library. When it lands, this
 page is restated as a description of the built mechanism.

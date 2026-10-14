@@ -27,6 +27,19 @@ toolchain. It was a constant in `internal/le/test/qemu/run.go` until 2026-09-05,
 a minor behind, and every guest `go` command then downloaded a second toolchain
 until the run died on `error: command ssh exceeded its deadline`.
 
+That unpacked release is the guest's real GOROOT (`/usr/local/go`), and no guest
+compile uses it directly. Ze compiles only against its patched `crypto/tls`, so
+both guest profiles, the setup command and the keep-alive login profile
+(`/etc/profile.d/ze.sh`), then run `go run ./internal/le/go/stdpatch/goroot` in
+`/workspace` and export its answer as `GOROOT`, with `GOTOOLCHAIN=local` and the
+tree's `bin` first on `PATH` (`guestPatchedTree`). The guest's `cache/` link
+dangles, so the tree lands under `tmp/stdpatch/`. A refusal stops the setup
+command; in a login shell it leaves the real GOROOT, where a build of
+`internal/core/eap` fails on the compile-time marker
+(`docs/contributing/patching-the-standard-library.md`).
+<!-- source: internal/le/test/qemu/run.go -- guestPatchedTree, setupCommand -->
+<!-- source: internal/le/test/qemu/run_exec.go -- keepAliveProfile -->
+
 Prerequisites: `qemu` (`brew install qemu` on macOS). On macOS the run uses HVF
 acceleration when it is available and falls back to TCG software emulation.
 
