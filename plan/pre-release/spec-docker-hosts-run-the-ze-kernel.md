@@ -189,6 +189,7 @@ Goals.
 | AC-18 | the Docker kernel check, daemon reporting `name=apparmor` | runs the probe container under `--security-opt apparmor=ze-kernel-probe`; on a Linux client whose `/sys/kernel/security/apparmor/profiles` lacks the profile, refuses before the run naming `./le setup docker-kernel apparmor confirm ze-kernel-probe`; with no AppArmor, the argv is unchanged |
 | AC-19 | `./le setup docker-kernel apparmor` | Linux only; refuses where AppArmor is not enabled or `apparmor_parser` is absent; `confirm <name>` loads any profile registered in `interoplab` (`ze-kernel-probe`, `ze-lab-net-sysctl`); without a registered name prints every profile's root steps and the command for each (install the profile into `/etc/apparmor.d/`, `apparmor_parser -r -W`) and runs none; never run by an agent against a real host |
 | AC-20 | the embedded `ze-kernel-probe` profile | names itself, carries no `deny mount` and no `file,`, grants the three mounts and the one write the probe makes (derived from `ProcPath("sys")` and `MPLSPlatformLabelsPath()` in a test), keeps docker-default's read denies, and parses under `apparmor_parser -Q` |
+| AC-21 | `gokrazy/kernel/runtime.config` and `runtime.require` (owner, 2026-10-14: "fix the kernel config") | carry what a Linux Docker host that boots the Ze kernel relies on: `HOTPLUG_PCI`, `HOTPLUG_PCI_ACPI`, `HOTPLUG_PCI_PCIE` (slot-named interfaces such as `ens18` keep their name) and Ubuntu's stock UFW matches and targets (`NETFILTER_XT_MATCH_LIMIT`, `_RECENT`, `_HL`, `NETFILTER_XT_TARGET_LOG`, `IP_NF_TARGET_REJECT`, `IP6_NF_TARGET_REJECT`, `IP6_NF_MATCH_HL`, `IP6_NF_MATCH_RT`, `IP6_NF_MATCH_IPV6HEADER`), each `=y` and declared once |
 
 ## 🧪 TDD Test Plan
 
@@ -339,6 +340,12 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 | Kernel build is not a caller | an exemption flag | it runs no Ze, so it never reaches the check (owner D-4) |
 | Nightly: QEMU guest on Ze's amd64 kernel | Docker directly on `ubuntu-latest` | its kernel `6.17.0-1022-azure` lacks `XFRM_MSG_MIGRATE_STATE` (runner-images Ubuntu2404-Readme, 2026-10-10) |
 | Mac: Docker labs inside the Alpine QEMU guest under HVF on Ze's arm64 kernel, one path shared with the nightly (owner D-6) | install Ze's kernel into colima's VM through grub; lima `images[].kernel` direct boot | owner: "we can use qemu, there is no reason to not have docker use on linux and qemu on mac"; the QEMU runner already boots Ze's kernel and refuses any other (`Run.assertRuntimeKernel`) |
+
+## Host the Ze kernel replaces (2026-10-14)
+
+The owner's Ubuntu host booted `7.2.9-ze` (installed with `./le setup docker-kernel install confirm 7.2.9-ze`) and lost two things its distro kernel gave it. The NIC came up as `enp0s18` instead of `ens18`: `/boot/config-7.2.9-ze` reads `# CONFIG_HOTPLUG_PCI_ACPI is not set` and `# CONFIG_HOTPLUG_PCI_PCIE is not set`, so no `/sys/bus/pci/slots` exists, udev has no slot name, and netplan's `/run/systemd/network/10-netplan-ens18.network` matched nothing. `ufw.service` failed with "Extension limit revision 0 not supported" and "Extension REJECT revision 0 not supported"; `/boot/config-6.8.0-147-generic` carries each AC-21 netfilter symbol as `=m`, and `7.2.9-ze` left them unset (`IP6_NF_MATCH_IPV6HEADER` and `NETFILTER_XT_TARGET_LOG` were already `=y` and `=m`). `/etc/ufw/*.rules` and `/proc/net/ip_tables_*` are root-only on this host, so the UFW list follows the ufw-init errors and Ubuntu's stock rule set.
+-> Decision (owner, 2026-10-14): "fix the kernel config and add the check, then recompile the kernel and reinstall it."
+-> Constraint: `HOTPLUG_PCI_ACPI` depends on `ACPI`, which arm64's defconfig sets; the arm64 runtime build on the Mac has not been run with AC-21, and `runtime.require` refuses it if kconfig drops a symbol there.
 
 ## Known Limitations
 
