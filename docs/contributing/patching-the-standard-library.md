@@ -100,7 +100,8 @@ The generator does this, each time:
    A difference stops here with an error that names both versions, the patch
    file, and the section "When the Go version changes", before any tree is built
    and even when the diff would still apply. A patch with no stamp stops the
-   same way.
+   same way. The error ends with the command to run after the repair,
+   `./le go stdpatch goroot`.
 3. When `cache/stdpatch/<key>/goroot` exists, answer it.
 4. Otherwise build the tree in a new directory under `cache/stdpatch/`, run
    `git apply` in it with `GIT_CEILING_DIRECTORIES` set so that git does not find
@@ -110,7 +111,8 @@ The generator does this, each time:
    that loses deletes its own directory and answers the winner's. The generator
    needs `git` wherever it runs.
 5. When `git apply` refuses, stop with an error that names the Go version, the
-   patch file, git's output, and the section "When the Go version changes". No
+   patch file, git's output, and the section "When the Go version changes", and
+   that ends with the command to run after the repair. No
    caller builds without the tree after that error.
 
 `./le scratch cache-clean` leaves `cache/stdpatch/` alone and reports the size of
@@ -151,11 +153,19 @@ inherits them:
   appending its own settings to the inherited environment. It removes no
   `GOROOT`, `GOTOOLCHAIN` or `PATH`, so it inherits the tree like every other
   site.
-- When the generator refuses, le still starts: the hooks, the commit flow and
-  `./le go stdpatch goroot` must keep working on the day a Go bump refuses, or
-  nobody could repair the patch. The three values are then left unset, every
-  action that builds through the toolchain package refuses with the generator's
-  error, and any other build fails at the guard below.
+- When the generator refuses, a le that is already built still dispatches: the
+  hooks, the commit flow and `./le go stdpatch goroot` keep working. The three
+  values are left unset. Every action that compiles through the toolchain
+  package (unit tests, lint, `./le build`, interop image builds, perf, the
+  vulnerability scan) refuses with the generator's error, and any other command
+  that compiles a package linking `internal/core/eap` fails at the guard below.
+  Nothing else refuses.
+- A le that does not exist yet cannot be built: on a fresh checkout, with
+  `./le --name` or `./le --update`, or for a per-platform binary, the launcher
+  builds le, le links the guarded package, and the generator refuses first. The
+  hooks that run through `./le` fail on that checkout too. The repair needs no
+  le: it is a plain edit of the patch file, described in "When the Go version
+  changes", after which the next `./le` call builds le.
 <!-- source: internal/le/register.go -- run -->
 <!-- source: internal/le/repo/compiles/repositorytrackedbuild.go -- goEnv -->
 
@@ -165,9 +175,22 @@ Outside le, each route runs the same generator itself:
   exists, and that binary links the EAP-TLS authenticator. The script runs the
   generator with `go run`, then builds that one command under the tree.
 - `ze appliance build`, in the ze-setup binary, runs the gokrazy build without
-  le. The function that prepares gok's environment calls `stdpatch.Activate`
-  first, so that route activates the tree, and under `./le build gokrazy` the
-  same call answers the tree le already carries.
+  le. It cannot activate the tree: ze-setup ships, and a shipped `ze` never
+  links an `internal/le` package (`docs/architecture/core-design.md`). The
+  function that prepares gok's environment therefore activates nothing. It
+  refuses, before it changes any setting, unless `GOROOT` is set,
+  `GOTOOLCHAIN=local`, the first `go` on `PATH` is `$GOROOT/bin/go`, and the
+  marker file the patch adds exists under `$GOROOT`. It checks the file by
+  name and imports nothing from le. The refusal ends with the command line to
+  run:
+
+  ```
+  GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH" && ze appliance build <name>
+  ```
+
+  It also names `./le build gokrazy <gok args>`, the le route. Every route
+  through le passes by inheritance: `./le build gokrazy`, and the le tests that
+  run `ze appliance build` as a child.
 - A QEMU guest or a container has its own GOROOT, so it runs the generator in
   the guest or the build stage and exports the three values. The CI workflows
   that run go directly do the same in a step after `setup-go`.
@@ -250,7 +273,11 @@ does not hold, refuses the same way: nobody can say it was reviewed. Three place
 refuse. The generator refuses a standard-library stamp before it builds a tree
 (step 2 above). `./le setup install`, which re-vendors and then applies the
 vendor patches, refuses a vendor stamp before it applies the patch,
-so a re-vendor at a new module version stops before patching. And
+so a re-vendor at a new module version stops before patching. It reads the
+stamp before it asks git whether the patch is already applied, because an
+applied patch with a stale stamp is still unreviewed, and it refuses a patch
+file that is missing rather than skipping it. Each refusal ends with the
+command to run after the repair. And
 `./le go patch-stamps check` compares every stamp of both kinds, standard-library
 stamps against the version `go.mod` pins as well as the one in use; `./le verify`
 runs it in both modes, so a stale stamp turns the verification red.
@@ -258,13 +285,21 @@ runs it in both modes, so a stale stamp turns the verification red.
 ## When the Go version changes
 
 1. Change the Go version in `go.mod` as usual.
-2. The next `./le` command and `./le verify` refuse, because the stamp still
-   names the old version. Read the new upstream function the patch changes
-   (`doFullHandshake` in the new GOROOT's `crypto/tls`).
+2. The stamp still names the old version, so the generator refuses. A le that
+   is already built keeps dispatching, but every action that compiles through
+   the toolchain package refuses, `./le verify` refuses through the stamp
+   check, and any other command that compiles a package linking
+   `internal/core/eap` fails at the guard. A launcher that has to build le stops
+   too, so the steps below are plain edits that need no le. Read the new
+   upstream function the patch changes, from the repository so that the
+   `go.mod` pin selects the toolchain:
+   `grep -n doFullHandshake "$(go env GOROOT)/src/crypto/tls/handshake_server.go"`.
 3. If upstream now does what the patch did, delete the patch, the constant, the
    reference to it, and the generator if no patch remains
    (`ai/rules/no-layering.md`).
-4. Otherwise, change the stamp to the new version and build. When `git apply`
+4. Otherwise, change the `Ze-Reviewed-Against` line in the patch header to the
+   new version and run `./le go stdpatch goroot`, which builds le again if it
+   has to. When `git apply`
    refuses, make the patch again from the new GOROOT file: copy the file, apply
    the change by hand, and write the diff with
    `git diff --no-index <original> <patched>`, with the paths changed to
