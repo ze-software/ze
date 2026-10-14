@@ -5,6 +5,7 @@
 package verifyengine
 
 import (
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -134,8 +135,8 @@ func fullStages() []Stage {
 		stage("verify deps", "unit-cached"),
 		stage("verify deps", "unit-race-changed"),
 		stage("verify deps", "alloc"),
-		stage("test functional", "gating"),
-		stage("test functional", "exabgp-test"),
+		stage(FunctionalCommand, "gating"),
+		stage(FunctionalCommand, "exabgp-test"),
 	})
 	return stages
 }
@@ -167,6 +168,21 @@ func changedStages() []Stage {
 		}
 	}
 	return stages
+}
+
+// FunctionalCommand is the command every functional suite stage runs. Those
+// stages bind the loopback addresses `./le setup` adds, so a caller that starts
+// a population holding one checks the host first (verify.HostPreflight).
+const FunctionalCommand = "test functional"
+
+// Dealt answers the stages the given part of mode's population runs, or the
+// error that says why the mode or the part names no population.
+func Dealt(mode string, part Part) ([]Stage, error) {
+	population := StagesForMode(mode)
+	if len(population) == 0 {
+		return nil, errors.New("no verify stages configured for mode " + mode)
+	}
+	return part.deal(population)
 }
 
 // StagesForMode returns a fresh stage population for a supported certificate

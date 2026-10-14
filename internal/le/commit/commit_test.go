@@ -990,7 +990,7 @@ func TestDebtClearingHonorsTheGateExit(t *testing.T) {
 	}
 
 	passing := debtClearFixture(t)
-	result, code := clearDebtWith(passing, uncutDebtPart(), green)
+	result, code := clearDebtWith(passing, uncutDebtPart(), green, anyHost)
 	if code != 0 {
 		t.Fatalf("a passing verification answered %d: %#v", code, result)
 	}
@@ -1009,7 +1009,7 @@ func TestDebtClearingHonorsTheGateExit(t *testing.T) {
 	}
 
 	failing := debtClearFixture(t)
-	result, _ = clearDebtWith(failing, uncutDebtPart(), red)
+	result, _ = clearDebtWith(failing, uncutDebtPart(), red, anyHost)
 	if result.Cleared != 0 || result.Remaining != result.Open {
 		t.Errorf("a red verification cleared %d of %d rows, want none", result.Cleared, result.Open)
 	}
@@ -1070,7 +1070,7 @@ func TestUnrunnableGatesComeFromTheGateTable(t *testing.T) {
 	}
 	for _, gate := range debtGates {
 		root := debtGateFixture(t, gate.Name)
-		result, code := clearDebtWith(root, uncutDebtPart(), green)
+		result, code := clearDebtWith(root, uncutDebtPart(), green, anyHost)
 		if code != 0 {
 			t.Fatalf("%s answered %d: %#v", gate.Name, code, result)
 		}
@@ -1102,7 +1102,7 @@ func TestUnrecognizedGateNameIsNeverClearedByAGreenVerify(t *testing.T) {
 	const undeclared = "a gate string no table declares"
 
 	root := debtGateFixture(t, undeclared)
-	result, code := clearDebtWith(root, uncutDebtPart(), green)
+	result, code := clearDebtWith(root, uncutDebtPart(), green, anyHost)
 	if code != 0 {
 		t.Fatalf("an undeclared gate answered %d: %#v", code, result)
 	}
@@ -1128,7 +1128,7 @@ func TestUnrecognizedGateNameIsNeverClearedByAGreenVerify(t *testing.T) {
 		t.Fatal("debtGates declares no alias for a runnable gate, so the accepting polarity cannot run")
 	}
 	root = debtGateFixture(t, alias)
-	result, code = clearDebtWith(root, uncutDebtPart(), green)
+	result, code = clearDebtWith(root, uncutDebtPart(), green, anyHost)
 	if code != 0 {
 		t.Fatalf("a declared alias answered %d: %#v", code, result)
 	}
@@ -1145,7 +1145,7 @@ func TestDebtClearingReportsRedVerificationAsFailure(t *testing.T) {
 		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true, Code: 1}
 	}
 	root := debtClearFixture(t)
-	result, code := clearDebtWith(root, uncutDebtPart(), red)
+	result, code := clearDebtWith(root, uncutDebtPart(), red, anyHost)
 	if code == 0 {
 		t.Fatalf("a red verification exited 0 over %d cleared row(s): %#v", result.Cleared, result)
 	}

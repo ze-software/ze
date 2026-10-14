@@ -8,6 +8,7 @@ package commit
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/verify"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -45,7 +47,7 @@ func debtPartProgress(t *testing.T, root string) debtProgress {
 func TestOnePieceOfTheVerificationClearsNoRow(t *testing.T) {
 	root := debtClearFixture(t)
 
-	first, code := clearDebtWith(root, debtPart{Index: 1, Of: 3}, greenDebtRunner)
+	first, code := clearDebtWith(root, debtPart{Index: 1, Of: 3}, greenDebtRunner, anyHost)
 	if code != 0 {
 		t.Fatalf("a green piece answered %d: %#v", code, first)
 	}
@@ -59,13 +61,13 @@ func TestOnePieceOfTheVerificationClearsNoRow(t *testing.T) {
 		t.Errorf("the runnable row is %q after one piece of three, want open", status)
 	}
 
-	second, _ := clearDebtWith(root, debtPart{Index: 2, Of: 3}, greenDebtRunner)
+	second, _ := clearDebtWith(root, debtPart{Index: 2, Of: 3}, greenDebtRunner, anyHost)
 	if second.Cleared != 0 || !slices.Equal(second.Proven, []int{1, 2}) {
 		t.Errorf("part 2 of 3 cleared %d rows and reports %v proven, want none and [1 2]",
 			second.Cleared, second.Proven)
 	}
 
-	third, code := clearDebtWith(root, debtPart{Index: 3, Of: 3}, greenDebtRunner)
+	third, code := clearDebtWith(root, debtPart{Index: 3, Of: 3}, greenDebtRunner, anyHost)
 	if code != 0 {
 		t.Fatalf("the last piece answered %d: %#v", code, third)
 	}
@@ -87,14 +89,14 @@ func TestOnePieceOfTheVerificationClearsNoRow(t *testing.T) {
 func TestAHeadMoveDiscardsThePiecesProvenBeforeIt(t *testing.T) {
 	root := debtClearFixture(t)
 
-	if _, code := clearDebtWith(root, debtPart{Index: 1, Of: 2}, greenDebtRunner); code != 0 {
+	if _, code := clearDebtWith(root, debtPart{Index: 1, Of: 2}, greenDebtRunner, anyHost); code != 0 {
 		t.Fatalf("the first piece answered %d", code)
 	}
 	before := debtPartProgress(t, root)
 
 	commitDebtFixture(t, root, "second commit")
 
-	second, code := clearDebtWith(root, debtPart{Index: 2, Of: 2}, greenDebtRunner)
+	second, code := clearDebtWith(root, debtPart{Index: 2, Of: 2}, greenDebtRunner, anyHost)
 	if code != 0 {
 		t.Fatalf("the piece after the HEAD move answered %d: %#v", code, second)
 	}
@@ -118,10 +120,10 @@ func TestAHeadMoveDiscardsThePiecesProvenBeforeIt(t *testing.T) {
 // are not a population however many of them there are.
 func TestADifferentCutStartsTheRecordAgain(t *testing.T) {
 	root := debtClearFixture(t)
-	if _, code := clearDebtWith(root, debtPart{Index: 1, Of: 4}, greenDebtRunner); code != 0 {
+	if _, code := clearDebtWith(root, debtPart{Index: 1, Of: 4}, greenDebtRunner, anyHost); code != 0 {
 		t.Fatalf("the first piece answered %d", code)
 	}
-	result, _ := clearDebtWith(root, debtPart{Index: 2, Of: 3}, greenDebtRunner)
+	result, _ := clearDebtWith(root, debtPart{Index: 2, Of: 3}, greenDebtRunner, anyHost)
 	if !slices.Equal(result.Proven, []int{2}) {
 		t.Errorf("a piece of a 3-way cut reports %v proven, want only [2]: the 4-way record judged another population",
 			result.Proven)
@@ -185,7 +187,7 @@ func redDebtRunner(_ context.Context, _ string, identity verifyengine.Identity) 
 func TestASweepProvesEveryPieceInOneInvocation(t *testing.T) {
 	root := debtClearFixture(t)
 
-	result, code := clearDebtWith(root, debtPart{Index: 1, Of: 3, All: true}, greenDebtRunner)
+	result, code := clearDebtWith(root, debtPart{Index: 1, Of: 3, All: true}, greenDebtRunner, anyHost)
 	if code != 0 {
 		t.Fatalf("a green sweep answered %d: %#v", code, result)
 	}
@@ -211,11 +213,11 @@ func TestASweepProvesEveryPieceInOneInvocation(t *testing.T) {
 func TestASweepSkipsAPieceAlreadyProven(t *testing.T) {
 	root := debtClearFixture(t)
 
-	if _, code := clearDebtWith(root, debtPart{Index: 1, Of: 3}, greenDebtRunner); code != 0 {
+	if _, code := clearDebtWith(root, debtPart{Index: 1, Of: 3}, greenDebtRunner, anyHost); code != 0 {
 		t.Fatalf("the first piece answered %d", code)
 	}
 
-	result, code := clearDebtWith(root, debtPart{Index: 1, Of: 3, All: true}, greenDebtRunner)
+	result, code := clearDebtWith(root, debtPart{Index: 1, Of: 3, All: true}, greenDebtRunner, anyHost)
 	if code != 0 {
 		t.Fatalf("the sweep answered %d: %#v", code, result)
 	}
@@ -239,7 +241,7 @@ func TestASweepSkipsAPieceAlreadyProven(t *testing.T) {
 func TestASweepCarriesOnPastARedPiece(t *testing.T) {
 	root := debtClearFixture(t)
 
-	result, _ := clearDebtWith(root, debtPart{Index: 1, Of: 3, All: true}, redDebtRunner)
+	result, _ := clearDebtWith(root, debtPart{Index: 1, Of: 3, All: true}, redDebtRunner, anyHost)
 	if !slices.Equal(result.Failed, []int{1, 2, 3}) {
 		t.Errorf("the sweep reports %v red, want [1 2 3]: a red piece must not end the sweep", result.Failed)
 	}
@@ -248,5 +250,49 @@ func TestASweepCarriesOnPastARedPiece(t *testing.T) {
 	}
 	if status := debtClearStatuses(t, root)[debtGates[0].Name]; status != "open" {
 		t.Errorf("the runnable row is %q after a red sweep, want open", status)
+	}
+}
+
+// anyHost is a host preflight that passes, for the tests whose question is what
+// the clearing does with a verdict rather than whether the host can run it.
+func anyHost(verify.Options) error { return nil }
+
+// TestASweepOnAHostThatCannotRunItStartsNoPiece: a host that cannot run one
+// piece of a sweep refuses the whole pass before the first piece starts, so a
+// sweep whose last piece holds the functional suites does not run the other
+// pieces first. The method refuses only piece 3 of 3 and counts the stages the
+// runner was handed.
+func TestASweepOnAHostThatCannotRunItStartsNoPiece(t *testing.T) {
+	root := debtClearFixture(t)
+	missing := errors.New("this host is missing loopback addresses")
+	checked := []int{}
+	host := func(options verify.Options) error {
+		checked = append(checked, options.Part)
+		if options.Part == 3 {
+			return missing
+		}
+		return nil
+	}
+	stages := 0
+	runner := func(ctx context.Context, root string, identity verifyengine.Identity) verifyengine.ActionResult {
+		stages++
+		return greenDebtRunner(ctx, root, identity)
+	}
+
+	result, code := clearDebtWith(root, debtPart{Index: 1, Of: 3, All: true}, runner, host)
+	if code != 2 {
+		t.Errorf("a refused sweep answered %d, want 2", code)
+	}
+	if stages != 0 {
+		t.Errorf("the runner was handed %d stages after the host was refused", stages)
+	}
+	if !slices.Equal(checked, []int{1, 2, 3}) {
+		t.Errorf("the preflight checked pieces %v, want [1 2 3]", checked)
+	}
+	if result.Cleared != 0 || result.Remaining != result.Open {
+		t.Errorf("a refused sweep cleared %d of %d rows, want none", result.Cleared, result.Open)
+	}
+	if status := debtClearStatuses(t, root)[debtGates[0].Name]; status != "open" {
+		t.Errorf("the runnable row is %q after a refused sweep, want open", status)
 	}
 }

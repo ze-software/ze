@@ -181,6 +181,31 @@ gap: they re-run the same non-equivalent launch.
 | One test, iterating | The owning compiled fixture's Go test, then rerun the whole `./le test functional <suite>` |
 | A kernel-dependent suite in the VM | `./le test qemu netns-test suites <comma-separated-suites>` |
 
+## A functional run checks the host before it starts
+
+A functional fixture binds loopback addresses that `./le setup` adds and a
+reboot removes. A host without them used to fail at the first fixture that binds
+one, which in a verification is two hours in. So every command that can start a
+functional suite checks the host first, before it builds or runs anything:
+
+| Command | When it checks |
+|---------|----------------|
+| `./le test functional gating`, `./le test functional <suite>`, `./le test functional exabgp-test` | Always |
+| `./le verify worktree`, `./le verify current` | When the population holds a functional stage |
+| `./le commit debt-clear` | When a piece the pass will run holds a functional stage, for every such piece before the first starts |
+
+A missing address refuses the run with a non-zero exit. The refusal names each
+missing address and the fix: `./le setup install`, or the `sudo` line for each
+address.
+It never warns and continues. The address set and the readiness test are the ones
+`./le setup check` reports as `loopback-addresses` (`docs/guide/developer-setup.md`),
+so `./le setup check` says the same thing before you start.
+
+<!-- source: internal/le/setup/system.go -- FunctionalHostPreflight -->
+<!-- source: internal/le/verify/preflight.go -- HostPreflight -->
+<!-- source: internal/le/test/functional/actions.go -- hostReady -->
+<!-- source: internal/le/commit/actions.go -- clearDebtWith -->
+
 ## The lint gate
 
 The native per-edit hook (`internal/le/hookruntime/postwrite.go`) judges changed

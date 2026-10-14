@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/setup"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -185,6 +186,14 @@ func currentHere(args leaction.Arguments) (any, int) {
 		return nil, 1
 	}
 	mode := args.One("mode")
+	// An unknown mode has no population to check, and runCurrent refuses it by
+	// name below, so only a known mode is preflighted.
+	if certificate, err := certificateMode(mode); err == nil {
+		if err := hostPreflight(certificate, verifyengine.Uncut(), setup.FunctionalHostPreflight); err != nil {
+			leaction.ReportError(err)
+			return nil, 2
+		}
+	}
 	ctx, stop := signalContext()
 	defer stop()
 	report := runCurrent(ctx, root, mode, actionRunner())

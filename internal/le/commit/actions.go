@@ -325,7 +325,14 @@ func parseCreate(args []string) (Options, error) {
 // clearDebt re-judges every open debt row against HEAD, through the native
 // verification the rows name, running the piece of it the caller named.
 func clearDebt(root string, part debtPart) (debtClearResult, int) {
-	return clearDebtWith(root, part, verifydispatch.RunAction)
+	return clearDebtWith(root, part, verifydispatch.RunAction, verify.Options.HostPreflight)
+}
+
+// debtVerifyOptions answers the verification one piece of a debt-clear pass
+// runs. The preflight and the run both read it, so the host is checked for the
+// piece that then runs.
+func debtVerifyOptions(piece debtPart) verify.Options {
+	return verify.Options{Commit: "HEAD", Part: piece.Index, Parts: piece.Of}
 }
 
 // clearDebtWith is clearDebt with the verification's action dispatcher named.
@@ -336,7 +343,11 @@ func clearDebt(root string, part debtPart) (debtClearResult, int) {
 // dispatcher each of those runs is the hour-long verification, so the decision
 // would be the one part of debt clearing no test ever reaches, in a function
 // whose whole job is to refuse to trust an unverified claim.
-func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner) (debtClearResult, int) {
+//
+// hostReady is the host preflight of one piece's verification, a parameter for
+// the same reason: the refusal it causes is a decision this function makes.
+func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner,
+	hostReady func(verify.Options) error) (debtClearResult, int) {
 	rows, err := openDebt(root)
 	if err != nil {
 		leaction.ReportError(err)
@@ -385,6 +396,19 @@ func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner)
 		// A sweep skips what an earlier sweep already proved at this commit, so
 		// a run killed at its fattest stage resumes rather than starting again.
 		already := provenDebtParts(root, debtSweepCommit(root), part.Of)
+		// Every piece this pass will run is checked before the first starts: a
+		// sweep whose last piece holds the functional suites would otherwise
+		// run every other piece first and only then find the host cannot.
+		for _, piece := range part.sweep() {
+			if part.All && slices.Contains(already, piece.Index) {
+				continue
+			}
+			if err := hostReady(debtVerifyOptions(piece)); err != nil {
+				leaction.ReportError(err)
+				result.Remaining = result.Open
+				return result, 2
+			}
+		}
 		for _, piece := range part.sweep() {
 			if part.All && slices.Contains(already, piece.Index) {
 				result.Skipped = append(result.Skipped, piece.Index)
@@ -393,8 +417,7 @@ func clearDebtWith(root string, part debtPart, runner verifyengine.ActionRunner)
 				proven = debtPartsComplete(already, piece.Of)
 				continue
 			}
-			report := verify.Run(context.Background(), root,
-				verify.Options{Commit: "HEAD", Part: piece.Index, Parts: piece.Of}, runner)
+			report := verify.Run(context.Background(), root, debtVerifyOptions(piece), runner)
 			result.Commit = report.Commit
 			result.Diagnostics = append(result.Diagnostics, report.Diagnostics...)
 			if piece.cut() {

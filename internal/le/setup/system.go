@@ -8,6 +8,7 @@
 package setup
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"os"
@@ -426,6 +427,38 @@ func (s *Setup) noteLoopbackFix(report *Report, missing []string) {
 		var tb textbuf.Buffer
 		report.Note(tb.Str("  Run: sudo ").Join(s.loopbackAddArgv(addr), " ").String())
 	}
+}
+
+// FunctionalHostPreflight answers nil when this host carries every loopback
+// address the functional suites bind, and otherwise the refusal that names each
+// missing address and the commands that add it.
+//
+// A functional run, a verification that holds one, and a debt-clear pass call it
+// BEFORE any work starts. Without it, a host rebooted since its last `./le
+// setup` ran a verification for two hours before the first fixture that binds
+// fd00::2 failed (the runner's own per-test probe, ensureLoopbackAlias in
+// internal/test/runner/loopback.go). The address set and the readiness test are
+// the ones `./le setup` adds and `./le setup check` reports, so the preflight,
+// setup and its check cannot disagree about what the host needs.
+func FunctionalHostPreflight() error {
+	var host Setup
+	return host.functionalHostPreflight()
+}
+
+func (s *Setup) functionalHostPreflight() error {
+	missing := s.missingLoopback()
+	if len(missing) == 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	tb.Str("this host is missing loopback addresses that the functional tests bind: ").Join(missing, ", ").
+		Str("\nEvery test that binds one of them fails, so the run did not start." +
+			"\nThese addresses are lost when the host reboots. Add them with:\n  ./le setup install" +
+			"\nor add them by hand:")
+	for _, addr := range missing {
+		tb.Str("\n  sudo ").Join(s.loopbackAddArgv(addr), " ")
+	}
+	return errors.New(tb.String())
 }
 
 // applyLoopback records, then runs, the commands that add the missing

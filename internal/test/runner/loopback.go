@@ -285,11 +285,11 @@ func loopbackBindable(ip net.IP) bool {
 // loopbackMissing is the error returned when ip is not on the loopback
 // interface and this process cannot put it there.
 //
-// The text names both routes deliberately. `./le setup` is the supported one
+// The text names both routes deliberately. `./le setup install` is the supported one
 // and adds every address the suite needs; the raw command covers an address the
 // setup script does not know about, and tells a reader what setup would do.
 func loopbackMissing(ip net.IP) error {
 	return fmt.Errorf(
-		"ensureLoopbackAlias: %v is not on this host's loopback interface: run `./le setup`,"+
+		"ensureLoopbackAlias: %v is not on this host's loopback interface: run `./le setup install`,"+
 			" or add it by hand with `%s`", ip, loopbackIPv6AddCommand(ip))
 }

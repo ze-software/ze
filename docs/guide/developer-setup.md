@@ -352,9 +352,15 @@ a different prefix: resolve a conflicting assignment explicitly if the add
 command fails.
 
 These changes require an explicit `setup install` or the commands above.
-`setup check` and test runners do not change host networking. The compatibility
-runner's local-address preflight checks bindability, not this complete topology;
-run setup check before the suite.
+`setup check` and test runners do not change host networking. Every command that
+starts a functional suite (`./le test functional`, `./le verify worktree`,
+`./le verify current`, `./le commit debt-clear`) runs this same check before it
+builds or runs anything, and refuses to start when an address is missing. The
+refusal names each missing address and the commands above that add it
+(`FunctionalHostPreflight`). The runners' own per-test probes stay, and check
+bindability only.
+
+<!-- source: internal/le/setup/system.go -- FunctionalHostPreflight -->
 
 <!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
 

@@ -95,6 +95,10 @@ func runHere(args leaction.Arguments) (any, int) {
 		return nil, 1
 	}
 	options := optionsFrom(args, os.Getenv)
+	if err := options.HostPreflight(); err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
 	ctx, stop := signalContext()
 	defer stop()
 	report := Run(ctx, root, options, actionRunner())

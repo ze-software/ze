@@ -21,6 +21,7 @@ import (
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/setup"
 )
 
 // listVerb prints the suite table instead of running anything. It is a keyword
@@ -176,12 +177,28 @@ func (s *session) runSelect() (any, int) {
 
 // runGating runs the gating suites under their own budgets.
 func (s *session) runGating() (any, int) {
+	if !hostReady() {
+		return nil, 1
+	}
 	tc, err := s.toolchain()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
 	return runGating(tc)
+}
+
+// hostReady reports whether this host can run a functional suite, after
+// reporting the refusal when it cannot. Every action that starts a suite asks it
+// before the toolchain probe and the build, because a host without the loopback
+// addresses the fixtures bind fails at the first fixture that binds one, after
+// the whole build.
+func hostReady() bool {
+	if err := setup.FunctionalHostPreflight(); err != nil {
+		leaction.ReportError(err)
+		return false
+	}
+	return true
 }
 
 // table builds this invocation's action table: the three area actions, one row
@@ -207,6 +224,9 @@ func table(s *session) leaction.Area {
 // suiteRunner answers the action that runs one suite under its own cap.
 func (s *session) suiteRunner(suite Suite) func() (any, int) {
 	return func() (any, int) {
+		if !hostReady() {
+			return nil, 1
+		}
 		tc, err := s.toolchain()
 		if err != nil {
 			leaction.ReportError(err)
@@ -242,6 +262,9 @@ func (s *session) suiteRunner(suite Suite) func() (any, int) {
 }
 
 func (s *session) runExaBGP() (any, int) {
+	if !hostReady() {
+		return nil, 1
+	}
 	root, err := s.checkout()
 	if err != nil {
 		leaction.ReportError(err)

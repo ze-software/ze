@@ -973,6 +973,52 @@ func TestLoopbackRequiresJointPrefixAndOwnedLinkLocal(t *testing.T) {
 	}
 }
 
+// A functional run refuses to start on a host that lacks an address the suites
+// bind, and starts on a host that carries them all. The method is a fake
+// loopback interface: it serves the readiness probe a chosen prefix set, then
+// the refusal is read for each missing address and the command that adds it,
+// and for no address the host does carry.
+func TestFunctionalHostPreflightRefusesAMissingAddress(t *testing.T) {
+	ready := &Setup{
+		GOOS:     "linux",
+		Bindable: func(string) bool { return true },
+		LoopbackPrefixes: func() ([]netip.Prefix, error) {
+			return fixtureLoopbackPrefixes(), nil
+		},
+	}
+	if err := ready.functionalHostPreflight(); err != nil {
+		t.Fatalf("a host carrying every address was refused: %v", err)
+	}
+
+	// After a reboot fd00::2/128 is gone while the link-local survives.
+	rebooted := &Setup{
+		GOOS:     "linux",
+		Bindable: func(string) bool { return true },
+		LoopbackPrefixes: func() ([]netip.Prefix, error) {
+			return fixtureLoopbackPrefixes()[1:], nil
+		},
+	}
+	err := rebooted.functionalHostPreflight()
+	if err == nil {
+		t.Fatal("a host without fd00::2 was allowed to start a functional run")
+	}
+	message := err.Error()
+	for _, want := range []string{
+		"fd00::2",
+		"./le setup install",
+		"sudo ip -6 addr add fd00::2/128 dev lo",
+	} {
+		if !strings.Contains(message, want) {
+			t.Errorf("the refusal does not name %q:\n%s", want, message)
+		}
+	}
+	for _, carried := range []string{loopbackPeerIPv6, loopbackLinkLocalIPv6} {
+		if strings.Contains(message, carried) {
+			t.Errorf("the refusal names %s, which the host carries:\n%s", carried, message)
+		}
+	}
+}
+
 // Scoped bindability is independent of ownership: a tentative or unusable
 // address still needs attention even when its prefix is already assigned.
 func TestLoopbackLinkLocalBindUsesInterfaceZone(t *testing.T) {

@@ -89,7 +89,7 @@ func ensureLoopbackAlias(ip net.IP) error {
 	if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), //nolint:staticcheck,gosec // no generic ioctl-with-pointer in x/sys/unix; unsafe required for ioctl struct
 		uintptr(unix.SIOCAIFADDR), uintptr(unsafe.Pointer(&req))); errno != 0 {
 		return fmt.Errorf("ensureLoopbackAlias: ioctl SIOCAIFADDR %v on lo0: %w:"+
-			" run `./le setup`, or add it by hand with `sudo ifconfig lo0 alias %v`", ip, errno, ip)
+			" run `./le setup install`, or add it by hand with `sudo ifconfig lo0 alias %v`", ip, errno, ip)
 	}
 
 	return nil
