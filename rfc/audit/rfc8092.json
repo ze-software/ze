@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-06",
+  "audited": "2026-10-14",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -7,17 +7,25 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8092-3-1": {
-      "note": "Forbidden behaviour: a speaker transmitting a LARGE_COMMUNITY attribute that carries the same 12-octet value twice. TestLargeCommunitiesWriteToNoDuplicates asserts n == 24 for a three-entry list holding one duplicate, so it goes red if LargeCommunities.WriteTo stops deduplicating; TestLargeCommunities (negative) pins that distinct values are all emitted. Only the WriteTo producer is covered: the adj-rib-out replay encoder in internal/component/bgp/plugins/rib/ribout_entry.go (parseLargeCommunityWire then appendAttr) re-encodes the stored value without deduplication, and forward-unchanged raw attribute bytes are not asserted either, so a duplicate can reach the wire on a path no tagged unit exercises.",
+      "note": "Re-judged 2026-10-14 (independent auditor, D2). RFC 8092 Section 3: \"Duplicate BGP Large Community values MUST NOT be transmitted.\" Producer: normalizeTransmittedUpdate's compactLargeCommunities, run by writeUpdateBody on every UPDATE write, raw included, so the adj-rib-out replay and forward-unchanged bytes the earlier verdict named now pass the same walk. Positive TestRFC8092WriteRemovesRepeatedLargeCommunity: [X,X,Y] sent as [X,Y], 20 values with one repeat (filter path) and 22 in Extended Length form sent with the repeat removed, first occurrence kept, lengths re-checked by sentLargeCommunities, on the raw, parsed, override and relay writers, zero allocations; TestRFC8092PolicyAddOfPresentValueSentOnce: received [X,Z] plus a policy body [X,Z,X,Y,Y] leaves as exactly [X,Z,Y], 36 octets, message length consistent; the .ci asserts the full relayed hex with the policy repeats gone; TestLargeCommunitiesWriteToNoDuplicates pins the local encoder. Negatives TestRFC8092WriteKeepsDistinctLargeCommunities (3, 16, 17, 20 distinct values leave byte for byte on every writer) and TestLargeCommunities, red on over-removal or reordering.",
       "requirement_sha": "42daae0ee97b186e",
       "tests": {
+        "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce": "655451589d0822cd",
+        "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteKeepsDistinctLargeCommunities": "655451589d0822cd",
+        "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity": "655451589d0822cd",
         "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "34fcdbe05b3de369",
-        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "34fcdbe05b3de369"
+        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "34fcdbe05b3de369",
+        "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "dcd874ced675bb11"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce": "b533b5ebd7b1cd3f",
+        "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteKeepsDistinctLargeCommunities": "d02df19416ee3470",
+        "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity": "d06e3dbb1567f29d",
         "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "d0693f4c5a17e247",
-        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "2b11448b2135ae5b"
+        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "2b11448b2135ae5b",
+        "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "dcd874ced675bb11"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8092-3-2": {
       "note": "Judge 2026-09-30 (R34, D-8 fixed). Producer reactor/rfc8092_large_community.go::removeRedundantLargeCommunities, called from publishBase: scan first (pairwise up to 16 values, seeded 64k-bit stack filter with exact confirm above), rebuild only on a repeat, keeping first occurrences in order, the peer's flags and header width, length rewritten, other attributes copied unchanged. Positive TestRFC8092RedundantLargeCommunityRemovedBeforePropagation: 2 copies (1-octet length) and 23 values with 3 repeats (extended length, filter path): no error, ActionNone, published and forwarded attribute hold each value once in first-occurrence order. Negative TestRFC8092DistinctLargeCommunitiesKeptWhole: 3 and 22 distinct values (filter path) published octet-equal to the received body and forwarded whole. Both have observed-red revert records. A non-multiple-of-12 value stays treat-as-withdraw (publishBase not reached). Attribute-package tags on ParseLargeCommunities remain unproven secondary units.",
