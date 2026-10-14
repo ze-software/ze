@@ -36,19 +36,13 @@ const (
 	commandType  = "type"
 	commandVTYSH = "vtysh"
 
-	// netAdminCapability and pppDevice are what a PPP over L2TP daemon needs
-	// beyond Docker's default grants: NET_ADMIN for the L2TP Generic Netlink
-	// tunnels and sessions and for PPPIOCNEWUNIT, and the /dev/ppp character
-	// device for its PPP units. The modules themselves are the host's: a lab
-	// container never loads one (spec-lab-containers-least-privilege, D-7).
+	// netAdminCapability is what a PPP over L2TP daemon needs beyond Docker's
+	// default grants besides the PPP device (interoplab.PPPDeviceArguments):
+	// NET_ADMIN for the L2TP Generic Netlink tunnels and sessions and for
+	// PPPIOCNEWUNIT. The modules themselves are the host's: a lab container
+	// never loads one (spec-lab-containers-least-privilege, D-7).
 	netAdminCapability = "NET_ADMIN"
-	pppDevice          = "/dev/ppp"
 )
-
-// pppDeviceArguments hands a container the host's PPP character device.
-func pppDeviceArguments() []string {
-	return []string{"--device", pppDevice}
-}
 
 func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 	return map[string]interoplab.Checker{
@@ -221,7 +215,7 @@ func zePeer(suffix, config string) interoplab.PeerConfig {
 		Host:         2,
 		Mounts:       mounts,
 		Capabilities: []string{netAdminCapability},
-		Arguments:    pppDeviceArguments(),
+		Arguments:    interoplab.PPPDeviceArguments(),
 		Environment: []interoplab.EnvironmentVariable{
 			{Name: "ZE_LOG_L2TP", Value: "debug"},
 			{Name: "ze.l2tp.ncp.enable-ipv6cp", Value: "false"},
@@ -258,7 +252,7 @@ func lacPeer(suffix, directory string) interoplab.PeerConfig {
 		Host:         3,
 		Mounts:       mounts,
 		Capabilities: []string{netAdminCapability},
-		Arguments:    pppDeviceArguments(),
+		Arguments:    interoplab.PPPDeviceArguments(),
 		Ready:        &interoplab.ReadyProbe{Command: []string{"sh", "-c", "kill -0 1"}, Timeout: 15 * time.Second, Interval: time.Second},
 	}
 }
@@ -351,29 +345,26 @@ func preflight(suffix string) interoplab.PreflightCheck {
 		}
 		result, err := docker.RunOneShot(ctx, preflightContainer(suffix))
 		if err != nil {
-			// Docker refuses --device /dev/ppp before the probe runs when the
-			// host has no PPP device, so the refusal names that fix too.
-			return fmt.Errorf("the L2TP preflight container did not run: %w\n"+
-				"If Docker names /dev/ppp, the host has no PPP device. Load it on the Docker host:\n"+
-				"  sudo modprobe ppp_generic", err)
+			return interoplab.PPPPreflightRunRefusal("L2TP", err)
 		}
-		return preflightRefusal(parsePreflight(result.Stdout))
+		return preflightRefusal(interoplab.ParsePreflight(result.Stdout))
 	}
 }
 
 // preflightContainer probes the host kernel with the grants the lab's peers
 // hold and nothing more, so it passes only where they can run: it loads no
-// module, because a module it loaded would hide the host's missing setup.
+// module, because a module it loaded would hide the host's missing setup. The
+// shared PPP device probe runs first, then the two L2TP probes.
 func preflightContainer(suffix string) interoplab.OneShotContainer {
 	var tb textbuf.Buffer
 	containerName := tb.Str("ze-l2tp-preflight-").Str(suffix).String()
-	arguments := append([]string{"--cap-add", netAdminCapability, "--name", containerName}, pppDeviceArguments()...)
+	arguments := append([]string{"--cap-add", netAdminCapability, "--name", containerName}, interoplab.PPPDeviceArguments()...)
 	return interoplab.OneShotContainer{
 		Image:     "alpine:3.21",
 		Arguments: arguments,
 		Command: []string{"sh", "-c",
-			"apk add --no-cache -q iproute2 > /dev/null 2>&1 && " +
-				"echo DEV_PPP=$(test -c /dev/ppp && echo ok || echo missing); " +
+			interoplab.PPPDeviceProbe + "; " +
+				"apk add --no-cache -q iproute2 > /dev/null 2>&1 && " +
 				"echo L2TP_PPP=$(test -d /sys/module/l2tp_ppp -o -d /sys/module/pppol2tp -o -f /proc/net/pppol2tp && echo ok || echo missing); " +
 				"echo IP_L2TP=$(ip l2tp show tunnel > /dev/null 2>&1 && echo ok || echo missing)"},
 		Timeout: 120 * time.Second,
@@ -384,8 +375,8 @@ func preflightContainer(suffix string) interoplab.OneShotContainer {
 // the host command that loads it, or answers nil when nothing is missing.
 func preflightRefusal(checks map[string]string) error {
 	missing := make([]string, 0, 3)
-	if checks["DEV_PPP"] != "ok" {
-		missing = append(missing, "/dev/ppp (the PPP device, module ppp_generic)")
+	if device, absent := interoplab.PPPDeviceMissing(checks); absent {
+		missing = append(missing, device)
 	}
 	if checks["L2TP_PPP"] != "ok" {
 		missing = append(missing, "PPP over L2TP (module l2tp_ppp)")
@@ -402,17 +393,6 @@ func preflightRefusal(checks map[string]string) error {
 		Str("Load them on the Docker host, then run the lab again:\n").
 		Str("  sudo modprobe -a ppp_generic l2tp_ppp l2tp_netlink").String()
 	return errors.New(message)
-}
-
-func parsePreflight(output string) map[string]string {
-	checks := make(map[string]string, 3)
-	for line := range strings.SplitSeq(output, "\n") {
-		key, value, found := strings.Cut(strings.TrimSpace(line), "=")
-		if found {
-			checks[key] = value
-		}
-	}
-	return checks
 }
 
 func renderInitiatorConfig(root, directory string, network interoplab.Network) (string, func() error, error) {

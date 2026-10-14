@@ -59,7 +59,7 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 			Host:         accelHost,
 			Mounts:       accelMounts,
 			Capabilities: []string{netAdminCapability},
-			Arguments:    pppDeviceArguments(),
+			Arguments:    interoplab.PPPDeviceArguments(),
 			Ready: &interoplab.ReadyProbe{
 				Command:  []string{"accel-cmd", commandShow, "stat"},
 				Timeout:  60 * time.Second,
@@ -73,11 +73,10 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 			Host:         zeHost,
 			Mounts:       zeMounts,
 			Capabilities: []string{netAdminCapability},
-			Arguments: []string{
-				deviceFlag, pppDevice,
+			Arguments: append(interoplab.PPPDeviceArguments(),
 				"-e",
 				"ze.log.interface=debug",
-			},
+			),
 			Command: []string{"start", zeConfigPath},
 		},
 	}, nil
@@ -104,13 +103,12 @@ func prepareZeAccessConcentrator(
 			Host:         zeHost,
 			Mounts:       zeMounts,
 			Capabilities: []string{netAdminCapability},
-			Arguments: []string{
-				deviceFlag, pppDevice,
+			Arguments: append(interoplab.PPPDeviceArguments(),
 				"-e",
 				"ze.log.pppoe=debug",
 				"-e",
 				"ze.log.l2tp=debug",
-			},
+			),
 			Command: []string{"start", zeConfigPath},
 		},
 		{
@@ -119,7 +117,7 @@ func prepareZeAccessConcentrator(
 			Image:        clientImageName,
 			Host:         clientHost,
 			Capabilities: []string{netAdminCapability},
-			Arguments:    pppDeviceArguments(),
+			Arguments:    interoplab.PPPDeviceArguments(),
 		},
 	}, nil
 }

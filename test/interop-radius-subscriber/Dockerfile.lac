@@ -1,0 +1,8 @@
+# LAC image for the FreeRADIUS subscriber interop lab: xl2tpd in the
+# foreground, which starts pppd for the session it dials.
+
+FROM alpine:3.21
+
+RUN apk add --no-cache xl2tpd ppp iproute2
+
+CMD ["xl2tpd", "-D", "-c", "/etc/xl2tpd/xl2tpd.conf"]

@@ -23,6 +23,7 @@ import (
 	interopbgp "github.com/ze-software/ze/internal/le/interoplab/bgp"
 	interopipsec "github.com/ze-software/ze/internal/le/interoplab/ipsec"
 	interopradius "github.com/ze-software/ze/internal/le/interoplab/radius"
+	interopradiussubscriber "github.com/ze-software/ze/internal/le/interoplab/radiussubscriber"
 	interoprsvpte "github.com/ze-software/ze/internal/le/interoplab/rsvpte"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -76,6 +77,11 @@ func runIPsecInterop(ctx context.Context, root string) (any, int) {
 
 func runRADIUSInterop(ctx context.Context, root string) (any, int) {
 	return interopradius.RunAt(ctx, root, "")
+}
+
+func runRADIUSSubscriberInterop(ctx context.Context, root string) (any, int) {
+	report := interopradiussubscriber.RunAt(ctx, root, "")
+	return report, report.Code
 }
 
 func runRSVPTEInterop(ctx context.Context, root string) (any, int) {

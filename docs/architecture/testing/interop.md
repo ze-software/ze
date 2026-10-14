@@ -21,9 +21,10 @@ This page is the infrastructure it is owed against.
 | L2TP | Docker | `test/interop-l2tp/` | `./le test deployment l2tp-test`, and `./le test deployment l2tp-ppp-test` for the full PPP and NCP path |
 | PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le test deployment docker-pppoe-accel-test` |
 | RADIUS (admin login: PAP, CHAP, EAP, Filter-Id) | Docker: FreeRADIUS | `test/interop-radius/scenarios/` | `./le test integration interop-radius` |
+| RADIUS (subscriber: accounting, CoA and Disconnect) | Docker: FreeRADIUS, an xl2tpd + pppd LAC | `test/interop-radius-subscriber/scenarios/` | `./le test integration interop-radius-subscriber` |
 | RSVP-TE (Ze as transit) | Docker: freeRouter, ingress and egress | `test/interop-rsvpte/scenarios/` | `./le test integration interop-rsvpte` |
 
-<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius and interop-rsvpte verbs -->
+<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius, interop-radius-subscriber and interop-rsvpte verbs -->
 <!-- source: internal/le/test/deployment/actions.go -- l2tp-test, l2tp-ppp-test, docker-pppoe-accel-test verbs -->
 
 Every suite discovers its scenarios the same way. `Discover`
@@ -421,7 +422,21 @@ without the write. In the L2TP lab ze and the xl2tpd LAC hold `NET_ADMIN` and
 `--device /dev/ppp`, and the preflight probes with the same grants and loads no
 module, so it passes only where the peers can run. The PPPoE lab grants ze,
 accel-ppp and the pppd client the same two, its preflight probes the same way,
-and no PPPoE image installs `kmod` or runs `modprobe`.
+and no PPPoE image installs `kmod` or runs `modprobe`. The RADIUS subscriber lab
+grants ze and its LAC the same two and FreeRADIUS neither.
+
+The `/dev/ppp` half of those preflights is declared once, in
+`internal/le/interoplab/pppdevice.go`, because the Docker host kernel check
+below cannot see a character device. Each lab still runs one preflight
+container: it puts `PPPDeviceProbe` (the line printing `DEV_PPP=ok` or
+`DEV_PPP=missing`) first in its `sh -c` command and adds its own probes, parses
+the output with `ParsePreflight`, takes the device entry of its refusal from
+`PPPDeviceMissing`, and refuses a container that did not run through
+`PPPPreflightRunRefusal`. That refusal always wraps Docker's error, keeping the
+operation, exit code, stderr and cause, and adds `sudo modprobe ppp_generic`
+only when Docker's stderr names `/dev/ppp`.
+
+<!-- source: internal/le/interoplab/pppdevice.go -- PPPDeviceArguments, PPPDeviceProbe, ParsePreflight, PPPDeviceMissing, PPPPreflightRunRefusal -->
 
 <!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing, labAppArmorUnapplied -->
 <!-- source: internal/le/interoplab/apparmor_netsysctl.go -- NetSysctlAppArmorProfileName, NetSysctlGranted -->
@@ -1237,6 +1252,32 @@ as evidence.
 <!-- source: internal/le/interoplab/radius/radius.go -- the suite, its pinned image, its peers and its probes -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- every observation, on ze's side and on the server's -->
 <!-- source: test/interop-radius/mods-ze-request-log -- the linelog module the server's record comes from -->
+
+### The FreeRADIUS subscriber suite
+
+`./le test integration interop-radius-subscriber` puts FreeRADIUS 3.2.7, the
+release the admin-login suite pins, in front of ze's subscriber RADIUS surface:
+the accountant and the CoA and Disconnect listener of
+`internal/component/l2tp/plugins/authradius`. Both act only on a kernel L2TP
+session, which no fixture can stand in for, so the lab carries its own LAC
+(xl2tpd and pppd), and ze and the LAC hold `NET_ADMIN` and `/dev/ppp`. That is
+why it is a suite of its own: the admin-login suite promises no capability at
+all, and the L2TP lab's RADIUS peer is a mock ze wrote. FreeRADIUS takes ze's
+Access-Requests and Accounting-Requests on one `auth+acct` listener, because a
+ze server entry carries one port, writes every accounting record to its
+`ze_detail` file, and its `radclient` is the Dynamic Authorization Client.
+
+| Scenario | What it proves |
+|----------|----------------|
+| `radius-coa-duplicate-freeradius` | RFC 5176 Section 2.3 duplicate detection. With ze paused, `radclient` sends one Disconnect-Request and retransmits it on its own socket: ze answers the copies from the cache, `radclient` gets a Disconnect-ACK, and ze logs one teardown. On a second session, two `radclient` processes send one request file with the same Identifier from two ports: the second is processed afresh and answered Disconnect-NAK. A tcpdump capture in ze's container confirms the retransmitted copies share port, Identifier and Authenticator, and the two clients' requests differ in the port alone |
+| `radius-acct-restart-freeradius` | RFC 2866 Section 5.5 across a real restart. The Accounting-Start before ze restarts and the one after carry ids of the form tunnel-session-tag-counter, the two boot tags differ, and each Stop carries its Start's id, all read from FreeRADIUS's detail file |
+
+Both scenarios were added on 2026-10-14 and have not run yet: this machine's
+Docker kernel refuses the lab, so neither has a recorded pass or a recorded red.
+
+<!-- source: internal/le/interoplab/radiussubscriber/radiussubscriber.go -- the suite, its peers, its grants and its preflight -->
+<!-- source: internal/le/interoplab/radiussubscriber/checkers.go -- checkCoADuplicate, checkAcctRestart, judgeCapture -->
+<!-- source: test/interop-radius-subscriber/mods-ze-detail -- the detail module the server's record comes from -->
 
 ### The freeRouter RSVP-TE suite
 

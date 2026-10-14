@@ -1,0 +1,14 @@
+# Ze LNS image for the FreeRADIUS subscriber interop lab.
+#
+# It expects a pre-built linux binary at test/interop-radius-subscriber/ze-linux,
+# which `./le test integration interop-radius-subscriber` cross-compiles before
+# it builds this image (internal/le/interoplab/radiussubscriber, LabBinaries).
+# tcpdump is the checker's view of the CoA datagrams ze receives.
+
+FROM alpine:3.21
+
+RUN apk add --no-cache tini iproute2 ppp tcpdump
+
+COPY test/interop-radius-subscriber/ze-linux /usr/local/bin/ze
+
+ENTRYPOINT ["tini", "--", "ze"]

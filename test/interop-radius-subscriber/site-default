@@ -1,0 +1,41 @@
+# Ze FreeRADIUS subscriber lab: the whole virtual server, written out.
+#
+# ze sends its Access-Requests and its Accounting-Requests to one port (a ze
+# server entry carries one port), so one listener takes both kinds.
+# Authentication is CHAP against the users file. Accounting writes every
+# record to the ze_detail file, which the checkers read as the server's own
+# record of each Acct-Session-Id.
+server default {
+	listen {
+		type = auth+acct
+		ipaddr = *
+		port = 1812
+	}
+
+	authorize {
+		preprocess
+		chap
+		files
+		pap
+	}
+
+	authenticate {
+		Auth-Type CHAP {
+			chap
+		}
+		Auth-Type PAP {
+			pap
+		}
+	}
+
+	preacct {
+		preprocess
+	}
+
+	accounting {
+		ze_detail
+	}
+
+	post-auth {
+	}
+}

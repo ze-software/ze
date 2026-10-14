@@ -1,0 +1,2 @@
+alice	Cleartext-Password := "s3cr3t"
+	Framed-Protocol = PPP

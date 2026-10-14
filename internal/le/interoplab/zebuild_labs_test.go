@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab/l2tp"
 	"github.com/ze-software/ze/internal/le/interoplab/pppoe"
 	"github.com/ze-software/ze/internal/le/interoplab/radius"
+	"github.com/ze-software/ze/internal/le/interoplab/radiussubscriber"
 	"github.com/ze-software/ze/internal/le/interoplab/rsvpte"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -32,6 +33,7 @@ func declaredBinaries() []interoplab.LabBinary {
 	all = append(all, l2tp.LabBinaries()...)
 	all = append(all, pppoe.LabBinaries()...)
 	all = append(all, radius.LabBinaries()...)
+	all = append(all, radiussubscriber.LabBinaries()...)
 	all = append(all, rsvpte.LabBinaries()...)
 	return all
 }
@@ -133,12 +135,13 @@ func TestDockerIgnoreAdmitsEveryStagedLabBinary(t *testing.T) {
 // the start of every run rather than at review.
 func TestEveryLabStagesTheZeTheKernelCheckRuns(t *testing.T) {
 	for name, binaries := range map[string][]interoplab.LabBinary{
-		"bgp":    bgp.LabBinaries(),
-		"ipsec":  ipsec.LabBinaries(),
-		"l2tp":   l2tp.LabBinaries(),
-		"pppoe":  pppoe.LabBinaries(),
-		"radius": radius.LabBinaries(),
-		"rsvpte": rsvpte.LabBinaries(),
+		"bgp":               bgp.LabBinaries(),
+		"ipsec":             ipsec.LabBinaries(),
+		"l2tp":              l2tp.LabBinaries(),
+		"pppoe":             pppoe.LabBinaries(),
+		"radius":            radius.LabBinaries(),
+		"radius-subscriber": radiussubscriber.LabBinaries(),
+		"rsvpte":            rsvpte.LabBinaries(),
 	} {
 		staged := interoplab.StagedZePath("/checkout", binaries)
 		if !strings.HasPrefix(staged, "/checkout/test/interop") {

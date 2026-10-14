@@ -145,6 +145,14 @@ func Table() []Action {
 				" kernel module. RADIUS_INTEROP_SCENARIO=<name> runs one scenario",
 		},
 		{
+			Verb:   "interop-radius-subscriber",
+			Native: runRADIUSSubscriberInterop,
+			Why: "subscriber RADIUS interop: FreeRADIUS accounting and radclient CoA/DM" +
+				" against ze's L2TP LNS with an xl2tpd + pppd LAC, every scenario under" +
+				" test/interop-radius-subscriber/scenarios/. Needs Docker, NET_ADMIN and" +
+				" the host's /dev/ppp. RADIUS_SUBSCRIBER_INTEROP_SCENARIO=<name> runs one scenario",
+		},
+		{
 			Verb:   "interop-rsvpte",
 			Native: runRSVPTEInterop,
 			Why: "RSVP-TE interop between Ze and freeRouter in ingress, transit, relay and egress roles, every" +

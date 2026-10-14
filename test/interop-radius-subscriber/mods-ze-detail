@@ -1,0 +1,9 @@
+# Ze FreeRADIUS subscriber lab: every Accounting-Request the server accepted,
+# one block of "Name = value" lines per record, in one fixed file the checkers
+# read (internal/le/interoplab/radiussubscriber/checkers.go, detailPath).
+detail ze_detail {
+	filename = ${logdir}/ze-detail
+	escape_filenames = no
+	permissions = 0644
+	header = "%t"
+}

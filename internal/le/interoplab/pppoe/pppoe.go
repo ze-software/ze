@@ -45,22 +45,14 @@ const (
 	commandPkill = "pkill"
 	zeConfigPath = "/etc/ze/ze.conf"
 
-	// netAdminCapability and pppDevice are what a PPPoE daemon needs beyond
-	// Docker's default grants: NET_ADMIN for PPPIOCNEWUNIT and its addresses
-	// and routes, and the /dev/ppp character device for its PPP units. The
-	// discovery sockets need NET_RAW, which Docker grants by default. The
-	// modules are the host's: a lab container never loads one
-	// (spec-lab-containers-least-privilege, D-7).
+	// netAdminCapability is what a PPPoE daemon needs beyond Docker's default
+	// grants besides the PPP device (interoplab.PPPDeviceArguments): NET_ADMIN
+	// for PPPIOCNEWUNIT and its addresses and routes. The discovery sockets
+	// need NET_RAW, which Docker grants by default. The modules are the host's:
+	// a lab container never loads one (spec-lab-containers-least-privilege,
+	// D-7).
 	netAdminCapability = "NET_ADMIN"
-	pppDevice          = "/dev/ppp"
-	// deviceFlag is docker run's flag that hands a host device to a container.
-	deviceFlag = "--device"
 )
-
-// pppDeviceArguments hands a container the host's PPP character device.
-func pppDeviceArguments() []string {
-	return []string{deviceFlag, pppDevice}
-}
 
 // Options carries the native scenario selector and image-build controls.
 type Options struct {
@@ -228,7 +220,7 @@ func preflight(suffix string) interoplab.PreflightCheck {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return errors.New("preflight probe container timed out")
 			}
-			return preflightRunRefusal(result.ExitCode, result.Stderr)
+			return interoplab.PPPPreflightRunRefusal("PPPoE", err)
 		}
 
 		return validatePreflightOutput(result.Stdout)
@@ -237,51 +229,32 @@ func preflight(suffix string) interoplab.PreflightCheck {
 
 // preflightContainer probes the host kernel with the grants the lab's peers
 // hold and nothing more, so it passes only where they can run: it loads no
-// module, because a module it loaded would hide the host's missing setup.
+// module, because a module it loaded would hide the host's missing setup. The
+// shared PPP device probe runs first, then the PPPoE probe.
 func preflightContainer(suffix string) interoplab.OneShotContainer {
 	var tb textbuf.Buffer
 	containerName := tb.Str("ze-pppoe-preflight-").Str(suffix).String()
-	arguments := append([]string{"--cap-add", netAdminCapability, "--name", containerName}, pppDeviceArguments()...)
+	arguments := append([]string{"--cap-add", netAdminCapability, "--name", containerName}, interoplab.PPPDeviceArguments()...)
 	return interoplab.OneShotContainer{
 		Image:     "alpine:3.21",
 		Arguments: arguments,
 		Command: []string{
 			"sh",
 			"-c",
-			"echo DEV_PPP=$(test -c /dev/ppp && echo ok || echo missing); " +
+			interoplab.PPPDeviceProbe + "; " +
 				"echo PPPOE=$(test -d /sys/module/pppoe -o -f /proc/net/pppoe && echo ok || echo missing)",
 		},
 		Timeout: 120 * time.Second,
 	}
 }
 
-// preflightRunRefusal explains a preflight container that did not run.
-// Docker refuses --device /dev/ppp before the probe starts when the host has
-// no PPP device, and says so on stderr; that refusal names the module that
-// provides the device, as the L2TP lab's does. Any other failure keeps
-// Docker's own words.
-func preflightRunRefusal(exitCode int, stderr string) error {
-	stderr = strings.TrimSpace(stderr)
-	if strings.Contains(stderr, pppDevice) {
-		return fmt.Errorf("the PPPoE preflight container did not run (rc=%d): %s\n"+
-			"The Docker host has no PPP device, and lab containers never load kernel modules.\n"+
-			"Load it on the Docker host, then run the lab again:\n"+
-			"  sudo modprobe ppp_generic", exitCode, stderr)
-	}
-	return fmt.Errorf("preflight probe failed (rc=%d): %s", exitCode, stderr)
-}
-
+// validatePreflightOutput names each part of PPPoE the host kernel lacks and
+// the host command that loads it, or answers nil when nothing is missing.
 func validatePreflightOutput(output string) error {
-	checks := make(map[string]string, 2)
-	for line := range strings.SplitSeq(output, "\n") {
-		key, value, found := strings.Cut(strings.TrimSpace(line), "=")
-		if found {
-			checks[key] = value
-		}
-	}
+	checks := interoplab.ParsePreflight(output)
 	missing := make([]string, 0, 2)
-	if checks["DEV_PPP"] != "ok" {
-		missing = append(missing, "/dev/ppp (the PPP device, module ppp_generic)")
+	if device, absent := interoplab.PPPDeviceMissing(checks); absent {
+		missing = append(missing, device)
 	}
 	if checks["PPPOE"] != "ok" {
 		missing = append(missing, "PPPoE sockets (module pppoe)")
