@@ -13,6 +13,10 @@
 # Build stage
 FROM golang:1.27-alpine AS builder
 
+# git applies Ze's standard-library patch when the build below generates the
+# patched GOROOT (docs/contributing/patching-the-standard-library.md).
+RUN apk add --no-cache git
+
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -31,8 +35,15 @@ ARG ZE_TAGS
 # hand-written list here is what makes the two images drift, and `ze_bgp` is one
 # of the gates: without it ze rejects the `bgp` config root as an unknown
 # top-level keyword, so a lab node would start with no BGP at all.
+#
+# ze compiles only against Ze's patched crypto/tls, so the same RUN first
+# generates the patched GOROOT from the image's go (ENV cannot hold a command's
+# output) and builds with its go, GOROOT and GOTOOLCHAIN=local
+# (docs/contributing/patching-the-standard-library.md). cache/ is in
+# .dockerignore, so the tree lands in a real cache/stdpatch/ inside this stage.
 RUN . ./feature-tags && ZE_FEATURES="$(feature_tags feature-gates.txt ' ')" && \
-    CGO_ENABLED=0 go build \
+    tree="$(go run ./internal/le/go/stdpatch/goroot)" && \
+    GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH" CGO_ENABLED=0 "$tree/bin/go" build \
     -tags "ze_core $ZE_FEATURES $ZE_TAGS" \
     -ldflags "-X main.version=${ZE_VERSION:-dev} -X main.buildDate=${ZE_BUILD_DATE:-unknown}" \
     -o /ze ./cmd/ze
