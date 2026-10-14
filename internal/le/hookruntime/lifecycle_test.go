@@ -402,6 +402,11 @@ func TestSessionStartReportsTheTree(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			// The identity is pinned: with none in the environment and no
+			// harness ancestor, the hook mints one and caches it under
+			// tmp/session/ in the fixture, which carries no .gitignore, so
+			// the cache file reads as an untracked file and the tree as dirty.
+			t.Setenv("CLAUDE_CODE_SESSION_ID", "session-start-fixture")
 			root := t.TempDir()
 			for _, artifact := range derived.All() {
 				writeHookFixture(t, root, artifact.Path, "# derived\n")
