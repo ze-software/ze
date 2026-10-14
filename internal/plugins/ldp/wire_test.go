@@ -1,6 +1,7 @@
 package ldp
 
 import (
+	"bytes"
 	"encoding/binary"
 	"net/netip"
 	"testing"
@@ -366,5 +367,43 @@ func TestLDPKeepaliveEncode(t *testing.T) {
 	}
 	if hdr.MessageID != 7 {
 		t.Fatalf("MessageID = %d, want 7", hdr.MessageID)
+	}
+}
+
+// TestEncodeNotificationKeepaliveTimerExpired pins the octets of the Notification
+// ze sends when its KeepAlive Timer expires: Status Code 0x80000014 (RFC 5036
+// Section 3.9, E set, F clear) and zero references, because the expiry answers no
+// peer message (Section 3.4.6). Method: encode, compare every octet, decode back.
+func TestEncodeNotificationKeepaliveTimerExpired(t *testing.T) {
+	if statusKeepaliveTimerExpired != 0x80000014 {
+		t.Fatalf("statusKeepaliveTimerExpired = %#08x, want 0x80000014", statusKeepaliveTimerExpired)
+	}
+	var buf [32]byte
+	n := encodeNotification(buf[:], notificationMessage{MessageID: 1, Status: statusKeepaliveTimerExpired})
+	want := []byte{
+		0x00, 0x01, 0x00, 0x12, // Notification, Message Length 18
+		0x00, 0x00, 0x00, 0x01, // Message ID 1
+		0x03, 0x00, 0x00, 0x0a, // Status TLV, length 10
+		0x80, 0x00, 0x00, 0x14, // KeepAlive Timer Expired, E set, F clear
+		0x00, 0x00, 0x00, 0x00, // Message ID referred to: none
+		0x00, 0x00, // Message Type referred to: none
+	}
+	if !bytes.Equal(buf[:n], want) {
+		t.Fatalf("encoded = % x, want % x", buf[:n], want)
+	}
+
+	hdr, err := decodeMessageHeader(buf[:n])
+	if err != nil {
+		t.Fatalf("decodeMessageHeader: %v", err)
+	}
+	got, err := decodeNotification(hdr.MessageID, buf[ldpMsgHdrLen:n])
+	if err != nil {
+		t.Fatalf("decodeNotification: %v", err)
+	}
+	if got.Status != statusKeepaliveTimerExpired || got.ReferMessageID != 0 || got.ReferMessageType != 0 {
+		t.Fatalf("decoded = %+v, want status 0x80000014 and zero references", got)
+	}
+	if binary.BigEndian.Uint32(buf[12:16])&statusFatalBit == 0 {
+		t.Fatal("E bit clear, want set: the expiry is a fatal error")
 	}
 }

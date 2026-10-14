@@ -886,6 +886,10 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 				timer.Stop()
 				continue
 			case <-timer.C:
+				// Any send error ends the sender, including the refusal after a
+				// fatal Notification (RFC 5036 Section 2.5.4), which is the
+				// session's last PDU, and the timeout a Notification's write
+				// deadline gives a KeepAlive blocked on a peer that stopped reading.
 				if err := sess.SendKeepalive(); err != nil {
 					return
 				}

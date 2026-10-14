@@ -259,12 +259,16 @@ func DecodeTLV(buf []byte) (TLV, int, error) {
 const (
 	statusFatalBit uint32 = 0x80000000
 
-	statusBadProtocolVersion                     = statusFatalBit | 0x00000002
-	statusUnknownTLV                      uint32 = 0x00000006
-	statusShutdown                               = statusFatalBit | 0x0000000A
-	statusLoopDetected                    uint32 = 0x0000000B
-	statusSessionRejectedNoHello                 = statusFatalBit | 0x00000010
-	statusSessionRejectedBadKeepaliveTime        = statusFatalBit | 0x00000018
+	statusBadProtocolVersion            = statusFatalBit | 0x00000002
+	statusUnknownTLV             uint32 = 0x00000006
+	statusShutdown                      = statusFatalBit | 0x0000000A
+	statusLoopDetected           uint32 = 0x0000000B
+	statusSessionRejectedNoHello        = statusFatalBit | 0x00000010
+	// RFC 5036 Section 3.5.1.2.3: "This is a fatal error signaled by the
+	// KeepAlive Timer Expired Status Code." Section 3.9 gives it E = 1 and
+	// Status Data 0x00000014.
+	statusKeepaliveTimerExpired           = statusFatalBit | 0x00000014
+	statusSessionRejectedBadKeepaliveTime = statusFatalBit | 0x00000018
 )
 
 // notificationMessage is an LDP Notification (RFC 5036 Section 3.5.1). Status is

@@ -117,9 +117,9 @@ the two proposals, so a peer sending 0 won it, the hold time became 0, and the
 next read deadline of now+0 timed out and was reported as a keepalive expiry.
 
 `sendNotification` bounds its write with a deadline, so a peer that has stopped
-reading cannot hold the read loop open by never draining its receive window, and
-clears the deadline after the write, because two of the statuses ze sends are
-advisory and the session stays up behind them.
+reading cannot hold the read loop open by never draining its receive window. It
+clears the deadline after an advisory write, because two of the statuses ze sends
+are advisory and the session stays up behind them.
 
 Two advisory Notifications leave the session up. An unknown TLV whose U bit is
 clear draws Unknown TLV (0x06) and the message it arrived in is ignored, as RFC
@@ -134,12 +134,41 @@ receive path. `plan/spec-ldp-label-request-path.md` owns it.
 
 A received Notification is read too: a Status Code with the E bit set ends the
 read loop, which closes the connection and drops the peer's bindings (section
-3.5.1.1). Other fatal causes, including KeepAlive expiry and decoding errors
-outside the initialization type checks, still close silently; `rfc/short/rfc5036.md`
-records these remaining gaps in RFC5036-2.5.3-2 and RFC5036-3.5.1-1.
+3.5.1.1). Decoding errors outside the initialization type checks still close
+silently; `rfc/short/rfc5036.md` records that remaining gap in RFC5036-2.5.3-2
+and RFC5036-3.5.1-1.
 
 <!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit, sendNotification, ignoreUnknownTLV -->
 <!-- source: internal/plugins/ldp/wire.go -- encodeNotification, decodeNotification, skipTLV, statusSessionRejectedNoHello -->
+
+## Decision: KeepAlive Timer expiry is reported before the close
+
+When no PDU arrives before the read deadline `ReadLoop` arms from the KeepAlive
+Timer, `keepaliveTimerExpired` sends one Notification carrying KeepAlive Timer
+Expired (Status Code 0x80000014, E set, F clear, Message ID and Message Type 0),
+then `ReadLoop` returns `errKeepaliveExpiry` and `runSession`'s deferred `Stop`
+closes the connection. RFC 5036 section 2.5.4 answers a Timeout in OPERATIONAL
+with "Transmit Shutdown msg and close transport connection", a Shutdown being
+any fatal Notification, and section 3.5.1.2.3 names the code. A Timeout in
+OPENSENT or OPENREC draws the same code: the state machine NAKs it there, and
+the timer that expired is the same one. No liveness monitor or other config
+gates the send. A failed or timed-out write is logged once at Warn and the
+session closes anyway.
+
+Every PDU ze writes on a session goes through `writePDU` or `sendNotification`,
+serialized by one write lock. A fatal Notification, written or only attempted,
+makes every later write fail with an error, so it is the last PDU on the wire
+and the KeepAlive sender exits on its next attempt. A write that stops part way
+through a PDU refuses later writes the same way, because the peer would read
+the next PDU as the tail of the broken one. `sendNotification` arms its write
+deadline before it takes the lock: a KeepAlive blocked on a peer that stopped
+reading holds the lock, and the deadline fails that write too, so the wait for
+the lock and the Notification write share one five-second budget. Cancelling
+the KeepAlive sender first was rejected: it covers only that one sender, and a
+cancel does not wait for a write already in flight.
+
+<!-- source: internal/plugins/ldp/session.go -- keepaliveTimerExpired, writePDU, writeLocked, sendNotification -->
+<!-- source: internal/plugins/ldp/wire.go -- statusKeepaliveTimerExpired -->
 
 ## Decision: a failed session setup backs off on the Hello cadence
 

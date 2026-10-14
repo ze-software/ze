@@ -84,6 +84,12 @@ var (
 	errPeerFatalNotification = errors.New("ldp: peer sent a fatal notification")
 	// Initialization accepts only the next message prescribed by the session FSM.
 	errUnexpectedInitializationMessage = errors.New("ldp: unexpected message during initialization")
+	// errFatalNotificationSent refuses a PDU write after ze has written, or tried
+	// to write, a fatal Notification: that Notification is the session's last PDU.
+	errFatalNotificationSent = errors.New("ldp: session ending, a fatal notification was sent")
+	// errStreamBroken refuses a PDU write after an earlier write stopped part way
+	// through a PDU: the peer would read the next PDU as that PDU's tail.
+	errStreamBroken = errors.New("ldp: session stream broken by a partial write")
 )
 
 // Session represents a single LDP TCP session with a peer.
@@ -95,8 +101,17 @@ type Session struct {
 	// the peer's (OPENSENT to OPENREC). Only then does the peer's KeepAlive make
 	// the session operational: an OPENREC reached without ze's Initialization is
 	// not a session the peer can have confirmed.
-	initAccepted  bool
-	conn          net.Conn
+	initAccepted bool
+	conn         net.Conn
+	// writeMu serializes every PDU ze writes on conn, so no two PDUs interleave
+	// and a fatal Notification is the last PDU of the session. Lock order for a
+	// Notification: arm the write deadline FIRST, then take writeMu
+	// (sendNotification), so the deadline also fails a write blocked under it.
+	writeMu sync.Mutex
+	// writeRefusal is nil while writes are allowed. Once set, under writeMu, every
+	// later write returns it: errFatalNotificationSent after a fatal Notification
+	// was written or attempted, errStreamBroken after a partial write.
+	writeRefusal  error
 	peerAddr      netip.Addr
 	localLSRID    [4]byte
 	localLabelSpc uint16
@@ -307,8 +322,7 @@ func (s *Session) SendInit() error {
 		LabelSpace: s.localLabelSpc,
 	})
 
-	_, err := s.conn.Write(buf[:ldpHeaderLen+bodyLen])
-	if err != nil {
+	if err := s.writePDU(buf[:ldpHeaderLen+bodyLen]); err != nil {
 		return err
 	}
 
@@ -316,6 +330,36 @@ func (s *Session) SendInit() error {
 	s.state = StateOpenSent
 	s.mu.Unlock()
 	return nil
+}
+
+// writePDU writes one whole PDU under writeMu. It returns writeRefusal, and
+// writes nothing, once a fatal Notification or a partial write ended the stream.
+// It never touches the write deadline: only sendNotification arms one, so no
+// writer here can clear a deadline the expiry path armed.
+func (s *Session) writePDU(pdu []byte) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
+	if s.writeRefusal != nil {
+		return s.writeRefusal
+	}
+	return s.writeLocked(pdu)
+}
+
+// writeLocked writes pdu on conn. The caller MUST hold writeMu. A write that
+// fails after some but not all octets left the peer mid-PDU, so it refuses
+// every later write: the peer would read the next PDU as this one's tail.
+func (s *Session) writeLocked(pdu []byte) error {
+	written, err := s.conn.Write(pdu)
+	if err == nil {
+		return nil
+	}
+	if written > 0 {
+		if written < len(pdu) {
+			s.writeRefusal = errStreamBroken
+		}
+	}
+	return err
 }
 
 // SendKeepalive sends a KeepAlive message to the peer.
@@ -335,8 +379,7 @@ func (s *Session) SendKeepalive() error {
 		LabelSpace: s.localLabelSpc,
 	})
 
-	_, err := s.conn.Write(buf[:ldpHeaderLen+bodyLen])
-	return err
+	return s.writePDU(buf[:ldpHeaderLen+bodyLen])
 }
 
 // SendLabelMapping sends a Label Mapping message for a FEC.
@@ -361,8 +404,7 @@ func (s *Session) SendLabelMapping(prefix netip.Prefix, label uint32) error {
 		LabelSpace: s.localLabelSpc,
 	})
 
-	_, err := s.conn.Write(buf[:ldpHeaderLen+bodyLen])
-	return err
+	return s.writePDU(buf[:ldpHeaderLen+bodyLen])
 }
 
 // SendLabelWithdraw sends a Label Withdraw message for a FEC.
@@ -388,8 +430,7 @@ func (s *Session) SendLabelWithdraw(prefix netip.Prefix, label uint32) error {
 		LabelSpace: s.localLabelSpc,
 	})
 
-	_, err := s.conn.Write(buf[:ldpHeaderLen+bodyLen])
-	return err
+	return s.writePDU(buf[:ldpHeaderLen+bodyLen])
 }
 
 // ReadLoop reads messages from the TCP connection and processes them.
@@ -413,7 +454,7 @@ func (s *Session) ReadLoop(onLabel func(labelMappingMessage, [4]byte), onWithdra
 		if _, err := io.ReadFull(s.conn, hdrBuf[:]); err != nil {
 			var ne net.Error
 			if errors.As(err, &ne) && ne.Timeout() {
-				return errKeepaliveExpiry
+				return s.keepaliveTimerExpired()
 			}
 			return err
 		}
@@ -703,6 +744,28 @@ func (s *Session) rejectInit(status, initMsgID uint32, cause error) error {
 	return cause
 }
 
+// keepaliveTimerExpired tells the peer that ze's KeepAlive Timer expired, then
+// returns errKeepaliveExpiry so the caller closes the transport connection. It
+// runs in every state the timer is armed in: OPENSENT and OPENREC NAK a Timeout
+// with the same code, because the timer that expired is the same one.
+//
+// A write failure is logged once and not returned: the session ends either way,
+// and the caller has to see that the timer expired, not the socket error.
+func (s *Session) keepaliveTimerExpired() error {
+	// RFC 5036 Section 2.5.4, OPERATIONAL: "Timeout NON EXISTENT Action:
+	// Transmit Shutdown msg and close transport connection". The same section:
+	// "Note that a Shutdown message is implemented as a Notification message
+	// with a Status TLV indicating a fatal error." RFC 5036 Section 3.5.1.2.3:
+	// "This is a fatal error signaled by the KeepAlive Timer Expired Status
+	// Code." The expiry answers no peer message, so both references are zero
+	// (Section 3.4.6).
+	if err := s.sendNotification(statusKeepaliveTimerExpired, 0, 0); err != nil {
+		s.log.Warn("ldp: the keepalive timer expired notification could not be sent",
+			"peer", s.peerAddr.String(), "status", statusKeepaliveTimerExpired, "error", err)
+	}
+	return errKeepaliveExpiry
+}
+
 // sendNotification sends a Notification message carrying one Status TLV.
 // status is a 32-bit Status Code of RFC 5036 Section 3.9. referMsgID and
 // referMsgType name the peer message the status answers, and both are zero when
@@ -710,16 +773,17 @@ func (s *Session) rejectInit(status, initMsgID uint32, cause error) error {
 //
 // The write is bounded by notificationWriteTimeout: a peer that has stopped
 // reading MUST NOT be able to hold the read loop open by never draining its
-// receive window. The deadline is cleared after the write, because an advisory
-// status (E bit clear) leaves the session up and the writes that follow it
-// carry no deadline of their own.
+// receive window. The deadline is armed BEFORE writeMu is taken, so it also
+// fails a KeepAlive blocked under writeMu on that peer, and the wait for the
+// lock and the write share one budget. A fatal status (E bit set) refuses every
+// later write, sent or not, so it is the last PDU of the session. An advisory
+// status (E bit clear) leaves the session up, so its deadline is cleared before
+// writeMu is released: the writes that follow carry no deadline of their own.
+// Every caller runs on the ReadLoop goroutine, so that clear never undoes the
+// deadline of a concurrent fatal Notification.
 func (s *Session) sendNotification(status, referMsgID uint32, referMsgType uint16) error {
 	var buf [64]byte
 	msgID := s.nextMsgID.Add(1)
-
-	if err := s.conn.SetWriteDeadline(time.Now().Add(notificationWriteTimeout)); err != nil {
-		return err
-	}
 
 	bodyLen := encodeNotification(buf[ldpHeaderLen:], notificationMessage{
 		MessageID:        msgID,
@@ -736,7 +800,23 @@ func (s *Session) sendNotification(status, referMsgID uint32, referMsgType uint1
 		LabelSpace: s.localLabelSpc,
 	})
 
-	if _, err := s.conn.Write(buf[:ldpHeaderLen+bodyLen]); err != nil {
+	pdu := buf[:ldpHeaderLen+bodyLen]
+
+	if err := s.conn.SetWriteDeadline(time.Now().Add(notificationWriteTimeout)); err != nil {
+		return err
+	}
+
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
+	if s.writeRefusal != nil {
+		return s.writeRefusal
+	}
+	if status&statusFatalBit != 0 {
+		s.writeRefusal = errFatalNotificationSent
+		return s.writeLocked(pdu)
+	}
+	if err := s.writeLocked(pdu); err != nil {
 		return err
 	}
 	return s.conn.SetWriteDeadline(time.Time{})

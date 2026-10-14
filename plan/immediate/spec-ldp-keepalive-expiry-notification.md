@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 4/6 |
 | Handoff | - |
 | Updated | 2026-10-14 |
 
@@ -184,13 +184,13 @@ remain outside this transferred scope; their obligations are not waived.
      Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `ReadLoop` is the only place a KeepAlive Timer expiry is detected | `grep` for `errKeepaliveExpiry` finds one return, in `ReadLoop`; `runSession` is the only `ReadLoop` caller (passive role absent) | A second detection site closes silently | Grep at implementation start; a future passive-role session reuses `ReadLoop` | unvalidated |
-| A-2 | Concurrent `Write` calls on one TCP `net.Conn` do not interleave bytes | Go `net` documents conn methods as safe for concurrent use; the poll FD write lock serialises each `Write` | A KeepAlive could split the Notification PDU | AC-5 mechanism serialises all session writes, which removes the dependency | unvalidated |
+| A-1 | `ReadLoop` is the only place a KeepAlive Timer expiry is detected | `grep` for `errKeepaliveExpiry` finds one return, in `ReadLoop`; `runSession` is the only `ReadLoop` caller (passive role absent) | A second detection site closes silently | Grep at implementation start; a future passive-role session reuses `ReadLoop` | confirmed (2026-10-14: `errKeepaliveExpiry` is returned only by `keepaliveTimerExpired`, called only from `ReadLoop`'s timeout branch; `register.go` `runSession` is the only non-test `ReadLoop` caller) |
+| A-2 | Concurrent `Write` calls on one TCP `net.Conn` do not interleave bytes | Go `net` documents conn methods as safe for concurrent use; the poll FD write lock serialises each `Write` | A KeepAlive could split the Notification PDU | AC-5 mechanism serialises all session writes, which removes the dependency | confirmed, and moot: every PDU write now holds `Session.writeMu` (`writePDU`, `sendNotification`), so no two writes run concurrently |
 | A-3 | FRR ldpd records a received fatal Notification with its status name ("KeepAlive Timer Expired") where the lab can read it, given `debug mpls ldp messages recv` (or equivalent) in `frr.conf` | Not verified against FRR source in this session | The interop checker cannot tell the code from any other close | Run the scenario once at implementation; fallback: capture the PDU on FRR's interface (packet capture in ze's container on egress) and assert the Status TLV bytes | unvalidated |
 | A-4 | Dropping FRR's TCP toward ze in ze's container input hook expires ze's timer while ze's outbound Notification still reaches FRR, and Hellos (UDP) keep the adjacency alive so `expireAdjacencies` does not stop the session first | BFD failover precedent in `check_special.go` drops one direction only | The adjacency expiry path closes without a Notification and the test proves nothing | Scenario run plus forced red under revert (AC-6) | unvalidated |
 | A-5 | Zero Message ID and Message Type are right for expiry | RFC 5036 Section 3.4.6 quotes above; expiry answers no peer message | FRR rejects the Status TLV | Interop AC-6 | unvalidated |
 | A-6 | FRR ldpd, started by a scenario `daemons` file with `ldpd=yes`, reaches OPERATIONAL with ze in the Docker lab | Nothing yet: no lab scenario has started ldpd (journal row 2026-10-14 in `plan/journal/test-against-broken-path.md`); the QEMU `TestLDPInteropFRR` establishes a session in a netns, which is a different topology. `prepare.go` mounts the scenario's `daemons` over `/etc/frr/daemons` | AC-6 has no session to expire; the interop proof needs a lab repair first, and the owner is told before any other route is chosen | First step of phase 5: run the scenario with only the OPERATIONAL wait in its checker (`vtysh -c "show mpls ldp neighbor"` showing the ze LSR ID in state OPERATIONAL), before any nft step is written | unvalidated |
-| A-7 | Arming the write deadline unblocks a `conn.Write` already pending in another goroutine | Go `net.Conn` `SetWriteDeadline` documents that a deadline applies to pending as well as future writes, and `net.Pipe` implements deadlines | The expiry Notification waits on the write lock without bound (AC-4b) | AC-4b over `net.Pipe` with a KeepAlive blocked mid-write | unvalidated |
+| A-7 | Arming the write deadline unblocks a `conn.Write` already pending in another goroutine | Go `net.Conn` `SetWriteDeadline` documents that a deadline applies to pending as well as future writes, and `net.Pipe` implements deadlines | The expiry Notification waits on the write lock without bound (AC-4b) | AC-4b over `net.Pipe` with a KeepAlive blocked mid-write | confirmed: `TestRunSessionKeepaliveExpiryBoundedBehindBlockedKeepalive` and `TestAdvisoryNotificationBoundedBehindBlockedKeepalive` pass, and both go red (unbounded wait) with the deadline armed inside the lock |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
