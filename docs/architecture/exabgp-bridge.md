@@ -514,6 +514,14 @@ Config is not available at stage-1 registration. `familyDecls` therefore
 declares the CLI-default family at stage 1, and the `family` leaf refines the
 ADD-PATH capability encoding at stage 3, once the config has arrived.
 
+The stage-3 declaration then holds for the bridge's life. A reload that changes
+`route-refresh` or `add-path`, or edits the bridge's families while `add-path`
+is set (the ADD-PATH payload is built from them), is refused at config-verify
+naming `every peer`, plugin `exabgp-bridge` and the leaf, with the restart
+steps: ze would otherwise keep sending the old capabilities in its OPEN.
+<!-- source: internal/plugins/exabgp/bridgeplugin/internal.go -- bridgeCapabilities, capabilityDecls -->
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom -->
+
 ## Config root
 
 The settings nest under a top-level `exabgp` root, on an owner decision of

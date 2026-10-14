@@ -113,6 +113,45 @@ carries the same option and a migrated configuration keeps working.
 Past the restart bound the plugin is disabled, `show health` reports
 `plugin-down` for it, and ze carries on.
 
+## When a Reload Changes a Plugin's Capability
+
+A plugin that adds a capability to ze's OPEN (`bgp-softver`, `bgp-hostname`,
+`bgp-role`, `bgp-llnh`, `bgp-gr`, `exabgp-bridge`) sends it once, when ze
+starts. A reload that would change one is refused, because ze would keep
+sending the old value in its OPEN. The refusal names the peer, the
+`capability` leaf and the plugin, then how to restart:
+
+```
+peer 192.0.2.1: capability software-version cannot change while ze runs (plugin bgp-softver).
+The plugin sends its capabilities only when ze starts, so ze would keep sending the old value in its OPEN to this peer.
+To apply the change, stop the ze daemon and start it again:
+  under systemd: systemctl restart ze
+  without systemd: ze signal stop, then start ze the way it was started (ze start, or ze start <config-file>)
+  on the ze appliance: request reboot in the ze CLI, or ze signal reboot from a shell
+```
+
+What counts as a change:
+
+| Reload | Result |
+|--------|--------|
+| A capability's value changes on a peer that stays configured | Refused |
+| A capability is removed from a peer that stays configured | Refused |
+| A peer is added that carries one of these capabilities | Refused: ze holds no OPEN capability for it |
+| A session family is added or removed on a `graceful-restart` peer with no `graceful-restart family` list | Refused: the Graceful Restart payload follows the session families. An explicit `family` list keeps the payload fixed and the reload is accepted |
+| The exabgp bridge's families are edited while its `add-path` is set | Refused naming `add-path`: the ADD-PATH payload is built from those families |
+| A peer is removed, or nothing these plugins declare changes | Accepted |
+
+`systemctl restart ze` and `ze signal stop` end each session with a normal
+teardown, so peers withdraw ze's routes until it is back. The appliance routes
+(`request reboot`, `ze signal reboot`) write the Graceful Restart marker and
+stop without a NOTIFICATION, so peers that negotiated Graceful Restart keep
+ze's routes for the restart time. Under systemd, the restart that keeps the
+marker is `ze signal restart`, a wait until the process has exited, then
+`systemctl start ze`: `ze signal restart` alone leaves ze stopped, because it
+exits cleanly and the unit restarts only on failure.
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- capabilityChanges, capabilityRefusal -->
+<!-- source: pkg/plugin/sdk/restart_text.go -- RestartSteps -->
+
 ## Binding Plugins to Peers
 
 Each peer declares which plugins receive its events, in `attach process` blocks.

@@ -44,19 +44,56 @@ func familyDecls(families []string) []sdk.FamilyDecl {
 	return decls
 }
 
+// Capability codes the bridge declares, each set by the bridge leaf of the
+// same name.
+const (
+	routeRefreshCapCode = 2  // RFC 2918
+	addPathCapCode      = 69 // RFC 7911
+)
+
+// bridgeCapabilityLeaves names the bridge leaf that sets each code, so a
+// refused reload names configuration.
+var bridgeCapabilityLeaves = map[uint8]string{
+	routeRefreshCapCode: "route-refresh",
+	addPathCapCode:      "add-path",
+}
+
 // capabilityDecls builds the Stage-3 capability declarations from config.
+// Both apply to every peer (no Peers selector). The add-path payload is built
+// from the bridge's families, so a family edit while add-path is set changes it.
 func capabilityDecls(cfg bridgeConfig) []sdk.CapabilityDecl {
 	var caps []sdk.CapabilityDecl
 	if cfg.RouteRefresh {
 		// RFC 2918: route-refresh capability, code 2, zero-length value.
-		caps = append(caps, sdk.CapabilityDecl{Code: 2})
+		caps = append(caps, sdk.CapabilityDecl{Code: routeRefreshCapCode})
 	}
 	if cfg.AddPath != "" && cfg.AddPath != addPathNone {
 		if hex := bridge.EncodeAddPathHex(cfg.Families, cfg.AddPath); hex != "" {
-			caps = append(caps, sdk.CapabilityDecl{Code: 69, Encoding: sdk.CapEncodingHex, Payload: hex})
+			caps = append(caps, sdk.CapabilityDecl{Code: addPathCapCode, Encoding: sdk.CapEncodingHex, Payload: hex})
 		}
 	}
 	return caps
+}
+
+// bridgeCapabilities is the bridge's capability extractor: the declarations
+// of the first present bridge container under the exabgp root, the one
+// OnConfigure applies. It names no peers: both declarations apply to every
+// peer, which the comparison reads as one selector.
+func bridgeCapabilities(sections []sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
+	for _, s := range sections {
+		if s.Root != configRoot {
+			continue
+		}
+		cfg, err := parseConfig(s.Data)
+		if err != nil {
+			return sdk.CapabilityDeclaration{}, err
+		}
+		if !cfg.Present {
+			continue
+		}
+		return sdk.CapabilityDeclaration{Capabilities: capabilityDecls(cfg)}, nil
+	}
+	return sdk.CapabilityDeclaration{}, nil
 }
 
 // bridgeRunner holds the state shared between the OnConfigure (config capture)
@@ -109,6 +146,8 @@ func runInternalBridge(conn net.Conn) int {
 	// so the bridge (Stage 5) captures it; no-ops until the subprocesses start.
 	p.OnEvent(r.onEvent)
 
+	p.DeclareCapabilitiesFrom(bridgeCapabilities, bridgeCapabilityLeaves)
+
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
 			if s.Root != configRoot {
@@ -121,7 +160,7 @@ func runInternalBridge(conn net.Conn) int {
 			if !cfg.Present {
 				continue
 			}
-			if err := r.applyConfig(p, cfg); err != nil {
+			if err := r.applyConfig(cfg); err != nil {
 				return err
 			}
 			return nil
@@ -148,13 +187,14 @@ func runInternalBridge(conn net.Conn) int {
 	return 0
 }
 
-// applyConfig declares the capabilities the config asks for and remembers the
-// script commands. It does NOT start the scripts: see startWhenReady.
+// applyConfig remembers the script commands. It does NOT start the scripts:
+// see startWhenReady. The capabilities are declared by bridgeCapabilities.
 //
-// Reloads do not restart the subprocesses: a script owns its own lifecycle, and
-// family/capability changes need a plugin restart (engine reconcile), matching
-// the external mode.
-func (r *bridgeRunner) applyConfig(p *sdk.Plugin, cfg bridgeConfig) error {
+// Reloads do not restart the subprocesses: a script owns its own lifecycle. A
+// reload that changes the bridge's capabilities is refused at config-verify
+// (sdk.Plugin.DeclareCapabilitiesFrom), because ze would keep sending the old
+// ones in its OPEN.
+func (r *bridgeRunner) applyConfig(cfg bridgeConfig) error {
 	r.mu.Lock()
 	if r.started {
 		r.mu.Unlock()
@@ -165,10 +205,6 @@ func (r *bridgeRunner) applyConfig(p *sdk.Plugin, cfg bridgeConfig) error {
 
 	if len(cfg.Scripts) == 0 {
 		return errRunRequired
-	}
-
-	if caps := capabilityDecls(cfg); len(caps) > 0 {
-		p.SetCapabilities(caps)
 	}
 
 	// The fleet is BUILT here and STARTED later, and the split is the whole

@@ -29,6 +29,7 @@ import (
 
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
@@ -157,22 +158,25 @@ func runGRPlugin(conn net.Conn) int {
 	// refusal as a daemon that will not start at the next boot.
 	p.OnConfigVerify(refuseUncarriedGRSections)
 
-	// OnConfigure callback: parse bgp config, extract per-peer restart-time
-	// and long-lived-stale-time, then set capabilities for Stage 3.
+	// The per-peer restart-time and long-lived-stale-time declaration runs
+	// after OnConfigure and is fixed for the process life: a reload that
+	// changes it, a session family edit on a peer with no graceful-restart
+	// family list included, is refused at config-verify
+	// (sdk.Plugin.DeclareCapabilitiesFrom).
+	p.DeclareCapabilitiesFrom(configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+		// RFC 9494: LLGR capability (code 71) declared alongside GR (code 64)
+		return append(extractGRCapabilities(data), extractLLGRCapabilities(data)...), nil
+	}), map[uint8]string{
+		grCapCode:   "graceful-restart",
+		llgrCapCode: "graceful-restart long-lived-stale-time",
+	})
+
+	// OnConfigure callback: refuse a graceful-restart family the session does
+	// not carry, then install the LLGR egress filter state.
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		if err := refuseUncarriedGRSections(sections); err != nil {
 			return err
 		}
-		var caps []sdk.CapabilityDecl
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			caps = append(caps, extractGRCapabilities(section.Data)...)
-			// RFC 9494: LLGR capability (code 71) declared alongside GR (code 64)
-			caps = append(caps, extractLLGRCapabilities(section.Data)...)
-		}
-		p.SetCapabilities(caps)
 
 		// Initialize LLGR egress filter state with peerLLGRCaps. The map is shared
 		// by reference so the filter sees peers as they are learned and released,

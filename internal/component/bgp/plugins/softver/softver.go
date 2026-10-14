@@ -129,6 +129,10 @@ func encodeValue(encoding valueEncoding) string {
 	panic("BUG: software-version encodeValue called with an unresolved encoding")
 }
 
+// softverCapCode is the Software Version capability code
+// (draft-ietf-idr-software-version), set by the software-version leaf.
+const softverCapCode = 75
+
 // RunSoftverPlugin runs the softver plugin using the SDK RPC protocol.
 func RunSoftverPlugin(conn net.Conn) int {
 	Logger.Debug("softver plugin starting (RPC)")
@@ -136,21 +140,10 @@ func RunSoftverPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-softver", conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		var caps []sdk.CapabilityDecl
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			sectionCaps, err := extractSoftverCapabilities(section.Data)
-			if err != nil {
-				return err
-			}
-			caps = append(caps, sectionCaps...)
-		}
-		p.SetCapabilities(caps)
-		return nil
-	})
+	// The declaration is fixed for the process life: a reload that changes
+	// it is refused at config-verify (sdk.Plugin.DeclareCapabilitiesFrom).
+	p.DeclareCapabilitiesFrom(configjson.BGPCapabilityExtractor(extractSoftverCapabilities),
+		map[uint8]string{softverCapCode: "software-version"})
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -204,7 +197,6 @@ func extractSoftverCapabilities(jsonStr string) ([]sdk.CapabilityDecl, error) {
 		return nil, nil
 	}
 
-	const softverCapCode = 75
 	var caps []sdk.CapabilityDecl
 	var firstErr error
 

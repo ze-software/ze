@@ -199,6 +199,19 @@ one encoding on every connection, so a plugin READS the record answer form of
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
 <!-- source: internal/component/plugin/server/startup.go -- engineStartupSink -->
 
+**The Stage 3 declaration is fixed for the plugin process's life.** The engine
+holds it for every OPEN and has no message that replaces it. In the Go SDK the
+declaration is the output of the extractor a plugin registers with
+`DeclareCapabilitiesFrom`, run once on the Stage 2 configuration; a runtime
+`configure` redelivery never reruns it. At config-verify the SDK runs the same
+extractor on the candidate sections after the plugin's own verify handler
+accepts, and refuses a candidate that changes, adds or removes a capability for
+a peer that stays configured, naming the peer, the config leaf and the plugin,
+then how to restart ze. Removing a peer is accepted, because that peer sends no
+OPEN again.
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, handleStartupConfigure, composeCapabilityVerify, capabilityChanges -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, composeCapabilityVerify call -->
+
 **A list of two or more entries arrives with its order beside it.** A config
 section body is a JSON object, and a YANG list inside it is an object keyed by
 the list key. A JSON object states no order, so the order the operator wrote is

@@ -68,9 +68,11 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 			caps = append(caps, sdk.CapabilityDecl{Code: 69, Encoding: sdk.CapEncodingHex, Payload: hex})
 		}
 	}
-	if len(caps) > 0 {
-		p.SetCapabilities(caps)
-	}
+	// The set comes from the command line, so no reload can change it: the
+	// extractor ignores the sections and the comparison always accepts.
+	p.DeclareCapabilitiesFrom(func([]sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
+		return sdk.CapabilityDeclaration{Capabilities: caps}, nil
+	}, map[uint8]string{2: "route-refresh", 69: "add-path"})
 
 	// Subscribe to all events using text encoding (the bridge translates text events).
 	p.SetStartupSubscriptions([]string{"*"}, nil, "")

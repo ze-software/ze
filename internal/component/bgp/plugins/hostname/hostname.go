@@ -69,6 +69,10 @@ func (c *fqdnConfig) encodeValue() string {
 	return hex.EncodeToString(data)
 }
 
+// fqdnCapCode is the FQDN capability code (draft-walton-bgp-hostname-capability),
+// set by the hostname container.
+const fqdnCapCode = 73
+
 // runHostnamePlugin runs the hostname plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 // It receives per-peer hostname/domain config during Stage 2 and registers
@@ -79,19 +83,12 @@ func runHostnamePlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-hostname", conn)
 	defer func() { _ = p.Close() }()
 
-	// OnConfigure callback: parse bgp config, extract per-peer hostname/domain,
-	// then set capabilities for Stage 3.
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		var caps []sdk.CapabilityDecl
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			caps = append(caps, extractHostnameCapabilities(section.Data)...)
-		}
-		p.SetCapabilities(caps)
-		return nil
-	})
+	// The per-peer hostname/domain declaration is fixed for the process life:
+	// a reload that changes it is refused at config-verify
+	// (sdk.Plugin.DeclareCapabilitiesFrom).
+	p.DeclareCapabilitiesFrom(configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+		return extractHostnameCapabilities(data), nil
+	}), map[uint8]string{fqdnCapCode: "hostname"})
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -139,7 +136,6 @@ func extractHostnameCapabilities(jsonStr string) []sdk.CapabilityDecl {
 		return nil
 	}
 
-	const fqdnCapCode = 73
 	var caps []sdk.CapabilityDecl
 
 	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {

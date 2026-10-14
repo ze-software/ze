@@ -396,16 +396,43 @@ Must be called after `SetStartupSubscriptions` and before `Run()`.
 p.SetEncoding("text")
 ```
 
-### SetCapabilities
+### DeclareCapabilitiesFrom
 
-Sets the capabilities to declare during Stage 3. Must be called before `Run()`.
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetCapabilities -->
+Registers the extractor that computes the plugin's capability declaration from
+the config sections it receives, and the config leaf that sets each code. It is
+the only way a plugin declares capabilities, and it must be called before
+`Run()`. A plugin whose set does not come from config registers an extractor
+that ignores the sections.
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, capabilityChanges -->
+
+`Run` calls the extractor once, on the Stage 2 configuration, and sends its
+capabilities at Stage 3. The engine puts that declaration in every OPEN until
+the plugin process ends, so it is never rewritten: a runtime `configure`
+redelivery reaches `OnConfigure` and never the extractor.
+
+At config-verify the plugin's own `OnConfigVerify` handler answers first. When
+it accepts, the SDK runs the extractor on the candidate sections and compares
+the two declarations per peer selector (`Peers`) and code. A changed payload, a
+code removed from a peer that stays configured, and a code added (a peer added
+with a capability included) are refused, naming the peer, the leaf and the
+plugin, followed by `sdk.RestartSteps()`. A peer the candidate no longer names
+is accepted: it sends no OPEN again. A declaration with no `Peers` applies to
+every peer and is compared as one selector, named `every peer`.
 
 ```go
-p.SetCapabilities([]sdk.CapabilityDecl{
-    {Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"192.168.1.1"}},
-})
+p.DeclareCapabilitiesFrom(func(sections []sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
+    return sdk.CapabilityDeclaration{
+        Capabilities: []sdk.CapabilityDecl{
+            {Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"peer1"}},
+        },
+        Peers: []string{"peer1"}, // every peer selector the config names
+    }, nil
+}, map[uint8]string{64: "graceful-restart"})
 ```
+
+A plugin that reads the `bgp` root wraps its per-section extraction with
+`configjson.BGPCapabilityExtractor`, which reports every peer selector of the
+tree (`configjson.CapabilitySelectors`).
 
 ## Engine Methods (Plugin to Engine)
 

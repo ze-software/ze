@@ -309,7 +309,7 @@ func TestBridgeQueuesEventsFromConfigureNotFromStart(t *testing.T) {
 		Families: []string{"ipv4/unicast"},
 		Scripts:  []bridgerun.Script{{Name: "watcher", Argv: []string{"/bin/cat"}, Encoder: bridge.EncoderJSON}},
 	}
-	if err := runner.applyConfig(nil, cfg); err != nil {
+	if err := runner.applyConfig(cfg); err != nil {
 		t.Fatalf("applyConfig: %v", err)
 	}
 

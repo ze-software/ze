@@ -311,21 +311,25 @@ func RunRolePlugin(conn net.Conn) int {
 	var nameToIP map[string]string
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		var caps []sdk.CapabilityDecl
 		for _, section := range sections {
 			if section.Root != configRootBGP {
 				continue
 			}
 			peerConfigs, nameToIP = extractPeerRoleConfigs(section.Data)
-			caps = append(caps, extractRoleCapabilities(section.Data)...)
 		}
 		// Store configs in package-level state for filter closures. The local AS
 		// for OTC egress stamping is supplied per destination peer by the reactor
 		// (filterapi.PeerFilterInfo.LocalAS), not parsed from the config here.
 		setFilterState(peerConfigs, nameToIP)
-		p.SetCapabilities(caps)
 		return nil
 	})
+
+	// The role capability declaration is fixed for the process life: a reload
+	// that changes it is refused at config-verify
+	// (sdk.Plugin.DeclareCapabilitiesFrom).
+	p.DeclareCapabilitiesFrom(configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+		return extractRoleCapabilities(data), nil
+	}), map[uint8]string{roleCapCode: "role"})
 
 	// RFC 9234 Section 4.2: Validate OPEN pairs for role compatibility.
 	// WantsValidateOpen is auto-set by SDK when this callback is registered.

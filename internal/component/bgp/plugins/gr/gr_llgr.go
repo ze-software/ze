@@ -179,6 +179,9 @@ func parseLLGRCapValue(capMap map[string]any, peerAddr string, families []string
 	return hex.EncodeToString(buf)
 }
 
+// llgrCapCode is the Long-Lived Graceful Restart capability code (RFC 9494).
+const llgrCapCode = 71
+
 // extractLLGRCapabilities extracts LLGR capability declarations from BGP config.
 // Returns CapabilityDecl entries for code 71 (one per peer that has LLGR configured).
 func extractLLGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
@@ -187,7 +190,6 @@ func extractLLGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 		return nil
 	}
 
-	const llgrCapCode = 71
 	var caps []sdk.CapabilityDecl
 
 	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {

@@ -838,14 +838,6 @@ func (p *Plugin) SetEncoding(enc string) {
 	p.startupSubscription.Encoding = enc
 }
 
-// SetCapabilities sets the capabilities to declare during Stage 3.
-// Must be called before Run().
-func (p *Plugin) SetCapabilities(caps []CapabilityDecl) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.capabilities = caps
-}
-
 // marshalStatusError returns a JSON status error response with the given message.
 func marshalStatusError(msg string) (json.RawMessage, error) {
 	return json.Marshal(struct {

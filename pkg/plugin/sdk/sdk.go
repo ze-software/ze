@@ -96,8 +96,11 @@ type Plugin struct {
 	// between reactor sending routes and the plugin subscribing.
 	startupSubscription *rpc.SubscribeEventsInput
 
-	// Capabilities to declare during Stage 3.
-	capabilities []CapabilityDecl
+	// capabilities is the Stage 3 declaration. Its one writer is
+	// handleStartupConfigure, which runs the extractor capabilitySource holds;
+	// nothing rewrites it after Stage 3 (DeclareCapabilitiesFrom).
+	capabilities     []CapabilityDecl
+	capabilitySource *capabilitySource
 
 	// wantsValidateOpen records that this plugin's author registered an OPEN
 	// validation handler, which is what Stage 1 declares as
@@ -428,13 +431,19 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	}
 	p.mu.Unlock()
 
+	// Every On* registration happened before Run, so the declaration
+	// comparison now sits behind whichever verify handler was registered.
+	p.composeCapabilityVerify()
+
 	// Stage 1: declare-registration
 	if err := p.callEngine(ctx, rpc.MethodDeclareRegistration, &reg); err != nil {
 		return fmt.Errorf("stage 1 (declare-registration): %w", err)
 	}
 
-	// Stage 2: wait for configure from engine
-	if err := p.serveOne(ctx, callbackConfigure, p.handleConfigure); err != nil {
+	// Stage 2: wait for configure from engine. The extractor runs here and
+	// nowhere else, so a runtime configure redelivery cannot rewrite the
+	// declaration Stage 3 sends.
+	if err := p.serveOne(ctx, callbackConfigure, p.handleStartupConfigure); err != nil {
 		return fmt.Errorf("stage 2 (configure): %w", err)
 	}
 

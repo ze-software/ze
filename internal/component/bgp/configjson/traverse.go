@@ -148,6 +148,19 @@ func CapabilitySelector(name string, origin PeerOrigin) string {
 	return name
 }
 
+// CapabilitySelectors returns the CapabilitySelector of every visit ForEachPeer
+// makes in bgpTree: each configured peer and each dynamic group's template. It
+// is the candidate peer set a capability extractor reports beside its
+// declarations, and it reads the same traversal the extractors do, so an
+// unchanged peer can never read as removed and added.
+func CapabilitySelectors(bgpTree map[string]any) []string {
+	var selectors []string
+	ForEachPeer(bgpTree, func(name string, _, _ map[string]any, origin PeerOrigin) {
+		selectors = append(selectors, CapabilitySelector(name, origin))
+	})
+	return selectors
+}
+
 // LookupPeerConfig resolves a peer's config from an index keyed by KeyFor.
 //
 // The order is the config's own precedence: what a peer states beats what its group

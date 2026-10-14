@@ -248,9 +248,10 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 |--------|---------|
 | `SetStartupSubscriptions(events, peers []string, format string)` | Race-free event subscription (included in Stage 5 ready RPC) |
 | `SetEncoding(enc string)` | Set event encoding preference (`"json"` or `"text"`) |
-| `SetCapabilities(caps []CapabilityDecl)` | Set BGP capabilities to declare in Stage 3 |
+| `DeclareCapabilitiesFrom(extract CapabilityExtractor, leaves map[uint8]string)` | Register the extractor whose Stage 2 output is the Stage 3 capability declaration; a reload that changes it is refused |
 
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions, SetEncoding, SetCapabilities -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions, SetEncoding -->
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom -->
 
 ### Engine Calls (call after startup, typically in `OnStarted` or `OnEvent`)
 

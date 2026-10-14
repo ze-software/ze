@@ -192,9 +192,12 @@ func negotiatedOutcomeEqual(a, b *capability.Negotiated) bool {
 // store the plugin has already written (Server.GetPluginCapabilitiesForSelectors).
 // The probe builds its candidate OPEN from that same store, so it sees what the
 // plugin holds NOW and cannot see what the plugin would inject once it received
-// the new config. An edit whose wire effect arrives later, by a path the probe
-// does not run, is the one thing the procedure cannot determine, so it restarts
-// (ai/rules/evidence.md).
+// the new config. That store never changes while the plugin runs: a reload that
+// would change a plugin's declaration is refused at config-verify
+// (sdk.Plugin.DeclareCapabilitiesFrom), so a reload that reaches here leaves
+// every plugin capability as the store holds it. A capability-block edit still
+// restarts, because the plugin side of it is decided by the plugin, not by a
+// path the probe runs (ai/rules/evidence.md).
 func negotiatedCapabilitySettings(dst, src *PeerSettings) {
 	dst.Capabilities = src.Capabilities
 }

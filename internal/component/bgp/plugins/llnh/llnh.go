@@ -71,22 +71,13 @@ func runLLNHPlugin(conn net.Conn) int {
 	// (FatalOnConfigError, register.go).
 	p.OnConfigVerify(refuseLinkLocalCapabilityWithoutAddressSections)
 
-	// OnConfigure callback: refuse a peer that would advertise capability 77
-	// with no Link-Local address to send, then set capabilities for Stage 3.
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		if err := refuseLinkLocalCapabilityWithoutAddressSections(sections); err != nil {
-			return err
-		}
-		var caps []sdk.CapabilityDecl
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			caps = append(caps, extractLLNHCapabilities(section.Data)...)
-		}
-		p.SetCapabilities(caps)
-		return nil
-	})
+	// OnConfigure refuses a peer that would advertise capability 77 with no
+	// Link-Local address to send; the declaration then runs after it, and is
+	// fixed for the process life (sdk.Plugin.DeclareCapabilitiesFrom).
+	p.OnConfigure(refuseLinkLocalCapabilityWithoutAddressSections)
+	p.DeclareCapabilitiesFrom(configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+		return extractLLNHCapabilities(data), nil
+	}), map[uint8]string{llnhCapCode: "link-local-nexthop"})
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
