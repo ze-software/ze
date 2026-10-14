@@ -634,9 +634,9 @@ func (cl *coaListener) oneSession(pkt *radius.Packet, from *net.UDPAddr, nak uin
 // with the session when the request carries them. A request carrying none of the
 // three identifies nothing and matches nothing.
 //
-// The accounting plugin writes an Acct-Session-Id as "tunnelID-sessionID-seqNum"
-// (acct.go genSessionID), so the match is on the "tunnelID-sessionID-" prefix
-// and the opaque sequence number is ignored.
+// The accounting plugin writes an Acct-Session-Id as
+// "tunnelID-sessionID-bootTag-counter" (acct.go genSessionID), so the match is
+// on the "tunnelID-sessionID-" prefix and the boot tag and counter are ignored.
 func (cl *coaListener) findSessions(pkt *radius.Packet) []uint16 {
 	svc := l2tp.LookupService()
 	if svc == nil {

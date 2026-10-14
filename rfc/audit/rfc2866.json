@@ -1,5 +1,8 @@
 {
   "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2866-3-2": {
@@ -21,15 +24,15 @@
       "note": "Clause 1: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier goes red on a changed Identifier for identical contents. Clause 2: TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator forces a retransmit whose Acct-Delay-Time moves 0->1 and asserts a new Identifier, a new Request Authenticator, and each authenticator equal to the Section 3 MD5 of its own datagram. The two clauses are opposite polarities of one rule, so a client that always or never changes the ID goes red. TestRFC2866AccountingDistinctRequestsDifferIdentifier is mislabeled: it proves RFC2866-4.1-4.",
       "requirement_sha": "57c04f27af1ae359",
       "tests": {
-        "internal/component/radius/rfc2866_acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier": "ae1d9577fbc531d6",
         "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingDistinctRequestsDifferIdentifier": "fe96fc203c6b8529",
         "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier": "fe96fc203c6b8529",
+        "internal/component/radius/rfc2866_acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier": "ae1d9577fbc531d6",
         "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "673a0e65f53e1495"
       },
       "units": {
-        "internal/component/radius/rfc2866_acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier": "669b15d0733a6a70",
         "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingDistinctRequestsDifferIdentifier": "afc28b9ebd1ff1e0",
         "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier": "a7918eae49989a9a",
+        "internal/component/radius/rfc2866_acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier": "669b15d0733a6a70",
         "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "5ebf368a13c2f644"
       },
       "verdict": "enforced"
@@ -119,8 +122,8 @@
       "note": "Judge 2026-09-30 (cont 6). Row corrected under R5 to the Section 5.13 legend line '1 Exactly one instance of this attribute MUST be present.' (verbatim), binding Acct-Status-Type and Acct-Session-Id; id kept because internal/le/rfc/quote_backfill_test.go pins it and the HEAD tags stay valid, which is honest: the id names the obligation the old span carried, narrowed. Positives: TestRFC2866AcctStatusTypePresent (count 1, right value, per status) and TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute (Start/Interim/Stop encoded and decoded: exactly one non-empty Acct-Status-Type and Acct-Session-Id, same session id). Negative TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute is genuine: the operator's attributes-exclude control is the only input that could drop either attribute; it refuses both names, and excluding every accepted name (derived from excludableAttributes) still leaves each exactly once. Recorded red on buildAcctPacket and parseAttributeExclusions. TestRFC2866AcctStatusTypeNeverOmitted still repeats the positive's presence check; the pair no longer depends on it.",
       "requirement_sha": "fbb5d50733489929",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypeNeverOmitted": "fd8927de3c58fb86",
-        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent": "fd8927de3c58fb86",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypeNeverOmitted": "dfbffaac55a01b67",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent": "dfbffaac55a01b67",
         "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute": "31a5e844ce599efa",
         "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute": "31a5e844ce599efa"
       },

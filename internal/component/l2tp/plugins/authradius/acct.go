@@ -12,6 +12,8 @@ package l2tpauthradius
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"net"
 	"net/netip"
@@ -42,6 +44,16 @@ var acctGetStats = acctRawStats
 // acctNow reads the clock that stamps Event-Timestamp. A test replaces it so
 // the encoded seconds are exact rather than a window around the real clock.
 var acctNow = time.Now
+
+// acctBootRandom fills the random half of the boot tag. A test replaces it so
+// the tag is exact rather than unknown.
+var acctBootRandom = func(random []byte) {
+	if _, err := rand.Read(random); err != nil {
+		// Since Go 1.24 crypto/rand.Read crashes the program rather than return
+		// an error, so only a broken toolchain reaches here.
+		panic("BUG: crypto/rand.Read returned an error: " + err.Error())
+	}
+}
 
 // acctSession tracks per-session accounting state.
 //
@@ -166,6 +178,8 @@ type radiusAcct struct {
 	sourceAddress   net.IP
 	interval        time.Duration
 	nextSess        atomic.Uint32
+	bootTagMint     sync.Once
+	bootTag         [bootTagOctets]byte
 	serverAddr      string
 	nasPortIDFormat string
 	exclusions      attributeExclusions
@@ -232,10 +246,37 @@ func (a *radiusAcct) exclusionsNow() attributeExclusions {
 	return a.exclusions
 }
 
+// bootTagOctets is the size of the boot tag: four octets of Unix seconds and
+// eight random octets, written as 24 hex digits.
+const bootTagOctets = 12
+
+// genSessionID answers a new Acct-Session-Id, "tunnel-session-tag-counter".
+//
+// RFC 2866 Section 5.5: "This attribute is a unique Accounting ID to make it
+// easy to match start and stop records in a log file." The counter makes the
+// id unique within one accountant; the boot tag makes it unique across a
+// restart, which resets the counter. The "tunnel-session-" prefix is what
+// coa.go findSessions matches a CoA by, so it stays first. Safe for concurrent
+// use.
 func (a *radiusAcct) genSessionID(tunnelID, sessionID uint16) string {
+	a.bootTagMint.Do(a.mintBootTag)
 	n := a.nextSess.Add(1)
 	var b textbuf.Buffer
-	return b.Reset().Int(int64(tunnelID)).Byte('-').Int(int64(sessionID)).Byte('-').Int(int64(n)).String()
+	return b.Reset().Int(int64(tunnelID)).Byte('-').Int(int64(sessionID)).Byte('-').
+		Hex(a.bootTag[:]).Byte('-').Int(int64(n)).String()
+}
+
+// mintBootTag writes the boot tag: the Unix seconds acctNow reads, then 64
+// random bits. It MUST run once per accountant, through bootTagMint, at the
+// first genSessionID and never in newRADIUSAcct: the accountant is built at
+// package init (register.go), before the NTP plugin restores the clock, so a
+// tag read then would carry the kernel's boot clock. Before NTP answers, a box
+// with no RTC can read the same restored second on two boots, and the random
+// half is what keeps the two tags apart; the time half orders boots once the
+// clock is real.
+func (a *radiusAcct) mintBootTag() {
+	binary.BigEndian.PutUint32(a.bootTag[:4], uint32(acctNow().Unix())) //nolint:gosec // Unix seconds fit 32 bits until 2106; the tag only has to differ.
+	acctBootRandom(a.bootTag[4:])
 }
 
 // subscribeEventBus subscribes to session lifecycle events for accounting.
