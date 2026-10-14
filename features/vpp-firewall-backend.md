@@ -12,7 +12,7 @@
 | Real-path tests | internal/plugins/firewall/vpp/acl_restart_linux_test.go::TestACLRestartAdoptsAndUpdatesSingleton, internal/plugins/firewall/vpp/acl_restart_linux_test.go::TestACLProgrammingRollbackFailureRemainsOwned |
 | Docs | docs/guide/vpp.md |
 | Doc review | 2026-10-07: every source anchor resolves; the verifier and backend registrations are in register.go and verify.go |
-| Defect review | 2026-10-07: journal bound-wraps-before-it-refuses.md row names the VPP ACL path; journal rows naming a Component, not each re-verified here: gate-excludes-part-of-its-population.md:138, guard-added-to-one-half-of-a-pair.md:28, guard-added-to-one-half-of-a-pair.md:90, unwired-feature.md:70 |
+| Defect review | 2026-10-07: journal bound-wraps-before-it-refuses.md row names the VPP ACL path; journal rows naming a Component, not each re-verified here: gate-excludes-part-of-its-population.md:138, guard-added-to-one-half-of-a-pair.md:43, guard-added-to-one-half-of-a-pair.md:105, unwired-feature.md:70 |
 | Stub evidence | internal/plugins/firewall/vpp/acl_restart_linux_test.go::TestACLRestartAdoptsAndUpdatesSingleton, internal/plugins/firewall/vpp/acl_restart_linux_test.go::TestACLProgrammingRollbackFailureRemainsOwned |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 

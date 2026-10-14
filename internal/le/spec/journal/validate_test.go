@@ -268,3 +268,42 @@ func TestValidateFileHoldsARowWhoseOnlyChangeIsTheMarker(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateFileHoldsARowMovedFromAnotherClass validates AC-15 and AC-16: a
+// merge or a split moves an over-cap HEAD row unchanged into another class
+// file, and that destination's validation pairs it with the source's HEAD row
+// instead of measuring it as added. A moved row whose prose changed on the way
+// is measured, and so is an over-cap row no HEAD class holds.
+func TestValidateFileHoldsARowMovedFromAnotherClass(t *testing.T) {
+	t.Parallel()
+	moved := journalRowOf(t, "2026-08-01", 1200)
+	tests := []struct {
+		name    string
+		target  string
+		tooLong bool
+	}{
+		{name: "moved unchanged", target: moved},
+		{name: "moved with a changed marker", target: strings.Replace(moved, "| fixed: fix |", "| open: fix |", 1)},
+		{name: "moved and rewritten", target: strings.Replace(moved, "| fixed: fix |", "| fixed: fix more |", 1), tooLong: true},
+		{name: "held nowhere", target: journalRowOf(t, "2026-08-02", 1200), tooLong: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			source, target := "plan/journal/source.md", "plan/journal/target.md"
+			root := journalFixture(t, map[string]string{
+				source: journalTableHead + moved + "\n",
+				target: journalTableHead + journalRowOf(t, "2026-07-01", 100) + "\n",
+			})
+			writeJournalFile(t, root, source, journalTableHead)
+			writeJournalFile(t, root, target, journalTableHead+journalRowOf(t, "2026-07-01", 100)+"\n"+test.target+"\n")
+			report, err := ValidateFile(root, target)
+			if err != nil {
+				t.Fatalf("ValidateFile: %v", err)
+			}
+			if kinds := validationKinds(report); slices.Contains(kinds, "row-too-long") != test.tooLong {
+				t.Fatalf("problem kinds = %q, want row-too-long %v", kinds, test.tooLong)
+			}
+		})
+	}
+}

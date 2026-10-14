@@ -12,7 +12,7 @@
 | Real-path tests | test/traffic/traffic-vpp-accept-dscp-filter.ci, test/traffic/traffic-vpp-accept-multiclass.ci, test/traffic/traffic-vpp-not-connected.ci, internal/plugins/traffic/vpp/apply_test.go::TestApplyMultiClassSteering |
 | Docs | docs/guide/traffic-control.md, docs/guide/vpp.md |
 | Doc review | 2026-10-07: re-read after the exact-or-reject citation fix; checked waitConnectedTimeout 5s (internal/plugins/traffic/vpp/backend_linux.go), `vpp not connected after` (internal/component/vpp/conn.go), RegisterVerifier("vpp", Verify) (register.go), prio/mark/multi-class-without-filter rejection (verify.go), NextTableIndex chaining (ops_linux.go), `ze/` prefix (translate.go); every source anchor resolves |
-| Defect review | 2026-10-07: blocked spec-traffic-vpp-deferred-reply-timeout names the VPP traffic backend; journal rows naming a Component, not each re-verified here: gate-excludes-part-of-its-population.md:138, guard-added-to-one-half-of-a-pair.md:28, unwired-feature.md:70 |
+| Defect review | 2026-10-07: blocked spec-traffic-vpp-deferred-reply-timeout names the VPP traffic backend; journal rows naming a Component, not each re-verified here: gate-excludes-part-of-its-population.md:138, guard-added-to-one-half-of-a-pair.md:43, unwired-feature.md:70 |
 | Stub evidence | test/traffic/traffic-vpp-accept-dscp-filter.ci, test/traffic/traffic-vpp-accept-multiclass.ci, test/traffic/traffic-vpp-not-connected.ci, internal/plugins/traffic/vpp/apply_test.go::TestApplyMultiClassSteering |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 

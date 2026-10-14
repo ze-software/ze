@@ -14,7 +14,7 @@
 | RFCs | rfc7011, rfc3954 |
 | Docs | docs/guide/flow-export.md |
 | Doc review | 2026-10-07: every source anchor resolves; ze_flowexport_datagrams_total, ze_flowexport_flows_active and ze_flowexport_recent_ring_drops are registered in internal/plugins/flowexport |
-| Defect review | 2026-10-07: open: spec-bmp-sflow-export-rfc-defects names the sFlow exporter; journal rows naming a Component, not each re-verified here: bound-too-small-for-its-own-burst.md:18, guard-added-to-one-half-of-a-pair.md:40, mtime-granularity-stamp.md:4, mtime-granularity-stamp.md:5, stale-spec-claims-done.md:18, unwired-feature.md:44 |
+| Defect review | 2026-10-07: open: spec-bmp-sflow-export-rfc-defects names the sFlow exporter; journal rows naming a Component, not each re-verified here: bound-too-small-for-its-own-burst.md:18, guard-added-to-one-half-of-a-pair.md:55, mtime-granularity-stamp.md:4, mtime-granularity-stamp.md:5, stale-spec-claims-done.md:18, unwired-feature.md:44 |
 | Extra criteria | supported: collector interop against nfdump = internal/plugins/flowexport/interop_integration_linux_test.go::TestFlowExportNFDumpInterop; supported: collector interop against sflowtool = internal/plugins/flowexport/interop_integration_linux_test.go::TestFlowExportSFlowToolInterop; supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
 ## Description

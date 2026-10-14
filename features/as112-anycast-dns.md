@@ -15,7 +15,7 @@
 | RFCs | rfc7534, rfc7535, rfc7858, rfc8484 |
 | Docs | docs/guide/as112.md |
 | Doc review | 2026-10-07: checked asn default 112 in internal/plugins/as112/yang/ze-as112-conf.yang; every source anchor resolves |
-| Defect review | 2026-10-07: journal guard-added-to-one-half-of-a-pair.md row names the as112 DNS path; journal rows naming a Component, not each re-verified here: guard-added-to-one-half-of-a-pair.md:33, guard-added-to-one-half-of-a-pair.md:35, guard-added-to-one-half-of-a-pair.md:47, validated-value-discarded-by-its-caller.md:14, zero-value-as-valid-answer.md:47 |
+| Defect review | 2026-10-07: journal guard-added-to-one-half-of-a-pair.md row names the as112 DNS path; journal rows naming a Component, not each re-verified here: guard-added-to-one-half-of-a-pair.md:48, guard-added-to-one-half-of-a-pair.md:50, guard-added-to-one-half-of-a-pair.md:62, validated-value-discarded-by-its-caller.md:14, zero-value-as-valid-answer.md:47 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
 ## Description

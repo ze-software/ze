@@ -14,7 +14,7 @@
 | RFCs | rfc7871, rfc7858, rfc8484 |
 | Docs | docs/guide/as112.md |
 | Doc review | 2026-10-07: every source anchor resolves (answerQuestions, ze-geodns-conf.yang client-subnet and tls certificate) |
-| Defect review | 2026-10-07: journal guard-added-to-one-half-of-a-pair.md row names geodns; journal rows naming a Component, not each re-verified here: gate-verdict-depends-on-the-machine.md:119, guard-added-to-one-half-of-a-pair.md:32, guard-added-to-one-half-of-a-pair.md:33, guard-added-to-one-half-of-a-pair.md:35, guard-added-to-one-half-of-a-pair.md:47 |
+| Defect review | 2026-10-07: journal guard-added-to-one-half-of-a-pair.md row names geodns; journal rows naming a Component, not each re-verified here: gate-verdict-depends-on-the-machine.md:119, guard-added-to-one-half-of-a-pair.md:47, guard-added-to-one-half-of-a-pair.md:48, guard-added-to-one-half-of-a-pair.md:50, guard-added-to-one-half-of-a-pair.md:62 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
 ## Description

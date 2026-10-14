@@ -12,7 +12,7 @@
 | RFCs | rfc1035 |
 | Docs | docs/guide/as112.md |
 | Doc review | 2026-10-07: checked Authoritative = Rcode != RcodeRefused, RcodeNotImplemented and udpReplyLimit with the 512-octet bound in internal/core/dnsserver/handler.go |
-| Defect review | 2026-10-07: journal guard-added-to-one-half-of-a-pair.md row names the shared DNS handler (stale QEMU tests); journal rows naming a Component, not each re-verified here: comment-describes-superseded-behaviour.md:28, guard-added-to-one-half-of-a-pair.md:34, guard-added-to-one-half-of-a-pair.md:35, guard-added-to-one-half-of-a-pair.md:47, test-against-broken-path.md:50 |
+| Defect review | 2026-10-07: journal guard-added-to-one-half-of-a-pair.md row names the shared DNS handler (stale QEMU tests); journal rows naming a Component, not each re-verified here: comment-describes-superseded-behaviour.md:28, guard-added-to-one-half-of-a-pair.md:49, guard-added-to-one-half-of-a-pair.md:50, guard-added-to-one-half-of-a-pair.md:62, test-against-broken-path.md:49 |
 | Extra criteria | supported: a dig-style real-path test of each answer class = test/plugin/dns-answer-policy.ci; supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
 ## Description

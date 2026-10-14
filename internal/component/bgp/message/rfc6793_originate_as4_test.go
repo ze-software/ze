@@ -8,7 +8,7 @@
 // block it returns. The table enumerates EVERY builder rather than one of them,
 // because the obligation is on the attribute block a peer receives and a builder
 // nobody listed is how this defect reached the wire in the first place
-// (plan/journal/requirement-met-on-the-rails-the-spec-planned.md).
+// (plan/journal/guard-added-to-one-half-of-a-pair.md).
 
 package message
 

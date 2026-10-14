@@ -663,6 +663,29 @@ func heldKey(cells [5]string) [5]string {
 	return cells
 }
 
+// rowsMovedFromOtherClasses counts the rows of every HEAD class file except
+// relative, keyed as heldRows keys them. A worktree row that pairs with one was
+// moved between classes with its committed cells, so the length cap, which
+// binds added and rewritten prose, does not measure it. The pairing is per
+// validated file: a row copied into two classes pairs in each, which the cap
+// does not judge, because the copy adds no prose.
+func rowsMovedFromOtherClasses(tree, relative string) (heldRows, error) {
+	paths, err := classFilesAtHead(tree)
+	if err != nil {
+		return nil, err
+	}
+	others := slices.DeleteFunc(paths, func(path string) bool { return path == relative })
+	committed, err := headFiles(tree, others)
+	if err != nil {
+		return nil, err
+	}
+	var rows []journalRow
+	for _, path := range others {
+		rows = append(rows, journalRows(committed[path])...)
+	}
+	return newHeldRows(rows), nil
+}
+
 // claim reports whether cells pair with a HEAD row, and consumes that row so a
 // duplicated worktree row pairs at most as often as HEAD holds it.
 func (held heldRows) claim(cells [5]string) bool {

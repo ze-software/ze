@@ -74,9 +74,10 @@ func (r ValidationReport) Text() string {
 }
 
 // ValidateFile validates exactly one edited journal class file without reading
-// other shards or creating commit/session artifacts. It reads the same file at
-// git HEAD to tell an added or rewritten row, which the length cap binds, from
-// a committed one, so the checkout MUST be a git repository. Every row's Fix
+// other worktree shards or creating commit/session artifacts. It reads the same
+// file at git HEAD, then every other class file at HEAD, to tell an added or
+// rewritten row, which the length cap binds, from a committed one or one moved
+// unchanged between classes, so the checkout MUST be a git repository. Every row's Fix
 // marker is checked, held or not, and the Captured: line is resolved against
 // the working tree.
 func ValidateFile(root, rawPath string) (ValidationReport, error) {
@@ -98,11 +99,18 @@ func ValidateFile(root, rawPath string) (ValidationReport, error) {
 	}
 	// A row whose five cells match a HEAD row is unchanged, however it is
 	// spaced and whatever its Fix marker, and is exempt from the length cap.
+	// The same file is searched first. A row that matches a HEAD row of another
+	// class was moved between classes (a merge or a split), which keeps its
+	// committed text, so it is not an added row either.
 	committed, err := headFiles(root, []string{relative})
 	if err != nil {
 		return ValidationReport{}, err
 	}
 	held := newHeldRows(journalRows(committed[relative]))
+	moved, err := rowsMovedFromOtherClasses(root, relative)
+	if err != nil {
+		return ValidationReport{}, err
+	}
 	report := ValidationReport{Path: relative}
 	headerFound := false
 	for number, line := range strings.Split(string(content), "\n") {
@@ -142,6 +150,9 @@ func ValidateFile(root, rawPath string) (ValidationReport, error) {
 			})
 		}
 		if held.claim(row.cells) {
+			continue
+		}
+		if moved.claim(row.cells) {
 			continue
 		}
 		if chars := utf8.RuneCountInString(strings.TrimSpace(line)); chars > RowCharsMax {

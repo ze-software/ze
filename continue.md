@@ -492,7 +492,7 @@ greps the journal.
 |---------|----------------------|
 | `ASPathEdit.recordAggregator` (`internal/component/bgp/wireu/aspath_slot.go`) does NOT tombstone an AGGREGATOR whose length it cannot read. `RewriteASPath` did, so the behaviour vanished when `Record` replaced the whole-payload rewrite, with no red test. The transcode rail still tombstones | `plan/journal/unwired-feature.md` |
 | `test/interop/scenarios/bgp-aggregator-as4-downgrade-bird` rests on the claim that `internal rib` alone relays a route to a peer. Measured false twice: the relay is `bgp-rs` plus `bgp-adj-rib-in`. The scenario is unverified, not failing, which is worse | `plan/journal/test-against-broken-path.md` |
-| No originating encoder emits an AS4_PATH (`internal/component/bgp/message/update_build*.go`), so a route ze ORIGINATES carrying a non-mappable AS reaches a two-octet peer as AS_TRANS with the real number nowhere. RFC 6793 Section 4.2.2 requires it | `plan/journal/requirement-met-on-the-rails-the-spec-planned.md` |
+| No originating encoder emits an AS4_PATH (`internal/component/bgp/message/update_build*.go`), so a route ze ORIGINATES carrying a non-mappable AS reaches a two-octet peer as AS_TRANS with the real number nowhere. RFC 6793 Section 4.2.2 requires it | `plan/journal/guard-added-to-one-half-of-a-pair.md` |
 | About 25 RFC tags in `internal/core/bgp/attribute/rfc6793_reconcile_test.go` carry no discrimination record. They moved there with the rule; only the five added by that work were recorded. `./le rfc discriminate stem rfc6793` lists them | the retired spec's Work Not Done, in commit `b1098e376` |
 
 Two decisions from that work that a later session should not re-open: a lone

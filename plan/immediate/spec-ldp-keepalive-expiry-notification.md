@@ -81,7 +81,7 @@ remain outside this transferred scope; their obligations are not waived.
 | 3.9 | "The "E" column is the required setting of the Status Code E-bit; the "Status Data" column is the value of the 30-bit Status Data field in the Status Code TLV." Table row: "KeepAlive Timer 1 0x00000014 ... Expired" | Status Code on the wire is 0x80000014 (E set, F clear) |
 | 3.9 | "Note that the setting of the Status Code F-bit is at the discretion of the LSR originating the Status TLV." | F clear, as for every status ze sends today |
 | 3.4.6 | "If zero, no specific peer message is being identified." and "If zero, the Status TLV does not refer to any specific message type." | Expiry answers no message: Message ID 0 and Message Type 0 |
-| 3.5.3 | "The value chosen for KeepAlive Time indicates the maximum number of seconds that may elapse between the receipt of successive PDUs from the LDP peer on the session TCP connection." | Ze's timer is three times this; Q-1 (owner, 2026-10-14) folds the fix in as phase 4 (journal row in `plan/journal/paraphrase-becomes-the-authority.md`, marked fixed in phase 4) |
+| 3.5.3 | "The value chosen for KeepAlive Time indicates the maximum number of seconds that may elapse between the receipt of successive PDUs from the LDP peer on the session TCP connection." | Ze's timer is three times this; Q-1 (owner, 2026-10-14) folds the fix in as phase 4 (journal row in `plan/journal/requirement-applied-outside-the-case-it-names.md`, marked fixed in phase 4) |
 
 ## Required Reading
 
@@ -360,7 +360,7 @@ The name follows `docs/architecture/testing/interop.md` (named, no numeric prefi
 - `internal/plugins/ldp/wire_test.go` - `TestEncodeNotificationKeepaliveTimerExpired`
 - `internal/plugins/ldp/session.go` (phase 4) - `handleInit` arms the KeepAlive Timer at the negotiated KeepAlive Time, its "typically 3x keepalive" comment replaced by the Section 3.5.3 quote
 - `internal/plugins/ldp/rfc5036_test.go`, `internal/plugins/ldp/keepalive_test.go` (phase 4) - the three tagged units and one untagged unit in the TDD plan
-- `plan/journal/paraphrase-becomes-the-authority.md`, `plan/journal/reference-checked-claim-unchecked.md` (phase 4) - the 3x rows marked fixed
+- `plan/journal/requirement-applied-outside-the-case-it-names.md`, `plan/journal/reference-checked-claim-unchecked.md` (phase 4) - the 3x rows marked fixed
 - `rfc/short/rfc5036.md` (phase 6, Q-3) - new row RFC5036-2.5.4-3, quoting a verbatim span of Section 2.5.4 that `./le rfc check` accepts
 - `rfc/extraction/rfc5036.json` (phase 6, Q-3) - section 2.5.4 `unsourced-ids` gains RFC5036-2.5.4-3
 - `rfc/discrimination/rfc5036.json` - records for the two tagged AC-1 tests and the three phase-4 units
@@ -451,7 +451,7 @@ The name follows `docs/architecture/testing/interop.md` (named, no numeric prefi
    - Verify: red, then green; `go test -race` scoped to `./internal/plugins/ldp/` under `./le job run`
 4. **Phase: Q-1 fold-in (owner, 2026-10-14)** -- KeepAlive Timer equals the negotiated KeepAlive Time (AC-9)
    - Tests: the three tagged units and one untagged unit named in the TDD plan, with a fresh discrimination record for each tagged unit; the owner runs the three approval commands first
-   - Files: `session.go`, `rfc5036_test.go`, `keepalive_test.go`, `docs/guide/mpls.md`; the journal rows in `plan/journal/paraphrase-becomes-the-authority.md` and `plan/journal/reference-checked-claim-unchecked.md` updated to fixed
+   - Files: `session.go`, `rfc5036_test.go`, `keepalive_test.go`, `docs/guide/mpls.md`; the journal rows in `plan/journal/requirement-applied-outside-the-case-it-names.md` and `plan/journal/reference-checked-claim-unchecked.md` updated to fixed
    - First: read RFC 5036 Section 2.5.3 to confirm `NewSession`'s initial `3 * keepalive` wait stays
 5. **Phase: Interop** -- scenario `ldp-keepalive-expiry-frr` with its own `daemons` (`ldpd=yes`), checker, inventory row
    - First: validate A-6 (ldpd reaches OPERATIONAL with ze) with a checker that only waits for OPERATIONAL; if it does not, stop and report before writing the nft step

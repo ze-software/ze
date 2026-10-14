@@ -161,7 +161,7 @@ against the definition in AC-17, or AC-21 when a check-captured class recurs.
 | A-2 | Every row's Fix cell can carry a marker inside the 600-character cap | The cap binds added or rewritten rows; the backfill rewrites every row | Long rows refuse the backfill commit | Counted at HEAD `636166a75d` on 2026-10-14 | refuted: 1,675 of 2,403 rows already exceed 600 characters (1,702 exceed 591), and 1,445 would exceed 600 with the marker even with an empty Fix cell. `heldRows` pairs by all five cells, so every backfilled row reads as rewritten and `closureStem` refuses the commit. Replaced by the marker-stripped pairing in Behavior to change; no prose is shortened |
 | A-3 | A Go function named by directory and function name is enough to resolve a check of every kind in use (hook verdict, le gate, analyzer run function, Go test) | All four are Go functions in a directory at HEAD | A check that is not a Go function (a `.ci` file, a shell stage) cannot be captured | Survey the checks the existing captures name during Phase 5; if one is a `.ci` test, add a `ci` reference kind resolved as a path at HEAD before landing | unvalidated |
 | A-4 | Rows dated on the capture day belong to the pass that set it | Passes write their own rows the same day | A genuine same-day recurrence is not counted, which matters more under a check capture's threshold of 1 | Documented in the README; the pass's proof test, not the row count, catches same-day regressions; a row dated the day after is counted | unvalidated |
-| A-5 | The preliminary merge and split verdicts in Design Insights hold | 3 to 12 rows sampled per class on 2026-10-05 | A merge joins two causes one check cannot capture | Phase 4 reads every row of every candidate and records a per-row destination before moving anything | unvalidated |
+| A-5 | The preliminary merge and split verdicts in Design Insights hold | 3 to 12 rows sampled per class on 2026-10-05 | A merge joins two causes one check cannot capture | Phase 4 reads every row of every candidate and records a per-row destination before moving anything | partly refuted 2026-10-14: 3 of 4 merges dropped, the pair merge holds; splits hold for 4 of 5, bound-wraps dropped (Design Insights) |
 | A-6 | `plan/spec-knowledge-routing.md` (status design) does not land a conflicting change to the report first | Its AC-6 adds an unrouted-age count to the same report | Text and JSON shapes collide | Check its status before Phase 1; build the text format on whatever landed | confirmed 2026-10-14 at implementation start: `plan/spec-knowledge-routing.md` is still `design`, nothing of it landed in the report, so Phase 1 builds on the current report |
 
 ### Risks
@@ -389,8 +389,37 @@ N-A: tooling with no protocol peer.
 
 ## Design Insights
 
-Preliminary candidate verdicts from sampled rows (2026-10-05). Phase 4 replaces
-each with a verdict from every row.
+Phase 4 verdicts (2026-10-14), every row of every candidate read at its Symptom
+and Fix lead (170 to 400 characters), and in full where the fit was unclear.
+"Rows read" is every row the class file held that day, by count and date span.
+The test is the one in Implementation Steps: merge when one check captures both
+classes, split out a row the class's check would miss.
+
+| Candidate | Rows read | Verdict | Why |
+|-----------|-----------|---------|-----|
+| `zero-value-as-valid-answer` + `silent-fall-through` | 88 (2026-07-27 .. 2026-10-14) + 99 (2026-03-21 .. 2026-10-14) | Drop | Two producer shapes: an in-band value standing for absence (PathID 0, nil slice, empty answer for a failed read) against a case with no arm, no refusal or a Debug-only line (missing SAFI branch, default arm, `continue` on error). A check refusing one (presence carried beside the value) never sees the other (every arm refuses or logs at Warn) |
+| `guard-added-to-one-half-of-a-pair` + `requirement-met-on-the-rails-the-spec-planned` + `rule-written-after-the-surface-it-binds` | 104 (2026-08-10 .. 2026-10-13) + 4 (2026-09-05 .. 2026-09-26) + 2 (2026-09-08, 2026-09-22) | Merge both small classes into the pair class; files removed, rows appended unchanged, header written. No state-machine split | One check covers all three: derive every member the obligation binds from the producer and show each reaches the guard. The FSM rows (BFD, VRRP, IKE arms) are members of one transition table, so the same check holds. One row split out: 2026-09-17 (firewall-domain restart attempts under SIGTERM) to `stop-leaves-the-work-running`, no pair in it |
+| `gate-excludes-part-of-its-population` + `gate-fires-outside-its-population` | 165 (2026-08-09 .. 2026-10-13) + 53 (2026-08-13 .. 2026-10-14) | Drop | Opposite failures: a population check (the gate's set equals the producer's set) proves no false red, and a negative test over out-of-population inputs proves no false green. No one proxy-predicate check covers both directions |
+| `discarded-error-becomes-destructive` + `analyzer-crashes-instead-of-reporting` | 7 (2026-08-11 .. 2026-10-08) + 4 (2026-08-22 .. 2026-08-26) | Drop | A discarded error slot that gained delete power against a tool crashing on unexpected input; no shared check |
+| Split `counter-counts-the-wrong-packets` | 8 (2026-09-08 .. 2026-10-13) | Split 2 rows | 2026-09-23 (PPP connects before accounting snapshots) to `session-up-before-its-subscriber`; 2026-09-15 (`/proc/net` read from a goroutine whose locked thread unshared a namespace) to `assertion-reads-state-the-scheduler-owns`. The preliminary reading is refuted for 2026-09-23 lifetime rebilling (a counter covering earlier lifetimes is the class) and for 2026-10-05 (an EAP budget counting discarded Codes) |
+| Split `guard-demands-what-the-model-cannot-supply` | 3 (2026-08-31 .. 2026-09-15) | Split 1 row | 2026-09-06 (`continue` on a next-hop error skips the peer) to `silent-fall-through` |
+| Split `paraphrase-becomes-the-authority` | 4 (2026-09-11 .. 2026-10-13) | Split 2 rows into a new class | 2026-09-27 (RFC 7474's AuType 3 rule applied to AuType 2) and 2026-10-13 (a BGP 3x habit applied to LDP KeepAlive) to `requirement-applied-outside-the-case-it-names`: each borrows another case's requirement, neither paraphrases one |
+| Split `bound-wraps-before-it-refuses` | 5 (2026-08-22 .. 2026-10-06) | Drop | 2026-09-17 (zero-column resize gives a negative width) is subtraction on an input-stated dimension before any bound, the mirror of the add-before-compare rows; the class's check (bound the stated value before arithmetic) catches it |
+| Split `test-against-broken-path` | 88 (2026-03-21 .. 2026-10-14) | Split 3 rows; 1 deferred; no new class | 2026-09-22 (PPP test package duplicate declarations), 2026-08-16 (`setAPIConfigDir` undefined) and 2026-08-16 (renamed listener-migration types) to `committed-tree-does-not-build`. DEFERRED: 2026-09-06 (`api-multiple-api` sends next-hop 127.0.0.1 to the peer at 127.0.0.1) belongs in `fixture-encodes-an-impossible-state`, which on 2026-10-14 holds another session's uncommitted over-cap row, so the move waits for that file to land. The rest (topology, stale oracle, fixture init, races) are tests whose path to the producer is broken, the class itself |
+
+Seen while reading, for the fix pass of AC-17 (a), not moved here: rows whose
+cause is outside their class, in `silent-fall-through` (2026-09-04 YANG module
+resolution in a test binary, 2026-08-12 two red tests, 2026-09-24 SIGHUP before
+`signal.Notify`, 2026-09-24 hyphenated env keys) and in
+`gate-excludes-part-of-its-population` (product defects with no gate, such as
+2026-09-04 mandatory leaf in an absent container, 2026-08-12 listener routing).
+
+The line citations `<class>.md:<line>` in `features/*.md` were remapped by row
+content, so each still names the row it named before the move; several were
+already off by the rows prepended since 2026-10-07.
+
+Preliminary candidate verdicts from sampled rows (2026-10-05), kept as the
+record the verdicts above replaced:
 
 | Candidate | Rows | Sampled reading | Preliminary verdict |
 |-----------|------|-----------------|---------------------|

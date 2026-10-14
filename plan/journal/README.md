@@ -40,7 +40,9 @@ refuses, so a row appended from a shell is caught too. A row HEAD already
 holds is never measured, and neither is one that only changes its spacing or
 its Fix marker. The pairing strips an exact leading `fixed: ` or `open: ` from
 the Fix cell on both sides, and no other spelling, so a row whose only change
-is the marker is held while a row whose prose changed is measured.
+is the marker is held while a row whose prose changed is measured. A row moved
+unchanged into another class file, by a merge or a split, pairs the same way
+with the row HEAD holds in its old class, so a move is never measured either.
 
 ## The Fix marker
 
