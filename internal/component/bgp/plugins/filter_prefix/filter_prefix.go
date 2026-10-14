@@ -1,12 +1,13 @@
 // Design: docs/architecture/core-design.md -- prefix-list filter plugin
 // Detail: match.go -- prefix matching algorithm and update evaluator
 // Detail: config.go -- bgp/policy/prefix-list config parsing
+// Detail: config_tx.go -- the prefix lists at boot and on reload
 //
 // Package filter_prefix implements the bgp-filter-prefix plugin.
 //
 // The plugin loads named prefix-list definitions from
 // bgp { policy { prefix-list NAME { entry P { ge G; le L; action A; } } } }
-// at OnConfigure (Stage 2). At runtime, peer filter chains reference a list
+// at Stage 2, and installs a reload's lists at config-apply. At runtime, peer filter chains reference a list
 // as bgp-filter-prefix:NAME. The engine dispatches each match via
 // CallFilterUpdate (filter-update RPC); the plugin handles it in OnFilterUpdate
 // by extracting the nlri field from the update text and applying the named
@@ -20,11 +21,9 @@ package filter_prefix
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -36,8 +35,8 @@ var logger = slogutil.LazyLogger("bgp.filter.prefix")
 const configRootBGP = "bgp"
 
 // listsByName is the runtime-loaded set of prefix-list definitions, keyed by
-// the YANG list name. Updated atomically on every OnConfigure delivery so
-// the hot path can read without a lock.
+// the YANG list name. Stored whole by every install (boot, apply, rollback,
+// config_tx.go) so the hot path reads without a lock and never a mix.
 var listsByName atomic.Pointer[map[string]*prefixList]
 
 // RunFilterPrefix runs the prefix-list filter plugin using the SDK RPC protocol.
@@ -46,24 +45,7 @@ func RunFilterPrefix(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-prefix", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-			if !ok {
-				return errFilterPrefixInvalidBgpConfigJson
-			}
-			lists, err := parsePrefixLists(bgpCfg)
-			if err != nil {
-				return fmt.Errorf("filter-prefix: %w", err)
-			}
-			listsByName.Store(&lists)
-			logger().Debug("configured", "prefix-lists", len(lists))
-		}
-		return nil
-	})
+	newPrefixConfigTx().Register(p)
 
 	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 		return handleFilterUpdate(in), nil

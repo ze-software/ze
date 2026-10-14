@@ -20,10 +20,7 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-var (
-	errFilterIrrInvalidBgpConfigJson = errors.New("filter-irr: invalid bgp config JSON")
-	errFilterIrrApplyUnverified      = errors.New("filter-irr: config apply requires a verified candidate")
-)
+var errFilterIrrInvalidBgpConfigJson = errors.New("filter-irr: invalid bgp config JSON")
 
 const (
 	// perASNRefreshTimeout bounds a single ASN's IRR resolution on the periodic
@@ -143,11 +140,7 @@ func runFilterIRR(conn net.Conn) int {
 	// A plugin holding OnConfigure alone answers every config-apply OK and
 	// changes nothing, so a live IRR edit was accepted and ignored. The reload
 	// pair is what makes a commit reach the filter (config_tx.go).
-	tx := &irrConfigTx{plug: plug}
-	p.OnConfigure(tx.configure)
-	p.OnConfigVerify(tx.verify)
-	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return tx.apply() })
-	p.OnConfigRollback(func(_ string) error { return tx.rollback() })
+	newIRRConfigTx(plug).Register(p)
 
 	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 		return plug.handleFilterUpdate(in), nil

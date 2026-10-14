@@ -43,8 +43,12 @@ makes it the filter's config through the same `handleConfigure` the boot path
 uses; `OnConfigRollback` puts the replaced config back. An apply with no
 verified candidate is an error. With `OnConfigure` alone the SDK answered every
 apply OK and called nothing, so a changed as-set was accepted and ignored.
-`test/reload/bgp-filter-irr-added-live.ci` proves the edit is enforced.
-<!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- irrConfigTx -->
+`test/reload/bgp-filter-irr-added-live.ci` proves the edit is enforced. The
+transaction is the SDK's `ConfigTx`, which keeps the verified candidate and
+the replaced config; the filter supplies only the parse of the bgp subtree and
+`handleConfigure` as the install.
+<!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- newIRRConfigTx -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx -->
 
 **A changed as-set starts from no list.** `handleConfigure` carries a resolved
 list over a reconfigure only while the ASN's as-set is the same, and

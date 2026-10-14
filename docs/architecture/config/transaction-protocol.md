@@ -206,6 +206,19 @@ from an earlier apply, because the gate opens on every accepted apply.
 <!-- source: pkg/plugin/sdk/config_tx_gate.go -- configTxGate -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply, OnConfigRollback, configApplyCallback -->
 
+A plugin whose whole config is one parsed value takes the transaction from
+`sdk.ConfigTx` rather than writing the four handlers. The plugin supplies a
+side-effect-free parse of its sections (which reports whether the delivery
+carried its root at all) and an install; `ConfigTx.Register` binds Stage 2
+configure and the verify, apply and rollback callbacks. Verify holds the parsed
+candidate, apply refuses with `ErrConfigApplyUnverified` when no accepted
+verify of the same transaction preceded it, installs nothing when the
+candidate is absent or deeply equal to the running config (so a shared-root
+edit outside the plugin's subtree restarts nothing), and otherwise installs it
+and keeps the replaced config, which rollback installs back. Both no-change
+answers drop the undo set, as the contract above requires.
+<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx -->
+
 Only the engine emits `(config, rollback)`. A failing plugin emits
 `(config, apply-failed)`; the engine reacts by emitting `rollback`. This ensures
 a single source of truth -- no duplicate rollback events from multiple sources.

@@ -17,14 +17,21 @@ func irrSection(asSet string) []sdk.ConfigSection {
 	return []sdk.ConfigSection{{Root: configRootBGP, Data: data}}
 }
 
-func newTestTx(t *testing.T) *irrConfigTx {
+// irrTestTx is the filter's transaction beside the plugin it drives, so a
+// test reads the state an apply or a rollback left.
+type irrTestTx struct {
+	*sdk.ConfigTx[map[string]any]
+	plug *irrPlugin
+}
+
+func newTestTx(t *testing.T) irrTestTx {
 	t.Helper()
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
 	t.Cleanup(func() { close(plug.stopCh) })
-	return &irrConfigTx{plug: plug}
+	return irrTestTx{ConfigTx: newIRRConfigTx(plug), plug: plug}
 }
 
-func enrolledASSet(t *testing.T, tx *irrConfigTx) string {
+func enrolledASSet(t *testing.T, tx irrTestTx) string {
 	t.Helper()
 	tx.plug.mu.RLock()
 	defer tx.plug.mu.RUnlock()
@@ -43,27 +50,27 @@ func enrolledASSet(t *testing.T, tx *irrConfigTx) string {
 // an accepted no-op.
 func TestFilterIRRAppliesAReloadedAsSet(t *testing.T) {
 	tx := newTestTx(t)
-	if err := tx.configure(irrSection("AS-OLD")); err != nil {
+	if err := tx.Configure(irrSection("AS-OLD")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	if got := enrolledASSet(t, tx); got != "AS-OLD" {
 		t.Fatalf("after boot: as-set %q, want AS-OLD", got)
 	}
 
-	if err := tx.verify(irrSection("AS-NEW")); err != nil {
+	if err := tx.Verify(irrSection("AS-NEW")); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
 	if got := enrolledASSet(t, tx); got != "AS-OLD" {
 		t.Fatalf("verify applied the candidate: as-set %q, want AS-OLD until apply", got)
 	}
-	if err := tx.apply(); err != nil {
+	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	if got := enrolledASSet(t, tx); got != "AS-NEW" {
 		t.Fatalf("after apply: as-set %q, want AS-NEW", got)
 	}
 
-	if err := tx.rollback(); err != nil {
+	if err := tx.Rollback(); err != nil {
 		t.Fatalf("rollback: %v", err)
 	}
 	if got := enrolledASSet(t, tx); got != "AS-OLD" {
@@ -71,7 +78,7 @@ func TestFilterIRRAppliesAReloadedAsSet(t *testing.T) {
 	}
 
 	bad := []sdk.ConfigSection{{Root: configRootBGP, Data: "{not json"}}
-	if err := tx.verify(bad); !errors.Is(err, errFilterIrrInvalidBgpConfigJson) {
+	if err := tx.Verify(bad); !errors.Is(err, errFilterIrrInvalidBgpConfigJson) {
 		t.Fatalf("verify of invalid JSON: err %v, want errFilterIrrInvalidBgpConfigJson", err)
 	}
 	if got := enrolledASSet(t, tx); got != "AS-OLD" {
@@ -85,27 +92,27 @@ func TestFilterIRRAppliesAReloadedAsSet(t *testing.T) {
 // verified no-op and its apply succeeds.
 func TestFilterIRRRefusesApplyWithoutVerify(t *testing.T) {
 	tx := newTestTx(t)
-	if err := tx.configure(irrSection("AS-OLD")); err != nil {
+	if err := tx.Configure(irrSection("AS-OLD")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
-	if err := tx.apply(); !errors.Is(err, errFilterIrrApplyUnverified) {
-		t.Fatalf("apply without verify: err %v, want errFilterIrrApplyUnverified", err)
+	if err := tx.Apply(); !errors.Is(err, sdk.ErrConfigApplyUnverified) {
+		t.Fatalf("apply without verify: err %v, want sdk.ErrConfigApplyUnverified", err)
 	}
 
-	if err := tx.verify(irrSection("AS-NEW")); err != nil {
+	if err := tx.Verify(irrSection("AS-NEW")); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
-	if err := tx.apply(); err != nil {
+	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if err := tx.apply(); !errors.Is(err, errFilterIrrApplyUnverified) {
-		t.Fatalf("second apply of one candidate: err %v, want errFilterIrrApplyUnverified", err)
+	if err := tx.Apply(); !errors.Is(err, sdk.ErrConfigApplyUnverified) {
+		t.Fatalf("second apply of one candidate: err %v, want sdk.ErrConfigApplyUnverified", err)
 	}
 
-	if err := tx.verify(nil); err != nil {
+	if err := tx.Verify(nil); err != nil {
 		t.Fatalf("verify with no bgp section: %v", err)
 	}
-	if err := tx.apply(); err != nil {
+	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply of a transaction that leaves bgp alone: %v", err)
 	}
 	if got := enrolledASSet(t, tx); got != "AS-NEW" {
@@ -119,7 +126,7 @@ func TestFilterIRRRefusesApplyWithoutVerify(t *testing.T) {
 // already closed, until the next periodic refresh.
 func TestFilterIRRDropsTheListOfAReplacedAsSet(t *testing.T) {
 	tx := newTestTx(t)
-	if err := tx.configure(irrSection("AS-OLD")); err != nil {
+	if err := tx.Configure(irrSection("AS-OLD")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	tx.plug.mu.Lock()
@@ -128,10 +135,10 @@ func TestFilterIRRDropsTheListOfAReplacedAsSet(t *testing.T) {
 	old.signalFirstResolved()
 	tx.plug.mu.Unlock()
 
-	if err := tx.verify(irrSection("AS-NEW")); err != nil {
+	if err := tx.Verify(irrSection("AS-NEW")); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
-	if err := tx.apply(); err != nil {
+	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	tx.plug.mu.RLock()

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | `plan/immediate/spec-bgp-open-session-rfc-defects.md` (D2, Q1 = b) for Phase 4 only: the capability-only plugins' explicit declaration lands after its capability extractor |
-| Phase | - |
+| Phase | 1/6 |
 | Handoff | - |
 | Updated | 2026-10-14 |
 
