@@ -12,23 +12,42 @@ import (
 	"github.com/a-h/templ/internal/htmlfind"
 )
 
-const defaultPosixCommand = "prettier --use-tabs --stdin-filepath $TEMPL_PRETTIER_FILENAME"
+var posixCommands = map[string]string{
+	"prettier":  "prettier --use-tabs --stdin-filepath $TEMPL_PRETTIER_FILENAME",
+	"prettierd": "prettierd --use-tabs --stdin-filepath $TEMPL_PRETTIER_FILENAME",
+}
 
-var shellNameToCommand = map[string]string{
-	"nu": "prettier --use-tabs --stdin-filepath $env.TEMPL_PRETTIER_FILENAME",
+var nuCommands = map[string]string{
+	"prettier":  "prettier --use-tabs --stdin-filepath $env.TEMPL_PRETTIER_FILENAME",
+	"prettierd": "prettierd --use-tabs --stdin-filepath $env.TEMPL_PRETTIER_FILENAME",
+}
+
+var shellNameToCommands = map[string]map[string]string{
+	"nu": nuCommands,
 }
 
 // DefaultCommand returns the default prettier command appropriate for the current shell.
+// It prefers prettier over prettierd, falling back to prettierd if prettier is not found.
 func DefaultCommand() string {
-	shell := os.Getenv("SHELL")
+	return defaultCommand(os.Getenv("SHELL"), exec.LookPath)
+}
+
+func defaultCommand(shell string, lookPath func(string) (string, error)) string {
 	if shell == "" {
 		shell = "/bin/sh"
 	}
 	shellName := filepath.Base(shell)
-	if shellCommand, ok := shellNameToCommand[shellName]; ok {
-		return shellCommand
+	commands := posixCommands
+	if shellCommands, ok := shellNameToCommands[shellName]; ok {
+		commands = shellCommands
 	}
-	return defaultPosixCommand
+	for _, name := range []string{"prettier", "prettierd"} {
+		if _, err := lookPath(name); err == nil {
+			return commands[name]
+		}
+	}
+	// Neither found, return the prettier command so error messages reference it.
+	return commands["prettier"]
 }
 
 func IsAvailable(command string) bool {
@@ -75,7 +94,7 @@ func Element(name string, typeAttrValue string, content string, depth int, prett
 	// Add divs to the start and end of the script to ensure that prettier formats the content with
 	// correct indentation.
 	for i := range depth {
-		indentationWrapper.WriteString(fmt.Sprintf("<div data-templ-depth=\"%d\">", i))
+		fmt.Fprintf(&indentationWrapper, "<div data-templ-depth=\"%d\">", i)
 	}
 
 	// Write start tag with type attribute if present.
@@ -106,7 +125,7 @@ func Element(name string, typeAttrValue string, content string, depth int, prett
 		return "", fmt.Errorf("prettier error: %w", err)
 	}
 	if before == after {
-		return before, nil
+		return content, nil
 	}
 
 	// Chop off the start and end divs we added to get prettier to format the content with correct
@@ -114,14 +133,14 @@ func Element(name string, typeAttrValue string, content string, depth int, prett
 	matcher := htmlfind.Element(name)
 	nodes, err := htmlfind.AllReader(strings.NewReader(after), matcher)
 	if err != nil {
-		return before, fmt.Errorf("htmlfind error: %w", err)
+		return content, fmt.Errorf("htmlfind error: %w", err)
 	}
 	if len(nodes) != 1 {
-		return before, fmt.Errorf("expected 1 %q node, got %d", name, len(nodes))
+		return content, fmt.Errorf("expected 1 %q node, got %d", name, len(nodes))
 	}
 	scriptNode := nodes[0]
 	if scriptNode.FirstChild == nil {
-		return before, fmt.Errorf("%q node has no children", name)
+		return content, fmt.Errorf("%q node has no children", name)
 	}
 	var sb strings.Builder
 	for node := range scriptNode.ChildNodes() {

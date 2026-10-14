@@ -364,8 +364,11 @@ func (c *ExpressionCSSProperty) Visit(v Visitor) error {
 
 // <!DOCTYPE html>
 type DocType struct {
-	Range Range
-	Value string
+	Range      Range
+	Value      string
+	OpenRange  Range
+	ValueRange Range
+	CloseRange Range
 }
 
 func (dt *DocType) IsNode() bool { return true }
@@ -465,6 +468,7 @@ var (
 	_ WhitespaceTrailer = (*Element)(nil)
 	_ WhitespaceTrailer = (*Text)(nil)
 	_ WhitespaceTrailer = (*StringExpression)(nil)
+	_ WhitespaceTrailer = (*TemplElementExpression)(nil)
 )
 
 // Text node within the document.
@@ -499,6 +503,9 @@ type Element struct {
 	IndentChildren bool
 	TrailingSpace  TrailingSpace
 	NameRange      Range
+	OpenTagRange   Range
+	CloseTagRange  *Range
+	SelfClosing    bool
 	Range          Range
 }
 
@@ -730,9 +737,11 @@ type ScriptContents struct {
 }
 
 type ScriptElement struct {
-	Attributes []Attribute
-	Contents   []ScriptContents
-	Range      Range
+	Attributes    []Attribute
+	Contents      []ScriptContents
+	OpenTagRange  Range
+	CloseTagRange Range
+	Range         Range
 }
 
 func (se *ScriptElement) IsNode() bool { return true }
@@ -794,10 +803,13 @@ func writeStrings(w io.Writer, ss ...string) error {
 }
 
 type RawElement struct {
-	Name       string
-	Attributes []Attribute
-	Contents   string
-	Range      Range
+	Name          string
+	Attributes    []Attribute
+	Contents      string
+	NameRange     Range
+	OpenTagRange  Range
+	CloseTagRange Range
+	Range         Range
 }
 
 func (e *RawElement) IsNode() bool { return true }
@@ -1126,6 +1138,37 @@ func (ca *ConditionalAttribute) Copy() Attribute {
 	}
 }
 
+// AttributeComment represents a comment within element attributes.
+type AttributeComment struct {
+	Comment   string
+	Multiline bool
+	Range     Range
+}
+
+func (ac *AttributeComment) String() string {
+	if ac.Multiline {
+		return "/*" + ac.Comment + "*/"
+	}
+	return "//" + ac.Comment
+}
+
+func (ac *AttributeComment) Write(w io.Writer, indent int) error {
+	return writeIndent(w, indent, ac.String())
+}
+
+func (ac *AttributeComment) Visit(v Visitor) error {
+	// Comments don't need to be visited.
+	return nil
+}
+
+func (ac *AttributeComment) Copy() Attribute {
+	return &AttributeComment{
+		Comment:   ac.Comment,
+		Multiline: ac.Multiline,
+		Range:     ac.Range,
+	}
+}
+
 func CopyAttributes(attrs []Attribute) (copies []Attribute) {
 	copies = make([]Attribute, len(attrs))
 	for i, a := range attrs {
@@ -1211,12 +1254,16 @@ type TemplElementExpression struct {
 	// Expression returns a template to execute.
 	Expression Expression
 	// Children returns the elements in a block element.
-	Children []Node
-	Range    Range
+	Children      []Node
+	TrailingSpace TrailingSpace
+	Range         Range
 }
 
 func (tee TemplElementExpression) ChildNodes() []Node {
 	return tee.Children
+}
+func (tee TemplElementExpression) Trailing() TrailingSpace {
+	return tee.TrailingSpace
 }
 func (tee *TemplElementExpression) IsNode() bool { return true }
 func (tee *TemplElementExpression) Write(w io.Writer, indent int) error {
@@ -1488,10 +1535,7 @@ func (se *StringExpression) Trailing() TrailingSpace {
 func (se *StringExpression) IsNode() bool                  { return true }
 func (se *StringExpression) IsStyleDeclarationValue() bool { return true }
 func (se *StringExpression) Write(w io.Writer, indent int) error {
-	if isWhitespace(se.Expression.Value) {
-		se.Expression.Value = ""
-	}
-	return writeIndent(w, indent, `{ `, se.Expression.Value, ` }`)
+	return writeIndent(w, indent, `{ `, strings.TrimSpace(se.Expression.Value), ` }`)
 }
 
 func (se *StringExpression) Visit(v Visitor) error {
