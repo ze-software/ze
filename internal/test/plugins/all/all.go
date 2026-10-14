@@ -17,6 +17,7 @@ import (
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeas112/yang"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeddos"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeddos/yang"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakedrain"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeenrich"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakefib"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakel2tp"
