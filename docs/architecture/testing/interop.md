@@ -1690,7 +1690,10 @@ Software Version capability (`frr-software-version` holds two sessions to one FR
 sends the length-prefixed form over IPv4 and must reach Established with FRR showing ze's version,
 while peer `draft` sends the draft's bare form over IPv6 and must be refused, with ze recording
 FRR's NOTIFICATION OPEN Message Error/Unspecific, because FRR 10.3.1 reads the first octet as a
-length), and full
+length, and with ze's log carrying the one WARN `notification received` line that names it), the
+RFC 9072 Section 2 boundary (`bgp-open-extended-params-boundary-frr` pads ze's capabilities to 254
+octets with a 200-octet hostname, so the Optional Parameters field is 256 octets and must take the
+extended form, and requires FRR to reach Established and report a prefix of that hostname), and full
 IS-IS (auth, convergence, dual-stack, LAN DIS,
 P2P, redistribution) and OSPFv2/OSPFv3 (auth, BFD, TE, LFA/TI-LFA, graceful restart,
 segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop families.

@@ -1,13 +1,20 @@
-# Test: a peer that refuses ze's OPEN leaves one WARN line saying why
-# AC: spec-bgp-open-session-rfc-defects AC-3 (D3, plan/journal/silent-fall-through.md)
-# Exercises: ze-peer answers ze's OPEN with NOTIFICATION OPEN Message Error /
-# Unspecific (2/0) -> Session.handleNotification -> logNotificationReceived ->
-# one `notification received` WARN naming the peer, the FSM state, and the code
+# Test: a peer's NOTIFICATION leaves one WARN line saying why, at the default level
+# AC: spec-bgp-open-session-rfc-defects AC-3n and the log path of AC-3 (D3,
+# plan/journal/silent-fall-through.md)
+# Exercises: ze-peer sends NOTIFICATION OPEN Message Error / Unspecific (2/0)
+# -> Session.handleNotification -> logNotificationReceived -> one
+# `notification received` WARN naming the peer, the FSM state, and the code
 # and subcode as names and numbers. No ze.log override: the line is visible at
 # the default WARN level, which is the whole point (before D3 the reason reached
 # only the counters and `show errors`).
+#
+# ze-peer cannot refuse ze's OPEN: `action=send` fires after its own
+# OPEN/KEEPALIVE handshake (seq=1 is the first message after it), so ze reads
+# the 2/0 in ESTABLISHED. The same line in OpenSent/OpenConfirm is proved by
+# TestHandleNotificationLogsWarn and by the frr-software-version interop
+# scenario, where FRR refuses ze's OPEN for real.
 
-# ze-peer: after its OPEN, send a raw NOTIFICATION 2/0 instead of carrying on.
+# ze-peer: after the handshake, send a raw NOTIFICATION 2/0.
 # Marker (16 x FF), length 21 (0x0015), type 3, code 2, subcode 0.
 stdin=peer:terminator=EOF_PEER
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030200
@@ -46,4 +53,4 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 await=stderr:contains=msg="notification received":then=stop
-expect=stderr:pattern=level=WARN msg="notification received" peer=127\.0\.0\.1 state=OPEN(SENT|CONFIRM) code="OPEN Message Error" code-number=2 subcode=Unspecific subcode-number=0
+expect=stderr:pattern=level=WARN msg="notification received" subsystem=bgp\.reactor\.session peer=127\.0\.0\.1 state=ESTABLISHED code="OPEN Message Error" code-number=2 subcode=Unspecific subcode-number=0
