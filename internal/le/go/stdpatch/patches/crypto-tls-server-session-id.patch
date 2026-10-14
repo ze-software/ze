@@ -1,0 +1,60 @@
+Ze patch to the Go standard library: crypto/tls chooses a server session_id.
+
+How this file is applied, reviewed and replaced on a Go upgrade:
+docs/contributing/patching-the-standard-library.md
+
+RFC 5216 Section 2.1.1: "If the peer's sessionId is null or unrecognized by
+the server, the server MUST choose the sessionId to establish a new session."
+crypto/tls sends an empty session_id on every TLS 1.2 full handshake. The hunk
+below makes a full handshake that issues no session ticket send a fresh
+32-octet session_id; a handshake that issues a ticket keeps the empty id
+(RFC 5077 Section 3.4). The added file declares the marker constant that Ze's
+EAP-TLS authenticator references, so an unpatched build does not compile.
+
+The stamp names the Go release whose doFullHandshake was read against this
+hunk. A toolchain of any other version refuses until the function is re-read
+and the stamp changed (page section "When the Go version changes").
+
+Ze-Reviewed-Against: go1.27.2
+
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index a05d6c896b..f800241efd 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -600,6 +600,19 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 	}
+ 
+ 	hs.hello.ticketSupported = hs.clientHello.ticketSupported && !c.config.SessionTicketsDisabled
++	// Ze patch, docs/contributing/patching-the-standard-library.md.
++	// RFC 5216 Section 2.1.1: "If the peer's sessionId is null or
++	// unrecognized by the server, the server MUST choose the sessionId to
++	// establish a new session." A full handshake that issues no ticket
++	// names its session with a fresh 32-octet id (RFC 5246 Section 7.4.1.2,
++	// SessionID<0..32>); one that issues a ticket keeps the empty id
++	// (RFC 5077 Section 3.4).
++	if !hs.hello.ticketSupported {
++		hs.hello.sessionId = make([]byte, 32)
++		if _, err := io.ReadFull(c.config.rand(), hs.hello.sessionId); err != nil {
++			return err
++		}
++	}
+ 	hs.hello.cipherSuite = hs.suite.id
+ 
+ 	hs.finishedHash = newFinishedHash(hs.c.vers, hs.suite)
+diff --git a/src/crypto/tls/zz_ze_server_session_id.go b/src/crypto/tls/zz_ze_server_session_id.go
+new file mode 100644
+index 0000000000..4b0e31bda2
+--- /dev/null
++++ b/src/crypto/tls/zz_ze_server_session_id.go
+@@ -0,0 +1,11 @@
++// Ze patch, docs/contributing/patching-the-standard-library.md.
++
++package tls
++
++// ZeServerChoosesSessionID marks a crypto/tls carrying Ze's server session_id
++// patch: a TLS 1.2 full handshake that issues no session ticket sends a fresh
++// 32-octet session_id. RFC 5216 Section 2.1.1: "If the peer's sessionId is
++// null or unrecognized by the server, the server MUST choose the sessionId to
++// establish a new session." Ze's EAP-TLS authenticator references this
++// constant, so it does not compile against an unpatched GOROOT.
++const ZeServerChoosesSessionID = true
