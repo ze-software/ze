@@ -12,7 +12,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 5/6 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-10-14 |
 
@@ -515,6 +515,7 @@ The name follows `docs/architecture/testing/interop.md` (named, no numeric prefi
      governing surface under ai/rules/planning.md. A problem-class journal row
      is appropriate only when no surface governs the lesson yet; closure alone
      requires no lesson artifact. -->
+- Phase 5, written 2026-10-14 and NOT RUN: the Docker kernel on the implementing host refuses lab scenarios (no CONFIG_XFRM_MIGRATE / CONFIG_MPLS_ROUTING), so A-3, A-4, A-5 and A-6 stay unvalidated and AC-6 (green, then red under a revert with a rebuilt image) is owed on a host whose kernel runs the lab. Checker: `checkLDPKeepaliveExpiry` (`internal/le/interoplab/bgp/check_ldp_keepalive_expiry.go`), registered in `specialCheckers`. Design point found while writing it: the lab gives ze 172.30.0.2 and FRR 172.30.0.3, so FRR would be the active LSR (RFC 5036 Section 2.5.2, higher transport address) and ze plays only the active role; the scenario gives ze transport address 172.30.0.250, which the checker adds to ze's eth0 first. If ze refuses a transport address absent at config load, that is the first thing the run will show. The FRR log line format (`debug mpls ldp messages recv` naming the Status) is A-3's open question; `expiryNotificationsLogged` matches a line naming both "notification" and "KeepAlive Timer Expired"
 - Phase 4 deviation, AC-9 proof column: `TestConfiguredKeepaliveReachesInitializationMessage` keeps 45 s, not 15 s. It never runs `handleInit`, so it reads `NewSession`'s wait for the first Initialization, which the spec keeps at 3x the proposal (Section 2.5.3 sets no timer before negotiation; checked 2026-10-14). Only its assertion message changed, to say what it measures
 - Phase 4 found a fourth tagged unit the TDD plan did not list: `TestRFC5036KeepalivesSentPeriodically` (RFC5036-2.5.3-1 positive) went red because its peer stayed silent for a full 1 s KeepAlive Time after establishment, which the corrected timer rightly treats as a dead peer. The peer now answers each KeepAlive with its own, as a live peer does; the assertions are unchanged. Fresh discrimination record written; covered by the owner's "approve all RFC-tagged test changes" (2026-10-13), committed under `rfc-change-ok` so the approval row stays owed to the owner
 

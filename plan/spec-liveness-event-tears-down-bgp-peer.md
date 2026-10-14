@@ -246,7 +246,7 @@ logs the result before its deferred `Stop` closes the session
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `ldp-liveness-bgp-cease-frr` | `test/interop/scenarios/ldp-liveness-bgp-cease-frr/` | FRR | FRR reports the BGP session closed by Cease Administrative Reset carrying Ze's shutdown communication, after the LDP keepalive to the same address expires | |
-| `ldp-keepalive-shutdown-notification-frr` (original planned name) | Owned by `plan/immediate/spec-ldp-keepalive-expiry-notification.md` | FRR | Fatal KeepAlive Timer Expired Notification on the wire before close | transferred; scenario naming settled during that spec's design |
+| `ldp-keepalive-expiry-frr` | `test/interop/scenarios/ldp-keepalive-expiry-frr/`, owned by `plan/immediate/spec-ldp-keepalive-expiry-notification.md` | FRR | Fatal KeepAlive Timer Expired Notification on the wire before close | transferred; renamed from the planned `ldp-keepalive-shutdown-notification-frr`, which named the wrong status |
 
 ## Files to Modify
 - `internal/plugins/ldp/register.go` - `ldpConfig` gains `Monitors`; `parseLDPConfig` reads the leaf-list; the `runSession` tail publishes the event when `errors.Is(err, errKeepaliveExpiry)` holds
@@ -271,7 +271,7 @@ logs the result before its deferred `Stop` closes the session
 - `test/ldp/liveness-monitor-absent-keeps-bgp.ci` - the opt-out scenario
 - `test/ldp/ldp-monitor-config-validation.ci` - the config validation scenario
 - `test/interop/scenarios/ldp-liveness-bgp-cease-frr/` - scenario, `ze.conf`, FRR config, assertions
-- `test/interop/scenarios/ldp-keepalive-shutdown-notification-frr/` - scenario, `ze.conf`, FRR config, assertions
+- `test/interop/scenarios/ldp-keepalive-expiry-frr/` - scenario, `ze.conf`, FRR config, assertions (written by `plan/immediate/spec-ldp-keepalive-expiry-notification.md`)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |

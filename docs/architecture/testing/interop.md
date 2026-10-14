@@ -1797,6 +1797,7 @@ is not packet-forwarding evidence.
 | 36 | remove-private-as-frr | Ze, FRR, GoBGP | remove-private-as export policy to FRR |
 | 37 | remove-private-as-as4path-frr | Ze, FRR, BIRD | remove-private-as handling for AS4_PATH private ASNs |
 | 38 | vpn-addpath-frr | Ze, FRR | ipv4/mpls-vpn over ADD-PATH with no path-information: FRR holds the exact RD, prefix and label, so ze wrote Path Identifier 0 (RFC 7911 Section 3) |
+| 39 | ldp-keepalive-expiry-frr | Ze, FRR ldpd | ze's LDP KeepAlive Timer expires after FRR's TCP toward ze is dropped in ze's container (an `ldplab` nft table); FRR logs a received Notification naming KeepAlive Timer Expired (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Ships its own `daemons` (`ldpd=yes`) and gives ze transport address 172.30.0.250 so ze is the active LSR |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running

@@ -35,6 +35,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	ospfVirtualLinkScenario:                    checkOSPFVirtualLink,
 	ospfv3VirtualLinkScenario:                  checkOSPFVirtualLink,
 	"bfd-frr":                                  checkBFDFailover,
+	ldpKeepaliveExpiryScenario:                 checkLDPKeepaliveExpiry,
 	bfdProfileEditScenario:                     checkBFDProfileEditLive,
 	attachReceiveOnlyLiveScenario:              checkAttachReceiveOnlyLive,
 	bfdEnableLiveScenario:                      checkBFDEnableLive,
