@@ -61,8 +61,20 @@ build_le() {
 		return 1
 	fi
 
+	# le links the EAP-TLS authenticator, which compiles only against Ze's
+	# patched crypto/tls (docs/contributing/patching-the-standard-library.md).
+	# le does not exist yet, so the generator runs here as a plain program
+	# under the unpatched GOROOT and the pin above, and prints the tree. A
+	# refusal (a stale review stamp, a patch that no longer applies) stops the
+	# bootstrap with the generator's own repair text. The three values are set
+	# for this one build; le sets its own at its root handler.
+	tree=$(cd "$root" && go run ./internal/le/go/stdpatch/goroot) || {
+		echo "le: the patched standard library could not be built, so le cannot be built; the message above says how to repair the patch" >&2
+		return 1
+	}
+
 	mkdir -p "$(dirname "$out")" || return 1
-	(cd "$root" && go build -tags "$tags" -o "$out" ./cmd/ze)
+	(cd "$root" && GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH" "$tree/bin/go" build -tags "$tags" -o "$out" ./cmd/ze)
 }
 
 # Publishes $1 without exposing the compiler's writable output to another caller.

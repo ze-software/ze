@@ -51,9 +51,12 @@ import (
 	_ "github.com/ze-software/ze/internal/le/go/lint"
 	_ "github.com/ze-software/ze/internal/le/go/module"
 	_ "github.com/ze-software/ze/internal/le/go/staticcheck"
+	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	_ "github.com/ze-software/ze/internal/le/go/stdpatch/stdpatchcmd"
 	_ "github.com/ze-software/ze/internal/le/go/versionpin"
 	_ "github.com/ze-software/ze/internal/le/go/vetplatforms"
 	_ "github.com/ze-software/ze/internal/le/job"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	_ "github.com/ze-software/ze/internal/le/mrt"
 	_ "github.com/ze-software/ze/internal/le/perf"
@@ -184,8 +187,27 @@ func init() {
 // command's exit code and output are the dispatch's alone.
 func run(_ *registry.RuntimeContext, args []string) int {
 	program := invocationName()
+	activatePatchedGOROOT()
 	leroot.RunBeforeDispatch(program)
 	return leroot.Dispatch(program, args)
+}
+
+// activatePatchedGOROOT selects the patched standard library for this process
+// and every child it starts, FIRST, while le runs one goroutine: a
+// before-dispatch hook may start goroutines, and os.Setenv must race none
+// (docs/contributing/patching-the-standard-library.md). It is not a
+// leroot.BeforeDispatch hook, because that contract forbids slow work and the
+// first call per toolchain builds the tree. A refusal never stops the
+// dispatch: the hooks, ./le spec, the commit flow and ./le go stdpatch goroot
+// keep working on the day a Go bump refuses, and stdpatch.Activate keeps the
+// error for every action that compiles through gotoolchain.New.
+func activatePatchedGOROOT() {
+	root, err := lepath.Root()
+	if err != nil {
+		return // no checkout: no le action here compiles Ze
+	}
+	// RFC 5216 Section 2.1.1
+	_, _ = stdpatch.Activate(root) //nolint:errcheck // kept by stdpatch and returned by gotoolchain.New and ./le go stdpatch goroot
 }
 
 func invocationName() string {

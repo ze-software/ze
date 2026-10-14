@@ -23,16 +23,18 @@
 //   - CGO_ENABLED defaults to 0. The race detector requires 1, and only a race
 //     run requests it.
 //
-//   - GOTOOLCHAIN comes from the toolchain line of go.mod. golangci-lint is a
-//     separate binary linked against one version of go/types. It decodes export
-//     data that the ambient toolchain writes. If ambient Go is newer than the
-//     linter's build version, every package fails to typecheck with
-//     "export data version N is greater than maximum supported version M".
-//
-//     At the same time, the linter prints "0 issues" and exits non-zero. The
-//     measurement on 2026-08-22 compared ambient Go 1.27.0 with golangci-lint
-//     built with 1.26.6. A warm GOCACHE hides the fault. Therefore, the fault
-//     appears only with a cold cache.
+//   - GOROOT, GOTOOLCHAIN and the head of PATH are NOT set here. New calls
+//     stdpatch.Activate, which builds the patched GOROOT from the toolchain
+//     go.mod pins and sets GOROOT to it, GOTOOLCHAIN to local and its bin
+//     first on PATH in this process (docs/contributing/patching-the-standard-library.md).
+//     Environment inherits the three with the rest of os.Environ(), so one
+//     declaration decides the toolchain and no override can disagree with it.
+//     The pin still matters: golangci-lint is a separate binary linked against
+//     one version of go/types and decodes export data the toolchain writes, so
+//     an ambient Go newer than the linter's build version fails every package
+//     with "export data version N is greater than maximum supported version
+//     M" (measured 2026-08-22, ambient 1.27.0 against a linter built with
+//     1.26.6). The tree is built from the pinned toolchain, and local runs it.
 //
 //   - GOMAXPROCS limits each Go process or test run to a QUARTER of the cores.
 //     No process or test run gets more.
@@ -62,6 +64,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
@@ -173,7 +177,7 @@ func New(root string) (Toolchain, error) {
 		return Toolchain{}, err
 	}
 
-	pin, err := goToolchainPin(root)
+	pin, err := stdpatch.Pin(root)
 	if err != nil {
 		return Toolchain{}, err
 	}
@@ -183,6 +187,20 @@ func New(root string) (Toolchain, error) {
 	// first.
 	if _, err := exec.LookPath(goProgram); err != nil {
 		return Toolchain{}, goMissing(pin)
+	}
+
+	// Every Go command compiles against the patched GOROOT. Under le the root
+	// handler already activated it and this answers the same tree; in a test
+	// binary this is the activation. The tree belongs to the checkout this
+	// process runs in, which is root itself outside the fixtures of tests.
+	// A refusal (a stale review stamp, a patch that no longer applies) is
+	// New's error, because no command this toolchain starts could compile.
+	checkout, err := lepath.Root()
+	if err != nil {
+		return Toolchain{}, err
+	}
+	if _, err := stdpatch.Activate(checkout); err != nil {
+		return Toolchain{}, err
 	}
 
 	now := time.Now()
@@ -197,53 +215,6 @@ func New(root string) (Toolchain, error) {
 		LintMemLimit: lintMemLimit(),
 		ExtraTags:    extraTags(),
 	}, nil
-}
-
-// goToolchainPin returns the toolchain go.mod pins, preferring an explicit
-// toolchain line and falling back to the go directive.
-//
-// If go.mod is unreadable, goToolchainPin returns an ERROR. The Python
-// implementation returned an empty string in this case. This retained the
-// ambient toolchain and was indistinguishable from a checkout that never
-// declared a pin. As a result, a lost or unreadable go.mod caused the export-data
-// failure that the pin prevents, without a diagnostic.
-//
-// The go directive is read because a module stating its Go version and no
-// separate toolchain line still pins one: `go 1.27.0` means go1.27.0, and
-// GOTOOLCHAIN accepts that spelling. Reading only the toolchain line left this
-// repository with no pin at all once the toolchain line was dropped, so every le
-// action ran under the ambient toolchain and the export-data protection this
-// package exists to provide was silently off. An empty answer now means go.mod
-// declares neither a toolchain line nor a patch-qualified go directive, and
-// no pin is available.
-func goToolchainPin(root string) (string, error) {
-	raw, err := os.ReadFile(filepath.Join(root, "go.mod")) //nolint:gosec // a build tool reads the checkout it was pointed at
-	if err != nil {
-		return "", err
-	}
-	version := ""
-	for line := range strings.SplitSeq(string(raw), "\n") {
-		parts := strings.Fields(line)
-		if len(parts) < 2 {
-			continue
-		}
-		if parts[0] == "toolchain" {
-			return parts[1], nil
-		}
-		if parts[0] == "go" && version == "" {
-			version = parts[1]
-		}
-	}
-	// Only a patch-qualified directive names a toolchain. Go refuses a language
-	// version: `GOTOOLCHAIN=go1.26` answers "go1.26 is a language version but
-	// not a toolchain version (go1.26.x)", which would break every command this
-	// package launches. A two-component directive therefore yields no pin, and
-	// the export-data protection is unavailable until go.mod states a patch or
-	// a toolchain line.
-	if strings.Count(version, ".") != 2 {
-		return "", nil
-	}
-	return "go" + version, nil
 }
 
 // goProgram is the program every argv this package builds starts with.
@@ -559,8 +530,12 @@ type EnvOptions struct {
 	GOARCH string
 }
 
-// Overrides returns the variables that this toolchain SETS. It returns
-// KEY=VALUE entries in a fixed order.
+// Overrides returns the variables that this toolchain SETS: GOCACHE,
+// GOLANGCI_LINT_CACHE and CGO_ENABLED always, and GOMAXPROCS, GOMEMLIMIT,
+// GOOS and GOARCH when opts asks. It returns KEY=VALUE entries in a fixed
+// order. It sets no GOROOT and no GOTOOLCHAIN: the process environment holds
+// both, set by stdpatch.Activate, and a second declaration here could only
+// disagree with it.
 //
 // Overrides is separate from Environment so that a test can verify
 // toolchain-specific values. The inherited environment is machine-specific and
@@ -577,10 +552,6 @@ func (t Toolchain) Overrides(opts EnvOptions) []string {
 		over = append(over, "CGO_ENABLED=1")
 	} else {
 		over = append(over, "CGO_ENABLED=0")
-	}
-	if t.GoToolchain != "" {
-		tb.Reset()
-		over = append(over, tb.Str("GOTOOLCHAIN=").Str(t.GoToolchain).String())
 	}
 	if opts.Procs {
 		tb.Reset()

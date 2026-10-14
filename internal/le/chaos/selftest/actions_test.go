@@ -13,6 +13,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/go/stdpatch"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
@@ -24,6 +27,17 @@ func TestMain(m *testing.M) {
 		_, _ = fmt.Fprintln(os.Stdout, "tool stdout")
 		fmt.Fprintln(os.Stderr, "tool stderr")
 		os.Exit(23)
+	}
+	// gotoolchain.New activates the patched GOROOT once per process; do it
+	// here, with the real go, before a test puts a fake go on PATH.
+	checkout, err := lepath.Root()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	if _, err := stdpatch.Activate(checkout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
 	}
 	os.Exit(m.Run())
 }
@@ -62,7 +76,6 @@ func TestChaosActionsKeepExactCommandsAndEnvironments(t *testing.T) {
 				"GOCACHE=" + cache,
 				"GOLANGCI_LINT_CACHE=" + lintCache,
 				"CGO_ENABLED=0",
-				"GOTOOLCHAIN=go1.26.6",
 				"GOMEMLIMIT=9GiB",
 			},
 		},
@@ -77,7 +90,6 @@ func TestChaosActionsKeepExactCommandsAndEnvironments(t *testing.T) {
 				"GOCACHE=" + cache,
 				"GOLANGCI_LINT_CACHE=" + lintCache,
 				"CGO_ENABLED=1",
-				"GOTOOLCHAIN=go1.26.6",
 				"GOMAXPROCS=8",
 			},
 		},
@@ -92,7 +104,6 @@ func TestChaosActionsKeepExactCommandsAndEnvironments(t *testing.T) {
 				"GOCACHE=" + cache,
 				"GOLANGCI_LINT_CACHE=" + lintCache,
 				"CGO_ENABLED=0",
-				"GOTOOLCHAIN=go1.26.6",
 				"GOMAXPROCS=8",
 			},
 		},

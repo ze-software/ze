@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/go/stdpatch"
 )
 
 // requireAll fails the test for each phrase message does not carry.
@@ -122,7 +124,7 @@ func TestTheLauncherRefusesWithoutGo(t *testing.T) {
 	if runErr == nil {
 		t.Fatalf("the launcher succeeded with no go on PATH:\n%s", output)
 	}
-	pin, err := goToolchainPin(repository)
+	pin, err := stdpatch.Pin(repository)
 	if err != nil {
 		t.Fatalf("read the pin: %v", err)
 	}

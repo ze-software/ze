@@ -41,7 +41,7 @@ func repoRoot(t *testing.T) string {
 // does, with cache as the directory whose trees are ignored.
 func realToolchain(t *testing.T, cache string) Toolchain {
 	t.Helper()
-	toolchain, err := Resolve(repoRoot(t), cache)
+	toolchain, err := Resolve(repoRoot(t), cache, shippedPatches(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,6 +82,18 @@ func fixtureGOROOT(t *testing.T, real Toolchain, patches []Patch) string {
 		t.Fatal(err)
 	}
 	return goroot
+}
+
+// pathWithoutTrees answers path with every patched GOROOT's bin removed.
+func pathWithoutTrees(path string) string {
+	kept := make([]string, 0, 8)
+	for _, entry := range filepath.SplitList(path) {
+		if strings.Contains(entry, string(filepath.Separator)+"stdpatch"+string(filepath.Separator)) {
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	return strings.Join(kept, string(filepath.ListSeparator))
 }
 
 // cacheEntries answers the names in a cache directory, so a test can say
@@ -367,7 +379,7 @@ func TestStdpatchTreeServesTheWholeStdlib(t *testing.T) {
 	}
 
 	t.Setenv("GOROOT", tree)
-	inherited, err := Resolve(repoRoot(t), cache)
+	inherited, err := Resolve(repoRoot(t), cache, patches)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,7 +405,9 @@ func TestActivateSetsTheProcessEnvironment(t *testing.T) {
 	root := repoRoot(t)
 	t.Setenv("GOROOT", "")
 	t.Setenv("GOTOOLCHAIN", "")
-	t.Setenv("PATH", os.Getenv("PATH"))
+	// `go test` puts $GOROOT/bin first on PATH, and under le that is the
+	// tree's: start from a PATH that holds no tree, as a fresh shell does.
+	t.Setenv("PATH", pathWithoutTrees(os.Getenv("PATH")))
 	if err := os.Unsetenv("GOROOT"); err != nil {
 		t.Fatal(err)
 	}

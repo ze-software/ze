@@ -20,7 +20,10 @@ import (
 	"strings"
 	"testing"
 
+	"context"
+
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/le/go/stdpatch"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -99,8 +102,10 @@ func TestTheGoDirectivePinsTheToolchainWhenNoToolchainLineDoes(t *testing.T) {
 	if chain.GoToolchain != "go1.27.0" {
 		t.Errorf("GoToolchain = %q, want go1.27.0 derived from the go directive", chain.GoToolchain)
 	}
-	if !slices.Contains(chain.Overrides(EnvOptions{}), "GOTOOLCHAIN=go1.27.0") {
-		t.Error("the derived pin did not reach the environment, so the ambient toolchain still wins")
+	// The pin selects the toolchain the patched GOROOT is built from, and
+	// stdpatch.Activate selects that tree; no override repeats it.
+	if slices.ContainsFunc(chain.Overrides(EnvOptions{}), func(entry string) bool { return strings.HasPrefix(entry, "GOTOOLCHAIN=") }) {
+		t.Error("Overrides sets GOTOOLCHAIN, which would discard the activated tree")
 	}
 }
 
@@ -140,8 +145,8 @@ func TestTheToolchainPinIsReadFromGoMod(t *testing.T) {
 	if chain.GoToolchain != "go1.26.6" {
 		t.Errorf("GoToolchain = %q, want go1.26.6", chain.GoToolchain)
 	}
-	if !slices.Contains(chain.Overrides(EnvOptions{}), "GOTOOLCHAIN=go1.26.6") {
-		t.Error("the pin did not reach the environment")
+	if slices.Contains(chain.Overrides(EnvOptions{}), "GOTOOLCHAIN=go1.26.6") {
+		t.Error("Overrides sets the pin, which would discard the activated tree")
 	}
 }
 
@@ -500,4 +505,97 @@ func TestNamedLauncherMatchesTheShellScript(t *testing.T) {
 	if name, ok := NamedLauncherName("le-storetrim-p1"); !ok || name != "storetrim-p1" {
 		t.Errorf("NamedLauncherName(le-storetrim-p1) = %q, %v; want storetrim-p1, true", name, ok)
 	}
+}
+
+// refusalChildRoot names, in a re-executed test binary, the fixture checkout
+// whose stale-stamped patch the child activates.
+const refusalChildRoot = "ZE_TEST_STDPATCH_REFUSAL_ROOT"
+
+// TestToolchainOverridesLeaveTheToolchainToTheProcess proves the toolchain
+// half of the activation (AC-20): Overrides holds no GOROOT, GOTOOLCHAIN or
+// GOFLAGS, so nothing it sets can discard the patched tree; Environment
+// carries the activated GOROOT, GOTOOLCHAIN=local and a PATH that starts with
+// the tree's bin, once each; and New returns the activation's refusal. The
+// refusal runs in a child process, because the activation is answered once
+// per process.
+func TestToolchainOverridesLeaveTheToolchainToTheProcess(t *testing.T) {
+	if root := os.Getenv(refusalChildRoot); root != "" {
+		_, err := New(root)
+		if err == nil {
+			t.Fatal("New accepted a checkout whose patch is stamped for another release")
+		}
+		t.Log("REFUSED: " + err.Error())
+		return
+	}
+
+	chain, err := New(fixture(t, goodManifest, goodGoMod))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	opts := EnvOptions{Test: true, CGO: true, Procs: true, MemLimit: true, GOOS: "linux", GOARCH: "amd64"}
+	for _, entry := range chain.Overrides(opts) {
+		for _, owned := range []string{"GOROOT=", "GOTOOLCHAIN=", "GOFLAGS="} {
+			if strings.HasPrefix(entry, owned) {
+				t.Errorf("Overrides sets %s, which the activated process environment owns", entry)
+			}
+		}
+	}
+	tree := os.Getenv("GOROOT")
+	if tree == "" {
+		t.Fatal("New left GOROOT unset in the process environment")
+	}
+	counts := map[string]int{}
+	pathValue := ""
+	for _, entry := range chain.Environment(opts) {
+		name, value, _ := strings.Cut(entry, "=")
+		counts[name]++
+		if name == "PATH" {
+			pathValue = value
+		}
+	}
+	environment := chain.Environment(opts)
+	for _, want := range []string{"GOROOT=" + tree, "GOTOOLCHAIN=local"} {
+		if !slices.Contains(environment, want) {
+			t.Errorf("Environment does not carry %s", want)
+		}
+	}
+	for _, name := range []string{"GOROOT", "GOTOOLCHAIN", "PATH"} {
+		if counts[name] != 1 {
+			t.Errorf("Environment carries %s %d times, want once", name, counts[name])
+		}
+	}
+	if entries := filepath.SplitList(pathValue); len(entries) == 0 || entries[0] != filepath.Join(tree, "bin") {
+		t.Errorf("PATH does not start with the tree's bin: %s", pathValue)
+	}
+
+	t.Run("refusal", func(t *testing.T) {
+		checkout := fixture(t, goodManifest, "module example.com/x\n\ngo 1.27.2\n")
+		repo, err := lepath.Root()
+		if err != nil {
+			t.Fatal(err)
+		}
+		patches, err := stdpatch.Patches(repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		stale := strings.Replace(string(patches[0].Body), "Ze-Reviewed-Against: go1.27.2", "Ze-Reviewed-Against: go1.26.0", 1)
+		dir := filepath.Join(checkout, filepath.FromSlash(stdpatch.PatchDir))
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "stale.patch"), []byte(stale), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		child := exec.CommandContext(context.Background(), os.Args[0], "-test.run=^TestToolchainOverridesLeaveTheToolchainToTheProcess$", "-test.v")
+		child.Env = append(os.Environ(), refusalChildRoot+"="+checkout, "ZE_REPO_ROOT="+checkout)
+		out, err := child.CombinedOutput()
+		if err != nil {
+			t.Fatalf("the child failed: %v\n%s", err, out)
+		}
+		for _, want := range []string{"REFUSED: ", "go1.26.0", "go1.27.2", "Then run: ./le go stdpatch goroot"} {
+			if !strings.Contains(string(out), want) {
+				t.Errorf("New's refusal does not carry %q:\n%s", want, out)
+			}
+		}
+	})
 }

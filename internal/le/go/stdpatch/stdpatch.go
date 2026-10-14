@@ -69,11 +69,11 @@ func Tree(root string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	toolchain, err := Resolve(root, cache)
+	patches, err := Patches(root)
 	if err != nil {
 		return "", err
 	}
-	patches, err := Patches(root)
+	toolchain, err := Resolve(root, cache, patches)
 	if err != nil {
 		return "", err
 	}
@@ -99,18 +99,22 @@ func CacheDir(root string) (string, error) {
 
 // Resolve answers the real GOROOT and version of the toolchain the checkout
 // pins: `go env GOROOT GOVERSION` run in root, with GOTOOLCHAIN at go.mod's
-// pin. An inherited GOROOT that is a tree under cache is dropped, so the
-// generator never depends on its own output and a le started by le resolves
-// the same toolchain. When the pin names a version other than the go on
+// pin. An inherited GOROOT that is a tree is dropped: one under cache, or one
+// that already holds a file the patches add (a tree of another cache, such as
+// a test's, or a developer's export). So the generator never depends on its
+// own output and a le started by le resolves the same toolchain. Go's own
+// `go test` puts $GOROOT/bin first on PATH, so an inherited PATH may start
+// with a tree's bin; its go is a link to the real one and finds the real root
+// from its resolved executable. When the pin names a version other than the go on
 // PATH, the go command runs the pinned toolchain, and the real GOROOT is
 // then that toolchain's directory under GOMODCACHE.
-func Resolve(root, cache string) (Toolchain, error) {
+func Resolve(root, cache string, patches []Patch) (Toolchain, error) {
 	pin, err := Pin(root)
 	if err != nil {
 		return Toolchain{}, err
 	}
 	environment := os.Environ()
-	if inherited := os.Getenv("GOROOT"); inherited != "" && isUnder(inherited, cache) {
+	if inherited := os.Getenv("GOROOT"); inherited != "" && isTree(inherited, cache, patches) {
 		environment = without(environment, "GOROOT")
 	}
 	if pin != "" {
@@ -224,6 +228,22 @@ func activate(root string) (string, error) {
 		return tree, os.Setenv("PATH", bin)
 	}
 	return tree, os.Setenv("PATH", bin+string(filepath.ListSeparator)+path)
+}
+
+// isTree answers whether goroot is a patched tree: inside cache, or holding
+// a file one of the patches adds, which no real GOROOT holds.
+func isTree(goroot, cache string, patches []Patch) bool {
+	if isUnder(goroot, cache) {
+		return true
+	}
+	for _, patch := range patches {
+		for _, added := range AddedFiles(patch) {
+			if _, err := os.Lstat(filepath.Join(goroot, filepath.FromSlash(added))); err == nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // isUnder answers whether path lies inside dir, both resolved through their

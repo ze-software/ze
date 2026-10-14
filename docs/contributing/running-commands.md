@@ -92,6 +92,20 @@ command`, that never read the profile adding Go to PATH.
 <!-- source: le -- build_le, update_le -->
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- New, goMissing -->
 
+Every Go command le starts compiles against Ze's patched standard library
+(`docs/contributing/patching-the-standard-library.md`). le's root handler calls
+`stdpatch.Activate` before it dispatches: it builds the patched GOROOT from the
+toolchain go.mod pins, on first use, and sets `GOROOT` to it, `GOTOOLCHAIN=local`
+and the tree's `bin` first on `PATH` in le's own environment, so every child
+inherits them. `./le go stdpatch goroot` prints that tree; a plain `go` command
+outside le uses it with
+`export GOROOT="$(./le go stdpatch goroot)" GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"`.
+A refusal of the generator (a stale review stamp, a patch that no longer
+applies) leaves the dispatch working and is the error of every action that
+compiles through `gotoolchain.New`.
+<!-- source: internal/le/register.go -- activatePatchedGOROOT -->
+<!-- source: internal/le/go/stdpatch/stdpatch.go -- Activate -->
+
 A named build does not stay forever. The hourly store trim (see "When the disk
 is full") removes `bin/le-<name>/` once its `le` and the directory itself are
 both a day old and no running process carries the path in its argv; the next

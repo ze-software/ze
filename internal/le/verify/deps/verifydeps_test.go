@@ -88,7 +88,7 @@ func TestVulnerabilityPlanUsesTheInstalledToolDirectly(t *testing.T) {
 	}
 	assertOverride(t, plan.Commands[0], "GOOS=linux")
 	assertOverride(t, plan.Commands[0], "GOARCH=amd64")
-	assertOverride(t, plan.Commands[0], "GOTOOLCHAIN=go1.27.0")
+	assertNoOverride(t, plan.Commands[0], "GOTOOLCHAIN=")
 	if slices.Contains(plan.Commands[0].Command, "run") {
 		t.Fatal("vulnerability command routes through go run")
 	}

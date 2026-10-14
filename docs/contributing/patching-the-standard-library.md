@@ -3,7 +3,7 @@
 How Ze changes one file of a Go standard-library package at build time,
 without a fork of the toolchain and without a copy of the package in the tree.
 
-**Status: designed, not built.** Nothing on this page exists in the tree yet.
+**Status: partly built.** The generator (`internal/le/go/stdpatch`), the patch, `./le go stdpatch goroot`, le's activation at its root handler and the launcher's bootstrap route exist. The step 1a stamp refusal is built; `./le go patch-stamps check`, the vendor stamps, the EAP-TLS marker reference, the ze-setup refusal and the guest, Docker and CI routes are not built yet (spec-ike-eap-rfc-defects, D2).
 `plan/immediate/spec-ike-eap-rfc-defects.md` ("D2 design") builds it. Until that
 spec lands, every build uses the unmodified standard library. When it lands, this
 page is restated as a description of the built mechanism.
@@ -79,7 +79,7 @@ Linux refuses a hard link to a root-owned GOROOT file that the user does not own
 | Part | Location | Role |
 |------|----------|------|
 | The patch | `internal/le/go/stdpatch/patches/<name>.patch` | A git unified diff with paths relative to GOROOT (`a/src/crypto/tls/handshake_server.go`). Its leading text, which `git apply` skips, names this page, quotes the requirement, and carries the review stamp `Ze-Reviewed-Against: go1.27.2` (see "The review stamp") |
-| The generator | `internal/le/go/stdpatch` | Builds the patched GOROOT for one toolchain. It imports only the standard library, so it compiles under the unpatched GOROOT, before any tree exists | <!-- doc-links: ignore (designed, not built: spec-ike-eap-rfc-defects creates this package) -->
+| The generator | `internal/le/go/stdpatch` | Builds the patched GOROOT for one toolchain. It imports only the standard library, so it compiles under the unpatched GOROOT, before any tree exists |
 | The output | `cache/stdpatch/<key>/goroot` | The tree, keyed by a SHA-256 over a layout version, the `go version`, the real GOROOT path, the patch, and each original GOROOT file. The path is in the key because every symlink names an absolute path into that GOROOT and `cache/` is shared by every checkout |
 | The activation | `stdpatch.Activate` | Answers the tree and sets the three values of "What a build sets" in the calling process's environment. le's root handler calls it before any command runs |
 | The command | `./le go stdpatch goroot` | Prints the tree path for this checkout's toolchain, for plain `go` commands and editors, and for the routes that run before le exists |

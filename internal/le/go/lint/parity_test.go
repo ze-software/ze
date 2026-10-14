@@ -263,7 +263,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 		wantOverrides := []string{
 			"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
 			"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
-			"CGO_ENABLED=0", "GOTOOLCHAIN=go1.26.6", "GOMEMLIMIT=9GiB",
+			"CGO_ENABLED=0", "GOMEMLIMIT=9GiB",
 		}
 		if pass.GOOS != "" {
 			wantOverrides = append(wantOverrides, "GOOS="+pass.GOOS)
@@ -292,7 +292,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 		wantOverrides := []string{
 			"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
 			"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
-			"CGO_ENABLED=0", "GOTOOLCHAIN=go1.26.6", "GOMEMLIMIT=9GiB",
+			"CGO_ENABLED=0", "GOMEMLIMIT=9GiB",
 		}
 		if index == 1 || index == 19 {
 			wantOverrides = append(wantOverrides, "GOOS=linux")
@@ -309,7 +309,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 	wantTrackedOverrides := []string{
 		"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
 		"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
-		"CGO_ENABLED=0", "GOTOOLCHAIN=go1.26.6", "GOMEMLIMIT=9GiB",
+		"CGO_ENABLED=0", "GOMEMLIMIT=9GiB",
 	}
 	gotTrackedOverrides := trackedCall.environment[len(trackedCall.environment)-len(wantTrackedOverrides):]
 	if !reflect.DeepEqual(gotTrackedOverrides, wantTrackedOverrides) {
@@ -685,7 +685,7 @@ func TestScopedRunParsesPackagesAndNeverBroadensToTheTree(t *testing.T) {
 			t.Errorf("%s lost the native concurrency argv: %q", pass.Name, pass.Command)
 		}
 		if !slices.Contains(pass.Environment, "GOMEMLIMIT=9GiB") ||
-			!slices.Contains(pass.Environment, "GOTOOLCHAIN=go1.26.6") ||
+			slices.Contains(pass.Environment, "GOTOOLCHAIN=go1.26.6") ||
 			!slices.Contains(pass.Environment, "CGO_ENABLED=0") {
 			t.Errorf("%s lost the scoped lint environment: %q", pass.Name, pass.Environment)
 		}
