@@ -64,7 +64,7 @@
       "claim-sha": "b97eaf55d3e73077",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "579be1c9da3a0d46",
+      "producer-sha": "27b17ed02c34e63b",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -252,7 +252,7 @@
       "claim-sha": "40fa8f5b0d8b8ccf",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "579be1c9da3a0d46",
+      "producer-sha": "27b17ed02c34e63b",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=1:seq=6:contains=180A2800"
     },
@@ -264,7 +264,7 @@
       "claim-sha": "3d8ce1cc62058473",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "579be1c9da3a0d46",
+      "producer-sha": "27b17ed02c34e63b",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=1:seq=4:contains=40020A02020000FDE80000FDE940030401010101"
     },
@@ -309,7 +309,7 @@
       "claim-sha": "4292ab151ee0ff9d",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "579be1c9da3a0d46",
+      "producer-sha": "27b17ed02c34e63b",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -342,7 +342,7 @@
       "claim-sha": "0cec02bf7889b63c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI",
-      "producer-sha": "d6f5dc5f89807293",
+      "producer-sha": "5a5cf35ccd5fa8b1",
       "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=2:seq=1:contains=0100010C0000FDE90000000118C00002010004110000FDE90000000140C633640101020304"
     },
@@ -354,7 +354,7 @@
       "claim-sha": "15c78265969a8ea3",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/evpn/rfc7606.go::RecognizeNLRI",
-      "producer-sha": "337c783ac3d987ad",
+      "producer-sha": "30e74730e5be7ad1",
       "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=2:seq=1:contains=03110000FDE9000000010000000020C000020102210000FDE90000000100000000000000000000000000003000112233445500000641"
     },
@@ -531,7 +531,7 @@
       "claim-sha": "628062caada98b12",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "579be1c9da3a0d46",
+      "producer-sha": "27b17ed02c34e63b",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

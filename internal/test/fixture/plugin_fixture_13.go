@@ -15,6 +15,7 @@ import (
 )
 
 func init() {
+	Register("plugin/mup-t1st-malformed-treat-as-withdraw", routeServerReplay13("shutdown-after-up", "10.0.0.0/24", false))
 	Register("plugin/prefixsid-duplicate-tlv-relay", routeServerReplay13("shutdown-after-forward", "10.0.2.0/24", false))
 	Register("plugin/reload-listener-rejected", reloadListenerRejected13)
 	Register("plugin/reload-shared-secret", reloadSharedSecret13)

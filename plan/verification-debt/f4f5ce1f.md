@@ -1,0 +1,12 @@
+# Verification debt -- commit session f4f5ce1f
+
+Gates that had not run green over these commits when they were made.
+One row holds one gate and one reason, and covers every commit this
+session made under it. `git log -- <this file>` names those commits.
+Clear rows only through `le commit debt-clear` after the named gate exits 0.
+
+| Date | Session | Subject | Gate owed | Reason | Status |
+|------|---------|---------|-----------|--------|--------|
+| 2026-10-14 | f4f5ce1f | test(bgp): malformed MUP routes withdrawn at ingress, end to end | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-13T03:12:02Z) | open |
+| 2026-10-14 | f4f5ce1f | test(bgp): malformed MUP routes withdrawn at ingress, end to end | native structural checks (red) | pre-existing arch tier/check (cross-plugin imports) and stale iface-resolution record from the 2026-10-09 interrupted verify; not touched by this change | open |
+| 2026-10-14 | f4f5ce1f | test(bgp): malformed MUP routes withdrawn at ingress, end to end | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

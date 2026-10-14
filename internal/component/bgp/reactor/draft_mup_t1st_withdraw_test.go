@@ -166,12 +166,14 @@ func TestMUPMalformedT1STWithdrawEdges(t *testing.T) {
 	})
 }
 
-// TestMUPUnkeyableMalformedT1STDiscardedNotRelayed covers AC-10a at ingress: an NLRI whose
-// route key cannot form is discarded, never withdrawn.
+// TestMUPUnkeyableMalformedT1STDiscardedNotRelayed covers AC-10a at ingress and on the
+// forward rail: an NLRI whose route key cannot form is discarded, never withdrawn.
 //
 // VALIDATES: K leaves MP_REACH_NLRI, no MP_UNREACH_NLRI is added, the sibling L is kept,
-// no session reset.
-// PREVENTS: a withdrawal that names no route reaching the RIB or a writer.
+// no session reset; a destination already holding L receives L again and the forward
+// batch completes.
+// PREVENTS: a withdrawal that names no route reaching the RIB or a writer, and a K in a
+// forwarded body abandoning the destination's batch.
 func TestMUPUnkeyableMalformedT1STDiscardedNotRelayed(t *testing.T) {
 	v6Body := func(prefixBits byte) []byte {
 		body := append(make([]byte, 8), prefixBits)
@@ -199,6 +201,23 @@ func TestMUPUnkeyableMalformedT1STDiscardedNotRelayed(t *testing.T) {
 			_, found = mpUnreachNLRIOf(t, wu.Payload())
 			assert.False(t, found, "no withdrawal can name an unkeyable route")
 			assert.Nil(t, validation.typedWithdrawBody)
+
+			// Forward rail: a destination that already holds L receives the edited
+			// UPDATE. A K left in the body would fail fwdPathKeyFor inside
+			// writeUpdateBody and abandon the rest of the batch, so the later marker
+			// proves the batch completed; ownershipRailRead fails on any unkeyable
+			// NLRI written to the destination, so no K reaches it.
+			f := ownershipRailNew(t, nil)
+			f.destination.negotiated.Store(&NegotiatedCapabilities{
+				families: map[family.Family]bool{family.IPv4Unicast: true, tc.fam: true},
+			})
+			f.destination.refreshForwardFacts()
+			f.send(t, "pool", f.source, f.ctxID, ownershipRailBody(tc.fam, false, tc.l, 1))
+			f.awaitNative(t, tc.fam, 1, tc.l)
+			// The edited body carries no MED, so its L arrives with fingerprint 0.
+			f.send(t, "pool", f.source, f.ctxID, wu.Payload())
+			f.awaitNative(t, tc.fam, 0, tc.l)
+			f.marker(t, "pool", 3)
 		})
 	}
 }

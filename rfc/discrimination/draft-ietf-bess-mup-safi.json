@@ -5,11 +5,11 @@
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress",
-      "unit-sha": "89b88ec9ffe85a7d",
+      "unit-sha": "deb2aa3ca131c8b2",
       "claim-sha": "633bea8ae158526f",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI",
-      "producer-sha": "d6f5dc5f89807293",
+      "producer-sha": "5a5cf35ccd5fa8b1",
       "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "90e58b47aa18f9d9",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI",
-      "producer-sha": "d6f5dc5f89807293",
+      "producer-sha": "5a5cf35ccd5fa8b1",
       "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,8 +31,118 @@
       "claim-sha": "f8b01d832f34884a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/mup/types.go::ParseMUP",
-      "producer-sha": "f002e603e31de511",
+      "producer-sha": "e374c7adea89f7b9",
       "break": "body of ParseMUP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress",
+      "unit-sha": "8511593eb606e9ee",
+      "claim-sha": "83bf34c4d407c24f",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyISD",
+      "producer-sha": "ed500f3c98ec07e9",
+      "break": "body of parseBodyISD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress",
+      "unit-sha": "377456399d1fdb55",
+      "claim-sha": "0419af7e03169693",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyISD",
+      "producer-sha": "ed500f3c98ec07e9",
+      "break": "body of parseBodyISD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress",
+      "unit-sha": "8511593eb606e9ee",
+      "claim-sha": "8deee55e41d3ab01",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::ValidateNLRI",
+      "producer-sha": "18f9a2761647b90c",
+      "break": "body of ValidateNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress",
+      "unit-sha": "377456399d1fdb55",
+      "claim-sha": "b342fe85cd206431",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::ValidateNLRI",
+      "producer-sha": "18f9a2761647b90c",
+      "break": "body of ValidateNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress",
+      "unit-sha": "8511593eb606e9ee",
+      "claim-sha": "5f627cf74966b596",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyDSD",
+      "producer-sha": "3a687e4a5a85f2bb",
+      "break": "body of parseBodyDSD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress",
+      "unit-sha": "377456399d1fdb55",
+      "claim-sha": "9d492b45595dc78a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyDSD",
+      "producer-sha": "3a687e4a5a85f2bb",
+      "break": "body of parseBodyDSD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress",
+      "unit-sha": "8511593eb606e9ee",
+      "claim-sha": "43fabd26752654f4",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+      "producer-sha": "44c9f3c0a8663159",
+      "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress",
+      "unit-sha": "377456399d1fdb55",
+      "claim-sha": "2b2520fb140f7200",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+      "producer-sha": "44c9f3c0a8663159",
+      "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress",
+      "unit-sha": "8511593eb606e9ee",
+      "claim-sha": "cc71b6c116c114bb",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+      "producer-sha": "44c9f3c0a8663159",
+      "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress",
+      "unit-sha": "377456399d1fdb55",
+      "claim-sha": "4e7311d001274b65",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+      "producer-sha": "44c9f3c0a8663159",
+      "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10",
@@ -66,6 +176,50 @@
       "producer": "internal/component/bgp/plugins/nlri/mup/types.go::ValidateNLRI",
       "producer-sha": "18f9a2761647b90c",
       "break": "body of ValidateNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress",
+      "unit-sha": "8511593eb606e9ee",
+      "claim-sha": "9b32311558189611",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+      "producer-sha": "44c9f3c0a8663159",
+      "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress",
+      "unit-sha": "377456399d1fdb55",
+      "claim-sha": "98267f876a28792c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+      "producer-sha": "44c9f3c0a8663159",
+      "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress",
+      "unit-sha": "8511593eb606e9ee",
+      "claim-sha": "d0fa0b96c37b21cb",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+      "producer-sha": "44c9f3c0a8663159",
+      "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress",
+      "unit-sha": "377456399d1fdb55",
+      "claim-sha": "e517bdad5089d611",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+      "producer-sha": "44c9f3c0a8663159",
+      "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6",
@@ -152,7 +306,7 @@
       "claim-sha": "f1265e35f075cf11",
       "route": "revert",
       "producer": "internal/core/bgp/nlri/nlritype/nlritype.go::Retain",
-      "producer-sha": "e32d4bd191603805",
+      "producer-sha": "c25d48f254974a4e",
       "break": "body of Retain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +317,7 @@
       "claim-sha": "e84c178d3cb212e9",
       "route": "revert",
       "producer": "internal/core/bgp/nlri/nlritype/nlritype.go::Retain",
-      "producer-sha": "e32d4bd191603805",
+      "producer-sha": "c25d48f254974a4e",
       "break": "body of Retain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,8 +339,52 @@
       "claim-sha": "7d93ea686860d505",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/mup/types.go::ParseMUP",
-      "producer-sha": "f002e603e31de511",
+      "producer-sha": "e374c7adea89f7b9",
       "break": "body of ParseMUP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress",
+      "unit-sha": "8511593eb606e9ee",
+      "claim-sha": "1137289263f1dada",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT2ST",
+      "producer-sha": "1f070d2ce1f171cc",
+      "break": "body of parseBodyT2ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress",
+      "unit-sha": "377456399d1fdb55",
+      "claim-sha": "85b71f0b3ee05d73",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT2ST",
+      "producer-sha": "1f070d2ce1f171cc",
+      "break": "body of parseBodyT2ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress",
+      "unit-sha": "8511593eb606e9ee",
+      "claim-sha": "11140fc2aee52ed5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT2ST",
+      "producer-sha": "1f070d2ce1f171cc",
+      "break": "body of parseBodyT2ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress",
+      "unit-sha": "377456399d1fdb55",
+      "claim-sha": "22b6d488a20057f8",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT2ST",
+      "producer-sha": "1f070d2ce1f171cc",
+      "break": "body of parseBodyT2ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3",

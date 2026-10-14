@@ -593,6 +593,11 @@ Per `docs/architecture/testing/interop.md`: scenario directories under `test/int
 - D4 and D5 are owner rulings; the code change under the recommended reading is small (one role in a set; one egress gate reading the `blackholecfg.Parse` map cached beside `peerConfigs` and rebuilt on reload, scoped to bilateral eBGP by `PeerSettings.IsIBGP` under Q-D5 (a1)).
 - Ze's own T1ST encoder can emit a route its ingress will now withdraw (Q-2).
 
+### Design Insights (implementation)
+
+- -> Decision (D3, implementation agent 3, 2026-10-14; deviates from the AC-10a Constraint and the N-3 Decision): the key scratch goes to `nlritype.Retain` only, never to the `Recognizer`. The `Recognizer` stays `func([]byte, bool) Verdict`; the key check runs once, inside `Retain` (`judge`), for every family's Withdraw verdict, using the caller's `nlrisplit.PrefixKeyScratchSize` scratch (the `Session.typedNLRIKeyScratch` field). Reason: with Q-1 (a) the MUP recognizer's `ValidateNLRI` refuses every unkeyable implemented-type NLRI, so `Retain` turns each into the counted discard, and a scratch argument no recognizer reads would be dead. The design's properties hold: nothing central names MUP, the discard is key-driven, and the verdict plus its key check allocate nothing (`TestMUPRecognizerVerdicts`).
+- -> Decision (rfc/short, 2026-10-14): DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-2 keeps its `{gap}`, like 3.1.3.1-4. Both rows read "The NLRI architecture field MUST be encoded as shown above ... Otherwise the NLRI is considered as a malformed", and the recognizer discards a non-3gpp-5g architecture as an unimplemented type rather than withdrawing it, so an earlier route of the same key survives. The nine other rows Q-1 (a) made false lost their gap markers, each with a tagged positive and negative ingress test and a discrimination record.
+
 ## Implementation Steps
 
 1. Owner answers recorded: Q-5 on 2026-10-13; Q-D4 (a), Q-D5 (a1), Q-1 (a), Q-2 (a), Q-3 (a), Q-4 (a) on 2026-10-14 ("Do what you think is right"), in the Owner decisions rows.
