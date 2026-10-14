@@ -38,14 +38,18 @@ const (
 
 // decodingTest holds a single decoding test case.
 type decodingTest struct {
-	BaseTest     // Embeds Name, Nick, Active, Error
-	File         string
-	Type         string   // "open", "update"
-	Family       string   // e.g., "l2vpn/evpn"
-	Plugins      []string // --plugin flags for capability/NLRI decode
+	BaseTest // Embeds Name, Nick, Active, Error
+	File     string
+	// Label is what List shows: the exec= text, or a legacy file's type.
+	Label string
+	// Args is the argv run after the ze binary: an exec= line's words after
+	// "ze", or the command a legacy .test or decode= file asks for.
+	Args []string
+	// Stdin is piped to the process; empty for a legacy file, whose payload is
+	// the last word of Args.
+	Stdin        string
 	HexPayload   string
 	ExpectedJSON string
-	OutputJSON   bool // true if --json flag specified in test
 
 	// ParseError marks a test file that could not be parsed at discovery time.
 	// Discover records the file as a permanent failure and continues, so a
@@ -150,15 +154,18 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*decodingTest, error) {
 	// Parse type line: "update l2vpn/evpn" or "open"
 	msgType, fam := parseTypeLine(typeLine)
 
-	name := strings.TrimSuffix(filepath.Base(filePath), ".test")
-	nick := GenerateNick(name)
+	args, err := legacyDecodeArgs(msgType, fam, hexPayload)
+	if err != nil {
+		return nil, err
+	}
 
+	name := strings.TrimSuffix(filepath.Base(filePath), ".test")
 	return &decodingTest{
 		Name:         name,
-		Nick:         nick,
+		Nick:         GenerateNick(name),
 		File:         filePath,
-		Type:         msgType,
-		Family:       fam,
+		Label:        msgType,
+		Args:         args,
 		HexPayload:   hexPayload,
 		ExpectedJSON: expectedJSON,
 	}, nil
@@ -178,14 +185,14 @@ func parseTypeLine(line string) (msgType, family string) {
 	return msgType, family
 }
 
-// List prints available tests (overrides TestSet.List to show Type).
+// List prints available tests (overrides TestSet.List to show Label).
 func (dt *DecodingTests) List() {
 	writeTestListHeader("Available decoding tests")
 	registered := dt.Registered()
 	total := len(registered)
 	for i, t := range registered {
 		var suffix textbuf.Buffer
-		writeTestListLine(i+1, total, t.Nick, t.Name, suffix.Str(" (").Str(t.Type).Byte(')').String())
+		writeTestListLine(i+1, total, t.Nick, t.Name, suffix.Str(" (").Str(t.Label).Byte(')').String())
 	}
 	writeTestListFooter()
 }
@@ -256,49 +263,11 @@ func (r *decodingRunner) runTest(ctx context.Context, test *decodingTest) bool {
 		return false
 	}
 
-	// Build command args
-	args := []string{"bgp", "decode"}
-
-	// Add --json flag if test specifies it
-	if test.OutputJSON {
-		args = append(args, "--json")
-	}
-
-	// Add --plugin flags for capability/NLRI decode
-	for _, p := range test.Plugins {
-		args = append(args, flagPlugin, p)
-	}
-
-	switch test.Type {
-	case "open":
-		args = append(args, "--open")
-	case "nlri":
-		// --nlri takes the family as its value
-		if test.Family == "" {
-			args = append(args, "--nlri", "unknown/unknown")
-		} else {
-			args = append(args, "--nlri", test.Family)
-		}
-	case msgTypeUpdate:
-		args = append(args, "--update")
-		if test.Family != "" {
-			args = append(args, "-f", test.Family)
-		}
-	case msgTypeNotification:
-		args = append(args, "--notification")
-	case msgTypeKeepalive:
-		args = append(args, "--keepalive")
-	default:
-		args = append(args, "--update") // Default to update.
-		if test.Family != "" {
-			args = append(args, "-f", test.Family)
-		}
-	}
-
-	args = append(args, test.HexPayload)
-
 	// Run command
-	cmd := exec.CommandContext(ctx, r.zePath, args...) //nolint:gosec // Test runner, paths from temp dir
+	cmd := exec.CommandContext(ctx, r.zePath, test.Args...) //nolint:gosec // Test runner, argv from the suite's own .ci files
+	if test.Stdin != "" {
+		cmd.Stdin = strings.NewReader(test.Stdin)
+	}
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
