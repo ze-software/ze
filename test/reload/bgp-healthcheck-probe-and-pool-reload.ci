@@ -1,0 +1,187 @@
+# Test: one reload that removes an announced healthcheck probe AND the
+#       watchdog pool it drives commits without stalling, and the route is
+#       withdrawn exactly once.
+# Initial config: probe dns ("true", rise 1, group hc-dns) drives watchdog
+#                 group hc-dns of peer1 (10.0.0.0/24, withdraw true). The probe
+#                 comes UP and announces with MED 100.
+# Live change:    the staged fixture (reload/live-stages, run inside the daemon)
+#                 removes the healthcheck block and peer1's watchdog update
+#                 block in one config, and sends SIGHUP. A watchdog update
+#                 block is not a static route (hasWatchdogContainer,
+#                 bgp_routes.go), so the reactor swaps the peer in place and
+#                 the session survives.
+# Expected:       the probe is gone from `show bgp healthcheck`, and the peer
+#                 receives one withdraw of 10.0.0.0/24 on the same session,
+#                 whichever of bgp-healthcheck and bgp-watchdog applies first
+#                 (R-8: the two applies are order-independent).
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses AC-16 and R-8 for
+#            bgp-healthcheck with bgp-watchdog.
+# PREVENTS: an apply that waits on the probe's exit withdraw while the pool
+#           that withdraw names is being removed: the stall the 5 s dispatch
+#           timeout bounds, or a deadlock.
+#
+# DISCRIMINATION: with newHealthcheckConfigTx(mgr).Register(p) replaced by
+# p.OnConfigure(newHealthcheckConfigTx(mgr).Configure), the probe stays listed
+# after the reload and the lacks stage fails.
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65533
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=established-file:path=established
+# EOR and the probe's announce share one step: either can reach the wire
+# first, because the probe starts once every plugin is ready.
+# EOR (no routes initially: the watchdog entry has withdraw true).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# The probe is UP: origin igp, empty as-path, next-hop 1.2.3.4, MED 100,
+# local-pref 100, 10.0.0.0/24.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C40010100400200400304010203048004040000006440050400000064180A0000
+# After the reload removed the probe and its pool: one withdraw of 10.0.0.0/24.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+# The clean shutdown after the last stage, on the SAME connection: Cease (6) /
+# Administrative Shutdown (2, RFC 4486) with the RFC 8203 default text.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	healthcheck {
+		probe dns {
+			command "true"
+			group hc-dns
+			interval 1
+			rise 1
+			fall 1
+			withdraw-on-down true
+			up-metric 100
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 1.2.3.4
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+			watchdog {
+				name hc-dns
+				withdraw true
+			}
+		}
+		attach process bgp-watchdog {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# The second config: the healthcheck block and peer1's watchdog update block
+# are the ONLY differences. The plugin block and the session are
+# byte-identical, so the session and the staged fixture survive.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 1.2.3.4
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+			watchdog {
+				name hc-dns
+				withdraw true
+			}
+		}
+		attach process bgp-watchdog {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+# Before the reload: the probe is UP, so its announce is on the wire.
+await-file established
+has show bgp healthcheck => "state":"UP"
+# The EOR and the announce are the two UPDATEs sent so far.
+has show bgp peer 127.0.0.1 detail => "updates-sent":2,
+reload config2.conf
+# After it: the probe is gone, and one withdraw has been sent.
+lacks show bgp healthcheck => "dns"
+# The withdraw is the third UPDATE: this fences the shutdown behind it.
+has show bgp peer 127.0.0.1 detail => "updates-sent":3,
+say HEALTHCHECK-POOL-RELOAD: the removed probe and pool are withdrawn once
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=60s
+
+expect=stderr:contains=HEALTHCHECK-POOL-RELOAD: the removed probe and pool are withdrawn once
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=peer restart required
+reject=stderr:pattern=LIVE-STAGES line
+reject=stderr:pattern=context deadline exceeded
