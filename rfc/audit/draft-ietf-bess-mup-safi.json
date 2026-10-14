@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-14",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -7,58 +7,157 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "DRAFT-IETF-BESS-MUP-SAFI-3.1-1": {
-      "note": "rfc_mup_ingress_test.go drives nlritype.Get(fam)+nlritype.Retain, the call typedNLRIEdit (reactor/session_validation_nlritype.go) makes at ingress. Positive TestMUPOtherRouteTypesSilentlyIgnoredAtIngress: route types 0/5/99/0xFFFF under arch 1 dropped (dropped==4), no error, ISD kept byte for byte, both AFIs; red on a recognizer that keeps them or on an error. Negative TestMUPDefinedRouteTypesSurviveIngress: types 1..4 kept whole, red on an over-broad ignore. The older ParseMUP positive (TestRFCMUPUnknownRouteTypeIsNotRejected) proves only the decode path skips the NLRI by its Length; it adds no clause. 'silently' is proven as no error from Retain; the Debug log line in typedNLRIEdit is not asserted, and the RFC 7606 Section 6 log is not a violation of silent ignore at protocol level. Revert records observed red for each unit",
+      "note": "Re-judged 2026-10-14 (independent auditor). Draft Section 3.1: \"Any other Route Types MUST be silently ignored upon a receipt if a BGP speaker supports only 3gpp-5G architecture type.\" The retainMUP helper changed with the three-way Recognizer and now returns r.Discarded + r.WithdrawnCount as dropped. keyMUP keys an unknown route type on its whole wire NLRI, so a recognizer that answered Withdraw for route types 0, 5, 99 and 0xFFFF would put each in Withdrawn and TestMUPOtherRouteTypesSilentlyIgnoredAtIngress would still see dropped == 4 and the ISD kept: the positive no longer tells a silent ignore from a treat-as-withdraw, which emits a withdrawal. Asserting r.Discarded == 4 and r.WithdrawnCount == 0 would restore it. TestRFCMUPUnknownRouteTypeIsNotRejected pins only that ParseMUP skips the unknown NLRI by its Length; the negative TestMUPDefinedRouteTypesSurviveIngress (types 1..4 well-formed, kept whole, dropped zero) is sound. The exact Discard answer is asserted, but only under RFC7606-5.4-1's tags (mup TestRecognizeNLRIRejectsUnimplementedTypes).",
       "requirement_sha": "67906b468e34c9bf",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "946ae0f68bfc34f0",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "4212c6e6faa722fc",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "4212c6e6faa722fc",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "007ef05c4e407c4e"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "22f7eba5844edcf0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "4f48b908672c8313",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "a6abd295ee9a4d69",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "02f586692359fc91"
+      },
+      "verdict": "weak"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-1": {
+      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress: ISD prefix length 33 under IPv4 (5 prefix octets, so only the bound is wrong) is withdrawn exactly, WithdrawnCount 1, Discarded 0, siblings kept in order; removing parsePrefixField's AFI bound would parse it cleanly and go red. ISD prefix length 129 under IPv6 is unkeyable and lands in Unkeyable, discarded: no earlier generation can exist under a key that cannot form, so the stack outcome matches treat-as-withdraw, though that half is decided by keyMUP's 128 bound, not the parser. Negative TestMUPWellFormedRouteKeptAtIngress: 32 under IPv4 and 128 under IPv6 kept whole.",
+      "requirement_sha": "6fd0be9b4a8c8da7",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2": {
+      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Draft Section 3.1.1: \"A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.\" Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress: for each of the 13 malformed shapes Kept equals exactly the sibling before and the sibling after, in order, so processing continued past the malformed route; red on a pass that stops at the first malformed NLRI or drops the section. Negative TestMUPWellFormedRouteKeptAtIngress: every legal boundary shape between siblings leaves the section whole with nothing withdrawn, unkeyable or discarded.",
+      "requirement_sha": "b018c540a5fc2dd4",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.2-1": {
+      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress: a DSD route with a 16-octet address under IPv4 and with a 4-octet address under IPv6 are each withdrawn exactly; parseBodyDSD's length check is the only rule those buffers trip (keyMUP keys both 12- and 24-octet bodies), so removing it goes red. Negative TestMUPWellFormedRouteKeptAtIngress: 4 octets under IPv4 and 16 under IPv6 kept.",
+      "requirement_sha": "188633aa83c9a596",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.3-1": {
+      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress: a Type 1 ST route with prefix length 33 under IPv4 and five prefix octets is withdrawn exactly and keyable; without parsePrefixField's bound the rest parses cleanly, so the case discriminates. Negative TestMUPWellFormedRouteKeptAtIngress: prefix length 32 under IPv4 kept. The IPv6 clause (128) has no T1ST case in the tagged units: it rests on the same AFI-indexed parsePrefixField bound, which the ISD IPv6 128 negative pins from below, and an IPv6 T1ST above 128 is unkeyable (keyMUP), which the untagged TestMUPRecognizerVerdicts and AC-10a cover.",
+      "requirement_sha": "d8a11c944c123a06",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-1": {
+      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Draft Section 3.1.3.1: \"The TEID value of 0 is considered as an invalid and a malformed TEID.\" Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress: a Type 1 ST route otherwise identical to the kept one but with TEID 0 is withdrawn exactly; parseBodyT1ST's ErrMUPTEIDZero check is the only rule it trips, so removing it goes red. Negative TestMUPWellFormedRouteKeptAtIngress: TEID 1 kept.",
+      "requirement_sha": "19327244c398bc30",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
       },
       "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10": {
-      "note": "asserts ParseMUP returns ErrMUPTLV for a TLV Length overrun on the decode path; nothing asserts Treat-as-withdraw, and ingress never walks TLVs, so the route is stored",
+      "note": "Re-judged 2026-10-14 (independent auditor, D3). Draft Section 3.1.3.1: \"any TLV parsing error MUST result in Treat-as-withdraw\". TestMUPMalformedT1STTreatAsWithdraw subtest TLV overruns the NLRI: TLV 0xF0 declaring Length 5 over one octet; K leaves MP_REACH and is withdrawn in MP_UNREACH, siblings kept, ActionNone; a validateTLVs that stopped checking the overrun would return Keep and go red. TestMUPT1STTLVFraming pins ErrMUPTLV for the overrun and the well-formed framings as its negative.",
       "requirement_sha": "20d0ce7c2dfefab5",
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "6ad3461470a7d893",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "6ad3461470a7d893"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "6ad3461470a7d893",
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "dafabc57988271c7"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "5d81c00952fa1be0",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "5d81c00952fa1be0"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "5d81c00952fa1be0",
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "34ea9edad8a46ac2"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-2": {
+      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress case T1ST Endpoint Address Length 24 (octets 24, 192, 0, 2, 1) is withdrawn, but the buffer does not isolate the rule (question 3). Removing the addressBitsOctets check in parseBodyT1ST leaves endpointOctets 0, so 192 is then read as the Source Address Length and ErrMUPSourceLength withdraws the route anyway; a mutant reading (bits+7)/8 octets leaves one octet, read as Source Address Length 1, same answer. The test stays green with the Endpoint Address Length rule gone. A case whose only fault is the endpoint length (for example Endpoint Address Length 24 followed by Source Address Length 0 and nothing else, beside one carrying three address octets) would discriminate. Negative TestMUPWellFormedRouteKeptAtIngress: 32 with an IPv4 endpoint and 128 with an IPv6 endpoint kept, sound.",
+      "requirement_sha": "f050c5d3bfc23c82",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
+      },
+      "verdict": "weak"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-3": {
+      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress case T1ST Source Address Length 16 (16, 10, 1) is withdrawn, but the buffer does not isolate the rule (question 3). Removing the sourceOK check in parseBodyT1ST leaves sourceOctets 0, so 10, 1 is then read as a TLV of Length 1 that overruns, and validateTLVs' ErrMUPTLV withdraws the route anyway: the test stays green with the Source Address Length rule gone (a mutant reading 2 octets would be caught). A Source Address Length fault whose trailing octets also form valid TLVs, or none, would discriminate. Negative TestMUPWellFormedRouteKeptAtIngress: Source Address Length 0, 32 with an IPv4 source and 128 with an IPv6 source kept, sound.",
+      "requirement_sha": "2e3db2730765c89d",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
       },
       "verdict": "weak"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6": {
-      "note": "asserts ParseMUP returns ErrMUPTruncated, which is the decode path (DecodeNLRIHex, RunCLIDecode); nothing asserts Treat-as-withdraw, and ingress (SplitMUP framing, RecognizeNLRI arch/route type) stores such a route, so the test would stay green with the MUST unmet",
+      "note": "Re-judged 2026-10-14 (independent auditor, D3). Draft Section 3.1.3.1: \"< 0: the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.\" TestMUPMalformedT1STTreatAsWithdraw runs classifyRFC7606 and applyRFC7606 with the real registered ipv4/mup recognizer (the reactor test binary links the mup plugin) over L, K, L2 where K's Length ends inside the Endpoint Address: ActionNone, MP_REACH keeps exactly L then L2, MP_UNREACH carries exactly K; red if K is kept, dropped without a withdrawal, or the session resets. Its negative subtest returns an UPDATE of well-formed L and L2 (L2 with unknown TLV 0xF0) byte for byte. TestMUPT1STMandatoryFieldsWithinLength pins ParseMUP's ErrMUPTruncated, the answer ValidateNLRI turns into Withdraw. The earlier finding (decode path only, ingress stored the route) is closed by recognizerFor.",
       "requirement_sha": "e24f1fbf9098af39",
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "6ad3461470a7d893",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "6ad3461470a7d893"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "6ad3461470a7d893",
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "dafabc57988271c7",
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw#2": "dafabc57988271c7"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "3d378f518f8e6810",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "3d378f518f8e6810"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "3d378f518f8e6810",
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "34ea9edad8a46ac2",
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw#2": "34ea9edad8a46ac2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7": {
-      "note": "asserts ParseMUP returns ErrMUPTLV for one leftover octet on the decode path; nothing asserts Treat-as-withdraw, and ingress (SplitMUP framing, RecognizeNLRI arch/route type) never validates TLVs, so the route is stored",
+      "note": "Re-judged 2026-10-14 (independent auditor, D3). Draft Section 3.1.3.1: \"1: encoding is invalid (a valid TLV requires at minimum a Type byte and a Length byte); MUST be treated as Treat-as- withdraw.\" TestMUPMalformedT1STTreatAsWithdraw subtest one octet of TLV area: K carries Source Address Length 0 then the single octet 0xF0, so the remaining count after the end of the Source Address is exactly 1; over applyRFC7606 with the real recognizer K leaves MP_REACH, siblings kept byte for byte, K withdrawn in MP_UNREACH, ActionNone. TestMUPT1STTLVFraming pins validateTLVs' ErrMUPTLV for the leftover octet and accepts the well-formed framings. The earlier finding (ingress never validated TLVs) is closed by recognizerFor.",
       "requirement_sha": "3bffe26dbac60e46",
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "6ad3461470a7d893",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "6ad3461470a7d893"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "6ad3461470a7d893",
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "dafabc57988271c7"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "5d81c00952fa1be0",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "5d81c00952fa1be0"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "5d81c00952fa1be0",
+        "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "34ea9edad8a46ac2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9": {
       "note": "Propagate clause: TestMUPUnknownTLVPropagatedUnchangedAtIngress asserts the section kept by nlritype.Retain with the registered recognizer (the section typedNLRIEdit relays) equals the received T1ST with unknown TLV 0xF0, both unchanged and when a sibling unknown route type forces the rebuild; red on any re-encode that strips or rewrites the TLV. Local-processing clause: ParseMUP of the kept route yields the TEID and endpoint of the TLV-less route (and TestMUPT1STUnknownTLVIgnoredAndPropagated pins prefix, bits, TEID, QFI, endpoint, and that only a framing error refuses). Negatives: TestMUPUnknownTLVNotStrippedAtIngress pins length +5, Length octet +5, trailing TLV octets; the tlv_mup_test negative pins Bytes() is not the TLV-less form. The negatives are the complement of the positives' byte equality rather than an independent input, acceptable for a propagate-unchanged obligation. Records observed red for every unit (Retain, validateTLVs, ParseMUP)",
@@ -76,6 +175,32 @@
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "da27b4d90bb6d0d1",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "da27b4d90bb6d0d1",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "da27b4d90bb6d0d1"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.4-1": {
+      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress: a Type 2 ST route with Endpoint Length 65 under IPv4 and five octets after the address is withdrawn exactly; without parseBodyT2ST's teidBits > 32 check it parses as a 5-octet TEID and is kept, so the case discriminates. Endpoint Length 161 under IPv6 is unkeyable (keyMUP's 160 bound) and discarded, the stack outcome matching treat-as-withdraw. Negative TestMUPWellFormedRouteKeptAtIngress: 64 under IPv4 and 160 under IPv6 kept.",
+      "requirement_sha": "864e048ef8dc4e1b",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
+      },
+      "verdict": "enforced"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-1": {
+      "note": "Judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects Q-1 (a)). Both units drive nlritype.Get(fam), the recognizer the mup plugin's init registers (recognizerFor: RecognizeNLRI then ValidateNLRI), through nlritype.Retain, the call typedNLRIEdit makes at ingress, with the route between two well-formed ISD siblings. Draft Section 3.1.4.1: \"The TEID value of 0 is considered as an invalid and a malformed TEID.\" Positive TestMUPMalformedRouteTreatedAsWithdrawnAtIngress: a Type 2 ST route with Endpoint Length 64 and a 4-octet TEID of 0 is withdrawn exactly; ErrMUPTEIDZero is the only rule it trips, so removing it goes red. Negative TestMUPWellFormedRouteKeptAtIngress: TEID 1 kept, and a route with Endpoint Length 32 and no TEID kept (the check binds only a carried TEID).",
+      "requirement_sha": "3edcbbc121e838ba",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "cfceab5a74352356",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "cfceab5a74352356"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "3d80b3cbbc9addd5"
       },
       "verdict": "enforced"
     },
@@ -98,17 +223,19 @@
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-4": {
       "code": {
-        "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI": "91465ffbb3b2646f"
+        "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI": "2e774acc4f219e3f",
+        "internal/component/bgp/plugins/nlri/mup/rfc7606.go::recognizerFor": "4f1047ee816a9ce4"
       },
-      "note": "Read RecognizeNLRI (rfc7606.go): it reads architecture and route type only, and typedNLRIEdit passes it the NLRI section alone. No code in internal/component/bgp reads a Prefix-SID locator or compares a DSD MP_REACH next hop with it (reactor Prefix-SID code handles RFC 8669 Section 8 egress only), so a DSD route with a mismatched next hop is stored, not treated as withdraw. The {gap} annotation and Meta row disclose it",
+      "note": "Re-judged 2026-10-14 (independent auditor) after the receive recognizer changed. recognizerFor (mup/rfc7606.go) now runs RecognizeNLRI then ValidateNLRI, which checks the NLRI body alone: Retain hands it one NLRI and no path attributes, and no code in internal/component/bgp reads a Prefix-SID SRv6 locator or compares it with a DSD MP_REACH next hop, so a DSD route whose next hop and locator differ is still stored rather than treated as withdrawn. The {gap} annotation's phrase \"reads the architecture and route type alone\" is now out of date (the body is also validated), but its conclusion holds.",
       "requirement_sha": "7cdee95c209f5c36",
       "verdict": "unimplemented"
     },
     "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-5": {
       "code": {
-        "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI": "91465ffbb3b2646f"
+        "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI": "2e774acc4f219e3f",
+        "internal/component/bgp/plugins/nlri/mup/rfc7606.go::recognizerFor": "4f1047ee816a9ce4"
       },
-      "note": "Read RecognizeNLRI (rfc7606.go) and its caller typedNLRIEdit: the ingress pass judges each MUP NLRI by architecture and route type, never consults the UPDATE's path attributes, and session_validation.go has no MUP or Prefix-SID presence rule, so a DSD route arriving without a Prefix-SID attribute is stored, not treated as withdraw. The {gap} annotation and Meta row disclose it",
+      "note": "Re-judged 2026-10-14 (independent auditor) after the receive recognizer changed. recognizerFor (mup/rfc7606.go) adds ValidateNLRI's body checks to RecognizeNLRI, but the recognizer still receives one NLRI and never the UPDATE's path attributes, and session_validation.go carries no MUP Prefix-SID presence rule, so a DSD route arriving without a Prefix-SID attribute is still stored rather than treated as withdrawn. The {gap} annotation's phrase \"reads the architecture and route type alone\" is now out of date; its conclusion holds.",
       "requirement_sha": "d9443a00a9aea8b4",
       "verdict": "unimplemented"
     }
