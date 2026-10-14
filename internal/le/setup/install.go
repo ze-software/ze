@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/appliance/instance"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/vendorpatch"
 )
 
 // detectPackageManager returns the package manager that this host uses to
@@ -207,11 +208,6 @@ func (i *Installer) aptUpdate() {
 	}
 }
 
-var vendorPatchPaths = [...]string{
-	"internal/le/vendorpatch/patches/bubbles-textinput-cursor.patch",
-	"internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch",
-}
-
 // vendorGoDeps synchronizes vendor/ with go.mod and populates the offline
 // gokrazy module cache. A failed command makes setup fail.
 func (s *Setup) vendorGoDeps(report *Report) bool {
@@ -235,13 +231,24 @@ func (s *Setup) vendorGoDeps(report *Report) bool {
 	return s.downloadApplianceDeps(report)
 }
 
+// applyVendorPatches applies every patch of the vendorpatch set, the
+// patches/ directory read once. Each patch's review stamp is checked first,
+// before the already-applied probe: an applied patch with a stale stamp is
+// still a patch nobody reviewed against the vendored version.
 func (s *Setup) applyVendorPatches(report *Report) bool {
-	for _, relative := range vendorPatchPaths {
-		patch := filepath.Join(s.Root, filepath.FromSlash(relative))
-		if _, err := os.Stat(patch); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			report.Note("  FAIL read vendor patch " + relative + ": " + err.Error())
+	paths, err := vendorpatch.Patches(s.Root)
+	if err != nil {
+		report.Note("  FAIL " + err.Error())
+		return false
+	}
+	vendored, err := vendorpatch.Vendored(s.Root)
+	if err != nil {
+		report.Note("  FAIL read the vendored module versions: " + err.Error())
+		return false
+	}
+	for _, relative := range paths {
+		if err := vendorpatch.CheckStamp(s.Root, relative, vendored); err != nil {
+			report.Note("  FAIL " + err.Error())
 			return false
 		}
 		if !s.Shell.Present(toolGit) {

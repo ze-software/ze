@@ -102,8 +102,11 @@ outside le uses it with
 `export GOROOT="$(./le go stdpatch goroot)" GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"`.
 A refusal of the generator (a stale review stamp, a patch that no longer
 applies) leaves the dispatch working and is the error of every action that
-compiles through `gotoolchain.New`.
+compiles through `gotoolchain.New`. `./le go patch-stamps check` compares every
+patch's review stamp, standard-library and vendor, with the version it names,
+and `./le verify` runs it in both modes.
 <!-- source: internal/le/register.go -- activatePatchedGOROOT -->
+<!-- source: internal/le/go/patchstamps/patchstamps.go -- runPatchStampsCheck -->
 <!-- source: internal/le/go/stdpatch/stdpatch.go -- Activate -->
 
 A named build does not stay forever. The hourly store trim (see "When the disk

@@ -48,7 +48,7 @@ type builder struct {
 // choose it (docs/contributing/patching-the-standard-library.md).
 func (b builder) build() (string, error) {
 	// Step 1a: a toolchain nobody reviewed the patch against refuses first.
-	if err := checkStamps(b.patches, b.toolchain.Version); err != nil {
+	if err := CheckStamps(b.patches, b.toolchain.Version); err != nil {
 		return "", err
 	}
 	targets, err := b.targetFiles()

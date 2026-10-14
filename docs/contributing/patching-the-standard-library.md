@@ -3,7 +3,7 @@
 How Ze changes one file of a Go standard-library package at build time,
 without a fork of the toolchain and without a copy of the package in the tree.
 
-**Status: partly built.** The generator (`internal/le/go/stdpatch`), the patch, `./le go stdpatch goroot`, le's activation at its root handler and the launcher's bootstrap route exist. The step 1a stamp refusal is built; `./le go patch-stamps check`, the vendor stamps, the EAP-TLS marker reference, the ze-setup refusal and the guest, Docker and CI routes are not built yet (spec-ike-eap-rfc-defects, D2).
+**Status: partly built.** The generator (`internal/le/go/stdpatch`), the patch, `./le go stdpatch goroot`, le's activation at its root handler and the launcher's bootstrap route exist. The step 1a stamp refusal, the vendor stamps and their refusal in `./le setup install`, `./le go patch-stamps check` in both `./le verify` modes, the EAP-TLS marker reference and ticket suppression, and the ze-setup refusal are built; the guest, Docker and CI routes are not built yet (spec-ike-eap-rfc-defects, D2).
 `plan/immediate/spec-ike-eap-rfc-defects.md` ("D2 design") builds it. Until that
 spec lands, every build uses the unmodified standard library. When it lands, this
 page is restated as a description of the built mechanism.
@@ -83,7 +83,7 @@ Linux refuses a hard link to a root-owned GOROOT file that the user does not own
 | The output | `cache/stdpatch/<key>/goroot` | The tree, keyed by a SHA-256 over a layout version, the `go version`, the real GOROOT path, the patch, and each original GOROOT file. The path is in the key because every symlink names an absolute path into that GOROOT and `cache/` is shared by every checkout |
 | The activation | `stdpatch.Activate` | Answers the tree and sets the three values of "What a build sets" in the calling process's environment. le's root handler calls it before any command runs |
 | The command | `./le go stdpatch goroot` | Prints the tree path for this checkout's toolchain, for plain `go` commands and editors, and for the routes that run before le exists |
-| The stamp check | `./le go patch-stamps check` | Compares every review stamp, standard-library and vendor, with the version it names. `./le verify` runs it in both modes | <!-- doc-links: ignore (designed, not built: spec-ike-eap-rfc-defects creates this command) -->
+| The stamp check | `./le go patch-stamps check` (`internal/le/go/patchstamps`) | Compares every review stamp, standard-library and vendor, with the version it names. `./le verify` runs it in both modes. It is a package of its own because the generator imports only the standard library |
 
 The patch is stored as a diff, not as a patched copy of the file. A copy belongs
 to one Go version, so a toolchain bump would silently compile old upstream code.
@@ -265,7 +265,7 @@ any other version refuses whether or not the diff applies:
 
 | Patch | Stamp | Compared with |
 |-------|-------|---------------|
-| standard library, `internal/le/go/stdpatch/patches/` | `Ze-Reviewed-Against: go1.27.2` | the `go version` the tree is built from | <!-- doc-links: ignore (designed, not built: spec-ike-eap-rfc-defects creates this directory) -->
+| standard library, `internal/le/go/stdpatch/patches/` | `Ze-Reviewed-Against: go1.27.2` | the `go version` the tree is built from |
 | vendored module, `internal/le/vendorpatch/patches/` | `Ze-Reviewed-Against: <module path> <version>`, for example `github.com/vishvananda/netlink v1.3.1` | the module's line in `vendor/modules.txt` |
 
 A patch with no stamp, or a vendor stamp naming a module the vendor directory
@@ -281,6 +281,9 @@ command to run after the repair. And
 `./le go patch-stamps check` compares every stamp of both kinds, standard-library
 stamps against the version `go.mod` pins as well as the one in use; `./le verify`
 runs it in both modes, so a stale stamp turns the verification red.
+<!-- source: internal/le/vendorpatch/stamp.go -- CheckStamp -->
+<!-- source: internal/le/setup/install.go -- applyVendorPatches -->
+<!-- source: internal/le/go/patchstamps/patchstamps.go -- checkPatchStamps -->
 
 ## When the Go version changes
 

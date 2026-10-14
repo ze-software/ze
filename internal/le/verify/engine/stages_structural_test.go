@@ -86,3 +86,20 @@ func TestStructuralIsASubsetOfFull(t *testing.T) {
 		}
 	}
 }
+
+// TestPatchStampsRunsInBothModes proves `go patch-stamps check` is a stage of
+// the full and the changed population (AC-26, AC-27): a stale review stamp
+// refuses ./le verify whichever mode certifies the tree.
+func TestPatchStampsRunsInBothModes(t *testing.T) {
+	for _, mode := range []string{Mode, ChangedMode} {
+		found := false
+		for _, one := range StagesForMode(mode) {
+			if one.Identity.Command == "go patch-stamps" && len(one.Identity.Args) == 1 && one.Identity.Args[0] == "check" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("mode %q does not run go patch-stamps check", mode)
+		}
+	}
+}

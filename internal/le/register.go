@@ -50,6 +50,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/go/extract"
 	_ "github.com/ze-software/ze/internal/le/go/lint"
 	_ "github.com/ze-software/ze/internal/le/go/module"
+	_ "github.com/ze-software/ze/internal/le/go/patchstamps"
 	_ "github.com/ze-software/ze/internal/le/go/staticcheck"
 	"github.com/ze-software/ze/internal/le/go/stdpatch"
 	_ "github.com/ze-software/ze/internal/le/go/stdpatch/stdpatchcmd"

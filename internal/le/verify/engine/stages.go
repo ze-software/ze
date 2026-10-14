@@ -82,6 +82,9 @@ func fullStages() []Stage {
 		stage("cli stdio", "check"),
 		stage("config ports", "check"),
 		stage("go version-pin", "check"),
+		// Every patch of both families against what it was reviewed for: file
+		// reads and one go env, so the changed mode keeps it.
+		stage("go patch-stamps", "check"),
 		stage("config claims"),
 		stage("test sensitivity", "check"),
 		stage("test weakened", "check"),

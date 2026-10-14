@@ -161,7 +161,7 @@ func TestStdpatchRefusesAStaleReviewStamp(t *testing.T) {
 	})
 
 	t.Run("equal", func(t *testing.T) {
-		if err := checkStamps(patches, real.Version); err != nil {
+		if err := CheckStamps(patches, real.Version); err != nil {
 			t.Fatalf("the shipped patch refuses the pinned toolchain %s: %v", real.Version, err)
 		}
 	})

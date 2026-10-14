@@ -6,6 +6,7 @@
 package stdpatchcmd
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
@@ -19,4 +20,5 @@ func init() {
 		SubsFunc: Subs,
 	})
 	leroot.RegisterActions(area, Actions)
+	leroot.RegisterShape(area, command.ShapeDoc)
 }

@@ -1,3 +1,5 @@
+Ze-Reviewed-Against: charm.land/bubbles/v2 v2.2.1
+
 diff --git a/vendor/charm.land/bubbles/v2/textinput/textinput.go b/vendor/charm.land/bubbles/v2/textinput/textinput.go
 index 363089b2d..63eb97ca3 100644
 --- a/vendor/charm.land/bubbles/v2/textinput/textinput.go

@@ -679,6 +679,7 @@ func TestVendoringDownloadsEveryApplianceModule(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	writeVendorPatchSet(t, root, nil)
 	rec := rootShell("go")
 	if !(&Setup{Root: root, Shell: rec.shell()}).vendorGoDeps(&Report{}) {
 		t.Fatal("native dependency setup failed")
@@ -694,15 +695,10 @@ func TestVendoringDownloadsEveryApplianceModule(t *testing.T) {
 
 func TestVendoringReappliesOwnedVendorPatches(t *testing.T) {
 	root := t.TempDir()
-	for _, relative := range vendorPatchPaths {
-		path := filepath.Join(root, filepath.FromSlash(relative))
-		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte("fixture patch\n"), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
+	vendorPatchPaths := writeVendorPatchSet(t, root, map[string]string{
+		"a.patch": fixtureStamp,
+		"b.patch": fixtureStamp,
+	})
 	rec := rootShell("go", "git")
 	for _, relative := range vendorPatchPaths {
 		rec.answers["git apply --reverse --check "+relative] = Result{Code: 1, Err: "not applied"}
@@ -725,14 +721,7 @@ func TestVendoringReappliesOwnedVendorPatches(t *testing.T) {
 
 func TestVendoringFailsWhenAnOwnedPatchCannotApply(t *testing.T) {
 	root := t.TempDir()
-	relative := vendorPatchPaths[0]
-	path := filepath.Join(root, filepath.FromSlash(relative))
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte("fixture patch\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	relative := writeVendorPatchSet(t, root, map[string]string{"a.patch": fixtureStamp})[0]
 	rec := rootShell("go", "git")
 	rec.answers["git apply --reverse --check "+relative] = Result{Code: 1, Err: "not applied"}
 	rec.answers["git apply --check "+relative] = Result{Code: 1, Err: "does not apply"}

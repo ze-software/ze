@@ -94,12 +94,12 @@ func Stamp(patch Patch) (string, error) {
 	return value, nil
 }
 
-// checkStamps refuses, before any tree is built and before `git apply` runs,
+// CheckStamps refuses, before any tree is built and before `git apply` runs,
 // every patch whose stamp is not the toolchain's version. A clean apply
 // proves only that the context lines did not move, never that upstream left
 // the function's behavior alone, so a version nobody reviewed refuses even
 // when the diff would still apply.
-func checkStamps(patches []Patch, version string) error {
+func CheckStamps(patches []Patch, version string) error {
 	for _, patch := range patches {
 		stamp, err := Stamp(patch)
 		if err != nil {
