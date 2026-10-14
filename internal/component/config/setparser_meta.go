@@ -370,35 +370,21 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if len(tokens) == 0 {
 			return nil // structural-only: list node declared, no entries
 		}
-		if len(tokens) == 1 {
-			// Key-only: create empty list entry (incomplete config tolerance).
-			key := tokens[0]
-			if err := ValidateListKey(list, key); err != nil {
-				return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
-			}
-			entries := tree.GetList(name)
-			if entries == nil || entries[key] == nil {
-				tree.AddListEntry(name, key, NewTree())
-			}
-			return nil
-		}
-		key := tokens[0]
-		tokens = tokens[1:]
-		if err := ValidateListKey(list, key); err != nil {
+		if err := ValidateListKey(list, tokens[0]); err != nil {
 			return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
 		}
-		entries := tree.GetList(name)
-		if entries == nil {
-			entries = make(map[string]*Tree)
+		addr, err := ParseListAddress(name, list, tokens)
+		if err != nil {
+			return fmt.Errorf("line %d: %w", lineNum, err)
 		}
-		treeEntry := entries[key]
-		if treeEntry == nil {
-			treeEntry = NewTree()
-			tree.AddListEntry(name, key, treeEntry)
+		treeEntry := EnsureListEntry(tree, name, addr)
+		if len(tokens) == addr.Tokens {
+			// Address only: create the entry (incomplete config tolerance).
+			return nil
 		}
 		listMeta := meta.GetOrCreateContainer(name)
-		entryMeta := listMeta.GetOrCreateListEntry(key)
-		return p.walkAndSetWithMeta(treeEntry, entryMeta, list, entry, tokens, lineNum)
+		entryMeta := listMeta.GetOrCreateListEntry(addr.Key)
+		return p.walkAndSetWithMeta(treeEntry, entryMeta, list, entry, tokens[addr.Tokens:], lineNum)
 	}
 
 	if _, ok := node.(*FreeformNode); ok {
@@ -518,14 +504,19 @@ func (p *SetParser) walkAndRecordDeleteMeta(meta *MetaTree, parent Node, entry M
 
 	// List: navigate to specific entry.
 	if list, ok := node.(*ListNode); ok {
-		if len(tokens) < 2 {
-			return // List or entry-level delete, no leaf metadata.
+		if len(tokens) == 0 {
+			return // List-level delete, no leaf metadata.
 		}
-		key := tokens[0]
-		tokens = tokens[1:]
+		addr, err := ParseListAddress(name, list, tokens)
+		if err != nil {
+			return // An address the codec refuses names no entry.
+		}
+		if len(tokens) == addr.Tokens {
+			return // Entry-level delete, no leaf metadata.
+		}
 		listMeta := meta.GetOrCreateContainer(name)
-		entryMeta := listMeta.GetOrCreateListEntry(key)
-		p.walkAndRecordDeleteMeta(entryMeta, list, entry, tokens)
+		entryMeta := listMeta.GetOrCreateListEntry(addr.Key)
+		p.walkAndRecordDeleteMeta(entryMeta, list, entry, tokens[addr.Tokens:])
 		return
 	}
 

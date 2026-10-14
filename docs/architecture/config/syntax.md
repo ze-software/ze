@@ -183,9 +183,16 @@ leaves of the entry as written. A key value of such a list that is empty or
 holds whitespace is refused at parse, because it would make the address
 ambiguous, and two entries with one address are refused as a duplicate list
 key. Brace form writes the first value alone on the opening line, because the
-body carries the other key leaves. A list whose key names one leaf keeps its
-key exactly as written.
-<!-- source: internal/component/config/list_key.go -- BuildListKey, canonicalParsedListKey, ListKeyOpeningValue -->
+body carries the other key leaves. Set form writes the whole address on every
+line of the entry (`set bfd single-hop-session fe80::b interface zbl1 profile
+fast`), each token quoted on its own, plus one line holding the address alone,
+and never a line that sets a key leaf the address carries. The set parser
+(with and without meta) reads an address left to right: the first token is the
+first key value, then a `name value` pair is consumed while the next token
+names another key leaf of the list and a token follows it; a key leaf named
+twice is refused. A list whose key names one leaf keeps its key exactly as
+written.
+<!-- source: internal/component/config/list_key.go -- BuildListKey, ParseListAddress, canonicalParsedListKey, ListKeyOpeningValue, setFormEntry, emitAddressLine -->
 <!-- source: internal/component/config/parser_list.go -- addParsedListEntry -->
 
 Read all three through `internal/core/configvalue` (`Bool`, `Int`, `LeafList`,

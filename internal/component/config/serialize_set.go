@@ -372,11 +372,14 @@ func serializeSetList(b *textbuf.Buffer, tree *Tree, name string, node *ListNode
 		if entry == nil {
 			continue
 		}
-		displayKey := StripListKeySuffix(key)
-		entryPath := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(displayKey)).String()
+		addressTokens, view := setFormEntry(node, key)
+		tb.Reset().Str(prefix).Str(name).Byte(' ')
+		writeListAddress(&tb, addressTokens)
+		entryPath := tb.String()
 		emitStructuralNop(b, entry, entryPath)
+		emitAddressLine(b, entry, addressTokens, entryPath)
 		entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
-		serializeSetNode(b, entry, node, entryPrefix)
+		serializeSetNode(b, entry, view, entryPrefix)
 	}
 }
 
@@ -899,12 +902,15 @@ func serializeSetMetaList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 		if entry == nil {
 			continue
 		}
-		displayKey := StripListKeySuffix(key)
-		entryPath := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(displayKey)).String()
+		addressTokens, view := setFormEntry(node, key)
+		tb.Reset().Str(prefix).Str(name).Byte(' ')
+		writeListAddress(&tb, addressTokens)
+		entryPath := tb.String()
 		emitStructuralNop(b, entry, entryPath)
+		emitAddressLine(b, entry, addressTokens, entryPath)
 		entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
 		entryMeta := metaListEntry(meta, name, key)
-		serializeSetMetaNode(b, entry, entryMeta, node, entryPrefix)
+		serializeSetMetaNode(b, entry, entryMeta, view, entryPrefix)
 	}
 }
 

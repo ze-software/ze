@@ -209,20 +209,72 @@ func ListKeyTokens(node *ListNode, key string) []string {
 	return tokens
 }
 
-// EnsureListEntry returns the entry stored under the address, or creates it
-// under the canonical key with the address's pairs written as its key
-// leaves. It is the one creator every addressing surface calls, so an entry
-// created from an address always holds the key leaves its key names.
+// EnsureListEntry returns the entry stored under the address, creating it
+// under the canonical key when absent, and writes the address's pairs as
+// its key leaves. It is the one creator every addressing surface calls, so
+// an entry reached from an address always holds the key leaves its key
+// names. Writing onto an existing entry changes no key leaf: an equal key
+// means equal pairs, and a pair at its default (an explicit `vrf default`)
+// only keeps the leaf explicit, as written.
 func EnsureListEntry(tree *Tree, listName string, addr ListAddress) *Tree {
-	if entry := tree.GetList(listName)[addr.Key]; entry != nil {
-		return entry
+	entry := tree.GetList(listName)[addr.Key]
+	if entry == nil {
+		entry = NewTree()
+		tree.AddListEntry(listName, addr.Key, entry)
 	}
-	entry := NewTree()
 	for _, pair := range addr.Pairs {
 		entry.Set(pair.Leaf, pair.Value)
 	}
-	tree.AddListEntry(listName, addr.Key, entry)
 	return entry
+}
+
+// setFormEntry returns the address tokens a set-form line writes for a stored
+// key, and the schema view the emitter walks for the entry's body. For a
+// multi-leaf-key list the view answers nil for each key leaf the address
+// already carries, so no line sets it on its own: replayed, such a line would
+// name the key leaf twice. Every other list gets its own node back.
+func setFormEntry(node *ListNode, key string) ([]string, ChildProvider) {
+	tokens := ListKeyTokens(node, key)
+	if !node.HasMultiLeafKey() {
+		return tokens, node
+	}
+	_, pairs := SplitListKey(node, key)
+	inAddress := make([]string, 0, len(pairs))
+	for _, pair := range pairs {
+		inAddress = append(inAddress, pair.Leaf)
+	}
+	return tokens, addressedEntry{list: node, inAddress: inAddress}
+}
+
+// addressedEntry is the schema view of one multi-leaf-key entry in set form.
+// Children keeps every name, so a key leaf is never mistaken for a value the
+// schema does not know; Get answers nil for the key leaves in the address,
+// which the set-form dispatchers write nothing for.
+type addressedEntry struct {
+	list      *ListNode
+	inAddress []string
+}
+
+// Children returns the list's children, key leaves included.
+func (e addressedEntry) Children() []string { return e.list.Children() }
+
+// Get returns the list's child, or nil for a key leaf the address carries.
+func (e addressedEntry) Get(name string) Node {
+	if slices.Contains(e.inAddress, name) {
+		return nil
+	}
+	return e.list.Get(name)
+}
+
+// writeListAddress appends the address of a stored key to b, each token
+// quoted on its own.
+func writeListAddress(b *textbuf.Buffer, tokens []string) {
+	for i, token := range tokens {
+		if i > 0 {
+			b.Byte(' ')
+		}
+		b.Str(quoteIfNeeded(token))
+	}
 }
 
 // canonicalParsedListKey returns the canonical address of an entry the
@@ -295,4 +347,19 @@ func ListKeyOpeningValue(node *ListNode, key string) string {
 	}
 	first, _ := SplitListKey(node, key)
 	return first
+}
+
+// emitAddressLine writes `set <address>` for an active entry whose address
+// carries key leaf pairs. Its key leaves get no line of their own (the
+// address carries them), so an entry holding nothing else would otherwise
+// print no line at all and be lost on replay. Replayed, the line reaches or
+// creates the entry with its key leaves written (EnsureListEntry).
+func emitAddressLine(b *textbuf.Buffer, entry *Tree, addressTokens []string, entryPath string) {
+	if len(addressTokens) < 2 {
+		return
+	}
+	if entry.IsInactive() {
+		return // The nop line emitStructuralNop wrote addresses the entry.
+	}
+	b.Str("set ").Str(entryPath).Byte('\n')
 }

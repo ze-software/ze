@@ -527,17 +527,19 @@ func (p *SetParser) markNopInactive(tree *Tree, parent Node, tokens []string) {
 		if len(tokens) == 0 {
 			return
 		}
-		key := tokens[0]
-		entries := tree.GetList(name)
-		entry := entries[key]
+		addr, err := ParseListAddress(name, list, tokens)
+		if err != nil {
+			return // An address the codec refuses names no entry, so nothing is marked.
+		}
+		entry := tree.GetList(name)[addr.Key]
 		if entry == nil {
 			return
 		}
-		if len(tokens) == 1 {
+		if len(tokens) == addr.Tokens {
 			entry.SetInactive(true)
 			return
 		}
-		p.markNopInactive(entry, list, tokens[1:])
+		p.markNopInactive(entry, list, tokens[addr.Tokens:])
 		return
 	}
 
@@ -661,18 +663,16 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 		if len(tokens) == 0 {
 			return fmt.Errorf("line %d: inactive on list %s requires a key", lineNum, name)
 		}
-		key := tokens[0]
-		entries := tree.GetList(name)
-		entry := entries[key]
-		if entry == nil {
-			entry = NewTree()
-			tree.AddListEntry(name, key, entry)
+		addr, err := ParseListAddress(name, list, tokens)
+		if err != nil {
+			return fmt.Errorf("line %d: %w", lineNum, err)
 		}
-		if len(tokens) == 1 {
+		entry := EnsureListEntry(tree, name, addr)
+		if len(tokens) == addr.Tokens {
 			entry.SetInactive(true)
 			return nil
 		}
-		return p.walkAndMarkInactive(entry, list, tokens[1:], lineNum)
+		return p.walkAndMarkInactive(entry, list, tokens[addr.Tokens:], lineNum)
 	}
 
 	if flex, ok := node.(*FlexNode); ok {
@@ -813,17 +813,20 @@ func (p *SetParser) deleteFromList(tree *Tree, list *ListNode, name string, toke
 		tree.DeleteList(name)
 		return nil
 	}
-	key := tokens[0]
-	tokens = tokens[1:]
+	addr, err := ParseListAddress(name, list, tokens)
+	if err != nil {
+		return fmt.Errorf("line %d: %w", lineNum, err)
+	}
+	tokens = tokens[addr.Tokens:]
 	entries := tree.GetList(name)
 	if entries == nil {
 		return nil
 	}
 	if len(tokens) == 0 {
-		tree.RemoveListEntry(name, key)
+		tree.RemoveListEntry(name, addr.Key)
 		return nil
 	}
-	entry := entries[key]
+	entry := entries[addr.Key]
 	if entry == nil {
 		return nil
 	}
@@ -1034,21 +1037,15 @@ func (p *SetParser) setFlexValue(tree *Tree, flex *FlexNode, name string, tokens
 
 // walkAndSetListEntry creates or finds a list entry and recurses.
 func (p *SetParser) walkAndSetListEntry(tree *Tree, list *ListNode, name string, tokens []string, lineNum int) error {
-	key := tokens[0]
-	tokens = tokens[1:]
-	if err := ValidateListKey(list, key); err != nil {
+	if err := ValidateListKey(list, tokens[0]); err != nil {
 		return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
 	}
-	entries := tree.GetList(name)
-	if entries == nil {
-		entries = make(map[string]*Tree)
+	addr, err := ParseListAddress(name, list, tokens)
+	if err != nil {
+		return fmt.Errorf("line %d: %w", lineNum, err)
 	}
-	entry := entries[key]
-	if entry == nil {
-		entry = NewTree()
-		tree.AddListEntry(name, key, entry)
-	}
-	return p.walkAndSet(entry, list, tokens, lineNum)
+	entry := EnsureListEntry(tree, name, addr)
+	return p.walkAndSet(entry, list, tokens[addr.Tokens:], lineNum)
 }
 
 // walkAndSetInlineListEntry creates or finds an inline list entry and recurses.

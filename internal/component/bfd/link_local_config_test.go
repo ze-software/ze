@@ -3,6 +3,7 @@ package bfd
 import (
 	"encoding/json"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 
@@ -93,5 +94,59 @@ func TestTwoEntriesForOneSessionKeyRefused(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not name %q", err, want)
 		}
+	}
+}
+
+// TestSetFormReplayKeepsTwoLinkLocalSessions proves a set-form save of two
+// entries for one link-local peer on two links replays, through both
+// SetParser paths, into two sessions the plugin keys on their interfaces.
+// Method: brace form through the file parser, set form out, set form back
+// in with Parse and with ParseWithMeta, then the tree's JSON to parseSections.
+func TestSetFormReplayKeepsTwoLinkLocalSessions(t *testing.T) {
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatalf("YANG schema: %v", err)
+	}
+	tree, err := config.NewParser(schema).Parse(`bfd {
+	enabled true;
+	bind-v6 true;
+	single-hop-session fe80::b { interface zbl0; }
+	single-hop-session fe80::b { interface zbl1; }
+}
+`)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	setForm := config.SerializeSet(tree, schema)
+	replays := map[string]func() (*config.Tree, error){
+		"Parse": func() (*config.Tree, error) { return config.NewSetParser(schema).Parse(setForm) },
+		"ParseWithMeta": func() (*config.Tree, error) {
+			replayed, _, perr := config.NewSetParser(schema).ParseWithMeta(setForm)
+			return replayed, perr
+		},
+	}
+	for name, replay := range replays {
+		t.Run(name, func(t *testing.T) {
+			replayed, err := replay()
+			if err != nil {
+				t.Fatalf("replay: %v\n%s", err, setForm)
+			}
+			data, err := json.Marshal(replayed.ToMap())
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			cfg, err := parseSections([]sdk.ConfigSection{{Root: configRoot, Data: string(data)}})
+			if err != nil {
+				t.Fatalf("plugin parse: %v", err)
+			}
+			ifaces := make([]string, 0, len(cfg.sessions))
+			for _, s := range cfg.sessions {
+				ifaces = append(ifaces, s.iface)
+			}
+			slices.Sort(ifaces)
+			if !slices.Equal(ifaces, []string{"zbl0", "zbl1"}) {
+				t.Errorf("sessions on %q, want zbl0 and zbl1\n%s", ifaces, setForm)
+			}
+		})
 	}
 }
