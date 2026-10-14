@@ -80,8 +80,17 @@ func TestRenderWithoutADemoIdIsRefused(t *testing.T) {
 
 // VALIDATES: the build action stages the exact target binaries with their distinct tags and release flags.
 // PREVENTS: a demo ze built without ze_distro and release identity, or a recorder le not named le.
+//
+// The toolchain pin is no override: le's root handler calls stdpatch.Activate,
+// which puts the patched GOROOT and GOTOOLCHAIN=local in the process
+// environment, and every build inherits both. The test plays the activated
+// process with sentinel values, then asserts the overrides name neither and
+// each build environment ends on the activated pair.
 func TestBuildCommandsAreExact(t *testing.T) {
 	root := filepath.Join("checkout", "main")
+	tree := filepath.Join(root, "patched-goroot")
+	t.Setenv("GOTOOLCHAIN", "local")
+	t.Setenv("GOROOT", tree)
 	toolchain := gotoolchain.Toolchain{
 		Root: root, Features: []string{"ze_alpha", "ze_beta"}, ExtraTags: []string{"ze_extra"},
 		GoToolchain: "go1.26.6", Version: "26.08.27", BuildDate: "2026-08-27T12:34:56Z",
@@ -99,7 +108,13 @@ func TestBuildCommandsAreExact(t *testing.T) {
 		t.Errorf("ze action = %q", zeReport.Action)
 	}
 	assertEnvironmentLast(t, ze.Env, "CGO_ENABLED", "0")
-	assertEnvironmentLast(t, ze.Env, "GOTOOLCHAIN", "go1.26.6")
+	for _, entry := range toolchain.Overrides(gotoolchain.EnvOptions{GOOS: "linux", GOARCH: "arm64"}) {
+		if strings.HasPrefix(entry, "GOTOOLCHAIN=") || strings.HasPrefix(entry, "GOROOT=") {
+			t.Errorf("Overrides sets %s, which the activated process environment owns", entry)
+		}
+	}
+	assertEnvironmentLast(t, ze.Env, "GOTOOLCHAIN", "local")
+	assertEnvironmentLast(t, ze.Env, "GOROOT", tree)
 	assertEnvironmentLast(t, ze.Env, "GOOS", "linux")
 	assertEnvironmentLast(t, ze.Env, "GOARCH", "arm64")
 	recorder, recorderOutput := recorderBuildCommand(root, ze.Env, "ze_le ze_alpha", "arm64")
@@ -119,7 +134,8 @@ func TestBuildCommandsAreExact(t *testing.T) {
 	assertEnvironmentLast(t, recorder.Env, "CGO_ENABLED", "0")
 	assertEnvironmentLast(t, recorder.Env, "GOOS", "linux")
 	assertEnvironmentLast(t, recorder.Env, "GOARCH", "arm64")
-	assertEnvironmentLast(t, recorder.Env, "GOTOOLCHAIN", "go1.26.6")
+	assertEnvironmentLast(t, recorder.Env, "GOTOOLCHAIN", "local")
+	assertEnvironmentLast(t, recorder.Env, "GOROOT", tree)
 	runtimeHelper := runtimeBuildCommand(root, ze.Env)
 	wantRuntimeHelper := []string{
 		"go", "build", "-o", filepath.Join(root, "tmp", "terminal-demos", "bin", "ze-demo"),

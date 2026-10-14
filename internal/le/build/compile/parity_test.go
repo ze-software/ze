@@ -53,13 +53,13 @@ func TestInstallerPlansPreserveBothArchitectureBuilds(t *testing.T) {
 				"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
 				"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
 				"CGO_ENABLED=0",
-				"GOTOOLCHAIN=" + parityPin,
 				"GOOS=linux",
 				"GOARCH=" + arch,
 			}
 			if got := toolchain.Overrides(plan.environ); !reflect.DeepEqual(got, wantEnvironment) {
 				t.Fatalf("environment = %#v, want %#v", got, wantEnvironment)
 			}
+			assertPlanRunsUnderTheActivatedToolchain(t, plan, toolchain, root)
 			if plan.action != "installer-"+arch || plan.output != output {
 				t.Fatalf("plan identity = action %q output %q", plan.action, plan.output)
 			}
@@ -93,12 +93,48 @@ func TestHostPlanUsesExactTagsVersionFlagsAndRootOutput(t *testing.T) {
 		"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
 		"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
 		"CGO_ENABLED=0",
-		"GOTOOLCHAIN=" + parityPin,
 		"GOOS=" + runtime.GOOS,
 		"GOARCH=" + runtime.GOARCH,
 	}
 	if got := toolchain.Overrides(plan.environ); !reflect.DeepEqual(got, wantEnvironment) {
 		t.Fatalf("environment = %#v, want %#v", got, wantEnvironment)
+	}
+	assertPlanRunsUnderTheActivatedToolchain(t, plan, toolchain, root)
+}
+
+// assertPlanRunsUnderTheActivatedToolchain proves the pin still reaches the
+// compiler now that Overrides sets no GOROOT and no GOTOOLCHAIN. le's root
+// handler calls stdpatch.Activate, which puts the patched GOROOT and
+// GOTOOLCHAIN=local in the process environment; execute runs every plan on
+// the host with toolchain.Environment, which inherits both. The test plays the
+// activated process with sentinel values and captures the environment the
+// runner receives, so a plan that dropped the inherited pin, or an override
+// that replaced it, goes red.
+func assertPlanRunsUnderTheActivatedToolchain(
+	t *testing.T,
+	plan buildPlan,
+	toolchain gotoolchain.Toolchain,
+	root string,
+) {
+	t.Helper()
+	tree := filepath.Join(root, "patched-goroot")
+	t.Setenv("GOTOOLCHAIN", "local")
+	t.Setenv("GOROOT", tree)
+
+	var received []string
+	_, code := execute(plan, toolchain, root, func(_ string, _ []string, _ string, environ []string) int {
+		received = environ
+		return 0
+	})
+	if code != 0 {
+		t.Fatalf("execute exit = %d, want 0", code)
+	}
+	environment := effectiveEnvironment(received)
+	if environment["GOTOOLCHAIN"] != "local" {
+		t.Errorf("compiler GOTOOLCHAIN = %q, want the activated %q", environment["GOTOOLCHAIN"], "local")
+	}
+	if environment["GOROOT"] != tree {
+		t.Errorf("compiler GOROOT = %q, want the activated patched tree %q", environment["GOROOT"], tree)
 	}
 }
 
