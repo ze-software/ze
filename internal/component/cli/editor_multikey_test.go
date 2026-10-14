@@ -294,3 +294,83 @@ func TestRenameAndCopyRefuseAKeylessListEntry(t *testing.T) {
 		}
 	}
 }
+
+// TestCompleterOffersEachFirstValueOfAMultiLeafKeyListOnce is the completion
+// leg of AC-11 of spec-bfd-link-local-peer-zone.
+//
+// GOAL: Tab after a multi-leaf-key list name offers what the operator types
+// next, the first value. METHOD: set two entries for one peer on two links
+// and one for a second peer, then complete `set bfd single-hop-session `.
+//
+// VALIDATES: each first value is offered once (`fe80::b`, `fe80::c`); no
+// whole stored address (`fe80::b interface zbl0`) is offered as one token;
+// a typed first value narrows the offer; the key leaf `interface` follows
+// the first value.
+// PREVENTS: Tab inserting a stored address holding spaces, which the line
+// then reads as a first value followed by `interface zbl0`, or listing one
+// peer once per link.
+func TestCompleterOffersEachFirstValueOfAMultiLeafKeyListOnce(t *testing.T) {
+	m := newTestModel(t)
+	for _, line := range []string{
+		"bfd single-hop-session fe80::b interface zbl0",
+		"bfd single-hop-session fe80::b interface zbl1",
+		"bfd single-hop-session fe80::c interface zbl0",
+	} {
+		_, err := m.cmdSet(splitArgs(line))
+		require.NoError(t, err, line)
+	}
+	c := newTestCompleter(t)
+	c.SetTree(m.editor.Tree())
+
+	texts := completionTexts(c.Complete("set bfd single-hop-session ", nil))
+	assert.Equal(t, 1, countOf(texts, "fe80::b"), "one peer on two links is offered once: %v", texts)
+	assert.Equal(t, 1, countOf(texts, "fe80::c"), "%v", texts)
+	for _, text := range texts {
+		assert.NotContains(t, text, " ", "a completion is one token: %v", texts)
+	}
+
+	texts = completionTexts(c.Complete("set bfd single-hop-session fe80::c", nil))
+	assert.Contains(t, texts, "fe80::c")
+	assert.NotContains(t, texts, "fe80::b", "a typed first value narrows the offer")
+
+	texts = completionTexts(c.Complete("set bfd single-hop-session fe80::b ", nil))
+	assert.Contains(t, texts, "interface", "the key leaf names follow the first value: %v", texts)
+}
+
+// countOf counts the occurrences of want in texts.
+func countOf(texts []string, want string) int {
+	n := 0
+	for _, text := range texts {
+		if text == want {
+			n++
+		}
+	}
+	return n
+}
+
+// TestCompleterEditOffersTheKeyLeavesOfAMultiLeafKeyAddress is the `edit`
+// leg of AC-11 of spec-bfd-link-local-peer-zone.
+//
+// GOAL: `edit` completes a multi-leaf-key address past its first value.
+// METHOD: complete `edit` lines inside `bfd` over the registered BFD YANG.
+//
+// VALIDATES: after the first value the other key leaves (`vrf`,
+// `interface`) are offered; a key leaf already given is not offered again;
+// a typed prefix narrows the offer; nothing is offered where a key leaf
+// value is due.
+// PREVENTS: `edit single-hop-session fe80::b ` offering nothing, so the
+// operator cannot reach the entry on one link from completion.
+func TestCompleterEditOffersTheKeyLeavesOfAMultiLeafKeyAddress(t *testing.T) {
+	c := newTestCompleter(t)
+
+	texts := completionTexts(c.Complete("edit single-hop-session fe80::b ", []string{"bfd"}))
+	assert.ElementsMatch(t, []string{"vrf", "interface"}, texts)
+
+	texts = completionTexts(c.Complete("edit single-hop-session fe80::b interface zbl1 ", []string{"bfd"}))
+	assert.Equal(t, []string{"vrf"}, texts, "a key leaf given is not offered again")
+
+	texts = completionTexts(c.Complete("edit single-hop-session fe80::b int", []string{"bfd"}))
+	assert.Equal(t, []string{"interface"}, texts)
+
+	assert.Empty(t, c.Complete("edit single-hop-session fe80::b interface ", []string{"bfd"}), "the value is due")
+}

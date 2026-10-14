@@ -197,6 +197,19 @@ func SplitListKey(node *ListNode, key string) (string, []ListKeyPair) {
 	return fields[0], pairs
 }
 
+// ListKeyFirstValue returns the first key value of a stored map key, for a
+// list whose YANG key statement names keyLeaves. The completer holds YANG
+// entries rather than list nodes, so it reads the key leaves itself. A list
+// whose key names one leaf returns the key whole, as SplitListKey does.
+func ListKeyFirstValue(keyLeaves []string, key string) string {
+	key = StripListKeySuffix(key)
+	if len(keyLeaves) < 2 {
+		return key
+	}
+	first, _, _ := strings.Cut(key, " ")
+	return first
+}
+
 // ListKeyTokens returns the address of a stored map key as path tokens:
 // the first value, then each pair's name and value. Each token is written
 // to text on its own, through quoteIfNeeded.

@@ -446,7 +446,53 @@ func (c *Completer) completeEditPath(tokens, contextPath []string, endsWithSpace
 		}
 	}
 
+	// A multi-leaf-key address continues after its first value with
+	// `name value` pairs: offer the key leaf names not given yet.
+	if len(tokens) >= 2 {
+		listPath := append(append([]string{}, contextPath...), tokens[0])
+		if listEntry := c.getEntry(listPath); listEntry != nil && listEntry.IsList() {
+			if keyLeaves := strings.Fields(listEntry.Key); len(keyLeaves) > 1 {
+				return keyLeafNameCompletions(keyLeaves[1:], tokens[2:], endsWithSpace)
+			}
+		}
+	}
+
 	return nil
+}
+
+// keyLeafNameCompletions offers the names of the key leaves an entry
+// address has not given yet, after its first value. pairs are the tokens
+// typed after the first value. Where a key leaf value is due next, it offers
+// nothing: the value is the operator's.
+func keyLeafNameCompletions(otherKeyLeaves, pairs []string, endsWithSpace bool) []Completion {
+	prefix := ""
+	given := pairs
+	if !endsWithSpace {
+		if len(pairs) == 0 {
+			return nil
+		}
+		prefix = pairs[len(pairs)-1]
+		given = pairs[:len(pairs)-1]
+	}
+	if len(given)%2 == 1 {
+		return nil // A key leaf name was typed: its value is due.
+	}
+	named := make(map[string]bool, len(given)/2)
+	for i := 0; i < len(given); i += 2 {
+		named[given[i]] = true
+	}
+	var completions []Completion
+	for _, leaf := range otherKeyLeaves {
+		if named[leaf] || !strings.HasPrefix(leaf, prefix) {
+			continue
+		}
+		completions = append(completions, Completion{
+			Text:      leaf,
+			ShortHelp: "key leaf",
+			Type:      completionKeyword,
+		})
+	}
+	return completions
 }
 
 // completeShowPath completes paths for show command (content display).
@@ -682,9 +728,16 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 
 	listPath := append(append([]string{}, contextPath...), listName)
 	keyEntry := c.getListKeyEntry(listPath)
+	// A multi-leaf-key list is completed one token at a time: its entries
+	// are offered by their first values, each once, and the key leaf names
+	// that follow come from the entry's children.
+	var keyLeaves []string
+	if listEntry := c.getEntry(listPath); listEntry != nil {
+		keyLeaves = strings.Fields(listEntry.Key)
+	}
 	taken := make(map[string]bool, entryCount)
 	for _, entry := range orderedEntries {
-		taken[entry.Key] = true
+		taken[config.ListKeyFirstValue(keyLeaves, entry.Key)] = true
 	}
 	vocabulary := enumKeyVocabulary(keyEntry, c.enumValueSummaries(keyEntry), taken)
 
@@ -707,6 +760,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 	}
 
 	// Multiple entries — show actual keys for named entries, #N for unnamed
+	offered := make(map[string]bool, entryCount)
 	for i, entry := range orderedEntries {
 		if isDefaultKey(entry.Key) {
 			// Unnamed entry — show as positional ID
@@ -718,10 +772,11 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 					Type:      completionListKey,
 				})
 			}
-		} else if prefix == "" || strings.HasPrefix(entry.Key, prefix) {
-			// Named entry — show actual key
+		} else if first := config.ListKeyFirstValue(keyLeaves, entry.Key); !offered[first] && (prefix == "" || strings.HasPrefix(first, prefix)) {
+			// Named entry — show actual key (its first value for a multi-leaf key)
+			offered[first] = true
 			completions = append(completions, Completion{
-				Text:      entry.Key,
+				Text:      first,
 				ShortHelp: listName,
 				Type:      completionListKey,
 			})

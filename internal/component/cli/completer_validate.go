@@ -88,8 +88,10 @@ func (c *Completer) validateTokenPath(tokens []string) error {
 	return nil
 }
 
-// getListKeyEntry returns the YANG entry for a list's key leaf.
-// For example, peer list with key "address" returns the address leaf entry.
+// getListKeyEntry returns the YANG entry for a list's first key leaf, the
+// one the first value of an entry address is typed for.
+// For example, peer list with key "address" returns the address leaf entry,
+// and single-hop-session with key "peer vrf interface" returns peer.
 func (c *Completer) getListKeyEntry(listPath []string) *gyang.Entry {
 	listEntry := c.getEntry(listPath)
 	if listEntry == nil || !listEntry.IsList() || listEntry.Key == "" {
@@ -98,7 +100,7 @@ func (c *Completer) getListKeyEntry(listPath []string) *gyang.Entry {
 	if listEntry.Dir == nil {
 		return nil
 	}
-	keyLeaf, ok := listEntry.Dir[listEntry.Key]
+	keyLeaf, ok := listEntry.Dir[strings.Fields(listEntry.Key)[0]]
 	if !ok {
 		return nil
 	}

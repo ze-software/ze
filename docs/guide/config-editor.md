@@ -402,6 +402,9 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
 - Address family names from registered plugins
 - The keys of a list whose key is an enumeration, including the ones the config
   does not hold yet, each with the help text the schema declares
+- For a list whose key names several leaves (`bfd single-hop-session`, keyed
+  `peer vrf interface`), the first value of each configured entry, once, so
+  one peer on two links is offered once; the key leaf names follow it
 - Well-known values a plugin offers for one of its own leaves, such as the
   transit-free ASNs on `bgp policy reject-asn ... via`
 <!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, listKeyCompletions -->
