@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-13 |
+| Updated | 2026-10-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -55,21 +55,23 @@ is not identity"); this spec owns the restart half only.
 
 ## Owner decisions
 
-| Row | Question |
-|-----|----------|
-| D3 | Which restart-unique scheme makes the Acct-Session-Id unique across restarts: a boot counter kept in storage, or a time component? |
+| Row | Question | Owner answer |
+|-----|----------|--------------|
+| D3 | Which restart-unique scheme makes the Acct-Session-Id unique across restarts? | **Owner, 2026-10-13: "c"** (a time-based boot tag in Acct-Session-Id). Design under Q-1 below |
+| D1 | Recognise ARAP-Password in the credential exclusivity check? | **Owner, 2026-10-13: "i"** (Q-4) |
+| D2 | Duplicate key | **Owner, 2026-10-14: "B"** (Q-2) |
 
 ### Owner questions raised by the 2026-10-13 design (each states the reading the design proceeds under)
 
 | ID | Question | Design proceeds under | Why it needs the owner |
 |----|----------|-----------------------|------------------------|
-| Q-1 (D3, replaces the row above) | Restart-unique scheme: (a) a random per-process boot tag from `crypto/rand`, (b) a boot counter persisted in storage, (c) a time component | (a), a 64-bit random boot tag, hex, minted once in `newRADIUSAcct` | Format of an operator-visible billing key. (c) is rejected in design: a gokrazy appliance with no RTC can start two boots at the same pre-NTP wall time. (b) adds a storage write on every start and a new failure mode. (a) is probabilistic (two boots collide with probability 2^-64) |
-| Q-2 (D2) | Duplicate key: (A) source IP, source port, Code, Identifier only, the RFC's literal triple; (B) the same plus the Request Authenticator as a tie-breaker, so a same-triple request with a different Authenticator is processed as new and replaces the cache entry | (B) | Changes when a CoA is applied. (A) answers a genuinely new request with a stale cached answer when a busy DAC wraps its 8-bit Identifier on one port within the 5-minute window. (B) is what RFC 5080 Section 2.2.2 prescribes for the Access-Request analog (quoted under Required Reading). RFC 5176 Section 2.3 forbids a legitimate retransmission from changing its Authenticator, so (B) still answers every legitimate retransmission from the cache |
-| Q-3 (D1, D2) | Approve changing five RFC-tagged tests (list under TDD Test Plan, "Tagged tests that change"): the four D2 units whose duplicate copies come from a fresh socket each, so they would stop exercising the cache once the port is in the key (`TestRFC5176DuplicateRequestAnsweredFromCache` RFC5176-2.3-2, `TestRFC5176DuplicateAndTimestampWindowsBothHoldInside` and `...EndOutside` RFC5176-6.3-2, `TestDisconnectReplayReturnsCachedResponse` RFC5176-3.3-1), plus the D1 unit `TestAccessRequestRefusesTwoCredentialTypes` (RFC3579-3.3-2 negative), whose body grows from two pairs to six. The fifth was missing from this list until the 2026-10-13 RFC-tagged test review: a tagged unit whose body changes needs the same approval | **Answered by the owner, 2026-10-13: "approve all RFC-tagged test changes".** The approval covers the five units listed under "Tagged tests that change", for whichever Q-2 answer is recorded (the prose of `TestRFC5176DuplicateRequestAnsweredFromCache` names the Q-2 (B) consequence); it does not answer Q-2. The commands are under "Owner approval commands" in the TDD plan | `ai/rules/rule-precedence.md`: changing an RFC-tagged test needs the owner |
-| Q-4 (D1) | ARAP-Password: (i) add type 70 to the exclusive credential set by a literal, unexported value in `client.go`, keeping `dict.go` free of any ARAP constant; (ii) refuse any ARAP-family attribute (70-74, 84) in an Access-Request outright, as RFC 2869 Section 1.1 forbids Ze implementing them | (i) | (ii) is stricter than RFC 3579 and makes "ARAP-Password alone encodes" false, which the skeleton's "each single credential type encodes" obligation assumed. (i) recognises the type to refuse a pair, which is not implementing the ARAP service |
-| Q-5 (D1) | Also extend the RFC2869-5.19-1 tests (same sentence, verdict `enforced`, `rfc2869_credential_types_test.go`) with the ARAP pairs, or only correct their header comment "ARAP-Password is not driven" | correct the comment, leave the enforced bodies alone, and ADD the RFC2869-5.19-1 tag (both polarities where the body supports them) to the new ARAP tests (`TestRFC3579ARAPBesideEAPIsRefusedAtExchange`, `TestRFC3579EachCredentialTypeAloneEncodes`). Revised 2026-10-13 after the RFC-tagged test review: RFC 2869 Section 5.19 Note 1 is the same four-type sentence as RFC 3579 Section 3.3 Note 1, and the existing tests drive EAP beside User-Password and CHAP-Password only, so a comment fix alone keeps an `enforced` verdict over three of four types (UNDER-TEST) | Changing an `enforced` verdict's tagged test needs the owner; adding a tag to a new unit does not change an existing body. The comment becomes false the moment D1 lands (`ai/rules/stale-comments.md`) |
-| Q-6 (D3, scope) | `coa.go::findSessions` matches a CoA's Acct-Session-Id by the "tunnelID-sessionID-" prefix and ignores the rest, so a Disconnect-Request carrying a previous session's (or previous boot's) id tears down whichever current session reuses that tunnel and session number. Fix here (exact match against the accountant's recorded id) or route to `plan/immediate/spec-rfc5176-remaining-defect-classes.md` | out of scope here; this spec keeps the prefix so the match is unchanged, and the implementer writes a journal row if the owner routes it elsewhere | Scope change. It is code related to the id format this spec changes, so `ai/rules/rule-precedence.md` would allow fixing it on the spot, but it changes which CoA tears down which session |
-| Q-7 (interop) | D2 and D3 interop need FreeRADIUS beside a live L2TP session, which no lab has: the L2TP lab's RADIUS peer is `internal/le/interoplab/l2tp/radiusmock/` (Ze's own Go program) and the FreeRADIUS suite has no L2TP. Add a FreeRADIUS container (radclient + accounting `detail` log) to the L2TP lab, or share the planned `radius-coa-disconnect-freeradius` scenario of `spec-rfc-verdict-fix-access` | add to the L2TP lab, two new named scenarios (Interop Tests table) | Lab work larger than the three producer fixes; the owner may prefer one shared FreeRADIUS-in-L2TP lab change for both specs |
+| Q-1 (D3, replaces the row above) | Restart-unique scheme for the Acct-Session-Id | **Answered by the owner, 2026-10-13: "c" (time-based boot tag in Acct-Session-Id).** Design (2026-10-14): the boot tag is the accountant's construction time AND a random part, both minted once in `newRADIUSAcct`: 8 hex digits of the Unix seconds read from `acctNow`, then 16 hex digits (64 bits) from `crypto/rand`. The id becomes "tunnel-session-tag-counter" | Format of an operator-visible billing key. Why time plus random and not "wait for a synced clock", read at the producers on 2026-10-14: (1) ze learns that the clock is synced only inside the NTP plugin (`internal/plugins/ntp/ntp.go::syncWorker`, `synced atomic.Bool`, and the `clock-synced` event of `internal/plugins/ntp/events/events.go::EventClockSynced`, emitted once after the first successful sync), and only when ze's own NTP is configured. With NTP unconfigured, or the clock set by another daemon, no signal ever arrives, so waiting needs a timeout and a second scheme behind it (`ai/rules/no-layering.md`), and it holds every Accounting-Start until NTP answers. (2) Before NTP answers, the clock of an appliance with no RTC is the time `syncWorker.run` restored from the store at boot (Phase 1, `persist.go::loadTime`), so two boots that both end before the next `saveTime` start at the same wall time: time alone repeats a tag. The random part makes a repeat need equal seconds AND equal 64 random bits; the time part orders boots in the server's log once the clock is real. Tests for both under the TDD plan |
+| Q-2 (D2) | Duplicate key | **Answered by the owner, 2026-10-14: "B"**, after "I do not see the benefit of B / issue with A can you explain". Duplicate key = source IP, source port, Identifier, plus the Request Authenticator: a same-triple request with a different Authenticator is processed as new and replaces the cache entry. RFC 5080 Section 2.2.2 quoted verbatim under Required Reading | Changes when a CoA is applied. Without the Authenticator, a busy DAC that wraps its 8-bit Identifier on one port within the 5-minute window gets a genuinely new request answered with a stale cached response. RFC 5176 Section 2.3 forbids a legitimate retransmission from changing its Authenticator, so (B) still answers every legitimate retransmission from the cache. The Code leaves the key: the Request Authenticator hashes the Code (RFC 2866 Section 3: "Code + Identifier + Length + 16 zero octets + request attributes + shared secret", which RFC 5176 Section 2.3 adopts: "The Request Authenticator is calculated the same way as for an Accounting-Request, specified in [RFC2866]."), so a CoA-Request and a Disconnect-Request sharing a source port and Identifier differ in Authenticator and are processed as distinct requests |
+| Q-3 (D1, D2) | Approve changing five RFC-tagged tests (list under TDD Test Plan, "Tagged tests that change"): the four D2 units whose duplicate copies come from a fresh socket each, so they would stop exercising the cache once the port is in the key (`TestRFC5176DuplicateRequestAnsweredFromCache` RFC5176-2.3-2, `TestRFC5176DuplicateAndTimestampWindowsBothHoldInside` and `...EndOutside` RFC5176-6.3-2, `TestDisconnectReplayReturnsCachedResponse` RFC5176-3.3-1), plus the D1 unit `TestAccessRequestRefusesTwoCredentialTypes` (RFC3579-3.3-2 negative), whose body grows from two pairs to six. The fifth was missing from this list until the 2026-10-13 RFC-tagged test review: a tagged unit whose body changes needs the same approval | **Answered by the owner, 2026-10-13: "approve all RFC-tagged test changes".** The approval covers every unit listed under "Tagged tests that change" (the five above, and the two RFC 2869 units Q-5 "fix and extend" adds); Q-2 is answered separately ("B", 2026-10-14), and the prose of `TestRFC5176DuplicateRequestAnsweredFromCache` names its consequence. The commands are under "Owner approval commands" in the TDD plan | `ai/rules/rule-precedence.md`: changing an RFC-tagged test needs the owner |
+| Q-4 (D1) | ARAP-Password in the credential exclusivity check | **Answered by the owner, 2026-10-13: "i" (recognise ARAP-Password type 70 in credential exclusivity).** Type 70 joins the exclusive credential set of `client.go::oneCredentialType` by a literal, unexported value in `client.go`; `dict.go` stays free of any ARAP constant | (i) recognises the type to refuse a pair, which is not implementing the ARAP service that RFC 2869 Section 1.1 forbids; ARAP-Password alone still encodes (AC-1b) |
+| Q-5 (D1) | The RFC2869-5.19-1 tests (same four-type sentence, verdict `enforced`, `rfc2869_credential_types_test.go`) | **Answered by the owner, 2026-10-13: "fix and extend"** (fix the wrong comment AND extend the existing RFC 2869 tagged credential tests with ARAP cases; tagged-test changes approved 2026-10-13). The header comment "ARAP-Password is not driven" is corrected, `TestRFC2869EAPBesideAnotherCredentialIsRefused` gains ARAP-Password (literal 70) beside EAP-Message, and `TestRFC2869EAPOnlyAccessRequestIsSent` gains the ARAP-Password absence assertion. The new ARAP tests carry the RFC3579-3.3-2 tag only, since the RFC2869-5.19-1 carriers now drive ARAP themselves | RFC 2869 Section 5.19 Note 1 is the same four-type sentence as RFC 3579 Section 3.3 Note 1; at HEAD the tests drive EAP beside User-Password and CHAP-Password only. The approval commands are under "Owner approval commands" |
+| Q-6 (D3, scope) | `coa.go::findSessions` matches a CoA's Acct-Session-Id by the "tunnelID-sessionID-" prefix and ignores the rest, so a Disconnect-Request carrying a previous session's (or previous boot's) id tears down whichever current session reuses that tunnel and session number | **Answered by the owner, 2026-10-14: "whatever"**; the recommendation is taken: the prefix-match fix belongs to `plan/immediate/spec-rfc5176-remaining-defect-classes.md` (its S-1 and AC-1; its Q-1 records the move, answered by this question). This spec keeps the "tunnelID-sessionID-" prefix (R-5) and the Acct-Session-Id format work; that spec's exact match is format-agnostic | It changes which CoA tears down which session, so it lives with the CoA matching work |
+| Q-7 (interop) | D2 and D3 interop need FreeRADIUS in front of Ze's CoA listener and accountant | **Answered by the owner, 2026-10-14: "Make Free radius, its own lab."** Design under "Interop Tests": a FreeRADIUS lab of its own, `interop-radius-subscriber`, separate from the L2TP lab and from the admin-login suite, shared with `plan/immediate/spec-rfc5176-remaining-defect-classes.md` (its Q-7) | Lab work larger than the three producer fixes; one lab serves both specs |
 
 ## Required Reading
 
@@ -91,8 +93,9 @@ is not identity"); this spec owns the restart half only.
 - [ ] `rfc/short/rfc5176.md` line 173 (RFC5176-2.3-2), `rfc/full/rfc5176.txt` Section 2.3, "Identifier"
   → Constraint: RFC 5176 Section 2.3: "A Dynamic Authorization Server implementing this specification MUST be capable of detecting a duplicate request if it has the same source IP address, source UDP port, and Identifier within a short span of time."
   → Constraint: RFC 5176 Section 2.3: "If the Dynamic Authorization Client is retransmitting a Disconnect-Request or CoA-Request to the same Dynamic Authorization Server as before, and the attributes haven't changed, the same Request Authenticator, Identifier, and source port MUST be used. If any attributes have changed, a new Authenticator and Identifier MUST be used." So a legitimate retransmission carries the same Authenticator, and keeping the Authenticator in the key loses no legitimate duplicate.
-- [ ] RFC 5080 Section 2.2.2 (NOT enrolled, RFC scope frozen 2026-10-08; read from the session scratch copy fetched from rfc-editor.org, cited as design support only, never as a requirement)
-  → Decision: RFC 5080 Section 2.2.2: "Cache entries MUST also be purged if the server receives a valid Access-Request packet that matches a cached Access-Request packet in source address, source port, RADIUS Identifier, and receiving socket, but where the Request Authenticator field is different from the one in the cached packet." This is the shape of Q-2 option (B).
+- [ ] `rfc/full/rfc5080.txt` Section 2.2.2 (fetched from rfc-editor.org on 2026-10-14 for reading; NOT enrolled, no `rfc/short/` summary, RFC scope frozen 2026-10-08; cited as design support only, never as a requirement)
+  → Decision (Q-2, owner "B"): RFC 5080 Section 2.2.2: "Cache entries MUST also be purged if the server receives a valid Access-Request packet that matches a cached Access-Request packet in source address, source port, RADIUS Identifier, and receiving socket, but where the Request Authenticator field is different from the one in the cached packet." The CoA key follows that shape. "Receiving socket" is implicit: each `coaListener` owns one socket and its own replay map.
+  → Constraint: RFC 5080 Section 2.2.2: "Packets with invalid Message-Authenticators MUST NOT affect the cache in any way." Ze already satisfies it by order: `handlePacket` runs `cachedReplay` only after the Request Authenticator and Message-Authenticator checks.
 - [ ] `rfc/short/rfc2866.md` line 134 (RFC2866-5.5-1), `rfc/full/rfc2866.txt` Section 5.5
   → Constraint: RFC 2866 Section 5.5: "This attribute is a unique Accounting ID to make it easy to match start and stop records in a log file." The row is tagged [MUST] although the sentence carries no keyword; the same section's example reserves digits for reboots: "the first two digits increment on each reboot (wrapping every 256 reboots)".
   → Constraint: RFC 2866 Section 5.5: "The start and stop records for a given session MUST have the same Acct-Session-Id." The new id is minted once per session at `onSessionIPAssigned` and stored in `acctSession.acctSessID`; that must not change.
@@ -100,7 +103,9 @@ is not identity"); this spec owns the restart half only.
 **Key insights:**
 - All three verdicts are `weak` at HEAD and the gate is green: the defect is in what the producers do, not in tag resolution.
 - D2's port fix breaks four tagged tests by construction, because every test helper (`sendRawCoAPacket`, `coaRawExchange`) dials a fresh UDP socket per send; their "duplicate" copies only matched because the port was ignored.
-- D3's id is parsed back by `coa.go::findSessions` ("tunnelID-sessionID-" prefix); the new format keeps that prefix.
+- D3's id is parsed back by `coa.go::findSessions` ("tunnelID-sessionID-" prefix); the new format keeps that prefix. The stale-id prefix match itself is S-1 of `spec-rfc5176-remaining-defect-classes` (Q-6).
+- Ze accounts and disconnects L2TP sessions only, verified 2026-10-14: `acct.go::subscribeEventBus` subscribes `l2tpevents.SessionIPAssigned` and `SessionDown` only; the one L2TP emitter of `SessionIPAssigned` is `internal/component/l2tp/reactor_kernel.go` (line 367), after a kernel session has an address; `findSessions` reads `l2tp.LookupService()`, which `service_locator.go::PublishService` fills only from the Subsystem's Start. An interop lab for D2 and D3 therefore needs a live kernel L2TP session (Q-7).
+- Ze's clock-sync knowledge, verified 2026-10-14: only `internal/plugins/ntp` knows (`syncWorker.synced`, event `clock-synced`), only when ze's NTP is configured, and its Phase 1 restores the last saved time before any sync (`ntp.go::syncWorker.run`, `persist.go::loadTime`). Q-1 rests on both facts.
 - D1 has no wire-visible change for any request Ze builds (no builder emits ARAP-Password); it guards `Client.Exchange`, an exported entry point.
 
 ## Current Behavior (MANDATORY)
@@ -180,17 +185,18 @@ is not identity"); this spec owns the restart half only.
 | R-1 | Adding the port makes the four fresh-socket tests either red (Inside, FromCache, Replay) or vacuous (EndOutside: it would pass because the port differs, not because the window expired) | the tests' teardown counts | rewrite their sends to reuse one socket (Q-3); re-record discrimination for each |
 | R-2 | (B) leaves a cache entry keyed on the triple; a new request with a different Authenticator must REPLACE it, or a later retransmission of the first request would be answered with the second's response | a test: request X, request Y same triple, retransmit X | key on the triple, store the Authenticator in the entry, compare on lookup, overwrite on `rememberReplay` |
 | R-3 | Two DACs behind one NAT with the same Identifier are now distinct only by port; a NAT that rewrites ports between retransmissions defeats detection | none in tests | inherent in RFC 5176 Section 2.3's triple; documented in `docs/guide/l2tp.md` |
-| R-4 | A longer Acct-Session-Id overflows a server column | FreeRADIUS `radacct.acctsessionid` is varchar(64) in its stock schema | 16 hex digits of boot tag keeps the id under 40 characters for 5-digit tunnel and session numbers and a 10-digit counter |
+| R-4 | A longer Acct-Session-Id overflows a server column | FreeRADIUS `radacct.acctsessionid` is varchar(64) in its stock schema | the 24-hex-digit boot tag (8 time, 16 random) keeps the id at 47 characters at most: 5-digit tunnel and session numbers, three dashes, the tag and a 10-digit counter |
 | R-5 | The changed id format confuses `findSessions` | `TestDisconnect*` and CoA match tests | keep "T-S-" first; boot tag and counter follow |
 | R-6 | A retired accountant (`detach`) mints no id, but a future change could construct a second `radiusAcct` in one process with a new tag | none | the tag is per accountant; two accountants in one process each have a unique tag, so uniqueness still holds |
-| R-7 | The interop lab change (FreeRADIUS in the L2TP lab) is larger than the code fix and needs the PPPoL2TP kernel module | lab preflight refusal | Q-7; the scenario names are fixed here so the lab work can be shared |
+| R-7 | The new `interop-radius-subscriber` lab is larger than the code fix and needs the PPPoL2TP kernel module for its session source | lab preflight refusal | Q-7: one lab shared with `spec-rfc5176-remaining-defect-classes`; the scenario names are fixed here |
+| R-8 | The restored pre-NTP clock repeats across two boots, so the time part of the tag repeats | AC-3c test with a fixed `acctNow` | the 64-bit random part still differs; a repeat needs equal seconds and equal random bits |
 
 ## Blast Radius
 | Question | Answer |
 |----------|--------|
 | What breaks if this is wrong? | D1: an Access-Request refused (none Ze builds today). D2: a CoA applied twice or answered from a stale cache. D3: billing records that do not join, or a CoA that matches no session |
-| How is it reverted? | single commit revert per defect; no config or storage migration under Q-1 (a) |
-| Who else touches this path? | `spec-rfc5176-remaining-defect-classes` (coa.go matching and atomicity), `spec-lifecycle-invariants` (acct.go D-6, RFC2866-5.5-1), `spec-rfc-verdict-fix-access` (verdicts, planned `radius-coa-disconnect-freeradius`) |
+| How is it reverted? | single commit revert per defect; the Q-1 boot tag needs no config or storage migration |
+| Who else touches this path? | `spec-rfc5176-remaining-defect-classes` (coa.go matching and atomicity, the stale-id prefix match moved there by Q-6, and the shared `interop-radius-subscriber` lab of Q-7), `spec-lifecycle-invariants` (acct.go D-6, RFC2866-5.5-1), `spec-rfc-verdict-fix-access` (verdicts, planned `radius-coa-disconnect-freeradius`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -216,22 +222,26 @@ is not identity"); this spec owns the restart half only.
 | AC-1a | an Access-Request through `encodeRequest` carrying each of the six pairs of {User-Password, CHAP-Password, ARAP-Password (type 70), EAP-Message} | each refused with an error containing "one credential type" and naming both attribute names; no octets encoded |
 | AC-1b | an Access-Request carrying exactly one of the four types (EAP-Message with its Message-Authenticator; ARAP-Password alone) | encodes (n > 0, no error) under Q-4 (i) |
 | AC-1c | EAP-Message plus ARAP-Password through `Client.Exchange` to a capture server | `Exchange` returns an error and the server reads zero datagrams |
+| AC-1e | (Q-5) `TestRFC2869EAPBesideAnotherCredentialIsRefused` with ARAP-Password (literal 70) beside EAP-Message through `Client.Exchange`; `TestRFC2869EAPOnlyAccessRequestIsSent` | the ARAP pair is refused with zero datagrams on the wire; the EAP-only datagram carries no attribute of type 70 |
 | AC-1d | `dict.go` after the fix | declares no `Attr*` constant valued 70; `TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService` still passes unchanged |
 | AC-2a | a Disconnect-Request sent twice, byte-identical, from ONE client socket (same IP, port, Identifier, Authenticator) | both answered with identical octets; the session is torn down once (teardowns == 1) |
 | AC-2b | the same wire sent from two different client sockets (same IP and Identifier, different source port) | not a duplicate: the second is processed afresh (teardowns == 2 against a service whose session survives teardown, or its own fresh answer) |
+| AC-2e | (Q-2 B, wrapped Identifier) from one socket within the window: request X with Identifier 0, then 255 further distinct requests with Identifiers 1 to 255, then a new request Z with Identifier 0 again and different attributes (so a different Authenticator) | Z is processed afresh, never answered with X's cached response; then X's wire again from the same socket is processed afresh too, because Z replaced the entry |
 | AC-2c | under Q-2 (B): request X, then request Y from the same socket with the same Identifier but a different Authenticator, then X's wire again | Y is processed afresh (not answered with X's cached response); X's retransmission after Y is processed afresh too, because Y replaced the entry |
 | AC-2d | `TestRFC5176DuplicateAndTimestampWindowsBothHoldInside` / `EndOutside` rewritten to send from one socket | inside the window the duplicate is answered from the cache; past it, processed again; the negative goes red if `pruneReplayLocked` is disabled (not merely because the port differs) |
 | AC-3a | two accountants constructed in turn (a simulated process restart), each starting a session with the same tunnel and session ids | the two Accounting-Start records carry different Acct-Session-Id values |
 | AC-3b | one accountant, one session, Start, Interim-Update and Stop | all three carry the same Acct-Session-Id, which begins "<tunnel>-<session>-" |
 | AC-3c | a Disconnect-Request carrying a current session's Acct-Session-Id | `findSessions` still matches it (existing CoA tests stay green with ids from the new format) |
+| AC-3d | (Q-1, clock repeats: a box with no RTC that boots before NTP) two accountants constructed with `acctNow` fixed to the SAME second, each starting a session with the same tunnel and session ids | the two Acct-Session-Id values differ; their 8 time digits are equal and their 16 random digits differ |
+| AC-3e | (Q-1, clock advances) two accountants with the random source replaced by one constant byte sequence and `acctNow` set to two different seconds | the two Acct-Session-Id values differ; each tag's first 8 hex digits are that accountant's `acctNow` Unix seconds |
 | AC-5 | every tagged unit this spec adds or whose claim it changes | carries a discrimination record from `./le rfc discriminate-record`, observed red against a revert of its producer |
 
 ## End-to-End User Stories
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | an operator's RADIUS server retransmits a Disconnect-Request after a lost ACK | UDP 3799 → `serve` → `handlePacket` → `cachedReplay` → `sendRawResponse` | `TestRFC5176DuplicateIsSameSourcePortAndIdentifier`; interop `l2tp-radius-coa-duplicate-freeradius` |
-| 2 | two DACs behind one NAT address send Disconnect-Requests with the same Identifier | UDP 3799 → `handlePacket` → miss in `cachedReplay` → `handleDisconnect` | `TestRFC5176DifferentSourcePortIsNotADuplicate`; interop `l2tp-radius-coa-duplicate-freeradius` |
-| 3 | the operator restarts ze; subscribers reconnect on the same tunnel and session numbers; billing joins Start and Stop records in the server log | `SessionIPAssigned` → `onSessionIPAssigned` → `genSessionID` → `buildAcctPacket` → server log | `TestRFC2866AcctSessionIDUniqueAcrossRestart`; interop `l2tp-radius-acct-restart-freeradius` |
+| 1 | an operator's RADIUS server retransmits a Disconnect-Request after a lost ACK | UDP 3799 → `serve` → `handlePacket` → `cachedReplay` → `sendRawResponse` | `TestRFC5176DuplicateIsSameSourcePortAndIdentifier`; interop `radius-coa-duplicate-freeradius` |
+| 2 | two DACs behind one NAT address send Disconnect-Requests with the same Identifier | UDP 3799 → `handlePacket` → miss in `cachedReplay` → `handleDisconnect` | `TestRFC5176DifferentSourcePortIsNotADuplicate`; interop `radius-coa-duplicate-freeradius` |
+| 3 | the operator restarts ze; subscribers reconnect on the same tunnel and session numbers; billing joins Start and Stop records in the server log | `SessionIPAssigned` → `onSessionIPAssigned` → `genSessionID` → `buildAcctPacket` → server log | `TestRFC2866AcctSessionIDUniqueAcrossRestart`; interop `radius-acct-restart-freeradius` |
 
 ## 🧪 TDD Test Plan
 
@@ -239,13 +249,16 @@ is not identity"); this spec owns the restart half only.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestAccessRequestRefusesTwoCredentialTypes` (extended: all six pairs, ARAP via literal 70) | `internal/component/radius/authenticator_eap_test.go` | AC-1a; RFC3579-3.3-2 negative. Red at HEAD for the three ARAP pairs and passes for UP+CHAP (already refused) | |
-| `TestRFC3579EachCredentialTypeAloneEncodes` (new) | `internal/component/radius/authenticator_eap_test.go` | AC-1b; RFC3579-3.3-2 positive and RFC2869-5.19-1 positive (Q-5 reading). Green at HEAD (control for the negative) | |
-| `TestRFC3579ARAPBesideEAPIsRefusedAtExchange` (new) | `internal/component/radius/rfc2869_credential_types_test.go` or a new `rfc3579_credential_types_test.go` | AC-1c; RFC3579-3.3-2 negative and RFC2869-5.19-1 negative (Q-5 reading) at the public entry point. Red at HEAD | |
+| `TestRFC3579EachCredentialTypeAloneEncodes` (new) | `internal/component/radius/authenticator_eap_test.go` | AC-1b; RFC3579-3.3-2 positive. Green at HEAD (control for the negative) | |
+| `TestRFC3579ARAPBesideEAPIsRefusedAtExchange` (new) | a new `internal/component/radius/rfc3579_credential_types_test.go` | AC-1c; RFC3579-3.3-2 negative at the public entry point. Red at HEAD | |
 | `TestRFC5176DuplicateIsSameSourcePortAndIdentifier` (new) | `internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go` | AC-2a; RFC5176-2.3-2 positive over one socket | |
 | `TestRFC5176DifferentSourcePortIsNotADuplicate` (new) | same file | AC-2b; RFC5176-2.3-2 negative. Red at HEAD (HEAD answers the second port from the cache) | |
 | `TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh` (new) | same file | AC-2c (Q-2 B), including the replace-then-retransmit order of R-2 | |
+| `TestRFC5176WrappedIdentifierIsProcessedAfresh` (new) | same file | AC-2e; RFC5176-2.3-2 negative (Q-2 B): a wrapped Identifier with a new Authenticator is not a duplicate. Red at HEAD in its second half: HEAD keeps the Authenticator in the key, so X's entry survives beside Z's and X's wire after Z is answered from the cache. Discrimination breaks: drop the Authenticator comparison (Z answered with X's response), or keep X's entry on a mismatch (X answered from the cache) | |
 | `TestRFC2866AcctSessionIDUniqueAcrossRestart` (new) | `internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go` | AC-3a; RFC2866-5.5-1 positive. Red at HEAD (both ids "1-2-1") | |
 | `TestRFC2866AcctSessionIDKeepsTunnelSessionPrefix` (new) | same file | AC-3b, AC-3c; preserves the `findSessions` contract | |
+| `TestRFC2866AcctSessionIDUniqueWhenClockRepeats` (new) | same file | AC-3d; RFC2866-5.5-1 positive for a pre-NTP boot: `acctNow` fixed to one second for both accountants. Red at HEAD (both ids "1-2-1"); discrimination break: drop the random part | |
+| `TestRFC2866AcctSessionIDTagCarriesBootTime` (new) | same file | AC-3e: random source replaced by constant bytes, two `acctNow` seconds; ids differ and each tag opens with its seconds in hex. Untagged (the time part orders boots; uniqueness is AC-3d's claim); its red is observed against a build with the time part removed | |
 | `TestReplayKeyCarriesSourcePort` (new, untagged) | `internal/component/l2tp/plugins/authradius/coa_test.go` or beside the walk tests | the key differs for two `*net.UDPAddr` differing only in port | |
 
 ### Tagged tests that change (owner approval needed, Q-3 and Q-5)
@@ -256,19 +269,32 @@ is not identity"); this spec owns the restart half only.
 | `TestRFC5176DuplicateAndTimestampWindowsBothEndOutside` | `authradius/rfc5176_section_rows_test.go` | RFC5176-6.3-2 (`enforced`) | same | stays green but VACUOUS otherwise: the second copy would be processed because the port differs, not because the window expired |
 | `TestDisconnectReplayReturnsCachedResponse` | `authradius/rfc5176_coa_listener_test.go` | RFC5176-3.3-1 (`enforced`) | the replay goes out on the first socket | goes red otherwise. The tag claims only "a valid Acct-Session-Id acts on the matching session" and the replay half is untagged, so the claim is unchanged. `spec-rfc5176-remaining-defect-classes` also edits this unit's fixture: the two edits are coordinated, whichever spec lands second rebases onto the other |
 | `TestAccessRequestRefusesTwoCredentialTypes` | `radius/authenticator_eap_test.go` | RFC3579-3.3-2 negative | extended to all six pairs of the four types, ARAP via literal 70 (AC-1a) | at HEAD its tag quotes the whole four-type sentence while the body tests two pairs (OVER-CLAIM at HEAD); the extension makes the claim true |
-| `rfc2869_credential_types_test.go` header comment only (Q-5 reading) | `radius/rfc2869_credential_types_test.go` | RFC2869-5.19-1 (`enforced`) | "ARAP-Password is not driven" corrected to name where the ARAP pairs are proven; the RFC2869-5.19-1 tag is ADDED to the new ARAP tests, so the four-type sentence has a tagged carrier for every type | becomes false when D1 lands; no assertion change in the enforced units under the Q-5 reading |
+| `TestRFC2869EAPBesideAnotherCredentialIsRefused` | `radius/rfc2869_credential_types_test.go` | RFC2869-5.19-1 negative (`enforced`) | (Q-5 "fix and extend") the map of other credentials gains "ARAP-Password", an attribute of type 70 named by the same unexported literal `client.go` uses; the tag prose names ARAP-Password beside EAP-Message (AC-1e) | at HEAD the tag quotes the four-type sentence while the body drives two of the three EAP pairs; red at HEAD for the ARAP pair |
+| `TestRFC2869EAPOnlyAccessRequestIsSent` | `radius/rfc2869_credential_types_test.go` | RFC2869-5.19-1 positive (`enforced`) | (Q-5) asserts the sent datagram carries no attribute of type 70; the tag prose names "none of User-Password, CHAP-Password or ARAP-Password" (AC-1e) | the positive names three of the four types at HEAD |
+| `rfc2869_credential_types_test.go` header comment | `radius/rfc2869_credential_types_test.go` | - (outside every unit) | (Q-5) "ARAP-Password is not driven" replaced by: ARAP-Password is recognised by literal 70 and driven beside EAP-Message here, while `dict.go` still declares no ARAP attribute | false once D1 lands (`ai/rules/stale-comments.md`) |
 | `encodeRequest` caller comment (code, not a test) | `radius/client.go` | - | "ARAP-Password is not named" replaced | stale once 70 is in the set |
 
 `TestRFC2866AcctSessionIDUnique` and `TestRFC2866AcctSessionIDNoCollisionOnReusedKey` do not change: both stay true with the boot tag.
-Every changed tagged unit stales its `rfc/discrimination/<stem>.json` record (rfc5176: 5 units, rfc3579: 1 unit, per a grep on 2026-10-13); each is re-recorded by `./le rfc discriminate-record`.
+Every changed tagged unit stales its `rfc/discrimination/<stem>.json` record (rfc5176: 5 units, rfc3579: 1 unit, per a grep on 2026-10-13; rfc2869: the 2 Q-5 units, whose records sit at `rfc/discrimination/rfc2869.json` lines 73 and 84 on 2026-10-14); each is re-recorded by `./le rfc discriminate-record`.
+
+Discrimination records owed (`./le rfc discriminate-record`, AC-5), one per unit:
+
+| Stem | Changed units (re-record) | New tagged units (first record) |
+|------|---------------------------|---------------------------------|
+| rfc3579 | `TestAccessRequestRefusesTwoCredentialTypes` | `TestRFC3579EachCredentialTypeAloneEncodes`, `TestRFC3579ARAPBesideEAPIsRefusedAtExchange` |
+| rfc2869 | `TestRFC2869EAPBesideAnotherCredentialIsRefused`, `TestRFC2869EAPOnlyAccessRequestIsSent` | - |
+| rfc5176 | `TestRFC5176DuplicateRequestAnsweredFromCache`, `TestRFC5176DuplicateAndTimestampWindowsBothHoldInside`, `TestRFC5176DuplicateAndTimestampWindowsBothEndOutside`, `TestDisconnectReplayReturnsCachedResponse` (five records: `TestRFC5176DuplicateRequestAnsweredFromCache` holds two, grep of `rfc/discrimination/rfc5176.json` on 2026-10-14) | `TestRFC5176DuplicateIsSameSourcePortAndIdentifier`, `TestRFC5176DifferentSourcePortIsNotADuplicate`, `TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh`, `TestRFC5176WrappedIdentifierIsProcessedAfresh` |
+| rfc2866 | - | `TestRFC2866AcctSessionIDUniqueAcrossRestart`, `TestRFC2866AcctSessionIDUniqueWhenClockRepeats`, `TestRFC2866AcctSessionIDKeepsTunnelSessionPrefix` if tagged |
 
 #### Owner approval commands
 
-Approved by the owner on 2026-10-13 (Q-3). The gate reads approvals from the committing session's own file (`tmp/commit-rfc-approved-<session>.md`), and a row is used up by the commit that carries its `RFC-approved:` trailer. So the owner runs these at the prompt of the session that implements and commits the edits, and runs a unit's command again if a later commit changes that unit a second time. A unit is `<package directory>.<top-level test function>`. Every name was checked to exist at HEAD `051876c3f4`. The `rfc2869_credential_types_test.go` header comment (Q-5 reading) sits above the file's first function, outside every tagged unit, so the gate does not ask for it and it has no command; the new ARAP tests are new units and need none either. If `spec-rfc5176-remaining-defect-classes` lands first, the four shared `authradius` units are changed again here and need their command run again in this session.
+Approved by the owner on 2026-10-13 (Q-3, "approve all RFC-tagged test changes"; Q-5 "fix and extend" names the two RFC 2869 units under that approval). The gate reads approvals from the committing session's own file (`tmp/commit-rfc-approved-<session>.md`), and a row is used up by the commit that carries its `RFC-approved:` trailer. So the owner runs these at the prompt of the session that implements and commits the edits, and runs a unit's command again if a later commit changes that unit a second time. A unit is `<package directory>.<top-level test function>`. Every name was checked to exist at HEAD `051876c3f4`. The two RFC 2869 unit names were checked to exist on 2026-10-14 (`rfc2869_credential_types_test.go` lines 56 and 71). The `rfc2869_credential_types_test.go` header comment (Q-5) sits above the file's first function, outside every tagged unit, so the gate does not ask for it and it has no command; the new ARAP tests are new units and need none either. If `spec-rfc5176-remaining-defect-classes` lands first, the four shared `authradius` units are changed again here and need their command run again in this session.
 
-5 commands:
+7 commands:
 
 ```
+./le rfc approve unit radius.TestRFC2869EAPBesideAnotherCredentialIsRefused reason 'Thomas, 2026-10-13: "fix and extend" and "approve all RFC-tagged test changes" (spec-radius-rfc-defects Q-5, ARAP-Password beside EAP-Message added)'
+./le rfc approve unit radius.TestRFC2869EAPOnlyAccessRequestIsSent reason 'Thomas, 2026-10-13: "fix and extend" and "approve all RFC-tagged test changes" (spec-radius-rfc-defects Q-5, ARAP-Password absence asserted)'
 ./le rfc approve unit authradius.TestRFC5176DuplicateRequestAnsweredFromCache reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-radius-rfc-defects, duplicates and the fresh request go out on one socket)'
 ./le rfc approve unit authradius.TestRFC5176DuplicateAndTimestampWindowsBothHoldInside reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-radius-rfc-defects, both sends on one socket)'
 ./le rfc approve unit authradius.TestRFC5176DuplicateAndTimestampWindowsBothEndOutside reason 'Thomas, 2026-10-13: "approve all RFC-tagged test changes" (spec-radius-rfc-defects, both sends on one socket)'
@@ -293,32 +319,47 @@ Approved by the owner on 2026-10-13 (Q-3). The gate reads approvals from the com
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `l2tp-radius-coa-duplicate-freeradius` (new, named, no numeric prefix) | `test/interop-l2tp/scenarios/` | FreeRADIUS `radclient` as DAC, xl2tpd + pppd as LAC (live session) | (1) two `radclient` processes send a Disconnect-Request with the same Identifier from distinct ports: each is processed (Ze log shows two dispatches); (2) a lost first Disconnect-ACK (dropped by an `iptables` rule in the radclient container) makes `radclient` retransmit on its own socket: Ze answers from the cache and tears the session down once (Ze log, pppd log). Forced red: revert `replayKey`, rebuild ze, (1) fails | |
-| `l2tp-radius-acct-restart-freeradius` (new, named) | `test/interop-l2tp/scenarios/` | FreeRADIUS accounting with the `detail` module; xl2tpd + pppd | the session's Start before a ze restart and the reconnected session's Start after it carry different Acct-Session-Id values in FreeRADIUS's own detail log, and each Stop carries its Start's id. Forced red: revert `genSessionID`, rebuild ze, the two ids are equal | |
+| `radius-coa-duplicate-freeradius` (new, named, no numeric prefix) | `test/interop-radius-subscriber/scenarios/` | FreeRADIUS `radclient` as DAC, xl2tpd + pppd as the lab's own LAC (live session) | (1) two `radclient` processes send a Disconnect-Request with the same Identifier from distinct ports: each is processed (Ze log shows two dispatches); (2) a lost first Disconnect-ACK (dropped by an `iptables` rule in the radclient container) makes `radclient` retransmit on its own socket: Ze answers from the cache and tears the session down once (Ze log, pppd log). Forced red: revert `replayKey`, rebuild ze, (1) fails | |
+| `radius-acct-restart-freeradius` (new, named) | `test/interop-radius-subscriber/scenarios/` | FreeRADIUS accounting with the `detail` module; xl2tpd + pppd as the lab's own LAC | the session's Start before a ze restart and the reconnected session's Start after it carry different Acct-Session-Id values in FreeRADIUS's own detail log, and each Stop carries its Start's id. Forced red: revert `genSessionID`, rebuild ze, the two ids are equal | |
 | D1 | N-A | - | no wire-visible change: Ze builds no ARAP-Password, and the refusal happens before the socket; the existing `radius-admin-*-freeradius` scenarios must stay green (no credential combination changed) | |
+
+#### The `interop-radius-subscriber` lab (Q-7, owner 2026-10-14: "Make Free radius, its own lab.")
+
+| Field | Value |
+|-------|-------|
+| Name | `interop-radius-subscriber`: scenarios under `test/interop-radius-subscriber/scenarios/`, plumbing in a new `internal/le/interoplab/radiussubscriber/`, run by `./le test integration interop-radius-subscriber`. Lab and scenario names carry no numeric prefix (`docs/architecture/testing/interop.md`) |
+| Not the L2TP lab | no FreeRADIUS container is added to `internal/le/interoplab/l2tp/`, whose RADIUS peer stays `radiusmock` |
+| Not the admin-login lab | the existing FreeRADIUS suite (`internal/le/interoplab/radius/`, `test/interop-radius/`) stays module-free: `radius_test.go::TestSuiteNeedsNoKernelModule` holds that it declares no preflight and mounts no module tree, and this lab cannot keep that promise |
+| Shared with | `plan/immediate/spec-rfc5176-remaining-defect-classes.md` (its Q-7 and its stale-id scenario), and the planned `radius-coa-disconnect-freeradius` of `plan/pre-release/spec-rfc-verdict-fix-access.md`. This spec names the lab and its two scenarios; the other specs add theirs to the same directory |
+| Containers | ze (daemon cross-compiled through the lab's `LabBinaries`, as `interoplab/radius.LabBinaries` does), FreeRADIUS at the pinned `docker.io/freeradius/freeradius-server:3.2.7` already used by `interoplab/radius` (accounting `detail` module enabled, `radclient` for CoA and Disconnect), and an xl2tpd + pppd LAC |
+| Session source | a live kernel L2TP session from the lab's own LAC. Verified at the producers on 2026-10-14 that nothing else can stand in: `acct.go::subscribeEventBus` accounts only `l2tpevents.SessionIPAssigned` / `SessionDown`; the only L2TP emitter of `SessionIPAssigned` is `reactor_kernel.go` (line 367), after the kernel session has an address; `coa.go::findSessions` matches against `l2tp.LookupService()`, published only by the Subsystem's Start (`service_locator.go::PublishService`) |
+| Preflight | the PPPoL2TP module probe the L2TP lab declares (`interoplab/l2tp/l2tp.go::preflight`, module `l2tp_ppp` or `pppol2tp`), declared by this lab for itself |
+| Checkers | both sides, per `docs/architecture/testing/interop.md`: ze's log (dispatches, teardowns, Acct-Session-Id values) and FreeRADIUS's own record (the `detail` file, `radclient` output) |
+| Rejected | a lab with no L2TP, where a test fixture drives ze's RADIUS client: the fixture would have to publish a stub `l2tp.Service`, emit `SessionIPAssigned` on its own bus and construct the accountant and CoA listener, whose constructors (`newRADIUSAcct`, `newCoAListener`, `activateRadiusConfig`) are unexported in package `authradius`. A lab binary would need a new exported seam in production code, and it would skip the daemon's config path and the kernel emit path, so it proves less than the real entry point |
 
 ### Goal validation
 | Goal | Evidence owed |
 |------|---------------|
 | D1: no Access-Request leaves Ze with two credential types | AC-1a/1c tests, with a discrimination record observed red against a revert of the type-70 entry |
-| D2: the DAS detects duplicates on source IP, source port and Identifier | `l2tp-radius-coa-duplicate-freeradius` passing with its forced red, plus AC-2a/2b |
-| D3: Acct-Session-Ids do not repeat across a restart in the server's log | `l2tp-radius-acct-restart-freeradius` passing with its forced red, plus AC-3a |
+| D2: the DAS detects duplicates on source IP, source port and Identifier | `radius-coa-duplicate-freeradius` passing with its forced red, plus AC-2a/2b/2e |
+| D3: Acct-Session-Ids do not repeat across a restart in the server's log | `radius-acct-restart-freeradius` passing with its forced red, plus AC-3a/3d |
 | AC-4 | each of the three verdicts stamped `enforced` by an independent `mode rejudge` |
 
 ## Files to Modify
 
 - `internal/component/radius/client.go` - add ARAP-Password (70, unexported literal) to `oneCredentialType`; replace the stale caller comment; RFC 3579 Section 3.3 quote stays above the check
-- `internal/component/l2tp/plugins/authradius/coa.go` - `coaReplayKey` gains the source port (and under Q-2 B, the Authenticator moves from the key to the entry); `cachedReplay`, `rememberReplay` and `replayKey` take `*net.UDPAddr`; the callers are `handlePacket` (`cachedReplay(from.IP, pkt)`) and `sendResponse` line 828 (`rememberReplay(to.IP, req, wire)`), which pass the whole address; the `findSessions` comment updated to the new format
-- `internal/component/l2tp/plugins/authradius/acct.go` - `radiusAcct` gains a boot tag minted in `newRADIUSAcct`; `genSessionID` writes "tunnel-session-tag-counter"; RFC 2866 Section 5.5 quote above it
+- `internal/component/l2tp/plugins/authradius/coa.go` - (Q-2 B) `coaReplayKey` becomes source IP, source port and Identifier (the Code leaves it, the Authenticator moves from the key to the entry); a lookup whose Authenticator differs from the entry's is a miss, and `rememberReplay` overwrites the entry; RFC 5176 Section 2.3 quote above `replayKey`; `cachedReplay`, `rememberReplay` and `replayKey` take `*net.UDPAddr`; the callers are `handlePacket` (`cachedReplay(from.IP, pkt)`) and `sendResponse` line 828 (`rememberReplay(to.IP, req, wire)`), which pass the whole address; the `findSessions` comment updated to the new format
+- `internal/component/l2tp/plugins/authradius/acct.go` - (Q-1 "c") `radiusAcct` gains a boot tag minted once in `newRADIUSAcct`: 8 hex digits of the Unix seconds from `acctNow`, then 16 hex digits from `crypto/rand` read through a package variable a test replaces (the same seam shape as `acctNow`); `genSessionID` writes "tunnel-session-tag-counter"; RFC 2866 Section 5.5 quote above it
 - the tests listed under "Unit Tests" and "Tagged tests that change"
 - `rfc/discrimination/rfc3579.json`, `rfc/discrimination/rfc5176.json`, `rfc/discrimination/rfc2866.json` (re-recorded by the tool, never by hand); `rfc/audit/rfc3579.json`, `rfc5176.json`, `rfc2866.json` (stamped by an independent judge)
 - `docs/guide/l2tp.md` - one sentence each on the duplicate key and on restart-unique Acct-Session-Id
-- `docs/architecture/testing/interop.md` - the two new L2TP scenarios and the FreeRADIUS peer in the L2TP lab
-- `internal/le/interoplab/l2tp/` - FreeRADIUS container beside `radiusmock` (scope per Q-7)
+- `docs/architecture/testing/interop.md` - the suites table gains the `interop-radius-subscriber` row, and a section on that lab (Q-7) beside "The FreeRADIUS admin-login suite"
 
 ## Files to Create
-- `test/interop-l2tp/scenarios/l2tp-radius-coa-duplicate-freeradius/`
-- `test/interop-l2tp/scenarios/l2tp-radius-acct-restart-freeradius/`
+- `internal/le/interoplab/radiussubscriber/` - the lab of Q-7 (suite, preflight, checkers, catalog registration)
+- `test/interop-radius-subscriber/` - lab files (FreeRADIUS `clients.conf`, `detail` module, xl2tpd and pppd config)
+- `test/interop-radius-subscriber/scenarios/radius-coa-duplicate-freeradius/`
+- `test/interop-radius-subscriber/scenarios/radius-acct-restart-freeradius/`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -332,7 +373,7 @@ Approved by the owner on 2026-10-13 (Q-3). The gate reads approvals from the com
 | Functional test for new RPC/API | N-A | no RPC; see Functional Tests for why no new `.ci` |
 | Pipe completeness | N-A | no output |
 | Env var registration | N-A | none |
-| Doctor check for runtime dependencies | N-A | Q-1 (a) adds no file, socket or storage; Q-1 (b) would add a storage dependency and a doctor check |
+| Doctor check for runtime dependencies | N-A | the Q-1 boot tag adds no file, socket or storage, and waits on no clock |
 | Prometheus counters/metrics | No | a duplicate counter would be useful but is not asked for |
 | BGP family surface | N-A | not BGP |
 
@@ -360,11 +401,11 @@ Approved by the owner on 2026-10-13 (Q-3). The gate reads approvals from the com
 ## Implementation Steps
 
 1. **Phase: Wiring** -- write the failing wiring tests: `TestRFC5176DifferentSourcePortIsNotADuplicate`, `TestRFC3579ARAPBesideEAPIsRefusedAtExchange`, `TestRFC2866AcctSessionIDUniqueAcrossRestart`; confirm each is red at HEAD for the reason named in the TDD table.
-2. **Phase: D1** -- extend `TestAccessRequestRefusesTwoCredentialTypes` to six pairs and add the single-type positive; add 70 to `oneCredentialType`; fix the two stale comments; `TestRFC2869Dictionary*` unchanged and green.
+2. **Phase: D1** -- extend `TestAccessRequestRefusesTwoCredentialTypes` to six pairs and add the single-type positive; extend the two RFC2869-5.19-1 units with ARAP (Q-5, AC-1e); add 70 to `oneCredentialType`; fix the two stale comments (`client.go` caller comment, `rfc2869_credential_types_test.go` header); `TestRFC2869Dictionary*` unchanged and green.
 3. **Phase: D2** -- with Q-3 approved, rewrite the four tagged tests to send from one socket (they then pass at HEAD, which is correct: HEAD detects same-port duplicates); add the AC-2 tests; change the key; confirm EndOutside goes red with pruning disabled.
-4. **Phase: D3** -- boot tag per Q-1; add the AC-3 tests; confirm CoA tests stay green.
+4. **Phase: D3** -- boot tag per Q-1 (construction seconds plus 64 random bits); add the AC-3 tests, AC-3d and AC-3e included; confirm CoA tests stay green.
 5. **Phase: Discrimination and verdicts** -- `./le rfc discriminate-record` for every new or changed tagged unit; an independent agent stamps the three verdicts with `mode rejudge`.
-6. **Phase: Interop** -- per Q-7; each scenario's forced red recorded.
+6. **Phase: Interop** -- build the `interop-radius-subscriber` lab (Q-7) unless `spec-rfc5176-remaining-defect-classes` built it first; add the two scenarios; each scenario's forced red recorded.
 7. **Phase: Docs** -- `docs/guide/l2tp.md`, `interop.md`, `rfc/short/rfc2866.md` text, in the same phase as each code change.
 
 ### Critical Review Checklist
@@ -405,10 +446,18 @@ Approved by the owner on 2026-10-13 (Q-3). The gate reads approvals from the com
 |----------|------------------------|-----------|
 | D1: literal 70 in `client.go` | an ARAP constant in `dict.go` (forbidden by RFC 2869 Section 1.1 and its test); refusing all ARAP attributes (Q-4 ii) | minimal change that makes the four-type sentence true without implementing ARAP |
 | D2: triple key, Authenticator as tie-breaker (Q-2 B) | literal triple only (Q-2 A) | (A) answers a new request after an Identifier wrap with a stale response; RFC 5176's own retransmission rule makes (B) lose no legitimate duplicate; RFC 5080 Section 2.2.2 prescribes (B)'s shape for the Access-Request analog |
-| D3: random boot tag (Q-1 a) | storage boot counter (b); start time (c) | (c) is unsafe on an RTC-less appliance; (b) adds storage I/O and a doctor check; (a) needs neither |
+| D3: time-based boot tag, construction seconds plus 64 random bits (Q-1, owner "c", 2026-10-13) | wait for a synced clock before the first id | ze knows sync only through its NTP plugin when configured, so waiting needs a timeout and a second scheme, and holds every Accounting-Start; the restored pre-NTP clock repeats across boots, which the random part absorbs |
+| D2 key without Code (Q-2 B) | keep Code in the key | the Request Authenticator hashes the Code (RFC 2866 Section 3), so Code adds nothing once the Authenticator is compared |
+| Q-7: own FreeRADIUS lab with its own LAC | FreeRADIUS in the L2TP lab (owner chose against it); a no-L2TP fixture | see "The `interop-radius-subscriber` lab" |
 
 ## Known Limitations
-- `findSessions` prefix matching across sessions that reuse tunnel and session numbers (Q-6): not fixed here unless the owner scopes it in.
+- `findSessions` prefix matching across sessions that reuse tunnel and session numbers: owned by `plan/immediate/spec-rfc5176-remaining-defect-classes.md` (S-1, AC-1), moved there by Q-6 (owner, 2026-10-14). This spec keeps the prefix.
+
+## Design Review Log
+
+| Date | Round | Outcome |
+|------|-------|---------|
+| 2026-10-14 | owner answers applied | Q-1 "c", Q-2 "B", Q-4 "i", Q-5 "fix and extend", Q-6 "whatever" (routed to `spec-rfc5176-remaining-defect-classes`), Q-7 "Make Free radius, its own lab." recorded with their consequences; owner answers applied 2026-10-14; review round owed |
 
 ## RFC Documentation (Scope: protocol)
 
