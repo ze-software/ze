@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-11",
+  "audited": "2026-10-14",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2869-2.1-1": {
@@ -46,19 +46,19 @@
       "verdict": "enforced"
     },
     "RFC2869-5.19-1": {
-      "note": "The EAP combinations are now driven at the client every Access-Request leaves through: EAP-Message beside User-Password and beside CHAP-Password are refused by Client.Exchange with no datagram on the wire; EAP-only is sent. The L2TP builder pair covers PAP and CHAP-MD5 carrying exactly their own credential. ARAP-Password cannot be emitted: ze declares no ARAP attribute. User-Password beside CHAP-Password is not driven at the client guard, only proven absent from the builders' output.",
+      "note": "Rejudged 2026-10-14 by a reader who did not author the tests. - TestRFC2869EAPBesideAnotherCredentialIsRefused drives EAP-Message beside User-Password, CHAP-Password and now ARAP-Password through Client.Exchange: each errors and no datagram reaches the server. + TestRFC2869EAPOnlyAccessRequestIsSent sends one datagram carrying EAP-Message and none of the other three. The L2TP builder pair covers PAP and CHAP-MD5 carrying only their own credential. User-Password beside CHAP-Password is not driven by this row's units; the same guard (client.go oneCredentialType) refuses it under RFC3579-3.3-2's units.",
       "requirement_sha": "4cd8d7ba61bbaf17",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential": "b4e757fe4cae524f",
         "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "b4e757fe4cae524f",
-        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused": "f95fe286b5fd89f7",
-        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent": "f95fe286b5fd89f7"
+        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused": "948192fd6c9f1cf4",
+        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent": "948192fd6c9f1cf4"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential": "e723a29e122314af",
         "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "b7ff0603a2599077",
-        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused": "dd41a91fe899b80f",
-        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent": "2904fd580e736595"
+        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused": "c81a6bf53bd4abfd",
+        "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent": "0e4a1745e0a3a696"
       },
       "verdict": "enforced"
     },

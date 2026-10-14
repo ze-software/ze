@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-14",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -226,17 +226,21 @@
       "verdict": "enforced"
     },
     "RFC3579-3.3-2": {
-      "note": "negative covers EAP-Message beside User-Password and beside CHAP-Password only. User-Password beside CHAP-Password is not tested, and ARAP-Password is in no pair: client.go oneCredentialType omits ARAP-Password (70) from its map, so an EAP-Message plus ARAP-Password Access-Request would encode",
+      "note": "Rejudged 2026-10-14 by a reader who did not author the tests. (a) forbidden: an Access-Request carrying two of User-Password, CHAP-Password, ARAP-Password, EAP-Message. - TestAccessRequestRefusesTwoCredentialTypes drives all six pairs of the four types through encodeRequest and requires an error naming both types and zero octets; + TestRFC3579EachCredentialTypeAloneEncodes encodes each type alone, so the refusal is the pair's; - TestRFC3579ARAPBesideEAPIsRefusedAtExchange shows the guard at Client.Exchange, with no datagram reaching the server. Producer client.go oneCredentialType now names ARAP-Password (70), called by encodeRequest for every CodeAccessRequest. Several EAP-Message fragments (one type) are allowed by the code and not separately asserted.",
       "requirement_sha": "0842807ab6c82ff7",
       "tests": {
-        "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "a9761b3871efeaf7",
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "a9761b3871efeaf7"
+        "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "2f6a0814b0b8b9cb",
+        "internal/component/radius/authenticator_eap_test.go::TestRFC3579EachCredentialTypeAloneEncodes": "2f6a0814b0b8b9cb",
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "2f6a0814b0b8b9cb",
+        "internal/component/radius/rfc3579_credential_types_test.go::TestRFC3579ARAPBesideEAPIsRefusedAtExchange": "29912f66c72effa4"
       },
       "units": {
-        "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "b8df4bf83b8245d0",
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "eaa91bfcf15a7356"
+        "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "e589158e5225779c",
+        "internal/component/radius/authenticator_eap_test.go::TestRFC3579EachCredentialTypeAloneEncodes": "41ae0c3aac733e95",
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "eaa91bfcf15a7356",
+        "internal/component/radius/rfc3579_credential_types_test.go::TestRFC3579ARAPBesideEAPIsRefusedAtExchange": "74693a66fe8493b5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3579-4.3.6-2": {
       "note": "a successful and a rejected eap-mschapv2 login put an EAP-Message and no User-Password or CHAP-Password on every request, and the rejection produces no weaker retry",

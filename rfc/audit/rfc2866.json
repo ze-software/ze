@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-14",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -179,17 +179,21 @@
       "verdict": "enforced"
     },
     "RFC2866-5.5-1": {
-      "note": "Forbidden behaviour: two sessions whose records carry the same Acct-Session-Id in the log. TestRFC2866AcctSessionIDUnique (1600 concurrent ids) and TestRFC2866AcctSessionIDNoCollisionOnReusedKey prove uniqueness within one process lifetime. genSessionID (authradius/acct.go) is tunnel-session-counter with a counter that restarts at 1 on every start, and no tagged unit covers a restart; the RFC's own example reserves digits for the reboot count because the log outlives a reboot.",
+      "note": "Rejudged 2026-10-14 by a reader who did not author the tests. Forbidden: two sessions whose records carry the same Acct-Session-Id in the log. Within one process: TestRFC2866AcctSessionIDUnique (1600 concurrent ids distinct) and TestRFC2866AcctSessionIDNoCollisionOnReusedKey. Across a restart: TestRFC2866AcctSessionIDUniqueAcrossRestart (two accountants built in turn give the same tunnel and session two ids on the Accounting-Start) and TestRFC2866AcctSessionIDUniqueWhenClockRepeats (same clock second: time digits equal, random digits differ, ids differ). Producer authradius/acct.go genSessionID, T-S-<boot tag>-N, the boot tag minted once by mintBootTag at first use from Unix seconds and 64 random bits; uniqueness across boots at one clock second is probabilistic over those 64 bits.",
       "requirement_sha": "e704960c264c68e5",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDNoCollisionOnReusedKey": "fd8927de3c58fb86",
-        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUnique": "fd8927de3c58fb86"
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDNoCollisionOnReusedKey": "dfbffaac55a01b67",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUnique": "dfbffaac55a01b67",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUniqueAcrossRestart": "dfbffaac55a01b67",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUniqueWhenClockRepeats": "dfbffaac55a01b67"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDNoCollisionOnReusedKey": "019d01c2d9602d26",
-        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUnique": "825556ae6f8e7c87"
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUnique": "825556ae6f8e7c87",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUniqueAcrossRestart": "7f4054cb3507206f",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUniqueWhenClockRepeats": "53e96c6ed80ee434"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc2866"
