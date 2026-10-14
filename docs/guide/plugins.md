@@ -141,6 +141,11 @@ What counts as a change:
 | The exabgp bridge's families are edited while its `add-path` is set | Refused naming `add-path`: the ADD-PATH payload is built from those families |
 | A peer is removed, or nothing these plugins declare changes | Accepted |
 
+The refusal names a peer by its name, or by its address for a plugin that
+keys peers by address (`bgp-role`). A change in a dynamic group's template is
+named as `peers of dynamic group <name>`, and a bridge setting, which applies
+to every session, as `every peer`.
+
 `systemctl restart ze` and `ze signal stop` end each session with a normal
 teardown, so peers withdraw ze's routes until it is back. The appliance routes
 (`request reboot`, `ze signal reboot`) write the Graceful Restart marker and

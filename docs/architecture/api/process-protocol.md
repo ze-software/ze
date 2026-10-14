@@ -206,10 +206,20 @@ declaration is the output of the extractor a plugin registers with
 `configure` redelivery never reruns it. At config-verify the SDK runs the same
 extractor on the candidate sections after the plugin's own verify handler
 accepts, and refuses a candidate that changes, adds or removes a capability for
-a peer that stays configured, naming the peer, the config leaf and the plugin,
-then how to restart ze. Removing a peer is accepted, because that peer sends no
-OPEN again.
-<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, handleStartupConfigure, composeCapabilityVerify, capabilityChanges -->
+a peer that stays configured, or declares one for a peer the candidate adds,
+naming the peer, the config leaf and the plugin, then how to restart ze.
+Removing a peer is accepted, because that peer sends no OPEN again. The
+comparison runs per selector. For a BGP plugin the candidate's selectors come
+from `configjson.CapabilitySelectors`: each peer's name and its remote IP
+address, and `group:<name>` for a dynamic group's template, which the refusal
+names as "peers of dynamic group <name>". The reactor injects capabilities
+under the same set (`configjson.PeerSelectors`), so a plugin may key its
+declaration by either the name or the address, as `bgp-role` keys by the
+address. `sdk.CheckCapabilityReload` runs the same comparison without an
+engine, for a plugin's own tests.
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, handleStartupConfigure, composeCapabilityVerify, capabilityChanges, CheckCapabilityReload, selectorLabel -->
+<!-- source: internal/component/bgp/configjson/traverse.go -- CapabilitySelectors, PeerSelectors -->
+<!-- source: internal/component/bgp/configjson/capability_extractor.go -- BGPCapabilityExtractor, dynamicGroupLabel -->
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, composeCapabilityVerify call -->
 
 **A list of two or more entries arrives with its order beside it.** A config

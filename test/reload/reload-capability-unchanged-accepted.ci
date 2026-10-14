@@ -1,0 +1,142 @@
+# Test: a reload that leaves every plugin-declared capability unchanged is
+#       accepted.
+# Initial config: peer1 and peer2 (192.0.2.2, never reached) both advertise
+#                 software-version.
+# Live change:    config2.conf adds a description to peer1 and removes peer2.
+# Expected:       the reload is accepted: peer2 leaves the peer list, no refusal
+#                 line, and the session stays on one TCP connection.
+#
+# VALIDATES: AC-2e of spec-bgp-open-session-rfc-defects: the comparison runs
+#            per selector, accepts a removed peer, and ignores a non-capability
+#            leaf.
+# PREVENTS:  a comparison so coarse that every reload of a softver peer, or
+#            every peer removal, is refused.
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=established-file:path=established
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				software-version {
+					encoding legacy
+				}
+			}
+		}
+	}
+	peer peer2 {
+		connection {
+			remote {
+				ip 192.0.2.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				software-version {
+					encoding legacy
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		description "edge"
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				software-version {
+					encoding legacy
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+await-file established
+has show bgp peer list => 192.0.2.2
+reload config2.conf
+lacks show bgp peer list => 192.0.2.2
+say CAPABILITY-UNCHANGED-ACCEPTED: reload applied
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-softver -:stdin=ze-bgp:timeout=60s
+
+expect=stderr:contains=CAPABILITY-UNCHANGED-ACCEPTED: reload applied
+reject=stderr:pattern=cannot change while ze runs
+reject=stderr:pattern=ZE-OBSERVER-FAIL
