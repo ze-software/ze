@@ -37,11 +37,21 @@ const Hold = time.Second
 // connection closed. A stop that closed the connection with no drain
 // answered is the failure the plugin that lives it reports.
 func Responder(p *sdk.Plugin) (answered func() bool) {
+	return ResponderWith(p, nil)
+}
+
+// ResponderWith is Responder that also runs onReceived, when it is not nil,
+// right after logging each drain it receives and before holding it: the hook
+// where a fixture checks what must still hold while the drain runs.
+func ResponderWith(p *sdk.Plugin, onReceived func()) (answered func() bool) {
 	var done atomic.Bool
 	p.OnDrain(func(ctx context.Context, input rpc.DrainInput) error {
 		deadlineSeconds := int(time.Until(input.Deadline).Round(time.Second) / time.Second)
 		Log("drain-fixture: drain received kind=" + input.Kind.String() +
 			" deadline-in=" + strconv.Itoa(deadlineSeconds) + "s")
+		if onReceived != nil {
+			onReceived()
+		}
 		select {
 		case <-time.After(Hold):
 		case <-ctx.Done():

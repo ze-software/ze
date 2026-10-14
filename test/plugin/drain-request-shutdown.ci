@@ -1,0 +1,70 @@
+# Test: `request shutdown` runs the stop drain before teardown
+# Exercises: request shutdown -> handleDaemonShutdown -> shutdownFunc
+#            (internal/component/plugin/server/system.go) -> waitLoop -> config fence
+#            -> runStopDrain (cmd/ze/hub/drain.go) -> the plugin's OnDrain.
+# VALIDATES: spec-daemon-drain-before-stop AC-8: `request shutdown` enters the hub with
+#            kind stop, the drain-registered plugin receives drain and answers
+#            while its connection is open, the peer still receives Cease 6/2
+#            (sent by teardown), and the daemon exits 0. The fixture fails
+#            the run when the peer session is not up when the drain arrives.
+# PREVENTS:  `request shutdown` stopping BGP itself, outside the hub, with no drain.
+#            That the handler no longer stops the reactor first is proven by
+#            TestHandleDaemonShutdownRoutesThroughHub.
+# The plugin sends the command itself, 2 s after every plugin is ready.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+plugin {
+	external drain-requester {
+		run "le test fixture plugin/drain-requester"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process drain-requester {
+			receive [ state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start ze-bgp.conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=drain-fixture: sent request shutdown status=done error=none
+expect=stderr:contains=drain-fixture: drain received kind=stop
+expect=stderr:contains=drain-fixture: drain answered
+reject=stderr:contains=drain-fixture: FAIL

@@ -188,9 +188,10 @@ is 'reboot initiated'. A daemon with no reboot function configured fails with
             ze:command "ze-plugin:system-daemon-quit";
             ze:rpc "ze-system-api:daemon-quit";
             description "Ze writes every goroutine stack through the daemon logger at warning
-level, with a 1 MB buffer, and then stops. Use it where a daemon is stuck
-and the stacks are the evidence.";
-            ze:help "Dump goroutine stacks to stderr and terminate immediately.";
+level, with a 1 MB buffer, and then stops the way 'request shutdown' does,
+stop drain included. Use it where a daemon is stuck and the stacks are the
+evidence.";
+            ze:help "Dump goroutine stacks to stderr, then shut down as 'request shutdown' does.";
         }
 
         container reload {
