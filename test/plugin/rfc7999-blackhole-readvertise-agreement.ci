@@ -1,0 +1,256 @@
+# Test: a received BLACKHOLE route is re-advertised only where Section 3.1 lets it go
+# VALIDATES: AC-12 (Q-D5 (a1)) -- RFC 7999 Section 3.1: "the use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it"
+# Positive (RFC7999-3.1-2, units carry the tag): a BLACKHOLE-tagged route reaches an agreed eBGP destination, iBGP, migration iBGP and route-server-client destinations
+# Negative (RFC7999-3.1-2, units carry the tag): a BLACKHOLE-tagged route is withheld from a bilateral eBGP destination whose blackhole container does not agree to it
+# PREVENTS: a customer's RTBH route leaking to an eBGP neighbor that never agreed
+#           to honour 65535:666, and the gate over-applying inside the AS.
+#
+# Topology (all through bgp-rs, ze AS 65000):
+#   A 127.0.0.1 AS 65001  source, sends the tagged route then an untagged fence
+#   B 127.0.0.2 AS 65002  eBGP, `blackhole { communities [ blackhole ] }`  -> receives
+#   C 127.0.0.3 AS 65003  eBGP, no blackhole container                   -> withheld
+#   D 127.0.0.4 AS 65000  iBGP, no blackhole container                   -> receives
+#   E 127.0.0.5 AS 65005  eBGP rs-client, no blackhole container          -> receives
+#   F 127.0.0.6 AS 65100  RFC 7705 migration iBGP (migration 65100)      -> receives
+# Each destination must see the untagged fence 10.0.1.0/24, so a destination
+# that saw nothing at all cannot pass. C must see the withdrawal of 10.0.0.0/24
+# (A-6: no surviving candidate here, so the egress reject withdraws) and never
+# its announcement.
+#
+# UPDATE 1 (tagged): ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1,
+#   COMMUNITY C00804FFFF029A (65535:666, BLACKHOLE, RFC 7999 Section 2), NLRI 180A0000
+# UPDATE 2 (fence):  same without COMMUNITY, NLRI 180A0001 (10.0.1.0/24)
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+option=asn:value=65001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FFFF029A180A0000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# B: eBGP, agreed through its blackhole container: receives the tagged route with 65535:666 intact.
+stdin=destb:terminator=EOF_DESTB
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+option=asn:value=65002
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF029A
+expect=bgp:conn=1:seq=2:announced=180A0001
+EOF_DESTB
+
+# C: bilateral eBGP with no agreement. The tagged route is withheld (withdrawn),
+# the fence still arrives.
+stdin=destc:terminator=EOF_DESTC
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+option=asn:value=65003
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:withdrawn=180A0000
+expect=bgp:conn=1:seq=2:announced=180A0001
+reject=bgp:conn=1:scope=announced:pattern=180A0000
+EOF_DESTC
+
+# D: iBGP, no blackhole container: one network, so Section 3.1 does not bind; receives it.
+stdin=destd:terminator=EOF_DESTD
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF029A
+expect=bgp:conn=1:seq=2:announced=180A0001
+EOF_DESTD
+
+# E: route-server client: the multilateral case Section 3.1 hands to operator policy; receives it.
+stdin=deste:terminator=EOF_DESTE
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+option=asn:value=65005
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF029A
+expect=bgp:conn=1:seq=2:announced=180A0001
+EOF_DESTE
+
+# F: RFC 7705 migration session (PeerSettings.IsIBGP true through MigrationAS), no container; receives it.
+stdin=destf:terminator=EOF_DESTF
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+option=asn:value=65100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF029A
+expect=bgp:conn=1:seq=2:announced=180A0001
+EOF_DESTF
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+	# Fence: holds the daemon until the forwarding decision for both routes
+	# is made, then requests the clean shutdown (the ze-peers linger).
+	external test-blackhole {
+		run "le test fixture plugin/rfc7999-blackhole-readvertise-agreement"
+		encoder json
+	}
+}
+bgp {
+	peer peer-a {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-b {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		blackhole {
+			communities [ blackhole ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-c {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-d {
+		connection {
+			remote { ip 127.0.0.4; }
+			local { ip 127.0.0.4; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-e {
+		connection {
+			remote { ip 127.0.0.5; }
+			local { ip 127.0.0.5; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65005; }
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-f {
+		connection {
+			remote { ip 127.0.0.6; }
+			local { ip 127.0.0.6; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65100; migration 65100; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=destb
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=destc
+cmd=background:seq=4:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=destd
+cmd=background:seq=5:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=deste
+cmd=background:seq=6:exec=le test peer --bind 127.0.0.6 --port $PORT:stdin=destf
+cmd=foreground:seq=7:exec=ze --plugin ze.bgp-filter-community -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

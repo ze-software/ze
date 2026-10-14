@@ -38,6 +38,11 @@ const (
 //	has <command> => <needle>    poll <command> until its JSON answer contains <needle>
 //	lacks <command> => <needle>  poll <command> until its JSON answer does not contain <needle>
 //	say <text>                   print <text> to stderr, where a .ci await or expect reads it
+//	route <peer> <command>       send one route command (`update text ...`) to <peer>, once
+//
+// `route` exists so a test peer can be told that a reload has been processed:
+// a test peer acts only on what it receives, so a route sent to it after a
+// `reload` is the fence its next `action=send` waits behind.
 //
 // The plugin block that runs this fixture MUST be byte-identical in every
 // config the script reloads, so the reload keeps the process alive. When the
@@ -81,11 +86,13 @@ func runLiveStage(ctx context.Context, plugin *sdk.Plugin, step string) error {
 		return liveStagesRead(ctx, plugin, rest, true)
 	case "lacks":
 		return liveStagesRead(ctx, plugin, rest, false)
+	case "route":
+		return liveStagesRoute(ctx, plugin, rest)
 	case "say":
 		fmt.Fprintln(os.Stderr, rest) //nolint:errcheck // the .ci reads this line; a lost write fails its await
 		return nil
 	}
-	return errors.New("unknown step: want await-file, reload, has, lacks or say")
+	return errors.New("unknown step: want await-file, reload, has, lacks, route or say")
 }
 
 // liveStagesReload copies source over the daemon's config file, sends it
@@ -124,6 +131,19 @@ func liveStagesReload(ctx context.Context, plugin *sdk.Plugin, source string) er
 		return generation > baseline
 	}) {
 		return fmt.Errorf("the reload never finished: show reload-status generation stayed at %d", generation)
+	}
+	return nil
+}
+
+// liveStagesRoute sends one route command to one peer. It never polls: a
+// repeated send would be a second UPDATE the receiving peer did not expect.
+func liveStagesRoute(ctx context.Context, plugin *sdk.Plugin, spec string) error {
+	peer, command, found := strings.Cut(spec, " ")
+	if !found {
+		return errors.New("want `route <peer> <command>`")
+	}
+	if _, _, err := plugin.UpdateRoute(ctx, peer, strings.TrimSpace(command)); err != nil {
+		return fmt.Errorf("route to %s: %w", peer, err)
 	}
 	return nil
 }

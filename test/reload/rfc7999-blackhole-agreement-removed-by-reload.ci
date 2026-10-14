@@ -1,0 +1,355 @@
+# Test: a reload that removes a BLACKHOLE agreement stops the next re-advertisement
+# VALIDATES: AC-12a (Q-D5 (a1)) -- the filter_community agreement cache follows
+#            reload. RFC 7999 Section 3.1: "the use of the BLACKHOLE community MUST
+#            be agreed upon by the two networks before advertising it". An
+#            agreement the operator withdrew is no agreement.
+# PREVENTS: the cache built at startup outliving the config that built it, so a
+#           neighbor whose agreement was removed keeps receiving BLACKHOLE routes.
+#
+# Topology (bgp-rs, ze AS 65000): A 127.0.0.1 AS 65001 source; B 127.0.0.2 AS
+# 65002 agreed in ze-bgp.conf only; C 127.0.0.3 AS 65003 agreed in config3 only.
+#
+# Stages (the live-stages fixture orders them, each reload waits until processed):
+# 1. A sends U1 (10.0.0.0/24, BLACKHOLE). B receives it; C is refused (withdrawal).
+# 2. reload config2: B's blackhole container removed.
+# 3. route to A fences A's next UPDATE behind the processed reload; A sends U2
+#    (U1 with MED 2). B is now refused, so its earlier generation is withdrawn
+#    (A-6: no survivor here); C is still refused.
+# 4. reload config3: C's blackhole container added.
+# 5. route to A; A sends U3 (MED 3). C receives it with 65535:666 intact.
+# Not claimed: whether a reload alone, with no new UPDATE from A, re-judges what B
+# already holds (journal page policy-change-never-re-evaluates-what-it-admitted).
+#
+# U1: ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1, COMMUNITY 65535:666, NLRI 180A0000
+# U2/U3: U1 plus MULTI_EXIT_DISC 80040400000002 / 80040400000003
+
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=asn:value=65001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FFFF029A180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18C0A801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE94003040101010180040400000002C00804FFFF029A180A0000
+expect=bgp:conn=1:seq=3:announced=18C0A802
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE94003040101010180040400000003C00804FFFF029A180A0000
+EOF_PEER
+
+stdin=destb:terminator=EOF_DESTB
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=asn:value=65002
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF029A
+action=rewrite:conn=1:seq=2:source=marker.txt:dest=b-holds
+expect=bgp:conn=1:seq=3:withdrawn=180A0000
+action=rewrite:conn=1:seq=3:source=marker.txt:dest=b-withdrawn
+EOF_DESTB
+
+stdin=destc:terminator=EOF_DESTC
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=asn:value=65003
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:withdrawn=180A0000
+expect=bgp:conn=1:seq=3:withdrawn=180A0000
+expect=bgp:conn=1:seq=4:announced=180A0000:attribute=8,FFFF029A
+action=rewrite:conn=1:seq=4:source=marker.txt:dest=c-agreed
+EOF_DESTC
+
+tmpfs=marker.txt:terminator=EOF_MARKER
+marker
+EOF_MARKER
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+await-file b-holds
+reload config2.conf
+route 127.0.0.1 update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24
+await-file b-withdrawn
+reload config3.conf
+route 127.0.0.1 update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.2.0/24
+await-file c-agreed
+say BLACKHOLE-AGREEMENT-RELOAD: B refused after its agreement was removed, C agreed after one was added
+EOF_SCRIPT
+
+# Startup: B agreed, C not.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+	external stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+bgp {
+	peer peer-a {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process stages {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-b {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		blackhole {
+			communities [ blackhole ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-c {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Reload 1: B's agreement removed.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+	external stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+bgp {
+	peer peer-a {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process stages {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-b {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-c {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF2
+
+# Reload 2: C's agreement added.
+tmpfs=config3.conf:terminator=EOF_CONF3
+plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+	external stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+bgp {
+	peer peer-a {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process stages {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-b {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-c {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		blackhole {
+			communities [ blackhole ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF3
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=destb
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=destc
+cmd=foreground:seq=4:exec=ze --plugin ze.bgp-filter-community -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=BLACKHOLE-AGREEMENT-RELOAD: B refused after its agreement was removed, C agreed after one was added
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=LIVE-STAGES line
