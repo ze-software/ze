@@ -325,9 +325,10 @@ func readNotificationStatus(t *testing.T, conn net.Conn) (uint32, uint32, uint16
 }
 
 // RFC requirement: RFC5036-3.5.3-1 positive -- an Initialization proposing a non-zero
-// KeepAlive Time is accepted. The session goes operational, the negotiated timer is the
-// smaller of the two proposals, the hold time is three times it, and no Notification
-// is sent.
+// KeepAlive Time is accepted. The session goes operational, and the KeepAlive Timer ze
+// arms is the smaller of the two proposals: RFC 5036 Section 3.5.3, "The receiving LSR
+// MUST calculate the value of the KeepAlive Timer by using the smaller of its proposed
+// KeepAlive Time and the KeepAlive Time received in the PDU." No Notification is sent.
 func TestRFC5036InitNonZeroKeepaliveTimeAccepted(t *testing.T) {
 	local, remote := net.Pipe()
 	defer func() { _ = local.Close() }()
@@ -346,8 +347,8 @@ func TestRFC5036InitNonZeroKeepaliveTimeAccepted(t *testing.T) {
 	if got := rx.currentKeepalive(); got != 30*time.Second {
 		t.Errorf("keepalive = %v, want 30s (the lower of 60 and 30)", got)
 	}
-	if got := rx.currentHoldTime(); got != 90*time.Second {
-		t.Errorf("hold time = %v, want 90s", got)
+	if got := rx.currentHoldTime(); got != 30*time.Second {
+		t.Errorf("armed KeepAlive Timer = %v, want 30s (the negotiated KeepAlive Time)", got)
 	}
 
 	// An acceptable Initialization is answered with nothing on this path, so a read
@@ -467,7 +468,8 @@ func TestRFC5036SessionNotOperationalWithoutOwnInit(t *testing.T) {
 // --------------------------------------------------------------------------
 
 // RFC requirement: RFC5036-2.5.1-2 positive -- when the peer proposes a KeepAlive time
-// lower than ours, the session adopts the peer's value.
+// lower than ours, the session adopts the peer's value, both as the negotiated time and
+// as the KeepAlive Timer it arms.
 func TestRFC5036KeepaliveNegotiationAdoptsLower(t *testing.T) {
 	local, remote := net.Pipe()
 	defer func() { _ = local.Close() }()
@@ -480,11 +482,14 @@ func TestRFC5036KeepaliveNegotiationAdoptsLower(t *testing.T) {
 	if got := sess.currentKeepalive(); got != 20*time.Second {
 		t.Errorf("keepalive = %v, want 20s (the lower of 60 and 20)", got)
 	}
+	if got := sess.currentHoldTime(); got != 20*time.Second {
+		t.Errorf("armed KeepAlive Timer = %v, want 20s (the negotiated KeepAlive Time)", got)
+	}
 }
 
 // RFC requirement: RFC5036-2.5.1-2 negative -- when the peer proposes a KeepAlive time
-// HIGHER than ours, the peer's value is refused and ours is kept; the negotiated value is
-// never raised.
+// HIGHER than ours, the peer's value is refused and ours is kept; neither the negotiated
+// value nor the armed KeepAlive Timer is ever raised.
 func TestRFC5036KeepaliveNegotiationRefusesHigher(t *testing.T) {
 	local, remote := net.Pipe()
 	defer func() { _ = local.Close() }()
@@ -496,6 +501,9 @@ func TestRFC5036KeepaliveNegotiationRefusesHigher(t *testing.T) {
 
 	if got := sess.currentKeepalive(); got != 30*time.Second {
 		t.Errorf("keepalive = %v, want 30s (the peer's higher 180s must not be adopted)", got)
+	}
+	if got := sess.currentHoldTime(); got != 30*time.Second {
+		t.Errorf("armed KeepAlive Timer = %v, want 30s (the peer's higher 180s must not be adopted)", got)
 	}
 }
 
@@ -526,7 +534,8 @@ func runSessionForTest(t *testing.T, sess *Session) func() {
 // other message to send (the LIB is empty, so no Label Mapping goes out), the peer
 // still receives a message from ze at least every KeepAlive Time: with both sides
 // proposing 1s, each of the next three PDUs is a KeepAlive and no gap between two
-// consecutive PDUs exceeds the 1s KeepAlive Time.
+// consecutive PDUs exceeds the 1s KeepAlive Time. The peer answers each KeepAlive
+// with its own, as a live peer does, so ze's 1s KeepAlive Timer never expires.
 func TestRFC5036KeepalivesSentPeriodically(t *testing.T) {
 	local, remote := net.Pipe()
 	defer func() { _ = local.Close() }()
@@ -549,6 +558,9 @@ func TestRFC5036KeepalivesSentPeriodically(t *testing.T) {
 			t.Errorf("gap before KeepAlive %d = %v, want at most the KeepAlive Time %v", i, gap, keepalive)
 		}
 		last = now
+		if _, err := remote.Write(encodeKeepAlivePDU()); err != nil {
+			t.Fatalf("write peer KeepAlive %d: %v", i, err)
+		}
 	}
 }
 

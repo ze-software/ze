@@ -69,7 +69,8 @@ func TestConfiguredKeepaliveReachesInitializationMessage(t *testing.T) {
 
 	assert.Equal(t, uint16(15), proposedKeepalive(t, sess, peer), "ze must propose the configured KeepAlive Time")
 	assert.Equal(t, 15*time.Second, sess.currentKeepalive())
-	assert.Equal(t, 45*time.Second, sess.currentHoldTime(), "hold time is three times the KeepAlive Time")
+	assert.Equal(t, 45*time.Second, sess.currentHoldTime(),
+		"before any Initialization is negotiated, ze waits three times its proposal for the peer's")
 }
 
 // TestSessionConfigForAdjCarriesPeerIdentity pins the rest of the session

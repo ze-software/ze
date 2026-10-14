@@ -12,7 +12,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 4/6 |
+| Phase | 5/6 |
 | Handoff | - |
 | Updated | 2026-10-14 |
 
@@ -515,6 +515,8 @@ The name follows `docs/architecture/testing/interop.md` (named, no numeric prefi
      governing surface under ai/rules/planning.md. A problem-class journal row
      is appropriate only when no surface governs the lesson yet; closure alone
      requires no lesson artifact. -->
+- Phase 4 deviation, AC-9 proof column: `TestConfiguredKeepaliveReachesInitializationMessage` keeps 45 s, not 15 s. It never runs `handleInit`, so it reads `NewSession`'s wait for the first Initialization, which the spec keeps at 3x the proposal (Section 2.5.3 sets no timer before negotiation; checked 2026-10-14). Only its assertion message changed, to say what it measures
+- Phase 4 found a fourth tagged unit the TDD plan did not list: `TestRFC5036KeepalivesSentPeriodically` (RFC5036-2.5.3-1 positive) went red because its peer stayed silent for a full 1 s KeepAlive Time after establishment, which the corrected timer rightly treats as a dead peer. The peer now answers each KeepAlive with its own, as a live peer does; the assertions are unchanged. Fresh discrimination record written; covered by the owner's "approve all RFC-tagged test changes" (2026-10-13), committed under `rfc-change-ok` so the approval row stays owed to the owner
 
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->

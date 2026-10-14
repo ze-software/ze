@@ -861,8 +861,11 @@ func (s *Session) handleInit(msg initMessage, peerLSRID [4]byte) bool {
 		negotiatedKA = localKA
 	}
 	s.keepaliveTime = time.Duration(negotiatedKA) * time.Second
-	// RFC 5036: hold time is typically 3x keepalive.
-	s.holdTime = time.Duration(negotiatedKA) * time.Second * 3
+	// RFC 5036 Section 3.5.3: "The receiving LSR MUST calculate the value of the
+	// KeepAlive Timer by using the smaller of its proposed KeepAlive Time and the
+	// KeepAlive Time received in the PDU." The timer is the negotiated time
+	// itself, not a multiple of it: ReadLoop arms it as the read deadline.
+	s.holdTime = s.keepaliveTime
 	// RFC 5036 Section 3.5.4.1: "An LSR MUST arrange that its peer receive an
 	// LDP message from it at least every KeepAlive Time period." The sender may
 	// be waiting out a period sized from ze's own proposal, which can exceed the

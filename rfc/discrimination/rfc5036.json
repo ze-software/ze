@@ -24,6 +24,28 @@
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5036-2.5.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationAdoptsLower",
+      "unit-sha": "2576d515c143f128",
+      "claim-sha": "8a177e7b7d8bf99e",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/session.go::handleInit",
+      "producer-sha": "15c93b4f03ff0848",
+      "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-2.5.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationRefusesHigher",
+      "unit-sha": "db371158f49b245e",
+      "claim-sha": "bacbb784de6e21c5",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/session.go::handleInit",
+      "producer-sha": "15c93b4f03ff0848",
+      "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5036-2.5.2-1",
       "polarity": "negative",
       "unit": "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036HelloTransportAddressNeverFollowsTheSocket",
@@ -60,8 +82,8 @@
       "rid": "RFC5036-2.5.3-1",
       "polarity": "positive",
       "unit": "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically",
-      "unit-sha": "addefcebc126fd06",
-      "claim-sha": "df463cdeb8cd1de9",
+      "unit-sha": "d0dfc0d78cd56486",
+      "claim-sha": "31a2f3bb0849bc75",
       "route": "revert",
       "producer": "internal/plugins/ldp/register.go::runSession",
       "producer-sha": "5d8b542ccbc28f8e",
@@ -379,11 +401,11 @@
       "rid": "RFC5036-3.5.3-1",
       "polarity": "positive",
       "unit": "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitNonZeroKeepaliveTimeAccepted",
-      "unit-sha": "4388d1c0fc0cd403",
-      "claim-sha": "ddaf98ade5b1b481",
+      "unit-sha": "c9ccbe8f8dc5d917",
+      "claim-sha": "def91749fdc69e60",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "fe0430e7e4400ff8",
+      "producer-sha": "15c93b4f03ff0848",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

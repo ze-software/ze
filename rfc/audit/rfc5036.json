@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -12,7 +13,7 @@
       "requirement_sha": "400b56f09eddd61f",
       "tests": {
         "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleInitiatesNegotiation": "ae9e641bab4b2401",
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036SessionNotOperationalWithoutOwnInit": "e896d95bc2804911"
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036SessionNotOperationalWithoutOwnInit": "0c099031be03877f"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleInitiatesNegotiation": "9139382b9fa32164",
@@ -196,8 +197,8 @@
       "note": "TestRFC5036HelloHoldTimeZeroUsesDefault checks Hold Time 0 keeps the adjacency with 15s for a Link Hello and 45s for a Targeted Hello and not expired; TestRFC5036HelloHoldTimeNonZeroNotDefaulted checks non-zero values below and above the default are used as sent.",
       "requirement_sha": "2436e8e56f006425",
       "tests": {
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeNonZeroNotDefaulted": "e896d95bc2804911",
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeZeroUsesDefault": "e896d95bc2804911"
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeNonZeroNotDefaulted": "0c099031be03877f",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeZeroUsesDefault": "0c099031be03877f"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeNonZeroNotDefaulted": "7b40deb43fc43277",
@@ -309,8 +310,8 @@
       "note": "TestRFC5036PDUVersionOneAccepted reads the PDU header SendInit emits and checks Version 1, and decodes a Version 1 header; TestRFC5036PDUVersionOtherRejected checks versions 0, 2 and 65535 are refused by decodePDUHeader and that processDiscoveryPacket forms no adjacency from a version 2 Hello.",
       "requirement_sha": "d76130d3521c30e4",
       "tests": {
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOneAccepted": "e896d95bc2804911",
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOtherRejected": "e896d95bc2804911"
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOneAccepted": "0c099031be03877f",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOtherRejected": "0c099031be03877f"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOneAccepted": "c1f621207b794990",
@@ -322,8 +323,8 @@
       "note": "TestRFC5036HelloReservedBitsZeroOnTransmit checks the 14 reserved bits of the Common Hello Parameters TLV are zero from EncodeHello for all four T/R combinations; TestRFC5036HelloReservedBitsIgnoredOnReceipt sets every reserved bit and checks DecodeHello reads neither T nor R nor a changed hold time.",
       "requirement_sha": "a7d282a6034073f3",
       "tests": {
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsIgnoredOnReceipt": "e896d95bc2804911",
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsZeroOnTransmit": "e896d95bc2804911"
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsIgnoredOnReceipt": "0c099031be03877f",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsZeroOnTransmit": "0c099031be03877f"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsIgnoredOnReceipt": "5bf1d4aee254b32f",
@@ -335,8 +336,8 @@
       "note": "TestRFC5036InitProtocolVersionOne reads the Initialization SendInit emits and checks Protocol Version 1, and drives processMessages to operational on version 1; TestRFC5036InitProtocolVersionOtherRejected checks versions 0, 2 and 65535 draw the Bad Protocol Version Notification, errBadVersion and no operational state. Re-judged 2026-10-02 (c29 judge): since the RULINGS R4 fix an accepted Initialization takes OPENSENT to OPENREC and only the peer's KeepAlive makes the session operational (RFC 5036 2.5.4), so the unit now appends the peer's KeepAlive to the PDU before asserting operational; the assertion is unchanged, and a rejected or unaccepted Initialization still fails it (processMessages errors before the KeepAlive, and keepaliveReceived refuses without initAccepted).",
       "requirement_sha": "550b2628bbe2eb29",
       "tests": {
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitProtocolVersionOne": "e896d95bc2804911",
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitProtocolVersionOtherRejected": "e896d95bc2804911"
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitProtocolVersionOne": "0c099031be03877f",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitProtocolVersionOtherRejected": "0c099031be03877f"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitProtocolVersionOne": "9ec3984b2bc54aa1",
