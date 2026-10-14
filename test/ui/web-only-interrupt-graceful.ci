@@ -1,0 +1,30 @@
+# Test: one Ctrl+C stops the standalone web server gracefully, exit 0
+# Exercises: ze start --web-only -> runWebOnly (cmd/ze/hub/service_web.go):
+#            first SIGINT -> "Shutting down (Ctrl+C again to force)...",
+#            listener closed, Shutdown waits up to 3 s on the connection the
+#            driver holds, then runWebOnly returns 0.
+# VALIDATES: the first step of the two-step Ctrl+C: one signal shuts down and
+#            exits 0, and never takes the forced exit, even with a connection
+#            that never finishes.
+# PREVENTS:  the first Ctrl+C force-exiting, or the shutdown hanging on a stuck
+#            connection past its deadline.
+# The driver (le test fixture web/interrupt) holds a silent connection open
+# until the runner ends it, after the daemon has exited.
+
+option=env:var=ze.config.dir:value=.
+option=timeout:value=30s
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+secret123
+127.0.0.1
+2222
+EOF_INIT
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=le test fixture web/interrupt $PORT 1
+cmd=foreground:seq=3:exec=ze start --web $PORT --web-only --insecure-web:timeout=25s
+expect=exit:code=0
+expect=stdout:contains=Shutting down (Ctrl+C again to force)...
+expect=stderr:contains=web-interrupt: listener closed after the first SIGINT
+reject=stderr:contains=forced exit

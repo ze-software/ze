@@ -46,6 +46,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	resolvecmd "github.com/ze-software/ze/internal/component/resolve/cmd"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/reboot"
@@ -112,7 +113,13 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 
 // exitForced ends the process at once with exit 1, for an operator who will
 // not wait for the stop to finish.
+//
+// os.Stderr is the crashlog relay's pipe, and os.Exit kills the relay before
+// it copies what is queued, so the line written there never reached the
+// operator. crashlog.Flush drains the relay and puts the real stderr back
+// first, so the line goes straight to it.
 func exitForced() {
+	crashlog.Flush()
 	_, _ = os.Stderr.WriteString("forced exit\n") //nolint:errcheck // the process exits next; a failed stderr write has no reader
 	os.Exit(1)
 }

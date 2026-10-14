@@ -1,0 +1,31 @@
+# Test: a second Ctrl+C during the standalone web server's shutdown forces exit
+# Exercises: ze start --web-only -> runWebOnly (cmd/ze/hub/service_web.go):
+#            first SIGINT -> "Shutting down (Ctrl+C again to force)...",
+#            listener closed, Shutdown waits on the connection the driver holds
+#            -> second SIGINT -> forceExitOnSignal -> exitForced (exit 1).
+# VALIDATES: the second step of the two-step Ctrl+C: the process leaves at once
+#            with "forced exit" and exit 1, not after the 3 s shutdown deadline
+#            with exit 0.
+# PREVENTS:  an impatient operator's second Ctrl+C being ignored while the web
+#            server waits for a stuck connection.
+# The driver (le test fixture web/interrupt) sends the second SIGINT only after
+# the listener refuses, so the two signals cannot merge into one.
+
+option=env:var=ze.config.dir:value=.
+option=timeout:value=30s
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+secret123
+127.0.0.1
+2222
+EOF_INIT
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=le test fixture web/interrupt $PORT 2
+cmd=foreground:seq=3:exec=ze start --web $PORT --web-only --insecure-web:timeout=25s
+expect=exit:code=1
+expect=stdout:contains=Shutting down (Ctrl+C again to force)...
+expect=stderr:contains=web-interrupt: listener closed after the first SIGINT
+expect=stderr:contains=web-interrupt: second SIGINT sent during the shutdown
+expect=stderr:contains=forced exit

@@ -210,6 +210,15 @@ Configured and web-only startup call `startWebServer` in
 config for initial setup.
 <!-- source: cmd/ze/hub/service_web.go -- startWebServer -->
 
+Web-only mode stops in two steps. The first Ctrl+C (SIGINT or SIGTERM) prints
+"Shutting down (Ctrl+C again to force)...", closes the listener and gives open
+connections up to 3 s to finish, then exits 0. A second Ctrl+C during that wait
+prints "forced exit" and exits 1 at once. The daemon's own stop has more phases
+(`docs/guide/operations.md`); web-only mode has no drain, so it has only these two.
+`test/ui/web-only-interrupt-graceful.ci` and `test/ui/web-only-interrupt-force.ci`
+drive both steps through `ze start --web-only`.
+<!-- source: cmd/ze/hub/service_web.go -- runWebOnly, forceExitOnSignal -->
+
 ## Workbench UI (default)
 
 The RouterOS-style operator workbench is the default UI. Set `ze.web.ui-mode=finder` to roll back to the legacy Finder shell.
