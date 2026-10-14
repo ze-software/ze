@@ -611,6 +611,17 @@ func (r *Run) virtfsArgs() ([]string, error) {
 	return argv, nil
 }
 
+// guestPatchedTree selects Ze's patched standard library in a guest shell
+// whose cwd is /workspace. The guest's own go (GOROOT=/usr/local/go) runs the
+// generator, which needs git, and its answer becomes GOROOT, with
+// GOTOOLCHAIN=local and the tree's bin first on PATH, so every later go command
+// compiles against the patched crypto/tls
+// (docs/contributing/patching-the-standard-library.md). It is one line so a
+// refusal stops the setup chain, and in the keep-alive login profile leaves
+// the real GOROOT in place, where a build of internal/core/eap then fails on
+// the compile-time marker instead of building unpatched.
+const guestPatchedTree = `tree="$(go run ./internal/le/go/stdpatch/goroot)" && export GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH"`
+
 const runBootstrapCommand = "setup-interfaces -a 2>/dev/null; ifup eth0 2>/dev/null; ifup lo 2>/dev/null; echo nameserver 8.8.8.8 > /etc/resolv.conf; apk add --no-cache openssh; echo PermitRootLogin yes >> /etc/ssh/sshd_config; echo PermitEmptyPasswords yes >> /etc/ssh/sshd_config; passwd -d root; ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N '' 2>/dev/null; ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N '' 2>/dev/null; /usr/sbin/sshd; echo SSHD_READY"
 
 func shellQuote(value string) string {
@@ -692,6 +703,7 @@ func (r *Run) setupCommand(goRelease string) (string, error) {
 		"export GOFLAGS=\"-buildvcs=false\"", "export CGO_ENABLED=\"0\"",
 		"export HOME=\"/root\"", "export TMPDIR=\"/tmp\"",
 		"git config --global --add safe.directory '*' 2>/dev/null || true",
+		guestPatchedTree,
 		"mkdir -p /workspace/tmp/evidence", "mount -t tmpfs tmpfs /workspace/tmp/evidence",
 	)
 	return strings.Join(parts, " && "), nil

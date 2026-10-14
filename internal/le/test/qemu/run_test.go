@@ -421,6 +421,19 @@ func TestRunBuildsBootstrapSetupAndSSHCommands(t *testing.T) {
 			t.Errorf("setup command misses %q", needle)
 		}
 	}
+	// The patched tree is selected after the real GOROOT and git's
+	// safe.directory, so the generator runs under the guest's own go.
+	realRoot := strings.Index(plan.SetupCommand, "export GOROOT=\"/usr/local/go\"")
+	safeDir := strings.Index(plan.SetupCommand, "safe.directory")
+	tree := strings.Index(plan.SetupCommand, guestPatchedTree)
+	if realRoot < 0 || safeDir < 0 || tree < realRoot || tree < safeDir {
+		t.Errorf("setup command selects the patched tree at %d, want after the real GOROOT (%d) and safe.directory (%d)",
+			tree, realRoot, safeDir)
+	}
+	if n := len(keepAliveProfile); n == 0 || keepAliveProfile[n-1] != guestPatchedTree ||
+		!slices.Contains(keepAliveProfile, "export GOROOT=/usr/local/go") {
+		t.Errorf("keep-alive profile %q does not end by selecting the patched tree over /usr/local/go", keepAliveProfile)
+	}
 	wantSSH := []string{
 		"-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
 		"-o", "PreferredAuthentications=none", "-o", "LogLevel=ERROR", "-p", "2222",

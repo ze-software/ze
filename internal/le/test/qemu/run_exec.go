@@ -309,18 +309,22 @@ func (r *Run) runGuestCommand(ctx context.Context, report *RunReport) (RunReport
 	return *report, nil
 }
 
+// keepAliveProfile is the login profile a keep-alive guest writes to
+// /etc/profile.d/ze.sh: the guest's own go as the real GOROOT, then the patched
+// tree selected over it (guestPatchedTree).
+var keepAliveProfile = []string{
+	"export PATH=/usr/local/go/bin:$PATH", "export GOROOT=/usr/local/go",
+	"export GOCACHE=/workspace/tmp/qemu/go-cache",
+	"export GOMODCACHE=/workspace/tmp/qemu/gomodcache",
+	"export GOFLAGS=-buildvcs=false", "export CGO_ENABLED=0",
+	"export HOME=/root", "export TMPDIR=/tmp", "cd /workspace", guestPatchedTree,
+}
+
 func (r *Run) keepAlive(ctx context.Context, report *RunReport, vm *exec.Cmd) (RunReport, error) {
 	done := waitVM(vm)
 	defer stopVMWaiting(vm, done)
-	profile := []string{
-		"export PATH=/usr/local/go/bin:$PATH", "export GOROOT=/usr/local/go",
-		"export GOCACHE=/workspace/tmp/qemu/go-cache",
-		"export GOMODCACHE=/workspace/tmp/qemu/gomodcache",
-		"export GOFLAGS=-buildvcs=false", "export CGO_ENABLED=0",
-		"export HOME=/root", "export TMPDIR=/tmp", "cd /workspace",
-	}
-	quoted := make([]string, 0, len(profile))
-	for _, line := range profile {
+	quoted := make([]string, 0, len(keepAliveProfile))
+	for _, line := range keepAliveProfile {
 		quoted = append(quoted, shellQuote(line))
 	}
 	var b textbuf.Buffer
