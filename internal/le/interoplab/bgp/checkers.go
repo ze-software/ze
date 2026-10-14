@@ -198,6 +198,32 @@ var scenarioOperations = map[string][]operation{
 		},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
+	// RFC 9252 Section 7: "The path having any such Prefix-SID attribute
+	// without any valid SRv6 SID information MUST be considered ineligible
+	// during the selection of the best path for the corresponding prefix."
+	// FRR's path (valid SID, LOCAL_PREF 100) must be ze's best before the
+	// injector sends, which also proves ze reads FRR's SID as valid. Once ze
+	// holds the injector's path (invalid SID Structure, LOCAL_PREF 200 by
+	// import policy), FRR must still be the best peer: without the gate the
+	// injector's path wins on LOCAL_PREF. ze keys the route on RD and prefix
+	// with the label stripped (nlrisplit keyVPN), so the paths compete
+	// whatever labels they carry. The best table is read by peer, not prefix:
+	// `show bgp rib best` renders a VPN NLRI as a CIDR (journal,
+	// silent-fall-through.md). NOT RUN: written 2026-10-14 where the Docker
+	// kernel refuses the lab; the green and the red phase are both unobserved.
+	"bgp-srv6-invalid-sid-ineligible-frr": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib best"), contains: []string{srv6IneligibleFRRAddress}, timeout: 90 * time.Second},
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib received"), contains: []string{srv6IneligibleInjectorAddress}, timeout: 60 * time.Second},
+		{
+			kind:    opRequireAbsent,
+			peer:    "ze",
+			command: zeCommand("show bgp rib best"),
+			absent:  []string{srv6IneligibleInjectorAddress},
+			proof:   []string{srv6IneligibleFRRAddress},
+		},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	// RFC 8669 Sections 3.1, 4.1 and 6 and RFC 9252 Section 7, judged by FRR
 	// on what ze relays. The VPN control comes first: it proves the VPN
 	// session carries routes, so the absence of the treat-as-withdraw prefix

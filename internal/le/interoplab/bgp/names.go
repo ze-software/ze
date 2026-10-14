@@ -641,6 +641,16 @@ const (
 	frrShowPrefixSIDMalformedSRGBOnlyPrefix   = "show bgp ipv4 labeled-unicast " + prefixSIDMalformedSRGBOnlyPrefix
 )
 
+// The bgp-srv6-invalid-sid-ineligible-frr scenario, where FRR exports one IPv6
+// VPN route with a valid SRv6 SID and the raw injector, once ze has relayed that
+// route to it, sends the same RD and prefix with an invalid SID Structure. ze
+// holds one IPv6 VPN route, so its best table has one row, whose best peer is
+// FRR or the injector.
+const (
+	srv6IneligibleFRRAddress      = "172.30.0.3"
+	srv6IneligibleInjectorAddress = "172.30.0.9"
+)
+
 // flowspecMatchSCTP is the protocol word nft(8) prints for the SCTP match the
 // flowspec scenario lowers, and whose absence proves the rule was withdrawn.
 const flowspecMatchSCTP = "sctp"
