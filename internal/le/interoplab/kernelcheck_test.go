@@ -377,7 +377,7 @@ func TestDockerKernelRouteInsideTheDockerLabGuest(t *testing.T) {
 			t.Errorf("the guest route does not name %s: %s", want, route)
 		}
 	}
-	for line := range strings.SplitSeq(buildhostdriver.RuntimeKernelBuild(runtime.GOARCH), "\n") {
+	for line := range strings.SplitSeq(buildhostdriver.RuntimeKernelBuild(runtime.GOARCH, ""), "\n") {
 		requireCommandOnItsOwnLine(t, errors.New(route), strings.TrimSpace(line))
 	}
 }

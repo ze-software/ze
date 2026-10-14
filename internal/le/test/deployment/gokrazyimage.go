@@ -14,6 +14,7 @@
 package testdeployment
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -184,16 +185,24 @@ func buildGokrazyImage(
 }
 
 // hostToolText runs one host binary over the tree. It answers the standard
-// output and whether the binary succeeded.
+// output, or an error carrying the binary's standard error when it fails, so a
+// refusal such as an unknown --builder reaches the operator.
 //
 // The function returns standard output alone because the caller reads an ANSWER
 // from it. If the tool writes a warning to the other stream, the caller does not
 // read that warning as part of the answer.
-func hostToolText(ctx context.Context, tree, name string, argv ...string) (string, bool) {
-	cmd := exec.CommandContext(ctx, name, argv...) //nolint:gosec // the argv is this package's own, never an operator's
+func hostToolText(ctx context.Context, tree, name string, argv ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, name, argv...) //nolint:gosec // the argv is this package's own; ze-host refuses a builder other than docker or qemu
 	cmd.Dir = tree
 	out, err := cmd.Output()
-	return string(out), err == nil
+	if err == nil {
+		return string(out), nil
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && len(bytes.TrimSpace(exit.Stderr)) > 0 {
+		return "", errors.New(string(bytes.TrimSpace(exit.Stderr)))
+	}
+	return "", err
 }
 
 // gokrazyBuildUser answers the one environment entry the build needs and a
@@ -321,7 +330,7 @@ func checkRuntimeKernelCache(tree, arch string, progress io.Writer) error {
 	if err != nil {
 		return err
 	}
-	cache, err := RuntimeKernelCacheDir(tree, arch, progress)
+	cache, err := RuntimeKernelCacheDir(tree, arch, "", progress)
 	if err != nil {
 		return err
 	}
@@ -336,12 +345,14 @@ func checkRuntimeKernelCache(tree, arch string, progress io.Writer) error {
 }
 
 // RuntimeKernelCacheDir asks the host ze where the runtime kernel for this architecture
-// is cached.
+// is cached. builder is the build backend (docker or qemu) the kernel was built
+// with, passed as --builder; empty asks for the backend a build here would
+// choose (docker whenever the docker binary is on PATH).
 //
 // The host binary is built first because it owns this answer. The cache layout
-// is keyed by architecture and by the pinned version. A second statement of that
-// layout here would create a second thing to keep in step.
-func RuntimeKernelCacheDir(tree, arch string, progress io.Writer) (string, error) {
+// is keyed by architecture, by the pinned version and by the build backend. A
+// second statement of that layout here would create a second thing to keep in step.
+func RuntimeKernelCacheDir(tree, arch, builder string, progress io.Writer) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), imageBuildTimeout)
 	defer cancel()
 
@@ -350,10 +361,9 @@ func RuntimeKernelCacheDir(tree, arch string, progress io.Writer) (string, error
 		return "", err
 	}
 	writeProgress(progress, "reading the native runtime-kernel cache identity...")
-	out, ok := hostToolText(ctx, tree, host,
-		"appliance", "kernel", "--target", "runtime", "--arch", arch, "--print-cache-dir")
-	if !ok {
-		return "", errors.New("resolve runtime kernel cache dir failed")
+	out, err := hostToolText(ctx, tree, host, runtimeKernelCacheDirArgv(arch, builder)...)
+	if err != nil {
+		return "", errors.New("resolve runtime kernel cache dir failed: " + err.Error())
 	}
 
 	var last string
@@ -365,9 +375,19 @@ func RuntimeKernelCacheDir(tree, arch string, progress io.Writer) (string, error
 	if last == "" {
 		return "", errors.New("could not resolve the runtime kernel cache dir: " +
 			"ze-host appliance kernel --print-cache-dir produced no output. Build the kernel with:\n" +
-			buildhostdriver.RuntimeKernelBuild(arch))
+			buildhostdriver.RuntimeKernelBuild(arch, builder))
 	}
 	return last, nil
+}
+
+// runtimeKernelCacheDirArgv answers the ze-host arguments that print the
+// runtime kernel's cache entry for arch, built by builder when one is named.
+func runtimeKernelCacheDirArgv(arch, builder string) []string {
+	argv := []string{"appliance", "kernel", "--target", "runtime", "--arch", arch}
+	if builder != "" {
+		argv = append(argv, "--builder", builder)
+	}
+	return append(argv, "--print-cache-dir")
 }
 
 // coldCacheError answers the refusal for a cache that cannot provide the runtime
@@ -388,7 +408,7 @@ func coldCacheError(cache, arch string, problems []string) error {
 		Str(" would crash-loop on ze's fail-closed module probe), but the").
 		Str(" durable cache at ").Str(cache).Str(" cannot provide it:\n  ").
 		Str(strings.Join(problems, "\n  ")).Byte('\n').
-		Str(remedy).Str(buildhostdriver.RuntimeKernelBuild(arch)).Byte('\n').
+		Str(remedy).Str(buildhostdriver.RuntimeKernelBuild(arch, "")).Byte('\n').
 		Str("note: this proof usually runs under sudo, and sudo commonly resets HOME, so the").
 		Str(" cache read here is root's; a kernel built as your own user lives in YOUR cache")
 	return errors.New(tb.String())

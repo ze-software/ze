@@ -38,3 +38,18 @@ func TestColdCacheErrorNamesTheEntryAndTheRemedy(t *testing.T) {
 		t.Errorf("refusal does not name the arch:\n%v", err)
 	}
 }
+
+// VALIDATES: the cache-dir query carries the backend the operator named as
+// --builder, and carries none when the operator named none.
+// PREVENTS: `le setup docker-kernel install builder qemu` looking in the docker
+// entry because the backend never reached ze-host's cache key.
+func TestRuntimeKernelCacheDirArgvCarriesTheBuilder(t *testing.T) {
+	named := strings.Join(runtimeKernelCacheDirArgv("amd64", "qemu"), " ")
+	if named != "appliance kernel --target runtime --arch amd64 --builder qemu --print-cache-dir" {
+		t.Errorf("argv with builder qemu = %q", named)
+	}
+	unnamed := strings.Join(runtimeKernelCacheDirArgv("arm64", ""), " ")
+	if unnamed != "appliance kernel --target runtime --arch arm64 --print-cache-dir" {
+		t.Errorf("argv with no builder = %q", unnamed)
+	}
+}

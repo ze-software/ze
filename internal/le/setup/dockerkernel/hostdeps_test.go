@@ -59,7 +59,7 @@ func TestZeKernelServesHostRefusesWhatBrokeTheOwnersHost(t *testing.T) {
 	for _, want := range []string{"interface ens18 is named by its PCI slot", "CONFIG_HOTPLUG_PCI_ACPI", "CONFIG_HOTPLUG_PCI_PCIE",
 		"UFW is installed", "CONFIG_NETFILTER_XT_MATCH_LIMIT", "CONFIG_IP_NF_TARGET_REJECT", "CONFIG_IP6_NF_TARGET_REJECT",
 		"CONFIG_NETFILTER_XT_MATCH_RECENT", "CONFIG_NETFILTER_XT_MATCH_HL", "CONFIG_IP6_NF_MATCH_RT", "no step ran",
-		"gokrazy/kernel/runtime.config", "appliance kernel --target runtime"} {
+		"gokrazy/kernel/runtime.config"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal lacks %q:\n%v", want, err)
 		}

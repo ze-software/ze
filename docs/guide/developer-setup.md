@@ -217,7 +217,8 @@ kernel that lacks one.
   `./le setup docker-kernel install` puts Ze's cached runtime kernel under
   `/boot` and makes it GRUB's default, one stated `sudo` step at a time. It
   needs `GRUB_DEFAULT=saved` in `/etc/default/grub`, never reboots, and refuses
-  on macOS. When the daemon applies AppArmor (Ubuntu's default), the check runs its
+  on macOS. A kernel built with `--builder qemu` on a host with Docker is
+  installed with `builder qemu`, because the cache entry is keyed by backend. When the daemon applies AppArmor (Ubuntu's default), the check runs its
   probe under Ze's `ze-kernel-probe` profile, because Docker's `docker-default`
   denies what the probe does; `./le setup docker-kernel apparmor confirm
   ze-kernel-probe` installs and loads it, one stated `sudo` step at a time. The

@@ -59,7 +59,7 @@ func DockerKernelRoute(goos string, lab, environment []string) string {
 				" which boots the appliance's runtime kernel, so installing a kernel there changes nothing:" +
 				" the appliance kernel lacks the feature. Add its options to gokrazy/kernel/runtime.config" +
 				" and gokrazy/kernel/runtime.require, then rebuild the kernel cache entry on the host with:\n" +
-				buildhostdriver.RuntimeKernelBuild(runtime.GOARCH)
+				buildhostdriver.RuntimeKernelBuild(runtime.GOARCH, "")
 		}
 		return "Run Docker on a kernel with every feature, or install Ze's kernel and reboot." +
 			" The install prints its steps and runs none until you confirm the release:\n" +

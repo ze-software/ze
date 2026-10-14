@@ -196,7 +196,8 @@ func hostDependencies(facts hostFacts) ([]hostDependency, error) {
 
 // zeKernelServesHost refuses a Ze kernel config that leaves any dependency an
 // option it neither builds in nor builds as a module, naming each dependency,
-// what it would break, and the options it lacks.
+// what it would break, and the options it lacks. The rebuild command is the
+// caller's (cachedKernelServesHost), which knows the backend it resolved.
 func zeKernelServesHost(release, config string, deps []hostDependency) error {
 	built := kernelOptionsSet(config)
 	var refusal textbuf.Buffer
@@ -221,8 +222,7 @@ func zeKernelServesHost(release, config string, deps []hostDependency) error {
 	var tb textbuf.Buffer
 	return errors.New(tb.Str("the Ze kernel ").Str(release).Str(" lacks what this host relies on its kernel for,").
 		Str(" and no step ran:").Str(refusal.String()).
-		Str("\nEnable the options in gokrazy/kernel/runtime.config and runtime.require, then rebuild:\n").
-		Str(runtimeKernelRebuild).String())
+		Str("\nEnable the options in gokrazy/kernel/runtime.config and runtime.require.").String())
 }
 
 // kernelOptionsSet answers the options a kernel config builds in or as a

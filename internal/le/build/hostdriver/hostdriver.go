@@ -20,10 +20,16 @@ const name = "build host-driver"
 // `appliance` is a ze_setup command and the ./ze wrapper builds without it
 // ("unknown command: appliance"), then its kernel build. Every le refusal that
 // sends an operator to build the runtime kernel prints this, so the command is
-// declared once.
-func RuntimeKernelBuild(arch string) string {
-	return "  ./le " + name + "\n  ./" + buildcompile.HostBinary +
+// declared once. builder is the --builder backend (docker or qemu) the
+// refusing command resolved the cache for; empty leaves ze-host's own choice,
+// which names a different cache entry when the backend differs.
+func RuntimeKernelBuild(arch, builder string) string {
+	build := "  ./le " + name + "\n  ./" + buildcompile.HostBinary +
 		" appliance kernel --target runtime --arch " + arch
+	if builder == "" {
+		return build
+	}
+	return build + " --builder " + builder
 }
 
 // Answer is the `le build host-driver` command. There is one host and one

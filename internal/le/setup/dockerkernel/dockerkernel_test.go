@@ -61,7 +61,7 @@ func TestDockerKernelInstallRefusesOffLinux(t *testing.T) {
 // tree (/lib/modules/<release>/<release>) while the old modules.dep stays.
 func TestDockerKernelInstallSteps(t *testing.T) {
 	cache := cachedKernel(t, "7.2.9-ze", "-ze")
-	release, err := cachedKernelRelease(cache)
+	release, err := cachedKernelRelease(cache, "")
 	if err != nil {
 		t.Fatalf("release: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestDockerKernelReleaseNeedsTheZeSuffix(t *testing.T) {
 		"release ends otherwise":        {"7.2.9-generic", "-ze"},
 	}
 	for name, entry := range refused {
-		_, err := cachedKernelRelease(cachedKernel(t, entry.release, entry.localVersion))
+		_, err := cachedKernelRelease(cachedKernel(t, entry.release, entry.localVersion), "")
 		if err == nil {
 			t.Errorf("%s: release %q accepted", name, entry.release)
 			continue
@@ -183,14 +183,14 @@ func TestDockerKernelInstallNeedsConfirmation(t *testing.T) {
 // VALIDATES: a cache entry with no modules tree, or with two, is refused: the
 // release is what every installed path is named for.
 func TestDockerKernelReleaseNeedsOneModulesTree(t *testing.T) {
-	if _, err := cachedKernelRelease(t.TempDir()); err == nil {
+	if _, err := cachedKernelRelease(t.TempDir(), ""); err == nil {
 		t.Error("an entry with no lib/modules answered a release")
 	}
 	cache := cachedKernel(t, "7.2.0-ze", "-ze")
 	if err := os.MkdirAll(filepath.Join(cache, "lib", "modules", "7.2.1-ze"), 0o750); err != nil {
 		t.Fatalf("second modules tree: %v", err)
 	}
-	if _, err := cachedKernelRelease(cache); err == nil {
+	if _, err := cachedKernelRelease(cache, ""); err == nil {
 		t.Error("an entry with two modules trees answered a release")
 	}
 }

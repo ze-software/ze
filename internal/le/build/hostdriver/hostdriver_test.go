@@ -33,7 +33,7 @@ func TestHostDriverRegistersAndRefusesAnArgument(t *testing.T) {
 // PREVENTS: a refusal naming `./ze appliance kernel`, which the ./ze wrapper
 // (ze_core, ze_distro) answers with "unknown command: appliance".
 func TestRuntimeKernelBuildResolvesToRegisteredCommands(t *testing.T) {
-	lines := strings.Split(RuntimeKernelBuild("arm64"), "\n")
+	lines := strings.Split(RuntimeKernelBuild("arm64", ""), "\n")
 	if len(lines) != 2 {
 		t.Fatalf("want two command lines, got %q", lines)
 	}
@@ -46,5 +46,17 @@ func TestRuntimeKernelBuildResolvesToRegisteredCommands(t *testing.T) {
 	}
 	if !strings.Contains(buildcompile.HostTags, "ze_setup") {
 		t.Errorf("ze-host tags %q lack ze_setup, which carries `appliance`", buildcompile.HostTags)
+	}
+}
+
+// VALIDATES: a refusal that resolved the cache for a named backend prints the
+// build for that backend, whose output lands in the entry it looked in.
+// PREVENTS: an install looking in the qemu entry telling the operator to build
+// with ze-host's default, which on a host with docker fills the docker entry.
+func TestRuntimeKernelBuildNamesTheBuilder(t *testing.T) {
+	lines := strings.Split(RuntimeKernelBuild("amd64", "qemu"), "\n")
+	want := "./" + buildcompile.HostBinary + " appliance kernel --target runtime --arch amd64 --builder qemu"
+	if len(lines) != 2 || strings.TrimSpace(lines[1]) != want {
+		t.Errorf("build = %q, want its second line %q", lines, want)
 	}
 }

@@ -58,7 +58,7 @@ func runDockerLabHere(args leaction.Arguments) (any, int) {
 		return nil, 1
 	}
 	goarch := GuestArch()
-	cache, err := testdeployment.RuntimeKernelCacheDir(root, goarch, os.Stderr)
+	cache, err := testdeployment.RuntimeKernelCacheDir(root, goarch, "", os.Stderr)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -119,7 +119,7 @@ func dockerLabKernel(cache, goarch string) (string, error) {
 		var tb textbuf.Buffer
 		return "", errors.New(tb.Str("the Docker lab guest boots Ze's ").Str(goarch).
 			Str(" runtime kernel from its cache entry, and ").Str(kernel).Str(" is not there (").Err(err).
-			Str(").\nBuild it with:\n").Str(buildhostdriver.RuntimeKernelBuild(goarch)).String())
+			Str(").\nBuild it with:\n").Str(buildhostdriver.RuntimeKernelBuild(goarch, "")).String())
 	}
 	return kernel, nil
 }

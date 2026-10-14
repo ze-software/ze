@@ -547,7 +547,12 @@ break, the missing options, and the rebuild (`hostdeps.go`). After the steps
 it reads `/boot/grub/grub.cfg`, through `sudo cat` when the host keeps it
 root-only, to find the entry's title. Without
 `confirm <release>` it prints the steps and runs none, because passwordless
-sudo asks nothing: `./le setup docker-kernel install confirm 7.2.9-ze`. A
+sudo asks nothing: `./le setup docker-kernel install confirm 7.2.9-ze`. The
+cache entry is keyed by the backend that built the kernel, and ze-host answers
+docker's entry whenever the docker binary is on PATH, so a kernel built with
+QEMU on such a host is named with `builder qemu`
+(`./le setup docker-kernel install builder qemu confirm 7.2.9-ze`); the dry
+run's confirming command and every rebuild it prints keep that backend. A
 reinstall replaces: it removes `/lib/modules/<release>` and
 `/boot/initrd.img-<release>` before writing them again, so `cp -a` never nests
 the new modules inside the old tree. It prints each `sudo` step before it runs

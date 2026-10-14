@@ -360,7 +360,7 @@ func probeVRRPKernel(ctx context.Context, names vrrpNames) error {
 					"gokrazy/kernel/runtime.require (the require entry makes a later build fail rather than "+
 					"silently ship without the symbol), then rebuild the kernel with:\n%s",
 				probe.feature, strings.Join(probe.argv, " "), probe.symbol, probe.symbol,
-				buildhostdriver.RuntimeKernelBuild(runtime.GOARCH))
+				buildhostdriver.RuntimeKernelBuild(runtime.GOARCH, ""))
 		}
 	}
 	release, _ := os.ReadFile("/proc/sys/kernel/osrelease")

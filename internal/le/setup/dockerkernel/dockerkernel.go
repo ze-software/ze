@@ -51,6 +51,11 @@ const (
 	// install. Passwordless sudo asks nothing, so this is the one question
 	// every root step waits on.
 	dockerKernelConfirmKeyword = "confirm"
+	// dockerKernelBuilderKeyword takes the backend (docker or qemu) the cached
+	// kernel was built with. The backend is part of the cache key, and without
+	// it ze-host names the entry a build here would fill: docker's whenever the
+	// docker binary is on PATH.
+	dockerKernelBuilderKeyword = "builder"
 	// dockerKernelCheckTimeout bounds the release query and the probe
 	// container, whose own bound is two minutes.
 	dockerKernelCheckTimeout = 3 * time.Minute
@@ -74,10 +79,13 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 		Writes: true,
 		Why: "Linux only: install Ze's cached runtime kernel for this host's architecture under /boot" +
 			" and /lib/modules, rebuild the initramfs and the GRUB menu, and make it GRUB's saved" +
-			" default by title. Without `confirm <release>` it prints the steps and runs none; every step" +
+			" default by title. `builder <docker|qemu>` names the backend the kernel was built with, which" +
+			" the cache entry is keyed by (default: docker when the docker binary is on PATH, else qemu)." +
+			" Without `confirm <release>` it prints the steps and runs none; every step" +
 			" runs through sudo and is printed first; it never reboots. " +
 			"Elsewhere the labs run inside the Ze-kernel QEMU guest: ./le test qemu docker-lab",
 		Parameters: []leaction.Parameter{
+			{Keyword: dockerKernelBuilderKeyword, Value: "backend", Requirement: leaction.Optional},
 			{Keyword: dockerKernelConfirmKeyword, Value: "release", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runDockerKernelInstall,
@@ -272,17 +280,18 @@ func runDockerKernelInstall(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	cache, err := testdeployment.RuntimeKernelCacheDir(root, runtime.GOARCH, os.Stderr)
+	builder := args.One(dockerKernelBuilderKeyword)
+	cache, err := installCache(root, builder)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	release, err := cachedKernelRelease(cache)
+	release, err := cachedKernelRelease(cache, builder)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	if err := cachedKernelServesHost(cache, release, "/"); err != nil {
+	if err := cachedKernelServesHost(cache, release, "/", builder); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
@@ -331,16 +340,30 @@ func dockerKernelInstallPlatform(goos string) error {
 		Str(interoplab.DockerKernelRoute(goos, nil, nil)).String())
 }
 
+// runtimeKernelCacheDir is testdeployment.RuntimeKernelCacheDir, a variable so
+// a test can see the backend the install asks ze-host for.
+var runtimeKernelCacheDir = testdeployment.RuntimeKernelCacheDir
+
+// installCache answers the runtime-kernel cache entry the install places: the
+// one ze-host keys by this host's architecture and by builder, the backend the
+// operator named after `builder`, or ze-host's own choice when none.
+func installCache(root, builder string) (string, error) {
+	return runtimeKernelCacheDir(root, runtime.GOARCH, builder, os.Stderr)
+}
+
 // runtimeKernelRebuild is what every refusal of a cache entry tells the
-// operator to run, one command per line (buildhostdriver.RuntimeKernelBuild).
-var runtimeKernelRebuild = buildhostdriver.RuntimeKernelBuild(runtime.GOARCH)
+// operator to run, one command per line (buildhostdriver.RuntimeKernelBuild),
+// building with the backend whose entry the install resolved.
+func runtimeKernelRebuild(builder string) string {
+	return buildhostdriver.RuntimeKernelBuild(runtime.GOARCH, builder)
+}
 
 // cachedKernelRelease answers the release a runtime-kernel cache entry holds:
 // the one directory under lib/modules, which every installed path is named for.
 // The release MUST end with the CONFIG_LOCALVERSION suffix the entry's own
 // config declares. A bare upstream release such as 7.2.0 names files another
 // kernel of that release owns, and a reinstall removes the trees it replaces.
-func cachedKernelRelease(cache string) (string, error) {
+func cachedKernelRelease(cache, builder string) (string, error) {
 	modules := filepath.Join(cache, "lib", "modules")
 	entries, err := os.ReadDir(modules)
 	if err != nil {
@@ -362,13 +385,13 @@ func cachedKernelRelease(cache string) (string, error) {
 		var tb textbuf.Buffer
 		return "", errors.New(tb.Str("the runtime kernel in ").Str(cache).Str(" is release ").Str(release).
 			Str(": ").Err(err).Str("; installed under a bare release it would replace another kernel of that name.").
-			Str(" gokrazy/kernel/runtime.config declares the suffix. Rebuild it with:\n").Str(runtimeKernelRebuild).String())
+			Str(" gokrazy/kernel/runtime.config declares the suffix. Rebuild it with:\n").Str(runtimeKernelRebuild(builder)).String())
 	}
 	if !strings.HasSuffix(release, suffix) {
 		var tb textbuf.Buffer
 		return "", errors.New(tb.Str("the runtime kernel in ").Str(cache).Str(" is release ").Str(release).
 			Str(", which does not end with its CONFIG_LOCALVERSION ").Str(suffix).
-			Str(" (gokrazy/kernel/runtime.config). Rebuild it with:\n").Str(runtimeKernelRebuild).String())
+			Str(" (gokrazy/kernel/runtime.config). Rebuild it with:\n").Str(runtimeKernelRebuild(builder)).String())
 	}
 	return release, nil
 }
@@ -392,15 +415,19 @@ func kernelLocalVersion(config string) (string, error) {
 }
 
 // installConfirmed refuses unless the operator named, after `confirm`, the
-// release the install is about to place, and names the command that does.
+// release the install is about to place, and names the command that does,
+// keeping the `builder` the operator named so it resolves the same entry.
 func installConfirmed(args leaction.Arguments, release string) error {
 	if args.One(dockerKernelConfirmKeyword) == release {
 		return nil
 	}
 	var tb textbuf.Buffer
-	return errors.New(tb.Str("the steps above, then saving its GRUB menu entry as the default, run as root and none ran." +
-		" To run them, confirm the release:\n  ./le setup docker-kernel install ").
-		Str(dockerKernelConfirmKeyword).Byte(' ').Str(release).String())
+	tb.Str("the steps above, then saving its GRUB menu entry as the default, run as root and none ran." +
+		" To run them, confirm the release:\n  ./le setup docker-kernel install ")
+	if builder := args.One(dockerKernelBuilderKeyword); builder != "" {
+		tb.Str(dockerKernelBuilderKeyword).Byte(' ').Str(builder).Byte(' ')
+	}
+	return errors.New(tb.Str(dockerKernelConfirmKeyword).Byte(' ').Str(release).String())
 }
 
 // printInstallPlan prints every step and its reason without running any.
@@ -452,8 +479,9 @@ func grubDefaultSaved(defaults string) error {
 }
 
 // cachedKernelServesHost refuses the cache entry's kernel when it lacks what
-// the host under root relies on its running kernel for (hostdeps.go).
-func cachedKernelServesHost(cache, release, root string) error {
+// the host under root relies on its running kernel for (hostdeps.go), naming
+// the rebuild with builder, the backend whose entry the install resolved.
+func cachedKernelServesHost(cache, release, root, builder string) error {
 	config, err := os.ReadFile(filepath.Join(cache, "config")) //nolint:gosec // a file inside the cache entry this command resolved
 	if err != nil {
 		return err
@@ -466,7 +494,10 @@ func cachedKernelServesHost(cache, release, root string) error {
 	if err != nil {
 		return err
 	}
-	return zeKernelServesHost(release, string(config), deps)
+	if err := zeKernelServesHost(release, string(config), deps); err != nil {
+		return errors.New(err.Error() + " Then rebuild:\n" + runtimeKernelRebuild(builder))
+	}
+	return nil
 }
 
 // readGrubConfig reads grub.cfg with read, and through `sudo cat` with
