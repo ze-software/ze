@@ -7,6 +7,7 @@ package ipsec
 import (
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -47,15 +48,21 @@ const natTranslationsMax = 2
 //
 // RFC 7296 Section 2.23.1 names them IP1 and IPN1 for the client, IP2 and IPN2 for
 // the server, and the whole section exists because the two differ.
+//
+// natPort, when set, is the public port the box maps the peer's UDP 4500 to. A NAT
+// that keeps port 4500 cannot tell an encapsulation port taken from the IKE SA from
+// the constant 4500, so the port-translated scenarios set it (RFC 3948 Section 2.1).
 type natTranslation struct {
-	real   netip.Addr
-	public netip.Addr
+	real    netip.Addr
+	public  netip.Addr
+	natPort uint16
 }
 
 // readNATConfig reads a scenario's nat.conf.
 //
-// The format is one translation per line, `<real> <public>`, with `#` comments and
-// blank lines ignored. It is declarative on purpose: a scenario directory carries
+// The format is one translation per line, `<real> <public> [<port>]`, with `#`
+// comments and blank lines ignored. The optional port is the public port the peer's
+// UDP 4500 is mapped to (natSetupScript). It is declarative on purpose: a scenario directory carries
 // inputs, and every assertion about them is a typed Go checker
 // (docs/architecture/testing/interop.md).
 func readNATConfig(directory string) ([]natTranslation, error) {
@@ -70,8 +77,19 @@ func readNATConfig(directory string) ([]natTranslation, error) {
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) != 2 {
-			return nil, fmt.Errorf("%s line %d is not `<real> <public>`: %q", natConfigName, lineNumber+1, line)
+		if len(fields) < 2 {
+			return nil, fmt.Errorf("%s line %d is not `<real> <public> [<port>]`: %q", natConfigName, lineNumber+1, line)
+		}
+		if len(fields) > 3 {
+			return nil, fmt.Errorf("%s line %d is not `<real> <public> [<port>]`: %q", natConfigName, lineNumber+1, line)
+		}
+		var natPort uint16
+		if len(fields) == 3 {
+			port, portErr := parseNATPort(fields[2])
+			if portErr != nil {
+				return nil, fmt.Errorf("%s line %d: %w", natConfigName, lineNumber+1, portErr)
+			}
+			natPort = port
 		}
 		real, realErr := netip.ParseAddr(fields[0])
 		if realErr != nil {
@@ -89,7 +107,7 @@ func readNATConfig(directory string) ([]natTranslation, error) {
 			return nil, fmt.Errorf("%s line %d translates %s to itself, so nothing is translated and the scenario would prove nothing",
 				natConfigName, lineNumber+1, real)
 		}
-		translations = append(translations, natTranslation{real: real, public: public})
+		translations = append(translations, natTranslation{real: real, public: public, natPort: natPort})
 		if len(translations) > natTranslationsMax {
 			return nil, fmt.Errorf("%s declares more than %d translations", natConfigName, natTranslationsMax)
 		}
@@ -98,6 +116,35 @@ func readNATConfig(directory string) ([]natTranslation, error) {
 		return nil, fmt.Errorf("%s declares no translation", natConfigName)
 	}
 	return translations, nil
+}
+
+// parseNATPort reads nat.conf's port column. 500 and 4500 are refused: a mapping to
+// either is the one the scenario could not tell from the constant it exists to catch.
+func parseNATPort(field string) (uint16, error) {
+	port, err := strconv.ParseUint(field, 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("port %q: %w", field, err)
+	}
+	if port == 0 {
+		return 0, fmt.Errorf("port 0 maps the peer's UDP 4500 nowhere")
+	}
+	if port == 500 {
+		return 0, fmt.Errorf("port 500 is the IKE port, so the scenario could not tell the translation from it")
+	}
+	if port == 4500 {
+		return 0, fmt.Errorf("port 4500 is no port translation, so the scenario could not tell the encapsulation port from the constant")
+	}
+	return uint16(port), nil
+}
+
+// natPortRule is the iptables rule that maps the peer's UDP 4500 to its public port.
+// The rebind step deletes it and inserts it again with a second port.
+func natPortRule(action string, translation natTranslation, port uint16) string {
+	var rule textbuf.Buffer
+	rule.Str("iptables -t nat ").Str(action).Str(" POSTROUTING -s ").Str(translation.real.String()).
+		Str(" -p udp --sport 4500 -j SNAT --to-source ").Str(translation.public.String()).
+		Byte(':').Int(int64(port))
+	return rule.String()
 }
 
 // natSetupScript builds the shell the NAT container runs as its whole life.
@@ -114,9 +161,14 @@ func readNATConfig(directory string) ([]natTranslation, error) {
 // 2.23.1 drawn with one box, and it is what makes all four NAT_DETECTION comparisons
 // mismatch. Return traffic is reversed by conntrack, so no rule states it.
 //
-// The rules carry no port and no protocol. IKE floats from UDP 500 to UDP 4500 mid
-// exchange (RFC 7296 Section 2.23), and a port-scoped rule would translate the
+// The address rules carry no port and no protocol. IKE floats from UDP 500 to UDP 4500
+// mid exchange (RFC 7296 Section 2.23), and a port-scoped rule would translate the
 // handshake and drop the ESP that follows.
+//
+// A row with a port gets one more rule, ahead of its address SNAT: UDP from the peer's
+// port 4500 leaves from that public port. Such a row gets NO DNAT: its peer initiates,
+// and conntrack reverses the replies, so the box only ever rewrites the peer's source.
+// The peer reaches the far side through the box by the route its checker installs.
 //
 // It never returns: the container is infrastructure, and the scenario's verdict is
 // read from the two daemons.
@@ -129,8 +181,12 @@ func natSetupScript(translations []natTranslation) string {
 			Int(int64(networkPrefix.Bits())).Str(" dev eth0\n")
 	}
 	for _, translation := range translations {
-		script.Str("iptables -t nat -A PREROUTING -d ").Str(translation.public.String()).
-			Str(" -j DNAT --to-destination ").Str(translation.real.String()).Byte('\n')
+		if translation.natPort == 0 {
+			script.Str("iptables -t nat -A PREROUTING -d ").Str(translation.public.String()).
+				Str(" -j DNAT --to-destination ").Str(translation.real.String()).Byte('\n')
+		} else {
+			script.Str(natPortRule("-A", translation, translation.natPort)).Byte('\n')
+		}
 		script.Str("iptables -t nat -A POSTROUTING -s ").Str(translation.real.String()).
 			Str(" -j SNAT --to-source ").Str(translation.public.String()).Byte('\n')
 	}

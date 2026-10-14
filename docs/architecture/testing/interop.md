@@ -1101,6 +1101,41 @@ it makes a red transport scenario readable, because a broken topology reds it to
 Its selectors are INNER addresses the box never sees, which is the one selector pair
 in this lab a translation cannot move.
 
+#### The port column and the rebind step
+
+A row may carry a third column, `<real> <public> <port>`: the public port the
+box maps that peer's UDP 4500 to. 0, 500 and 4500 are refused, because a mapping
+to any of them could not tell an encapsulation port taken from the IKE SA from a
+constant (RFC 3948 Section 2.1: "the Source Port and Destination Port MUST be the
+same as that used by IKE traffic,"). For such a row `natSetupScript` emits a port
+SNAT for UDP source port 4500 AHEAD of the row's address SNAT, and no DNAT: the
+peer initiates and conntrack reverses the replies. The other peer keeps its own
+address, so it is not behind a NAT. That is the precondition of the endpoint
+adoption the rebind step drives, and it is why the peer behind the port
+translation reaches the other one by a host route via its own public address,
+which the checker installs before it initiates (`natPortEstablish`).
+
+The rebind step (`natRebind`) replaces the port rule with one to a second public
+port and deletes the box's UDP conntrack entries with `conntrack -D -p udp`
+(`conntrack-tools` in `Dockerfile.nat`). The flush is needed because a NAT rule
+applies to a flow's first packet only, and the peer's keepalives and DPD keep the
+old entry alive. The peer's next DPD then reaches Ze from the new port, Ze adopts
+it, and the checker waits for exactly one of Ze's four rebind log lines.
+
+| Scenario | Proves |
+|----------|--------|
+| `real-nat-port-translated-ze-responder` | tunnel mode: outbound encap dport 14500, traffic both ways; after the remap the row 1 "migrated" line, dport 14501 on the SAME SPI, traffic both ways |
+| `real-nat-port-translated-transport-ze-responder` | transport mode: after the remap the row 2 "rekeyed" line with `reason="transport mode"`, dport 14501 on a NEW SPI, traffic both ways |
+| `real-nat-port-translated-eap-ze-responder` | the EAP-TLS responder's first Child SA encapsulates to dport 14500 |
+| `responder-eap-tls12` (no NAT) | a strongSwan EAP-TLS client pinned to TLS 1.2 authenticates and traffic crosses |
+
+None of the four has run yet: the Docker host kernel check refuses the host they
+were written on before any scenario starts, so each still owes its first run and
+its revert, rebuild and red walk.
+
+<!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript, natPortRule -->
+<!-- source: internal/le/interoplab/ipsec/natport.go -- natPortEstablish, natRebind, waitRebindLine -->
+
 Two more scenarios reuse the tunnel-control topology to drive `show mtu` across a
 real NAT. `mtu-tunnel-sizing-strongswan` binds the tunnel to an xfrm interface,
 clamps the route the box forwards over to 1400 (`ip route replace ... mtu 1400`,

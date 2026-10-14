@@ -15,8 +15,12 @@
 # gokrazy/kernel/runtime.config carries CONFIG_IP_NF_NAT with no NFT NAT symbol, so
 # the Docker lab and the QEMU runner install the same rules.
 
+# conntrack-tools carries `conntrack`, which the port-translated scenarios' rebind step
+# runs to flush the box's UDP entries after it replaces the port rule: NAT rules apply
+# to a flow's first packet only, and keepalives keep the old entry alive.
+
 FROM alpine:3.21
 
-RUN apk add --no-cache iproute2 iptables tini
+RUN apk add --no-cache conntrack-tools iproute2 iptables tini
 
 ENTRYPOINT ["tini", "--", "/bin/sh"]

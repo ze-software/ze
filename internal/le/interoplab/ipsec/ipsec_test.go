@@ -635,14 +635,27 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 				t.Errorf("%s starts %s before the NAT box, so the translation is not in place for the first datagram",
 					source.Name, prepared.Peers[0].Name)
 			}
-			for _, want := range []string{
+			wants := []string{
 				"ip addr add " + zePublicIP + "/24 dev eth0",
 				"ip addr add " + swanPublicIP + "/24 dev eth0",
 				"iptables -t nat -A PREROUTING -d " + zePublicIP + " -j DNAT --to-destination " + zeIP,
 				"iptables -t nat -A POSTROUTING -s " + zeIP + " -j SNAT --to-source " + zePublicIP,
 				"iptables -t nat -A PREROUTING -d " + swanPublicIP + " -j DNAT --to-destination " + swanIP,
 				"iptables -t nat -A POSTROUTING -s " + swanIP + " -j SNAT --to-source " + swanPublicIP,
-			} {
+			}
+			// A port-translated scenario translates strongSwan alone, port first, with
+			// no DNAT, and leaves Ze on its own address (natport.go).
+			if strings.HasPrefix(source.Name, "real-nat-port-translated-") {
+				wants = []string{
+					"ip addr add " + swanPublicIP + "/24 dev eth0",
+					natPortRule("-A", natPortTranslation, natFirstPort),
+					"iptables -t nat -A POSTROUTING -s " + swanIP + " -j SNAT --to-source " + swanPublicIP,
+				}
+				if strings.Contains(nat.Command[len(nat.Command)-1], zePublicIP) {
+					t.Errorf("%s translates Ze, so Ze is behind a NAT and adopts no moved endpoint", source.Name)
+				}
+			}
+			for _, want := range wants {
 				if !strings.Contains(nat.Command[len(nat.Command)-1], want) {
 					t.Errorf("%s NAT setup omits %q", source.Name, want)
 				}
@@ -695,6 +708,59 @@ func TestNATConfigRefusesAnEmptyOrIdentityTranslation(t *testing.T) {
 	if translations[0].real.String() != zeIP || translations[0].public.String() != zePublicIP {
 		t.Errorf("first translation = %v -> %v, want %s -> %s",
 			translations[0].real, translations[0].public, zeIP, zePublicIP)
+	}
+}
+
+// VALIDATES: nat.conf's optional port column. A row with a port maps the peer's UDP 4500
+// to that public port ahead of its address SNAT and gets no DNAT; a row without one keeps
+// both address rules. Ports 0, 500, 4500 and a fourth column are refused.
+// PREVENTS: a port-translated scenario whose box keeps port 4500, which cannot tell an
+// encapsulation port taken from the IKE SA from the constant.
+func TestNATConfigPortColumn(t *testing.T) {
+	for name, content := range map[string]string{
+		"port 0":        "172.28.0.3 172.28.0.7 0\n",
+		"port 500":      "172.28.0.3 172.28.0.7 500\n",
+		"port 4500":     "172.28.0.3 172.28.0.7 4500\n",
+		"not a port":    "172.28.0.3 172.28.0.7 port\n",
+		"fourth column": "172.28.0.3 172.28.0.7 14500 1\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			directory := t.TempDir()
+			if err := os.WriteFile(filepath.Join(directory, natConfigName), []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := readNATConfig(directory); err == nil {
+				t.Errorf("%s was accepted", name)
+			}
+		})
+	}
+	directory := t.TempDir()
+	valid := "172.28.0.2 172.28.0.6\n172.28.0.3 172.28.0.7 14500\n"
+	if err := os.WriteFile(filepath.Join(directory, natConfigName), []byte(valid), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	translations, err := readNATConfig(directory)
+	if err != nil {
+		t.Fatalf("a port row was refused: %v", err)
+	}
+	if translations[0].natPort != 0 || translations[1].natPort != 14500 {
+		t.Fatalf("ports = %d, %d, want 0, 14500", translations[0].natPort, translations[1].natPort)
+	}
+	script := natSetupScript(translations)
+	portRule := "iptables -t nat -A POSTROUTING -s 172.28.0.3 -p udp --sport 4500 -j SNAT --to-source 172.28.0.7:14500\n"
+	addressRule := "iptables -t nat -A POSTROUTING -s 172.28.0.3 -j SNAT --to-source 172.28.0.7\n"
+	portAt, addressAt := strings.Index(script, portRule), strings.Index(script, addressRule)
+	if portAt < 0 || addressAt < 0 {
+		t.Fatalf("script lacks the port rule or the address rule:\n%s", script)
+	}
+	if portAt > addressAt {
+		t.Fatalf("the port SNAT follows the address SNAT, so it never matches:\n%s", script)
+	}
+	if strings.Contains(script, "-d 172.28.0.7 -j DNAT") {
+		t.Fatalf("a port row carries a DNAT:\n%s", script)
+	}
+	if !strings.Contains(script, "-d 172.28.0.6 -j DNAT --to-destination 172.28.0.2\n") {
+		t.Fatalf("the address-only row lost its DNAT:\n%s", script)
 	}
 }
 
