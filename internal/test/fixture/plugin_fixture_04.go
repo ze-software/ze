@@ -23,6 +23,7 @@ func init() {
 	Register("plugin/bmp-lg-bestpath-isolation", bmpBestpath04)
 	Register("plugin/bmp-lg-disconnect", bmpDisconnect04)
 	Register("plugin/bmp-lg-ingest", bmpIngest04)
+	Register("plugin/bmp-lg-http-routes", bmpLGHTTPRoutes04)
 	Register("plugin/bmp-locrib", observe04(markerObserver04(100, 100*time.Millisecond)))
 	Register("plugin/bmp-locrib-collector", bmpCollector04("locrib"))
 	Register("plugin/bmp-receiver-messages", bmpMessages04)

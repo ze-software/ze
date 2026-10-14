@@ -61,7 +61,7 @@ The server MUST expose the following. All are relative to
 | `routes/count/protocol/{name}` | `routes` | A count only: `routes` is a number, not a list. It counts what `routes/protocol/{name}` lists |
 | `routes/prefix` | `routes` | Routes peers sent Ze matching a prefix query |
 | `routes/search` | `routes` | Routes peers sent Ze matching a free query |
-| `routes/bmp/{name}` | `routes` | Routes seen for a BMP-monitored peer |
+| `routes/bmp/{name}` | `routes` | Routes seen for a BMP-monitored peer. `{name}` is a key `protocols/bmp` lists |
 
 A `{name}` or `{peer}` path segment MUST be validated before use. The server
 MUST answer an invalid one with 400 and MUST NOT pass it to the engine.
@@ -189,6 +189,23 @@ a later revision, and MUST NOT treat that as a breaking change.
 `protocols/bgp` and `protocols/short` MUST return an object keyed by protocol
 name, whose values are protocol objects.
 <!-- source: internal/component/lg/handler_api.go -- transformProtocols -->
+
+`protocols/bmp` keys each BMP-monitored peer by the `rib-peer` that
+`show bmp peers` reports, the key the RIB stores that peer's routes under.
+`routes/bmp/{name}` passes the name unchanged to
+`show bgp rib protocol bmp peer <name>`, so every name `protocols/bmp` lists
+is one `routes/bmp/{name}` answers for. The BMP plugin gives each monitored
+peer its own key, so two peers never share a name (`bmpCompositeKey`). A peer
+row is left out of `protocols/bmp` when it has no `rib-peer`, when an earlier
+row already listed its `rib-peer`, or when `routes/bmp/{name}` would refuse
+it; the handler counts each reason and logs one WARN line naming the three
+counts. The name admits letters, digits, `-`, `_`, `.`, `:`, `[` and `]`,
+which covers the bracketed IPv6 router address, plus a `%` zone closed by `]`,
+as a link-local router address carries (`[fe80::1%eth0]:4000:...`), whose
+characters are letters, digits, `-`, `_` or `.`. Any other name is refused
+with 400, and the same check decides which rows `protocols/bmp` lists.
+<!-- source: internal/component/lg/handler_api.go -- transformBMPProtocols, handleAPIBMPRoutes, isValidBMPPeerKey -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- bmpCompositeKey -->
 
 | Member | Type | Requirement |
 |--------|------|-------------|

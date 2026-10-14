@@ -210,3 +210,71 @@ func TestStateLocRIBIdentityChangeKeepsReportsSeparate(t *testing.T) {
 		}
 	}
 }
+
+// TestShowBMPPeersNamesTheRIBKey proves `show bmp peers` reports, for each
+// monitored peer, the key its routes are stored under in the RIB.
+//
+// VALIDATES: the rib-peer field equals bmpCompositeKey for a monitored peer on
+// an IPv4 router, a monitored peer on an IPv6 router, and a Loc-RIB instance.
+// PREVENTS: a client (the looking glass) naming a BMP peer by a string that
+// `show bgp rib protocol bmp peer <key>` never matches, because the only
+// identity it could read was the router and the peer's BGP ID.
+// Method: record each Peer Up in the state and read the command's answer back.
+func TestShowBMPPeersNamesTheRIBKey(t *testing.T) {
+	var v4Peer, v6Peer [16]byte
+	copy(v4Peer[12:], []byte{10, 0, 0, 1})
+	copy(v6Peer[:], []byte{0x20, 0x01, 0x0d, 0xb8, 15: 1})
+
+	tests := []struct {
+		name   string
+		remote string
+		peer   PeerHeader
+		want   string
+	}{
+		{
+			"ipv4 router, ipv4 peer", "192.0.2.8:12345",
+			PeerHeader{PeerType: PeerTypeGlobal, Address: v4Peer, PeerAS: 65001, PeerBGPID: 0x01020304},
+			"192.0.2.8:12345:10.0.0.1",
+		},
+		{
+			"ipv6 router, ipv6 peer", "[2001:db8::8]:4000",
+			PeerHeader{PeerType: PeerTypeGlobal, Flags: PeerFlagV, Address: v6Peer, PeerAS: 65002, PeerBGPID: 0x01020305},
+			"[2001:db8::8]:4000:2001:db8::1",
+		},
+		{
+			"ipv6 router, loc-rib instance", "[2001:db8::8]:4000",
+			PeerHeader{PeerType: PeerTypeLocRIB, Distinguisher: 7, PeerAS: 65000, PeerBGPID: 0xc0000201},
+			"[2001:db8::8]:4000:loc-rib:7:3221225985",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &BMPPlugin{state: newBMPState()}
+			bp.state.peerUp(tt.remote, tt.peer, nil, nil)
+
+			_, data, err := bp.handleCommand("show bmp peers")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var result struct {
+				Peers []struct {
+					RIBPeer string `json:"rib-peer"`
+				} `json:"peers"`
+			}
+			if err := json.Unmarshal(marshalAny(data), &result); err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Peers) != 1 {
+				t.Fatalf("reported %d peers, want one", len(result.Peers))
+			}
+			got := result.Peers[0].RIBPeer
+			if got != tt.want {
+				t.Errorf("rib-peer = %q, want %q", got, tt.want)
+			}
+			if key := bmpCompositeKey(tt.remote, tt.peer); got != key {
+				t.Errorf("rib-peer = %q, but routes are stored under %q", got, key)
+			}
+		})
+	}
+}

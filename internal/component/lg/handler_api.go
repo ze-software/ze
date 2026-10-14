@@ -270,10 +270,37 @@ func (s *LGServer) handleAPIBMPProtocols(w http.ResponseWriter, _ *http.Request)
 		return
 	}
 
-	writeJSON(w, transformBMPProtocols(zeData))
+	bw, left := transformBMPProtocols(zeData)
+	if left.total() > 0 {
+		// The BMP plugin reports one distinct, routable rib-peer for every
+		// peer it records, so any row left out is a producer defect or a
+		// router address the looking glass cannot carry in a command.
+		s.logger.Warn("looking glass left BMP peers out of protocols/bmp: "+
+			"a client cannot list them or query their routes through routes/bmp; "+
+			"compare the rib-peer values `show bmp peers` reports and report the rows",
+			"no-rib-peer", left.keyless, "duplicate-rib-peer", left.duplicate,
+			"unsafe-rib-peer", left.unroutable)
+	}
+	writeJSON(w, bw)
+}
+
+// bmpProtocolsLeftOut counts the `show bmp peers` rows transformBMPProtocols
+// could not name, by reason. Every row counted is missing from protocols/bmp.
+type bmpProtocolsLeftOut struct {
+	keyless    int // no rib-peer: nothing routes/bmp/{name} could answer for
+	duplicate  int // a rib-peer an earlier row already named
+	unroutable int // a rib-peer isValidBMPPeerKey refuses, so routes/bmp answers 400
+}
+
+func (l bmpProtocolsLeftOut) total() int {
+	return l.keyless + l.duplicate + l.unroutable
 }
 
 // handleAPIBMPRoutes returns routes from a BMP-monitored peer (GET /api/looking-glass/routes/bmp/{name}).
+//
+// The name is the RIB key protocols/bmp lists, the rib-peer of `show bmp peers`,
+// and it is passed to the RIB unchanged: the looking glass never parses or
+// rebuilds it, so the BMP plugin stays its only author.
 func (s *LGServer) handleAPIBMPRoutes(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if name == "" {
@@ -281,13 +308,13 @@ func (s *LGServer) handleAPIBMPRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isValidPeerName(name) {
+	if !isValidBMPPeerKey(name) {
 		writeJSONError(w, http.StatusBadRequest, "invalid peer name")
 		return
 	}
 
 	var tb textbuf.Buffer
-	zeData, ok := s.peerRoutesAnswer(w, tb.Str("show bgp rib-protocol bmp ").Str(name).String())
+	zeData, ok := s.peerRoutesAnswer(w, tb.Str("show bgp rib protocol bmp peer ").Str(name).String())
 	if !ok {
 		return
 	}
@@ -297,24 +324,39 @@ func (s *LGServer) handleAPIBMPRoutes(w http.ResponseWriter, r *http.Request) {
 }
 
 // transformBMPProtocols converts BMP peer data to birdwatcher protocols format.
-func transformBMPProtocols(ze map[string]any) map[string]any {
+//
+// Each protocol is named by the peer's rib-peer, the key the RIB stores its
+// routes under, so the name a client reads here is the one routes/bmp/{name}
+// answers for. A row is left out and counted in the second result when it has
+// no rib-peer, when an earlier row already took its rib-peer (overwriting it
+// would hide one peer in silence), or when isValidBMPPeerKey refuses it, so
+// every name listed passes the one validator routes/bmp/{name} applies.
+func transformBMPProtocols(ze map[string]any) (map[string]any, bmpProtocolsLeftOut) {
 	peers, _ := ze[fieldPeers].([]any)
 
 	protocols := make(map[string]any)
+	var left bmpProtocolsLeftOut
 	for _, p := range peers {
 		peer, ok := p.(map[string]any)
 		if !ok {
 			continue
 		}
 
-		router := getStr(peer, "router")
-		bgpID := getStr(peer, "peer-bgp-id")
-		isUp := getBool(peer, "up")
+		name := getStr(peer, "rib-peer")
+		if name == "" {
+			left.keyless++
+			continue
+		}
+		if _, taken := protocols[name]; taken {
+			left.duplicate++
+			continue
+		}
+		if !isValidBMPPeerKey(name) {
+			left.unroutable++
+			continue
+		}
+		state := peerState(getBool(peer, "up"))
 
-		state := peerState(isUp)
-
-		var tb textbuf.Buffer
-		name := tb.Str(router).Byte(':').Str(bgpID).String()
 		protocol := map[string]any{
 			"bird_protocol":   name,
 			fieldState:        state,
@@ -338,7 +380,7 @@ func transformBMPProtocols(ze map[string]any) map[string]any {
 		protocols[name] = protocol
 	}
 
-	return apiEnvelope("protocols", protocols)
+	return apiEnvelope("protocols", protocols), left
 }
 
 // handleAPIRoutesFiltered returns filtered routes per peer.
@@ -494,11 +536,80 @@ func isValidPeerName(name string) bool {
 		return false
 	}
 	for _, c := range name {
-		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '-' && c != '_' && c != '.' && c != ':' {
+		if !isPeerNameRune(c) {
 			return false
 		}
 	}
 	return true
+}
+
+// isPeerNameRune reports whether c may appear in a peer name: a letter, a
+// digit, '-', '_', '.' or ':'.
+func isPeerNameRune(c rune) bool {
+	if c >= 'a' && c <= 'z' {
+		return true
+	}
+	if c >= 'A' && c <= 'Z' {
+		return true
+	}
+	if c >= '0' && c <= '9' {
+		return true
+	}
+	return c == '-' || c == '_' || c == '.' || c == ':'
+}
+
+// isValidBMPPeerKey checks that a BMP peer key holds only the characters the
+// BMP plugin's keys are made of (bmpCompositeKey, bgp/plugins/bmp/bmp.go): the
+// peer-name set, plus the brackets net.Conn.RemoteAddr puts round an IPv6
+// router, and the zone a link-local IPv6 router carries inside them
+// ("[fe80::1%eth0]:4000"). The key is embedded in a dispatched command, so the
+// set excludes every character the command tokenizer or pipe parser reads:
+// space, tab, double quote, backslash and '|'.
+//
+// A zone is admitted only as '%' followed by one or more letters, digits, '-',
+// '_' or '.', closed by ']'. transformBMPProtocols applies this same check, so
+// protocols/bmp never lists a name routes/bmp/{name} refuses.
+func isValidBMPPeerKey(name string) bool {
+	if name == "" {
+		return false
+	}
+	if len(name) > 255 {
+		return false
+	}
+	zone := -1 // runes read in the zone, or -1 outside one
+	for _, c := range name {
+		if zone >= 0 {
+			if c != ']' {
+				if !isZoneRune(c) {
+					return false
+				}
+				zone++
+				continue
+			}
+			if zone == 0 {
+				return false
+			}
+			zone = -1
+			continue
+		}
+		if c == '%' {
+			zone = 0
+			continue
+		}
+		if c == '[' || c == ']' {
+			continue
+		}
+		if !isPeerNameRune(c) {
+			return false
+		}
+	}
+	return zone < 0
+}
+
+// isZoneRune reports whether c may appear in an IPv6 zone of a BMP peer key:
+// a letter, a digit, '-', '_' or '.'.
+func isZoneRune(c rune) bool {
+	return c != ':' && isPeerNameRune(c)
 }
 
 // isValidFamily checks that a family string is in "afi/safi" format.

@@ -17,6 +17,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -146,6 +148,9 @@ func writeBMP04(conn net.Conn, messages ...[]byte) error {
 // injectedPrefix04 is the prefix these BMP fixtures announce and then look for.
 const injectedPrefix04 = "10.0.0.0"
 
+// injectedNetwork04 is that prefix as the looking glass names the route.
+const injectedNetwork04 = injectedPrefix04 + "/24"
+
 func containsPrefix04(value any) bool {
 	encoded, _ := json.Marshal(value)
 	return strings.Contains(string(encoded), injectedPrefix04)
@@ -186,6 +191,115 @@ var bmpIngest04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.Co
 	fmt.Fprintln(os.Stderr, "PASS: BMP route 10.0.0.0/24 found in show bmp rib")
 	return nil
 })
+
+// bmpLGHTTPRoutes04 walks the looking glass the way a birdwatcher client does:
+// it lists the BMP protocols, takes the one name it is given, and asks for that
+// peer's routes by it. Arguments: the BMP receiver port, the looking-glass port.
+//
+// The name must end with the monitored peer's ADDRESS (10.0.0.1), which is what
+// the RIB keys BMP routes by, and not its BGP ID (1.2.3.4), which is what the
+// looking glass used to build the name from.
+func bmpLGHTTPRoutes04(ctx context.Context, args []string) error {
+	if len(args) != 2 {
+		return errors.New("usage: fixture requires BMP port and looking-glass port")
+	}
+	return Observe(ctx, "fixture-bmp-04", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+		conn, err := connectBMP04(ctx, args[:1])
+		if err != nil {
+			return err
+		}
+		defer conn.Close() //nolint:errcheck // fixture teardown
+		if err := writeBMP04(conn, bmpInitiation04(), bmpPeerUp04(), bmpRouteMonitoring04()); err != nil {
+			return err
+		}
+		if _, _, err := pollCommand04(ctx, p, 100, "show bmp rib", func(status string, value any) bool {
+			return status == statusDone && containsPrefix04(value)
+		}); err != nil {
+			return err
+		}
+
+		base := "http://" + net.JoinHostPort("127.0.0.1", args[1]) + "/api/looking-glass"
+		var names []string
+		var lastErr error
+		Poll(ctx, 50, 200*time.Millisecond, func() bool {
+			names, lastErr = lgBMPProtocolNames04(ctx, base+"/protocols/bmp")
+			return lastErr == nil && len(names) > 0
+		})
+		if lastErr != nil {
+			return lastErr
+		}
+		if len(names) != 1 {
+			return fmt.Errorf("protocols/bmp listed %q, want one BMP peer", names)
+		}
+		name := names[0]
+		if !strings.HasSuffix(name, ":10.0.0.1") {
+			return fmt.Errorf("protocols/bmp named the peer %q, want the RIB key ending in its address 10.0.0.1", name)
+		}
+
+		status, body, err := lgGet04(ctx, base+"/routes/bmp/"+url.PathEscape(name))
+		if err != nil {
+			return err
+		}
+		if status != http.StatusOK {
+			return fmt.Errorf("routes/bmp/%s answered %d: %s", name, status, body)
+		}
+		var routes struct {
+			Routes []struct {
+				Network string `json:"network"`
+			} `json:"routes"`
+		}
+		if err := json.Unmarshal(body, &routes); err != nil {
+			return fmt.Errorf("decode routes/bmp/%s: %w", name, err)
+		}
+		if len(routes.Routes) != 1 || routes.Routes[0].Network != injectedNetwork04 {
+			return fmt.Errorf("routes/bmp/%s answered %s, want the one route 10.0.0.0/24", name, body)
+		}
+		fmt.Fprintln(os.Stderr, "PASS: looking glass routes/bmp answers 10.0.0.0/24 for", name)
+		return nil
+	})
+}
+
+// lgBMPProtocolNames04 answers the protocol names a protocols/bmp GET lists.
+func lgBMPProtocolNames04(ctx context.Context, target string) ([]string, error) {
+	status, body, err := lgGet04(ctx, target)
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("protocols/bmp answered %d: %s", status, body)
+	}
+	var listed struct {
+		Protocols map[string]json.RawMessage `json:"protocols"`
+	}
+	if err := json.Unmarshal(body, &listed); err != nil {
+		return nil, fmt.Errorf("decode protocols/bmp: %w", err)
+	}
+	names := make([]string, 0, len(listed.Protocols))
+	for name := range listed.Protocols {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names, nil
+}
+
+// lgGet04 issues one GET and answers the status and the body.
+func lgGet04(ctx context.Context, target string) (int, []byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, http.NoBody)
+	if err != nil {
+		return 0, nil, err
+	}
+	client := http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close() //nolint:errcheck // read-only response body
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return 0, nil, err
+	}
+	return resp.StatusCode, body, nil
+}
 
 var bmpBestpath04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.Conn) error {
 	if err := writeBMP04(conn, bmpInitiation04(), bmpPeerUp04(), bmpRouteMonitoring04()); err != nil {

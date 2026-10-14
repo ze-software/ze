@@ -2814,7 +2814,7 @@ declares `map` rather than `tab`. `| fill` is refused by name.
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `show bmp sessions` | read-only | Show active BMP receiver sessions (router address, sysName, uptime) |
-| `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status) |
+| `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status, and `rib-peer`, the key `show bgp rib protocol bmp peer` takes) |
 | `show bmp collectors` | read-only | Show BMP sender collector connection status |
 | `show bmp rib` | read-only | Show BMP-monitored routes <!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy --> |
 

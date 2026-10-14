@@ -1,6 +1,9 @@
 package lg
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestIsValidPeerName(t *testing.T) {
 	// VALIDATES: input validation guards API endpoints against injection.
@@ -37,6 +40,57 @@ func TestIsValidPeerName(t *testing.T) {
 			got := isValidPeerName(tt.input)
 			if got != tt.want {
 				t.Errorf("isValidPeerName(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestIsValidBMPPeerKey proves routes/bmp/{name} admits every key the BMP
+// plugin stores routes under and nothing that could change the command.
+//
+// VALIDATES: the three bmpCompositeKey forms (bgp/plugins/bmp/bmp.go), IPv4 and
+// bracketed IPv6 routers, monitored and Loc-RIB peers, are accepted.
+// PREVENTS: a crafted name adding words to `show bgp rib protocol bmp peer
+// <key>`: the command tokenizer (plugin/server/command.go tokenize) splits on
+// space and tab, groups on a double quote, and the pipe parser cuts on '|'.
+func TestIsValidBMPPeerKey(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{"ipv4 router, monitored peer", "192.0.2.8:12345:10.0.0.1", true},
+		{"ipv6 router, ipv6 peer", "[2001:db8::8]:4000:2001:db8::1", true},
+		{"ipv6 router, loc-rib", "[2001:db8::8]:4000:loc-rib:7:3221225985", true},
+		{"ipv4 router, loc-rib", "192.0.2.8:12345:loc-rib:0:16909060", true},
+		{"link-local router with zone", "[fe80::8%eth0]:4000:fe80::1", true},
+		{"zone with dot, dash, underscore", "[fe80::8%br-lan_0.100]:4000:fe80::1", true},
+		{"rd instance peer", "192.0.2.8:12345:instance:1:4294967298:10.0.0.1", true},
+		{"empty zone", "[fe80::8%]:4000:fe80::1", false},
+		{"unclosed zone", "[fe80::8%eth0", false},
+		{"zone with colon", "[fe80::8%eth:0]:4000:fe80::1", false},
+		{"zone with semicolon", "[fe80::8%e;x]:4000:fe80::1", false},
+		{"zone with space", "[fe80::8%e x]:4000:fe80::1", false},
+		{"zone with pipe", "[fe80::8%e|x]:4000:fe80::1", false},
+		{"zone with percent", "[fe80::8%e%x]:4000:fe80::1", false},
+		{"empty", "", false},
+		{"too long", "[" + strings.Repeat("1", 255) + "]", false},
+		{"extra word", "192.0.2.8:12345:10.0.0.1 family ipv4/unicast", false},
+		{"tab", "192.0.2.8:12345:10.0.0.1\tbest", false},
+		{"pipe", "192.0.2.8:12345:10.0.0.1|count", false},
+		{"quote", `[::1]:1:"x y"`, false},
+		{"backslash", `[::1]:1:\x`, false},
+		{"newline", "[::1]:1:a\nb", false},
+		{"semicolon", "[::1]:1:a;b", false},
+		{"slash", "[::1]:1:a/b", false},
+		{"brace", "[::1]:1:{a}", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isValidBMPPeerKey(tt.input)
+			if got != tt.want {
+				t.Errorf("isValidBMPPeerKey(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}

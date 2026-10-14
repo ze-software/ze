@@ -1,0 +1,80 @@
+# Test: the looking glass serves a BMP peer's routes under the name it lists
+# VALIDATES: GET /api/looking-glass/protocols/bmp names each BMP-monitored peer
+#            by the rib-peer key `show bmp peers` reports, and
+#            GET /api/looking-glass/routes/bmp/{name} answers that peer's routes
+#            through `show bgp rib protocol bmp peer <name>`
+#            (handleAPIBMPRoutes, internal/component/lg/handler_api.go).
+# PREVENTS: the endpoint dispatching a command the tree does not declare, and
+#           protocols/bmp naming a peer "<router>:<bgp-id>", a string the RIB
+#           never stores BMP routes under.
+#
+# Flow:
+# 1. ze starts with a BMP receiver on $PORT2 and the looking glass on $PORT3
+# 2. The fixture connects as a monitored router: Initiation, Peer Up for
+#    10.0.0.1 (BGP ID 1.2.3.4), Route Monitoring for 10.0.0.0/24
+# 3. It lists protocols/bmp over HTTP, takes the one name, and GETs
+#    routes/bmp/{name}: 200 with exactly the route 10.0.0.0/24
+
+option=env:var=ze.log.bgp.bmp:value=info
+option=timeout:value=30s
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+    bmp {
+        enabled true;
+        server default {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+    looking-glass {
+        enabled true
+        # TLS defaults ON. This test asserts looking-glass CONTENT over plain
+        # HTTP, so it takes the documented opt-out.
+        tls false
+        server main {
+            ip 127.0.0.1
+            port $PORT3
+        }
+    }
+}
+plugin {
+    external bmp-lg-http {
+        run "le test fixture plugin/bmp-lg-http-routes $PORT2 $PORT3;"
+        encoder json;
+    }
+}
+bgp {
+    router-id 1.2.3.5;
+    peer test {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000;
+                remote 65001;
+            }
+            router-id 1.2.3.5;
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+}
+EOF_CONF
+
+stdin=peer:terminator=EOF_PEER
+EOF_PEER
+
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
+expect=exit:code=0
+expect=stderr:pattern=bmp: receiver listening
+expect=stderr:pattern=PASS: looking glass routes/bmp answers 10.0.0.0/24

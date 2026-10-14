@@ -145,7 +145,7 @@ per RFC 7854 recommendations.
 | Command | Description |
 |---------|-------------|
 | `ze show bmp sessions` | Show receiver sessions, identity, uptime and ordered `initiation-strings` |
-| `ze show bmp peers` | Show monitored peers, OPEN address families and ordered information strings |
+| `ze show bmp peers` | Show monitored peers, OPEN address families, ordered information strings, and each peer's `rib-peer`: the key its routes are stored under, which `show bgp rib protocol bmp peer <key>` takes |
 | `ze show bmp collectors` | Show sender collector connection status |
 
 ## Protocol Details
@@ -477,8 +477,19 @@ BMP-monitored routes, and `ze show bmp rib` excludes real BGP routes.
 | `GET /api/looking-glass/protocols/bmp` | List BMP-monitored peers |
 | `GET /api/looking-glass/routes/bmp/{name}` | Routes from a specific BMP peer |
 
-The `{name}` parameter is the composite peer key in `<router>:<peer-address>`
-format (e.g., `10.0.0.1:12345:192.168.1.1`).
+The `{name}` parameter is a name `protocols/bmp` lists, which is the peer's
+`rib-peer` from `ze show bmp peers`. The looking glass passes it unchanged to
+`show bgp rib protocol bmp peer <name>`. Its forms are the route keys below:
+`10.0.0.1:12345:192.168.1.1` for a peer on an IPv4 router,
+`[2001:db8::8]:4000:2001:db8::1` on an IPv6 router, and
+`10.0.0.1:12345:loc-rib:0:16909060` for a Loc-RIB instance, and
+`10.0.0.1:12345:instance:1:4294967298:192.168.1.1` for an RD instance peer. A
+link-local IPv6 router carries its zone inside the brackets
+(`[fe80::1%eth0]:4000:fe80::2`). A name holding any character other than
+letters, digits, `-`, `_`, `.`, `:`, `[` and `]`, or a zone holding any
+character other than letters, digits, `-`, `_` and `.`, is refused with 400.
+`protocols/bmp` does not list a peer whose key would be refused, and logs a
+warning that counts it.
 
 Responses follow the birdwatcher format for compatibility with Alice-LG and
 other looking glass frontends.
@@ -486,7 +497,15 @@ other looking glass frontends.
 ### Route Lifecycle
 
 - **Injection:** Route Monitoring messages inject BGP UPDATE routes under
-  `bmpProtocolID` with composite keys `<router>:<peer-address>`.
+  `bmpProtocolID` with composite keys `<router>:<peer-address>`, where
+  `<router>` is the monitored router's `address:port` (`[address]:port` for
+  IPv6). A Loc-RIB instance (RFC 9069) has no peer address and is keyed
+  `<router>:loc-rib:<distinguisher>:<bgp-id>`, both numbers in decimal. An RD
+  Instance Peer or a Local Instance Peer (RFC 7854 peer types 1 and 2) is keyed
+  `<router>:instance:<peer-type>:<distinguisher>:<peer-address>`, so two VRFs
+  that peer with one address keep separate routes and a Peer Down for one
+  withdraws only its own.
+  `ze show bmp peers` reports this key as `rib-peer`.
 - **Peer Down:** All routes for the monitored peer are withdrawn.
 - **Session disconnect:** All routes for all peers of that router are withdrawn.
 - **Best-path isolation:** BMP routes are stored under a separate ProtocolID.

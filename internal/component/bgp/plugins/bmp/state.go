@@ -33,8 +33,14 @@ type monitoredRouter struct {
 // RFC 9069 Section 6.1.1 requires a receiver to read: "A BMP receiver MUST
 // process these capabilities to know which peer belongs to which address
 // family." Empty when the OPEN advertised none, never defaulted.
+//
+// RIBPeer is the key the peer's routes are stored under in the RIB, the one
+// `show bgp rib protocol bmp peer <key>` matches. It is bmpCompositeKey's
+// answer, recorded at Peer Up, so a client names the peer by the RIB's own key
+// rather than rebuilding it from Router and an address this struct omits.
 type monitoredPeer struct {
 	Router        string   `json:"router"`
+	RIBPeer       string   `json:"rib-peer"`
 	PeerAS        uint32   `json:"peer-as"`
 	PeerBGPID     string   `json:"peer-bgp-id"`
 	IsIPv6        bool     `json:"ipv6"`
@@ -66,6 +72,13 @@ func peerStateKey(remote string, ph PeerHeader) peerKey {
 	}
 	key.address = ph.Address
 	key.ipv6 = ph.IsIPv6()
+	if !key.ipv6 {
+		// RFC 7854 Section 4.2: "It is 4 bytes long if an IPv4 address is
+		// carried in this field (with the 12 most significant bytes
+		// zero-filled)". The IPv4 peer is its final four octets, which is
+		// all bmpCompositeKey reads, so the two keys name the same peer.
+		clear(key.address[:12])
+	}
 	return key
 }
 
@@ -148,6 +161,7 @@ func (s *bmpState) peerUp(remote string, ph PeerHeader, families []family.Family
 	}
 	s.peers[key] = &monitoredPeer{
 		Router:        remote,
+		RIBPeer:       bmpCompositeKey(remote, ph),
 		PeerAS:        ph.PeerAS,
 		PeerBGPID:     b.Reset().Uint(uint64(ph.PeerBGPID >> 24)).Byte('.').Uint(uint64((ph.PeerBGPID >> 16) & 0xFF)).Byte('.').Uint(uint64((ph.PeerBGPID >> 8) & 0xFF)).Byte('.').Uint(uint64(ph.PeerBGPID & 0xFF)).String(),
 		IsIPv6:        ph.IsIPv6(),

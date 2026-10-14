@@ -18,6 +18,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -859,7 +860,7 @@ func (bp *BMPPlugin) processTermination(remote string, _ *Termination) {
 // bmpCompositeKey builds the composite peer identity used as the key in
 // ribInPool[bmpProtocolID].
 //
-// For a monitored BGP peer (RFC 7854 peer types 0 to 2) the identity is
+// For a Global Instance Peer with a zero distinguisher the identity is
 // "<router>:<peer-address>". A Loc-RIB Instance Peer has no peer address to be
 // identified by -- RFC 9069 Section 5.1 says "Peer Address: Zero-filled. The
 // remote peer address is not applicable" -- so every Peer Type 3 peer of one
@@ -869,21 +870,49 @@ func (bp *BMPPlugin) processTermination(remote string, _ *Termination) {
 // RFC 9069 Section 6.1.1 names the fields that DO identify one: "The BMP
 // receiver identifies the Loc-RIB by the peer header distinguisher and BGP ID."
 // So a Loc-RIB peer keys on those two.
+//
+// An RD Instance Peer and a Local Instance Peer (types 1 and 2) are not told
+// apart by their address alone: two VRFs of one router may each peer with
+// 10.0.0.1. Keyed by "<router>:<peer-address>", their routes merged in one
+// RIB-In pool and a Peer Down for either withdrew both. Every peer that is not
+// a Global Instance Peer with a zero distinguisher is therefore keyed
+// "<router>:instance:<peer-type>:<distinguisher>:<peer-address>". The Global
+// Instance form stays "<router>:<peer-address>". Two keys do move: a type-0
+// peer that sends a non-zero distinguisher takes the instance form, and a
+// V-flagged IPv4-mapped peer prints "::ffff:a.b.c.d" instead of sharing the
+// plain IPv4 peer's key.
+//
+// The key is unique for each peerStateKey, so `show bmp peers` (which reports
+// it as rib-peer) never lists two peers under one RIB key. Every key starts
+// with "<router>:", which is the prefix withdraw-router matches.
 func bmpCompositeKey(router string, ph PeerHeader) string {
+	var b textbuf.Buffer
+	b.Str(router).Byte(':')
 	if ph.PeerType == PeerTypeLocRIB {
-		var b textbuf.Buffer
-		return b.Str(router).Str(":loc-rib:").Uint(ph.Distinguisher).Byte(':').
+		return b.Str("loc-rib:").Uint(ph.Distinguisher).Byte(':').
 			Uint(uint64(ph.PeerBGPID)).String()
 	}
-	return router + ":" + peerAddressString(ph)
+	// RFC 7854 Section 4.2: "In all cases, the effect is that the combination
+	// of the Peer Type and Peer Distinguisher is sufficient to disambiguate
+	// peers for which other identifying information might overlap."
+	if ph.PeerType != PeerTypeGlobal || ph.Distinguisher != 0 {
+		b.Str("instance:").Uint8(ph.PeerType).Byte(':').Uint(ph.Distinguisher).Byte(':')
+	}
+	return b.Str(peerAddressString(ph)).String()
 }
 
 // peerAddressString formats the PeerHeader address as a string.
+//
+// An IPv6 address is formatted as IPv6 even when it is IPv4-mapped
+// (::ffff:10.0.0.1), so a V-flagged peer never shares a key with an IPv4 peer
+// of the same address: peerStateKey holds them apart by the V flag.
 func peerAddressString(ph PeerHeader) string {
 	if ph.IsIPv6() {
-		return net.IP(ph.Address[:]).String()
+		return netip.AddrFrom16(ph.Address).String()
 	}
-	return net.IP(ph.Address[12:16]).String()
+	// RFC 7854 Section 4.2: "It is 4 bytes long if an IPv4 address is carried
+	// in this field (with the 12 most significant bytes zero-filled)".
+	return netip.AddrFrom4([4]byte(ph.Address[12:16])).String()
 }
 
 // processPeerUp records a peer a monitored router reports as up, and the

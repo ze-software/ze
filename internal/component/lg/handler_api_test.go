@@ -547,12 +547,14 @@ func TestTransformBMPProtocolsFields(t *testing.T) {
 		"peers": []any{
 			map[string]any{
 				"router":      "10.0.0.1:12345",
+				"rib-peer":    "10.0.0.1:12345:172.16.0.1",
 				"peer-as":     float64(64501),
 				"peer-bgp-id": "192.168.1.1",
 				"up":          true,
 			},
 			map[string]any{
 				"router":      "10.0.0.1:12345",
+				"rib-peer":    "10.0.0.1:12345:172.16.0.2",
 				"peer-as":     float64(64502),
 				"peer-bgp-id": "192.168.2.1",
 				"up":          false,
@@ -560,7 +562,10 @@ func TestTransformBMPProtocolsFields(t *testing.T) {
 		},
 	}
 
-	bw := transformBMPProtocols(ze)
+	bw, left := transformBMPProtocols(ze)
+	if left != (bmpProtocolsLeftOut{}) {
+		t.Errorf("left out %+v, want none", left)
+	}
 
 	protocols, ok := bw["protocols"].(map[string]any)
 	if !ok {
@@ -571,7 +576,7 @@ func TestTransformBMPProtocolsFields(t *testing.T) {
 		t.Fatalf("expected 2 protocols, got %d", len(protocols))
 	}
 
-	p1, ok := protocols["10.0.0.1:12345:192.168.1.1"].(map[string]any)
+	p1, ok := protocols["10.0.0.1:12345:172.16.0.1"].(map[string]any)
 	if !ok {
 		t.Fatal("missing protocol for first peer")
 	}
@@ -588,7 +593,7 @@ func TestTransformBMPProtocolsFields(t *testing.T) {
 		t.Errorf("table = %v, want bmp", p1["table"])
 	}
 
-	p2, ok := protocols["10.0.0.1:12345:192.168.2.1"].(map[string]any)
+	p2, ok := protocols["10.0.0.1:12345:172.16.0.2"].(map[string]any)
 	if !ok {
 		t.Fatal("missing protocol for second peer")
 	}
@@ -597,10 +602,41 @@ func TestTransformBMPProtocolsFields(t *testing.T) {
 	}
 }
 
+// TestTransformBMPProtocolsRefusesToNameAKeylessPeer proves a row with no RIB
+// key is left out and counted, never named by a string the RIB does not hold.
+//
+// VALIDATES: transformBMPProtocols names nothing it cannot route to, and
+// reports how many rows it could not name so the handler can log them.
+// PREVENTS: protocols/bmp offering a name that routes/bmp/{name} refuses.
+func TestTransformBMPProtocolsRefusesToNameAKeylessPeer(t *testing.T) {
+	ze := map[string]any{
+		"peers": []any{
+			map[string]any{"router": "10.0.0.1:12345", "peer-bgp-id": "192.168.1.1", "up": true},
+			map[string]any{"router": "10.0.0.1:12345", "rib-peer": "10.0.0.1:12345:172.16.0.2", "up": true},
+		},
+	}
+
+	bw, left := transformBMPProtocols(ze)
+
+	if left != (bmpProtocolsLeftOut{keyless: 1}) {
+		t.Errorf("left out %+v, want one keyless row", left)
+	}
+	protocols, ok := bw["protocols"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocols map")
+	}
+	if len(protocols) != 1 {
+		t.Fatalf("expected 1 protocol, got %d: %v", len(protocols), protocols)
+	}
+	if _, ok := protocols["10.0.0.1:12345:172.16.0.2"]; !ok {
+		t.Errorf("keyed peer missing: %v", protocols)
+	}
+}
+
 func TestTransformBMPProtocolsEmpty(t *testing.T) {
 	ze := map[string]any{}
 
-	bw := transformBMPProtocols(ze)
+	bw, _ := transformBMPProtocols(ze)
 
 	protocols, ok := bw["protocols"].(map[string]any)
 	if !ok {
@@ -774,12 +810,12 @@ func TestRouteCountsAvailableFlagsFabricatedZeros(t *testing.T) {
 func TestBMPProtocolsDeclareCountsUnavailable(t *testing.T) {
 	ze := map[string]any{
 		"peers": []any{map[string]any{
-			"router": "r1", "peer-bgp-id": "10.0.0.1",
+			"router": "r1", "rib-peer": "r1:10.0.0.9", "peer-bgp-id": "10.0.0.1",
 			"peer-as": float64(65001), "up": true,
 		}},
 	}
 
-	bw := transformBMPProtocols(ze)
+	bw, _ := transformBMPProtocols(ze)
 	protocols, ok := bw["protocols"].(map[string]any)
 	if !ok || len(protocols) == 0 {
 		t.Fatalf("expected at least one BMP protocol, got %v", bw["protocols"])
@@ -858,7 +894,7 @@ func lgCountsDispatch() CommandDispatcher {
 				`{"address":"192.0.2.4","name":"text-counts","remote-as":65004,"state":"established",` +
 				`"routes-received":"60","routes-accepted":"60","routes-sent":"50"}]}`
 		case "show bmp peers":
-			out = `{"peers":[{"router":"r1","peer-bgp-id":"10.0.0.1","peer-as":65001,"up":true}]}`
+			out = `{"peers":[{"router":"r1","rib-peer":"r1:10.0.0.9","peer-bgp-id":"10.0.0.1","peer-as":65001,"up":true}]}`
 		default:
 			out = `{"error":"unknown command"}`
 		}
