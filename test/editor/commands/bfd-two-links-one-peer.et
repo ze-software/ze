@@ -1,0 +1,51 @@
+# Test: two BFD sessions for one link-local peer on two interfaces
+# VALIDATES: spec-bfd-link-local-peer-zone AC-11: the editor addresses a multi-leaf-key entry by its whole address
+# PREVENTS: the second set writing `interface zbl1` into the body of an entry keyed by the first word
+
+tmpfs=test.conf:terminator=EOF_CONF
+bfd {
+  profile fast {
+    desired-min-tx-us 100000
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=set bfd single-hop-session fe80::b interface zbl0
+input=enter
+expect=error:none
+expect=dirty:true
+
+input=type:text=set bfd single-hop-session fe80::b interface zbl1
+input=enter
+expect=error:none
+
+input=type:text=set bfd single-hop-session fe80::b interface zbl1 profile fast
+input=enter
+expect=error:none
+
+# A key leaf given twice is refused, naming the leaf
+input=type:text=set bfd single-hop-session fe80::b interface zbl0 interface zbl1
+input=enter
+expect=error:contains=interface
+
+input=type:text=show bfd
+input=enter
+expect=viewport:contains=single-hop-session fe80::b {
+expect=viewport:contains=interface zbl0
+expect=viewport:contains=interface zbl1
+expect=viewport:contains=profile fast
+expect=viewport:not-contains=#1
+expect=viewport:not-contains=fe80::b interface
+
+# A full-address delete removes that entry only
+input=type:text=delete bfd single-hop-session fe80::b interface zbl0
+input=enter
+expect=error:none
+
+input=type:text=show bfd
+input=enter
+expect=viewport:contains=interface zbl1
+expect=viewport:not-contains=interface zbl0
