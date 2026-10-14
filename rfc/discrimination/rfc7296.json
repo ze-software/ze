@@ -926,6 +926,28 @@
       "break": "body of DetectNAT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-2.23-11",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmEncapsulatedESPAcceptedWithoutNAT",
+      "unit-sha": "6bbb9e4ed60cf624",
+      "claim-sha": "d87179bdb7d1edd1",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::installChildSA",
+      "producer-sha": "7e5df5dd593dc4a3",
+      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.23-11",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmEncapsulatedESPSentWhenNATDetected",
+      "unit-sha": "c7392484c5d0b1cd",
+      "claim-sha": "e7dcfdfb6e9dfccb",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::installChildSA",
+      "producer-sha": "7e5df5dd593dc4a3",
+      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-2.23-12",
       "polarity": "positive",
       "unit": "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateHasESPRightAfterUDP",
@@ -1006,12 +1028,12 @@
       "rid": "RFC7296-2.23-2",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts",
-      "unit-sha": "fbc7457314627f0c",
-      "claim-sha": "f24b14e3c2bcacae",
+      "unit-sha": "fd974ac307c059f0",
+      "claim-sha": "a7866fb57b3e8fe9",
       "route": "revert",
-      "producer": "internal/component/ike/engine/child.go::installChildSA",
-      "producer-sha": "00d35a0a4eb4f737",
-      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/engine/create_child.go::newChildSA",
+      "producer-sha": "d966a5855b18ea67",
+      "break": "body of newChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-2.23-2",
@@ -1100,6 +1122,17 @@
       "producer": "internal/component/ike/engine/sa.go::sendPath",
       "producer-sha": "91e8d23ec40a3caa",
       "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.23-9",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_natt_test.go::TestEncapNeverRequestedOnPort500",
+      "unit-sha": "04587559baec1ec2",
+      "claim-sha": "24684dd401b4ad47",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/create_child.go::localEncapPort",
+      "producer-sha": "55daf12ae27abf44",
+      "break": "body of localEncapPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-2.23.1-1",

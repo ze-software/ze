@@ -134,6 +134,39 @@
       "break": "body of selectAuthChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3948-2.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts",
+      "unit-sha": "fd974ac307c059f0",
+      "claim-sha": "891f857a9a849218",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/create_child.go::childEncapPorts",
+      "producer-sha": "d41770da992a0464",
+      "break": "body of childEncapPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ChildSAFollowsANATMappedPeerPort500",
+      "unit-sha": "52083a8b770f08d0",
+      "claim-sha": "116c9ccf105b71a8",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/create_child.go::childEncapPorts",
+      "producer-sha": "d41770da992a0464",
+      "break": "body of childEncapPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ChildSARefusesEncapWithoutAnIKEPort",
+      "unit-sha": "34e7ef9cfce6feab",
+      "claim-sha": "7ed99f4190d80a10",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/create_child.go::childEncapPorts",
+      "producer-sha": "d41770da992a0464",
+      "break": "body of childEncapPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3948-2.3-1",
       "polarity": "positive",
       "unit": "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive",
