@@ -361,7 +361,7 @@
       "claim-sha": "91e51d3ca593123b",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::ensureLocRIBPeerUp",
-      "producer-sha": "ba38d9032cc56be8",
+      "producer-sha": "d556037e1e0efef2",
       "break": "body of ensureLocRIBPeerUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
