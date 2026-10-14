@@ -396,6 +396,50 @@ func TestStdpatchTreeServesTheWholeStdlib(t *testing.T) {
 	}
 }
 
+// TestResolveAnswersTheRealRootUnderATreeFirstOnPath proves Resolve answers
+// the real GOROOT when the inherited environment is a tree's: GOROOT set to
+// the tree and the tree's bin first on PATH, as `go test` arranges under le.
+// The fake tree's bin and pkg/tool are links to the real toolchain's, which is
+// the shape the builder writes. A go invoked through the link on darwin, where
+// os.Executable answers the unresolved path, finds the tree as its root, so a
+// Resolve that runs the first go on PATH by name answers the tree.
+func TestResolveAnswersTheRealRootUnderATreeFirstOnPath(t *testing.T) {
+	t.Setenv("GOROOT", "")
+	t.Setenv("PATH", pathWithoutTrees(os.Getenv("PATH")))
+	patches := shippedPatches(t)
+	real := realToolchain(t, t.TempDir())
+
+	cache := t.TempDir()
+	tree := filepath.Join(cache, "0123456789abcdef", "goroot")
+	if err := os.MkdirAll(filepath.Join(tree, "pkg"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(real.GOROOT, "bin"), filepath.Join(tree, "bin")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(real.GOROOT, "pkg", "tool"), filepath.Join(tree, "pkg", "tool")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GOROOT", tree)
+	t.Setenv("PATH", filepath.Join(tree, "bin")+string(filepath.ListSeparator)+os.Getenv("PATH"))
+
+	got, err := Resolve(repoRoot(t), cache, patches)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolvedReal, err := filepath.EvalSymlinks(real.GOROOT)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolvedGot, err := filepath.EvalSymlinks(got.GOROOT)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolvedGot != resolvedReal {
+		t.Errorf("with %s/bin first on PATH, Resolve answered %s, want the real %s", tree, got.GOROOT, real.GOROOT)
+	}
+}
+
 // TestActivateSetsTheProcessEnvironment proves the activation (AC-20): after
 // it, GOROOT is the tree, GOTOOLCHAIN is local and PATH starts with exactly
 // one <tree>/bin; a second activation under the inherited tree (the nested

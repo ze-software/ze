@@ -111,12 +111,19 @@ func CacheDir(root string) (string, error) {
 // a test's, or a developer's export). So the generator never depends on its
 // own output and a le started by le resolves the same toolchain. Go's own
 // `go test` puts $GOROOT/bin first on PATH, so an inherited PATH may start
-// with a tree's bin; its go is a link to the real one and finds the real root
-// from its resolved executable. When the pin names a version other than the go on
-// PATH, the go command runs the pinned toolchain, and the real GOROOT is
-// then that toolchain's directory under GOMODCACHE.
+// with a tree's bin, a link to the real toolchain's bin. A go run through that
+// link finds its root from its own path, and on darwin os.Executable answers
+// the unresolved path, so it would answer the tree. Resolve therefore runs the
+// go on PATH by its resolved path (realGo), which lies in the real toolchain on
+// every platform. When the pin names a version other than the go on PATH, the
+// go command runs the pinned toolchain, and the real GOROOT is then that
+// toolchain's directory under GOMODCACHE.
 func Resolve(root, cache string, patches []Patch) (Toolchain, error) {
 	pin, err := Pin(root)
+	if err != nil {
+		return Toolchain{}, err
+	}
+	goBinary, err := realGo()
 	if err != nil {
 		return Toolchain{}, err
 	}
@@ -127,7 +134,7 @@ func Resolve(root, cache string, patches []Patch) (Toolchain, error) {
 	if pin != "" {
 		environment = append(without(environment, "GOTOOLCHAIN"), "GOTOOLCHAIN="+pin)
 	}
-	cmd := exec.CommandContext(context.Background(), "go", "env", "GOROOT", "GOVERSION")
+	cmd := exec.CommandContext(context.Background(), goBinary, "env", "GOROOT", "GOVERSION") //nolint:gosec // goBinary is the go on PATH, resolved through its links
 	cmd.Dir = root
 	cmd.Env = environment
 	out, err := cmd.Output()
@@ -146,6 +153,24 @@ func Resolve(root, cache string, patches []Patch) (Toolchain, error) {
 		return Toolchain{}, errors.New("stdpatch: `go env GOVERSION` answered nothing")
 	}
 	return toolchain, nil
+}
+
+// realGo answers the go command on PATH with every symbolic link resolved, so
+// the go it names finds the real toolchain as its root whichever link PATH
+// reached it through: a tree's bin, or a package manager's bin such as
+// Homebrew's /opt/homebrew/bin/go.
+func realGo() (string, error) {
+	onPath, err := exec.LookPath("go")
+	if err != nil {
+		return "", fmt.Errorf("stdpatch: no go command on PATH, so the toolchain to patch cannot be found: %w\n"+
+			"install Go, or put its bin directory first on PATH, then run the command again", err)
+	}
+	resolved, err := filepath.EvalSymlinks(onPath)
+	if err != nil {
+		return "", fmt.Errorf("stdpatch: the go command on PATH, %s, is a link that does not resolve, so the toolchain to patch cannot be found: %w\n"+
+			"repair or remove the link, then run the command again", onPath, err)
+	}
+	return resolved, nil
 }
 
 // Pin answers the toolchain go.mod pins: the toolchain line when there is

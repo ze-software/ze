@@ -96,6 +96,10 @@ The generator does this, each time:
    version than the go on PATH, the go command runs the pinned toolchain, whose
    GOROOT is under `GOMODCACHE`. An inherited `GOROOT` that points into
    `cache/stdpatch/` is ignored, so the generator never depends on its own output.
+   The go it runs is the first one on `PATH` with its links resolved. A tree's
+   `bin` is a link to the real toolchain's, and a go started through that link
+   on macOS finds the tree as its root, because the path it reads for itself
+   is the unresolved one.
 2. Read each patch's review stamp and compare it with the `go version` of step 1.
    A difference stops here with an error that names both versions, the patch
    file, and the section "When the Go version changes", before any tree is built
