@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-14",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -22,28 +22,36 @@
       "verdict": "enforced"
     },
     "RFC5036-2.5.1-2": {
-      "note": "TestRFC5036KeepaliveNegotiationAdoptsLower (peer 20s, ours 60s gives 20s) and TestRFC5036KeepaliveNegotiationRefusesHigher (peer 180s, ours 30s keeps 30s) drive the production handleInit and assert the exact negotiated value in both directions.",
+      "code": {
+        "internal/plugins/ldp/session.go::ReadLoop": "e364a199482d45ff",
+        "internal/plugins/ldp/session.go::handleInit": "64151d8ee0d2c346"
+      },
+      "note": "Re-judged 2026-10-14 after the units changed. TestRFC5036KeepaliveNegotiationAdoptsLower (ours 60s, peer 20s) and TestRFC5036KeepaliveNegotiationRefusesHigher (ours 30s, peer 180s) call the production handleInit and assert, in both directions, the negotiated KeepAlive Time (currentKeepalive) and the armed KeepAlive Timer (currentHoldTime, the holdTime field ReadLoop takes as its read deadline) equal the smaller value: 20s and 30s. A timer armed at a multiple of the negotiated time, or at either proposal regardless of size, fails one of the two. The tests read the field; they do not observe ReadLoop's deadline firing.",
       "requirement_sha": "7301ea13d9cec874",
       "tests": {
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationAdoptsLower": "e896d95bc2804911",
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationRefusesHigher": "e896d95bc2804911"
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationAdoptsLower": "0c099031be03877f",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationRefusesHigher": "0c099031be03877f"
       },
       "units": {
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationAdoptsLower": "d377cc54aff3a449",
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationRefusesHigher": "f6ac792bfda4c9f3"
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationAdoptsLower": "971d56dd995fa63c",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationRefusesHigher": "ca2d8d891780626c"
       },
       "verdict": "enforced"
     },
     "RFC5036-2.5.3-1": {
-      "note": "Both clauses asserted through runSession on an operational session. Positive: KeepAlive Time 1s on both sides, empty LIB so no other message is due, the next three PDUs must each be a KeepAlive and each gap at most 1s, so a sender slower than the KeepAlive Time or one sending nothing fails. Negative (dual-tagged with RFC5036-3.5.4.1-1): ze proposes 60s, the peer 1s, the input on which a sender pacing from its own proposal leaves the peer 20s without a message; each gap must stay within the negotiated 1s. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.",
+      "code": {
+        "internal/plugins/ldp/register.go::runSession": "f819eff9cfb1da14",
+        "internal/plugins/ldp/session.go::handleInit": "64151d8ee0d2c346"
+      },
+      "note": "Re-judged 2026-10-14 after TestRFC5036KeepalivesSentPeriodically changed. Positive: runSession to operational with both sides at 1s and an empty LIB; each of the next three PDUs must be a KeepAlive and each gap at most 1s; the test peer now writes a KeepAlive after each one so ze's 1s KeepAlive Timer is fed, which removes no assertion. Negative (dual-tagged with RFC5036-3.5.4.1-1, unit unchanged): TestRFC5036KeepalivePacingFollowsNegotiatedTime has ze propose 60s and the peer 1s, then requires each of the next three PDUs within 1s of the previous; it does not check their type, which the row allows (any LDP message will do), and a sender pacing from the 60s proposal fails it because the session ends after the 1s timer and the next read fails. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.",
       "requirement_sha": "8dacd29a7ef3b171",
       "tests": {
         "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036KeepalivePacingFollowsNegotiatedTime": "c0aa8fdb104978d5",
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "e896d95bc2804911"
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "0c099031be03877f"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036KeepalivePacingFollowsNegotiatedTime": "036ce51bb000a1ab",
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "49d1690fd38aa1b4"
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "87f5f5b33ff4db44"
       },
       "verdict": "enforced"
     },
@@ -207,14 +215,18 @@
       "verdict": "enforced"
     },
     "RFC5036-3.5.3-1": {
-      "note": "TestRFC5036InitNonZeroKeepaliveTimeAccepted takes a non-zero KeepAlive Time to operational with no Notification; TestRFC5036InitZeroKeepaliveTimeRejected checks a zero KeepAlive Time draws Session Rejected/Bad KeepAlive Time referring to the Initialization, errBadKeepaliveTime, no operational state and no zero reaching the timers. Re-judged 2026-10-02 (c29 judge): since the RULINGS R4 fix an accepted Initialization takes OPENSENT to OPENREC and only the peer's KeepAlive makes the session operational (RFC 5036 2.5.4), so the unit now appends the peer's KeepAlive to the PDU before asserting operational; the assertion is unchanged, and a rejected or unaccepted Initialization still fails it (processMessages errors before the KeepAlive, and keepaliveReceived refuses without initAccepted).",
+      "code": {
+        "internal/plugins/ldp/session.go::handleInit": "64151d8ee0d2c346",
+        "internal/plugins/ldp/session.go::processMessages": "19f0bdebd1a8c7cb"
+      },
+      "note": "Re-judged 2026-10-14 after TestRFC5036InitNonZeroKeepaliveTimeAccepted changed. Positive: processMessages over an Initialization proposing 30s plus the peer's KeepAlive reaches operational, negotiated KeepAlive Time and armed KeepAlive Timer are both 30s, and no byte arrives on the peer side within 200ms (no Notification). Negative, unchanged: TestRFC5036InitZeroKeepaliveTimeRejected sends KeepAlive Time 0 and asserts a Session Rejected/Bad KeepAlive Time status referring to message id 7 of type Initialization, processMessages returning errBadKeepaliveTime, a non-operational state, and non-zero hold and keepalive times.",
       "requirement_sha": "d546589c03be24a5",
       "tests": {
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitNonZeroKeepaliveTimeAccepted": "e896d95bc2804911",
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitZeroKeepaliveTimeRejected": "e896d95bc2804911"
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitNonZeroKeepaliveTimeAccepted": "0c099031be03877f",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitZeroKeepaliveTimeRejected": "0c099031be03877f"
       },
       "units": {
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitNonZeroKeepaliveTimeAccepted": "3f32bc7eeaf0d809",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitNonZeroKeepaliveTimeAccepted": "795671ddd36fb5dd",
         "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitZeroKeepaliveTimeRejected": "61b026202e9244b1"
       },
       "verdict": "enforced"
