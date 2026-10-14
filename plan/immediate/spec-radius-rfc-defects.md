@@ -9,6 +9,8 @@
 | Handoff | - |
 | Updated | 2026-10-14 |
 
+**Dependencies:** `plan/immediate/spec-rfc5176-remaining-defect-classes.md` lands after this spec (its R-6); its S-1 deletes `coa.go::findSessions`, so the "tunnelID-sessionID-" prefix contract this spec preserves (R-5, AC-3c, `TestRFC2866AcctSessionIDKeepsTunnelSessionPrefix`) ends there.
+
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
@@ -467,6 +469,7 @@ Approved by the owner on 2026-10-13 (Q-3, "approve all RFC-tagged test changes";
 | 2026-10-14 | review round 2, narrow, of the round-1 edits (0 BLOCKER, 1 ISSUE, 4 NIT), applied | ISSUE-1: the PPPoE lab holds its own copy of the `/dev/ppp` half, so BOTH copies (L2TP and PPPoE) move into one shared file in package `interoplab`; `pppoe/pppoe.go` and the two labs' tests added to Files to Modify, the PPPoE preflight text to Documentation row 10, and the "declared once" claim (Preflight row, R-7) now rests on both moves. NIT-2: the shape is named: a shared probe fragment, parser, check and run refusal that each lab's single preflight container includes, so each lab still runs one container (read at `l2tp.go` and `pppoe.go` `preflightContainer`, `validatePreflightOutput`, `preflightRunRefusal`). NIT-3: AC-2f says Ze reads "valid" as accepted for processing and quotes RFC 5176 Section 6.3. NIT-4: AC-3f and its test row name both breaks. NIT-5: sister spec's lab Files point at this spec's lab rows. Round 3 owed, narrow, over these edits |
 | 2026-10-14 | review round 3, narrow, of the round-2 edits (0 BLOCKER, 1 ISSUE, 0 NIT), applied | ISSUE-1: the shared run refusal was defined only by its `/dev/ppp` arm, which in PPPoE's shape drops `commandError`'s cause and chain for every other Docker failure. Now defined fully: it always wraps the `RunOneShot` error with `%w` and adds the `ppp_generic` hint only when stderr names `/dev/ppp`; the timeout arm stays in the PPPoE lab; the shared test carries a non-`/dev/ppp` L2TP case. Round 4 owed, narrow, over this one edit |
 | 2026-10-14 | review round 4, narrow, of the round-3 edit (0 BLOCKER, 0 ISSUE, 1 NIT) | NIT applied: item (5) says the `ppp_generic` hint keeps PPPoE's explanation. Design converged; owner questions still open as listed |
+| 2026-10-14 | cross-spec dependency note, no design change | from `spec-rfc5176-remaining-defect-classes` design review r1 (NIT-11): the Dependencies line under the metadata records that spec landing after this one and the prefix contract ending with its S-1 |
 
 ## RFC Documentation (Scope: protocol)
 
