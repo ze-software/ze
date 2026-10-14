@@ -52,7 +52,7 @@ func TestDiffAfterDeletingTheFirstOfTwoMultiLeafKeyEntries(t *testing.T) {
 		case diffUnchanged:
 		case diffRemoved:
 			removed = append(removed, line.Text)
-		default:
+		case diffAdded, diffModified:
 			assert.Failf(t, "only the zbl0 entry changes", "line %q marked %q", line.Text, string(line.Marker))
 		}
 	}
