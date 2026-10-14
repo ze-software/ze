@@ -187,6 +187,72 @@ func sendRawCoAPacketExpectNoResponse(t *testing.T, addr string, wire []byte) {
 	}
 }
 
+// coaClientSocket is one client UDP socket, so every request it sends leaves
+// from the same source port. RFC 5176 Section 2.3 makes the source port part of
+// a duplicate's identity, so a test that retransmits sends the copy on the
+// socket that sent the original; sendRawCoAPacket dials a fresh socket per
+// send, which is a second client. Not safe for concurrent use.
+type coaClientSocket struct {
+	conn *net.UDPConn
+}
+
+// newCoAClientSocket dials addr once; the socket closes when the test ends.
+func newCoAClientSocket(t *testing.T, addr string) *coaClientSocket {
+	t.Helper()
+	conn, err := net.DialUDP("udp4", nil, mustResolveUDP(t, addr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if closeErr := conn.Close(); closeErr != nil {
+			t.Logf("conn close: %v", closeErr)
+		}
+	})
+	return &coaClientSocket{conn: conn}
+}
+
+// exchangeRaw sends wire and answers the response octets.
+func (s *coaClientSocket) exchangeRaw(t *testing.T, wire []byte) []byte {
+	t.Helper()
+	if _, err := s.conn.Write(wire); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.conn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, radius.MaxPacketLen)
+	n, err := s.conn.Read(buf)
+	if err != nil {
+		t.Fatal("no response:", err)
+	}
+	return append([]byte{}, buf[:n]...)
+}
+
+// exchange sends wire and answers the decoded response.
+func (s *coaClientSocket) exchange(t *testing.T, wire []byte) *radius.Packet {
+	t.Helper()
+	resp, err := radius.Decode(s.exchangeRaw(t, wire))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp
+}
+
+// expectNoResponse sends wire and fails when an answer arrives within 200 ms.
+func (s *coaClientSocket) expectNoResponse(t *testing.T, wire []byte) {
+	t.Helper()
+	if _, err := s.conn.Write(wire); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, radius.MaxPacketLen)
+	if _, err := s.conn.Read(buf); err == nil {
+		t.Fatal("unexpected CoA response")
+	}
+}
+
 type fakeL2TPService struct {
 	snap      l2tp.Snapshot
 	teardowns atomic.Int32
@@ -426,11 +492,14 @@ func TestDisconnectReplayReturnsCachedResponse(t *testing.T) {
 	wire := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, []radius.Attr{
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 	}, time.Now())
-	resp := sendRawCoAPacket(t, addr, wire)
+	// The replay goes out on the socket that sent the original: a copy from
+	// another source port is a second client's request (RFC 5176 Section 2.3).
+	client := newCoAClientSocket(t, addr)
+	resp := client.exchange(t, wire)
 	if resp.Code != radius.CodeDisconnectACK {
 		t.Fatalf("first code: got %d, want %d (Disconnect-ACK)", resp.Code, radius.CodeDisconnectACK)
 	}
-	resp = sendRawCoAPacket(t, addr, wire)
+	resp = client.exchange(t, wire)
 	if resp.Code != radius.CodeDisconnectACK {
 		t.Fatalf("replay code: got %d, want %d (Disconnect-ACK)", resp.Code, radius.CodeDisconnectACK)
 	}

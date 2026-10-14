@@ -19,6 +19,7 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"net"
+	"net/netip"
 	"sync"
 	"testing"
 	"time"
@@ -153,20 +154,28 @@ func TestRFC5176InvalidCodeDiscarded(t *testing.T) {
 }
 
 // RFC requirement: RFC5176-2.3-2 positive -- a duplicate request carrying the same
-// source, Identifier and Request Authenticator is answered from the cache, so the
-// session is torn down once however many copies arrive.
-// RFC requirement: RFC5176-2.3-2 negative -- a request carrying a different Identifier
-// is not a duplicate: it is processed afresh and answered under its own Identifier.
+// source IP address, source UDP port and Identifier (and so the same Request
+// Authenticator) is answered from the cache, so the session is torn down once
+// however many copies arrive.
+// RFC requirement: RFC5176-2.3-2 negative -- a request from the same source IP
+// address and source UDP port carrying a different Identifier is not a duplicate:
+// it is processed afresh and answered under its own Identifier.
+//
+// All three requests leave one client socket, so the fresh request differs from
+// the duplicate in its Identifier and not in its source port. Its Request
+// Authenticator differs too, unavoidably, because the Authenticator hashes the
+// Identifier (RFC 2866 Section 3, which RFC 5176 Section 2.3 adopts).
 func TestRFC5176DuplicateRequestAnsweredFromCache(t *testing.T) {
 	secret := []byte("test-rfc5176-dup-secret")
 	fake := oneSessionService()
 	addr := coaTestListener(t, secret, nil, fake)
+	client := newCoAClientSocket(t, addr)
 
 	attrs := []radius.Attr{{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")}}
 	wire := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, attrs, time.Now())
 
-	first := sendRawCoAPacket(t, addr, append([]byte(nil), wire...))
-	second := sendRawCoAPacket(t, addr, append([]byte(nil), wire...))
+	first := client.exchange(t, append([]byte(nil), wire...))
+	second := client.exchange(t, append([]byte(nil), wire...))
 
 	if first.Code != radius.CodeDisconnectACK || second.Code != radius.CodeDisconnectACK {
 		t.Errorf("codes: got %d and %d, want %d twice", first.Code, second.Code, radius.CodeDisconnectACK)
@@ -179,13 +188,146 @@ func TestRFC5176DuplicateRequestAnsweredFromCache(t *testing.T) {
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 		{Type: radius.AttrMessageAuthenticator, Value: make([]byte, radius.AuthenticatorLen)},
 	}, time.Now()), secret)
-	third := sendRawCoAPacket(t, addr, fresh)
+	third := client.exchange(t, fresh)
 
 	if third.Identifier != 7 {
 		t.Errorf("Identifier: got %d, want 7 (a new Identifier is not a duplicate)", third.Identifier)
 	}
 	if got := fake.teardowns.Load(); got != 2 {
 		t.Errorf("teardowns after a fresh request: got %d, want 2", got)
+	}
+}
+
+// TestRFC5176DuplicateIsSameSourcePortAndIdentifier sends one Disconnect-Request
+// twice, byte for byte, from one client socket.
+//
+// VALIDATES: the retransmission is answered with the identical octets the first
+// copy earned, and the session is torn down once (AC-2a).
+// PREVENTS: a key that cannot match a legitimate retransmission, which would
+// tear a session down once per copy.
+//
+// RFC requirement: RFC5176-2.3-2 positive -- a request carrying the same source
+// IP address, source UDP port and Identifier as one answered moments before is
+// detected as a duplicate: it is answered with the first copy's response octets
+// and does not act a second time.
+func TestRFC5176DuplicateIsSameSourcePortAndIdentifier(t *testing.T) {
+	secret := []byte("test-rfc5176-port-dup-secret")
+	fake := oneSessionService()
+	addr := coaTestListener(t, secret, nil, fake)
+	client := newCoAClientSocket(t, addr)
+
+	wire := buildCoAPacket(t, radius.CodeDisconnectRequest, secret,
+		[]radius.Attr{{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")}}, time.Now())
+	first := client.exchangeRaw(t, wire)
+	again := client.exchangeRaw(t, wire)
+
+	if !bytes.Equal(first, again) {
+		t.Errorf("retransmission: response %x, want the cached %x", again, first)
+	}
+	if got := fake.teardowns.Load(); got != 1 {
+		t.Errorf("teardowns after a same-port retransmission: got %d, want 1", got)
+	}
+}
+
+// TestRFC5176DifferentSourcePortIsNotADuplicate sends one Disconnect-Request,
+// byte for byte, from two client sockets on one address.
+//
+// VALIDATES: the copy from the second source port is processed afresh: the
+// session is torn down twice (AC-2b).
+// PREVENTS: a key that ignores the port, under which two DACs behind one NAT
+// address using the same Identifier get each other's cached answers.
+//
+// RFC requirement: RFC5176-2.3-2 negative -- a request from the same source IP
+// address with the same Identifier but a different source UDP port is not a
+// duplicate: it is processed afresh.
+func TestRFC5176DifferentSourcePortIsNotADuplicate(t *testing.T) {
+	secret := []byte("test-rfc5176-port-fresh-secret")
+	fake := oneSessionService()
+	addr := coaTestListener(t, secret, nil, fake)
+
+	wire := buildCoAPacket(t, radius.CodeDisconnectRequest, secret,
+		[]radius.Attr{{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")}}, time.Now())
+	first := newCoAClientSocket(t, addr).exchange(t, wire)
+	second := newCoAClientSocket(t, addr).exchange(t, wire)
+
+	if first.Code != radius.CodeDisconnectACK || second.Code != radius.CodeDisconnectACK {
+		t.Errorf("codes: got %d and %d, want %d twice", first.Code, second.Code, radius.CodeDisconnectACK)
+	}
+	if got := fake.teardowns.Load(); got != 2 {
+		t.Errorf("teardowns after the same request from a second source port: got %d, want 2", got)
+	}
+}
+
+// TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh drives the
+// Authenticator tie-breaker of the duplicate key (spec Q-2 B).
+//
+// VALIDATES: on one socket and one Identifier, a request Y whose Request
+// Authenticator differs from the cached X's is processed afresh (AC-2c), and
+// Y's answer replaces X's entry, so X sent again is processed afresh too
+// (R-2). A Y silently discarded for a stale Event-Timestamp earns no response
+// and leaves X's entry, so X sent again is answered from the cache (AC-2f).
+// PREVENTS: a DAC whose 8-bit Identifier wraps within the window having a new
+// request answered with a stale response, and a stale entry outliving its
+// replacement.
+//
+// RFC requirement: RFC5176-2.3-2 negative -- a request carrying the same source
+// IP address, source UDP port and Identifier as a cached one, but a different
+// Request Authenticator, is not answered from the cache: it is processed afresh.
+func TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh(t *testing.T) {
+	secret := []byte("test-rfc5176-new-auth-secret")
+	attrs := func() []radius.Attr {
+		return []radius.Attr{{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")}}
+	}
+
+	// buildCoAPacket uses Identifier 1 throughout; the Event-Timestamps differ,
+	// so the Request Authenticators differ.
+	now := time.Now()
+	x := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, attrs(), now)
+	y := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, attrs(), now.Add(-2*time.Second))
+
+	fake := oneSessionService()
+	client := newCoAClientSocket(t, coaTestListener(t, secret, nil, fake))
+	client.exchange(t, x)
+	client.exchange(t, y)
+	if got := fake.teardowns.Load(); got != 2 {
+		t.Errorf("teardowns after Y on X's triple with a new Authenticator: got %d, want 2", got)
+	}
+	client.exchange(t, x)
+	if got := fake.teardowns.Load(); got != 3 {
+		t.Errorf("teardowns after X once Y replaced its entry: got %d, want 3", got)
+	}
+
+	stale := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, attrs(),
+		now.Add(-(coaReplayWindow + replayWindowSlack)))
+	kept := oneSessionService()
+	other := newCoAClientSocket(t, coaTestListener(t, secret, nil, kept))
+	first := other.exchangeRaw(t, x)
+	other.expectNoResponse(t, stale)
+	again := other.exchangeRaw(t, x)
+	if !bytes.Equal(first, again) {
+		t.Errorf("X after a discarded Y: response %x, want the cached %x", again, first)
+	}
+	if got := kept.teardowns.Load(); got != 1 {
+		t.Errorf("teardowns after X, a discarded Y, and X again: got %d, want 1", got)
+	}
+}
+
+// TestReplayKeyCarriesSourcePort checks the key itself: two sources differing
+// only in port give two keys, and so do two Identifiers on one source.
+func TestReplayKeyCarriesSourcePort(t *testing.T) {
+	pkt := &radius.Packet{Code: radius.CodeDisconnectRequest, Identifier: 255}
+	a := replayKey(netip.MustParseAddrPort("192.0.2.1:3000"), pkt)
+	b := replayKey(netip.MustParseAddrPort("192.0.2.1:3001"), pkt)
+	if a == b {
+		t.Errorf("ports 3000 and 3001 share the key %+v", a)
+	}
+	wrapped := &radius.Packet{Code: radius.CodeDisconnectRequest, Identifier: 0}
+	if a == replayKey(netip.MustParseAddrPort("192.0.2.1:3000"), wrapped) {
+		t.Errorf("Identifiers 255 and 0 share the key %+v", a)
+	}
+	mapped := replayKey(netip.MustParseAddrPort("[::ffff:192.0.2.1]:3000"), pkt)
+	if a != mapped {
+		t.Errorf("an IPv4-mapped source keys apart from its IPv4 form: %+v and %+v", a, mapped)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"time"
@@ -52,16 +53,24 @@ type coaListenerConfig struct {
 	RequireMessageAuthenticator bool
 }
 
+// coaReplayKey is what makes two requests copies of one: RFC 5176 Section
+// 2.3's source IP address, source UDP port and Identifier. The Request
+// Authenticator is not in the key but in the entry (coaReplayEntry), so a new
+// request on a cached triple replaces the entry rather than sitting beside it.
 type coaReplayKey struct {
-	source        string
-	code          uint8
-	identifier    uint8
-	authenticator [radius.AuthenticatorLen]byte
+	source     netip.AddrPort
+	identifier uint8
 }
 
+// coaReplayEntry is the response a request earned, with the Request
+// Authenticator of that request. A lookup whose Authenticator differs is a
+// miss: RFC 5176 Section 2.3 has a retransmission keep its Authenticator, so a
+// different one is a new request. The Code needs no field of its own, because
+// the Request Authenticator hashes it (RFC 2866 Section 3).
 type coaReplayEntry struct {
-	seen     time.Time
-	response []byte
+	seen          time.Time
+	authenticator [radius.AuthenticatorLen]byte
+	response      []byte
 }
 
 const coaReplayWindow = 5 * time.Minute
@@ -163,8 +172,10 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 	// specification MUST be capable of detecting a duplicate request if it has
 	// the same source IP address, source UDP port, and Identifier within a short
 	// span of time." A duplicate is answered with the response the first copy
-	// earned, so a retransmission never applies a change twice.
-	if cached := cl.cachedReplay(from.IP, pkt); cached != nil {
+	// earned, so a retransmission never applies a change twice. The check sits
+	// after both authenticator checks, so an unauthenticated packet never
+	// touches the cache.
+	if cached := cl.cachedReplay(from.AddrPort(), pkt); cached != nil {
 		cl.sendRawResponse(from, cached)
 		return
 	}
@@ -825,7 +836,7 @@ func (cl *coaListener) sendResponse(to *net.UDPAddr, req *radius.Packet, code ui
 		logger().Warn("coa: send response failed", "error", err)
 		return
 	}
-	cl.rememberReplay(to.IP, req, wire)
+	cl.rememberReplay(to.AddrPort(), req, wire)
 }
 
 func (cl *coaListener) sendRawResponse(to *net.UDPAddr, wire []byte) {
@@ -872,7 +883,10 @@ func nakCode(code uint8) uint8 {
 	return radius.CodeCoANAK
 }
 
-func (cl *coaListener) cachedReplay(source net.IP, pkt *radius.Packet) []byte {
+// cachedReplay answers a copy of the response a duplicate of pkt earned, or
+// nil when pkt is not a duplicate (RFC 5176 Section 2.3). Safe for concurrent
+// use.
+func (cl *coaListener) cachedReplay(source netip.AddrPort, pkt *radius.Packet) []byte {
 	key := replayKey(source, pkt)
 	now := time.Now()
 	cl.replayMu.Lock()
@@ -882,12 +896,22 @@ func (cl *coaListener) cachedReplay(source net.IP, pkt *radius.Packet) []byte {
 	if !ok {
 		return nil
 	}
+	// RFC 5176 Section 2.3: "If any attributes have changed, a new
+	// Authenticator and Identifier MUST be used." A request on a cached triple
+	// with another Authenticator is therefore new, and is processed; its
+	// response replaces this entry in rememberReplay.
+	if entry.authenticator != pkt.Authenticator {
+		return nil
+	}
 	resp := make([]byte, len(entry.response))
 	copy(resp, entry.response)
 	return resp
 }
 
-func (cl *coaListener) rememberReplay(source net.IP, pkt *radius.Packet, response []byte) {
+// rememberReplay stores the response pkt earned, replacing any entry on the
+// same triple (RFC 5176 Section 2.3). Only sendResponse calls it, so a request
+// that earns no response leaves the entry it found. Safe for concurrent use.
+func (cl *coaListener) rememberReplay(source netip.AddrPort, pkt *radius.Packet, response []byte) {
 	key := replayKey(source, pkt)
 	now := time.Now()
 	resp := make([]byte, len(response))
@@ -895,7 +919,7 @@ func (cl *coaListener) rememberReplay(source net.IP, pkt *radius.Packet, respons
 	cl.replayMu.Lock()
 	defer cl.replayMu.Unlock()
 	cl.pruneReplayLocked(now)
-	cl.replay[key] = coaReplayEntry{seen: now, response: resp}
+	cl.replay[key] = coaReplayEntry{seen: now, authenticator: pkt.Authenticator, response: resp}
 }
 
 func (cl *coaListener) pruneReplayLocked(now time.Time) {
@@ -906,11 +930,16 @@ func (cl *coaListener) pruneReplayLocked(now time.Time) {
 	}
 }
 
-func replayKey(source net.IP, pkt *radius.Packet) coaReplayKey {
+// replayKey answers the duplicate key of a request from source.
+//
+// RFC 5176 Section 2.3: "A Dynamic Authorization Server implementing this
+// specification MUST be capable of detecting a duplicate request if it has the
+// same source IP address, source UDP port, and Identifier within a short span
+// of time." The address is unmapped, so an IPv4 client read through a
+// dual-stack socket keys the same as through an IPv4 one.
+func replayKey(source netip.AddrPort, pkt *radius.Packet) coaReplayKey {
 	return coaReplayKey{
-		source:        source.String(),
-		code:          pkt.Code,
-		identifier:    pkt.Identifier,
-		authenticator: pkt.Authenticator,
+		source:     netip.AddrPortFrom(source.Addr().Unmap(), source.Port()),
+		identifier: pkt.Identifier,
 	}
 }

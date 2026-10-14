@@ -678,6 +678,19 @@ absence; Ze refuses a request that omits it, because the port takes unsolicited
 packets that tear subscriber sessions down and without the attribute there is no
 replay protection.
 
+A retransmitted request is answered from a cache rather than applied twice.
+RFC 5176 Section 2.3 defines a duplicate by its source address, source UDP port
+and Identifier, and Ze also compares the Request Authenticator, which that
+section requires a retransmission to keep. A request from the same address and
+port with the same Identifier but another Authenticator is a new request: it is
+processed, and its response replaces the cached one. A request from another
+source port is never a duplicate, so two servers behind one NAT address do not
+get each other's answers; a NAT that changes the source port between
+retransmissions defeats the detection. The cache holds each response for five
+minutes, the Event-Timestamp window, and only an authenticated request that
+earned a response enters it.
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- replayKey, cachedReplay, rememberReplay, coaReplayWindow -->
+
 The response echoes the request's Proxy-State and State attributes unchanged,
 and Ze never reads their contents.
 

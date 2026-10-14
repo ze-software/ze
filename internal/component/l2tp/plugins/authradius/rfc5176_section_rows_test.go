@@ -652,10 +652,13 @@ func TestRFC5176DuplicateAndTimestampWindowsBothHoldInside(t *testing.T) {
 	}
 	inside := coaReplayWindow - replayWindowSlack
 
+	// Both copies leave one socket, so they share the source port a duplicate
+	// is keyed on (RFC 5176 Section 2.3).
+	client := newCoAClientSocket(t, addr)
 	wire := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, attrs(), time.Now())
-	first := coaRawExchange(t, addr, wire)
+	first := client.exchangeRaw(t, wire)
 	ageCoAReplay(cl, inside)
-	again := coaRawExchange(t, addr, wire)
+	again := client.exchangeRaw(t, wire)
 	if !bytes.Equal(first, again) {
 		t.Errorf("duplicate inside the window: response %x, want the cached %x", again, first)
 	}
@@ -685,10 +688,14 @@ func TestRFC5176DuplicateAndTimestampWindowsBothEndOutside(t *testing.T) {
 	}
 	outside := coaReplayWindow + replayWindowSlack
 
+	// Both copies leave one socket, so the second differs from the first only
+	// in age: it is processed again because the window ended, not because its
+	// source port differs (RFC 5176 Section 2.3).
+	client := newCoAClientSocket(t, addr)
 	wire := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, attrs(), time.Now())
-	coaRawExchange(t, addr, wire)
+	client.exchangeRaw(t, wire)
 	ageCoAReplay(cl, outside)
-	coaRawExchange(t, addr, wire)
+	client.exchangeRaw(t, wire)
 	if got := fake.teardowns.Load(); got != 2 {
 		t.Errorf("teardowns after a duplicate past the window: got %d, want 2", got)
 	}
