@@ -9,6 +9,9 @@ import "testing"
 // `expect=stdout:contains=error: no such peer` asserted `error`, which passes on
 // almost any output -- a test that cannot fail.
 func TestParseKVPairsKeepsColonsInsideValues(t *testing.T) {
+	// parts is what every caller passes: the segments AFTER `action=type`. A
+	// leading type token here was a key-less segment the splitter used to drop,
+	// and it now refuses one (TestParseKVPairsRefusesMalformedSegments).
 	cases := []struct {
 		name  string
 		parts []string
@@ -16,22 +19,22 @@ func TestParseKVPairsKeepsColonsInsideValues(t *testing.T) {
 	}{
 		{
 			name:  "prose colon is part of the value",
-			parts: []string{"stdout", "contains=error", " no such peer"},
+			parts: []string{"contains=error", " no such peer"},
 			want:  map[string]string{"contains": "error: no such peer"},
 		},
 		{
 			name:  "directive colon still splits",
-			parts: []string{"output", "contains=aes-cbc", "timeout=25"},
+			parts: []string{"contains=aes-cbc", "timeout=25"},
 			want:  map[string]string{"contains": "aes-cbc", "timeout": "25"},
 		},
 		{
 			name:  "json wire needle survives whole",
-			parts: []string{"stdout", `contains="resultType"`, `"task"`},
+			parts: []string{`contains="resultType"`, `"task"`},
 			want:  map[string]string{"contains": `"resultType":"task"`},
 		},
 		{
 			name:  "url in a value is not split",
-			parts: []string{"stdout", "contains=http", "//host", "8080/p"},
+			parts: []string{"contains=http", "//host", "8080/p"},
 			want:  map[string]string{"contains": "http://host:8080/p"},
 		},
 		{
@@ -42,7 +45,10 @@ func TestParseKVPairsKeepsColonsInsideValues(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := ParseKVPairs(tc.parts)
+			got, err := ParseKVPairs(tc.parts)
+			if err != nil {
+				t.Fatalf("ParseKVPairs(%q): %v", tc.parts, err)
+			}
 			for k, want := range tc.want {
 				if got[k] != want {
 					t.Errorf("key %q = %q, want %q (full: %v)", k, got[k], want, got)
@@ -55,7 +61,10 @@ func TestParseKVPairsKeepsColonsInsideValues(t *testing.T) {
 // Exactly the argument record_parse.go:280 passes for the real directive
 // `expect=stdout:contains=name: peer1` (parts[1:] after the line is split).
 func TestParseKVPairsRealWorldExpectLine(t *testing.T) {
-	got := ParseKVPairs([]string{"contains=name", " peer1"})
+	got, err := ParseKVPairs([]string{"contains=name", " peer1"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got["contains"] != "name: peer1" {
 		t.Fatalf("truncated: contains = %q, want %q", got["contains"], "name: peer1")
 	}

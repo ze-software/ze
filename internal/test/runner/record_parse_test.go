@@ -3,6 +3,7 @@ package runner
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -292,8 +293,10 @@ func TestUnknownDirectiveTypeNamesAcceptedSet(t *testing.T) {
 			accepted: "(accepts notification, rewrite, send, sighup, sigterm)",
 		},
 		{
-			name:     "cmd",
-			parse:    func() error { return et.parseCmd(r, "forground", map[string]string{}, "cmd=forground:seq=1:exec=x") },
+			name: "cmd",
+			parse: func() error {
+				return et.parseCmd(r, "forground", strings.Split("cmd=forground:seq=1:exec=x", ":"), "cmd=forground:seq=1:exec=x")
+			},
 			wants:    `unknown cmd type "forground"`,
 			accepted: "(accepts api, background, foreground, stop)",
 		},
@@ -346,7 +349,7 @@ func TestDirectiveVocabularyIsLive(t *testing.T) {
 	}
 	for _, name := range recordCmdTypes {
 		r := &Record{Conf: map[string]any{}, Extra: map[string]string{}}
-		assertReaches(t, "cmd type", name, et.parseCmd(r, name, map[string]string{}, "cmd="+name+":seq=1:exec=x:name=n"))
+		assertReaches(t, "cmd type", name, et.parseCmd(r, name, strings.Split("cmd="+name+":seq=1:exec=x:name=n", ":"), "cmd="+name+":seq=1:exec=x:name=n"))
 	}
 	// The action loop asks a narrower question: the word reached an arm. Its
 	// TYPE is deliberately nonsense, so the arm's own refusal is the expected

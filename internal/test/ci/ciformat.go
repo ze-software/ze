@@ -4,14 +4,32 @@
 package ci
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The three shapes ParseKVPairs refuses. Each error it returns wraps one, so a
+// caller can tell the cause apart without matching text.
+var (
+	ErrSegmentWithoutKey = errors.New("a segment has no key")
+	ErrKeyGivenTwice     = errors.New("a key is given twice")
+	ErrKeyGluedToValue   = errors.New("key glued to a value")
+)
+
 // ParseKVPairs parses key=value pairs from colon-separated parts.
 // Special handling for known keys that may contain colons in values (json, text, hex).
-func ParseKVPairs(parts []string) map[string]string {
+//
+// It refuses three shapes it used to settle in silence, because a key the
+// splitter never surfaces cannot be checked by the directive parser above it
+// (docs/architecture/testing/ci-format.md, "An Unknown Directive or Key Is a
+// Parse Error"): a segment with no `=` (`option=asn:65000`), a key given twice
+// (the last one used to win), and a key that cannot open a key token, which the
+// boundary split glues into the value before it (`path=x:!contains=y`). The
+// error names the offending text; the caller adds the directive and the line.
+func ParseKVPairs(parts []string) (map[string]string, error) {
 	kv := make(map[string]string)
 
 	// Rejoin parts to handle values containing colons
@@ -55,13 +73,51 @@ func ParseKVPairs(parts []string) map[string]string {
 		if part == "" {
 			continue
 		}
-		if before, after, ok := strings.Cut(part, "="); ok {
-			key := before
-			value := after
-			kv[key] = value
+		key, value, ok := strings.Cut(part, "=")
+		if !ok {
+			var b textbuf.Buffer
+			b.Quoted(part).Str(" has no \"=\"; write each field as key=value")
+			return nil, fmt.Errorf("%w: %s", ErrSegmentWithoutKey, b.String())
+		}
+		if _, held := kv[key]; held {
+			var b textbuf.Buffer
+			b.Quoted(key).Str("; keep one")
+			return nil, fmt.Errorf("%w: %s", ErrKeyGivenTwice, b.String())
+		}
+		if glued, found := gluedKey(value); found {
+			var b textbuf.Buffer
+			b.Quoted(glued).Str(" was read as part of the value of ").Str(key).
+				Str("=, because a key starts with a letter; rename the key or move the text into pattern=")
+			return nil, fmt.Errorf("%w: %s", ErrKeyGluedToValue, b.String())
+		}
+		kv[key] = value
+	}
+	return kv, nil
+}
+
+// gluedKey reports a `:key=` span inside value whose key starts with a byte
+// that cannot open a key token. splitOnKeyBoundary splits only before a letter,
+// so such a key stays inside the previous value, where no parser can refuse it.
+// The span is a colon, then key bytes or `!` with a non-letter first, then `=`:
+// a colon in prose, a port (`:8080/`) or a JSON pair (`"a":1`) is not one.
+func gluedKey(value string) (string, bool) {
+	for i := range len(value) {
+		if value[i] != ':' {
+			continue
+		}
+		rest := value[i+1:]
+		if rest == "" || isKeyLeadByte(rest[0]) {
+			continue
+		}
+		end := 0
+		for end < len(rest) && (isKeyByte(rest[end]) || rest[end] == '!') {
+			end++
+		}
+		if end > 0 && end < len(rest) && rest[end] == '=' {
+			return rest[:end], true
 		}
 	}
-	return kv
+	return "", false
 }
 
 // splitOnKeyBoundary splits s on each colon that introduces a new `key=` token,

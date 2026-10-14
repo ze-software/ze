@@ -412,9 +412,9 @@ func (c *Config) validateOwnedCodesStatedOnce() error {
 		if !isDeclared {
 			continue
 		}
-		stated := "add-capability"
+		stated := optOpenAddCapability
 		if !override.Add {
-			stated = "drop-capability"
+			stated = optOpenDropCapability
 		}
 		return fmt.Errorf(
 			"the peer block states option=open:value=%s and option=open:value=%s:code=%d, so it "+
@@ -609,7 +609,7 @@ func addedParams(cfg *Config) []openParam {
 		}
 		tlv := make([]byte, 2+len(override.Value))
 		tlv[0] = override.Code
-		tlv[1] = byte(len(override.Value)) //nolint:gosec // parseOptionConfig refuses a value above 255 octets
+		tlv[1] = byte(len(override.Value)) //nolint:gosec // parseOpenAddCapability refuses a value above 255 octets
 		copy(tlv[2:], override.Value)
 		out = append(out, openParam{kind: paramTypeCapability, caps: [][]byte{tlv}})
 	}

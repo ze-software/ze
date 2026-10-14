@@ -92,7 +92,11 @@ var retiredKeys = map[string]string{
 // The scan reads the WHOLE line, the exec= value included, because that is
 // where a swallowed key hides. So a cmd= line cannot carry a ":<word>=" span
 // inside its command: put that command in a tmpfs= script and run the script.
-func checkMarkerKeys(directive, line string, markers []string) error {
+//
+// A key given twice is refused too, because a marker parser reads the first
+// occurrence and ignores the rest. repeatable names the markers a parser scans
+// for every occurrence (http= header=), which may appear more than once.
+func checkMarkerKeys(directive, line string, markers []string, repeatable ...string) error {
 	found := make(map[string]string, len(markers))
 	for i := range len(line) {
 		if line[i] != ':' {
@@ -101,6 +105,11 @@ func checkMarkerKeys(directive, line string, markers []string) error {
 		key, ok := markerKeyAt(line[i:])
 		if !ok {
 			continue
+		}
+		if _, held := found[key]; held && !slices.Contains(repeatable, ":"+key+"=") {
+			var msg textbuf.Buffer
+			msg.Str(directive).Str(": key ").Quoted(key).Str(" is given twice; keep one")
+			return errors.New(msg.String())
 		}
 		found[key] = ""
 	}

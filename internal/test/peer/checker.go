@@ -110,7 +110,10 @@ func (c *Checker) groupMessages(expected []string) ([][]string, []int, error) {
 func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 	// expect=bgp:conn=N:seq=N:hex=...
 	if after, ok := strings.CutPrefix(rule, "expect=bgp:"); ok {
-		kv := parseKV(after)
+		kv, kvErr := parseKV(after)
+		if kvErr != nil {
+			return 0, 0, "", fmt.Errorf("%q: %w", rule, kvErr)
+		}
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -140,7 +143,7 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			if kv["announced"] != "" && kv["withdrawn"] != "" {
 				return 0, 0, "", fmt.Errorf("expect=bgp attribute requires exactly one NLRI field: %q", rule)
 			}
-			for _, other := range []string{"hex", "prefix", "contains", "ordered"} {
+			for _, other := range []string{"hex", keyPrefix, "contains", "ordered"} {
 				if kv[other] != "" {
 					return 0, 0, "", fmt.Errorf("expect=bgp attribute cannot combine with %s: %q", other, rule)
 				}
@@ -150,7 +153,7 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			content = strings.ToUpper(strings.ReplaceAll(hexVal, ":", ""))
 			return conn, seq, content, nil
 		}
-		if prefixVal := kv["prefix"]; prefixVal != "" {
+		if prefixVal := kv[keyPrefix]; prefixVal != "" {
 			var tb textbuf.Buffer
 			content = tb.Str("prefix:").Str(strings.ToUpper(strings.ReplaceAll(prefixVal, ":", ""))).String()
 			return conn, seq, content, nil
@@ -187,7 +190,10 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 
 	// action=notification:conn=N:seq=N:text=...
 	if after, ok := strings.CutPrefix(rule, "action=notification:"); ok {
-		kv := parseKV(after)
+		kv, kvErr := parseKV(after)
+		if kvErr != nil {
+			return 0, 0, "", fmt.Errorf("%q: %w", rule, kvErr)
+		}
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -218,7 +224,10 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 
 	// action=send:conn=N:seq=N:hex=...
 	if after, ok := strings.CutPrefix(rule, "action=send:"); ok {
-		kv := parseKV(after)
+		kv, kvErr := parseKV(after)
+		if kvErr != nil {
+			return 0, 0, "", fmt.Errorf("%q: %w", rule, kvErr)
+		}
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -249,7 +258,10 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 
 	// action=rewrite:conn=N:seq=N:source=FILE:dest=FILE
 	if after, ok := strings.CutPrefix(rule, "action=rewrite:"); ok {
-		kv := parseKV(after)
+		kv, kvErr := parseKV(after)
+		if kvErr != nil {
+			return 0, 0, "", fmt.Errorf("%q: %w", rule, kvErr)
+		}
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -284,7 +296,10 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 
 	// action=sighup:conn=N:seq=N
 	if after, ok := strings.CutPrefix(rule, "action=sighup:"); ok {
-		kv := parseKV(after)
+		kv, kvErr := parseKV(after)
+		if kvErr != nil {
+			return 0, 0, "", fmt.Errorf("%q: %w", rule, kvErr)
+		}
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -310,7 +325,10 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 
 	// action=close:conn=N:seq=N
 	if after, ok := strings.CutPrefix(rule, "action=close:"); ok {
-		kv := parseKV(after)
+		kv, kvErr := parseKV(after)
+		if kvErr != nil {
+			return 0, 0, "", fmt.Errorf("%q: %w", rule, kvErr)
+		}
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -336,7 +354,10 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 
 	// action=sigterm:conn=N:seq=N
 	if after, ok := strings.CutPrefix(rule, "action=sigterm:"); ok {
-		kv := parseKV(after)
+		kv, kvErr := parseKV(after)
+		if kvErr != nil {
+			return 0, 0, "", fmt.Errorf("%q: %w", rule, kvErr)
+		}
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -364,8 +385,9 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 }
 
 // parseKV parses key=value pairs from a colon-separated string.
-// Handles values that may contain colons (like hex=...).
-func parseKV(s string) map[string]string {
+// Handles values that may contain colons (like hex=...). A malformed segment is
+// an error (ci.ParseKVPairs), so a rule ze-peer cannot read is refused whole.
+func parseKV(s string) (map[string]string, error) {
 	return ci.ParseKVPairs(strings.Split(s, ":"))
 }
 

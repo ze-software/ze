@@ -2,6 +2,7 @@
 // Overview: record.go — Record type definitions and methods
 // Related: record_collection.go — Tests container and querying
 // Related: accept_only.go — accept-only (weak) predicate over the parsed Records
+// Related: record_parse_option.go — the option= arms
 // Related: caps.go — needs-linux capability probe and the netns-link skip gate
 
 package runner
@@ -10,18 +11,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/test/ci"
 	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
@@ -272,21 +270,51 @@ func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
 	if !slices.Contains(recordActions, action) {
 		return unknownDirective("action", action, recordActions)
 	}
-	kvPairs := ci.ParseKVPairs(parts[1:])
+	// Only the key=value families split the tail. http=, cmd= program lines and
+	// the engine steps read the raw line, whose command text may hold a colon
+	// and a bare word the strict splitter would refuse.
+	// The type is checked before the split, so option=bogus:65000 names the
+	// unknown type and the accepted list, not the unkeyed segment.
+	kvPairs := func() (map[string]string, error) {
+		if err := checkDirectiveType(action, lineType); err != nil {
+			return nil, err
+		}
+		return parseDirectiveKV(parts[0], parts[1:], familyKeys(action, lineType))
+	}
 
 	switch action {
-	case "option":
-		return et.parseOption(r, ciFile, lineType, kvPairs)
-	case "expect":
-		return et.parseExpect(r, lineType, kvPairs)
-	case "reject":
-		return et.parseReject(r, lineType, kvPairs)
-	case "action":
-		return et.parseAction(r, lineType, kvPairs)
-	case "cmd":
-		return et.parseCmd(r, lineType, kvPairs, line)
-	case "await":
-		return et.parseAwait(r, lineType, kvPairs)
+	case directiveOption:
+		kv, err := kvPairs()
+		if err != nil {
+			return err
+		}
+		return et.parseOption(r, ciFile, lineType, kv)
+	case directiveExpect:
+		kv, err := kvPairs()
+		if err != nil {
+			return err
+		}
+		return et.parseExpect(r, lineType, kv)
+	case directiveReject:
+		kv, err := kvPairs()
+		if err != nil {
+			return err
+		}
+		return et.parseReject(r, lineType, kv)
+	case directiveAction:
+		kv, err := kvPairs()
+		if err != nil {
+			return err
+		}
+		return et.parseAction(r, lineType, kv)
+	case directiveCmd:
+		return et.parseCmd(r, lineType, parts, line)
+	case directiveAwait:
+		kv, err := kvPairs()
+		if err != nil {
+			return err
+		}
+		return et.parseAwait(r, lineType, kv)
 	case "http":
 		return et.parseHTTP(r, lineType, line)
 	case engineActionCommand, engineActionStream:
@@ -298,324 +326,17 @@ func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
 	}
 }
 
-// parseOption handles option=type:key=value lines.
-func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[string]string) error {
-	if !slices.Contains(recordOptionTypes, optType) {
-		return unknownDirective("option type", optType, recordOptionTypes)
-	}
-	switch optType {
-	case directiveTypeFile:
-		configName := kv["path"]
-		if configName == "" {
-			return errOptionFileMissingPath
-		}
-		configPath := filepath.Join(filepath.Dir(ciFile), configName)
-		absConfig, err := filepath.Abs(configPath)
-		if err != nil {
-			return fmt.Errorf("invalid config path: %w", err)
-		}
-		absTestDir, err := filepath.Abs(filepath.Dir(ciFile))
-		if err != nil {
-			return fmt.Errorf("invalid test dir: %w", err)
-		}
-		if !strings.HasPrefix(absConfig, absTestDir+string(filepath.Separator)) && absConfig != absTestDir {
-			return fmt.Errorf("config file outside test directory: %s", configName)
-		}
-		r.Conf["config"] = configPath
-		r.ConfigFile = configPath
-		r.Files = append(r.Files, configPath)
-
-	case "asn":
-		value := kv["value"]
-		if value == "" {
-			return errOptionAsnMissingValue
-		}
-		r.Extra["asn"] = value
-		r.Options = append(r.Options, "option=asn:value="+value)
-
-	case "bind":
-		value := kv["value"]
-		if value == "" {
-			return errOptionBindMissingValue
-		}
-		r.Extra["bind"] = value
-		r.Options = append(r.Options, "option=bind:value="+value)
-
-	case "timeout":
-		if err := checkKeys("option=timeout", kv, "value"); err != nil {
-			return err
-		}
-		value := kv["value"]
-		if value == "" {
-			return errOptionTimeoutMissingValue
-		}
-		// resolveOrchestratedTimeout parses this and keeps the suggested budget
-		// when it fails, so a typo here buys a test a different timeout with no
-		// line said about it. Judged where the author can be told.
-		if _, err := time.ParseDuration(value); err != nil {
-			return fmt.Errorf("option=timeout:value=%q is not a duration: %w", value, err)
-		}
-		r.Extra["timeout"] = value
-
-	case "tcp_connections":
-		value := kv["value"]
-		if value == "" {
-			return errOptionTcpConnectionsMissingValue
-		}
-		r.Options = append(r.Options, "option=tcp_connections:value="+value)
-
-	case directiveTypeOpen:
-		value := kv["value"]
-		if value == "" {
-			return errOptionOpenMissingValue
-		}
-		r.Options = append(r.Options, "option=open:value="+value)
-
-	case "update":
-		value := kv["value"]
-		if value == "" {
-			return errOptionUpdateMissingValue
-		}
-		r.Options = append(r.Options, "option=update:value="+value)
-
-	case "env":
-		varName := kv["var"]
-		value := kv["value"]
-		if varName == "" {
-			return errOptionEnvMissingVar
-		}
-		// Store as KEY=VALUE for environment setting
-		r.EnvVars = append(r.EnvVars, varName+"="+value)
-
-	case "skip-os":
-		value := kv["value"]
-		if value == "" {
-			return errOptionSkipOsMissingValue
-		}
-		// Record a skip reason when the current GOOS is in the skip list.
-		// The .ci format has no build tags, so OS-specific features (e.g.
-		// Linux-only IP_RECVTTL for BFD echo) gate at parse time. The runner
-		// honors SkipReason regardless of whether the user selected the test
-		// by name -- asking for an unsupported test on the wrong OS reports
-		// SKIP (with reason), never FAIL. Multiple skip-os options
-		// accumulate; any match skips.
-		for skipOS := range strings.SplitSeq(value, ",") {
-			if strings.TrimSpace(skipOS) == runtime.GOOS {
-				var tb textbuf.Buffer
-				r.SkipReason = tb.Str("skip-os=").Str(value).Str(" (current GOOS=").Str(runtime.GOOS).Byte(')').String()
-				return nil
-			}
-		}
-
-	case "needs-linux":
-		// Marks a .ci test that requires a real Linux kernel (netlink interface
-		// management, nftables, kernel sockets, ...) and therefore cannot pass
-		// natively on a non-Linux host. On such a host the test is SKIPPED with
-		// a reason pointing at the QEMU runner; inside the QEMU Alpine VM
-		// (GOOS=linux, via `./le test qemu all-tests`) the directive is
-		// inert and the test runs normally. This is how Linux-only functional
-		// tests are validated automatically via QEMU instead of failing
-		// natively. See ai/rules/platform-linux.md "Linux-only functional tests".
-		//
-		// An optional `caps=net-admin` declares that the test also needs
-		// privileged network configuration. Without it, a test that applies
-		// interface config on an unprivileged Linux host does not fail cleanly:
-		// the interface plugin dies with "operation not permitted" during its
-		// stage-3 handshake, the daemon never reaches the asserted state, and
-		// the test HANGS until the suite timeout. Declaring the capability turns
-		// that hang into an honest skip that names the QEMU runner, where the
-		// test does have the capability and therefore really runs.
-		r.NeedsLinux = true
-		// An unknown key is refused on every host, like an unknown token: a
-		// misspelled key (cap=net-admin) read as absent leaves the author with no
-		// feedback and the declaration silently missing.
-		if err := checkKeys("option=needs-linux", kv, "caps"); err != nil {
-			return err
-		}
-		if raw, present := kv["caps"]; present && strings.TrimSpace(raw) == "" {
-			return fmt.Errorf("option=needs-linux: caps= is empty; name each capability the test needs "+
-				"(supported: %s), e.g. option=needs-linux:caps=net-admin, or drop caps=", capsAccepted())
-		}
-
-		// Validate the declared capability BEFORE the GOOS early-return. A typo
-		// is a property of the .ci file, not of the host, so it must be rejected
-		// everywhere: validating after the return would silently accept
-		// `caps=net-admn` on macOS, leaving the author who wrote it with no
-		// feedback and the gate quietly disabled until someone ran on Linux.
-		// caps is a comma-separated LIST: a test that both programs netlink and
-		// loads eBPF declares `caps=net-admin,bpf` and is gated on BOTH.
-		// Declaring only one of a pair a test really needs makes the gate fail
-		// OPEN -- a host holding just that one passes a check it cannot satisfy,
-		// and the test then fails or hangs exactly as it did before the marker
-		// existed (ai/rules/evidence.md).
-		var caps []string
-		if raw := kv["caps"]; raw != "" {
-			for c := range strings.SplitSeq(raw, ",") {
-				c = strings.TrimSpace(c)
-				if _, ok := capsRequired[c]; !ok {
-					return fmt.Errorf("option=needs-linux: unknown caps %q (supported: %s)", c, capsAccepted())
-				}
-				caps = append(caps, c)
-			}
-		}
-		if runtime.GOOS != goosLinux {
-			var tb textbuf.Buffer
-			r.SkipReason = tb.Str("needs-linux (run via ./le test qemu all-tests; current GOOS=").Str(runtime.GOOS).Byte(')').String()
-			return nil
-		}
-		if len(caps) > 0 && !hasCaps(caps) {
-			var tb textbuf.Buffer
-			r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
-				Str(" (capability absent; run via ./le test qemu all-tests)").String()
-			return nil
-		}
-
-	case "needs-arch":
-		// Declares the host CPU arches the test may run on (needs_arch.go). On
-		// any other host it SKIPS with a reason naming both arches. Like
-		// skip-os it never clears a SkipReason an earlier option set.
-		if err := checkKeys("option=needs-arch", kv, "value"); err != nil {
-			return err
-		}
-		reason, err := needsArchSkipReason(kv["value"], runtime.GOARCH)
-		if err != nil {
-			return err
-		}
-		if reason != "" {
-			r.SkipReason = reason
-			return nil
-		}
-
-	case "needs-path":
-		// Declares a repo-relative path the test cannot run without, where the
-		// path is an OPTIONAL heavyweight artifact rather than something a
-		// checkout carries. The only such artifact today is the appliance module
-		// cache: gokrazy/modcache/.gitignore ignores everything except the
-		// vendored gokrazy init source, so a downloaded module exists only
-		// after `./le setup install`.
-		//
-		// Absent the path the test SKIPS with a reason naming the path and the
-		// command that materializes it. That is deliberately not a silent pass:
-		// test/install/ze-kernel-overlay.ci read the pinned vmlinuz with no guard
-		// and failed `shasum: ... No such file or directory` on every CI run,
-		// and hiding that behind an `exit 0` would have swapped a red for a
-		// green bar over a test that ran nothing.
-		//
-		// The path is resolved against the repo root, not the working directory:
-		// each test runs in its own temp dir.
-		value := kv["value"]
-		if value == "" {
-			return errOptionNeedsPathMissingValue
-		}
-		if strings.HasPrefix(value, "/") || strings.Contains(value, "..") {
-			return fmt.Errorf("option=needs-path: value %q must be repo-relative and contain no %q", value, "..")
-		}
-		root, rootErr := repoRootFrom(ciFile)
-		if rootErr != nil {
-			return fmt.Errorf("option=needs-path: locate repo root from %s: %w", ciFile, rootErr)
-		}
-		if !needsPathSatisfied(root, value) {
-			var tb textbuf.Buffer
-			reason := tb.Str("needs-path=").Str(value).Str(" (absent")
-			if hint := kv["hint"]; hint != "" {
-				reason = reason.Str("; run: ").Str(hint)
-			}
-			r.SkipReason = reason.Byte(')').String()
-			return nil
-		}
-
-	case "netns-link":
-		// Provision an interface inside the per-test network namespace before ze
-		// launches. name= is the link; address= is an optional CIDR assigned to it.
-		// Without peer= the link is a dummy, which has no far end: it drops what is
-		// written to it, so it gives a netns connectivity (a connected route for a
-		// next-hop) but can never carry a conversation. peer= makes it a veth PAIR
-		// instead, both ends in this same namespace, which is what a test needs when
-		// a daemon must exchange real frames with a client (PPPoE discovery, RFC
-		// 2516). vlan= additionally creates an 802.1Q sub-interface on each end,
-		// named <link>.<tag>.
-		//
-		// Consumed only under netns mode (ZE_TEST_NETNS); on the default host path
-		// the option is inert and never touches the host. Every field is validated
-		// here so a typo fails at parse time on every platform, not silently at run
-		// time on Linux only.
-		name := kv["name"]
-		if name == "" {
-			return errOptionNetnsLinkMissingName
-		}
-		spec := NetnsLinkSpec{Name: name, Peer: kv["peer"]}
-		if spec.Peer == name {
-			return fmt.Errorf("option=netns-link: peer %q must differ from name (a veth pair has two ends)", spec.Peer)
-		}
-		if addr := kv["address"]; addr != "" {
-			p, err := netip.ParsePrefix(addr)
-			if err != nil {
-				return fmt.Errorf("option=netns-link: invalid address %q: %w", addr, err)
-			}
-			spec.Address = p
-		}
-		if raw := kv["vlan"]; raw != "" {
-			// 1..4094: 0 means "no tag" and would be indistinguishable from an absent
-			// vlan=, and 4095 is reserved by 802.1Q. Rejecting both ends here keeps an
-			// unusable tag from reaching netlink as a run-time error on Linux only.
-			tag, tagErr := strconv.ParseUint(raw, 10, 16)
-			if tagErr != nil || tag < 1 || tag > 4094 {
-				return fmt.Errorf("option=netns-link: invalid vlan %q (want 1..4094)", raw)
-			}
-			spec.VLAN = uint16(tag)
-		}
-		r.NetnsLinks = append(r.NetnsLinks, spec)
-		// The skip gate for this option is applied once, after every option is
-		// parsed (see parseAndAdd), so it does not depend on the order the .ci
-		// file lists its options in.
-
-	case "exclusive":
-		// Serialize this test against every other test carrying the SAME group
-		// name. Unrelated tests keep running concurrently, so this is much cheaper
-		// than -p 1 for the whole suite. Applies on every platform and in every
-		// runner mode -- the contention it guards is a property of the tests, not
-		// of the host.
-		group := kv["group"]
-		if group == "" {
-			return errOptionExclusiveMissingGroup
-		}
-		r.ExclusiveGroup = group
-
-	case "skip-env":
-		varName := kv["var"]
-		if varName == "" {
-			return errOptionSkipEnvMissingVar
-		}
-		expected := kv["value"]
-		actual := os.Getenv(varName)
-		var tb textbuf.Buffer
-		if expected == "" {
-			if actual != "" {
-				r.SkipReason = tb.Str("skip-env=").Str(varName).Str(" (set to ").Str(actual).Byte(')').String()
-				return nil
-			}
-		} else if actual == expected {
-			r.SkipReason = tb.Reset().Str("skip-env=").Str(varName).Byte('=').Str(expected).String()
-			return nil
-		}
-
-	default:
-		return errDirectiveUnlisted("option type", optType)
-	}
-	return nil
-}
-
 // parseExpect handles expect:type:... lines.
 func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]string) error {
-	if !slices.Contains(recordExpectTypesParsed, expType) {
-		// recordExpectTypes, not the arms alone: the three raw spellings
-		// parseLine intercepts are writable, so an author who mistyped one must
-		// see it in the accepted set.
-		return unknownDirective("expect type", expType, recordExpectTypes)
+	// The gate refuses with recordExpectTypes, not the arms alone: the three raw
+	// spellings parseLine intercepts are writable, so an author who mistyped one
+	// must see it in the accepted set.
+	if err := checkDirectiveType(directiveExpect, expType); err != nil {
+		return err
 	}
 	switch expType {
 	case directiveTypeBGP:
-		if err := checkKeys("expect=bgp", kv, "conn", "seq", "hex"); err != nil {
+		if err := checkKeys("expect=bgp", kv, keyConn, keySeq, "hex"); err != nil {
 			return err
 		}
 		conn, seq, err := parseConnSeq(kv)
@@ -637,7 +358,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		r.Expects = append(r.Expects, eb.Reset().Str("expect=bgp:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":hex=").Str(hexData).String())
 
 	case "json":
-		if err := checkKeys("expect=json", kv, "conn", "seq", "json"); err != nil {
+		if err := checkKeys("expect=json", kv, keyConn, keySeq, "json"); err != nil {
 			return err
 		}
 		conn, seq, err := parseConnSeq(kv)
@@ -787,8 +508,8 @@ func isTruthy(s string) bool {
 
 // parseReject handles reject:type:... lines.
 func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]string) error {
-	if !slices.Contains(recordRejectTypes, rejType) {
-		return unknownDirective("reject type", rejType, recordRejectTypes)
+	if err := checkDirectiveType(directiveReject, rejType); err != nil {
+		return err
 	}
 	switch rejType {
 	case directiveTypeStderr:
@@ -865,92 +586,111 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 	return nil
 }
 
-// parseAction handles action:type:... lines.
+// parseAction handles action=type:... lines, through recordActionArms
+// (record_parse_vocabulary.go): an unknown type and an unknown key are both
+// refused before any arm runs.
 func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]string) error {
-	if !slices.Contains(recordActionTypes, actType) {
-		return unknownDirective("action type", actType, recordActionTypes)
+	if err := checkDirectiveType(directiveAction, actType); err != nil {
+		return err
 	}
-	switch actType {
-	case "notification":
-		conn, seq, err := parseConnSeq(kv)
-		if err != nil {
-			return fmt.Errorf("action:notification: %w", err)
-		}
-		text := kv["text"]
-		// Add to Expects for testpeer (new format).
-		var eb textbuf.Buffer
-		r.Expects = append(r.Expects, eb.Reset().Str("action=notification:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":text=").Str(text).String())
-
-	case "send":
-		conn, seq, err := parseConnSeq(kv)
-		if err != nil {
-			return fmt.Errorf("action:send: %w", err)
-		}
-		hexData := kv["hex"]
-		if hexData == "" {
-			return errActionSendMissingHex
-		}
-		// Add to Expects for testpeer (new format).
-		var eb textbuf.Buffer
-		r.Expects = append(r.Expects, eb.Reset().Str("action=send:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":hex=").Str(hexData).String())
-
-	case "rewrite":
-		conn, seq, err := parseConnSeq(kv)
-		if err != nil {
-			return fmt.Errorf("action:rewrite: %w", err)
-		}
-		source := kv["source"]
-		if source == "" {
-			return errActionRewriteMissingSource
-		}
-		dest := kv["dest"]
-		if dest == "" {
-			return errActionRewriteMissingDest
-		}
-		// Add to Expects for testpeer (new format).
-		var eb textbuf.Buffer
-		r.Expects = append(r.Expects, eb.Reset().Str("action=rewrite:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":source=").Str(source).Str(":dest=").Str(dest).String())
-
-	case "sighup":
-		conn, seq, err := parseConnSeq(kv)
-		if err != nil {
-			return fmt.Errorf("action:sighup: %w", err)
-		}
-		// Add to Expects for testpeer (new format).
-		var eb textbuf.Buffer
-		r.Expects = append(r.Expects, eb.Reset().Str("action=sighup:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).String())
-
-	case "sigterm":
-		conn, seq, err := parseConnSeq(kv)
-		if err != nil {
-			return fmt.Errorf("action:sigterm: %w", err)
-		}
-		// Add to Expects for testpeer (new format).
-		var eb textbuf.Buffer
-		r.Expects = append(r.Expects, eb.Reset().Str("action=sigterm:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).String())
-
-	default:
-		return errDirectiveUnlisted("action type", actType)
+	arm := recordActionArms[actType]
+	if err := checkKeys("action="+actType, kv, arm.keys...); err != nil {
+		return err
 	}
+	return arm.parse(r, kv)
+}
+
+// parseActionNotification reads action=notification.
+func parseActionNotification(r *Record, kv map[string]string) error {
+	conn, seq, err := parseConnSeq(kv)
+	if err != nil {
+		return fmt.Errorf("action:notification: %w", err)
+	}
+	text := kv["text"]
+	// Add to Expects for testpeer (new format).
+	var eb textbuf.Buffer
+	r.Expects = append(r.Expects, eb.Reset().Str("action=notification:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":text=").Str(text).String())
 	return nil
 }
 
-// parseCmd handles cmd:type:... lines.
-func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]string, rawLine string) error {
-	if !slices.Contains(recordCmdTypes, cmdType) {
-		return unknownDirective("cmd type", cmdType, recordCmdTypes)
+// parseActionSend reads action=send.
+func parseActionSend(r *Record, kv map[string]string) error {
+	conn, seq, err := parseConnSeq(kv)
+	if err != nil {
+		return fmt.Errorf("action:send: %w", err)
+	}
+	hexData := kv["hex"]
+	if hexData == "" {
+		return errActionSendMissingHex
+	}
+	// Add to Expects for testpeer (new format).
+	var eb textbuf.Buffer
+	r.Expects = append(r.Expects, eb.Reset().Str("action=send:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":hex=").Str(hexData).String())
+	return nil
+}
+
+// parseActionRewrite reads action=rewrite.
+func parseActionRewrite(r *Record, kv map[string]string) error {
+	conn, seq, err := parseConnSeq(kv)
+	if err != nil {
+		return fmt.Errorf("action:rewrite: %w", err)
+	}
+	source := kv["source"]
+	if source == "" {
+		return errActionRewriteMissingSource
+	}
+	dest := kv["dest"]
+	if dest == "" {
+		return errActionRewriteMissingDest
+	}
+	// Add to Expects for testpeer (new format).
+	var eb textbuf.Buffer
+	r.Expects = append(r.Expects, eb.Reset().Str("action=rewrite:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":source=").Str(source).Str(":dest=").Str(dest).String())
+	return nil
+}
+
+// parseActionSighup reads action=sighup.
+func parseActionSighup(r *Record, kv map[string]string) error {
+	conn, seq, err := parseConnSeq(kv)
+	if err != nil {
+		return fmt.Errorf("action:sighup: %w", err)
+	}
+	// Add to Expects for testpeer (new format).
+	var eb textbuf.Buffer
+	r.Expects = append(r.Expects, eb.Reset().Str("action=sighup:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).String())
+	return nil
+}
+
+// parseActionSigterm reads action=sigterm.
+func parseActionSigterm(r *Record, kv map[string]string) error {
+	conn, seq, err := parseConnSeq(kv)
+	if err != nil {
+		return fmt.Errorf("action:sigterm: %w", err)
+	}
+	// Add to Expects for testpeer (new format).
+	var eb textbuf.Buffer
+	r.Expects = append(r.Expects, eb.Reset().Str("action=sigterm:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).String())
+	return nil
+}
+
+// parseCmd handles cmd=type:... lines. cmd=api reads a key=value map through
+// recordCmdArms; the program arms read the raw line by marker, because an exec=
+// value may hold a colon, and check their own keys (record_parse_cmd.go).
+func (et *EncodingTests) parseCmd(r *Record, cmdType string, parts []string, rawLine string) error {
+	if err := checkDirectiveType(directiveCmd, cmdType); err != nil {
+		return err
+	}
+	if arm, ok := recordCmdArms[cmdType]; ok {
+		kv, err := parseDirectiveKV(parts[0], parts[1:], arm.keys)
+		if err != nil {
+			return err
+		}
+		if err := checkKeys("cmd="+cmdType, kv, arm.keys...); err != nil {
+			return err
+		}
+		return arm.parse(r, kv)
 	}
 	switch cmdType {
-	case "api":
-		conn, seq, err := parseConnSeq(kv)
-		if err != nil {
-			return fmt.Errorf("cmd:api: %w", err)
-		}
-		text := kv["text"]
-		idx := connSeqToIndex(conn, seq)
-		msg := r.getOrCreateMessage(idx)
-		msg.Cmd = text
-
 	case "background", "foreground":
 		// Use marker-based parsing because exec= values may contain colons
 		// (e.g., --web :8000). The standard KV parser splits on colons and
@@ -974,6 +714,17 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]strin
 	default:
 		return errDirectiveUnlisted("cmd type", cmdType)
 	}
+	return nil
+}
+
+// parseCmdAPI reads cmd=api: the API command text sent with message conn/seq.
+func parseCmdAPI(r *Record, kv map[string]string) error {
+	conn, seq, err := parseConnSeq(kv)
+	if err != nil {
+		return fmt.Errorf("cmd:api: %w", err)
+	}
+	msg := r.getOrCreateMessage(connSeqToIndex(conn, seq))
+	msg.Cmd = kv["text"]
 	return nil
 }
 
@@ -1023,10 +774,12 @@ func nextMarker(line string, offset int, markers ...string) int {
 // each value is split on its first colon into a field name and value.
 // Method "wait" polls until the condition is met (retries on content mismatch).
 func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
-	isWait := method == "wait"
-	if !isWait && method != "get" && method != "post" {
-		return fmt.Errorf("unsupported HTTP method %q (use get, post, or wait)", method)
+	if !slices.Contains(recordHTTPMethods, method) {
+		var b textbuf.Buffer
+		b.Str("unsupported HTTP method ").Quoted(method).Str(" (accepts ").Join(recordHTTPMethods, ", ").Byte(')')
+		return errors.New(b.String())
 	}
+	isWait := method == "wait"
 
 	seqMarker := ":seq="
 	urlMarker := ":url="
@@ -1063,6 +816,13 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	// index above. It is the one REPEATABLE key, so every other key's value must
 	// still end when a header= follows it on the same line.
 	allMarkers := []string{seqMarker, urlMarker, statusMarker, containsMarker, bodyfileMarker, sendfileMarker, contentTypeMarker, headerMarker, insecureTLSMarker, timeoutMarker}
+
+	// Each value runs to the next KNOWN marker, so an unknown key would be
+	// swallowed into the value before it, and a second seq= or status= would
+	// be ignored because only the first is read. header= alone repeats.
+	if err := checkMarkerKeys("http="+method, line, allMarkers, headerMarker); err != nil {
+		return err
+	}
 
 	// Extract seq value: from after ":seq=" to next known marker or end.
 	seqStart := seqIdx + len(seqMarker)

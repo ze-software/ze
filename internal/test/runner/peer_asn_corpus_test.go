@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/ci"
 )
 
 // derivedASExpectation is one `.ci` whose derived declaration is pinned here.
@@ -155,28 +157,28 @@ func TestPeerASCorpusRejectsNativeParseFailures(t *testing.T) {
 		want error
 	}{
 		{
-			name: "missing native option path",
+			name: "key-less option segment",
 			path: "plugin/bad.ci",
 			body: "option=file:wrong.conf\n",
-			want: errOptionFileMissingPath,
+			want: ci.ErrSegmentWithoutKey,
 		},
 		{
 			name: "nested decode remains native",
 			path: "plugin/decode/bad.ci",
 			body: "option=file:wrong.conf\n",
-			want: errOptionFileMissingPath,
+			want: ci.ErrSegmentWithoutKey,
 		},
 		{
 			name: "nested compatibility name remains native",
 			path: "plugin/exabgp-compat/bad.ci",
 			body: "option=file:wrong.conf\n",
-			want: errOptionFileMissingPath,
+			want: ci.ErrSegmentWithoutKey,
 		},
 		{
 			name: "nested draft name remains native",
 			path: "plugin/draft/bad.ci",
 			body: "option=file:wrong.conf\n",
-			want: errOptionFileMissingPath,
+			want: ci.ErrSegmentWithoutKey,
 		},
 		{
 			name: "malformed consumed config",

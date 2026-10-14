@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -137,7 +136,11 @@ func ClaimLine(line string) (Claim, error) {
 	}
 	switch action {
 	case actionOption:
-		claimed, err := parseOptionConfig(&Config{}, lineType, ci.ParseKVPairs(parts[1:]))
+		kv, err := ci.ParseKVPairs(parts[1:])
+		if err != nil {
+			return ClaimNone, fmt.Errorf("%s: %w", parts[0], err)
+		}
+		claimed, err := parseOptionConfig(&Config{}, lineType, kv)
 		if err != nil {
 			return ClaimNone, err
 		}
@@ -220,10 +223,14 @@ func ParseExpect(r io.Reader) ([]string, *Config, error) {
 		}
 		action := actionType[0]
 		lineType := actionType[1]
-		kv := ci.ParseKVPairs(parts[1:])
-
 		switch action {
 		case actionOption:
+			// Only option= is split here: the other lines are forwarded whole
+			// or read by the runner, whose parsers own their key=value tails.
+			kv, err := ci.ParseKVPairs(parts[1:])
+			if err != nil {
+				return nil, nil, fmt.Errorf("line %d: %s: %w", lineNum, parts[0], err)
+			}
 			if _, err := parseOptionConfig(config, lineType, kv); err != nil {
 				return nil, nil, fmt.Errorf("line %d: %w", lineNum, err)
 			}
@@ -259,7 +266,7 @@ func ParseExpect(r io.Reader) ([]string, *Config, error) {
 //
 // It returns an error for a directive whose misreading would make a test assert
 // against an input it never sent: a non-numeric asn or tcp_connections, and an
-// open= or update= value ze-peer has no branch for. Each of those used to fail
+// open= or update= value ze-peer has no arm for. Each of those used to fail
 // soft, which put a typo in the same class as the dropped directive this
 // parser's Claim answer exists to close: the line is written, nothing reads it,
 // and the test passes.
@@ -270,231 +277,229 @@ func ParseExpect(r io.Reader) ([]string, *Config, error) {
 // the runner's obligation to parse the line where it stands, and the runner's
 // own "unknown option type" error is what separates the two cases.
 func parseOptionConfig(config *Config, optType string, kv map[string]string) (claimed bool, err error) {
-	switch optType {
-	case "file":
-		// Ignored - handled by test runner
-		return false, nil
-
-	case "asn":
-		binding, berr := parseOpenASBinding(kv)
-		if berr != nil {
-			return false, berr
-		}
-		// Two unkeyed declarations in one block are a contradiction, and taking
-		// the last would resolve it by accident of order. A block that wants a
-		// different AS per session keys each line with peer=<ip>.
-		if !binding.Addr.IsValid() {
-			for _, held := range config.OpenAS {
-				if held.Addr.IsValid() {
-					continue
-				}
-				return false, fmt.Errorf(
-					"option=asn:value=%d follows option=asn:value=%d with no peer= key on either, "+
-						"so the block states two ASNs for the same session; key each line with peer=<ip>",
-					binding.AS, held.AS)
-			}
-		}
-		config.OpenAS = append(config.OpenAS, binding)
-
-	case "bind":
-		v := kv["value"]
-		if v == "ipv6" {
-			config.IPv6 = true
-		} else if v != "" {
-			config.BindAddr = v
-		}
-
-	case "conn_map":
-		config.ConnMap = kv["value"]
-
-	case "await_eor":
-		config.AwaitEOR = kv["value"] == optTrue
-
-	case "linger":
-		config.Linger = kv["value"] == optTrue
-
-	case "silent":
-		config.Silent = kv["value"] == optTrue
-
-	case "established-file":
-		// A missing path would make the peer write nothing, and the fixture
-		// waiting on the file would then fail as a timeout naming no cause.
-		if kv["path"] == "" {
-			return false, errors.New("option=established-file needs path=<name>, the file ze-peer creates on the daemon's first UPDATE")
-		}
-		config.EstablishedFile = kv["path"]
-
-	case "await-file":
-		// A missing path would make the wait a no-op, and the race the option
-		// exists to close would come back with no sign of why.
-		if kv["path"] == "" {
-			return false, errors.New("option=await-file needs path=<name>, the file ze-peer waits for before its first send (another peer block's established-file)")
-		}
-		config.AwaitFile = kv["path"]
-
-	case "tcp_connections":
-		v, cerr := strconv.Atoi(kv["value"])
-		if cerr != nil {
-			return false, fmt.Errorf("option=tcp_connections:value=%q is not a number, so ze-peer would accept one connection", kv["value"])
-		}
-		config.TCPConnections = v
-
-	case "open":
-		switch kv["value"] {
-		case "send-unknown-capability":
-			config.SendUnknownCapability = true
-		case "inspect-open-message":
-			config.InspectOpenMessage = true
-		case "send-unknown-message":
-			config.SendUnknownMessage = true
-		case "drop-capability":
-			code, cerr := parseCapabilityCode("drop-capability", kv["code"])
-			if cerr != nil {
-				return false, cerr
-			}
-			config.CapabilityOverrides = append(config.CapabilityOverrides, CapabilityOverride{
-				Code: code, Add: false,
-			})
-
-		case "router-id":
-			// option=open:value=router-id:id=<a.b.c.d> -- send this BGP Identifier instead of
-			// the derived ze identifier + 1. Drives RFC 6286 Section 2.2 rejection tests.
-			addr, aerr := netip.ParseAddr(kv["id"])
-			if aerr != nil {
-				return false, fmt.Errorf("option=open:value=router-id:id=%q is not an address: %w", kv["id"], aerr)
-			}
-			if !addr.Is4() {
-				return false, fmt.Errorf("option=open:value=router-id:id=%q is not IPv4, and RFC 4271 Section 4.2 makes the BGP Identifier four octets", kv["id"])
-			}
-			octets := addr.As4()
-			id := binary.BigEndian.Uint32(octets[:])
-			config.RouterID = &id
-
-		case optOpenHoldTime:
-			seconds, herr := parseOpenHoldTime(config, kv["seconds"])
-			if herr != nil {
-				return false, herr
-			}
-			config.HoldTime = &seconds
-
-		case optOpenGracefulRestart:
-			decl, gerr := parseGracefulRestartDecl(config, kv)
-			if gerr != nil {
-				return false, gerr
-			}
-			config.GracefulRestart = decl
-
-		case optOpenLLGR:
-			decl, lerr := parseLLGRDecl(config, kv)
-			if lerr != nil {
-				return false, lerr
-			}
-			config.LLGR = decl
-
-		case optOpenPathsLimit:
-			entries, perr := parsePathsLimitDecl(config, kv)
-			if perr != nil {
-				return false, perr
-			}
-			config.PathsLimit = entries
-
-		case "add-capability":
-			code, cerr := parseCapabilityCode("add-capability", kv["code"])
-			if cerr != nil {
-				return false, cerr
-			}
-			val, herr := hex.DecodeString(kv["hex"])
-			if herr != nil {
-				return false, fmt.Errorf("option=open:value=add-capability:hex=%q is not hex: %w", kv["hex"], herr)
-			}
-			// RFC 5492 Section 4 gives the Capability Length one octet, so a longer
-			// value cannot be stated. Truncating it would put a capability on the
-			// wire that says something the .ci never asked for.
-			if len(val) > 255 {
-				return false, fmt.Errorf("option=open:value=add-capability:hex= carries %d octets, RFC 5492 Section 4 states at most 255", len(val))
-			}
-			config.CapabilityOverrides = append(config.CapabilityOverrides, CapabilityOverride{
-				Code: code, Value: val, Add: true,
-			})
-
-		default:
-			// The option exists and its value does not. Answering "claimed"
-			// here would make ClaimLine report ClaimPeer, the runner would
-			// leave the line to ze-peer, and ze-peer would ignore it: a typo
-			// in the value is the same silent drop this parser's guard exists
-			// to close.
-			return false, fmt.Errorf("option=open:value=%q is not a value ze-peer knows", kv["value"])
-		}
-
-	case "update":
-		switch kv["value"] {
-		case "send-default-route":
-			config.SendDefaultRoute = true
-		case "send-route":
-			asn, _ := strconv.ParseUint(kv["origin-as"], 10, 32)
-			route := RouteToSend{
-				Prefix:   kv["prefix"],
-				OriginAS: uint32(asn), //nolint:gosec // range checked by ParseUint
-				NextHop:  kv["next-hop"],
-				ASSet:    kv["as-set"] == optTrue,
-			}
-			// Extended fields for loop detection tests.
-			if v := kv["as-path"]; v != "" {
-				for s := range strings.SplitSeq(v, ",") {
-					a, err := strconv.ParseUint(strings.TrimSpace(s), 10, 32)
-					if err == nil {
-						route.ASPath = append(route.ASPath, uint32(a)) //nolint:gosec // range checked
-					}
-				}
-			}
-			if v := kv["originator-id"]; v != "" {
-				ip := net.ParseIP(v)
-				if ip != nil {
-					ip4 := ip.To4()
-					if ip4 != nil {
-						route.OriginatorID = uint32(ip4[0])<<24 | uint32(ip4[1])<<16 | uint32(ip4[2])<<8 | uint32(ip4[3])
-					}
-				}
-			}
-			if v := kv["cluster-list"]; v != "" {
-				for s := range strings.SplitSeq(v, ",") {
-					ip := net.ParseIP(strings.TrimSpace(s))
-					if ip != nil {
-						ip4 := ip.To4()
-						if ip4 != nil {
-							route.ClusterList = append(route.ClusterList, uint32(ip4[0])<<24|uint32(ip4[1])<<16|uint32(ip4[2])<<8|uint32(ip4[3]))
-						}
-					}
-				}
-			}
-			if v := kv["label"]; v != "" {
-				l, err := strconv.ParseUint(v, 10, 32)
-				if err == nil {
-					route.Labels = []uint32{uint32(l)} //nolint:gosec // range checked
-				}
-			}
-			config.SendRoutes = append(config.SendRoutes, route)
-		case "send-bulk":
-			spec, err := parseBulkSpec(kv)
-			if err != nil {
-				return false, err
-			}
-			config.SendBulk = append(config.SendBulk, spec)
-
-		default:
-			return false, fmt.Errorf("option=update:value=%q is not a value ze-peer knows", kv["value"])
-		}
-
-	case "timeout", "env":
-		// Ignored - handled by test runner
-		return false, nil
-
-	default:
-		// No branch here, so ze-peer reads nothing. The runner decides whether
+	arm, claimed, err := peerOptionArmFor(optType, kv)
+	if err != nil {
+		return false, err
+	}
+	if !claimed {
+		// No arm here, so ze-peer reads nothing. The runner decides whether
 		// the option exists at all.
 		return false, nil
 	}
+	if err := arm.parse(config, kv); err != nil {
+		return false, err
+	}
 	return true, nil
+}
+
+// parsePeerOptionASN reads option=asn. Two unkeyed declarations in one block
+// are a contradiction, and taking the last would resolve it by accident of
+// order. A block that wants a different AS per session keys each line with
+// peer=<ip>.
+func parsePeerOptionASN(config *Config, kv map[string]string) error {
+	binding, err := parseOpenASBinding(kv)
+	if err != nil {
+		return err
+	}
+	if !binding.Addr.IsValid() {
+		for _, held := range config.OpenAS {
+			if held.Addr.IsValid() {
+				continue
+			}
+			return fmt.Errorf(
+				"option=asn:value=%d follows option=asn:value=%d with no peer= key on either, "+
+					"so the block states two ASNs for the same session; key each line with peer=<ip>",
+				binding.AS, held.AS)
+		}
+	}
+	config.OpenAS = append(config.OpenAS, binding)
+	return nil
+}
+
+// parsePeerOptionBind reads option=bind: ipv6 selects the IPv6 listener, any
+// other value is the bind address.
+func parsePeerOptionBind(config *Config, kv map[string]string) error {
+	v := kv[keyValue]
+	if v == "ipv6" {
+		config.IPv6 = true
+	} else if v != "" {
+		config.BindAddr = v
+	}
+	return nil
+}
+
+func parsePeerOptionConnMap(config *Config, kv map[string]string) error {
+	config.ConnMap = kv[keyValue]
+	return nil
+}
+
+func parsePeerOptionAwaitEOR(config *Config, kv map[string]string) error {
+	config.AwaitEOR = kv[keyValue] == optTrue
+	return nil
+}
+
+func parsePeerOptionLinger(config *Config, kv map[string]string) error {
+	config.Linger = kv[keyValue] == optTrue
+	return nil
+}
+
+func parsePeerOptionSilent(config *Config, kv map[string]string) error {
+	config.Silent = kv[keyValue] == optTrue
+	return nil
+}
+
+// parsePeerOptionEstablishedFile reads option=established-file. A missing path
+// would make the peer write nothing, and the fixture waiting on the file would
+// then fail as a timeout naming no cause.
+func parsePeerOptionEstablishedFile(config *Config, kv map[string]string) error {
+	if kv["path"] == "" {
+		return errors.New("option=established-file needs path=<name>, the file ze-peer creates on the daemon's first UPDATE")
+	}
+	config.EstablishedFile = kv["path"]
+	return nil
+}
+
+// parsePeerOptionAwaitFile reads option=await-file. A missing path would make
+// the wait a no-op, and the race the option exists to close would come back
+// with no sign of why.
+func parsePeerOptionAwaitFile(config *Config, kv map[string]string) error {
+	if kv["path"] == "" {
+		return errors.New("option=await-file needs path=<name>, the file ze-peer waits for before its first send (another peer block's established-file)")
+	}
+	config.AwaitFile = kv["path"]
+	return nil
+}
+
+func parsePeerOptionTCPConnections(config *Config, kv map[string]string) error {
+	v, err := strconv.Atoi(kv[keyValue])
+	if err != nil {
+		return fmt.Errorf("option=tcp_connections:value=%q is not a number, so ze-peer would accept one connection", kv[keyValue])
+	}
+	config.TCPConnections = v
+	return nil
+}
+
+func parseOpenSendUnknownCapability(config *Config, _ map[string]string) error {
+	config.SendUnknownCapability = true
+	return nil
+}
+
+func parseOpenInspectMessage(config *Config, _ map[string]string) error {
+	config.InspectOpenMessage = true
+	return nil
+}
+
+func parseOpenSendUnknownMessage(config *Config, _ map[string]string) error {
+	config.SendUnknownMessage = true
+	return nil
+}
+
+func parseOpenDropCapability(config *Config, kv map[string]string) error {
+	code, err := parseCapabilityCode(optOpenDropCapability, kv["code"])
+	if err != nil {
+		return err
+	}
+	config.CapabilityOverrides = append(config.CapabilityOverrides, CapabilityOverride{
+		Code: code, Add: false,
+	})
+	return nil
+}
+
+// parseOpenRouterID reads option=open:value=router-id:id=<a.b.c.d>, which
+// sends this BGP Identifier instead of the derived ze identifier + 1. It drives
+// the RFC 6286 Section 2.2 rejection tests.
+func parseOpenRouterID(config *Config, kv map[string]string) error {
+	addr, err := netip.ParseAddr(kv["id"])
+	if err != nil {
+		return fmt.Errorf("option=open:value=router-id:id=%q is not an address: %w", kv["id"], err)
+	}
+	if !addr.Is4() {
+		return fmt.Errorf("option=open:value=router-id:id=%q is not IPv4, and RFC 4271 Section 4.2 makes the BGP Identifier four octets", kv["id"])
+	}
+	octets := addr.As4()
+	id := binary.BigEndian.Uint32(octets[:])
+	config.RouterID = &id
+	return nil
+}
+
+func parseOpenHoldTimeOption(config *Config, kv map[string]string) error {
+	seconds, err := parseOpenHoldTime(config, kv["seconds"])
+	if err != nil {
+		return err
+	}
+	config.HoldTime = &seconds
+	return nil
+}
+
+func parseOpenGracefulRestart(config *Config, kv map[string]string) error {
+	decl, err := parseGracefulRestartDecl(config, kv)
+	if err != nil {
+		return err
+	}
+	config.GracefulRestart = decl
+	return nil
+}
+
+func parseOpenLLGR(config *Config, kv map[string]string) error {
+	decl, err := parseLLGRDecl(config, kv)
+	if err != nil {
+		return err
+	}
+	config.LLGR = decl
+	return nil
+}
+
+func parseOpenPathsLimit(config *Config, kv map[string]string) error {
+	entries, err := parsePathsLimitDecl(config, kv)
+	if err != nil {
+		return err
+	}
+	config.PathsLimit = entries
+	return nil
+}
+
+func parseOpenAddCapability(config *Config, kv map[string]string) error {
+	code, err := parseCapabilityCode(optOpenAddCapability, kv["code"])
+	if err != nil {
+		return err
+	}
+	val, err := hex.DecodeString(kv["hex"])
+	if err != nil {
+		return fmt.Errorf("option=open:value=add-capability:hex=%q is not hex: %w", kv["hex"], err)
+	}
+	// RFC 5492 Section 4 gives the Capability Length one octet, so a longer
+	// value cannot be stated. Truncating it would put a capability on the
+	// wire that says something the .ci never asked for.
+	if len(val) > 255 {
+		return fmt.Errorf("option=open:value=add-capability:hex= carries %d octets, RFC 5492 Section 4 states at most 255", len(val))
+	}
+	config.CapabilityOverrides = append(config.CapabilityOverrides, CapabilityOverride{
+		Code: code, Value: val, Add: true,
+	})
+	return nil
+}
+
+func parseUpdateSendDefaultRoute(config *Config, _ map[string]string) error {
+	config.SendDefaultRoute = true
+	return nil
+}
+
+func parseUpdateSendRoute(config *Config, kv map[string]string) error {
+	route, err := parseSendRoute(kv)
+	if err != nil {
+		return err
+	}
+	config.SendRoutes = append(config.SendRoutes, route)
+	return nil
+}
+
+func parseUpdateSendBulk(config *Config, kv map[string]string) error {
+	spec, err := parseBulkSpec(kv)
+	if err != nil {
+		return err
+	}
+	config.SendBulk = append(config.SendBulk, spec)
+	return nil
 }
 
 // parseBulkSpec reads option=update:value=send-bulk into an InjectSpec.
@@ -509,9 +514,9 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) (cl
 func parseBulkSpec(kv map[string]string) (InjectSpec, error) {
 	spec := InjectSpec{}
 
-	prefix, err := netip.ParsePrefix(kv["prefix"])
+	prefix, err := netip.ParsePrefix(kv[keyPrefix])
 	if err != nil {
-		return spec, fmt.Errorf("send-bulk prefix %q: %w", kv["prefix"], err)
+		return spec, fmt.Errorf("send-bulk prefix %q: %w", kv[keyPrefix], err)
 	}
 	spec.Prefix = prefix
 
@@ -601,7 +606,7 @@ func parseGracefulRestartDecl(config *Config, kv map[string]string) (*GracefulRe
 			"option=open:value=graceful-restart:restart-time=%d is above 4095, the 12-bit Restart Time "+
 				"of RFC 4724 Section 3", restart)
 	}
-	families, err := parseOptionFamilies(optOpenGracefulRestart, kv["family"])
+	families, err := parseOptionFamilies(optOpenGracefulRestart, kv[keyFamily])
 	if err != nil {
 		return nil, err
 	}
@@ -638,7 +643,7 @@ func parseLLGRDecl(config *Config, kv map[string]string) (*LLGRDecl, error) {
 			"option=open:value=llgr:stale-time=%d is above 16777215, the 24-bit Long-Lived Stale Time "+
 				"of RFC 9494 Section 3", stale)
 	}
-	families, err := parseOptionFamilies(optOpenLLGR, kv["family"])
+	families, err := parseOptionFamilies(optOpenLLGR, kv[keyFamily])
 	if err != nil {
 		return nil, err
 	}
@@ -670,7 +675,7 @@ func parsePathsLimitDecl(config *Config, kv map[string]string) ([]PathsLimitDecl
 			"option=open:value=paths-limit:limit=%d is above 65535, the two-octet Max Paths field of "+
 				"draft-abraitis-idr-addpath-paths-limit Section 3", limit)
 	}
-	families, err := parseOptionFamilies(optOpenPathsLimit, kv["family"])
+	families, err := parseOptionFamilies(optOpenPathsLimit, kv[keyFamily])
 	if err != nil {
 		return nil, err
 	}
@@ -775,7 +780,7 @@ func parseCapabilityCode(option, value string) (uint8, error) {
 // tests where one ze-peer process serves several of ze's peers at once and each
 // is configured for its own AS.
 func parseOpenASBinding(kv map[string]string) (OpenASBinding, error) {
-	value := kv["value"]
+	value := kv[keyValue]
 	as, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
 		return OpenASBinding{}, fmt.Errorf("option=asn:value=%q is not a number, and ze-peer must not open with an AS the .ci did not state", value)
@@ -795,4 +800,78 @@ func parseOpenASBinding(kv map[string]string) (OpenASBinding, error) {
 	}
 	binding.Addr = addr
 	return binding, nil
+}
+
+// parseSendRoute reads option=update:value=send-route into a RouteToSend.
+//
+// An absent key keeps its zero (no origin AS, no AS_PATH, no label), which is
+// what a test that omits it asks for. A key that is present and does not parse
+// is an error: it used to be dropped, so `origin-as=6500x` sent AS 0 and the
+// test asserted against a route it never described.
+func parseSendRoute(kv map[string]string) (RouteToSend, error) {
+	route := RouteToSend{
+		Prefix:  kv[keyPrefix],
+		NextHop: kv["next-hop"],
+		ASSet:   kv["as-set"] == optTrue,
+	}
+	if v, ok := kv["origin-as"]; ok {
+		asn, err := parseSendRouteASN("origin-as", v)
+		if err != nil {
+			return route, err
+		}
+		route.OriginAS = asn
+	}
+	if v := kv["as-path"]; v != "" {
+		for s := range strings.SplitSeq(v, ",") {
+			asn, err := parseSendRouteASN("as-path", strings.TrimSpace(s))
+			if err != nil {
+				return route, err
+			}
+			route.ASPath = append(route.ASPath, asn)
+		}
+	}
+	if v := kv["originator-id"]; v != "" {
+		id, err := parseSendRouteIPv4("originator-id", v)
+		if err != nil {
+			return route, err
+		}
+		route.OriginatorID = id
+	}
+	if v := kv["cluster-list"]; v != "" {
+		for s := range strings.SplitSeq(v, ",") {
+			id, err := parseSendRouteIPv4("cluster-list", strings.TrimSpace(s))
+			if err != nil {
+				return route, err
+			}
+			route.ClusterList = append(route.ClusterList, id)
+		}
+	}
+	if v := kv["label"]; v != "" {
+		label, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return route, fmt.Errorf("option=update:value=send-route:label=%q is not a number", v)
+		}
+		route.Labels = []uint32{uint32(label)}
+	}
+	return route, nil
+}
+
+// parseSendRouteASN reads one 32-bit AS number of a send-route key.
+func parseSendRouteASN(key, value string) (uint32, error) {
+	asn, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("option=update:value=send-route:%s= holds %q, which is not a 32-bit AS number", key, value)
+	}
+	return uint32(asn), nil
+}
+
+// parseSendRouteIPv4 reads one IPv4 address of a send-route key as the
+// four-octet number the path attribute carries.
+func parseSendRouteIPv4(key, value string) (uint32, error) {
+	addr, err := netip.ParseAddr(value)
+	if err != nil || !addr.Is4() {
+		return 0, fmt.Errorf("option=update:value=send-route:%s= holds %q, which is not an IPv4 address", key, value)
+	}
+	octets := addr.As4()
+	return binary.BigEndian.Uint32(octets[:]), nil
 }

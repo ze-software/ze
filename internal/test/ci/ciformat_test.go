@@ -55,7 +55,8 @@ func TestParseKVPairs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseKVPairs(tt.parts)
+			got, err := ParseKVPairs(tt.parts)
+			assert.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}

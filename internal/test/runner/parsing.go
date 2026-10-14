@@ -496,16 +496,20 @@ func (p *ciFileParser) parseSkipOS(value string) error {
 	return nil
 }
 
+// parseEnv reads option=env:var=NAME:value=VALUE. A field the option=env arm
+// of recordOptionArms does not list, a field with no `=`, and a field given
+// twice are refused, with the generic parser's splitter and message: the loop
+// this replaces kept the two fields it knew and dropped the rest.
 func (p *ciFileParser) parseEnv(value string) error {
-	var envVar, envVal string
-	for field := range strings.SplitSeq(value, ":") {
-		if v, ok := strings.CutPrefix(field, "var="); ok {
-			envVar = v
-		}
-		if v, ok := strings.CutPrefix(field, "value="); ok {
-			envVal = v
-		}
+	keys := recordOptionArms["env"].keys
+	kv, err := parseDirectiveKV("option=env", strings.Split(value, ":"), keys)
+	if err != nil {
+		return err
 	}
+	if err := checkKeys("option=env", kv, keys...); err != nil {
+		return err
+	}
+	envVar, envVal := kv[keyVar], kv[keyValue]
 	if envVar == "" {
 		return fmt.Errorf("option=env: needs var=<name>, got %q", value)
 	}

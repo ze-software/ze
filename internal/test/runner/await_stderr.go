@@ -65,10 +65,22 @@ func defaultAwaitStderrTimeout(testBudget time.Duration) time.Duration {
 // for one fence leave the reader to guess which applies. then=stop on any line
 // makes the runner stop the daemon itself once the fence holds (see
 // awaitThenStop); its only accepted value is "stop".
+//
+// The type and its keys come from recordAwaitArms (record_parse_vocabulary.go),
+// so an unknown await type and an unknown key are refused before the arm runs.
 func (et *EncodingTests) parseAwait(r *Record, awaitType string, kv map[string]string) error {
-	if awaitType != directiveTypeStderr {
-		return fmt.Errorf("unknown await type %q (only await=stderr is supported)", awaitType)
+	if err := checkDirectiveType(directiveAwait, awaitType); err != nil {
+		return err
 	}
+	arm := recordAwaitArms[awaitType]
+	if err := checkKeys("await="+awaitType, kv, arm.keys...); err != nil {
+		return err
+	}
+	return arm.parse(r, kv)
+}
+
+// parseAwaitStderr reads await=stderr.
+func parseAwaitStderr(r *Record, kv map[string]string) error {
 	contains := kv["contains"]
 	if contains == "" {
 		return errors.New("await=stderr:contains= must not be empty")

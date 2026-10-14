@@ -477,7 +477,7 @@ that intentionally submit invalid Ze configuration remain in the gate: their
 The shared draft boundary also excludes `test/draft` before discovery; a
 malformed unpromoted fixture must not redden repository gates.
 <!-- source: internal/test/runner/peer_asn_corpus_test.go -- peerASCorpus, TestPeerASCorpusRejectsNativeParseFailures, TestPeerASCorpusUsesExecutionParsers -->
-<!-- source: internal/test/runner/decoding.go -- DecodingTests.parseCIFile -->
+<!-- source: internal/test/runner/decoding_ci.go -- DecodingTests.parseCIFile -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- parseExaBGPCI -->
 
 #### Observer completion barriers
@@ -549,7 +549,7 @@ wearing a skip's clothing.
 | `graceful-restart` | State ze-peer's own Graceful Restart capability (`restart-time=<N>`, `family=`, `forward-state=`) |
 | `llgr` | State ze-peer's own Long-Lived Graceful Restart capability (`stale-time=<N>`, `family=`, `forward-state=`) |
 | `paths-limit` | State ze-peer's own PATHS-LIMIT entries (`family=`, `limit=<N>`) |
-<!-- source: internal/test/peer/expect.go -- parseOptionConfig; internal/test/peer/open.go -- buildOpen -->
+<!-- source: internal/test/peer/expect_keys.go -- peerValueArms "open"; internal/test/peer/open.go -- buildOpen -->
 
 ### Sender Facts (hold-time, graceful-restart, llgr, paths-limit)
 
@@ -611,7 +611,7 @@ option=open:value=router-id:id=<a.b.c.d>
 
 Ze-peer's default OPEN carries ze's own BGP Identifier with the last octet incremented, which is always a distinct, valid identifier. This option replaces it outright, so a test can present an identifier the default can never produce: `0.0.0.0`, or ze's own router-id (RFC 6286 Section 2.2 rejects both, the second only from an internal peer). A malformed or IPv6 value fails the file when it is read. It was ignored until 2026-09-08, which sent the DEFAULT identifier from a test that asked for an invalid one: the file then tested the valid identifier and passed.
 
-<!-- source: internal/test/peer/expect.go -- parseOptionConfig "router-id"; internal/test/peer/open.go -- openIdentity -->
+<!-- source: internal/test/peer/expect.go -- parseOpenRouterID; internal/test/peer/open.go -- openIdentity -->
 
 ### Capability Control (drop-capability / add-capability)
 
@@ -678,7 +678,7 @@ expectations.
 | `send-default-route` | none | Send one UPDATE for `0.0.0.0/32` via `192.0.2.1`, an address no test host holds, so the route passes the RFC 4271 Section 6.3 next-hop check |
 | `send-route` | `prefix`, `origin-as`, `next-hop`, and optionally `as-path`, `as-set`, `originator-id`, `cluster-list`, `label` | Send one UPDATE for one prefix. Repeat the line for more |
 | `send-bulk` | `prefix`, `count`, `next-hop`, `origin-as`, and optionally `max-msg`, `eor` | Generate `count` sequential prefixes from `prefix` and send them as whole BGP messages |
-<!-- source: internal/test/peer/expect.go -- parseOptionConfig "update"; parseBulkSpec -->
+<!-- source: internal/test/peer/expect_keys.go -- peerValueArms "update"; internal/test/peer/expect.go -- parseBulkSpec -->
 
 `send-default-route` and `send-route` build the AS_PATH that a real speaker
 sends. On an eBGP session, where ze-peer's OPEN AS differs from ze's, the path
@@ -1302,6 +1302,32 @@ describe a vocabulary the runner does not have. The line number is the line in
 the FILE: comments, blank lines and whole `stdin=` and `tmpfs=` blocks are
 consumed before the directives are parsed, and the refusal used to count only
 the directives that survived, which named line 2 for a line that was number 69.
+
+The `option=`, `action=`, `cmd=api` and `await=` families each declare one table
+that maps a type to the keys its parser reads, and the accepted types and keys
+in a refusal come from that table. The type is checked first, so
+`option=bogus:65000` is refused as an unknown option type with the accepted
+list. Three segment shapes are then refused before any key is checked: a segment
+with no `=` (`option=asn:65000`), a key given twice, and a key that does not
+start with a letter, which would otherwise be read as part of the value before
+it (`path=out.txt:!contains=x`). The value of `json=`, `text=`, `hex=` or
+`pattern=` runs to the end of the line, so write those keys last. Those four are
+found by substring search in that order, so a value that holds one of them is
+cut there: in `contains=hex=AB` the inner `hex=` becomes a key of its own and
+`contains=` is left empty. The decode suite, the parse suite's `option=env`, and
+the `option=` lines that ze-peer reads in a `stdin=` block refuse in the same
+way, and ze-peer's options and the decode suite's `exec=` flags are each one
+table of entries that pair what is accepted with the parser that reads it.
+
+```
+line 3: option=asn: a segment has no key: "65000" has no "="; write each field as key=value (accepts value)
+line 4: http=get: key "status" is given twice; keep one
+```
+<!-- source: internal/test/runner/record_parse_vocabulary.go -- recordOptionArms, recordActionArms, recordCmdArms, recordAwaitArms -->
+<!-- source: internal/test/ci/ciformat.go -- ParseKVPairs, gluedKey -->
+<!-- source: internal/test/peer/expect_keys.go -- peerOptionArms, peerValueArms -->
+<!-- source: internal/test/runner/decoding_ci.go -- decodeCIDirectives, decodeExecFlags -->
+<!-- test: internal/test/runner/record_parse_strict_test.go TestParseCIEveryFamilyRefusesUnknownKey, TestParseCIRefusesMalformedSegments -->
 <!-- source: internal/test/runner/record_parse_vocabulary.go -- recordActions and the type lists each switch gates on -->
 <!-- source: internal/test/tmpfs/tmpfs.go -- Line, the directive text with its file line number -->
 <!-- test: internal/test/runner/record_parse_test.go TestUnknownDirectiveNamesLineAndAccepted, TestDirectiveVocabularyIsLive -->

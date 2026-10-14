@@ -522,7 +522,10 @@ func peerASRewriteSources(r *Record) (map[string][]string, error) {
 		if !ok {
 			return nil
 		}
-		kv := ci.ParseKVPairs(strings.Split(after, ":"))
+		kv, err := ci.ParseKVPairs(strings.Split(after, ":"))
+		if err != nil {
+			return fmt.Errorf("action=rewrite: %w", err)
+		}
 		if kv["source"] == "" {
 			return errActionRewriteMissingSource
 		}

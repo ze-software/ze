@@ -33,7 +33,10 @@ func ParseRejectRule(rule string) (conn int, pattern string, isReject bool, err 
 	if !ok {
 		return 0, "", false, nil
 	}
-	kv := parseKV(after)
+	kv, kvErr := parseKV(after)
+	if kvErr != nil {
+		return 0, "", true, fmt.Errorf("%q: %w", rule, kvErr)
+	}
 	connStr := kv["conn"]
 	if connStr == "" {
 		return 0, "", true, fmt.Errorf("reject=bgp missing conn: %q", rule)

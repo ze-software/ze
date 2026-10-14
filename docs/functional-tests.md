@@ -744,8 +744,8 @@ Linux, then run as root inside `./le test qemu all-tests`. CAP_NET_ADMIN and rea
 interfaces are available in that guest. `TestCapabilityGatedTestsHaveANativeVMHome`
 fails when a capability-gated test has no registered QEMU path.
 <!-- source: internal/le/test/qemu/alltests.go -- allTestsRun -->
-<!-- source: internal/test/runner/record_parse.go -- capability gate -->
-<!-- source: internal/test/runner/record_parse.go -- caps=net-admin gate and skip reason -->
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux, capability gate -->
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux, caps=net-admin gate and skip reason -->
 
 `caps=` takes a comma-separated list, and `capsRequired`
 (`internal/test/runner/caps.go`) is the one table that maps each token to the
@@ -1066,7 +1066,7 @@ telemetry port 19274, which sits outside every range the runner hands out, so a
 sibling whose shifted range covered it collided and ze logged `metrics server
 failed to start: address already in use` -- a red with nothing to do with the
 subject of the test.
-<!-- source: internal/test/runner/record_parse.go -- option=exclusive parsing, ExclusiveGroup -->
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionExclusive, option=exclusive parsing, ExclusiveGroup -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock taken before the concurrency semaphore -->
 <!-- source: internal/test/runner/exclusive_group_test.go -- TestContendingFunctionalTestsDeclareExclusiveGroup ratchet -->
 <!-- source: internal/plugins/policyroute/translate.go -- policyRoutingTable = "ze_pr" -->
