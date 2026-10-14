@@ -1,3 +1,4 @@
 | Date | Spec | Surface | Symptom | Fix |
 |---|---|---|---|---|
+| 2026-10-14 | - (spec-bfd-link-local-peer-zone design round 6) | web add form, `HandleConfigAddWithAuthorizer` (`internal/component/web/handler_config_entry.go` 71-72) | The `name` field is lowercased into the new key, but no schema marker says keys are case-insensitive and the CLI keeps case: an entry added from the web as `Eth0` is stored as `eth0`, naming an interface the kernel lacks. The spec fixes only the rename handler | not fixed. Owed: delete the `strings.ToLower` and test an add of `Eth0` |
 | 2026-09-23 | - | Kernel MPLS IPv4 MTU handling | Native RR/TS packets consumed empty option slots in the first fragment and DF-set ICMP quotation. | Preserve fragment option bytes and attach input-route context before DF-set option processing. Use the current header after checksum handling. Native before-003 fails on corrupt bytes; rebuilt-kernel after-007 passes all nine bounded cases without skips. |
