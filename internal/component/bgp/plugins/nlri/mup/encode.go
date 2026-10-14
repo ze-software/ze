@@ -33,6 +33,9 @@ var (
 	errMupIsdRequiresPrefix    = errors.New("MUP ISD requires prefix")
 	errMupDsdRequiresAddress   = errors.New("MUP DSD requires address")
 	errMupT1stRequiresPrefix   = errors.New("MUP T1ST requires prefix")
+	errMupT1stRequiresTEID     = errors.New("MUP T1ST requires teid: the TEID is a mandatory 4-octet field, so add `teid <1-4294967295>`")
+	errMupT1stTEIDZero         = errors.New("MUP T1ST teid 0 is malformed (draft-ietf-bess-mup-safi Section 3.1.3.1): use a value from 1 to 4294967295")
+	errMupT1stRequiresEndpoint = errors.New("MUP T1ST requires endpoint: the Endpoint Address is mandatory, so add `endpoint <IPv4 or IPv6 address>`")
 	errMupT2stRequiresAddress  = errors.New("MUP T2ST requires address")
 	errTeidValue               = errors.New("teid value is not a 32-bit unsigned integer")
 	errTeidBits                = errors.New("teid bit length is not an integer from 0 to 32")
@@ -349,16 +352,33 @@ func parseT1STFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	if err != nil {
 		return mupParsed{}, err
 	}
+	// A T1ST Ze originates must be one its own ParseMUP accepts, or a Ze
+	// receiver treats it as withdrawn. The three refusals below are the
+	// mandatory fields a route without `teid` or `endpoint` would leave out.
+	//
+	// draft-ietf-bess-mup-safi Section 3.1.3.1: "The TEID has a fixed length of
+	// 4 octets.  The TEID value of 0 is considered as an invalid and a malformed
+	// TEID."
+	if f.teidBits == 0 {
+		return mupParsed{}, errMupT1stRequiresTEID
+	}
+	if f.teid == 0 {
+		return mupParsed{}, errMupT1stTEIDZero
+	}
+	// draft-ietf-bess-mup-safi Section 3.1.3.1: "Endpoint Address field contains
+	// of an IPv4 address, then the value of the Endpoint Address Length field is
+	// 32.  If the Endpoint Address field contains of an IPv6 Address, then the
+	// value of the Endpoint Address Length field is 128.  Any other value is
+	// considered as an invalid and a malformed Endpoint Address."
+	if !f.ep.IsValid() {
+		return mupParsed{}, errMupT1stRequiresEndpoint
+	}
 
-	// Compute data size: prefix + TEID(4 if set) + QFI(1) + endpoint + source.
+	// Compute data size: prefix + TEID(4) + QFI(1) + endpoint + source.
 	size := MUPPrefixLen(prefix)
-	if f.teidBits > 0 {
-		size += 4
-	}
-	size++ // QFI
-	if f.ep.IsValid() {
-		size += 1 + addrByteLen(f.ep) // length byte + address
-	}
+	size += 4
+	size++                        // QFI
+	size += 1 + addrByteLen(f.ep) // length byte + address
 	if f.src.IsValid() {
 		size += 1 + addrByteLen(f.src) // length byte + address
 	}
@@ -408,20 +428,18 @@ func writeT1STData(buf []byte, off int, f mupParsed) int {
 	WriteMUPPrefix(buf, pos, f.prefix)
 	pos += MUPPrefixLen(f.prefix)
 
-	if f.teidBits > 0 {
-		binary.BigEndian.PutUint32(buf[pos:], f.teid)
-		pos += 4
-	}
+	// parseT1STFields refuses a T1ST with no TEID or no endpoint, so both
+	// mandatory fields are always written.
+	binary.BigEndian.PutUint32(buf[pos:], f.teid)
+	pos += 4
 
 	buf[pos] = f.qfi
 	pos++
 
-	if f.ep.IsValid() {
-		epLen := addrByteLen(f.ep)
-		buf[pos] = byte(epLen * 8) //nolint:gosec // epLen is 4 or 16
-		pos++
-		pos += writeAddr(buf, pos, f.ep)
-	}
+	epLen := addrByteLen(f.ep)
+	buf[pos] = byte(epLen * 8) //nolint:gosec // epLen is 4 or 16
+	pos++
+	pos += writeAddr(buf, pos, f.ep)
 
 	if f.src.IsValid() {
 		srcLen := addrByteLen(f.src)

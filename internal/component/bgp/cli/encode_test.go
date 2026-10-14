@@ -1045,7 +1045,7 @@ func TestCmdEncode_MUP_T1ST(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv6/mup",
-		"mup-t1st 2001:db8::/32 rd 100:1 next-hop 2001:db8::1",
+		"mup-t1st 2001:db8::/32 rd 100:1 teid 12345 qfi 9 endpoint 2001:db8::2 next-hop 2001:db8::1",
 	}
 	exitCode := cmdEncode(args)
 
@@ -1059,6 +1059,28 @@ func TestCmdEncode_MUP_T1ST(t *testing.T) {
 	_, err := hex.DecodeString(output)
 	if err != nil {
 		t.Fatalf("output is not valid hex: %v\noutput: %s", err, output)
+	}
+}
+
+// TestCmdEncode_MUP_T1STWithoutTEIDRefused checks the user entry point refuses
+// a T1ST with no TEID and no endpoint.
+//
+// VALIDATES: draft-ietf-bess-mup-safi Section 3.1.3.1 makes the TEID and the
+// Endpoint Address mandatory, so `ze bgp encode` refuses a T1ST without them
+// (spec-bgp-update-propagation-rfc-defects, Q-2 (a)).
+// PREVENTS: Ze originating a T1ST its own receiver treats as withdrawn.
+func TestCmdEncode_MUP_T1STWithoutTEIDRefused(t *testing.T) {
+	var stdout bytes.Buffer
+	oldStdout := encodeStdout
+	encodeStdout = &stdout
+	defer func() { encodeStdout = oldStdout }()
+
+	args := []string{
+		"-f", "ipv6/mup",
+		"mup-t1st 2001:db8::/32 rd 100:1 next-hop 2001:db8::1",
+	}
+	if exitCode := cmdEncode(args); exitCode == 0 {
+		t.Fatalf("expected a refusal, got exit code 0 and output %q", stdout.String())
 	}
 }
 

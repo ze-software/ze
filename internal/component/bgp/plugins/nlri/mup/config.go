@@ -85,6 +85,10 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 // EncodeNLRIHex expects. Content layout (after the operation keyword):
 //
 //	<route-type> <prefix|address> [rd RD] [teid TEID] [qfi QFI] [endpoint EP] [source SRC]
+//
+// A mup-t1st MUST carry a nonzero teid and an endpoint: parseT1STFields refuses
+// one without, because draft-ietf-bess-mup-safi Section 3.1.3.1 makes both
+// mandatory and a receiver treats the route as withdrawn otherwise.
 func mupArgsFromContent(content []string) ([]string, error) {
 	if len(content) == 0 {
 		return nil, errMUPMissingRouteType

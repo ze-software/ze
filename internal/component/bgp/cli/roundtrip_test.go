@@ -758,7 +758,7 @@ func TestRoundTrip_FlowSpec_IPv6(t *testing.T) {
 // PREVENTS: IPv6 MUP encoding/decoding bugs.
 func TestRoundTrip_MUP_IPv6(t *testing.T) {
 	testRoundTripIPv6Family(t,
-		[]string{"-f", "ipv6/mup", "mup-t1st 2001:db8::/32 rd 100:1 next-hop 2001:db8::1"},
+		[]string{"-f", "ipv6/mup", "mup-t1st 2001:db8::/32 rd 100:1 teid 12345 qfi 9 endpoint 2001:db8::2 next-hop 2001:db8::1"},
 		"ipv6/mup",
 		"2001:db8::1",
 	)
