@@ -112,6 +112,15 @@ type PeerSession struct {
 	pendingRekey    *pendingRekey
 	supersededChild *ChildSA
 
+	// rebindRekeyOwed records that the peer's endpoint moved after establishment and the
+	// current Child SA pair could not be migrated to it (rebindChildSAs), so it still sits
+	// on the old ports and a Child SA rekey is owed. The owner tick raises the rekey while
+	// it is set, beside the soft lifetime, so a hold defers the rekey and never drops it.
+	// It clears when a rekeyed Child SA installs, either direction, because the rekeyed
+	// child takes the IKE SA's ports, and when a pending child is promoted
+	// (resolvePendingAfterOwnerLoop). Owned by the maintainSA loop, no lock.
+	rebindRekeyOwed bool
+
 	// deleteRequested holds every Child SA pair this node has asked the peer to close
 	// and whose INFORMATIONAL response has not arrived.
 	//

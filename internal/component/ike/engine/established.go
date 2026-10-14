@@ -458,13 +458,7 @@ func (ps *PeerSession) maintainSA(
 				sendDPD(sa, tr, dpd, log)
 			}
 
-			// RFC 7296 §1.3.2: on soft-lifetime expiry, initiate a Child SA
-			// rekey via a CREATE_CHILD_SA wire exchange. Completion (key install,
-			// old-SA delete, childLT reset) happens in handleOwnedInbound when the
-			// response arrives; here we only start it and manage retransmission.
-			if childLT != nil && childLT.softExpired(now) && ps.pendingRekey == nil {
-				ps.startChildRekey(sa, tr, log)
-			}
+			ps.serviceChildRekeyTrigger(sa, childLT, now, tr, log)
 
 			ps.serviceChildCreate(sa, tr, now, log)
 
@@ -556,6 +550,24 @@ const rekeyRefusedWait = 15 * time.Second
 // instant means no answer has ever held it.
 func rekeyHeld(until, now time.Time) bool {
 	return !until.IsZero() && now.Before(until)
+}
+
+// serviceChildRekeyTrigger raises a Child SA rekey from the owner tick. Two level
+// triggers raise it: the soft lifetime, and a rekey owed because the peer's endpoint
+// moved and the Child SA could not be migrated (rebindRekeyOwed). Both stand until a
+// rekeyed child installs, so a held window or a hold in startChildRekey defers the
+// rekey to a later tick and never drops it.
+//
+// RFC 7296 §1.3.2: on soft-lifetime expiry, initiate a Child SA rekey via a
+// CREATE_CHILD_SA wire exchange. Completion (key install, old-SA delete, childLT reset)
+// happens in handleOwnedInbound when the response arrives; here we only start it.
+func (ps *PeerSession) serviceChildRekeyTrigger(sa *SA, childLT *lifetimeState, now time.Time, tr *transport.UDPTransport, log *slog.Logger) {
+	if ps.pendingRekey != nil {
+		return
+	}
+	if ps.rebindRekeyOwed || (childLT != nil && childLT.softExpired(now)) {
+		ps.startChildRekey(sa, tr, log)
+	}
 }
 
 // startChildRekey begins a Child SA rekey. RFC 7296 §2.3 allows one self-initiated

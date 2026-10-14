@@ -36,7 +36,7 @@ func TestChildlessSAMaintenance(t *testing.T) {
 		t.Errorf("Info reports a Child SA on a childless session: has=%v in=%#08x out=%#08x",
 			info.HasChild, info.ChildInSPI, info.ChildOutSPI)
 	}
-	if err := ps.migrateMobikeChild(ini, dp); err != nil {
+	if _, err := ps.migrateMobikeChild(ini, dp, ini.mobike.local); err != nil {
 		t.Errorf("the MOBIKE migration of a childless session failed: %v", err)
 	}
 	del := &wire.PayloadDelete{ProtocolID: wire.ProtocolESP, SPISize: 4, NumSPIs: 1, SPIs: []byte{0, 0, 0, 7}}

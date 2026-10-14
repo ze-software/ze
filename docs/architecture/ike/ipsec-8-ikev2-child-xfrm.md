@@ -387,8 +387,11 @@ probes it before advertising `TunnelMigrator`; legacy `XFRM_MSG_MIGRATE` does no
 provide the required locked replay-state transfer. An ordinary backend migration
 error restores the old endpoints. A failed rollback removes both endpoint
 candidates and reports `ErrTunnelMigrationLost`; failed deletions remain tracked
-for teardown. The engine closes the IKE SA after either migration failure,
-retiring the Child pair instead of reinstalling its keys.
+for teardown. The engine closes a MOBIKE IKE SA after either migration failure,
+retiring the Child pair instead of reinstalling its keys. A NAT rebind without
+MOBIKE (`rebindChildSAs`, ipsec-9 "The rebind") closes the IKE SA only on
+`ErrTunnelMigrationLost`; after any other failure the old endpoints stand, and it
+rekeys the Child SA onto the new endpoint instead.
 
 The dataplane package is registered in the native QEMU integration pass.
 `TestXFRMMigrationPreservesLiveKernelState` covers legacy, bitmap and ESN replay

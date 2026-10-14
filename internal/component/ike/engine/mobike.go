@@ -46,7 +46,21 @@ type mobikeRequest struct {
 // mobikeAvailable gates negotiation on the capability captured when the session
 // binds its sockets. A missing backend must not advertise live ESP migration.
 func mobikeAvailable(sa *SA) bool {
-	return sa.mobike.canMigrate && !wantsTransportMode(sa) && !sa.UseTransportMode && sa.nattSocket != nil
+	return childMigrationAvailable(sa)
+}
+
+// childMigrationAvailable reports whether this SA's Child SAs can be moved in place to
+// a new outer endpoint: the backend captured a TunnelMigrator when the session bound its
+// sockets, the Child SA is tunnel mode, and a NAT-T socket exists. MOBIKE negotiation and
+// the NAT rebind (rebindChildSAs) both ask it, so one predicate serves both.
+func childMigrationAvailable(sa *SA) bool {
+	return sa.mobike.canMigrate && !childTransportMode(sa) && sa.nattSocket != nil
+}
+
+// childTransportMode reports whether the SA's Child SAs are transport mode, either asked
+// for by this node's configuration or accepted from the peer's USE_TRANSPORT_MODE.
+func childTransportMode(sa *SA) bool {
+	return wantsTransportMode(sa) || sa.UseTransportMode
 }
 
 func mobikeAuthOffer(sa *SA) []wire.PayloadEntry {
@@ -462,7 +476,7 @@ func (ps *PeerSession) handleMobikeResponse(sa *SA, inner []wire.PayloadEntry, m
 	if !sa.recordMobikeNAT(inner, pending.local, pending.remote) {
 		return mobikeFatal(sa, fmt.Errorf("ike: NAT traversal is prohibited for this peer"), log)
 	}
-	if err := ps.migrateMobikeChild(sa, dp); err != nil {
+	if _, err := ps.migrateMobikeChild(sa, dp, sa.mobike.local); err != nil {
 		return mobikeFatal(sa, err, log)
 	}
 	log.Info("ike: MOBIKE address update", "peer", sa.PeerName, "local", pending.local, "remote", pending.remote)
@@ -475,19 +489,24 @@ func mobikeFatal(sa *SA, err error, log *slog.Logger) ownedOutcome {
 	return ownedOutcome{reestablish: true}
 }
 
-func (ps *PeerSession) migrateMobikeChild(sa *SA, dp dataplane.Dataplane) error {
+// migrateMobikeChild moves every installed Child SA pair to local and the SA's remote
+// endpoint, and reports how many pairs it moved. MOBIKE passes its recorded local path;
+// the NAT rebind passes the unchanged local address on the NAT-T socket's port.
+func (ps *PeerSession) migrateMobikeChild(sa *SA, dp dataplane.Dataplane, local *net.UDPAddr) (int, error) {
 	// handleOwnedInbound holds childLifecycleMu through this decision and the
 	// migration. A completed parallel handshake has already transferred its
 	// shared policy templates; the retiring SA must not move them again.
 	if ps.getPendingChild() != nil {
-		return nil
+		return 0, nil
 	}
+	moved := 0
 	current := ps.getChildSA()
 	if current != nil {
 		policies := []dataplane.SPParams{childPolicyParams(current, dataplane.SADirIn), childPolicyParams(current, dataplane.SADirOut)}
-		if err := ps.migrateMobikePair(sa, current, policies, dp); err != nil {
-			return err
+		if err := ps.migrateMobikePair(sa, current, policies, dp, local); err != nil {
+			return moved, err
 		}
+		moved++
 	}
 	// A superseded pair remains installed until Delete. Move distinct policies
 	// too, but do not migrate policies it shares with the current pair twice.
@@ -496,15 +515,16 @@ func (ps *PeerSession) migrateMobikeChild(sa *SA, dp dataplane.Dataplane) error 
 		if !samePolicySelector(current, old) {
 			policies = []dataplane.SPParams{childPolicyParams(old, dataplane.SADirIn), childPolicyParams(old, dataplane.SADirOut)}
 		}
-		if err := ps.migrateMobikePair(sa, old, policies, dp); err != nil {
-			return err
+		if err := ps.migrateMobikePair(sa, old, policies, dp, local); err != nil {
+			return moved, err
 		}
+		moved++
 	}
-	return nil
+	return moved, nil
 }
 
-func (ps *PeerSession) migrateMobikePair(sa *SA, child *ChildSA, policies []dataplane.SPParams, dp dataplane.Dataplane) error {
-	local, remote := sa.mobike.local, sa.remoteUDPAddr()
+func (ps *PeerSession) migrateMobikePair(sa *SA, child *ChildSA, policies []dataplane.SPParams, dp dataplane.Dataplane, local *net.UDPAddr) error {
+	remote := sa.remoteUDPAddr()
 	if local == nil || remote == nil {
 		return fmt.Errorf("ike: MOBIKE migration has no endpoint")
 	}

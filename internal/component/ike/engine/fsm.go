@@ -419,6 +419,9 @@ func (ps *PeerSession) resolvePendingAfterOwnerLoop(table *SATable, dp dataplane
 	if pc := ps.getPendingChild(); pc != nil {
 		ps.setChildSA(pc)
 		ps.setPendingChild(nil)
+		// The promoted child took its ports from the pending IKE SA's own endpoint, so a
+		// rekey owed for the old pair no longer describes the current child.
+		ps.rebindRekeyOwed = false
 	}
 	ps.setSA(pending)
 	log.Info("ike: promoting re-initiated SA", "peer", ps.peerName,

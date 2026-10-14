@@ -358,7 +358,7 @@ func TestMobikeParallelAuthRetiresChildRekey(t *testing.T) {
 			moved := mbTransport(t, "127.0.0.2:0", true)
 			local, remote := nttPeerAddr(t, respTr), nttPeerAddr(t, moved)
 			resp.mobike.local, resp.peerEndpoint = local, remote
-			if err := ps.migrateMobikeChild(resp, dp); err != nil {
+			if _, err := ps.migrateMobikeChild(resp, dp, resp.mobike.local); err != nil {
 				t.Fatal(err)
 			}
 			ini.mobike.local, ini.peerEndpoint = remote, local

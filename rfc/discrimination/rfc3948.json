@@ -189,6 +189,50 @@
       "break": "body of childEncapPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3948-2.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs",
+      "unit-sha": "45f68036325345b1",
+      "claim-sha": "a9e39e175fb2ebda",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/rebind.go::rebindChildSAs",
+      "producer-sha": "731577a101d79051",
+      "break": "body of rebindChildSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove",
+      "unit-sha": "9d4f77291afdcc63",
+      "claim-sha": "f6cc042b93599052",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
+      "producer-sha": "f5c4d3eef38098b5",
+      "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA",
+      "unit-sha": "1904a56518ea98ea",
+      "claim-sha": "6fdf4128b3ada499",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/rebind.go::rebindChildSAs",
+      "producer-sha": "731577a101d79051",
+      "break": "body of rebindChildSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator",
+      "unit-sha": "3f8c7355e2288866",
+      "claim-sha": "7ee383ebcaf9fa1b",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/rebind.go::rebindChildSAs",
+      "producer-sha": "731577a101d79051",
+      "break": "body of rebindChildSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3948-2.3-1",
       "polarity": "positive",
       "unit": "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive",

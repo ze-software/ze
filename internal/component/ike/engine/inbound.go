@@ -220,7 +220,13 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 	// request came from (RFC 7296 Section 2.11). sendRaw reads the endpoint stored
 	// here. An UNAUTHENTICATED datagram never reaches this line, so it never moves
 	// the peer.
-	sa.adoptAuthenticatedEndpoint(pkt.RemoteAddr, pkt.NATT, log)
+	oldEndpoint := sa.peerEndpoint
+	if sa.adoptAuthenticatedEndpoint(pkt.RemoteAddr, pkt.NATT, log) {
+		// The installed Child SAs still encapsulate to the old endpoint. RFC 3948 Section 2.1
+		if out := ps.rebindChildSAs(sa, dp, oldEndpoint, log); out.reestablish {
+			return out
+		}
+	}
 
 	// RFC 7296 Section 3.10.1: an unrecognized notify that is neither an error in a
 	// response nor acted on elsewhere is ignored, and it is logged.
@@ -446,6 +452,8 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 			}
 			old := p.oldChild
 			ps.setChildSA(newChild)
+			// The rekeyed child took the IKE SA's ports, so a rekey owed by a rebind is paid.
+			ps.rebindRekeyOwed = false
 			// The replacement is a new SA, so nothing has been refused for it yet.
 			sa.childRekeyRefusal = rekeyRefusalRecord{}
 			// Make-before-break: new SA is installed; delete the old now (§2.8).
@@ -544,6 +552,8 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		// Make-before-break: keep the old SA until the peer's Delete arrives.
 		ps.supersededChild = old
 		ps.setChildSA(newChild)
+		// The peer's rekey also took the IKE SA's ports, so a rekey owed by a rebind is paid.
+		ps.rebindRekeyOwed = false
 		log.Info("child-sa: rekeyed by peer via CREATE_CHILD_SA", "peer", ps.peerName,
 			"old-in", old.InboundSPI, "new-in", newChild.InboundSPI)
 		return ownedOutcome{newChild: newChild}

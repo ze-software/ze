@@ -368,6 +368,39 @@ Child SA, as the non-EAP responder does before `buildAuthResponse`.
 <!-- source: internal/component/ike/engine/create_child.go -- childEncapPorts, takeEncapPorts -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- handleResponderEAP -->
 
+### The rebind: a NAT that moves the peer after establishment
+
+A NAT can re-map the peer to a new public port, or a new address, after the IKE SA
+is up: its binding times out on a quiet tunnel, or it restarts. The peer's next
+authenticated, in-window message (on a quiet tunnel, its DPD) then arrives from
+the new endpoint. With MOBIKE not negotiated and this node not behind a NAT,
+`adoptAuthenticatedEndpoint` adopts it (RFC 7296 Section 2.23: such a node
+"SHOULD send all packets (including retransmission packets) to the IP address and
+port in the validated packet,") and reports the move. The installed Child SAs
+still encapsulate to the old endpoint, so `rebindChildSAs` moves them, deciding
+once for the IKE SA:
+
+| Case | What happens | Log line |
+|------|--------------|----------|
+| Tunnel mode, the dataplane can migrate (`childMigrationAvailable`, the predicate MOBIKE negotiation uses) | The current pair and a distinct superseded pair are migrated in place to the new endpoint, from the NAT-T socket's port, keeping their SPIs, keys and replay state | Info, "Child SAs migrated to the new address and port" |
+| Transport mode, a dataplane without a `TunnelMigrator` (VPP, a kernel without `XFRM_MSG_MIGRATE_STATE`), or a parallel IKE SA setting up a pending child | A Child SA rekey is owed; the owner tick raises it beside the soft lifetime, so a hold defers it and never drops it. The rekeyed child takes the IKE SA's ports, so it lands on the new endpoint | Info, "Child SA cannot be migrated here, so it is rekeyed", with `reason` |
+| The migration failed with any error but `ErrTunnelMigrationLost` | The old endpoints stand (the `TunnelMigrator` contract), and the rekey is owed as above | Info, "migrating the Child SA failed and the old endpoints stay in place" |
+| The migration lost the tunnel | The IKE SA closes and is set up again, as a MOBIKE SA does: lost keys are never reinstalled | Error, naming `ze doctor` |
+
+The owed rekey clears when a rekeyed Child SA installs, whichever side started the
+rekey, and when a pending child is promoted, since that child took its ports from
+its own IKE SA. Reaping a pending SA that never authenticated keeps the old pair,
+so the owed rekey stays due. A move with MOBIKE negotiated, or while this node is
+behind a NAT, adopts nothing and moves nothing. The rule follows strongSwan's
+charon (`ike_sa.c`, `update_hosts`), which updates each Child SA and rekeys one whose
+update is not supported. That reading is unverified: no strongSwan source is on the
+host this was written on.
+
+<!-- source: internal/component/ike/engine/rebind.go -- rebindChildSAs -->
+<!-- source: internal/component/ike/engine/sa.go -- adoptAuthenticatedEndpoint -->
+<!-- source: internal/component/ike/engine/established.go -- serviceChildRekeyTrigger -->
+<!-- source: internal/component/ike/engine/mobike.go -- childMigrationAvailable, migrateMobikeChild -->
+
 The peer's `nat-traversal` policy separates capability from permission. `allow`
 is the existing default. `prohibit` retains NAT detection but rejects translation
 before establishment or MOBIKE migration. Its address-updating requests carry

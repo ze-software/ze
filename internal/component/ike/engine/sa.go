@@ -631,33 +631,39 @@ func (sa *SA) sendPath(fallback *transport.UDPTransport) (*transport.UDPTranspor
 // Section 2.23. It is refused while this node is behind a NAT. "A host behind a NAT
 // SHOULD NOT do this type of dynamic address update if a validated packet has
 // different port and/or address values because it opens a possible DoS attack".
-func (sa *SA) adoptAuthenticatedEndpoint(observed *net.UDPAddr, arrivedOnNATT bool, log *slog.Logger) {
+//
+// It reports true only when it MOVED an endpoint already stored: the later, differing
+// observation adopted below. A first observation reports false, so the callers that run
+// before establishment ignore the result, and handleOwnedInbound reads true as the
+// trigger to move the installed Child SAs (rebindChildSAs).
+func (sa *SA) adoptAuthenticatedEndpoint(observed *net.UDPAddr, arrivedOnNATT bool, log *slog.Logger) bool {
 	if arrivedOnNATT {
 		sa.floatToNATTPort()
 	}
 	if observed == nil {
-		return
+		return false
 	}
 	if sa.peerEndpoint == nil {
 		sa.peerEndpoint = copyUDPAddr(observed)
-		return
+		return false
 	}
 	if sameUDPEndpoint(sa.peerEndpoint, observed) {
-		return
+		return false
 	}
 	// RFC 4555 Section 3.8: "The host not behind a NAT MUST NOT use these dynamic
 	// updates for IKEv2 packets". MOBIKE updates the pair explicitly instead.
 	if sa.mobike.enabled {
-		return
+		return false
 	}
 	if sa.BehindNAT {
 		log.Debug("ike: authenticated packet came from a new endpoint, not adopted because this node is behind a NAT",
 			"peer", sa.PeerName, "stored", sa.peerEndpoint, "observed", observed)
-		return
+		return false
 	}
 	log.Info("ike: peer endpoint moved, adopting the address of the validated packet",
 		"peer", sa.PeerName, "old", sa.peerEndpoint, "new", observed)
 	sa.peerEndpoint = copyUDPAddr(observed)
+	return true
 }
 
 // copyUDPAddr detaches an address from the packet buffer that carried it, so a later

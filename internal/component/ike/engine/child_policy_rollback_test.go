@@ -177,7 +177,7 @@ func newAuthFailureFixture(t *testing.T) authFailureFixture {
 	}
 	resp.mobike.local = &net.UDPAddr{IP: net.ParseIP("192.0.2.10"), Port: 4500}
 	resp.peerEndpoint = &net.UDPAddr{IP: net.ParseIP("192.0.2.20"), Port: 4500}
-	if err := ps.migrateMobikeChild(resp, dp); err != nil {
+	if _, err := ps.migrateMobikeChild(resp, dp, resp.mobike.local); err != nil {
 		t.Fatalf("move the established Child: %v", err)
 	}
 	dp.assertPolicyResolves(t, live)
