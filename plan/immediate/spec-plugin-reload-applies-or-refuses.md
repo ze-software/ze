@@ -49,9 +49,28 @@ the exabgp bridge, and the external `internal/plugins/exabgp/main_sdk.go`.
 | Every other leaf those plugins read (role `strict`, role `export`, the role name-to-address map, the bridge's non-capability leaves) | This spec |
 | The apply handler of a plugin whose only config is capability declarations (`gr`, `hostname`, `llnh`, `softver`, external exabgp) | This spec, Phase 4, and only after the OPEN spec's extractor has landed: before it, a no-op apply would name as handled a change nobody refuses |
 
-The two verify refusals compose: the SDK runs the capability comparison first
-(OPEN spec, "the SDK runs first"), then the plugin's own verify handler from
-this spec. Neither spec weakens the other's refusal.
+The two verify refusals compose in the OPEN spec's order (its "D2 refusal
+design" step 3 and Data Flow step 4): the plugin's own verify handler answers
+first, then the SDK runs the capability extractor on the candidate and compares.
+The OPEN spec fixes that order so the `llnh` and `gr` refusals keep answering
+first; nothing in this spec argues for the reverse, so this spec's verify
+handlers sit in the "own handler" slot. Neither spec weakens the other's refusal.
+(Design review round 1, I3: an earlier draft here said the capability comparison
+ran first, which contradicted the OPEN spec.)
+
+### Boundary with stored routes (design review round 1, I4)
+
+A filter or policy apply changes what the plugin answers for the UPDATEs that
+arrive or leave AFTER the apply. It re-evaluates nothing already stored or
+already advertised. `docs/guide/config-reload.md` already states this for a
+dynamic group's import chain ("applies to the routes received after the
+reload"), and `test/reload/bgp-dynamic-filter-swap-live.ci` asserts it.
+
+| Concern | Owner |
+|---------|-------|
+| Import: a route already received and rejected (or accepted) under the old filter is re-evaluated under the new one | `plan/immediate/spec-bgp-filtered-route-storage.md` AC-3 ("This spec owns retained-route re-import; the live policy-swap prerequisite is delivered"). This spec delivers that prerequisite for the filter plugins |
+| Export: routes already advertised are re-sent under a changed egress rule (`filter_community` tag/strip/scrub, `filter_modify`, `filter_remove_private_as`, role `export`, any egress filter definition) | `plan/immediate/spec-bgp-export-policy-reload-readvertise.md` (skeleton, created by this review). Decided by the main thread under the owner's delegation, 2026-10-14: this spec's apply affects subsequent UPDATEs only, and its ACs and the reload page say so |
+| rib selection rules (`maximum-paths`, `relax-as-path`, blackhole honoring) over stored routes | This spec (AC-6, R-5): the reselect walk is rib-internal and needs no re-import |
 
 ### Other specs and precedents folded in
 
@@ -69,6 +88,7 @@ this spec. Neither spec weakens the other's refusal.
 | `plan/journal/unwired-feature.md`, 2026-10-14, `runFilterCommunity` registers only `OnConfigure` | Phase 2 (filter_community) |
 | `plan/journal/unwired-feature.md`, 2026-08-24, fixit-ipsec-peer-reload-ignored, residual "nothing yet detects the next plugin that declares `WantsConfig` and registers no apply handler" | Phase 5 (SDK refusal) |
 | `plan/journal/comment-describes-superseded-behaviour.md`, 2026-10-14, `plugin-relationships.md` section 7 participation rows wrong | Phase 6 doc edit: this spec changes every row's reload answer, so the table is re-derived from the registrations in the same change (`ai/rules/documentation.md`) |
+| `plan/journal/check-mode-mutates-the-tree.md`, 2026-10-14, `verifyCoSConfig` clears and refills the live `coreCos` registry | Phase 3 (cos, Q2): verify parses into a candidate, apply installs, rollback restores |
 
 ## Required Reading
 
@@ -89,7 +109,12 @@ this spec. Neither spec weakens the other's refusal.
 - [ ] `ai/rules/user-facing-errors.md`
   → Constraint: every refusal states the problem in operator terms (plugin, leaf path), why it matters (the running plugin cannot take the change), and the next step on its own line (`ze signal restart`)
 - [ ] `plan/immediate/spec-bgp-open-session-rfc-defects.md` D2 refusal design
-  → Constraint: the capability extractor runs at config-verify composed BEFORE the plugin's own verify; this spec's verify handlers must not re-check capability leaves
+  → Constraint: the capability extractor runs at config-verify composed AFTER the plugin's own verify handler (OPEN spec step 3: "The plugin's own handler answers first"); this spec's verify handlers must not re-check capability leaves
+- [ ] `docs/architecture/traffic/cos-plugin.md` "Consequences" - cos verifier before iface verifier by `registry.All()` order
+  → Constraint: the ordering exists at verify only; at reload apply `placeSectionNodes` (`transaction/solver.go`) puts coarse plugin nodes after the interface operations, so nothing orders cos apply before iface apply
+  → Decision: Q2 removes the dependency instead of ordering it: iface resolves profiles from the candidate it is handed, never from the installed registry, and the "load-bearing" sentence is rewritten in Phase 3
+- [ ] `internal/component/plugin/registry/registry.go` `InProcessConfigVerifier` doc ("side-effect-free equivalent of the plugin's OnConfigVerify callback")
+  → Constraint: every plugin has one verify function, registered both as `InProcessConfigVerifier` and as `OnConfigVerify`, and it is side-effect free (I2, B1)
 
 **Key insights:**
 - The SDK default apply is `configApplyCallback(nil)`: it opens the rollback gate and answers OK
@@ -124,15 +149,15 @@ this spec. Neither spec weakens the other's refusal.
 | 9 | `bgp/plugins/filter_remove_private_as` | remove-private-as definitions | `defsByName.Store` | yes |
 | 10 | `bgp/plugins/healthcheck` | probe definitions | `mgr.validateConfig` then `mgr.applyConfig`, which stops removed or changed probes and starts new ones | yes |
 | 11 | `bgp/plugins/watchdog` | per-peer route pools | `srv.peerPools = peerPools` under `srv.mu`; each `poolSet` also holds which entries are announced | yes |
-| 12 | `bgp/plugins/rib` | `maximum-paths`, `relax-as-path`, RFC 7999 blackhole honoring rules, AS notation | `maximumPaths.Store` ONLY when > 0, `relaxASPath.Store`, `blackholeCfg.Store`, `asn.ConfigureFromBGP` (process global) | yes |
-| 13 | `bgp/plugins/role` | per-peer role, `strict`, `export`; name-to-address map; role capability | `setFilterState`; `OnValidateOpen` closure reads the captured `peerConfigs`, `nameToIP` variables directly; `SetCapabilities` | yes |
-| 14 | `bgp/plugins/gr` | GR (64) and LLGR (71) capability leaves only | `SetCapabilities`; `setEgressState` shares runtime-learned `peerLLGRCaps`, not config | yes |
+| 12 | `bgp/plugins/rib` | `maximum-paths`, `relax-as-path`, RFC 7999 blackhole honoring rules, AS notation | `maximumPaths.Store` ONLY when > 0, `relaxASPath.Store`, `blackholeCfg.Store`, `asn.ConfigureFromBGP` (process global; `rib_asn_notation.go`). In-process, the reactor writes the same global from `SetConfigTree` → `recordASNotation` (`reactor/reactor_api.go`), so the notation has two writers in one process | yes |
+| 13 | `bgp/plugins/role` | per-peer role, `strict`, `export`; name-to-address map; role capability | `setFilterState` (`role.go`), which also DELETES learned `filterRemoteRoles` entries for peers the new config no longer names: runtime state learned from OPENs, outside any config snapshot; `OnValidateOpen` closure reads the captured `peerConfigs`, `nameToIP` variables directly; `SetCapabilities` | yes |
+| 14 | `bgp/plugins/gr` | GR (64) and LLGR (71) capability leaves only | `SetCapabilities`; its own verify `refuseUncarriedGRSections` (`gr.go`, registered as `OnConfigVerify` and also run from `OnConfigure`); `setEgressState` shares runtime-learned `peerLLGRCaps`, not config | yes |
 | 15 | `bgp/plugins/hostname` | hostname capability only | `SetCapabilities` | yes |
 | 16 | `bgp/plugins/llnh` | link-local next-hop capability only; own verify refusal | `SetCapabilities` | yes |
 | 17 | `bgp/plugins/softver` | software-version capability only | `SetCapabilities` | yes |
 | 18 | `bgp/plugins/route_refresh` | nothing (`OnConfigure` returns nil; the engine advertises route-refresh from `reactor/config.go`) | none | yes, `bgp` |
 | 19 | `bgp/plugins/adj_rib_in` | nothing (applies startup claims) | none | no: no `WantsConfig` |
-| 20 | `plugins/cos` | `class-of-service ieee-802.1p` profiles | `coreCos.Register` per profile, never unregisters; consumed by `iface/config.go` through `cos.Resolve` at iface apply time | yes, own root |
+| 20 | `plugins/cos` | `class-of-service ieee-802.1p` profiles | `verifyCoSConfig` (`register.go`), registered as BOTH `InProcessConfigVerifier` and `OnConfigVerify`, calls `coreCos.Clear()` then `parseAndRegisterProfiles` (`config.go`, `coreCos.Register` per profile) into the LIVE process-global registry. So a replace-all already exists, and it runs at verify: every `VerifyPluginConfig` (commit, `validate_semantic.go`, CLI `validate`, the editor's validator) rewrites the running daemon's profiles even when the commit is then refused, against the registry contract "side-effect-free". Consumed by iface `parseUnits` (`iface/config.go`) through `cos.Resolve` → `resolveCoSForUnit` → `coreCos.Lookup`, at iface verify and in `decomposeIfaceOperations`, which parses the active AND the candidate interface tree against that same already-rewritten registry | yes, own root |
 | 21 | `plugins/routingtable` | routing tables | `SetRegistry(New(tables))`; read by `static` verify through `routingtable.GetRegistry()` | yes, own root |
 | 22 | `plugins/as112` | `service as112` | parse, `applyAddressRegistration` (register or unregister loopback owned addresses), build and store state, `reloadTotal` metric | yes, `service` |
 | 23 | `plugins/geodns` | `service geodns` | parse, `buildState`, `storeState`; metric `reloadTotal` named as if reload re-ran it | yes, `service` |
@@ -145,6 +170,24 @@ this spec. Neither spec weakens the other's refusal.
 | 30 | `plugins/kernel` | empty `kernel` container | none, no `OnConfigure` | yes, own root |
 | 31 | `plugins/exabgp/main_sdk.go` (external) | capability declarations (OPEN spec caller) | none, no `OnConfigure` | yes, `bgp` |
 | 32 | `internal/test/plugins/fakeddos` | test fixture, own root | `OnConfigure` | yes |
+| 33 | `internal/test/fixture/plugin_fixture_04_cli.go` (line ~382) | test fixture, `WantsConfig: bgp` | none | yes, every bgp edit |
+| 34 | `internal/test/fixture/plugin_fixture_05.go` (line ~777) | test fixture, `WantsConfig: bgp`, `VerifyBudget: 3` | none | yes |
+| 35 | `internal/test/fixture/plugin_fixture_06.go` (line ~69) | test fixture, `WantsConfig: bgp` | none | yes |
+| 36 | `internal/test/fixture/misc_fixture_observers.go` (line ~396) | test fixture, `WantsConfig: bgp` | none | yes |
+| 37 | `internal/test/fixture/register_storage_history.go` (line ~86) | test fixture, `WantsConfig: bgp` | none | yes |
+
+Rows 33 to 37 added by design review round 1 (I1), each read at the line: they
+declare `WantsConfig` and register no `OnConfigApply` (the other four fixture
+files that declare `WantsConfig` register one). Phase 5 would refuse every bgp
+edit in the tests that load them.
+
+Existing `InProcessConfigVerifier`s in the population (design review round 1,
+I2, from `grep InProcessConfigVerifier internal/plugins`): dhcpserver,
+tftpserver, imageserver, geodns, as112, routingtable, cos, exabgp bridgeplugin.
+Only cos also registers it as `OnConfigVerify`. Each new verify handler in this
+spec IS that function, registered in both places: one verifier per plugin, so
+the static check and the reload cannot disagree (`ai/rules/principles.md`, one
+declaration).
 
 Corrections to the investigation: it counted 29 and omitted rows 29 to 31
 (they declare `WantsConfig` and register no `OnConfigure`, so the SDK default
@@ -173,7 +216,7 @@ and is outside the population. The investigation's note that `rs` declared no
 ### Transformation Path
 1. `server/reload.go` diffs roots, selects participants by `WantsConfigRoots`
 2. Transaction orchestrator (`internal/component/config/transaction/orchestrator.go`) sends `config-verify` with full changed-root sections to every participant
-3. SDK verify callback: OPEN spec capability comparison first, then the plugin's verify handler parses its subtree into a pending candidate, or refuses with a needs-restart error
+3. SDK verify callback: the plugin's verify handler (the same side-effect-free function as its `InProcessConfigVerifier`) parses its subtree into a pending candidate, or refuses with a needs-restart error; then the OPEN spec's capability comparison runs on the same candidate
 4. If every participant verified, `config-apply` with diff sections; SDK apply callback calls the plugin's apply handler, which installs the pending candidate (atomic swap or reconcile) and keeps the previous for rollback
 5. `config-committed` closes the gate; on failure `config-rollback` reaches plugins that applied, which restore the previous
 
@@ -186,13 +229,15 @@ and is outside the population. The investigation's note that `rs` declared no
 ### Integration Points
 - `Plugin.OnConfigVerify`, `OnConfigApply`, `OnConfigRollback` - each plugin registers all three
 - `rib.reselectAIGPRoutes` (`rib_aigp.go`) - the model for the reselect walk rib owes after a selection-rule change
-- OPEN spec `DeclareCapabilitiesFrom` - composed before the plugin verify
+- OPEN spec `DeclareCapabilitiesFrom` - composed after the plugin verify
+- `Plugin.OnConfigCommitted` (`sdk_callbacks.go`) - role's prune of learned remote roles moves here (I5)
+- Coarse apply order: `participantsWithoutOperations` (`transaction/orchestrator.go`) sorts coarse participants by name, and `placeSectionNodes` (`transaction/solver.go`) places them after the interface operations; no design in this spec depends on cos-before-iface or healthcheck-before-watchdog
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers | Yes | every change goes through the existing transaction RPCs |
-| No unintended coupling | Yes | no plugin imports another; cos/iface coupling is Q2 and goes through config roots |
+| No unintended coupling | Yes | no plugin imports another; cos/iface coupling is Q2 and goes through config roots (iface `ConfigReads` of `class-of-service`) and the `internal/core/cos` seam the cos plugin already registers into (`RegisterResolver`) |
 | No duplicated functionality | Yes, under Q5 = helper | one transaction shape instead of ~25 copies of `irrConfigTx` |
 | Zero-copy preserved where applicable | N-A | config path, not wire path |
 | Registration over hardcoding, outbound | Yes | each plugin registers its handlers in its own `run*` function |
@@ -206,26 +251,32 @@ and is outside the population. The investigation's note that `rs` declared no
 | A-1 | Verify always precedes apply in the same transaction for the same participant | `transaction-protocol.md`; `irrConfigTx.apply` refuses an unverified apply and `filter_irr` reload tests pass | handlers install stale pending state | `TestConfigTxApplyWithoutVerifyIsRefused` per plugin (or once for the helper) | unvalidated |
 | A-2 | A verify that carries no section for the plugin's root means "unchanged" | `irrConfigTx.verify` comment | a removal could read as no change | unit test: verify with the root absent, then apply, leaves state; a `.ci` that deletes the whole subtree | unvalidated |
 | A-3 | Filter RPC handlers read their state through one atomic load per call, so an apply swap is seen whole | `filter_*` use `atomic.Pointer` `Store`/`Load` | a filter call mid-swap sees mixed state | `filter_modify` and `filter_path_asn` move to one snapshot (R-3); grep each handler's loads | unvalidated |
-| A-4 | `route_refresh`, `connected`, `kernel` declare `WantsConfig` only so they load when their root exists, and read no leaf | their `OnConfigure` is empty or absent; YANG containers are empty | dropping `WantsConfig` would change autoload | read `autoLoadForNewConfigPaths` before choosing between removing `WantsConfig` and the explicit declaration | unvalidated |
+| A-4 | `route_refresh`, `connected`, `kernel` read no leaf; their root is declared so they autoload and so the claims audit sees the root consumed | their `OnConfigure` is empty or absent; YANG containers are empty. Design review round 1 (N1): autoload matches `registry.ConfigRootsMap()` (`server/startup_autoload.go`), all three declare registry `ConfigRoots`, and the claims audit (`config/claims/claims.go` `FromConfigRoots`, doctor `checks_config_claims.go`) treats that map as the set reload sends to, mirroring `WantsConfigRoots` | dropping `WantsConfig` while keeping `ConfigRoots` makes the claims audit report a consumer reload never reaches; dropping both breaks autoload | Q6 = g2 removes the dependency: `WantsConfig` stays | resolved by Q6 |
+| A-7 | When only `class-of-service` changes, iface (with `ConfigReads: class-of-service`) is a coarse participant for that root and receives verify (full section) and apply; when `interface` also changes, iface verify receives both sections | `joinConfigReads` (`server/startup.go`); `decomposeIfaceOperations` returns no operation for a root other than `interface`; `participantsWithoutOperations` gives a participant with diffs and no operations a coarse node | a profile-only edit never reaches iface | `cos-profile-reload.ci` asserts the VLAN QoS map of an interface using the edited profile changes, red with iface's `ConfigReads` removed | unvalidated |
+| A-8 | `OnConfigCommitted` is delivered to every participant that applied, after the transaction commits, and never after a rollback | `sdk_callbacks.go` `OnConfigCommitted` doc; `config_tx_gate.go` `committed` | role's learned-role prune runs on a rolled-back transaction or never | role unit test over the gate: apply then rollback leaves `filterRemoteRoles` intact; apply then commit prunes | unvalidated |
+| A-9 | In-process, the reactor's `SetConfigTree` → `recordASNotation` is the AS-notation writer on reload, and the reactor's own rollback re-records the previous tree's notation | `reactor_api.go` `SetConfigTree` | rollback leaves the candidate's notation in the process global | read the reactor rollback path at implementation; unit test: rollback of a notation change restores the previous notation in-process and external | unvalidated |
 | A-5 | The OPEN spec's extractor lands before Phase 4 | its Status is design, Q1 answered | Phase 4 waits; Phases 1 to 3 and 5 do not depend on it except rows 14 to 17 and 31 | check `git log` for `DeclareCapabilitiesFrom` before Phase 4 | unvalidated |
 | A-6 | `ze signal restart` is the restart command an operator uses | six guide pages name it | the refusal's next step is wrong | grep `cmd/ze/signal` for the verb at implementation | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Phase 5 refuses every bgp edit on a config loading any plugin not yet migrated, turning many `test/reload/*.ci` red | `./le test functional reload` red after Phase 5 | Phase 5 runs last; a pre-Phase-5 check lists every SDK plugin that declares `WantsConfig` and registers no apply handler, and it must be empty |
+| R-1 | Phase 5 refuses every bgp edit on a config loading any plugin not yet migrated, turning many `test/reload/*.ci` red | `./le test functional reload` red after Phase 5 | Phase 5 runs last; a pre-Phase-5 check lists every SDK plugin that declares `WantsConfig` and registers no apply handler, over `internal/`, `cmd/`, `pkg/` AND `internal/test/fixture`, `internal/test/plugins` (rows 32 to 37), and it must be empty |
 | R-2 | Shared roots: a `service` edit restarts dhcp/tftp/image listeners, or a `bgp` peer edit rebuilds every filter, when the plugin's own subtree did not change | log line "applied" on an unrelated edit; dropped DHCP leases | apply compares the parsed candidate with the current one and does nothing when equal (and drops the previous undo set, per `OnConfigApply` contract) |
 | R-3 | `filter_modify` (two stores) and `filter_path_asn` (lists then counts) tear during a swap | a filter call reading new defs with old base | each moves its fields into one snapshot struct behind one atomic pointer |
 | R-4 | role's `OnValidateOpen` closure reads reassigned captured variables: re-running would race | `-race` in role reload unit test | role state moves into one atomic snapshot read by both the filters and `OnValidateOpen` |
 | R-5 | rib changes selection rules without reselecting stored routes, so old prefixes keep the old multipath set or blackhole stamping | `show` of an untouched prefix after a `maximum-paths` edit | apply runs a reselect walk over stored routes when `maximum-paths`, `relax-as-path` or blackhole rules changed, modeled on `reselectAIGPRoutes`; the walk re-publishes when the route type changes even if the winner did not |
 | R-6 | rib `maximum-paths` removal keeps the old value (stored only when > 0) | removal `.ci` | absent leaf stores the YANG default 1 (`ze-bgp-conf.yang`) |
 | R-7 | watchdog swap loses announce state: an entry removed from a pool stays announced, or a kept entry is announced twice | `.ci` that removes an announced entry | apply merges: unchanged entries keep state, removed announced entries are withdrawn through the existing withdraw path |
-| R-8 | healthcheck: a probe stopped by reconcile leaves its route announced | `.ci` that removes a probe whose route is up | verify that `runProbe` cancel withdraws; if not, apply withdraws before deleting |
+| R-8 | healthcheck: a stopped probe leaves its route announced, or the apply stalls or deadlocks. Read 2026-10-14 (design review round 1, I6): `applyConfig` (`healthcheck.go`) holds `m.mu` and blocks on `<-rp.done` after `rp.cancel()`; the probe's `ctx.Done()` branch runs `handleExit`, which dispatches `request bgp watchdog withdraw` through `DispatchCommandArgs` with its own 5 s timeout, to watchdog, which is another participant of the same transaction. Coarse participants apply in name order (`participantsWithoutOperations` sorts), so healthcheck's apply runs and is awaited before watchdog's. `runProbe` never takes `m.mu`, so the lock itself is not the deadlock; the hazard is that healthcheck's apply reply waits on a cross-plugin command round trip issued from inside the transaction, so it stalls up to 5 s per stopped probe and, if the round trip cannot complete during an open apply, ends in the timeout with the route left announced | apply does NOT wait for stopped probes: under `m.mu` it swaps the probe set and starts new probes, releases `m.mu`, cancels the stopped probes and returns; each stopped probe's `handleExit` withdraws asynchronously. The withdraw is order-independent against watchdog's apply in the same transaction: if watchdog's apply removed the pool, watchdog's R-7 merge already withdrew the announced entry and the late command fails with "unknown group", logged at debug; if the pool stays, the entry ends withdrawn whichever lands first because R-7 keeps per-entry announce state. Rollback restarts the previous probes, with a fresh FSM (`newFSM`): rise/fall progress is not restored (N2), so AC-4 claims the previous probe SET, not the previous probe state. Tests: `TestHealthcheckApplyDoesNotWaitForProbeExit` (dispatch stub that blocks; apply returns), `bgp-healthcheck-probe-reload.ci` with probe and watchdog pool removed in one commit |
 | R-9 | routingtable: `static` verifies against `routingtable.GetRegistry()` at its own verify, before routingtable applies, so one transaction that adds a table and a route in it is refused | `.ci` adding both in one commit | record and test the behavior; if refused, static's verify must read the candidate tables (new journal row if out of reach) |
-| R-10 | cos: a profile edit changes the registry but interfaces already programmed keep old maps | `cos-*` `.ci` after reload | Q2 |
+| R-10 | cos: a profile-only edit never reaches iface (iface does not read `class-of-service`, and `decomposeIfaceOperations` sees no interface diff), so programmed interfaces keep old maps; and because cos verify already rewrote the registry, the active and candidate interface trees resolve to the same maps | `cos-profile-reload.ci` | Q2 as decided below; A-7 |
+| R-14 | role: the learned-role prune in `setFilterState` deletes runtime state learned from OPENs; run from apply, a rollback cannot restore it (it is not in the config snapshot) and a peer that stays up never re-sends its OPEN | role unit test: apply removing a peer, then rollback, then `getFilterConfig` for that peer | apply installs only the config snapshot (configs, name map, `strict`, `export`); the prune of `filterRemoteRoles` for peers the committed config no longer names moves to `OnConfigCommitted` (A-8). Stage-2 `OnConfigure` keeps pruning at once (no transaction) |
+| R-15 | cos verify mutates the running daemon: `verifyCoSConfig` clears and refills `coreCos` on every `VerifyPluginConfig`, including CLI `validate` and a commit another plugin refuses, so the RADIUS Filter-Id path (`dynamicHandler`) and `show` read profiles that never committed | unit test: verify a candidate dropping a profile, then `coreCos.Lookup` | B1 fix, Q2: verify parses into a candidate and touches no global |
+| R-16 | rib AS notation has two writers in one process (reactor `recordASNotation`, rib `asn.ConfigureFromBGP`): a rib-only rollback restores a value the reactor then overwrites, or the reverse | rollback unit test in-process and external | rib apply writes the notation only when rib runs external (its own process has no reactor writer); in-process the reactor is the one writer and owns its rollback (A-9) |
 | R-11 | dhcpserver restart drops every lease on any dhcp change | lease table empty after reload | Q3 |
-| R-12 | The SDK refusal fires for test fixtures (`fakeddos`) and external Go plugins built on the SDK | red plugin tests | fakeddos gets a handler; the SDK change is noted in `docs/plugin-development/handlers.md` as a breaking change for external authors |
-| R-13 | Apply failure midway leaves partial state (healthcheck, dhcp) | apply returns error | handler undoes its own partial work before returning, per the `OnConfigApply` contract |
+| R-12 | The SDK refusal fires for test fixtures (`fakeddos`, rows 33 to 37) and external Go plugins built on the SDK | red plugin tests | fakeddos gets a handler; rows 33 to 37 each register the explicit "applies nothing" declaration (they read no leaf) or a handler where their test asserts reload behavior; the SDK change is noted in `docs/plugin-development/handlers.md` as a breaking change for external authors |
+| R-13 | Apply failure midway leaves partial state (healthcheck, dhcp) | apply returns error | handler undoes its own partial work before returning, per the `OnConfigApply` contract. A rollback that itself fails answers `CodeBroken`, and the orchestrator restarts that plugin (`handleRollbackAck`, `orchestrator.go`: "plugin broken during rollback, restarting"); the restarted plugin reads the committed config at Stage 2. This spec relies on that path and adds no second recovery (N2) |
 
 ## Blast Radius
 
@@ -251,24 +302,29 @@ and is outside the population. The investigation's note that `rs` declared no
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | For each live-apply plugin (rows 1 to 13, 20 to 26): a reload that changes one of its leaves | The commit succeeds and the plugin's behavior after the reload reflects the new value (route accepted/rejected, attribute set, probe running, listener range) |
+| AC-1 | For each live-apply plugin (rows 1 to 13, 20 to 26): a reload that changes one of its leaves | The commit succeeds and the plugin's behavior after the reload reflects the new value. For the filter and policy plugins (rows 1 to 9, role `export`) that means the UPDATEs received or sent AFTER the reload: a route received after it is accepted or rejected under the new definition, an UPDATE sent after it carries the new attribute. Routes stored or advertised before the reload are NOT re-evaluated by this spec (boundary "stored routes": import re-evaluation is `spec-bgp-filtered-route-storage` AC-3, export re-advertisement is `spec-bgp-export-policy-reload-readvertise`). For the others: probe running, listener range, profile map programmed |
 | AC-2 | Same plugins: a reload that removes the plugin's whole subtree or a leaf | The plugin returns to the "unconfigured" or YANG-default behavior (rib `maximum-paths` back to 1) |
 | AC-3 | Same plugins: a reload whose candidate the plugin's parser refuses | The commit is refused at verify with the plugin's parse error, and the plugin keeps its running config |
-| AC-4 | Same plugins: a transaction another participant fails after this plugin applied | Rollback restores this plugin's previous behavior |
+| AC-4 | Same plugins: a transaction another participant fails after this plugin applied | Rollback restores this plugin's previous configuration: the previous parsed snapshot is reinstalled (filters, rib rules, cos profiles, role config), the previous probe set and listeners run again. Runtime state is not claimed restored: a restarted healthcheck probe starts with a fresh FSM, and a role learned-role prune never ran (it waits for commit, R-14). A rollback that fails answers `CodeBroken` and the plugin is restarted by the orchestrator (R-13) |
 | AC-5 | Shared root: a reload that changes `bgp` or `service` outside the plugin's subtree | The plugin's state is unchanged and it performs no restart (no listener restart, no lease loss, no probe restart) |
 | AC-6 | rib: `maximum-paths` or `relax-as-path` or a blackhole honoring rule changed | Already-stored prefixes are reselected under the new rule without waiting for a new UPDATE |
-| AC-7 | role: `strict` or `export` changed | Egress filtering uses the new export set at once; `strict` applies to the next OPEN; a role value change is refused by the OPEN spec, not here |
+| AC-7 | role: `strict` or `export` changed | Egress filtering uses the new export set for every UPDATE sent after the reload (no re-advertisement of routes already sent, boundary "stored routes"); `strict` applies to the next OPEN; a role value change is refused by the OPEN spec, not here |
 | AC-8 | exabgp bridge: any change under `exabgp` while the bridge runs, other than a capability leaf | Verify refuses with a message naming the leaf path, saying the bridge cannot change it while running, and the next step `ze signal restart` on its own line |
 | AC-9 | Each leaf decided "refuse" in the decision table | The refusal follows AC-8's format and the daemon keeps its running config |
 | AC-10 | Phase 5: a participant SDK plugin that registered no apply handler and no explicit "applies nothing" declaration | The SDK refuses at config-verify, naming the plugin and the changed root, with the next step `ze signal restart`; no participant applies |
-| AC-11 | Phase 5: plugins that read no config (rows 18, 29, 30) or only capabilities (rows 14 to 17, 31) | Reloads that touch their root are accepted; their explicit declaration is the reason, and a debug log line names it |
+| AC-11 | Phase 5: plugins that read no config (rows 18, 29, 30, and fixture rows 33 to 37 that read no leaf) or only capabilities (rows 14 to 17, 31) | Reloads that touch their root are accepted; their explicit declaration is the reason, and a debug log line names it |
 | AC-12 | Phase 5: the SDK default apply | No code path answers `config-apply` OK without calling a registered handler |
+| AC-13 | cos: any `VerifyPluginConfig` call (CLI `validate`, editor validation, a commit another participant refuses) over a candidate that edits or drops a profile | The installed `coreCos` profiles are unchanged afterwards; they change only at cos apply and return to the previous set at cos rollback |
+| AC-14 | cos: a reload that edits only a profile an interface unit uses | The commit succeeds and that unit's VLAN ingress and egress QoS maps carry the new profile's values after the reload; a unit using another profile is not reprogrammed |
+| AC-15 | cos: a reload that removes a profile an interface still references | Refused at verify by iface with "class-of-service profile %q not found", resolved against the candidate profiles; the running profiles and interfaces are unchanged |
+| AC-16 | healthcheck: one reload that removes a probe whose route is announced and, or not, its watchdog pool | The commit succeeds without waiting on the probe's exit; the route is withdrawn; no apply stalls for the 5 s dispatch timeout |
+| AC-17 | role: a reload that removes a peer, then a rollback of that transaction | The peer's learned remote role is still present; after a committed removal it is gone |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Edits a prefix-list and reloads; the peer's route is now rejected | SIGHUP → reload diff → verify filter_prefix → apply → filter RPC reads new lists | `test/reload/bgp-filter-prefix-definition-reload.ci` |
+| 1 | Edits a prefix-list and reloads; the next UPDATE the peer sends for a prefix the new list rejects is rejected (a route stored before the reload stays until the peer re-sends it, or until `spec-bgp-filtered-route-storage` re-imports it) | SIGHUP → reload diff → verify filter_prefix → apply → filter RPC reads new lists for the next UPDATE | `test/reload/bgp-filter-prefix-definition-reload.ci` |
 | 2 | Changes a community tag on a peer and reloads | same path, filter_community | `test/reload/bgp-filter-community-reload.ci` |
 | 3 | Raises `maximum-paths` and reloads | rib apply + reselect | `test/reload/bgp-rib-maximum-paths-reload.ci` |
 | 4 | Edits an exabgp bridge script and reloads | verify refusal | `test/reload/exabgp-bridge-run-reload-refused.ci` |
@@ -285,33 +341,38 @@ Every leaf of rows 1 to 13 and 20 to 26 is applied live; refusals are listed exp
 | 5 | filter_family | apply live | its existing verify handler becomes the parsing verify |
 | 6 | filter_modify | apply live | one snapshot holding absent base and defs (R-3) |
 | 7 | filter_path_asn | apply live | one snapshot holding lists and attachment counts (R-3) |
-| 10 | healthcheck | apply live | verify runs `parseConfig` + `validateConfig`; apply calls the existing reconcile `applyConfig`; rollback reconciles to the previous probe set (R-8) |
+| 10 | healthcheck | apply live | verify runs `parseConfig` + `validateConfig`; apply reconciles without waiting on stopped probes (swap under `m.mu`, cancel after release, withdraw asynchronous and order-independent against watchdog, R-8); rollback reconciles to the previous probe set with fresh FSMs |
 | 11 | watchdog | apply live | merge preserving announce state; removed announced entries withdrawn (R-7) |
-| 12 | rib | apply live: `maximum-paths`, `relax-as-path`, blackhole rules, AS notation | absent `maximum-paths` stores 1 (R-6); reselect walk on a selection-rule change (R-5); AS notation through `asn.ConfigureFromBGP` with the previous kept for rollback |
-| 13 | role | apply live: `strict`, `export`, name map. Role value: OPEN spec | one atomic snapshot for filters and `OnValidateOpen` (R-4); `strict` takes effect at the next OPEN |
-| 14 to 17 | gr, hostname, llnh, softver | capability-only: explicit "applies nothing beyond its capability declaration" | Phase 4, after the OPEN spec (A-5); llnh keeps its own verify refusal |
-| 18 | route_refresh | reads no config | explicit declaration, or drop `WantsConfig` per A-4 |
+| 12 | rib | apply live: `maximum-paths`, `relax-as-path`, blackhole rules, AS notation | absent `maximum-paths` stores 1 (R-6); reselect walk on a selection-rule change (R-5); AS notation: written by rib apply (previous kept for rollback) only when rib runs external; in-process the reactor's `recordASNotation` is the single writer (R-16, A-9) |
+| 13 | role | apply live: `strict`, `export`, name map. Role value: OPEN spec | one atomic snapshot for filters and `OnValidateOpen` (R-4); `strict` takes effect at the next OPEN; learned-role prune moves to `OnConfigCommitted` (R-14) |
+| 14 to 17 | gr, hostname, llnh, softver | capability-only: explicit "applies nothing beyond its capability declaration" | Phase 4, after the OPEN spec (A-5); llnh and gr keep their own verify refusals (`refuseUncarriedGRSections` for gr), which answer before the OPEN spec's comparison |
+| 18 | route_refresh | reads no config | keep `WantsConfig`, register the explicit "applies nothing" declaration (Q6 = g2) |
 | 19, 28 | adj_rib_in, flowspec-firewall | not participants | no change; AC-10 test asserts they are never refused |
-| 20 | cos | apply live per Q2 | registry gains a replace-all so deleted profiles disappear |
+| 20 | cos | apply live per Q2 | one verify function (`InProcessConfigVerifier` and `OnConfigVerify`) parses into a candidate profile map and touches no global; apply installs it with one `coreCos` replace (atomic, replacing the `Clear` + `Register` loop, which is deleted, `ai/rules/no-layering.md`) and keeps the previous; rollback replaces back. iface resolves units against the candidate profiles it is handed (Q2) |
 | 21 | routingtable | apply live | `SetRegistry` with the previous kept for rollback; R-9 tested |
 | 22, 23 | as112, geodns | apply live | the existing configure path, run from apply only when the parsed candidate differs (R-2); `reloadTotal` now counts real reloads |
 | 24 | dhcpserver | apply live per Q3 | restart only when the dhcp subtree changed (R-2) |
 | 25, 26 | tftpserver, imageserver | apply live | restart only when their subtree changed; an in-flight transfer is cut on change, documented |
 | 27 | exabgp bridgeplugin | refuse at verify every non-capability change under `exabgp` while running (Q4) | needs-restart error naming the leaf path |
-| 29, 30 | connected, kernel | read no config | explicit declaration, or drop `WantsConfig` per A-4 |
+| 29, 30 | connected, kernel | read no config | keep `WantsConfig`, explicit declaration (Q6 = g2) |
 | 31 | exabgp external `main_sdk.go` | capability-only | Phase 4 |
 | 32 | fakeddos (test fixture) | apply live | small handler so plugin tests keep working after Phase 5 |
+| 33 to 37 | SDK test fixtures declaring `WantsConfig: bgp` | read no leaf: explicit declaration; a fixture whose test drives a reload gets a handler instead | Phase 4, before Phase 5 (R-1, R-12) |
 
-## Open owner questions (each "which way")
+## Owner questions (answered)
 
-| Q | Which way | Recommendation |
-|---|-----------|----------------|
-| Q1 | Where does the SDK refuse a participant with no apply handler: (a1) at config-verify, (a2) at config-apply as the decision words it, (a3) at `Run` startup when `WantsConfig` is set and no handler is registered? | (a1): nothing applies, nothing rolls back; (a3) would also be sound but refuses a plugin that is never a participant in practice |
-| Q2 | cos profile edit with interfaces already using it: (b1) iface reads `class-of-service` (`ConfigReads`) and re-resolves on a cos change, cos ordered before iface; (b2) cos verify refuses a change to a profile an interface references ("needs restart"); (b3) apply only, interfaces pick it up at their next edit? | (b1): the edit takes effect everywhere; (b3) is silently wrong and rejected |
-| Q3 | dhcpserver lease state on a dhcp change: (d1) keep the lease table for subnets whose definition is unchanged, restart the rest; (d2) restart all and drop leases, documented; (d3) refuse at verify? | (d1) |
-| Q4 | exabgp bridge non-capability edits: (e1) refuse at verify ("needs restart"); (e2) restart the script fleet on apply? | (e1): the bridge has no live-reconfigure path today and the OPEN spec already refuses its capability half |
-| Q5 | Transaction shape: (f1) one SDK helper (parse function, install function, previous kept by the SDK) used by every plugin, with `filter_irr` and `rs` migrated to it; (f2) a hand copy of `irrConfigTx` in each of ~25 plugins? | (f1): the fact "parse in verify, swap in apply, restore in rollback" is declared once (`ai/rules/principles.md`); each plugin still owns its parse and install |
-| Q6 | Plugins that read no config (route_refresh, connected, kernel): (g1) drop `WantsConfig` if autoload does not need it; (g2) keep it and register the explicit "applies nothing" declaration? | (g1) where A-4 holds, else (g2) |
+Owner, 2026-10-14: "Do what you think is right" on every remaining question:
+the recommendations stand where they survived design review round 1. Q2 and Q6
+changed in that review.
+
+| Q | Which way | Answer |
+|---|-----------|--------|
+| Q1 | Where does the SDK refuse a participant with no apply handler: (a1) at config-verify, (a2) at config-apply as the decision words it, (a3) at `Run` startup when `WantsConfig` is set and no handler is registered? | **(a1)**, owner, 2026-10-14 (delegated recommendation). Reasoning (strengthened, N4): verify runs for every participant before any apply, so a refusal there leaves nothing applied and no rollback owed, while (a2) would refuse after earlier participants applied and lean on rollback for every one of them, including the ones whose rollback restores only configuration (AC-4). (a3) refuses at startup a plugin that may never be a participant (its root absent from the config), which turns a reload defect into a boot failure for configs that never reload it. (a1) also names the changed root, which (a3) cannot know |
+| Q2 | cos profile edit with interfaces already using it: (b1) iface re-resolves on a cos change; (b2) cos verify refuses a change to a referenced profile ("needs restart"); (b3) apply only, interfaces pick it up at their next edit? | **(b1), redesigned: iface resolves against the candidate profiles; no cos-before-iface ordering.** Decided by the main thread under the owner's delegation, 2026-10-14. The draft's "cos ordered before iface at apply" had no mechanism: coarse nodes apply after the interface operations (`placeSectionNodes`) and in name order. The design: (1) cos's one verify function parses into a candidate map and writes no global (B1, AC-13); (2) the cos plugin registers its pure profile parser into `internal/core/cos` beside its existing `RegisterResolver`, and the resolver takes the profile set to resolve against, so iface still imports no plugin; (3) iface declares `ConfigReads: class-of-service`; its one parse function (used by its `InProcessConfigVerifier`, its `OnConfigVerify` and `decomposeIfaceOperations`) resolves units against the profiles parsed from the delivered `class-of-service` section, and when none is delivered against the installed registry on the daemon path (root unchanged, so installed is the committed truth) and against no profiles on the in-process path (whole tree, so absence is absence); (4) `decomposeIfaceOperations` resolves the active tree against the installed profiles and the candidate against the candidate's, so a unit whose maps changed becomes an operation; a profile-only edit reaches iface as a coarse participant through `ConfigReads` (A-7) and its section apply installs the verified `pendingCfg`; (5) cos apply installs the candidate into `coreCos` for the runtime readers (`show`, the RADIUS Filter-Id `dynamicHandler`), rollback restores. Nothing reads the registry during apply to compute an interface map, so apply order stops mattering, and the "load-bearing ordering" in `cos-plugin.md` is deleted rather than kept. (b2) was rejected: it refuses a change the system can apply; (b3) is silently wrong |
+| Q3 | dhcpserver lease state on a dhcp change: (d1) keep the lease table for subnets whose definition is unchanged, restart the rest; (d2) restart all and drop leases, documented; (d3) refuse at verify? | **(d1)**, owner, 2026-10-14 |
+| Q4 | exabgp bridge non-capability edits: (e1) refuse at verify ("needs restart"); (e2) restart the script fleet on apply? | **(e1)**, owner, 2026-10-14: the bridge has no live-reconfigure path today and the OPEN spec already refuses its capability half |
+| Q5 | Transaction shape: (f1) one SDK helper (parse function, install function, previous kept by the SDK) used by every plugin, with `filter_irr` and `rs` migrated to it; (f2) a hand copy of `irrConfigTx` in each of ~25 plugins? | **(f1)**, owner, 2026-10-14: one SDK helper (parse, install, restore); `filter_irr` and `rs` migrate to it with identical behavior |
+| Q6 | Plugins that read no config (route_refresh, connected, kernel): (g1) drop `WantsConfig`; (g2) keep it and register the explicit "applies nothing" declaration? | **(g2)**. Decided by the main thread under the owner's delegation, 2026-10-14. Autoload matches registry `ConfigRoots`, which all three declare, and the claims audit (`config/claims`, doctor `checks_config_claims.go`) reads that map as the set reload sends to. Dropping `WantsConfig` while keeping `ConfigRoots` makes the audit report a consumer that reload never reaches; dropping both stops autoload. The explicit declaration states the truth, "this plugin consumes the root and applies nothing", in one place |
 
 ## 🧪 TDD Test Plan
 
@@ -327,6 +388,12 @@ Every leaf of rows 1 to 13 and 20 to 26 is applied live; refusals are listed exp
 | `TestRoleSnapshotSwapRace` (`-race`) | `bgp/plugins/role/config_tx_test.go` | R-4 | |
 | `TestWatchdogApplyKeepsAnnounceState`, `TestWatchdogApplyWithdrawsRemoved` | `bgp/plugins/watchdog/config_tx_test.go` | R-7 | |
 | `TestBridgeVerifyRefusesRunningChange` | `plugins/exabgp/bridgeplugin/config_tx_test.go` | AC-8 message text | |
+| `TestCoSVerifyLeavesRegistryUntouched`, `TestCoSApplyReplacesAndRollbackRestores` | `plugins/cos/config_tx_test.go` | AC-13, R-15 | |
+| `TestIfaceResolvesAgainstCandidateProfiles`, `TestIfaceDecomposeSeesProfileOnlyChange` | `component/iface/config_test.go`, `operation_test.go` | AC-14, AC-15, Q2 points 3 and 4 | |
+| `TestHealthcheckApplyDoesNotWaitForProbeExit` | `bgp/plugins/healthcheck/config_tx_test.go` | AC-16, R-8 (blocking dispatch stub) | |
+| `TestRoleRollbackKeepsLearnedRoles`, `TestRoleCommitPrunesLearnedRoles` | `bgp/plugins/role/config_tx_test.go` | AC-17, R-14, A-8 | |
+| `TestRIBASNotationSingleWriter` | `bgp/plugins/rib/config_tx_test.go` | R-16, A-9 | |
+| `TestOneVerifierPerPlugin` | each plugin with an `InProcessConfigVerifier` | I2: the function registered as `OnConfigVerify` is the `InProcessConfigVerifier` | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -345,6 +412,7 @@ Each `.ci` rewrites the config, sends SIGHUP, and asserts the effect (or the ref
 | `bgp-watchdog-pool-reload` | `test/reload/` | pool entry removed: withdrawn | |
 | `bgp-rib-maximum-paths-reload` | `test/reload/` | multipath set changes for a stored prefix | |
 | `bgp-role-export-reload` | `test/reload/` | export edit changes egress | |
+| `bgp-filter-export-reload-next-update-only` | `test/reload/` | an egress tag edit reaches the next UPDATE sent; a route sent before the reload is not re-sent (states the boundary, so a later re-advertisement spec flips it deliberately) | |
 | `cos-profile-reload`, `routing-table-reload`, `as112-reload`, `geodns-reload`, `dhcpserver-range-reload`, `dhcpserver-unrelated-service-edit-keeps-leases`, `tftpserver-reload`, `imageserver-reload` | `test/reload/` | edit takes effect; unrelated edit does nothing | |
 | `exabgp-bridge-run-reload-refused` | `test/reload/` | AC-8 refusal text | |
 | `plugin-without-apply-refused` | `test/reload/` | AC-10 refusal, via a fixture plugin with no handler | |
@@ -356,11 +424,14 @@ N-A: no wire format or protocol behavior changes; the effects are exercised by t
 ## Files to Modify
 - `pkg/plugin/sdk/sdk_callbacks.go` - Phase 5: delete the nil-handler apply; refusal per Q1; explicit "applies nothing" declaration; Q5 helper if chosen
 - `internal/component/bgp/plugins/{filter_aspath,filter_aspath_length,filter_community,filter_community_match,filter_family,filter_modify,filter_path_asn,filter_prefix,filter_remove_private_as,healthcheck,watchdog,rib,role,gr,hostname,llnh,softver,route_refresh}/*.go` - handler registration and parse/install split
-- `internal/component/bgp/plugins/filter_irr/config_tx.go`, `internal/component/bgp/plugins/rs/server.go` - only under Q5 f1
-- `internal/plugins/{cos,routingtable,as112,geodns,dhcpserver,tftpserver,imageserver,exabgp/bridgeplugin,connected,kernel}/*.go`, `internal/plugins/exabgp/main_sdk.go`
-- `internal/core/cos/cos.go` - replace-all for profiles
-- `internal/component/iface/` - only under Q2 b1 (`ConfigReads` of `class-of-service`)
-- `internal/test/plugins/fakeddos/register.go`
+- `internal/component/bgp/plugins/filter_irr/config_tx.go`, `internal/component/bgp/plugins/rs/server.go` - migrated to the Q5 helper
+- `internal/plugins/{cos,routingtable,as112,geodns,dhcpserver,tftpserver,imageserver,exabgp/bridgeplugin,connected,kernel}/*.go`, `internal/plugins/exabgp/main_sdk.go`; cos `register.go` and `config.go`: side-effect-free verify, apply, rollback (B1)
+- `internal/core/cos/cos.go` - one atomic replace for the installed profiles (`Clear` and the per-profile `Register` loop deleted if no other caller remains), the registered profile parser, and a resolver that takes the profile set (Q2)
+- `internal/component/iface/register.go` (`ConfigReads: class-of-service`), `config.go` (`parseUnits` resolves against a passed profile set), `operation.go` (`decomposeIfaceOperations` resolves each side against its own profiles)
+- `internal/component/bgp/plugins/healthcheck/healthcheck.go` - `applyConfig` stops waiting on `<-rp.done` under `m.mu` (R-8)
+- `internal/component/bgp/plugins/role/role.go` - learned-role prune moved to `OnConfigCommitted` (R-14)
+- `internal/test/plugins/fakeddos/register.go`; `internal/test/fixture/{plugin_fixture_04_cli,plugin_fixture_05,plugin_fixture_06,misc_fixture_observers,register_storage_history}.go` (rows 33 to 37)
+- `plan/journal/check-mode-mutates-the-tree.md` - the 2026-10-14 cos row marked FIXED in commit A
 - Docs listed in the checklist below
 
 ## Files to Create
@@ -410,7 +481,11 @@ Design documents declared by the `// Design:` headers of files this spec changes
 |----------|-----------|------|
 | `docs/architecture/api/process-protocol.md` | Yes, Phase 5 | the `config-apply` callback row (line ~757) and the config-apply section gain the answer for a plugin with no handler (refused, per Q1) |
 | `docs/architecture/bgp/filter-irr.md` | Only under Q5 f1 | names the SDK helper as the home of the transaction shape; behavior unchanged |
-| `docs/architecture/traffic/cos-plugin.md` | Yes, Phase 3 | states reload behavior of profiles per the Q2 answer; it says nothing about reload today |
+| `docs/architecture/traffic/cos-plugin.md` | Yes, Phase 3 | states reload behavior of profiles per the Q2 answer (it says nothing about reload today), and the "Consequences" bullet that cos's verifier MUST run before the interface verifier by `registry.All()` order is replaced: iface resolves against the candidate profiles, so no ordering is load-bearing |
+| `docs/architecture/bgp/healthcheck-plugin.md` | Yes, Phase 2 | "Disable is a config reload" is true only once healthcheck has an apply handler; the page gains how a reload stops a probe (asynchronous withdraw, fresh FSM on rollback, R-8) |
+| `docs/features/interfaces.md` | Checked at Phase 3 | the class-of-service row stays "have"; a reload note is added only if the page describes profile resolution timing |
+| `docs/architecture/core-design.md` | Checked at Phase 5 | its ConfigProvider and plugin-loading bullets describe reload delivery, not the apply default; edited only if a sentence states that a plugin with no handler accepts a reload |
+| `docs/guide/config-reload.md` | Yes, each phase | the "Plugin config changed" row states per plugin: applied, refused (leaf in "What Requires Restart"), and that filter and policy edits apply to UPDATEs after the reload without re-evaluating stored or advertised routes |
 
 Documents that only `<!-- source: -->` mention a changed file (advisory, from `./le spec citation anchors`, 2026-10-14):
 
@@ -430,7 +505,7 @@ Documents that only `<!-- source: -->` mention a changed file (advisory, from `.
 1. **Phase 1: Wiring** - the SDK helper (Q5) or the first hand copy, plus `bgp-filter-prefix-definition-reload.ci` red
 2. **Phase 2: replace-style bgp plugins** - rows 1 to 9 (filter_community with the D5 coordination), then 10 and 11
 3. **Phase 3: rib, role, system plugins** - rows 12, 13, 20 to 27, 32, with Q2, Q3, Q4 answers
-4. **Phase 4: capability-only and no-config plugins** - rows 14 to 18, 29 to 31; capability rows after A-5 holds
+4. **Phase 4: capability-only and no-config plugins** - rows 14 to 18, 29 to 31, and fixture rows 33 to 37; capability rows after A-5 holds
 5. **Phase 5: SDK refusal** - delete the nil default; refusal per Q1; pre-check that no participant SDK plugin lacks a handler (R-1)
 6. **Phase 6: docs** - each phase edits its pages as it lands; Phase 6 is only the plugin-relationships table re-derivation and the journal row closures
 
@@ -477,9 +552,21 @@ Documents that only `<!-- source: -->` mention a changed file (advisory, from `.
 | Per-plugin handlers first, SDK refusal last | SDK default re-runs `OnConfigure` (investigation option b) | b is silently wrong for capability plugins, rib removal, role (race) and the bridge; owner chose c then a |
 | Refuse at verify | refuse at apply | nothing applied, no rollback; Q1 confirms |
 | No-op apply when own subtree unchanged | apply always | shared roots would restart services on unrelated edits |
+| One verify function per plugin, side-effect free, registered as both `InProcessConfigVerifier` and `OnConfigVerify` | a reload-only verify beside the static one | two verifiers drift; the cos one already mutated the daemon (B1) |
+| iface resolves profiles from the candidate it is handed | order cos apply before iface apply | no ordering mechanism exists at apply, and an order would be a second load-bearing fact nothing enforces |
+| healthcheck apply never waits on a cross-plugin dispatch | wait for probe exit under the lock | the withdraw is a command round trip to another participant of the same transaction |
+| Filter edits apply to subsequent UPDATEs only | re-evaluate stored routes here | import re-evaluation is owned by `spec-bgp-filtered-route-storage`; export re-advertisement by `spec-bgp-export-policy-reload-readvertise` |
 
 ## Known Limitations
 - Capability leaves are the BGP OPEN spec's; this spec does not make them reloadable
+- A filter or policy reload re-evaluates no stored route and re-advertises nothing: imports wait for `spec-bgp-filtered-route-storage` AC-3, exports for `spec-bgp-export-policy-reload-readvertise`; the reload page says so
+
+## History
+
+| Date | Round | What changed |
+|------|-------|--------------|
+| 2026-10-14 | draft | committed `bb51f2d519` |
+| 2026-10-14 | design review round 1 | B1 cos verifier mutates the live registry: cos row, R-10, R-15, Q2 redesigned (candidate profiles, no ordering), AC-13 to AC-15, journal row added and closed here. I1 fixture rows 33 to 37, R-1 scan widened. I2 one verifier per plugin. I3 verify order aligned with the OPEN spec (own handler first). I4 boundary "stored routes", AC-1, AC-7 and user story 1 reworded, export owner skeleton `spec-bgp-export-policy-reload-readvertise` created. I5 role prune to `OnConfigCommitted` (R-14, AC-17, A-8). I6 healthcheck apply/dispatch analysis (R-8, AC-16). N1 Q6 = g2 (A-4 resolved). N2 rollback failure `CodeBroken` restart relied on (R-13, AC-4). N3 gr's own verify; rib AS notation two writers (R-16, A-9). N4 Q1 reasoning. Owner answers recorded: Q1 a1, Q3 d1, Q4 e1, Q5 f1; Q2 and Q6 decided by the main thread under the owner's delegation, 2026-10-14 |
 
 ## Checklist
 
