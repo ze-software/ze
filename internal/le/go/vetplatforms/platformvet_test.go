@@ -123,7 +123,6 @@ func TestBothPlansUseTheExactCommandAndDistinctGOOS(t *testing.T) {
 			"GOCACHE":             filepath.Join(root, "cache", "go-cache"),
 			"GOLANGCI_LINT_CACHE": filepath.Join(root, "tmp", "golangci-lint-cache"),
 			"CGO_ENABLED":         "0",
-			"GOTOOLCHAIN":         "go1.26.6",
 			"GOOS":                test.goos,
 			"GOARCH":              "arm64",
 			"GOMAXPROCS":          "91",
@@ -132,6 +131,10 @@ func TestBothPlansUseTheExactCommandAndDistinctGOOS(t *testing.T) {
 			if got, found := platformVetEnvValue(plan.Environment, key); !found || got != want {
 				t.Errorf("Plan(%s) %s = %q (present=%v), want %q", test.goos, key, got, found, want)
 			}
+		}
+		// The toolchain is the process's (stdpatch.Activate): the plan pins none.
+		if got, _ := platformVetEnvValue(plan.Environment, "GOTOOLCHAIN"); got == "go1.26.6" {
+			t.Errorf("Plan(%s) pins GOTOOLCHAIN=%s; the toolchain is the process's", test.goos, got)
 		}
 	}
 }

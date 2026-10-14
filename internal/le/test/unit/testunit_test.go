@@ -440,7 +440,6 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 				"GOCACHE=" + filepath.Join(tc.Root, "cache", "go-cache"),
 				"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "tmp", "golangci-lint-cache"),
 				"CGO_ENABLED=1",
-				"GOTOOLCHAIN=go1.26.6",
 				"GOMAXPROCS=8",
 			}
 			if group.GOOS != "" {
@@ -450,7 +449,6 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 					"GOCACHE=" + filepath.Join(tc.Root, "cache", "go-cache"),
 					"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "tmp", "golangci-lint-cache"),
 					"CGO_ENABLED=0",
-					"GOTOOLCHAIN=go1.26.6",
 					"GOMAXPROCS=8",
 					"GOOS=" + group.GOOS,
 				}
@@ -491,6 +489,11 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 			}
 			if len(gotEnvironment) < len(wantEnvironment) {
 				t.Fatalf("environment has %d entries, want at least %d", len(gotEnvironment), len(wantEnvironment))
+			}
+			// The toolchain is the process's (stdpatch.Activate), so the action
+			// pins no GOTOOLCHAIN of its own.
+			if slices.Contains(gotEnvironment, "GOTOOLCHAIN="+tc.GoToolchain) {
+				t.Errorf("environment pins GOTOOLCHAIN=%s; the toolchain is the process's", tc.GoToolchain)
 			}
 			gotOverrides := gotEnvironment[len(gotEnvironment)-len(wantEnvironment):]
 			if !reflect.DeepEqual(gotOverrides, wantEnvironment) {

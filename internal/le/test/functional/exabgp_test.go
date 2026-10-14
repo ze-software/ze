@@ -92,8 +92,9 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 	if environment["CGO_ENABLED"] != "0" {
 		t.Fatalf("CGO_ENABLED = %q, want 0", environment["CGO_ENABLED"])
 	}
-	if environment["GOTOOLCHAIN"] != "go1.26.6" {
-		t.Fatalf("GOTOOLCHAIN = %q, want go1.26.6", environment["GOTOOLCHAIN"])
+	// The toolchain is the process's (stdpatch.Activate): the run pins none.
+	if environment["GOTOOLCHAIN"] == "go1.26.6" {
+		t.Fatalf("GOTOOLCHAIN = %q, pinned; the toolchain is the process's", environment["GOTOOLCHAIN"])
 	}
 	if environment["LE_TEST_NO_BUILD"] != "1" {
 		t.Fatalf("LE_TEST_NO_BUILD = %q, want 1", environment["LE_TEST_NO_BUILD"])
