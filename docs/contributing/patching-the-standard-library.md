@@ -8,6 +8,12 @@ without a fork of the toolchain and without a copy of the package in the tree.
 spec lands, every build uses the unmodified standard library. When it lands, this
 page is restated as a description of the built mechanism.
 
+**Open: how the patch reaches every tool.** A probe on 2026-10-14 found that
+golangci-lint, staticcheck and govulncheck cannot load a package through an
+overlay that adds a file under GOROOT (see "Tools that read source from disk").
+The spec asks the owner (its Q-5) whether to deliver the same patch as a patched
+GOROOT instead. Until he answers, this page describes the overlay.
+
 ## Why Ze needs it
 
 RFC 5216 Section 2.1.1 says: "If the peer's sessionId is null or unrecognized by
@@ -55,7 +61,7 @@ command needs the flag. The rest of this page is how Ze pays that cost once.
 |------|----------|------|
 | The patch | `internal/le/go/stdpatch/patches/<name>.patch` | A git unified diff with paths relative to GOROOT (`a/src/crypto/tls/handshake_server.go`). Its leading text names this page and quotes the requirement |
 | The generator | `internal/le/go/stdpatch` | Makes the patched copies and the overlay JSON for one GOROOT. It imports only the standard library, so it compiles before any overlay exists |
-| The output | `cache/stdpatch/<key>/` | The patched copies and `overlay.json`, keyed by a SHA-256 over the `go version`, the patch, and each original GOROOT file |
+| The output | `cache/stdpatch/<key>/` | The patched copies and `overlay.json`, keyed by a SHA-256 over the `go version`, the GOROOT path, the patch, and each original GOROOT file. The path is in the key because `overlay.json` holds absolute GOROOT paths and `cache/` is shared by every checkout |
 | The command | `./le go stdpatch overlay` | Prints the overlay path for the `go` on PATH, for gopls and plain `go` commands |
 
 The patch is stored as a diff, not as a patched copy of the file. A copy belongs
@@ -71,7 +77,9 @@ The generator does this, each time:
 3. Otherwise, copy each target file to a new directory under `cache/stdpatch/`,
    run `git apply` there with `GIT_CEILING_DIRECTORIES` set so that git does not
    find the Ze repository, write `overlay.json`, and rename the directory to the
-   key. The rename makes two sessions that race produce one result.
+   key. The rename makes two sessions that race produce one result: the session
+   that loses deletes its own directory and answers the winner's. The generator
+   needs `git` wherever it runs.
 4. When `git apply` refuses, stop with an error that names the Go version, the
    patch file, git's output, and the section "When the Go version changes". No
    caller builds without the overlay after that error.
@@ -82,7 +90,10 @@ The overlay reaches each Go command that compiles Ze from one producer:
 
 - `./le` actions take their environment from `gotoolchain`
   (`internal/le/go/toolchain`), which adds `-overlay=<path>` to `GOFLAGS`. It
-  appends to an inherited `GOFLAGS` and never replaces it.
+  appends to an inherited `GOFLAGS` and never replaces it. An inherited `GOFLAGS`
+  that already holds an `-overlay` is kept as it is, because a command reads one
+  overlay. Whoever writes another overlay merges the standard-library entries
+  into it, as `./le rfc discriminate-record` does.
 - The `./le` launcher script builds `cmd/ze` with the `ze_le` tag, and that
   binary links the EAP-TLS authenticator. The script runs the generator with
   `go run` first.
@@ -93,8 +104,10 @@ The overlay reaches each Go command that compiles Ze from one producer:
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- Toolchain.Environment -->
 <!-- source: le -- build_le -->
 
-The spec lists every site. A site that is missed cannot ship an unpatched
-binary, because of the guard below.
+The spec lists every site. A missed site cannot ship an unpatched binary that
+links the EAP-TLS authenticator (`internal/core/eap`), because of the guard
+below. A binary that does not link it builds without error and without the
+patch.
 
 ## The guard: an unpatched build does not compile
 
@@ -132,9 +145,32 @@ with the error above. To use plain commands, put the overlay in `GOFLAGS`:
 export GOFLAGS="-overlay=$(./le go stdpatch overlay)"
 ```
 
-For gopls, put the same `-overlay=<path>` in the `build.buildFlags` setting of
-your editor, or start the editor with that `GOFLAGS`. Queries that only parse,
-such as `gopls symbols`, work without it.
+gopls does not see the patch. In the probe, gopls v0.23.0 reported
+`undefined: tls.ZeServerChoosesSessionID` with the overlay in `GOFLAGS`, and
+`build.buildFlags` passes the same flag to the same package load, so it is not a
+remedy. Expect that one diagnostic at the reference. Navigation and queries
+such as `gopls symbols`, definitions and references still work.
+
+## Tools that read source from disk
+
+`go build`, `go test`, `go vet` and `go list -compiled` read the overlay. Tools
+built on `golang.org/x/tools/go/packages` ask `go list` for the file names, then
+open each file themselves. A file that the overlay adds under GOROOT does not
+exist on disk, so they stop. Probed with go1.27.2 on 2026-10-14:
+
+| Tool | Result with the overlay in `GOFLAGS` |
+|------|--------------------------------------|
+| `go vet` | passes |
+| golangci-lint 2.14.0 | `open /usr/local/go/src/crypto/tls/zz_ze_server_session_id.go: no such file or directory (typecheck)` |
+| staticcheck | the same error |
+| govulncheck | the same error, while loading packages |
+| gopls v0.23.0 | the marker is undefined |
+
+Moving the constant into the replaced file does not help: these tools read the
+unpatched copy on disk, where the constant is not defined either. A patched
+GOROOT (a directory of symlinks to the real GOROOT, with the two files changed,
+selected with `GOROOT=`) passed every tool in the list except gopls. That choice
+is the spec's open question.
 
 ## When the Go version changes
 
