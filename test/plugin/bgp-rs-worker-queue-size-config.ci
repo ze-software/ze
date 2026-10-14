@@ -1,0 +1,60 @@
+# Test: the route-server worker-queue-size YANG leaf reaches the running plugin
+# VALIDATES: bgp { route-server { worker-queue-size N } } is delivered to bgp-rs
+# at Stage 2 and parsed by its OnConfigure, which logs the size it read (the
+# "worker-queue-size from config" decision log). This proves delivery and parse
+# only: no UPDATE is sent, so no worker is built and no channel capacity is
+# observed. That the size reaches the pool is proven by
+# TestQueueSizeConfigTxAppliesAReloadedSize (rs/config_tx_test.go), and the
+# reload path by test/reload/bgp-rs-worker-queue-size-reload.ci.
+# PREVENTS: bgp-rs declaring no WantsConfig, which left the leaf parsed by
+# `ze config validate` (test/parse/bgp-rs-worker-queue-size.ci) yet never
+# delivered to the daemon's plugin, so only the env var took effect.
+
+option=env:var=ze.log.bgp.rs:value=info
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=10s
+
+# Expect EOR (empty UPDATE for ipv4/unicast) after session establishment.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rr {
+		use bgp-rs
+	}
+}
+bgp {
+	route-server {
+		worker-queue-size 8192
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65001
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+
+expect=stderr:pattern=worker-queue-size from config.*size=8192

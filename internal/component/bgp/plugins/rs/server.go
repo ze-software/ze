@@ -42,6 +42,12 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.route-server.worker-queue-size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity (overrides YANG config)"})
 )
 
+// configRootBGP is the config root that carries bgp { route-server { ... } }.
+// The plugin declares it in Registration.WantsConfig, which is what makes the
+// engine deliver it to OnConfigure at Stage 2 and to the verify/apply pair on
+// every reload that changes it.
+const configRootBGP = "bgp"
+
 // statusDone is the command response status for successful operations.
 const statusDone = "done"
 
@@ -296,7 +302,7 @@ func RunRouteServer(conn net.Conn) int {
 
 	// ze.bgp.route-server.worker-queue-size overrides the per-source-peer worker channel capacity.
 	// Default: 4096. Invalid/zero/negative values use default (guard in newWorkerPool).
-	rrChanSize := env.GetInt("ze.bgp.route-server.worker-queue-size", 4096)
+	rrChanSize := env.GetInt("ze.bgp.route-server.worker-queue-size", workerQueueSizeDefault)
 
 	// rs-fastpath-3: former async release + forward sender goroutines are gone.
 	// Workers now call p.ForwardCached / p.ReleaseCached directly; those RPCs
@@ -394,24 +400,18 @@ func RunRouteServer(conn net.Conn) int {
 		return rs.handleCommand(command)
 	})
 
-	// Register config handler for YANG-delivered worker-queue-size.
-	// OnConfigure fires during Stage 2 of p.Run(), before events arrive (Stage 4+).
-	// Env var takes precedence; if set, YANG config is ignored.
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		if env.Get("ze.bgp.route-server.worker-queue-size") != "" {
-			return nil
-		}
-		for _, section := range sections {
-			if section.Root != "bgp" {
-				continue
-			}
-			if size := parseWorkerQueueSize(section.Data); size > 0 {
-				rs.workers.setChanSize(size)
-				logger().Info("worker-queue-size from config", "size", size)
-			}
-		}
-		return nil
-	})
+	// Register the config transaction for YANG-delivered worker-queue-size.
+	// OnConfigure fires during Stage 2 of p.Run(), before events arrive (Stage 4+),
+	// with the roots Registration.WantsConfig declares below. That declaration
+	// also makes bgp-rs a participant in every bgp reload, so the verify/apply
+	// pair is what lets a committed edit reach the pool: with OnConfigure alone
+	// the SDK answers config-apply OK and changes nothing (config_tx.go).
+	// The env var takes precedence over the leaf at boot and on reload.
+	queueSizeTx := newQueueSizeConfigTx(rs.workers, env.Get("ze.bgp.route-server.worker-queue-size") != "")
+	p.OnConfigure(queueSizeTx.configure)
+	p.OnConfigVerify(queueSizeTx.verify)
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return queueSizeTx.apply() })
+	p.OnConfigRollback(func(_ string) error { return queueSizeTx.rollback() })
 
 	// Register event subscriptions atomically with startup completion.
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
@@ -457,7 +457,11 @@ func RunRouteServer(conn net.Conn) int {
 		// heavy-peer worker would cumulatively evict intermediate entries that
 		// small-peer workers haven't processed yet, causing ErrUpdateExpired.
 		CacheConsumerUnordered: true,
-		Commands:               commandDecls(),
+		// WantsConfig: the engine delivers only the roots a plugin declares
+		// here, so without it OnConfigure never sees bgp { route-server }
+		// and worker-queue-size takes effect from the env var alone.
+		WantsConfig: []string{configRootBGP},
+		Commands:    commandDecls(),
 	})
 
 	if err != nil {

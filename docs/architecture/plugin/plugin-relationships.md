@@ -449,6 +449,6 @@ this is which plugins participate in config transactions and why.
 | bgp-adj-rib-in | No | No config roots, no WantsConfig |
 | bgp-rib | No | `ConfigRoots: ["bgp"]` auto-loads it; no WantsConfig |
 | bgp-aigp | No | No config roots, no WantsConfig |
-| bgp-rs | No | No config roots, no WantsConfig |
+| bgp-rs | Yes (reader) | `ConfigRoots: ["bgp"]` auto-loads it and `WantsConfig: ["bgp"]` makes it a participant in every reload that changes `bgp`. Its verify/apply/rollback (`rs/config_tx.go`) take `route-server { worker-queue-size }` into the worker pool for workers created afterwards; the `ze.bgp.route-server.worker-queue-size` env var still wins |
 | bgp-rpki-decorator | No | No config roots, no WantsConfig |
 | All NLRI plugins | No | Pure codec, no config involvement |
