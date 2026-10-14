@@ -1,0 +1,63 @@
+# Test: a Stage 1 DrainBudget above the daemon drain ceiling refuses the plugin
+# Exercises: declare-registration -> engineStartupSink.onRegistration
+#            -> validateDrainDecl (internal/component/plugin/server/startup.go).
+# VALIDATES: spec-daemon-drain-before-stop AC-4: plugin start refused, and the
+#            error names the plugin, the budget (61 s) and the ceiling (60 s).
+# PREVENTS:  a budget the daemon would cut short being stored, or clamped in
+#            silence the way VerifyBudget is.
+
+# A refused plugin does not stop ze (its registration, and so its failure
+# policy, was never stored), so the peer stops the daemon with SIGTERM.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+action=sigterm:conn=1:seq=2
+EOF_PEER
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+plugin {
+	external drain-over-ceiling {
+		run "le test fixture plugin/drain-budget-over-ceiling"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start ze-bgp.conf:timeout=15s
+expect=exit:code=0
+expect=stderr:pattern=plugin .drain-over-ceiling. declares drain-budget 61 s, above the daemon drain ceiling of 60 s

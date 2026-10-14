@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -78,10 +79,15 @@ type PluginRegistration struct {
 	// apply of a reader that owns no operation) and never counts it as the
 	// reader's for operation coverage (buildTxInputs,
 	// transaction.Participant.WantsConfig).
-	ConfigReads       []string
-	ConfigOperations  []rpc.ConfigOperationDecl
-	VerifyBudget      int  // Estimated verify time in seconds (0 = trivial)
-	ApplyBudget       int  // Estimated apply time in seconds (0 = trivial)
+	ConfigReads      []string
+	ConfigOperations []rpc.ConfigOperationDecl
+	VerifyBudget     int // Estimated verify time in seconds (0 = trivial)
+	ApplyBudget      int // Estimated apply time in seconds (0 = trivial)
+	// DrainBudget is the longest the plugin's stop drain handler may take,
+	// declared at Stage 1 and checked there against rpc.DrainCeilingSeconds.
+	// Zero means the plugin takes no part in the stop drain, so the server
+	// starts no drain caller for it.
+	DrainBudget       time.Duration
 	WantsValidateOpen bool // Plugin wants to validate OPEN message pairs (validate-open callback)
 	Done              bool // True when "registration done" received
 

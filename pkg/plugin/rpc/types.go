@@ -340,6 +340,19 @@ type DeclareRegistrationInput struct {
 	// picking a side.
 	FailurePolicy FailurePolicy `json:"failure-policy,omitempty"`
 
+	// DrainBudget is the longest time, in seconds, this plugin's drain handler
+	// may take before it answers the stop drain (MethodDrain). A plugin
+	// declares it only with a drain handler (DrainHandler), and the engine
+	// refuses a budget above DrainCeilingSeconds or a budget with no handler
+	// at Stage 1, never clamping it. Zero means the plugin takes no part in
+	// the drain.
+	DrainBudget int `json:"drain-budget,omitempty"`
+
+	// DrainHandler declares that the plugin answers MethodDrain. The Go SDK
+	// sets it when OnDrain registered a handler; a plugin written against
+	// the wire protocol declares it itself.
+	DrainHandler bool `json:"drain-handler,omitempty"`
+
 	// SignalsSessionReady declares that this plugin puts routes into a peer's
 	// INITIAL routing update and dispatches `plugin session ready` once they
 	// are out. A peer that attaches the plugin with `send [ update ]` or

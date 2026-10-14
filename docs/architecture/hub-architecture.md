@@ -246,6 +246,18 @@ In-process storage guards are released before plugin callbacks run. The lifetime
 `database.lock` remains held until the store closes.
 <!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, awaitReloadWorker, reloadGate -->
 
+Once the reload gate is closed, and before gNMI, the API servers or any plugin
+is stopped, the hub runs the drain phase: the plugin server sends one `drain`
+RPC, in parallel, to every plugin that declared a drain budget, and the hub
+waits for the answers until a deadline counted from the start of the stop
+(at most 60 s). Management, the reactor and every plugin connection are still
+up while it waits. The hub names no protocol: it drains whoever registered,
+and with none registered the stop is as fast as before. The RPC, the budget
+and the deadline are in `docs/architecture/api/process-protocol.md`, "The stop
+drain".
+<!-- source: cmd/ze/hub/main.go -- run, runStopDrain after commitReloads.close -->
+<!-- source: cmd/ze/hub/drain.go -- runStopDrain -->
+
 The hub also answers two `request data` RPCs beside `request reload`. The
 storage component owns their YANG and registers their handlers
 (`internal/component/config/storage/cli/register_data_rpc.go`), so the command

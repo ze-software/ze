@@ -593,6 +593,11 @@ func (e *engineStartupSink) conn() *plugipc.PluginConn { return e.proc.Conn() }
 func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {
 	s, proc := e.s, e.proc
 
+	// Validate the drain declaration before conversion: a budget the daemon
+	// could not honor is refused, never clamped.
+	if err := validateDrainDecl(proc.Config().Name, input.DrainBudget, input.DrainHandler); err != nil {
+		return err
+	}
 	// Validate doctor check declarations before conversion.
 	if err := validateDoctorCheckDecls(input.DoctorChecks); err != nil {
 		return fmt.Errorf("invalid doctor check: %w", err)
@@ -1077,6 +1082,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		ConfigOperations:    input.ConfigOperations,
 		VerifyBudget:        input.VerifyBudget,
 		ApplyBudget:         input.ApplyBudget,
+		DrainBudget:         time.Duration(input.DrainBudget) * time.Second,
 		WantsValidateOpen:   input.WantsValidateOpen,
 		Claims:              input.Claims,
 		SignalsSessionReady: input.SignalsSessionReady,
@@ -1199,6 +1205,27 @@ func capabilitiesFromRPC(input *rpc.DeclareCapabilitiesInput) *plugin.PluginCapa
 	}
 
 	return caps
+}
+
+// validateDrainDecl refuses a Stage 1 drain declaration the daemon cannot
+// honor: a negative budget, a budget above the daemon drain ceiling, which
+// the daemon would cut short and the supervisor's stop timeout does not
+// cover, or a budget with no drain handler to answer the drain. Each refusal
+// names the plugin, the budget and the ceiling.
+func validateDrainDecl(name string, budgetSeconds int, handler bool) error {
+	if budgetSeconds < 0 {
+		return fmt.Errorf("plugin %q declares drain-budget %d s: a budget is 0 to %d s (the daemon drain ceiling)",
+			name, budgetSeconds, rpc.DrainCeilingSeconds)
+	}
+	if budgetSeconds > rpc.DrainCeilingSeconds {
+		return fmt.Errorf("plugin %q declares drain-budget %d s, above the daemon drain ceiling of %d s",
+			name, budgetSeconds, rpc.DrainCeilingSeconds)
+	}
+	if budgetSeconds > 0 && !handler {
+		return fmt.Errorf("plugin %q declares drain-budget %d s (daemon drain ceiling %d s) and no drain handler",
+			name, budgetSeconds, rpc.DrainCeilingSeconds)
+	}
+	return nil
 }
 
 // validateDoctorCheckDecls validates doctor check declarations from Stage 1 registration.

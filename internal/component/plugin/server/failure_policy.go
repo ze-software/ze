@@ -30,7 +30,12 @@ var errRespawnDisagreement = errors.New("the configuration and the plugin disagr
 // time rather than a growing chain, and ProcessManager.Respawn bounds how many
 // generations there can be.
 func (s *Server) superviseProcess(proc *process.Process) {
+	// The generation's drain caller lives exactly as long as the generation:
+	// it is out of the caller set and has returned before the failure policy
+	// can respawn the plugin, so a respawn never meets the old caller.
+	stopDrainCaller := s.startDrainCaller(proc)
 	s.handleSingleProcessCommandsRPC(proc)
+	stopDrainCaller()
 	s.applyFailurePolicy(proc)
 }
 

@@ -735,6 +735,58 @@ Plugins must distinguish live removal from connection closure: subsystem owners
 retain their daemon-shutdown policy, including firewall rule retention.
 <!-- source: internal/component/plugin/process/manager.go -- Stop -->
 
+#### The stop drain
+
+Before whole-daemon shutdown closes any connection, the hub runs one drain
+phase: after config changes are fenced, the engine sends
+`ze-plugin-callback:drain` once, in parallel, to every plugin whose Stage 1
+`declare-registration` carried a `drain-budget` above zero. The plugin makes
+its protocol unattractive to its neighbors, waits its configured time, and
+answers `ok`, or an error that the engine logs as a failed drain by plugin
+name.
+
+```
+#99 ze-plugin-callback:drain {"kind":"stop","deadline":"2026-10-14T12:01:00Z"}
+#99 ok {}
+```
+<!-- source: pkg/plugin/rpc/drain.go -- MethodDrain, DrainInput, DrainOutput, DrainKind -->
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `kind` | `stop` or `restart` | How the daemon stops; each plugin decides what it means for its protocol |
+| `restart-cause` | `in-place` or `reboot` | On `restart` only: why the daemon restarts |
+| `deadline` | RFC 3339 time | After it the engine reads no answer and tears down |
+
+Stage 1 declares the drain with two fields. `drain-budget` is the longest the
+handler may take, in seconds, and `drain-handler` states that the plugin
+answers `drain`; the Go SDK sets `drain-handler` when `OnDrain` registered a
+handler. The engine refuses the plugin at Stage 1, naming the plugin, the
+budget and the ceiling, when the budget is above the daemon drain ceiling of
+60 s (`rpc.DrainCeilingSeconds`) or when a budget comes with no handler. A
+budget is refused, never clamped.
+<!-- source: internal/component/plugin/server/startup.go -- validateDrainDecl -->
+
+The deadline is the earlier of the ceiling counted from the start of the stop
+and the largest declared budget counted from the start of the drain, so a slow
+config fence spends from the ceiling. The engine makes each drain call from a
+long-lived caller per plugin generation, started by `superviseProcess` with the
+generation and ended before its failure policy runs, under the generation's
+context rather than the deadline, so an answer that arrives late is still read
+by the caller and dropped by nobody. At the deadline the engine names every
+plugin that has not answered and continues the teardown.
+<!-- source: internal/component/plugin/server/drain.go -- drainCaller, DrainRound.Run -->
+<!-- source: cmd/ze/hub/drain.go -- runStopDrain, stopDrainDeadline -->
+
+The SDK runs the handler on one long-lived drain worker per connection, never
+on the event loop, so the plugin keeps answering commands while its drain
+waits; the answer travels for the drain request's own ID, after later
+requests may already have been answered. The first stop-kind `drain` moves the
+worker to `stopping`, and the event loop refuses any later stop-kind `drain`
+on that connection at once, naming the plugin. `OnDrain` has signature
+`func(ctx context.Context, input rpc.DrainInput) error`; `ctx` ends when the
+connection closes.
+<!-- source: pkg/plugin/sdk/sdk_drain.go -- OnDrain, drainWorker -->
+
 #### Who stops the plugin server
 
 **A component does not stop a server it borrowed. Whoever CONSTRUCTS the plugin
@@ -791,6 +843,7 @@ site.
 | `decode-nlri` | `DecodeNLRIInput` | `{"json":<raw JSON>}` | Decode NLRI |
 | `decode-capability` | `DecodeCapabilityInput` | `{"json":<raw JSON>}` | Decode a capability |
 | `bye` | `ByeInput` | `ok` or error | Acknowledged cleanup; an error leaves the plugin running |
+| `drain` | `DrainInput` | `DrainOutput` or error | Stop drain before whole-daemon shutdown ("The stop drain") |
 | `filter-update` | `FilterUpdateInput` | `FilterUpdateOutput` | Route filter request |
 | `doctor-check` | `DoctorCheckInput` | `DoctorCheckOutput` | Doctor readiness check |
 | `enrich-show` | `EnrichShowInput` | `EnrichShowOutput` | Show command enrichment |

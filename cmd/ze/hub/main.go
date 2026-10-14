@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
@@ -1514,6 +1515,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	doneCh := make(chan struct{})
 	go waitForServerDone(apiServer, doneCh)
 	waitLoop(stopCh, hupCh, reloadCh, doneCh)
+	// The stop starts here: the drain ceiling is counted from this instant,
+	// so the config fence below spends from it.
+	stopStart := time.Now()
 
 	// A second INTERRUPT forces immediate exit. Shutdown below stops plugins,
 	// gNMI, the API servers and the reactor, each with its own grace period,
@@ -1540,6 +1544,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// A commit-driven reload still running here would promote its candidate
 	// into a store the caller closes when Run returns: wait for it.
 	commitReloads.close()
+
+	// The drain runs while every plugin connection, the reactor and
+	// management are still up, and after config is fenced.
+	runStopDrain(stopStart, apiServer.BeginDrain(), rpc.DrainKindStop)
 	fmt.Println("\nShutting down (Ctrl+C again to force)...")
 
 	// MCP shuts down through the construction registry's builtServices defer

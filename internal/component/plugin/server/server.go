@@ -119,6 +119,12 @@ type Server struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
+	// drainCallers holds one drain caller per live plugin generation whose
+	// registration declared a DrainBudget (drain.go). superviseProcess adds
+	// and removes each entry; BeginDrain snapshots the set.
+	drainMu      sync.Mutex
+	drainCallers map[*process.Process]*drainCaller
+
 	txLock txLock // Transaction exclusion (one config transaction at a time)
 
 	// reloadGen is the monotonic "reload processed" fence surfaced by

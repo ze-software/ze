@@ -639,6 +639,15 @@ func (pc *PluginConn) SendEnrichShow(ctx context.Context, input *rpc.EnrichShowI
 }
 
 // SendDoctorCheck invokes a plugin's doctor check callback and returns diagnostics.
+// SendDrain asks the plugin to drain its protocol before the daemon stops
+// and waits for its answer. The call MUST run under a context that outlives
+// the drain deadline: a mux call whose context ends drops its answer, so the
+// deadline bounds how long the caller reads, never this call (server/drain.go).
+func (pc *PluginConn) SendDrain(ctx context.Context, input *rpc.DrainInput) error {
+	_, err := pc.CallRPC(ctx, rpc.MethodDrain, input)
+	return err
+}
+
 func (pc *PluginConn) SendDoctorCheck(ctx context.Context, name string) (*rpc.DoctorCheckOutput, error) {
 	input := &rpc.DoctorCheckInput{Name: name}
 	result, err := pc.CallRPC(ctx, "ze-plugin-callback:doctor-check", input)

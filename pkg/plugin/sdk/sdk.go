@@ -91,6 +91,10 @@ type Plugin struct {
 	onStructuredEvent StructuredEventHandler
 	onExecuteCommand  ExecuteCommandHandler
 
+	// onDrain is the stop drain handler, run on the connection's drain
+	// worker (sdk_drain.go) and declared at Stage 1 as DrainHandler.
+	onDrain DrainHandler
+
 	// Startup subscriptions: included in the "ready" RPC so the engine
 	// registers them atomically before SignalAPIReady, avoiding the race
 	// between reactor sending routes and the plugin subscribing.
@@ -428,6 +432,11 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	p.mu.Lock()
 	if p.wantsValidateOpen {
 		reg.WantsValidateOpen = true
+	}
+	// A drain handler is declared the same way, so the engine can refuse a
+	// DrainBudget that no handler answers.
+	if p.onDrain != nil {
+		reg.DrainHandler = true
 	}
 	p.mu.Unlock()
 

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"strings"
 
@@ -184,11 +185,25 @@ func (p *Plugin) handleBridgeExecuteCommand(req rpc.ExecuteCommandRequest) (err 
 // Reads from bridge callback channels instead of engineMux.Requests().
 // Callbacks are processed serially (same guarantee as the pipe event loop).
 func (p *Plugin) bridgeEventLoop(ctx context.Context) error {
+	drain, stopDrain := p.startDrainWorker(ctx)
+	defer stopDrain()
+
 	for {
 		select {
 		case cb, ok := <-p.bridge.CallbackCh():
 			if !ok {
 				return nil // Bridge closed (shutdown).
+			}
+			// The drain runs on its worker; the result channel has
+			// capacity 1, so the worker's answer never blocks.
+			if cb.Method == rpc.MethodDrain && drain != nil {
+				result := cb.Result
+				if err := drain.admit(cb.Params, func(err error) {
+					result <- rpc.BridgeCallbackResult{Err: err}
+				}); err != nil {
+					result <- rpc.BridgeCallbackResult{Err: err}
+				}
+				continue
 			}
 			stop, err := p.handleBridgeCallback(cb)
 			if err != nil {
@@ -215,6 +230,9 @@ func (p *Plugin) bridgeEventLoop(ctx context.Context) error {
 // eventLoop handles runtime RPCs from the engine (external/pipe plugins).
 // Reads from engineMux.Requests() for inbound requests.
 func (p *Plugin) eventLoop(ctx context.Context) error {
+	drain, stopDrain := p.startDrainWorker(ctx)
+	defer stopDrain()
+
 	for {
 		req, err := p.readCallback(ctx)
 		if err != nil {
@@ -225,6 +243,19 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 				return fmt.Errorf("event loop read: %w", err)
 			}
 			return nil //nolint:nilerr // EOF/context-cancel during shutdown is not an error
+		}
+
+		// The drain is answered by its worker, for this request's own ID,
+		// after later requests may already have been answered (the mux
+		// matches answers by ID). A refusal is answered here at once.
+		if req.Method == rpc.MethodDrain && drain != nil {
+			id := req.ID
+			if err := drain.admit(req.Params, func(err error) { p.answerDrain(ctx, id, err) }); err != nil {
+				if sendErr := p.sendCallbackError(ctx, id, err.Error()); sendErr != nil {
+					return sendErr
+				}
+			}
+			continue
 		}
 
 		handler := p.getCallback(req.Method)
@@ -269,6 +300,21 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 		if req.Method == callbackBye {
 			return nil
 		}
+	}
+}
+
+// answerDrain sends the drain worker's answer for one drain request. A send
+// that fails means the connection is closing, which ends the event loop on
+// its own read, so the failure is logged and not returned.
+func (p *Plugin) answerDrain(ctx context.Context, id uint64, handlerErr error) {
+	var err error
+	if handlerErr != nil {
+		err = p.sendCallbackError(ctx, id, handlerErr.Error())
+	} else {
+		err = p.sendCallbackResult(ctx, id, &rpc.DrainOutput{})
+	}
+	if err != nil {
+		slog.Debug("drain answer not sent", "plugin", p.name, "error", err)
 	}
 }
 
