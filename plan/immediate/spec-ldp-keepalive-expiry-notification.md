@@ -251,7 +251,7 @@ remain outside this transferred scope; their obligations are not waived.
      by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Peer silent on an operational session dialed by `startSessionForAdj` (checked 2026-10-14: `startSessionForAdj` in `register.go` starts `go runSession(...)`; re-confirm the name at implementation) | → | `runSession` → `Session.ReadLoop` timeout branch → `sendNotification` → deferred `Stop` | `TestRunSessionKeepaliveExpiryNotifiesThenCloses` (`internal/plugins/ldp/keepalive_expiry_test.go`) |
+| Peer silent on an operational session dialed by `startSessionForAdj` (checked 2026-10-14: `startSessionForAdj` in `register.go` starts `go runSession(...)`; re-confirm the name at implementation) | → | `runSession` → `Session.ReadLoop` timeout branch → `sendNotification` → deferred `Stop` | `TestRunSessionKeepaliveExpiryNotifiesThenCloses` (`internal/plugins/ldp/rfc5036_keepalive_expiry_test.go`) |
 | FRR ldpd session, FRR's TCP toward ze dropped | → | the same chain in the running `ze` daemon | interop scenario `ldp-keepalive-expiry-frr` |
 
 ## Acceptance Criteria
@@ -289,7 +289,7 @@ remain outside this transferred scope; their obligations are not waived.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestEncodeNotificationKeepaliveTimerExpired` | `internal/plugins/ldp/wire_test.go` | Exact octets of the message for status 0x80000014, references zero, decoded back by `decodeNotification` | |
-| `TestReadLoopKeepaliveExpirySendsFatalNotification` | `internal/plugins/ldp/keepalive_expiry_test.go` (new) | AC-1 over `ReadLoop` with a short `holdTime` | |
+| `TestReadLoopKeepaliveExpirySendsFatalNotification` | `internal/plugins/ldp/rfc5036_keepalive_expiry_test.go` (new) | AC-1 over `ReadLoop` with a short `holdTime` | |
 | `TestReadLoopKeepaliveExpiryDuringInitialization` | same | AC-2 | |
 | `TestReadLoopKeepaliveExpiryNotificationWriteFails` | same | AC-3 | |
 | `TestReadLoopKeepaliveExpiryNotificationWriteBounded` | same | AC-4 | |
@@ -373,7 +373,7 @@ The name follows `docs/architecture/testing/interop.md` (named, no numeric prefi
 - `docs/architecture/testing/interop.md` - Scenario Inventory row for the new scenario
 
 ## Files to Create
-- `internal/plugins/ldp/keepalive_expiry_test.go` - the unit and wiring tests above
+- `internal/plugins/ldp/rfc5036_keepalive_expiry_test.go` - the unit and wiring tests above
 - `test/interop/scenarios/ldp-keepalive-expiry-frr/ze.conf`, `frr.conf` - scenario inputs
 - `test/interop/scenarios/ldp-keepalive-expiry-frr/daemons` - the shared FRR `daemons` file with `ldpd=yes`; `prepare.go` mounts it over `/etc/frr/daemons` in place of the shared one (A-6)
 - No `.ci` (Q-4)
@@ -439,7 +439,7 @@ The name follows `docs/architecture/testing/interop.md` (named, no numeric prefi
 0. **Owner answers** -- done: Q-1 to Q-4 answered by the owner on 2026-10-14 (accept every recommendation) and recorded in the question table
 1. **Phase: Wiring (MANDATORY FIRST)** -- write `TestRunSessionKeepaliveExpiryNotifiesThenCloses` over the production `runSession`
    - Tests: `TestRunSessionKeepaliveExpiryNotifiesThenCloses`
-   - Files: `internal/plugins/ldp/keepalive_expiry_test.go`
+   - Files: `internal/plugins/ldp/rfc5036_keepalive_expiry_test.go`
    - Verify: red at HEAD (peer reads EOF, no Notification)
 2. **Phase: Status code and send** -- constant, `ReadLoop` timeout branch, log-once on failure
    - Tests: `TestEncodeNotificationKeepaliveTimerExpired`, `TestReadLoopKeepaliveExpirySendsFatalNotification`, `TestReadLoopKeepaliveExpiryDuringInitialization`, `TestReadLoopKeepaliveExpiryNotificationWriteFails`, `TestReadLoopKeepaliveExpiryNotificationWriteBounded`
