@@ -578,7 +578,7 @@ var scenarioOperations = map[string][]operation{
 	// the injector's barrier: Ze relays it there once the GoBGP session is up.
 	"bgp-attr-flags-low-nibble-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
-		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.0.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFence, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
 		{kind: opGoBGPRoute, argument: injectPrefixFirst, timeout: 90 * time.Second},
 		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst, "-j"}, contains: []string{`"type":241`, `"flags":224`}},
 		{kind: opRequireAbsent, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst, "-j"}, absent: []string{`"flags":239`}, proof: []string{`"type":241`}},
@@ -590,7 +590,7 @@ var scenarioOperations = map[string][]operation{
 	// attribute is matched: each value once, in the order Ze appends them.
 	"bgp-large-community-no-repeat-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
-		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.0.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFence, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
 		{kind: opGoBGPRoute, argument: injectPrefixFirst, timeout: 90 * time.Second},
 		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, injectPrefixFirst}, contains: []string{"{LargeCommunity: 65000:1:1, 65000:3:3, 65000:2:2}"}},
 		{kind: opGoBGPSession, argument: zeLabAddress},
@@ -609,14 +609,14 @@ var scenarioOperations = map[string][]operation{
 	// The SR Policy assertions are in scenarioExtras.
 	scenarioSRPolicyMalformedReceiveGoBGP: {
 		{kind: opGoBGPSession, argument: zeLabAddress},
-		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.0.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFence, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
 	},
 	"bgp-mup-malformed-t1st-withdraw-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
-		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.0.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "ipv4-mup"}, contains: []string{"10.0.0.1/32"}, timeout: 90 * time.Second},
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "ipv4-mup"}, contains: []string{"10.0.0.2/32"}, timeout: 120 * time.Second},
-		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "ipv4-mup"}, absent: []string{"10.0.0.1/32"}, proof: []string{"10.0.0.2/32"}, timeout: 30 * time.Second},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFence, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4MUP}, contains: []string{"10.0.0.1/32"}, timeout: 90 * time.Second},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4MUP}, contains: []string{"10.0.0.2/32"}, timeout: 120 * time.Second},
+		{kind: opWaitAbsent, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4MUP}, absent: []string{"10.0.0.1/32"}, proof: []string{"10.0.0.2/32"}, timeout: 30 * time.Second},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
 	// RFC 9234 Section 3.1, judged by FRR as Ze's Provider. Ze's own control
@@ -703,7 +703,7 @@ var scenarioOperations = map[string][]operation{
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		{kind: opGoBGPRoute, argument: injectPrefixFirst},
 		{kind: opGoBGPRoute, argument: injectPrefixSecond},
-		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.0.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFence, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, "10.20.1.0/24", "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
 		{kind: opRequireJSONFields, peer: "ze", command: zeCommand(zeShowBGPRIBStatus), minimum: map[string]int{fieldRoutesIn: 2}},
 		{kind: opGoBGPSession, argument: zeLabAddress},

@@ -259,7 +259,7 @@ func llgrReceivedFence(ctx context.Context, check *interoplab.CheckContext, host
 		}
 	}
 	if host == 3 {
-		want = []llgrReceivedExpectation{{"10.20.0.0/24", zeIPv4Unicast, address}}
+		want = []llgrReceivedExpectation{{peerPrefixFence, zeIPv4Unicast, address}}
 	}
 	command := zeCommand("show bgp rib received")
 	var lastCompleted interoplab.CommandResult

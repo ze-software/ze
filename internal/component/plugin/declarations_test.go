@@ -522,7 +522,7 @@ func stageOneDeclaration() sdk.Registration {
 // validateOpen registers an OPEN validation callback, which is the one input
 // Run reads outside reg: it derives WantsValidateOpen from the callbacks a
 // Plugin holds.
-func liveStageOneDeclaration(t *testing.T, reg sdk.Registration, validateOpen bool) rpc.DeclareRegistrationInput {
+func liveStageOneDeclaration(t *testing.T, reg *sdk.Registration, validateOpen bool) rpc.DeclareRegistrationInput {
 	t.Helper()
 
 	pluginEnd, engineEnd := net.Pipe()
@@ -549,7 +549,7 @@ func liveStageOneDeclaration(t *testing.T, reg sdk.Registration, validateOpen bo
 	stopped := make(chan struct{})
 	go func() {
 		defer close(stopped)
-		_ = witness.Run(ctx, reg) //nolint:errcheck // Stage 2 never comes: the error ends the handshake and is not the fact under test
+		_ = witness.Run(ctx, *reg) //nolint:errcheck // Stage 2 never comes: the error ends the handshake and is not the fact under test
 	}()
 
 	engine := pluginipc.NewPluginConn(engineEnd, engineEnd)
@@ -582,12 +582,12 @@ func liveStageOneDeclaration(t *testing.T, reg sdk.Registration, validateOpen bo
 // reads the answer with declarationFromStdout, the reader `show plugin
 // declarations` runs over a queried child's output. Both ends of this half are
 // therefore the product's own.
-func queriedDeclaration(t *testing.T, reg sdk.Registration) rpc.DeclareRegistrationInput {
+func queriedDeclaration(t *testing.T, reg *sdk.Registration) rpc.DeclareRegistrationInput {
 	t.Helper()
 	withQueryMode(t)
 
 	stdout := captureStdout(t, func() {
-		code := sdk.RunOrDeclare(reg, func() int {
+		code := sdk.RunOrDeclare(*reg, func() int {
 			t.Error("the plugin activated under a declaration query")
 			return 1
 		})
@@ -703,8 +703,10 @@ func TestDeclarationAnswerMatchesStageOne(t *testing.T) {
 
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			live := liveStageOneDeclaration(t, stageOneDeclaration(), one.validateOpen)
-			queried := queriedDeclaration(t, stageOneDeclaration())
+			liveReg := stageOneDeclaration()
+			live := liveStageOneDeclaration(t, &liveReg, one.validateOpen)
+			queriedReg := stageOneDeclaration()
+			queried := queriedDeclaration(t, &queriedReg)
 
 			if live.WantsValidateOpen != one.validateOpen {
 				t.Fatalf("the live Stage 1 declaration reads wants-validate-open %t, want %t",

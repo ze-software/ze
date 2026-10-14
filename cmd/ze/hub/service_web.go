@@ -674,3 +674,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	fmt.Fprintf(os.Stderr, "web server listening on https://%s/\n", srv.Address())
 	return srv, broker
 }
+
+// forceExitOnSignal waits for a second signal and exits immediately.
+// The standalone web service starts it once during shutdown, for an impatient
+// Ctrl+C. It lives beside its only caller, so a build without ze_web drops it.
+func forceExitOnSignal(sigCh <-chan os.Signal) {
+	<-sigCh
+	exitForced()
+}

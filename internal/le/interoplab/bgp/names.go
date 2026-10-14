@@ -85,6 +85,7 @@ const (
 	frrFamilyIPv6Unicast    = "ipv6 unicast"
 	gobgpFamilyIPv4         = "ipv4"
 	gobgpFamilyIPv4Flowspec = "ipv4-flowspec"
+	gobgpFamilyIPv4MUP      = "ipv4-mup"
 	gobgpFamilyIPv4SRPolicy = "ipv4-srpolicy"
 	gobgpFamilyIPv6SRPolicy = "ipv6-srpolicy"
 )
@@ -347,6 +348,11 @@ const (
 	medPrefix           = "10.62.0.0/24"
 	ospf6NSSAPrefix     = "2001:db8:7e5::/48"
 )
+
+// peerPrefixFence is the IPv4 route a lab peer, FRR or GoBGP, announces to Ze
+// as a fence: a scenario waits for Ze to hold or relay it, which proves the
+// peer's session is up before the scenario reads anything after it.
+const peerPrefixFence = "10.20.0.0/24"
 
 // The two prefixes bgp-path-asn-leak-frr sends on one FRR session. They differ
 // only in the AS_PATH FRR writes for each, so a reject-asn list that named the

@@ -110,13 +110,6 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	return webBuildStandalone(store, listenAddr, insecureWeb)
 }
 
-// forceExitOnSignal waits for a second signal and exits immediately.
-// Started once during shutdown to handle impatient Ctrl+C.
-func forceExitOnSignal(sigCh <-chan os.Signal) {
-	<-sigCh
-	exitForced()
-}
-
 // exitForced ends the process at once with exit 1, for an operator who will
 // not wait for the stop to finish.
 func exitForced() {

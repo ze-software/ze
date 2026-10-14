@@ -267,8 +267,8 @@ func validateCompiledScenarioRecord(record *runner.Record, wantMarkers []string)
 	if len(cmd.RejectStdout) != 0 ||
 		len(cmd.ExpectStdoutRe) != 0 || len(cmd.RejectStdoutRe) != 0 ||
 		len(cmd.ExpectStderrHas) != 0 || len(cmd.RejectStderrHas) != 0 ||
-		len(record.ExpectStderr) != 0 ||
-		len(record.RejectStderr) != 0 || len(record.ExpectSyslog) != 0 ||
+		len(cmd.ExpectStderrRe) != 0 ||
+		len(cmd.RejectStderrRe) != 0 || len(record.ExpectSyslog) != 0 ||
 		len(record.RejectSyslog) != 0 || len(record.AwaitStderr) != 0 ||
 		record.AwaitStderrTimeout != "" {
 		return fmt.Errorf("compiled scenario has unrelated output expectations")
