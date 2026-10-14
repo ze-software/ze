@@ -30,6 +30,27 @@ internally. It does not shell out to `ip`.
 **Disable is a config reload, not a polled file.** `ze config set ... disable
 true` fits the config-driven model. ExaBGP polls a file.
 
+**A reload or a `reset` stops a probe without waiting for its exit.** The probe
+set is one config transaction: verify parses and validates the candidate, apply
+makes it the running set, and rollback reinstalls the previous set. An
+unchanged probe keeps running. A removed or changed probe is canceled, and its
+exit withdraws the route through `request bgp watchdog withdraw` and removes its
+addresses on its own. Apply does not wait for that, because bgp-watchdog is
+another participant of the same transaction and the round trip can take 5 s.
+`clear bgp healthcheck <name>` works the same way, so its reply can return
+before the old probe's withdraw has run: a caller that reads the route straight
+after the reply can still see it announced.
+
+The probe that replaces a canceled one, by name or by watchdog group, waits for
+that probe's exit before it adds an address or dispatches, so a late withdraw
+never lands after its announce. The wait is a sum: one predecessor can take its
+in-flight check (`timeout`), its in-flight hooks (30 s each) and the 5 s exit
+dispatch, and a chain of reloads adds one such term for each generation. A
+probe canceled while it waits does nothing. A rollback restarts the previous
+probes with a fresh FSM, so rise and fall progress is not restored.
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- applyConfig, retire, startProbe, runProbe, handleReset -->
+<!-- source: internal/component/bgp/plugins/healthcheck/config_tx.go -- newHealthcheckConfigTx -->
+
 **Metric mode is the default**, matching ExaBGP. Withdraw-on-down is opt-in.
 
 **`show bgp healthcheck` answers a row set with or without a probe name, and it

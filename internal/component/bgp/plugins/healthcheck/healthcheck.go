@@ -95,24 +95,9 @@ func runHealthcheckPlugin(conn net.Conn) int {
 
 	mgr := newProbeManager(p, true)
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			probes, err := parseConfig(section.Data)
-			if err != nil {
-				logger().Error("config parse failed", "error", err)
-				return err
-			}
-			if err := mgr.validateConfig(probes); err != nil {
-				logger().Error("config validation failed", "error", err)
-				return err
-			}
-			mgr.applyConfig(probes)
-		}
-		return nil
-	})
+	// Stage 2 configure and the reload verify, apply and rollback: one parsed
+	// probe set, installed by applyConfig (config_tx.go).
+	newHealthcheckConfigTx(mgr).Register(p)
 
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return mgr.handleCommand(command, args)
@@ -156,6 +141,13 @@ type probeManager struct {
 	// they cannot write a command frame into the stage-5 stream -- see waitReady.
 	ready     chan struct{}
 	readyOnce sync.Once
+
+	// exiting holds the probes an apply or a reset canceled whose done has
+	// not closed yet, so a probe started later that shares one's name or group
+	// waits for its exit (startProbe). Guarded by mu. Bounded by the probes
+	// canceled within one exit bound (runProbe): retire drops every entry
+	// whose done has closed.
+	exiting []*runningProbe
 }
 
 // runningProbe tracks a running probe goroutine.
@@ -164,6 +156,22 @@ type runningProbe struct {
 	cancel   context.CancelFunc
 	done     chan struct{}
 	fsmState atomic.Int32 // current FSM state, updated by probe goroutine
+
+	// predecessors are the done channels of the canceled probes sharing this
+	// probe's name or group when it started. runProbe waits on every one
+	// before its first dispatch, so their exit withdraw and IP removal never
+	// land after this probe's announce.
+	predecessors []<-chan struct{}
+}
+
+// exited reports whether the probe goroutine has returned.
+func (rp *runningProbe) exited() bool {
+	select {
+	case <-rp.done:
+		return true
+	default:
+		return false
+	}
 }
 
 func newProbeManager(p *sdk.Plugin, internal bool) *probeManager {
@@ -229,7 +237,16 @@ func (m *probeManager) validateConfig(configs []ProbeConfig) error {
 	return nil
 }
 
-// applyConfig starts/stops probes based on new configuration.
+// applyConfig makes configs the running probe set. A probe whose config is
+// unchanged keeps running; a removed or changed probe is canceled and a new
+// or changed one is started.
+//
+// It does not wait for a canceled probe to exit. The exit dispatches
+// "request bgp watchdog withdraw" to bgp-watchdog, which during a reload is
+// another participant of the same config transaction, so waiting would hold
+// this plugin's apply reply on a cross-plugin round trip of up to 5 s per
+// probe. The withdraw lands on its own; the probe that replaces a canceled
+// one waits for that exit instead (startProbe). Safe for concurrent use.
 func (m *probeManager) applyConfig(configs []ProbeConfig) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -239,31 +256,55 @@ func (m *probeManager) applyConfig(configs []ProbeConfig) {
 		newConfigs[configs[i].Name] = &configs[i]
 	}
 
-	// Stop probes that are no longer in config or changed.
-	// INVARIANT: runProbe never acquires m.mu, so blocking on <-rp.done
-	// while holding m.mu is safe (#4).
+	var stopped []*runningProbe
 	for name, rp := range m.probes {
 		newCfg, exists := newConfigs[name]
-		if !exists || !newCfg.equal(rp.config) {
-			rp.cancel()
-			<-rp.done
-			delete(m.probes, name)
+		if exists && newCfg.equal(rp.config) {
+			continue
 		}
+		stopped = append(stopped, rp)
+		delete(m.probes, name)
 	}
+	m.retire(stopped)
 
-	// Start new or changed probes.
 	for name, cfg := range newConfigs {
 		if _, running := m.probes[name]; running {
 			continue
 		}
-		ctx, cancel := context.WithCancel(context.Background())
-		done := make(chan struct{})
-		rp := &runningProbe{config: *cfg, cancel: cancel, done: done}
-		m.probes[name] = rp
-		go m.runProbe(ctx, rp)
+		m.startProbe(*cfg)
 	}
 
 	logger().Info("healthcheck config applied", "probes", len(m.probes))
+}
+
+// retire cancels the stopped probes and records them as exiting, after
+// dropping the exiting probes whose goroutine has returned. MUST be called
+// with m.mu held, and before the startProbe calls that replace them.
+func (m *probeManager) retire(stopped []*runningProbe) {
+	m.exiting = slices.DeleteFunc(m.exiting, (*runningProbe).exited)
+	for _, rp := range stopped {
+		rp.cancel()
+		m.exiting = append(m.exiting, rp)
+	}
+}
+
+// startProbe runs cfg in a new probe goroutine that first waits for every
+// exiting probe sharing its name or its group. MUST be called with m.mu held.
+func (m *probeManager) startProbe(cfg ProbeConfig) {
+	var predecessors []<-chan struct{}
+	for _, old := range m.exiting {
+		if old.config.Name == cfg.Name {
+			predecessors = append(predecessors, old.done)
+			continue
+		}
+		if old.config.Group == cfg.Group {
+			predecessors = append(predecessors, old.done)
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	rp := &runningProbe{config: cfg, cancel: cancel, done: make(chan struct{}), predecessors: predecessors}
+	m.probes[cfg.Name] = rp
+	go m.runProbe(ctx, rp)
 }
 
 // runProbe runs a single healthcheck probe loop.
@@ -271,6 +312,25 @@ func (m *probeManager) applyConfig(configs []ProbeConfig) {
 func (m *probeManager) runProbe(ctx context.Context, rp *runningProbe) {
 	defer close(rp.done)
 	cfg := rp.config
+
+	// Wait, outside m.mu, for the canceled probes this one replaces: their
+	// exit withdraw and IP removal must land before this probe's first
+	// announce, or a late withdraw leaves the route down. The wait does not
+	// select on ctx, so a probe canceled while it waits still closes done
+	// only after its predecessors closed theirs, which keeps a reload and its
+	// rollback in order. Its bound is a sum: one predecessor can take its
+	// in-flight check (cfg.Timeout), its in-flight hooks (hookTimeout each)
+	// and handleExit's 5 s dispatch, and a chain of generations adds one such
+	// term per generation.
+	for _, predecessor := range rp.predecessors {
+		<-predecessor
+	}
+	// A probe canceled while it waited does nothing more. Without this check
+	// waitReady could still pass it: once m.ready is closed its select picks
+	// at random between m.ready and ctx.Done().
+	if ctx.Err() != nil {
+		return
+	}
 
 	// Hold every probe until the startup handshake is done: this goroutine was
 	// started from OnConfigure (stage 2) and must not put a command frame on the
@@ -504,8 +564,12 @@ func (m *probeManager) handleShow(args []string) (string, any, error) {
 	return statusDone, probes, nil
 }
 
-// handleReset withdraws the current route and resets the probe FSM to INIT.
-// Holds the lock for the entire operation to prevent TOCTOU with concurrent applyConfig (#10).
+// handleReset withdraws the current route and restarts the probe from INIT.
+// Under m.mu it cancels the probe and starts its replacement, which waits for
+// the old probe's exit before its first dispatch (startProbe). It does not
+// wait for that exit itself: the replacement may still be waiting on older
+// predecessors, and holding m.mu across that wait would stall applyConfig.
+// So the reply can return before the old probe's withdraw has run.
 func (m *probeManager) handleReset(args []string) (string, any, error) {
 	if len(args) < 1 {
 		return statusError, "", errMissingProbeName
@@ -524,16 +588,8 @@ func (m *probeManager) handleReset(args []string) (string, any, error) {
 		return statusError, "", fmt.Errorf("probe %q is DISABLED (use 'ze config set ... disable false' to re-enable)", name)
 	}
 
-	// Cancel and wait for probe goroutine to exit.
-	// Safe to block here: runProbe never acquires m.mu (#4 invariant).
-	rp.cancel()
-	<-rp.done
-
-	// Restart from INIT.
-	ctx, cancel := context.WithCancel(context.Background())
-	newRP := &runningProbe{config: rp.config, cancel: cancel, done: make(chan struct{})}
-	m.probes[name] = newRP
-	go m.runProbe(ctx, newRP)
+	m.retire([]*runningProbe{rp})
+	m.startProbe(rp.config)
 
 	return statusDone, map[string]string{"probe": name, "action": "reset"}, nil
 }

@@ -1,5 +1,6 @@
 // Design: docs/architecture/bgp/healthcheck-plugin.md -- the answer shape of the show command
 // Related: lifecycle_test.go -- the per-probe show tests that share newTestManager
+// Related: config_tx_test.go -- heldDispatch, the stub the reset test holds a withdraw with
 package healthcheck
 
 import (
@@ -7,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 	"testing"
+	"time"
 )
 
 // showRows dispatches "show bgp healthcheck" and decodes its answer as a row set.
@@ -165,5 +167,48 @@ func TestHealthcheckListAnswersSortedOrder(t *testing.T) {
 		if !reflect.DeepEqual(names, expected) {
 			t.Fatalf("read %d answers %v, want ascending name order %v", read, names, expected)
 		}
+	}
+}
+
+// TestHealthcheckResetDoesNotHoldLockAcrossExit proves R-8 (round 3, NOTE-1):
+// a reset swaps the probe under m.mu and returns without waiting on the old
+// probe's exit, so an applyConfig that runs while the old withdraw is held
+// returns too, and the restarted probe announces only after that withdraw.
+// Method: a held dispatch stub; reset, then a concurrent applyConfig that adds
+// a probe, both bounded at 2 s, then release and read the recorded order.
+// VALIDATES: handleReset no longer blocks on the old probe's done under m.mu.
+// PREVENTS: a reset stalling every apply for the old probe's whole exit bound.
+func TestHealthcheckResetDoesNotHoldLockAcrossExit(t *testing.T) {
+	h := newHeldDispatch()
+	mgr := newHeldManager(h, &mockIPManager{})
+	defer stopAll(t, mgr, h)
+
+	dns := ProbeConfig{Name: "dns", Command: "true", Group: "hc-dns", Interval: 1, Rise: 1, Fall: 1, Timeout: 5, Debounce: true, UpMetric: 100}
+	mgr.applyConfig([]ProbeConfig{dns})
+	waitFor(t, "the first announce", func() bool { return len(h.snapshot()) == 1 })
+
+	returnsWithin(t, "reset", func() {
+		if _, _, err := mgr.handleReset([]string{"dns"}); err != nil {
+			t.Errorf("reset: %v", err)
+		}
+	})
+	<-h.entered
+	web := ProbeConfig{Name: "web", Command: "false", Group: "hc-web", Interval: 1, Rise: 1, Fall: 1, Timeout: 5, Debounce: true}
+	returnsWithin(t, "applyConfig", func() { mgr.applyConfig([]ProbeConfig{dns, web}) })
+
+	time.Sleep(200 * time.Millisecond)
+	// A restarted probe that did not wait would announce at once (rise 1).
+	if got := h.snapshot(); slices.Index(got[1:], cmdAnnounce+" hc-dns med 100") >= 0 {
+		t.Fatalf("dispatches while the withdraw is held = %q, want no second hc-dns announce", got)
+	}
+	close(h.released)
+	waitFor(t, "the restarted probe's announce", func() bool {
+		return slices.Index(h.snapshot()[1:], cmdAnnounce+" hc-dns med 100") >= 0
+	})
+	got := h.snapshot()
+	withdraw := slices.Index(got, cmdWithdraw+" hc-dns")
+	again := slices.Index(got[1:], cmdAnnounce+" hc-dns med 100") + 1
+	if withdraw < 0 || again <= withdraw {
+		t.Fatalf("dispatches = %q, want the old withdraw before the restarted probe's announce", got)
 	}
 }
