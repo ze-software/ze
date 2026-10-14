@@ -6,7 +6,8 @@
 //
 // The plugin loads named community-match definitions from
 // bgp { policy { community-match NAME { entry COMMUNITY { type T; action A; } } } }
-// at OnConfigure (Stage 2). At runtime, peer filter chains reference a list
+// at Stage 2 and on every applied reload (config_tx.go). At runtime, peer
+// filter chains reference a list
 // as bgp-filter-community-match:NAME or community-match:NAME. The engine
 // dispatches each match via CallFilterUpdate (filter-update RPC); the plugin
 // handles it in OnFilterUpdate by extracting community fields from the update
@@ -22,11 +23,9 @@ package filter_community_match
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -38,7 +37,7 @@ var logger = slogutil.LazyLogger("bgp.filter.community.match")
 const configRootBGP = "bgp"
 
 // listsByName is the runtime-loaded set of community-match definitions.
-// Updated atomically on every OnConfigure delivery.
+// Stored whole by every install: boot, apply, rollback (config_tx.go).
 var listsByName atomic.Pointer[map[string]*communityList]
 
 // runFilterCommunityMatch runs the community match filter plugin using the SDK RPC protocol.
@@ -46,24 +45,7 @@ func runFilterCommunityMatch(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-community-match", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-			if !ok {
-				return errFilterCommunityMatchInvalidBgpConfig
-			}
-			lists, err := parseCommunityLists(bgpCfg)
-			if err != nil {
-				return fmt.Errorf("filter-community-match: %w", err)
-			}
-			listsByName.Store(&lists)
-			logger().Debug("configured", "community-lists", len(lists))
-		}
-		return nil
-	})
+	newCommunityMatchConfigTx().Register(p)
 
 	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 		return handleFilterUpdate(in), nil

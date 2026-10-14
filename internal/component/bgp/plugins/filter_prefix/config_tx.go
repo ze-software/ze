@@ -4,44 +4,23 @@
 package filter_prefix
 
 import (
-	"fmt"
-
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// newPrefixConfigTx is the filter's side of the config transaction: the
-// prefix-list definitions are its config, and an install stores them whole.
-// Before any install no list is defined.
+// newPrefixConfigTx is the filter's side of the config transaction: the prefix-list definitions
+// are its config, and an install stores them whole, so a filter-update reads
+// the old set or the new one and never a mix. Before any install none is
+// defined.
 func newPrefixConfigTx() *sdk.ConfigTx[map[string]*prefixList] {
-	return sdk.NewConfigTx(map[string]*prefixList(nil), parsePrefixSections, installPrefixLists)
+	parse := configjson.BGPSectionParser("filter-prefix", errFilterPrefixInvalidBgpConfigJson, parsePrefixLists)
+	return sdk.NewConfigTx(map[string]*prefixList(nil), parse, installPrefixLists)
 }
 
-// parsePrefixSections reads the prefix-list definitions of the bgp section. A
-// delivery with no bgp section carries nothing for the filter; a bgp section
-// with no prefix-list defines none.
-func parsePrefixSections(sections []sdk.ConfigSection) (map[string]*prefixList, bool, error) {
-	for _, section := range sections {
-		if section.Root != configRootBGP {
-			continue
-		}
-		bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-		if !ok {
-			return nil, false, errFilterPrefixInvalidBgpConfigJson
-		}
-		lists, err := parsePrefixLists(bgpCfg)
-		if err != nil {
-			return nil, false, fmt.Errorf("filter-prefix: %w", err)
-		}
-		return lists, true, nil
-	}
-	return nil, false, nil
-}
-
-// installPrefixLists makes lists the definitions every later filter-update
-// reads. It cannot fail.
-func installPrefixLists(lists map[string]*prefixList) error {
-	listsByName.Store(&lists)
-	logger().Debug("configured", "prefix-lists", len(lists))
+// installPrefixLists makes the definitions every later filter-update reads. It
+// cannot fail.
+func installPrefixLists(defs map[string]*prefixList) error {
+	listsByName.Store(&defs)
+	logger().Debug("configured", "prefix-lists", len(defs))
 	return nil
 }

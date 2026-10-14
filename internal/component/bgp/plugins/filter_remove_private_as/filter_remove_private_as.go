@@ -7,11 +7,9 @@ package filter_remove_private_as
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -27,24 +25,7 @@ func runFilterRemovePrivateAS(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-remove-private-as", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-			if !ok {
-				return errRemovePrivateASInvalidBgpConfigJSON
-			}
-			defs, err := parseRemovePrivateASDefs(bgpCfg)
-			if err != nil {
-				return fmt.Errorf("filter-remove-private-as: %w", err)
-			}
-			defsByName.Store(&defs)
-			logger().Debug("configured", "remove-private-as", len(defs))
-		}
-		return nil
-	})
+	newRemovePrivateASConfigTx().Register(p)
 
 	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 		return handleFilterUpdate(in), nil

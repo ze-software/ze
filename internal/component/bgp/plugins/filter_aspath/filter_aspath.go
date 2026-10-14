@@ -7,7 +7,8 @@
 //
 // The plugin loads named as-path-list definitions from
 // bgp { policy { as-path-list NAME { entry REGEX { action A; } } } }
-// at OnConfigure (Stage 2). At runtime, peer filter chains reference a list
+// at Stage 2 and on every applied reload (config_tx.go). At runtime, peer
+// filter chains reference a list
 // as bgp-filter-aspath:NAME. The engine dispatches each match via
 // CallFilterUpdate (filter-update RPC); the plugin handles it in OnFilterUpdate
 // by reading the as-path field out of the update text with filtertext.ASPath
@@ -22,11 +23,9 @@ package filter_aspath
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -39,7 +38,7 @@ var logger = slogutil.LazyLogger("bgp.filter.aspath")
 const configRootBGP = "bgp"
 
 // listsByName is the runtime-loaded set of as-path-list definitions, keyed by
-// the YANG list name. Updated atomically on every OnConfigure delivery so
+// the YANG list name. Stored whole by every install (config_tx.go) so
 // the hot path can read without a lock.
 var listsByName atomic.Pointer[map[string]*aspathList]
 
@@ -49,24 +48,7 @@ func runFilterAsPath(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-aspath", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
-			if !ok {
-				return errFilterAspathInvalidBgpConfigJson
-			}
-			lists, err := parseAsPathLists(bgpCfg)
-			if err != nil {
-				return fmt.Errorf("filter-aspath: %w", err)
-			}
-			listsByName.Store(&lists)
-			logger().Debug("configured", "as-path-lists", len(lists))
-		}
-		return nil
-	})
+	newAsPathConfigTx().Register(p)
 
 	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 		return handleFilterUpdate(in), nil
