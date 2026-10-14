@@ -253,3 +253,40 @@ func TestWebAddKeepsTheCaseOfTheFirstKeyValue(t *testing.T) {
 	assert.Equal(t, "zbl1", link)
 	assert.Nil(t, sessions["fe80::b"], "never created under the first value alone")
 }
+
+// TestWebAddRefusesASecondCreateOfOneMultiLeafAddress is the create half of
+// AC-14 of spec-bfd-link-local-peer-zone.
+//
+// GOAL: an absent key leaf compares as its YANG default, so a second create
+// that spells the default out names the entry the first one made. METHOD: add
+// `fe80::b interface zbl0`, then add it again posting `vrf default`.
+//
+// VALIDATES: the second add is refused with "already exists" naming the
+// canonical key `fe80::b interface zbl0`, and the list still holds one entry.
+// PREVENTS: a create that differs only by a key leaf at its default being
+// read as a new entry, or silently editing the existing one.
+func TestWebAddRefusesASecondCreateOfOneMultiLeafAddress(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	handler := handleConfigAdd(mgr, schema, renderer)
+	add := func(form url.Values) *httptest.ResponseRecorder {
+		req := postConfigRequest(t, "/config/add/bfd/single-hop-session/", form, "alice")
+		req.Header.Set("HX-Request", "true")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	rec := add(url.Values{"name": {"fe80::b"}, "field:interface": {"zbl0"}})
+	require.Less(t, rec.Code, http.StatusBadRequest, rec.Body.String())
+	require.NotNil(t, sessionList(t, mgr.Tree("alice"))["fe80::b interface zbl0"], rec.Body.String())
+
+	rec = add(url.Values{"name": {"fe80::b"}, "field:interface": {"zbl0"}, "field:vrf": {"default"}})
+	assert.Contains(t, rec.Body.String(), `entry &#34;fe80::b interface zbl0&#34; already exists`,
+		"the second create is refused as the entry the first one made")
+	sessions := sessionList(t, mgr.Tree("alice"))
+	assert.Len(t, sessions, 1, "one entry, never two: %v", sessions)
+	_, vrfWritten := sessions["fe80::b interface zbl0"].Get("vrf")
+	assert.False(t, vrfWritten, "the refused create wrote nothing into the existing entry")
+}
