@@ -16,6 +16,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -459,7 +460,7 @@ func TestEveryExecSiteUsesChildEnv(t *testing.T) {
 			t.Fatalf("parse %s: %v", name, err)
 		}
 		checked++
-		for _, position := range unexpectedOSEnvironCalls(fset, name, file) {
+		for _, position := range unexpectedOSEnvironCalls(t, fset, name, file) {
 			t.Errorf("%s:%d calls os.Environ outside canonical childEnv", name, position.Line)
 		}
 	}
@@ -546,20 +547,36 @@ func TestEveryExecSiteUsesChildEnvChecksAllSyntax(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse injected source: %v", err)
 			}
-			if got := len(unexpectedOSEnvironCalls(fset, tc.filename, file)); got != tc.want {
+			if got := len(unexpectedOSEnvironCalls(t, fset, tc.filename, file)); got != tc.want {
 				t.Fatalf("unexpected os.Environ calls = %d, want %d", got, tc.want)
 			}
 		})
 	}
 }
 
-func unexpectedOSEnvironCalls(fset *token.FileSet, filename string, file *ast.File) []token.Position {
+// unexpectedOSEnvironCalls answers every os.Environ call in file outside the
+// canonical childEnv. The single-file type check leaves every Ze import
+// unresolved, so its errors are dropped; the one import it cannot do without is
+// os, and a failure to import os fails the test, because every call would then
+// type-check as unresolved and the guard would count zero in silence.
+func unexpectedOSEnvironCalls(t *testing.T, fset *token.FileSet, filename string, file *ast.File) []token.Position {
+	t.Helper()
+	var osErr error
 	info := &types.Info{Uses: make(map[*ast.Ident]types.Object)}
 	config := &types.Config{
-		Importer: importer.Default(),
-		Error:    func(error) {},
+		Importer: importer.ForCompiler(fset, "gc", func(path string) (io.ReadCloser, error) {
+			reader, err := osExportData(t, path)
+			if path == "os" {
+				osErr = err
+			}
+			return reader, err
+		}),
+		Error: func(error) {},
 	}
 	_, _ = config.Check("runnerguard", fset, []*ast.File{file}, info)
+	if osErr != nil {
+		t.Fatalf("the guard cannot resolve package os, so it would see no os.Environ call: %v", osErr)
+	}
 
 	exempt := make(map[*ast.CallExpr]struct{})
 	if filepath.Base(filename) == childEnvProducerFile {
@@ -589,6 +606,23 @@ func unexpectedOSEnvironCalls(fset *token.FileSet, filename string, file *ast.Fi
 		return true
 	})
 	return positions
+}
+
+// osExportData opens the export data of os, asking the go command for it by
+// import path. importer.Default asks for the package's GOROOT directory
+// instead, and le's patched GOROOT is spelled through the checkout's cache/
+// link, so the go command reads that directory as a package of the main module
+// and answers nothing. Every other path is refused: the guard needs only os,
+// and resolving a Ze import would build it.
+func osExportData(t *testing.T, path string) (io.ReadCloser, error) {
+	if path != "os" {
+		return nil, os.ErrNotExist
+	}
+	out, err := exec.CommandContext(t.Context(), "go", "list", "-export", "-f", "{{.Export}}", path).Output()
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(strings.TrimSpace(string(out)))
 }
 
 func isOSEnvironCall(call *ast.CallExpr, info *types.Info) bool {
