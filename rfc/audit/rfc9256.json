@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-06",
+  "audited": "2026-10-14",
   "requirements": {
     "RFC9256-2.6-3": {
       "note": "TestRFC9256SymbolicNamesAreNotIdentifiers drives parseConfigRoute: differing policy and candidate-path names give byte-identical NLRI keys while the names still reach the Tunnel Encapsulation attribute (positive), and a shared name with a different distinguisher gives distinct keys (negative), so the name never takes part in identity.",
@@ -17,9 +17,9 @@
     "RFC9256-4-7": {
       "code": {
         "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildSegmentSubSubTLV": "06f199ddc509585d",
-        "internal/component/bgp/plugins/nlri/srpolicy/config.go::parseSegmentList": "53226e586c8e5f13"
+        "internal/component/bgp/plugins/nlri/srpolicy/config.go::parseSegmentList": "3560fab26d8718a9"
       },
-      "note": "RFC 9256 \u00a74 repeats the same combined permission for Types I, J and K. All three optional fields and all three types are retained by this row and its annotation. parseSegmentList accepts only type-a/type-b and rejects other types; buildSegmentSubSubTLV emits only A/B. Type B SID behavior/structure support is a separate existing permission (RFC9256-4-2), not evidence for I/J/K. No implementation or tagged conformance test exists for the new row; record the optional implementation gap without adding the feature.",
+      "note": "Re-judged 2026-10-14 (independent auditor) after parseSegmentList gained the 20-bit type-a label check. Gap unchanged: parseSegmentList still accepts only type-a and type-b ('unknown segment type' otherwise) and buildSegmentSubSubTLV emits only Types A and B, so the optional SR Algorithm, SRv6 SID behavior and structure of segment types I, J and K are not produced. Type B endpoint-behavior support is RFC9256-4-2, not evidence here. No tag; the gap authorizes no implementation.",
       "requirement_sha": "4cf8ed5d1c30a0a8",
       "verdict": "unimplemented"
     },
