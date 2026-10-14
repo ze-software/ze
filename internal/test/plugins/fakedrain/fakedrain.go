@@ -32,7 +32,7 @@ const Budget = 5
 const Hold = time.Second
 
 // Responder registers on p a drain handler that logs each drain it receives
-// with its kind, holds it for Hold, then answers. It returns the report the
+// with its kind (and, for a restart, its cause), holds it for Hold, then answers. It returns the report the
 // caller MUST read when Run returns: whether a drain was answered before the
 // connection closed. A stop that closed the connection with no drain
 // answered is the failure the plugin that lives it reports.
@@ -47,7 +47,7 @@ func ResponderWith(p *sdk.Plugin, onReceived func()) (answered func() bool) {
 	var done atomic.Bool
 	p.OnDrain(func(ctx context.Context, input rpc.DrainInput) error {
 		deadlineSeconds := int(time.Until(input.Deadline).Round(time.Second) / time.Second)
-		Log("drain-fixture: drain received kind=" + input.Kind.String() +
+		Log("drain-fixture: drain received kind=" + input.Kind.String() + causeText(input.RestartCause) +
 			" deadline-in=" + strconv.Itoa(deadlineSeconds) + "s")
 		if onReceived != nil {
 			onReceived()
@@ -63,6 +63,15 @@ func ResponderWith(p *sdk.Plugin, onReceived func()) (answered func() bool) {
 		return nil
 	})
 	return done.Load
+}
+
+// causeText is the " cause=<cause>" a restart-kind drain carries, or "" for
+// a stop, whose drain carries no cause.
+func causeText(cause rpc.DrainRestartCause) string {
+	if cause == "" {
+		return ""
+	}
+	return " cause=" + string(cause)
 }
 
 // Log writes one line to stderr, which the daemon carries for the .ci

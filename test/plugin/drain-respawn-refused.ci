@@ -1,0 +1,35 @@
+# Test: a plugin that exits during the drain is not started again
+# Exercises: request shutdown -> runStopDrain (cmd/ze/hub/drain.go) ->
+#            Server.BeginDrain -> ProcessManager.RefuseRespawns
+#            (internal/component/plugin/process/manager.go); drain-exits closes
+#            its connection on its drain -> applyFailurePolicy -> restartPlugin
+#            -> Respawn refuses with ErrDaemonStopping.
+# VALIDATES: spec-daemon-drain-before-stop AC-17: the respawn its restart
+#            policy asks for is refused and logged, no second generation
+#            starts, and the daemon exits 0. drain-responder holds the round
+#            open for 1 s, so the refusal happens inside the drain.
+# PREVENTS:  a plugin restarted during the stop, which would come up into a
+#            daemon tearing down.
+
+option=env:var=ze.log.plugin.server:value=info
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+plugin {
+	external drain-exits {
+		run "le test fixture plugin/drain-exits"
+		encoder json
+	}
+	external drain-requester {
+		run "le test fixture plugin/drain-requester reactorless"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze-bgp.conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=drain-fixture: drain-exits leaving during the drain
+expect=stderr:contains=plugin exited, starting it again
+expect=stderr:pattern=could not be started again.*respawn refused: ze is stopping
+expect=stderr:contains=drain-fixture: drain answered
+reject=stderr:contains=drain-fixture: FAIL

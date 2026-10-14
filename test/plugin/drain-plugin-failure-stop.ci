@@ -1,0 +1,30 @@
+# Test: a plugin failure under the stop-daemon policy drains the other plugins
+# Exercises: applyFailurePolicy -> stopDaemonForPlugin
+#            (internal/component/plugin/server/failure_policy.go) -> shutdownFunc
+#            -> runStopDrain (cmd/ze/hub/drain.go) -> drain-responder's OnDrain.
+# VALIDATES: spec-daemon-drain-before-stop AC-8 (plugin failure): the stop a
+#            failed fatal plugin causes enters the hub with kind stop, and the
+#            other drain-registered plugin receives the drain and answers
+#            before its connection closes; the daemon exits 0.
+# PREVENTS:  a plugin-failure stop bypassing the drain.
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+plugin {
+	external failure-fatal {
+		run "le test fixture plugin/failure-policy-fatal"
+		encoder json
+	}
+	external drain-responder {
+		run "le test fixture plugin/drain-responder"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze-bgp.conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=FIXTURE: failure-fatal is exiting
+expect=stderr:contains=stopping ze because a plugin failed
+expect=stderr:contains=drain-fixture: drain received kind=stop
+expect=stderr:contains=drain-fixture: drain answered
+reject=stderr:contains=drain-fixture: FAIL

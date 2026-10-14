@@ -1,0 +1,64 @@
+# Test: a show command is answered while the plugin's drain is held
+# Exercises: SIGTERM -> runStopDrain (cmd/ze/hub/drain.go) -> the SDK drain
+#            worker (pkg/plugin/sdk/sdk_drain.go), which runs the handler off
+#            the event loop; the handler dispatches `show bgp summary`.
+# VALIDATES: spec-daemon-drain-before-stop AC-23: `show bgp summary` is
+#            answered within 1 s during the drain, and the drain is still
+#            answered and the daemon exits 0.
+# PREVENTS:  a drain handler blocking the plugin's event loop, so every RPC it
+#            makes during the drain waits for the drain to end.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+action=sigterm:conn=1:seq=2
+EOF_PEER
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+plugin {
+	external drain-show {
+		run "le test fixture plugin/drain-show"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start ze-bgp.conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=drain-fixture: drain received kind=stop
+expect=stderr:contains=drain-fixture: show bgp summary answered during the drain
+expect=stderr:contains=drain-fixture: drain answered
+reject=stderr:contains=drain-fixture: FAIL

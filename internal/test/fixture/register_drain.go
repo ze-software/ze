@@ -31,17 +31,35 @@ const drainRequesterSettle = 2 * time.Second
 // with the one command its argument names: `request shutdown` (default) or
 // `request halt` (argument "halt"), the quit handler (handleDaemonQuit). Those
 // two reach the hub through the daemon shutdown function, and the drain they
-// run is the one this fixture answers.
+// run is the one this fixture answers. The argument "reactorless" sends
+// `request shutdown` to a daemon with no BGP peer, so it watches no session.
 func drainRequester(ctx context.Context, args []string) error {
 	command := "request shutdown"
-	if len(args) > 0 && args[0] == "halt" {
-		command = "request halt"
+	reactorless := false
+	for _, arg := range args {
+		switch arg {
+		case "halt":
+			command = "request halt"
+		case "reactorless":
+			reactorless = true
+		default:
+			return errors.New("plugin/drain-requester takes halt or reactorless, not " + arg)
+		}
 	}
 	plugin, err := newObserver("drain-requester")
 	if err != nil {
 		return err
 	}
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
+
+	if reactorless {
+		answered := fakedrain.Responder(plugin)
+		plugin.OnAllPluginsReady(func() error {
+			go requestStopAfterSettle(plugin, command)
+			return nil
+		})
+		return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget}))
+	}
 
 	// The peer's session MUST still be up when the drain arrives: a stop that
 	// tore BGP down before the hub ran the drain (the defect AC-8 removes)
@@ -71,7 +89,12 @@ func drainRequester(ctx context.Context, args []string) error {
 		go requestStopAfterSettle(plugin, command)
 		return nil
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget})
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget}))
+}
+
+// drainAnsweredOrFail is the end of every responder fixture: Run returned,
+// and a connection that closed with no drain answered fails the run.
+func drainAnsweredOrFail(answered func() bool, runErr error) error {
 	if !answered() {
 		fakedrain.Log("drain-fixture: FAIL connection closed before the drain was answered")
 		return errors.Join(errors.New("drain fixture: stopped with no drain answered"), runErr)
@@ -109,13 +132,7 @@ func drainResponder(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	answered := fakedrain.Responder(plugin)
-	runErr := plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget})
-	if !answered() {
-		fakedrain.Log("drain-fixture: FAIL connection closed before the drain was answered")
-		return errors.Join(errors.New("drain fixture: stopped with no drain answered"), runErr)
-	}
-	fakedrain.Log("drain-fixture: connection closed after the drain")
-	return runErr
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget}))
 }
 
 // drainBudgetOverCeiling declares a DrainBudget one second above the daemon
