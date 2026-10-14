@@ -11,8 +11,9 @@ import (
 )
 
 // TestRFC8669LabelIndexTransmissionClearsReservedAndFlags sends both clean and
-// dirty Label-Index TLVs through the real session writers, including both relay
-// planners followed by their raw-body writer. The source and Originator SRGB
+// dirty Label-Index TLVs, on an IPv4 labeled-unicast route (the family RFC 8669
+// Section 3.1 defines the TLV for), through the real session writers, including
+// both relay planners followed by their raw-body writer. The source and Originator SRGB
 // remain byte-identical; only the transmitted Label-Index fields are cleared.
 // MUTATION: omit the final writer normalization and dirty relay octets escape.
 // RFC requirement: RFC8669-3.1-3 positive -- clean Label-Index Reserved is zero on every tested session writer and both forwarding rails.
@@ -30,9 +31,9 @@ func TestRFC8669LabelIndexTransmissionClearsReservedAndFlags(t *testing.T) {
 				srgb := bytes.Clone(rfc8669SRGBTLV)
 				srgb[3], srgb[4] = 0xab, 0xcd
 				sid := append(append(label, rfc8669UnknownTLV...), srgb...)
-				body := rfc8669RelayBody(sid)
+				body := rfc8669LabeledUnicastBody(sid)
 				if rail == "general" || rail == "route-server" {
-					body = rfc8669Relay(t, rail == "route-server", NextHopUnchanged, sid)
+					body = rfc8669RelayUpdate(t, rail == "route-server", NextHopUnchanged, body)
 				}
 				source := bytes.Clone(body)
 				peer, conn := newAnnouncePeer(t, "192.0.2.2")
@@ -81,4 +82,26 @@ func TestRFC8669LabelIndexTransmissionClearsReservedAndFlags(t *testing.T) {
 			})
 		}
 	}
+}
+
+// rfc8669LabeledUnicastBody builds an UPDATE body for one IPv4 labeled-unicast
+// route (RFC 8277: MP_REACH_NLRI AFI 1, SAFI 4, label 100 with the bottom of
+// stack bit, prefix 198.51.100.0/24) carrying sid as attribute 40.
+func rfc8669LabeledUnicastBody(sid []byte) []byte {
+	reach := []byte{
+		0, 1, 4, // AFI IPv4, SAFI labeled unicast
+		4, 192, 0, 2, 99, // next hop 192.0.2.99
+		0,                                  // reserved
+		48, 0x00, 0x06, 0x41, 198, 51, 100, // 24 label bits + 24 prefix bits
+	}
+	attrs := []byte{
+		0x40, 1, 1, 0, // ORIGIN igp
+		0x40, 2, 6, 2, 1, 0, 0, 0xFD, 0xE9, // AS_PATH AS_SEQUENCE [65001]
+		0x80, 14, byte(len(reach)),
+	}
+	attrs = append(attrs, reach...)
+	attrs = append(attrs, 0xC0, prefixSIDCodeByte, byte(len(sid)))
+	attrs = append(attrs, sid...)
+	body := []byte{0, 0, byte(len(attrs) >> 8), byte(len(attrs))}
+	return append(body, attrs...)
 }

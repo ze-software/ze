@@ -780,8 +780,31 @@ included, so a malformed second SRv6 Service TLV is still treat-as-withdraw.
 <!-- source: internal/core/bgp/attribute/prefixsid_wire.go -- PrefixSIDTLVSingleOccurrence -->
 <!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDNextHopHandler, prefixSIDAllowedTo -->
 
-A malformed TLV is refused: the parse returns an error and no attribute, rather
-than a value filled as far as the bytes allowed.
+**The receive action depends on the family.** After the RFC 7606 walk has read
+every attribute (MP_REACH_NLRI may follow code 40), `ClassifyPrefixSID` judges
+the first code 40 value with the family `PrefixSIDRouteFamily` reads, the same
+declaration the repeated-TLV discard and the egress Label-Index clear use. A
+code 40 whose flags conflict is recorded by the walk and not judged again.
+
+| Value | IPv4/IPv6 labeled unicast | Any other family |
+|-------|---------------------------|------------------|
+| Empty attribute | attribute-discard | attribute-discard |
+| Label-Index TLV of a length other than 7, Originator SRGB TLV of a length other than 2 + 6N (N >= 1) | attribute-discard (RFC 8669 Section 6) | kept: the TLV is unrecognized there (Section 3.1, 3.2) |
+| No Label-Index TLV | attribute-discard: the attribute is invalid (Section 4.1) | kept |
+| A malformed SRv6 Service TLV (type 5 or 6), including one whose length overruns the attribute and stray octets inside a SID Information Sub-TLV | treat-as-withdraw (RFC 9252 Section 7) | treat-as-withdraw |
+| Another TLV overrunning the attribute, or 1 or 2 octets after the last TLV | attribute-discard | attribute-discard, or treat-as-withdraw when a Service TLV was read before it, since that Service TLV's length then disagrees with the attribute |
+
+Treat-as-withdraw in an UPDATE with no NLRI escalates to session reset (RFC
+7606 Section 5.2). A SID Structure Sub-Sub-TLV whose length is not 6 is not
+malformed (RFC 9252 Section 7, semantic validation): the attribute is kept.
+
+The parser (`ParsePrefixSID`) then judges only what holds on every family: the
+framing at all three levels and the SRv6 Service structure. A broken frame
+returns an error and no attribute, rather than a value filled as far as the
+bytes allowed. It keeps a type 1 or type 3 TLV of any length, because on
+labeled unicast the receive step has already discarded a wrong one.
+<!-- source: internal/core/bgp/attribute/prefixsid_classify.go -- ClassifyPrefixSID, PrefixSIDRouteFamily -->
+<!-- source: internal/component/bgp/message/rfc7606.go -- validatePrefixSIDForRoutes -->
 
 For local origination, the command and configuration paths share
 `EncodePrefixSIDSRv6`. Its optional SID Structure is checked against the 128-bit
@@ -792,7 +815,11 @@ documented in [the UPDATE syntax reference](../api/update-syntax.md).
 <!-- source: internal/core/bgp/attribute/prefixsid.go -- EncodePrefixSIDSRv6, validateSRv6OriginStructure -->
 
 JSON, under the key `bgp-prefix-sid`, with one member per TLV. The member names
-are ExaBGP's, so the two agree on the wire and in the API:
+are ExaBGP's, so the two agree on the wire and in the API. A Label-Index or
+Originator SRGB TLV whose length its RFC does not allow, which is kept off
+labeled unicast, renders as `attribute-not-implemented-<type>` with its hex, and
+a SID Structure whose length is not 6 as `sub-sub-tlv-1`, since their fields
+cannot be read:
 
 ```json
 {"sr-label-index": 777}

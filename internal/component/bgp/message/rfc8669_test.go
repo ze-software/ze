@@ -1,5 +1,5 @@
 // RFC: rfc/short/rfc8669.md — BGP Prefix-SID attribute (code 40)
-// Overview: rfc7606.go — validatePrefixSIDAttr walks the attribute's TLVs
+// Overview: rfc7606.go — validatePrefixSIDForRoutes judges the attribute's TLVs by route family
 // Related: attr_discard.go — ApplyAttrDiscard removes a discarded attribute from the wire
 //
 // RFC 8669 §6 gives the Prefix-SID attribute "attribute discard" error handling: a TLV

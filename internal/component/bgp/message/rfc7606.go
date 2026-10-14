@@ -267,6 +267,10 @@ func ValidateUpdateRFC7606AddPath(
 	// eBGP first-AS check, without repeating this attribute walk.
 	var asPath AttrRange
 
+	// RFC 8669 Section 6 and RFC 9252 Section 7: the first Prefix-SID value whose
+	// flags are sound, judged after the walk with its route family (see below).
+	var prefixSID AttrRange
+
 	// RFC 7606 Section 5.4: where the MP attributes' NLRI bytes live, observed on this
 	// walk so the typed-NLRI check does not repeat it (see MPReachNLRI).
 	//
@@ -427,6 +431,9 @@ func ValidateUpdateRFC7606AddPath(
 		if attrCode == attrCodeASPath {
 			asPath = AttrRange{Start: pos - attrLen, End: pos}
 		}
+		if attrCode == attrCodePrefixSID {
+			prefixSID = AttrRange{Start: pos - attrLen, End: pos}
+		}
 
 		// Validate specific attributes per RFC 7606 Section 7
 		result := validateAttribute(attrCode, attrLen, attrData, isIBGP, asn4)
@@ -543,6 +550,17 @@ func ValidateUpdateRFC7606AddPath(
 		}
 	}
 
+	// RFC 8669 Section 6, RFC 9252 Section 7: the Prefix-SID verdict depends on the
+	// family of the routes the attribute is attached to, and MP_REACH_NLRI may follow
+	// code 40 in the attribute order, so it is judged here, after the walk has read
+	// every attribute. A code 40 whose flags conflict was recorded by the walk and never
+	// set prefixSID, so its verdict is not recorded twice.
+	if prefixSID.Start != 0 {
+		if r := validatePrefixSIDForRoutes(pathAttrs, pathAttrs[prefixSID.Start:prefixSID.End]); r != nil {
+			recordError(r)
+		}
+	}
+
 	// RFC 7606 Section 5.2: "For this reason, if any path attribute errors are
 	// encountered in such an UPDATE message and if any encountered error specifies
 	// an error-handling approach other than 'attribute discard', then the 'session
@@ -608,7 +626,6 @@ func init() {
 	attrValidators[attrCodeLargeCommunity] = validateLargeCommunityAttr
 	attrValidators[attrCodeMPReachNLRI] = validateMPReachAttr
 	attrValidators[attrCodeMPUnreachNLRI] = validateMPUnreachAttr
-	attrValidators[attrCodePrefixSID] = validatePrefixSIDAttr
 	attrValidators[attribute.AttrAIGP] = validateAIGPAttr
 }
 
@@ -1109,102 +1126,66 @@ func validateMPReachNextHop(data []byte) *RFC7606ValidationResult {
 	return nil
 }
 
-// RFC 9252 Section 3.4: malformed SRv6 Service TLV triggers treat-as-withdraw.
-// RFC 8669 Section 6: overall malformed Prefix-SID triggers attribute-discard.
-func validatePrefixSIDAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
-	off := 0
-	for off+3 <= length {
-		tlvLen := int(attrData[off+1])<<8 | int(attrData[off+2])
-		off += 3
-		if off+tlvLen > length {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionAttributeDiscard,
-				AttrCode:    code,
-				Reason:      DiscardReasonInvalidLength,
-				Description: "RFC 8669 Section 6: Prefix-SID TLV length exceeds attribute bounds",
-			}
-		}
-		tlvType := attrData[off-3]
-		if tlvType == 5 || tlvType == 6 {
-			if err := validateSRv6ServiceTLV(attrData[off:off+tlvLen], tlvType); err != nil {
-				return err
-			}
-		}
-		off += tlvLen
-	}
-	// RFC 8669 Section 6: trailing bytes after last TLV are malformed.
-	if off != length {
+// validatePrefixSIDForRoutes judges the Prefix-SID value of an UPDATE whose
+// attribute section is pathAttrs, with the family attribute.PrefixSIDRouteFamily
+// reads for its routes.
+func validatePrefixSIDForRoutes(pathAttrs, value []byte) *RFC7606ValidationResult {
+	afi, safi, ok := attribute.PrefixSIDRouteFamily(pathAttrs)
+	if !ok {
+		// An MP_REACH_NLRI too short to name its family is a session reset in the
+		// walk (validateMPReachAttr), so this is not reached from a received
+		// UPDATE. Without a family no verdict can be read, so the routes are
+		// withdrawn rather than judged as some family they may not be.
 		return &RFC7606ValidationResult{
-			Action:      RFC7606ActionAttributeDiscard,
-			AttrCode:    code,
-			Reason:      DiscardReasonInvalidLength,
-			Description: "RFC 8669 Section 6: trailing bytes in Prefix-SID attribute",
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    attrCodePrefixSID,
+			Description: "RFC 8669 Section 6: Prefix-SID route family unreadable (MP_REACH_NLRI shorter than AFI and SAFI)",
 		}
 	}
-	return nil
+	return validatePrefixSIDValue(value, afi, safi)
 }
 
-// validateSRv6ServiceTLV checks internal structure of an SRv6 L3/L2 Service TLV.
-func validateSRv6ServiceTLV(value []byte, tlvType uint8) *RFC7606ValidationResult {
-	// RFC 9252 Section 3.1: Service TLV value = Reserved(1) + Sub-TLVs.
-	if len(value) < 1 {
-		var b textbuf.Buffer
+// validatePrefixSIDValue maps the family-aware Prefix-SID verdict to its RFC 7606
+// action.
+//
+// RFC 8669 Section 6: "When a BGP speaker receives a BGP UPDATE message
+// containing a malformed or invalid BGP Prefix-SID attribute attached to an
+// IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP
+// Prefix-SID attribute and not advertise it to other BGP peers." That is
+// attribute-discard.
+//
+// RFC 9252 Section 7: "The treat-as-withdraw action [RFC7606] MUST be performed
+// when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID
+// attribute." That is treat-as-withdraw, whatever the family.
+func validatePrefixSIDValue(value []byte, afi attribute.AFI, safi attribute.SAFI) *RFC7606ValidationResult {
+	verdict, err := attribute.ClassifyPrefixSID(value, afi, safi)
+	switch verdict {
+	case attribute.PrefixSIDWellFormed:
+		return nil
+	case attribute.PrefixSIDMalformedAttribute:
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionAttributeDiscard,
+			AttrCode:    attrCodePrefixSID,
+			Reason:      DiscardReasonInvalidLength,
+			Description: err.Error(),
+		}
+	case attribute.PrefixSIDInvalidAttribute:
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionAttributeDiscard,
+			AttrCode:    attrCodePrefixSID,
+			Reason:      DiscardReasonMalformedValue,
+			Description: err.Error(),
+		}
+	case attribute.PrefixSIDMalformedServiceTLV:
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    attrCodePrefixSID,
-			Description: b.Reset().Str("RFC 9252 Section 3.4: SRv6 Service TLV type ").Int(int64(tlvType)).Str(" empty value").String(),
+			Description: err.Error(),
 		}
+	case attribute.PrefixSIDVerdictUnspecified:
+		panic("BUG: ClassifyPrefixSID returned no verdict")
 	}
-	off := 1 // skip Reserved
-	for off+3 <= len(value) {
-		subLen := int(value[off+1])<<8 | int(value[off+2])
-		off += 3
-		if off+subLen > len(value) {
-			var b textbuf.Buffer
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    attrCodePrefixSID,
-				Description: b.Reset().Str("RFC 9252 Section 3.4: SRv6 Sub-TLV length exceeds Service TLV type ").Int(int64(tlvType)).String(),
-			}
-		}
-		// RFC 9252 Section 3.2: SID Info Sub-TLV (type 1) minimum length 21.
-		if value[off-3] == 1 && subLen < 21 {
-			var b textbuf.Buffer
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    attrCodePrefixSID,
-				Description: b.Reset().Str("RFC 9252 Section 3.2: SID Info Sub-TLV length ").Int(int64(subLen)).Str(" < 21").String(),
-			}
-		}
-		// RFC 9252 Section 3.2: validate sub-sub-TLV bounds within SID Info.
-		if value[off-3] == 1 && subLen > 21 {
-			ssOff := 21
-			for ssOff+3 <= subLen {
-				ssLen := int(value[off+ssOff+1])<<8 | int(value[off+ssOff+2])
-				ssOff += 3
-				if ssOff+ssLen > subLen {
-					var b textbuf.Buffer
-					return &RFC7606ValidationResult{
-						Action:      RFC7606ActionTreatAsWithdraw,
-						AttrCode:    attrCodePrefixSID,
-						Description: b.Reset().Str("RFC 9252 Section 3.2: sub-sub-TLV exceeds SID Info bounds in Service TLV type ").Int(int64(tlvType)).String(),
-					}
-				}
-				ssOff += ssLen
-			}
-		}
-		off += subLen
-	}
-	// RFC 9252 Section 3.4: trailing bytes after last sub-TLV are malformed.
-	if off != len(value) {
-		var b textbuf.Buffer
-		return &RFC7606ValidationResult{
-			Action:      RFC7606ActionTreatAsWithdraw,
-			AttrCode:    attrCodePrefixSID,
-			Description: b.Reset().Str("RFC 9252 Section 3.4: trailing bytes in SRv6 Service TLV type ").Int(int64(tlvType)).String(),
-		}
-	}
-	return nil
+	panic("BUG: ClassifyPrefixSID returned an undeclared verdict")
 }
 
 // ValidateNLRISyntax validates NLRI field structure per RFC 7606 Section 5.3, for a field

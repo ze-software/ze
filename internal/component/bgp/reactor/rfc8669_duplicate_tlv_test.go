@@ -140,17 +140,17 @@ func TestRFC8669DuplicateServiceTLVDiscardedOnReceive(t *testing.T) {
 		after    string
 		extended bool
 	}{
-		{"L3 Service twice", safiLabeled, l3Twice, srv6L3ServiceTLV(firstSID), "", false},
-		{"L2 Service twice", safiLabeled, srv6L2ServiceTLV(firstSID) + srv6L2ServiceTLV(secondSID), srv6L2ServiceTLV(firstSID), "", false},
+		{"L3 Service twice", safiLabeled, labelIndexTLV("00000064") + l3Twice, labelIndexTLV("00000064") + srv6L3ServiceTLV(firstSID), "", false},
+		{"L2 Service twice", safiLabeled, labelIndexTLV("00000064") + srv6L2ServiceTLV(firstSID) + srv6L2ServiceTLV(secondSID), labelIndexTLV("00000064") + srv6L2ServiceTLV(firstSID), "", false},
 		{
 			"Label-Index twice, unknown TLV between", safiLabeled,
 			labelIndexTLV("00000064") + unknownTLV + labelIndexTLV("000000c8"),
 			labelIndexTLV("00000064") + unknownTLV,
 			"", false,
 		},
-		{"L3 Service twice, unknown TLV after", safiLabeled, l3Twice + unknownTLV, srv6L3ServiceTLV(firstSID) + unknownTLV, "", false},
-		{"L3 Service twice, attribute after", safiLabeled, l3Twice, srv6L3ServiceTLV(firstSID), communityAttr, false},
-		{"L3 Service twice, extended length", safiLabeled, l3Twice + unknownTLV, srv6L3ServiceTLV(firstSID) + unknownTLV, communityAttr, true},
+		{"L3 Service twice, unknown TLV after", safiLabeled, labelIndexTLV("00000064") + l3Twice + unknownTLV, labelIndexTLV("00000064") + srv6L3ServiceTLV(firstSID) + unknownTLV, "", false},
+		{"L3 Service twice, attribute after", safiLabeled, labelIndexTLV("00000064") + l3Twice, labelIndexTLV("00000064") + srv6L3ServiceTLV(firstSID), communityAttr, false},
+		{"L3 Service twice, extended length", safiLabeled, labelIndexTLV("00000064") + l3Twice + unknownTLV, labelIndexTLV("00000064") + srv6L3ServiceTLV(firstSID) + unknownTLV, communityAttr, true},
 		{"L3 Service twice, IPv4 unicast", safiUnicast, l3Twice, srv6L3ServiceTLV(firstSID), "", false},
 	}
 	for _, tt := range tests {
@@ -202,7 +202,7 @@ func TestRFC8669SingleOccurrencePrefixSIDKeptWhole(t *testing.T) {
 		received string
 	}{
 		{"each type once", safiLabeled, labelIndexTLV("00000064") + originatorSRGBTLV + srv6L3ServiceTLV(firstSID) + srv6L2ServiceTLV(secondSID) + unknownTLV},
-		{"unknown TLV twice", safiLabeled, srv6L3ServiceTLV(firstSID) + unknownTLV + unknownTLV},
+		{"unknown TLV twice", safiLabeled, labelIndexTLV("00000064") + srv6L3ServiceTLV(firstSID) + unknownTLV + unknownTLV},
 		{"Originator SRGB twice", safiLabeled, labelIndexTLV("00000064") + originatorSRGBTLV + originatorSRGBTLV},
 		{"Label-Index twice, IPv4 unicast", safiUnicast, labelIndexTLV("00000064") + unknownTLV + labelIndexTLV("000000c8")},
 	}

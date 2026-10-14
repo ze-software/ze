@@ -69,6 +69,13 @@ func rfc8669RelayBody(sid []byte) []byte {
 // UPDATE body the destination was asked to write.
 func rfc8669Relay(t *testing.T, routeServer bool, mode uint8, sid []byte) []byte {
 	t.Helper()
+	return rfc8669RelayUpdate(t, routeServer, mode, rfc8669RelayBody(sid))
+}
+
+// rfc8669RelayUpdate relays the UPDATE body received as rfc8669Relay does, for a
+// caller that needs a body of another family than IPv4 unicast.
+func rfc8669RelayUpdate(t *testing.T, routeServer bool, mode uint8, received []byte) []byte {
+	t.Helper()
 
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
@@ -80,7 +87,7 @@ func rfc8669Relay(t *testing.T, routeServer bool, mode uint8, sid []byte) []byte
 	dest.refreshForwardFacts()
 
 	cache := newRecentUpdateCache(100)
-	update, id := newLeakTestUpdate(t, cache, rfc8669RelayBody(sid), ctxID)
+	update, id := newLeakTestUpdate(t, cache, received, ctxID)
 
 	delivered := make(chan []fwdItem, 4)
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {

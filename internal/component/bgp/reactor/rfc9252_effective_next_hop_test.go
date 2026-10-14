@@ -30,7 +30,7 @@ import (
 // unrecognized MUST be removed."
 // RFC requirement: RFC9252-3.3-1 positive -- explicit third-party A-to-A and policy A-to-A retain Service TLVs, nonzero Reserved and unknown nested bytes in actual cached and RS recipient output.
 // RFC requirement: RFC9252-3.3-1 negative -- explicit A-to-A and configured restoration of the received address must not strip Service TLVs or their Reserved/unknown nested bytes.
-// RFC requirement: RFC9252-3.3-2 positive -- effective A-to-B changes remove Service TLVs and unknown nested fields, retaining route, unknown top-level TLVs, SRGB and normalized Label-Index on cached and RS output, including raw-policy fallback.
+// RFC requirement: RFC9252-3.3-2 positive -- effective A-to-B changes remove Service TLVs and unknown nested fields, retaining route, unknown top-level TLVs, SRGB and the Label-Index as received (unrecognized off labeled unicast, so not normalized) on cached and RS output, including raw-policy fallback.
 // RFC requirement: RFC9252-3.3-2 negative -- equal effective addresses do not remove received Service TLVs merely because configured next-hop rewriting is enabled.
 // MUTATION: use configured mode as proof of change, compare policy output to
 // itself, ignore raw replacement, or run policy again in the Session writer.
@@ -202,8 +202,9 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 	if tc.explicit.IsValid() {
 		f.destination.settings.NextHopAddress = tc.explicit
 	}
-	// RFC 8669 Sections 3, 3.1 and 3.2: only Label-Index transmit fields
-	// normalize; unknown top-level TLVs and Originator SRGB stay identical.
+	// RFC 8669 Sections 3.1 and 6: these carriers are not labeled unicast, so
+	// the Label-Index TLV is unrecognized and, with its non-zero Reserved and
+	// Flags, propagated unmodified like the unknown TLV and the Originator SRGB.
 	label := bytes.Clone(rfc8669LabelIndexTLV)
 	label[3], label[4], label[5] = 0xa1, 0xb2, 0xc3
 	l3, l2 := rfc9252ReservedServiceTLV(5), rfc9252ReservedServiceTLV(6)
@@ -211,9 +212,9 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 	l3[26], l2[26] = 0x14, 0x17
 	services := slices.Concat(l3, l2)
 	sid := slices.Concat(label, services, rfc8669UnknownTLV, rfc8669SRGBTLV)
-	wantSID := slices.Concat(rfc8669LabelIndexTLV, services, rfc8669UnknownTLV, rfc8669SRGBTLV)
+	wantSID := slices.Concat(label, services, rfc8669UnknownTLV, rfc8669SRGBTLV)
 	if tc.changed {
-		wantSID = slices.Concat(rfc8669LabelIndexTLV, rfc8669UnknownTLV, rfc8669SRGBTLV)
+		wantSID = slices.Concat(label, rfc8669UnknownTLV, rfc8669SRGBTLV)
 	}
 	if tc.serviceOnly {
 		sid = services

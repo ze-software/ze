@@ -2446,7 +2446,7 @@ func TestValidateSRv6ServiceTLV_TrailingBytes(t *testing.T) {
 	result := validatePrefixSIDAttr(40, len(data), data, false, false)
 	require.NotNil(t, result)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
-	require.Contains(t, result.Description, "trailing bytes")
+	require.Contains(t, result.Description, "SRv6 sub-TLV header truncated")
 }
 
 func TestValidateSRv6ServiceTLV_SubSubTLVExceedsBounds(t *testing.T) {
@@ -2467,7 +2467,7 @@ func TestValidateSRv6ServiceTLV_SubSubTLVExceedsBounds(t *testing.T) {
 	result := validatePrefixSIDAttr(40, len(data), data, false, false)
 	require.NotNil(t, result)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
-	require.Contains(t, result.Description, "sub-sub-TLV exceeds")
+	require.Contains(t, result.Description, "SRv6 sub-sub-TLV type 1 value truncated")
 }
 
 // RFC requirement: RFC9252-3.4-1 negative -- a SID Information Sub-TLV shorter than the 21-octet
@@ -2484,5 +2484,5 @@ func TestValidateSRv6ServiceTLV_SIDInfoTooShort(t *testing.T) {
 	result := validatePrefixSIDAttr(40, len(data), data, false, false)
 	require.NotNil(t, result)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
-	require.Contains(t, result.Description, "< 21")
+	require.Contains(t, result.Description, "SRv6 SID information sub-TLV is 10 octets")
 }

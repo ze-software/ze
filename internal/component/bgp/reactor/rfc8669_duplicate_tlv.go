@@ -72,7 +72,7 @@ func discardRepeatedPrefixSIDTLVs(wu *wireu.WireUpdate, peer netip.Addr) *wireu.
 	if !found {
 		return wu
 	}
-	afi, safi, ok := prefixSIDRouteFamily(attrs)
+	afi, safi, ok := attribute.PrefixSIDRouteFamily(attrs)
 	if !ok {
 		// The RFC 7606 walk refuses an MP_REACH_NLRI too short to name its family
 		// before publishBase runs; without a family no TLV can be judged single.
@@ -88,27 +88,6 @@ func discardRepeatedPrefixSIDTLVs(wu *wireu.WireUpdate, peer netip.Addr) *wireu.
 	sessionLogger().Debug("RFC 8669 Section 6: discarded repeated Prefix-SID TLVs",
 		"peer", peer, "octets-received", len(value))
 	return rebuilt
-}
-
-// prefixSIDRouteFamily returns the family of the routes the UPDATE whose
-// attribute section is attrs announces: the AFI and SAFI of its MP_REACH_NLRI
-// (RFC 4760 Section 3), or IPv4 unicast for an UPDATE without one, whose
-// routes travel in the RFC 4271 NLRI field. It returns false for an
-// MP_REACH_NLRI shorter than its AFI and SAFI.
-//
-// An UPDATE carrying both is read by its MP_REACH_NLRI family. The UPDATE has
-// one Prefix-SID for both sets of routes, so one reading must win, and the
-// labeled-unicast routes are the ones RFC 8669 Section 3.1 requires the
-// Label-Index TLV for.
-func prefixSIDRouteFamily(attrs []byte) (attribute.AFI, attribute.SAFI, bool) {
-	_, _, reach, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)
-	if !found {
-		return attribute.AFIIPv4, attribute.SAFIUnicast, true
-	}
-	if len(reach) < 3 {
-		return 0, 0, false
-	}
-	return attribute.AFI(binary.BigEndian.Uint16(reach)), attribute.SAFI(reach[2]), true
 }
 
 // prefixSIDTLVSeen records which Prefix-SID TLV types a walk has met, one bit

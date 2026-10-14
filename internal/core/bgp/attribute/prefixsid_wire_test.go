@@ -139,15 +139,11 @@ func TestPrefixSIDRefusesTruncatedTLVs(t *testing.T) {
 	const sid = "20010db8000100010000000000000000" // 2001:db8:1:1::
 
 	cases := map[string]string{
-		"TLV header short of three octets":    "0100",
-		"TLV value shorter than its length":   "010007000000000003",
-		"label-index length is not seven":     "010006000000000003",
-		"SRGB length is not 2 plus N times 6": "03000700000c35000010",
-		"SRGB carries flags and no range":     "0300020000",
-		"SRv6 service TLV has no RESERVED":    "05000000",
-		"SRv6 sub-TLV value truncated":        "0500050001001e00",
-		"SID information short of 21 octets":  "0500180001001400" + sid + "000048",
-		"SID structure length is not six":     "05001f0001001b00" + sid + "00004800" + "010003401810",
+		"TLV header short of three octets":   "0100",
+		"TLV value shorter than its length":  "010007000000000003",
+		"SRv6 service TLV has no RESERVED":   "05000000",
+		"SRv6 sub-TLV value truncated":       "0500050001001e00",
+		"SID information short of 21 octets": "0500180001001400" + sid + "000048",
 	}
 
 	for name, payload := range cases {

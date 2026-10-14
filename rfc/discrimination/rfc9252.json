@@ -140,7 +140,7 @@
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs",
       "unit-sha": "552322be601aad02",
-      "claim-sha": "ef26f07a637cbd11",
+      "claim-sha": "e783cfd346fd3347",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop",
       "producer-sha": "16586491bb65a11b",
@@ -178,6 +178,61 @@
       "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop",
       "producer-sha": "16586491bb65a11b",
       "break": "body of applyEgressPrefixSIDNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_SIDInfoTooShort",
+      "unit-sha": "58200b77e395db85",
+      "claim-sha": "58b2bf1e31d42160",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+      "producer-sha": "00a49549792e5674",
+      "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_TrailingBytes",
+      "unit-sha": "1c179e4390992322",
+      "claim-sha": "103bbabdd22d496d",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+      "producer-sha": "00a49549792e5674",
+      "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC7606PrefixSIDFramingErrorAfterServiceTLV",
+      "unit-sha": "fc135d505ab6d33e",
+      "claim-sha": "c67e121ca46d776f",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+      "producer-sha": "00a49549792e5674",
+      "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252SIDInformationStrayOctetsTreatAsWithdraw",
+      "unit-sha": "e56e7950446a46b8",
+      "claim-sha": "306e91b0cc89e9e7",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+      "producer-sha": "00a49549792e5674",
+      "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252ServiceTLVOverrunTreatAsWithdraw",
+      "unit-sha": "44c6da4fde5ce2c4",
+      "claim-sha": "540d38dde9d54023",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+      "producer-sha": "00a49549792e5674",
+      "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9252-7-1",

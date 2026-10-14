@@ -122,19 +122,9 @@ func PrefixSIDTLVSingleOccurrence(afi AFI, safi SAFI, tlvType uint8) bool {
 	case PrefixSIDTLVSRv6L3Service, PrefixSIDTLVSRv6L2Service:
 		return true
 	case prefixSIDTLVLabelIndex:
-		return prefixSIDLabeledUnicast(afi, safi)
+		return PrefixSIDLabeledUnicast(afi, safi)
 	}
 	return false
-}
-
-// prefixSIDLabeledUnicast reports whether afi/safi is IPv4 or IPv6 Labeled
-// Unicast (RFC 8277), the only families RFC 8669 Section 3.1 defines the
-// Label-Index TLV for.
-func prefixSIDLabeledUnicast(afi AFI, safi SAFI) bool {
-	if safi != SAFIMPLSLabel {
-		return false
-	}
-	return afi == AFIIPv4 || afi == AFIIPv6
 }
 
 var errEmptyPrefixSIDAttribute = errors.New("prefix-sid: attribute carries no TLV")
@@ -159,9 +149,16 @@ var _ Attribute = (*PrefixSID)(nil)
 
 // ParsePrefixSID parses the BGP Prefix-SID attribute value (RFC 8669, code 40).
 //
-// It fails closed: a broken frame or a TLV whose length contradicts its own RFC
-// returns an error and no attribute, because a partly-read Prefix-SID cannot be
-// told apart from one the peer meant to send (ai/rules/principles.md).
+// It fails closed: a broken frame, at any of the three nesting levels, or an
+// SRv6 Service TLV whose structure RFC 9252 Section 3.1 contradicts returns an
+// error and no attribute, because a partly-read Prefix-SID cannot be told apart
+// from one the peer meant to send (ai/rules/principles.md).
+//
+// It has no family, so it judges only what holds on every family. The length
+// rules of the Label-Index and Originator SRGB TLVs bind only on labeled
+// unicast (RFC 8669 Sections 3.1 and 3.2), where the receive step
+// (ClassifyPrefixSID) has already discarded an attribute that breaks them; on
+// every other family those TLVs are unrecognized and kept whatever their length.
 func ParsePrefixSID(data []byte) (*PrefixSID, error) {
 	// RFC 8669 Section 3: "The BGP Prefix-SID attribute is defined here to be a
 	// set of elements encoded as "Type/Length/Value" tuples (i.e., a set of
@@ -230,33 +227,18 @@ func forEachPrefixSIDTLV(level string, data []byte, visit func(tlvType uint8, va
 	return nil
 }
 
-// validatePrefixSIDTLVs checks the framing of every level and the fixed lengths
-// the RFCs state for the TLVs ze decodes.
+// validatePrefixSIDTLVs checks the framing of every level and the structure of
+// the SRv6 Service TLVs, the rules that hold on every family.
 func validatePrefixSIDTLVs(data []byte) error {
 	return forEachPrefixSIDTLV("TLV", data, func(tlvType uint8, value []byte) error {
 		switch tlvType {
-		case prefixSIDTLVLabelIndex:
-			// RFC 8669 Section 3.1: "Length: 7, the total length in octets of the
-			// value portion of the TLV."
-			if len(value) != prefixSIDLabelIndexLen {
-				return fmt.Errorf("prefix-sid: label-index TLV length is %d, RFC 8669 Section 3.1 fixes it at %d",
-					len(value), prefixSIDLabelIndexLen)
-			}
-			return nil
-		case prefixSIDTLVOriginatorSRGB:
-			// RFC 8669 Section 3.2: "Length: The total length in octets of the
-			// value portion of the TLV: 2 + (non-zero multiple of 6)."
-			if len(value) < prefixSIDSRGBFlagsLen+prefixSIDSRGBEntryLen || (len(value)-prefixSIDSRGBFlagsLen)%prefixSIDSRGBEntryLen != 0 {
-				return fmt.Errorf("prefix-sid: originator-SRGB TLV length is %d, RFC 8669 Section 3.2 requires 2 + a non-zero multiple of 6",
-					len(value))
-			}
-			return nil
 		case PrefixSIDTLVSRv6L3Service, PrefixSIDTLVSRv6L2Service:
 			return validateSRv6ServiceTLV(tlvType, value)
 		default:
 			// RFC 8669 Section 3: "For future extensibility, unknown TLVs MUST be
-			// ignored and propagated unmodified." The framing above is all ze can
-			// check, and the bytes stay whole for the reader and for the wire.
+			// ignored and propagated unmodified." Types 1 and 3 are judged by
+			// family in ClassifyPrefixSID; the framing above is all ze checks here,
+			// and the bytes stay whole for the reader and for the wire.
 			return nil
 		}
 	})
@@ -291,16 +273,14 @@ func validateSRv6SIDInformation(value []byte) error {
 			len(value), srv6SIDInfoLen)
 	}
 
-	return forEachPrefixSIDTLV("SRv6 sub-sub-TLV", value[srv6SIDInfoLen:], func(subSubType uint8, subSubValue []byte) error {
-		if subSubType != srv6SubSubTLVSIDStructure {
-			return nil
-		}
-		// RFC 9252 Section 3.2.1: "SRv6 Service Data Sub-Sub-TLV Length (2
-		// octets): This field contains a total length of 6 octets."
-		if len(subSubValue) != srv6SIDStructureLen {
-			return fmt.Errorf("prefix-sid: SRv6 SID structure sub-sub-TLV length is %d, RFC 9252 Section 3.2.1 fixes it at %d",
-				len(subSubValue), srv6SIDStructureLen)
-		}
+	// RFC 9252 Section 7: a SID Information Sub-TLV is malformed when "At least
+	// one of the constituent Sub-Sub-TLVs is malformed.", and a Sub-Sub-TLV is
+	// malformed when "The Sub-Sub-TLV Length is inconsistent with the length of
+	// the enclosing SRv6 service Sub-TLV." The framing walk is that check. A SID
+	// Structure whose length is not 6 is a semantic failure, not a malformation
+	// ("not considered malformed because of failing any semantic validation of
+	// its Value field"): the SID it describes is invalid, which the RIB decides.
+	return forEachPrefixSIDTLV("SRv6 sub-sub-TLV", value[srv6SIDInfoLen:], func(uint8, []byte) error {
 		return nil
 	})
 }
@@ -331,10 +311,21 @@ func appendPrefixSIDJSON(buf []byte, attr Attribute) []byte {
 
 		switch tlvType {
 		case prefixSIDTLVLabelIndex:
+			// A Label-Index of another length is kept off labeled unicast (RFC
+			// 8669 Section 3.1 "MUST be ignored"), and its fields cannot be read,
+			// so it renders as the unknown TLV it is there.
+			if len(value) != prefixSIDLabelIndexLen {
+				buf = appendPrefixSIDUnknownTLVJSON(buf, tlvType, value)
+				return nil
+			}
 			buf = append(buf, `"sr-label-index":`...)
 			buf = strconv.AppendUint(buf, uint64(binary.BigEndian.Uint32(value[prefixSIDLabelIndexOffset:prefixSIDLabelIndexLen])), 10)
 			return nil
 		case prefixSIDTLVOriginatorSRGB:
+			if !prefixSIDSRGBLengthValid(len(value)) {
+				buf = appendPrefixSIDUnknownTLVJSON(buf, tlvType, value)
+				return nil
+			}
 			buf = appendPrefixSIDSRGBJSON(buf, value)
 			return nil
 		case PrefixSIDTLVSRv6L3Service:
@@ -342,14 +333,7 @@ func appendPrefixSIDJSON(buf []byte, attr Attribute) []byte {
 		case PrefixSIDTLVSRv6L2Service:
 			return appendSRv6ServiceJSON(&buf, `"l2-service":[`, value)
 		default:
-			// The TLV is kept and named by its code, so an operator can read the
-			// type ze does not decode and the hex that came with it. Dropping it
-			// would leave the reader with no sign it was ever there.
-			buf = append(buf, `"attribute-not-implemented-`...)
-			buf = strconv.AppendUint(buf, uint64(tlvType), 10)
-			buf = append(buf, `":"`...)
-			buf = hex.AppendEncode(buf, value)
-			buf = append(buf, '"')
+			buf = appendPrefixSIDUnknownTLVJSON(buf, tlvType, value)
 			return nil
 		}
 	})
@@ -357,6 +341,17 @@ func appendPrefixSIDJSON(buf []byte, attr Attribute) []byte {
 		return nil
 	}
 	return append(buf, '}')
+}
+
+// appendPrefixSIDUnknownTLVJSON writes a TLV ze does not decode. It is kept and
+// named by its code, so an operator can read the type and the hex that came
+// with it. Dropping it would leave the reader with no sign it was ever there.
+func appendPrefixSIDUnknownTLVJSON(buf []byte, tlvType uint8, value []byte) []byte {
+	buf = append(buf, `"attribute-not-implemented-`...)
+	buf = strconv.AppendUint(buf, uint64(tlvType), 10)
+	buf = append(buf, `":"`...)
+	buf = hex.AppendEncode(buf, value)
+	return append(buf, '"')
 }
 
 // appendPrefixSIDSRGBJSON writes the Originator SRGB ranges as ExaBGP does,
@@ -431,7 +426,9 @@ func appendSRv6SIDInformationJSON(out *[]byte, value []byte) error {
 
 	err := forEachPrefixSIDTLV("SRv6 sub-sub-TLV", value[srv6SIDInfoLen:], func(subSubType uint8, subSubValue []byte) error {
 		*out = append(*out, ',')
-		if subSubType == srv6SubSubTLVSIDStructure {
+		// A SID Structure of another length than 6 is kept (its SID is invalid,
+		// not the attribute malformed) and renders as hex, its fields unreadable.
+		if subSubType == srv6SubSubTLVSIDStructure && len(subSubValue) == srv6SIDStructureLen {
 			*out = appendSRv6SIDStructureJSON(*out, subSubValue)
 			return nil
 		}
