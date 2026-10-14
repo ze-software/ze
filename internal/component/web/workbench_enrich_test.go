@@ -214,26 +214,81 @@ func TestEnrichWorkbenchTable_NoOpOnNonListPath(t *testing.T) {
 	}
 }
 
-// TestAnyPathUnder verifies the prefix-matching helper correctly identifies
-// paths that fall under a row's subtree, including the row path itself
-// (rename) and excludes sibling rows that share a prefix-of-prefix.
-func TestAnyPathUnder(t *testing.T) {
+// TestEntryHasPendingChange verifies the row matcher identifies paths that
+// fall under a row's entry, including the entry path itself (rename), and
+// excludes sibling rows that share a prefix-of-prefix. For a multi-leaf key
+// it reads the segments as an address, so an entry whose address is a
+// segment prefix of another entry's is not flagged by the other's edit.
+func TestEntryHasPendingChange(t *testing.T) {
+	peer := config.List(config.TypeString)
+	peer.KeyName = "name"
+	session := config.List(config.TypeString,
+		config.Field("peer", config.Leaf(config.TypeString)),
+		config.Field("vrf", config.LeafWithDefault(config.TypeString, "default")),
+		config.Field("interface", config.Leaf(config.TypeString)),
+		config.Field("profile", config.Leaf(config.TypeString)),
+	)
+	session.KeyName = "peer vrf interface"
+	peerPath := []string{"bgp", "peer"}
+	sessionPath := []string{"bfd", "single-hop-session"}
+
 	cases := []struct {
-		name   string
-		paths  []string
-		prefix string
-		want   bool
+		name     string
+		paths    []string
+		listPath []string
+		node     *config.ListNode
+		key      string
+		want     bool
 	}{
-		{name: "exact match", paths: []string{"bgp/peer/thomas"}, prefix: "bgp/peer/thomas", want: true},
-		{name: "child path", paths: []string{"bgp/peer/thomas/connection/remote/ip"}, prefix: "bgp/peer/thomas", want: true},
-		{name: "sibling", paths: []string{"bgp/peer/alex/connection/remote/ip"}, prefix: "bgp/peer/thomas", want: false},
-		{name: "shared prefix only", paths: []string{"bgp/peer/thomas-2"}, prefix: "bgp/peer/thomas", want: false},
-		{name: "empty paths", paths: nil, prefix: "bgp/peer/thomas", want: false},
-		{name: "empty prefix", paths: []string{"bgp/peer/thomas"}, prefix: "", want: false},
+		{name: "exact match", paths: []string{"bgp/peer/thomas"}, listPath: peerPath, node: peer, key: "thomas", want: true},
+		{name: "child path", paths: []string{"bgp/peer/thomas/connection/remote/ip"}, listPath: peerPath, node: peer, key: "thomas", want: true},
+		{name: "sibling", paths: []string{"bgp/peer/alex/connection/remote/ip"}, listPath: peerPath, node: peer, key: "thomas", want: false},
+		{name: "shared prefix only", paths: []string{"bgp/peer/thomas-2"}, listPath: peerPath, node: peer, key: "thomas", want: false},
+		{name: "empty paths", paths: nil, listPath: peerPath, node: peer, key: "thomas", want: false},
+		{name: "empty key", paths: []string{"bgp/peer/thomas"}, listPath: peerPath, node: peer, key: "", want: false},
+		{name: "multi-leaf address child", paths: []string{"bfd/single-hop-session/fe80::b/interface/zbl1/profile"}, listPath: sessionPath, node: session, key: "fe80::b interface zbl1", want: true},
+		{name: "multi-leaf shorter address not flagged", paths: []string{"bfd/single-hop-session/fe80::b/interface/zbl1/profile"}, listPath: sessionPath, node: session, key: "fe80::b", want: false},
+		{name: "multi-leaf first value only", paths: []string{"bfd/single-hop-session/fe80::b/profile"}, listPath: sessionPath, node: session, key: "fe80::b", want: true},
+		{name: "multi-leaf longer address not flagged", paths: []string{"bfd/single-hop-session/fe80::b/profile"}, listPath: sessionPath, node: session, key: "fe80::b interface zbl1", want: false},
+		{name: "multi-leaf default vrf named", paths: []string{"bfd/single-hop-session/fe80::b/vrf/default/interface/zbl1"}, listPath: sessionPath, node: session, key: "fe80::b interface zbl1", want: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, anyPathUnder(tc.paths, tc.prefix))
+			assert.Equal(t, tc.want, entryHasPendingChange(tc.paths, tc.listPath, tc.node, tc.key))
 		})
 	}
+}
+
+// TestEnrichWorkbenchTable_MultiLeafKeyRows is the workbench case of AC-13
+// of spec-bfd-link-local-peer-zone: one BFD peer on two links, plus the
+// entry with no interface.
+//
+// VALIDATES: an edit under `fe80::b/interface/zbl1` flags the zbl1 row only,
+// not the zbl0 row and not the `fe80::b` row whose address is its prefix.
+// PREVENTS: a row path built from the stored key as one segment holding
+// spaces, which no pending path ever matches.
+func TestEnrichWorkbenchTable_MultiLeafKeyRows(t *testing.T) {
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	tree, err := config.NewParser(schema).Parse(`bfd {
+	single-hop-session fe80::b { interface zbl0; }
+	single-hop-session fe80::b { interface zbl1; }
+	single-hop-session fe80::b { profile p; }
+}
+`)
+	require.NoError(t, err)
+	path := []string{"bfd", "single-hop-session"}
+	data := buildFragmentData(schema, tree, path)
+	enrichWorkbenchTable(data, schema, tree, path, []string{"bfd/single-hop-session/fe80::b/interface/zbl1/profile"})
+
+	require.NotNil(t, data.ListTable)
+	flagged := map[string]bool{}
+	for _, row := range data.ListTable.Rows {
+		flagged[row.KeyValue] = row.HasPendingChanges
+	}
+	assert.Equal(t, map[string]bool{
+		"fe80::b":                false,
+		"fe80::b interface zbl0": false,
+		"fe80::b interface zbl1": true,
+	}, flagged)
 }

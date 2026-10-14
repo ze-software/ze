@@ -55,12 +55,16 @@ func enrichWorkbenchTable(data *FragmentData, schema *config.Schema, tree *confi
 	data.ListTable.TableTools = buildTableTools(tableTools, path)
 
 	for i := range data.ListTable.Rows {
+		// A row's path is its entry's address as segments, the same path its
+		// URL carries: a multi-leaf key `fe80::b interface zbl0` is the three
+		// segments fe80::b/interface/zbl0, never one segment holding spaces.
+		key := data.ListTable.Rows[i].KeyValue
 		rowPath := append([]string{}, path...)
-		rowPath = append(rowPath, data.ListTable.Rows[i].KeyValue)
+		rowPath = append(rowPath, config.ListKeyTokens(listNode, key)...)
 		rowPathJoined := textbuf.Join(rowPath, "/")
 
 		data.ListTable.Rows[i].RowTools = buildRowTools(rowTools, rowPathJoined)
-		data.ListTable.Rows[i].HasPendingChanges = anyPathUnder(pendingPaths, rowPathJoined)
+		data.ListTable.Rows[i].HasPendingChanges = entryHasPendingChange(pendingPaths, path, listNode, key)
 	}
 }
 
@@ -192,18 +196,26 @@ func buildTableTools(tools []*config.RelatedTool, listPath []string) []RelatedTo
 	return out
 }
 
-// anyPathUnder reports whether any pending-change path is a descendant of
-// (or equal to) the row's YANG path. Pending paths use `/` separators and
-// match the row prefix exactly or with a trailing `/` boundary.
-func anyPathUnder(paths []string, prefix string) bool {
-	if prefix == "" {
+// entryHasPendingChange reports whether any pending-change path names the
+// list entry stored under key, or a node inside it. Pending paths use `/`
+// separators. The segments after listPath are read as an entry address, so
+// a path under `fe80::b/interface/zbl1` belongs to the entry
+// `fe80::b interface zbl1` and never to the entry `fe80::b`, though one
+// segment prefix covers both. A single-leaf key is one segment, so it
+// matches the entry exactly or with a trailing `/` boundary.
+func entryHasPendingChange(paths, listPath []string, listNode *config.ListNode, key string) bool {
+	if key == "" || len(listPath) == 0 {
 		return false
 	}
+	prefix := textbuf.Join(listPath, "/") + "/"
+	listName := listPath[len(listPath)-1]
 	for _, p := range paths {
-		if p == prefix {
-			return true
+		rest, ok := strings.CutPrefix(p, prefix)
+		if !ok || rest == "" {
+			continue
 		}
-		if strings.HasPrefix(p, prefix+"/") {
+		addr, err := config.ParseListAddress(listName, listNode, strings.Split(rest, "/"))
+		if err == nil && addr.Key == key {
 			return true
 		}
 	}
