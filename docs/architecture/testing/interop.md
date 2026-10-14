@@ -533,7 +533,19 @@ route: it installs the cached runtime kernel for the host's architecture under
 Debian tools, and saves the new entry as GRUB's default by its title. It
 refuses before any step unless `GRUB_DEFAULT=saved`, and unless the cached
 release ends with the `CONFIG_LOCALVERSION` suffix its config declares (`-ze`,
-so never a bare upstream release another kernel could own). Without
+so never a bare upstream release another kernel could own), and unless the
+cached kernel's config builds in, or as a module, every option this host
+relies on its running kernel for: the PCI hotplug drivers when an interface in
+`/sys/class/net`, or one netplan's generated
+`/run/systemd/network/10-netplan-<id>.network` names, is a slot name (`ens18`,
+which the kernel without them renames `enp0s18`); the option behind each
+iptables table, match or target module in `/proc/modules`; and UFW's stock
+matches and targets when `/etc/ufw/ufw.conf` exists. One table maps each
+module to its option, and a loaded netfilter module it does not map is
+refused by name. The refusal names each dependency, what the kernel would
+break, the missing options, and the rebuild (`hostdeps.go`). After the steps
+it reads `/boot/grub/grub.cfg`, through `sudo cat` when the host keeps it
+root-only, to find the entry's title. Without
 `confirm <release>` it prints the steps and runs none, because passwordless
 sudo asks nothing: `./le setup docker-kernel install confirm 7.2.9-ze`. A
 reinstall replaces: it removes `/lib/modules/<release>` and
@@ -541,7 +553,8 @@ reinstall replaces: it removes `/lib/modules/<release>` and
 the new modules inside the old tree. It prints each `sudo` step before it runs
 it, and never reboots. Off Linux it refuses and names the guest
 route, `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).
-<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall -->
+<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall, cachedKernelServesHost, readGrubConfig -->
+<!-- source: internal/le/setup/dockerkernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions, readHostFacts, hostDependencies, zeKernelServesHost -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- BuildLinuxZe, GuestZeRel -->
 <!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute -->
 

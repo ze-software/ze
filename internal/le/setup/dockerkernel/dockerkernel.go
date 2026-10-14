@@ -3,6 +3,7 @@
 // Related: ../../interoplab/kernelcheck.go -- DockerKernel, the check `check` runs
 // Related: ../../test/qemu/dockerlab.go -- the macOS route, which runs `check` in the guest, and BuildLinuxZe, the ze `check` probes with
 // Related: ../../test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir, the kernel `install` places
+// Related: hostdeps.go -- what the host relies on its kernel for, which `install` refuses a kernel lacking
 //
 // dockerkernel.go is `le setup docker-kernel`: the Docker daemon's kernel must
 // carry every feature Ze enrolls (owner D-4). `check` asks the daemon in hand.
@@ -21,6 +22,7 @@ import (
 	"context"
 	"debug/elf"
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -247,8 +249,9 @@ type installStep struct {
 }
 
 // runDockerKernelInstall refuses off Linux, without GRUB_DEFAULT=saved, for a
-// cache entry whose release lacks Ze's suffix, and without the release
-// confirmed, before any step; then it places the kernel, rebuilds the boot
+// cache entry whose release lacks Ze's suffix, for a kernel lacking what this
+// host relies on (hostdeps.go), and without the release confirmed, before any
+// step; then it places the kernel, rebuilds the boot
 // files, and selects the new GRUB entry by title. The reboot is the operator's.
 func runDockerKernelInstall(args leaction.Arguments) (any, int) {
 	if err := dockerKernelInstallPlatform(runtime.GOOS); err != nil {
@@ -279,6 +282,10 @@ func runDockerKernelInstall(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	if err := cachedKernelServesHost(cache, release, "/"); err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
 	steps := dockerKernelInstallSteps(cache, release)
 	if err := installConfirmed(args, release); err != nil {
 		if planErr := printInstallPlan(steps); planErr != nil {
@@ -293,7 +300,7 @@ func runDockerKernelInstall(args leaction.Arguments) (any, int) {
 			return nil, 1
 		}
 	}
-	grubCfg, err := os.ReadFile(grubConfigPath)
+	grubCfg, err := readGrubConfig(os.ReadFile, runInstallStepOutput)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -444,6 +451,39 @@ func grubDefaultSaved(defaults string) error {
 		" and run `sudo update-grub`, then rerun: the install selects Ze's kernel by its menu title")
 }
 
+// cachedKernelServesHost refuses the cache entry's kernel when it lacks what
+// the host under root relies on its running kernel for (hostdeps.go).
+func cachedKernelServesHost(cache, release, root string) error {
+	config, err := os.ReadFile(filepath.Join(cache, "config")) //nolint:gosec // a file inside the cache entry this command resolved
+	if err != nil {
+		return err
+	}
+	facts, err := readHostFacts(root)
+	if err != nil {
+		return err
+	}
+	deps, err := hostDependencies(facts)
+	if err != nil {
+		return err
+	}
+	return zeKernelServesHost(release, string(config), deps)
+}
+
+// readGrubConfig reads grub.cfg with read, and through `sudo cat` with
+// readAsRoot where the plain read is refused: some hosts keep the file
+// root-only (0600), and the install already runs its steps as root.
+func readGrubConfig(read func(string) ([]byte, error), readAsRoot func(installStep) ([]byte, error)) ([]byte, error) {
+	grubCfg, err := read(grubConfigPath)
+	if err == nil {
+		return grubCfg, nil
+	}
+	if !errors.Is(err, fs.ErrPermission) {
+		return nil, err
+	}
+	return readAsRoot(installStep{Why: "read the GRUB menu, which only root may read on this host",
+		Argv: []string{sudoBin, "cat", grubConfigPath}})
+}
+
 // grubDefaultStep finds the menu entry that boots release (not its recovery
 // entry) in grub.cfg and answers the step that saves it as the default, by
 // title, prefixed by its submenu title when it sits in one.
@@ -502,6 +542,24 @@ func runInstallStep(step installStep) error {
 		return errors.New(tb.Str(strings.Join(step.Argv, " ")).Str(": ").Err(err).String())
 	}
 	return nil
+}
+
+// runInstallStepOutput prints the step and its reason, then runs it and
+// answers what it wrote to stdout. The terminal stays on stdin, so sudo can ask
+// for a password.
+func runInstallStepOutput(step installStep) ([]byte, error) {
+	if err := printInstallStep(step); err != nil {
+		return nil, err
+	}
+	command := exec.Command(step.Argv[0], step.Argv[1:]...) //nolint:gosec,noctx // argv is this file's own; sudo may wait on a password prompt
+	command.Stdin = os.Stdin
+	command.Stderr = os.Stderr
+	output, err := command.Output()
+	if err != nil {
+		var tb textbuf.Buffer
+		return nil, errors.New(tb.Str(strings.Join(step.Argv, " ")).Str(": ").Err(err).String())
+	}
+	return output, nil
 }
 
 // printInstallStep prints one step and its reason to stderr.

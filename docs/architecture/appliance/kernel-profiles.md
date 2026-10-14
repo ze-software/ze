@@ -161,13 +161,19 @@ host relies on to come up. `CONFIG_HOTPLUG_PCI`, `CONFIG_HOTPLUG_PCI_ACPI` and
 `CONFIG_HOTPLUG_PCI_PCIE` publish `/sys/bus/pci/slots`, from which udev names
 an interface by its slot (`ens18` on QEMU and Proxmox). Without them udev names
 it by path (`enp0s18`) and the host's network config, written for `ens18`,
-matches nothing. Ubuntu's stock UFW rule set loads `limit`, `recent`, `hl`,
-`LOG`, `REJECT` (IPv4 and IPv6), `rt` and `ipv6header` beside the
-`multiport`, `comment`, `addrtype` and `conntrack` matches Docker already
-needs; without them `ufw.service` fails with "Extension limit revision 0 not
-supported". Each is built in and declared in `runtime.require`.
+matches nothing. Ubuntu's stock UFW rule set (`/usr/share/ufw/iptables`)
+loads `limit`, `recent`, `hl`, `rt`, `LOG` and `REJECT` (IPv4 and IPv6)
+beside the `multiport`, `comment`, `addrtype` and `conntrack` matches Docker
+already needs; without them `ufw.service` fails with "Extension limit revision
+0 not supported". `ipv6header` and `state`, which hand-written rule sets load,
+were set only by the defconfig and are now requested too. Each is built in and
+declared in `runtime.require`. `le setup docker-kernel install` refuses a
+cached kernel that lacks an option the host relies on, and
+`TestHostDependencyOptionsAreInTheRuntimeProfile` fails when its tables name an
+option this fragment does not set (`docs/architecture/testing/interop.md`).
 <!-- source: gokrazy/kernel/runtime.config -- CONFIG_HOTPLUG_PCI_ACPI, CONFIG_NETFILTER_XT_MATCH_LIMIT -->
 <!-- source: gokrazy/kernel/runtime.require -- CONFIG_HOTPLUG_PCI_ACPI, CONFIG_NETFILTER_XT_MATCH_LIMIT -->
+<!-- source: internal/le/setup/dockerkernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions -->
 
 The runtime fragment sets `CONFIG_LOCALVERSION="-ze"`, so the runtime kernel's
 release is the pinned version with that suffix (`7.2.9-ze`) and its `/boot`
