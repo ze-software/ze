@@ -474,6 +474,16 @@ With `cache/` linked to the per-user target, the shared row reads instead:
 shared    SKIP     /Users/thomas/.cache/ze/go-cache: cache/ links here, so this is the checkout cache, which this run already emptied
 ```
 
+The patched GOROOT trees under `cache/stdpatch/` (or `tmp/stdpatch/` where
+`cache/` is not usable) are not emptied, because a build in another session may
+be compiling with `GOROOT` inside one. Each key gets a `KEEP` row with its size,
+so you can remove a key whose toolchain is gone by hand
+(`patching-the-standard-library.md`):
+
+```
+stdpatch  KEEP     /path/to/checkout/cache/stdpatch/94a7…             27.0M, a patched GOROOT a running build may use
+```
+
 The CHECKOUT cache is `cache/go-cache`. Every le action writes it, because
 `Overrides` (`internal/le/go/toolchain/gotoolchain.go`) points GOCACHE there, and
 `gotoolchain.GoCache` names it. The SHARED cache is the per-user

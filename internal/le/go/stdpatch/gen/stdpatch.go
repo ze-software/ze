@@ -80,17 +80,24 @@ func Tree(root string) (string, error) {
 	return builder{cache: cache, toolchain: toolchain, patches: patches, layout: layoutVersion}.build()
 }
 
+// CacheDirs answers every directory a tree can live in, in the order CacheDir
+// tries them, without creating either. `le scratch cache-clean` reads it to
+// report the trees it keeps.
+func CacheDirs(root string) []string {
+	return []string{filepath.Join(root, "cache", "stdpatch"), filepath.Join(root, "tmp", "stdpatch")}
+}
+
 // CacheDir answers the directory the trees live in: cache/stdpatch under the
 // checkout, or tmp/stdpatch when cache/ is not usable here. cache/ is a link
 // to ~/.cache/ze on the development hosts and dangles anywhere the checkout is
 // shared without it (a QEMU guest mounts only the checkout), the same
 // fallback the launcher's build_le takes for GOCACHE.
 func CacheDir(root string) (string, error) {
-	cache := filepath.Join(root, "cache", "stdpatch")
+	dirs := CacheDirs(root)
+	cache, fallback := dirs[0], dirs[1]
 	if err := os.MkdirAll(cache, 0o750); err == nil {
 		return cache, nil
 	}
-	fallback := filepath.Join(root, "tmp", "stdpatch")
 	if err := os.MkdirAll(fallback, 0o750); err != nil {
 		return "", fmt.Errorf("stdpatch: neither %s nor %s can hold the patched GOROOT: %w", cache, fallback, err)
 	}

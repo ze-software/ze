@@ -35,6 +35,10 @@
 // linked cache/ is a symlink onto another filesystem, so `df` on the checkout
 // answers about the wrong device. The free space this action prints is read
 // with statfs on the cache path itself.
+//
+// The patched GOROOT trees under cache/stdpatch (internal/le/go/stdpatch/gen)
+// are not a cache this action empties: a build in flight compiles inside one.
+// No target reaches them, and the report names each key with its size.
 package scratch
 
 import (
@@ -51,6 +55,7 @@ import (
 	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
@@ -69,6 +74,8 @@ const (
 	ambientCache   = "ambient"
 	lintCache      = "lint"
 	bootstrapCache = "bootstrap"
+	// stdpatchTrees names the patched GOROOT rows, which are kept, not emptied.
+	stdpatchTrees = "stdpatch"
 )
 
 // cacheNameWidth is the report's name column: the longest name and one space,
@@ -77,6 +84,9 @@ const cacheNameWidth = len(bootstrapCache) + 1
 
 // bytesPerGiB converts a byte count to the unit the report prints.
 const bytesPerGiB = 1 << 30
+
+// bytesPerMiB converts a kept tree's byte count to the unit its row prints.
+const bytesPerMiB = 1 << 20
 
 // CacheClean is what one `go clean -cache` run did to one cache.
 type CacheClean struct {
@@ -104,9 +114,24 @@ type CacheClean struct {
 	Contended string `json:"contended,omitempty"`
 }
 
-// CleanReport is the answer of one cache-clean run, one row for each cache.
+// CleanReport is the answer of one cache-clean run, one row for each cache,
+// and one row for each patched GOROOT the run kept.
 type CleanReport struct {
 	Caches []CacheClean `json:"caches"`
+	Kept   []KeptTree   `json:"kept"`
+}
+
+// KeptTree is one patched GOROOT (cache/stdpatch/<key>, or tmp/stdpatch/<key>
+// where cache/ is not usable) that cache-clean leaves in place. Another
+// session's build may be compiling with GOROOT inside it, and a GOROOT removed
+// under a running compile fails that build with "no such file" errors that
+// never name the cause. A key is about 30 MiB and a stale key is never
+// selected again, so the row's size is what lets the owner remove a key whose
+// toolchain is gone (docs/contributing/patching-the-standard-library.md).
+type KeptTree struct {
+	Path  string `json:"path"`
+	Bytes int64  `json:"bytes"`
+	Error string `json:"error,omitempty"`
 }
 
 // Text renders one line for each cache. Freed and free are gibibytes, because
@@ -132,7 +157,49 @@ func (r CleanReport) Text() string {
 		}
 		text.Str(line.String()).Byte('\n')
 	}
+	for _, tree := range r.Kept {
+		var line textbuf.Buffer
+		line.PadRight(stdpatchTrees, cacheNameWidth)
+		if tree.Error == "" {
+			line.Str("KEEP     ").PadRight(tree.Path, 48).Str(" ").Str(mebibytes(tree.Bytes)).
+				Str(", a patched GOROOT a running build may use")
+		} else {
+			line.Str("KEEP     ").Str(tree.Path).Str(": its size is unknown: ").Str(tree.Error)
+		}
+		text.Str(line.String()).Byte('\n')
+	}
 	return text.String()
+}
+
+// keptTrees answers one row for each patched GOROOT key under root, measured
+// with the store trim's treeBytes (allocated size, symlinks not followed, so a
+// link into the real GOROOT costs only itself) and never removed. A tree
+// directory that does not exist holds no key.
+func keptTrees(root string) []KeptTree {
+	var kept []KeptTree
+	for _, dir := range gen.CacheDirs(root) {
+		entries, err := os.ReadDir(dir)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			kept = append(kept, KeptTree{Path: dir, Error: err.Error()})
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			path := filepath.Join(dir, entry.Name())
+			bytes, err := treeBytes(path)
+			if err != nil {
+				kept = append(kept, KeptTree{Path: path, Error: err.Error()})
+				continue
+			}
+			kept = append(kept, KeptTree{Path: path, Bytes: bytes})
+		}
+	}
+	return kept
 }
 
 // CleanCaches empties every build cache this checkout fills and reports what
@@ -169,6 +236,7 @@ func (m *Manager) CleanCaches() (CleanReport, int) {
 			report.Caches = append(report.Caches, measureClean(target.name, target.path, target.emptier(ctx)))
 		}
 	}
+	report.Kept = keptTrees(m.Root)
 	return report, report.verdict()
 }
 
@@ -440,4 +508,10 @@ func withoutGoCache(environ []string) []string {
 func gibibytes(bytes int64) string {
 	var text textbuf.Buffer
 	return text.Float(float64(bytes)/bytesPerGiB, 1).Byte('G').String()
+}
+
+// mebibytes renders a kept tree's size, one decimal, in MiB.
+func mebibytes(bytes int64) string {
+	var text textbuf.Buffer
+	return text.Float(float64(bytes)/bytesPerMiB, 1).Str("M").String()
 }
