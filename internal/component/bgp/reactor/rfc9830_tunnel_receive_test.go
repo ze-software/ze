@@ -435,3 +435,50 @@ func TestMalformedTunnelWithoutReachableNLRIResets(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, message.RFC7606ActionSessionReset, action)
 }
+
+// srNoTunnelBody is an iBGP SR Policy UPDATE for afi with reach in MP_REACH_NLRI, the
+// mandatory attributes and an IPv4-address Route Target, and no Tunnel Encapsulation
+// attribute.
+func srNoTunnelBody(afi byte, reach []byte) []byte {
+	mp := []byte{0, afi, 73, 4, 192, 0, 2, 1, 0}
+	mp = append(mp, reach...)
+	attrs := []byte{0x90, byte(attribute.AttrMPReachNLRI), byte(len(mp) >> 8), byte(len(mp))}
+	attrs = append(attrs, mp...)
+	attrs = append(attrs, 0x40, 1, 1, 0, 0x40, 2, 0, 0x40, 5, 4, 0, 0, 0, 100,
+		0xC0, byte(attribute.AttrExtCommunity), 8, 1, 2, 192, 0, 2, 2, 0, 0)
+	return makeUpdateBody(nil, attrs, nil)
+}
+
+// TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed drives SAFI 73 UPDATEs through
+// processMessage with and without the Tunnel Encapsulation attribute.
+//
+// RFC 9830 Section 4.2.1: "The Tunnel Encapsulation Attribute MUST be attached to the BGP
+// UPDATE message and MUST have a Tunnel Type TLV set to SR Policy (code point is 15)."
+// Section 5: "An SR Policy update that is determined not to be valid (and, therefore,
+// malformed) based on the rules described in Section 4.2.1 MUST be handled by the
+// "treat-as-withdraw" strategy."
+// VALIDATES: an AFI 1 or AFI 2 MP_REACH with NLRI and no attribute 23 is treat-as-withdraw
+// with the session kept; the same with one type-15 TLV is accepted unchanged; an MP_REACH
+// with no NLRI and no attribute 23 carries no SR Policy route and is accepted.
+// PREVENTS: an SR Policy installed or relayed without its tunnel (spec D4, AC-5).
+func TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed(t *testing.T) {
+	for _, afi := range []byte{1, 2} {
+		bits, octets := 96, 12
+		fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFISRPolicy}
+		if afi == 2 {
+			bits, octets = 192, 24
+			fam.AFI = family.AFIIPv6
+		}
+		nlri := srNLRI(bits, octets, false, 0x10)
+
+		missing := srNoTunnelBody(afi, nlri)
+		got := srReceive(t, false, missing)
+		srRequireWithdrawn(t, "no attribute 23", got, missing)
+
+		present := srReceiveBody(fam, nlri, nil, false)
+		srRequireKept(t, "one type-15 TLV", srReceive(t, false, present), present)
+
+		empty := srNoTunnelBody(afi, nil)
+		srRequireKept(t, "MP_REACH with no NLRI", srReceive(t, false, empty), empty)
+	}
+}

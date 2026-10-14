@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/attributes.md -- carrier-aware tunnel validation.
 // Related: session_validation.go -- receive enforcement before publication.
 // RFC 9012 Sections 3.1, 6 and 13 -- see rfc/short/rfc9012.md.
-// RFC 9830 Sections 2.2 and 2.3 -- see rfc/short/rfc9830.md.
+// RFC 9830 Sections 2.2, 2.3 and 4.2.1 -- see rfc/short/rfc9830.md.
 //
 // Attribute value: [Tunnel Type:2][Length:2][sub-TLVs:Length] repeated.
 // Sub-TLV: [Type:1][Length:1 for Type<128, otherwise 2][Value:Length].
@@ -31,6 +31,18 @@ func applyTunnelEncap(wu *wireu.WireUpdate, attrs []byte, hasNLRI bool, result *
 		return wu, attrs
 	}
 	if !result.TunnelEncapPresent {
+		// RFC 9830 Section 4.2.1: "The Tunnel Encapsulation Attribute MUST be attached
+		// to the BGP UPDATE message and MUST have a Tunnel Type TLV set to SR Policy
+		// (code point is 15)." Section 5: "An SR Policy update that is determined not
+		// to be valid (and, therefore, malformed) based on the rules described in
+		// Section 4.2.1 MUST be handled by the "treat-as-withdraw" strategy."
+		// This branch sits before the return below because the attribute's absence
+		// is the one case it exists for. An MP_REACH with no NLRI and an MP_UNREACH
+		// carry no SR Policy route, so neither is an SR Policy update.
+		if srPolicyAnnounced(attrs, &result.MPReachNLRI) {
+			tunnelReceiveError(result, "RFC 9830 Section 4.2.1: SR Policy UPDATE carries no Tunnel Encapsulation attribute")
+			result.AttrCode = uint8(attribute.AttrMPReachNLRI)
+		}
 		return wu, attrs
 	}
 	start, flags, value, found := attribute.AttrFind(attrs, attribute.AttrTunnelEncap)
@@ -239,6 +251,23 @@ func tunnelEndpointValid(value []byte) bool {
 		return false
 	}
 	return record.Forwardable != ipregistry.ValueFalse
+}
+
+// srPolicyAnnounced reports whether the UPDATE's MP_REACH_NLRI is AFI 1 or 2, SAFI 73,
+// and carries at least one NLRI octet. loc is the validator's location of MP_REACH_NLRI.
+func srPolicyAnnounced(attrs []byte, loc *message.MPNLRILocation) bool {
+	if !loc.Present || loc.SAFI != 73 {
+		return false
+	}
+	if loc.AFI != 1 && loc.AFI != 2 {
+		return false
+	}
+	_, _, value, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)
+	if !found {
+		return false
+	}
+	start, ok := message.MPNLRIStart(uint8(attribute.AttrMPReachNLRI), value)
+	return ok && start < len(value)
 }
 
 // tunnelReceiveError records a tunnel error without disturbing NLRI locations.
