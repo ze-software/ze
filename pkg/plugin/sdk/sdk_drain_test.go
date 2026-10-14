@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -137,5 +138,101 @@ func TestDrainKindWireNames(t *testing.T) {
 	}
 	if _, err := rpc.DrainKindUnspecified.MarshalText(); err == nil {
 		t.Fatal("an unspecified drain kind was encoded")
+	}
+}
+
+// TestOnDrainRunsOffEventLoop proves, over the socket event loop and over the
+// DirectBridge event loop, that a held drain handler leaves the loop serving:
+// an event is delivered and a second stop drain is refused while the first
+// handler still waits, and the first drain is answered once released.
+func TestOnDrainRunsOffEventLoop(t *testing.T) {
+	type sendFunc func(ctx context.Context, method string, params json.RawMessage) error
+
+	modes := []struct {
+		name  string
+		start func(t *testing.T, ctx context.Context, setup func(p *Plugin)) sendFunc
+	}{
+		{"socket", func(t *testing.T, ctx context.Context, setup func(p *Plugin)) sendFunc {
+			p, engine := newTestPair(t)
+			setup(p)
+			runDone := make(chan error, 1)
+			go func() { runDone <- p.Run(ctx, Registration{DrainBudget: 5}) }()
+			completeStartup(t, ctx, engine)
+			return func(ctx context.Context, method string, params json.RawMessage) error {
+				return callAndExpectOK(ctx, engine.mux, method, params)
+			}
+		}},
+		{"bridge", func(t *testing.T, ctx context.Context, setup func(p *Plugin)) sendFunc {
+			p, _, bridge := newBridgedTestPair(t)
+			setup(p)
+			loopDone := make(chan error, 1)
+			go func() { loopDone <- p.bridgeEventLoop(ctx) }()
+			return func(ctx context.Context, method string, params json.RawMessage) error {
+				_, err := bridge.SendCallback(ctx, method, params)
+				return err
+			}
+		}},
+	}
+
+	for _, mode := range modes {
+		t.Run(mode.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			release := make(chan struct{})
+			entered := make(chan struct{}, 1)
+			events := make(chan string, 1)
+			send := mode.start(t, ctx, func(p *Plugin) {
+				p.OnDrain(func(ctx context.Context, _ rpc.DrainInput) error {
+					entered <- struct{}{}
+					select {
+					case <-release:
+						return nil
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+				})
+				p.OnEvent(func(event string) error {
+					events <- event
+					return nil
+				})
+			})
+
+			drainDone := make(chan error, 1)
+			go func() { drainDone <- send(ctx, rpc.MethodDrain, drainParams(t, rpc.DrainKindStop)) }()
+			select {
+			case <-entered:
+			case <-ctx.Done():
+				t.Fatal("the drain never reached the handler")
+			}
+
+			eventParams, err := json.Marshal(struct {
+				Event string `json:"event"`
+			}{Event: "while-draining"})
+			if err != nil {
+				t.Fatalf("marshal event: %v", err)
+			}
+			if err := send(ctx, callbackDeliverEvent, eventParams); err != nil {
+				t.Fatalf("event while the drain is held: %v", err)
+			}
+			if got := <-events; got != "while-draining" {
+				t.Fatalf("event %q, want while-draining", got)
+			}
+
+			err = send(ctx, rpc.MethodDrain, drainParams(t, rpc.DrainKindRestart))
+			if err == nil || !strings.Contains(err.Error(), errDrainAlreadyStopping.Error()) {
+				t.Fatalf("second drain while the first is held: %v, want the stopping refusal", err)
+			}
+
+			select {
+			case err := <-drainDone:
+				t.Fatalf("the held drain was answered before release: %v", err)
+			default:
+			}
+			close(release)
+			if err := <-drainDone; err != nil {
+				t.Fatalf("the released drain answered %v", err)
+			}
+		})
 	}
 }

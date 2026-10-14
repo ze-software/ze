@@ -6,6 +6,7 @@
 # PREVENTS:  a budget the daemon would cut short being stored, or clamped in
 #            silence the way VerifyBudget is.
 
+# The slog line escapes the quoted plugin name (\"), hence ..? around it.
 # A refused plugin does not stop ze (its registration, and so its failure
 # policy, was never stored), so the peer stops the daemon with SIGTERM.
 
@@ -60,4 +61,4 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze start ze-bgp.conf:timeout=15s
 expect=exit:code=0
-expect=stderr:pattern=plugin .drain-over-ceiling. declares drain-budget 61 s, above the daemon drain ceiling of 60 s
+expect=stderr:pattern=plugin ..?drain-over-ceiling..? declares drain-budget 61 s, above the daemon drain ceiling of 60 s

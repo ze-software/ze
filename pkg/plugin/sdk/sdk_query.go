@@ -32,8 +32,9 @@ import (
 // in its main runs it under a query too.
 //
 // The declaration written here is the argument exactly as it is given. Run
-// derives one field, WantsValidateOpen, from the callbacks a Plugin registered;
-// a plugin that wants that field in its query answer states it in the
+// derives two fields from the callbacks a Plugin registered, WantsValidateOpen
+// (OnValidateOpen) and DrainHandler (OnDrain); no Plugin exists under a query,
+// so a plugin that wants either field in its query answer states it in the
 // declaration it passes here.
 func RunOrDeclare(reg Registration, activate func() int) int {
 	return runOrDeclare(os.Stdout, reg, activate)
