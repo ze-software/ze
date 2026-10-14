@@ -4,6 +4,13 @@ Traps that appear across multiple learned summaries. Read this document at
 session start and again whenever you are about to write new code — most
 entries describe mistakes the corpus has recorded 5+ times.
 
+This document is frozen history: its entries are kept as written and no
+entry is added. The live surface is `plan/journal/`, one class file per
+problem class, whose `Captured:` line, where it has one, records what now
+prevents the class, and whose rows record each occurrence (`plan/journal/README.md`). Each live entry
+below names the class file that holds its occurrences; record a new
+occurrence there, never here.
+
 Each entry lists:
 
 - **Symptom** — how the trap presents itself.
@@ -73,6 +80,8 @@ leave later identifiers alone.
 ---
 
 ### Feature implemented but not wired to any user entry point
+
+**Occurrences.** `plan/journal/unwired-feature.md` holds the live occurrences.
 
 **Symptom.** Feature code exists, unit tests pass, but no user action
 (CLI command, web page, config option, API call) reaches the code.
@@ -148,6 +157,8 @@ Wire each one to its entry point before claiming done.
 
 ### Silent fall-through in parser or dispatch
 
+**Occurrences.** `plan/journal/silent-fall-through.md` holds the live occurrences.
+
 **Symptom.** A parser accepts an unknown keyword and silently chooses a
 wrong branch; the resulting wire output is malformed; no error is
 logged.
@@ -178,6 +189,8 @@ unknown value and the valid set.
 ---
 
 ### One text form, a private parser per package
+
+**Occurrences.** `plan/journal/helper-bypassed-by-an-open-coded-copy.md` holds the live occurrences.
 
 **Symptom.** An operator types a value that one entry point accepts and the
 next refuses, with no rule saying which is right. The copies drift apart
@@ -214,6 +227,8 @@ for that older population.
 
 ### Fallible function returns `(nil, nil)`
 
+**Occurrences.** `plan/journal/nil-nil-return.md` holds the live occurrences.
+
 **Symptom.** A function returns `(nil, nil)` on an error path. Callers
 that do `if err != nil` first and use the result unconditionally
 panic with nil-pointer dereference, OR silently treat no-result as
@@ -244,6 +259,8 @@ code to use explicit state.
 
 ### Comments claiming synchronization that no caller provides
 
+**Occurrences.** `plan/journal/false-synchronization-claim.md` holds the live occurrences.
+
 **Symptom.** Under concurrent load, a function that "just works" in
 single-threaded tests corrupts state, races the race detector, or
 produces intermittent failures.
@@ -266,6 +283,8 @@ comment.
 ---
 
 ### Hardcoded enumeration counts in tests
+
+**Occurrences.** `plan/journal/hardcoded-count-in-test.md` holds the live occurrences.
 
 **Symptom.** Every feature addition breaks one or more test files with
 an assertion like `assert len(rpcs) == 14`. Merges between sessions
@@ -292,6 +311,8 @@ a comment naming the intent.
 ---
 
 ### Bulk rename scripts corrupt context-sensitive uses
+
+**Occurrences.** `plan/journal/bulk-rename-corruption.md` holds the live occurrences.
 
 **Symptom.** After a bulk `sed`/`perl`/Python rename of identifier
 `foo` to `bar`, tests that passed on the old name fail with bizarre
@@ -328,6 +349,8 @@ manually for each affected file.
 
 ### Signed subtraction for sequence-number ordering
 
+**Occurrences.** `plan/journal/signed-seqnum-comparison.md` holds the live occurrences.
+
 **Symptom.** A sequence-number comparison works correctly for most
 diff values, but fails at the exact half-space boundary
 (e.g. `diff = 32768` for 16-bit seqnum).
@@ -349,6 +372,8 @@ unsigned form; add the boundary test case.
 ---
 
 ### A bound that adds before it compares is defeated by the value it bounds
+
+**Occurrences.** `plan/journal/bound-wraps-before-it-refuses.md` holds the live occurrences.
 
 **Symptom.** A guard reads a length or a count out of untrusted input, adds a
 header or an offset to it, and compares the sum against a maximum. Every ordinary
@@ -386,6 +411,8 @@ including the ones in the caller.
 ---
 
 ### The zero value as a valid-looking answer
+
+**Occurrences.** `plan/journal/zero-value-as-valid-answer.md` holds the live occurrences.
 
 **Symptom.** A guard passes, a loop exits, or a branch is skipped, and the
 outcome looks like a decision rather than a miss. Nothing is logged. The failure
@@ -435,6 +462,8 @@ theoretical.
 
 ### An `enabled` gate on config extraction discards the service's security settings
 
+**Occurrences.** `plan/journal/enabled-gate-discards-settings.md` holds the live occurrences.
+
 **Symptom.** An operator writes `token` or `tls true` in a service block, starts
 the service by env var or CLI flag rather than by config, and gets an
 unauthenticated plaintext listener. Nothing is logged, and reading the config
@@ -474,6 +503,8 @@ operator did.
 ## Testing traps
 
 ### Test passes against broken production path
+
+**Occurrences.** `plan/journal/test-against-broken-path.md` holds the live occurrences.
 
 **Symptom.** A test is green. The production path it claims to cover
 is silently wrong. The green test provides false confidence.
@@ -535,6 +566,8 @@ value directly and design the `.ci` to remove the alternate path
 
 ### `net.Pipe()` deadlocks on sequential write-then-read
 
+**Occurrences.** `plan/journal/net-pipe-deadlock.md` holds the live occurrences.
+
 **Symptom.** A test that uses `net.Pipe()` hangs indefinitely on the
 first `Write`.
 
@@ -559,6 +592,8 @@ or (3).
 ---
 
 ### Typed nil is non-nil when assigned to an interface
+
+**Occurrences.** `plan/journal/typed-nil-interface.md` holds the live occurrences.
 
 **Symptom.** A function that takes an interface parameter checks
 `if iface == nil` and the check returns `false` even when the caller
@@ -586,6 +621,8 @@ interface, not the concrete pointer.
 
 ### Package-level registry contamination across tests
 
+**Occurrences.** `plan/journal/registry-contamination.md` holds the live occurrences.
+
 **Symptom.** Test A passes in isolation. Test B passes in isolation.
 Running A then B in the same `go test` binary, B fails with "decoder
 not registered" or "unknown capability".
@@ -610,6 +647,8 @@ rely on test isolation.
 ---
 
 ### Cached Go test results do not cover every external producer
+
+**Occurrences.** `plan/journal/test-cache-stale.md` holds the live occurrences.
 
 **Symptom.** A test reports green after a producer changes, but the path the
 test was meant to exercise is broken.
@@ -643,6 +682,8 @@ required build tags.
 
 ### `time.Now()` bypasses injected clocks
 
+**Occurrences.** `plan/journal/clock-bypass.md` holds the live occurrences.
+
 **Symptom.** A chaos or virtual-time test hangs on a timer that
 should have already fired. Running the same path in a unit test
 with real time works.
@@ -670,6 +711,8 @@ currently covered.
 ---
 
 ### New test type added but not back-filled to existing code
+
+**Occurrences.** `plan/journal/test-type-not-backfilled.md` holds the live occurrences.
 
 **Symptom.** A new test type, technique, or infrastructure is
 introduced (fuzz target, property test, mutation gate, `-race` sweep,
@@ -712,6 +755,8 @@ grep-detectable test types.
 
 ### An acceptance criterion written as an absence cannot be met
 
+**Occurrences.** `plan/journal/acceptance-criterion-written-as-an-absence.md` holds the live occurrences.
+
 **Symptom.** A criterion reads "a grep for the retired name returns nothing".
 The implementer runs it, gets a page of hits, and judges each one alone. The
 criterion is never demonstrably met, and the review ends up writing the rule the
@@ -753,6 +798,8 @@ misses, and they are what the absence phrasing was hiding.
 
 ### YANG module registered but not in `yang_schema.go`
 
+**Occurrences.** `plan/journal/yang-module-not-in-schema.md` holds the live occurrences.
+
 **Symptom.** A new plugin's top-level config block is rejected at
 parse time as "unknown top-level keyword", even though the plugin
 calls `yang.RegisterModule()` in its `init()`.
@@ -778,6 +825,8 @@ module list). Treat them as one atomic change.
 
 ### Env var registered in two places drifts
 
+**Occurrences.** `plan/journal/env-var-double-registration.md` holds the live occurrences.
+
 **Symptom.** Changing an env var default in one file has no effect at
 runtime; another file registered the same key and wins.
 
@@ -802,6 +851,8 @@ registration site; reconcile to one or document the duplication.
 
 ### Plugin list hardcoded in two test files
 
+**Occurrences.** `plan/journal/plugin-list-hardcoded.md` holds the live occurrences.
+
 **Symptom.** Adding a new plugin breaks `TestAllPluginsRegistered` or
 `TestAvailablePlugins`. Fixing one fails the other.
 
@@ -822,6 +873,8 @@ to read the list from the registry, but no session has done this yet.
 ---
 
 ### "Future X" in a learned summary proves the spec is NOT done
+
+**Occurrences.** `plan/journal/premature-closure.md` holds the live occurrences.
 
 **Symptom.** A learned summary for spec-N says "future work: wire
 X" or "decorator wiring requires populating Y". Session N+1 finds
@@ -848,6 +901,8 @@ promise alone does not own the work.
 "deferred", "not yet wired"; pick up the work.
 
 ### An inventory command is not the population it reports on
+
+**Occurrences.** `plan/journal/gate-excludes-part-of-its-population.md` holds the live occurrences.
 
 **Symptom.** You build the list of every command under a prefix from
 `./le command list`, register something against each entry, and ship. Live
@@ -904,6 +959,8 @@ turns seven subtests red.
 
 ### A renamed command leaves its parameter schema keyed to the old rpc name
 
+**Occurrences.** `plan/journal/zero-value-as-valid-answer.md` holds the live occurrences.
+
 **Symptom.** A command keeps answering after a rename and quietly loses its
 schema. `ze yang doc <command>` prints no "Parameters (output):" block, and the
 hub's per-command metadata carries no input parameters.
@@ -935,6 +992,8 @@ functional test sees it.
 ---
 
 ### An unregistered plugin callback answers OK, so a whole reload path is dead
+
+**Occurrences.** `plan/journal/unwired-feature.md` holds the live occurrences.
 
 **Symptom.** An operator edits a subsystem's configuration, commits, and the
 daemon reports success. `show configuration` agrees. Nothing on the wire
@@ -969,6 +1028,8 @@ error rather than OK, or you have rebuilt the same silent success one layer up.
 ---
 
 ### A refusal added for one caller lands in the body both callers share
+
+**Occurrences.** `plan/journal/guard-addition-drops-what-it-refuses.md` holds the live occurrences.
 
 **Symptom.** A guard you added for the reload path changes what STARTUP does, and
 neither the comment nor the test says so. The new refusal is a `return` in a
@@ -1006,6 +1067,8 @@ defect, and only failed on `ike: started peer`.
 
 ### A full disk reads as a code breakage
 
+**Occurrences.** `plan/journal/full-disk-false-red.md` holds the live occurrences.
+
 **Symptom.** `./le verify current mode full` reports `[build failed]` against dozens of
 packages you never touched, and the functional suite fails a few unrelated
 tests. It looks like a concurrent session broke the tree.
@@ -1039,6 +1102,8 @@ mid-run.
 ---
 
 ### Another session's test edit reddens your RFC gate
+
+**Occurrences.** `plan/journal/concurrent-rfc-gate-stale.md` holds the live occurrences.
 
 **Symptom.** `./le rfc check` fails with the violation
 `rfc/requirements/<stem>.md is stale vs its sources`. You changed no tagged
@@ -1076,6 +1141,8 @@ verify while it is quiet.
 
 ### Claiming completion while stale specs persist
 
+**Occurrences.** `plan/journal/stale-spec-claims-done.md` holds the live occurrences.
+
 **Symptom.** A spec says "What Remains: Phase N (YANG only)". Grep
 shows Phase N fully implemented with unit tests and pipeline
 integration.
@@ -1100,6 +1167,8 @@ close the spec.
 ---
 
 ### Concurrent session corrupts another session's WIP
+
+**Occurrences.** `plan/journal/concurrent-session-corruption.md` holds the live occurrences.
 
 **Symptom.** `./le verify current mode full` fails with compile errors in a
 file you did not touch. `git status` shows modifications you do not
@@ -1133,6 +1202,8 @@ manually.
 
 ### Research subagents leaving `.go` files in `tmp/`
 
+**Occurrences.** `plan/journal/stray-go-files-in-tmp.md` holds the live occurrences.
+
 **Symptom.** `./le verify current mode full` fails with compile errors in files
 under `tmp/` that are unrelated to any active spec.
 
@@ -1155,6 +1226,8 @@ Go toolchain ignores them.
 ---
 
 ### Refactoring removes a feature by over-generalizing its category
+
+**Occurrences.** `plan/journal/refactor-removes-feature.md` holds the live occurrences.
 
 **Symptom.** A feature stops working after a structural refactor. The
 commit message groups it with genuinely removed code under a shared
@@ -1188,6 +1261,8 @@ dependencies survive the refactor -- only the entry point and glue
 are deleted.
 
 ### A design premise nobody measured, built on for three phases
+
+**Occurrences.** `plan/journal/design-claim-never-measured.md` holds the live occurrences.
 
 **Symptom.** A spec justifies a shape with a performance claim. Phases land on
 top of it. Somebody finally measures, the claim is false, and the reversal has to
@@ -1229,6 +1304,8 @@ commit.
 ---
 
 ### A phase runs the suites its files sit in, not the suites its change reaches
+
+**Occurrences.** `plan/journal/gate-excludes-part-of-its-population.md` holds the live occurrences.
 
 **Symptom.** A phase is green and lands. A functional test in a suite nobody ran
 has been red since it landed, and the phases after it do not see the red either,

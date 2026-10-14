@@ -170,7 +170,7 @@ against the definition in AC-17, or AC-21 when a check-captured class recurs.
 | R-1 | A capture line is added to silence DUE without a real check | A capture whose proof test does not fail when the check is removed | The capture names a proof test, which must resolve (AC-5); the pass definition (AC-17) requires its recorded red; review of the capturing commit reads both |
 | R-2 | The backfill marks an open row fixed | A `fixed:` row whose prose says "still", "partly", "not yet", "(designed)" or "half fixed" | Conservative default: a row is `fixed:` only when its prose says the occurrence was repaired; every ambiguous row is `open:`; the 60 "fixed"-lead rows with open phrases are each read; traps seen on 2026-10-14, both `open:`: "fixed by spec-... (designed)" and "half fixed" |
 | R-3 | A merged or split class leaves a dangling citation | `git grep` for the removed class path returns hits | AC-15 and AC-16 require zero hits; `./le doc check links` covers the markdown corpus |
-| R-4 | Capture resolution makes session start slower than its budget | `reportDueJournal` exceeds `sessionStartBudget` | Resolution reads only the directories captured classes name, through the existing single cat-file batch; measured in Phase 1 |
+| R-4 | Capture resolution makes session start slower than its budget | `reportDueJournal` exceeds `sessionStartBudget` | Resolution reads only the directories captured classes name, through the existing single cat-file batch; measured in Phase 1. After Phase 5 (two rule captures, 7743ed895d) the whole `./le spec journal report` process took 0.27 to 0.29 s against the 3.5 s budget; a check capture's Go-directory read is untimed over the real tree until one lands |
 | R-5 | Concurrent sessions append unmarked rows while the backfill is in flight | `./le commit create` refuses their commits after landing | The marker requirement lands in the same commit as the backfill; the refusal names the two markers, so the repair is one word; rows appended between the backfill read and the commit are marked before it runs |
 | R-6 | Hook probe fixtures and journal test fixtures turn red | `fixtures.go` probes and `journal_test.go` fixtures lack markers | Updated in the same phase as the reader; they are fixtures of the format, not assertions being weakened |
 | R-7 | A report that reads the capture date against the wall clock is not byte-stable | Two runs on different days differ | The future-date check compares against the HEAD commit's committer date, never the clock |
@@ -268,27 +268,34 @@ The capture line and marker grammar the ACs refer to:
 |------|----------|-------------------|--------|
 | Report over the committed journal | `./le spec journal report` and its `| json` form run after the backfill commit, output pasted into the spec | An agent at session start sees the real DUE count and which classes are captured | Run 2026-10-14 at 2e16a9e2a6 (after Phases 1, 2 and 4, before Phase 5's captures), below |
 
-Text form at 2e16a9e2a6, exit 1. The 101 non-due class lines are left out;
-every line the command prints above them and every problem line is kept. The
+Text form at 7743ed895d (after Phase 5's captures), exit 1. The 100 non-due
+class lines without a capture are left out; every line the command prints
+above them, the captured non-due line and every problem line are kept. The
 two UNMARKED FIX problems are the two class files the `.ci` agent holds
 uncommitted with their markers on disk; they clear when that agent commits.
 The JSON form carries top-level `classes`, `problems` and `thresholds`
 (`{"check": 1, "rule": 10, "uncaptured": 10}`), 150 classes, 49 with
-`due: true`, each with `counted-rows`, `rows`, `due-at` and `open`. No class
-carries `captured` yet: Phase 5 sets the first captures.
+`due: true`, each with `counted-rows`, `rows`, `due-at` and `open`; the two
+captured classes carry `captured` as `{"date", "kind": "rule", "point"}`.
+The process took 0.27 to 0.29 s over three runs (R-4: the session-start
+budget is 3.5 s); no check capture exists yet, so Go-directory resolution
+is untimed over the real tree.
 
 ```
+UNMARKED FIX: plan/journal/gate-verdict-depends-on-the-machine.md: 124 row(s) whose Fix cell starts with neither `fixed: ` nor `open: ` (first dated 2026-10-12, 2026-10-12, 2026-10-10)
+UNMARKED FIX: plan/journal/green-that-could-not-have-been-red.md: 94 row(s) whose Fix cell starts with neither `fixed: ` nor `open: ` (first dated 2026-10-09, 2026-10-05, 2026-10-05)
 49 problem classes are due for a fix pass
+2 classes captured: 0 by check, 2 by rule
 due at: 1 row since a check capture, 10 rows since a rule capture, 10 rows uncaptured
 DUE gate-excludes-part-of-its-population: 165 rows, 84 open, 65d span (2026-08-09 .. 2026-10-13)
 DUE unwired-feature: 160 rows, 65 open, 198d span (2026-03-30 .. 2026-10-14)
 DUE guard-added-to-one-half-of-a-pair: 109 rows, 40 open, 64d span (2026-08-10 .. 2026-10-13)
-DUE silent-fall-through: 100 rows, 43 open, 207d span (2026-03-21 .. 2026-10-14)
+DUE silent-fall-through: 101 rows, 44 open, 207d span (2026-03-21 .. 2026-10-14)
 DUE zero-value-as-valid-answer: 88 rows, 26 open, 79d span (2026-07-27 .. 2026-10-14)
-DUE test-against-broken-path: 85 rows, 42 open, 207d span (2026-03-21 .. 2026-10-14)
+DUE test-against-broken-path: 84 rows, 41 open, 207d span (2026-03-21 .. 2026-10-14)
 DUE stale-artifact-reused: 70 rows, 44 open, 64d span (2026-08-10 .. 2026-10-13)
 DUE concurrent-session-corruption: 65 rows, 42 open, 184d span (2026-04-13 .. 2026-10-14)
-DUE claim-outlives-the-evidence-it-cites: 63 rows, 36 open, 52d span (2026-08-22 .. 2026-10-13)
+DUE claim-outlives-the-evidence-it-cites: 64 rows, 37 open, 53d span (2026-08-22 .. 2026-10-14)
 DUE gate-fires-outside-its-population: 53 rows, 29 open, 62d span (2026-08-13 .. 2026-10-14)
 DUE reference-checked-claim-unchecked: 45 rows, 21 open, 65d span (2026-08-09 .. 2026-10-13)
 DUE helper-bypassed-by-an-open-coded-copy: 43 rows, 17 open, 65d span (2026-08-10 .. 2026-10-14)
@@ -297,11 +304,11 @@ DUE false-synchronization-claim: 38 rows, 17 open, 207d span (2026-03-21 .. 2026
 DUE full-disk-false-red: 33 rows, 13 open, 71d span (2026-07-30 .. 2026-10-09)
 DUE lint-contract-not-applied: 31 rows, 21 open, 54d span (2026-08-17 .. 2026-10-10)
 DUE hardcoded-count-in-test: 29 rows, 13 open, 198d span (2026-03-21 .. 2026-10-05)
-DUE comment-describes-superseded-behaviour: 28 rows, 16 open, 59d span (2026-08-16 .. 2026-10-14)
+DUE comment-describes-superseded-behaviour: 28 rows since capture 2026-08-07 (rule), 28 total, 16 open, 59d span (2026-08-16 .. 2026-10-14)
 DUE documentation-shows-config-the-parser-refuses: 28 rows, 16 open, 31d span (2026-08-15 .. 2026-09-15)
 DUE gate-red-where-nothing-blocks-on-it: 28 rows, 20 open, 48d span (2026-08-25 .. 2026-10-12)
+DUE fixture-encodes-an-impossible-state: 27 rows, 11 open, 60d span (2026-08-15 .. 2026-10-14)
 DUE field-carries-two-meanings: 25 rows, 7 open, 57d span (2026-08-18 .. 2026-10-14)
-DUE fixture-encodes-an-impossible-state: 25 rows, 9 open, 51d span (2026-08-15 .. 2026-10-05)
 DUE stale-spec-claims-done: 21 rows, 5 open, 144d span (2026-04-14 .. 2026-09-05)
 DUE closure-deletes-a-cited-document: 20 rows, 13 open, 58d span (2026-08-10 .. 2026-10-07)
 DUE failing-gate-prints-no-cause: 20 rows, 13 open, 39d span (2026-09-01 .. 2026-10-10)
@@ -309,7 +316,7 @@ DUE concurrent-rfc-gate-stale: 19 rows, 11 open, 71d span (2026-07-30 .. 2026-10
 DUE check-cannot-see-the-change-it-looks-for: 18 rows, 10 open, 39d span (2026-09-02 .. 2026-10-11)
 DUE invariant-enforced-by-an-absent-call-site: 18 rows, 9 open, 60d span (2026-08-15 .. 2026-10-14)
 DUE committed-tree-does-not-build: 17 rows, 8 open, 59d span (2026-08-16 .. 2026-10-14)
-DUE feature-test-missing-build-tag: 16 rows, 11 open, 58d span (2026-08-16 .. 2026-10-13)
+DUE feature-test-missing-build-tag: 17 rows, 12 open, 59d span (2026-08-16 .. 2026-10-14)
 DUE parallel-copies-collide-on-a-deterministic-port: 16 rows, 12 open, 62d span (2026-08-10 .. 2026-10-11)
 DUE validated-value-discarded-by-its-caller: 16 rows, 5 open, 42d span (2026-08-12 .. 2026-09-23)
 DUE failure-report-names-a-command-that-does-not-exist: 15 rows, 7 open, 55d span (2026-08-19 .. 2026-10-13)
@@ -329,8 +336,7 @@ DUE output-not-byte-stable: 11 rows, 3 open, 42d span (2026-08-10 .. 2026-09-21)
 DUE grace-bound-hides-a-missing-signal: 10 rows, 9 open, 38d span (2026-08-10 .. 2026-09-17)
 DUE guard-enumerates-instead-of-subtracting: 10 rows, 4 open, 52d span (2026-08-13 .. 2026-10-04)
 DUE rollback-forgets-partial-apply: 10 rows, 4 open, 55d span (2026-08-17 .. 2026-10-11)
-UNMARKED FIX: plan/journal/gate-verdict-depends-on-the-machine.md: 124 row(s) whose Fix cell starts with neither `fixed: ` nor `open: ` (first dated 2026-10-12, 2026-10-12, 2026-10-10)
-UNMARKED FIX: plan/journal/green-that-could-not-have-been-red.md: 94 row(s) whose Fix cell starts with neither `fixed: ` nor `open: ` (first dated 2026-10-09, 2026-10-05, 2026-10-05)
+command-takes-an-untyped-positional-value: 9 rows since capture 2026-08-07 (rule), 9 total, 5 open, 22d span (2026-08-24 .. 2026-09-15)
 ```
 
 ### Interop Tests (Scope: protocol)
@@ -504,6 +510,16 @@ No class gets a `check` capture, so no check-captured class is DUE at landing
 and R-9's list in the commit body is empty. A-3 holds over the survey: the one
 class-wide check found, `crashlogExec`, is a Go function, and no candidate
 names a `.ci` test or a shell stage, so no `ci` reference kind is added.
+
+Phase 6b (AC-20, 2026-10-14). Each of the 35 live entries of
+`RECURRING-PATTERNS.md` names the class file holding its occurrences, chosen
+by finding the entry's evidence row in the journal: the renamed-command schema
+entry points at `zero-value-as-valid-answer` (its 2026-08-21 row) and the
+suite-selection entry at `gate-excludes-part-of-its-population` (its 2026-08-21
+`show-column-order` row). The absence-criterion entry had no row in any class,
+so its one recorded occurrence (spec-cli-show-bgp-is-the-command AC-9,
+2026-08-21) seeds the new class `acceptance-criterion-written-as-an-absence`.
+No entry is deleted or rewritten.
 
 Preliminary candidate verdicts from sampled rows (2026-10-05), kept as the
 record the verdicts above replaced:
