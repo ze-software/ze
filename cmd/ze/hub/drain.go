@@ -46,6 +46,17 @@ func requestRestartStop(cause rpc.DrainRestartCause) {
 	stopRestartCause.Store(&cause)
 }
 
+// requestRebootStop is the reboot lifecycle callback's body, shared by
+// `request reboot` (infra_setup.go) and SSH `reboot` (service_ssh.go). It
+// records the two facts run reads after waitLoop returns, the OS reboot
+// (rebootRequested) and the drain's restart cause, before stopForRestart stops
+// BGP in silence. The caller signals the stop afterwards.
+func requestRebootStop(stopForRestart func()) {
+	rebootRequested.Store(true)
+	requestRestartStop(rpc.DrainRestartReboot)
+	stopForRestart()
+}
+
 // stopDrainInput answers the stop kind, and on a restart its cause, that the
 // drain RPC carries. runStopDrain sets the deadline.
 func stopDrainInput() rpc.DrainInput {

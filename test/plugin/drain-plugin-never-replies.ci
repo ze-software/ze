@@ -1,0 +1,64 @@
+# Test: a plugin that never answers its drain delays the stop only to its deadline
+# Exercises: SIGTERM -> runStopDrain (cmd/ze/hub/drain.go) -> DrainRound.Run
+#            (internal/component/plugin/server/drain.go), whose deadline passes
+#            with the plugin's call still open.
+# VALIDATES: spec-daemon-drain-before-stop AC-3: the round ends at the plugin's
+#            2 s budget, the warning names the late plugin, teardown goes on and
+#            the daemon exits 0. The 20 s run timeout is below the 60 s
+#            ceiling, so a round that waited for the ceiling fails the run.
+# PREVENTS:  a plugin that hangs in its drain holding the daemon up, or the
+#            daemon exiting non-zero because one plugin did not answer.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+action=sigterm:conn=1:seq=2
+EOF_PEER
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+plugin {
+	external drain-never-replies {
+		run "le test fixture plugin/drain-never-replies"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start ze-bgp.conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=drain-fixture: drain received kind=stop, never answering
+expect=stderr:pattern=drain deadline passed with no answer.*plugins=drain-never-replies

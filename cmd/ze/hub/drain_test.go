@@ -173,3 +173,33 @@ func TestHubStopKindRestartSentInDrain(t *testing.T) {
 		})
 	}
 }
+
+// TestRequestRebootStopRecordsCauseBeforeStop pins the `request reboot` and SSH
+// `reboot` callback body (requestRebootStop): before BGP is stopped in silence,
+// the OS reboot is requested and the drain input carries kind restart with
+// cause reboot (AC-7, round 4 I-8). Drop requestRestartStop from
+// requestRebootStop and the drain input reads kind stop; move it after
+// stopForRestart and the probe sees no cause yet.
+func TestRequestRebootStopRecordsCauseBeforeStop(t *testing.T) {
+	stopRestartCause.Store(nil)
+	rebootRequested.Store(false)
+	t.Cleanup(func() {
+		stopRestartCause.Store(nil)
+		rebootRequested.Store(false)
+	})
+
+	stopped := 0
+	requestRebootStop(func() {
+		stopped++
+		want := rpc.DrainInput{Kind: rpc.DrainKindRestart, RestartCause: rpc.DrainRestartReboot}
+		if got := stopDrainInput(); got != want {
+			t.Errorf("drain input when BGP stops %+v, want %+v", got, want)
+		}
+		if !rebootRequested.Load() {
+			t.Error("rebootRequested not set when BGP stops")
+		}
+	})
+	if stopped != 1 {
+		t.Fatalf("stopForRestart ran %d times, want 1", stopped)
+	}
+}

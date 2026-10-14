@@ -14,7 +14,6 @@ import (
 	"github.com/ze-software/ze/internal/core/audit"
 	coreenv "github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // buildAAABundle composes the AAA bundle through the pluggable backend
@@ -235,11 +234,7 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 		}
 
 		if apiSrv := params.APIServer(); apiSrv != nil {
-			apiSrv.SetRebootFunc(func() {
-				rebootRequested.Store(true)
-				requestRestartStop(rpc.DrainRestartReboot)
-				stopForRestart()
-			})
+			apiSrv.SetRebootFunc(func() { requestRebootStop(stopForRestart) })
 		}
 
 		// LIVE adapters over the atomic bundle slot, never the boot

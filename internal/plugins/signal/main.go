@@ -64,7 +64,7 @@ var commands = []Command{
 	{"restart", "restart", "Graceful restart (writes GR marker, then shuts down)", ""},
 	{"reboot", "reboot", "Graceful shutdown then system reboot (requires root on Linux)", ""},
 	{"status", "show status", "Dump daemon status", "SIGUSR1"},
-	{"quit", "request halt", "Goroutine dump + immediate exit", "SIGQUIT"},
+	{"quit", "request halt", "Goroutine dump, then graceful shutdown", "SIGQUIT"},
 }
 
 // Commands returns a copy of the registered signal subcommands.

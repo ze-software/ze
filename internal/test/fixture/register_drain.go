@@ -19,6 +19,8 @@ func init() {
 	Register("plugin/drain-responder", drainResponder)
 	Register("plugin/drain-budget-over-ceiling", drainBudgetOverCeiling)
 	Register("plugin/drain-requester", drainRequester)
+	Register("plugin/drain-never-replies", drainNeverReplies)
+	Register("plugin/drain-zero-wait", drainZeroWait)
 }
 
 // drainRequesterSettle lets the .ci peer's session reach Established before
@@ -127,4 +129,45 @@ func drainBudgetOverCeiling(ctx context.Context, _ []string) error {
 
 	plugin.OnDrain(func(context.Context, rpc.DrainInput) error { return nil })
 	return plugin.Run(ctx, sdk.Registration{DrainBudget: rpc.DrainCeilingSeconds + 1})
+}
+
+// drainNeverRepliesBudget is the budget drain-never-replies declares: short,
+// so the .ci sees the round end at the plugin's own deadline and not at the
+// 60 s ceiling.
+const drainNeverRepliesBudget = 2
+
+// drainNeverReplies declares a drain budget and never answers the drain: its
+// handler holds until the daemon cuts the connection. The daemon MUST end the
+// round at the deadline, name the plugin in its warning, and still exit 0
+// (AC-3).
+func drainNeverReplies(ctx context.Context, _ []string) error {
+	plugin, err := newObserver("drain-never-replies")
+	if err != nil {
+		return err
+	}
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
+
+	plugin.OnDrain(func(drainCtx context.Context, input rpc.DrainInput) error {
+		fakedrain.Log("drain-fixture: drain received kind=" + input.Kind.String() + ", never answering")
+		<-drainCtx.Done()
+		return drainCtx.Err()
+	})
+	return plugin.Run(ctx, sdk.Registration{DrainBudget: drainNeverRepliesBudget})
+}
+
+// drainZeroWait declares a drain budget and answers its drain at once, the
+// shape of a protocol whose every wait is 0. The stop MUST then cost the
+// drain no more than the round trip (AC-13 (b)).
+func drainZeroWait(ctx context.Context, _ []string) error {
+	plugin, err := newObserver("drain-zero-wait")
+	if err != nil {
+		return err
+	}
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
+
+	plugin.OnDrain(func(context.Context, rpc.DrainInput) error {
+		fakedrain.Log("drain-fixture: drain answered at once")
+		return nil
+	})
+	return plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget})
 }

@@ -203,9 +203,7 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 		apiServer.SignalShutdownRequested()
 	})
 	sshSrv.SetRebootFunc(func() {
-		rebootRequested.Store(true)
-		requestRestartStop(rpc.DrainRestartReboot)
-		stopForRestart()
+		requestRebootStop(stopForRestart)
 		apiServer.SignalShutdownRequested()
 	})
 	rl := apiServer.Reactor()

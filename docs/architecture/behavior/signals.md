@@ -239,13 +239,33 @@ Ze diverges from ExaBGP's signal mapping. The following reflects the actual impl
 
 | Signal | Action | Handler |
 |--------|--------|---------|
-| SIGTERM | Graceful shutdown | `cmd/ze/hub/main.go` |
+| SIGTERM | Graceful shutdown: config fence, stop drain, teardown (see Stop sequence) | `cmd/ze/hub/main.go`, `cmd/ze/hub/drain.go` |
 | SIGINT | Graceful shutdown | Same as SIGTERM (Ctrl+C) |
 | SIGHUP | Config reload | `handleSIGHUPReload` (`cmd/ze/hub/main_reload.go`), then `reactor.SignalHandler.OnReload` |
 | SIGUSR1 | Status dump | `reactor.SignalHandler.OnStatus` |
 | SIGQUIT | Goroutine dump + exit | Go runtime default (not caught -- useful for debugging) |
 <!-- source: internal/component/bgp/reactor/signal.go -- handleSignal, SIGTERM/SIGINT/SIGHUP/SIGUSR1 -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+
+### Stop sequence
+
+Ze's SIGTERM does not follow the ExaBGP "Graceful Shutdown" above. A stop
+signal, and every daemon stop command, reaches `run` in `cmd/ze/hub/main.go`
+through `waitLoop`, and the hub runs three phases: the config fence (a running
+commit reload finishes), the stop drain (`drain` RPC to every plugin that
+declared a drain budget, deadline at most 60 s from the start of the stop), and
+teardown, where BGP sends Cease 6/2 to each live session. `request shutdown`,
+`request halt` and SSH `stop` stop nothing themselves: they hand the stop to the
+hub through the daemon shutdown function.
+
+Once the stop has begun, `stopSignals` reads SIGINT and SIGTERM from `forceCh`
+and acts by phase: during the fence a signal skips the drain, during the drain
+it aborts the round, and after either, or once teardown has begun, it forces
+exit 1. Each phase prints the line naming what the next signal does. The full
+description is in `docs/architecture/hub-architecture.md` and the operator
+view in `docs/guide/operations.md`, "Stopping".
+<!-- source: cmd/ze/hub/drain.go -- stopSignals, runStopDrain -->
+<!-- source: cmd/ze/hub/main.go -- run, forceCh -->
 
 ### Daemon Liveness
 

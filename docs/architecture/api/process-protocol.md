@@ -424,13 +424,18 @@ A restart is bounded: `RespawnLimit` restarts in `RespawnWindow`, and
 disabled, the `plugin-down` warning is raised, and the daemon carries on, which
 is the `ignore` outcome.
 
+A stop ends every restart. From the start of the stop drain (`BeginDrain`), the
+manager refuses each respawn with `respawn refused: ze is stopping`, so a plugin
+that exits during the drain or teardown stays down: the daemon is going away and
+a new generation would only be torn down again.
+
 `fatal` is open to any plugin, whether ze ships it or an operator wrote it
 (owner directive, 2026-09-06). Configuring a plugin is accepting its terms.
 
 <!-- source: pkg/plugin/rpc/enums.go -- FailurePolicy -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.FailurePolicy -->
 <!-- source: internal/component/plugin/server/failure_policy.go -- pluginFailurePolicy, refuseRespawnDisagreement, (*Server).applyFailurePolicy -->
-<!-- source: internal/component/plugin/process/manager.go -- RespawnLimit, RespawnWindow, MaxTotalRespawns -->
+<!-- source: internal/component/plugin/process/manager.go -- RespawnLimit, RespawnWindow, MaxTotalRespawns, RefuseRespawns, ErrDaemonStopping -->
 
 **Pipe Alias Declaration (Stage 1):**
 

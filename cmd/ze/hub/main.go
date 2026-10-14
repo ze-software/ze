@@ -65,8 +65,8 @@ var (
 // Env var registrations are centralized in internal/component/config/environment.go.
 // No duplicate registrations here -- import that package to trigger init.
 
-// rebootRequested is set by the SSH/RPC reboot handler before triggering
-// reactor.Stop(). After the graceful shutdown sequence completes, the main
+// rebootRequested is set by the SSH/RPC reboot handler (requestRebootStop,
+// drain.go) before it stops BGP in silence. After the graceful shutdown sequence completes, the main
 // loop checks this flag and attempts an OS-level reboot if set.
 var (
 	rebootRequested atomic.Bool
