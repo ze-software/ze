@@ -112,10 +112,11 @@ func (ps *PeerSession) handleResponderInbound(sa *SA, msg *wire.Message, pkt tra
 // oversight. The sibling replay site in handleOwnedInbound (inbound.go) uses sendRaw,
 // which reads sa.remoteUDPAddr. That address is not available here.
 //
-// adoptAuthenticatedEndpoint is the only writer of sa.peerEndpoint. On the EAP path
-// handleAuthRequest returns at its startResponderEAP call and never reaches that line.
-// peerEndpoint therefore stays nil for the whole EAP exchange, and sa.remoteUDPAddr
-// falls back to the CONFIGURED remote address. For a peer behind a NAT that address is
+// Before establishment adoptAuthenticatedEndpoint is the only writer of
+// sa.peerEndpoint. On the EAP path handleAuthRequest returns at its startResponderEAP
+// call and never reaches that line, and handleResponderEAP adopts only once the final
+// AUTH-from-MSK verifies. peerEndpoint therefore stays nil for every EAP round before
+// that one, and sa.remoteUDPAddr falls back to the CONFIGURED remote address. For a peer behind a NAT that address is
 // never the mapped port the request arrived from.
 //
 // RFC 7296 Section 2.11 states the same answer directly. An implementation

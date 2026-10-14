@@ -289,6 +289,13 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 			sa.State = StateDead
 			return
 		}
+		// The initiator authenticated, so its endpoint is adopted HERE, before
+		// buildAuthResponse builds and installs the first Child SA, exactly as
+		// handleAuthRequest does on the non-EAP path. The Child SA takes its UDP
+		// encapsulation ports from this endpoint (childEncapPorts), and adopting only in
+		// finishResponderEstablish would build it with no endpoint at all.
+		// RFC 3948 Section 2.1
+		sa.adoptAuthenticatedEndpoint(remote, tr.IsNATT(), log)
 		resp, child, err := ps.buildAuthResponse(sa, msg.Header.MessageID, nil, nil, nil, true, log)
 		if err != nil {
 			log.Warn("ike: EAP final response build failed", "peer", sa.PeerName, "error", err)

@@ -429,6 +429,14 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 					// refuseRekey picks the next attempt.
 					log.Warn("child-sa: rekey refused", "peer", ps.peerName, "error", err)
 					ps.refuseRekey(sa, p, refused.named, log)
+				case errors.Is(err, errChildEncapPort):
+					// The peer accepted the rekey and installed its half of the new
+					// pair, which this node will not install without a port to
+					// encapsulate to. Its half is deleted; the old Child SA stays in use.
+					// RFC 3948 Section 2.1
+					ps.sendDeleteESP(sa, tr, p.newInboundSPI, log)
+					log.Warn("child-sa: rekey response refused, no UDP encapsulation port, deleting the new pair",
+						"peer", ps.peerName, "error", err, "fix", childResponseFixEncapPort)
 				default:
 					log.Warn("ike: child rekey response failed", "peer", ps.peerName, "error", err)
 				}

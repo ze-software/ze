@@ -24,6 +24,9 @@ func bfmInstall(t *testing.T, natDetected, floated bool) []dataplane.SAParams {
 	if floated {
 		sa.floatToNATTPort()
 	}
+	if natDetected || floated {
+		encapPath(t, sa, encapTestPeerPort)
+	}
 	dp := &mockDP{}
 	if _, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 1, dp, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("createFirstChildSA(nat=%v, floated=%v): %v", natDetected, floated, err)
@@ -88,9 +91,11 @@ func TestBfmEncapsulatedESPAcceptedWithoutNAT(t *testing.T) {
 	if !inbound.UDPEncap {
 		t.Errorf("inbound spi %d: no UDP encapsulation template on an SA running on port %d with no NAT detected; encapsulated ESP is not received",
 			inbound.SPI, transport.NATTPort)
-	} else if inbound.UDPEncapSPort != transport.NATTPort || inbound.UDPEncapDPort != transport.NATTPort {
-		t.Errorf("inbound spi %d: encapsulation ports %d/%d, want %d/%d",
-			inbound.SPI, inbound.UDPEncapSPort, inbound.UDPEncapDPort, transport.NATTPort, transport.NATTPort)
+	} else if inbound.UDPEncapSPort != encapTestPeerPort || inbound.UDPEncapDPort == 0 {
+		// The ports are the IKE SA's (RFC 3948 Section 2.1): the peer's IKE port as the
+		// source, this node's NAT-T socket port as the destination.
+		t.Errorf("inbound spi %d: encapsulation ports %d/%d, want %d/<the NAT-T socket port>",
+			inbound.SPI, inbound.UDPEncapSPort, inbound.UDPEncapDPort, encapTestPeerPort)
 	}
 
 	// RECEIVE: the bare form too, on the SAME state. RFC 7296 Section 2.23 asks for both
@@ -124,9 +129,11 @@ func TestBfmEncapsulatedESPSentWhenNATDetected(t *testing.T) {
 		t.Errorf("outbound spi %d: no UDP encapsulation with a NAT detected; RFC 7296 Section 2.23 makes it mandatory there",
 			outbound.SPI)
 	}
-	if outbound.UDPEncapSPort != transport.NATTPort || outbound.UDPEncapDPort != transport.NATTPort {
-		t.Errorf("outbound spi %d: encapsulation ports %d/%d, want %d/%d",
-			outbound.SPI, outbound.UDPEncapSPort, outbound.UDPEncapDPort, transport.NATTPort, transport.NATTPort)
+	if outbound.UDPEncapSPort == 0 || outbound.UDPEncapDPort != encapTestPeerPort {
+		// The ports are the IKE SA's (RFC 3948 Section 2.1): this node's NAT-T socket
+		// port as the source, the peer's IKE port as the destination.
+		t.Errorf("outbound spi %d: encapsulation ports %d/%d, want <the NAT-T socket port>/%d",
+			outbound.SPI, outbound.UDPEncapSPort, outbound.UDPEncapDPort, encapTestPeerPort)
 	}
 	if !inbound.AcceptBothESPForms {
 		t.Errorf("inbound spi %d: a NAT-traversing SA accepts one ESP form only", inbound.SPI)

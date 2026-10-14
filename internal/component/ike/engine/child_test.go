@@ -280,16 +280,25 @@ func TestGenerateESPSPI(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7296-2.23-2 positive -- when NAT is detected, ESP traffic floats to UDP
-// 4500: installChildSA (child.go:235-238,263-267) sets UDP encapsulation on both Child SAs to
-// transport.NATTPort (4500), the same port IKE floats to (established.go:79, register.go:285).
-// RFC requirement: RFC3948-2.1-2 positive -- when NAT is detected, the Child SA install sets
-// the UDP-encapsulation source and destination ports to the IKE NAT-T port 4500
-// (transport.NATTPort) on both the inbound and outbound SA (child.go:235-238,263-267), so
-// ESP is encapsulated on the same port pair IKE floated to (register.go:285 listens on :4500).
+// VALIDATES: with a NAT detected, both installed states encapsulate ESP in UDP on the
+// ports the IKE SA uses: the peer's authenticated IKE port and this node's NAT-T socket
+// port. The fixture puts both off 4500, so the constant 4500 cannot pass.
+// PREVENTS: ESP sent to port 4500 of a peer whose NAT mapped its IKE to another port.
+//
+// RFC requirement: RFC7296-2.23-2 positive -- when a NAT is detected, installChildSA sets
+// UDPEncap on both Child SA states.
+// RFC requirement: RFC3948-2.1-2 positive -- at Child SA creation the UDP-encapsulation
+// source and destination ports are the ones IKE uses: inbound sport is the peer's
+// authenticated IKE port and dport this node's NAT-T socket port, outbound the reverse.
 func TestChildSANATTEncapPorts(t *testing.T) {
 	sa := testSA()
 	sa.NATDetected = true
+	sa.floatToNATTPort()
+	localPort := encapPath(t, sa, encapTestPeerPort)
+	if localPort == transport.NATTPort || encapTestPeerPort == transport.NATTPort {
+		t.Fatalf("fixture ports local=%d peer=%d: both must differ from %d or the assertion cannot tell the IKE SA's ports from the constant",
+			localPort, encapTestPeerPort, transport.NATTPort)
+	}
 	dp := &mockDP{}
 	log := slogutil.DiscardLogger()
 
@@ -299,21 +308,22 @@ func TestChildSANATTEncapPorts(t *testing.T) {
 	if len(dp.sas) != 2 {
 		t.Fatalf("installed SAs = %d, want 2 (inbound + outbound)", len(dp.sas))
 	}
-	if transport.NATTPort != 4500 {
-		t.Fatalf("transport.NATTPort = %d, want 4500 (IKE NAT-T port)", transport.NATTPort)
-	}
 	for _, dir := range []struct {
-		label string
-		p     dataplane.SAParams
-	}{{"inbound", dp.sas[0]}, {"outbound", dp.sas[1]}} {
+		label        string
+		p            dataplane.SAParams
+		sport, dport uint16
+	}{
+		{"inbound", dp.sas[0], encapTestPeerPort, localPort},
+		{"outbound", dp.sas[1], localPort, encapTestPeerPort},
+	} {
 		if !dir.p.UDPEncap {
 			t.Errorf("%s: UDPEncap = false, want true (RFC 3948 UDP encapsulation on NAT)", dir.label)
 		}
-		if dir.p.UDPEncapSPort != transport.NATTPort {
-			t.Errorf("%s: UDPEncapSPort = %d, want %d (must match IKE NAT-T port)", dir.label, dir.p.UDPEncapSPort, transport.NATTPort)
+		if dir.p.UDPEncapSPort != dir.sport {
+			t.Errorf("%s: UDPEncapSPort = %d, want %d (the port IKE uses)", dir.label, dir.p.UDPEncapSPort, dir.sport)
 		}
-		if dir.p.UDPEncapDPort != transport.NATTPort {
-			t.Errorf("%s: UDPEncapDPort = %d, want %d (must match IKE NAT-T port)", dir.label, dir.p.UDPEncapDPort, transport.NATTPort)
+		if dir.p.UDPEncapDPort != dir.dport {
+			t.Errorf("%s: UDPEncapDPort = %d, want %d (the port IKE uses)", dir.label, dir.p.UDPEncapDPort, dir.dport)
 		}
 	}
 }

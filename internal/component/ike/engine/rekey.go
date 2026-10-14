@@ -534,6 +534,11 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	// We initiated this rekey (sent Ni), so our KEYMAT role is initiator, and this node's
 	// side is TSi in the set recorded above.
 	child := newRekeyedChild(old, pending.newInboundSPI, outSPI, keys, true, sa.NegotiatedPairs)
+	// RFC 4555 Section 3.3, RFC 3948 Section 2.1
+	if err := child.takeEncapPorts(sa); err != nil {
+		keys.Clear()
+		return nil, fmt.Errorf("child rekey response: %w", err)
+	}
 	// The replacement records the suite it is keyed with, and nothing else. It inherits
 	// the retired SA's group. respondChildRekey reads Proposals[0] of that group when
 	// the peer rekeys this SA next. An unselected proposal left in front of the
@@ -756,6 +761,11 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	// The peer initiated this rekey (sent Ni); our KEYMAT role is responder, and the peer's
 	// side is TSi in the set narrowChildSelectors recorded.
 	child := newRekeyedChild(old, inSPI, peerSPI, keys, false, sa.NegotiatedPairs)
+	// RFC 4555 Section 3.3, RFC 3948 Section 2.1
+	if err := child.takeEncapPorts(sa); err != nil {
+		keys.Clear()
+		return nil, nil, fmt.Errorf("child rekey request: %w", err)
+	}
 	if err := installChildTolerant(child, prop, dp, log); err != nil {
 		keys.Clear()
 		return nil, nil, err
@@ -787,7 +797,9 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 }
 
 // newRekeyedChild builds a replacement Child SA inheriting addresses and ifID from the
-// old one, with fresh SPIs, fresh keys, and the scope THIS exchange negotiated.
+// old one, with fresh SPIs, fresh keys, and the scope THIS exchange negotiated. It sets
+// no UDP encapsulation port: both callers take those from the IKE SA next
+// (takeEncapPorts), never from the retired pair.
 // localIsInitiator records whether we sent Ni for this rekey exchange (true when we
 // initiated it), which selects the ESP send/receive key halves in installChildSA
 // (RFC 7296 Section 2.17).
@@ -816,7 +828,7 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		tsLocal, tsRemote = first.I.Net, first.R.Net
 	}
 
-	return &ChildSA{
+	child := &ChildSA{
 		InboundSPI:  inSPI,
 		OutboundSPI: outSPI,
 		LocalAddr:   old.LocalAddr,
@@ -842,9 +854,11 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		// child that does not inherit it installs a state with no template. The kernel
 		// then refuses the encapsulated ESP the peer keeps sending, and a NAT-traversing
 		// tunnel carries nothing from its first Child SA rekey onward.
-		UDPEncap:      old.UDPEncap,
-		udpLocalPort:  old.udpLocalPort,
-		udpRemotePort: old.udpRemotePort,
+		//
+		// The encapsulation PORTS are not inherited: they are the IKE SA's, which the
+		// callers read again (takeEncapPorts), so a rekey after a MOBIKE move or a rebind lands on the ports IKE uses
+		// now rather than the ones the retired pair was keyed on.
+		UDPEncap: old.UDPEncap,
 		// Selectors is the scope this rekey agreed, and it becomes the SCOPE CURRENTLY IN
 		// USE that RFC 7296 Section 2.9.2 forbids the NEXT rekey from narrowing below. A
 		// replacement that carried no set would give that rekey no floor, so the second
@@ -865,6 +879,7 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		Mode:                old.Mode,
 		LocalIsInitiator:    localIsInitiator,
 	}
+	return child
 }
 
 // lifetimeState tracks SA lifetime for time-based and byte-based expiry.

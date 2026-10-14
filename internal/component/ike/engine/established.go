@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -105,11 +106,26 @@ func (ps *PeerSession) runEstablished(
 	case sa.IsInitiator:
 		var err error
 		child, err = initiatorFirstChildSA(sa, peer, ifID, dp, log)
-		if err != nil {
+		switch {
+		case errors.Is(err, errChildEncapPort):
+			// The peer answered IKE_AUTH and installed its half of the pair, and this
+			// node has no port to encapsulate ESP to. Its half is deleted so the peer
+			// holds no Child SA this node does not, and the IKE SA is kept as a
+			// childless one that asks again on the creation schedule.
+			// RFC 7296 Section 2.21.2: "This failure does not automatically cause the
+			// IKE SA to be deleted."
+			// RFC 3948 Section 2.1
+			ps.sendDeleteESP(sa, tr, sa.ChildInboundSPI, log)
+			log.Warn("ike: child SA refused, no UDP encapsulation port, deleting the pair and keeping the IKE SA",
+				"peer", ps.peerName, "error", err, "fix", childResponseFixEncapPort)
+			child = nil
+			ps.childCreate.start(time.Now())
+		case err != nil:
 			log.Warn("ike: child SA creation failed", "peer", ps.peerName, "error", err)
 			return err
+		default:
+			ps.setChildSA(child)
 		}
-		ps.setChildSA(child)
 	default:
 		// Responder: the first Child SA was already negotiated and installed during
 		// handleAuthRequest (it had to answer with SAr2/TSr), so adopt it here rather

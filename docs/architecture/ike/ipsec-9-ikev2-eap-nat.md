@@ -349,6 +349,25 @@ When NAT is detected, the SA carries the flag and the child install sets the UDP
 encapsulation attribute on the XFRM SA, which is what puts ESP inside UDP. The
 flag propagates to child creation without a second decision.
 
+The encapsulation ports come from the IKE SA, never from a constant (RFC 3948
+Section 2.1: "the Source Port and Destination Port MUST be the same as that used
+by IKE traffic,"). `childEncapPorts` answers them for every Child SA, the first
+one of IKE_AUTH, a CREATE_CHILD_SA one and a rekeyed one alike: the remote port is
+the peer's authenticated IKE endpoint, so a peer whose NAT maps UDP 4500 to port Y
+receives ESP on Y, and the local port is the port of the NAT-T socket this node
+sends IKE from (under MOBIKE, its current local path). A rekeyed Child SA reads
+them again rather than copying the retired pair's (RFC 4555 Section 3.3). A peer
+port of 500 that a NAT chose is followed; this node's own port is never 500
+(RFC 7296 Section 2.23). With no authenticated endpoint there is no port to
+follow, so the Child SA is refused and nothing is installed: a responder answers
+without the Child SA, and an initiator that already has the peer's answer sends
+an INFORMATIONAL Delete for the pair and keeps the IKE SA. The EAP responder
+adopts the endpoint once the final AUTH-from-MSK verifies, before it builds the
+Child SA, as the non-EAP responder does before `buildAuthResponse`.
+
+<!-- source: internal/component/ike/engine/create_child.go -- childEncapPorts, takeEncapPorts -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- handleResponderEAP -->
+
 The peer's `nat-traversal` policy separates capability from permission. `allow`
 is the existing default. `prohibit` retains NAT detection but rejects translation
 before establishment or MOBIKE migration. Its address-updating requests carry

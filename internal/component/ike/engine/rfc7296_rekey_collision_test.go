@@ -275,6 +275,7 @@ func TestRekeyKeepsBothESPFormAcceptance(t *testing.T) {
 	sa := testSA()
 	sa.NATDetected = true
 	sa.floatToNATTPort()
+	encapPath(t, sa, encapTestPeerPort)
 	dp := &mockDP{}
 	log := slogutil.DiscardLogger()
 

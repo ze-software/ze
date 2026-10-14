@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
-	"github.com/ze-software/ze/internal/component/ike/transport"
 )
 
 // isXFRMUnsupported reports whether an install failure names a platform that offers
@@ -174,8 +173,10 @@ type ChildSA struct {
 	// the bare form strongSwan sends is served beside the kernel instead
 	// (SAParams.AcceptBothESPForms, dataplane/espform.go).
 	UDPEncap bool
-	// Zero retains the ordinary NAT-T port. MOBIKE records the authenticated
-	// mapping so a Child rekey does not revert a peer's translated UDP port.
+	// udpLocalPort and udpRemotePort are the UDP encapsulation ports, taken from the IKE
+	// SA by childEncapPorts whenever UDPEncap is set (RFC 3948 Section 2.1): this node's
+	// NAT-T socket port and the peer's authenticated IKE port. Zero when UDPEncap is
+	// false, where no state reads them. A MOBIKE move or a rebind migrates them.
 	udpLocalPort, udpRemotePort uint16
 
 	// LocalIsInitiator is true when this side sent Ni for this Child SA's KEYMAT
@@ -442,13 +443,10 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 			DstPort:    inPolicy.DstPort,
 		}
 	}
+	// The ports are the IKE SA's, as childEncapPorts answered them when the Child SA
+	// was built. They are set whenever UDPEncap is, and NATDetected implies UDPEncap, so
+	// every branch below that reads them finds them set.
 	localPort, remotePort := child.udpLocalPort, child.udpRemotePort
-	if localPort == 0 {
-		localPort = transport.NATTPort
-	}
-	if remotePort == 0 {
-		remotePort = transport.NATTPort
-	}
 
 	// RFC 3948: UDP encapsulation follows EITHER the NAT verdict OR the port this SA
 	// runs on. createFirstChildSA sets UDPEncap from a disjunction, so either condition
@@ -459,8 +457,10 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// AUTHENTICATED message arrives on port 4500 (sa.adoptAuthenticatedEndpoint).
 	//
 	// RFC 7296 Section 2.23 MUST NOT (rfc/full/rfc7296.txt:3544): "UDP encapsulation
-	// MUST NOT be done on port 500." Both ports below are the NAT-T constant, and the
-	// branch runs only for a floated SA, so no path here can encapsulate on port 500.
+	// MUST NOT be done on port 500." This node's port below is the NAT-T socket's, and
+	// childEncapPorts refuses a Child SA whose own port would be 500. The PEER's port is
+	// whatever its authenticated IKE endpoint is, 500 included when a NAT mapped it
+	// there, because RFC 3948 Section 2.1 makes it the port IKE uses.
 	//
 	// KERNEL CONSTRAINT, and the receive path now works around it rather than accepting
 	// it. On Linux XFRM one inbound state accepts exactly ONE of the two ESP forms.

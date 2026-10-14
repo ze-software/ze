@@ -94,15 +94,98 @@ func newChildSA(sa *SA, localAddr, remoteAddr string, spec *childSpec) (*ChildSA
 		UDPEncap:            sa.NATDetected || sa.localPort == transport.NATTPort,
 		LocalIsInitiator:    spec.localIsInitiator,
 	}
-	if sa.mobike.enabled {
-		if local := sa.mobike.local; local != nil {
-			child.udpLocalPort = uint16(local.Port)
-		}
-		if remote := sa.remoteUDPAddr(); remote != nil {
-			child.udpRemotePort = uint16(remote.Port)
-		}
+	// RFC 3948 Section 2.1
+	if err := child.takeEncapPorts(sa); err != nil {
+		return nil, err
 	}
 	return child, nil
+}
+
+// takeEncapPorts gives a Child SA that needs UDP encapsulation the ports of its IKE SA,
+// answered by childEncapPorts, and leaves a Child SA without encapsulation at zero, where
+// no state reads them. Every builder calls it once, after UDPEncap is decided: newChildSA,
+// and both rekey directions after newRekeyedChild. A refusal installs nothing.
+//
+// RFC 4555 Section 3.3: "When an IPsec SA is created, the tunnel header IP addresses
+// (and port, if doing UDP encapsulation) are taken from the IKE_SA".
+func (c *ChildSA) takeEncapPorts(sa *SA) error {
+	if !c.UDPEncap {
+		return nil
+	}
+	local, remote, err := childEncapPorts(sa)
+	if err != nil {
+		return err
+	}
+	c.udpLocalPort, c.udpRemotePort = local, remote
+	return nil
+}
+
+// errChildEncapPort marks a Child SA refused because the UDP encapsulation it needs has
+// no port to take from the IKE SA. Each refusal path names it apart from the address
+// cause, because the operator's next step differs.
+var errChildEncapPort = errors.New("child-sa: no UDP encapsulation port")
+
+// childEncapPorts answers the UDP encapsulation ports of a Child SA from the IKE SA it
+// belongs to: the remote port is the peer's authenticated IKE endpoint, the local port
+// the NAT-T socket this SA sends IKE from (under MOBIKE, its current local path). It is
+// the one port derivation every Child SA passes through, by takeEncapPorts for IKE_AUTH,
+// CREATE_CHILD_SA and either rekey direction, and by rebindChildSAs.
+//
+// RFC 3948 Section 2.1: "the Source Port and Destination Port MUST be the same as that
+// used by IKE traffic,"
+//
+// RFC 4555 Section 3.3: "When an IPsec SA is created, the tunnel header IP addresses
+// (and port, if doing UDP encapsulation) are taken from the IKE_SA, not the IP header of
+// the IKEv2 message requesting the IPsec SA."
+//
+// It refuses rather than answering a default. With no authenticated endpoint there is no
+// port IKE traffic uses with this peer, and the constant 4500 that stood here sent ESP to
+// a port a NAT never mapped. sa.remoteUDPAddr is NOT read: its nil-endpoint fallback is
+// the configured remote, which is that same default.
+//
+// A peer port of 500 is followed. A NAT chooses its external port, and RFC 7296
+// Section 2.23 says responses "MUST be sent to the port from whence they came." Ze's
+// OWN port is refused when it is 500: "UDP encapsulation MUST NOT be done on port 500."
+//
+// Owner-loop state only (peerEndpoint, mobike, nattSocket), so it needs no lock.
+func childEncapPorts(sa *SA) (local, remote uint16, err error) {
+	if sa.peerEndpoint == nil {
+		return 0, 0, fmt.Errorf("%w: peer %s has no authenticated IKE endpoint yet, so the port its ESP must reach is unknown",
+			errChildEncapPort, sa.PeerName)
+	}
+	remote = uint16(sa.peerEndpoint.Port)
+	if remote == 0 {
+		return 0, 0, fmt.Errorf("%w: peer %s authenticated from port 0", errChildEncapPort, sa.PeerName)
+	}
+	local, err = localEncapPort(sa)
+	if err != nil {
+		return 0, 0, err
+	}
+	// RFC 7296 Section 2.23: "UDP encapsulation MUST NOT be done on port 500."
+	if local == transport.IKEPort {
+		return 0, 0, fmt.Errorf("%w: peer %s would be encapsulated from this node's port 500",
+			errChildEncapPort, sa.PeerName)
+	}
+	return local, remote, nil
+}
+
+// localEncapPort is the port this node sends IKE from once UDP encapsulation applies:
+// the MOBIKE local path when one is recorded, else the bound NAT-T socket. The
+// test-port hook binds that socket off 4500 (nattAddr), so the port is read from the
+// socket and never assumed.
+func localEncapPort(sa *SA) (uint16, error) {
+	if sa.mobike.enabled && sa.mobike.local != nil {
+		return uint16(sa.mobike.local.Port), nil
+	}
+	if sa.nattSocket == nil {
+		return 0, fmt.Errorf("%w: peer %s has no NAT-T socket to encapsulate ESP on",
+			errChildEncapPort, sa.PeerName)
+	}
+	bound, ok := sa.nattSocket.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		return 0, fmt.Errorf("%w: peer %s: the NAT-T socket has no UDP address", errChildEncapPort, sa.PeerName)
+	}
+	return uint16(bound.Port), nil
 }
 
 // negotiatedChildTS returns the first negotiated pair as local and remote prefixes. The
@@ -434,6 +517,11 @@ const (
 		"endpoints for it; no traffic is protected until a Child SA exists, and the peer may ask " +
 		"again with CREATE_CHILD_SA; set local-address and remote-address on this peer to IP " +
 		"addresses, then reload the configuration: ze signal reload"
+	childRefusedFixResponderEncapPort = "this node refused the peer's Child SA because UDP " +
+		"encapsulation needs the port the peer's IKE traffic comes from, and no authenticated " +
+		"endpoint was recorded for it; no traffic is protected until a Child SA exists, and the " +
+		"peer may ask again with CREATE_CHILD_SA; this is a ze defect, report it with the log " +
+		"lines of this peer"
 	childRefusedFixResponderInstall = "this node refused the peer's Child SA because the kernel refused " +
 		"to install it; no traffic is protected until a Child SA exists, and the peer may ask again " +
 		"with CREATE_CHILD_SA; the error names what the kernel refused: make the esp-group " +
@@ -445,6 +533,8 @@ const (
 // (proposals, traffic selectors, KE) falls to childRefusedFixResponder.
 func childRefusedResponderFix(err error) string {
 	switch {
+	case errors.Is(err, errChildEncapPort):
+		return childRefusedFixResponderEncapPort
 	case errors.Is(err, errChildBinding):
 		return childRefusedFixResponderBinding
 	case errors.Is(err, errChildAddress):
@@ -484,6 +574,10 @@ const (
 		"for it, so ze deleted the pair; no traffic is protected until a Child SA exists, and ze " +
 		"asks again after retry-after; set local-address and remote-address on this peer to IP " +
 		"addresses, then reload the configuration: ze signal reload"
+	childResponseFixEncapPort = "the peer accepted the Child SA and this node has no authenticated " +
+		"peer endpoint to take its UDP encapsulation port from, so ze deleted the pair; no traffic " +
+		"is protected until a Child SA exists, and ze asks again after retry-after; this is a ze " +
+		"defect, report it with the log lines of this peer"
 	childResponseFixInstall = "the peer accepted the Child SA and the kernel refused to install it, so " +
 		"ze deleted the pair; no traffic is protected until a Child SA exists, and ze asks again " +
 		"after retry-after; the error names what the kernel refused: make the esp-group algorithms " +
@@ -505,6 +599,8 @@ func childResponseRefusedFix(err error) string {
 	switch {
 	case errors.Is(err, errChildTransportDeclined):
 		return childResponseFixTransport
+	case errors.Is(err, errChildEncapPort):
+		return childResponseFixEncapPort
 	case errors.Is(err, errChildBinding):
 		return childResponseFixBinding
 	case errors.Is(err, errChildAddress):

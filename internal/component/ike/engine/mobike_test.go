@@ -1269,6 +1269,9 @@ func mbOwner(t *testing.T, local, peer *SA, natt bool) *mbFixture {
 	} else {
 		peerTr, myTr = rtxPeerLink(t)
 	}
+	// Production adopts the authenticated endpoint before any Child SA is built
+	// (handleAuthRequest, fsm.go), and the Child SA takes its encapsulation port from it.
+	local.peerEndpoint = nttPeerAddr(t, peerTr)
 	dp := &mbDataplane{}
 	child, err := createFirstChildSA(local, testESPGroup(),
 		local.PeerCfg.LocalAddress, local.PeerCfg.RemoteAddress, 7, dp, slogutil.DiscardLogger())
@@ -1280,7 +1283,6 @@ func mbOwner(t *testing.T, local, peer *SA, natt bool) *mbFixture {
 	local.mobike.enabled = true
 	local.mobike.originalInitiator = local.IsInitiator
 	local.mobike.local = nttPeerAddr(t, myTr)
-	local.peerEndpoint = nttPeerAddr(t, peerTr)
 	return &mbFixture{
 		local: local, peer: peer, ps: ps, child: child, dp: dp, peerTr: peerTr, myTr: myTr,
 		policies: append([]dataplane.SPParams(nil), dp.policies...),

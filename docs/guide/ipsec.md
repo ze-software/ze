@@ -1220,7 +1220,9 @@ proposals in the `esp-group` and a peer that accepts only the second, the payloa
 the second. If Ze cannot resolve that proposal's transforms, which only a Ze defect
 produces, `esp-integrity` is absent and `esp-transform-error` says why. `mode` is
 `tunnel` or `transport`, `udp-encapsulation` says the SA receives
-ESP inside UDP on port 4500, and `remote-address` is the endpoint the SA was installed
+ESP inside UDP on the ports the IKE SA uses: Ze's NAT-T port (4500) and the port the
+peer's authenticated IKE traffic comes from, which a NAT may have translated to any
+port, and `remote-address` is the endpoint the SA was installed
 on, which behind a NAT differs from the configured `remote-address` of the peer. Those
 three, with the transform, are what size an ESP packet on the tunnel.
 

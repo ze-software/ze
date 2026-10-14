@@ -36,6 +36,11 @@ so a read that spans an install answers unknown rather than naming a
 half-installed pair as drift. It clears the child's removing flag once the pair
 is in place.
 
+Both responder paths adopt the initiator's authenticated endpoint before
+`buildAuthResponse` runs: `handleAuthRequest` once AUTH verifies, and
+`handleResponderEAP` once the final AUTH-from-MSK verifies. The Child SA takes
+its UDP encapsulation ports from that endpoint (`childEncapPorts`).
+
 `buildAuthResponse` finishes AUTH, certificate payloads and response encryption
 before installing the Child. An encoding failure therefore leaves an existing
 Child's states and policy templates unchanged, including a tuple already moved
@@ -43,7 +48,7 @@ by MOBIKE. The response's negotiated inbound SPI is reused by the installation.
 
 A Child SA that cannot be built after the initiator's AUTH verified (no
 acceptable ESP proposal, TS_UNACCEPTABLE, a missing or zero SAi2 SPI, a refused
-install) does not end the IKE SA (RFC 7296 Sections 2.21.2 and 1.3.1).
+install, no authenticated endpoint to take a UDP encapsulation port from) does not end the IKE SA (RFC 7296 Sections 2.21.2 and 1.3.1).
 `buildChildlessAuthResponse` answers IDr, CERT when X.509, AUTH and the error
 notify, and `finishResponderEstablish` establishes the IKE SA with a nil Child
 SA; a parallel re-initiation then stages a nil `pendingChild`, and the promotion

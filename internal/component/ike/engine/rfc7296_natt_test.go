@@ -476,20 +476,18 @@ func TestNattFloatedSAWithoutNATTSocketSendsNothing(t *testing.T) {
 	_ = ini
 }
 
-// VALIDATES: no code path can ask the dataplane to encapsulate ESP on port 500.
-// PREVENTS: a later change deriving the encapsulation ports from the SA's own port
-// field, which would make port 500 expressible.
+// VALIDATES: this node never asks the dataplane to encapsulate ESP on its OWN port 500,
+// whatever port the peer's authenticated IKE endpoint has, 500 included.
+// PREVENTS: a port derivation that would let this node's encapsulation port be 500.
 //
-// RFC requirement: RFC7296-2.23-9 positive
+// RFC requirement: RFC7296-2.23-9 positive -- this node's own encapsulation port (outbound
+// sport, inbound dport) is never 500, over both NAT states and over a peer on 4500 and a
+// peer a NAT mapped to 500. The peer side follows a NAT-mapped 500 (RFC 3948 Section 2.1).
 //
 // RFC 7296 Section 2.23 MUST NOT (rfc/full/rfc7296.txt:3544): "UDP encapsulation MUST
-// NOT be done on port 500."
-//
-// This rests on a property the code HAS, not on a guard that is absent. The only two
-// writers assign transport.NATTPort, and that constant is not 500.
-//
-// The sweep covers both NAT states and both directions. The claim is therefore about
-// every reachable combination and not about one sample.
+// NOT be done on port 500." The same section's "MUST send all subsequent traffic from
+// port 4500," shows the ban binds the ports an endpoint sends from, and a NAT's external
+// port is chosen by neither endpoint.
 func TestEncapNeverRequestedOnPort500(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	if transport.NATTPort == transport.IKEPort {
@@ -501,40 +499,49 @@ func TestEncapNeverRequestedOnPort500(t *testing.T) {
 	// skipped: pinning createFirstChildSA to UDPEncap false left this test green with
 	// zero assertions run, which is the shape it exists to prevent.
 	encapChecked, plainChecked := 0, 0
-	for _, nat := range []bool{false, true} {
-		sa := testSA()
-		sa.NATDetected = nat
-		if nat {
-			sa.floatToNATTPort()
-		}
-		dp := &mockDP{}
-		if _, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 1, dp, log); err != nil {
-			t.Fatalf("createFirstChildSA(nat=%v): %v", nat, err)
-		}
-		if len(dp.sas) != 2 {
-			t.Fatalf("nat=%v: installed %d SAs, want 2", nat, len(dp.sas))
-		}
-		for i, p := range dp.sas {
-			if !p.UDPEncap {
-				plainChecked++
-				continue
+	for _, peerPort := range []uint16{transport.NATTPort, transport.IKEPort} {
+		for _, nat := range []bool{false, true} {
+			sa := testSA()
+			sa.NATDetected = nat
+			if nat {
+				sa.floatToNATTPort()
 			}
-			encapChecked++
-			if p.UDPEncapSPort == transport.IKEPort || p.UDPEncapDPort == transport.IKEPort {
-				t.Errorf("nat=%v SA[%d]: encapsulation requested on port 500 (sport=%d dport=%d)",
-					nat, i, p.UDPEncapSPort, p.UDPEncapDPort)
+			encapPath(t, sa, peerPort)
+			dp := &mockDP{}
+			if _, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 1, dp, log); err != nil {
+				t.Fatalf("createFirstChildSA(nat=%v, peer port %d): %v", nat, peerPort, err)
+			}
+			if len(dp.sas) != 2 {
+				t.Fatalf("nat=%v peer port %d: installed %d SAs, want 2", nat, peerPort, len(dp.sas))
+			}
+			for i, p := range dp.sas {
+				if !p.UDPEncap {
+					plainChecked++
+					continue
+				}
+				encapChecked++
+				// Install order is inbound then outbound: this node's port is the
+				// inbound destination and the outbound source.
+				own := p.UDPEncapDPort
+				if i == 1 {
+					own = p.UDPEncapSPort
+				}
+				if own == transport.IKEPort {
+					t.Errorf("nat=%v peer port %d SA[%d]: this node encapsulates on its own port 500 (sport=%d dport=%d)",
+						nat, peerPort, i, p.UDPEncapSPort, p.UDPEncapDPort)
+				}
 			}
 		}
 	}
 	// Anti-vacuity. The port assertion runs only on an ENCAPSULATED SA, so the count that
 	// matters is the encapsulated one. A builder that stopped requesting encapsulation
 	// would leave encapChecked at zero and fail here rather than pass silently.
-	if encapChecked != 2 {
-		t.Fatalf("%d encapsulated SA params were examined, want 2; the port assertion ran on "+
+	if encapChecked != 4 {
+		t.Fatalf("%d encapsulated SA params were examined, want 4; the port assertion ran on "+
 			"nothing, so this test proves nothing about which port Ze asks for", encapChecked)
 	}
-	if plainChecked != 2 {
-		t.Fatalf("%d unencapsulated SA params were seen, want 2; the no-NAT arm did not run",
+	if plainChecked != 4 {
+		t.Fatalf("%d unencapsulated SA params were seen, want 4; the no-NAT arm did not run",
 			plainChecked)
 	}
 }
