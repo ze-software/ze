@@ -1,0 +1,90 @@
+# srv6-invalid-sid-ineligible -- RFC 9252 Section 7, a path without a valid SRv6 SID is not
+# selected, from a peer's socket to the RIB's best table.
+#
+# RFC requirement: RFC9252-5-1 negative -- an IPv4 VPN path whose only SRv6 SID is invalid, by a SID Structure whose LBL+LNL+FL+AL is 200 or by a 24-bit transposition into the 20-bit label field, has no best path, while a path with a valid 20-bit transposition is selected.
+#
+# "The SRv6 SID value in the SRv6 SID Information Sub-TLV is invalid when the SID Structure
+# Sub-Sub-TLV transposition length is greater than the number of bits of the label field or if
+# any of the conditions for the fields of the Sub-Sub-TLV, as specified in Section 3.2.1, is not
+# met. ... The path having any such Prefix-SID attribute without any valid SRv6 SID information
+# MUST be considered ineligible during the selection of the best path for the corresponding
+# prefix." The gate is candidateAdmitted, which asks isSRv6Ineligible
+# (internal/component/bgp/plugins/rib/rib_bestchange.go). Each prefix has one path, so an
+# ineligible path leaves its prefix with no best path at all.
+#
+# THREE UPDATES on one iBGP session (an iBGP peer needs no accept-srv6-prefix-sid, RFC 8669
+# Section 4 binds eBGP only), each an IPv4 VPN route (RD 65000:1, label stack of one) with a
+# Prefix-SID holding one SRv6 L3 Service TLV, SID 2001:db8:1::, End.DT4, and a SID Structure:
+#   P1 10.0.1.0/24: LBL 32, LNL 152, FL 16, AL 0, length 16, offset 48. Sum 200 > 128: invalid.
+#   P2 10.0.2.0/24: LBL 32, LNL 16, FL 24, AL 0, length 24, offset 48. Sum 72 = 48 + 24 is
+#                   sound, but 24 bits do not fit the 20-bit VPN label field: invalid.
+#   P3 10.0.3.0/24: LBL 32, LNL 16, FL 20, AL 0, length 20, offset 48: valid, the control,
+#                   and the only one sent with LOCAL_PREF 300, which names it in the best table.
+# The framing of every TLV is sound, so the RFC 7606 walk keeps all three (RFC 9252 Section 7:
+# "Any TLV, Sub-TLV, or Sub-Sub-TLV is not considered malformed because of failing any semantic
+# validation of its Value field."). The observer waits until the RIB holds all three paths, then
+# reads the best table: it must hold exactly one IPv4 VPN best path, the one with LOCAL_PREF 300.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+# Keep the session, and so the paths, up while the observer reads the best table.
+option=linger:value=true
+# Send only after ze's End-of-RIB, so the session is established on both sides.
+option=await_eor:value=true
+
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007002000000594001010040020040050400000064800E200001800C00000000000000000A00000100700E5A710000FDE8000000010A0001C028250500220001001E0020010DB800010000000000000000000000001300010006209810001030
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007002000000594001010040020040050400000064800E200001800C00000000000000000A00000100700E5A710000FDE8000000010A0002C028250500220001001E0020010DB800010000000000000000000000001300010006201018001830
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00700200000059400101004002004005040000012C800E200001800C00000000000000000A0000010070E5A7010000FDE8000000010A0003C028250500220001001E0020010DB800010000000000000000000000001300010006201014001430
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external srv6-ineligible-test {
+		run "le test fixture plugin/srv6-invalid-sid-ineligible"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/mpls-vpn { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: srv6 ineligible: of three stored paths only P3 is selected
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=treat-as-withdraw
