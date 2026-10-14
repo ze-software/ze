@@ -266,7 +266,72 @@ The capture line and marker grammar the ACs refer to:
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Report over the committed journal | `./le spec journal report` and its `| json` form run after the backfill commit, output pasted into the spec | An agent at session start sees the real DUE count and which classes are captured | |
+| Report over the committed journal | `./le spec journal report` and its `| json` form run after the backfill commit, output pasted into the spec | An agent at session start sees the real DUE count and which classes are captured | Run 2026-10-14 at 2e16a9e2a6 (after Phases 1, 2 and 4, before Phase 5's captures), below |
+
+Text form at 2e16a9e2a6, exit 1. The 101 non-due class lines are left out;
+every line the command prints above them and every problem line is kept. The
+two UNMARKED FIX problems are the two class files the `.ci` agent holds
+uncommitted with their markers on disk; they clear when that agent commits.
+The JSON form carries top-level `classes`, `problems` and `thresholds`
+(`{"check": 1, "rule": 10, "uncaptured": 10}`), 150 classes, 49 with
+`due: true`, each with `counted-rows`, `rows`, `due-at` and `open`. No class
+carries `captured` yet: Phase 5 sets the first captures.
+
+```
+49 problem classes are due for a fix pass
+due at: 1 row since a check capture, 10 rows since a rule capture, 10 rows uncaptured
+DUE gate-excludes-part-of-its-population: 165 rows, 84 open, 65d span (2026-08-09 .. 2026-10-13)
+DUE unwired-feature: 160 rows, 65 open, 198d span (2026-03-30 .. 2026-10-14)
+DUE guard-added-to-one-half-of-a-pair: 109 rows, 40 open, 64d span (2026-08-10 .. 2026-10-13)
+DUE silent-fall-through: 100 rows, 43 open, 207d span (2026-03-21 .. 2026-10-14)
+DUE zero-value-as-valid-answer: 88 rows, 26 open, 79d span (2026-07-27 .. 2026-10-14)
+DUE test-against-broken-path: 85 rows, 42 open, 207d span (2026-03-21 .. 2026-10-14)
+DUE stale-artifact-reused: 70 rows, 44 open, 64d span (2026-08-10 .. 2026-10-13)
+DUE concurrent-session-corruption: 65 rows, 42 open, 184d span (2026-04-13 .. 2026-10-14)
+DUE claim-outlives-the-evidence-it-cites: 63 rows, 36 open, 52d span (2026-08-22 .. 2026-10-13)
+DUE gate-fires-outside-its-population: 53 rows, 29 open, 62d span (2026-08-13 .. 2026-10-14)
+DUE reference-checked-claim-unchecked: 45 rows, 21 open, 65d span (2026-08-09 .. 2026-10-13)
+DUE helper-bypassed-by-an-open-coded-copy: 43 rows, 17 open, 65d span (2026-08-10 .. 2026-10-14)
+DUE declared-format-contradicts-payload: 41 rows, 23 open, 60d span (2026-08-15 .. 2026-10-14)
+DUE false-synchronization-claim: 38 rows, 17 open, 207d span (2026-03-21 .. 2026-10-14)
+DUE full-disk-false-red: 33 rows, 13 open, 71d span (2026-07-30 .. 2026-10-09)
+DUE lint-contract-not-applied: 31 rows, 21 open, 54d span (2026-08-17 .. 2026-10-10)
+DUE hardcoded-count-in-test: 29 rows, 13 open, 198d span (2026-03-21 .. 2026-10-05)
+DUE comment-describes-superseded-behaviour: 28 rows, 16 open, 59d span (2026-08-16 .. 2026-10-14)
+DUE documentation-shows-config-the-parser-refuses: 28 rows, 16 open, 31d span (2026-08-15 .. 2026-09-15)
+DUE gate-red-where-nothing-blocks-on-it: 28 rows, 20 open, 48d span (2026-08-25 .. 2026-10-12)
+DUE field-carries-two-meanings: 25 rows, 7 open, 57d span (2026-08-18 .. 2026-10-14)
+DUE fixture-encodes-an-impossible-state: 25 rows, 9 open, 51d span (2026-08-15 .. 2026-10-05)
+DUE stale-spec-claims-done: 21 rows, 5 open, 144d span (2026-04-14 .. 2026-09-05)
+DUE closure-deletes-a-cited-document: 20 rows, 13 open, 58d span (2026-08-10 .. 2026-10-07)
+DUE failing-gate-prints-no-cause: 20 rows, 13 open, 39d span (2026-09-01 .. 2026-10-10)
+DUE concurrent-rfc-gate-stale: 19 rows, 11 open, 71d span (2026-07-30 .. 2026-10-09)
+DUE check-cannot-see-the-change-it-looks-for: 18 rows, 10 open, 39d span (2026-09-02 .. 2026-10-11)
+DUE invariant-enforced-by-an-absent-call-site: 18 rows, 9 open, 60d span (2026-08-15 .. 2026-10-14)
+DUE committed-tree-does-not-build: 17 rows, 8 open, 59d span (2026-08-16 .. 2026-10-14)
+DUE feature-test-missing-build-tag: 16 rows, 11 open, 58d span (2026-08-16 .. 2026-10-13)
+DUE parallel-copies-collide-on-a-deterministic-port: 16 rows, 12 open, 62d span (2026-08-10 .. 2026-10-11)
+DUE validated-value-discarded-by-its-caller: 16 rows, 5 open, 42d span (2026-08-12 .. 2026-09-23)
+DUE failure-report-names-a-command-that-does-not-exist: 15 rows, 7 open, 55d span (2026-08-19 .. 2026-10-13)
+DUE bulk-rename-corruption: 14 rows, 4 open, 180d span (2026-03-21 .. 2026-09-17)
+DUE assertion-reads-state-the-scheduler-owns: 13 rows, 6 open, 45d span (2026-08-22 .. 2026-10-06)
+DUE guard-blocks-its-own-authors-repair: 13 rows, 7 open, 62d span (2026-08-02 .. 2026-10-03)
+DUE refactor-removes-feature: 13 rows, 4 open, 114d span (2026-06-15 .. 2026-10-07)
+DUE published-value-drifts-from-the-behavior-it-describes: 12 rows, 5 open, 32d span (2026-09-05 .. 2026-10-07)
+DUE registry-contamination: 12 rows, 3 open, 177d span (2026-03-21 .. 2026-09-14)
+DUE rendered-markup-invalid: 12 rows, 4 open, 40d span (2026-08-14 .. 2026-09-23)
+DUE balance-assertion-vacuous-without-a-loan: 11 rows, 2 open, 29d span (2026-08-10 .. 2026-09-08)
+DUE component-rebuilt-during-reload: 11 rows, 1 open, 34d span (2026-08-17 .. 2026-09-20)
+DUE guard-message-teaches-the-violation: 11 rows, 7 open, 23d span (2026-08-10 .. 2026-09-02)
+DUE hook-existing-patterns-false-positive: 11 rows, 3 open, 165d span (2026-03-21 .. 2026-09-02)
+DUE key-omits-a-fact-the-builder-uses: 11 rows, 7 open, 38d span (2026-09-06 .. 2026-10-14)
+DUE output-not-byte-stable: 11 rows, 3 open, 42d span (2026-08-10 .. 2026-09-21)
+DUE grace-bound-hides-a-missing-signal: 10 rows, 9 open, 38d span (2026-08-10 .. 2026-09-17)
+DUE guard-enumerates-instead-of-subtracting: 10 rows, 4 open, 52d span (2026-08-13 .. 2026-10-04)
+DUE rollback-forgets-partial-apply: 10 rows, 4 open, 55d span (2026-08-17 .. 2026-10-11)
+UNMARKED FIX: plan/journal/gate-verdict-depends-on-the-machine.md: 124 row(s) whose Fix cell starts with neither `fixed: ` nor `open: ` (first dated 2026-10-12, 2026-10-12, 2026-10-10)
+UNMARKED FIX: plan/journal/green-that-could-not-have-been-red.md: 94 row(s) whose Fix cell starts with neither `fixed: ` nor `open: ` (first dated 2026-10-09, 2026-10-05, 2026-10-05)
+```
 
 ### Interop Tests (Scope: protocol)
 N-A: tooling with no protocol peer.
