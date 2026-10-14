@@ -282,9 +282,9 @@ func encodeRequest(pkt *Packet, secret, buf []byte) (int, [AuthenticatorLen]byte
 	// appends, so this is the paired check at the socket: a builder that ever
 	// appended two would be caught here rather than by a permissive server.
 	//
-	// ARAP-Password is not named. Ze implements no ARAP attribute, which RFC
-	// 2869 Section 1.1 requires of a NAS that cannot offer the service, and
-	// rfc2869_unoffered_service_attributes_test.go holds it.
+	// ARAP-Password is named by its type alone (credentialTypeARAPPassword):
+	// Ze builds no ARAP attribute, which RFC 2869 Section 1.1 requires of a NAS
+	// that cannot offer the service, but a caller-supplied one is still refused.
 	if pkt.Code == CodeAccessRequest {
 		if err := oneCredentialType(pkt); err != nil {
 			return 0, [AuthenticatorLen]byte{}, err
@@ -329,16 +329,31 @@ func carriesEAPMessage(pkt *Packet) bool {
 	return false
 }
 
+// credentialTypeARAPPassword is the RFC 2869 Section 5.1 type of
+// ARAP-Password. It is an unexported literal here, and never an Attr constant
+// in dict.go, because RFC 2869 Section 1.1 forbids a NAS that cannot offer ARAP
+// from implementing the ARAP attributes (rfc2869_unoffered_service_attributes_test.go
+// holds dict.go to that). Recognizing the type in order to refuse a pair
+// implements no ARAP service.
+const credentialTypeARAPPassword uint8 = 70
+
 // oneCredentialType refuses an Access-Request carrying more than one of the
 // credential types RFC 3579 Section 3.3 Note 1 makes exclusive.
 //
-// The three ze can build are named, and the error names both offenders so the
-// builder that appended rather than selected is identifiable from the log.
+// All four types the note names are in the set. Ze builds three of them; the
+// fourth, ARAP-Password, reaches here only from a caller of Client.Exchange
+// that supplied the attribute. The error names both offenders so the builder
+// that appended rather than selected is identifiable from the log.
 func oneCredentialType(pkt *Packet) error {
+	// RFC 3579 Section 3.3 Note 1: "An Access-Request that contains either a
+	// User-Password or CHAP-Password or ARAP-Password or one or more
+	// EAP-Message attributes MUST NOT contain more than one type of those four
+	// attributes."
 	names := map[uint8]string{
-		AttrUserPassword: "User-Password",
-		AttrCHAPPassword: "CHAP-Password",
-		AttrEAPMessage:   "EAP-Message",
+		AttrUserPassword:           "User-Password",
+		AttrCHAPPassword:           "CHAP-Password",
+		credentialTypeARAPPassword: "ARAP-Password",
+		AttrEAPMessage:             "EAP-Message",
 	}
 	found := ""
 	for _, a := range pkt.Attrs {

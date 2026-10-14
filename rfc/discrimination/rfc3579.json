@@ -410,11 +410,22 @@
       "rid": "RFC3579-3.3-2",
       "polarity": "negative",
       "unit": "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes",
-      "unit-sha": "06c2bf107e198e5f",
+      "unit-sha": "da6a94bc32cd0428",
       "claim-sha": "d3a8dca0f8ba1d4b",
       "route": "revert",
       "producer": "internal/component/radius/client.go::oneCredentialType",
-      "producer-sha": "63edc854432edf23",
+      "producer-sha": "0e2c023e8dcfbae0",
+      "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/radius/authenticator_eap_test.go::TestRFC3579EachCredentialTypeAloneEncodes",
+      "unit-sha": "6dc07161ad99b549",
+      "claim-sha": "fcbe6124dcdf7cbc",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::oneCredentialType",
+      "producer-sha": "0e2c023e8dcfbae0",
       "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -427,6 +438,17 @@
       "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
       "producer-sha": "127159291cffa17d",
       "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-3.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/radius/rfc3579_credential_types_test.go::TestRFC3579ARAPBesideEAPIsRefusedAtExchange",
+      "unit-sha": "97dbdc1e229429d1",
+      "claim-sha": "f7355784a78cd740",
+      "route": "revert",
+      "producer": "internal/component/radius/client.go::oneCredentialType",
+      "producer-sha": "0e2c023e8dcfbae0",
+      "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3579-4.3.6-2",

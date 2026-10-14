@@ -4,8 +4,10 @@
 
 // The L2TP builder (authradius buildAuthAttrs) never produces an EAP-Message,
 // so the EAP combinations of the Section 5.19 note are driven here, at the
-// client every Access-Request leaves through. ARAP-Password is not driven: ze
-// declares no ARAP attribute (rfc2869_unoffered_service_attributes_test.go).
+// client every Access-Request leaves through. ARAP-Password is recognized by
+// the literal type 70 (client.go credentialTypeARAPPassword) and driven beside
+// EAP-Message here, while dict.go still declares no ARAP attribute
+// (rfc2869_unoffered_service_attributes_test.go).
 package radius
 
 import (
@@ -49,10 +51,10 @@ func credentialExchange(t *testing.T, build func(id uint8) *Packet) ([][]byte, e
 }
 
 // RFC requirement: RFC2869-5.19-1 positive -- an Access-Request carrying
-// EAP-Message attributes and none of User-Password or CHAP-Password is sent:
-// Client.Exchange succeeds, and the server reads one datagram whose EAP-Message
-// is present and which carries neither of the other two (client.go
-// encodeRequest, oneCredentialType).
+// EAP-Message attributes and none of User-Password, CHAP-Password or
+// ARAP-Password is sent: Client.Exchange succeeds, and the server reads one
+// datagram whose EAP-Message is present and which carries none of the other
+// three (client.go encodeRequest, oneCredentialType).
 func TestRFC2869EAPOnlyAccessRequestIsSent(t *testing.T) {
 	datagrams, err := credentialExchange(t, func(id uint8) *Packet { return eapCredentialRequest(t, id) })
 	require.NoError(t, err)
@@ -62,16 +64,18 @@ func TestRFC2869EAPOnlyAccessRequestIsSent(t *testing.T) {
 	assert.NotNil(t, sent.FindAttr(AttrEAPMessage))
 	assert.Nil(t, sent.FindAttr(AttrUserPassword))
 	assert.Nil(t, sent.FindAttr(AttrCHAPPassword))
+	assert.Nil(t, sent.FindAttr(credentialTypeARAPPassword))
 }
 
 // RFC requirement: RFC2869-5.19-1 negative -- an Access-Request carrying
-// EAP-Message beside a User-Password, or beside a CHAP-Password, is refused by
-// Client.Exchange with an error, and no datagram reaches the server (client.go
-// encodeRequest, oneCredentialType).
+// EAP-Message beside a User-Password, beside a CHAP-Password, or beside an
+// ARAP-Password, is refused by Client.Exchange with an error, and no datagram
+// reaches the server (client.go encodeRequest, oneCredentialType).
 func TestRFC2869EAPBesideAnotherCredentialIsRefused(t *testing.T) {
 	others := map[string]Attr{
 		"User-Password": {Type: AttrUserPassword, Value: []byte("pw")},
 		"CHAP-Password": {Type: AttrCHAPPassword, Value: make([]byte, 17)},
+		"ARAP-Password": {Type: credentialTypeARAPPassword, Value: make([]byte, 16)},
 	}
 	for name, other := range others {
 		datagrams, err := credentialExchange(t, func(id uint8) *Packet { return eapCredentialRequest(t, id, other) })

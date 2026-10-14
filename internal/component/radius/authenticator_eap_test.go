@@ -945,8 +945,11 @@ func TestRadiusAdminEapVerifiedChallengeIsAccepted(t *testing.T) {
 // TestAccessRequestRefusesTwoCredentialTypes is the negative of the exclusive
 // credential rule.
 //
-// VALIDATES: an Access-Request carrying an EAP-Message beside a User-Password,
-// or beside a CHAP-Password, is refused at the socket rather than sent.
+// VALIDATES: an Access-Request carrying any two of the four credential types
+// (User-Password, CHAP-Password, ARAP-Password, EAP-Message) is refused at the
+// socket rather than sent, and the error names both. All six pairs are driven;
+// ARAP-Password is the literal type 70 (credentialTypeARAPPassword), since
+// dict.go declares no ARAP attribute.
 // PREVENTS: a builder that APPENDS the EAP credential to a password one. Both
 // present would still authenticate against a permissive server, and the
 // password would travel under the reversible RFC 2865 Section 5.2 hiding while
@@ -959,26 +962,78 @@ func TestRadiusAdminEapVerifiedChallengeIsAccepted(t *testing.T) {
 func TestAccessRequestRefusesTwoCredentialTypes(t *testing.T) {
 	secret := []byte("testing123")
 	buf := make([]byte, MaxPacketLen)
-	eapMessage := Attr{Type: AttrEAPMessage, Value: []byte{0x02, 0x00, 0x00, 0x0a, 0x01, 'a', 'l', 'i', 'c', 'e'}}
 	signature := Attr{Type: AttrMessageAuthenticator, Value: make([]byte, AuthenticatorLen)}
+	credentials := fourCredentialTypes()
 
-	for _, beside := range []Attr{
-		{Type: AttrUserPassword, Value: []byte("Hello")},
-		{Type: AttrCHAPPassword, Value: make([]byte, 17)},
-	} {
-		pkt := &Packet{
-			Code:       CodeAccessRequest,
-			Identifier: 11,
-			Attrs:      []Attr{eapMessage, beside, signature},
+	pairs := 0
+	for i := range credentials {
+		for j := i + 1; j < len(credentials); j++ {
+			pairs++
+			first, second := credentials[i], credentials[j]
+			pkt := &Packet{
+				Code:       CodeAccessRequest,
+				Identifier: 11,
+				Attrs:      []Attr{first.attr, second.attr, signature},
+			}
+			n, _, err := encodeRequest(pkt, secret, buf)
+			require.Errorf(t, err, "%s MUST NOT ride beside %s", second.name, first.name)
+			assert.Zero(t, n, "%s beside %s encoded octets", second.name, first.name)
+			assert.Contains(t, err.Error(), "one credential type")
+			assert.Contains(t, err.Error(), first.name)
+			assert.Contains(t, err.Error(), second.name)
 		}
-		_, _, err := encodeRequest(pkt, secret, buf)
-		require.Errorf(t, err, "attribute %d MUST NOT ride beside an EAP-Message", beside.Type)
-		assert.Contains(t, err.Error(), "one credential type")
 	}
+	assert.Equal(t, 6, pairs, "four types make six pairs")
 
-	// The control: the EAP credential alone encodes.
+	// The control: the EAP credential alone encodes, so the refusals above are
+	// the pair's and not the packet's. Each other type alone is
+	// TestRFC3579EachCredentialTypeAloneEncodes.
+	eapMessage := credentials[3].attr
 	ok := &Packet{Code: CodeAccessRequest, Identifier: 11, Attrs: []Attr{eapMessage, signature}}
 	n, _, err := encodeRequest(ok, secret, buf)
 	require.NoError(t, err)
 	assert.Positive(t, n)
+}
+
+// credentialType is one of the four exclusive credential attributes with the
+// name oneCredentialType reports for it.
+type credentialType struct {
+	name string
+	attr Attr
+}
+
+// fourCredentialTypes answers the four attribute types RFC 3579 Section 3.3
+// Note 1 makes exclusive, each with a value of its own legal length.
+func fourCredentialTypes() []credentialType {
+	return []credentialType{
+		{"User-Password", Attr{Type: AttrUserPassword, Value: []byte("Hello")}},
+		{"CHAP-Password", Attr{Type: AttrCHAPPassword, Value: make([]byte, 17)}},
+		{"ARAP-Password", Attr{Type: credentialTypeARAPPassword, Value: make([]byte, 16)}},
+		{"EAP-Message", Attr{Type: AttrEAPMessage, Value: []byte{0x02, 0x00, 0x00, 0x0a, 0x01, 'a', 'l', 'i', 'c', 'e'}}},
+	}
+}
+
+// TestRFC3579EachCredentialTypeAloneEncodes is the positive of the exclusive
+// credential rule, and the control for its negative.
+//
+// VALIDATES: an Access-Request carrying exactly one of the four credential
+// types encodes: EAP-Message with its Message-Authenticator, and each other
+// type alone, ARAP-Password (type 70) included.
+// PREVENTS: a guard that refuses a lone credential, which would make the
+// negative pass for the wrong reason.
+//
+// RFC requirement: RFC3579-3.3-2 positive -- an Access-Request carrying one
+// of User-Password, CHAP-Password, ARAP-Password or EAP-Message, and no other
+// of the four, is encoded (client.go encodeRequest, oneCredentialType).
+func TestRFC3579EachCredentialTypeAloneEncodes(t *testing.T) {
+	secret := []byte("testing123")
+	buf := make([]byte, MaxPacketLen)
+	signature := Attr{Type: AttrMessageAuthenticator, Value: make([]byte, AuthenticatorLen)}
+
+	for _, credential := range fourCredentialTypes() {
+		pkt := &Packet{Code: CodeAccessRequest, Identifier: 11, Attrs: []Attr{credential.attr, signature}}
+		n, _, err := encodeRequest(pkt, secret, buf)
+		require.NoErrorf(t, err, "%s alone", credential.name)
+		assert.Positivef(t, n, "%s alone encoded no octets", credential.name)
+	}
 }

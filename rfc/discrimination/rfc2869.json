@@ -71,22 +71,22 @@
       "rid": "RFC2869-5.19-1",
       "polarity": "negative",
       "unit": "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused",
-      "unit-sha": "3f7c1099db5a6a92",
-      "claim-sha": "d719a37b4a999f69",
+      "unit-sha": "641d59ebb0965349",
+      "claim-sha": "0f1688424a7e7ae1",
       "route": "revert",
       "producer": "internal/component/radius/client.go::oneCredentialType",
-      "producer-sha": "63edc854432edf23",
+      "producer-sha": "0e2c023e8dcfbae0",
       "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2869-5.19-1",
       "polarity": "positive",
       "unit": "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent",
-      "unit-sha": "e4d66a170a2ac1ae",
-      "claim-sha": "b14c1993f57e0caf",
+      "unit-sha": "0a3b4e2e6c7ab037",
+      "claim-sha": "130008b26c33829c",
       "route": "revert",
       "producer": "internal/component/radius/client.go::oneCredentialType",
-      "producer-sha": "63edc854432edf23",
+      "producer-sha": "0e2c023e8dcfbae0",
       "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
