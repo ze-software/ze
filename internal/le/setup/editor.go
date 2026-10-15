@@ -117,3 +117,21 @@ func (s *Setup) missingLSPPlugins() []lspPlugin {
 	}
 	return missing
 }
+
+// claudeCodePresent reports whether Claude Code is on this machine: `claude` on
+// PATH, or the ~/.claude directory it creates on first use. Either one is
+// enough, because the harness can run from a path PATH does not hold.
+//
+// The answer separates two states the plugin row used to merge. On a host with
+// no Claude Code, the plugin has nothing to plug into, and the slash command
+// the row named has no session to run in, so the row is skipped. Where Claude
+// Code is present, a missing plugin still blocks the LSP tool and the row stays
+// pending (owner decision, 2026-10-15).
+func (s *Setup) claudeCodePresent() bool {
+	s.prepare()
+	if s.Shell.Present(toolClaude) {
+		return true
+	}
+	info, err := os.Stat(filepath.Join(s.home(), ".claude"))
+	return err == nil && info.IsDir()
+}

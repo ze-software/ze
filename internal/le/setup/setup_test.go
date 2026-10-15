@@ -504,7 +504,11 @@ func TestAnInstalledPluginIsNotReported(t *testing.T) {
 // TestAMissingPluginIsPendingRatherThanMissing pins the state that says a human
 // must run one command: nothing this tool runs can install a plugin.
 func TestAMissingPluginIsPendingRatherThanMissing(t *testing.T) {
-	setup := &Setup{Home: t.TempDir()}
+	home := t.TempDir()
+	if err := os.Mkdir(filepath.Join(home, ".claude"), 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	setup := &Setup{Home: home, Shell: rootShell().shell()}
 	report := &Report{}
 	outcome := setup.visitLspPlugin(report, lspPlugins()[0], setup.missingLSPPlugins())
 	if outcome.State != StatePending {
@@ -626,7 +630,10 @@ func TestAToolWithNoRouteIsSkippedRatherThanMissing(t *testing.T) {
 	}
 }
 
-func TestAGoInstallThatLandsOffPathIsPending(t *testing.T) {
+// TestAGoInstallThatGoCannotPlaceIsPending: when `go env` cannot name the
+// install directory, an install whose tool is still not found stays pending
+// rather than counting as installed. The directory case is in pathfix_test.go.
+func TestAGoInstallThatGoCannotPlaceIsPending(t *testing.T) {
 	rec := rootShell("go")
 	report := &Report{}
 	setup := &Setup{Shell: rec.shell()}
@@ -636,8 +643,8 @@ func TestAGoInstallThatLandsOffPathIsPending(t *testing.T) {
 	if outcome.State != StatePending {
 		t.Errorf("a tool installed off PATH is %s, want %s", outcome.State, StatePending)
 	}
-	if !strings.Contains(report.Text(), "~/go/bin") {
-		t.Errorf("the PATH fix is not named:\n%s", report.Text())
+	if !strings.Contains(report.Text(), "go env GOBIN GOPATH") {
+		t.Errorf("the way to find the tool is not named:\n%s", report.Text())
 	}
 }
 
@@ -1162,7 +1169,7 @@ func TestToolTablePopulationAndInstallRoutes(t *testing.T) {
 		{
 			name:     "required",
 			tools:    requiredTools(),
-			names:    strings.Fields("go git protobuf jq golangci-lint staticcheck goimports gopls govulncheck qemu e2fsprogs xorriso grub"),
+			names:    strings.Fields("go git protobuf jq golangci-lint staticcheck goimports gopls govulncheck qemu e2fsprogs xorriso grub iproute2"),
 			required: true,
 		},
 		{

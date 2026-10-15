@@ -122,7 +122,13 @@ const (
 	toolDocker      = "docker"
 	toolColima      = "colima"
 	toolXl2tpd      = "xl2tpd"
+	toolPpp         = "ppp"
+	toolIproute2    = "iproute2"
 )
+
+// ipBin is the iproute2 program the Linux loopback step runs. It is named once,
+// so the row that installs it and the command that runs it cannot drift.
+const ipBin = "ip"
 
 // The two platforms this tool installs for, spelled the way runtime.GOOS does.
 const (
@@ -193,6 +199,10 @@ const e2fsNote = "keg-only on macOS; Go code resolves via Cellar glob"
 // grubNote records why macOS skips grub.
 const grubNote = "no first-party Homebrew formula; macOS skips (ISO builds are Linux/container-only)"
 
+// iproute2Note records why macOS skips iproute2. A slim Debian or Ubuntu image
+// ships without it, and the Linux loopback step at the end of the run needs it.
+const iproute2Note = "macOS skips: its loopback step uses ifconfig"
+
 // The pinned `go install` targets.
 const golangciTarget = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@" + GolangCIVersion
 
@@ -261,6 +271,13 @@ func requiredTools() []Tool {
 			Note:        grubNote,
 			DoctorCheck: "appliance-grub",
 		},
+		{
+			Name:     toolIproute2,
+			Probe:    []string{ipBin},
+			Apt:      toolIproute2,
+			Required: true,
+			Note:     iproute2Note,
+		},
 	}
 }
 
@@ -290,9 +307,9 @@ func optionalTools() []Tool {
 				" (ze-deployment-l2tp-ppp-test, ze-deployment-gokrazy-l2tp-ppp-test)",
 		},
 		{
-			Name:  "ppp",
+			Name:  toolPpp,
 			Probe: []string{"pppd"},
-			Apt:   "ppp",
+			Apt:   toolPpp,
 			Note:  "Linux root-only pppd for the same L2TP PPP/NCP evidence tests",
 		},
 	}

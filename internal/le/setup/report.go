@@ -149,7 +149,7 @@ func (r *Report) Summarize() int {
 		// off PATH needs the PATH fixed, not the install re-run.
 		var tb textbuf.Buffer
 		r.Note(tb.Str("Finish the steps above for: ").Str(names(pending)).String())
-		r.Note("Then re-run: ./le setup")
+		r.Note("Then re-run: ./le setup install")
 		return 1
 	}
 
@@ -188,13 +188,18 @@ func (r *Report) checkVerdict() int {
 	missing := r.having(StateMissing)
 	pending := r.having(StatePending)
 
+	// Each verdict names the command that acts on it. A check run installs
+	// nothing, so a missing tool points at the install action, and a pending
+	// step points back at the check once the step is done.
 	if len(missing) > 0 {
 		var tb textbuf.Buffer
 		r.Note(tb.Str("Missing required tools: ").Str(names(missing)).String())
+		r.Note("Install them with: ./le setup install")
 	}
 	if len(pending) > 0 {
 		var tb textbuf.Buffer
 		r.Note(tb.Str("Needs a step only you can take: ").Str(names(pending)).String())
+		r.Note("Finish the steps above, then re-run: ./le setup check")
 	}
 	if len(missing) > 0 || len(pending) > 0 {
 		return 1

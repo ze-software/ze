@@ -64,6 +64,10 @@ type Setup struct {
 	LoopbackPrefixes func() ([]netip.Prefix, error)
 	// Gopls answers the gopls probe.
 	Gopls func() Result
+
+	// goBinPathNoted records that this run has printed the PATH line for the
+	// Go install directory, so it is printed once however many tools need it.
+	goBinPathNoted bool
 }
 
 // goos answers the operating system the platform branches read.
@@ -206,6 +210,9 @@ func (s *Setup) visitTool(report *Report, tool Tool, manager PackageManager, ins
 	}
 
 	if installer == nil {
+		if outcome, offPath := s.goToolOffPath(report, tool); offPath {
+			return outcome
+		}
 		if tool.Required {
 			return Outcome{Name: tool.Name, State: StateMissing, Detail: detailRequired}
 		}
@@ -233,19 +240,30 @@ func (s *Setup) visitTool(report *Report, tool Tool, manager PackageManager, ins
 	// mode on the same machine exited 1. The two modes continued to disagree,
 	// and install mode reported success for an absent tool.
 	//
-	// A fresh `go install` can place the binary under ~/go/bin before that
-	// directory is present in the current login's PATH.
-	var tb textbuf.Buffer
-	report.Note(tb.Str("    add ").Str(whereItLanded(tool)).Str(", then re-run").String())
+	// The common case is a `go install` into a directory that is not on PATH,
+	// which goToolOffPath names with the exact line that fixes it.
+	if outcome, offPath := s.goToolOffPath(report, tool); offPath {
+		return outcome
+	}
+	report.Note(offPathNote(tool))
 	return Outcome{Name: tool.Name, State: StatePending, Detail: "installed, not on PATH"}
 }
 
-// whereItLanded names the directory an install put the tool in, for a PATH fix.
-func whereItLanded(tool Tool) string {
+// offPathNote says what to look at when an install succeeded and the probe
+// still fails for a reason goToolOffPath did not find.
+func offPathNote(tool Tool) string {
+	name := tool.Probe[0]
+	var tb textbuf.Buffer
 	if tool.GoInstall != "" {
-		return "~/go/bin, which `go install` uses"
+		// Either go could not name its install directory, or that directory
+		// is on PATH and another copy earlier on PATH answers first, or the
+		// copy there is the wrong build.
+		return tb.Str("    `go install` succeeded, but PATH finds no usable ").Str(name).
+			Str("; `command -v ").Str(name).
+			Str("` and `go env GOBIN GOPATH` show where each copy is").String()
 	}
-	return "the package manager's bin directory"
+	return tb.Str("    the package installed, but ").Str(name).
+		Str(" is not on PATH; add the directory the package put it in, then re-run").String()
 }
 
 // visitServer turns a language-server answer into an outcome.
@@ -275,9 +293,10 @@ func visitServer(answer serverAnswer) Outcome {
 // visitLspPlugin says whether the harness can reach the language server for
 // these file types.
 //
-// PENDING rather than MISSING when it is absent, because nothing this tool runs
-// can fix it: `claude plugin ...` does not return from inside a session. A human
-// runs one command, and PENDING is the state that means exactly that. It still
+// SKIPPED when Claude Code itself is absent (claudeCodePresent). Otherwise
+// PENDING rather than MISSING when the plugin is absent, because nothing this
+// tool runs can fix it: `claude plugin ...` does not return from inside a
+// session. A human runs one command, and PENDING is the state that means exactly that. It still
 // fails the run, which is the point -- the silent version of this cost weeks of
 // whole-file reads.
 func (s *Setup) visitLspPlugin(report *Report, plugin lspPlugin, missing []lspPlugin) Outcome {
@@ -287,6 +306,12 @@ func (s *Setup) visitLspPlugin(report *Report, plugin lspPlugin, missing []lspPl
 	if !containsPlugin(missing, plugin) {
 		var tb textbuf.Buffer
 		return Outcome{Name: name, State: StatePresent, Detail: tb.Join(plugin.Extensions, " ").String()}
+	}
+
+	// No Claude Code means no LSP tool to refuse anything and no session to
+	// run the slash command in, so there is no step to ask for.
+	if !s.claudeCodePresent() {
+		return Outcome{Name: name, State: StateSkipped, Detail: "Claude Code is not installed"}
 	}
 
 	var command textbuf.Buffer

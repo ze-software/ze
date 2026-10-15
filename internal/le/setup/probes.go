@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- a tool can be present when it is not on PATH
 //
-// Two table rows require more than a PATH lookup. Experience showed why these
+// Three table rows require more than a PATH lookup. Experience showed why these
 // exceptions are necessary:
 //
 //	e2fsprogs   is searched by DIRECTORY on every platform. Homebrew does not
@@ -12,6 +12,13 @@
 //	            e2fsprogsDirs here and e2fsSearchDirs in internal/appliance.
 //	            Therefore, a PATH-based probe reported the tools as missing
 //	            although the build used them. Setup then reported pending forever.
+//
+//	ppp         is searched as a FILE, whatever its mode. Debian installs
+//	            /usr/sbin/pppd as root:dip 4754, so exec.LookPath refuses it to
+//	            a user outside the dip group. The tests that run pppd run as
+//	            root, so the file being there is the answer. A PATH-based probe
+//	            reported it absent: install re-ran apt on every run and ended
+//	            "installed, not on PATH", and check called it not installed.
 //
 //	staticcheck must be one exact VERSION, and must be BUILT with a Go
 //	            and linked against an x/tools at least as new as go.mod
@@ -55,6 +62,8 @@ func (s *Setup) Probe(tool Tool) bool {
 		return s.probeE2fsprogs()
 	case toolStaticcheck:
 		return s.probeStaticcheck(tool)
+	case toolPpp:
+		return s.probeRootOnlyFile(tool.Probe[0])
 	}
 
 	// A probe list with no names would pass every-name logic without a name.
@@ -397,6 +406,33 @@ func (s *Setup) e2fsprogsDirs() []string {
 func (s *Setup) probeE2fsprogs() bool {
 	for _, dir := range s.e2fsprogsDirs() {
 		if isFile(filepath.Join(dir, "mkfs.ext4")) && isFile(filepath.Join(dir, "debugfs")) {
+			return true
+		}
+	}
+	return false
+}
+
+// rootOnlyFileDirs answers where a binary only root runs is looked for: every
+// PATH entry in order, then the two system directories a non-root PATH often
+// omits. An empty PATH entry is skipped, because it means the current
+// directory.
+func (s *Setup) rootOnlyFileDirs() []string {
+	var dirs []string
+	for _, entry := range filepath.SplitList(s.env("PATH")) {
+		if entry != "" {
+			dirs = append(dirs, entry)
+		}
+	}
+	return append(dirs, "/usr/sbin", "/sbin")
+}
+
+// probeRootOnlyFile reports whether name is a regular file in one of
+// rootOnlyFileDirs, whether or not this user may execute it. The tests that
+// need it run it as root, and a mode that refuses this user is how Debian
+// ships it, not a sign that it is absent.
+func (s *Setup) probeRootOnlyFile(name string) bool {
+	for _, dir := range s.rootOnlyFileDirs() {
+		if isFile(filepath.Join(dir, name)) {
 			return true
 		}
 	}

@@ -7,10 +7,34 @@ Set up a Ze development environment with all build, lint, and test dependencies.
 
 ## Quick Start
 
+`./le` is built from this repository with Go, so Go comes first. Install the
+release `go.mod` names on its `go` line from
+<https://go.dev/dl/>, or any Go 1.21 or newer, which downloads that release on
+first use. Then put two directories on PATH: the Go toolchain's, and the one
+`go install` writes to, where setup builds `golangci-lint`, `staticcheck`,
+`goimports`, `gopls` and `govulncheck`:
+
+```bash
+export PATH="$PATH:/usr/local/go/bin"          # the go.dev tarball's location
+export PATH="$PATH:$(go env GOPATH)/bin"       # or $(go env GOBIN) when GOBIN is set
+```
+
+Add both lines to `~/.profile` (`~/.zshenv` for zsh) so every new shell has
+them. A non-interactive shell such as `ssh host command` reads no `~/.bashrc`.
+Then:
+
 ```bash
 git clone <repo-url> && cd ze
 ./le setup install
+./le setup check
 ```
+
+When the install directory is not on PATH, setup still builds the tools there,
+reports each as `[pending  ] <tool> (in /root/go/bin, which is not on PATH)`,
+and prints once the exact `export PATH=...` line for that directory and the
+profile to keep it in. `check` reports the same rows the same way: a tool no
+shell can run is never counted present.
+<!-- source: internal/le/setup/gobin.go -- goBinDir, goToolOffPath -->
 
 This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
 missing tools, vendors Go dependencies, and reports what it did.
@@ -102,8 +126,13 @@ this check, because every LSP call against it fails the same way.
 A language server on PATH is not the whole capability. Claude Code reaches it
 through a plugin, and without that plugin the LSP tool refuses every Go file.
 
-`./le setup check` reports a missing plugin as a pending step and names the
-command that installs it:
+When Claude Code is installed (`claude` on PATH, or a `~/.claude` directory)
+and the plugin is not, `./le setup check` reports the plugin as a pending step
+and names the command that installs it. On a host without Claude Code the row
+is skipped with the reason "Claude Code is not installed", because there is no
+LSP tool to refuse anything and no session to run the slash command in.
+<!-- source: internal/le/setup/editor.go -- claudeCodePresent -->
+<!-- source: internal/le/setup/setup.go -- visitLspPlugin -->
 
 | Plugin | Serves | Install |
 |--------|--------|---------|
@@ -165,6 +194,7 @@ The target and its checked feature population are documented in
 | `e2fsprogs` | `mkfs.ext4` and `debugfs` for appliance builds |
 | `xorriso` | ISO image creation |
 | `grub` | GRUB EFI tooling for ISO builds (Linux only) |
+| `iproute2` (`ip`) | The Linux loopback step's `ip -6 addr add` (Linux only; slim Debian and Ubuntu images lack it, macOS uses `ifconfig`) |
 
 ### Optional
 
@@ -172,6 +202,8 @@ The target and its checked feature population are documented in
 |------|---------|
 | `sshpass` | Optional SSH probe fallback |
 | `docker` / `colima` | Container appliance and kernel builds |
+| `xl2tpd` | L2TP LAC peer for the root-only L2TP PPP evidence tests (Linux only) |
+| `ppp` (`pppd`) | pppd for the same tests (Linux only). Debian installs it as `root:dip` mode 4754, so a user outside `dip` cannot run it; setup counts the file as present, because the tests run it as root |
 
 
 ## Platform Notes

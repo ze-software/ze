@@ -443,7 +443,7 @@ func (s *Setup) loopbackAddArgv(addr string) []string {
 		return []string{"ifconfig", loopbackInterfaceDarwin, "alias", addr}
 	}
 	// The peer's /127 is the only non-host route these additions introduce.
-	return []string{"ip", "-6", "addr", "add", host, "dev", "lo"}
+	return []string{ipBin, "-6", "addr", "add", host, "dev", "lo"}
 }
 
 // noteLoopbackFix records the commands, for when root is out of reach.
