@@ -167,6 +167,28 @@
       "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8666-6-8",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8666_test.go::TestRFC8666OutgoingLabelUsesNextHopRouter",
+      "unit-sha": "abbad233754a029e",
+      "claim-sha": "6d7ddf3a78046441",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::forwarding",
+      "producer-sha": "38697233e4a239e2",
+      "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8666-6-8",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8666_test.go::TestRFC8666TransitHopIgnoresOriginatorPHPFlags",
+      "unit-sha": "78848da21a910a4a",
+      "claim-sha": "057f562796b29112",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::forwarding",
+      "producer-sha": "38697233e4a239e2",
+      "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8666-8.4.1-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay",
@@ -176,6 +198,28 @@
       "producer": "internal/plugins/ospf/sr_adjsid.go::srAdjNeighborLost",
       "producer-sha": "2e1760bdd5357412",
       "break": "body of srAdjNeighborLost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8666-8.4.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID",
+      "unit-sha": "bd5329a168040231",
+      "claim-sha": "448867f5f19124c6",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/v3/packet/lsa_extended.go::DecodeExtendedLSABody",
+      "producer-sha": "ee9b8112c6a19452",
+      "break": "body of DecodeExtendedLSABody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8666-8.4.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops",
+      "unit-sha": "b42b1d288a01e43c",
+      "claim-sha": "095dc557aa0a5f14",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_adjsid.go::neighborFull",
+      "producer-sha": "a1468d8f48ae35e6",
+      "break": "body of neighborFull replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
