@@ -20,18 +20,7 @@
       "claim-sha": "8c27ae5d8f30b1cf",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "0e32084edc3f5ed9",
-      "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC2347-x-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions",
-      "unit-sha": "f9db6f3587cfa1b2",
-      "claim-sha": "dd4cf1f5c4ee2ac9",
-      "route": "revert",
-      "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "0e32084edc3f5ed9",
+      "producer-sha": "56992fc1830c92da",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -46,6 +35,17 @@
       "break": "body of sendOACKAndWait replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2347-x-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions",
+      "unit-sha": "f9db6f3587cfa1b2",
+      "claim-sha": "dd4cf1f5c4ee2ac9",
+      "route": "revert",
+      "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
+      "producer-sha": "56992fc1830c92da",
+      "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2347-x-3",
       "polarity": "positive",
       "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed",
@@ -53,7 +53,7 @@
       "claim-sha": "7ea2251fac1cc899",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "0e32084edc3f5ed9",
+      "producer-sha": "56992fc1830c92da",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "3b804dbb8970d2c8",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "0e32084edc3f5ed9",
+      "producer-sha": "56992fc1830c92da",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "9f9c092b73b02ce7",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "0e32084edc3f5ed9",
+      "producer-sha": "56992fc1830c92da",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "61405ed777c2bff3",
       "route": "revert",
       "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-      "producer-sha": "0e32084edc3f5ed9",
+      "producer-sha": "56992fc1830c92da",
       "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
