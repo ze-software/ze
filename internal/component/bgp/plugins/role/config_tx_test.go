@@ -4,11 +4,51 @@ package role
 
 import (
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
+
+// setFilterState installs role configs and a name-to-address map the way a
+// Stage 2 configure does, then prunes the learned roles.
+//
+// The configured-peer set is built by configuredPeerKeys, the function the
+// production parse uses, over a bgp subtree derived from the arguments: a peer
+// for each name-to-address entry, a peer named by its own address for each
+// other address key, and a dynamic group for each group selector. A test
+// therefore exercises the key set production installs, and setFilterState(nil,
+// nil) installs an empty one, whose prune clears every learned role.
+func setFilterState(configs map[string]*peerRoleConfig, n2ip map[string]string) {
+	keys := configuredPeerKeys(filterStateSubtree(configs, n2ip))
+	installRoleConfig(roleConfig{peers: configs, nameToIP: n2ip, peerKeys: keys}) //nolint:errcheck // installRoleConfig cannot fail
+	pruneLearnedRoles()
+}
+
+// filterStateSubtree is the bgp subtree whose configured peers are the ones
+// setFilterState's arguments name.
+func filterStateSubtree(configs map[string]*peerRoleConfig, n2ip map[string]string) map[string]any {
+	peers := make(map[string]any)
+	groups := make(map[string]any)
+	named := make(map[string]struct{}, len(n2ip))
+	for name, ip := range n2ip {
+		peers[name] = map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": ip}}}
+		named[ip] = struct{}{}
+	}
+	for key := range configs {
+		if group, isGroup := strings.CutPrefix(key, configjson.GroupKeyPrefix); isGroup {
+			groups[group] = map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": configjson.DynamicPeerIP}}}
+			continue
+		}
+		if _, isNamed := named[key]; isNamed {
+			continue
+		}
+		peers[key] = map[string]any{}
+	}
+	return map[string]any{"peer": peers, "group": groups}
+}
 
 // resetRoleState clears the package filter state before and after a test.
 func resetRoleState(t *testing.T) {
@@ -259,5 +299,74 @@ func TestRoleCommitRemovingRolelessPeerPrunesRole(t *testing.T) {
 	commitRoleReload(t, tx, rolelessPeerSections(false, ""))
 	if _, learned := getFilterConfig("192.0.2.3", "plain", ""); learned != "" {
 		t.Fatalf("the commit removing the peer kept its learned role %q", learned)
+	}
+}
+
+// groupWithStaticPeerSections is a bgp root with group ix holding static peer
+// member (192.0.2.9, no role block). When dynamic, ix also carries a listen
+// range, so it is a dynamic group too and its template is configured.
+func groupWithStaticPeerSections(dynamic bool) []sdk.ConfigSection {
+	group := `"peer":{"member":{"connection":{"remote":{"ip":"192.0.2.9"}}}}`
+	if dynamic {
+		group = `"connection":{"remote":{"ip":"dynamic","range":"198.51.100.0/24"}},` + group
+	}
+	return []sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{"group":{"ix":{` + group + `}}}}`}}
+}
+
+// TestRoleCommitRemovingGroupRangeKeepsStaticMemberRole proves that a commit
+// which turns a dynamic group static drops its dynamic members' learned roles
+// and keeps the learned role of a static peer the group still lists.
+// Method: the static peer and a dynamic member both record a role with group
+// ix, a reload removes ix's listen range, then getFilterConfig, which
+// OTCEgressFilter reads for the export set, is read for both.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-14 for bgp-role.
+// PREVENTS: the prune reading a static peer's group as its identity, which
+// withdrew every route to that peer as role "unknown" until its session
+// bounced, because an established peer sends no second OPEN.
+func TestRoleCommitRemovingGroupRangeKeepsStaticMemberRole(t *testing.T) {
+	resetRoleState(t)
+	tx := newRoleConfigTx()
+	if err := tx.configure(groupWithStaticPeerSections(true)); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	setFilterRemoteRole("member", "ix", rolePeer)
+	setFilterRemoteRole("dyn-198.51.100.7", "ix", roleCustomer)
+
+	commitRoleReload(t, tx, groupWithStaticPeerSections(false))
+	if _, learned := getFilterConfig("192.0.2.9", "member", "ix"); learned != rolePeer {
+		t.Fatalf("the commit removing the group's range dropped the static member's role: %q", learned)
+	}
+	if remoteRoleRecorded("198.51.100.7", "dyn-198.51.100.7") {
+		t.Fatalf("a member of a group that is no longer dynamic kept its learned role")
+	}
+}
+
+// TestRoleCommitDropsRoleLearnedForUnconfiguredPeer proves that the prune
+// also drops a role stored under a key no config ever named, such as an OPEN
+// validated while the commit removing its peer was in flight.
+// Method: roles are recorded for a peer name and a group neither config
+// holds, then an unrelated commit runs.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-14 for bgp-role.
+// PREVENTS: an entry keyed outside both configured-peer sets surviving every
+// later prune, since a diff of the two sets can never name it.
+func TestRoleCommitDropsRoleLearnedForUnconfiguredPeer(t *testing.T) {
+	resetRoleState(t)
+	tx := newRoleConfigTx()
+	if err := tx.configure(rolelessPeerSections(true, "first")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	setFilterRemoteRole("plain", "", roleCustomer)
+	setFilterRemoteRole("ghost", "", rolePeer)
+	setFilterRemoteRole("dyn-198.51.100.8", "gone", rolePeer)
+
+	commitRoleReload(t, tx, rolelessPeerSections(true, "second"))
+	if remoteRoleRecorded("", "ghost") {
+		t.Fatalf("a role learned under a never-configured peer survived the prune")
+	}
+	if remoteRoleRecorded("198.51.100.8", "dyn-198.51.100.8") {
+		t.Fatalf("a role learned for a member of a never-configured group survived the prune")
+	}
+	if _, learned := getFilterConfig("192.0.2.3", "plain", ""); learned != roleCustomer {
+		t.Fatalf("the configured peer lost its learned role: %q", learned)
 	}
 }
