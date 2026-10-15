@@ -49,7 +49,7 @@ func TestInstallReloadToUnbindableListenerIsRefused(t *testing.T) {
 	installed := loadState()
 
 	busy := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(b)))
-	holder, err := net.ListenPacket("udp", busy)
+	holder, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp", busy)
 	if err != nil {
 		t.Fatalf("occupy %s: %v", busy, err)
 	}
@@ -93,7 +93,7 @@ func (p *portThief) onListenerChange(_, _ string, up bool) {
 	if p.stolen != nil {
 		return
 	}
-	pc, err := net.ListenPacket("udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(p.port))))
+	pc, err := (&net.ListenConfig{}).ListenPacket(p.t.Context(), "udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(p.port))))
 	if err != nil {
 		p.t.Errorf("steal port %d: %v", p.port, err)
 		return
@@ -122,8 +122,8 @@ func listenerSection(t *testing.T, port uint16) []sdk.ConfigSection {
 // rebind window fails with sdk.ErrRunningConfigLost; the transaction's
 // rollback, while the port is still taken, answers an error (the bridge acks
 // it CodeBroken and the engine restarts the plugin); once the port is free,
-// committing the running config again binds it and DNS answers.
-// PREVENTS: DNS down after a refused reload with every later commit of the
+// a later apply of the running config binds it and DNS answers.
+// PREVENTS: DNS down after a refused reload with every later apply of the
 // running config answered OK as unchanged.
 // Not parallel: stateP is package state.
 func TestConfigTxReloadThatLosesTheRunningListener(t *testing.T) {
@@ -145,7 +145,7 @@ func TestConfigTxReloadThatLosesTheRunningListener(t *testing.T) {
 	}
 
 	busy := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(b)))
-	holder, err := net.ListenPacket("udp", busy)
+	holder, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp", busy)
 	if err != nil {
 		t.Fatalf("occupy %s: %v", busy, err)
 	}
@@ -158,8 +158,14 @@ func TestConfigTxReloadThatLosesTheRunningListener(t *testing.T) {
 	if !errors.Is(err, sdk.ErrRunningConfigLost) {
 		t.Fatalf("reload whose running port was taken: %v, want sdk.ErrRunningConfigLost", err)
 	}
-	if !strings.Contains(err.Error(), "1 of the 1 running listener(s)") {
-		t.Errorf("error %q does not count the lost listener", err)
+	for _, want := range []string{"1 of the 1 running listener(s)", "ze rolls the commit back",
+		"Fix: stop the program that holds the address and port", "ze signal restart"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not say %q", err, want)
+		}
+	}
+	if strings.Contains(err.Error(), "commit the running config again") {
+		t.Errorf("error %q names a commit of the running config as the fix, which has no diff", err)
 	}
 	if err := tx.Rollback(); err == nil {
 		t.Fatal("rollback while the running port is still taken answered OK")
@@ -170,7 +176,7 @@ func TestConfigTxReloadThatLosesTheRunningListener(t *testing.T) {
 		t.Fatalf("verify the running config: %v", err)
 	}
 	if err := tx.Apply(); err != nil {
-		t.Fatalf("commit the running config again: %v", err)
+		t.Fatalf("a later apply of the running config: %v", err)
 	}
 	resp := queryA(t, "udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(a))), "proxy.test.example.", "1.2.3.4")
 	if got := firstA(resp); got != "10.7.7.7" {

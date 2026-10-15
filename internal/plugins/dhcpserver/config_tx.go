@@ -116,8 +116,8 @@ func (s *dhcpServer) restore(served []dhcpListener, cause error) error {
 		return cause
 	}
 	return fmt.Errorf("%w\n%w: the DHCP server could not bind %d of the %d interface(s) it served again, "+
-		"so it no longer serves them (%w).\nFix: commit the running config again, or restart the plugin",
-		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...))
+		"so they stopped serving (%w).\n%s",
+		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...), sdk.RunningConfigLostNext)
 }
 
 // buildHandlers returns one handler per subnet of cfg, each with cfg's

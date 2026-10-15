@@ -135,8 +135,8 @@ func (s *imageServer) restore(served []imageListener, cause error) error {
 		return cause
 	}
 	return fmt.Errorf("%w\n%w: the image server could not bind %d of the %d interface(s) it served again, "+
-		"so it no longer serves them (%w).\nFix: commit the running config again, or restart the plugin",
-		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...))
+		"so they stopped serving (%w).\n%s",
+		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...), sdk.RunningConfigLostNext)
 }
 
 // lostImageTarget names a served target restore could not bind again. An

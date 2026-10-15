@@ -155,7 +155,7 @@ func (in *as112Installer) refuse(prev *as112State, cause error) error {
 			"restored either (%w), %w", cause, rerr, sdk.ErrRunningConfigLost)
 	}
 	if errors.Is(cause, dnsserver.ErrPreviousListenersLost) {
-		return fmt.Errorf("as112: %w (%w)", cause, sdk.ErrRunningConfigLost)
+		return fmt.Errorf("as112: %w (%w).\n%s", cause, sdk.ErrRunningConfigLost, sdk.RunningConfigLostNext)
 	}
 	return fmt.Errorf("as112: %w", cause)
 }

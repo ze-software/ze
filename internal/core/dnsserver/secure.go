@@ -194,8 +194,7 @@ func (m *Manager) restorePrevious(enabled bool, previous Listeners, cause error,
 		total += len(previous.DoT) + len(previous.DoH)
 	}
 	return fmt.Errorf("dnsserver: reload refused, %w; %w: %d of the %d running listener(s) could not be bound "+
-		"again, so they are not serving (%w); free the address and port, then commit the running config again, "+
-		"or restart the plugin", cause, ErrPreviousListenersLost, len(lost), total, errors.Join(lost...))
+		"again, so they are not serving (%w)", cause, ErrPreviousListenersLost, len(lost), total, errors.Join(lost...))
 }
 
 // bindListeners binds every listener of l. It answers the listeners that
@@ -364,8 +363,10 @@ func (m *Manager) ApplyWithSecure(enabled bool, plain []Endpoint, sc SecureConfi
 // keptSecure answers a TLS material load failure (loadErr) with the secure
 // side the apply goes on with. A lenient apply logs it and starts no secure
 // listener (a zero secureApplied). A strict apply refuses it unless inputs
-// equal those of the last accepted apply, whose secure side it then keeps,
-// and logs why.
+// equal those of the last accepted apply and that apply holds TLS material,
+// whose secure side it then keeps, and logs why. An accepted apply that holds
+// none (a lenient boot whose own load failed) serves no DoT/DoH listener, so
+// keeping it would accept a commit whose DoT/DoH is configured and not served.
 func (m *Manager) keptSecure(inputs secureInputs, policy BindPolicy, loadErr error, log *slog.Logger) (secureApplied, error) {
 	if policy != BindStrict {
 		log.Error("dnsserver: TLS material load failed; DoT/DoH not started", logKeyError, loadErr)
@@ -376,6 +377,9 @@ func (m *Manager) keptSecure(inputs secureInputs, policy BindPolicy, loadErr err
 		return secureApplied{}, secureLoadRefusal(loadErr)
 	}
 	if running.inputs != inputs {
+		return secureApplied{}, secureLoadRefusal(loadErr)
+	}
+	if running.tls == nil {
 		return secureApplied{}, secureLoadRefusal(loadErr)
 	}
 	log.Warn("dnsserver: TLS material cannot be loaded again; this reload does not change the DoT/DoH "+

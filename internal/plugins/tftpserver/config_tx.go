@@ -125,8 +125,8 @@ func (s *tftpServer) restore(served []tftpListener, cause error) error {
 		return cause
 	}
 	return fmt.Errorf("%w\n%w: the TFTP server could not bind %d of the %d interface(s) it served again, "+
-		"so it no longer serves them (%w).\nFix: commit the running config again, or restart the plugin",
-		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...))
+		"so they stopped serving (%w).\n%s",
+		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...), sdk.RunningConfigLostNext)
 }
 
 // tftpListener is one bound listener and the interface it serves, which a

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -140,6 +141,10 @@ type TxCoordinator struct {
 	verifyAcks   map[string]VerifyAck
 	applyAcks    map[string]ApplyAck
 	rollbackAcks map[string]RollbackAck
+	// rollbackRestarts holds, for each plugin restarted after a CodeBroken
+	// rollback ack, the restart's error (nil when it succeeded). A plugin
+	// absent from it was not restarted.
+	rollbackRestarts map[string]error
 
 	// Channels for ack notification.
 	verifyOKCh     chan VerifyAck
@@ -179,18 +184,19 @@ func NewTxCoordinator(gateway EventGateway, participants []Participant, restartF
 		}
 	}
 	return &TxCoordinator{
-		gateway:        gateway,
-		participants:   participants,
-		restartFn:      restartFn,
-		txID:           textbuf.StrInt("tx-", time.Now().UnixNano()),
-		verifyAcks:     make(map[string]VerifyAck),
-		applyAcks:      make(map[string]ApplyAck),
-		rollbackAcks:   make(map[string]RollbackAck),
-		verifyOKCh:     make(chan VerifyAck, len(participants)),
-		verifyFailedCh: make(chan VerifyAck, len(participants)),
-		applyOKCh:      make(chan ApplyAck, len(participants)),
-		applyFailedCh:  make(chan ApplyAck, len(participants)),
-		rollbackOKCh:   make(chan RollbackAck, len(participants)),
+		gateway:          gateway,
+		participants:     participants,
+		restartFn:        restartFn,
+		txID:             textbuf.StrInt("tx-", time.Now().UnixNano()),
+		verifyAcks:       make(map[string]VerifyAck),
+		applyAcks:        make(map[string]ApplyAck),
+		rollbackAcks:     make(map[string]RollbackAck),
+		rollbackRestarts: make(map[string]error),
+		verifyOKCh:       make(chan VerifyAck, len(participants)),
+		verifyFailedCh:   make(chan VerifyAck, len(participants)),
+		applyOKCh:        make(chan ApplyAck, len(participants)),
+		applyFailedCh:    make(chan ApplyAck, len(participants)),
+		rollbackOKCh:     make(chan RollbackAck, len(participants)),
 	}, nil
 }
 
@@ -285,9 +291,7 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("apply", err)
 		}
-		o.publishRollback(err.Error())
-		o.collectRollbackAcks(ctx)
-		return &TxResult{State: StateRolledBack, Err: err}
+		return o.rollBack(ctx, err)
 	}
 
 	// Phase 3: Commit.
@@ -594,17 +598,13 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation apply", err)
 		}
-		o.publishRollback(err.Error())
-		o.collectRollbackAcks(ctx)
-		return &TxResult{State: StateRolledBack, Err: err}
+		return o.rollBack(ctx, err)
 	}
 	if err := executor.Commit(ctx, sorted); err != nil {
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation commit", err)
 		}
-		o.publishRollback(err.Error())
-		o.collectRollbackAcks(ctx)
-		return &TxResult{State: StateRolledBack, Err: err}
+		return o.rollBack(ctx, err)
 	}
 	o.publishCommitted()
 	saved := o.writeConfigFile()
@@ -816,6 +816,63 @@ func (o *TxCoordinator) abortForShutdown(phase string, err error) *TxResult {
 	}
 }
 
+// rollBack ends a transaction whose apply failed with err: it emits the
+// rollback, waits for every participant's answer, and returns a result whose
+// error carries err and, after it, what the rollback left running. The
+// operator reads that second part to know whether each plugin put its
+// running config back, was restarted, or still needs them.
+func (o *TxCoordinator) rollBack(ctx context.Context, err error) *TxResult {
+	o.publishRollback(err.Error())
+	o.collectRollbackAcks(ctx)
+	return &TxResult{State: StateRolledBack, Err: fmt.Errorf("%w\nRollback: %s", err, o.rollbackOutcome())}
+}
+
+// rollbackOutcome says, in the participants' order, what the rollback did
+// for each participant that did not simply put its running config back:
+// a plugin that answered CodeBroken, with whether ze restarted it, and a
+// plugin that never answered. With none of those, it says every plugin put
+// the running config back. MUST be called after collectRollbackAcks.
+func (o *TxCoordinator) rollbackOutcome() string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	var lines []string
+	for _, p := range o.participants {
+		ack, answered := o.rollbackAcks[p.Name]
+		if !answered {
+			lines = append(lines, p.Name+" did not answer the rollback in time, so what it runs is unknown; "+
+				"its log lines say what it did")
+			continue
+		}
+		if ack.Code != CodeBroken {
+			continue
+		}
+		lines = append(lines, brokenRollbackLine(p.Name, ack.Error, o.rollbackRestarts))
+	}
+	if len(lines) == 0 {
+		return "every plugin put its running config back"
+	}
+	return strings.Join(lines, "\n")
+}
+
+// brokenRollbackLine says what happened to a plugin whose rollback answered
+// CodeBroken with reason: whether ze restarted it, from restarts.
+func brokenRollbackLine(plugin, reason string, restarts map[string]error) string {
+	line := plugin + " could not put its running config back"
+	if reason != "" {
+		line += " (" + reason + ")"
+	}
+	restartErr, restarted := restarts[plugin]
+	if !restarted {
+		return line + ", and ze did not restart it, so it runs without part of its config"
+	}
+	if restartErr != nil {
+		return line + ", and ze could not restart it (" + restartErr.Error() + "), so it is not running"
+	}
+	return line + ", so ze restarted it with the running config; " +
+		"a listener whose address or port is still in use stays down until the plugin starts again"
+}
+
 func (o *TxCoordinator) publishRollback(reason string) {
 	ev := RollbackEvent{TransactionID: o.txID, Reason: reason}
 	payload, err := json.Marshal(ev)
@@ -941,9 +998,13 @@ func (o *TxCoordinator) handleRollbackAck(ack RollbackAck) {
 	o.mu.Unlock()
 	if ack.Code == CodeBroken && o.restartFn != nil {
 		logger().Warn("plugin broken during rollback, restarting", "plugin", ack.Plugin)
-		if err := o.restartFn(ack.Plugin); err != nil {
+		err := o.restartFn(ack.Plugin)
+		if err != nil {
 			logger().Error("failed to restart broken plugin", "plugin", ack.Plugin, "error", err)
 		}
+		o.mu.Lock()
+		o.rollbackRestarts[ack.Plugin] = err
+		o.mu.Unlock()
 	}
 }
 

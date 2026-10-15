@@ -13,7 +13,7 @@ import (
 // already in use", until the caller closes the answer.
 func occupyUDP(t *testing.T, port uint16) net.PacketConn {
 	t.Helper()
-	pc, err := net.ListenPacket("udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(port))))
+	pc, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(port))))
 	if err != nil {
 		t.Fatalf("occupy port %d: %v", port, err)
 	}
@@ -125,7 +125,7 @@ func (p *portThief) onListenerChange(_, _ string, up bool) {
 	if p.stolen != nil {
 		return
 	}
-	pc, err := net.ListenPacket("udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(p.port))))
+	pc, err := (&net.ListenConfig{}).ListenPacket(p.t.Context(), "udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(p.port))))
 	if err != nil {
 		p.t.Errorf("steal port %d: %v", p.port, err)
 		return
@@ -170,13 +170,16 @@ func TestApplyStrictRefusalNamesAPreviousListenerItCouldNotRebind(t *testing.T) 
 	stolen := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(a)))
 	busy := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(b)))
 	for _, want := range []string{"reload refused", "cannot listen on " + busy, "1 of the 2 running listener(s)",
-		"cannot listen on " + stolen, "commit the running config again"} {
+		"cannot listen on " + stolen, "so they are not serving"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not contain %q", err, want)
 		}
 	}
 	if strings.Contains(err.Error(), "running listeners are kept") {
 		t.Errorf("error %q claims the running listeners are kept", err)
+	}
+	if strings.Contains(err.Error(), "commit the running config again") {
+		t.Errorf("error %q names a commit of the running config as the fix, which has no diff", err)
 	}
 	resp := exchangeA(t, "udp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(c))), "x.example.")
 	if len(resp.Answer) != 1 {
@@ -264,5 +267,40 @@ func TestApplyStrictUnchangedSecureKeepsMaterialWhenItCannotLoad(t *testing.T) {
 	err := mgr.ApplyWithSecure(true, plain, moved, BindStrict, testLogger())
 	if !errors.Is(err, errGone) {
 		t.Fatalf("strict apply moving DoT with an unloadable certificate: %v, want refused", err)
+	}
+}
+
+// VALIDATES: review round 3 ISSUE-8. A strict apply whose DoT config and
+// addresses are those of the running apply is refused when the certificate
+// cannot be loaded and the running apply holds no TLS material either: a
+// lenient boot whose own load failed serves no DoT listener, so there is no
+// material to keep.
+// PREVENTS: a host-data reload accepted with DoT configured and not served,
+// logged as keeping material that nothing serves.
+// METHOD: boot leniently with the certificate missing, then apply the same
+// inputs strictly with it still missing.
+func TestApplyStrictUnchangedSecureRefusedWhenBootLoadedNoMaterial(t *testing.T) {
+	errGone := errors.New("certificate not in the store")
+	mgr := New(testLogger(), echoHandler("10.0.0.6"), Options{
+		TLSMaterialResolver: func(string) ([]byte, []byte, error) {
+			return nil, nil, errGone
+		},
+	})
+	t.Cleanup(mgr.Stop)
+	plain := []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: freePort(t)}}
+	secure := SecureConfig{DoTEnabled: true, DoTPort: freePort(t), Certificate: "dot"}
+	if err := mgr.ApplyWithSecure(true, plain, secure, BindLenient, testLogger()); err != nil {
+		t.Fatalf("lenient boot apply with a missing certificate: %v", err)
+	}
+	if mgr.running.TLSConfig != nil || len(mgr.running.DoT) != 0 {
+		t.Fatalf("lenient boot without material serves DoT %v, want none", mgr.running.DoT)
+	}
+
+	err := mgr.ApplyWithSecure(true, plain, secure, BindStrict, testLogger())
+	if !errors.Is(err, errGone) {
+		t.Fatalf("strict apply of unchanged DoT with no material running: %v, want refused", err)
+	}
+	if !strings.Contains(err.Error(), "reload refused") {
+		t.Errorf("error %q does not say the reload was refused", err)
 	}
 }

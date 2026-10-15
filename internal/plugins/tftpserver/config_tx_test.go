@@ -291,7 +291,8 @@ func TestConfigTxReloadThatLosesARunningInterfaceNamesIt(t *testing.T) {
 	if !errors.Is(err, sdk.ErrRunningConfigLost) {
 		t.Fatalf("reload that lost eth1: %v, want sdk.ErrRunningConfigLost", err)
 	}
-	for _, want := range []string{`"eth9"`, `"eth1"`, "1 of the 2", "commit the running config again"} {
+	for _, want := range []string{`"eth9"`, `"eth1"`, "1 of the 2", "ze rolls the commit back",
+		"Fix: stop the program that holds the address and port", "ze signal restart"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("apply error %q does not say %s", err, want)
 		}
@@ -308,7 +309,7 @@ func TestConfigTxReloadThatLosesARunningInterfaceNamesIt(t *testing.T) {
 // tftpserver, total loss, through sdk.ConfigTx: the failed apply wraps
 // sdk.ErrRunningConfigLost, the rollback while eth0 is still refused answers
 // an error (the bridge acks it CodeBroken and the engine restarts the
-// plugin), and once eth0 binds, committing the running config again binds it
+// plugin), and once eth0 binds, a later apply of the running config binds it
 // rather than being skipped as unchanged.
 // VALIDATES: spec-plugin-reload-applies-or-refuses round 2 ISSUE-5.
 // PREVENTS: a TFTP server dark after a refused reload, with every later
@@ -335,7 +336,7 @@ func TestConfigTxReloadThatLosesEveryRunningInterfaceRepairs(t *testing.T) {
 		t.Fatalf("verify the running config: %v", err)
 	}
 	if err := tx.Apply(); err != nil {
-		t.Fatalf("commit the running config again: %v", err)
+		t.Fatalf("a later apply of the running config: %v", err)
 	}
 	if len(srv.listeners) != 1 {
 		t.Fatalf("after the re-commit %d listeners serve, want 1", len(srv.listeners))

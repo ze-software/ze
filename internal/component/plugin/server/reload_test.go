@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -337,6 +338,9 @@ type pluginDef struct {
 	configOps  []rpc.ConfigOperationDecl
 	verifyResp *rpc.ConfigVerifyOutput
 	applyResp  *rpc.ConfigApplyOutput
+	// rollbackErr makes the plugin answer config-rollback with an error,
+	// which the bridge acks CodeBroken.
+	rollbackErr error
 	// ignoreCommitted makes the plugin leave config-committed unanswered.
 	ignoreCommitted bool
 	order           *orderRecorder // optional: shared across plugins to capture cross-plugin apply order
@@ -389,6 +393,7 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 			pluginName:      pd.name,
 			verifyResp:      pd.verifyResp,
 			applyResp:       pd.applyResp,
+			rollbackErr:     pd.rollbackErr,
 			ignoreCommitted: pd.ignoreCommitted,
 			order:           pd.order,
 		}
@@ -1453,6 +1458,48 @@ func TestReloadTxCoordinatorRollback(t *testing.T) {
 	// A transaction that rolled back never commits.
 	assert.Equal(t, 0, plugins[0].responder.getCommittedCalls(), "a rolled-back transaction must not send config-committed")
 	assert.Equal(t, 0, plugins[1].responder.getCommittedCalls(), "a rolled-back transaction must not send config-committed")
+}
+
+// TestReloadRollbackOfLostRunningConfigReachesRestart follows a plugin whose
+// apply lost its running config through the whole engine side of the repair:
+// its rollback answers an error, the bridge acks it CodeBroken
+// (dispatchRollback), the coordinator hands it to the restart function
+// (handleRollbackAck, Server.restartPlugin), and the reload answer tells the
+// operator the outcome after the apply failure.
+//
+// VALIDATES: review round 3 NOTE-5 and ISSUE-7 (b).
+// PREVENTS: a broken rollback that restarts nothing, or a reload answer that
+// leaves the operator guessing what the rollback left running.
+// METHOD: the process manager was never started, so the restart is reached
+// and fails, which the answer must say.
+func TestReloadRollbackOfLostRunningConfigReachesRestart(t *testing.T) {
+	t.Parallel()
+
+	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
+	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+
+	plugins := []pluginDef{
+		{name: "rib", roots: []string{"bgp"}},
+		{
+			name:        "gr",
+			roots:       []string{"bgp"},
+			applyResp:   &rpc.ConfigApplyOutput{Status: plugin.StatusError, Error: "listener 127.0.0.1:67 lost"},
+			rollbackErr: errors.New("listener 127.0.0.1:67 still in use"),
+		},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+	s.SetProcessSpawner(&lifecycleTestSpawner{ctx: s.ctx, pm: s.procManager.Load()})
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err)
+	msg := err.Error()
+	assert.Contains(t, msg, "listener 127.0.0.1:67 lost", "the apply failure comes first")
+	assert.Contains(t, msg, "Rollback: gr could not put its running config back")
+	assert.Contains(t, msg, "listener 127.0.0.1:67 still in use")
+	assert.Contains(t, msg, "ze could not restart it", "the restart function was reached and its failure reported")
+	assert.Contains(t, msg, "process manager not started")
+	assert.NotContains(t, msg, "rib could not", "rib put its running config back")
 }
 
 // TestReloadTxCoordinatorCommitted verifies that a transaction which commits

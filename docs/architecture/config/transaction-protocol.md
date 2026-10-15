@@ -227,8 +227,15 @@ the running config could not be bound again: the DNS installers, dhcpserver,
 tftpserver and imageserver) wraps `ErrRunningConfigLost`,
 which leaves the transaction broken. Rollback then installs the running config
 again and fails when that install fails, and until an install succeeds apply
-skips the comparison, so a commit of the running config installs it.
-<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx -->
+skips the comparison, so a later apply of the running config installs it. A
+commit of the running config does not reach that apply: it has no diff, so the
+reload stops at "no changes" before any transaction. The repair is the
+rollback itself, or the restart that follows it. A lost-listener error says so
+by appending `sdk.RunningConfigLostNext`, which names what the engine does next
+and the operator's fix (free the port; `ze signal restart` for a listener a
+restarted plugin could not bind), and claims neither rollback outcome, because
+the operator reads it only after the rollback ran.
+<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx, RunningConfigLostNext -->
 
 Only the engine emits `(config, rollback)`. A failing plugin emits
 `(config, apply-failed)`; the engine reacts by emitting `rollback`. This ensures
@@ -241,8 +248,17 @@ tier. CodeBroken restarts happen between tiers so a plugin marked broken is
 restarted before its dependencies start tearing down state. Within a tier, acks
 are processed in arrival order (same-tier plugins are independent).
 
-Rollback deadline is 3x the apply deadline. If a plugin exceeds this, it is
-treated as `broken` (see Failure Codes).
+Rollback deadline is 3x the apply deadline (90 seconds when no apply deadline
+was computed). A plugin that has not acked by then is not restarted: the engine
+stops waiting and names it in the rollback outcome below.
+
+The engine then tells the operator what the rollback left running. The error a
+rolled-back reload answers is the apply failure followed by one `Rollback:`
+line. It names, in participant order, each plugin that answered `CodeBroken`,
+with whether the engine restarted it, could not restart it (and why), or had
+no restart function; and each plugin that did not ack in time. When every
+plugin acked `CodeOK` it says that every plugin put its running config back.
+<!-- source: internal/component/config/transaction/orchestrator.go -- rollBack, rollbackOutcome, brokenRollbackLine, handleRollbackAck -->
 
 ### Completion
 

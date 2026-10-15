@@ -585,6 +585,11 @@ func TestOrchestratorRollbackOnFailure(t *testing.T) {
 		if result.State != StateRolledBack {
 			t.Fatalf("state = %s, want %s", result.State, StateRolledBack)
 		}
+		// Review round 3 ISSUE-7: the operator is told what the rollback left.
+		if msg := result.Err.Error(); !strings.Contains(msg, "disk full") ||
+			!strings.Contains(msg, "Rollback: every plugin put its running config back") {
+			t.Errorf("rolled-back error %q does not carry the apply failure and the rollback outcome", msg)
+		}
 	case <-ctx.Done():
 		t.Fatal("timed out")
 	}
@@ -843,6 +848,11 @@ func TestOrchestratorBrokenRecovery(t *testing.T) {
 		if result.State != StateRolledBack {
 			t.Fatalf("state = %s, want %s", result.State, StateRolledBack)
 		}
+		// Review round 3 ISSUE-7: the operator is told the plugin restarted.
+		if msg := result.Err.Error(); !strings.Contains(msg, "Rollback: iface could not put its running config back") ||
+			!strings.Contains(msg, "so ze restarted it") || strings.Contains(msg, "bgp could not") {
+			t.Errorf("rolled-back error %q does not say iface was restarted, and only iface", msg)
+		}
 	case <-ctx.Done():
 		t.Fatal("timed out")
 	}
@@ -850,6 +860,43 @@ func TestOrchestratorBrokenRecovery(t *testing.T) {
 	// restartFn should have been called for the broken plugin.
 	if len(restarted) != 1 || restarted[0] != "iface" {
 		t.Fatalf("restarted = %v, want [iface]", restarted)
+	}
+}
+
+// VALIDATES: review round 3 ISSUE-7. rollbackOutcome names, per participant,
+// a rollback that did not put the running config back: restarted, restart
+// failed, not restarted, or no answer at all; a plugin that answered CodeOK
+// is not named.
+// PREVENTS: a reload answer that leaves the operator guessing whether a
+// plugin that lost its running config was repaired.
+func TestRollbackOutcomeNamesEachUnrepairedPlugin(t *testing.T) {
+	o := &TxCoordinator{
+		participants: []Participant{{Name: "ok"}, {Name: "restarted"}, {Name: "dead"},
+			{Name: "unrestarted"}, {Name: "silent"}},
+		rollbackAcks: map[string]RollbackAck{
+			"ok":          {Plugin: "ok", Code: CodeOK},
+			"restarted":   {Plugin: "restarted", Code: CodeBroken, Error: "port 67 in use"},
+			"dead":        {Plugin: "dead", Code: CodeBroken, Error: "port 69 in use"},
+			"unrestarted": {Plugin: "unrestarted", Code: CodeBroken},
+		},
+		rollbackRestarts: map[string]error{
+			"restarted": nil,
+			"dead":      errors.New("spawn failed"),
+		},
+	}
+	got := o.rollbackOutcome()
+	for _, want := range []string{
+		"restarted could not put its running config back (port 67 in use), so ze restarted it",
+		"dead could not put its running config back (port 69 in use), and ze could not restart it (spawn failed), so it is not running",
+		"unrestarted could not put its running config back, and ze did not restart it",
+		"silent did not answer the rollback in time",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("outcome %q does not say %q", got, want)
+		}
+	}
+	if strings.Contains(got, "ok ") {
+		t.Errorf("outcome %q names the plugin that put its running config back", got)
 	}
 }
 

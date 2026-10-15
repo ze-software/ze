@@ -61,19 +61,24 @@ the replaced config's servers are bound again, each on the address it served,
 one by one, so when another process takes the port of one of them in that
 window, the others still serve. The error then wraps
 `sdk.ErrRunningConfigLost`, says how many of the interfaces that served are
-lost and names each one with its address and cause, and asks for the running
-config to be committed again or the plugin restarted. The transaction is then
-broken: its rollback installs the running config again, and when that fails
-too it answers an error, so the bridge acks `CodeBroken` and the engine
-restarts the plugin; committing the running config again installs it rather
-than skipping it as unchanged. The boot configure is
-not strict: a configure error at boot fails the plugin and aborts the whole
-daemon start, and an interface's IPv4 address may arrive later through DHCP,
-so it logs `resolve interface failed` or `listen failed` for an interface and
-serves on the others, or logs `no interfaces bound`. A VLAN, bridge or dummy
-that ze's own `interface {}` config creates exists by then, because the server
-starts after the interface plugin (`StartAfter: ["interface"]`). An address or
-an interface that appears later is not bound until the next reload.
+lost and names each one with its address and cause, and ends with
+`sdk.RunningConfigLostNext`: the rollback binds the running config again and
+restarts the plugin if that fails too, the reload answer's `Rollback:` line
+says which happened, and the fix is to free the port, then `ze signal restart`
+for a listener a restarted plugin could not bind. A commit of the running
+config is no fix: it has no diff, so no apply reaches the plugin. The
+transaction is broken: its rollback installs the running config again, and when
+that fails too it answers an error, so the bridge acks `CodeBroken` and the
+engine restarts the plugin; until an install succeeds, a later apply of the
+running config installs it rather than skipping it as unchanged. The boot
+configure is not strict: a configure error at boot fails the plugin and aborts
+the whole daemon start, and an interface's IPv4 address may arrive later
+through DHCP, so it logs `resolve interface failed` or `listen failed` for an
+interface and serves on the others, or logs `no interfaces bound`. A VLAN,
+bridge or dummy that ze's own `interface {}` config creates exists by then,
+because the server starts after the interface plugin (`StartAfter:
+["interface"]`). An address or an interface that appears later is not bound
+until the next reload.
 <!-- source: internal/plugins/imageserver/config_tx.go -- imageServer.install, imageServer.restore, lostImageTarget, prepareZefs, imageServer.stop; pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
 <!-- source: internal/plugins/imageserver/register.go -- bindImage, listenTargets, startTargets -->
 

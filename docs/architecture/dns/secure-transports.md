@@ -33,8 +33,11 @@ cleartext ones serve. On a reload (`BindStrict`) the apply is refused before any
 listener stops, naming the certificate and `ze show pki certificates`, so the
 running listeners keep serving ([server harness](server-harness.md)). A reload
 that leaves the secure listeners unchanged (the same secure config on the same
-addresses) is not refused: it keeps the material they serve and logs the load
-failure.
+addresses) is not refused when the running apply holds TLS material: it keeps
+that material and logs the load failure. When the running apply holds none,
+because its own load failed at boot and no DoT or DoH listener serves, the
+reload is refused like any other, so a commit never succeeds with DoT or DoH
+configured and not served.
 
 <!-- source: internal/core/dnsserver/secure.go -- ApplyWithSecure, BindPolicy -->
 <!-- source: internal/core/dnsserver/tlsmaterial.go -- LoadTLSMaterial -->

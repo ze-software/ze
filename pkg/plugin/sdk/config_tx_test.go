@@ -191,10 +191,10 @@ func TestConfigTxInstallFailureKeepsRunning(t *testing.T) {
 var errTestLost = fmt.Errorf("listener 127.0.0.1:53 not bound again: %w", ErrRunningConfigLost)
 
 // VALIDATES: an install that fails with ErrRunningConfigLost leaves the
-// transaction broken, so committing the running config again installs it
+// transaction broken, so a later apply of the running config installs it
 // rather than being skipped as unchanged (DeepEqual against running).
 // PREVENTS: a DNS plugin left with no listener after a failed reload, which a
-// re-commit of the running config answered OK without binding anything.
+// later apply of the running config answered OK without binding anything.
 func TestConfigTxRunningConfigLostRecommitInstalls(t *testing.T) {
 	tx, pl := newTestConfigTx()
 	mustNoErr(t, "configure", tx.Configure(ownSection("boot")))

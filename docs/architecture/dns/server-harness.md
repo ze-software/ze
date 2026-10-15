@@ -90,9 +90,11 @@ material that cannot be loaded, is logged and the rest serve; the apply fails
 only when nothing bound. `BindStrict` is the reload policy. A TLS load failure
 refuses before any listener stops, unless the secure listeners would not
 change (the same secure config on the same addresses as the last accepted
-apply): the reload then keeps the material those listeners serve and logs the
-failure, so a reload of host data alone is not refused for a certificate file
-that left the disk. A listener that cannot be bound fails the apply: every
+apply) and that apply holds TLS material: the reload then keeps the material
+those listeners serve and logs the failure, so a reload of host data alone is
+not refused for a certificate file that left the disk. When the last accepted
+apply holds none (a boot whose own load failed, so no DoT or DoH listener
+serves), the reload is refused, because there is nothing to keep. A listener that cannot be bound fails the apply: every
 listener this apply bound is stopped, the previous apply's listeners are bound
 again, and the error names each endpoint that failed and the fix. The plugin's
 installer then puts its previous snapshot back (as112 also its loopback
@@ -109,16 +111,23 @@ listeners were kept. The installer passes that on as
 The transaction's rollback then installs the running config again; when that
 fails too, the rollback answers an error, the engine acks it `CodeBroken`,
 and the orchestrator restarts the plugin, which binds leniently at Stage 2.
-While broken, a commit of the running config is installed rather than
-skipped as unchanged, and the harness's signature is cleared so that commit
-binds. A reload that changes the listener set stops every listener before it
+While broken, a later apply of the running config is installed rather than
+skipped as unchanged, and the harness's signature is cleared so that apply
+binds. The error reaches the operator only after the rollback ran, so its
+text claims neither outcome: the installer appends `sdk.RunningConfigLostNext`
+(the rollback binds again or restarts the plugin; free the port, then
+`ze signal restart` if a listener stays down), and the orchestrator appends
+a `Rollback:` line naming what happened to each plugin
+([transaction protocol](../config/transaction-protocol.md)). A commit of the
+running config is no repair: it has no diff, so the reload stops at "no
+changes" and no apply reaches the plugin. A reload that changes the listener set stops every listener before it
 binds the new set, so serving pauses for that moment (and as112 withdraws and
 announces its covering prefixes again, RFC 7534 Section 3.3). Every caller
 names its policy, tests included: no entry point binds leniently by default.
 
 <!-- source: internal/core/dnsserver/secure.go -- BindPolicy, reconcile, restorePrevious, bindListeners, ApplyWithSecure, secureTLS -->
 <!-- source: internal/plugins/as112/config_tx.go -- as112Installer.install, refuse, configureAtBoot -->
-<!-- source: pkg/plugin/sdk/config_tx.go -- ErrRunningConfigLost, ConfigTx.Apply, ConfigTx.Rollback -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- ErrRunningConfigLost, RunningConfigLostNext, ConfigTx.Apply, ConfigTx.Rollback -->
 <!-- source: internal/plugins/geodns/config_tx.go -- geodnsInstaller.install, configureAtBoot -->
 
 ## Freebind
