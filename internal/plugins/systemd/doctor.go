@@ -95,13 +95,14 @@ func serviceDoctorCheck() diagnostic.DoctorCheck {
 }
 
 type serviceUnitInfo struct {
-	execStart string
-	user      string
-	group     string
+	execStart  string
+	execReload []string
+	user       string
+	group      string
 }
 
 // checkServiceInstall reads the installed unit back and reports an ExecStart,
-// a User or a Group that systemd could not run.
+// an ExecReload, a User or a Group that systemd could not run.
 //
 // An absent unit is silent: nothing was installed, so there is nothing to
 // judge. On gokrazy and in a container there is no systemd to read, so those
@@ -133,7 +134,10 @@ func checkServiceInstall(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 
 	unit := parseServiceUnit(data)
 	var diags []diagnostic.Diagnostic
-	diags = append(diags, checkServiceExecutable(unitPath, unit.execStart)...)
+	diags = append(diags, checkServiceExecutable(unitPath, "ExecStart", unit.execStart)...)
+	for _, executable := range unit.execReload {
+		diags = append(diags, checkServiceExecutable(unitPath, "ExecReload", executable)...)
+	}
 	diags = append(diags, checkServiceStop(unitPath)...)
 	if unit.user != "" {
 		diags = append(diags, checkServiceUser(unitPath, unit.user)...)
@@ -166,6 +170,15 @@ func parseServiceUnit(data []byte) serviceUnitInfo {
 		switch strings.TrimSpace(key) {
 		case "ExecStart":
 			unit.execStart = execStartExecutable(value)
+		case "ExecReload":
+			// ExecReload is a list: an empty assignment clears it, and each
+			// later line adds one command.
+			cmd := firstSystemdCommand(value)
+			if cmd == "" {
+				unit.execReload = nil
+				continue
+			}
+			unit.execReload = append(unit.execReload, cmd)
 		case "User":
 			unit.user = strings.TrimSpace(value)
 		case "Group":
@@ -208,21 +221,28 @@ func firstSystemdCommand(value string) string {
 	return cmd
 }
 
-func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic {
+// serviceReinstallFix is the remedy for a unit command ze's installer writes.
+const serviceReinstallFix = "; run `sudo ze install systemd --force` and `sudo systemctl daemon-reload`"
+
+// checkServiceExecutable reports a program the directive (ExecStart or
+// ExecReload) runs that systemd could not execute.
+func checkServiceExecutable(unitPath, directive, executable string) []diagnostic.Diagnostic {
 	var tb textbuf.Buffer
 	if executable == "" {
 		return []diagnostic.Diagnostic{{
 			Code:     diagnostic.CodeDoctorServiceExecutable,
 			Severity: diagnostic.SeverityError,
-			Message:  tb.Str("systemd service unit has no ExecStart command: ").Str(unitPath).String(),
-			Path:     unitPath,
+			Message: tb.Str("systemd service unit has no ").Str(directive).Str(" command: ").Str(unitPath).
+				Str(serviceReinstallFix).String(),
+			Path: unitPath,
 		}}
 	}
 	if !filepath.IsAbs(executable) {
 		return []diagnostic.Diagnostic{{
 			Code:     diagnostic.CodeDoctorServiceExecutable,
 			Severity: diagnostic.SeverityError,
-			Message:  tb.Reset().Str("systemd service ExecStart is not an absolute path: ").Str(executable).String(),
+			Message: tb.Reset().Str("systemd service ").Str(directive).Str(" is not an absolute path: ").Str(executable).
+				Str(serviceReinstallFix).String(),
 			Path:     unitPath,
 			Expected: "absolute executable path",
 			Actual:   executable,
@@ -233,15 +253,17 @@ func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic
 		return []diagnostic.Diagnostic{{
 			Code:     diagnostic.CodeDoctorServiceExecutable,
 			Severity: diagnostic.SeverityError,
-			Message:  tb.Reset().Str("systemd service executable not found: ").Str(executable).Str(": ").Err(err).String(),
-			Path:     executable,
+			Message: tb.Reset().Str("systemd service ").Str(directive).Str(" runs ").Str(executable).
+				Str(", which cannot be found, so systemd refuses the command: ").Err(err).Str(serviceReinstallFix).String(),
+			Path: executable,
 		}}
 	}
 	if info.IsDir() || info.Mode().Perm()&0o111 == 0 {
 		return []diagnostic.Diagnostic{{
 			Code:     diagnostic.CodeDoctorServiceExecutable,
 			Severity: diagnostic.SeverityError,
-			Message:  tb.Reset().Str("systemd service executable is not executable: ").Str(executable).String(),
+			Message: tb.Reset().Str("systemd service ").Str(directive).Str(" runs ").Str(executable).
+				Str(", which is not an executable file; run `sudo chmod 0755 ").Str(executable).Str("`").String(),
 			Path:     executable,
 			Expected: "executable file",
 			Actual:   info.Mode().String(),

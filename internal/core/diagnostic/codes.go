@@ -428,7 +428,7 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        CodeDoctorServiceExecutable,
 		Title:       "Systemd service executable invalid",
-		Description: "The installed ze systemd unit ExecStart does not point to an existing executable file.",
+		Description: "The installed ze systemd unit ExecStart or ExecReload runs a program that is not an existing executable file.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-service-executable"},
 	},
 	{

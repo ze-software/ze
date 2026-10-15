@@ -34,7 +34,8 @@ type unitSpec struct {
 	ConfigDir  string
 }
 
-// execStartShell is the shell that starts ze with SIGHUP ignored.
+// execStartShell is the shell that starts ze with SIGHUP ignored. ExecReload
+// runs it too, so the unit needs no program beyond it and ze.
 const execStartShell = "/bin/sh"
 
 func buildUnitFile(spec unitSpec) string {
@@ -61,7 +62,15 @@ func buildUnitFile(spec unitSpec) string {
 	b.Str(" -c 'trap \"\" HUP; exec ")
 	b.Str(spec.BinaryPath)
 	b.Str(" start'\n")
-	b.Str("ExecReload=/bin/kill -HUP $MAINPID\n")
+	// The reload uses the shell's builtin kill. /bin/kill comes from procps,
+	// which a minimal host (Debian trixie slim) does not install, and systemd
+	// then refuses the unit's reload ("Command /bin/kill is not executable").
+	// `ze signal reload` is no substitute: it reloads over SSH, so it needs the
+	// SSH listener and login credentials, where SIGHUP needs neither. systemd sets
+	// MAINPID in the reload's environment, and exec keeps ze as the main PID.
+	b.Str("ExecReload=")
+	b.Str(execStartShell)
+	b.Str(" -c 'kill -HUP $MAINPID'\n")
 	b.Str("Restart=on-failure\n")
 	b.Str("RestartSec=5\n")
 	// The stop drain runs between the SIGTERM and the teardown, so the unit

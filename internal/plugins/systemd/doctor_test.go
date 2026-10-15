@@ -497,3 +497,45 @@ func TestServiceDoctorCheckRegistered(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckServiceInstallMissingReloadExecutable drives the check over a unit
+// whose ExecStart runs and whose ExecReload names a program the host lacks,
+// the unit `ze install systemd` wrote before 2026-10-15 on a host without
+// procps.
+//
+// VALIDATES: doctor reports the ExecReload executable as it reports ExecStart's,
+// naming the directive and the reinstall that fixes it.
+// PREVENTS: a clean doctor run over a unit whose `systemctl reload` cannot run.
+func TestCheckServiceInstallMissingReloadExecutable(t *testing.T) {
+	binPath := filepath.Join(t.TempDir(), "ze")
+	if err := os.WriteFile(binPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	withServiceUnit(t, "[Service]\nExecStart="+binPath+" start\nExecReload=/missing/kill -HUP $MAINPID\n")
+
+	diags := checkServiceInstall(diagnostic.DoctorCheckContext{})
+	if len(diags) != 1 {
+		t.Fatalf("diagnostics = %d, want 1: %v", len(diags), diags)
+	}
+	if diags[0].Code != diagnostic.CodeDoctorServiceExecutable {
+		t.Fatalf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorServiceExecutable)
+	}
+	for _, want := range []string{"ExecReload", "/missing/kill", "ze install systemd --force"} {
+		if !strings.Contains(diags[0].Message, want) {
+			t.Errorf("message %q does not name %q", diags[0].Message, want)
+		}
+	}
+}
+
+// TestParseServiceUnitExecReloadResets reads a unit whose drop-in clears
+// ExecReload and sets a new one.
+//
+// VALIDATES: systemd list semantics: an empty ExecReload= clears the commands
+// before it, and each later line adds one.
+// PREVENTS: doctor judging a reload command a drop-in already removed.
+func TestParseServiceUnitExecReloadResets(t *testing.T) {
+	unit := parseServiceUnit([]byte("[Service]\nExecReload=/bin/kill -HUP $MAINPID\nExecReload=\nExecReload=/bin/sh -c 'kill -HUP $MAINPID'\n"))
+	if len(unit.execReload) != 1 || unit.execReload[0] != "/bin/sh" {
+		t.Fatalf("execReload = %q, want [/bin/sh]", unit.execReload)
+	}
+}

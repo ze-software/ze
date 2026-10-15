@@ -76,7 +76,7 @@ Type=simple
 User=ze
 Group=ze
 ExecStart=/bin/sh -c 'trap "" HUP; exec <prefix>/bin/ze start'
-ExecReload=/bin/kill -HUP $MAINPID
+ExecReload=/bin/sh -c 'kill -HUP $MAINPID'
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=90
@@ -111,7 +111,15 @@ values systemd actually applies, drop-ins included, and warns under
 The shell in `ExecStart` starts ze with SIGHUP ignored, then execs it, so ze
 keeps the main PID. A `systemctl reload` during the first few hundred
 milliseconds, before ze can register a handler, is then lost instead of killing
-the daemon (`docs/architecture/behavior/signals.md`). The install refuses a
+the daemon (`docs/architecture/behavior/signals.md`). `ExecReload` sends that
+SIGHUP with the same shell's builtin `kill`, so the unit runs no program beyond
+`/bin/sh` and ze: `/bin/kill` comes from `procps`, which a minimal host does not
+install. `ze doctor` checks the programs `ExecStart` and `ExecReload` run, and
+reports a missing one under `doctor-service-executable`.
+<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
+<!-- source: internal/plugins/systemd/doctor.go -- checkServiceExecutable -->
+
+The install refuses a
 binary or config path holding a character that systemd or `/bin/sh` interprets:
 a quote, a backslash, `$`, `%`, `;`, `&`, `|`, `<`, `>`, parentheses, a
 backtick, or a glob character.

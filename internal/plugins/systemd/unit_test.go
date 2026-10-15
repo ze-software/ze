@@ -1,11 +1,13 @@
 package systemd
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -177,5 +179,49 @@ func TestBuildUnitFileStopTimeoutDerivedFromCeiling(t *testing.T) {
 	}
 	if got := settings["KillMode"]; got != "mixed" {
 		t.Errorf("[Service] KillMode = %q, want mixed", got)
+	}
+}
+
+// TestUnitFileReloadRunsOnlyTheShell reads the ExecReload line buildUnitFile
+// writes, checks it names no program beyond the shell ExecStart already runs,
+// then runs it with MAINPID set to a stand-in process.
+//
+// VALIDATES: `systemctl reload ze` sends SIGHUP to the main PID through the
+// shell's builtin kill, so the unit runs on a host without procps.
+// PREVENTS: ExecReload=/bin/kill, which systemd 257 refuses on a Debian slim
+// host ("Command /bin/kill is not executable") so reload never runs.
+// DISCRIMINATES: put `/bin/kill -HUP $MAINPID` back and the executable check
+// fails; drop the `-HUP` and the stand-in dies of SIGTERM instead.
+func TestUnitFileReloadRunsOnlyTheShell(t *testing.T) {
+	unit := buildUnitFile(unitSpec{BinaryPath: "/usr/bin/ze", ConfigDir: "/etc/ze"})
+	if got := parseServiceUnit([]byte(unit)).execReload; len(got) != 1 || got[0] != execStartShell {
+		t.Fatalf("ExecReload executables = %q, want only %s, the shell ExecStart runs:\n%s", got, execStartShell, unit)
+	}
+
+	var execReload string
+	for line := range strings.SplitSeq(unit, "\n") {
+		if value, ok := strings.CutPrefix(line, "ExecReload="); ok {
+			execReload = value
+		}
+	}
+	standIn := exec.CommandContext(t.Context(), "/bin/sleep", "30")
+	if err := standIn.Start(); err != nil {
+		t.Fatal(err)
+	}
+	// systemd passes MAINPID in the environment of every ExecReload command,
+	// and the line uses only the quoting systemd and sh share.
+	reload := exec.CommandContext(t.Context(), "/bin/sh", "-c", execReload)
+	reload.Env = append(os.Environ(), "MAINPID="+strconv.Itoa(standIn.Process.Pid))
+	if out, err := reload.CombinedOutput(); err != nil {
+		t.Fatalf("ExecReload %q: err=%v output=%q", execReload, err, out)
+	}
+	err := standIn.Wait()
+	exitErr, ok := errors.AsType[*exec.ExitError](err)
+	if !ok {
+		t.Fatalf("stand-in ended with %v, want death by SIGHUP", err)
+	}
+	status, ok := exitErr.Sys().(syscall.WaitStatus)
+	if !ok || !status.Signaled() || status.Signal() != syscall.SIGHUP {
+		t.Fatalf("stand-in ended with %v, want death by SIGHUP", err)
 	}
 }
