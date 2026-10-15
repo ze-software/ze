@@ -44,18 +44,18 @@ func logger() *slog.Logger {
 	return slog.Default()
 }
 
-// activationFromSections reports whether the ddos/fake config section is present
-// AND enabled. runEngine starts the injector only when this returns true, so a
-// registered-but-not-enabled fakeddos stays inert (the DUT "harmless when not
-// invoked" convention).
-func activationFromSections(sections []sdk.ConfigSection) (bool, error) {
+// activationFromSections reports whether the ddos/fake config section turns
+// the injector on, and whether the delivery carried that section at all
+// (present false means the root is absent, which a reload reads as unchanged).
+func activationFromSections(sections []sdk.ConfigSection) (enabled, present bool, err error) {
 	for _, s := range sections {
 		if s.Root != configRoot {
 			continue
 		}
-		return parseEnabled(s.Data)
+		enabled, err := parseEnabled(s.Data)
+		return enabled, true, err
 	}
-	return false, nil
+	return false, false, nil
 }
 
 // parseEnabled reads the `enabled` leaf from a ddos/fake section. The section is

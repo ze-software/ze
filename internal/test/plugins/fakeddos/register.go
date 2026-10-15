@@ -19,6 +19,7 @@
 package fakeddos
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -73,47 +74,8 @@ func runEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 
-	started := false
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		if started {
-			return nil
-		}
-		active, err := activationFromSections(sections)
-		if err != nil {
-			return err
-		}
-		if !active {
-			log.Info("fakeddos: configured but not enabled, injector inert")
-			return nil
-		}
-		bus, err := loadBus()
-		if err != nil {
-			return err
-		}
-		started = true
-		// The driver's "clear now" channel: it creates clearTriggerFile in the
-		// daemon's working directory once it has observed the mitigation. Poll for
-		// it and, when it appears, unblock runScenario's withdraw.
-		clear := make(chan struct{}, 1)
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(50 * time.Millisecond):
-				}
-				if _, err := os.Stat(clearTriggerFile); err == nil {
-					select {
-					case clear <- struct{}{}:
-					default:
-					}
-					return
-				}
-			}
-		}()
-		go runScenario(ctx, bus, clear)
-		return nil
-	})
+	inj := &injector{lifetime: ctx}
+	sdk.NewConfigTx(false, activationFromSections, inj.install).Register(p)
 
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{configRoot},
@@ -125,4 +87,67 @@ func runEngine(conn net.Conn) int {
 	}
 	log.Info("fakeddos plugin stopped")
 	return 0
+}
+
+// injector starts and stops the synthetic attack scenario as the config's
+// `enabled` leaf turns on and off. install runs under the ConfigTx lock, which
+// serializes it; it is not safe for concurrent use on its own.
+//
+// Lifecycle: install(true) starts the scenario and its trigger watcher under a
+// context derived from the plugin's; install(false) cancels that context, and
+// both goroutines return on it.
+type injector struct {
+	lifetime context.Context
+	// stop cancels the running scenario; nil while the injector is inert.
+	stop context.CancelFunc
+}
+
+// install makes enabled the injector's state. Enabling an injector already
+// running, or disabling an inert one, changes nothing.
+func (in *injector) install(enabled bool) error {
+	if !enabled {
+		if in.stop == nil {
+			logger().Info("fakeddos: configured but not enabled, injector inert")
+			return nil
+		}
+		in.stop()
+		in.stop = nil
+		logger().Info("fakeddos: disabled, injector stopped")
+		return nil
+	}
+	if in.stop != nil {
+		return nil
+	}
+	bus, err := loadBus()
+	if err != nil {
+		return err
+	}
+	ctx, stop := context.WithCancel(in.lifetime)
+	in.stop = stop
+	// The driver's "clear now" channel: it creates clearTriggerFile in the
+	// daemon's working directory once it has observed the mitigation.
+	clear := make(chan struct{}, 1)
+	go watchClearTrigger(ctx, clear)
+	go runScenario(ctx, bus, clear)
+	logger().Info("fakeddos: enabled, injector started")
+	return nil
+}
+
+// watchClearTrigger polls for clearTriggerFile and, when it appears, unblocks
+// runScenario's withdraw. It returns when the file appears or ctx ends.
+func watchClearTrigger(ctx context.Context, clear chan<- struct{}) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(50 * time.Millisecond):
+		}
+		if _, err := os.Stat(clearTriggerFile); err == nil {
+			select {
+			case clear <- struct{}{}:
+			default:
+			}
+			return
+		}
+	}
 }

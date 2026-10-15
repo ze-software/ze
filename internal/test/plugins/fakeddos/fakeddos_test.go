@@ -83,7 +83,7 @@ func TestActivationFromSections(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := activationFromSections(tt.sections)
+			got, _, err := activationFromSections(tt.sections)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("activationFromSections err = %v, wantErr %v", err, tt.wantErr)
 			}
