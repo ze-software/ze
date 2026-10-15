@@ -642,6 +642,35 @@ Artifact: `tmp/review/plugin-reload-applies-or-refuses-3be8cd06-0062-4950-8b30-0
 | 1 | 0 | 3 | 2 | findings: not clean |
 | 2 | 1 | 3 | 2 | findings: not clean |
 | 3 | 0 | 2 | 1 | findings: not clean |
+| 4 | 0 | 3 | 5 | findings: not clean |
+
+Round 4 scope: the round-3 fixes, 6d2e8b22b9 and 28ca61484a. Findings (2026-10-15), in full in `tmp/session/2026-10-14-3be8cd06-0062-4950-8b30-09ebec04cbaf/scratch/review-r4-findings.md`:
+
+| ID | Severity | Where | Finding | Fix owed |
+|----|----------|-------|---------|----------|
+| ISSUE-1 | ISSUE | `transaction.brokenRollbackLine`; producer `ProcessManager.Respawn` | every restart error read "so it is not running", but `Respawn` returns `ErrRespawnLimitExceeded`, `ErrProcessDisabled`, `ErrDaemonStopping` and `ErrProcessNotFound` before it stops the old process, which keeps running | tell the refusal apart |
+| ISSUE-2 | ISSUE | `sdk.RunningConfigLostNext` and six pages | named `ze signal restart` as the fix without saying it takes the daemon down | say what the restart costs, command on its own line |
+| ISSUE-3 | ISSUE | `test/reload/` | no `.ci` asserts a `Rollback:` line reaching the operator | expect it in `geodns-reload-unbindable-listener-refused.ci` |
+| NOTE-1 | NOTE | `rollbackOutcome` | only the first outcome line carried `Rollback:`; `transaction-protocol.md` said one line | prefix each line or fix the page |
+| NOTE-2 | NOTE | `collectRollbackAcks` early return | acks of undrained tiers are never handled, so `rollbackOutcome` says "did not answer" for plugins that answered | - |
+| NOTE-3 | NOTE | `as112/config_tx.go` `refuse`, first branch | wraps `ErrRunningConfigLost` with no next step (pre-existing) | - |
+| NOTE-4 | NOTE | `dnsserver.keptSecure` on a strict rollback | a plugin that booted without TLS material and lost a listener is restarted rather than rebound; the Rollback text quotes "then commit again" | - |
+| NOTE-5 | NOTE | `brokenRollbackLine`, nil `restartFn` | "so it runs without part of its config" is false when the reason is "plugin process not found" (test-only wiring) | - |
+
+Round 4 dispositions (fixer, 2026-10-15):
+
+| ID | Disposition | Commit | Proof |
+|----|-------------|--------|-------|
+| ISSUE-1 | Fixed. `restartPlugin` (`plugin/server/reload_tx.go`) wraps `transaction.ErrRestartRefused` around the four `Respawn` refusals (`respawnRefused`, `errors.Is` on the process sentinels, read at `manager.go` `Respawn`: all four return before the Stop; the start failure after the Stop is not wrapped). `brokenRollbackLine` says "ze refused to restart it (...), so it still runs without part of its config" for a refusal and keeps "so it is not running" otherwise. `transaction-protocol.md` lists the four outcomes | 5966274823 | `TestRestartPluginSaysWhenTheRespawnWasRefused` (not found, limit exceeded, disabled, daemon stopping: each wraps `ErrRestartRefused` and leaves the old process `Running()`), `TestRestartPluginFailedHandshakeIsNotARefusal`, the `refused` row of `TestRollbackOutcomeNamesEachUnrepairedPlugin`; red before the fix (missing wrap; "could not restart it ... so it is not running"), green after |
+| ISSUE-2 | Fixed, differently from the finding's text. `ze signal restart` leaves ze stopped (hub exits 0 after "Ze stopped.", the systemd unit is `Restart=on-failure`, `restart_text.go`), so it is not a fix at all. `RunningConfigLostNext` now says no command restarts one plugin, that the fix stops the whole daemon and starts it again, restarting every protocol and dropping every session, and lists the `RestartSteps` routes one per line (`restartRouteLines`, one declaration). `config-reload.md`, `transaction-protocol.md`, `server-harness.md`, `dhcp-server.md`, `tftp-server.md`, `image-server.md` say the same | 5966274823 | `TestRunningConfigLostNextNamesTheDaemonRestart` (red: undefined routes, then the old text), the four plugin tests now expect `systemctl restart ze` |
+| ISSUE-3 | Fixed. `expect=stderr:contains=Rollback: every plugin put its running config back` (the text `rollbackOutcome` writes when geodns's own rollback answers OK) | 5966274823 | `./le test bgp reload --pattern geodns-reload-unbindable-listener-refused` PASS; with `rollBack` returning `fmt.Errorf("%w", err)` (local break, restored, not committed) FAIL "output does not contain \"Rollback: every plugin put its running config back\"", then PASS after restore |
+| NOTE-1 | Fixed: every line `rollbackOutcome` writes starts with `Rollback: ` (`rollbackLinePrefix`), and `transaction-protocol.md` and `config-reload.md` say one line per plugin | 5966274823 | the prefix loop in `TestRollbackOutcomeNamesEachUnrepairedPlugin`, red before |
+| NOTE-2 | Recorded, not fixed here: `plan/journal/error-path-discards-data-already-received.md`. The false text is this spec's; the missing restart predates it, and whether late `CodeBroken` acks restart out of tier order is a design decision | this commit | journal row |
+| NOTE-3 | Recorded, pre-existing: `plan/journal/error-names-no-fix-command.md` | this commit | journal row |
+| NOTE-4 | Recorded as known behaviour, no change: the lenient Stage 2 of the restart recovers the plugin | - | finding text |
+| NOTE-5 | Fixed: the not-restarted line now says "ze did not restart it; its log lines say what it runs" | 5966274823 | the `unrestarted` row of `TestRollbackOutcomeNamesEachUnrepairedPlugin`, red before |
+
+Gates owed to the main thread for 5966274823: `./le go lint run` over the changed packages (the edit-time lint timed out loading packages), `./le verify worktree`. Run green here: `go test` of `config/transaction`, `pkg/plugin/sdk`, `dhcpserver`, `imageserver`, `tftpserver`, `geodns`, `as112`, and `plugin/server -run 'TestRestartPlugin|TestReload'`; `go vet` of those packages; the geodns `.ci` above.
 
 Round 3 findings (2026-10-15):
 

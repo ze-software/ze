@@ -8,3 +8,4 @@ out the next step without help.
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
 | 2026-10-15 | - | `ze cli` client, `Run` in `internal/component/cli/client/main.go` (lines 370 and 392) | When credentials fail to load, or `show version` fails at the connection level, the client prints `hint: is the daemon running?` and exits 1. It is a question, not a fix: it gives no command to check the daemon or start it | open: not fixed |
+| 2026-10-15 | plugin-reload-applies-or-refuses (review round 4 NOTE-3) | as112 reload, `refuse` in `internal/plugins/as112/config_tx.go`, first branch (registration restore failed) | The error wraps `sdk.ErrRunningConfigLost` and stops there: no `sdk.RunningConfigLostNext`, no next step. The engine's `Rollback:` lines now say what became of the plugin, but the operator is not told what to do about it. Pre-existing, outside the listener-loss texts the spec changed | open: not fixed |
