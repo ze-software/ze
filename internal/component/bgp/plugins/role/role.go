@@ -54,7 +54,7 @@ func ConfigureLogger(l *slog.Logger) {
 	}
 }
 
-// Package-level filter state. Populated by RunRolePlugin (OnConfigure, OnValidateOpen).
+// Package-level filter state. Populated by the config transaction (config_tx.go) and OnValidateOpen.
 // Read by filter closures registered in register.go. Protected by filterMu.
 //
 // A configured peer is keyed by its IP address (from remote.ip in config). A
@@ -64,7 +64,7 @@ func ConfigureLogger(l *slog.Logger) {
 // can carry that prefix, so the two namespaces cannot collide.
 var (
 	filterMu          sync.RWMutex
-	filterPeerConfigs map[string]*peerRoleConfig // IP or group selector -> role config (from OnConfigure)
+	filterPeerConfigs map[string]*peerRoleConfig // IP or group selector -> role config (from the config transaction)
 	filterRemoteRoles map[string]remoteRoleState // filter key -> what the peer's OPEN declared (from OnValidateOpen)
 	filterNameToIP    map[string]string          // peer name -> IP (for OnValidateOpen name resolution)
 )
@@ -100,9 +100,16 @@ type remoteRoleState struct {
 // source configured `role { export customer }` stopped advertising to its
 // customers on the next config reload, silently and until each session bounced.
 func setFilterState(configs map[string]*peerRoleConfig, n2ip map[string]string) {
+	installRoleConfig(roleConfig{peers: configs, nameToIP: n2ip}) //nolint:errcheck // installRoleConfig cannot fail
+	pruneLearnedRoles()
+}
+
+// pruneLearnedRoles drops the learned roles of peers the INSTALLED config no
+// longer names. A reload runs it at config-committed only (roleConfigTx): the
+// learned roles are runtime state no rollback could restore.
+func pruneLearnedRoles() {
 	filterMu.Lock()
-	filterPeerConfigs = configs
-	filterNameToIP = n2ip
+	configs := filterPeerConfigs
 	// Drop learned roles for peers the new config no longer names; a role we
 	// cannot map back to a configured peer can never be read again anyway.
 	//
@@ -315,24 +322,11 @@ func RunRolePlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-role", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
-	// Store peer role configs from OnConfigure for validate-open.
-	// Both maps shared between OnConfigure and OnValidateOpen closures.
-	var peerConfigs map[string]*peerRoleConfig
-	var nameToIP map[string]string
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			peerConfigs, nameToIP = extractPeerRoleConfigs(section.Data)
-		}
-		// Store configs in package-level state for filter closures. The local AS
-		// for OTC egress stamping is supplied per destination peer by the reactor
-		// (filterapi.PeerFilterInfo.LocalAS), not parsed from the config here.
-		setFilterState(peerConfigs, nameToIP)
-		return nil
-	})
+	// The role config: installed at Stage 2 and at every reload that changes it,
+	// restored at rollback (config_tx.go). The local AS for OTC egress stamping
+	// is supplied per destination peer by the reactor
+	// (filterapi.PeerFilterInfo.LocalAS), not parsed from the config.
+	newRoleConfigTx().register(p)
 
 	// The role capability declaration is fixed for the process life: a reload
 	// that changes it is refused at config-verify
@@ -343,7 +337,8 @@ func RunRolePlugin(conn net.Conn) int {
 	// WantsValidateOpen is auto-set by SDK when this callback is registered.
 	// Also stores the remote peer's role for ingress/egress filter closures.
 	p.OnValidateOpen(func(input *sdk.ValidateOpenInput) *sdk.ValidateOpenOutput {
-		return applyValidateOpen(peerConfigs, nameToIP, input)
+		installed := installedRoleConfig()
+		return applyValidateOpen(installed.peers, installed.nameToIP, input)
 	})
 
 	ctx, cancel := sdk.SignalContext()
