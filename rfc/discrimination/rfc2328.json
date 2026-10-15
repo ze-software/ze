@@ -24,6 +24,28 @@
       "break": "body of handleExchangeDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2328-10.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDDRetransmit",
+      "unit-sha": "4c77177a68a6e048",
+      "claim-sha": "8fa2d918c514ab23",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
+      "producer-sha": "de6932919bf8ddbc",
+      "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-10.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDuplicateDD",
+      "unit-sha": "b98cba726fbe8d9c",
+      "claim-sha": "13840515c0df6aac",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
+      "producer-sha": "de6932919bf8ddbc",
+      "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2328-10.5-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/iface/rfc2328_hello_test.go::TestRFC2328HelloMatchingParametersAndTwoWay",
@@ -290,6 +312,28 @@
     {
       "rid": "RFC2328-13-1",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces",
+      "unit-sha": "0ea9ce5fba41d272",
+      "claim-sha": "8760e8a9b012a54b",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/lsupdate.go::DecodeLSUpdate",
+      "producer-sha": "c86f6706cddf25d7",
+      "break": "body of DecodeLSUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded",
+      "unit-sha": "50289b7a235f2244",
+      "claim-sha": "0dc8fb16d6f8affe",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
+      "producer-sha": "6df8e607849558ea",
+      "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13-1",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed",
       "unit-sha": "9a5a5bf9be19ed86",
       "claim-sha": "81c73be0dbf955ef",
@@ -308,6 +352,28 @@
       "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
       "producer-sha": "6df8e607849558ea",
       "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_area_type_test.go::TestOSPFStubFloodFilter",
+      "unit-sha": "9304f4e6173490a9",
+      "claim-sha": "2919e7730b3f5187",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::shouldDropByArea",
+      "producer-sha": "d9729416155e899c",
+      "break": "body of shouldDropByArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5",
+      "unit-sha": "727d0a9bcba80f6f",
+      "claim-sha": "efc0ac69e9485079",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::shouldDropByArea",
+      "producer-sha": "d9729416155e899c",
+      "break": "body of shouldDropByArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-13-2",
@@ -330,6 +396,28 @@
       "producer": "internal/plugins/ospf/lsdb/flooding.go::eligibleInterface",
       "producer-sha": "3f1a533598485f78",
       "break": "body of eligibleInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher",
+      "unit-sha": "725d3030d7759a3f",
+      "claim-sha": "8d6d396e09148190",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/neighbor/table.go::AcceptsFlooding",
+      "producer-sha": "2824e06c16337298",
+      "break": "body of AcceptsFlooding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher",
+      "unit-sha": "725d3030d7759a3f",
+      "claim-sha": "61296d58ac5f9ec1",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/neighbor/table.go::AcceptsFlooding",
+      "producer-sha": "2824e06c16337298",
+      "break": "body of AcceptsFlooding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-13-3",
@@ -475,6 +563,28 @@
       "break": "body of CompareHeaders replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2328-13.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_lsdb_test.go::TestOSPFFreshnessCompareMatrix",
+      "unit-sha": "42c419374ddecb07",
+      "claim-sha": "84b544fdb770b5db",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/entry.go::CompareHeaders",
+      "producer-sha": "030b84ea449b1037",
+      "break": "body of CompareHeaders replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack",
+      "unit-sha": "d55bc6ffc0758695",
+      "claim-sha": "c659efe6c3163937",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/entry.go::CompareHeaders",
+      "producer-sha": "030b84ea449b1037",
+      "break": "body of CompareHeaders replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2328-13.3-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces",
@@ -598,6 +708,28 @@
     {
       "rid": "RFC2328-13.4-1",
       "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFSelfOriginatedNoLocalCopyFlush",
+      "unit-sha": "a4b1a557dec915d6",
+      "claim-sha": "3b9cd1f11cebd2bb",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::handleSelfReceived",
+      "producer-sha": "f359cb2bcd9e9858",
+      "break": "body of handleSelfReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq",
+      "unit-sha": "85c5e022674618a8",
+      "claim-sha": "aff7ddfe61d5666d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::handleSelfReceived",
+      "producer-sha": "f359cb2bcd9e9858",
+      "break": "body of handleSelfReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.4-1",
+      "polarity": "negative",
       "unit": "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328ForeignLSANotTakenAsSelfOriginated",
       "unit-sha": "f284a21dc80c39d2",
       "claim-sha": "ed4da28ec263e7a3",
@@ -616,6 +748,28 @@
       "producer": "internal/plugins/ospf/lsdb/origination.go::handleSelfReceived",
       "producer-sha": "f359cb2bcd9e9858",
       "break": "body of handleSelfReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable",
+      "unit-sha": "36aa84664fa890eb",
+      "claim-sha": "d5d0b339281c986d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::ackForReceive",
+      "producer-sha": "60b26e5086dbacd1",
+      "break": "body of ackForReceive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded",
+      "unit-sha": "767ed331c019ef42",
+      "claim-sha": "cf3cce42f6c94bc2",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
+      "producer-sha": "6df8e607849558ea",
+      "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-13.5-1",
@@ -638,6 +792,28 @@
       "producer": "internal/plugins/ospf/lsdb/flooding.go::ackForReceive",
       "producer-sha": "60b26e5086dbacd1",
       "break": "body of ackForReceive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-14-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas",
+      "unit-sha": "1ae780499619f431",
+      "claim-sha": "a09c38cecb799962",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::hasExchangeOrLoadingForKey",
+      "producer-sha": "18426377e6d27d55",
+      "break": "body of hasExchangeOrLoadingForKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-14-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading",
+      "unit-sha": "814b2eca4228f757",
+      "claim-sha": "6a7ae6070fd246bf",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::hasExchangeOrLoadingForKey",
+      "producer-sha": "18426377e6d27d55",
+      "break": "body of hasExchangeOrLoadingForKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-14-2",
@@ -695,6 +871,28 @@
     {
       "rid": "RFC2328-15-2",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone",
+      "unit-sha": "28693287b048063a",
+      "claim-sha": "fb23f53cbd423fbc",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/virtual_link.go::onVirtualLinksResolved",
+      "producer-sha": "f23e3538a921357d",
+      "break": "body of onVirtualLinksResolved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-15-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualUnusablePathWithdrawsBackboneLink",
+      "unit-sha": "0180944e7e6248b3",
+      "claim-sha": "e0d1afa7449a17cd",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/virtual_link.go::onVirtualLinksResolved",
+      "producer-sha": "f23e3538a921357d",
+      "break": "body of onVirtualLinksResolved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-15-2",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostIsTransitPathCost",
       "unit-sha": "2374900f6cd2ab39",
       "claim-sha": "3a0e4f2f7403fa22",
@@ -702,6 +900,28 @@
       "producer": "internal/plugins/ospf/spf/transitarea.go::resolveVirtualNeighbor",
       "producer-sha": "f631aae25ee26920",
       "break": "body of resolveVirtualNeighbor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-16.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFSPFShortestPath",
+      "unit-sha": "d7899405e128094b",
+      "claim-sha": "6ae82b92e9dc862d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/spf.go::Compute",
+      "producer-sha": "642fa7f78d1e93fb",
+      "break": "body of Compute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-16.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFTwoWayCheck",
+      "unit-sha": "b63dcf3ceec07772",
+      "claim-sha": "98ca25d15446b10a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/spf.go::Compute",
+      "producer-sha": "642fa7f78d1e93fb",
+      "break": "body of Compute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-16.1-1",
@@ -761,6 +981,17 @@
     {
       "rid": "RFC2328-16.2-1",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute",
+      "unit-sha": "54925f60891a8115",
+      "claim-sha": "0996b88bbe926253",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/interarea.go::ComputeInterAreaWith",
+      "producer-sha": "aa5588a6b6a755d6",
+      "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-16.2-1",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go::TestRFC2328NonABRUsesItsAreaSummaries",
       "unit-sha": "a27370b9bacf3a3c",
       "claim-sha": "36008a13d6baf010",
@@ -768,6 +999,39 @@
       "producer": "internal/plugins/ospf/spf/interarea.go::ComputeInterAreaWith",
       "producer-sha": "aa5588a6b6a755d6",
       "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-16.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalLSInfinityDropped",
+      "unit-sha": "8f549c3d0427983e",
+      "claim-sha": "351dd9db39e762c0",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/external.go::ComputeExternal",
+      "producer-sha": "b0a7814affbd09bd",
+      "break": "body of ComputeExternal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-16.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaLSInfinityDropped",
+      "unit-sha": "fa60876e5169802d",
+      "claim-sha": "33b9f50415b383ed",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/interarea.go::v4SummaryReader",
+      "producer-sha": "a8fb07c48ad6da6a",
+      "break": "body of v4SummaryReader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-16.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute",
+      "unit-sha": "54925f60891a8115",
+      "claim-sha": "85a68e2adbeb127e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/interarea.go::v4SummaryReader",
+      "producer-sha": "a8fb07c48ad6da6a",
+      "break": "body of v4SummaryReader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-16.2-2",
@@ -792,6 +1056,39 @@
       "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2328-16.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328ExternalSkipsMaxAgeAndSelf",
+      "unit-sha": "e67aff878ae1014c",
+      "claim-sha": "875e725367f28adb",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/external.go::ComputeExternal",
+      "producer-sha": "b0a7814affbd09bd",
+      "break": "body of ComputeExternal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-16.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary",
+      "unit-sha": "3e555ac0ee2d7e4a",
+      "claim-sha": "76e6fc2a21b384f1",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/interarea.go::v4SummaryReader",
+      "producer-sha": "a8fb07c48ad6da6a",
+      "break": "body of v4SummaryReader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-16.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalE1PreferredOverE2",
+      "unit-sha": "6f63f5de41e575b1",
+      "claim-sha": "3b03d3d95c4102eb",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/external.go::betterExternal",
+      "producer-sha": "a128608cd14ba2dd",
+      "break": "body of betterExternal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2328-16.4-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328LowerPreferencePathRefused",
@@ -808,6 +1105,17 @@
       "unit": "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328PreferredPathTypeSelected",
       "unit-sha": "b82b21d968bd6a1b",
       "claim-sha": "068a3fad0af31ba5",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/route.go::routeTypeRank",
+      "producer-sha": "e0ac255bef6fe242",
+      "break": "body of routeTypeRank replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-16.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc2328_route_test.go::TestOSPFRouteTablePreference",
+      "unit-sha": "e5bc9dce07c0512d",
+      "claim-sha": "6868f9b9937f03cd",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf/route.go::routeTypeRank",
       "producer-sha": "e0ac255bef6fe242",
@@ -1157,6 +1465,17 @@
     {
       "rid": "RFC2328-A.3.1-2",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksumExcludesAuth",
+      "unit-sha": "044c662beed701f8",
+      "claim-sha": "052cc2119233a20c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/checksum.go::PacketChecksum",
+      "producer-sha": "9244c5fe39339180",
+      "break": "body of PacketChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-A.3.1-2",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumCoversHeaderExcludesAuth",
       "unit-sha": "e151042ec2b8db6b",
       "claim-sha": "86c82cfaa2a3b07b",
@@ -1175,6 +1494,17 @@
       "producer": "internal/plugins/ospf/packet/checksum.go::VerifyPacketChecksum",
       "producer-sha": "6574e309c9b7d561",
       "break": "body of VerifyPacketChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-A.3.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/packet/rfc2328_header_test.go::TestPacketVerifyChecksum",
+      "unit-sha": "6415322a50c907c5",
+      "claim-sha": "ea38fd73aad84223",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/checksum.go::PacketChecksum",
+      "producer-sha": "9244c5fe39339180",
+      "break": "body of PacketChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-A.4.4-1",
@@ -1197,6 +1527,28 @@
       "producer": "internal/plugins/ospf/lsdb/origination.go::OriginateSummary",
       "producer-sha": "33527c0e59626c6e",
       "break": "body of OriginateSummary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-C.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary",
+      "unit-sha": "8356140d50f24b9e",
+      "claim-sha": "fa511339b281ea0c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config.go::validateConfigAF",
+      "producer-sha": "f0d03a69269f9ba3",
+      "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-C.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary",
+      "unit-sha": "8356140d50f24b9e",
+      "claim-sha": "ff88a5fa3e51eb99",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config.go::validateConfigAF",
+      "producer-sha": "f0d03a69269f9ba3",
+      "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-C.3-1",
@@ -1226,6 +1578,17 @@
       "unit": "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes",
       "unit-sha": "15bd6fbf815f22ca",
       "claim-sha": "59bc85cf94fde2e6",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/auth_verify.go::Verify",
+      "producer-sha": "615d0fe8cbee3900",
+      "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-D.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto",
+      "unit-sha": "1e53eb3471176595",
+      "claim-sha": "2fa3de3bd386169a",
       "route": "revert",
       "producer": "internal/plugins/ospf/packet/auth_verify.go::Verify",
       "producer-sha": "615d0fe8cbee3900",
