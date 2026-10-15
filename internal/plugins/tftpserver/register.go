@@ -46,19 +46,8 @@ func init() {
 }
 
 func verifyTFTPConfig(sections []sdk.ConfigSection) error {
-	for _, s := range sections {
-		if s.Root != configRootService {
-			continue
-		}
-		cfg, err := parseConfig(s.Data)
-		if err != nil {
-			return fmt.Errorf("tftpserver: %w", err)
-		}
-		if err := verifyConfig(cfg); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, _, err := parseTFTPSections(sections)
+	return err
 }
 
 func runTFTPServerPlugin(conn net.Conn) int {
@@ -68,77 +57,8 @@ func runTFTPServerPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("tftpserver", conn)
 	defer closeLogged(p, log, "plugin conn")
 
-	var listeners []*net.UDPConn
-
-	stopListeners := func() {
-		for _, ln := range listeners {
-			closeLogged(ln, log, "udp listener")
-		}
-		listeners = nil
-	}
-
-	var sem chan struct{}
-
-	startServer := func(cfg tftpConfig) {
-		stopListeners()
-
-		if !cfg.Enabled {
-			log.Debug("tftpserver: disabled in config")
-			return
-		}
-
-		sem = make(chan struct{}, cfg.MaxTransfers)
-
-		for _, ifName := range cfg.ListenInterfaces {
-			// Resolve the logical name to its kernel device so SO_BINDTODEVICE
-			// binds the right interface when name != os device (os-name /
-			// mac-match selectors). Best-effort: when no iface backend is
-			// loaded -- the install/provision path configures the interface
-			// directly via netlink without starting the iface component --
-			// bindDeviceFor returns the name verbatim, which is the kernel
-			// device in that case.
-			device, rerr := bindDeviceFor(ifName)
-			if rerr != nil {
-				log.Debug("tftpserver: iface backend unavailable, binding by name",
-					"interface", ifName, "device", device, "error", rerr)
-			}
-			ln, err := listenTFTP(device)
-			if err != nil {
-				log.Error("tftpserver: listen failed",
-					"interface", ifName, "device", device, "error", err)
-				continue
-			}
-			listeners = append(listeners, ln)
-			go serve(ln, cfg.RootDirectory, sem, log)
-		}
-
-		if len(listeners) == 0 {
-			log.Error("tftpserver: no interfaces bound; server not serving",
-				"interfaces", cfg.ListenInterfaces)
-			return
-		}
-
-		log.Info("tftpserver: started",
-			"root-directory", cfg.RootDirectory,
-			"interfaces", cfg.ListenInterfaces,
-			"listeners", len(listeners),
-			"max-transfers", cfg.MaxTransfers)
-	}
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, s := range sections {
-			if s.Root != configRootService {
-				continue
-			}
-			cfg, err := parseConfig(s.Data)
-			if err != nil {
-				return fmt.Errorf("tftpserver: %w", err)
-			}
-			startServer(cfg)
-			return nil
-		}
-		return nil
-	})
+	srv := &tftpServer{log: log}
+	sdk.NewConfigTx(tftpConfig{}, parseTFTPSections, srv.install).Register(p)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -148,11 +68,11 @@ func runTFTPServerPlugin(conn net.Conn) int {
 		ApplyBudget:  5,
 	}); err != nil {
 		log.Error("tftpserver plugin failed", "error", err)
-		stopListeners()
+		srv.closeListeners()
 		return 1
 	}
 
-	stopListeners()
+	srv.closeListeners()
 	log.Info("tftpserver plugin stopped")
 	return 0
 }

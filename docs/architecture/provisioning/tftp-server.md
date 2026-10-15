@@ -32,6 +32,19 @@ negotiation is supported.
 <!-- source: internal/plugins/tftpserver/socket_linux.go -- SO_BINDTODEVICE binding -->
 <!-- source: internal/plugins/tftpserver/socket_other.go -- the non-Linux fallback -->
 
+## Config reload
+
+A reload that changes nothing under `service tftp-server` leaves the server
+alone: `sdk.ConfigTx` finds the parsed config equal to the running one and
+installs nothing. A reload that changes it closes the listeners and binds them
+again with a new transfer semaphore, and logs `tftpserver: config applied`. A
+request that arrives during the swap is lost and the client retransmits it. A
+transfer already running is not cut: it holds its own socket and its slot in
+the replaced semaphore, so it finishes under the config it started with, from
+the old root directory. Until it finishes, the running transfers can exceed
+the new `max-transfers` by the number still in flight.
+<!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install -->
+
 ## Traps
 
 - **Block numbers wrap at 65535**, which caps a single transfer near 32 MB at
