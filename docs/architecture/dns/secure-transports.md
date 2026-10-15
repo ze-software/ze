@@ -27,6 +27,13 @@ certificate rebinds the listener. The self-signed fallback is generated once
 and cached. Regenerating it per apply would change the fingerprint and rebind
 on every no-op config reload.
 
+TLS material that cannot be loaded is treated by the apply's `BindPolicy`. At
+boot (`BindLenient`) the DoT and DoH listeners are left out, logged, and the
+cleartext ones serve. On a reload (`BindStrict`) the apply is refused before any
+listener stops, naming the certificate and `ze show pki certificates`, so the
+running listeners keep serving ([server harness](server-harness.md)).
+
+<!-- source: internal/core/dnsserver/secure.go -- ApplyWithSecure, BindPolicy -->
 <!-- source: internal/core/dnsserver/tlsmaterial.go -- LoadTLSMaterial -->
 <!-- source: internal/core/dnsserver/certcheck.go -- CheckCertMaterial -->
 

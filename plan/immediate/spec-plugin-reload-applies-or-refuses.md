@@ -213,7 +213,7 @@ and is outside the population. The investigation's note that `rs` declared no
 **Behavior to preserve:**
 - Stage 2 `OnConfigure` delivery and its failed-removal compensation (`server/startup_removal.go`)
 - Every existing `test/reload/*.ci` outcome other than the ones this spec turns from silent acceptance into effect or refusal
-- `filter_irr` and `rs` transactions (unless Q5 = shared helper, where they migrate with identical behavior)
+- `filter_irr` and `rs` transaction behavior: Q5 = shared helper, so both moved onto `sdk.NewConfigTx` with identical behavior (rs: the env override still wins; c409650a9b)
 - The rollback gate semantics in `config_tx_gate.go`
 - The OPEN spec's capability refusal and its wording
 
@@ -455,7 +455,8 @@ N-A: no wire format or protocol behavior changes; the effects are exercised by t
 ## Files to Modify
 - `pkg/plugin/sdk/sdk_callbacks.go` - Phase 5: delete the nil-handler apply; refusal per Q1; explicit "applies nothing" declaration; Q5 helper if chosen
 - `internal/component/bgp/plugins/{filter_aspath,filter_aspath_length,filter_community,filter_community_match,filter_family,filter_modify,filter_path_asn,filter_prefix,filter_remove_private_as,healthcheck,watchdog,rib,role,gr,hostname,llnh,softver,route_refresh}/*.go` - handler registration and parse/install split
-- `internal/component/bgp/plugins/filter_irr/config_tx.go`, `internal/component/bgp/plugins/rs/server.go` - migrated to the Q5 helper
+- `internal/component/bgp/plugins/filter_irr/config_tx.go`, `internal/component/bgp/plugins/rs/config_tx.go` and `rs/server.go` - migrated to the Q5 helper (rs: hand-written `queueSizeConfigTx` deleted, review round 1 ISSUE-1)
+- `internal/core/dnsserver/secure.go`, `manager.go` - `BindPolicy`: lenient at boot, all-or-nothing on a reload with the previous listeners bound again (R-13, review round 1 ISSUE-2); pages `docs/architecture/dns/server-harness.md` and `docs/architecture/dns/secure-transports.md`
 - `internal/plugins/{cos,routingtable,as112,geodns,dhcpserver,tftpserver,imageserver,exabgp/bridgeplugin,connected,kernel}/*.go`, `internal/plugins/exabgp/main_sdk.go`; cos `register.go` and `config.go`: side-effect-free verify, apply, rollback (B1)
 - `internal/core/cos/cos.go` - one atomic replace for the installed profiles (`Clear` and the per-profile `Register` loop deleted if no other caller remains), the registered profile parser, and a resolver that takes the profile set (Q2)
 - `internal/component/iface/register.go` (`ConfigReads: class-of-service`), `config.go` (`parseUnits` resolves against a passed profile set; the skip-resolution flag threads `parseIfaceSections` → `parseIfaceConfig` → the entry parse and the loopback branch → `parseUnits`, AC-19), `operation.go` (`decomposeIfaceOperations` parses with QoS resolution skipped, Q2 point 4), `config_apply.go` (`applyConfig`: `UpdateVLANQoSMap` with a journal undo for an existing VLAN whose resolved maps differ from the previous config's, AC-18), `backend.go` (the `UpdateVLANQoSMap` comment states the full-replace contract of AC-18b: the call leaves exactly the given maps installed, a nil or empty map leaves none; "clear to defaults" and "replaces" were false on both backends, design review round 3, BLOCKER-1)
@@ -650,7 +651,17 @@ Artifact: `tmp/review/plugin-reload-applies-or-refuses-3be8cd06-0062-4950-8b30-0
 
 Checked clean in round 1: the R-1 rescan (every non-test package declaring `WantsConfig:` has an apply handler, `sdk.NewConfigTx`, `DeclareAppliesNothing` or the bridge's reload handlers); a deleted root reaches `ConfigTx` as a present empty section (`reloadConfigSections`), so AC-2 holds for whole-root removal; `refuseWithoutApply` answers before the plugin's own verify and the capability comparison; `RestartSteps` is the one restart text; `OnConfigApply(nil)` panics and `refuseConfigApply` opens no rollback gate; the iface existing-VLAN reprogram and its undo match AC-18; both rewritten tests are recorded under `test/weakened/`.
 
-Round 2 runs over the fixes only, once they land.
+Round 1 dispositions (fixer, 2026-10-15), each committed on its own:
+
+| ID | Disposition | Commit | Proof |
+|----|-------------|--------|-------|
+| ISSUE-1 | Fixed. `queueSizeConfigTx` deleted; `newQueueSizeConfigTx` returns an `sdk.ConfigTx[int]` registered with `Register(p)`; its installer sets the pool size, or only logs when the env var names it (env still wins at boot and on reload). `plugin-relationships.md` bgp-rs row is now true | c409650a9b | the four rs transaction tests drive the helper, green `-race`; new rs `TestConfigTxUnchangedSubtreeIsNoop` (AC-5), red under the `sdk.ConfigTx.Apply` DeepEqual `-overlay` break (capacity 8192, want 1234) |
+| ISSUE-2 | Fixed. `dnsserver.BindPolicy` (`BindLenient` boot, `BindStrict` reload) on `ApplyWithSecure`; strict refuses a TLS load failure before any listener stops, and on the first unbindable listener stops what bound, binds the previous apply's listeners again and returns what/why/fix. as112 and geodns installers bind leniently only in `configureAtBoot`; a refused reload puts the previous snapshot back (as112 also producer config and loopback registration) | 14d1c8f19c | `TestApplyStrictRefusesUnbindableListenerAndKeepsRunning` (port in use; old listener answers; binds once free), `TestApplyStrictRefusesMissingCertificate`, geodns `TestInstallReloadToUnbindableListenerIsRefused`, as112 `TestInstallReloadWithMissingCertificateIsRefused`: green `-race`, each red under an `-overlay` restoring the lenient path. New `test/reload/geodns-reload-unbindable-listener-refused.ci` green on macOS, red under the overlay build (`zones=2` applied). `as112-reload.ci` is now `needs-linux:caps=net-bind` (exclusive group `dns-stub-port-53`): as112 listens on port 53 only, which an unprivileged host refuses, so there a listener-changing reload is now correctly refused (`test/weakened/a8488fe2.md`). Owed: its QEMU guest run |
+| ISSUE-3 | Fixed, docs only, no behaviour change. `plugins.md` states the config-verify refusal (`refuseWithoutApply`); `config-reload.md` "What Requires Restart" gains the plugin-declared capability row (including a role value change); the "Capability changes" row now covers only capabilities ze builds itself (restart unless the negotiated outcome is unchanged, `peer_settings_negotiation.go`). Coordination: `spec-bgp-open-session-rfc-defects` owns the capability refusal and its wording; this change only describes it, and a later change to it there owes these two rows | 5df6d44522 | read at the producers: `pkg/plugin/sdk/sdk_callbacks.go` `configVerifyCallback`/`refuseWithoutApply`, `capability_declaration.go` `DeclareCapabilitiesFrom`, `reactor/peer_settings_negotiation.go` |
+| NOTE-1 | Fixed: Behavior to preserve and Files to Modify name the rs migration as done | this commit | |
+| NOTE-2 | Fixed: each function's comment names the other; `meta/role.md` says the prune clears an external `bgp-role`'s copy and the hook covers the in-engine plugin and non-commit removals | 98a5ddd46b | comments and docs only |
+
+Gates owed to the main thread: `./le verify worktree`; `as112-reload` in the QEMU guest (`./le test qemu all-tests`). Round 2 runs over these fixes only.
 
 ## Checklist
 
