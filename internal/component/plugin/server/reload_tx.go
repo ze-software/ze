@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/transaction"
 	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -733,7 +734,9 @@ func (s *Server) restartPluginFn() transaction.RestartFunc {
 // Step 2 runs AFTER step 1 on purpose: a respawn that is refused (limit
 // exceeded, plugin disabled, no such plugin) must leave the running plugin
 // exactly as it found it, and a teardown before the refusal would unregister a
-// plugin that is still serving.
+// plugin that is still serving. Such a refusal wraps
+// transaction.ErrRestartRefused, so the reload answer says the old process
+// still runs rather than that it is down.
 func (s *Server) restartPlugin(pluginName string) error {
 	if s.spawner == nil {
 		return fmt.Errorf("no plugin spawner available to restart %s", pluginName)
@@ -745,6 +748,9 @@ func (s *Server) restartPlugin(pluginName string) error {
 
 	old := pm.GetProcess(pluginName)
 	newProc, err := pm.Respawn(pluginName)
+	if respawnRefused(err) {
+		return fmt.Errorf("respawn %s: %w: %w", pluginName, transaction.ErrRestartRefused, err)
+	}
 	if err != nil {
 		return fmt.Errorf("respawn %s: %w", pluginName, err)
 	}
@@ -756,4 +762,21 @@ func (s *Server) restartPlugin(pluginName string) error {
 		return fmt.Errorf("restart handshake %s: %w", pluginName, err)
 	}
 	return nil
+}
+
+// respawnRefused reports whether err is one of the refusals
+// ProcessManager.Respawn returns BEFORE it stops the process it replaces, so
+// the old process still runs. Any other Respawn error comes from starting the
+// replacement, after the old process was stopped.
+func respawnRefused(err error) bool {
+	if errors.Is(err, process.ErrRespawnLimitExceeded) {
+		return true
+	}
+	if errors.Is(err, process.ErrProcessDisabled) {
+		return true
+	}
+	if errors.Is(err, process.ErrDaemonStopping) {
+		return true
+	}
+	return errors.Is(err, process.ErrProcessNotFound)
 }

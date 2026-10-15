@@ -73,8 +73,11 @@ others still serve. The error then wraps `sdk.ErrRunningConfigLost`, says how
 many of the interfaces that served are lost and names each one with its cause,
 and ends with `sdk.RunningConfigLostNext`: the rollback binds the running
 config again and restarts the plugin if that fails too, the reload answer's
-`Rollback:` line says which happened, and the fix is to free the port, then `ze
-signal restart` for a listener a restarted plugin could not bind. A commit of
+`Rollback:` line says which happened, and the fix is to free the port, then,
+for a listener a restarted plugin could not bind, to stop the whole daemon and
+start it again, which restarts every protocol and drops every session. The text
+names the restart routes of `sdk.RestartSteps()`, one per line: no command
+restarts one plugin, and `ze signal restart` leaves ze stopped. A commit of
 the running config is no fix: it has no diff, so no apply reaches the plugin.
 The transaction is broken: its rollback installs the running config again, and
 when that fails too it answers an error, so the bridge acks `CodeBroken` and

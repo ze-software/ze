@@ -17,7 +17,10 @@
 # failure is logged, install returns nil and logs "config applied" with
 # zones=2, which the reject below refuses, and the "reload refused"
 # expectation fails. geodns binds without IP_FREEBIND, so 192.0.2.1 fails on
-# every platform and this runs everywhere. That the running listener keeps
+# every platform and this runs everywhere. The engine's rollback outcome
+# line ("Rollback: every plugin put its running config back", from
+# TxCoordinator.rollbackOutcome) must reach the operator with the error; with
+# the line removed from TxCoordinator.rollBack, that expectation fails. That the running listener keeps
 # answering is proven in Go by TestInstallReloadToUnbindableListenerIsRefused
 # (geodns/config_tx_strict_test.go).
 
@@ -58,5 +61,6 @@ await=stderr:contains=reload error:then=stop
 expect=stderr:pattern=geodns: config applied.*zones=1
 expect=stderr:pattern=reload refused, cannot listen on 192\.0\.2\.1:
 expect=stderr:contains=change the listener, then commit again
+expect=stderr:contains=Rollback: every plugin put its running config back
 reject=stderr:pattern=geodns: config applied.*zones=2
 reject=stderr:pattern=panic

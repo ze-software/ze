@@ -106,8 +106,17 @@ type TxResult struct {
 // ConfigWriter writes the config file after successful apply.
 type ConfigWriter func() error
 
-// RestartFunc restarts a broken plugin via the 5-stage protocol.
+// RestartFunc restarts a broken plugin via the 5-stage protocol. An error
+// that wraps ErrRestartRefused says the restart was refused before the old
+// process was stopped; any other error says the old process was stopped and
+// no replacement runs.
 type RestartFunc func(pluginName string) error
+
+// ErrRestartRefused marks a RestartFunc error returned before the restart
+// stopped the old process: the respawn limit, a disabled plugin, a daemon
+// that is stopping, or no such plugin. The old process still runs, with what
+// its failed rollback left of its config.
+var ErrRestartRefused = errors.New("ze refused to restart the plugin")
 
 // OperationPlanRequest is the input to operation planning after full verify.
 type OperationPlanRequest struct {
@@ -824,14 +833,16 @@ func (o *TxCoordinator) abortForShutdown(phase string, err error) *TxResult {
 func (o *TxCoordinator) rollBack(ctx context.Context, err error) *TxResult {
 	o.publishRollback(err.Error())
 	o.collectRollbackAcks(ctx)
-	return &TxResult{State: StateRolledBack, Err: fmt.Errorf("%w\nRollback: %s", err, o.rollbackOutcome())}
+	return &TxResult{State: StateRolledBack, Err: fmt.Errorf("%w\n%s", err, o.rollbackOutcome())}
 }
 
 // rollbackOutcome says, in the participants' order, what the rollback did
 // for each participant that did not simply put its running config back:
 // a plugin that answered CodeBroken, with whether ze restarted it, and a
 // plugin that never answered. With none of those, it says every plugin put
-// the running config back. MUST be called after collectRollbackAcks.
+// the running config back. Each participant gets one line, and every line
+// starts with "Rollback: ", so the operator finds each one by that word.
+// MUST be called after collectRollbackAcks.
 func (o *TxCoordinator) rollbackOutcome() string {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -850,13 +861,19 @@ func (o *TxCoordinator) rollbackOutcome() string {
 		lines = append(lines, brokenRollbackLine(p.Name, ack.Error, o.rollbackRestarts))
 	}
 	if len(lines) == 0 {
-		return "every plugin put its running config back"
+		return rollbackLinePrefix + "every plugin put its running config back"
 	}
-	return strings.Join(lines, "\n")
+	return rollbackLinePrefix + strings.Join(lines, "\n"+rollbackLinePrefix)
 }
 
+// rollbackLinePrefix opens every line rollbackOutcome writes.
+const rollbackLinePrefix = "Rollback: "
+
 // brokenRollbackLine says what happened to a plugin whose rollback answered
-// CodeBroken with reason: whether ze restarted it, from restarts.
+// CodeBroken with reason, from restarts: ze restarted it; ze refused the
+// restart before stopping it (ErrRestartRefused), so it still runs; the
+// restart failed after stopping it, so it does not run; or ze did not try,
+// in which case only the plugin's own log says what it runs.
 func brokenRollbackLine(plugin, reason string, restarts map[string]error) string {
 	line := plugin + " could not put its running config back"
 	if reason != "" {
@@ -864,7 +881,11 @@ func brokenRollbackLine(plugin, reason string, restarts map[string]error) string
 	}
 	restartErr, restarted := restarts[plugin]
 	if !restarted {
-		return line + ", and ze did not restart it, so it runs without part of its config"
+		return line + ", and ze did not restart it; its log lines say what it runs"
+	}
+	if errors.Is(restartErr, ErrRestartRefused) {
+		return line + ", and ze refused to restart it (" + restartErr.Error() + "), " +
+			"so it still runs without part of its config"
 	}
 	if restartErr != nil {
 		return line + ", and ze could not restart it (" + restartErr.Error() + "), so it is not running"

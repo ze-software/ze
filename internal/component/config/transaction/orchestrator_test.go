@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -863,36 +864,55 @@ func TestOrchestratorBrokenRecovery(t *testing.T) {
 	}
 }
 
-// VALIDATES: review round 3 ISSUE-7. rollbackOutcome names, per participant,
-// a rollback that did not put the running config back: restarted, restart
-// failed, not restarted, or no answer at all; a plugin that answered CodeOK
-// is not named.
+// VALIDATES: review round 3 ISSUE-7 and round 4 ISSUE-1, NOTE-1, NOTE-5.
+// rollbackOutcome names, per participant, a rollback that did not put the
+// running config back: restarted, restart refused before the old process was
+// stopped (it still runs), restart failed after it (it does not run), not
+// restarted, or no answer at all; a plugin that answered CodeOK is not named,
+// and every line it writes starts with "Rollback: ".
 // PREVENTS: a reload answer that leaves the operator guessing whether a
 // plugin that lost its running config was repaired.
 func TestRollbackOutcomeNamesEachUnrepairedPlugin(t *testing.T) {
 	o := &TxCoordinator{
 		participants: []Participant{{Name: "ok"}, {Name: "restarted"}, {Name: "dead"},
-			{Name: "unrestarted"}, {Name: "silent"}},
+			{Name: "refused"}, {Name: "unrestarted"}, {Name: "silent"}},
 		rollbackAcks: map[string]RollbackAck{
 			"ok":          {Plugin: "ok", Code: CodeOK},
 			"restarted":   {Plugin: "restarted", Code: CodeBroken, Error: "port 67 in use"},
 			"dead":        {Plugin: "dead", Code: CodeBroken, Error: "port 69 in use"},
+			"refused":     {Plugin: "refused", Code: CodeBroken, Error: "port 70 in use"},
 			"unrestarted": {Plugin: "unrestarted", Code: CodeBroken},
 		},
 		rollbackRestarts: map[string]error{
 			"restarted": nil,
 			"dead":      errors.New("spawn failed"),
+			"refused":   fmt.Errorf("respawn refused: %w: %w", ErrRestartRefused, errors.New("respawn limit exceeded")),
 		},
 	}
 	got := o.rollbackOutcome()
 	for _, want := range []string{
 		"restarted could not put its running config back (port 67 in use), so ze restarted it",
 		"dead could not put its running config back (port 69 in use), and ze could not restart it (spawn failed), so it is not running",
-		"unrestarted could not put its running config back, and ze did not restart it",
+		"refused could not put its running config back (port 70 in use), and ze refused to restart it " +
+			"(respawn refused: ze refused to restart the plugin: respawn limit exceeded), " +
+			"so it still runs without part of its config",
+		"unrestarted could not put its running config back, and ze did not restart it; " +
+			"its log lines say what it runs",
 		"silent did not answer the rollback in time",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("outcome %q does not say %q", got, want)
+		}
+	}
+	if strings.Contains(got, "refused could not put its running config back (port 70 in use), and ze could not restart it") {
+		t.Errorf("outcome %q says a plugin whose restart was refused is not running", got)
+	}
+	if strings.Contains(got, "unrestarted could not put its running config back, and ze did not restart it, so it runs") {
+		t.Errorf("outcome %q claims what a plugin ze did not restart runs", got)
+	}
+	for line := range strings.SplitSeq(got, "\n") {
+		if !strings.HasPrefix(line, "Rollback: ") {
+			t.Errorf("outcome line %q does not start with \"Rollback: \"", line)
 		}
 	}
 	if strings.Contains(got, "ok ") {

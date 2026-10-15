@@ -33,12 +33,16 @@ var ErrRunningConfigLost = errors.New("the running config could not be put back,
 // the rollback ran, and the engine appends the rollback's outcome to it
 // (transaction.TxCoordinator), so this text claims neither outcome. A commit
 // of the running config is not the fix: it has no diff, so no apply reaches
-// the plugin.
-const RunningConfigLostNext = "ze rolls the commit back: the rollback binds the running config again, " +
+// the plugin. No command restarts one plugin, so the last repair is a daemon
+// restart, by the routes RestartSteps names; `ze signal restart` is not one,
+// because it leaves ze stopped (restart_text.go).
+var RunningConfigLostNext = "ze rolls the commit back: the rollback binds the running config again, " +
 	"and restarts the plugin when that fails too; the Rollback line of the reload answer says which happened.\n" +
-	"Fix: stop the program that holds the address and port named above, or give the interface its address back. " +
-	"If the Rollback line says ze restarted the plugin, its listeners on a port that was still in use stay down; " +
-	"once the port is free, run: ze signal restart"
+	"Fix: stop the program that holds the address and port named above, or give the interface its address back.\n" +
+	"If a Rollback line says ze restarted the plugin, its listeners on a port that was still in use stay down. " +
+	"No command restarts one plugin: once the port is free, stop the whole ze daemon and start it again. " +
+	"This restarts every protocol and drops every session:\n" +
+	restartRoutes
 
 // ConfigParser reads a plugin's config from the sections of one delivery. It
 // reports present false when the sections carry nothing the plugin reads (its

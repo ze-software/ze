@@ -232,10 +232,14 @@ commit of the running config does not reach that apply: it has no diff, so the
 reload stops at "no changes" before any transaction. The repair is the
 rollback itself, or the restart that follows it. A lost-listener error says so
 by appending `sdk.RunningConfigLostNext`, which names what the engine does next
-and the operator's fix (free the port; `ze signal restart` for a listener a
-restarted plugin could not bind), and claims neither rollback outcome, because
-the operator reads it only after the rollback ran.
+and the operator's fix (free the port; for a listener a restarted plugin could
+not bind, stop the whole daemon and start it again by the routes of
+`sdk.RestartSteps()`, one per line, which restarts every protocol and drops
+every session), and claims neither rollback outcome, because the operator reads
+it only after the rollback ran. No command restarts one plugin, and
+`ze signal restart` is not a route: it leaves ze stopped.
 <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx, RunningConfigLostNext -->
+<!-- source: pkg/plugin/sdk/restart_text.go -- RestartSteps, restartRouteLines -->
 
 Only the engine emits `(config, rollback)`. A failing plugin emits
 `(config, apply-failed)`; the engine reacts by emitting `rollback`. This ensures
@@ -253,12 +257,18 @@ was computed). A plugin that has not acked by then is not restarted: the engine
 stops waiting and names it in the rollback outcome below.
 
 The engine then tells the operator what the rollback left running. The error a
-rolled-back reload answers is the apply failure followed by one `Rollback:`
-line. It names, in participant order, each plugin that answered `CodeBroken`,
-with whether the engine restarted it, could not restart it (and why), or had
-no restart function; and each plugin that did not ack in time. When every
-plugin acked `CodeOK` it says that every plugin put its running config back.
+rolled-back reload answers is the apply failure followed by one line per
+plugin, each starting with `Rollback:`. A line names, in participant order,
+each plugin that answered `CodeBroken`, with what became of it: the engine
+restarted it; the restart was refused before the old process stopped (the
+respawn limit, a disabled plugin, a stopping daemon, no such plugin), so it
+still runs without part of its config; the restart failed after the old process
+stopped, so it is not running; or the engine had no restart function, so only
+the plugin's log says what it runs. A line also names each plugin that did not
+ack in time. When every plugin acked `CodeOK`, one `Rollback:` line says that
+every plugin put its running config back.
 <!-- source: internal/component/config/transaction/orchestrator.go -- rollBack, rollbackOutcome, brokenRollbackLine, handleRollbackAck -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin, respawnRefused -->
 
 ### Completion
 

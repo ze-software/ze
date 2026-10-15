@@ -292,7 +292,7 @@ func TestConfigTxReloadThatLosesARunningInterfaceNamesIt(t *testing.T) {
 		t.Fatalf("reload that lost eth1: %v, want sdk.ErrRunningConfigLost", err)
 	}
 	for _, want := range []string{`"eth9"`, `"eth1"`, "1 of the 2", "ze rolls the commit back",
-		"Fix: stop the program that holds the address and port", "ze signal restart"} {
+		"Fix: stop the program that holds the address and port", "systemctl restart ze"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("apply error %q does not say %s", err, want)
 		}

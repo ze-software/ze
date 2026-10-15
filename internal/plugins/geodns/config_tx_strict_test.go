@@ -159,7 +159,7 @@ func TestConfigTxReloadThatLosesTheRunningListener(t *testing.T) {
 		t.Fatalf("reload whose running port was taken: %v, want sdk.ErrRunningConfigLost", err)
 	}
 	for _, want := range []string{"1 of the 1 running listener(s)", "ze rolls the commit back",
-		"Fix: stop the program that holds the address and port", "ze signal restart"} {
+		"Fix: stop the program that holds the address and port", "systemctl restart ze"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not say %q", err, want)
 		}

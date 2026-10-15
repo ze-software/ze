@@ -115,9 +115,12 @@ While broken, a later apply of the running config is installed rather than
 skipped as unchanged, and the harness's signature is cleared so that apply
 binds. The error reaches the operator only after the rollback ran, so its
 text claims neither outcome: the installer appends `sdk.RunningConfigLostNext`
-(the rollback binds again or restarts the plugin; free the port, then
-`ze signal restart` if a listener stays down), and the orchestrator appends
-a `Rollback:` line naming what happened to each plugin
+(the rollback binds again or restarts the plugin; free the port, then, if a
+listener stays down, stop the whole daemon and start it again by the routes of
+`sdk.RestartSteps()`, which restarts every protocol and drops every session;
+no command restarts one plugin, and `ze signal restart` leaves ze stopped), and
+the orchestrator appends a `Rollback:` line for each plugin, naming what
+happened to it
 ([transaction protocol](../config/transaction-protocol.md)). A commit of the
 running config is no repair: it has no diff, so the reload stops at "no
 changes" and no apply reaches the plugin. A reload that changes the listener set stops every listener before it
