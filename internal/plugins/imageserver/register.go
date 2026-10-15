@@ -52,19 +52,8 @@ func init() {
 }
 
 func verifyImageConfig(sections []sdk.ConfigSection) error {
-	for _, s := range sections {
-		if s.Root != configRootService {
-			continue
-		}
-		cfg, err := parseConfig(s.Data)
-		if err != nil {
-			return fmt.Errorf("imageserver: %w", err)
-		}
-		if err := verifyConfig(cfg); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, _, err := parseImageSections(sections)
+	return err
 }
 
 func runImageServerPlugin(conn net.Conn) int {
@@ -74,88 +63,8 @@ func runImageServerPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("imageserver", conn)
 	defer closeLogged(p, log, "plugin conn")
 
-	var httpServers []*http.Server
-	var zefsDir string
-
-	stopServer := func() {
-		for _, srv := range httpServers {
-			if err := srv.Close(); err != nil {
-				log.Debug("imageserver: http close failed", "addr", srv.Addr, "error", err)
-			}
-		}
-		httpServers = nil
-		if zefsDir != "" {
-			if err := os.RemoveAll(zefsDir); err != nil {
-				log.Debug("imageserver: remove zefs dir failed", "error", err)
-			}
-			zefsDir = ""
-		}
-	}
-
-	startServer := func(cfg imageConfig) {
-		stopServer()
-
-		if !cfg.Enabled {
-			log.Debug("imageserver: disabled in config")
-			return
-		}
-
-		var zefsPath string
-		if cfg.SSHUsername != "" && cfg.SSHPasswordHash != "" {
-			tmpDir, tmpErr := os.MkdirTemp("", "imageserver-zefs-*")
-			if tmpErr != nil {
-				log.Error("imageserver: create zefs temp dir failed", "error", tmpErr)
-				return
-			}
-			zefsDir = tmpDir
-
-			var buildErr error
-			zefsPath, buildErr = buildZefsDB(tmpDir, cfg.SSHUsername, cfg.SSHPasswordHash)
-			if buildErr != nil {
-				log.Error("imageserver: build zefs database failed", "error", buildErr)
-				if rmErr := os.RemoveAll(tmpDir); rmErr != nil {
-					log.Debug("imageserver: remove zefs temp dir failed", "error", rmErr)
-				}
-				zefsDir = ""
-				return
-			}
-		}
-
-		httpServers = startTargets(cfg, zefsPath, listenTargets(cfg.ListenInterfaces, log), log)
-		if len(httpServers) == 0 {
-			// Every named interface failed to resolve or to bind. Report that
-			// instead of logging "started" over a server that serves nothing.
-			log.Error("imageserver: no interfaces bound; server not serving",
-				"interfaces", cfg.ListenInterfaces)
-			stopServer()
-			return
-		}
-
-		logAvailableFiles(log, "image-directory", cfg.ImageDirectory)
-		logAvailableFiles(log, "boot-directory", cfg.BootDirectory)
-		logServedImage(log, cfg.ImageDirectory)
-
-		log.Info("imageserver: started",
-			"interfaces", cfg.ListenInterfaces,
-			"listeners", len(httpServers),
-			"image-directory", cfg.ImageDirectory,
-			"boot-directory", cfg.BootDirectory)
-	}
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, s := range sections {
-			if s.Root != configRootService {
-				continue
-			}
-			cfg, err := parseConfig(s.Data)
-			if err != nil {
-				return fmt.Errorf("imageserver: %w", err)
-			}
-			startServer(cfg)
-			return nil
-		}
-		return nil
-	})
+	srv := &imageServer{log: log}
+	sdk.NewConfigTx(imageConfig{}, parseImageSections, srv.install).Register(p)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -165,11 +74,11 @@ func runImageServerPlugin(conn net.Conn) int {
 		ApplyBudget:  5,
 	}); err != nil {
 		log.Error("imageserver plugin failed", "error", err)
-		stopServer()
+		srv.stop()
 		return 1
 	}
 
-	stopServer()
+	srv.stop()
 	log.Info("imageserver plugin stopped")
 	return 0
 }

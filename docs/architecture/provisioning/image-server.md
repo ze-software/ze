@@ -43,6 +43,17 @@ ZeFS database.
 - Server timeouts are set explicitly (read, write, and header size) so a
   provisioning listener is not trivially held open.
 
+## Config reload
+
+A reload that changes nothing under `service image-server` leaves the server
+alone: `sdk.ConfigTx` finds the parsed config equal to the running one and
+installs nothing. A reload that changes it closes every HTTP server and starts
+new ones for the new config, and logs `imageserver: config applied`.
+`http.Server.Close` closes the active connections as well, so a download in
+flight is cut and the client has to fetch it again. The zefs database is
+rebuilt in a new temporary directory and the old one is removed.
+<!-- source: internal/plugins/imageserver/config_tx.go -- imageServer.install, imageServer.stop -->
+
 ## Traps
 
 - **The ZeFS host and port constants must match what the hub reads back.** They

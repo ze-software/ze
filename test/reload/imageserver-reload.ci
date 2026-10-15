@@ -1,0 +1,50 @@
+# Test: a live edit of service { image-server } reaches the image server.
+# Initial config: image-server enabled with image-directory /srv/ze-img-a.
+# After SIGHUP:   image-directory is /srv/ze-img-b, nothing else changes.
+# Expected: imageserver installs the reloaded config at apply and logs it with
+#           the new image directory.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses row 26, AC-1: imageserver's
+#            verify/apply pair replaces its HTTP servers for the reloaded
+#            config (imageServer.install).
+# PREVENTS: the acked-and-dropped reload. With OnConfigure alone, the SDK
+#           answers config-apply OK and calls nothing, so the commit succeeded
+#           while the server kept serving the boot image-directory.
+#
+# DISCRIMINATION: the "/srv/ze-img-b" line is written only by install, which
+# only the apply handler calls on a reload: without the handler the second
+# expectation fails. That an edit elsewhere under service replaces no server
+# is proven in Go by TestConfigTxUnchangedSubtreeIsNoop
+# (imageserver/config_tx_test.go). The listener names an interface that does
+# not exist, so its address does not resolve and that is logged; the reload
+# asserts the install, not the socket.
+
+option=env:var=ze.log.imageserver:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+	image-server {
+		enabled true
+		listen-interface ze-no-such-iface0
+		image-directory /srv/ze-img-a
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+service {
+	image-server {
+		enabled true
+		listen-interface ze-no-such-iface0
+		image-directory /srv/ze-img-b
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=sighup reload complete:then=stop
+expect=stderr:pattern=imageserver: config applied.*image-directory=/srv/ze-img-a
+expect=stderr:pattern=imageserver: config applied.*image-directory=/srv/ze-img-b
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic
