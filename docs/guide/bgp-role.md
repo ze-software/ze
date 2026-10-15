@@ -145,7 +145,7 @@ Resolution is by address first and by group second, so a member that states its 
 
 A learned role survives a configuration reload while the configuration still names the peer, or names the group a dynamic member belongs to. An established session sends no second OPEN, so a dropped learned role could not be written back.
 
-A peer made at runtime with `create bgp peer <addr>` is named by no configuration, and its learned role survives every reload as well. Deleting that peer does not remove the role: ze keeps it until the daemon restarts, and a peer later created at the same address uses it until its own OPEN arrives. The same holds for a peer whose OPEN arrived while the commit adding it was rolled back, or after the commit removing it took effect.
+A peer made at runtime with `create bgp peer <addr>` is named by no configuration, and its learned role survives every reload as well. Deleting that peer removes the role before `delete bgp peer` returns, and ze logs `learned role dropped: peer removed` with the role it held, so a peer later created at the same address starts with none. A rolled-back commit that had added a peer removes that peer's role the same way. One case keeps a role: an OPEN that ze was still validating when its peer was removed can store the role after the removal, and ze keeps it until a new OPEN for that name replaces it or the daemon restarts.
 
 ## Config That Cannot Be Reached
 

@@ -1272,6 +1272,9 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 				if peer, ok := r.peers[addKey]; ok {
 					peer.Stop()
 					delete(r.peers, addKey)
+					// An OPEN this peer validated before the rollback left
+					// state in the filters; the peer is gone, so is that.
+					notifyFiltersPeerRemoved(addSettings.Address, addSettings.Name, addSettings.GroupName)
 				}
 				return nil
 			},

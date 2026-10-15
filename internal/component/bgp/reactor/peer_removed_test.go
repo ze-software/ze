@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/clock"
 )
@@ -84,4 +85,68 @@ func TestRemovePeerUnknownReturnsError(t *testing.T) {
 	r := newRemovalTestReactor()
 	err := r.RemovePeer(netip.MustParseAddr("192.0.2.9"))
 	assert.ErrorIs(t, err, ErrPeerNotFound)
+}
+
+// recordFilterRemovals registers a filter whose only contribution is a
+// PeerRemoved hook and returns the peers it was told about. The filter
+// registry is restored when the test ends.
+func recordFilterRemovals(t *testing.T) *[]filterapi.PeerFilterInfo {
+	t.Helper()
+	snap := filterapi.Snapshot()
+	t.Cleanup(func() { filterapi.Restore(snap) })
+	var seen []filterapi.PeerFilterInfo
+	require.NoError(t, filterapi.Register(filterapi.Filter{
+		Name:        "removal-recorder",
+		PeerRemoved: func(peer filterapi.PeerFilterInfo) { seen = append(seen, peer) },
+	}))
+	return &seen
+}
+
+// TestRemovePeerNotifiesFilters checks that `delete bgp peer` tells the filters.
+//
+// VALIDATES: RemovePeer calls every registered Filter.PeerRemoved once, with
+// the removed peer's address, name and group, before it returns.
+// PREVENTS: per-peer filter state (bgp-role's learned role) outliving a peer
+// the state event never told its plugin about, and being read by a peer
+// created again under the same name.
+func TestRemovePeerNotifiesFilters(t *testing.T) {
+	seen := recordFilterRemovals(t)
+	r := newRemovalTestReactor()
+	addr := netip.MustParseAddr("192.0.2.9")
+	settings := NewPeerSettings(addr, 65000, 65001, 0x01010101)
+	settings.Name = "peer-192.0.2.9"
+	settings.GroupName = "edge"
+	peer := NewPeer(settings)
+	peer.SetReactor(r)
+	r.peers[peerKeyFromAddrPort(addr, DefaultBGPPort)] = peer
+
+	require.NoError(t, r.RemovePeer(addr))
+
+	require.Len(t, *seen, 1, "the removal must reach the filter exactly once")
+	assert.Equal(t, filterapi.PeerFilterInfo{Address: addr, Name: "peer-192.0.2.9", GroupName: "edge"}, (*seen)[0])
+}
+
+// TestRemoveDynamicPeerNotifiesFilters checks the dynamic-member removal path.
+//
+// VALIDATES: removeDynamicPeer calls Filter.PeerRemoved with the member's
+// address, generated name and group.
+// PREVENTS: a dynamic member's learned role living as long as its group, after
+// the member itself is gone.
+func TestRemoveDynamicPeerNotifiesFilters(t *testing.T) {
+	seen := recordFilterRemovals(t)
+	r := newRemovalTestReactor()
+	addr := netip.MustParseAddr("192.0.2.10")
+	settings := NewPeerSettings(addr, 65000, 65001, 0x01010101)
+	settings.Name = "dyn-192.0.2.10"
+	settings.GroupName = "dynamic-edge"
+	peer := NewPeer(settings)
+	peer.SetReactor(r)
+	r.peers[settings.PeerKey()] = peer
+
+	r.mu.Lock()
+	r.removeDynamicPeer(peer, message.NotifyCeasePeerDeconfigured)
+	r.mu.Unlock()
+
+	require.Len(t, *seen, 1, "the removal must reach the filter exactly once")
+	assert.Equal(t, filterapi.PeerFilterInfo{Address: addr, Name: "dyn-192.0.2.10", GroupName: "dynamic-edge"}, (*seen)[0])
 }

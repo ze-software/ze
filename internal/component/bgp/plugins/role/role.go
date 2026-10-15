@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/role/yang"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -126,11 +127,10 @@ func pruneLearnedRoles() {
 // every export to that peer as role "unknown" until its session bounced,
 // because an established peer sends no second OPEN.
 //
-// The cost is that such a key outlives its peer: `delete bgp peer` sends a
-// removal no one delivers to this plugin, so a deleted created peer's role, and
-// one an OPEN stored for a peer whose commit rolled back or was already pruned,
-// stay for the process life (docs/architecture/meta/role.md, "Learned role
-// lifecycle").
+// Keeping such a key does not make it outlive its peer: the reactor's removal
+// of that peer frees it (forgetRemovedPeer). What remains is an OPEN validated
+// for a peer after its removal already ran, which stores a role nothing frees
+// (docs/architecture/meta/role.md, "Learned role lifecycle").
 func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 	if _, configured := filterPeerKeys[key]; configured {
 		return true
@@ -143,6 +143,40 @@ func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 	}
 	_, groupConfigured := filterPeerKeys[configjson.CapabilityGroupKey(state.group)]
 	return groupConfigured
+}
+
+// forgetRemovedPeer drops the learned role of a peer the reactor removed. It is
+// bgp-role's Filter.PeerRemoved hook (register.go), which the reactor calls on
+// every path that takes a peer out of its peer table, attached to this plugin
+// or not, before that path returns. So `delete bgp peer` returns only once the
+// role is gone, and a peer created again under the same name, whose OPEN can
+// only come later, never reads the old one.
+//
+// It clears the key the peer's name maps to (filterKeyLocked, the key every
+// OPEN of that peer wrote) and the peer's address, which keys a role an OPEN
+// stored under the address itself. The reactor may hold its own lock, so this
+// takes filterMu only. Safe for concurrent use.
+func forgetRemovedPeer(peer filterapi.PeerFilterInfo) {
+	filterMu.Lock()
+	defer filterMu.Unlock()
+	if peer.Name != "" {
+		forgetLearnedRoleLocked(filterKeyLocked(peer.Name), peer.Name)
+	}
+	if peer.Address.IsValid() {
+		forgetLearnedRoleLocked(peer.Address.String(), peer.Name)
+	}
+}
+
+// forgetLearnedRoleLocked deletes the learned role under key and logs what the
+// removal dropped. Caller MUST hold filterMu.
+func forgetLearnedRoleLocked(key, peerName string) {
+	state, recorded := filterRemoteRoles[key]
+	if !recorded {
+		return
+	}
+	delete(filterRemoteRoles, key)
+	logger().Info("learned role dropped: peer removed",
+		"peer", peerName, "key", key, "previous-role", state.role)
 }
 
 // filterKeyLocked maps an OnValidateOpen peer id (the peer NAME) to the key the

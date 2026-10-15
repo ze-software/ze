@@ -236,31 +236,43 @@ refusal too.
 recorded for this peer". `remoteRoleRecorded` reads that distinction for the
 drop reason. Both resolve to the configured complement for RFC 9234 gates.
 
-Nothing removes a learned role when its peer is removed. The reactor does
-announce a removal: `removePeer` sends a state `down` with reason `removed`
-(`rpc.ReasonPeerRemoved`), and it waits for each process to handle it, so a clear
-there could not race a later session. But a state event is peer-scoped: it
-reaches only a process the peer's `attach process` block names, and nothing adds
-`bgp-role` to that block (a created peer has none). Subscribing `bgp-role` to
-state events would therefore still not deliver it. Three entries are left behind for the
-life of the process:
+The reactor's removal of a peer removes its learned role. The removal is not
+delivered as the state `down` with reason `removed`: that event is peer-scoped,
+so it reaches only a process the peer's `attach process` block names, and
+nothing attaches `bgp-role` (a created peer has no block at all). Instead the
+`bgp-role` filter registration carries a `PeerRemoved` hook
+(`filterapi.Filter.PeerRemoved`), and every reactor path that takes a peer out
+of its peer table calls `filterapi.NotifyPeerRemoved` for it: `delete bgp peer`
+(and the restart a reload makes of a changed peer), the removal of a dynamic
+group's member, and the undo of a reload's add when that commit rolls back.
+`forgetRemovedPeer` deletes the role under the key the peer's name maps to and
+under its address, and logs `learned role dropped: peer removed` with the role
+it held.
+
+The hook runs synchronously inside the removal, so `delete bgp peer` returns
+only after the role is gone, and a peer created again under the same name, whose
+OPEN can only come later, meets nothing. A session-down clear could not give
+that order (see above). The hook may run with the reactor lock held,
+so it takes `filterMu` only. The learned role lives in the engine process,
+beside the OTC filters that read it, which is where the hook runs.
+
+A configured peer a commit removes is still handled by `pruneLearnedRoles` at
+config-committed. One entry is left behind:
 
 | Case | What is left |
 |------|--------------|
-| `create bgp peer A`, then `delete bgp peer A` | the role under `peer-<A>` |
-| An OPEN validated for a peer a reload adds, before that commit rolls back | the role under the added peer's name |
-| An OPEN validated after the committed prune of the commit removing its peer | the role under that peer's key |
+| An OPEN validated for a peer after its removal ran (the removal stops the session without waiting for a validation already in flight, and a commit's prune can precede that OPEN the same way) | the role under that peer's key, until an OPEN for the same name replaces it |
 
-Each costs one map entry. One of them is also read: a re-created `peer-<A>`
-reads the previous peer's role until its own OPEN replaces it. When `bgp-role`
-does not answer that peer's validate-open (`broadcastValidateOpen` lets the
-session establish), `resolvePeerRole` keeps taking the old role. The fix needs
-the removal to reach `bgp-role`. It is recorded in
-`plan/journal/invariant-enforced-by-an-absent-call-site.md`.
+It costs one map entry. A peer created again under that name replaces it with
+its own OPEN, which `bgp-role` validates before the session can carry a route;
+only a session `bgp-role` does not answer (`broadcastValidateOpen` lets it
+establish) would read it.
 
-<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordNoRemoteRole, remoteRoleRecorded, filterKeyLocked, learnedRolePeerConfiguredLocked -->
+<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordNoRemoteRole, remoteRoleRecorded, filterKeyLocked, learnedRolePeerConfiguredLocked, forgetRemovedPeer -->
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- Filter.PeerRemoved, NotifyPeerRemoved -->
 <!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent, deliverPeerState -->
-<!-- source: internal/component/bgp/reactor/reactor_peers.go -- removePeer -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- removePeer, notifyFiltersPeerRemoved -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- removeDynamicPeer -->
 <!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs -->
 
 ## Observability

@@ -10,6 +10,7 @@ package filterapi
 
 import (
 	"bytes"
+	"net/netip"
 	"reflect"
 	"testing"
 )
@@ -816,5 +817,42 @@ func BenchmarkAccumulatorReset(b *testing.B) {
 		mods.OpCopy(16, AttrModRemove, value)
 		mods.SetWithdraw()
 		mods.Reset()
+	}
+}
+
+// TestNotifyPeerRemovedCallsEveryHook checks that a removal reaches every filter
+// that keeps per-peer state, and only those, with the removed peer's identity.
+//
+// VALIDATES: Register accepts a filter whose only contribution is PeerRemoved,
+// and NotifyPeerRemoved calls each registered hook once with the peer it names.
+// PREVENTS: a filter's per-peer state outliving its peer because the removal
+// reached only some of the filters, or none.
+func TestNotifyPeerRemovedCallsEveryHook(t *testing.T) {
+	snap := Snapshot()
+	t.Cleanup(func() { Restore(snap) })
+	ResetForTest()
+
+	var seen []PeerFilterInfo
+	record := func(peer PeerFilterInfo) { seen = append(seen, peer) }
+	if err := Register(Filter{Name: "state-only", PeerRemoved: record}); err != nil {
+		t.Fatalf("Register(PeerRemoved only) = %v, want accepted", err)
+	}
+	if err := Register(Filter{Name: "with-ingress", Ingress: noopIngress, PeerRemoved: record}); err != nil {
+		t.Fatalf("Register(Ingress and PeerRemoved) = %v", err)
+	}
+	if err := Register(Filter{Name: "stateless", Ingress: noopIngress}); err != nil {
+		t.Fatalf("Register(Ingress only) = %v", err)
+	}
+
+	peer := PeerFilterInfo{Address: netip.MustParseAddr("192.0.2.9"), Name: "peer-192.0.2.9", GroupName: "edge"}
+	NotifyPeerRemoved(peer)
+
+	if len(seen) != 2 {
+		t.Fatalf("NotifyPeerRemoved reached %d hooks, want 2: %v", len(seen), seen)
+	}
+	for _, got := range seen {
+		if got != peer {
+			t.Errorf("hook saw %+v, want %+v", got, peer)
+		}
 	}
 }

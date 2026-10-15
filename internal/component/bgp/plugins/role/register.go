@@ -30,6 +30,9 @@ func init() {
 		Stage:   filterapi.FilterStageAnnotation,
 		Ingress: OTCIngressFilter,
 		Egress:  OTCEgressFilter,
+		// The learned roles these filters read are per-peer state: the
+		// reactor's removal of a peer frees its entry (forgetRemovedPeer).
+		PeerRemoved: forgetRemovedPeer,
 	}); err != nil {
 		logger().Error("bgp-role: filter registration failed", "error", err)
 		os.Exit(1)

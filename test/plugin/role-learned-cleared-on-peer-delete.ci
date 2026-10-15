@@ -1,0 +1,42 @@
+# Test: deleting a created peer frees the BGP role its OPEN declared
+# VALIDATES: create bgp peer against a router whose OPEN says Role customer,
+#            then delete bgp peer: bgp-role drops that learned role before the
+#            delete returns, though no attach block names bgp-role. A peer
+#            created again at the same address, against a router whose OPEN
+#            carries no Role, establishes and is not reported as withdrawing
+#            the role only the deleted peer advertised.
+# PREVENTS: the deleted peer's role being kept for the process life and read by
+#           the next peer of that name (resolvePeerRole prefers it to the
+#           configured complement).
+# The scenario: internal/test/fixture/role_learned_cleared_fixture.go. It starts
+# the two routers itself, one after the other on 127.0.0.2, because one test
+# peer sends the same OPEN on every connection.
+
+option=timeout:value=60s
+option=env:var=ze.log.bgp.role:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external role-cleared-driver {
+		run "le test fixture plugin/role-learned-cleared-on-peer-delete $PORT"
+		encoder json
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+	session {
+		asn {
+			local 65000
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze --plugin ze.bgp-role -:stdin=ze-bgp:timeout=60s
+expect=stderr:contains=OK: the created peer established with Role customer
+expect=stderr:pattern=learned role dropped: peer removed.*previous-role=customer
+expect=stderr:contains=OK: the created peer was deleted
+expect=stderr:contains=OK: the peer created again established with no Role
+reject=stderr:contains=role capability withdrawn
+expect=exit:code=0

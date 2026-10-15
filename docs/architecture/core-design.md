@@ -1097,6 +1097,10 @@ code position:
    `modifiedPayload` REPLACES the original bytes; the reactor builds a fresh
    `WireUpdate` and updates `RawMessage.RawBytes / WireUpdate / AttrsWire`. The
    modified buffer is heap-allocated (not pool-backed).
+   A filter that keeps per-peer state also registers `PeerRemoved`: every
+   reactor path that removes a peer calls `filterapi.NotifyPeerRemoved`
+   synchronously, attached processes or not, so the state is gone before the
+   removal returns (`bgp-role` frees a learned role this way).
 
 2. **The external-plugin per-peer policy chain** (`peer.settings.ImportFilters`,
    resolved via `filter { import [...] }` config), which the reactor binds as ONE

@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
@@ -277,6 +278,13 @@ func (r *Reactor) removePeer(addr netip.Addr, subcode uint8) error {
 	}
 	// The Cease is written after r.mu is released (peerStop).
 	stop.run()
+	// Free what the filters keep for this peer before the removal returns, so
+	// a peer created again under the same name meets none of it. The state
+	// event below cannot do this: it reaches only the processes the peer
+	// attaches (PeerScopedProcs), and a filter's plugin is attached to none.
+	if removed != nil {
+		notifyFiltersPeerRemoved(removed.Address, removed.Name, removed.GroupName)
+	}
 	// Notify plugins the peer was removed, AFTER releasing r.mu: plugin event
 	// delivery may block, so it must not run under the reactor lock. Emitted
 	// unconditionally here (not via the FSM teardown, which only fires for
@@ -295,6 +303,15 @@ func (r *Reactor) removePeer(addr netip.Addr, subcode uint8) error {
 	}
 	r.mu.Unlock()
 	return nil
+}
+
+// notifyFiltersPeerRemoved tells every registered filter that the peer left
+// the peer table (filterapi.NotifyPeerRemoved). Every path that deletes a peer
+// from r.peers MUST call it: removePeer, removeDynamicPeer and the undo of a
+// reload's add. It MAY run with r.mu held; the hooks MUST NOT call back into
+// the reactor.
+func notifyFiltersPeerRemoved(address netip.Addr, name, group string) {
+	filterapi.NotifyPeerRemoved(filterapi.PeerFilterInfo{Address: address, Name: name, GroupName: group})
 }
 
 // doRemovePeer performs the locked peer-removal work and returns the removed
