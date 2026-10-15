@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -257,44 +256,8 @@ func runAS112Plugin(conn net.Conn) int {
 	unsubReplay := prod.subscribeReplay()
 	defer unsubReplay()
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, s := range sections {
-			if s.Root != configRootService {
-				continue
-			}
-			cfg, err := parseConfig(s.Data)
-			if err != nil {
-				ametrics().reloadTotal.With("error").Inc()
-				return fmt.Errorf("as112: %w", err)
-			}
-
-			if rerr := applyAddressRegistration(cfg, iface.RegisterOwnedAddresses, iface.UnregisterOwnedAddresses); rerr != nil {
-				ametrics().reloadTotal.With("error").Inc()
-				return fmt.Errorf("as112: address registration: %w", rerr)
-			}
-
-			var prevSerial uint32
-			if prev := loadState(); prev != nil {
-				prevSerial = prev.serial
-			}
-			serial := computeSerial(prevSerial, time.Now())
-			storeState(buildState(cfg, serial))
-
-			// Apply the config to the producer; the runtime serving state (anycast
-			// listener up/down) is driven separately via prod.onServingChanged from
-			// the DNS server's listener transitions. `import as112` gates whether the
-			// emitted routes reach the RIB, so as112 still never reads bgp config.
-			prod.applyConfig(cfg)
-			if aerr := mgr.applyConfig(cfg); aerr != nil {
-				log.Error("as112: listener setup failed", "error", aerr)
-			}
-			ametrics().reloadTotal.With("success").Inc()
-			log.Info("as112: config applied", "enabled", cfg.Enabled, "address-family", cfg.AddressFamily,
-				"dot", cfg.Secure.DoTEnabled, "doh", cfg.Secure.DoHEnabled)
-			return nil
-		}
-		return nil
-	})
+	inst := &as112Installer{prod: prod, mgr: mgr, log: log}
+	registerAS112ConfigTx(p, sdk.NewConfigTx(as112Config{}, parseAS112Sections, inst.install))
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()

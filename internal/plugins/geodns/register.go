@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"sync/atomic"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -132,37 +131,8 @@ func runGeoDNSPlugin(conn net.Conn) int {
 
 	mgr := newServerManager(log)
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, s := range sections {
-			if s.Root != configRootService {
-				continue
-			}
-			cfg, err := parseConfig(s.Data)
-			if err != nil {
-				gmetrics().reloadTotal.With("error").Inc()
-				return fmt.Errorf("geodns: %w", err)
-			}
-			var prevSerial uint32
-			if prev := loadState(); prev != nil {
-				prevSerial = prev.serial
-			}
-			st := buildState(cfg)
-			st.serial = computeSerial(cfg.SOA, prevSerial, time.Now())
-			storeState(st)
-			if aerr := mgr.apply(cfg); aerr != nil {
-				log.Error("geodns: listener setup failed", "error", aerr)
-			}
-			gmetrics().reloadTotal.With("success").Inc()
-			log.Info("geodns: config applied",
-				"enabled", cfg.Enabled,
-				"listeners", len(cfg.Listeners),
-				"zones", len(cfg.Zones),
-				"host-sets", len(cfg.HostSets),
-				"sources", len(cfg.Sources))
-			return nil
-		}
-		return nil
-	})
+	inst := &geodnsInstaller{mgr: mgr, log: log}
+	registerGeoDNSConfigTx(p, sdk.NewConfigTx(geodnsConfig{}, parseGeoDNSSections, inst.install))
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
