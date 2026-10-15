@@ -76,6 +76,14 @@ names. A learned role is a property of the session, and an established peer
 sends no second OPEN. So wiping the map on reconfigure left every live peer
 looking unrecorded until its session bounced.
 
+A peer made at runtime with `create bgp peer <addr>` keeps its learned role
+across every reload too. No config names it: its OPEN stores the role under the
+generated name `peer-<addr>` with no group, and the peer survives a commit that
+does not declare it, so no commit is evidence that it is gone. The prune
+(`learnedRolePeerConfiguredLocked`) therefore keeps every group-less key no
+config has ever named. "Learned role lifecycle" below names what that leaves
+behind.
+
 Export role filtering (separate from OTC) still applies based on the source
 peer's export policy.
 
@@ -228,8 +236,32 @@ refusal too.
 recorded for this peer". `remoteRoleRecorded` reads that distinction for the
 drop reason. Both resolve to the configured complement for RFC 9234 gates.
 
-<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordNoRemoteRole, remoteRoleRecorded, filterKeyLocked -->
-<!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent -->
+Nothing removes a learned role when its peer is removed. The reactor does
+announce a removal: `removePeer` sends a state `down` with reason `removed`
+(`rpc.ReasonPeerRemoved`), and it waits for each process to handle it, so a clear
+there could not race a later session. But a state event is peer-scoped: it
+reaches only a process the peer's `attach process` block names, and nothing adds
+`bgp-role` to that block (a created peer has none). Subscribing `bgp-role` to
+state events would therefore still not deliver it. Three entries are left behind for the
+life of the process:
+
+| Case | What is left |
+|------|--------------|
+| `create bgp peer A`, then `delete bgp peer A` | the role under `peer-<A>` |
+| An OPEN validated for a peer a reload adds, before that commit rolls back | the role under the added peer's name |
+| An OPEN validated after the committed prune of the commit removing its peer | the role under that peer's key |
+
+Each costs one map entry. One of them is also read: a re-created `peer-<A>`
+reads the previous peer's role until its own OPEN replaces it. When `bgp-role`
+does not answer that peer's validate-open (`broadcastValidateOpen` lets the
+session establish), `resolvePeerRole` keeps taking the old role. The fix needs
+the removal to reach `bgp-role`. It is recorded in
+`plan/journal/invariant-enforced-by-an-absent-call-site.md`.
+
+<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordNoRemoteRole, remoteRoleRecorded, filterKeyLocked, learnedRolePeerConfiguredLocked -->
+<!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent, deliverPeerState -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- removePeer -->
+<!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs -->
 
 ## Observability
 

@@ -125,6 +125,12 @@ func pruneLearnedRoles() {
 // declare it, so no commit is evidence that it is gone. Dropping it stopped
 // every export to that peer as role "unknown" until its session bounced,
 // because an established peer sends no second OPEN.
+//
+// The cost is that such a key outlives its peer: `delete bgp peer` sends a
+// removal no one delivers to this plugin, so a deleted created peer's role, and
+// one an OPEN stored for a peer whose commit rolled back or was already pruned,
+// stay for the process life (docs/architecture/meta/role.md, "Learned role
+// lifecycle").
 func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 	if _, configured := filterPeerKeys[key]; configured {
 		return true

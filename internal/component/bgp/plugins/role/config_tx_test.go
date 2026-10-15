@@ -370,8 +370,8 @@ func TestRoleCommitDropsRoleLearnedForMemberOfUnconfiguredGroup(t *testing.T) {
 // TestRoleUnrelatedCommitKeepsCreatedPeerRole proves that a commit keeps the
 // learned role of a peer made at runtime with `create bgp peer <addr>`.
 // Method: the role is recorded the way that peer's OPEN stores it, under the
-// generated name peer-10-0-0-1 with no group (reactor peerConfigNameFor), which
-// no config ever names; an unrelated commit runs, then getFilterConfig, which
+// generated name peer-10.0.0.1 with no group (reactor peerConfigNameFor
+// replaces only an IPv6 colon), which no config ever names; an unrelated commit runs, then getFilterConfig, which
 // OTCEgressFilter reads for the export set, is read.
 // VALIDATES: spec-plugin-reload-applies-or-refuses R-14 for bgp-role.
 // PREVENTS: the prune dropping a created peer's role on any commit, which
@@ -384,10 +384,10 @@ func TestRoleUnrelatedCommitKeepsCreatedPeerRole(t *testing.T) {
 	if err := tx.configure(rolelessPeerSections(true, "first")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
-	setFilterRemoteRole("peer-10-0-0-1", "", roleCustomer)
+	setFilterRemoteRole("peer-10.0.0.1", "", roleCustomer)
 
 	commitRoleReload(t, tx, rolelessPeerSections(true, "second"))
-	if _, learned := getFilterConfig("10.0.0.1", "peer-10-0-0-1", ""); learned != roleCustomer {
+	if _, learned := getFilterConfig("10.0.0.1", "peer-10.0.0.1", ""); learned != roleCustomer {
 		t.Fatalf("an unrelated commit dropped the created peer's learned role: %q", learned)
 	}
 }
@@ -415,5 +415,31 @@ func TestRoleOpenBeforeInstallOfAddedPeerKeepsRole(t *testing.T) {
 	commitRoleReload(t, tx, roleTxSections("false", `["default"]`, true, false))
 	if _, learned := getFilterConfig("192.0.2.2", "other", ""); learned != roleCustomer {
 		t.Fatalf("the added peer's role, learned before the install, was not read: %q", learned)
+	}
+}
+
+// TestRoleAddressEntryBeatsStaleNameEntry proves that the reader takes the
+// learned role stored under a peer's address over an older one stored under
+// its bare name.
+// Method: peer other's first OPEN is recorded before the config naming it is
+// installed, so that role is stored under the name; the reload adding other
+// (192.0.2.2, so its name now maps to its address) commits, and other's next
+// OPEN is recorded under the address with a different role. getFilterConfig is
+// then read by address and name, as OTCEgressFilter reads it.
+// VALIDATES: remoteRoleLocked's order: address, translated name, bare name.
+// PREVENTS: a read that tries the bare name first answering with the role of a
+// session that ended, when a later OPEN already wrote the address key.
+func TestRoleAddressEntryBeatsStaleNameEntry(t *testing.T) {
+	resetRoleState(t)
+	tx := newRoleConfigTx()
+	if err := tx.configure(roleTxSections("false", `["default"]`, false, false)); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	setFilterRemoteRole("other", "", roleCustomer)
+
+	commitRoleReload(t, tx, roleTxSections("false", `["default"]`, true, false))
+	setFilterRemoteRole("other", "", roleProvider)
+	if _, learned := getFilterConfig("192.0.2.2", "other", ""); learned != roleProvider {
+		t.Fatalf("the reader took the stale role under the name over the address entry: %q", learned)
 	}
 }
