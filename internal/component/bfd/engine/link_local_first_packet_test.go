@@ -53,6 +53,12 @@ func linkLocalLoop(t *testing.T, ifaces ...string) (*Loop, []*session.Machine) {
 // forms the two sides really hold: the packet's source carries the zone the
 // kernel reported, and the session's key carries the address configuration
 // gave it.
+//
+// RFC requirement: RFC5881-3-2 positive -- a packet with Your Discriminator
+// zero from fe80::1, its source carrying the zone eth0 as the kernel reports
+// it and arriving on eth0, is associated with the single-hop session bound to
+// fe80::1 on eth0, whose configured peer carries no zone: that session's
+// RemoteDiscriminator becomes the packet's My Discriminator.
 func TestFirstPacketSelectsALinkLocalPeer(t *testing.T) {
 	l, machines := linkLocalLoop(t, "eth0")
 
@@ -69,6 +75,12 @@ func TestFirstPacketSelectsALinkLocalPeer(t *testing.T) {
 // link, in the zone on the source address. The reconciliation moves it into
 // the field the key states a link in, so the session on that link is selected
 // and a session on another link is not.
+//
+// RFC requirement: RFC5881-3-2 positive -- a packet with Your Discriminator
+// zero from fe80::1%eth1, whose transport reports no ingress interface, is
+// associated with the single-hop session bound to fe80::1 on eth1: that
+// session's RemoteDiscriminator becomes the packet's My Discriminator, and the
+// session bound to fe80::1 on eth0 keeps a RemoteDiscriminator of zero.
 func TestFirstPacketTakesTheLinkFromTheZone(t *testing.T) {
 	l, machines := linkLocalLoop(t, "eth0", "eth1")
 
@@ -87,6 +99,12 @@ func TestFirstPacketTakesTheLinkFromTheZone(t *testing.T) {
 // one address, two links, two sessions. RFC 4007 Section 6 names exactly this
 // case, "the use of link-local address fe80::1 in two separate physical
 // links", and a packet from either link must reach its own session.
+//
+// RFC requirement: RFC5881-3-2 positive -- with single-hop sessions bound to
+// fe80::1 on eth0 and on eth1, a packet with Your Discriminator zero from
+// fe80::1%eth0 arriving on eth0 is associated with the eth0 session: its
+// RemoteDiscriminator becomes the packet's My Discriminator, and the eth1
+// session keeps a RemoteDiscriminator of zero.
 func TestTwoLinkLocalSessionsStayApart(t *testing.T) {
 	l, machines := linkLocalLoop(t, "eth0", "eth1")
 

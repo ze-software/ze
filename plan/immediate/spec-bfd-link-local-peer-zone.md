@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 4/5 |
+| Phase | 5/5 |
 | Handoff | - |
 | Updated | 2026-10-15 |
 
@@ -301,9 +301,9 @@ What an operator sees change beyond the two BFD lists, under Q-3 (a):
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestFirstPacketSelectsALinkLocalPeer` | `internal/component/bfd/engine/link_local_first_packet_test.go` (exists; the skeleton named `rfc5881_test.go`) | AC-1; gains tag `RFC5881-3-2 positive` (AC-10) | exists, tag owed |
-| `TestTwoLinkLocalSessionsStayApart` | same file (exists) | AC-2; gains tag `RFC5881-3-2 positive` (the eth0 packet is associated with the eth0 session; see the tagged-test table for why not `negative`) | exists, tag owed |
-| `TestFirstPacketTakesTheLinkFromTheZone` | same file (exists) | AC-2, transport reports no ingress interface; gains tag `RFC5881-3-2 positive` | exists, tag owed |
+| `TestFirstPacketSelectsALinkLocalPeer` | `internal/component/bfd/engine/link_local_first_packet_test.go` (exists; the skeleton named `rfc5881_test.go`) | AC-1; gains tag `RFC5881-3-2 positive` (AC-10) | exists, tag added; record by the gomu mutant `zone != ""` -> `false` in `reconcileZone`, red observed 2026-10-15 |
+| `TestTwoLinkLocalSessionsStayApart` | same file (exists) | AC-2; gains tag `RFC5881-3-2 positive` (the eth0 packet is associated with the eth0 session; see the tagged-test table for why not `negative`) | exists, tag added; record by the gomu mutant `zone != ""` -> `false` in `reconcileZone`, red observed 2026-10-15 |
+| `TestFirstPacketTakesTheLinkFromTheZone` | same file (exists) | AC-2, transport reports no ingress interface; gains tag `RFC5881-3-2 positive` | exists, tag added; record by the gomu mutant `zone != ""` -> `false` in `reconcileZone`, red observed 2026-10-15 |
 | `TestSendKeepsTheZoneForALinkLocalPeer` | `internal/component/bfd/transport/udp_zone_test.go` (exists; the skeleton named `udp_test.go`) | AC-3 at `destination`; no tag (RFC 4007 has no summary, and RFC5881-6-1 is already carried by the pin tests) | exists |
 | `TestSingleHopLinkLocalPeerNeedsInterface` | `internal/component/bfd/link_local_config_test.go` (new) | AC-5 refuse row; AC-6 accept rows (link-local with `interface`, global IPv6 without, IPv4 without); AC-6a VRF rows (`vrf blue` with `interface` accepted, without refused); the error text names the peer and `interface` | new |
 | `TestSingleHopPeerRefusesAZone` | same new file | AC-7, `peer` and `local` each with a zone | new |
@@ -499,6 +499,15 @@ The skeleton's steps 1-3 are DONE at HEAD (`d7923475e6`); they are not redone.
    → Phase 3 closed (2026-10-15, QEMU arm64 Alpine guest): green, red (1), red (2) and green again in one boot, verbatim in the Functional Tests row; A-1 and A-4 validated. Two harness defects found on the way and fixed with the `.ci`: (a) the teardown step ran while Ze still lived, deleting the veths under the observer ("read the capture on zbl0p: network is down"), so the `.ci` now waits on `le test fixture daemon/await-exit:timeout=30s` at seq 3 and tears down at seq 4; (b) that barrier read BusyBox `ps -p` (BusyBox ps has no `-p`: exit 1, empty stdout) as "exited", so `daemonProcessState` in `internal/test/fixture/daemon_await_exit_fixture.go` now answers from `/proc/<pid>/stat` and asks `ps` only where there is no procfs. Its subtest `TestDaemonAwaitExit/running,_ps_without_-p` passes in the guest and FAILs there with the procfs read removed (`go test -overlay`; "An error is expected but got nil."; the existing `running` subtest fails too on BusyBox).
    → Phase 3 review fixes (2026-10-15): ISSUE-1, red (2) never reached the "none with another link's discriminator" check, so red (3) swaps the two links' send zones and fires it (Functional Tests row); the `.ci` PREVENTS now names both send failures. ISSUE-2, A-2 refuted on Linux from red (2)'s log, Current Behavior row corrected. NOTE-2, `expectOwnFrames` now drains `writeErr` each read, so a failed injection reports itself rather than "did not leave on the link it names". NOTE-3, known harness limitation: a `.ci` foreground helper that exits non-zero fails the test as a setup script (`docs/architecture/testing/ci-format.md`, "Foreground"; `runOrchestrated` in `internal/test/runner/runner_exec.go` returns at once, starting no later command), and the format has no always-run step, so a failing seq-3 barrier skips the seq-4 teardown and leaves `zbl0`/`zbl1` in the guest. The next run is unaffected because the setup fixture removes any pair an earlier run left before it builds.
 4. **Phase: Tags** -- AC-10 tags, then `./le rfc discriminate stem rfc5881 report <path>` and `./le rfc discriminate-record` for each.
+   → Phase 4 closed (2026-10-15): the three tests carry `RFC requirement: RFC5881-3-2 positive`, each claim stating only what its assertions check. The gomu report over `internal/component/bfd/engine` (7 files, 1025 mutants) proposed the mutant `zone != ""` -> `false` in `reconcileZone`: the peer keeps the kernel's zone, which is the spec's "returns its argument" break for the peer. `./le rfc discriminate-record ... route mutant` observed each unit red and wrote three records to `rfc/discrimination/rfc5881.json`:
+
+     ```
+     the link-local session was not selected by its first packet: RemoteDiscriminator = 0, want 8738
+     the eth1 session was not selected: RemoteDiscriminator = 0, want 8738
+     the eth0 session was not selected: RemoteDiscriminator = 0, want 8738
+     ```
+
+     The linux-flavour lint of `internal/test/fixture` owed from Phase 3 ran: 11 findings, none in `bfd_fixture_link_local*`.
 5. **Phase: Interop** -- `TestLinkLocalAssignmentFollowsThePlaceholders` red, then the placeholder-derived assignment in `prepare.go` with the `rfc2545Scenario` comparison deleted, then green; A-5 checked against the pinned FRR image; `bfd-link-local-frr` (R-4 first), green run with the image ID quoted, and `bgp-rfc2545-linklocal-nexthop-frr` green on the same build; Scenario Inventory row and the "Container Addresses" edit; `features/bfd-liveness-detection.md`.
 
 ### Critical Review Checklist
