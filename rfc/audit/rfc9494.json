@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-12",
+  "audited": "2026-10-15",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -38,14 +38,14 @@
       "verdict": "enforced"
     },
     "RFC9494-4-1": {
-      "note": "Forbidden: a peer configured for LLGR whose capability declaration lacks code 71. TestExtractLLGRCapabilities_Basic fails unless extractLLGRCapabilities emits one Code 71 hex declaration for the peer whose payload decodes to LLST 3600. Negative: TestExtractLLGRCapabilities_NoLLGR asserts no declaration without long-lived-stale-time. Proven at the plugin's capability-declaration boundary; the hand-off to the OPEN is not asserted in these units.",
+      "note": "RFC 9494 Section 4: \"If a BGP speaker is configured to support the procedures of this document, it MUST use BGP Capabilities Advertisement [RFC5492] to advertise the Long-Lived Graceful Restart Capability.\" Re-judged 2026-10-15 after the positive tag's claim was reworded (body unchanged): extractLLGRCapabilities is declared through grCapabilities, the plugin's BGPCapabilityExtractor (gr_capability.go), which the claim now names. TestExtractLLGRCapabilities_Basic fails unless extractLLGRCapabilities emits one Code 71 hex declaration for the peer whose payload decodes to LLST 3600. Negative: TestExtractLLGRCapabilities_NoLLGR asserts no declaration without long-lived-stale-time. Proven at the plugin's capability-declaration boundary; the hand-off to the OPEN is not asserted in these units.",
       "requirement_sha": "782fe0ebbd4ddd96",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_Basic": "37564b5705786a21",
-        "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_NoLLGR": "37564b5705786a21"
+        "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_Basic": "cf96937405b15438",
+        "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_NoLLGR": "cf96937405b15438"
       },
       "units": {
-        "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_Basic": "49ef3b493a96e7f9",
+        "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_Basic": "2c7f0a6205e371ea",
         "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_NoLLGR": "909ab972491c4265"
       },
       "verdict": "enforced"
