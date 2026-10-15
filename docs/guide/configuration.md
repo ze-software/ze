@@ -2681,10 +2681,14 @@ priority) stamps outgoing frames: a packet leaving with the listed internal
 priority gets the mapped PCP on the wire, so downstream L2 switches honor the
 class of service without inspecting IP headers. Both sides of every entry are
 0-7; unmapped values fall back to 0. The maps require `vlan-id` and are
-applied when the VLAN sub-interface is created.
+applied when the VLAN sub-interface is created. A reload that changes the maps
+an existing VLAN resolves to, through an inline map edit or an edit to the
+profile the unit uses, reprograms that VLAN in place, and a commit that fails
+afterwards writes the previous maps back.
 
 <!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- ingress-qos-map, egress-qos-map lists (qos-maps grouping) -->
-<!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN IngressQosMap/EgressQosMap -->
+<!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN IngressQosMap/EgressQosMap, UpdateVLANQoSMap -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, indexUnitQoS -->
 
 ```
 interface {
@@ -2727,10 +2731,13 @@ Named 802.1p profiles define PCP-to-priority mappings that can be referenced
 from interfaces instead of repeating inline `ingress-qos-map` / `egress-qos-map`
 lists on every unit. The `class-of-service` section is provided by the cos
 plugin. Profiles are inherited by all VLAN units on the interface; individual
-units can override with a different profile or opt out with `none`.
+units can override with a different profile or opt out with `none`. A unit
+resolves its profile against the `class-of-service` section of the same
+commit, so one commit can add a profile and the unit that uses it.
 
 <!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- ieee-802.1p profile definitions -->
 <!-- source: internal/component/iface/config.go -- parseUnits class-of-service resolution -->
+<!-- source: internal/component/iface/config.go -- parseResolvedIfaceSections, candidateCoSProfiles -->
 
 ```
 class-of-service {
