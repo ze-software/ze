@@ -46,6 +46,28 @@
       "break": "body of EncodeHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5340-A.3.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive",
+      "unit-sha": "3dfd149b0d4e9816",
+      "claim-sha": "b89a31350edbdbdc",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/dispatcher.go::dispatch",
+      "producer-sha": "760997a08dc0f8b3",
+      "break": "body of dispatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5340-A.3.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive",
+      "unit-sha": "3dfd149b0d4e9816",
+      "claim-sha": "62efccfbb950e4bc",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/dispatcher.go::dispatch",
+      "producer-sha": "760997a08dc0f8b3",
+      "break": "body of dispatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5340-A.4.7-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding",
@@ -176,6 +198,28 @@
       "producer": "internal/plugins/ospf/lsdb/flooding.go::floodCopy",
       "producer-sha": "3020b7dc3a46d43b",
       "break": "body of floodCopy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5340-C.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay",
+      "unit-sha": "4a1a4e5b33b453e0",
+      "claim-sha": "d523497c29bdbe0e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config.go::validateConfigAF",
+      "producer-sha": "f0d03a69269f9ba3",
+      "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5340-C.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceCostAndTransmitDelay",
+      "unit-sha": "4a1a4e5b33b453e0",
+      "claim-sha": "95b1857217306582",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config.go::validateConfigAF",
+      "producer-sha": "f0d03a69269f9ba3",
+      "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
