@@ -128,7 +128,7 @@ binds the new set, so serving pauses for that moment (and as112 withdraws and
 announces its covering prefixes again, RFC 7534 Section 3.3). Every caller
 names its policy, tests included: no entry point binds leniently by default.
 
-<!-- source: internal/core/dnsserver/secure.go -- BindPolicy, reconcile, restorePrevious, bindListeners, ApplyWithSecure, secureTLS -->
+<!-- source: internal/core/dnsserver/secure.go -- BindPolicy, reconcile, restorePrevious, bindListeners, ApplyWithSecure, keptSecure, buildSecureTLS -->
 <!-- source: internal/plugins/as112/config_tx.go -- as112Installer.install, refuse, configureAtBoot -->
 <!-- source: pkg/plugin/sdk/config_tx.go -- ErrRunningConfigLost, RunningConfigLostNext, ConfigTx.Apply, ConfigTx.Rollback -->
 <!-- source: internal/plugins/geodns/config_tx.go -- geodnsInstaller.install, configureAtBoot -->

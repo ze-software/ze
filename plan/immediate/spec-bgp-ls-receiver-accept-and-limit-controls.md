@@ -297,7 +297,7 @@ implementer stops and raises it rather than writing that row.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `rfc9552-823-accept-by-family` | `test/plugin/rfc9552-823-accept-by-family.ci` | two `ze-peer` speakers; only the one whose `family` block names bgp-ls has its BGP-LS reach the RIB; the other is refused per AC-2; a third with bgp-ls negotiated and a `family-filter` import `remove` receives BGP-LS and contributes none (AC-4) | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `rfc9552-823-accept-by-family` | `test/plugin/rfc9552-823-accept-by-family.ci` | two `le test peer` speakers; only the one whose `family` block names bgp-ls has its BGP-LS reach the RIB; the other is refused per AC-2; a third with bgp-ls negotiated and a `family-filter` import `remove` receives BGP-LS and contributes none (AC-4) | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 | `rfc9552-823-advertise-by-family` | `test/plugin/rfc9552-823-advertise-by-family.ci` | ze relays a Link-State NLRI; the destination without bgp-ls in its `family` block receives no MP_REACH for AFI 16388, asserted on the exact frames (AC-3) | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 | `rfc9552-823-rib-ceiling` | `test/plugin/rfc9552-823-rib-ceiling.ci` | ceiling 3; peer A sends 2, peer B sends 2; B's second is refused, both sessions stay up, the RIB holds 3, the report and the counter are visible; A withdraws one and B's resend is accepted | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 
