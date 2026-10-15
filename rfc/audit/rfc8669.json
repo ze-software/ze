@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-14",
+  "audited": "2026-10-15",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -183,10 +183,10 @@
     },
     "RFC8669-4.1-15": {
       "code": {
-        "internal/component/bgp/reactor/session_validation.go::applyRFC7606": "d991709d844086df",
+        "internal/component/bgp/reactor/session_validation.go::applyRFC7606": "38b943f0e05d5cb8",
         "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID": "d6d0f66964945efc"
       },
-      "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 8669 Section 4.1: 'In the case of an \"invalid\" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. A BGP speaker SHOULD log an error for further analysis.' The invalid state is now computed: ClassifyPrefixSID returns PrefixSIDInvalidAttribute for a labeled-unicast attribute with no Label-Index TLV, and validatePrefixSIDValue maps it to attribute-discard. The only log of that discard is the Debug-level 'RFC 7606 attribute-discard' line in Session.applyRFC7606 and rfc7606DiagnosticsWithWire, which returns at once unless Debug is enabled, so no error is logged at the default level and the SHOULD is not met. No tagged unit exists. The row's {gap} text names validatePrefixSIDAttr, which no longer exists, and says the invalid state is not computed: that annotation is stale.",
+      "note": "Re-judged 2026-10-15 after bb62d27038, which changed Session.applyRFC7606 only to carry the typed-NLRI withdraw body (applyTypedNLRIDiscard's fourth result); the attribute-discard branch and its logging are untouched. RFC 8669 Section 4.1: 'In the case of an \"invalid\" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. A BGP speaker SHOULD log an error for further analysis.' ClassifyPrefixSID still returns PrefixSIDInvalidAttribute for a labeled-unicast attribute with no Label-Index TLV, and message/rfc7606.go maps it to attribute-discard. The only log of that discard is still sessionLogger().Debug('RFC 7606 attribute-discard') in Session.applyRFC7606 and rfc7606DiagnosticsWithWire, which returns at once unless Debug is enabled, so no error is logged at the default level and the SHOULD is not met. No tagged unit exists; the {gap} annotation matches the code.",
       "requirement_sha": "be03dc7f94b681b5",
       "verdict": "unimplemented"
     },
