@@ -290,7 +290,7 @@ Independent `/ze-review` over 4368fbc99c and 6a89d04969 (reviewer authored none 
 |-------|-------|
 | Artifact | `tmp/review/bgp-role-peer-removed-notice-3be8cd06-0062-4950-8b30-09ebec04cbaf.md` |
 | `./le spec review check` | clean (12 code files, hashes match) |
-| Rounds | 1 |
+| Rounds | 2 (round 2 at closure: 98a5ddd46b, from spec-plugin-reload-applies-or-refuses, added comment-only lines to `role.go` naming `pruneLearnedRoles` and `forgetRemovedPeer` as each other's sibling path, and closure repointed the `role_removed_test.go` spec citation; both read against `config_tx.go` (prune at commit, in the plugin's process) and `register.go` (`PeerRemoved: forgetRemovedPeer`), accurate, 0 BLOCKER, 0 ISSUE; artifact re-recorded, check OK, 12 files) |
 | Reviewer lenses used | wiring + functional test, logic + lock order (r.mu -> filterapi.mu.RLock -> role filterMu; nothing takes them in reverse), removed-behavior, docs drift, style pass (no panic, no new loop/queue, names carry the concept) |
 
 Result: 0 BLOCKER, 0 ISSUE. Scoped evidence: `go test -race` filterapi and role ok; reactor `-run 'NotifiesFilters|PeerRemoved|BeforeCease'` ok. `./le commit audit` and `./le repo check` findings are all in other sessions' uncommitted files (rfc8669_error_log_test.go, rfc7606.go, slogutil.go), none in this diff.
@@ -308,3 +308,115 @@ NOTEs:
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
 | - | - | none | - | - |
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `filterapi.Filter.PeerRemoved` and `filterapi.NotifyPeerRemoved` (`internal/component/bgp/filterapi/filterapi.go`); a filter registered with only the hook is accepted.
+- Reactor helper `notifyFiltersPeerRemoved` (`reactor_peers.go`) called under `r.mu`, before the Cease, from `doRemovePeer` (`reactor_peers.go`), `removeDynamicPeer` (`reactor_dynamic.go`), and in `reconcilePeersJournaled` (`reactor_api.go`) from both the reload's remove step, including a replaced dynamic member, and the add-undo of a rolled-back reload.
+- bgp-role `forgetRemovedPeer` (`role.go`), registered as `PeerRemoved` in `register.go`: deletes the learned role under the peer's name key and its address key and logs `learned role dropped: peer removed` with the previous role.
+- Fixture `role_learned_cleared_fixture.go` + `register_role_learned_cleared.go`, functional test `test/plugin/role-learned-cleared-on-peer-delete.ci`.
+- Commits: 4368fbc99c, 6a89d04969 (review fixes: reload remove step, hook before the Cease), 98a5ddd46b (comment-only, another spec's review NOTE).
+
+### Bugs Found/Fixed
+- Reload remove step deleted a peer from `r.peers` without the notice (a dynamic member replaced by a configured peer kept its role): `TestReloadRemoveNotifiesFilters`, `TestReloadReplacedDynamicPeerNotifiesFilters` (6a89d04969).
+- Hook ran after the Cease, which can block, so a re-created peer's fresh role could be deleted late: `TestDoRemovePeerNotifiesFiltersBeforeCease` (6a89d04969).
+
+### Documentation Updates
+- `docs/architecture/meta/role.md` "Learned role lifecycle", `docs/guide/bgp-role.md` runtime-peer paragraph, `docs/architecture/core-design.md` removal cleanups (4368fbc99c, 6a89d04969, 98a5ddd46b).
+- Doc stages of the full verify over 4bd6dd97a2 hold no role page among their reds (see Pre-Commit Verification).
+
+### Deviations from Plan
+- Ordering moved from "after stop" to "inside the removal's critical section, before the Cease" (review of 4368fbc99c); the reload remove step was added as a fourth call path. Both recorded in Data Flow.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | First cut called the hook after `stop.run()` and missed the reload's remove step | The Cease can block; the reload remove step also takes a peer out of `r.peers` | Review of 4368fbc99c | Fixed in 6a89d04969, tests above |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every reactor peer removal frees a filter's per-peer state through registration, before the removal returns | Done | `reactor_peers.go` `notifyFiltersPeerRemoved`; four call paths listed above | AddPeer's rollback of a never-started peer exempt (validated no OPEN) |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestPeerRemovedClearsLearnedRole`; `.ci` expects `learned role dropped: peer removed.*previous-role=customer` | |
+| AC-2 | Done | `.ci` rejects `role capability withdrawn` and expects the re-created peer established with no Role | |
+| AC-3 | Done | the six `*NotifiesFilters*` tests in `peer_removed_test.go` | ordering: `TestDoRemovePeerNotifiesFiltersBeforeCease` |
+| AC-4 | Done | `TestNotifyPeerRemovedCallsEveryHook` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestNotifyPeerRemovedCallsEveryHook` | Done | `filterapi_test.go` | |
+| `TestRemovePeerNotifiesFilters`, `TestRemoveDynamicPeerNotifiesFilters`, `TestDoRemovePeerNotifiesFiltersBeforeCease`, `TestReloadRemoveNotifiesFilters`, `TestReloadReplacedDynamicPeerNotifiesFilters`, `TestReloadAddUndoNotifiesFilters` | Done | `peer_removed_test.go` | red with calls reverted (6a89d04969 body) |
+| `TestPeerRemovedClearsLearnedRole` (+ `TestPeerRemovedClearsRoleKeyedByAddress`) | Done | `role_removed_test.go` | |
+| `role-learned-cleared-on-peer-delete.ci` | Done | `test/plugin/` | red with reactor call reverted (4368fbc99c body) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `filterapi.go`, `reactor_peers.go`, `reactor_dynamic.go`, `reactor_api.go`, `role/register.go`, `role/role.go` | Done | 4368fbc99c, 6a89d04969 |
+| `role.md`, `bgp-role.md`, journal row | Done | 4368fbc99c |
+| `role_removed_test.go`, fixture + register, `.ci` | Done | 4368fbc99c |
+
+### Audit Summary
+- **Total items:** 13
+- **Done:** 13
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (ordering, in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every peer the reactor removes frees a filter plugin's per-peer state, through registration, before the removal returns | functional + unit | `test/plugin/role-learned-cleared-on-peer-delete.ci` drives `create bgp peer`/`delete bgp peer` end to end: plugin test 742 passes in the full verify over 4bd6dd97a2 and in the scoped run (`5.4s 1/1 PASS`); red with the reactor call reverted (4368fbc99c). Unit: six reactor tests cover every removal path, red with calls reverted (6a89d04969) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC done; the residual (an OPEN validated for the old session after the clear) and the external-mode split are pre-existing, documented in `role.md`, outside the Task | - |
+
+## Pre-Commit Verification
+
+Full `./le verify worktree` over 4bd6dd97a2 (holds all this spec's code), 2026-10-15, exit 1. Logs: `tmp/session/2026-10-14-3be8cd06-0062-4950-8b30-09ebec04cbaf/scratch/verify6.log`, stages `tmp/verify-worktree-logs/20261015T104346.103322000Z-p23708-r1-4bd6dd97a284/`. Role evidence green: filterapi, plugins/role and reactor pass in the unit, race and ze_core runs; plugin test 742 role-learned-cleared-on-peer-delete passes; no role file is in any red stage. Reds, all other sessions' work (`ai/rules/pre-release.md`): lint on 12 foreign BGP files (none of this spec's), arch tier, rfc2545 records, retired-commands, test health rfc5882, site facts, bfd `.sh` prestart scripts from 08dd26d6b5, race-stage go-cache eviction, plugin 724 (lo0 127.0.0.6 missing), plugin 808 load flake (passed alone), ui 210/212/221/223/224, appliance qemu tests, runner 12, exabgp 4.
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/plugins/role/role_removed_test.go` | yes | ls 2026-10-15: 3.0K |
+| `internal/test/fixture/role_learned_cleared_fixture.go`, `register_role_learned_cleared.go` | yes | ls: 4.9K, 307 |
+| `test/plugin/role-learned-cleared-on-peer-delete.ci` | yes | ls: 1.7K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | role cleared; re-created peer sees no withdrawal | closure run `go test -count=1 ./internal/component/bgp/plugins/role/ ./internal/component/bgp/filterapi/`: both `ok`; `.ci` expect/reject lines; plugin 742 pass in full verify |
+| AC-3 | four removal paths call the hook | grep `notifyFiltersPeerRemoved`: in `doRemovePeer`, `removeDynamicPeer`, and twice in `reconcilePeersJournaled`; reactor package passes in full verify |
+| AC-4 | hook-only filter accepted | `TestNotifyPeerRemovedCallsEveryHook` ok (closure run) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `delete bgp peer <name>` | `test/plugin/role-learned-cleared-on-peer-delete.ci` | read: fixture creates, deletes, re-creates; expects drop log, rejects withdrawal log; passes as plugin 742 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 (`delete bgp peer` stops the old session before return; an in-flight validate-open may still complete) | confirmed | `doRemovePeer` notifies under `r.mu` before the Cease; residual documented in `role.md` "Learned role lifecycle" |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `role.md` lifecycle: hook before the Cease, name and address keys, prune covers external mode | `reactor_peers.go` `doRemovePeer`, `role.go` `forgetRemovedPeer`, `config_tx.go` `pruneLearnedRoles` calls | yes |
+| `bgp-role.md` runtime-peer paragraph | `register.go` `PeerRemoved: forgetRemovedPeer` | yes |
+| Citers of this spec | `git grep spec-bgp-role-peer-removed-notice`: `role_removed_test.go` repointed to the bare stem + role.md; journal row already uses the bare stem | yes |

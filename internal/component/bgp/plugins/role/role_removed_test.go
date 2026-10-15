@@ -2,7 +2,8 @@
 // Related: role.go -- forgetRemovedPeer, recordNoRemoteRole, remoteRoleRecorded
 // Related: register.go -- the PeerRemoved hook on the bgp-role filter registration
 //
-// Spec: plan/spec-bgp-role-peer-removed-notice.md (AC-1, AC-2).
+// Spec: spec-bgp-role-peer-removed-notice (AC-1, AC-2), closed; the
+// behavior it proves is in role.md, "Learned role lifecycle".
 
 package role
 
