@@ -45,7 +45,7 @@ func TestParseExpectRefusesUnknownOptionKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
 			_, _, err := ParseExpect(strings.NewReader(tt.line + "\n"))
-			require.Error(t, err, "ze-peer must refuse the line, not drop the key")
+			require.Error(t, err, "le test peer must refuse the line, not drop the key")
 			for _, want := range tt.wantIn {
 				assert.Contains(t, err.Error(), want)
 			}
