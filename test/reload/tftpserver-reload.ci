@@ -1,23 +1,25 @@
 # Test: a live edit of service { tftp-server } reaches the TFTP server.
-# Initial config: tftp-server enabled with root-directory /srv/ze-tftp-a.
-# After SIGHUP:   root-directory is /srv/ze-tftp-b, nothing else changes.
-# Expected: tftpserver installs the reloaded config at apply and logs it with
-#           the new root directory.
+# Initial config: tftp-server enabled with root-directory tftp-a.
+# After SIGHUP:   root-directory is tftp-b, nothing else changes.
+# Expected: tftpserver installs the reloaded config at apply, logs it with the
+#           new root directory, and serves a file that only tftp-b holds.
 #
 # VALIDATES: spec-plugin-reload-applies-or-refuses row 25, AC-1: tftpserver's
 #            verify/apply pair rebinds its listeners for the reloaded config
-#            (tftpServer.install).
+#            (tftpServer.install), and a read request is answered from the new
+#            root.
 # PREVENTS: the acked-and-dropped reload. With OnConfigure alone, the SDK
 #           answers config-apply OK and calls nothing, so the commit succeeded
 #           while the server kept serving the boot root-directory.
 #
-# DISCRIMINATION: the "/srv/ze-tftp-b" line is written only by install, which
-# only the apply handler calls on a reload: without the handler the second
-# expectation fails. That an edit elsewhere under service rebinds nothing is
-# proven in Go by TestConfigTxUnchangedSubtreeIsNoop
-# (tftpserver/config_tx_test.go). The listener names a device that does not
-# exist, so on Linux the bind fails and is logged; the reload asserts the
-# install, not the socket.
+# DISCRIMINATION: client/tftp-get reads only-in-b.txt from 127.0.0.1:69 until
+# the content arrives, and the test asserts its OK line. Only tftp-b holds the
+# file, and only the apply handler moves the server there: with OnConfigure
+# alone the server answers every read with a TFTP ERROR, the client fails,
+# and the "tftp-b" expectation fails too. That an edit elsewhere under service rebinds
+# nothing is proven in Go by TestConfigTxUnchangedSubtreeIsNoop
+# (tftpserver/config_tx_test.go). Both roots are relative, so they resolve in
+# the test's own directory, where the tmpfs blocks below write them.
 
 # skip-os linux: a reload binds every listen-interface or fails (R-13), and an
 # unprivileged Linux host cannot bind port 69, so there the reload is refused.
@@ -34,7 +36,7 @@ service {
 	tftp-server {
 		enabled true
 		listen-interface lo
-		root-directory /srv/ze-tftp-a
+		root-directory tftp-a
 		max-transfers 10
 	}
 }
@@ -45,16 +47,26 @@ service {
 	tftp-server {
 		enabled true
 		listen-interface lo
-		root-directory /srv/ze-tftp-b
+		root-directory tftp-b
 		max-transfers 10
 	}
 }
 EOF_CONF2
 
+tmpfs=tftp-a/only-in-a.txt:terminator=EOF_A
+content-of-tftp-a
+EOF_A
+
+tmpfs=tftp-b/only-in-b.txt:terminator=EOF_B
+content-of-tftp-b
+EOF_B
+
 cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
-await=stderr:contains=sighup reload complete:then=stop
-expect=stderr:pattern=tftpserver: config applied.*root-directory=/srv/ze-tftp-a
-expect=stderr:pattern=tftpserver: config applied.*root-directory=/srv/ze-tftp-b
+await=stderr:contains=sighup reload complete
+expect=stderr:pattern=tftpserver: config applied.*root-directory=tftp-a
+expect=stderr:pattern=tftpserver: config applied.*root-directory=tftp-b
+cmd=foreground:seq=3:exec=le test fixture client/tftp-get 127.0.0.1:69 only-in-b.txt content-of-tftp-b
+expect=stderr:contains=OK: tftp RRQ only-in-b.txt served content-of-tftp-b
 reject=stderr:contains=reload error
 reject=stderr:pattern=panic
