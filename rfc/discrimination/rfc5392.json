@@ -26,6 +26,17 @@
     {
       "rid": "RFC5392-3.3.2-2",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/packet/rfc5392_te_interas_test.go::TestInterAsTEIPv6AsbrIdType24",
+      "unit-sha": "029da5a99ebb32e5",
+      "claim-sha": "951c05244abe2c30",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/te_lsa.go::DecodeTELSA",
+      "producer-sha": "452dd5fcf9d0475b",
+      "break": "body of DecodeTELSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5392-3.3.2-2",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go::TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID",
       "unit-sha": "32892f163d52e682",
       "claim-sha": "8cef3c9e8d4df78d",
