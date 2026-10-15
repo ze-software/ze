@@ -50,6 +50,19 @@ config migration is needed.
 - The segment lookup runs under the pool lock and scans linearly. That is fine
   at the current limit of ten segments. A larger limit needs a sorted search.
 
+## Config reload
+
+A reload that changes nothing under `service dhcp-server` leaves the server
+alone: `sdk.ConfigTx` finds the parsed config equal to the running one and
+installs nothing. A reload that changes it rebuilds only the subnets it
+touched. A subnet whose definition and PXE settings are unchanged keeps its
+handler, and with it its pool and its leases; every other subnet gets a new
+handler and starts with an empty lease table. The listeners are closed and
+bound again over the new handler set, so a packet that arrives during the swap
+is lost and the client retransmits it. The apply logs
+`dhcpserver: config applied subnets-kept=N subnets-restarted=M`.
+<!-- source: internal/plugins/dhcpserver/config_tx.go -- dhcpServer.install, buildHandlers -->
+
 ## Traps
 
 **Exhaustion on DISCOVER is answered with silence, not NAK.** RFC 2131 section

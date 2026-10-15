@@ -1,0 +1,69 @@
+# Test: a live edit elsewhere under service leaves the DHCP server alone.
+# Initial config: dhcp-server with one subnet, and tftp-server disabled.
+# After SIGHUP:   only tftp-server's max-transfers changes.
+# Expected: dhcpserver's verify parses a config equal to the running one, so
+#           its apply installs nothing: no second "config applied" line, no
+#           listener rebound, no lease dropped.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses AC-5, R-2 for dhcpserver
+#            (user scenario 5).
+# PREVENTS: an unrelated service edit restarting the DHCP server and dropping
+#           its leases.
+#
+# DISCRIMINATION: with the reflect.DeepEqual short-circuit removed from
+# sdk.ConfigTx.Apply, the reload re-installs the equal config and logs
+# "subnets-kept=1 subnets-restarted=0", which the reject below refuses. The
+# handler and listener identity is proven in Go by
+# TestConfigTxUnchangedSubtreeIsNoop (dhcpserver/config_tx_test.go).
+
+option=env:var=ze.log.dhcpserver:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+	dhcp-server {
+		enabled true
+		listen-interface ze-no-such-iface0
+		shared-network lan {
+			subnet 198.19.1.0/24 {
+				range pool1 {
+					start 198.19.1.100
+					stop 198.19.1.200
+				}
+			}
+		}
+	}
+	tftp-server {
+		enabled false
+		max-transfers 10
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+service {
+	dhcp-server {
+		enabled true
+		listen-interface ze-no-such-iface0
+		shared-network lan {
+			subnet 198.19.1.0/24 {
+				range pool1 {
+					start 198.19.1.100
+					stop 198.19.1.200
+				}
+			}
+		}
+	}
+	tftp-server {
+		enabled false
+		max-transfers 20
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=sighup reload complete:then=stop
+expect=stderr:pattern=dhcpserver: config applied.*subnets-kept=0 subnets-restarted=1
+reject=stderr:pattern=dhcpserver: config applied.*subnets-kept=1
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic

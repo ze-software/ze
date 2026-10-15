@@ -1,0 +1,77 @@
+# Test: a live edit of one subnet's range reaches the DHCP server, which keeps
+#       the subnet the edit did not touch.
+# Initial config: dhcp-server with two subnets, 198.19.1.0/24 and 198.19.2.0/24.
+# After SIGHUP:   the range of 198.19.2.0/24 stops at .150; nothing else changes.
+# Expected: the boot install restarts both subnets; the reload's apply keeps
+#           198.19.1.0/24 (and so its leases) and restarts only 198.19.2.0/24.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses row 24, AC-1, Q3 (d1):
+#            dhcpserver's verify/apply pair installs the reloaded config and
+#            keeps the handler of every subnet whose definition is unchanged.
+# PREVENTS: the acked-and-dropped reload (with OnConfigure alone the SDK
+#           answered config-apply OK and the server kept the boot ranges), and
+#           R-11 (every dhcp edit dropping every lease).
+#
+# DISCRIMINATION: the "subnets-kept=1" line is written only by install, which
+# only the apply handler calls on a reload: with the handler removed it never
+# appears. With unchangedHandler answering nil it reads subnets-kept=0
+# subnets-restarted=2. Which leases survive is proven in Go by
+# TestConfigTxKeepsLeasesOfUnchangedSubnets (dhcpserver/config_tx_test.go).
+# The listener binds a device that does not exist, so on Linux the bind fails
+# and is logged; the reload asserts the install, not the socket.
+
+option=env:var=ze.log.dhcpserver:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+	dhcp-server {
+		enabled true
+		listen-interface ze-no-such-iface0
+		shared-network lan {
+			subnet 198.19.1.0/24 {
+				range pool1 {
+					start 198.19.1.100
+					stop 198.19.1.200
+				}
+			}
+			subnet 198.19.2.0/24 {
+				range pool2 {
+					start 198.19.2.100
+					stop 198.19.2.200
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+service {
+	dhcp-server {
+		enabled true
+		listen-interface ze-no-such-iface0
+		shared-network lan {
+			subnet 198.19.1.0/24 {
+				range pool1 {
+					start 198.19.1.100
+					stop 198.19.1.200
+				}
+			}
+			subnet 198.19.2.0/24 {
+				range pool2 {
+					start 198.19.2.100
+					stop 198.19.2.150
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=sighup reload complete:then=stop
+expect=stderr:pattern=dhcpserver: config applied.*subnets-kept=0 subnets-restarted=2
+expect=stderr:pattern=dhcpserver: config applied.*subnets-kept=1 subnets-restarted=1
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic

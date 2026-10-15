@@ -56,15 +56,8 @@ func init() {
 }
 
 func verifyDHCPConfig(sections []sdk.ConfigSection) error {
-	for _, s := range sections {
-		if s.Root != configRootService {
-			continue
-		}
-		if _, err := parseConfig(s.Data); err != nil {
-			return fmt.Errorf("dhcpserver: %w", err)
-		}
-	}
-	return nil
+	_, _, err := parseDHCPSections(sections)
+	return err
 }
 
 func runDHCPServerPlugin(conn net.Conn) int {
@@ -74,62 +67,8 @@ func runDHCPServerPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("dhcpserver", conn)
 	defer closeLogged(p, log, "plugin conn")
 
-	var handlers []*dhcpHandler
-	var listeners []*net.UDPConn
-
-	stopListeners := func() {
-		for _, ln := range listeners {
-			closeLogged(ln, log, "udp listener")
-		}
-		for _, h := range handlers {
-			h.leases.stop()
-		}
-		handlers = nil
-		listeners = nil
-	}
-
-	startServer := func(cfg serverConfig) {
-		stopListeners()
-
-		if !cfg.Enabled {
-			log.Debug("dhcpserver: disabled in config")
-			return
-		}
-
-		for si := range cfg.SharedNetworks {
-			for subi := range cfg.SharedNetworks[si].Subnets {
-				sub := &cfg.SharedNetworks[si].Subnets[subi]
-				serverIP := sub.DefaultRouter
-				if !serverIP.IsValid() {
-					if len(sub.Ranges) > 0 {
-						serverIP = sub.Ranges[0].Start
-					}
-				}
-				if !serverIP.IsValid() {
-					serverIP = sub.Prefix.Addr()
-				}
-				h := newDHCPHandler(*sub, serverIP, cfg.PXE)
-				handlers = append(handlers, h)
-			}
-		}
-
-		listeners = startListeners(cfg, handlers, log)
-	}
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, s := range sections {
-			if s.Root != configRootService {
-				continue
-			}
-			cfg, err := parseConfig(s.Data)
-			if err != nil {
-				return fmt.Errorf("dhcpserver: %w", err)
-			}
-			startServer(cfg)
-			return nil
-		}
-		return nil
-	})
+	srv := &dhcpServer{log: log}
+	sdk.NewConfigTx(serverConfig{}, parseDHCPSections, srv.install).Register(p)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -139,11 +78,11 @@ func runDHCPServerPlugin(conn net.Conn) int {
 		ApplyBudget:  5,
 	}); err != nil {
 		log.Error("dhcpserver plugin failed", "error", err)
-		stopListeners()
+		srv.stop()
 		return 1
 	}
 
-	stopListeners()
+	srv.stop()
 	log.Info("dhcpserver plugin stopped")
 	return 0
 }
