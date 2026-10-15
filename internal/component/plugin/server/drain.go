@@ -211,7 +211,7 @@ func (r *DrainRound) Run(ctx context.Context, input rpc.DrainInput) DrainResult 
 				continue
 			}
 			result.Answered = append(result.Answered, caller.plugin)
-			logger().Info("drain finished", "plugin", caller.plugin, "elapsed", time.Since(start).Round(time.Millisecond))
+			logger().Info("drain finished", "plugin", caller.plugin, "elapsed", drainElapsed(start))
 		case <-caller.done:
 			// A request can land in the stop slot of a caller that has
 			// already returned; nobody will answer it.
@@ -224,12 +224,24 @@ func (r *DrainRound) Run(ctx context.Context, input rpc.DrainInput) DrainResult 
 
 	if errors.Is(ctx.Err(), context.Canceled) {
 		result.Aborted = true
-		logger().Warn("drain aborted by signal", "elapsed", time.Since(start).Round(time.Millisecond))
+		logger().Warn("drain aborted by signal", "elapsed", drainElapsed(start))
 		return result
 	}
 	if len(result.Late) > 0 {
 		logger().Warn("drain deadline passed with no answer", "plugins", strings.Join(result.Late, ","),
-			"elapsed", time.Since(start).Round(time.Millisecond))
+			"elapsed", drainElapsed(start))
 	}
 	return result
+}
+
+// drainElapsed is the time since start, as an operator reads it in a drain
+// log line. At a millisecond or more it rounds to the millisecond. Below that it
+// keeps the full precision, because a drain that answered in 300 µs rounded to
+// the millisecond would log "0s", which reads as no time at all.
+func drainElapsed(start time.Time) time.Duration {
+	elapsed := time.Since(start)
+	if elapsed < time.Millisecond {
+		return elapsed
+	}
+	return elapsed.Round(time.Millisecond)
 }
