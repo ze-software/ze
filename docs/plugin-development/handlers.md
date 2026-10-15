@@ -175,8 +175,10 @@ plugin nor the engine holds the whole answer. See
 
 Called during config reload to validate a candidate config. The plugin receives
 the full candidate config sections and returns nil to accept or an error to reject.
-If no handler is registered, config-verify returns OK (no-op).
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify -->
+If no handler is registered, config-verify accepts. Either way, a plugin that
+registered neither `OnConfigApply` nor `DeclareAppliesNothing` is refused before
+the handler runs: see "A plugin with no apply handler" below.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify, configVerifyCallback -->
 <!-- source: pkg/plugin/rpc/types.go -- ConfigVerifyInput -->
 
 ```go
@@ -202,8 +204,9 @@ Return `nil` to accept the candidate config, or an error to reject the reload.
 
 Called during config reload to apply config changes. The plugin receives diff
 sections describing what changed (added, removed, changed) and returns nil to
-accept or an error to reject. If no handler is registered, config-apply returns
-OK (no-op).
+accept or an error to reject. A plugin that declares `WantsConfig` must register
+it or call `DeclareAppliesNothing`; the handler must not be nil, and the call
+panics on a nil one.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply -->
 <!-- source: pkg/plugin/rpc/types.go -- ConfigApplyInput, ConfigDiffSection -->
 
@@ -255,6 +258,21 @@ an empty one. A plugin that reads a leaf it could apply registers
 p.DeclareCapabilitiesFrom(hostnameCapabilities, hostnameCapabilityLeaves)
 p.DeclareAppliesNothing("reads only the hostname capability leaves, fixed for the process life")
 ```
+
+### A plugin with no apply handler
+
+A plugin that registers neither `OnConfigApply` nor `DeclareAppliesNothing`
+cannot apply a reload, so the SDK refuses one rather than accept a change the
+plugin would never act on. Its `config-verify` answers an error before any
+`OnConfigVerify` handler runs, and so does its `config-apply` if one arrives;
+the refused apply opens no rollback gate. The reload is refused and the running
+config stays in force. The text names the plugin, the roots that changed, and
+the restart that delivers the change at startup instead:
+
+```
+plugin <name> cannot apply a change to <roots> while ze runs: it registered no config apply handler and does not declare that it applies nothing, so it would accept the change and keep running the old config
+```
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- configVerifyCallback, refuseConfigApply, refuseWithoutApply -->
 
 ### OnValidateOpen
 
@@ -539,7 +557,7 @@ return fmt.Errorf("validation failed")
 |-----------|----------|
 | Handler returns nil | `{"status":"ok"}` |
 | Handler returns error | `{"status":"error","error":"reason"}` |
-| No handler registered | `{"status":"ok"}` (graceful no-op) |
+| Neither `OnConfigApply` nor `DeclareAppliesNothing` registered | `{"status":"error","error":"plugin <name> cannot apply a change to <roots> while ze runs: ..."}` at config-verify and at config-apply |
 
 **Unknown methods** are rejected with an error response:
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->

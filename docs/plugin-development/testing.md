@@ -223,8 +223,12 @@ func executeCommand(t *testing.T, ctx context.Context, mux *rpc.MuxConn, input a
 ## Testing Configuration Handling
 
 The `OnConfigure` callback receives config sections during Stage 2.
-The `OnConfigVerify` and `OnConfigApply` callbacks handle config reload.
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnConfigVerify, OnConfigApply -->
+The `OnConfigVerify` and `OnConfigApply` callbacks handle config reload. A test
+pair that wants config and exercises config-verify or config-apply must register
+`OnConfigApply` or call `DeclareAppliesNothing`: without either the SDK refuses
+the reload, and `TestConfigApplyWithoutHandlerIsRefused` in
+`pkg/plugin/sdk/sdk_callbacks_test.go` asserts that refusal.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnConfigVerify, OnConfigApply, DeclareAppliesNothing -->
 
 ```go
 func TestConfigHandler(t *testing.T) {

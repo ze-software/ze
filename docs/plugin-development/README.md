@@ -235,7 +235,7 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 | `OnDecodeNLRI` | `DecodeNLRIHandler` | Runtime: NLRI decoding request |
 | `OnDecodeCapability` | `DecodeCapabilityHandler` | Runtime: capability decoding request |
 | `OnConfigVerify` | `ConfigVerifyHandler` | Reload: validate candidate config |
-| `OnConfigApply` | `ConfigApplyHandler` | Reload: apply config diff |
+| `OnConfigApply` | `ConfigApplyHandler` | Reload: apply config diff. A plugin with `WantsConfig` registers it or calls `DeclareAppliesNothing(reason)`; with neither, every reload that reaches it is refused |
 | `OnValidateOpen` | `ValidateOpenHandler` | Runtime: validate OPEN messages |
 | `OnBye` | `ByeHandler` | Shutdown: reason string |
 | `OnStarted` | `StartedHandler` | Post-startup: safe to make engine calls |

@@ -1981,6 +1981,17 @@ Config reload uses a two-phase verify/apply pattern:
 
 If any plugin rejects, the reload is aborted.
 
+A plugin built on the Go SDK that wants config and registered neither an apply
+handler (`OnConfigApply`) nor `DeclareAppliesNothing` rejects here, whatever
+its verify handler would say, because it would accept the change and keep
+running the old config. The reload is refused and the text names the plugin,
+its roots and the restart that applies the change at startup:
+
+```
+#10 ok {"status":"error","error":"plugin <name> cannot apply a change to bgp while ze runs: it registered no config apply handler and does not declare that it applies nothing, so it would accept the change and keep running the old config\n..."}
+```
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- configVerifyCallback, refuseWithoutApply -->
+
 **Phase 2: Apply** -- engine sends config diffs to all plugins:
 
 ```
