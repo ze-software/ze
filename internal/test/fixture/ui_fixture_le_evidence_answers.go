@@ -162,15 +162,37 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 		uiLeEvidenceAnswersRequire(err == nil, "writing native %s stub failed: %v", name, err)
 	}
 
+	// le activates the patched GOROOT of the checkout it runs in, and the
+	// activated tree's bin goes first on PATH. The tree is built here over a
+	// stand-in GOROOT whose bin/go is the stub, so go stays stubbed after
+	// activation. Its src is the real one, which holds the files the patches
+	// change, and its version is the real one, which their stamps name. The
+	// checkout's own cache/ keeps that tree out of the shared stdpatch cache.
+	realGOROOT, versionErr := exec.CommandContext(ctx, goTool, "env", "GOROOT").Output() //nolint:gosec // the fixture chooses the program and its arguments
+	uiLeEvidenceAnswersRequire(versionErr == nil, "reading the real GOROOT failed: %v", versionErr)
+	realVersion, versionErr := exec.CommandContext(ctx, goTool, "env", "GOVERSION").Output() //nolint:gosec // the fixture chooses the program and its arguments
+	uiLeEvidenceAnswersRequire(versionErr == nil, "reading the real GOVERSION failed: %v", versionErr)
+	standInGOROOT := filepath.Join(work, "goroot")
+	uiLeEvidenceAnswersRequire(os.MkdirAll(filepath.Join(standInGOROOT, "bin"), 0o750) == nil, "creating the stand-in GOROOT failed")
+	err = os.WriteFile(filepath.Join(standInGOROOT, "bin", "go"), stubBytes, 0o755) //nolint:gosec // the fixture writes an executable stand-in, so it needs the execute bit
+	uiLeEvidenceAnswersRequire(err == nil, "writing the stand-in GOROOT go failed: %v", err)
+	err = os.Symlink(filepath.Join(strings.TrimSpace(string(realGOROOT)), "src"), filepath.Join(standInGOROOT, "src"))
+	uiLeEvidenceAnswersRequire(err == nil, "linking the stand-in GOROOT src failed: %v", err)
+	uiLeEvidenceAnswersRequire(os.MkdirAll(filepath.Join(checkout, "cache"), 0o750) == nil, "creating the checkout cache failed")
+	err = leFixtureStdpatch(checkout)
+	uiLeEvidenceAnswersRequire(err == nil, "giving the checkout the standard-library patch set failed: %v", err)
+
 	defaultDockerRecord := filepath.Join(work, "docker-argv")
 	ipRecord := filepath.Join(work, "ip-argv")
 	baseOverrides := map[string]string{
-		envPath:            stubs + string(os.PathListSeparator) + os.Getenv("PATH"),
-		envRepoRoot:        checkout,
-		"ZE_GIT_STATUS":    "",
-		"ZE_DOCKER_EXIT":   "0",
-		"ZE_RECORD_DOCKER": defaultDockerRecord,
-		"ZE_RECORD_IP":     ipRecord,
+		envPath:                stubs + string(os.PathListSeparator) + os.Getenv("PATH"),
+		envRepoRoot:            checkout,
+		"ZE_GIT_STATUS":        "",
+		"ZE_STUB_GO_GOROOT":    standInGOROOT,
+		"ZE_STUB_GO_GOVERSION": strings.TrimSpace(string(realVersion)),
+		"ZE_DOCKER_EXIT":       "0",
+		"ZE_RECORD_DOCKER":     defaultDockerRecord,
+		"ZE_RECORD_IP":         ipRecord,
 	}
 
 	le := func(args []string, status, exitCode, record string, extra map[string]string) uiLeEvidenceAnswersCommandResult {

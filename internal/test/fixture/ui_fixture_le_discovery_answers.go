@@ -575,7 +575,7 @@ func treeManifest(root string, excluded ...string) ([32]byte, error) {
 func leDiscoveryTree(root string) error {
 	// Cover each indexed root and each responsibility source without using
 	// repository-size thresholds as a proxy for meaningful output.
-	return leDiscoveryWriteFiles(root, map[string]string{
+	if err := leDiscoveryWriteFiles(root, map[string]string{
 		fileGoMod:                           "module example.com/discovery\n",
 		fileFeatureGates:                    contentCoreFeatureGate,
 		"ai/.keep":                          "",
@@ -585,7 +585,13 @@ func leDiscoveryTree(root string) error {
 		"docs/architecture/documented.md":   "# Documented\n\n<!-- source: internal/documented/source.go -- Run -->\n",
 		"docs/architecture/registered.md":   "# Registered\n\n<!-- source: pkg/registered/register.go -- Run -->\n",
 		"docs/architecture/undocumented.md": "# Undocumented\n\n<!-- source: cmd/undocumented/main.go -- Run -->\n",
-	})
+	}); err != nil {
+		return err
+	}
+	// le activates this tree's patched GOROOT at startup, so a tree without
+	// the patch set gains cache/stdpatch on every run and no generator could
+	// prove it touched nothing but its own outputs.
+	return leFixtureStdpatch(root)
 }
 
 func leDiscoveryWriteFiles(root string, files map[string]string) error {

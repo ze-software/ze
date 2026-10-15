@@ -508,6 +508,9 @@ func leRFCAnswersTree(ctx context.Context, parent, binary string) string {
 	cache, err := filepath.Abs(filepath.Join(os.Getenv(envRepoRoot), "cache"))
 	leRFCAnswersRequireNoError(err, "resolve native build cache")
 	leRFCAnswersRequireNoError(os.Symlink(cache, filepath.Join(root, "cache")), "link native build cache")
+	// The gate compiles the owned test through gotoolchain.New, which reads
+	// the patch set of the checkout it runs in.
+	leRFCAnswersRequireNoError(leFixtureStdpatch(root), "give the owned tree the standard-library patch set")
 	stamp := leRFCAnswersRun(ctx, parent, map[string]string{envRepoRoot: root}, binary,
 		"rfc", "audit-stamp", "stem", "rfc4456", "from", filepath.Join(root, "pending.json"))
 	leRFCAnswersRequire(stamp.code == 0 && stamp.stderr == "",

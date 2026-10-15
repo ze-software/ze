@@ -126,6 +126,25 @@ func Run(name string, args []string) (int, bool) {
 	case "ping", "xl2tpd", "pppd":
 		return 0, true
 	case "go":
+		// Toolchain derivation (gen.Resolve) asks the go on PATH for its
+		// GOROOT and GOVERSION. The fixture names both, so the patched tree
+		// le activates is built over a stand-in GOROOT whose bin/go is this
+		// stub, and the stub stays first on PATH after activation.
+		if len(args) > 0 && args[0] == "env" {
+			if len(args) == 1 {
+				fmt.Fprintln(os.Stderr, "toolstub: go env with no key has no answer: the stub answers only named keys")
+				return 1, true
+			}
+			for _, key := range args[1:] {
+				value := os.Getenv("ZE_STUB_GO_" + key)
+				if value == "" {
+					fmt.Fprintln(os.Stderr, "toolstub: go env "+key+" has no answer: the fixture sets none in ZE_STUB_GO_"+key)
+					return 1, true
+				}
+				fmt.Println(value)
+			}
+			return 0, true
+		}
 		for index, arg := range args {
 			if index > 0 && args[index-1] == "-o" {
 				if err := os.MkdirAll(filepath.Dir(arg), 0o750); err != nil {

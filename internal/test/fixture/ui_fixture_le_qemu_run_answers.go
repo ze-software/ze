@@ -117,6 +117,11 @@ func leQEMURunAnswers(ctx context.Context) error {
 		}
 	}
 
+	// Toolchain derivation pins the release this go.mod declares and refuses
+	// a patch reviewed against another, so the stand-in carries its own set.
+	if err := leFixtureStdpatchFor(fixtureRoot, uiLeQemuRunAnswersGoRelease); err != nil {
+		return fmt.Errorf("FAIL: %w", err)
+	}
 	stubs := filepath.Join(work, "stubs")
 	if err := os.MkdirAll(stubs, 0o750); err != nil {
 		return fmt.Errorf("FAIL: create stand-in directory: %w", err)
