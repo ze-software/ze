@@ -238,6 +238,19 @@ is treat-as-withdraw (RFC 9830 Section 5).
 <!-- source: internal/component/bgp/message/rfc7606.go -- ValidateUpdateRFC7606AddPath, validateNextHopAttr -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- rfc7606NLRISyntaxAction, rfc7606ResetNotification -->
 
+At the default log level, every RFC 7606 action other than session reset
+(attribute discard, treat-as-withdraw, an NLRI syntax error, a late attribute
+error) logs one ERROR record, `BGP UPDATE from peer failed validation, part of
+it was dropped`, with `peer`, `event`, `attr`, `attr-name`, `description` and a
+`next-step`. ERROR, not WARN, because RFC 8669 Section 4.1 asks for "an error"
+on an invalid Prefix-SID beside "a warning" on a conflicting one. The record is
+rate-limited per peer and per attribute code to one a second; the next record
+of that code carries `suppressed`, the count it replaced, and a suppressed call
+allocates nothing. A session reset logs `RFC 7606 session-reset` at WARN.
+
+<!-- source: internal/component/bgp/reactor/session_rfc7606_errlog.go -- logRFC7606Error -->
+<!-- source: internal/component/bgp/reactor/log_window.go -- logWindow.allow -->
+
 With `ze.log.bgp.reactor.session=debug`, RFC 7606 error records include
 `update-wire-hex`: the complete original UPDATE, including its 19-octet header.
 Separate lists identify legacy announcements, legacy withdrawals, MP_REACH NLRI

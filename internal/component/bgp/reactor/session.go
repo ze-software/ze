@@ -252,6 +252,10 @@ type Session struct {
 	negotiated *capability.Negotiated
 	// Updated at connection setup and interface address events; immutable on receive.
 	nextHopScope atomic.Pointer[receiveNextHopScope]
+	// rfc7606Errors bounds the RFC 7606 error log, one window per attribute
+	// code (session_rfc7606_errlog.go). Nil until this peer first sends a
+	// malformed attribute, so a well-behaved peer pays nothing for it.
+	rfc7606Errors atomic.Pointer[rfc7606ErrorLog]
 
 	// bfdState reads the draft-ietf-idr-bgp-bfd-strict-mode Section 3
 	// bfd.SessionState attribute for this peer. nil for a peer with no BFD

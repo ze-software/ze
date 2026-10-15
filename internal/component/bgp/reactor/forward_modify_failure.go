@@ -7,7 +7,6 @@ package reactor
 
 import (
 	"net/netip"
-	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/clock"
@@ -102,30 +101,19 @@ const modifyFailureLogInterval = time.Second
 // The zero value is ready: a zero deadline is in the past, so the first failure
 // of each reason logs immediately.
 type modifyFailureLog struct {
-	nextAllowed [modifyFailureCount]atomic.Int64  // unix nanos
-	suppressed  [modifyFailureCount]atomic.Uint64 // since the last emission
+	windows [modifyFailureCount]logWindow
 }
 
 // allow reports whether this reason may be logged at now (unix nanos), and how
-// many emissions were suppressed since the previous one.
-//
-// Losing the race to another goroutine counts as suppressed rather than
-// retried: two goroutines that both cleared the deadline are the burst this
-// bound exists to collapse, and the loser's event is still counted and still
-// reported by the next winner.
+// many emissions were suppressed since the previous one (logWindow.allow).
 func (l *modifyFailureLog) allow(f modifyFailure, now int64) (emit bool, suppressed uint64) {
 	i := int(f)
-	if i < 0 || i >= len(l.nextAllowed) {
+	if i < 0 || i >= len(l.windows) {
 		// Keep an out-of-range reason in the reserved limiter slot rather than
 		// dropping its accounting. String separately asserts the closed reason set.
 		i = int(modifyFailureNone)
 	}
-	next := l.nextAllowed[i].Load()
-	if now < next || !l.nextAllowed[i].CompareAndSwap(next, now+int64(modifyFailureLogInterval)) {
-		l.suppressed[i].Add(1)
-		return false, 0
-	}
-	return true, l.suppressed[i].Swap(0)
+	return l.windows[i].allow(now, modifyFailureLogInterval)
 }
 
 // Prometheus label values for modifyFailure.

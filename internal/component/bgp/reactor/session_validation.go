@@ -166,6 +166,8 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 			// once, and the operator whose route stopped arriving needs the attribute and
 			// the description, which the line above carries neither of.
 			if result.Action != message.RFC7606ActionNone {
+				// RFC 7606 Section 6; RFC 8669 Section 6.
+				s.logRFC7606Error(result.Action.String(), result.AttrCode, result.Description)
 				s.rfc7606Diagnostics(result.Action.String(), receivedWU, result.AttrCode, result.Description)
 			}
 			return wu, message.RFC7606ActionTreatAsWithdraw, nil
@@ -187,6 +189,9 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 			"attr", result.AttrCode,
 			"discard-entries", result.DiscardEntries,
 			"description", result.Description)
+		// RFC 8669 Sections 4, 4.1 and 6; RFC 7606 Section 6: the error an operator sees
+		// at the default level. The Debug lines keep the detail.
+		s.logRFC7606Error("attribute-discard", result.AttrCode, result.Description)
 		// RFC 7606 Section 6: the NLRI involved and the entire malformed UPDATE, as the peer
 		// sent it. Not wu: the Section 3.g and Section 5.4 rewrites above have already
 		// replaced that with bytes ze built.
@@ -235,6 +240,9 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 		sessionLogger().Debug("RFC 7606 treat-as-withdraw",
 			"attr", result.AttrCode,
 			"description", result.Description)
+		// RFC 7606 Section 6: the routes are gone, so the error is logged at a level
+		// the operator sees by default.
+		s.logRFC7606Error("treat-as-withdraw", result.AttrCode, result.Description)
 		// RFC 7606 Section 6: logged on the UPDATE as the peer sent it -- the malformed one,
 		// which is the whole point of the requirement. Not wu, which the rewrites above may
 		// have replaced with bytes ze built.
@@ -652,6 +660,8 @@ func (s *Session) rfc7606LateAttributeError(wu *wireu.WireUpdate, validation *rf
 			validation.diagnosticWireHex)
 		return action, err
 	}
+	// RFC 7606 Section 6.
+	s.logRFC7606Error("treat-as-withdraw", attrCode, description)
 	s.rfc7606DiagnosticsWithWire("treat-as-withdraw", wu, attrCode, description, validation.diagnosticWireHex)
 	return message.RFC7606ActionTreatAsWithdraw, nil
 }
@@ -718,6 +728,7 @@ func (s *Session) rfc7606NLRISyntaxAction(
 	// A Section 5.3 NLRI-syntax failure is not strictly "a malformed attribute", but it is
 	// a malformed UPDATE the operator has to diagnose, and the NLRI is precisely what is
 	// wrong with it.
+	s.logRFC7606Error("nlri-syntax", result.AttrCode, result.Description)
 	s.rfc7606Diagnostics("nlri-syntax", wu, result.AttrCode, result.Description)
 	return wu, result.Action, nil
 }

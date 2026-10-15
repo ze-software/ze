@@ -108,7 +108,7 @@ func TestModifyFailureLogRateLimits(t *testing.T) {
 // range on the first failure of that kind.
 func TestModifyFailureLogCoversEveryReason(t *testing.T) {
 	var l modifyFailureLog
-	require.Equal(t, int(modifyFailureCount), len(l.nextAllowed),
+	require.Equal(t, int(modifyFailureCount), len(l.windows),
 		"the limiter must have a slot for every declared reason")
 
 	for i := range int(modifyFailureCount) {
