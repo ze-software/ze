@@ -23,6 +23,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -351,8 +352,8 @@
         "internal/component/bgp/wireu/rfc4271_advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "6da7ca3641c9fc13",
         "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "38033d5a4d8d353b",
         "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "38033d5a4d8d353b",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "f5f441d25f0d5702",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "f5f441d25f0d5702"
+        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "61f490e8785136a2",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "61f490e8785136a2"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_aspath_empty_test.go::TestForwardPresentEmptyASPath": "3c3e7fbce15f43c3",
@@ -382,8 +383,8 @@
         "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
         "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "8acb5d36c93abfec",
         "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
-        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "f5f441d25f0d5702",
-        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "f5f441d25f0d5702",
+        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "61f490e8785136a2",
+        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "61f490e8785136a2",
         "test/plugin/originated-nexthop-peer-own.ci": "6c87b12a0724809a",
         "test/plugin/originated-nexthop-peer-own.ci#2": "6c87b12a0724809a"
       },
@@ -434,8 +435,8 @@
         "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS#2": "d216c0c86115d31f",
         "internal/component/bgp/reactor/forward_med_test.go::TestForwardWritesLocallySetMED": "d216c0c86115d31f",
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "d216c0c86115d31f",
-        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "f5f441d25f0d5702",
-        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "f5f441d25f0d5702",
+        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "61f490e8785136a2",
+        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "61f490e8785136a2",
         "test/plugin/med-locally-set-reaches-peer.ci": "1b8b6dc94487cd73",
         "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
         "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
@@ -523,7 +524,7 @@
         "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "94aa07ebd53dcc5b",
-        "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "f5f441d25f0d5702",
+        "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "61f490e8785136a2",
         "test/plugin/local-pref-strip-ebgp.ci": "5a4fff5cffb8e210",
         "test/plugin/local-pref-strip-ebgp.ci#2": "5a4fff5cffb8e210"
       },
