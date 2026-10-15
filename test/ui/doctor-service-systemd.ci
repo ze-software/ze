@@ -1,7 +1,11 @@
 # Test: ze doctor reports invalid installed systemd service readiness
-# VALIDATES: doctor-service-user, doctor-service-group, and doctor-service-executable expose service install failures.
+# VALIDATES: doctor-service-user, doctor-service-group, doctor-service-executable and doctor-service-stop expose service install failures.
+# The stop settings come from stop.txt, the answer `systemctl show -p TimeoutStopUSec -p KillMode ze.service`
+# gave under systemd 257 for a drop-in of TimeoutStopSec=89.999s and KillMode=control-group, so the run never
+# reads the host's own ze.service.
 
 option=env:var=ze.test.doctor.service-unit:value=ze.service
+option=env:var=ze.test.doctor.service-stop:value=stop.txt
 option=env:var=ze.test.doctor.platform:value=systemd
 
 tmpfs=ze.service:terminator=EOF_UNIT
@@ -14,6 +18,11 @@ Group=ze-doctor-missing-group
 ExecStart=/definitely/missing/ze start
 EOF_UNIT
 
+tmpfs=stop.txt:terminator=EOF_STOP
+TimeoutStopUSec=1min 29.999000s
+KillMode=control-group
+EOF_STOP
+
 tmpfs=empty.conf:terminator=EOF_CONF
 # empty config
 EOF_CONF
@@ -23,3 +32,6 @@ expect=exit:code=1
 expect=stdout:contains=doctor-service-user
 expect=stdout:contains=doctor-service-group
 expect=stdout:contains=doctor-service-executable
+expect=stdout:contains=doctor-service-stop
+expect=stdout:contains=1min 29.999000s
+expect=stdout:contains=KillMode=control-group

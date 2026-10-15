@@ -40,6 +40,19 @@ var _ = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
+// doctorServiceStopEnv names a file holding the `systemctl show -p
+// TimeoutStopUSec -p KillMode` answer the stop check reads in place of the
+// host's systemd, so a functional test that sets doctorServiceUnitEnv judges
+// its own unit and never the host's ze.service.
+const doctorServiceStopEnv = "ze.test.doctor.service-stop"
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         doctorServiceStopEnv,
+	Type:        "string",
+	Description: "File holding the systemctl show stop settings for doctor functional tests",
+	Private:     true,
+})
+
 // The five probes the check makes against the host, each a variable so a test
 // can stand in a host that lacks the unit, the binary, the user or the group,
 // or whose systemd applies other stop settings.
@@ -48,7 +61,7 @@ var (
 	statServiceExecutable = os.Stat
 	lookupServiceUser     = user.Lookup
 	lookupServiceGroup    = user.LookupGroup
-	showServiceStop       = systemctlShowStop
+	showServiceStop       = queryServiceStop
 )
 
 // serviceDoctorCheck is the registration register.go installs.
@@ -245,12 +258,62 @@ const serviceStopQueryTimeout = 5 * time.Second
 const serviceStopFix = "; run `sudo ze install systemd --force` and `sudo systemctl daemon-reload`, " +
 	"and remove any drop-in `systemctl cat ze.service` shows overriding it"
 
+// errStopSeamUnset refuses the systemctl query in a run that pointed the
+// check at a test unit: the host's own ze.service is not the unit under test.
+var errStopSeamUnset = errors.New(doctorServiceUnitEnv + " is set but " + doctorServiceStopEnv +
+	" is not, and the host's own ze.service is not the unit under test; name a file holding the `systemctl show` answer in " +
+	doctorServiceStopEnv)
+
+// queryServiceStop answers the stop settings systemd applies to ze. A run that
+// set doctorServiceUnitEnv judges a unit the test wrote, so its stop settings
+// come from the file doctorServiceStopEnv names and never from the host.
+func queryServiceStop() ([]byte, error) {
+	if path := env.Get(doctorServiceStopEnv); path != "" {
+		return readServiceUnitFile(path)
+	}
+	if env.Get(doctorServiceUnitEnv) != "" {
+		return nil, errStopSeamUnset
+	}
+	return systemctlShowStop()
+}
+
 // systemctlShowStop asks systemd for the stop settings it applies to ze, as
 // it applies them: the unit, its drop-ins and the manager defaults together.
 func systemctlShowStop() ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), serviceStopQueryTimeout)
 	defer cancel()
 	return exec.CommandContext(ctx, "systemctl", "show", "-p", "TimeoutStopUSec", "-p", "KillMode", serviceName).Output()
+}
+
+// stopQueryFailure answers the warning for a stop query that gave no answer.
+// A host with no systemctl does not run systemd, so the unit file is stale and
+// the only fix is to remove it; any other failure carries systemctl's own
+// stderr, which says why ("Failed to connect to system scope bus").
+func stopQueryFailure(unitPath string, err error) diagnostic.Diagnostic {
+	var tb textbuf.Buffer
+	if errors.Is(err, exec.ErrNotFound) {
+		return diagnostic.Diagnostic{
+			Code:     diagnostic.CodeDoctorServiceStop,
+			Severity: diagnostic.SeverityWarning,
+			Message: tb.Str("systemctl not found: this host does not run systemd, so the unit at ").Str(unitPath).
+				Str(" is never used and its stop settings cannot be read; remove it with `sudo rm ").Str(unitPath).
+				Str("`, or install systemd if ze is meant to run under it").String(),
+			Path: unitPath,
+		}
+	}
+	tb.Str("the stop settings systemd applies to ").Str(serviceName).
+		Str(" cannot be read, so doctor cannot tell whether systemd cuts ze's stop drain short: ").Err(err)
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		if stderr := strings.TrimSpace(string(exitErr.Stderr)); stderr != "" {
+			tb.Str(" (").Str(stderr).Str(")")
+		}
+	}
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorServiceStop,
+		Severity: diagnostic.SeverityWarning,
+		Message:  tb.Str("; run `systemctl show -p TimeoutStopUSec -p KillMode ").Str(serviceName).Str("` to see why").String(),
+		Path:     unitPath,
+	}
 }
 
 // checkServiceStop reports the stop settings that would cut ze's stop drain
@@ -263,14 +326,7 @@ func checkServiceStop(unitPath string) []diagnostic.Diagnostic {
 	var tb textbuf.Buffer
 	output, err := showServiceStop()
 	if err != nil {
-		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorServiceStop,
-			Severity: diagnostic.SeverityWarning,
-			Message: tb.Str("the stop settings systemd applies to ").Str(serviceName).
-				Str(" cannot be read, so doctor cannot tell whether systemd cuts ze's stop drain short: ").Err(err).
-				Str("; run `systemctl show -p TimeoutStopUSec -p KillMode ").Str(serviceName).Str("` to see why").String(),
-			Path: unitPath,
-		}}
+		return []diagnostic.Diagnostic{stopQueryFailure(unitPath, err)}
 	}
 
 	var timeoutStop, killMode string
@@ -343,26 +399,24 @@ func judgeStopTimeout(unitPath, value string) (diagnostic.Diagnostic, bool) {
 // errTimespan is the refusal of a value parseSystemdTimespan cannot read.
 var errTimespan = errors.New("not a systemd time span")
 
-// systemdTimespanUnits are the unit suffixes systemd's format_timespan writes,
-// longest first within a shared prefix so "min" and "ms" are tried before "m"
-// and "s".
-var systemdTimespanUnits = []struct {
-	suffix string
-	unit   time.Duration
-}{
-	{"min", time.Minute},
-	{"ms", time.Millisecond},
-	{"us", time.Microsecond},
-	{"y", 31557600 * time.Second},
-	{"M", 2629800 * time.Second},
-	{"w", 7 * 24 * time.Hour},
-	{"d", 24 * time.Hour},
-	{"h", time.Hour},
-	{"s", time.Second},
+// systemdTimespanUnits are the unit names systemd's format_timespan writes
+// (src/basic/time-util.c, systemd 257): y, month, w, d, h, min, s, ms, us. A
+// field is split into its number and its unit before the unit is looked up, so
+// one unit can never match the tail of another ("3month" ends in "h").
+var systemdTimespanUnits = map[string]time.Duration{
+	"y":     31557600 * time.Second,
+	"month": 2629800 * time.Second,
+	"w":     7 * 24 * time.Hour,
+	"d":     24 * time.Hour,
+	"h":     time.Hour,
+	"min":   time.Minute,
+	"s":     time.Second,
+	"ms":    time.Millisecond,
+	"us":    time.Microsecond,
 }
 
 // parseSystemdTimespan reads a span as `systemctl show` prints it ("1min 30s",
-// "90ms", "infinity"): fields of a decimal number and a unit, summed. It
+// "1min 29.999000s", "500ms", "infinity"): fields of a decimal number and a unit, summed. It
 // answers unlimited for infinity, and an error for anything else it cannot
 // read, never a zero standing in for an answer. The loop is bounded by the
 // fields of the value.
@@ -384,23 +438,24 @@ func parseSystemdTimespan(value string) (span time.Duration, unlimited bool, err
 	return span, false, nil
 }
 
-// timespanField reads one "<number><unit>" field of a systemd time span.
+// timespanField reads one "<number><unit>" field of a systemd time span, as
+// format_timespan writes it: "1min", "29.999000s", "3month". The number is
+// the leading digits and dot, the unit everything after them, and the unit
+// must be one systemdTimespanUnits names exactly.
 func timespanField(field string) (time.Duration, bool) {
-	for _, candidate := range systemdTimespanUnits {
-		number, found := strings.CutSuffix(field, candidate.suffix)
-		if !found {
-			continue
-		}
-		amount, err := strconv.ParseFloat(number, 64)
-		if err != nil {
-			return 0, false
-		}
-		if amount < 0 {
-			return 0, false
-		}
-		return time.Duration(amount * float64(candidate.unit)), true
+	split := strings.IndexFunc(field, func(r rune) bool { return (r < '0' || r > '9') && r != '.' })
+	if split <= 0 {
+		return 0, false
 	}
-	return 0, false
+	unit, known := systemdTimespanUnits[field[split:]]
+	if !known {
+		return 0, false
+	}
+	amount, err := strconv.ParseFloat(field[:split], 64)
+	if err != nil {
+		return 0, false
+	}
+	return time.Duration(amount * float64(unit)), true
 }
 
 func checkServiceUser(unitPath, name string) []diagnostic.Diagnostic {

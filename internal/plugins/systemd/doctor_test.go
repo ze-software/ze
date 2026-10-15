@@ -9,13 +9,18 @@ package systemd
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // withServiceUnit stands in a host whose unit file holds data, for the life of
@@ -58,7 +63,10 @@ func TestDoctorUnitStopTimeoutBelowCeiling(t *testing.T) {
 		{"longer timeout", "TimeoutStopUSec=2min\nKillMode=mixed\n", nil, 0},
 		{"no timeout", "TimeoutStopUSec=infinity\nKillMode=mixed\n", nil, 0},
 		{"below ceiling plus margin", "TimeoutStopUSec=1min 29s\nKillMode=mixed\n", nil, 1},
-		{"fractional below", "TimeoutStopUSec=1min 29.999s\nKillMode=mixed\n", nil, 1},
+		// Printed by systemd 257 for TimeoutStopSec=89.999s (spec A-4 row).
+		{"fractional below", "TimeoutStopUSec=1min 29.999000s\nKillMode=mixed\n", nil, 1},
+		{"generated unit under systemd 257", "TimeoutStopUSec=1min 30s\nKillMode=mixed\n", nil, 0},
+		{"months", "TimeoutStopUSec=3month\nKillMode=mixed\n", nil, 0},
 		{"distro default kill mode", "TimeoutStopUSec=1min 30s\nKillMode=control-group\n", nil, 1},
 		{"both wrong", "TimeoutStopUSec=10s\nKillMode=process\n", nil, 2},
 		{"systemctl fails", "", errors.New("exit status 1"), 1},
@@ -85,6 +93,157 @@ func TestDoctorUnitStopTimeoutBelowCeiling(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestParseSystemdTimespan reads the spans systemd's format_timespan writes.
+//
+// VALIDATES: every unit format_timespan prints (y, month, w, d, h, min, s, ms,
+// us), the strings systemd 257 printed for real units (spec A-4 row), and the
+// refusals: an unknown unit, a bare number, a negative, an empty value.
+// PREVENTS: a unit matched by another's tail ("3month" read as "3mont" hours),
+// and a value doctor cannot read passing as a zero.
+func TestParseSystemdTimespan(t *testing.T) {
+	cases := []struct {
+		value string
+		want  time.Duration
+		bad   bool
+	}{
+		// Printed by `systemctl show -p TimeoutStopUSec` under systemd 257.
+		{"1min 30s", 90 * time.Second, false},
+		{"1min 29.999000s", 89999 * time.Millisecond, false},
+		{"2s", 2 * time.Second, false},
+		{"500ms", 500 * time.Millisecond, false},
+		{"3month", 3 * 2629800 * time.Second, false},
+		{"1y", 31557600 * time.Second, false},
+		{"1h 30min", 90 * time.Minute, false},
+		{"1d 1h 1min 1.500000s", 90061500 * time.Millisecond, false},
+		// The remaining units format_timespan writes.
+		{"2w", 14 * 24 * time.Hour, false},
+		{"250us", 250 * time.Microsecond, false},
+		// Refusals.
+		{"", 0, true},
+		{"90", 0, true},
+		{"3mont", 0, true},
+		{"5M", 0, true},
+		{"-5s", 0, true},
+		{"1.2.3s", 0, true},
+		{"soon", 0, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.value, func(t *testing.T) {
+			got, unlimited, err := parseSystemdTimespan(tc.value)
+			if tc.bad {
+				if err == nil {
+					t.Fatalf("parseSystemdTimespan(%q) = %v, want an error", tc.value, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseSystemdTimespan(%q): %v", tc.value, err)
+			}
+			if unlimited {
+				t.Fatalf("parseSystemdTimespan(%q) answered unlimited", tc.value)
+			}
+			if got != tc.want {
+				t.Fatalf("parseSystemdTimespan(%q) = %v, want %v", tc.value, got, tc.want)
+			}
+		})
+	}
+	if _, unlimited, err := parseSystemdTimespan("infinity"); err != nil || !unlimited {
+		t.Fatalf("infinity: unlimited=%v err=%v, want unlimited", unlimited, err)
+	}
+}
+
+// TestStopQueryFailureNamesTheCause drives the warning for a stop query that
+// gave no answer.
+//
+// VALIDATES: a host with no systemctl is told it does not run systemd, with a
+// fix that works there (remove the unit), and never the systemctl command it
+// lacks; any other failure carries systemctl's own stderr.
+// PREVENTS: "exit status 1" with no reason, and a fix that cannot run.
+func TestStopQueryFailureNamesTheCause(t *testing.T) {
+	const unitPath = "/etc/systemd/system/ze.service"
+	missing := stopQueryFailure(unitPath, &exec.Error{Name: "systemctl", Err: exec.ErrNotFound})
+	if !strings.Contains(missing.Message, "systemctl not found: this host does not run systemd") {
+		t.Errorf("message = %q, want the missing-systemctl cause", missing.Message)
+	}
+	if !strings.Contains(missing.Message, "sudo rm "+unitPath) {
+		t.Errorf("message = %q, want the removal fix", missing.Message)
+	}
+	if strings.Contains(missing.Message, "systemctl show") {
+		t.Errorf("message = %q tells a host without systemctl to run it", missing.Message)
+	}
+
+	bus := stopQueryFailure(unitPath, &exec.ExitError{
+		Stderr: []byte("Failed to connect to system scope bus via local transport: No such file or directory\n"),
+	})
+	if !strings.Contains(bus.Message, "Failed to connect to system scope bus") {
+		t.Errorf("message = %q, want systemctl's stderr", bus.Message)
+	}
+}
+
+// TestQueryServiceStopFollowsTheTestSeam proves a run pointed at a test unit
+// never asks the host's systemd about the host's ze.service.
+//
+// VALIDATES: with ze.test.doctor.service-stop set, the answer is that file;
+// with only ze.test.doctor.service-unit set, the query refuses.
+// PREVENTS: a functional test whose verdict depends on the machine it runs on.
+func TestQueryServiceStopFollowsTheTestSeam(t *testing.T) {
+	t.Cleanup(env.ResetCache)
+	stopPath := filepath.Join(t.TempDir(), "stop")
+	if err := os.WriteFile(stopPath, []byte("TimeoutStopUSec=1min 30s\nKillMode=mixed\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(doctorServiceUnitEnv, "ze.service")
+	t.Setenv(doctorServiceStopEnv, stopPath)
+	env.ResetCache()
+	output, err := queryServiceStop()
+	if err != nil {
+		t.Fatalf("queryServiceStop: %v", err)
+	}
+	if string(output) != "TimeoutStopUSec=1min 30s\nKillMode=mixed\n" {
+		t.Fatalf("queryServiceStop = %q, want the seam file", output)
+	}
+
+	t.Setenv(doctorServiceStopEnv, "")
+	env.ResetCache()
+	if _, err := queryServiceStop(); !errors.Is(err, errStopSeamUnset) {
+		t.Fatalf("queryServiceStop with no stop seam: err = %v, want %v", err, errStopSeamUnset)
+	}
+}
+
+// TestStopDrainLiteralsMatchTheConstants checks the catalog entry and the
+// operator page, which write the drain budget as numbers, against the
+// constants the daemon runs on.
+//
+// VALIDATES: the doctor-service-stop description and docs/guide/health-checks.md
+// name the drain ceiling, the teardown margin and their sum as rpc declares
+// them.
+// PREVENTS: a budget change that leaves the operator reading the old numbers.
+func TestStopDrainLiteralsMatchTheConstants(t *testing.T) {
+	ceiling := strconv.Itoa(rpc.DrainCeilingSeconds) + " s"
+	margin := strconv.Itoa(rpc.DrainTeardownMarginSeconds) + " s"
+	total := strconv.Itoa(stopTimeoutSeconds) + " s"
+
+	diagnostic.RegisterBuiltinCodes()
+	meta := diagnostic.Lookup(diagnostic.CodeDoctorServiceStop)
+	if meta == nil {
+		t.Fatalf("%s is not in the catalog", diagnostic.CodeDoctorServiceStop)
+	}
+	for _, want := range []string{"up to " + ceiling, "up to " + margin, "at least " + total, "below " + total} {
+		if !strings.Contains(meta.Description, want) {
+			t.Errorf("catalog description lacks %q: %s", want, meta.Description)
+		}
+	}
+
+	page, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "guide", "health-checks.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "at least " + total + " (" + strconv.Itoa(rpc.DrainCeilingSeconds) + " s drain ceiling plus " + margin + " teardown)"
+	if !strings.Contains(string(page), want) {
+		t.Errorf("docs/guide/health-checks.md lacks %q", want)
 	}
 }
 
