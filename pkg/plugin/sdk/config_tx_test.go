@@ -2,6 +2,8 @@ package sdk
 
 import (
 	"errors"
+	"fmt"
+	"slices"
 	"testing"
 )
 
@@ -14,12 +16,17 @@ type testTxPlugin struct {
 	installed string
 	installs  []string
 	failNext  bool
+	// failWith, when set, is the error of every install until it is cleared.
+	failWith error
 }
 
 func (pl *testTxPlugin) install(cfg string) error {
 	if pl.failNext {
 		pl.failNext = false
 		return errors.New("install failed")
+	}
+	if pl.failWith != nil {
+		return pl.failWith
 	}
 	pl.installed = cfg
 	pl.installs = append(pl.installs, cfg)
@@ -178,5 +185,59 @@ func TestConfigTxInstallFailureKeepsRunning(t *testing.T) {
 	}
 	if len(pl.installs) != 2 {
 		t.Fatalf("installs %v, want boot then next", pl.installs)
+	}
+}
+
+var errTestLost = fmt.Errorf("listener 127.0.0.1:53 not bound again: %w", ErrRunningConfigLost)
+
+// VALIDATES: an install that fails with ErrRunningConfigLost leaves the
+// transaction broken, so committing the running config again installs it
+// rather than being skipped as unchanged (DeepEqual against running).
+// PREVENTS: a DNS plugin left with no listener after a failed reload, which a
+// re-commit of the running config answered OK without binding anything.
+func TestConfigTxRunningConfigLostRecommitInstalls(t *testing.T) {
+	tx, pl := newTestConfigTx()
+	mustNoErr(t, "configure", tx.Configure(ownSection("boot")))
+	mustNoErr(t, "verify", tx.Verify(ownSection("next")))
+	pl.failWith = errTestLost
+	if err := tx.Apply(); !errors.Is(err, ErrRunningConfigLost) {
+		t.Fatalf("apply: %v, want ErrRunningConfigLost", err)
+	}
+	pl.failWith = nil
+	mustNoErr(t, "verify the running config", tx.Verify(ownSection("boot")))
+	mustNoErr(t, "apply the running config", tx.Apply())
+	if want := []string{"boot", "boot"}; !slices.Equal(pl.installs, want) {
+		t.Fatalf("installs %v, want %v: the re-commit of the running config installed nothing", pl.installs, want)
+	}
+	mustNoErr(t, "verify again", tx.Verify(ownSection("boot")))
+	mustNoErr(t, "apply again", tx.Apply())
+	if len(pl.installs) != 2 {
+		t.Fatalf("installs %v: a repaired transaction installed an unchanged config again", pl.installs)
+	}
+}
+
+// VALIDATES: the rollback of a transaction whose install lost the running
+// config installs the running config again, and answers an error when that
+// install fails too (the error the engine turns into CodeBroken and a restart).
+// PREVENTS: a rollback answering OK over a plugin that serves nothing.
+func TestConfigTxRollbackAfterRunningConfigLost(t *testing.T) {
+	tx, pl := newTestConfigTx()
+	mustNoErr(t, "configure", tx.Configure(ownSection("boot")))
+	mustNoErr(t, "verify", tx.Verify(ownSection("next")))
+	pl.failWith = errTestLost
+	if err := tx.Apply(); err == nil {
+		t.Fatal("apply with a lost running config: err nil")
+	}
+	if err := tx.Rollback(); !errors.Is(err, ErrRunningConfigLost) {
+		t.Fatalf("rollback whose reinstall fails: %v, want an error wrapping the install failure", err)
+	}
+	pl.failWith = nil
+	mustNoErr(t, "rollback once the reinstall can succeed", tx.Rollback())
+	if pl.installed != "boot" {
+		t.Fatalf("installed %q after the rollback, want boot", pl.installed)
+	}
+	mustNoErr(t, "a second rollback", tx.Rollback())
+	if len(pl.installs) != 2 {
+		t.Fatalf("installs %v, want boot then the one reinstall", pl.installs)
 	}
 }

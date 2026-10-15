@@ -202,7 +202,12 @@ last apply, which belonged to the previous, committed transaction, and
 restored the state from two commits back. A handler whose apply fails MUST
 therefore undo its own partial work before it returns the error, and a handler
 that accepts an apply without changing anything MUST drop the undo set it kept
-from an earlier apply, because the gate opens on every accepted apply.
+from an earlier apply, because the gate opens on every accepted apply. The one
+exception is an apply that could not undo its partial work: it returns an
+error wrapping `sdk.ErrRunningConfigLost`, which opens the gate too, so the
+rollback reaches the handler. The handler repairs the state or answers an
+error, which the bridge acks `CodeBroken`, and the orchestrator restarts the
+plugin.
 <!-- source: pkg/plugin/sdk/config_tx_gate.go -- configTxGate -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply, OnConfigRollback, configApplyCallback -->
 
@@ -216,7 +221,12 @@ verify of the same transaction preceded it, installs nothing when the
 candidate is absent or deeply equal to the running config (so a shared-root
 edit outside the plugin's subtree restarts nothing), and otherwise installs it
 and keeps the replaced config, which rollback installs back. Both no-change
-answers drop the undo set, as the contract above requires.
+answers drop the undo set, as the contract above requires. An install that
+fails MUST leave the running config as it was; one that cannot (a DNS listener
+of the running config could not be bound again) wraps `ErrRunningConfigLost`,
+which leaves the transaction broken. Rollback then installs the running config
+again and fails when that install fails, and until an install succeeds apply
+skips the comparison, so a commit of the running config installs it.
 <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx -->
 
 Only the engine emits `(config, rollback)`. A failing plugin emits

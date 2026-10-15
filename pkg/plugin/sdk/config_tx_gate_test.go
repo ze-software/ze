@@ -2,6 +2,8 @@ package sdk
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -187,6 +189,69 @@ func TestConfigCommittedRunsOnlyForOpenApply(t *testing.T) {
 	got := append([]string(nil), committed...)
 	mu.Unlock()
 	assert.Equal(t, []string{"tx-1"}, got, "the commit handler runs once, for the one committed apply")
+
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}))
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// VALIDATES: an apply that fails with ErrRunningConfigLost opens the rollback
+// gate, so the transaction's rollback reaches the handler and its error
+// answers the rollback RPC (which the engine's bridge acks as CodeBroken and
+// the orchestrator answers with a restart). An apply that fails with any
+// other error keeps the gate closed.
+// PREVENTS: a plugin that lost its running config during a failed apply
+// staying down, because the rollback never reached it.
+func TestConfigApplyRunningConfigLostReachesRollback(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+	var applyErr error
+	var rollbacks int
+	errRestore := errors.New("previous listener still unbindable")
+	p.OnConfigApply(func(_ []ConfigDiffSection) error { return applyErr })
+	p.OnConfigRollback(func(_ string) error { rollbacks++; return errRestore })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, &Registration{})
+	}()
+	completeStartup(t, ctx, engine)
+
+	apply := func() {
+		t.Helper()
+		input := struct {
+			Sections []ConfigDiffSection `json:"sections"`
+		}{Sections: []ConfigDiffSection{{Root: "test", Changed: "x"}}}
+		_, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-apply", input)
+		require.NoError(t, err)
+	}
+	rollback := func(txID string) error {
+		_, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-rollback", struct {
+			TransactionID string `json:"transaction-id"`
+		}{TransactionID: txID})
+		return err
+	}
+
+	applyErr = errors.New("cannot listen on 127.0.0.1:53")
+	apply()
+	require.NoError(t, rollback("tx-1"), "a failed apply that undid itself owes no rollback")
+	assert.Equal(t, 0, rollbacks)
+
+	applyErr = fmt.Errorf("cannot listen on 127.0.0.1:53: %w", ErrRunningConfigLost)
+	apply()
+	err := rollback("tx-2")
+	require.Error(t, err, "the rollback of a lost running config must answer the restore failure")
+	assert.Contains(t, err.Error(), errRestore.Error())
+	assert.Equal(t, 1, rollbacks)
 
 	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", struct {
 		Reason string `json:"reason"`

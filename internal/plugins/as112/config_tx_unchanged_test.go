@@ -20,7 +20,7 @@ func as112Sections(hostname, description string) []sdk.ConfigSection {
 func newTestAS112ConfigTx(t *testing.T) *sdk.ConfigTx[as112Config] {
 	t.Helper()
 	prod := newAS112Producer()
-	inst := &as112Installer{prod: prod, mgr: newServerManager(slog.Default(), prod.onServingChanged), log: slog.Default()}
+	inst := newAS112Installer(prod, newServerManager(slog.Default(), prod.onServingChanged), slog.Default())
 	t.Cleanup(func() {
 		inst.mgr.stopAll()
 		stateP.Store(nil)

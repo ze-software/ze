@@ -31,7 +31,10 @@ TLS material that cannot be loaded is treated by the apply's `BindPolicy`. At
 boot (`BindLenient`) the DoT and DoH listeners are left out, logged, and the
 cleartext ones serve. On a reload (`BindStrict`) the apply is refused before any
 listener stops, naming the certificate and `ze show pki certificates`, so the
-running listeners keep serving ([server harness](server-harness.md)).
+running listeners keep serving ([server harness](server-harness.md)). A reload
+that leaves the secure listeners unchanged (the same secure config on the same
+addresses) is not refused: it keeps the material they serve and logs the load
+failure.
 
 <!-- source: internal/core/dnsserver/secure.go -- ApplyWithSecure, BindPolicy -->
 <!-- source: internal/core/dnsserver/tlsmaterial.go -- LoadTLSMaterial -->

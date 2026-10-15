@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/miekg/dns"
@@ -66,6 +67,12 @@ type Listeners struct {
 	DoHPath   string
 }
 
+// ErrPreviousListenersLost marks a refused strict apply whose previous
+// listeners could not all be bound again: the running config is not fully
+// serving. A consumer's reload installer passes it on as
+// sdk.ErrRunningConfigLost, which takes the transaction's repair path.
+var ErrPreviousListenersLost = errors.New("the running config is not fully serving")
+
 // BindPolicy says what an apply does when a listener it asks for cannot be
 // bound, or the TLS material of its secure listeners cannot be loaded. The
 // zero value is not a policy: every caller names one.
@@ -82,7 +89,7 @@ const (
 	// the TLS material cannot be loaded, and binds the listeners of the
 	// previous apply again. It is the reload policy: a commit that reports
 	// success MUST be served, and a refused one MUST leave the running
-	// config serving.
+	// config serving, or say with ErrPreviousListenersLost that it could not.
 	BindStrict
 )
 
@@ -126,7 +133,7 @@ func (m *Manager) reconcile(enabled bool, l Listeners, policy BindPolicy) error 
 		secureCount = 0
 	}
 
-	previous, previousEnabled := m.running, m.runningEnabled
+	previous, previousEnabled, previousSig := m.running, m.runningEnabled, m.appliedSig()
 	m.Stop()
 
 	if !enabled {
@@ -134,18 +141,15 @@ func (m *Manager) reconcile(enabled bool, l Listeners, policy BindPolicy) error 
 		return nil
 	}
 
-	if err := m.bindListeners(l, policy); err != nil {
-		// Strict only: bindListeners stops at the first failure. Close what
-		// bound, then bind the previous apply's listeners again, leniently,
+	bound, failed := m.bindListeners(l)
+	if policy == BindStrict && len(failed) > 0 {
+		// Close what bound, then bind the previous apply's listeners again,
 		// so the running config keeps serving whatever it served.
 		m.Stop()
-		m.setApplied(unappliedSig)
-		if rerr := m.applyListeners(previousEnabled, previous); rerr != nil {
-			return fmt.Errorf("dnsserver: reload refused, %w; the previous listeners could not be bound again "+
-				"either (%v); free the address and port, or change the listener, then commit again", err, rerr)
-		}
-		return fmt.Errorf("dnsserver: reload refused, %w; the running listeners are kept; "+
-			"free the address and port, or change the listener, then commit again", err)
+		return m.restorePrevious(previousEnabled, previous, errors.Join(failed...), previousSig)
+	}
+	for _, err := range failed {
+		m.log.Error("dnsserver: listen failed", logKeyError, err)
 	}
 
 	desiredTotal := len(l.Plain) + secureCount
@@ -154,48 +158,79 @@ func (m *Manager) reconcile(enabled bool, l Listeners, policy BindPolicy) error 
 		m.setApplied(unappliedSig)
 		return fmt.Errorf("dnsserver: no listeners bound on %d endpoint(s)", desiredTotal)
 	}
-	m.setRunning(sig, enabled, l)
+	m.setRunning(sig, enabled, bound)
 	m.log.Info("dnsserver: listening",
 		"plain", len(l.Plain), "dot", len(l.DoT), "doh", len(l.DoH))
 	return nil
 }
 
-// bindListeners binds every listener of l. A lenient bind logs each failure
-// and carries on, so the rest still serve, and returns nil; a strict bind
-// returns the first failure, naming the endpoint, with what bound before it
-// still open for the caller to stop.
-func (m *Manager) bindListeners(l Listeners, policy BindPolicy) error {
+// restorePrevious binds the previous apply's listeners again after a strict
+// apply refused with cause, and answers the refusal. previous holds only the
+// listeners that served, so a listener the running config never bound is not
+// counted lost. When every previous listener is bound again the running
+// config serves as before and the error says so. When one is not, the error
+// wraps ErrPreviousListenersLost and names each endpoint that is not serving
+// and why; previous stays the set a later strict failure binds again, and the
+// applied signature is cleared, so applying the previous config again binds
+// it rather than being taken as a no-op.
+func (m *Manager) restorePrevious(enabled bool, previous Listeners, cause error, previousSig string) error {
+	if !enabled {
+		m.setRunning(previousSig, enabled, previous)
+		return fmt.Errorf("dnsserver: reload refused, %w; the running config serves no listener, "+
+			"and none was started; free the address and port, or change the listener, then commit again", cause)
+	}
+	_, lost := m.bindListeners(previous)
+	if len(lost) == 0 {
+		m.setRunning(previousSig, enabled, previous)
+		return fmt.Errorf("dnsserver: reload refused, %w; the running listeners are kept; "+
+			"free the address and port, or change the listener, then commit again", cause)
+	}
+	m.running, m.runningEnabled = previous, enabled
+	m.setApplied(unappliedSig)
+	total := len(previous.Plain)
+	if previous.TLSConfig != nil {
+		total += len(previous.DoT) + len(previous.DoH)
+	}
+	return fmt.Errorf("dnsserver: reload refused, %w; %w: %d of the %d running listener(s) could not be bound "+
+		"again, so they are not serving (%w); free the address and port, then commit the running config again, "+
+		"or restart the plugin", cause, ErrPreviousListenersLost, len(lost), total, errors.Join(lost...))
+}
+
+// bindListeners binds every listener of l. It answers the listeners that
+// bound (l with only those endpoints) and one error for each that could not
+// be bound, naming its transport and endpoint. Each failure leaves the other
+// listeners bound; the caller decides what a failure means (BindPolicy).
+func (m *Manager) bindListeners(l Listeners) (Listeners, []error) {
+	bound := Listeners{TLSConfig: l.TLSConfig, DoHPath: l.DoHPath}
+	var failed []error
 	for _, e := range l.Plain {
 		ep := net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
 		if err := m.bind(ep, e.IP.String()); err != nil {
-			if policy == BindStrict {
-				return fmt.Errorf("cannot listen on %s: %w", ep, err)
-			}
-			m.log.Error("dnsserver: listen failed", "endpoint", ep, logKeyError, err)
+			failed = append(failed, fmt.Errorf("cannot listen on %s: %w", ep, err))
+			continue
 		}
+		bound.Plain = append(bound.Plain, e)
 	}
 	if l.TLSConfig == nil {
-		return nil
+		return bound, failed
 	}
 	for _, e := range l.DoT {
 		ep := net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
 		if err := m.bindDoT(ep, e.IP.String(), l.TLSConfig); err != nil {
-			if policy == BindStrict {
-				return fmt.Errorf("cannot listen for DoT on %s: %w", ep, err)
-			}
-			m.log.Error("dnsserver: DoT listen failed", "endpoint", ep, logKeyError, err)
+			failed = append(failed, fmt.Errorf("cannot listen for DoT on %s: %w", ep, err))
+			continue
 		}
+		bound.DoT = append(bound.DoT, e)
 	}
 	for _, e := range l.DoH {
 		ep := net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
 		if err := m.bindDoH(ep, e.IP.String(), l.TLSConfig, l.DoHPath); err != nil {
-			if policy == BindStrict {
-				return fmt.Errorf("cannot listen for DoH on %s: %w", ep, err)
-			}
-			m.log.Error("dnsserver: DoH listen failed", "endpoint", ep, logKeyError, err)
+			failed = append(failed, fmt.Errorf("cannot listen for DoH on %s: %w", ep, err))
+			continue
 		}
+		bound.DoH = append(bound.DoH, e)
 	}
-	return nil
+	return bound, failed
 }
 
 // SecureConfig is the parsed DoT/DoH configuration a consumer plugin fills from
@@ -284,25 +319,30 @@ func ParseSecureLeaves(node map[string]any, sc *SecureConfig, svc string) error 
 // cleartext endpoints and the secure config. Certificate material is loaded once
 // (self-signed) or per-apply (operator files, so rotation is picked up); a TLS
 // load failure under BindLenient disables only the secure listeners, never the
-// cleartext ones; under BindStrict it refuses the apply before any listener
-// stops, so the running set keeps serving.
+// cleartext ones. Under BindStrict it refuses the apply before any listener
+// stops, so the running set keeps serving, unless the secure listeners would
+// not change (same sc, same addresses as the last accepted apply): the reload
+// then keeps the material those listeners already serve, logs the load
+// failure, and goes on, so a reload of host data alone is not refused for a
+// certificate file that left the disk.
 func (m *Manager) ApplyWithSecure(enabled bool, plain []Endpoint, sc SecureConfig, policy BindPolicy, log *slog.Logger) error {
 	l := Listeners{Plain: plain, DoHPath: sc.DoHPath}
+	ips := uniqueIPs(plain)
+	sans := make([]string, len(ips))
+	for i, ip := range ips {
+		sans[i] = ip.String()
+	}
+	inputs := secureInputs{enabled: enabled, sc: sc, sans: strings.Join(sans, ",")}
 	if enabled && (sc.DoTEnabled || sc.DoHEnabled) {
-		ips := uniqueIPs(plain)
-		sans := make([]string, len(ips))
-		for i, ip := range ips {
-			sans[i] = ip.String()
-		}
 		tlsCfg, err := m.buildSecureTLS(sc, sans, log)
 		if err != nil {
-			if policy == BindStrict {
-				return fmt.Errorf("dnsserver: reload refused, the DoT/DoH TLS material cannot be loaded: %w; "+
-					"the running listeners are kept; name a certificate the PKI store holds "+
-					"(ze show pki certificates) or a readable cert-file and key-file, then commit again", err)
+			kept, kerr := m.keptSecure(inputs, policy, err, log)
+			if kerr != nil {
+				return kerr
 			}
-			log.Error("dnsserver: TLS material load failed; DoT/DoH not started", logKeyError, err)
-		} else {
+			tlsCfg = kept.tls
+		}
+		if tlsCfg != nil {
 			l.TLSConfig = tlsCfg
 			if sc.DoTEnabled {
 				l.DoT = endpointsOnPort(ips, sc.DoTPort)
@@ -312,7 +352,59 @@ func (m *Manager) ApplyWithSecure(enabled bool, plain []Endpoint, sc SecureConfi
 			}
 		}
 	}
-	return m.reconcile(enabled, l, policy)
+	if err := m.reconcile(enabled, l, policy); err != nil {
+		return err
+	}
+	m.secureRunning = &secureApplied{inputs: inputs, tls: l.TLSConfig}
+	return nil
+}
+
+// keptSecure answers a TLS material load failure (loadErr) with the secure
+// side the apply goes on with. A lenient apply logs it and starts no secure
+// listener (a zero secureApplied). A strict apply refuses it unless inputs
+// equal those of the last accepted apply, whose secure side it then keeps,
+// and logs why.
+func (m *Manager) keptSecure(inputs secureInputs, policy BindPolicy, loadErr error, log *slog.Logger) (secureApplied, error) {
+	if policy != BindStrict {
+		log.Error("dnsserver: TLS material load failed; DoT/DoH not started", logKeyError, loadErr)
+		return secureApplied{}, nil
+	}
+	running := m.secureRunning
+	if running == nil {
+		return secureApplied{}, secureLoadRefusal(loadErr)
+	}
+	if running.inputs != inputs {
+		return secureApplied{}, secureLoadRefusal(loadErr)
+	}
+	log.Warn("dnsserver: TLS material cannot be loaded again; this reload does not change the DoT/DoH "+
+		"listeners, so they keep the material they serve; restore the certificate before the next "+
+		"change to them", logKeyError, loadErr)
+	return *running, nil
+}
+
+// secureLoadRefusal is the error of a strict apply refused because the TLS
+// material of its secure listeners cannot be loaded.
+func secureLoadRefusal(err error) error {
+	return fmt.Errorf("dnsserver: reload refused, the DoT/DoH TLS material cannot be loaded: %w; "+
+		"the running listeners are kept; name a certificate the PKI store holds "+
+		"(ze show pki certificates) or a readable cert-file and key-file, then commit again", err)
+}
+
+// secureInputs is everything the secure listeners of one apply are built
+// from: whether the apply serves, the secure config, and the addresses the
+// certificate names. Comparable, so two applies with equal inputs build the
+// same secure listeners.
+type secureInputs struct {
+	enabled bool
+	sc      SecureConfig
+	sans    string
+}
+
+// secureApplied is the secure side of the last accepted ApplyWithSecure: its
+// inputs and the TLS material its listeners serve (nil when none started).
+type secureApplied struct {
+	inputs secureInputs
+	tls    *tls.Config
 }
 
 // buildSecureTLS returns the tls.Config for the secure listeners. Operator PEM

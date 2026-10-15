@@ -4,6 +4,7 @@
 package geodns
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -77,7 +78,10 @@ func (in *geodnsInstaller) configureAtBoot(tx *sdk.ConfigTx[geodnsConfig], secti
 // DoT/DoH TLS material that cannot be loaded, fails the install: dnsserver
 // binds the previous listeners again and the previous snapshot is published
 // back, so the running config keeps serving and the commit is refused
-// (R-13). At boot such a failure is logged, and what bound serves.
+// (R-13). When a previous listener cannot be bound again the error wraps
+// sdk.ErrRunningConfigLost, so the transaction's rollback installs the
+// running config again or restarts the plugin. At boot such a failure is
+// logged, and what bound serves.
 func (in *geodnsInstaller) install(cfg geodnsConfig) error {
 	prev := loadState()
 	var prevSerial uint32
@@ -95,6 +99,9 @@ func (in *geodnsInstaller) install(cfg geodnsConfig) error {
 		if !in.boot {
 			storeState(prev)
 			gmetrics().reloadTotal.With("error").Inc()
+			if errors.Is(aerr, dnsserver.ErrPreviousListenersLost) {
+				return fmt.Errorf("geodns: %w (%w)", aerr, sdk.ErrRunningConfigLost)
+			}
 			return fmt.Errorf("geodns: %w", aerr)
 		}
 		in.log.Error("geodns: listener setup failed", "error", aerr)

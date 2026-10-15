@@ -99,11 +99,16 @@ type Manager struct {
 	// goroutine.
 	selfSigned *tls.Config
 
-	// running and runningEnabled are the listener set of the last completed
-	// apply, which a strict apply that fails binds again. Written only by the
-	// Apply-calling goroutine.
+	// running and runningEnabled are the listeners that serve: those of the
+	// last completed apply that bound, which a strict apply that fails binds
+	// again. Written only by the Apply-calling goroutine.
 	running        Listeners
 	runningEnabled bool
+	// secureRunning is the secure side of the last accepted ApplyWithSecure,
+	// nil before one. A strict apply whose TLS material cannot be loaded keeps
+	// it when its inputs are unchanged. Written only by the Apply-calling
+	// goroutine.
+	secureRunning *secureApplied
 
 	mu         sync.Mutex
 	applied    string

@@ -86,16 +86,38 @@ geodns inherited the fixes.
 `ApplyWithSecure` takes a `BindPolicy` from its caller. `BindLenient` is the
 boot (Stage 2) policy: a listener that cannot be bound, or DoT and DoH TLS
 material that cannot be loaded, is logged and the rest serve; the apply fails
-only when nothing bound. `BindStrict` is the reload policy: a TLS load failure
-refuses before any listener stops, and the first listener that cannot be bound
-stops what this apply bound, binds the previous apply's listeners again
-(leniently) and returns an error naming the endpoint and the fix. The plugin's
-installer then puts its previous snapshot back, so the commit fails and the
-running config keeps serving. `Apply`, the cleartext-only primitive, binds
-leniently.
+only when nothing bound. `BindStrict` is the reload policy. A TLS load failure
+refuses before any listener stops, unless the secure listeners would not
+change (the same secure config on the same addresses as the last accepted
+apply): the reload then keeps the material those listeners serve and logs the
+failure, so a reload of host data alone is not refused for a certificate file
+that left the disk. A listener that cannot be bound fails the apply: every
+listener this apply bound is stopped, the previous apply's listeners are bound
+again, and the error names each endpoint that failed and the fix. The plugin's
+installer then puts its previous snapshot back (as112 also its loopback
+address registration; its redistribute producer takes a config only after the
+listeners bound), so the commit fails and the running config keeps serving.
 
-<!-- source: internal/core/dnsserver/secure.go -- BindPolicy, reconcile, bindListeners, ApplyWithSecure -->
-<!-- source: internal/plugins/as112/config_tx.go -- as112Installer.install, configureAtBoot -->
+The previous listeners are the ones that served, so a listener the running
+config never bound is not counted. If another process takes one of their ports
+in the moment between the stop and the rebind, the running config is no
+longer fully served, and the refusal says so: it names each previous listener
+that is not serving and wraps `ErrPreviousListenersLost`, never claiming the
+listeners were kept. The installer passes that on as
+`sdk.ErrRunningConfigLost`, which marks the plugin's `sdk.ConfigTx` broken.
+The transaction's rollback then installs the running config again; when that
+fails too, the rollback answers an error, the engine acks it `CodeBroken`,
+and the orchestrator restarts the plugin, which binds leniently at Stage 2.
+While broken, a commit of the running config is installed rather than
+skipped as unchanged, and the harness's signature is cleared so that commit
+binds. A reload that changes the listener set stops every listener before it
+binds the new set, so serving pauses for that moment (and as112 withdraws and
+announces its covering prefixes again, RFC 7534 Section 3.3). `Apply`, the
+cleartext-only primitive, binds leniently.
+
+<!-- source: internal/core/dnsserver/secure.go -- BindPolicy, reconcile, restorePrevious, bindListeners, ApplyWithSecure, secureTLS -->
+<!-- source: internal/plugins/as112/config_tx.go -- as112Installer.install, refuse, configureAtBoot -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- ErrRunningConfigLost, ConfigTx.Apply, ConfigTx.Rollback -->
 <!-- source: internal/plugins/geodns/config_tx.go -- geodnsInstaller.install, configureAtBoot -->
 
 ## Freebind

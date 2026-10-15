@@ -24,7 +24,10 @@ import "sync"
 // `config-committed` closes it, and `config-rollback` runs the handler only
 // when it is open, closing it. A plugin whose own apply failed leaves it closed:
 // a failing apply undoes its own partial work before it returns the error,
-// which is what every in-tree apply handler does with its journal.
+// which is what every in-tree apply handler does with its journal. An apply
+// that could not undo it says so by wrapping ErrRunningConfigLost, and opens
+// the gate, so the rollback repairs it or answers the error that restarts
+// the plugin.
 //
 // Safe for concurrent use.
 type configTxGate struct {

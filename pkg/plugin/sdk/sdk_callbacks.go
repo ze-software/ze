@@ -539,7 +539,10 @@ func diffSectionRoots(sections []ConfigDiffSection) []string {
 //
 // A handler that returns an error MUST first undo whatever it partly applied:
 // the transaction's rollback does not reach a plugin whose own apply failed
-// (config_tx_gate.go). A handler that accepts an apply without changing
+// (config_tx_gate.go). The one exception is an error wrapping
+// ErrRunningConfigLost, the handler's statement that it could not: the
+// rollback then reaches the handler, whose own failure restarts the plugin.
+// A handler that accepts an apply without changing
 // anything MUST drop the undo set it kept from an earlier apply: the rollback
 // handler runs after every accepted apply, and that set belongs to a
 // transaction that already committed.
@@ -575,8 +578,9 @@ func (p *Plugin) DeclareAppliesNothing(reason string) {
 }
 
 // configApplyCallback wraps a section apply handler and opens the rollback
-// gate when the apply is accepted. fn MUST NOT be nil: a plugin without one
-// keeps refuseConfigApply.
+// gate when the apply is accepted, or when it failed with ErrRunningConfigLost
+// and so left something for the rollback to repair. fn MUST NOT be nil: a
+// plugin without one keeps refuseConfigApply.
 func (p *Plugin) configApplyCallback(fn ConfigApplyHandler) callbackHandler {
 	return func(params json.RawMessage) (json.RawMessage, error) {
 		var input rpc.ConfigApplyInput
@@ -584,6 +588,9 @@ func (p *Plugin) configApplyCallback(fn ConfigApplyHandler) callbackHandler {
 			return marshalStatusError("unmarshal config-apply: " + err.Error())
 		}
 		if err := fn(input.Sections); err != nil {
+			if errors.Is(err, ErrRunningConfigLost) {
+				p.configTx.applied()
+			}
 			return marshalStatusError(err.Error())
 		}
 		p.configTx.applied()
