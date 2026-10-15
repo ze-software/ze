@@ -1,35 +1,53 @@
 # Test: a reload that edits a peer's role export set makes bgp-role apply the
-#       new set to the next UPDATE it forwards.
+#       new set to the next UPDATE it forwards, and a reload that removes no
+#       peer keeps the role a role-less peer declared in its OPEN.
 # Topology (bgp-rs, ze AS 65000): A 127.0.0.1 AS 65001 sources the routes and
 #          is configured `role { import customer; export ... }`; B 127.0.0.2
-#          AS 65002 has no role config and announces no Role capability, so
-#          the role filter sees it as role "unknown".
+#          AS 65002 has no role config, and its OPEN declares Role customer
+#          (code 9, value 3), so the role filter sees it as role "customer"
+#          only for as long as bgp-role keeps the role it learned.
 # Stages (the live-stages fixture orders them, the reload waits until processed):
 # 1. A sends U1 (10.0.0.0/24). Export `default` for a customer resolves to
 #    provider, rs and peer (RFC 9234 Section 5 defaults), so U1 is NOT sent to
 #    B, which receives a withdraw of it instead; the stage waits until the
 #    export-set suppression counter reads 1.
-# 2. reload config2: A's export becomes [ default unknown ]. Nothing else
+# 2. reload config2: A's export becomes [ default customer ]. Nothing else
 #    changes: the role value, which the OPEN carries, stays customer.
 # 3. route to A fences A's next UPDATE behind the processed reload; A sends U2
 #    (10.0.1.0/24). B receives it, the first announce it gets, which it can
-#    only do when the plugin installed the edited export set at config-apply.
+#    only do when the plugin installed the edited export set at config-apply
+#    AND kept B's learned role through the commit.
+# 4. reload config3: config2 plus a description on peer-b, so bgp-role's
+#    transaction installs nothing and only the config-committed prune runs.
+# 5. route to A fences again; A sends U3 (10.0.2.0/24) and B receives it: B's
+#    learned role survived a commit that removed no peer.
 # Not claimed: whether U1 is sent to B after the reload (a route already
 # suppressed is not re-sent until its source sends it again).
 #
-# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 for bgp-role (export).
+# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 for bgp-role (export),
+#            AC-5 and R-14 (a learned role is forgotten only when a commit
+#            removes that peer).
 # PREVENTS: the silent reload: with OnConfigure alone the SDK answered
 #           config-apply OK and the plugin kept the startup export set, so U2
-#           was suppressed too.
+#           was suppressed too. And the prune that read only the role configs:
+#           it dropped B's learned role at every commit, so B became "unknown"
+#           and U2 went out as a withdraw.
 #
 # DISCRIMINATION: with newRoleConfigTx().register(p) replaced by
 # p.OnConfigure(newRoleConfigTx().configure), the plugin keeps the startup
 # export set: B receives a withdraw of 10.0.1.0/24 where its third expectation
 # wants the announce, and the b-first stage never completes (observed
-# 2026-10-15 under a GOFLAGS=-overlay ze build).
+# 2026-10-15 under a GOFLAGS=-overlay ze build, before B declared a role).
+# With role.go, config.go and config_tx.go at a629c8e574's prune (keep a
+# learned role only when its key is in the role configs), B's role is dropped
+# at the config2 commit and the stages fixture fails with "await-file b-first:
+# the file never appeared" (observed 2026-10-15 under a GOFLAGS=-overlay ze
+# build). The config3 stage, which commits an edit bgp-role installs nothing
+# for, is discriminated at unit level (TestConfigTxUnchangedSubtreeIsNoop).
 #
 # U1: ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1, NLRI 10.0.0.0/24
 # U2: U1 with NLRI 10.0.1.0/24
+# U3: U1 with NLRI 10.0.2.0/24
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER
@@ -45,6 +63,8 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=1:seq=2:announced=18C0A801
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
+expect=bgp:conn=1:seq=3:announced=18C0A802
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0002
 EOF_PEER
 
 stdin=destb:terminator=EOF_DESTB
@@ -52,12 +72,16 @@ option=tcp_connections:value=1
 option=timeout:value=50s
 option=linger:value=true
 option=asn:value=65002
+# B declares Role customer. ze has no role toward B and so announces none.
+option=open:value=add-capability:code=9:hex=03
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # U1 is suppressed for B, and the suppression goes out as a withdraw of
 # 10.0.0.0/24 (never an announce of it).
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
 expect=bgp:conn=1:seq=3:announced=180A0001
 action=rewrite:conn=1:seq=3:source=marker.txt:dest=b-first
+expect=bgp:conn=1:seq=4:announced=180A0002
+action=rewrite:conn=1:seq=4:source=marker.txt:dest=b-second
 EOF_DESTB
 
 tmpfs=marker.txt:terminator=EOF_MARKER
@@ -69,10 +93,13 @@ has show metrics values => ze_role_route_suppressions_total{reason=\"export-set\
 reload config2.conf
 route 127.0.0.1 update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24
 await-file b-first
+reload config3.conf
+route 127.0.0.1 update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.2.0/24
+await-file b-second
 say ROLE-EXPORT-RELOAD: the UPDATE after the reload went out under the edited export set
 EOF_SCRIPT
 
-# Startup: peer-a exports to its default roles only, which exclude B.
+# Startup: peer-a exports to its default roles only, which exclude B (customer).
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	internal adj-rib-in {
@@ -167,7 +194,7 @@ bgp {
 }
 EOF_CONF
 
-# The reload: peer-a's export set is the ONLY difference (default -> default unknown).
+# The reload: peer-a's export set is the ONLY difference (default -> default customer).
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	internal adj-rib-in {
@@ -223,7 +250,7 @@ bgp {
 		}
 		role {
 			import customer
-			export [ default unknown ]
+			export [ default customer ]
 		}
 		attach process stages {
 			send [ update ]
@@ -261,6 +288,102 @@ bgp {
 	}
 }
 EOF_CONF2
+
+# The unrelated reload: config2 plus peer-b's description. No peer is removed.
+tmpfs=config3.conf:terminator=EOF_CONF3
+plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+	external stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+# The stage that fences step 1 reads the role plugin's suppression counter
+# through `show metrics values`, which answers only with Prometheus enabled.
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bgp {
+	# A declared RFC 9234 role requires each bound chain to name a filter that
+	# can refuse a path through a transit provider (RFC 7454 Section 9). What
+	# this test exercises is elsewhere, so the decision is recorded and the
+	# filter is left deactivated: the chain names it, and it never runs.
+	policy {
+		reject-asn NO-TRANSIT {
+			indirect [ 3356 ]
+		}
+	}
+	filter {
+		import [ NO-TRANSIT ]
+		export [ NO-TRANSIT ]
+		inactive: import NO-TRANSIT
+		inactive: export NO-TRANSIT
+	}
+	peer peer-a {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		role {
+			import customer
+			export [ default customer ]
+		}
+		attach process stages {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-b {
+		description "unrelated edit"
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF3
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=destb

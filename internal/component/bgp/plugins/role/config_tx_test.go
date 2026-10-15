@@ -15,8 +15,12 @@ func resetRoleState(t *testing.T) {
 	t.Helper()
 	clearState := func() {
 		filterMu.Lock()
-		filterPeerConfigs, filterNameToIP, filterRemoteRoles = nil, nil, nil
+		filterRemoteRoles = nil
 		filterMu.Unlock()
+		// An empty install then a prune also clears the configured-peer set
+		// the prune diffs against.
+		installRoleConfig(roleConfig{}) //nolint:errcheck // installRoleConfig cannot fail
+		pruneLearnedRoles()
 	}
 	clearState()
 	t.Cleanup(clearState)
@@ -189,4 +193,71 @@ func TestRoleSnapshotSwapRace(t *testing.T) {
 		}
 	}()
 	wg.Wait()
+}
+
+// rolelessPeerSections is a bgp root with peer edge (192.0.2.1, role
+// customer) and, when withPlain, peer plain (192.0.2.3) with NO role block,
+// carrying description. A role-less peer's OPEN can still declare a role, and
+// the OTC export set reads it as that destination's role.
+func rolelessPeerSections(withPlain bool, description string) []sdk.ConfigSection {
+	body := `"edge":{"connection":{"remote":{"ip":"192.0.2.1"}},"role":{"import":"customer","export":["customer"]}}`
+	if withPlain {
+		body += `,"plain":{"connection":{"remote":{"ip":"192.0.2.3"}},"description":"` + description + `"}`
+	}
+	return []sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{"peer":{` + body + `}}}`}}
+}
+
+// commitRoleReload runs one reload's verify, apply and committed.
+func commitRoleReload(t *testing.T, tx *roleConfigTx, sections []sdk.ConfigSection) {
+	t.Helper()
+	if err := tx.tx.Verify(sections); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if err := tx.tx.Apply(); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if err := tx.committed("tx"); err != nil {
+		t.Fatalf("committed: %v", err)
+	}
+}
+
+// TestRoleUnrelatedCommitKeepsRolelessPeerRole proves R-14 and AC-5 for a
+// configured peer with no role block: a commit that removes no peer keeps the
+// role its OPEN declared.
+// Method: the role is learned under the peer's name (no name-to-address entry
+// exists for a role-less peer), a reload edits only that peer's description,
+// then getFilterConfig, which OTCEgressFilter reads for the export set, is read.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-14, AC-5 for bgp-role.
+// PREVENTS: the prune at config-committed dropping a role-less peer's learned
+// role on any edit, which withdraws every route the export set sends it.
+func TestRoleUnrelatedCommitKeepsRolelessPeerRole(t *testing.T) {
+	resetRoleState(t)
+	tx := newRoleConfigTx()
+	if err := tx.configure(rolelessPeerSections(true, "first")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	setFilterRemoteRole("plain", "", roleCustomer)
+
+	commitRoleReload(t, tx, rolelessPeerSections(true, "second"))
+	if _, learned := getFilterConfig("192.0.2.3", "plain", ""); learned != roleCustomer {
+		t.Fatalf("an unrelated commit dropped the role-less peer's learned role: %q", learned)
+	}
+}
+
+// TestRoleCommitRemovingRolelessPeerPrunesRole proves R-14's other half for
+// a role-less peer: the commit that removes it drops its learned role.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-14 for bgp-role.
+// PREVENTS: a learned role outliving the peer the config removed.
+func TestRoleCommitRemovingRolelessPeerPrunesRole(t *testing.T) {
+	resetRoleState(t)
+	tx := newRoleConfigTx()
+	if err := tx.configure(rolelessPeerSections(true, "first")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	setFilterRemoteRole("plain", "", roleCustomer)
+
+	commitRoleReload(t, tx, rolelessPeerSections(false, ""))
+	if _, learned := getFilterConfig("192.0.2.3", "plain", ""); learned != "" {
+		t.Fatalf("the commit removing the peer kept its learned role %q", learned)
+	}
 }

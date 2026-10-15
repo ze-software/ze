@@ -287,6 +287,27 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 	return configs, nameToIP
 }
 
+// configuredPeerKeys returns every key a learned role can be stored under for
+// a peer the config names, whether or not that peer has a role block: each
+// peer's name (OnValidateOpen stores under it when no name-to-address entry
+// exists) and its remote address, and each dynamic group's selector. The role
+// configs alone are no answer, because a peer with no local role still
+// declares one in its OPEN and the OTC export set reads it (pruneLearnedRoles).
+func configuredPeerKeys(bgpSubtree map[string]any) map[string]struct{} {
+	keys := make(map[string]struct{})
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
+		if origin.Template {
+			keys[configjson.CapabilitySelector(peerAddr, origin)] = struct{}{}
+			return
+		}
+		keys[peerAddr] = struct{}{}
+		if ip := configjson.PeerRemoteIP(peerMap, groupMap); ip != "" {
+			keys[ip] = struct{}{}
+		}
+	})
+	return keys
+}
+
 // extractRoleCapabilities parses BGP config JSON and returns per-peer Role capabilities.
 // RFC 9234 Section 4.1: Role capability code is 9.
 func extractRoleCapabilities(jsonStr string) []sdk.CapabilityDecl {

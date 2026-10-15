@@ -67,17 +67,19 @@ var (
 	filterPeerConfigs map[string]*peerRoleConfig // IP or group selector -> role config (from the config transaction)
 	filterRemoteRoles map[string]remoteRoleState // filter key -> what the peer's OPEN declared (from OnValidateOpen)
 	filterNameToIP    map[string]string          // peer name -> IP (for OnValidateOpen name resolution)
+	filterPeerKeys    map[string]struct{}        // every configured peer's name and address, every group selector (installed)
+	prunedPeerKeys    map[string]struct{}        // filterPeerKeys as the last pruneLearnedRoles saw it
 )
 
 // remoteRoleState is what one peer's OPEN declared about its role, plus the
 // group that peer belongs to.
 //
 // group is empty for a configured peer and carries the group's name for a peer
-// created from a dynamic group's template. setFilterState needs it: the
-// retention loop keeps a learned role only while the new config still answers
-// for that peer, and a dynamic member's own key is in no config. Its GROUP's key
-// is. Without it every reconfigure dropped the learned role of every dynamic
-// member, which is the silent failure described on setFilterState below.
+// created from a dynamic group's template. pruneLearnedRoles needs it: a
+// dynamic member's own key is in no config, so its role is dropped only when a
+// commit removes its GROUP. Without it every reconfigure dropped the learned
+// role of every dynamic member, which is the silent failure described on
+// setFilterState below.
 type remoteRoleState struct {
 	role  string
 	group string
@@ -88,7 +90,7 @@ type remoteRoleState struct {
 // it per destination peer via filterapi.PeerFilterInfo.LocalAS on the forward path.
 //
 // Learned remote roles are RETAINED for every peer the new config still names,
-// and dropped only for peers it no longer names. A learned role is a property of
+// and dropped only for peers it no longer names (pruneLearnedRoles). A learned role is a property of
 // the SESSION, not of our config: it is what the peer put in its OPEN, and a peer
 // whose session survives a reconfigure has not withdrawn it. The map is keyed by
 // IP, so a peer still present keeps the same key.
@@ -99,36 +101,65 @@ type remoteRoleState struct {
 // such peer became roleUnknown for the OTCEgressFilter export-set check, so a
 // source configured `role { export customer }` stopped advertising to its
 // customers on the next config reload, silently and until each session bounced.
+//
+// The configured peer set is the role configs' keys and both sides of n2ip,
+// because a caller of this form names no peer without a role.
 func setFilterState(configs map[string]*peerRoleConfig, n2ip map[string]string) {
-	installRoleConfig(roleConfig{peers: configs, nameToIP: n2ip}) //nolint:errcheck // installRoleConfig cannot fail
+	peerKeys := make(map[string]struct{}, len(configs)+2*len(n2ip))
+	for key := range configs {
+		peerKeys[key] = struct{}{}
+	}
+	for name, ip := range n2ip {
+		peerKeys[name] = struct{}{}
+		peerKeys[ip] = struct{}{}
+	}
+	installRoleConfig(roleConfig{peers: configs, nameToIP: n2ip, peerKeys: peerKeys}) //nolint:errcheck // installRoleConfig cannot fail
 	pruneLearnedRoles()
 }
 
-// pruneLearnedRoles drops the learned roles of peers the INSTALLED config no
-// longer names. A reload runs it at config-committed only (roleConfigTx): the
+// pruneLearnedRoles drops the learned roles of peers the config removed since
+// the last prune: a key in prunedPeerKeys that the installed filterPeerKeys no
+// longer holds. A reload runs it at config-committed only (roleConfigTx): the
 // learned roles are runtime state no rollback could restore.
+//
+// It is a diff of two configured-peer sets, never a lookup in the role
+// configs. A peer with no local role still declares one in its OPEN, and the
+// OTC export set reads it as the destination's role (OTCEgressFilter), yet
+// that peer has no entry in filterPeerConfigs. Pruning against the role
+// configs dropped its learned role on every commit, related or not, and every
+// route to it was then withdrawn as role "unknown" until its session bounced:
+// an established peer sends no second OPEN.
+//
+// A peer created from a dynamic group's template is named by its GROUP alone,
+// because the config document holds no entry for it, so its role is dropped
+// when the commit removes the group.
 func pruneLearnedRoles() {
 	filterMu.Lock()
-	configs := filterPeerConfigs
-	// Drop learned roles for peers the new config no longer names; a role we
-	// cannot map back to a configured peer can never be read again anyway.
-	//
-	// A peer created from a dynamic group's template is named by its GROUP alone,
-	// because the config document holds no entry for it. Asking only configs[key]
-	// therefore dropped every dynamic member's learned role on every reconfigure.
-	// The member's session sends no second OPEN to write it back.
+	defer filterMu.Unlock()
 	for key, state := range filterRemoteRoles {
-		if _, stillConfigured := configs[key]; stillConfigured {
+		if peerKeyRemovedLocked(key) {
+			delete(filterRemoteRoles, key)
 			continue
 		}
-		if state.group != "" {
-			if _, groupStillConfigured := configs[configjson.CapabilityGroupKey(state.group)]; groupStillConfigured {
-				continue
-			}
+		if state.group == "" {
+			continue
 		}
-		delete(filterRemoteRoles, key)
+		if peerKeyRemovedLocked(configjson.CapabilityGroupKey(state.group)) {
+			delete(filterRemoteRoles, key)
+		}
 	}
-	filterMu.Unlock()
+	prunedPeerKeys = filterPeerKeys
+}
+
+// peerKeyRemovedLocked reports whether key named a configured peer or group at
+// the last prune and the installed config no longer names it. Caller MUST hold
+// filterMu.
+func peerKeyRemovedLocked(key string) bool {
+	if _, wasConfigured := prunedPeerKeys[key]; !wasConfigured {
+		return false
+	}
+	_, stillConfigured := filterPeerKeys[key]
+	return !stillConfigured
 }
 
 // filterKeyLocked maps an OnValidateOpen peer id (the peer NAME) to the key the

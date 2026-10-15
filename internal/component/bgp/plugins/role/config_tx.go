@@ -19,7 +19,8 @@ var errRoleInvalidBGPConfigJSON = errors.New("bgp-role: invalid bgp config JSON"
 
 // roleConfig is every leaf the role plugin reads beyond its capability: each
 // peer's or group's role config (strict, export, and the role the OTC filters
-// gate by) and the peer name-to-address map. It is one value, so the Section 5
+// gate by), the peer name-to-address map, and the key of every configured peer
+// and group, with or without a role block. It is one value, so the Section 5
 // filters and OnValidateOpen always read one snapshot of it.
 //
 // The role value itself also reaches the OPEN, and a change to it is refused
@@ -28,6 +29,11 @@ var errRoleInvalidBGPConfigJSON = errors.New("bgp-role: invalid bgp config JSON"
 type roleConfig struct {
 	peers    map[string]*peerRoleConfig
 	nameToIP map[string]string
+	// peerKeys is every key a learned role can be stored under for a peer the
+	// config names (configuredPeerKeys). pruneLearnedRoles diffs it against
+	// the set of the last prune, so only a commit that removes a peer drops
+	// its learned role.
+	peerKeys map[string]struct{}
 }
 
 // roleConfigTx is the role plugin's config transaction. It differs from a
@@ -80,11 +86,12 @@ func parseRoleConfig(sections []sdk.ConfigSection) (roleConfig, bool, error) {
 		if section.Root != configRootBGP {
 			continue
 		}
-		if _, ok := configjson.ParseBGPSubtree(section.Data); !ok {
+		bgpSubtree, ok := configjson.ParseBGPSubtree(section.Data)
+		if !ok {
 			return roleConfig{}, false, errRoleInvalidBGPConfigJSON
 		}
 		peers, nameToIP := extractPeerRoleConfigs(section.Data)
-		return roleConfig{peers: peers, nameToIP: nameToIP}, true, nil
+		return roleConfig{peers: peers, nameToIP: nameToIP, peerKeys: configuredPeerKeys(bgpSubtree)}, true, nil
 	}
 	return roleConfig{}, false, nil
 }
@@ -95,6 +102,7 @@ func installRoleConfig(cfg roleConfig) error {
 	filterMu.Lock()
 	filterPeerConfigs = cfg.peers
 	filterNameToIP = cfg.nameToIP
+	filterPeerKeys = cfg.peerKeys
 	filterMu.Unlock()
 	return nil
 }
@@ -105,5 +113,5 @@ func installRoleConfig(cfg roleConfig) error {
 func installedRoleConfig() roleConfig {
 	filterMu.RLock()
 	defer filterMu.RUnlock()
-	return roleConfig{peers: filterPeerConfigs, nameToIP: filterNameToIP}
+	return roleConfig{peers: filterPeerConfigs, nameToIP: filterNameToIP, peerKeys: filterPeerKeys}
 }
