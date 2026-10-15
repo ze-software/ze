@@ -121,6 +121,10 @@ func Run<Name>Plugin(conn net.Conn) int {
         // Stage 2: receive config
         return nil
     })
+    // A plugin with WantsConfig answers a reload: p.OnConfigApply (or
+    // sdk.ConfigTx) when it applies a leaf live, or this declaration when it
+    // holds nothing a reload can apply (docs/plugin-development/handlers.md).
+    p.DeclareAppliesNothing("<why a reload has nothing for this plugin to apply>")
 
     p.OnEvent(func(eventText string) error {
         // Stage 5+: receive events from engine

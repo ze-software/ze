@@ -56,14 +56,15 @@ func runMixedRollbackFailer(ctx context.Context) error {
 }
 
 // runMixedRollbackApplied prints the line the test asserts on when the
-// transaction-wide rollback reaches it. It registers no apply handler: the SDK
-// accepts the apply for it, which is what makes the rollback owed.
+// transaction-wide rollback reaches it. It declares that it applies nothing:
+// the SDK accepts the apply for it, which is what makes the rollback owed.
 func runMixedRollbackApplied(ctx context.Context) error {
 	plugin, err := newObserver("config-apply-ordering-mixed-rollback-applied")
 	if err != nil {
 		return fmt.Errorf("connect mixed rollback applied observer: %w", err)
 	}
 	defer plugin.Close() //nolint:errcheck // Run returns the useful transport error
+	plugin.DeclareAppliesNothing("test observer: it holds no state, its accepted apply makes the rollback owed")
 	plugin.OnConfigRollback(func(_ string) error {
 		var tb textbuf.Buffer
 		tb.Str("OK: mixed rollback: the coarse node received the section rollback\n").StdErr() //nolint:errcheck // fixture progress output
@@ -82,6 +83,7 @@ func runMixedRollbackUnapplied(ctx context.Context) error {
 		return fmt.Errorf("connect mixed rollback unapplied observer: %w", err)
 	}
 	defer plugin.Close() //nolint:errcheck // Run returns the useful transport error
+	plugin.DeclareAppliesNothing("test observer: it holds no state, and its apply never runs")
 	plugin.OnConfigRollback(func(_ string) error {
 		var tb textbuf.Buffer
 		tb.Str("BUG: mixed rollback: a participant that never applied ran its rollback handler\n").StdErr() //nolint:errcheck // fixture progress output

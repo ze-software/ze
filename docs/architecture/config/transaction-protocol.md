@@ -854,7 +854,7 @@ The SDK exposes transaction participation through callbacks:
 | Callback | Phase | Required |
 |----------|-------|----------|
 | `OnConfigVerify` | Verify | Yes for all participants. Returns estimated apply duration. |
-| `OnConfigApply` | Apply | Yes for all participants. |
+| `OnConfigApply` | Apply | Yes for all participants. A participant with nothing to apply calls `DeclareAppliesNothing(reason)` instead: its apply is accepted, and a debug line names it, its roots and the reason. |
 | `OnConfigRollback` | Rollback | Optional (plugins that can undo) |
 | `OnConfigCommitted` | Completion | Optional (plugins that defer a step a rollback could not undo until the commit) |
 

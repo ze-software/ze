@@ -20,6 +20,7 @@ p.OnEvent(func(event string) error { ... })
 p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) { ... })
 p.OnConfigVerify(func(sections []sdk.ConfigSection) error { ... })
 p.OnConfigApply(func(diffs []sdk.ConfigDiffSection) error { ... })
+p.DeclareAppliesNothing("why a reload has nothing for this plugin to apply")
 p.OnValidateOpen(func(input *sdk.ValidateOpenInput) *sdk.ValidateOpenOutput { ... })
 p.OnBye(func(reason string) { ... })
 
@@ -237,6 +238,23 @@ p.OnConfigApply(func(diffs []sdk.ConfigDiffSection) error {
 | `Added` | `string` | JSON-encoded added config |
 | `Removed` | `string` | JSON-encoded removed config |
 | `Changed` | `string` | JSON-encoded changed config |
+
+### DeclareAppliesNothing
+
+A plugin that declares `WantsConfig` but holds nothing a reload can apply says
+so in place of an apply handler. Use it when the plugin reads no leaf of its
+roots, or reads only capability leaves, whose change `DeclareCapabilitiesFrom`
+already refuses at config-verify. Its `config-apply` is accepted, the rollback
+gate opens as for any accepted apply, and a debug line names the plugin, the
+changed roots and the reason. The reason must not be empty: the call panics on
+an empty one. A plugin that reads a leaf it could apply registers
+`OnConfigApply` instead.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- DeclareAppliesNothing -->
+
+```go
+p.DeclareCapabilitiesFrom(hostnameCapabilities, hostnameCapabilityLeaves)
+p.DeclareAppliesNothing("reads only the hostname capability leaves, fixed for the process life")
+```
 
 ### OnValidateOpen
 
