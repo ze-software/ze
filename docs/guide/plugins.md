@@ -119,11 +119,14 @@ A plugin that reads a section of the config is asked to check a reload's
 candidate before anything is applied, then to apply it, and to put its previous
 config back if the commit fails. A plugin that registers those handlers either
 takes the change at commit or refuses the reload at that check, naming the leaf
-and the restart steps; a plugin that registers none still answers the commit OK
-and keeps the config it started with. What
-each plugin does with a reload, and which leaves need a restart, is listed once,
-in [config reload](config-reload.md), under "Plugin config changed" and "What
-Requires Restart".
+and the restart steps. A plugin that registers no apply handler, and does not
+declare that it applies nothing, refuses at that check every reload that
+changes a section it reads: the commit fails, the running config stays in
+force, and the error names the plugin, the changed sections and the restart
+that delivers the change at startup. What each plugin does with a reload, and
+which leaves need a restart, is listed once, in [config reload](config-reload.md),
+under "Plugin config changed" and "What Requires Restart".
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- configVerifyCallback, refuseWithoutApply -->
 
 ## When a Reload Changes a Plugin's Capability
 
