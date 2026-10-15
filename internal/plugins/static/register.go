@@ -109,7 +109,10 @@ func init() {
 		// A next-hop's bfd-profile names a profile under the bfd root, so
 		// commit hands static the candidate bfd section to check it against
 		// (checkBFDProfiles). A read never auto-loads static.
-		ConfigReads: []string{bfdapi.ConfigRoot},
+		// A route's table names an entry under the routing-table root, so
+		// commit hands static the candidate routing-table section too
+		// (candidateTables): a table and a route in it then commit together.
+		ConfigReads: []string{bfdapi.ConfigRoot, routingtable.ConfigRoot},
 		// The system RIB is where a main-table static route is arbitrated against
 		// every other protocol offering the same prefix, so static cannot run
 		// without it. It is not a data-plane choice: sysrib seeds every
@@ -162,8 +165,37 @@ func init() {
 }
 
 func verifyStaticConfig(sections []sdk.ConfigSection) error {
-	_, _, err := verifyStaticSections(sections, routingtable.GetRegistry())
+	_, _, err := verifyCandidateStatic(sections)
 	return err
+}
+
+// verifyCandidateStatic verifies the static section against the routing
+// tables of the same delivery.
+func verifyCandidateStatic(sections []sdk.ConfigSection) ([]staticRoute, bool, error) {
+	tables, err := candidateTables(sections)
+	if err != nil {
+		return nil, true, err
+	}
+	return verifyStaticSections(sections, tables)
+}
+
+// candidateTables builds the registry a route's table resolves against from
+// the routing-table section of the delivery, never from the installed
+// registry: every participant verifies before any applies, so a table this
+// commit adds is not installed when static verifies a route in it. A delivery
+// with no routing-table section defines no named table.
+func candidateTables(sections []sdk.ConfigSection) (*routingtable.Registry, error) {
+	for _, section := range sections {
+		if section.Root != routingtable.ConfigRoot {
+			continue
+		}
+		tables, err := routingtable.ParseConfig(section.Data)
+		if err != nil {
+			return nil, err
+		}
+		return routingtable.New(tables), nil
+	}
+	return routingtable.New(nil), nil
 }
 
 // verifyStaticSections parses the candidate static section and answers the
@@ -291,7 +323,7 @@ func runStaticPlugin(conn net.Conn) int {
 		// transaction that later aborted cannot be applied by a reload that
 		// carries no static section of its own.
 		pending.reset()
-		routes, found, err := verifyStaticSections(sections, routingtable.GetRegistry())
+		routes, found, err := verifyCandidateStatic(sections)
 		if err != nil {
 			return err
 		}
@@ -308,7 +340,7 @@ func runStaticPlugin(conn net.Conn) int {
 		// profile therefore cannot boot, rather than boot and then have every
 		// later commit that reaches static refused for a profile the commit
 		// never touched.
-		routes, found, err := verifyStaticSections(sections, routingtable.GetRegistry())
+		routes, found, err := verifyCandidateStatic(sections)
 		if err != nil {
 			return err
 		}

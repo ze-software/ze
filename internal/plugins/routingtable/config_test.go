@@ -9,7 +9,7 @@ import "testing"
 // failed to configure. This test would have caught that.
 func TestParseConfig_StringValuedDelivery(t *testing.T) {
 	data := `{"routing-table":{"table":{"red":{"id":"100"},"blue":{"id":"50000"}}}}`
-	tables, err := parseRoutingTableConfig(data)
+	tables, err := ParseConfig(data)
 	if err != nil {
 		t.Fatal(err)
 	}

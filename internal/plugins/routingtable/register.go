@@ -44,14 +44,39 @@ func init() {
 }
 
 func verifyRoutingTableConfig(sections []sdk.ConfigSection) error {
+	_, _, err := parseRoutingTableSections(sections)
+	return err
+}
+
+// parseRoutingTableSections reads the routing-table section of one delivery.
+// present is false when the delivery carries no routing-table section.
+func parseRoutingTableSections(sections []sdk.ConfigSection) (map[string]uint32, bool, error) {
 	for _, section := range sections {
 		if section.Root != pluginName {
 			continue
 		}
-		if _, err := parseRoutingTableConfig(section.Data); err != nil {
-			return err
+		tables, err := ParseConfig(section.Data)
+		if err != nil {
+			return nil, true, err
 		}
+		return tables, true, nil
 	}
+	return nil, false, nil
+}
+
+// newRoutingTableConfigTx is the plugin's side of the config transaction: the
+// name-to-ID map is its config, and an install publishes it whole as the
+// registry, so a reader resolves against the old tables or the new ones and
+// never a mix. Before any install no named table exists.
+func newRoutingTableConfigTx() *sdk.ConfigTx[map[string]uint32] {
+	return sdk.NewConfigTx(map[string]uint32(nil), parseRoutingTableSections, installRoutingTables)
+}
+
+// installRoutingTables makes tables the registry every later Resolve reads.
+// It cannot fail.
+func installRoutingTables(tables map[string]uint32) error {
+	SetRegistry(New(tables))
+	logger().Info("routing-table registry loaded", "count", len(tables))
 	return nil
 }
 
@@ -61,20 +86,7 @@ func runRoutingTablePlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != pluginName {
-				continue
-			}
-			tables, err := parseRoutingTableConfig(section.Data)
-			if err != nil {
-				return err
-			}
-			SetRegistry(New(tables))
-			logger().Info("routing-table registry loaded", "count", len(tables))
-		}
-		return nil
-	})
+	newRoutingTableConfigTx().Register(p)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

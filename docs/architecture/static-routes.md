@@ -157,12 +157,24 @@ mapping lives in a separate `routingtable` plugin, not inside static, because
 policy routing needs the same mapping and a later VRF feature will absorb it.
 
 <!-- source: internal/plugins/routingtable/registry.go -- table name to ID registry -->
-<!-- source: internal/plugins/routingtable/config.go -- routing-table config parsing -->
+<!-- source: internal/core/routingtable/config.go -- routing-table config parsing -->
 <!-- source: internal/plugins/routingtable/register.go -- plugin registration -->
+<!-- source: internal/plugins/static/register.go -- candidateTables -->
 
 The registry is a package-level `atomic.Pointer[Registry]`. A plugin registers
 itself in `init()`, which rules out constructor injection, and `bfdapi.GetService()`
-had already set this pattern.
+had already set this pattern. The routing-table plugin publishes it at boot and
+again at the apply of each reload that changes the tables, and a rollback
+publishes back the tables the apply replaced.
+
+Static does not resolve a route's table against that registry. It reads the
+`routing-table` root (`ConfigReads`), so every commit that reaches static
+delivers the candidate routing-table section beside the static one, and static
+resolves against that section (`candidateTables`). Every participant verifies
+before any applies, so a table added in the same commit as a route in it is not
+in the registry yet when static verifies the route; resolving against the
+candidate lets the two land together, and refuses a route whose table the
+commit deletes.
 
 An interface-only next hop reuses the `nextHop` struct with a zero `Address`
 rather than a separate type. The kernel model treats `Gw` and `LinkIndex` as

@@ -1,4 +1,5 @@
 // Design: docs/architecture/static-routes.md -- routing-table config parsing
+// Related: registry.go -- the Registry a parsed config builds
 
 package routingtable
 
@@ -10,19 +11,26 @@ import (
 	"strings"
 )
 
-// parseRoutingTableConfig parses the routing-table config JSON (map format from Tree.ToMap).
+// ConfigRoot is the config root that defines the named routing tables.
+const ConfigRoot = "routing-table"
+
+// ParseConfig parses the routing-table config JSON (map format from Tree.ToMap).
 // The tree shape is:
 //
 //	{"routing-table": {"table": {"<name>": {"id": <number>}}}}
 //
-// Lists are keyed maps (list key = map key), not arrays.
-func parseRoutingTableConfig(jsonData string) (map[string]uint32, error) {
+// Lists are keyed maps (list key = map key), not arrays. The parser lives
+// here rather than in the routing-table plugin because static resolves a
+// route's table against the candidate routing-table section of the same
+// commit, so a table and a route in it can be added in one transaction.
+// It changes no state.
+func ParseConfig(jsonData string) (map[string]uint32, error) {
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(jsonData), &tree); err != nil {
 		return nil, fmt.Errorf("unmarshal routing-table config: %w", err)
 	}
 
-	rtTree, ok := tree["routing-table"].(map[string]any)
+	rtTree, ok := tree[ConfigRoot].(map[string]any)
 	if !ok {
 		return map[string]uint32{}, nil
 	}
@@ -37,7 +45,7 @@ func parseRoutingTableConfig(jsonData string) (map[string]uint32, error) {
 		if name == "" {
 			return nil, fmt.Errorf("routing-table entry missing name")
 		}
-		if name == "default" {
+		if name == MainTableName {
 			return nil, fmt.Errorf("routing-table %q: name is built-in (maps to table 0)", name)
 		}
 

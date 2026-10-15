@@ -1,0 +1,48 @@
+# Test: a live edit of routing-table reaches the routing-table plugin
+# Initial config: routing-table defines red (100).
+# After SIGHUP:   routing-table defines red (100) and blue (171).
+# Expected: the plugin installs the reloaded tables at apply and logs the
+#           registry it published, with both tables counted.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses row 21, AC-1: the
+#            routing-table plugin's verify/apply pair publishes the reloaded
+#            name-to-ID map (installRoutingTables).
+# PREVENTS: the acked-and-dropped reload. With OnConfigure alone, the SDK
+#           answers config-apply OK and calls nothing, so the commit succeeded
+#           while the registry kept the boot tables until a restart.
+#
+# DISCRIMINATION: the "count=2" line is written only by installRoutingTables,
+# which only the apply handler calls on a reload. Without the handler the
+# count=2 expectation fails. That a route resolves against
+# the candidate tables of the same commit is proven in Go by
+# TestStaticVerifyResolvesCandidateTable (static/candidate_tables_test.go).
+
+option=env:var=ze.log.routing.table:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+routing-table {
+	table red {
+		id 100
+	}
+}
+EOF_CONF
+
+# Rewritten config: table blue is added, red is unchanged.
+tmpfs=config2.conf:terminator=EOF_CONF2
+routing-table {
+	table red {
+		id 100
+	}
+	table blue {
+		id 171
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=sighup reload complete:then=stop
+expect=stderr:pattern=routing-table registry loaded.*count=2
+expect=stderr:pattern=routing-table registry loaded.*count=1
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic

@@ -78,7 +78,7 @@ func TestAcceptValidTableID(t *testing.T) {
 
 func TestParseRoutingTableConfig(t *testing.T) {
 	input := `{"routing-table":{"table":{"lns":{"id":100},"surfprotect":{"id":200}}}}`
-	tables, err := parseRoutingTableConfig(input)
+	tables, err := ParseConfig(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestParseRoutingTableConfig(t *testing.T) {
 
 func TestParseRoutingTableConfigRejectsReserved(t *testing.T) {
 	input := `{"routing-table":{"table":{"bad":{"id":254}}}}`
-	_, err := parseRoutingTableConfig(input)
+	_, err := ParseConfig(input)
 	if err == nil {
 		t.Fatal("expected error for reserved table ID 254")
 	}
@@ -103,7 +103,7 @@ func TestParseRoutingTableConfigRejectsReserved(t *testing.T) {
 
 func TestParseRoutingTableConfigRejectsDefault(t *testing.T) {
 	input := `{"routing-table":{"table":{"default":{"id":100}}}}`
-	_, err := parseRoutingTableConfig(input)
+	_, err := ParseConfig(input)
 	if err == nil {
 		t.Fatal("expected error for name 'default' (built-in)")
 	}
@@ -111,7 +111,7 @@ func TestParseRoutingTableConfigRejectsDefault(t *testing.T) {
 
 func TestParseRoutingTableConfigEmpty(t *testing.T) {
 	input := `{"routing-table":{}}`
-	tables, err := parseRoutingTableConfig(input)
+	tables, err := ParseConfig(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestParseRoutingTableConfigEmpty(t *testing.T) {
 
 func TestParseRoutingTableConfigMissingID(t *testing.T) {
 	input := `{"routing-table":{"table":{"lns":{}}}}`
-	_, err := parseRoutingTableConfig(input)
+	_, err := ParseConfig(input)
 	if err == nil {
 		t.Fatal("expected error for missing id")
 	}
