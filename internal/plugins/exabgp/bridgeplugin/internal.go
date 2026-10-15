@@ -147,6 +147,7 @@ func runInternalBridge(conn net.Conn) int {
 	p.OnEvent(r.onEvent)
 
 	p.DeclareCapabilitiesFrom(bridgeCapabilities, bridgeCapabilityLeaves)
+	r.registerReloadHandlers(p)
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
@@ -191,9 +192,10 @@ func runInternalBridge(conn net.Conn) int {
 // see startWhenReady. The capabilities are declared by bridgeCapabilities.
 //
 // Reloads do not restart the subprocesses: a script owns its own lifecycle. A
-// reload that changes the bridge's capabilities is refused at config-verify
-// (sdk.Plugin.DeclareCapabilitiesFrom), because ze would keep sending the old
-// ones in its OPEN.
+// reload that changes any other bridge leaf is refused at config-verify
+// (verifyReload), and one that changes the bridge's capabilities is refused
+// there too (sdk.Plugin.DeclareCapabilitiesFrom), because ze would keep
+// sending the old ones in its OPEN. So applyConfig runs only at Stage 2.
 func (r *bridgeRunner) applyConfig(cfg bridgeConfig) error {
 	r.mu.Lock()
 	if r.started {

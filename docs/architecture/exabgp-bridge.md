@@ -515,12 +515,23 @@ declares the CLI-default family at stage 1, and the `family` leaf refines the
 ADD-PATH capability encoding at stage 3, once the config has arrived.
 
 The stage-3 declaration then holds for the bridge's life. A reload that changes
-`route-refresh` or `add-path`, or edits the bridge's families while `add-path`
-is set (the ADD-PATH payload is built from them), is refused at config-verify
-naming `every peer`, plugin `exabgp-bridge` and the leaf, with the restart
-steps: ze would otherwise keep sending the old capabilities in its OPEN.
+`route-refresh` or `add-path` is refused at config-verify naming `every peer`,
+plugin `exabgp-bridge` and the leaf, with the restart steps: ze would otherwise
+keep sending the old capabilities in its OPEN.
 <!-- source: internal/plugins/exabgp/bridgeplugin/internal.go -- bridgeCapabilities, capabilityDecls -->
 <!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom -->
+
+Every other bridge leaf is refused too while the bridge runs, because the
+bridge has no live reconfigure path: its scripts keep the config they started
+with. A reload that adds or removes a `process` block, changes anything inside
+one, or edits the `family` list is refused at config-verify with one line per
+changed leaf path (`exabgp bridge process <name>`, `exabgp bridge family`)
+saying it cannot change while ze runs, then the restart steps. That check runs
+before the capability comparison, so a family edit is refused under the
+`family` path even while `add-path` is set. Apply and rollback install
+nothing: a candidate verify accepted is one the running bridge already serves.
+<!-- source: internal/plugins/exabgp/bridgeplugin/config_tx.go -- verifyReload, changedBridgeLeaves -->
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- composeCapabilityVerify -->
 
 ## Config root
 
