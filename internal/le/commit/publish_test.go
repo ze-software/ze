@@ -183,3 +183,414 @@ func TestAStrayPathInThePrivateIndexIsRefused(t *testing.T) {
 		t.Fatalf("the refusal does not name the stray path:\n%s", output)
 	}
 }
+
+// runScriptWithGit runs a generated script with wrapper installed as the `git`
+// first on its PATH, the real git named by ZE_TEST_REAL_GIT and the checkout by
+// ZE_TEST_ROOT, plus env. It answers the combined output and whether the
+// script succeeded.
+func runScriptWithGit(t *testing.T, root, script, wrapper string, env ...string) (string, error) {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o700); err != nil { //nolint:gosec // the wrapper must be executable to stand in for git
+		t.Fatal(err)
+	}
+	command := exec.CommandContext(t.Context(), "bash", filepath.Join(root, filepath.FromSlash(script)))
+	command.Dir = root
+	command.Env = append(append(os.Environ(),
+		"PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"ZE_TEST_REAL_GIT="+realGit,
+		"ZE_TEST_ROOT="+root,
+	), env...)
+	output, err := command.CombinedOutput()
+	return string(output), err
+}
+
+// runScript runs a generated script and answers its output and its result,
+// for a test that expects the script to refuse.
+func runScript(t *testing.T, root, script string) (string, error) {
+	t.Helper()
+	command := exec.CommandContext(t.Context(), "bash", filepath.Join(root, filepath.FromSlash(script)))
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	return string(output), err
+}
+
+// headOf answers the commit HEAD names.
+func headOf(t *testing.T, root string) string {
+	t.Helper()
+	return strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
+}
+
+// assertRefusedInPlace checks a refused run left HEAD where it was and kept the
+// block's message file, so the script can run again once the cause is fixed.
+func assertRefusedInPlace(t *testing.T, root, head, messagePath, output string, err error) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("the script succeeded, want a refusal:\n%s", output)
+	}
+	if now := headOf(t, root); now != head {
+		t.Fatalf("the refused run moved HEAD from %s to %s\n%s", head, now, output)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(messagePath))); statErr != nil {
+		t.Fatalf("the refused run deleted its message file: %v\n%s", statErr, output)
+	}
+	if !strings.Contains(output, "was not published") {
+		t.Fatalf("the refusal does not say the commit was not published:\n%s", output)
+	}
+}
+
+// TestAPeerCommitToANamedPathBeforeTheRunIsRefused lands a peer commit to the
+// path this commit names after `create` prepared it and before the script
+// runs, the window the first publish attempt alone covers.
+//
+// VALIDATES: the script compares the HEAD `create` read with the parent it
+// builds on, refuses, leaves the peer's commit as HEAD and names the path and
+// the fix.
+// PREVENTS: the first attempt writing content prepared before the peer's
+// change over that change, with only the drift NOTE to say so (review of
+// ae1b098a01).
+func TestAPeerCommitToANamedPathBeforeTheRunIsRefused(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "peer-before-run-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	prepared, err := Create(root, &Options{Subject: "my commit", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFixture(t, root, "mine.txt", "the peer's version\n")
+	runCommitGit(t, root, "add", "--", "mine.txt")
+	runCommitGit(t, root, "commit", "-q", "-m", "peer commit")
+	head := headOf(t, root)
+
+	output, err := runScript(t, root, prepared.Script)
+
+	assertRefusedInPlace(t, root, head, prepared.Message, output, err)
+	if content := runCommitGitOutput(t, root, "show", "HEAD:mine.txt"); content != "the peer's version\n" {
+		t.Fatalf("HEAD:mine.txt = %q, want the peer's content\n%s", content, output)
+	}
+	if !strings.Contains(output, "mine.txt") || !strings.Contains(output, "./le commit create") {
+		t.Fatalf("the refusal does not name the path and the fix:\n%s", output)
+	}
+}
+
+// TestEachAppendedBlockComparesAgainstItsOwnPreparedHead prepares a second
+// block after a peer's commit to the path it names landed, so its snapshot
+// already builds on that commit.
+//
+// VALIDATES: each block records the HEAD read when IT was prepared, so the
+// second block publishes on the peer's commit.
+// PREVENTS: one HEAD recorded for the whole script, which would refuse every
+// appended block over a peer commit its own snapshot already contains.
+func TestEachAppendedBlockComparesAgainstItsOwnPreparedHead(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "per-block-head-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	first, err := Create(root, &Options{Subject: "the first block", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFixture(t, root, "theirs.txt", "peer\n")
+	runCommitGit(t, root, "add", "--", "theirs.txt")
+	runCommitGit(t, root, "commit", "-q", "-m", "peer commit")
+	writeCommitFixture(t, root, "theirs.txt", "peer\nmine on top\n")
+	if _, err := Create(root, &Options{Subject: "the second block", Files: []string{"theirs.txt"}, Append: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	output := runCommitScript(t, root, first.Script)
+
+	subjects := strings.Split(strings.TrimSpace(runCommitGitOutput(t, root, "log", "--format=%s", "-n", "3")), "\n")
+	if !slices.Equal(subjects, []string{"the second block", "the first block", "peer commit"}) {
+		t.Fatalf("the script made %q\n%s", subjects, output)
+	}
+	if content := runCommitGitOutput(t, root, "show", "HEAD:theirs.txt"); content != "peer\nmine on top\n" {
+		t.Fatalf("HEAD:theirs.txt = %q\n%s", content, output)
+	}
+}
+
+// TestAnAppendedBlockOnAPathAnEarlierBlockCommittedPublishes names one path in
+// two blocks of one script, with new content in the second.
+//
+// VALIDATES: the first block's commit, which this script published itself, is
+// not read as a peer's change to the second block's path.
+// PREVENTS: the prepared-HEAD comparison refusing every script that commits
+// one file twice.
+func TestAnAppendedBlockOnAPathAnEarlierBlockCommittedPublishes(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "same-path-twice-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "one\n")
+	first, err := Create(root, &Options{Subject: "the first block", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFixture(t, root, "mine.txt", "one\ntwo\n")
+	if _, err := Create(root, &Options{Subject: "the second block", Files: []string{"mine.txt"}, Append: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	output := runCommitScript(t, root, first.Script)
+
+	if content := runCommitGitOutput(t, root, "show", "HEAD:mine.txt"); content != "one\ntwo\n" {
+		t.Fatalf("HEAD:mine.txt = %q\n%s", content, output)
+	}
+	if content := runCommitGitOutput(t, root, "show", "HEAD^:mine.txt"); content != "one\n" {
+		t.Fatalf("HEAD^:mine.txt = %q\n%s", content, output)
+	}
+}
+
+// TestABlockWithNothingToCommitIsRefused appends a block whose snapshot is the
+// content the block before it commits.
+//
+// VALIDATES: the second block builds a commit that changes nothing, refuses
+// it, and leaves the first block's commit as HEAD and its own message file.
+// PREVENTS: an empty commit reaching the branch.
+func TestABlockWithNothingToCommitIsRefused(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "empty-commit-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	// Without the checkout marker no gate runs, so neither block records a
+	// verification debt row, and the second block names mine.txt alone.
+	if err := os.Remove(filepath.Join(root, "feature-gates.txt")); err != nil {
+		t.Fatal(err)
+	}
+	first, err := Create(root, &Options{Subject: "the first block", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := Create(root, &Options{Subject: "the second block", Files: []string{"mine.txt"}, Append: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := runScript(t, root, first.Script)
+
+	subjects := strings.Split(strings.TrimSpace(runCommitGitOutput(t, root, "log", "--format=%s")), "\n")
+	if !slices.Equal(subjects, []string{"the first block", "baseline"}) {
+		t.Fatalf("the script made %q, want the first block's commit alone\n%s", subjects, output)
+	}
+	assertRefusedInPlace(t, root, headOf(t, root), second.Message, output, err)
+	if !strings.Contains(output, "nothing to commit") {
+		t.Fatalf("the refusal does not say there is nothing to commit:\n%s", output)
+	}
+}
+
+// fakeGPG is a gpg.program that records its arguments and signs anything with
+// a fixed armored block, or fails when ZE_TEST_GPG_FAIL is set. git accepts a
+// signature once the status stream holds a SIG_CREATED line.
+const fakeGPG = `#!/bin/bash
+printf '%s\n' "$*" >> "$ZE_TEST_GPG_ARGS"
+cat > /dev/null
+if [ -n "${ZE_TEST_GPG_FAIL:-}" ]; then echo "fake gpg: no secret key" >&2; exit 2; fi
+printf '\n[GNUPG:] SIG_CREATED D 1 8 00 0 0 0 TESTKEY\n' >&2
+printf -- '-----BEGIN PGP SIGNATURE-----\n\nZmFrZQ==\n-----END PGP SIGNATURE-----\n'
+`
+
+// signingFixture prepares one commit in a checkout that signs with a fake
+// gpg.program, and answers the checkout, the prepared commit and the file the
+// fake records its arguments in.
+func signingFixture(t *testing.T, session string) (string, Prepared, string) {
+	t.Helper()
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", session)
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	prepared, err := Create(root, &Options{Subject: "my commit", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	program := filepath.Join(bin, "gpg")
+	if err := os.WriteFile(program, []byte(fakeGPG), 0o700); err != nil { //nolint:gosec // the fake must be executable to stand in for gpg
+		t.Fatal(err)
+	}
+	runCommitGit(t, root, "config", "commit.gpgsign", "true")
+	runCommitGit(t, root, "config", "user.signingkey", "TESTKEY")
+	runCommitGit(t, root, "config", "gpg.program", program)
+	arguments := filepath.Join(bin, "arguments")
+	t.Setenv("ZE_TEST_GPG_ARGS", arguments)
+	return root, prepared, arguments
+}
+
+// TestACommitIsSignedWhenCommitGpgsignIsSet runs a script where
+// commit.gpgsign is true.
+//
+// VALIDATES: the published commit carries a signature, made by gpg.program
+// with user.signingkey, as `git commit` would sign it.
+// PREVENTS: commits published unsigned because `git commit-tree` ignores
+// commit.gpgsign.
+func TestACommitIsSignedWhenCommitGpgsignIsSet(t *testing.T) {
+	root, prepared, arguments := signingFixture(t, "signing-fixture")
+
+	output := runCommitScript(t, root, prepared.Script)
+
+	if object := runCommitGitOutput(t, root, "cat-file", "commit", "HEAD"); !strings.Contains(object, "\ngpgsig -----BEGIN PGP SIGNATURE-----") {
+		t.Fatalf("the commit carries no signature:\n%s\n%s", object, output)
+	}
+	said, err := os.ReadFile(arguments)
+	if err != nil {
+		t.Fatalf("gpg.program was never run: %v\n%s", err, output)
+	}
+	if !strings.Contains(string(said), "TESTKEY") {
+		t.Fatalf("gpg.program was not given user.signingkey: %q", said)
+	}
+}
+
+// TestAFailedSignatureIsRefused runs a script whose gpg.program fails.
+//
+// VALIDATES: the script refuses, HEAD is unchanged, the message file is kept,
+// and the refusal says signing is what failed.
+// PREVENTS: an unsigned commit published where signing was configured, and a
+// bare git error with no next step.
+func TestAFailedSignatureIsRefused(t *testing.T) {
+	root, prepared, _ := signingFixture(t, "signing-failure-fixture")
+	t.Setenv("ZE_TEST_GPG_FAIL", "1")
+	head := headOf(t, root)
+
+	output, err := runScript(t, root, prepared.Script)
+
+	assertRefusedInPlace(t, root, head, prepared.Message, output, err)
+	if !strings.Contains(output, "sign") {
+		t.Fatalf("the refusal does not name signing:\n%s", output)
+	}
+}
+
+// TestAnUnreadableCommitGpgsignIsRefused sets commit.gpgsign to a value git
+// cannot read as a boolean, and then unsets it.
+//
+// VALIDATES: an unreadable value refuses with the setting named, as `git
+// commit` refuses; an unset one publishes unsigned, as `git commit` does.
+// PREVENTS: `|| true` reading every failure of `git config` as "unset", which
+// published unsigned a commit `git commit` would have refused.
+func TestAnUnreadableCommitGpgsignIsRefused(t *testing.T) {
+	root, prepared, _ := signingFixture(t, "bad-gpgsign-fixture")
+	runCommitGit(t, root, "config", "commit.gpgsign", "maybe")
+	head := headOf(t, root)
+
+	output, err := runScript(t, root, prepared.Script)
+
+	assertRefusedInPlace(t, root, head, prepared.Message, output, err)
+	if !strings.Contains(output, "commit.gpgsign") {
+		t.Fatalf("the refusal does not name the setting:\n%s", output)
+	}
+
+	// The owner's global configuration may set commit.gpgsign, so it is
+	// hidden for the unset half.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	runCommitGit(t, root, "config", "--unset", "commit.gpgsign")
+	output = runCommitScript(t, root, prepared.Script)
+	if object := runCommitGitOutput(t, root, "cat-file", "commit", "HEAD"); strings.Contains(object, "\ngpgsig ") {
+		t.Fatalf("an unset commit.gpgsign signed the commit:\n%s\n%s", object, output)
+	}
+}
+
+// TestAnEmptyMessageIsRefused empties the message file of a prepared commit.
+//
+// VALIDATES: a message holding only blank lines once stripped is refused, as
+// `git commit` refuses it, with HEAD unchanged and the message file kept.
+// PREVENTS: a commit with no message reaching the branch, which
+// `git commit-tree` accepts.
+func TestAnEmptyMessageIsRefused(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "empty-message-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	prepared, err := Create(root, &Options{Subject: "my commit", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFixture(t, root, prepared.Message, "\n  \n\t\n")
+	head := headOf(t, root)
+
+	output, err := runScript(t, root, prepared.Script)
+
+	assertRefusedInPlace(t, root, head, prepared.Message, output, err)
+	if !strings.Contains(output, prepared.Message) {
+		t.Fatalf("the refusal does not name the message file:\n%s", output)
+	}
+}
+
+// peerOnEveryUpdateRefWrapper lands a fresh peer commit of an unrelated path
+// before every `git update-ref`, so every compare-and-swap the script tries
+// finds HEAD moved.
+const peerOnEveryUpdateRefWrapper = `#!/bin/bash
+if [ "${1:-}" = update-ref ]; then
+  _ze_count=$(cat "$ZE_TEST_ROOT/.git/peer-count" 2>/dev/null || echo 0)
+  _ze_count=$((_ze_count + 1))
+  echo "$_ze_count" > "$ZE_TEST_ROOT/.git/peer-count"
+  ( unset GIT_INDEX_FILE; cd "$ZE_TEST_ROOT" &&
+    printf '%s\n' "$_ze_count" > "peer-$_ze_count.txt" &&
+    "$ZE_TEST_REAL_GIT" add -- "peer-$_ze_count.txt" &&
+    "$ZE_TEST_REAL_GIT" -c commit.gpgsign=false commit -q -m "peer $_ze_count" ) < /dev/null > /dev/null
+fi
+exec "$ZE_TEST_REAL_GIT" "$@"
+`
+
+// TestAPublishThatNeverWinsTheSwapStops moves HEAD before every swap.
+//
+// VALIDATES: the script gives up after publishAttemptsMax attempts, says HEAD
+// kept moving, keeps the message file and leaves the peers' commits as HEAD.
+// PREVENTS: a publish loop with no bound.
+func TestAPublishThatNeverWinsTheSwapStops(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "swap-storm-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	prepared, err := Create(root, &Options{Subject: "my commit", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := runScriptWithGit(t, root, prepared.Script, peerOnEveryUpdateRefWrapper)
+
+	assertRefusedInPlace(t, root, headOf(t, root), prepared.Message, output, err)
+	if subject := strings.TrimSpace(runCommitGitOutput(t, root, "log", "--format=%s", "-n", "1")); subject != "peer 5" {
+		t.Fatalf("HEAD subject = %q, want the fifth peer commit\n%s", subject, output)
+	}
+	if !strings.Contains(output, "5 times in a row") {
+		t.Fatalf("the refusal does not say HEAD kept moving:\n%s", output)
+	}
+}
+
+// TestASwapGitRefusesWithoutAMoveIsNotRetried holds the branch's ref lock, so
+// `git update-ref` fails while HEAD stays where it was.
+//
+// VALIDATES: the script refuses at once with git's own error, naming the lock,
+// and does not report HEAD as moving.
+// PREVENTS: a lock or permission error retried as a race and reported as "HEAD
+// moved 5 times", which sends the reader after the wrong cause.
+func TestASwapGitRefusesWithoutAMoveIsNotRetried(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "ref-lock-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	prepared, err := Create(root, &Options{Subject: "my commit", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	branch := strings.TrimSpace(runCommitGitOutput(t, root, "symbolic-ref", "HEAD"))
+	writeCommitFixture(t, root, ".git/"+branch+".lock", "")
+	head := headOf(t, root)
+
+	output, err := runScript(t, root, prepared.Script)
+
+	assertRefusedInPlace(t, root, head, prepared.Message, output, err)
+	if strings.Contains(output, "moved") {
+		t.Fatalf("the refusal reports HEAD moving when it did not:\n%s", output)
+	}
+	if !strings.Contains(output, branch+".lock") {
+		t.Fatalf("the refusal does not carry git's error naming the lock:\n%s", output)
+	}
+}
+
+// preparedHeadFixture stands in for the HEAD `create` records, in a test that
+// renders a block without preparing one.
+const preparedHeadFixture = "1111111111111111111111111111111111111111"

@@ -222,7 +222,7 @@ func TestCreateRefusesChargedStructuralRedWithoutRecordedOverride(t *testing.T) 
 func TestGeneratedBlockQuotesPathsAndCommitsFromItsOwnIndex(t *testing.T) {
 	t.Parallel()
 	block := commitBlock{
-		Tag: "a", Subject: "quote fixture", Paths: []string{"plain.txt", "space name.txt", "quote's.txt"},
+		PreparedHead: preparedHeadFixture, Tag: "a", Subject: "quote fixture", Paths: []string{"plain.txt", "space name.txt", "quote's.txt"},
 		Removed: []string{"old name.txt"}, MessagePath: "tmp/message name.txt",
 		IndexEntries: []string{"100644 " + strings.Repeat("0", 40) + " 0\tplain.txt"},
 	}
@@ -237,7 +237,10 @@ func TestGeneratedBlockQuotesPathsAndCommitsFromItsOwnIndex(t *testing.T) {
 		`git update-index --force-remove -- 'old name.txt'`,
 		`_ze_message='tmp/message name.txt'`,
 		`_ze_tree=$(GIT_INDEX_FILE="$_ze_index" git write-tree)`,
-		`git stripspace < "$_ze_message" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree"`,
+		`_ze_text=$(git stripspace < "$_ze_message")`,
+		`_ze_commit=$(printf '%s\n' "$_ze_text" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree")`,
+		"_ze_parent='" + preparedHeadFixture + "'",
+		`_ze_moved=$(git --literal-pathspecs rev-list "$_ze_seen..$_ze_parent" -- 'plain.txt'`,
 		`git update-ref -m 'commit: quote fixture' HEAD "$_ze_commit" "$_ze_parent"`,
 		"git ls-tree HEAD -- 'plain.txt' 'space name.txt' 'quote'\"'\"'s.txt' | git update-index --index-info",
 	} {
@@ -291,12 +294,12 @@ func TestCreateDryRunBuildsExactScriptWithoutTouchingSharedIndex(t *testing.T) {
 
 func TestAppendKeepsOneAuthorisedPushAtTheEnd(t *testing.T) {
 	t.Parallel()
-	first := commitBlock{Tag: "a", Subject: "first", Paths: []string{"one.txt"}, MessagePath: "tmp/a.txt"}
+	first := commitBlock{PreparedHead: preparedHeadFixture, Tag: "a", Subject: "first", Paths: []string{"one.txt"}, MessagePath: "tmp/a.txt"}
 	initial, err := composeScript("/repo", "", "tmp/commit-owner.sh", "12345678", first, false, "owner approved this push")
 	if err != nil {
 		t.Fatal(err)
 	}
-	second := commitBlock{Tag: "b", Subject: "second", Paths: []string{"two.txt"}, MessagePath: "tmp/b.txt"}
+	second := commitBlock{PreparedHead: preparedHeadFixture, Tag: "b", Subject: "second", Paths: []string{"two.txt"}, MessagePath: "tmp/b.txt"}
 	appended, err := composeScript("/repo", initial, "tmp/commit-owner.sh", "12345678", second, true, "")
 	if err != nil {
 		t.Fatal(err)
@@ -315,7 +318,7 @@ func TestAppendKeepsOneAuthorisedPushAtTheEnd(t *testing.T) {
 
 func TestReplaceRefusesAnotherPreparedPopulation(t *testing.T) {
 	t.Parallel()
-	foreign := renderBlock(commitBlock{Tag: "a", Subject: "foreign", Paths: []string{"their.txt"}, MessagePath: "tmp/a.txt"}, "tmp/foreign.sh")
+	foreign := renderBlock(commitBlock{PreparedHead: preparedHeadFixture, Tag: "a", Subject: "foreign", Paths: []string{"their.txt"}, MessagePath: "tmp/a.txt"}, "tmp/foreign.sh")
 	if err := refuseForeignReplace(foreign, []string{"mine.txt"}); err == nil {
 		t.Fatal("refuseForeignReplace accepted a disjoint script")
 	}
@@ -1207,7 +1210,7 @@ func debtGateFixture(t *testing.T, gate string) string {
 // whose content no commit holds yet.
 func TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit(t *testing.T) {
 	t.Parallel()
-	block := commitBlock{Tag: "a", Subject: "remove", Removed: []string{"it's old.txt"}, MessagePath: "tmp/m.txt"}
+	block := commitBlock{PreparedHead: preparedHeadFixture, Tag: "a", Subject: "remove", Removed: []string{"it's old.txt"}, MessagePath: "tmp/m.txt"}
 	script := renderBlock(block, "tmp/commit-owner.sh")
 	quoted := shellQuote("it's old.txt")
 	order := []string{
@@ -1233,7 +1236,7 @@ func TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit(t *testing.T) {
 // never meets an unset `_ze_removed`.
 func TestABlockWithoutRemovalsRendersNoWorkingTreeDeletion(t *testing.T) {
 	t.Parallel()
-	block := commitBlock{Tag: "a", Subject: "add", Paths: []string{"new.txt"}, MessagePath: "tmp/m.txt",
+	block := commitBlock{PreparedHead: preparedHeadFixture, Tag: "a", Subject: "add", Paths: []string{"new.txt"}, MessagePath: "tmp/m.txt",
 		IndexEntries: []string{"100644 0000000000000000000000000000000000000000 0\tnew.txt"}}
 	script := renderBlock(block, "tmp/commit-owner.sh")
 	for _, absent := range []string{"_ze_removed", "_ze_gone", "rm -f -- "} {

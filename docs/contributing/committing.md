@@ -157,10 +157,25 @@ them. One commit block holds, in order:
 1. A `# Commit <tag>: <subject>` comment and a `# ze-commit-block:` marker
    naming the tag and every path.
 2. The critical-review gate re-check, when the commit closes a spec.
-3. The parent, read ONCE: `_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`,
-   then `git read-tree "$_ze_parent"` into `<script-path-without-.sh>.index`,
-   the private index this block commits from. Steps 3 to 6 are one loop, and
-   step 6 is what sends it round again.
+3. Before the loop, two checks that `git commit` makes and `git commit-tree`
+   does not. The message is passed through `git stripspace`, the cleanup
+   `git commit -F` applies, and an empty result is refused. `commit.gpgSign` is
+   read with `git config --type=bool`: unset means unsigned, as with
+   `git commit`, and a value git cannot read as a boolean is refused rather than
+   read as unset. Then the parent, read ONCE:
+   `_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`. Before building on
+   it, the block lists the commits between the HEAD it compares with and that
+   parent which change a path it names, leaving out the commits this script
+   published itself, because an appended block may name a path an earlier block
+   committed. Any left is a peer's change the snapshot never held, so the block
+   refuses, names the paths, and asks for a fresh `create`: building on it would
+   write content prepared before the change over it. The first attempt compares
+   with the HEAD `create` read just before it took the snapshot, which each
+   block records for itself, so an appended block prepared later compares with
+   its own moment; a later attempt compares with the parent the attempt before
+   it read. Then `git read-tree "$_ze_parent"` into
+   `<script-path-without-.sh>.index`, the private index this block commits
+   from. Steps 3 to 6 are one loop, and step 6 is what sends it round again.
 4. `git update-index --index-info` with one `git ls-files -s` line per path,
    written by `snapshotIndexEntries` when `create` ran. The line names the blob,
    so the content is fixed at preparation time. A blob a `git gc --prune` has
@@ -170,8 +185,8 @@ them. One commit block holds, in order:
    The captured lines are the entries the parent holds, mode included, and step
    8 compares against them.
 6. The publish (`renderPublish`). `git write-tree`, then `git commit-tree -p
-   "$_ze_parent"` with the message passed through `git stripspace`, the cleanup
-   `git commit -F` applies. `git commit` is not used, because it reads HEAD a
+   "$_ze_parent"` with the stripped message. A failure there, signing as a
+   rule, is refused with HEAD untouched. `git commit` is not used, because it reads HEAD a
    second time for the parent: a peer's commit landing between the two reads
    became the parent of a tree that never held the peer's work, and every path
    the block did not name was silently reverted (450f9f1ee0 and d621be6677 on
@@ -181,11 +196,12 @@ them. One commit block holds, in order:
    parent: it MUST change at least one path, and no path the block does not
    name, or the script refuses with HEAD untouched. Last, `git update-ref -m
    "commit: <subject>" HEAD <commit> <parent>` moves the branch only if it still
-   names that parent. When a peer moved it, the block goes round again on the
-   new HEAD, up to 5 times, unless the peer's commit changed a path this block
-   names: then it refuses, names the paths, and asks for a fresh `create`,
-   because building on it would write content prepared before the change over
-   it. Every refusal opens `ERROR: commit <tag> (<subject>) was not published`.
+   names that parent. When the swap fails, HEAD is read again. If a peer moved
+   it, the block goes round again on the new HEAD, up to 5 times, and step 3's
+   check refuses if that peer changed a named path. If HEAD did not move, git
+   refused for another reason, a stale ref lock or a permission, so the script
+   stops with git's own error rather than retrying and reporting a race that
+   never happened. Every refusal opens `ERROR: commit <tag> (<subject>) was not published`.
    The landed commit is printed as `[<short-sha>] <subject>` with its stat.
 7. A drift note, then the message file is deleted. The note stages the working
    tree into a throwaway index and reports any named path whose content, mode,
@@ -287,8 +303,8 @@ the push status, and the verification evidence or the skip reason.
 
 A failed commit leaves the SHARED index exactly as it found it. The staging
 happens in the block's private index, and the shared one is written only after
-`git commit` succeeds, so a failure really is "nothing happened". Fix the cause
-and run the script again.
+the branch holds the commit, so a failure really is "nothing happened". Fix the
+cause and run the script again.
 
 A signing failure is the usual trigger, because it fails LAST, after every gate
 has passed.

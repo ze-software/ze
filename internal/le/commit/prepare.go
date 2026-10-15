@@ -176,6 +176,15 @@ func Create(root string, options *Options) (Prepared, error) {
 	if err != nil {
 		return result, err
 	}
+	// HEAD is read BEFORE the snapshot. A peer commit landing between the two
+	// is then one the script refuses over, if it touched a named path, even
+	// though the snapshot may already hold it: a refusal that costs a re-run.
+	// Read after, the same commit would be in the recorded HEAD and missing
+	// from the snapshot, and the script would write over it in silence.
+	preparedHead, err := gitOutput(root, "rev-parse", "--verify", "HEAD^{commit}")
+	if err != nil {
+		return result, fmt.Errorf("read the HEAD this commit is prepared against: %w", err)
+	}
 	// The snapshot is taken HERE, after every gate has judged these paths, so
 	// what the script commits is what the gates read.
 	entries, err := snapshotIndexEntries(root, paths)
@@ -184,6 +193,7 @@ func Create(root string, options *Options) (Prepared, error) {
 	}
 	block := commitBlock{
 		Tag: tag, Subject: strings.TrimSpace(options.Subject), Paths: paths, Removed: removed,
+		PreparedHead: strings.TrimSpace(preparedHead),
 		IndexEntries: entries, MessagePath: messagePath, ReviewCheck: reviewCheck,
 		ApprovalsPath: result.RFCApprovals.Path, ApprovalsDropped: result.RFCApprovals.Dropped,
 	}

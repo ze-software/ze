@@ -28,6 +28,12 @@ type commitBlock struct {
 	Subject string
 	Paths   []string
 	Removed []string
+	// PreparedHead is the commit HEAD named when `./le commit create` prepared
+	// this block, read before its snapshot. The script compares it with the
+	// parent it builds on, so a peer's change to a named path that landed before
+	// the run is refused rather than written over. Each block of an appended
+	// script carries its own, because each was prepared at its own moment.
+	PreparedHead string
 	// IndexEntries is `git ls-files -s` for Paths, read when the commit was
 	// PREPARED. It is what the block commits, so the content is the content
 	// Create's gates judged rather than whatever the working tree holds when
@@ -126,43 +132,79 @@ const publishAttemptsMax = 5
 // d621be6677 did that to the commit before each of them on 2026-10-14
 // (plan/journal/concurrent-session-corruption.md).
 //
-// When the swap is refused, a peer moved HEAD, and the block builds again on
-// the new HEAD, up to publishAttemptsMax times. It refuses instead when the
-// peer's commit changed a path this block names: building on it would write
-// content prepared before that change over it.
+// Every attempt, the first included, refuses when a peer's commit changed a
+// path this block names since the HEAD the attempt compares with: building on
+// it would write content prepared before that change over it. The first
+// attempt compares with the HEAD `create` read (PreparedHead), each later one
+// with the parent the attempt before it read. The commits this script
+// published itself are left out, collected in _ze_own, because an appended
+// block may name a path an earlier block of the same script committed.
+//
+// When the swap is refused and HEAD moved, a peer landed a commit, and the
+// block builds again on the new HEAD, up to publishAttemptsMax times. When the
+// swap is refused and HEAD did not move, git refused for another reason (a
+// stale ref lock, a permission) that another attempt would only repeat, so the
+// script stops with git's own words. git already waits
+// core.filesRefLockTimeout (100ms by default) for a lock a live peer holds.
 //
 // `git commit-tree` ignores commit.gpgSign (measured with git 2.56 on
 // 2026-10-15), so the script reads that setting and passes `-S` itself, which
-// signs with user.signingKey exactly as `git commit` does. The message goes
-// through `git stripspace`, the cleanup `git commit -F` applies. No git hook
-// runs, and none is installed in this checkout.
+// signs with user.signingKey exactly as `git commit` does. An unset setting
+// means unsigned, and a value git cannot read as a boolean is refused, both as
+// `git commit` does. The message goes through `git stripspace`, the cleanup
+// `git commit -F` applies, and an empty result is refused as `git commit`
+// refuses it. No git hook runs, and none is installed in this checkout.
 func renderPublish(block commitBlock, scriptPath string) string {
+	// An empty PreparedHead would make the first comparison `..<parent>`, which
+	// git reads as HEAD..<parent>: empty, so the check would pass in silence.
+	if block.PreparedHead == "" {
+		panic("BUG: commit block " + block.Tag + " rendered without the HEAD it was prepared against")
+	}
 	all := append(append([]string{}, block.Paths...), block.Removed...)
 	quoted := quotePaths(all)
 	notPublished := notPublishedLine(block)
-	lines := []string{
-		`_ze_index="$PWD"/` + shellQuote(indexFileFor(scriptPath)),
-		`_ze_message=` + shellQuote(block.MessagePath),
+	// The capacity is a sizing hint for the two appends below, which write
+	// fewer entries than this; append grows the slice if an edit adds more.
+	lines := make([]string, 0, 64)
+	lines = append(lines,
+		`_ze_index="$PWD"/`+shellQuote(indexFileFor(scriptPath)),
+		`_ze_message=`+shellQuote(block.MessagePath),
+		`_ze_text=$(git stripspace < "$_ze_message")`,
+		renderRefusal(`-z "$_ze_text"`, notPublished,
+			`echo "Its message file $_ze_message holds no message once blank lines are stripped, and git commit refuses an empty message too."`,
+			`echo "Write the message into that file, then run this script again."`),
+		// git config answers 1 for an unset key and 128 for a value it cannot
+		// read as a boolean, where `git commit` stops rather than guess.
+		`_ze_status=0`,
+		`_ze_gpgsign=$(git config --type=bool --get commit.gpgsign) || _ze_status=$?`,
+		renderRefusal(`"$_ze_status" -gt 1`, notPublished,
+			`echo "git config could not read commit.gpgsign as a boolean (its error is above), so whether to sign is unknown; git commit refuses here too."`,
+			`echo "Set it with: git config commit.gpgsign true (or false), then run this script again."`),
 		`_ze_sign=`,
-		`if [ "$(git config --type=bool --get commit.gpgsign || true)" = true ]; then _ze_sign=1; fi`,
-		`_ze_parent=`,
+		`if [ "$_ze_gpgsign" = true ]; then _ze_sign=1; fi`,
+		`_ze_parent=`+shellQuote(block.PreparedHead),
 		`_ze_attempt=1`,
 		`while :; do`,
 		`_ze_seen=$_ze_parent`,
 		`_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`,
-		`if [ -n "$_ze_seen" ]; then`,
-		`  _ze_peer=$(git --literal-pathspecs -c core.quotePath=false diff-tree -r --no-renames --name-only "$_ze_seen" "$_ze_parent" -- ` + quoted + `)`,
-		renderRefusal(`  `, `-n "$_ze_peer"`, notPublished,
-			`echo "A commit that landed while it was being built changed paths it carries:"`,
-			`printf '%s\n' "$_ze_peer"`,
+		`_ze_moved=$(git --literal-pathspecs rev-list "$_ze_seen..$_ze_parent" -- `+quoted+`)`,
+		// With _ze_own empty, grep reads one empty pattern, which under -x
+		// matches only an empty line, and rev-list never prints one.
+		`_ze_peer=$(printf '%s\n' "$_ze_moved" | grep -v -x -F -f <(printf '%s\n' ${_ze_own:-}) || [ "$?" -eq 1 ])`,
+		`_ze_names=`,
+		`if [ -n "$_ze_peer" ]; then`,
+		`  _ze_names=$(printf '%s\n' "$_ze_peer" | git --literal-pathspecs -c core.quotePath=false diff-tree --stdin -r --no-renames --name-only --no-commit-id -- `+quoted+` | sort -u)`,
+		`fi`,
+		renderRefusal(`-n "$_ze_peer"`, notPublished,
+			`echo "A commit that landed after it was prepared changed paths it carries:"`,
+			`printf '%s\n' "$_ze_names"`,
 			`echo "Building on that commit would write content prepared before the change over it."`,
 			`echo "Read the change with: git log -p $_ze_seen..$_ze_parent -- <path>"`,
 			`echo "then fold it into your copy and prepare the commit again with ./le commit create."`),
-		`fi`,
 		`rm -f "$_ze_index"`,
 		`GIT_INDEX_FILE="$_ze_index" git read-tree "$_ze_parent"`,
-	}
-	lines = append(lines, renderPrivateIndex(block))
+		renderPrivateIndex(block),
+	)
 	var strayFilter textbuf.Buffer
 	strayFilter.Str("grep -v -x -F")
 	for _, path := range all {
@@ -170,9 +212,13 @@ func renderPublish(block commitBlock, scriptPath string) string {
 	}
 	lines = append(lines,
 		`_ze_tree=$(GIT_INDEX_FILE="$_ze_index" git write-tree)`,
-		`_ze_commit=$(git stripspace < "$_ze_message" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree")`,
+		`_ze_status=0`,
+		`_ze_commit=$(printf '%s\n' "$_ze_text" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree") || _ze_status=$?`,
+		renderRefusal(`"$_ze_status" -ne 0`, notPublished,
+			`echo "git commit-tree could not build the commit (its error is above). When commit.gpgsign is true, signing is the usual cause:"`,
+			`echo "make gpg, or gpg.program, sign with user.signingKey, then run this script again."`),
 		`_ze_changed=$(git diff-tree -r -z --no-renames --name-only "$_ze_parent" "$_ze_commit" | tr '\0' '\n')`,
-		renderRefusal(``, `-z "$_ze_changed"`, notPublished,
+		renderRefusal(`-z "$_ze_changed"`, notPublished,
 			`echo "HEAD already holds the prepared content of every path it names, so it has nothing to commit."`,
 			`echo "Drop this block, or prepare the commit again from your working tree with ./le commit create."`),
 		// The names are read NUL-terminated because git C-quotes a path holding
@@ -183,15 +229,23 @@ func renderPublish(block commitBlock, scriptPath string) string {
 		// was built, a commit that changes a path this block does not name
 		// reverts or adds work nobody asked it to carry, and it never lands.
 		`_ze_stray=$(printf '%s\n' "$_ze_changed" | `+strayFilter.String()+` || [ "$?" -eq 1 ])`,
-		renderRefusal(``, `-n "$_ze_stray"`, notPublished,
+		renderRefusal(`-n "$_ze_stray"`, notPublished,
 			`echo "Its tree changes paths the commit does not name, against its parent $_ze_parent:"`,
 			`printf '%s\n' "$_ze_stray"`,
 			`echo "Publishing it would revert or add work this commit does not own. This is a defect in the"`,
 			`echo "generated script: report it with this script's path, then prepare the commit again with ./le commit create."`),
 		// HEAD is a symbolic ref to the branch, so update-ref moves the branch,
 		// and only if it still names the parent this commit was built on.
-		`if git update-ref -m `+shellQuote("commit: "+commentSafe(block.Subject))+` HEAD "$_ze_commit" "$_ze_parent"; then break; fi`,
-		renderRefusal(``, `"$_ze_attempt" -ge `+strconv.Itoa(publishAttemptsMax), notPublished,
+		`if _ze_swap=$(git update-ref -m `+shellQuote("commit: "+commentSafe(block.Subject))+` HEAD "$_ze_commit" "$_ze_parent" 2>&1); then`,
+		`  _ze_own="${_ze_own:-} $_ze_commit"`,
+		`  break`,
+		`fi`,
+		`_ze_now=$(git rev-parse --verify 'HEAD^{commit}')`,
+		renderRefusal(`"$_ze_now" = "$_ze_parent"`, notPublished,
+			`echo "git update-ref refused to move HEAD, which still names the parent the commit was built on:"`,
+			`printf '%s\n' "$_ze_swap"`,
+			`echo "Fix what git names (a lock file a dead git process left, or a permission), then run this script again."`),
+		renderRefusal(`"$_ze_attempt" -ge `+strconv.Itoa(publishAttemptsMax), notPublished,
 			`echo "HEAD moved under it `+strconv.Itoa(publishAttemptsMax)+` times in a row while other commits landed."`,
 			`echo "Run this script again once the other sessions' commits have landed."`),
 		`_ze_attempt=$((_ze_attempt + 1))`,
@@ -210,13 +264,13 @@ func notPublishedLine(block commitBlock) string {
 // say that the commit was not published, run each statement with its output
 // on stderr, and stop the script. Every refusal comes before the branch moves,
 // so each one leaves HEAD as the peers left it and the message file in place.
-func renderRefusal(indent, test, notPublished string, said ...string) string {
+func renderRefusal(test, notPublished string, said ...string) string {
 	lines := make([]string, 0, len(said)+4)
-	lines = append(lines, indent+"if [ "+test+" ]; then", indent+"  echo "+shellQuote(notPublished)+" >&2")
+	lines = append(lines, "if [ "+test+" ]; then", "  echo "+shellQuote(notPublished)+" >&2")
 	for _, statement := range said {
-		lines = append(lines, indent+"  "+statement+" >&2")
+		lines = append(lines, "  "+statement+" >&2")
 	}
-	lines = append(lines, indent+"  exit 1", indent+"fi")
+	lines = append(lines, "  exit 1", "fi")
 	return strings.Join(lines, "\n")
 }
 
@@ -275,7 +329,7 @@ func renderLostBlobs(block commitBlock) []string {
 		}
 	}
 	lines = append(lines, indexInfoDelimiter, `)`,
-		renderRefusal(``, `-n "$_ze_lost"`,
+		renderRefusal(`-n "$_ze_lost"`,
 			notPublishedLine(block),
 			`echo "The content prepared for these paths is gone from the object store, collected by a git gc:"`,
 			`GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- `+quotePaths(block.Paths)+
