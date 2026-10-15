@@ -4,8 +4,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func TestUnitFileContent(t *testing.T) {
@@ -138,5 +141,41 @@ func TestExecStartExecutableReadsTheInstalledWrapper(t *testing.T) {
 	}
 	if got := execStartExecutable("/usr/bin/ze start"); got != "/usr/bin/ze" {
 		t.Fatalf("plain ExecStart = %q, want /usr/bin/ze", got)
+	}
+}
+
+// TestBuildUnitFileStopTimeoutDerivedFromCeiling reads the stop settings back
+// out of the generated unit's [Service] section and compares them with the
+// drain constants, not with a copied number.
+//
+// VALIDATES: spec-daemon-drain-before-stop AC-15: TimeoutStopSec is the drain
+// ceiling plus the teardown margin, and KillMode is mixed, so systemd signals
+// ze alone at stop and kills nothing while ze drains and tears down.
+// PREVENTS: a unit whose stop timeout drifts from the ceiling the daemon
+// enforces, and a control-group kill that SIGTERMs every external plugin at the
+// start of the drain.
+func TestBuildUnitFileStopTimeoutDerivedFromCeiling(t *testing.T) {
+	unit := buildUnitFile(unitSpec{BinaryPath: "/usr/bin/ze", ConfigDir: "/etc/ze"})
+
+	settings := map[string]string{}
+	inService := false
+	for line := range strings.SplitSeq(unit, "\n") {
+		if strings.HasPrefix(line, "[") {
+			inService = line == "[Service]"
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if inService && ok {
+			settings[key] = value
+		}
+	}
+
+	want := strconv.Itoa(rpc.DrainCeilingSeconds + rpc.DrainTeardownMarginSeconds)
+	if got := settings["TimeoutStopSec"]; got != want {
+		t.Errorf("[Service] TimeoutStopSec = %q, want %q (drain ceiling %d s + teardown margin %d s)",
+			got, want, rpc.DrainCeilingSeconds, rpc.DrainTeardownMarginSeconds)
+	}
+	if got := settings["KillMode"]; got != "mixed" {
+		t.Errorf("[Service] KillMode = %q, want mixed", got)
 	}
 }

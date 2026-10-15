@@ -109,6 +109,7 @@ const (
 	CodeDoctorPlatformUnknown                      = "doctor-platform-unknown"
 	CodeDoctorServiceExecutable                    = "doctor-service-executable"
 	CodeDoctorServiceGroup                         = "doctor-service-group"
+	CodeDoctorServiceStop                          = "doctor-service-stop"
 	CodeDoctorServiceUnit                          = "doctor-service-unit"
 	CodeDoctorServiceUser                          = "doctor-service-user"
 	CodeDoctorTFTPListen                           = "doctor-tftp-listen"
@@ -408,6 +409,15 @@ var builtinCodes = []CodeMeta{
 			"The acceptor binds it, the managed listener is skipped, and every managed client that dials that address is dropped by an acceptor which routes only to a plugin waiter. " +
 			"Move the client entries to a server block with its own port.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-hub-managed-collision"},
+	},
+	{
+		Code:  CodeDoctorServiceStop,
+		Title: "Systemd stop settings cut the stop drain short",
+		Description: "On a stop, ze drains its routing protocols for up to 60 s and then tears down for up to 30 s, so systemd must wait at least 90 s before its SIGKILL and must send the stop SIGTERM to ze alone. " +
+			"Doctor reads the effective values with `systemctl show -p TimeoutStopUSec -p KillMode ze.service`, so a drop-in or a distro default counts. " +
+			"A TimeoutStopSec below 90 s lets systemd kill ze mid-drain; a KillMode other than mixed sends SIGTERM to every external plugin before ze can drain it. " +
+			"Run `sudo ze install systemd --force` and `sudo systemctl daemon-reload`, and remove any drop-in `systemctl cat ze.service` shows overriding either setting.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-service-stop"},
 	},
 	{
 		Code:        CodeDoctorServiceUnit,

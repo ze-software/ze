@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/host"
@@ -24,6 +25,87 @@ func withServiceUnit(t *testing.T, data string) {
 	previous := readServiceUnitFile
 	readServiceUnitFile = func(string) ([]byte, error) { return []byte(data), nil }
 	t.Cleanup(func() { readServiceUnitFile = previous })
+	withServiceStop(t, "TimeoutStopUSec=1min 30s\nKillMode=mixed\n", nil)
+}
+
+// withServiceStop stands in the answer `systemctl show` gives for the unit's
+// stop settings, for the life of one test.
+func withServiceStop(t *testing.T, output string, err error) {
+	t.Helper()
+	previous := showServiceStop
+	showServiceStop = func() ([]byte, error) { return []byte(output), err }
+	t.Cleanup(func() { showServiceStop = previous })
+}
+
+// TestDoctorUnitStopTimeoutBelowCeiling drives the stop-settings check over
+// the effective values systemd reports, drop-ins and distro defaults included.
+//
+// VALIDATES: spec-daemon-drain-before-stop AC-15: a stop timeout below the
+// drain ceiling plus the teardown margin, or a kill mode other than mixed,
+// is a warning under doctor-service-stop; the derived values, a longer
+// timeout and infinity are silent; an unreadable answer is a warning, never
+// a silent pass.
+// PREVENTS: an installed unit, or a drop-in over it, that lets systemd SIGKILL
+// ze mid-drain or SIGTERM its external plugins before ze drains them.
+func TestDoctorUnitStopTimeoutBelowCeiling(t *testing.T) {
+	cases := []struct {
+		name   string
+		output string
+		err    error
+		want   int
+	}{
+		{"derived values", "TimeoutStopUSec=1min 30s\nKillMode=mixed\n", nil, 0},
+		{"longer timeout", "TimeoutStopUSec=2min\nKillMode=mixed\n", nil, 0},
+		{"no timeout", "TimeoutStopUSec=infinity\nKillMode=mixed\n", nil, 0},
+		{"below ceiling plus margin", "TimeoutStopUSec=1min 29s\nKillMode=mixed\n", nil, 1},
+		{"fractional below", "TimeoutStopUSec=1min 29.999s\nKillMode=mixed\n", nil, 1},
+		{"distro default kill mode", "TimeoutStopUSec=1min 30s\nKillMode=control-group\n", nil, 1},
+		{"both wrong", "TimeoutStopUSec=10s\nKillMode=process\n", nil, 2},
+		{"systemctl fails", "", errors.New("exit status 1"), 1},
+		{"timeout missing", "KillMode=mixed\n", nil, 1},
+		{"timeout unparsable", "TimeoutStopUSec=soon\nKillMode=mixed\n", nil, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			withServiceStop(t, tc.output, tc.err)
+			diags := checkServiceStop("/etc/systemd/system/ze.service")
+			if len(diags) != tc.want {
+				t.Fatalf("diagnostics = %d, want %d: %v", len(diags), tc.want, diags)
+			}
+			for i := range diags {
+				if diags[i].Code != diagnostic.CodeDoctorServiceStop {
+					t.Errorf("code = %q, want %q", diags[i].Code, diagnostic.CodeDoctorServiceStop)
+				}
+				if diags[i].Severity != diagnostic.SeverityWarning {
+					t.Errorf("severity = %v, want warning", diags[i].Severity)
+				}
+				if !strings.Contains(diags[i].Message, "ze install systemd --force") &&
+					!strings.Contains(diags[i].Message, "systemctl show") {
+					t.Errorf("message names no fix: %q", diags[i].Message)
+				}
+			}
+		})
+	}
+}
+
+// TestCheckServiceInstallReportsServiceStop proves the stop-settings check is
+// reached from the registered check over an installed unit, not only when
+// called directly.
+//
+// VALIDATES: AC-15 through checkServiceInstall, the function `ze doctor` runs.
+// PREVENTS: a stop-settings check no doctor run reaches.
+func TestCheckServiceInstallReportsServiceStop(t *testing.T) {
+	binPath := filepath.Join(t.TempDir(), "ze")
+	if err := os.WriteFile(binPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	withServiceUnit(t, "[Service]\nExecStart="+binPath+" start\n")
+	withServiceStop(t, "TimeoutStopUSec=1min\nKillMode=mixed\n", nil)
+
+	codes := codesOf(checkServiceInstall(diagnostic.DoctorCheckContext{}))
+	if _, ok := codes[diagnostic.CodeDoctorServiceStop]; !ok {
+		t.Fatalf("diagnostics carry no %q: %v", diagnostic.CodeDoctorServiceStop, codes)
+	}
 }
 
 // withMissingServiceExecutable stands in a host where no ExecStart binary

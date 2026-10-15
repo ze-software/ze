@@ -2,7 +2,10 @@
 
 package systemd
 
-import "github.com/ze-software/ze/internal/core/textbuf"
+import (
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+)
 
 const (
 	serviceName     = "ze.service"
@@ -11,6 +14,20 @@ const (
 	defaultUnitPath = "/etc/systemd/system/ze.service"
 	capabilities    = "CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE"
 )
+
+// stopTimeoutSeconds is the TimeoutStopSec every ze unit needs: the drain
+// ceiling plus the teardown margin the daemon is held to (pkg/plugin/rpc,
+// drain.go), so systemd never kills ze while it drains or tears down. It is
+// derived, never copied: buildUnitFile writes it and checkServiceStop
+// (doctor.go) refuses an effective value below it.
+const stopTimeoutSeconds = rpc.DrainCeilingSeconds + rpc.DrainTeardownMarginSeconds
+
+// stopKillMode is the KillMode every ze unit needs. systemd's default,
+// control-group, sends the stop SIGTERM to every process in the unit's cgroup,
+// external plugins included, so each one would die at the start of the drain
+// that should reach it. mixed sends SIGTERM to ze alone and keeps the SIGKILL
+// at the timeout for the whole cgroup.
+const stopKillMode = "mixed"
 
 type unitSpec struct {
 	BinaryPath string
@@ -22,7 +39,7 @@ const execStartShell = "/bin/sh"
 
 func buildUnitFile(spec unitSpec) string {
 	var b textbuf.Buffer
-	b.Grow(945 + len(spec.BinaryPath) + len(spec.ConfigDir)*2)
+	b.Grow(978 + len(spec.BinaryPath) + len(spec.ConfigDir)*2)
 	b.Str("[Unit]\n")
 	b.Str("Description=Ze Network OS\n")
 	b.Str("After=network-online.target\n")
@@ -47,6 +64,15 @@ func buildUnitFile(spec unitSpec) string {
 	b.Str("ExecReload=/bin/kill -HUP $MAINPID\n")
 	b.Str("Restart=on-failure\n")
 	b.Str("RestartSec=5\n")
+	// The stop drain runs between the SIGTERM and the teardown, so the unit
+	// gives ze the whole ceiling plus the margin before the SIGKILL, and
+	// signals ze alone so ze can drain its external plugins itself.
+	b.Str("TimeoutStopSec=")
+	b.Int(stopTimeoutSeconds)
+	b.Byte('\n')
+	b.Str("KillMode=")
+	b.Str(stopKillMode)
+	b.Byte('\n')
 	b.Str("LimitNOFILE=65536\n")
 	b.Str("LimitCORE=infinity\n")
 	// The memlock plugin locks the whole ze executable in memory, and the entire

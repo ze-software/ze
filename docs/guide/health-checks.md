@@ -47,6 +47,7 @@ remediation guidance.
 | `doctor-hub-managed-collision` | A `plugin/hub/server` block declares managed clients on the address the plugin acceptor binds, so its managed listener cannot bind and its clients are refused <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener --> |
 | `doctor-service-executable` | Installed systemd unit `ExecStart` points to an executable ze binary |
 | `doctor-service-user` / `doctor-service-group` | User/group referenced by installed `ze.service` exists |
+| `doctor-service-stop` | The stop settings systemd applies to the installed `ze.service` (`systemctl show -p TimeoutStopUSec -p KillMode`, drop-ins included) give ze its whole stop: a timeout of at least 90 s (60 s drain ceiling plus 30 s teardown) and `KillMode=mixed` <!-- source: internal/plugins/systemd/doctor.go -- checkServiceStop --> |
 | `doctor-ssh-hostkey-missing` | SSH host key |
 | `doctor-listen-unavailable` | Port binding |
 | `doctor-iface-missing` / `doctor-iface-down` | Interface existence and state |

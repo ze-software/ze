@@ -79,6 +79,8 @@ ExecStart=/bin/sh -c 'trap "" HUP; exec <prefix>/bin/ze start'
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=90
+KillMode=mixed
 LimitNOFILE=65536
 LimitCORE=infinity
 LimitMEMLOCK=infinity
@@ -95,6 +97,16 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 ```
+
+`TimeoutStopSec=90` and `KillMode=mixed` serve the stop drain. On a stop, ze
+first drains its routing protocols for up to 60 s, then tears down for up to
+30 s, so systemd waits 90 s before its SIGKILL. `mixed` sends the stop SIGTERM
+to ze alone, so ze can drain its external plugins before it stops them; the
+SIGKILL at the timeout still reaches the whole unit. `ze doctor` reads the
+values systemd actually applies, drop-ins included, and warns under
+`doctor-service-stop` when either is weaker.
+<!-- source: internal/plugins/systemd/unit.go -- stopTimeoutSeconds -->
+<!-- source: internal/plugins/systemd/doctor.go -- checkServiceStop -->
 
 The shell in `ExecStart` starts ze with SIGHUP ignored, then execs it, so ze
 keeps the main PID. A `systemctl reload` during the first few hundred
