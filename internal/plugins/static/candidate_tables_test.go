@@ -59,4 +59,10 @@ func TestStaticVerifyRefusesTableTheCandidateLacks(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), `routing-table "lns": not found`) {
 		t.Fatalf("verify error = %v, want the lns table refused", err)
 	}
+	// The refusal names the route and both fixes (review N-1).
+	for _, want := range []string{"static route ", `Fix: remove the route from static table "lns", or keep routing-table "lns"`} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("verify error %q does not carry %q", err, want)
+		}
+	}
 }

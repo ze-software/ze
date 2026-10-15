@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -68,12 +70,12 @@ func parseStaticConfig(jsonData string, reg *routingtable.Registry) ([]staticRou
 			continue
 		}
 
+		routeMap, ok := tableTree["route"].(map[string]any)
 		tableID, err := reg.Resolve(tableName)
 		if err != nil {
-			return nil, fmt.Errorf("static table %q: %w", tableName, err)
+			return nil, unknownStaticTable(tableName, routeMap, err)
 		}
 
-		routeMap, ok := tableTree["route"].(map[string]any)
 		if !ok {
 			continue
 		}
@@ -295,4 +297,14 @@ func cfgFloat(v any) (float64, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// unknownStaticTable is the error for static routes placed in a routing table
+// the config does not define. It names the routes and the two ways to fix it.
+func unknownStaticTable(tableName string, routeMap map[string]any, err error) error {
+	routes := slices.Sorted(maps.Keys(routeMap))
+	return fmt.Errorf("static route %s in table %q: %w. "+
+		"The route cannot be installed in a table ze does not define.\n"+
+		"Fix: remove the route from static table %q, or keep routing-table %q in the config",
+		strings.Join(routes, ", "), tableName, err, tableName, tableName)
 }
