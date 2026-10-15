@@ -1,0 +1,253 @@
+# Test: an egress tag edit reaches the next UPDATE sent, and a route sent before
+#       the reload is not re-sent. This states the boundary of a filter reload
+#       on the export side: the reload changes what the plugin answers for
+#       UPDATEs that leave after it, and re-advertises nothing already sent.
+#       spec-bgp-export-policy-reload-readvertise owns re-advertisement; when it
+#       lands it flips this file deliberately.
+# Topology (bgp-rs, ze AS 65000): A 127.0.0.1 AS 65001 sources the routes;
+#          B 127.0.0.2 AS 65002 tags every egress UPDATE with standard
+#          community TAG (value 65000:1).
+# Stages (the live-stages fixture orders them, the reload waits until processed):
+# 1. A sends U1 (10.0.0.0/24). B receives it with COMMUNITY 65000:1 (FDE80001).
+# 2. reload config2: TAG's value becomes 65000:2. Nothing else changes.
+# 3. route to A fences A's next UPDATE behind the processed reload; A sends U2
+#    (10.0.1.0/24). B receives it with 65000:2 (FDE80002).
+# 4. a second route to A fences U3 (10.0.2.0/24) behind B's receipt of U2;
+#    B receives it with 65000:2. U3 closes the window: B reads in order, so
+#    every UPDATE sent to B between the reload and U3 is one B asserts on.
+# What B asserts, on the whole frame (hex), never on one NLRI in it:
+# - seq=3 is U2 alone carrying 65000:2: the next UPDATE sent after the reload
+#   carries the edited tag (AC-1, export side).
+# - seq=4 is U3 alone, so nothing else reached B since seq=2. A re-send of U1,
+#   which a re-advertising reload would queue when the reload is processed,
+#   before A is even told to send U2, either arrives as its own UPDATE and
+#   takes seq=3 or seq=4, or is packed with U2 or U3 (ze packs NLRIs that share
+#   their attributes into one UPDATE, which is legal); both change a frame.
+#   An `announced=` check would pass the packed form, so the frames are exact.
+# Frame of U2 at B: ORIGIN IGP, AS_PATH [65000 65001], NEXT_HOP 1.1.1.1,
+# COMMUNITY 65000:2 (extended-length flag set), NLRI 10.0.1.0/24; U3 the same
+# with 10.0.2.0/24.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 (export: the UPDATEs
+#            sent after the reload) and the "Boundary with stored routes"
+#            export row (routes already advertised are not re-sent).
+# PREVENTS: the silent reload (U2 tagged 65000:1), and an unannounced change to
+#           the boundary (U1 re-sent by the reload) that the reload page and
+#           the export spec would not know about.
+#
+# DISCRIMINATION: the tag half: with newCommunityConfigTx().Register(p)
+# replaced by p.OnConfigure(newCommunityConfigTx().Configure), U2 reaches B with
+# 65000:1 and seq=3 fails. The no-re-send half: in a draft copy where A sends U1 again
+# after the reload, ze forwards it to B tagged 65000:2 (the frame a re-send
+# would be); sent before U2 or between U2 and U3, it fails seq=3 (packed with
+# U2 into one UPDATE, observed) or seq=4.
+#
+# U1: ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1, NLRI 10.0.0.0/24
+# U2: U1 with NLRI 10.0.1.0/24
+# U3: U1 with NLRI 10.0.2.0/24
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=asn:value=65001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18C0A801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
+expect=bgp:conn=1:seq=3:announced=18C0A802
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0002
+EOF_PEER
+
+stdin=destb:terminator=EOF_DESTB
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=asn:value=65002
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FDE80001
+action=rewrite:conn=1:seq=2:source=marker.txt:dest=b-first
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040020A02020000FDE80000FDE940030401010101D0080004FDE80002180A0001
+action=rewrite:conn=1:seq=3:source=marker.txt:dest=b-second
+expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040020A02020000FDE80000FDE940030401010101D0080004FDE80002180A0002
+action=rewrite:conn=1:seq=4:source=marker.txt:dest=b-third
+EOF_DESTB
+
+tmpfs=marker.txt:terminator=EOF_MARKER
+marker
+EOF_MARKER
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+await-file b-first
+reload config2.conf
+route 127.0.0.1 update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24
+await-file b-second
+route 127.0.0.1 update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.2.0/24
+await-file b-third
+say EXPORT-RELOAD: the next UPDATE carries the edited tag, the earlier route is not re-sent
+EOF_SCRIPT
+
+# Startup: TAG is 65000:1.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+	external stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+bgp {
+	community {
+		standard TAG {
+			value [ 65000:1 ]
+		}
+	}
+	peer peer-a {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process stages {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-b {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		filter {
+			egress {
+				community {
+					tag [ TAG ]
+				}
+			}
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# The reload: TAG's value is the ONLY difference (65000:1 -> 65000:2).
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+	external stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+bgp {
+	community {
+		standard TAG {
+			value [ 65000:2 ]
+		}
+	}
+	peer peer-a {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		attach process stages {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+	peer peer-b {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		filter {
+			egress {
+				community {
+					tag [ TAG ]
+				}
+			}
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=destb
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-community -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=EXPORT-RELOAD: the next UPDATE carries the edited tag, the earlier route is not re-sent
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=LIVE-STAGES line
+reject=stderr:pattern=peer restart required
