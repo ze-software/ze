@@ -486,6 +486,10 @@ func TestReloadFailureStopsAutoLoadedPluginByName(t *testing.T) {
 		ConfigRoots: []string{"fib/kernel"},
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(pluginName, conn)
+			// Only reload-rejector may refuse this reload: without an apply
+			// form this plugin refuses at config-verify too, and whichever
+			// refusal answers first is the one the reload reports.
+			p.DeclareAppliesNothing("test fib/kernel owner: holds no config a reload applies")
 			err := p.Run(context.Background(), &sdk.Registration{WantsConfig: []string{"fib/kernel"}})
 			if err != nil {
 				return 1
@@ -568,6 +572,10 @@ func TestReloadFailureKeepsPreExistingDependency(t *testing.T) {
 		Dependencies: []string{depName},
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(pluginName, conn)
+			// Only reload-rejector may refuse this reload: without an apply
+			// form this plugin refuses at config-verify too, and whichever
+			// refusal answers first is the one the reload reports.
+			p.DeclareAppliesNothing("test fib/kernel owner: holds no config a reload applies")
 			err := p.Run(context.Background(), &sdk.Registration{WantsConfig: []string{"fib/kernel"}})
 			if err != nil {
 				return 1
