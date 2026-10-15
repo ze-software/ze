@@ -99,3 +99,24 @@ func TestBridgeVerifyWithoutExabgpSectionAccepts(t *testing.T) {
 		t.Fatalf("refused a delivery with no exabgp section: %v", err)
 	}
 }
+
+// TestBridgeVerifyRefusesAddingWithAccurateReason proves review N-5: when the
+// bridge was absent at boot, a reload that adds it is refused with a reason
+// that holds, since nothing started, and not with "the bridge's scripts keep
+// the config they started with". Removing a running bridge is refused because
+// its scripts keep running.
+// VALIDATES: spec-plugin-reload-applies-or-refuses row 27, Q4 (e1).
+// PREVENTS: a refusal that states something false about scripts never started.
+func TestBridgeVerifyRefusesAddingWithAccurateReason(t *testing.T) {
+	absent := &bridgeRunner{log: slog.New(slog.DiscardHandler)}
+	err := absent.verifyReload(bridgeSections("main=./a.py", `"ipv4/unicast"`, "true"))
+	if err == nil {
+		t.Fatal("adding the bridge while ze runs was accepted")
+	}
+	if !strings.Contains(err.Error(), "exabgp bridge cannot be added while ze runs (plugin exabgp-bridge)") {
+		t.Fatalf("refusal %q does not say the bridge cannot be added", err)
+	}
+	if strings.Contains(err.Error(), "started with") {
+		t.Fatalf("refusal %q claims scripts that never started", err)
+	}
+}

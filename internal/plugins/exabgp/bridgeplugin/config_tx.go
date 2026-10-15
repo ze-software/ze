@@ -41,17 +41,33 @@ func (r *bridgeRunner) verifyReload(sections []sdk.ConfigSection) error {
 		r.mu.Lock()
 		running := r.config
 		r.mu.Unlock()
+		if refusal := refusePresenceChange(running, candidate); refusal != nil {
+			return refusal
+		}
 		return refuseRunningChange(changedBridgeLeaves(running, candidate))
 	}
 	return nil
 }
 
+// refusePresenceChange builds the verify refusal for a reload that adds or
+// removes the whole bridge, or answers nil when neither. Its reason differs
+// from refuseRunningChange's: a bridge absent at boot started no script, and
+// a removed bridge's scripts keep running until ze restarts.
+func refusePresenceChange(running, candidate bridgeConfig) error {
+	if running.Present == candidate.Present {
+		return nil
+	}
+	if candidate.Present {
+		return errors.New("exabgp bridge cannot be added while ze runs (plugin exabgp-bridge): " +
+			"the bridge starts its scripts only when ze starts, so none would run.\n" + sdk.RestartSteps())
+	}
+	return errors.New("exabgp bridge cannot be removed while ze runs (plugin exabgp-bridge): " +
+		"its scripts keep running until ze restarts.\n" + sdk.RestartSteps())
+}
+
 // changedBridgeLeaves answers the config path of every non-capability leaf
 // that differs between running and candidate, in config order.
 func changedBridgeLeaves(running, candidate bridgeConfig) []string {
-	if running.Present != candidate.Present {
-		return []string{"exabgp bridge"}
-	}
 	var changed []string
 	for _, name := range scriptNames(running.Scripts, candidate.Scripts) {
 		if !reflect.DeepEqual(findScript(running.Scripts, name), findScript(candidate.Scripts, name)) {
