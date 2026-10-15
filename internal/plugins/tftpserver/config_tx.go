@@ -50,7 +50,7 @@ type tftpServer struct {
 	boot      bool
 	listeners []*net.UDPConn
 	sem       chan struct{}
-	// generation is cancelled when a new config serves or the server stops,
+	// generation is canceled when a new config serves or the server stops,
 	// which cuts every transfer started under the running config. cancel is
 	// nil until the first install.
 	generation context.Context
@@ -62,7 +62,7 @@ type tftpServer struct {
 // running config serving. The listeners are closed and bound again with a
 // new transfer semaphore and generation; a request that arrives during the
 // swap is lost and the client retransmits it. Once the new listeners serve,
-// the replaced generation is cancelled, which cuts every transfer still in
+// the replaced generation is canceled, which cuts every transfer still in
 // flight: no file is served from a root directory the operator replaced, and
 // max-transfers holds at once. A disabled cfg stops serving the same way.
 //

@@ -206,7 +206,7 @@ func resolvePath(rootDir, filename string) (string, error) {
 }
 
 // serve answers the requests that reach conn until conn is closed. Every
-// transfer it starts runs until generation is cancelled.
+// transfer it starts runs until generation is canceled.
 func serve(generation context.Context, conn *net.UDPConn, rootDir string, sem chan struct{}, log *slog.Logger) {
 	// RFC 2347: RRQ with options can be up to 512 octets.
 	buf := make([]byte, 516)
@@ -236,7 +236,7 @@ func serve(generation context.Context, conn *net.UDPConn, rootDir string, sem ch
 }
 
 // handleRRQ answers one read request. The transfer it starts is cut when
-// generation is cancelled: its socket is closed, so its next read or write
+// generation is canceled: its socket is closed, so its next read or write
 // fails and the transfer ends.
 func handleRRQ(generation context.Context, mainConn *net.UDPConn, pkt []byte, clientAddr *net.UDPAddr, rootDir string, sem chan struct{}, log *slog.Logger) {
 	sendErr := func(code uint16, msg string) {
