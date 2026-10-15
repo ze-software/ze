@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — the stop drain RPC
 // Overview: fixture.go — fixture registry and observer helpers
-// Related: ../plugins/fakedrain/fakedrain.go — the drain responder both modes share
+// Related: ../plugins/fakedrain/drain/drain.go — the drain responder both modes share
 
 package fixture
 
@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/test/plugins/fakedrain"
+	"github.com/ze-software/ze/internal/test/plugins/fakedrain/drain"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -53,12 +53,12 @@ func drainRequester(ctx context.Context, args []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	if reactorless {
-		answered := fakedrain.Responder(plugin)
+		answered := drain.Responder(plugin)
 		plugin.OnAllPluginsReady(func() error {
 			go requestStopAfterSettle(plugin, command)
 			return nil
 		})
-		return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget}))
+		return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget}))
 	}
 
 	// The peer's session MUST still be up when the drain arrives: a stop that
@@ -77,29 +77,29 @@ func drainRequester(ctx context.Context, args []string) error {
 		}
 		return nil
 	})
-	answered := fakedrain.ResponderWith(plugin, func() {
+	answered := drain.ResponderWith(plugin, func() {
 		if !sessionUp.Load() {
-			fakedrain.Log("drain-fixture: FAIL no peer session up before the drain")
+			drain.Log("drain-fixture: FAIL no peer session up before the drain")
 		}
 		if sessionDown.Load() {
-			fakedrain.Log("drain-fixture: FAIL peer session went down before the drain")
+			drain.Log("drain-fixture: FAIL peer session went down before the drain")
 		}
 	})
 	plugin.OnAllPluginsReady(func() error {
 		go requestStopAfterSettle(plugin, command)
 		return nil
 	})
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget}))
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget}))
 }
 
 // drainAnsweredOrFail is the end of every responder fixture: Run returned,
 // and a connection that closed with no drain answered fails the run.
 func drainAnsweredOrFail(answered func() bool, runErr error) error {
 	if !answered() {
-		fakedrain.Log("drain-fixture: FAIL connection closed before the drain was answered")
+		drain.Log("drain-fixture: FAIL connection closed before the drain was answered")
 		return errors.Join(errors.New("drain fixture: stopped with no drain answered"), runErr)
 	}
-	fakedrain.Log("drain-fixture: connection closed after the drain")
+	drain.Log("drain-fixture: connection closed after the drain")
 	return runErr
 }
 
@@ -110,7 +110,7 @@ func requestStopAfterSettle(plugin *sdk.Plugin, command string) {
 	stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	status, _, err := plugin.DispatchCommand(stopCtx, command)
-	fakedrain.Log("drain-fixture: sent " + command + " status=" + status + " error=" + errorText(err))
+	drain.Log("drain-fixture: sent " + command + " status=" + status + " error=" + errorText(err))
 }
 
 // errorText is the error's text, or "none".
@@ -131,8 +131,8 @@ func drainResponder(ctx context.Context, _ []string) error {
 	}
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
-	answered := fakedrain.Responder(plugin)
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget}))
+	answered := drain.Responder(plugin)
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget}))
 }
 
 // drainBudgetOverCeiling declares a DrainBudget one second above the daemon
@@ -165,7 +165,7 @@ func drainNeverReplies(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	plugin.OnDrain(func(drainCtx context.Context, input rpc.DrainInput) error {
-		fakedrain.Log("drain-fixture: drain received kind=" + input.Kind.String() + ", never answering")
+		drain.Log("drain-fixture: drain received kind=" + input.Kind.String() + ", never answering")
 		<-drainCtx.Done()
 		return drainCtx.Err()
 	})
@@ -183,8 +183,8 @@ func drainZeroWait(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	plugin.OnDrain(func(context.Context, rpc.DrainInput) error {
-		fakedrain.Log("drain-fixture: drain answered at once")
+		drain.Log("drain-fixture: drain answered at once")
 		return nil
 	})
-	return plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget})
+	return plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget})
 }

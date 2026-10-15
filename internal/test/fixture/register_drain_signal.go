@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/process-protocol.md — the stop drain RPC
 // Overview: fixture.go — fixture registry and observer helpers
 // Related: register_drain.go — the drain responder fixtures these build on
-// Related: ../plugins/fakedrain/fakedrain.go — the drain responder both modes share
+// Related: ../plugins/fakedrain/drain/drain.go — the drain responder both modes share
 
 package fixture
 
@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
-	"github.com/ze-software/ze/internal/test/plugins/fakedrain"
+	"github.com/ze-software/ze/internal/test/plugins/fakedrain/drain"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -56,10 +56,10 @@ func signalDaemon() {
 		err = syscall.Kill(pid, syscall.SIGTERM)
 	}
 	if err != nil {
-		fakedrain.Log("drain-fixture: FAIL could not signal the daemon: " + err.Error())
+		drain.Log("drain-fixture: FAIL could not signal the daemon: " + err.Error())
 		return
 	}
-	fakedrain.Log("drain-fixture: sent SIGTERM during the drain")
+	drain.Log("drain-fixture: sent SIGTERM during the drain")
 }
 
 // drainSignaler sends the daemon SIGTERM from inside its drain handler and
@@ -83,10 +83,10 @@ func drainSignaler(ctx context.Context, args []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	plugin.OnDrain(func(drainCtx context.Context, input rpc.DrainInput) error {
-		fakedrain.Log("drain-fixture: drain received kind=" + input.Kind.String() + ", signaling")
+		drain.Log("drain-fixture: drain received kind=" + input.Kind.String() + ", signaling")
 		signalDaemon()
 		<-drainCtx.Done()
-		fakedrain.Log("drain-fixture: drain ended unanswered")
+		drain.Log("drain-fixture: drain ended unanswered")
 		return drainCtx.Err()
 	})
 	if request {
@@ -95,7 +95,7 @@ func drainSignaler(ctx context.Context, args []string) error {
 			return nil
 		})
 	}
-	return plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget})
+	return plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget})
 }
 
 // drainShowCommand is the drain-show plugin's own command. Only this plugin's
@@ -131,15 +131,15 @@ func drainShow(ctx context.Context, args []string) error {
 		}
 		return statusDone, map[string]any{"draining": true}, nil
 	})
-	answered := fakedrain.ResponderWith(plugin, func() {
+	answered := drain.ResponderWith(plugin, func() {
 		if drainShowAnswersSSH(creds, "show bgp") {
-			fakedrain.Log("drain-fixture: show bgp over SSH answered during the drain")
+			drain.Log("drain-fixture: show bgp over SSH answered during the drain")
 		}
 		if drainShowAnswers(plugin, "show bgp") {
-			fakedrain.Log("drain-fixture: show bgp answered during the drain")
+			drain.Log("drain-fixture: show bgp answered during the drain")
 		}
 		if drainShowAnswers(plugin, drainShowCommand) {
-			fakedrain.Log("drain-fixture: plugin command answered during the drain")
+			drain.Log("drain-fixture: plugin command answered during the drain")
 		}
 	})
 	plugin.OnAllPluginsReady(func() error {
@@ -147,7 +147,7 @@ func drainShow(ctx context.Context, args []string) error {
 		return nil
 	})
 	registration := sdk.Registration{
-		DrainBudget: fakedrain.Budget,
+		DrainBudget: drain.Budget,
 		Commands:    []sdk.CommandDecl{{Name: drainShowCommand}},
 	}
 	return drainAnsweredOrFail(answered, plugin.Run(ctx, registration))
@@ -164,15 +164,15 @@ func drainShowAnswers(plugin *sdk.Plugin, command string) bool {
 	status, _, showErr := plugin.DispatchCommand(showCtx, command)
 	elapsed := time.Since(start)
 	if showErr != nil {
-		fakedrain.Log("drain-fixture: FAIL " + command + " during the drain: " + showErr.Error())
+		drain.Log("drain-fixture: FAIL " + command + " during the drain: " + showErr.Error())
 		return false
 	}
 	if status != statusDone {
-		fakedrain.Log("drain-fixture: FAIL " + command + " during the drain status=" + status)
+		drain.Log("drain-fixture: FAIL " + command + " during the drain status=" + status)
 		return false
 	}
 	if elapsed > drainShowBound {
-		fakedrain.Log("drain-fixture: FAIL " + command + " took " + elapsed.String() + " during the drain")
+		drain.Log("drain-fixture: FAIL " + command + " took " + elapsed.String() + " during the drain")
 		return false
 	}
 	return true
@@ -195,16 +195,16 @@ func drainShowAnswersSSH(creds sshclient.Credentials, command string) bool {
 	select {
 	case answer := <-result:
 		if answer.err != nil {
-			fakedrain.Log("drain-fixture: FAIL " + command + " over SSH during the drain: " + answer.err.Error())
+			drain.Log("drain-fixture: FAIL " + command + " over SSH during the drain: " + answer.err.Error())
 			return false
 		}
 		if strings.TrimSpace(answer.output) == "" {
-			fakedrain.Log("drain-fixture: FAIL " + command + " over SSH during the drain answered nothing")
+			drain.Log("drain-fixture: FAIL " + command + " over SSH during the drain answered nothing")
 			return false
 		}
 		return true
 	case <-time.After(drainShowBound):
-		fakedrain.Log("drain-fixture: FAIL " + command + " over SSH not answered within " +
+		drain.Log("drain-fixture: FAIL " + command + " over SSH not answered within " +
 			drainShowBound.String() + " during the drain (waited " +
 			time.Since(start).Round(time.Millisecond).String() + ")")
 		return false
@@ -224,7 +224,7 @@ func execSSHAnswer(creds sshclient.Credentials, command string, result chan<- ss
 // daemon SIGTERM once. One goroutine for the fixture's one stop.
 func signalDaemonAfterSSH(ctx context.Context, creds sshclient.Credentials) {
 	if _, err := waitSSHCommandExtra3(ctx, creds, "show version"); err != nil {
-		fakedrain.Log("drain-fixture: FAIL SSH never answered before the stop: " + err.Error())
+		drain.Log("drain-fixture: FAIL SSH never answered before the stop: " + err.Error())
 		return
 	}
 	time.Sleep(drainRequesterSettle)
@@ -233,10 +233,10 @@ func signalDaemonAfterSSH(ctx context.Context, creds sshclient.Credentials) {
 		err = syscall.Kill(pid, syscall.SIGTERM)
 	}
 	if err != nil {
-		fakedrain.Log("drain-fixture: FAIL could not signal the daemon: " + err.Error())
+		drain.Log("drain-fixture: FAIL could not signal the daemon: " + err.Error())
 		return
 	}
-	fakedrain.Log("drain-fixture: SSH answered, sent SIGTERM")
+	drain.Log("drain-fixture: SSH answered, sent SIGTERM")
 }
 
 // drainExitsMarker counts drain-exits generations in the test directory.
@@ -260,7 +260,7 @@ func drainExits(ctx context.Context, _ []string) error {
 		return fmt.Errorf("write %s: %w", drainExitsMarker, err)
 	}
 	if generation > 1 {
-		fakedrain.Log("drain-fixture: FAIL drain-exits generation " + strconv.Itoa(generation) + " started")
+		drain.Log("drain-fixture: FAIL drain-exits generation " + strconv.Itoa(generation) + " started")
 	}
 	plugin, err := newObserver("drain-exits")
 	if err != nil {
@@ -269,11 +269,11 @@ func drainExits(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // the drain handler closed it already; a second close changes nothing
 
 	plugin.OnDrain(func(context.Context, rpc.DrainInput) error {
-		fakedrain.Log("drain-fixture: drain-exits leaving during the drain")
+		drain.Log("drain-fixture: drain-exits leaving during the drain")
 		plugin.Close() //nolint:errcheck,gosec // closing is the exit under test; its error changes no assertion
 		return errDrainExitsLeft
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget, FailurePolicy: sdk.FailureRestart})
+	runErr := plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget, FailurePolicy: sdk.FailureRestart})
 	if errors.Is(runErr, errDrainExitsLeft) {
 		return nil
 	}
@@ -292,12 +292,12 @@ func drainGroup(ctx context.Context, _ []string) error {
 	}
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
-	answered := fakedrain.Responder(plugin)
+	answered := drain.Responder(plugin)
 	plugin.OnAllPluginsReady(func() error {
 		go signalDaemonGroupAfterSettle()
 		return nil
 	})
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: fakedrain.Budget}))
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, sdk.Registration{DrainBudget: drain.Budget}))
 }
 
 // signalDaemonGroupAfterSettle waits drainRequesterSettle, then signals ze's
@@ -306,24 +306,24 @@ func signalDaemonGroupAfterSettle() {
 	time.Sleep(drainRequesterSettle)
 	pid, err := daemonPID()
 	if err != nil {
-		fakedrain.Log("drain-fixture: FAIL " + err.Error())
+		drain.Log("drain-fixture: FAIL " + err.Error())
 		return
 	}
 	group, err := syscall.Getpgid(pid)
 	if err != nil {
-		fakedrain.Log("drain-fixture: FAIL read ze's process group: " + err.Error())
+		drain.Log("drain-fixture: FAIL read ze's process group: " + err.Error())
 		return
 	}
 	if own := syscall.Getpgrp(); own == group {
-		fakedrain.Log("drain-fixture: FAIL plugin shares ze's process group " + strconv.Itoa(group))
+		drain.Log("drain-fixture: FAIL plugin shares ze's process group " + strconv.Itoa(group))
 		return
 	}
-	fakedrain.Log("drain-fixture: plugin process group differs from ze's")
+	drain.Log("drain-fixture: plugin process group differs from ze's")
 	if err := syscall.Kill(-group, syscall.SIGTERM); err != nil {
-		fakedrain.Log("drain-fixture: FAIL signal ze's process group: " + err.Error())
+		drain.Log("drain-fixture: FAIL signal ze's process group: " + err.Error())
 		return
 	}
-	fakedrain.Log("drain-fixture: sent SIGTERM to ze's process group")
+	drain.Log("drain-fixture: sent SIGTERM to ze's process group")
 }
 
 // drainSSHRestart is the SSH exec client that restarts the daemon: it waits
@@ -335,14 +335,14 @@ func drainSSHRestart(ctx context.Context, args []string) error {
 	}
 	creds := sshclient.Credentials{Host: addrLoopback, Port: args[0], Username: valueTestUser, Auth: valueTestPassword}
 	if _, err := waitSSHCommandExtra3(ctx, creds, "show version"); err != nil {
-		fakedrain.Log("drain-fixture: FAIL SSH never answered, so restart was not sent: " + err.Error())
+		drain.Log("drain-fixture: FAIL SSH never answered, so restart was not sent: " + err.Error())
 		return err
 	}
 	time.Sleep(drainRequesterSettle)
 	output, err := sshclient.ExecCommand(creds, "restart")
-	fakedrain.Log("drain-fixture: sent restart output=" + strings.TrimSpace(output) + " error=" + errorText(err))
+	drain.Log("drain-fixture: sent restart output=" + strings.TrimSpace(output) + " error=" + errorText(err))
 	if err != nil {
-		fakedrain.Log("drain-fixture: FAIL SSH restart: " + err.Error())
+		drain.Log("drain-fixture: FAIL SSH restart: " + err.Error())
 	}
 	return err
 }
