@@ -413,8 +413,8 @@ func (s *Setup) probeE2fsprogs() bool {
 }
 
 // rootOnlyFileDirs answers where a binary only root runs is looked for: every
-// PATH entry in order, then the two system directories a non-root PATH often
-// omits. An empty PATH entry is skipped, because it means the current
+// PATH entry in order, then the system directories a non-root PATH often omits
+// (systemBinDirs). An empty PATH entry is skipped, because it means the current
 // directory.
 func (s *Setup) rootOnlyFileDirs() []string {
 	var dirs []string
@@ -423,7 +423,16 @@ func (s *Setup) rootOnlyFileDirs() []string {
 			dirs = append(dirs, entry)
 		}
 	}
-	return append(dirs, "/usr/sbin", "/sbin")
+	return append(dirs, s.systemBinDirs()...)
+}
+
+// systemBinDirs answers the system directories searched after PATH: the
+// SystemBinDirs seam when set, otherwise /usr/sbin then /sbin.
+func (s *Setup) systemBinDirs() []string {
+	if s.SystemBinDirs != nil {
+		return s.SystemBinDirs()
+	}
+	return []string{"/usr/sbin", "/sbin"}
 }
 
 // probeRootOnlyFile reports whether name is a regular file in one of

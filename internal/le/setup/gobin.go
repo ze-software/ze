@@ -110,7 +110,7 @@ func (s *Setup) goToolOffPath(report *Report, tool Tool) (Outcome, bool) {
 	if !s.goBinPathNoted {
 		s.goBinPathNoted = true
 		var run textbuf.Buffer
-		report.Note(run.Str("  Run: export PATH=\"$PATH:").Str(dir).Str("\"").String())
+		report.Note(run.Str("  Run: export PATH=\"$PATH\":").Str(shellSingleQuote(dir)).String())
 		var why textbuf.Buffer
 		report.Note(why.Str("    `go install` puts tools in ").Str(dir).
 			Str(", which is not on PATH; add that line to ").Str(s.shellProfile()).
@@ -120,4 +120,13 @@ func (s *Setup) goToolOffPath(report *Report, tool Tool) (Outcome, bool) {
 	var detail textbuf.Buffer
 	detail.Str("in ").Str(dir).Str(", which is not on PATH")
 	return Outcome{Name: tool.Name, State: StatePending, Detail: detail.String()}, true
+}
+
+// shellSingleQuote answers dir as one POSIX sh single-quoted word, so a
+// directory holding $, a backtick, a double quote or a space reaches PATH
+// verbatim when the printed line is pasted. A single quote cannot appear inside
+// single quotes, so each one closes the word, adds an escaped quote, and
+// reopens it.
+func shellSingleQuote(dir string) string {
+	return "'" + strings.ReplaceAll(dir, "'", `'\''`) + "'"
 }

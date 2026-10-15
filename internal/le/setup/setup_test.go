@@ -963,6 +963,13 @@ func TestLoopbackRequiresJointPrefixAndOwnedLinkLocal(t *testing.T) {
 			netip.MustParsePrefix("fe80::1/128"),
 		}, []string{loopbackPeerIPv6}},
 		{"link-local absent", fixtureLoopbackPrefixes()[:2], []string{loopbackLinkLocalIPv6}},
+		// Another link-local on lo, inside the same /64, is not fe80::1: the
+		// probe matches the address, never a prefix that merely contains it.
+		{"other link-local in the same /64", []netip.Prefix{
+			netip.MustParsePrefix("fd00::2/128"),
+			netip.MustParsePrefix("fd00::3/127"),
+			netip.MustParsePrefix("fe80::2/64"),
+		}, []string{loopbackLinkLocalIPv6}},
 		{"addresses elsewhere", nil, []string{LoopbackIPv6, loopbackPeerIPv6, loopbackLinkLocalIPv6}},
 	} {
 		t.Run(test.name, func(t *testing.T) {

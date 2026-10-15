@@ -64,6 +64,9 @@ type Setup struct {
 	LoopbackPrefixes func() ([]netip.Prefix, error)
 	// Gopls answers the gopls probe.
 	Gopls func() Result
+	// SystemBinDirs answers the system directories searched after PATH for a
+	// binary only root runs. Nil means /usr/sbin then /sbin.
+	SystemBinDirs func() []string
 
 	// goBinPathNoted records that this run has printed the PATH line for the
 	// Go install directory, so it is printed once however many tools need it.

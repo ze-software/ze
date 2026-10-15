@@ -9,6 +9,7 @@ package setup
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -19,8 +20,8 @@ import (
 const goEnvKey = "go env GOBIN GOPATH"
 
 // offPathSetup builds a host whose GOPATH bin directory holds the named tools
-// and is not on PATH. It answers the setup, its recorder and that directory.
-func offPathSetup(t *testing.T, gobin string, tools ...string) (*Setup, *recorder, string) {
+// and is not on PATH. It answers the setup and that directory.
+func offPathSetup(t *testing.T, gobin string, tools ...string) (*Setup, string) {
 	t.Helper()
 	gopath := t.TempDir()
 	dir := filepath.Join(gopath, "bin")
@@ -39,7 +40,7 @@ func offPathSetup(t *testing.T, gobin string, tools ...string) (*Setup, *recorde
 	rec.answers[goEnvKey] = Result{Out: gobin + "\n" + gopath + "\n"}
 	env := map[string]string{"PATH": "/usr/local/go/bin:/usr/bin:/bin"}
 	setup := &Setup{Shell: rec.shell(), Env: func(key string) string { return env[key] }}
-	return setup, rec, dir
+	return setup, dir
 }
 
 // goplsRow is the table's gopls row, so the case follows the table.
@@ -60,7 +61,7 @@ func goplsRow(t *testing.T) Tool {
 // PREVENTS: the hardcoded "add ~/go/bin" that was wrong for root (/root/go/bin)
 // and for any GOBIN, and named no command.
 func TestAGoInstallThatLandsOffPathNamesTheRealDirectory(t *testing.T) {
-	setup, _, dir := offPathSetup(t, "", toolGopls)
+	setup, dir := offPathSetup(t, "", toolGopls)
 	report := &Report{}
 	installer := setup.NewInstaller(ManagerApt, report)
 
@@ -71,7 +72,7 @@ func TestAGoInstallThatLandsOffPathNamesTheRealDirectory(t *testing.T) {
 	if !strings.Contains(outcome.Detail, dir) {
 		t.Errorf("the row does not say where the tool is: %q", outcome.Detail)
 	}
-	want := "Run: export PATH=\"$PATH:" + dir + "\""
+	want := "Run: export PATH=\"$PATH\":'" + dir + "'"
 	if !strings.Contains(report.Text(), want) {
 		t.Errorf("the PATH fix %q is not named:\n%s", want, report.Text())
 	}
@@ -84,15 +85,48 @@ func TestAGoInstallThatLandsOffPathNamesTheRealDirectory(t *testing.T) {
 // is the directory the fix names.
 func TestGOBINWinsOverGOPATH(t *testing.T) {
 	gobin := filepath.Join(t.TempDir(), "gobin")
-	setup, _, _ := offPathSetup(t, gobin, toolGopls)
+	setup, _ := offPathSetup(t, gobin, toolGopls)
 	report := &Report{}
 
 	outcome := setup.visitTool(report, goplsRow(t), ManagerApt, nil)
 	if !strings.Contains(outcome.Detail, gobin) {
 		t.Errorf("the row names %q, want GOBIN %q", outcome.Detail, gobin)
 	}
-	if !strings.Contains(report.Text(), "$PATH:"+gobin+"\"") {
+	if !strings.Contains(report.Text(), "\"$PATH\":'"+gobin+"'") {
 		t.Errorf("the PATH fix does not name GOBIN:\n%s", report.Text())
+	}
+}
+
+// TestThePathLineSurvivesAHostileDirectoryName: a GOBIN holding $, a
+// backtick, a double quote, a single quote and a space must reach PATH
+// verbatim when the printed line runs in POSIX sh. The line is executed, not
+// pattern-matched, because only the shell decides what expands.
+// PREVENTS: `export PATH="$PATH:<dir>"`, which expanded $ and ran backticks.
+func TestThePathLineSurvivesAHostileDirectoryName(t *testing.T) {
+	hostile := "a$HOME`id`" + `"b' c`
+	gobin := filepath.Join(t.TempDir(), hostile)
+	setup, _ := offPathSetup(t, gobin, toolGopls)
+	report := &Report{}
+	setup.visitTool(report, goplsRow(t), ManagerApt, nil)
+
+	var line string
+	for row := range strings.SplitSeq(report.Text(), "\n") {
+		if _, after, ok := strings.Cut(row, "Run: "); ok {
+			line = after
+		}
+	}
+	if line == "" {
+		t.Fatalf("no Run: line is printed:\n%s", report.Text())
+	}
+
+	shell := exec.CommandContext(t.Context(), "/bin/sh", "-c", line+`; printf %s "$PATH"`)
+	shell.Env = []string{"PATH=/start"}
+	out, err := shell.Output()
+	if err != nil {
+		t.Fatalf("sh refused %q: %v", line, err)
+	}
+	if got, want := string(out), "/start:"+gobin; got != want {
+		t.Errorf("PATH is %q, want %q", got, want)
 	}
 }
 
@@ -101,21 +135,21 @@ func TestGOBINWinsOverGOPATH(t *testing.T) {
 // fix, rather than MISSING, which pointed at an install that already ran.
 // It is never PRESENT: no shell can run the tool yet.
 func TestACheckRunNamesAToolBuiltOffPathAsAStep(t *testing.T) {
-	setup, _, dir := offPathSetup(t, "", toolGopls)
+	setup, dir := offPathSetup(t, "", toolGopls)
 	report := &Report{}
 
 	outcome := setup.visitTool(report, goplsRow(t), ManagerApt, nil)
 	if outcome.State != StatePending {
 		t.Errorf("check calls a tool built off PATH %s, want %s", outcome.State, StatePending)
 	}
-	if !strings.Contains(report.Text(), "$PATH:"+dir+"\"") {
+	if !strings.Contains(report.Text(), "\"$PATH\":'"+dir+"'") {
 		t.Errorf("check does not name the PATH fix:\n%s", report.Text())
 	}
 }
 
 // TestThePathLineIsPrintedOnce: five Go tools in one directory are one fix.
 func TestThePathLineIsPrintedOnce(t *testing.T) {
-	setup, _, _ := offPathSetup(t, "", toolGopls, toolGoimports)
+	setup, _ := offPathSetup(t, "", toolGopls, toolGoimports)
 	report := &Report{}
 	for _, tool := range requiredTools() {
 		if tool.Name == toolGopls || tool.Name == toolGoimports {
@@ -139,7 +173,7 @@ func TestAZshProfileIsZshenv(t *testing.T) {
 // directory is already on PATH, a failed probe has another cause, and the
 // report must not tell the developer to add a directory PATH already holds.
 func TestAGoToolMissingFromAnOnPathDirectoryIsNotCalledOffPath(t *testing.T) {
-	setup, _, dir := offPathSetup(t, "", toolGopls)
+	setup, dir := offPathSetup(t, "", toolGopls)
 	setup.Env = func(key string) string { return map[string]string{"PATH": dir}[key] }
 	report := &Report{}
 
@@ -154,10 +188,11 @@ func TestAGoToolMissingFromAnOnPathDirectoryIsNotCalledOffPath(t *testing.T) {
 
 // TestPppdIsFoundWhateverItsMode: Debian ships /usr/sbin/pppd as root:dip 4754,
 // so exec.LookPath refuses it to a user outside dip although it is installed.
-// The probe accepts the file. The real PATH lookup is the subject, so no Look
-// seam is set. 0644 is the discriminating mode: a 0754 file is executable by
-// its owner, which this test is, so only a mode refusing this user reproduces
-// what a non-dip user sees.
+// The probe accepts the file. 0644 is the discriminating mode: a 0754 file is
+// executable by its owner, which this test is, so only a mode refusing this
+// user reproduces what a non-dip user sees. PATH holds only the temp directory
+// and the system directories are empty, so a host /usr/sbin/pppd (macOS ships
+// one) cannot answer for the file under test.
 func TestPppdIsFoundWhateverItsMode(t *testing.T) {
 	for _, mode := range []os.FileMode{0o754, 0o644} {
 		dir := t.TempDir()
@@ -168,13 +203,31 @@ func TestPppdIsFoundWhateverItsMode(t *testing.T) {
 		if err := os.Chmod(path, mode); err != nil {
 			t.Fatalf("chmod: %v", err)
 		}
-		t.Setenv("PATH", dir)
 
-		setup := &Setup{Shell: &Shell{}}
-		ppp := optionalToolNamed(t, toolPpp)
-		if !setup.Probe(ppp) {
+		setup := pppdSetup(dir)
+		if !setup.Probe(optionalToolNamed(t, toolPpp)) {
 			t.Errorf("pppd with mode %o is reported absent", mode)
 		}
+	}
+}
+
+// TestPppdIsAbsentWhenNoDirectoryHoldsIt: the negative space of the probe. A
+// PATH directory with no pppd and no system directories must answer absent, so
+// a probe that always answers present fails here.
+func TestPppdIsAbsentWhenNoDirectoryHoldsIt(t *testing.T) {
+	setup := pppdSetup(t.TempDir())
+	if setup.Probe(optionalToolNamed(t, toolPpp)) {
+		t.Error("pppd is reported present, but no searched directory holds it")
+	}
+}
+
+// pppdSetup builds a host whose PATH is dir alone and whose system directories
+// are empty, so the probe sees only what the test put in dir.
+func pppdSetup(dir string) *Setup {
+	return &Setup{
+		Shell:         &Shell{},
+		Env:           func(key string) string { return map[string]string{"PATH": dir}[key] },
+		SystemBinDirs: func() []string { return nil },
 	}
 }
 

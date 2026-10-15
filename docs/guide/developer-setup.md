@@ -203,7 +203,7 @@ The target and its checked feature population are documented in
 | `sshpass` | Optional SSH probe fallback |
 | `docker` / `colima` | Container appliance and kernel builds |
 | `xl2tpd` | L2TP LAC peer for the root-only L2TP PPP evidence tests (Linux only) |
-| `ppp` (`pppd`) | pppd for the same tests (Linux only). Debian installs it as `root:dip` mode 4754, so a user outside `dip` cannot run it; setup counts the file as present, because the tests run it as root |
+| `ppp` (`pppd`) | pppd for the same tests, which run on Linux, where setup installs it with apt. macOS ships `/usr/sbin/pppd`, so setup reports it present there. Debian installs it as `root:dip` mode 4754, so a user outside `dip` cannot run it; setup counts the file as present, because the tests run it as root |
 
 
 ## Platform Notes
