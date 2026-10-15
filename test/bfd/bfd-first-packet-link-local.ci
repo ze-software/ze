@@ -1,0 +1,81 @@
+# Test: BFD to an IPv6 LINK-LOCAL neighbor through a real kernel, on two links
+# that carry the SAME neighbor address fe80::b. Each link's first packet selects
+# that link's session, and each session's packets leave on the link it names.
+#
+# VALIDATES: the receive half. recvmsg reports the neighbor's source with the
+#            kernel's zone (fe80::b%zbl0), while the session holds fe80::b and
+#            interface zbl0. A packet whose Your Discriminator is zero selects
+#            a session only when reconcileZone moves the zone into the
+#            interface (internal/component/bfd/engine/engine.go). The proof is
+#            the session reporting the injected My Discriminator as its
+#            remote-discriminator, which only a selected packet can set
+#            (RFC 5880 Section 6.8.6, RFC 5881 Section 3).
+# VALIDATES: the send half. Frames Ze sends for the zbl0 session carry the
+#            zbl0 neighbor's discriminator and are captured on zbl0's far end
+#            only, from fe80::a to fe80::b with hop limit 255; the reverse on
+#            zbl1 (destination and sendZone in
+#            internal/component/bfd/transport/udp.go, plus the IPV6_PKTINFO pin).
+# PREVENTS:  a link-local session that is selected only once the neighbor has
+#            echoed Ze's discriminator, and a link-local packet that leaves on
+#            whichever link the kernel's fe80::/64 route picks.
+#
+# The neighbor is played by raw frames the fixture writes on the far end of each
+# veth (zbl0p, zbl1p). The far ends hold no address and a permanent neighbor
+# entry replaces Neighbor Discovery, so neither direction is answered through
+# lo. The setup and teardown fixtures build and remove both veth pairs; the
+# setup removes any pair an earlier run left first.
+#
+# Two links rather than one keep the socket from being bound to a device, so
+# the send half is carried by the zone and the pktinfo ifindex, which is what
+# this test is about. Reverting only sendZone stays green on Linux, because the
+# pktinfo ifindex still pins the link (spec R-1); the recorded send red reverts
+# both.
+#
+# Two single-hop-session entries for one peer need the config parser to key a
+# multi-leaf-key list on its whole key (spec-bfd-link-local-peer-zone, Q-3 (a)).
+option=needs-linux:caps=net-admin,net-raw
+option=env:var=ze.bfd.test-parallel:value=true
+option=exclusive:group=bfd-ports
+
+stdin=ze-bfd:terminator=EOF_CONF
+plugin {
+	external bfd-first-packet-link-local-test {
+		run "le test fixture bfd/bfd-first-packet-link-local"
+		encoder json
+	}
+}
+
+environment {
+	log {
+		bfd debug
+	}
+}
+
+bfd {
+	enabled true;
+	bind-v6 true;
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 300000
+		required-min-rx-us 300000
+	}
+	single-hop-session fe80::b {
+		interface zbl0;
+		local fe80::a;
+		profile fast;
+	}
+	single-hop-session fe80::b {
+		interface zbl1;
+		local fe80::a;
+		profile fast;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture bfd/bfd-first-packet-link-local-setup:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bfd:timeout=45s:exit=0
+expect=stderr:contains=OK: the first packet on zbl0 selected the session to fe80::b on zbl0
+expect=stderr:contains=OK: the first packet on zbl1 selected the session to fe80::b on zbl1
+expect=stderr:pattern=OK: [0-9]+ frames left on zbl0 with Your Discriminator
+expect=stderr:pattern=OK: [0-9]+ frames left on zbl1 with Your Discriminator
+cmd=foreground:seq=3:exec=le test fixture bfd/bfd-first-packet-link-local-teardown:exit=0

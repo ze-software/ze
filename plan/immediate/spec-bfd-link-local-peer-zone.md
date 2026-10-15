@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 3/5 |
 | Handoff | - |
-| Updated | 2026-10-14 |
+| Updated | 2026-10-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -363,7 +363,7 @@ the contract, modelled on `bfd-first-packet-pktinfo-v6.ci`):
 | Options | `option=needs-linux:caps=net-admin,net-raw`, `option=exclusive:group=bfd-ports`, `option=env:var=ze.bfd.test-parallel:value=true` |
 | Topology steps | two veth pairs `zbl0`/`zbl0p` and `zbl1`/`zbl1p` with fixed MACs; `fe80::a/64 nodad` on `zbl0` and `zbl1` with `addrgenmode none`; NO address on `zbl0p`/`zbl1p`; a permanent neighbor `fe80::b` → the far end's MAC on each of `zbl0`, `zbl1`; every step removed again at the end |
 | Config | `bfd { enabled true; bind-v6 true; profile fast {...}; single-hop-session fe80::b { interface zbl0; local fe80::a; profile fast } }` and the same on `zbl1`, which needs the Q-3 fix (A-3 refuted: the config file parser refuses the second entry at HEAD) |
-| Fixture | `bfd/bfd-first-packet-link-local` registered in `internal/test/fixture/register_bfd.go`; it writes a raw Ethernet/IPv6/UDP/BFD Down frame (source `fe80::b`, hop limit 255, source port in 49152-65535, My Discriminator X on `zbl0p`, Y on `zbl1p`, Your Discriminator 0) every 200 ms, reads `show bfd sessions`, and captures Ze's frames on `zbl0p`/`zbl1p` with AF_PACKET |
+| Fixture | `bfd/bfd-first-packet-link-local` registered in `internal/test/fixture/register_bfd_linux.go` (Linux-only: AF_PACKET), with `bfd/bfd-first-packet-link-local-setup` and `-teardown` building and removing the topology through netlink rather than `ip` steps, because a setup that first removes a leftover pair cannot be a `.ci` step that must exit 0; it writes a raw Ethernet/IPv6/UDP/BFD Down frame (source `fe80::b`, hop limit 255, source port in 49152-65535, My Discriminator X on `zbl0p`, Y on `zbl1p`, Your Discriminator 0) every 200 ms, reads `show bfd sessions`, and captures Ze's frames on `zbl0p`/`zbl1p` with AF_PACKET |
 | Fixture lifecycle | the 200 ms writer stops when the fixture's run ends (pass, fail or timeout) and is never left running past it; every AF_PACKET socket, the two writers' and the two captures', is closed on every exit path, deferred at open as the pktinfo fixture does with `conn.Close()`; the fixture starts no goroutine that outlives its run |
 | Pass line on stderr | one `OK:` line per link naming the interface and the discriminator, plus one `OK:` per link for the capture |
 | Red runs to record | (1) `reconcileZone` returns its argument: both sessions keep `remote-discriminator` 0; (2) `sendZone` returns empty AND `pinsToLink` returns false: Ze's frames for one session appear on the other link or nowhere (R-1) |
@@ -421,7 +421,7 @@ uses, and reads FRR `show bfd peer <Ze's address> interface eth0 json` and Ze
 - `internal/component/bfd/config.go` - `parseSingleHopSession`: refuse a link-local `peer` without `interface`, and a zone on `peer` or `local` (AC-5, AC-7), with the RFC comments below
 - `internal/component/bfd/yang/ze-bfd-conf.yang` - `single-hop-session` `peer` and `interface` descriptions state the requirement and the refusal
 - `internal/component/bfd/engine/link_local_first_packet_test.go` - add the three `RFC requirement:` tags (AC-10)
-- `internal/test/fixture/register_bfd.go` - register `bfd/bfd-first-packet-link-local`
+- `internal/test/fixture/register_bfd_linux.go` (new; the design named `register_bfd.go`) - registers `bfd/bfd-first-packet-link-local` and its `-setup` and `-teardown` fixtures. They build veths with netlink and write frames with AF_PACKET, which only Linux has, so they register from a `_linux.go` file as the VRRP AF_PACKET fixtures do (`routing_fixture_linux.go`)
 - `internal/le/interoplab/bgp/prepare.go` - `renderScenario` reports which link-local placeholders it rendered and renders `@FRR_LINK_LOCAL@`; `prepareScenario` assigns each rendered placeholder's address to its owner's `eth0` (Ze and FRR); the `rfc2545Scenario` constant and its name comparison are deleted; the address builder takes a host number (Scenario contract)
 - `internal/le/interoplab/bgp/check_rfc.go` - the `bgp-rfc2545-linklocal-nexthop-frr` checker calls the renamed address builder with Ze's host
 - `internal/le/interoplab/bgp/checkers.go`, `names.go` (whichever the scenario table needs; R-4) - register `bfd-link-local-frr`
@@ -437,7 +437,7 @@ uses, and reads FRR `show bfd peer <Ze's address> interface eth0 json` and Ze
 ## Files to Create
 - `internal/component/bfd/link_local_config_test.go`
 - `internal/le/interoplab/bgp/prepare_link_local_test.go`
-- `internal/test/fixture/bfd_fixture_link_local.go`
+- `internal/test/fixture/bfd_fixture_link_local.go` (platform-free: the injected frame and its UDP checksum, the reading of a captured frame, the per-interface reading of `show bfd sessions`), `internal/test/fixture/bfd_fixture_link_local_linux.go` (veth setup and teardown, the AF_PACKET writers and captures, the scenario), `internal/test/fixture/bfd_fixture_link_local_test.go` (unit tests of the platform-free half, run on every host)
 - `test/bfd/bfd-first-packet-link-local.ci`
 - `test/parse/bfd-link-local-needs-interface.ci`, `test/parse/bfd-link-local-zone-refused.ci`
 - `test/interop/scenarios/bfd-link-local-frr/ze.conf`, `frr.conf`
@@ -495,6 +495,7 @@ The skeleton's steps 1-3 are DONE at HEAD (`d7923475e6`); they are not redone.
 1. **Phase: Q-3 (a) fix first** -- Q-3 answered (a) by the owner, 2026-10-14; the independent narrow review of design round 7's edits (Design Review Log) must return 0 BLOCKER, 0 ISSUE before this phase starts. `TestTwoLinkLocalSingleHopSessionsParseApart` red (the parser's "duplicate list key"), then the fix, then green; AC-2's `.ci` leg depends on it. The phase is all five parts of the Q-3 table, in order: the codec and the schema's key leaves, then the parser with `TestMultiLeafKeyAbsentLeafComparesAsItsDefault` (AC-14); the brace and set printers and both `SetParser` paths with `TestSetFormRoundTripKeepsTwoSessionsForOnePeer` (AC-12) and `TestDiffAfterDeletingTheFirstOfTwoMultiLeafKeyEntries` (AC-16); the CLI with `TestEditorSetsTwoEntriesForOnePeerOnTwoInterfaces` and the `.et` (AC-11); the web with `TestWebWalkAddressesMultiLeafKeyEntry` (AC-13); gNMI with `TestGetSelectsEachOfTwoMultiLeafKeyEntries` (AC-15); the BFD first-value peer and `TestTwoEntriesForOneSessionKeyRefused` (AC-17); rename and copy with `TestRenameAndCopyOfMultiLeafKeyEntryChangeOnlyTheFirstValue` and `TestWebRenameOfMultiLeafKeyEntryChangesOnlyTheFirstValue` (AC-18); each red first, and the config and gNMI pages in the same phase. The `#N` suffix is never used to tell two multi-leaf entries apart, so no step keeps it beside the canonical key.
 2. **Phase: Config refusal** -- `TestSingleHopLinkLocalPeerNeedsInterface`, `TestSingleHopPeerRefusesAZone` red, then the refusal in `parseSingleHopSession`, then the two `test/parse` `.ci`; YANG descriptions, `docs/guide/bfd.md`, `docs/architecture/bfd.md` in the same phase.
 3. **Phase: Kernel proof** -- the fixture and `bfd-first-packet-link-local.ci`; record both red runs in the spec (QEMU guest, `./le test` scoped to the one `.ci`).
+   → Phase 3 (2026-10-15, on macOS): fixture and `.ci` written; the `.ci` parses and SKIPs here (`needs-linux`; the runner names `./le test qemu all-tests`). The platform-free half is unit-tested on every host (`TestBFDLinkLocal*`, `internal/test/fixture/bfd_fixture_link_local_test.go`), red observed with the checksum's next-header term and the hop-limit check removed. OWED in the QEMU guest before this phase closes: the green run, red (1) `reconcileZone` returning its argument, red (2) `sendZone` returning empty AND `pinsToLink` returning false; A-1 and A-4 stay `unvalidated` until then.
 4. **Phase: Tags** -- AC-10 tags, then `./le rfc discriminate stem rfc5881 report <path>` and `./le rfc discriminate-record` for each.
 5. **Phase: Interop** -- `TestLinkLocalAssignmentFollowsThePlaceholders` red, then the placeholder-derived assignment in `prepare.go` with the `rfc2545Scenario` comparison deleted, then green; A-5 checked against the pinned FRR image; `bfd-link-local-frr` (R-4 first), green run with the image ID quoted, and `bgp-rfc2545-linklocal-nexthop-frr` green on the same build; Scenario Inventory row and the "Container Addresses" edit; `features/bfd-liveness-detection.md`.
 
