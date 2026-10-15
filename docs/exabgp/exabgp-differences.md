@@ -166,6 +166,31 @@ this page is the only statement of what the fixtures do not prove.
 
 ---
 
+## Withdrawal labels
+
+**ExaBGP behavior:** upstream ExaBGP reads the three octets before the RD or prefix
+of a withdrawn labeled route (`mpls-vpn`, `nlri-mpls`) as a label stack and
+writes them under `label`, so a withdrawal carrying 0x003E81 renders
+`"label": [[1000, 16001]]`.
+
+**ZeBGP behavior:** the withdrawal carries no `label` member, whatever the three
+octets hold. The wire Ze sends is unchanged by this: an API `withdraw ... label
+1000` still puts 0x003E81 in the field.
+
+**RFC compliance:** RFC 8277 Section 2.4 calls those octets the Compatibility
+field and says "Upon reception, the value of the Compatibility field MUST be
+ignored." Reporting them as the route's label would hand a script a value the
+RFC says carries no meaning. `docs/architecture/api/json-format.md` states the
+same rule for Ze's own event.
+
+**Impact:** a script that read the label of a withdrawn route must key on the
+RD and prefix instead. `test/exabgp-compat/api/api-vpnv4.ci` expects the
+withdrawal without `label`.
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- parseVPN -->
+<!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpNLRIObject -->
+
+---
+
 ## Template for Future Differences
 
 ### Feature Name
