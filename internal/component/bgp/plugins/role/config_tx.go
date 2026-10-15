@@ -15,7 +15,9 @@ import (
 // errRoleInvalidBGPConfigJSON refuses a bgp section the role plugin cannot
 // parse. Reading it as "no peer has a role" would drop every peer's export
 // rules while the commit reports success.
-var errRoleInvalidBGPConfigJSON = errors.New("bgp-role: invalid bgp config JSON")
+var errRoleInvalidBGPConfigJSON = errors.New("bgp-role: the bgp config section it was handed is not valid JSON, " +
+	"so no peer's role, strict mode or export set can be read and the commit is refused with the running role config kept; " +
+	"fix: check the candidate with `ze config validate <file>`, and report the config if it validates")
 
 // roleConfig is every leaf the role plugin reads beyond its capability: each
 // peer's or group's role config (strict, export, and the role the OTC filters

@@ -88,7 +88,41 @@ func TestExtractMultipathConfigOutOfRange(t *testing.T) {
 		_, _, err := extractMultipathJSON(t, js)
 		require.Error(t, err, "out-of-range %q must be refused", js)
 		assert.Contains(t, err.Error(), "maximum-paths")
+		assert.Contains(t, err.Error(), maximumPathsReason, "the refusal says why")
+		assert.Contains(t, err.Error(), "set bgp multipath maximum-paths <1-256>", "the refusal names the fix")
 	}
+}
+
+// TestExtractMultipathConfigRelaxInvalid verifies that a relax-as-path value
+// that is not a boolean is refused, naming the leaf and the fix, and that the
+// two boolean spellings a serialized tree carries are read.
+//
+// VALIDATES: relax-as-path refused at verify when it is not a boolean.
+// PREVENTS: any non-"true" value read silently as false, which keeps strict
+// AS_PATH matching while the commit reports the edit taken.
+func TestExtractMultipathConfigRelaxInvalid(t *testing.T) {
+	for _, js := range []string{
+		`{"bgp":{"multipath":{"relax-as-path":"yes"}}}`,
+		`{"bgp":{"multipath":{"relax-as-path":"TRUE"}}}`,
+		`{"bgp":{"multipath":{"relax-as-path":1}}}`,
+	} {
+		_, _, err := extractMultipathJSON(t, js)
+		require.Error(t, err, "invalid relax-as-path %q must be refused", js)
+		assert.Contains(t, err.Error(), "relax-as-path")
+		assert.Contains(t, err.Error(), "set bgp multipath relax-as-path true (or false)", "the refusal names the fix")
+	}
+	_, relax, err := extractMultipathJSON(t, `{"bgp":{"multipath":{"relax-as-path":"false"}}}`)
+	require.NoError(t, err)
+	assert.False(t, relax)
+
+	_, err = parseRIBConfigOnly(`{"bgp":{"multipath":{"relax-as-path":"yes"}}}`)
+	require.Error(t, err, "the config transaction refuses it at verify")
+}
+
+// parseRIBConfigOnly runs the config transaction's parse, which verify calls.
+func parseRIBConfigOnly(data string) (ribConfig, error) {
+	cfg, _, err := parseRIBConfig(ribSections(data[len(`{"bgp":{`) : len(data)-2]))
+	return cfg, err
 }
 
 // TestExtractMultipathConfigStringNumber verifies that multipath values

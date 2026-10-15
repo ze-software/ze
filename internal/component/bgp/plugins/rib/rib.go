@@ -638,6 +638,10 @@ func newRIBManager(plugin *sdk.Plugin) *RIBManager {
 	return r
 }
 
+// ribApplyBudgetSecs is the apply budget the rib declares, in seconds
+// (sdk.Registration.ApplyBudget in runRIBPlugin).
+const ribApplyBudgetSecs = 60
+
 // runRIBPlugin runs the RIB plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 func runRIBPlugin(conn net.Conn) int {
@@ -751,6 +755,16 @@ func runRIBPlugin(conn net.Conn) int {
 		// that changes it, for the config transaction (config_tx.go).
 		WantsConfig: []string{configRootBGP},
 		Commands:    commandDecls(),
+		// ApplyBudget bounds a reload's apply: a selection-rule edit
+		// (maximum-paths, relax-as-path, blackhole honoring) reselects every
+		// stored route inside it (installConfig), one election per route. With
+		// no budget declared the engine allows 30 seconds for the whole phase
+		// across every participant; a full table of about a million routes,
+		// elected at a few microseconds each, needs several seconds of that,
+		// and the rollback re-runs the walk under three times the budget. The
+		// value is static because the engine reads the registration's budget
+		// for every transaction (transaction-protocol.md).
+		ApplyBudget: ribApplyBudgetSecs,
 	})
 	if err != nil {
 		logger().Error("bgp rib plugin failed", "error", err)

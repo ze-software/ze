@@ -6,10 +6,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
@@ -50,14 +52,28 @@ func (r *RIBManager) runAIGPSelection(ctx context.Context) {
 // UPDATE: a next-hop distance (RFC 7311 AIGP, the loop above) and a selection
 // rule a config reload installed (installConfig, config_tx.go). The name
 // predates the second input, and an RFC-tagged test calls it.
+//
+// One election runs per route, not per stored path: every peer that holds a
+// prefix stores it, and one election already gathers every peer's path, so a
+// walk per stored path ran the same election once per peer holding it. The
+// config reload runs this walk inside its apply deadline.
 func (r *RIBManager) reselectAIGPRoutes() {
 	// Copy keys while their pools are retained by PeerRIB.Iterate, then release
 	// every read lock before checkBestPathChange can publish into Loc-RIB.
 	var keys []affectedPrefix
+	elected := make(map[reselectKey]struct{})
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
 	r.peerMu.RLock()
 	for _, routes := range r.bgpPeers {
 		addPath := routes.AddPathFamilies()
 		routes.Iterate(func(fam family.Family, nlri []byte, entry storage.RouteEntry) bool {
+			key, ok := newReselectKey(fam, nlri, addPath[fam], scratch[:])
+			if ok {
+				if _, seen := elected[key]; seen {
+					return true
+				}
+				elected[key] = struct{}{}
+			}
 			keys = append(keys, affectedPrefix{fam: fam, nlriBytes: bytes.Clone(nlri), addPath: addPath[fam]})
 			return true
 		})
@@ -69,6 +85,28 @@ func (r *RIBManager) reselectAIGPRoutes() {
 			publishBestChanges([]bestChangeEntry{change}, key.fam)
 		}
 	}
+}
+
+// reselectKey names one election: the family and the key the election is
+// keyed by, the prefix for a CIDR family and the route key for any other
+// (checkRouteBestChange). The path identifier is in neither, so the paths of
+// one prefix from several peers or add-path ids share one key.
+type reselectKey struct {
+	fam   family.Family
+	pfx   netip.Prefix
+	route string
+}
+
+// newReselectKey returns the election key of one stored NLRI. A NLRI no key
+// can be computed for answers false; the caller then elects it on its own, and
+// checkRouteBestChange refuses it there as it does for an UPDATE.
+func newReselectKey(fam family.Family, nlri []byte, addPath bool, scratch []byte) (reselectKey, bool) {
+	if storage.IsCIDRFamily(fam) {
+		_, pfx, ok := parsePrevKey(fam, nlri, addPath)
+		return reselectKey{fam: fam, pfx: pfx}, ok
+	}
+	route, ok := routeIdentity(fam, nlri, addPath, false, scratch)
+	return reselectKey{fam: fam, route: string(route)}, ok
 }
 
 // entryAIGP reads the first metric from OtherAttrs' type/flags/uint16-length
