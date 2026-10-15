@@ -668,18 +668,36 @@ Runs that share a fixed subnet or staged binary paths must run serially.
 
 The table gives the fixture addresses, which the runner rewrites onto its selected
 network. IPv6 scenarios also receive host addresses on a selected /64.
+
+A scenario file may carry a link-local placeholder. Each one renders to an
+`fe80::` address whose interface identifier holds the first six bytes of the
+selected IPv6 lab prefix and, in its last byte, the host number of the container
+that owns it:
+
+| Placeholder | Owner | Host |
+|-------------|-------|------|
+| `@ZE_LINK_LOCAL@` | `ze` | 2 |
+| `@FRR_LINK_LOCAL@` | `frr` | 3 |
+
+When any file of the scenario carries a placeholder, its owner's start is
+wrapped: `/bin/sh` assigns the address to `eth0` with `nodad`, then execs the
+start it replaced (Ze's `ze`, or FRR's image entrypoint `/sbin/tini` with its
+command `-- /usr/lib/frr/docker-start`). The daemon's first interface snapshot
+therefore already holds the address. A placeholder also selects an IPv6 lab
+network, because the address is built from its prefix. The scenario's name
+decides nothing.
+
 `bgp-rfc2545-linklocal-nexthop-frr` uses IPv6 host 2 for Ze and host 3 for FRR:
 the speaker, its on-link global next hop and the recipient share ONE IPv6 subnet,
-not separate IPv4 and IPv6 connected prefixes. Its `@ZE_LINK_LOCAL@` token is
-rendered from the selected IPv6 lab prefix and Ze's host number. The scenario's
-startup command assigns that address to Ze's `eth0` before starting Ze, so the
-advertised link-local next hop belongs to the same router as the global address.
+not separate IPv4 and IPv6 connected prefixes. Its `ze.conf` carries
+`@ZE_LINK_LOCAL@`, so the advertised link-local next hop belongs to the same
+router as the global address.
 The checker requires FRR to decode the global-plus-link-local pair and install
 the on-link route via that owned link-local address. A second prefix uses an
 off-link global next hop and must decode as global-only; the IPv6 session must
 remain established after both assertions. These are two routes on one session,
 not identical UPDATEs differing only in their next-hop length.
-<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, rfc2545LinkLocal -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, assignLinkLocal -->
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkRFC2545NextHops -->
 
 Typed checker queries and their expected JSON field values are rendered onto the
@@ -942,6 +960,35 @@ FRR's own intervals stay at the bfdd defaults throughout, so the remote fields
 are the only ones the reload can change.
 <!-- source: internal/le/interoplab/bgp/check_bfd_profile_edit.go -- checkBFDProfileEditLive, requireBFDProfileEditContinuity -->
 <!-- source: test/interop/scenarios/bgp-bfd-profile-edit-live-frr/ -- ze.conf, ze-reload.conf, frr.conf -->
+
+### BFD over link-local
+
+`bfd-link-local-frr` runs no client protocol. Ze's `bfd` root pins one
+single-hop session to FRR's link-local on `eth0`, with Ze's own link-local as
+the source; FRR's `bfd` block names
+`peer <Ze's link-local> local-address <FRR's link-local> interface eth0`.
+Without `local-address`, bfdd 10.3.1 sources its packets from `eth0`'s global
+address, so neither side matches the other's packets to its session and FRR
+stays down with `remote-id` 0.
+Both files carry both placeholders, so both containers own their address
+before the daemons start. The checker waits for FRR's
+`show bfd peer <Ze's link-local> interface eth0 json` to read `up`, then for
+Ze's `show bfd sessions` to hold an `up` session to FRR's address on `eth0`,
+and requires the discriminators to have crossed: FRR's `remote-id` equals Ze's
+`local-discriminator`, and Ze's `remote-discriminator` equals FRR's `id`.
+Each value exists only on the side that chose it until a packet carries it
+over, so neither clause holds on one direction of traffic.
+
+The scenario is acceptance evidence. RFC 5881 Section 3 makes both sides
+Active, so once FRR answers, the session also converges through Your
+Discriminator, and the zone Ze reconciles on a first packet is not what the
+scenario can tell apart. The send side cannot fail here either: every session
+of the loop names `eth0`, so the loop's socket is bound to that device
+(`resolveLoopDevices`) and the kernel puts the packet on `eth0` with no zone
+and no ifindex. Both reverts stayed Up in a smoke run. The discrimination is
+`test/bfd/bfd-first-packet-link-local.ci`, on two links in the QEMU guest.
+<!-- source: internal/le/interoplab/bgp/check_bfd_link_local.go -- checkBFDLinkLocal, zeLinkLocalSession, requireCrossedDiscriminators -->
+<!-- source: test/interop/scenarios/bfd-link-local-frr/ -- ze.conf, frr.conf -->
 
 ### Live attach and BFD opt-in without a session reset
 
@@ -1906,6 +1953,7 @@ is not packet-forwarding evidence.
 | 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.4.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is |
 | 45 | bgp-sr-policy-gobgp | Ze, GoBGP | RFC 9830: GoBGP's text RIB holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns it red |
 | 46 | bgp-sr-policy-malformed-receive-gobgp | Ze, GoBGP, raw injector | RFC 9830 Section 5: after policies A, B and control C reach GoBGP, A beside a 13-octet NLRI and then B without its Tunnel Encapsulation attribute are each treat-as-withdraw, so GoBGP loses A, then B, keeps C, and its session with Ze stays up (GoBGP resets a session that carries an SR Policy NLRI whose length is neither 96 nor 192 bits) |
+| 47 | bfd-link-local-frr | Ze, FRR bfdd | RFC 5881 Section 3: a BFD-plugin-pinned single-hop session to FRR's IPv6 link-local on `eth0` reaches Up, each side holding the other's discriminator. Acceptance, not discrimination (see "BFD over link-local") |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running

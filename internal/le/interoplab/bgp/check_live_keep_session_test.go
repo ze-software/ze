@@ -119,7 +119,7 @@ func liveKeepSessionCheckerBranches(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, bfdEnableEditConfig), []byte("bgp {\n}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := renderScenario(source, target, interoplab.Network{IPv4: netip.MustParsePrefix("172.31.71.0/24")}); err != nil {
+	if _, err := renderScenario(source, target, interoplab.Network{IPv4: netip.MustParsePrefix("172.31.71.0/24")}); err != nil {
 		t.Fatalf("render: %v", err)
 	}
 	rendered, err := os.ReadFile(filepath.Join(target, bfdEnableEditConfig))

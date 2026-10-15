@@ -562,7 +562,7 @@ func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) e
 	expectedGlobal := check.Network.IPv6.Masked().Addr().Next().Next()
 	// The renderer and startup provisioner use this same topology-owned address.
 	// Both assertions therefore require the next hop owned by Ze's eth0.
-	linkLocal := rfc2545LinkLocal(check.Network)
+	linkLocal := linkLocalAt(check.Network, zeHostNumber)
 	onLink, err := queryFRRNextHops(ctx, check.Lab, onLinkRoute.argument)
 	if err != nil {
 		return fail(4, err)

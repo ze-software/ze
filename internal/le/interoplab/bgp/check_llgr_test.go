@@ -201,7 +201,7 @@ func TestLLGRSourceRenderedNetwork(t *testing.T) {
 		IPv6: netip.MustParsePrefix("fd00:fe:7::/64"),
 	}
 	target := t.TempDir()
-	if err := renderScenario(source, target, network); err != nil {
+	if _, err := renderScenario(source, target, network); err != nil {
 		t.Fatal(err)
 	}
 	args, err := readArguments(target, "speaker-args")

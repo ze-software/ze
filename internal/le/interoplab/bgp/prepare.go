@@ -159,6 +159,15 @@ func needsIPv6(root string) (bool, error) {
 			returnValue = true
 			return nil
 		}
+		// A link-local placeholder renders from the lab's IPv6 prefix
+		// (linkLocalAt), so a scenario carrying one needs that prefix even
+		// when no file names a global IPv6 address.
+		for owner := range linkLocalOwners {
+			if strings.Contains(text, linkLocalOwners[owner].placeholder) {
+				returnValue = true
+				return nil
+			}
+		}
 		if relative == zeConfigFile &&
 			strings.Contains(text, "ospf") && strings.Contains(text, "address-family ipv6") {
 			returnValue = true
@@ -175,18 +184,22 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 	if err := os.RemoveAll(rendered); err != nil {
 		return interoplab.PreparedScenario{}, err
 	}
-	if err := renderScenario(prepare.Source.Directory, rendered, prepare.Network); err != nil {
-		return interoplab.PreparedScenario{Cleanup: func() error { return os.RemoveAll(rendered) }}, err
+	linkLocals, renderErr := renderScenario(prepare.Source.Directory, rendered, prepare.Network)
+	if renderErr != nil {
+		return interoplab.PreparedScenario{Cleanup: func() error { return os.RemoveAll(rendered) }}, renderErr
 	}
 	peers, err := scenarioPeers(producer, rendered, suffix, prepare.Network)
-	if prepare.Source.Name == rfc2545Scenario {
-		// Own the advertised Link-Local before Ze snapshots its interfaces.
-		setup := name.Reset().Str("ip -6 address add ").Addr(rfc2545LinkLocal(prepare.Network)).
-			Str("/64 dev eth0 nodad\nexec ze \"$@\"").String()
+	// A container owns the link-local its placeholder names because some file
+	// of the scenario uses that address, never because of the scenario's name.
+	// It is assigned before the daemon starts, so the daemon's first interface
+	// snapshot already holds it.
+	for owner := range linkLocalOwners {
+		if !linkLocals[owner] {
+			continue
+		}
 		for i := range peers {
-			if peers[i].Name == "ze" {
-				peers[i].Arguments = append(peers[i].Arguments, dockerEntrypointFlag, "/bin/sh")
-				peers[i].Command = append([]string{shellErrexitCommand, setup, "--"}, peers[i].Command...)
+			if peers[i].Name == linkLocalOwners[owner].peer {
+				assignLinkLocal(&peers[i], linkLocalOwners[owner], linkLocalAt(prepare.Network, linkLocalOwners[owner].host))
 			}
 		}
 	}
@@ -198,7 +211,10 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 	}, err
 }
 
-func renderScenario(source, target string, network interoplab.Network) error {
+// renderScenario copies a scenario's files to target with the lab's addresses
+// filled in, and reports which link-local placeholders any file carried.
+func renderScenario(source, target string, network interoplab.Network) (renderedLinkLocals, error) {
+	var linkLocals renderedLinkLocals
 	ipv4 := network.IPv4.Addr().As4()
 	ipv4Addr := netip.AddrFrom4([4]byte{ipv4[0], ipv4[1], ipv4[2], 0})
 	var rendered textbuf.Buffer
@@ -211,7 +227,7 @@ func renderScenario(source, target string, network interoplab.Network) error {
 	}
 	sourceRoot, err := os.OpenRoot(source)
 	if err != nil {
-		return err
+		return linkLocals, err
 	}
 	walkErr := fs.WalkDir(sourceRoot.FS(), ".", func(relative string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -231,11 +247,16 @@ func renderScenario(source, target string, network interoplab.Network) error {
 			if ipv6Token != "" {
 				text = strings.ReplaceAll(text, baseIPv6Prefix, ipv6Token)
 			}
-			if strings.Contains(text, rfc2545LinkLocalPlaceholder) {
-				if !network.IPv6.IsValid() {
-					return errors.New("RFC 2545 link-local rendering requires an IPv6 network")
+			for owner := range linkLocalOwners {
+				placeholder := linkLocalOwners[owner].placeholder
+				if !strings.Contains(text, placeholder) {
+					continue
 				}
-				text = strings.ReplaceAll(text, rfc2545LinkLocalPlaceholder, rfc2545LinkLocal(network).String())
+				if !network.IPv6.IsValid() {
+					return errors.New(placeholder + " in " + relative + " needs an IPv6 lab network, and the scenario selected none")
+				}
+				text = strings.ReplaceAll(text, placeholder, linkLocalAt(network, linkLocalOwners[owner].host).String())
+				linkLocals[owner] = true
 			}
 			if relative == "inject.msg" {
 				text = renderInjectedNextHops(text, ipv4)
@@ -260,7 +281,7 @@ func renderScenario(source, target string, network interoplab.Network) error {
 		}
 		return os.Chmod(targetPath, info.Mode())
 	})
-	return errors.Join(walkErr, sourceRoot.Close())
+	return linkLocals, errors.Join(walkErr, sourceRoot.Close())
 }
 
 func scenarioPeers(producer, scenario, suffix string, network interoplab.Network) ([]interoplab.PeerConfig, error) {
@@ -360,7 +381,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			}
 		}
 	}
-	peers = append(peers, interoplab.PeerConfig{Name: "ze", Container: containerName("ze", suffix), Image: "ze", Host: 2,
+	peers = append(peers, interoplab.PeerConfig{Name: "ze", Container: containerName("ze", suffix), Image: "ze", Host: zeHostNumber,
 		Mounts: zeMounts, Capabilities: []string{capabilityNetAdmin}, Arguments: zeArguments, AppArmorProfile: appArmorProfile,
 		Environment: []interoplab.EnvironmentVariable{{Name: "SESSION_TIMEOUT", Value: strconv.Itoa(int(timeout / time.Second))}},
 		Command:     zeCommand, Ready: ready("true")})
@@ -420,7 +441,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		name   string
 		config string
 		host   uint8
-	}{{peerFRR, frrConfigFile, 3}, {peerFRRTransit, virtualLinkTransitConfig, 14}, {peerFRRSink, "frr-sink.conf", extendedSinkHost}} {
+	}{{peerFRR, frrConfigFile, frrHostNumber}, {peerFRRTransit, virtualLinkTransitConfig, 14}, {peerFRRSink, "frr-sink.conf", extendedSinkHost}} {
 		path := filepath.Join(scenario, frr.config)
 		if !regularFile(path) {
 			continue
@@ -570,19 +591,82 @@ func networkHostAddress6(network interoplab.Network, host uint8) string {
 	return netip.AddrFrom16(octets).String()
 }
 
+// zeHostNumber and frrHostNumber are the last byte of the Ze and FRR
+// containers' lab addresses, and of the link-local each one owns.
 const (
-	rfc2545Scenario             = "bgp-rfc2545-linklocal-nexthop-frr"
-	rfc2545LinkLocalPlaceholder = "@ZE_LINK_LOCAL@"
+	zeHostNumber  uint8 = 2
+	frrHostNumber uint8 = 3
 )
 
-// rfc2545LinkLocal puts the selected lab prefix and Ze's host number in the
-// interface identifier. prepareScenario assigns it to Ze's eth0 before startup;
-// rendering and the checker use this same address rather than an unowned literal.
-func rfc2545LinkLocal(network interoplab.Network) netip.Addr {
+// The link-local placeholders a scenario file may carry. Each renders to the
+// address of one container, which prepareScenario assigns to that container.
+const (
+	zeLinkLocalPlaceholder  = "@ZE_LINK_LOCAL@"
+	frrLinkLocalPlaceholder = "@FRR_LINK_LOCAL@"
+)
+
+// linkLocalOwner is the container a link-local placeholder names: its peer,
+// its host number, and the start its image runs when no peer argument
+// replaces it (the image's entrypoint, and its command when the peer passes
+// none), which the assignment wrapper execs after assigning the address.
+type linkLocalOwner struct {
+	placeholder  string
+	peer         string
+	host         uint8
+	entrypoint   string
+	imageCommand []string
+}
+
+// linkLocalOwners is every link-local placeholder and its owner. Ze's image
+// runs `tini -- ze` and the wrapper execs ze directly, as the RFC 2545
+// scenario always has. FRR's pinned image (quay.io/frrouting/frr:10.3.1, read
+// with `docker image inspect` on 2026-10-15) has Entrypoint ["/sbin/tini","--"]
+// and Cmd ["/usr/lib/frr/docker-start"]; Docker drops that Cmd once
+// --entrypoint replaces the entrypoint, so the wrapper passes it back.
+var linkLocalOwners = [...]linkLocalOwner{
+	{placeholder: zeLinkLocalPlaceholder, peer: "ze", host: zeHostNumber, entrypoint: "ze"},
+	{placeholder: frrLinkLocalPlaceholder, peer: peerFRR, host: frrHostNumber, entrypoint: "/sbin/tini",
+		imageCommand: []string{"--", "/usr/lib/frr/docker-start"}},
+}
+
+// renderedLinkLocals records, by index into linkLocalOwners, which
+// placeholders a scenario's files carried.
+type renderedLinkLocals [len(linkLocalOwners)]bool
+
+// linkLocalAt puts the selected lab prefix and a container's host number in
+// the interface identifier. prepareScenario assigns it to that container's
+// eth0 before startup; rendering and the checkers use this same address
+// rather than an unowned literal.
+func linkLocalAt(network interoplab.Network, host uint8) netip.Addr {
 	prefix := network.IPv6.Masked().Addr().As16()
 	return netip.AddrFrom16([16]byte{
 		0xfe, 0x80,
 		8: prefix[0], 9: prefix[1], 10: prefix[2], 11: prefix[3],
-		12: prefix[4], 13: prefix[5], 15: 2,
+		12: prefix[4], 13: prefix[5], 15: host,
 	})
+}
+
+// assignLinkLocal wraps peer's start in a shell that assigns address to eth0
+// and then execs the start it replaced: the peer's own --entrypoint when it
+// passes one, the image's otherwise, with the peer's command or the image's.
+func assignLinkLocal(peer *interoplab.PeerConfig, owner linkLocalOwner, address netip.Addr) {
+	entrypoint := owner.entrypoint
+	arguments := make([]string, 0, len(peer.Arguments)+2)
+	for i := 0; i < len(peer.Arguments); i++ {
+		if peer.Arguments[i] == dockerEntrypointFlag && i+1 < len(peer.Arguments) {
+			entrypoint = peer.Arguments[i+1]
+			i++
+			continue
+		}
+		arguments = append(arguments, peer.Arguments[i])
+	}
+	command := peer.Command
+	if len(command) == 0 {
+		command = owner.imageCommand
+	}
+	var script textbuf.Buffer
+	script.Str("ip -6 address add ").Addr(address).Str("/64 dev eth0 nodad\nexec ").Str(entrypoint).Str(` "$@"`)
+	arguments = append(arguments, dockerEntrypointFlag, "/bin/sh")
+	peer.Arguments = arguments
+	peer.Command = append([]string{shellErrexitCommand, script.String(), "--"}, command...)
 }

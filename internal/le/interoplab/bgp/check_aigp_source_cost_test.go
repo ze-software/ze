@@ -114,7 +114,7 @@ func TestAIGPScenarioSelectedNetwork(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..", "test", "interop", "scenarios", scenarioAIGPSourceCostFRR)
 	target := t.TempDir()
 	network := renumberedNetwork()
-	if err := renderScenario(root, target, network); err != nil {
+	if _, err := renderScenario(root, target, network); err != nil {
 		t.Fatal(err)
 	}
 	content, err := os.ReadFile(filepath.Join(target, "inject.msg"))

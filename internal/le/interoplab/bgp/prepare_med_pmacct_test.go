@@ -40,7 +40,7 @@ func TestMEDWholeSetRenderedNetwork(t *testing.T) {
 			t.Parallel()
 			network := interoplab.Network{IPv4: netip.MustParsePrefix(test.network)}
 			target := t.TempDir()
-			if err := renderScenario(source, target, network); err != nil {
+			if _, err := renderScenario(source, target, network); err != nil {
 				t.Fatal(err)
 			}
 			frames := medWholeSetReadFrames(t, filepath.Join(target, "inject.msg"))
@@ -161,7 +161,7 @@ func TestRenderInjectedNextHopBoundaries(t *testing.T) {
 				t.Fatal(err)
 			}
 			target := t.TempDir()
-			if err := renderScenario(source, target, interoplab.Network{IPv4: netip.MustParsePrefix("172.31.71.0/24")}); err != nil {
+			if _, err := renderScenario(source, target, interoplab.Network{IPv4: netip.MustParsePrefix("172.31.71.0/24")}); err != nil {
 				t.Fatal(err)
 			}
 			got := medWholeSetReadFrames(t, filepath.Join(target, "inject.msg"))
