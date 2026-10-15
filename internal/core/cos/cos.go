@@ -15,27 +15,40 @@ type Profile struct {
 	EgressMap  map[uint32]uint32 // internal priority -> transmitted PCP
 }
 
-// ResolverFunc resolves class-of-service references for an interface unit.
-// parentCoS is the interface-level setting, unitCoS is the per-unit setting.
-// hasInlineMaps is true when the unit already has inline ingress/egress maps.
-// Returns resolved maps (nil/nil when no profile applies) or an error on
-// conflict or missing profile.
-type ResolverFunc func(parentCoS, unitCoS string, hasInlineMaps bool) (ingress, egress map[uint32]uint32, err error)
+// ResolverFunc resolves class-of-service references for an interface unit
+// against the profile set it is handed. parentCoS is the interface-level
+// setting, unitCoS is the per-unit setting. hasInlineMaps is true when the
+// unit already has inline ingress/egress maps. Returns resolved maps (nil/nil
+// when no profile applies) or an error on conflict or missing profile. It
+// MUST NOT read the installed profiles: a verify resolves a candidate whose
+// profiles are not installed yet.
+type ResolverFunc func(profiles map[string]Profile, parentCoS, unitCoS string, hasInlineMaps bool) (ingress, egress map[uint32]uint32, err error)
+
+// ProfileParserFunc parses the class-of-service config section JSON
+// ({"class-of-service": {...}}) into its profiles. It MUST NOT change any
+// state: an interface verify calls it over a candidate that may never commit.
+type ProfileParserFunc func(data string) (map[string]Profile, error)
 
 var (
 	mu       sync.RWMutex
 	profiles = map[string]Profile{}
 	resolver ResolverFunc
+	parser   ProfileParserFunc
 )
 
-// Register stores a named profile, replacing any previous entry.
-func Register(name string, p Profile) {
+// Replace installs set as the profiles of the running config, replacing every
+// previous entry in one step, so a reader never sees half of one set and half
+// of the other. The caller MUST NOT change set or its maps afterwards: the
+// registry keeps it as given. A nil set installs no profile.
+func Replace(set map[string]Profile) {
+	installed := make(map[string]Profile, len(set))
+	maps.Copy(installed, set)
 	mu.Lock()
-	profiles[name] = p
+	profiles = installed
 	mu.Unlock()
 }
 
-// Lookup returns the profile for the given name and whether it exists.
+// Lookup returns the installed profile for the given name and whether it exists.
 func Lookup(name string) (Profile, bool) {
 	mu.RLock()
 	p, ok := profiles[name]
@@ -43,20 +56,13 @@ func Lookup(name string) (Profile, bool) {
 	return p, ok
 }
 
-// All returns a copy of all registered profiles keyed by name.
+// All returns a copy of all installed profiles keyed by name.
 func All() map[string]Profile {
 	mu.RLock()
 	defer mu.RUnlock()
 	m := make(map[string]Profile, len(profiles))
 	maps.Copy(m, profiles)
 	return m
-}
-
-// Clear removes all registered profiles.
-func Clear() {
-	mu.Lock()
-	profiles = map[string]Profile{}
-	mu.Unlock()
 }
 
 // RegisterResolver sets the callback used by Resolve. The cos plugin
@@ -75,16 +81,45 @@ func ClearResolver() {
 	mu.Unlock()
 }
 
-// Resolve delegates to the registered resolver. Returns nil, nil, nil
-// when no resolver is registered (cos plugin absent).
-func Resolve(parentCoS, unitCoS string, hasInlineMaps bool) (ingress, egress map[uint32]uint32, err error) {
+// RegisterProfileParser sets the callback used by ParseProfiles. The cos
+// plugin registers it at init time, beside its resolver, so the interface
+// component parses candidate profiles without importing the plugin.
+func RegisterProfileParser(fn ProfileParserFunc) {
+	mu.Lock()
+	parser = fn
+	mu.Unlock()
+}
+
+// ClearProfileParser removes the registered profile parser.
+func ClearProfileParser() {
+	mu.Lock()
+	parser = nil
+	mu.Unlock()
+}
+
+// ParseProfiles delegates to the registered profile parser. With no parser
+// registered (cos plugin absent) it returns no profile and no error: the
+// class-of-service schema is the plugin's, so no section can carry one.
+func ParseProfiles(data string) (map[string]Profile, error) {
+	mu.RLock()
+	fn := parser
+	mu.RUnlock()
+	if fn == nil {
+		return map[string]Profile{}, nil
+	}
+	return fn(data)
+}
+
+// Resolve delegates to the registered resolver, over the given profile set.
+// Returns nil, nil, nil when no resolver is registered (cos plugin absent).
+func Resolve(set map[string]Profile, parentCoS, unitCoS string, hasInlineMaps bool) (ingress, egress map[uint32]uint32, err error) {
 	mu.RLock()
 	fn := resolver
 	mu.RUnlock()
 	if fn == nil {
 		return nil, nil, nil
 	}
-	return fn(parentCoS, unitCoS, hasInlineMaps)
+	return fn(set, parentCoS, unitCoS, hasInlineMaps)
 }
 
 const filterPrefix = "cos:"

@@ -24,6 +24,7 @@ const configRootClassOfService = "class-of-service"
 
 func init() {
 	coreCos.RegisterResolver(resolveCoSForUnit)
+	coreCos.RegisterProfileParser(parseProfiles)
 
 	reg := registry.Registration{
 		Name:                    Name,
@@ -99,17 +100,18 @@ func showProfiles() any {
 	return result
 }
 
+// verifyCoSConfig is the in-process verifier: the same parse the config
+// transaction's verify runs, and like it, it writes no state.
 func verifyCoSConfig(sections []sdk.ConfigSection) error {
-	coreCos.Clear()
-	for _, sec := range sections {
-		if sec.Root != configRootClassOfService {
-			continue
-		}
-		if err := parseAndRegisterProfiles(sec.Data); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, _, err := parseCoSSections(sections)
+	return err
+}
+
+// newCoSConfigTx returns the cos config transaction: verify parses a
+// candidate profile set and installs nothing, apply installs it into the
+// shared registry in one replace, rollback installs the set it replaced.
+func newCoSConfigTx() *sdk.ConfigTx[cosProfiles] {
+	return sdk.NewConfigTx(cosProfiles{}, parseCoSSections, installCoSProfiles)
 }
 
 // warnIfExternal logs a warning when cos is not running in-process.
@@ -124,7 +126,7 @@ func verifyCoSConfig(sections []sdk.ConfigSection) error {
 // Unlike as112 (which refuses to start entirely when external -- see
 // sdk.Plugin.IsInternal's doc comment -- because its whole purpose depends
 // on the same-process call succeeding), cos still provides real value
-// external: static profile config (OnConfigure/parseAndRegisterProfiles)
+// external: static profile config (the config transaction, newCoSConfigTx)
 // and `show class-of-service` both work unaffected. So this warns rather
 // than refuses.
 func warnIfExternal(isInternal bool) {
@@ -149,19 +151,7 @@ func runPlugin(conn net.Conn) int {
 		}
 	}()
 
-	p.OnConfigVerify(verifyCoSConfig)
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, sec := range sections {
-			if sec.Root != configRootClassOfService {
-				continue
-			}
-			if err := parseAndRegisterProfiles(sec.Data); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	newCoSConfigTx().Register(p)
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		if command == "show class-of-service" {

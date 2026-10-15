@@ -6,6 +6,7 @@ package iface
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -417,6 +418,38 @@ func aggregatingDevices(infos []InterfaceInfo) map[int]struct{} {
 		masters[master] = struct{}{}
 	}
 	return masters
+}
+
+// unitQoS is the pair of QoS maps one unit resolved to.
+type unitQoS struct {
+	ingress map[uint32]uint32
+	egress  map[uint32]uint32
+}
+
+// equal reports whether u resolved to the same maps. A nil and an empty map
+// are equal: the backend installs no mapping for either (Backend contract).
+func (q unitQoS) equal(u *unitEntry) bool {
+	return maps.Equal(q.ingress, u.IngressQoSMap) && maps.Equal(q.egress, u.EgressQoSMap)
+}
+
+// unitQoSKey names one unit across two configs: its interface's logical name
+// and its label.
+func unitQoSKey(iface, label string) string {
+	return iface + "\x00" + label
+}
+
+// indexUnitQoS returns the resolved QoS maps of every unit of cfg, by
+// unitQoSKey. A nil cfg (the boot apply) yields an empty index, so every
+// existing VLAN is programmed with the maps the config gives it.
+func indexUnitQoS(cfg *ifaceConfig) map[string]unitQoS {
+	index := map[string]unitQoS{}
+	for _, e := range allIfaceEntries(cfg) {
+		for i := range e.Units {
+			u := &e.Units[i]
+			index[unitQoSKey(e.Name, u.Label)] = unitQoS{ingress: u.IngressQoSMap, egress: u.EgressQoSMap}
+		}
+	}
+	return index
 }
 
 // allIfaceEntries returns every interface entry in the config, across the
@@ -1106,6 +1139,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	}
 	allEntries = kept
 
+	previousUnitQoS := indexUnitQoS(previous)
 	for _, e := range allEntries {
 		if e.Disable {
 			continue
@@ -1175,6 +1209,22 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 					return b.DeleteInterface(vlanName)
 				}); err != nil {
 					return record("vlan "+vlanName+" create", err)
+				}
+				// CreateVLAN programs the maps of a VLAN it creates only. An
+				// existing VLAN keeps whatever maps it holds until told, so a
+				// reload that changed a profile or an inline map reprograms
+				// it here, and the undo writes the previous maps back.
+				if !created {
+					previousQoS, known := previousUnitQoS[unitQoSKey(e.Name, u.Label)]
+					if !known || !previousQoS.equal(u) {
+						if err := applyBackendStep(journal, func() error {
+							return b.UpdateVLANQoSMap(vlanName, u.IngressQoSMap, u.EgressQoSMap)
+						}, func() error {
+							return b.UpdateVLANQoSMap(vlanName, previousQoS.ingress, previousQoS.egress)
+						}); err != nil {
+							return record("vlan "+vlanName+" qos map", err)
+						}
+					}
 				}
 				osName = vlanName
 			}

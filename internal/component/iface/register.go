@@ -42,6 +42,11 @@ var (
 // subtree walked by the backend feature gate.
 const configRootInterface = "interface"
 
+// configRootClassOfService is the root the cos plugin owns. The interface
+// component reads it (ConfigReads) to resolve unit profiles against the
+// candidate, never against the installed registry.
+const configRootClassOfService = "class-of-service"
+
 // componentNameInterface is what this component calls ITSELF: its registry
 // entry, the owner recorded on every config operation it decomposes, and the
 // source it stamps on a sysctl default it emits. It spells the same word as
@@ -146,6 +151,7 @@ func init() {
 		Features:                "yang",
 		YANG:                    ifaceyang.ZeIfaceConfYANG,
 		ConfigRoots:             []string{configRootInterface},
+		ConfigReads:             []string{configRootClassOfService},
 		Dependencies:            []string{"sysctl"},
 		InProcessConfigVerifier: verifyIfaceConfig,
 		RunEngine:               runEngine,
@@ -170,8 +176,25 @@ func init() {
 }
 
 func verifyIfaceConfig(sections []sdk.ConfigSection) error {
+	if !carriesInterfaceSection(sections) {
+		return nil
+	}
 	_, err := parseAndVerifyIfaceSections(sections)
 	return err
+}
+
+// carriesInterfaceSection reports whether sections hold the interface root.
+// A delivery of the read root alone (a class-of-service edit in a tree with
+// no interface config) has no unit to resolve and nothing to configure, so
+// it is not verified as an interface config: on a platform with no default
+// backend that verify would refuse a tree that never named one.
+func carriesInterfaceSection(sections []sdk.ConfigSection) bool {
+	for _, s := range sections {
+		if s.Root == configRootInterface {
+			return true
+		}
+	}
+	return false
 }
 
 func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, error) {
@@ -182,7 +205,7 @@ func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, er
 	if err := validateBackendGate(sections, activeBackend); err != nil {
 		return nil, err
 	}
-	cfg, err := parseIfaceSections(sections)
+	cfg, err := parseResolvedIfaceSections(sections)
 	if err != nil {
 		return nil, fmt.Errorf("interface config: %w", err)
 	}
@@ -459,7 +482,7 @@ func runEngine(conn net.Conn) int {
 	var unsubscribers []func()
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseIfaceSections(sections)
+		cfg, err := parseResolvedIfaceSections(sections)
 		if err != nil {
 			return fmt.Errorf("interface config: %w", err)
 		}
@@ -585,6 +608,11 @@ func runEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		pendingCfg = nil
+		if !carriesInterfaceSection(sections) {
+			log.Debug("interface config verify: no interface section delivered, nothing to apply")
+			return nil
+		}
 		cfg, err := parseAndVerifyIfaceSections(sections)
 		if err != nil {
 			return err
@@ -609,7 +637,7 @@ func runEngine(conn net.Conn) int {
 		cfg := pendingCfg
 		pendingCfg = nil
 		if cfg == nil {
-			log.Warn("interface config apply: no pending config (verify not called?)")
+			log.Debug("interface config apply: no pending config (the verify carried no interface section, or refused it)")
 			return sdk.NewJournal(), nil
 		}
 

@@ -242,9 +242,20 @@ type unitEntry struct {
 	MirrorEgress     string
 	MPLSEnable       *bool // enable MPLS label input (net.mpls.conf.<iface>.input)
 	// 802.1p QoS maps (IEEE 802.1Q PCP, 3 bits). nil = not configured,
-	// no netlink attribute sent. Keys and values are 0-7.
+	// no netlink attribute sent. Keys and values are 0-7. A map taken from a
+	// class-of-service profile is set only by resolveUnitQoS.
 	IngressQoSMap map[uint32]uint32 // received PCP -> internal priority
 	EgressQoSMap  map[uint32]uint32 // internal priority -> transmitted PCP
+	// CoSRef is the unit's class-of-service reference as written, resolved
+	// into the two maps above by resolveUnitQoS.
+	CoSRef unitCoSRef
+}
+
+// unitCoSRef is a unit's class-of-service reference: the interface-level
+// profile it inherits and its own, either empty when not written.
+type unitCoSRef struct {
+	parent string
+	unit   string
 }
 
 // dhcpUnitConfig holds DHCPv4 client settings parsed from the YANG
@@ -334,7 +345,89 @@ func parseIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, error) {
 	return &ifaceConfig{Backend: defaultBackendName}, nil
 }
 
+// parseResolvedIfaceSections parses the interface section, then resolves
+// every unit's class-of-service reference against the profiles of the
+// class-of-service section delivered beside it (the registration's
+// ConfigReads). It never reads the installed profiles: a verify resolves a
+// candidate, and a candidate's profiles are installed only at cos apply, which
+// no ordering puts before the interface apply. A delivery without that section
+// resolves against no profile, because the server delivers a read root whole
+// whenever the tree holds it (reloadConfigSections, buildPluginConfigSections).
+func parseResolvedIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, error) {
+	cfg, err := parseIfaceSections(sections)
+	if err != nil {
+		return nil, err
+	}
+	set, err := candidateCoSProfiles(sections)
+	if err != nil {
+		return nil, err
+	}
+	if err := cfg.resolveUnitQoS(set); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// candidateCoSProfiles parses the profiles of the class-of-service section in
+// sections, through the parser the cos plugin registers. No section means no
+// profile.
+func candidateCoSProfiles(sections []sdk.ConfigSection) (map[string]cos.Profile, error) {
+	for _, s := range sections {
+		if s.Root != configRootClassOfService {
+			continue
+		}
+		set, err := cos.ParseProfiles(s.Data)
+		if err != nil {
+			return nil, fmt.Errorf("class-of-service: %w", err)
+		}
+		return set, nil
+	}
+	return map[string]cos.Profile{}, nil
+}
+
+// resolveUnitQoS resolves every unit's class-of-service reference against
+// set, writing the profile's maps into the unit, and refuses a unit whose
+// maps have no vlan-id to carry them. The parse refuses that for inline maps
+// already; a profile's maps exist only from here.
+func (c *ifaceConfig) resolveUnitQoS(set map[string]cos.Profile) error {
+	for _, e := range allIfaceEntries(c) {
+		if err := resolveUnitsQoS(e.Units, set); err != nil {
+			return fmt.Errorf("%s: %w", e.Name, err)
+		}
+	}
+	if c.Loopback != nil {
+		if err := resolveUnitsQoS(c.Loopback.Units, set); err != nil {
+			return fmt.Errorf("loopback: %w", err)
+		}
+	}
+	return nil
+}
+
+// resolveUnitsQoS resolves the units in place. The slice is the config's own
+// (allIfaceEntries copies the entry, not its units).
+func resolveUnitsQoS(units []unitEntry, set map[string]cos.Profile) error {
+	for i := range units {
+		u := &units[i]
+		hasInlineMaps := u.IngressQoSMap != nil || u.EgressQoSMap != nil
+		ingress, egress, err := cos.Resolve(set, u.CoSRef.parent, u.CoSRef.unit, hasInlineMaps)
+		if err != nil {
+			return fmt.Errorf("unit %q: %w", u.Label, err)
+		}
+		if ingress == nil && egress == nil {
+			continue
+		}
+		u.IngressQoSMap = ingress
+		u.EgressQoSMap = egress
+		if u.VLANID <= 0 {
+			return fmt.Errorf("unit %q: qos maps require vlan-id", u.Label)
+		}
+	}
+	return nil
+}
+
 // parseIfaceConfig parses the interface config section JSON into ifaceConfig.
+// A unit's class-of-service reference is kept unresolved: the caller that
+// holds the candidate profiles resolves it (parseResolvedIfaceSections).
 // The JSON is wrapped: {"interface": {...}}.
 func parseIfaceConfig(data string) (*ifaceConfig, error) {
 	var root map[string]any
@@ -1040,15 +1133,11 @@ func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
 				return nil, fmt.Errorf("unit %q: %w", name, err)
 			}
 
+			// The profile is kept by name and resolved later, against the
+			// candidate's profiles (resolveUnitQoS): this parse also serves
+			// the decomposer, which is handed no class-of-service section.
 			unitCoS, _ := um["class-of-service"].(string)
-			ingress, egress, cosErr := cos.Resolve(parentCoS, unitCoS, u.IngressQoSMap != nil || u.EgressQoSMap != nil)
-			if cosErr != nil {
-				return nil, fmt.Errorf("unit %q: %w", name, cosErr)
-			}
-			if ingress != nil || egress != nil {
-				u.IngressQoSMap = ingress
-				u.EgressQoSMap = egress
-			}
+			u.CoSRef = unitCoSRef{parent: parentCoS, unit: unitCoS}
 
 			if (u.IngressQoSMap != nil || u.EgressQoSMap != nil) && u.VLANID <= 0 {
 				return nil, fmt.Errorf("unit %q: qos maps require vlan-id", name)

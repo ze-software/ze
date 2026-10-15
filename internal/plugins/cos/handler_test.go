@@ -82,16 +82,17 @@ func (m *mockBackend) callCount() int {
 
 func setupTestHandler(t *testing.T) (*testBus, *mockBackend) {
 	t.Helper()
-	coreCos.Clear()
-	coreCos.Register("residential", coreCos.Profile{
-		IngressMap: map[uint32]uint32{0: 0, 1: 1},
-		EgressMap:  map[uint32]uint32{0: 0, 1: 2, 5: 3},
+	coreCos.Replace(map[string]coreCos.Profile{
+		"residential": {
+			IngressMap: map[uint32]uint32{0: 0, 1: 1},
+			EgressMap:  map[uint32]uint32{0: 0, 1: 2, 5: 3},
+		},
+		"business": {
+			IngressMap: map[uint32]uint32{0: 0},
+			EgressMap:  map[uint32]uint32{0: 1, 1: 3},
+		},
 	})
-	coreCos.Register("business", coreCos.Profile{
-		IngressMap: map[uint32]uint32{0: 0},
-		EgressMap:  map[uint32]uint32{0: 1, 1: 3},
-	})
-	t.Cleanup(coreCos.Clear)
+	t.Cleanup(func() { coreCos.Replace(nil) })
 
 	bus := newTestBus()
 	mb := &mockBackend{}

@@ -682,3 +682,30 @@ func operationIDs(ops []tx.ConfigOperation) []string {
 	}
 	return ids
 }
+
+// TestIfaceDecomposeAddsProfileAndUnitInOneCommit proves AC-19 and Q2 point
+// 4: the decomposer is handed only the interface root, so a candidate unit
+// naming a profile the same commit adds (absent from every registry here)
+// decomposes with no error, to the same operations as without the reference.
+func TestIfaceDecomposeAddsProfileAndUnitInOneCommit(t *testing.T) {
+	const active = `{"interface":{"backend":"test","dummy":{"dum0":{}}}}`
+	const plain = `{"interface":{"backend":"test","dummy":{"dum0":{"unit":{"v100":{"vlan-id":"100"}}}}}}`
+	const withProfile = `{"interface":{"backend":"test","dummy":{"dum0":{"unit":{"v100":{"vlan-id":"100","class-of-service":"new-profile"}}}}}}`
+
+	decompose := func(candidate string) []tx.ConfigOperation {
+		t.Helper()
+		ops, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
+			TransactionID: "tx-iface-cos",
+			Root:          configRootInterface,
+			ActiveRoot:    active,
+			CandidateRoot: candidate,
+			Diff: tx.DiffSection{
+				Root:  configRootInterface,
+				Added: `{"interface/dummy/dum0/unit/v100/vlan-id":"100"}`,
+			},
+		})
+		require.NoError(t, err)
+		return ops
+	}
+	assert.Equal(t, decompose(plain), decompose(withProfile))
+}

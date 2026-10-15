@@ -2,6 +2,7 @@ package iface
 
 import (
 	"errors"
+	"maps"
 	"sync/atomic"
 	"testing"
 
@@ -795,4 +796,71 @@ func TestApplyTunnelReportsTheCreateErrorWhenTheNameIsFree(t *testing.T) {
 	require.NotContains(t, errors.Join(errs...).Error(), "is held by",
 		"a free name is not a name conflict")
 	require.NotContains(t, b.ifaces, "tgre0", "no netdev may be reported for a refused create")
+}
+
+// qosVLANConfig is one ethernet eth0 with one VLAN unit v100 (eth0.100)
+// carrying the given maps, as resolved config.
+func qosVLANConfig(ingress, egress map[uint32]uint32) *ifaceConfig {
+	return &ifaceConfig{Ethernet: []ifaceEntry{{
+		Name:  "eth0",
+		Units: []unitEntry{{Label: "v100", VLANID: 100, IngressQoSMap: ingress, EgressQoSMap: egress}},
+	}}}
+}
+
+// TestIfaceApplyUpdatesQoSMapOfExistingVLAN proves AC-18: a reload whose
+// unit resolves to other maps reprograms the existing VLAN through
+// UpdateVLANQoSMap, a unit whose maps are unchanged gets no call, and the
+// rollback (iface re-applies the previous config over the failed one,
+// applyPendingConfig) puts the previous maps back, including when the reload
+// added a key or the previous config had no map. The fake backend models the
+// full replace of AC-18b and refuses CreateVLAN on an existing VLAN as the
+// kernel does, so the installed maps read back are what a backend would hold.
+func TestIfaceApplyUpdatesQoSMapOfExistingVLAN(t *testing.T) {
+	gold := map[uint32]uint32{1: 1}
+	goldEdited := map[uint32]uint32{1: 5}
+	goldAddedKey := map[uint32]uint32{1: 1, 5: 5}
+	inline := map[uint32]uint32{6: 6}
+	inlineEdited := map[uint32]uint32{6: 4}
+
+	tests := []struct {
+		name             string
+		before, after    *ifaceConfig
+		wantCalls        int
+		rollbackAsserted bool
+	}{
+		{"profile-only edit", qosVLANConfig(nil, gold), qosVLANConfig(nil, goldEdited), 1, true},
+		{"inline-map edit", qosVLANConfig(inline, nil), qosVLANConfig(inlineEdited, nil), 1, true},
+		{"unchanged maps", qosVLANConfig(nil, gold), qosVLANConfig(nil, gold), 0, false},
+		{"added key then rollback", qosVLANConfig(nil, gold), qosVLANConfig(nil, goldAddedKey), 1, true},
+		{"maps to none then rollback", qosVLANConfig(inline, gold), qosVLANConfig(nil, nil), 1, true},
+		{"none to maps then rollback", qosVLANConfig(nil, nil), qosVLANConfig(inline, gold), 1, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetAddressOwners(t)
+			b := &fakeBackend{ifaces: map[string]fakeIface{
+				"eth0": {name: "eth0", linkType: zeTypeEthernet},
+			}}
+			require.Empty(t, applyConfig(tt.before, nil, b), "boot apply")
+			require.Len(t, b.qosUpdates, 0, "the boot apply creates the VLAN with its maps")
+			before := tt.before.Ethernet[0].Units[0]
+
+			require.Empty(t, applyConfig(tt.after, tt.before, b), "reload apply")
+			require.Len(t, b.qosUpdates, tt.wantCalls)
+			after := tt.after.Ethernet[0].Units[0]
+			installed := b.vlans["eth0.100"]
+			require.True(t, maps.Equal(after.IngressQoSMap, installed.IngressQoSMap), "ingress after reload: %v", installed.IngressQoSMap)
+			require.True(t, maps.Equal(after.EgressQoSMap, installed.EgressQoSMap), "egress after reload: %v", installed.EgressQoSMap)
+			if !tt.rollbackAsserted {
+				return
+			}
+
+			require.Empty(t, applyConfig(tt.before, tt.after, b), "rollback apply")
+			installed = b.vlans["eth0.100"]
+			require.True(t, maps.Equal(before.IngressQoSMap, installed.IngressQoSMap), "ingress after rollback: %v", installed.IngressQoSMap)
+			require.True(t, maps.Equal(before.EgressQoSMap, installed.EgressQoSMap), "egress after rollback: %v", installed.EgressQoSMap)
+			_, keyFive := installed.EgressQoSMap[5]
+			require.False(t, keyFive, "a key the reload added is absent after the rollback")
+		})
+	}
 }

@@ -19,11 +19,11 @@ func TestCoSSubscriberEnricherDetail(t *testing.T) {
 	})
 	t.Cleanup(func() { sessionStore.Delete(sessionKey{tunnelID: 1, sessionID: 2}) })
 
-	coreCos.Register("residential", coreCos.Profile{
+	coreCos.Replace(map[string]coreCos.Profile{"residential": {
 		IngressMap: map[uint32]uint32{0: 1, 1: 2},
 		EgressMap:  map[uint32]uint32{1: 0, 2: 1},
-	})
-	t.Cleanup(coreCos.Clear)
+	}})
+	t.Cleanup(func() { coreCos.Replace(nil) })
 
 	base := map[string]any{
 		"id":         "s1",

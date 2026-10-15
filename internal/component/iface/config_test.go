@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -2172,7 +2173,9 @@ type fakeBackend struct {
 	// it. A test can therefore seed a mirror no config asks for, which is what a
 	// restart leaves behind. The test then watches the reconcile retire it. A
 	// recorded CALL cannot express that: the seed happened before the test ran.
-	mirrors        map[string]MirrorState
+	mirrors map[string]MirrorState
+	// qosUpdates is the ordered log of UpdateVLANQoSMap calls.
+	qosUpdates     []qosUpdateCall
 	listMirrorsErr error             // if non-nil, ListMirrors returns this instead of the state
 	nextIndex      int               // hands each created device its own kernel index
 	mtuSet         map[string]int    // kernel device -> MTU recorded by SetMTU
@@ -2297,6 +2300,11 @@ func (b *fakeBackend) CreateVLAN(spec VLANSpec) error {
 	b.ensureMaps()
 	var nb textbuf.Buffer
 	name := nb.Str(spec.Parent).Byte('.').Int(int64(spec.VLANID)).String()
+	// The kernel refuses a VLAN that exists (EEXIST) and keeps its maps; a
+	// fake that overwrote the spec hid every existing-VLAN reprogram defect.
+	if _, exists := b.ifaces[name]; exists {
+		return fmt.Errorf("vlan %s: file exists", name)
+	}
 	b.created[name] = true
 	b.vlans[name] = spec
 	// A VLAN sub-interface INHERITS its parent's hardware address and names the
@@ -2316,7 +2324,27 @@ func (b *fakeBackend) CreateVLAN(spec VLANSpec) error {
 	return nil
 }
 
-func (b *fakeBackend) UpdateVLANQoSMap(_ string, _, _ map[uint32]uint32) error { return nil }
+// UpdateVLANQoSMap records the call and models the full replace the Backend
+// contract states: afterwards the VLAN holds exactly the given maps.
+func (b *fakeBackend) UpdateVLANQoSMap(name string, ingress, egress map[uint32]uint32) error {
+	b.ensureMaps()
+	b.qosUpdates = append(b.qosUpdates, qosUpdateCall{name: name, ingress: ingress, egress: egress})
+	spec, ok := b.vlans[name]
+	if !ok {
+		return fmt.Errorf("vlan %s not found", name)
+	}
+	spec.IngressQoSMap = maps.Clone(ingress)
+	spec.EgressQoSMap = maps.Clone(egress)
+	b.vlans[name] = spec
+	return nil
+}
+
+// qosUpdateCall is one recorded UpdateVLANQoSMap call.
+type qosUpdateCall struct {
+	name    string
+	ingress map[uint32]uint32
+	egress  map[uint32]uint32
+}
 
 // fakeKernelLinkTypes spells the netlink link type Linux reports for a device
 // of each tunnel kind, so a read-back from this fake carries what the kernel
@@ -4307,15 +4335,16 @@ func TestParseUnitQoSMapEmpty(t *testing.T) {
 	assert.Nil(t, u.EgressQoSMap, "present-but-empty list must normalize to nil")
 }
 
-// setupTestCoSResolver registers profiles and a resolver for CoS tests.
-// The resolver mirrors the real cos plugin's logic (inheritance, "none",
-// mutual exclusion, Lookup) so iface parsing tests exercise the full path.
-func setupTestCoSResolver(t *testing.T, profiles map[string]coreCos.Profile) {
+// setupTestCoSResolver registers a resolver and a profile parser for CoS
+// tests and returns the profile set the test resolves against. The resolver
+// mirrors the real cos plugin's logic (inheritance, "none", mutual exclusion,
+// lookup in the set it is handed) so iface parsing tests exercise the full
+// path. The parser reads the test form {"class-of-service": {<name>:
+// {"IngressMap": {...}, "EgressMap": {...}}}}, because the real one is the
+// cos plugin's, which imports this package.
+func setupTestCoSResolver(t *testing.T, profiles map[string]coreCos.Profile) map[string]coreCos.Profile {
 	t.Helper()
-	for name, p := range profiles {
-		coreCos.Register(name, p)
-	}
-	coreCos.RegisterResolver(func(parentCoS, unitCoS string, hasInlineMaps bool) (map[uint32]uint32, map[uint32]uint32, error) {
+	coreCos.RegisterResolver(func(set map[string]coreCos.Profile, parentCoS, unitCoS string, hasInlineMaps bool) (map[uint32]uint32, map[uint32]uint32, error) {
 		name := unitCoS
 		if name == "" {
 			name = parentCoS
@@ -4326,13 +4355,38 @@ func setupTestCoSResolver(t *testing.T, profiles map[string]coreCos.Profile) {
 		if hasInlineMaps {
 			return nil, nil, fmt.Errorf("class-of-service and inline qos maps are mutually exclusive")
 		}
-		p, ok := coreCos.Lookup(name)
+		p, ok := set[name]
 		if !ok {
 			return nil, nil, fmt.Errorf("class-of-service profile %q not found", name)
 		}
 		return p.IngressMap, p.EgressMap, nil
 	})
-	t.Cleanup(func() { coreCos.Clear(); coreCos.ClearResolver() })
+	coreCos.RegisterProfileParser(func(data string) (map[string]coreCos.Profile, error) {
+		var tree map[string]map[string]coreCos.Profile
+		if err := json.Unmarshal([]byte(data), &tree); err != nil {
+			return nil, err
+		}
+		set := tree[configRootClassOfService]
+		if set == nil {
+			set = map[string]coreCos.Profile{}
+		}
+		return set, nil
+	})
+	t.Cleanup(func() { coreCos.Replace(nil); coreCos.ClearResolver(); coreCos.ClearProfileParser() })
+	return profiles
+}
+
+// parseAndResolveIfaceConfig parses data and resolves its units against set,
+// the two steps parseResolvedIfaceSections takes.
+func parseAndResolveIfaceConfig(set map[string]coreCos.Profile, data string) (*ifaceConfig, error) {
+	cfg, err := parseIfaceConfig(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := cfg.resolveUnitQoS(set); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 // TestCoSProfileResolution verifies that a class-of-service reference on the
@@ -4342,14 +4396,14 @@ func setupTestCoSResolver(t *testing.T, profiles map[string]coreCos.Profile) {
 // VALIDATES: spec-cos-plugin AC-4 -- interface-level profile populates unit maps.
 // PREVENTS: class-of-service ref silently ignored during parsing.
 func TestCoSProfileResolution(t *testing.T) {
-	setupTestCoSResolver(t, map[string]coreCos.Profile{
+	set := setupTestCoSResolver(t, map[string]coreCos.Profile{
 		"residential": {
 			IngressMap: map[uint32]uint32{0: 0, 6: 6},
 			EgressMap:  map[uint32]uint32{0: 0, 6: 6},
 		},
 	})
 
-	cfg := mustParseIfaceJSON(t, `{
+	cfg, err := parseAndResolveIfaceConfig(set, `{
 		"interface": {
 			"ethernet": {
 				"eth0": {
@@ -4363,6 +4417,7 @@ func TestCoSProfileResolution(t *testing.T) {
 			}
 		}
 	}`)
+	require.NoError(t, err)
 	require.Len(t, cfg.Ethernet, 1)
 	require.Len(t, cfg.Ethernet[0].Units, 1)
 	u := cfg.Ethernet[0].Units[0]
@@ -4376,7 +4431,7 @@ func TestCoSProfileResolution(t *testing.T) {
 // VALIDATES: spec-cos-plugin AC-5 -- per-unit override wins over parent.
 // PREVENTS: parent CoS always applied even when unit has its own.
 func TestCoSProfileUnitOverride(t *testing.T) {
-	setupTestCoSResolver(t, map[string]coreCos.Profile{
+	set := setupTestCoSResolver(t, map[string]coreCos.Profile{
 		"residential": {
 			IngressMap: map[uint32]uint32{0: 0, 6: 6},
 			EgressMap:  map[uint32]uint32{0: 0, 6: 6},
@@ -4387,7 +4442,7 @@ func TestCoSProfileUnitOverride(t *testing.T) {
 		},
 	})
 
-	cfg := mustParseIfaceJSON(t, `{
+	cfg, err := parseAndResolveIfaceConfig(set, `{
 		"interface": {
 			"ethernet": {
 				"eth0": {
@@ -4402,6 +4457,7 @@ func TestCoSProfileUnitOverride(t *testing.T) {
 			}
 		}
 	}`)
+	require.NoError(t, err)
 	require.Len(t, cfg.Ethernet, 1)
 	require.Len(t, cfg.Ethernet[0].Units, 1)
 	u := cfg.Ethernet[0].Units[0]
@@ -4415,14 +4471,14 @@ func TestCoSProfileUnitOverride(t *testing.T) {
 // VALIDATES: spec-cos-plugin AC-6 -- "none" opts out of parent profile.
 // PREVENTS: parent CoS applied even when unit explicitly requests no maps.
 func TestCoSProfileUnitOptOut(t *testing.T) {
-	setupTestCoSResolver(t, map[string]coreCos.Profile{
+	set := setupTestCoSResolver(t, map[string]coreCos.Profile{
 		"residential": {
 			IngressMap: map[uint32]uint32{0: 0, 6: 6},
 			EgressMap:  map[uint32]uint32{0: 0, 6: 6},
 		},
 	})
 
-	cfg := mustParseIfaceJSON(t, `{
+	cfg, err := parseAndResolveIfaceConfig(set, `{
 		"interface": {
 			"ethernet": {
 				"eth0": {
@@ -4437,6 +4493,7 @@ func TestCoSProfileUnitOptOut(t *testing.T) {
 			}
 		}
 	}`)
+	require.NoError(t, err)
 	require.Len(t, cfg.Ethernet, 1)
 	require.Len(t, cfg.Ethernet[0].Units, 1)
 	u := cfg.Ethernet[0].Units[0]
@@ -4450,14 +4507,14 @@ func TestCoSProfileUnitOptOut(t *testing.T) {
 // VALIDATES: spec-cos-plugin AC-7 -- class-of-service requires vlan-id.
 // PREVENTS: kernel error from VLAN QoS map on a non-VLAN interface.
 func TestCoSProfileNoVLAN(t *testing.T) {
-	setupTestCoSResolver(t, map[string]coreCos.Profile{
+	set := setupTestCoSResolver(t, map[string]coreCos.Profile{
 		"residential": {
 			IngressMap: map[uint32]uint32{0: 0},
 			EgressMap:  map[uint32]uint32{0: 0},
 		},
 	})
 
-	_, err := parseIfaceConfig(`{
+	_, err := parseAndResolveIfaceConfig(set, `{
 		"interface": {
 			"ethernet": {
 				"eth0": {
@@ -4479,14 +4536,14 @@ func TestCoSProfileNoVLAN(t *testing.T) {
 // VALIDATES: spec-cos-plugin AC-8 -- mutual exclusion.
 // PREVENTS: ambiguous config where both mechanisms set the same maps.
 func TestCoSProfileConflictInline(t *testing.T) {
-	setupTestCoSResolver(t, map[string]coreCos.Profile{
+	set := setupTestCoSResolver(t, map[string]coreCos.Profile{
 		"residential": {
 			IngressMap: map[uint32]uint32{0: 0},
 			EgressMap:  map[uint32]uint32{0: 0},
 		},
 	})
 
-	_, err := parseIfaceConfig(`{
+	_, err := parseAndResolveIfaceConfig(set, `{
 		"interface": {
 			"ethernet": {
 				"eth0": {
@@ -4513,9 +4570,9 @@ func TestCoSProfileConflictInline(t *testing.T) {
 // VALIDATES: spec-cos-plugin AC-9 -- missing profile detected.
 // PREVENTS: silent config acceptance that would leave VLAN without maps.
 func TestCoSProfileNotFound(t *testing.T) {
-	setupTestCoSResolver(t, nil)
+	set := setupTestCoSResolver(t, nil)
 
-	_, err := parseIfaceConfig(`{
+	_, err := parseAndResolveIfaceConfig(set, `{
 		"interface": {
 			"ethernet": {
 				"eth0": {
@@ -4531,6 +4588,64 @@ func TestCoSProfileNotFound(t *testing.T) {
 	}`)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
+}
+
+// cosSectionsFor returns a delivery of the interface section and a
+// class-of-service section holding set, in the test parser's form.
+func cosSectionsFor(t *testing.T, ifaceJSON string, set map[string]coreCos.Profile) []sdk.ConfigSection {
+	t.Helper()
+	data, err := json.Marshal(map[string]any{configRootClassOfService: set})
+	require.NoError(t, err)
+	return []sdk.ConfigSection{
+		{Root: configRootInterface, Data: ifaceJSON},
+		{Root: configRootClassOfService, Data: string(data)},
+	}
+}
+
+// cosUnitJSON is an interface section with one VLAN unit using profile gold.
+const cosUnitJSON = `{"interface":{"ethernet":{"eth0":{"unit":{"v100":{"vlan-id":"100","class-of-service":"gold"}}}}}}`
+
+// TestIfaceResolvesAgainstCandidateProfiles proves Q2 point 3, AC-14 and
+// AC-15: a unit resolves against the profiles delivered with the candidate,
+// never against the installed registry. Method: install gold with egress
+// {1:1}; resolve a candidate whose gold says {1:5} and expect {1:5}; resolve
+// a candidate without gold and expect the "not found" refusal although the
+// installed registry still holds gold.
+func TestIfaceResolvesAgainstCandidateProfiles(t *testing.T) {
+	setupTestCoSResolver(t, nil)
+	coreCos.Replace(map[string]coreCos.Profile{"gold": {EgressMap: map[uint32]uint32{1: 1}}})
+
+	edited := map[string]coreCos.Profile{"gold": {EgressMap: map[uint32]uint32{1: 5}}}
+	cfg, err := parseResolvedIfaceSections(cosSectionsFor(t, cosUnitJSON, edited))
+	require.NoError(t, err)
+	assert.Equal(t, map[uint32]uint32{1: 5}, cfg.Ethernet[0].Units[0].EgressQoSMap,
+		"the unit carries the candidate's gold, not the installed one")
+
+	dropped := map[string]coreCos.Profile{"silver": {EgressMap: map[uint32]uint32{1: 2}}}
+	_, err = parseResolvedIfaceSections(cosSectionsFor(t, cosUnitJSON, dropped))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `class-of-service profile "gold" not found`)
+
+	_, err = parseResolvedIfaceSections([]sdk.ConfigSection{{Root: configRootInterface, Data: cosUnitJSON}})
+	require.Error(t, err, "no class-of-service section resolves against no profile, not the installed one")
+	assert.Contains(t, err.Error(), "not found")
+}
+
+// TestIfaceVerifyRefusesProfileOnUnitWithoutVLANID proves AC-19 (round 3,
+// NOTE-2): the decomposer's parse, which resolves nothing, accepts a unit
+// that names a profile and has no vlan-id, and the resolving parse that
+// verify runs refuses the same candidate.
+func TestIfaceVerifyRefusesProfileOnUnitWithoutVLANID(t *testing.T) {
+	setupTestCoSResolver(t, nil)
+	const noVLAN = `{"interface":{"ethernet":{"eth0":{"unit":{"v100":{"class-of-service":"gold"}}}}}}`
+	set := map[string]coreCos.Profile{"gold": {EgressMap: map[uint32]uint32{1: 5}}}
+
+	_, err := parseIfaceSections([]sdk.ConfigSection{{Root: configRootInterface, Data: noVLAN}})
+	require.NoError(t, err, "the decomposer's parse resolves no profile")
+
+	_, err = parseResolvedIfaceSections(cosSectionsFor(t, noVLAN, set))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "qos maps require vlan-id")
 }
 
 // TestValidateVPPQoSMapsIdentityAccepted verifies that identity ingress maps
