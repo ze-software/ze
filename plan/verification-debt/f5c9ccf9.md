@@ -7,5 +7,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-10-15 | f5c9ccf9 | fix(qemu): guest patched GOROOT stays in a guest-only tmpfs | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-15T01:47:24Z) | open |
+| 2026-10-15 | f5c9ccf9 | fix(qemu): guest patched GOROOT stays in a guest-only tmpfs (+1 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-15T01:47:24Z) | open |
 | 2026-10-15 | f5c9ccf9 | fix(qemu): guest patched GOROOT stays in a guest-only tmpfs | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
