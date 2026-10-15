@@ -1,7 +1,7 @@
 # Test: the route-server worker-queue-size YANG leaf reaches the running plugin
 # VALIDATES: bgp { route-server { worker-queue-size N } } is delivered to bgp-rs
-# at Stage 2 and parsed by its OnConfigure, which logs the size it read (the
-# "worker-queue-size from config" decision log). This proves delivery and parse
+# at Stage 2 and installed by its config transaction (sdk.NewConfigTx), which
+# logs the size it applied (the "worker-queue-size applied" log). This proves delivery and parse
 # only: no UPDATE is sent, so no worker is built and no channel capacity is
 # observed. That the size reaches the pool is proven by
 # TestQueueSizeConfigTxAppliesAReloadedSize (rs/config_tx_test.go), and the
@@ -57,4 +57,4 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
 
-expect=stderr:pattern=worker-queue-size from config.*size=8192
+expect=stderr:pattern=worker-queue-size applied.*size=8192

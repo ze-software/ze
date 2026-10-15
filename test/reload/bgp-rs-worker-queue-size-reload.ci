@@ -13,8 +13,10 @@
 #           answers config-apply OK and calls nothing, so the commit succeeded
 #           while the workers kept the boot size until a restart.
 #
-# DISCRIMINATION: the apply line is written only by the apply handler, after it
-# has called setChanSize. Without the handler the await never matches and the
+# DISCRIMINATION: the apply line is written by the SDK transaction's installer,
+# after it has called setChanSize, at boot (size=8192) and again on the reload's
+# apply (size=16384). The await fences on the reloaded size, so the boot line
+# cannot satisfy it: without the reload's apply the await never matches and the
 # test times out. That the size reaches the pool is proven in Go by
 # TestQueueSizeConfigTxAppliesAReloadedSize (rs/config_tx_test.go): no show
 # command or metric reports a worker's channel capacity.
@@ -104,8 +106,8 @@ EOF_CONF2
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
-await=stderr:contains=worker-queue-size applied:then=stop
-expect=stderr:pattern=worker-queue-size from config.*size=8192
+await=stderr:contains=msg="worker-queue-size applied" subsystem=bgp.rs size=16384:then=stop
+expect=stderr:pattern=worker-queue-size applied.*size=8192
 expect=stderr:pattern=worker-queue-size applied.*size=16384
 reject=stderr:pattern=peer restart required
 reject=stderr:pattern=panic
