@@ -19,7 +19,7 @@ not for the process model.
 
 ### What We're Building
 
-A **plugin-based configuration system** where Ze acts as a central Hub orchestrating separate processes. Each plugin defines its own configuration schema using YANG, and the Hub routes configuration to the appropriate plugin.
+A **plugin-based configuration system** where Ze acts as a central Hub orchestrating separate processes. Each plugin defines its own configuration schema using YANG, and the Hub routes configuration to the appropriate plugin. Today only plugins compiled into `ze` contribute their schema; for external plugins this is planned (section 2 below).
 
 ### Why This Matters
 
@@ -151,15 +151,28 @@ carry both sides.
 
 ### 2. Plugins Define Their Own Schema
 
-Each plugin (including BGP engine) sends its YANG schema to the Hub at startup. Third-party plugins can extend the configuration schema without modifying Ze.
+This is the design goal, and today it holds only for plugins compiled into
+`ze`. An internal plugin's YANG module is registered at build and is part of
+the schema the config is parsed with. An external plugin sends its YANG text to
+the Hub at startup, but the Hub stores it and never parses it, and the config
+was already parsed before the plugin started. A third-party plugin therefore
+cannot yet extend the configuration schema without rebuilding Ze; compiling its
+module at startup is planned (`plan/spec-plugin-external-yang-at-startup.md`).
+<!-- source: internal/component/plugin/server/startup.go -- handleRegistration stores reg.PluginSchema, never read -->
+<!-- source: internal/component/config/loader.go -- LoadConfig parses with the compiled-in schema -->
 
 ### 3. Hub Validates Against Combined Schema
 
-The Hub collects all YANG schemas from plugins, then validates the config file against the combined schema. This enables:
+The Hub validates the config file against the schema of every compiled-in
+module (see section 2 for external plugins). This enables:
 
 - Type validation (ranges, patterns, enums)
-- Cross-reference validation (leafref)
 - Semantic validation via verify/apply protocol
+
+Leafref values are not checked today (`validateYangType` accepts any value for
+a leafref leaf); cross-reference validation is planned
+(`plan/spec-config-yang-type-leafref.md`).
+<!-- source: internal/component/config/yang/validator.go -- validateYangType: the Yleafref arm returns nil -->
 
 ### 4. Verify Before Apply
 

@@ -2,6 +2,23 @@
 
 Plugins declare their configuration schema using YANG (RFC 7950). This guide covers the basics for plugin authors.
 
+## What works today
+
+| Plugin kind | Its own YANG module | Config it receives |
+|-------------|---------------------|--------------------|
+| Internal plugin, compiled into `ze` (package added to `internal/component/plugin/all`) | Registered at build, parsed and validated; the operator writes config under its roots | Its `WantsConfig` roots |
+| External plugin (a separate process, SDK or any language) | **Not yet used.** Ze stores the `YANGText` it declares but never parses it, so the config parser does not know the plugin's root | Only roots that a compiled-in module already defines (for example `bgp`) |
+
+A config block under an external plugin's own root is refused when the config
+is loaded, before any plugin starts: `ze config validate` reports
+`unknown top-level keyword: <root>`. Compiling an external plugin's module at
+startup, so its own root becomes valid config, is planned
+(`plan/spec-plugin-external-yang-at-startup.md`). The `acme-monitor` example
+at the end of this page shows that planned behavior for an external plugin.
+<!-- source: internal/component/plugin/server/startup.go -- handleRegistration stores reg.PluginSchema; deliverConfigRPC -->
+<!-- source: internal/component/config/loader.go -- LoadConfig, parseTreeWithYANG (compiled-in schema plus CollectPluginYANG of internal plugins) -->
+<!-- source: internal/component/config/plugin_verify.go -- BuildPluginConfigSections -->
+
 ## Registering a Schema
 
 Schemas are declared via the `Schema` field of `sdk.Registration`, which is passed to
@@ -213,7 +230,11 @@ leaf group {
 }
 ```
 
-Ze validates that referenced values exist.
+Ze does not check leafref values today: the validator accepts any value for a
+leafref leaf, so a reference to a peer-group that does not exist is not
+refused. Checking that the referenced value exists is planned
+(`plan/spec-config-yang-type-leafref.md`).
+<!-- source: internal/component/config/yang/validator.go -- validateYangType: the Yleafref arm returns nil -->
 
 ## Best Practices
 
@@ -224,6 +245,14 @@ Ze validates that referenced values exist.
 5. **Use the `Handlers` field** -- list the config path prefixes your plugin manages
 
 ## Example: Complete Plugin with Schema
+
+**Planned, not yet working for an external plugin.** This plugin runs as an
+external process and defines its own root, `acme-monitor`. Today Ze refuses
+an `acme-monitor { ... }` block in the config (see "What works today" above),
+so the plugin never receives a section. The example becomes valid when
+`plan/spec-plugin-external-yang-at-startup.md` lands. The SDK calls it shows
+(`NewConfigTx`, `Run`, `SchemaDecl`) work today for roots a compiled-in module
+defines.
 
 A complete example showing YANG schema registration with the SDK. The plugin
 reads leaves of its root, so it registers a config transaction: Stage 2
