@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 1/5 |
+| Phase | 4/5 |
 | Handoff | - |
-| Updated | 2026-10-14 |
+| Updated | 2026-10-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -49,6 +49,15 @@ reports nothing against the rows below).
 | D4 | open | `isSRv6Ineligible(entry)` has no family, asks `pool.ExtractSRv6SID`, never compares the transposition length with the label width | RFC9252-5-1 weak |
 | D5 | open | `ExtractSRv6SIDFull` returns the first Service TLV whose SID is valid, so a second instance is used when the first yields none | RFC9252-7-1 and RFC9252-7-2 weak |
 | D6 | FIXED | `a41bf6a186` (discard at ingest, red probe `rfc8669_duplicate_tlv_red_test.go` turned green and removed), `465af38f1d` (review hardening), `0c6ae07e69` (interop `bgp-prefix-sid-duplicate-tlv-frr`), `96dbfd4da5` (independent re-judge) | RFC8669-6-3 enforced. AC-8 and AC-9 are met |
+
+### Progress, re-checked 2026-10-15 (HEAD `ea9bb0a1de`)
+
+| Phase | State | Commits | Evidence re-run 2026-10-15 |
+|-------|-------|---------|----------------------------|
+| 1 Wiring, 2 Receive (D1, D2, Q6, AC-10) | landed | `8c1c4013f2` (code, units, docs, records), `8ddd0ba446` (`prefixsid-malformed-receive.ci`, five revert records) | `prefixsid-malformed-receive` PASS (`./le test bgp plugin --pattern`) |
+| 3 Extraction and admission (D3, D4, D5) | landed | `7d37dcd562` (`srv6sid.go`, `isSRv6Ineligible(fam, entry)`, `nlrisplit.TranspositionLabelWidth`, twelve units, Q5 rows 1-6, 20 records), `4333cbb3b9` (`srv6-invalid-sid-ineligible.ci`, red against `7d37dcd562^`) | `go test -race ./internal/component/bgp/plugins/rib/... ./internal/core/bgp/nlri/nlrisplit/` green; `srv6-invalid-sid-ineligible` PASS; `fib-srv6-kernel` SKIP on darwin (R-4 owed on Linux) |
+| 4 Interop | written, NOT RUN | `acce358e38` (`bgp-prefix-sid-malformed-frr`), `28bed969b0` (`bgp-srv6-invalid-sid-ineligible-frr`) | not runnable on this Mac (Docker kernel refuses the lab): green run, red with the producer reverted and the image rebuilt, and A-4 / A-5 are all owed on a Linux host |
+| 5 Verdicts | 7 of 8 enforced | `b4712634fd` (independent re-judge of 16 rows), `ea9bb0a1de` | RFC8669-6-1, RFC8669-3.1-2, RFC8669-3.2-4, RFC9252-3.2.1-3, RFC9252-5-1, RFC9252-7-1, RFC9252-7-2 `enforced`. RFC9252-3.4-1 was re-judged `weak` because no tagged unit fed "The TLV Length is less than 1."; `ea9bb0a1de` adds `TestRFC9252ZeroLengthServiceTLVTreatAsWithdraw` with its revert record, so the verdict is now STALE in `./le rfc check` and owes an independent re-judge |
 
 Related specs, not duplicated here: `plan/immediate/spec-srv6-bestpath-resolvability.md`
 owns RFC9252-5-2 (reachability of the SID) at the same candidate filter, and
@@ -482,8 +491,8 @@ Suite: `./le test integration interop` with `INTEROP_SCENARIO=<name>`. Each red 
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-prefix-sid-malformed-frr` | `test/interop/scenarios/bgp-prefix-sid-malformed-frr/` | FRR (receiver, judge), raw injector as sender, Ze as bgp-rs relay (shape of `bgp-prefix-sid-duplicate-tlv-frr`) | D1: FRR holds the labeled-unicast prefix with no Prefix-SID; under HEAD FRR receives the 6-octet Label-Index (its own parser then refuses or logs it, A-4). D2: FRR first holds the VPN prefix, then loses it after the malformed re-announce; under HEAD FRR keeps it (attribute discarded only). AC-1b: FRR holds a second labeled-unicast prefix, sent with a Prefix-SID holding only an SRGB TLV, with no Prefix-SID; under HEAD FRR receives the attribute. Control prefix present throughout | new |
-| `bgp-srv6-invalid-sid-ineligible-frr` | `test/interop/scenarios/bgp-srv6-invalid-sid-ineligible-frr/` | FRR as the sender of a valid SRv6 L3VPN path for prefix P (FRR's own SID allocation), raw injector as the sender of a path for P with better attributes (higher LOCAL_PREF over iBGP) and an invalid SID Structure; Ze with `bgp-rib` | D3/D4: Ze's best path for P is FRR's path and the installed SID is FRR's SID (read through Ze's `rib best` in the checker); under HEAD the injector's path wins | new |
+| `bgp-prefix-sid-malformed-frr` | `test/interop/scenarios/bgp-prefix-sid-malformed-frr/` | FRR (receiver, judge), raw injector as sender, Ze as bgp-rs relay (shape of `bgp-prefix-sid-duplicate-tlv-frr`) | D1: FRR holds the labeled-unicast prefix with no Prefix-SID; under HEAD FRR receives the 6-octet Label-Index (its own parser then refuses or logs it, A-4). D2: FRR first holds the VPN prefix, then loses it after the malformed re-announce; under HEAD FRR keeps it (attribute discarded only). AC-1b: FRR holds a second labeled-unicast prefix, sent with a Prefix-SID holding only an SRGB TLV, with no Prefix-SID; under HEAD FRR receives the attribute. Control prefix present throughout | written (`acce358e38`), NOT RUN: no Linux Docker kernel on the authoring host |
+| `bgp-srv6-invalid-sid-ineligible-frr` | `test/interop/scenarios/bgp-srv6-invalid-sid-ineligible-frr/` | FRR as the sender of a valid SRv6 L3VPN path for prefix P (FRR's own SID allocation), raw injector as the sender of a path for P with better attributes (higher LOCAL_PREF over iBGP) and an invalid SID Structure; Ze with `bgp-rib` | D3/D4: Ze's best path for P is FRR's path and the installed SID is FRR's SID (read through Ze's `rib best` in the checker); under HEAD the injector's path wins | written (`28bed969b0`), NOT RUN: no Linux Docker kernel on the authoring host |
 | `bgp-prefix-sid-duplicate-tlv-frr` | `test/interop/scenarios/bgp-prefix-sid-duplicate-tlv-frr/` | FRR | D6 (done in `0c6ae07e69`) | exists |
 
 ## Files to Modify
