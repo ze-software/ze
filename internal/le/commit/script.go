@@ -169,6 +169,13 @@ func renderPublish(block commitBlock, scriptPath string) string {
 	lines = append(lines,
 		`_ze_index="$PWD"/`+shellQuote(indexFileFor(scriptPath)),
 		`_ze_message=`+shellQuote(block.MessagePath),
+		// The message file is deleted once the block publishes, so a missing one
+		// on a rerun means this block already landed, and `git stripspace` would
+		// stop the script with bash's bare "No such file" under `set -e`.
+		renderRefusal(`! -f "$_ze_message"`, notRunLine(block),
+			`echo "Its message file $_ze_message is gone. A block deletes it once its commit lands, so this block already published on an earlier run of this script, or the file was cleaned up."`,
+			`echo "Check whether it landed with: git log --format='%h %s' --fixed-strings --grep=`+shellQuote(commentSafe(block.Subject))+`"`,
+			`echo "Then prepare whatever is still uncommitted again with ./le commit create, rather than running this script again."`),
 		`_ze_text=$(git stripspace < "$_ze_message")`,
 		renderRefusal(`-z "$_ze_text"`, notPublished,
 			`echo "Its message file $_ze_message holds no message once blank lines are stripped, and git commit refuses an empty message too."`,
@@ -237,14 +244,18 @@ func renderPublish(block commitBlock, scriptPath string) string {
 		// HEAD is a symbolic ref to the branch, so update-ref moves the branch,
 		// and only if it still names the parent this commit was built on.
 		`if _ze_swap=$(git update-ref -m `+shellQuote("commit: "+commentSafe(block.Subject))+` HEAD "$_ze_commit" "$_ze_parent" 2>&1); then`,
-		`  _ze_own="${_ze_own:-} $_ze_commit"`,
+		"  "+ownBookkeeping,
 		`  break`,
 		`fi`,
 		`_ze_now=$(git rev-parse --verify 'HEAD^{commit}')`,
+		// git has already waited core.filesRefLockTimeout for the lock, so a lock
+		// still held is either a live git that is slow or one that stopped and left
+		// it. The script cannot tell which, so it names the lock and both readings.
+		`_ze_lock=$(printf '%s\n' "$_ze_swap" | sed -n "s/.*Unable to create '\(.*\.lock\)'.*/\1/p")`,
 		renderRefusal(`"$_ze_now" = "$_ze_parent"`, notPublished,
 			`echo "git update-ref refused to move HEAD, which still names the parent the commit was built on:"`,
 			`printf '%s\n' "$_ze_swap"`,
-			`echo "Fix what git names (a lock file a dead git process left, or a permission), then run this script again."`),
+			`if [ -n "$_ze_lock" ]; then echo "Another git process holds $_ze_lock, or one that stopped left it behind. Run this script again once the other git command finishes; remove $_ze_lock only when no git process is running."; else echo "Fix what git names (a permission, for example), then run this script again."; fi`),
 		renderRefusal(`"$_ze_attempt" -ge `+strconv.Itoa(publishAttemptsMax), notPublished,
 			`echo "HEAD moved under it `+strconv.Itoa(publishAttemptsMax)+` times in a row while other commits landed."`,
 			`echo "Run this script again once the other sessions' commits have landed."`),
@@ -253,6 +264,37 @@ func renderPublish(block commitBlock, scriptPath string) string {
 		`done`,
 		`git -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit"`)
 	return strings.Join(lines, "\n")
+}
+
+// ownBookkeeping is the line a block runs once its swap succeeds, recording the
+// commit it published so a later block of the same script leaves it out of the
+// peer-change comparison by exact SHA. A block that lacks it was prepared by an
+// older le, and refuseBlocksWithoutBookkeeping keeps `append` off such a script.
+const ownBookkeeping = `_ze_own="${_ze_own:-} $_ze_commit"`
+
+// refuseBlocksWithoutBookkeeping answers an error when a block of an existing
+// script does not record its own commit. A block appended after it would read
+// that block's commit as a peer's change to any path both name, and refuse.
+func refuseBlocksWithoutBookkeeping(script, body string) error {
+	blocks := strings.Split(body, "\n"+blockMarker)
+	for _, block := range blocks[1:] {
+		if strings.Contains(block, "\n  "+ownBookkeeping+"\n") {
+			continue
+		}
+		return fmt.Errorf("append refused: %s was prepared by an older ./le commit create whose blocks do not "+
+			"record the commits the script publishes, so a block appended to it would read an earlier block's "+
+			"commit as a peer's change and refuse. Prepare a fresh script: run ./le commit create again with "+
+			"replace instead of append, naming every file the old script carried, or leave out append to "+
+			"prepare this commit in a script of its own", script)
+	}
+	return nil
+}
+
+// notRunLine is the first line of the refusal for a block whose message file is
+// gone: the block may well have published on an earlier run, so it cannot say
+// "not published".
+func notRunLine(block commitBlock) string {
+	return "ERROR: commit " + block.Tag + " (" + commentSafe(block.Subject) + ") was not run, and HEAD is unchanged by this run."
 }
 
 // notPublishedLine is the first line of every refusal before the branch moves.

@@ -589,8 +589,146 @@ func TestASwapGitRefusesWithoutAMoveIsNotRetried(t *testing.T) {
 	if !strings.Contains(output, branch+".lock") {
 		t.Fatalf("the refusal does not carry git's error naming the lock:\n%s", output)
 	}
+	// git has waited only core.filesRefLockTimeout, so the holder may be a live
+	// git: the advice MUST NOT call it dead, and MUST say to wait for it.
+	if strings.Contains(output, "dead") {
+		t.Fatalf("the refusal asserts the lock holder is dead:\n%s", output)
+	}
+	if !strings.Contains(output, "once the other git command finishes") || !strings.Contains(output, "only when no git process is running") {
+		t.Fatalf("the refusal does not say to wait for the other git, or when removing the lock is safe:\n%s", output)
+	}
 }
 
 // preparedHeadFixture stands in for the HEAD `create` records, in a test that
 // renders a block without preparing one.
 const preparedHeadFixture = "1111111111111111111111111111111111111111"
+
+// TestARerunAfterTheBlockPublishedIsRefusedByName runs a script to the end and
+// then runs it again, the shape of a rerun after a later block was refused.
+//
+// VALIDATES: the block whose message file its own publish deleted refuses with
+// the standard ERROR line, says why the file is gone and how to check and carry
+// on, and leaves HEAD where the first run put it.
+// PREVENTS: the rerun dying under `set -e` on `git stripspace < <missing file>`
+// with bash's bare "No such file or directory" and nothing else.
+func TestARerunAfterTheBlockPublishedIsRefusedByName(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "rerun-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	prepared, err := Create(root, &Options{Subject: "my commit", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCommitScript(t, root, prepared.Script)
+	head := headOf(t, root)
+
+	output, err := runScript(t, root, prepared.Script)
+
+	if err == nil {
+		t.Fatalf("the rerun succeeded, want a refusal:\n%s", output)
+	}
+	if now := headOf(t, root); now != head {
+		t.Fatalf("the refused rerun moved HEAD from %s to %s\n%s", head, now, output)
+	}
+	for _, want := range []string{"ERROR: commit a (my commit)", prepared.Message, "git log", "./le commit create"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("the refusal does not carry %q:\n%s", want, output)
+		}
+	}
+}
+
+// TestAppendOntoABlockWithoutBookkeepingIsRefused appends to a script whose
+// block has no `_ze_own` line, the shape an older le prepared.
+//
+// VALIDATES: `append` refuses, names the script, and points at `replace`, and
+// the script is left as it was.
+// PREVENTS: a new block appended behind an old one reading the old block's
+// commit as a peer's change to a shared path and refusing at run time.
+func TestAppendOntoABlockWithoutBookkeepingIsRefused(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "old-script-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "one\n")
+	first, err := Create(root, &Options{Subject: "the first block", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, filepath.FromSlash(first.Script))
+	content, err := os.ReadFile(path) //nolint:gosec // the test's own generated script
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := strings.Replace(string(content), "  "+ownBookkeeping+"\n", "", 1)
+	if old == string(content) {
+		t.Fatal("the fixture script holds no bookkeeping line to remove, so the test proves nothing")
+	}
+	writeCommitFixture(t, root, first.Script, old)
+	writeCommitFixture(t, root, "mine.txt", "one\ntwo\n")
+
+	_, err = Create(root, &Options{Subject: "the second block", Files: []string{"mine.txt"}, Append: true})
+
+	if err == nil {
+		t.Fatal("append onto a script without bookkeeping succeeded, want a refusal")
+	}
+	if !strings.Contains(err.Error(), "replace") || !strings.Contains(err.Error(), first.Script) {
+		t.Fatalf("the refusal does not name the script and replace: %v", err)
+	}
+	if now, _ := os.ReadFile(path); string(now) != old { //nolint:gosec // the test's own generated script
+		t.Fatal("the refused append changed the script")
+	}
+}
+
+// peerAfterFirstSwapWrapper lets the first `git update-ref` through, then lands
+// a peer commit of mine.txt, so the peer sits between the script's own first
+// and second commits on that path.
+const peerAfterFirstSwapWrapper = `#!/bin/bash
+if [ "${1:-}" = update-ref ] && [ ! -e "$ZE_TEST_ROOT/.git/peer-done" ]; then
+  _ze_status=0
+  "$ZE_TEST_REAL_GIT" "$@" || _ze_status=$?
+  : > "$ZE_TEST_ROOT/.git/peer-done"
+  ( unset GIT_INDEX_FILE; cd "$ZE_TEST_ROOT" &&
+    printf 'the peer version\n' > mine.txt &&
+    "$ZE_TEST_REAL_GIT" add -- mine.txt &&
+    "$ZE_TEST_REAL_GIT" -c commit.gpgsign=false commit -q -m "peer commit" ) < /dev/null > /dev/null
+  exit "$_ze_status"
+fi
+exec "$ZE_TEST_REAL_GIT" "$@"
+`
+
+// TestAPeerCommitBetweenTwoOwnCommitsOnOnePathIsRefused names mine.txt in two
+// blocks of one script and lands a peer's change to it between them.
+//
+// VALIDATES: the second block leaves out only the first block's own commit, by
+// exact SHA, still sees the peer's commit, refuses, and leaves it as HEAD.
+// PREVENTS: the own-commit exclusion hiding a peer's change that landed after
+// the script's first commit on the same path.
+func TestAPeerCommitBetweenTwoOwnCommitsOnOnePathIsRefused(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "peer-between-own-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "one\n")
+	first, err := Create(root, &Options{Subject: "the first block", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFixture(t, root, "mine.txt", "one\ntwo\n")
+	second, err := Create(root, &Options{Subject: "the second block", Files: []string{"mine.txt"}, Append: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := runScriptWithGit(t, root, first.Script, peerAfterFirstSwapWrapper)
+
+	assertRefusedInPlace(t, root, headOf(t, root), second.Message, output, err)
+	subjects := strings.Split(strings.TrimSpace(runCommitGitOutput(t, root, "log", "--format=%s", "-n", "2")), "\n")
+	if !slices.Equal(subjects, []string{"peer commit", "the first block"}) {
+		t.Fatalf("the script left %q, want the peer's commit on the first block\n%s", subjects, output)
+	}
+	if content := runCommitGitOutput(t, root, "show", "HEAD:mine.txt"); content != "the peer version\n" {
+		t.Fatalf("HEAD:mine.txt = %q, want the peer's content\n%s", content, output)
+	}
+	if !strings.Contains(output, "mine.txt") {
+		t.Fatalf("the refusal does not name the path:\n%s", output)
+	}
+}

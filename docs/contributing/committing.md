@@ -40,7 +40,7 @@ to an author who had been warned about those exact files minutes beforehand.
 | `remove` | yes | One tracked file to delete, named exactly: a directory or a glob is refused at create time, because the script removes one index entry by its literal name. The commit removes it from Git, then the script deletes the working-tree copy when that copy is what the commit removed. Leave the file in place: no `rm` beforehand |
 | `remove-list` | yes | A file holding one tracked path to delete per line, each handled as `remove` handles one |
 | `replace` | no | Start a fresh script. Use it for the first commit of a session |
-| `append` | no | Add another commit block to a script that already exists |
+| `append` | no | Add another commit block to a script that already exists. A script an older `./le` prepared, whose blocks do not record the commits they publish, is refused: prepare a fresh one with `replace` |
 | `script` | no | The script to append to. `create` with no `script` always gets a distinct path |
 | `session` | no | The eight-hex commit namespace. `./le commit session` creates or reuses this harness session's |
 | `tag` | no | The block tag inside the script |
@@ -157,25 +157,33 @@ them. One commit block holds, in order:
 1. A `# Commit <tag>: <subject>` comment and a `# ze-commit-block:` marker
    naming the tag and every path.
 2. The critical-review gate re-check, when the commit closes a spec.
-3. Before the loop, two checks that `git commit` makes and `git commit-tree`
-   does not. The message is passed through `git stripspace`, the cleanup
-   `git commit -F` applies, and an empty result is refused. `commit.gpgSign` is
-   read with `git config --type=bool`: unset means unsigned, as with
-   `git commit`, and a value git cannot read as a boolean is refused rather than
-   read as unset. Then the parent, read ONCE:
-   `_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`. Before building on
-   it, the block lists the commits between the HEAD it compares with and that
-   parent which change a path it names, leaving out the commits this script
-   published itself, because an appended block may name a path an earlier block
+3. Before the loop, three checks on the message and the signing setting, then
+   the starting point. A missing message file is refused first: a block deletes
+   its message once its commit lands, so a missing one on a rerun means the
+   block already published or the file was cleaned up, and the refusal says to
+   check `git log` for the subject and prepare whatever is still uncommitted
+   again. The message is then passed through `git stripspace`, the cleanup
+   `git commit -F` applies, and an empty result is refused, as `git commit`
+   refuses it. `commit.gpgSign` is read with `git config --type=bool`: unset
+   means unsigned, as with `git commit`, and a value git cannot read as a
+   boolean is refused rather than read as unset. Last, `_ze_parent` is set to
+   the block's recorded `PreparedHead`, the HEAD `create` read just before it
+   took this block's snapshot. Each block records its own, so an appended block
+   prepared later compares with its own moment.
+   The loop starts here and runs to the swap in step 6. Each attempt keeps the
+   HEAD it compares with in `_ze_seen`, then reads the parent ONCE:
+   `_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`. On the first attempt
+   `_ze_seen` is the recorded `PreparedHead`; on a later one it is the parent
+   the attempt before it read. Before building on the parent, the block lists
+   the commits between `_ze_seen` and the parent which change a path it names,
+   leaving out, by exact SHA, the commits this script published itself
+   (`_ze_own`), because an appended block may name a path an earlier block
    committed. Any left is a peer's change the snapshot never held, so the block
    refuses, names the paths, and asks for a fresh `create`: building on it would
-   write content prepared before the change over it. The first attempt compares
-   with the HEAD `create` read just before it took the snapshot, which each
-   block records for itself, so an appended block prepared later compares with
-   its own moment; a later attempt compares with the parent the attempt before
-   it read. Then `git read-tree "$_ze_parent"` into
-   `<script-path-without-.sh>.index`, the private index this block commits
-   from. Steps 3 to 6 are one loop, and step 6 is what sends it round again.
+   write content prepared before the change over it. Then
+   `git read-tree "$_ze_parent"` into `<script-path-without-.sh>.index`, the
+   private index this block commits from. Steps 4 to 6 run inside the same
+   loop, and a refused swap in step 6 whose HEAD moved sends it round again.
 4. `git update-index --index-info` with one `git ls-files -s` line per path,
    written by `snapshotIndexEntries` when `create` ran. The line names the blob,
    so the content is fixed at preparation time. A blob a `git gc --prune` has
@@ -201,7 +209,11 @@ them. One commit block holds, in order:
    check refuses if that peer changed a named path. If HEAD did not move, git
    refused for another reason, a stale ref lock or a permission, so the script
    stops with git's own error rather than retrying and reporting a race that
-   never happened. Every refusal opens `ERROR: commit <tag> (<subject>) was not published`.
+   never happened. When git names a lock file, the refusal names it too, and
+   says to run the script again once the other git command finishes, removing
+   the lock only when no git process is running: git waited only
+   `core.filesRefLockTimeout`, so the holder may be a live git that is slow.
+   Every refusal before the branch moves opens `ERROR: commit <tag> (<subject>) was not published`.
    The landed commit is printed as `[<short-sha>] <subject>` with its stat.
 7. A drift note, then the message file is deleted. The note stages the working
    tree into a throwaway index and reports any named path whose content, mode,

@@ -563,6 +563,9 @@ func composeScript(root, existing, scriptPath, session string, block commitBlock
 		if err != nil {
 			return "", err
 		}
+		if err := refuseBlocksWithoutBookkeeping(scriptPath, body); err != nil {
+			return "", err
+		}
 		body = strings.TrimRight(body, "\n") + "\n\n"
 	}
 	body += renderBlock(block, scriptPath)
