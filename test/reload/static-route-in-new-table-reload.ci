@@ -1,0 +1,74 @@
+# Test: one reload that adds a routing table and a static route in it commits.
+# Initial config: routing-table red (id 100); static has a blackhole route in
+#                 the default table.
+# After SIGHUP:   routing-table also defines lns (id 200), and static gains a
+#                 blackhole route in table lns. Both arrive in one commit.
+# Expected: the commit succeeds: static verifies the route's table against
+#           the routing-table section of the same commit, so lns resolves
+#           although the routing-table plugin installs it only at apply.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses R-9: static's verify
+#            resolves a route's table through candidateTables, never through
+#            the installed registry.
+# PREVENTS: a commit that adds a table and a route in it refused with
+#           `routing-table "lns": not found`, because every participant
+#           verifies before any applies.
+#
+# DISCRIMINATION: with candidateTables answering routingtable.GetRegistry()
+# (the installed registry), the reload is refused with
+# `routing-table "lns": not found` and the "static routes reloaded" line never
+# appears. Unit level: TestStaticVerifyResolvesCandidateTable.
+
+# static loads the interface plugin, which needs a Linux backend, as every
+# test under test/static does.
+option=needs-linux:caps=net-admin
+
+option=env:var=ze.log.static:value=info
+option=env:var=ze.log.routing.table:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+routing-table {
+	table red {
+		id 100
+	}
+}
+static {
+	table default {
+		route 192.0.2.0/24 {
+			blackhole { }
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+routing-table {
+	table red {
+		id 100
+	}
+	table lns {
+		id 200
+	}
+}
+static {
+	table default {
+		route 192.0.2.0/24 {
+			blackhole { }
+		}
+	}
+	table lns {
+		route 198.51.100.0/24 {
+			blackhole { }
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=sighup reload complete:then=stop
+expect=stderr:pattern=routing-table registry loaded.*count=2
+expect=stderr:contains=static routes reloaded
+reject=stderr:contains=not found
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic
