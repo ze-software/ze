@@ -238,6 +238,10 @@ func encapPortsByDir(t *testing.T, sas []dataplane.SAParams) (in, out [2]uint16)
 			in, haveIn = pair, true
 		case dataplane.SADirOut:
 			out, haveOut = pair, true
+		case dataplane.SADirFwd:
+			// A Child SA installs one inbound and one outbound state (child.go); forward is
+			// a policy direction only, so a forward state here is an engine defect.
+			t.Fatalf("state %d has direction fwd: a Child SA state is inbound or outbound", i)
 		}
 	}
 	if !haveIn || !haveOut {

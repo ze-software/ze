@@ -33,8 +33,7 @@ var mupIPv6Fam = family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMUP}
 // then tail (Source Address Length and TLVs).
 func t1stBody(last byte, tail ...byte) []byte {
 	body := make([]byte, 8)
-	body = append(body, 32, 10, 0, 0, last)
-	body = append(body, 0, 0, 0, 1, 9, 32, 192, 0, 2, 1)
+	body = append(body, 32, 10, 0, 0, last, 0, 0, 0, 1, 9, 32, 192, 0, 2, 1)
 	return append(body, tail...)
 }
 

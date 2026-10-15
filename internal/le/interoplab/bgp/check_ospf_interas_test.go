@@ -1,3 +1,5 @@
+//go:build ze_bgp
+
 // Design: docs/architecture/testing/interop.md -- inter-AS oracle boundary cases.
 // Related: check_ospf_interas.go -- source schema and FRR flooding predicates.
 package bgp

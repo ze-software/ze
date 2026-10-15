@@ -143,7 +143,7 @@ func bgpPeerAS(body []byte) (uint32, error) {
 // a BGP speaker MUST use the value of the octet following the one-octet
 // Optional Parameters Length field (labeled "Non-Ext OP Type" in Figure 1) to
 // determine both the encoding of the Optional Parameters length and the size
-// of the Parameter Length field of individual Optional Parameters."
+// of the Parameter Length field of individual Optional Parameters.".
 func bgpPeerOptionalParams(body []byte) ([]byte, bool, error) {
 	paramsLen := int(body[9])
 	if paramsLen > 0 && len(body) > 10 && body[10] == 255 {

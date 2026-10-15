@@ -260,7 +260,7 @@ func (a *reactorAPIAdapter) peerSettingsFromOperationConfig(op *rpc.ConfigOperat
 	routerID := operationRootRouterID(bgpRoot)
 
 	peerTree := root
-	if peerSection, ok := bgpRoot["peer"].(map[string]any); ok {
+	if peerSection, ok := bgpRoot[configListNamePeer].(map[string]any); ok {
 		rawPeer, exists := peerSection[peerName]
 		if !exists {
 			return nil, fmt.Errorf("bgp operation %s peer %q not found in config", op.Type, peerName)

@@ -124,8 +124,9 @@ func hcSections(t *testing.T, probes map[string]any) []sdk.ConfigSection {
 	return []sdk.ConfigSection{{Root: configRootBGP, Data: mustMarshalStr(t, tree)}}
 }
 
-func hcProbe(group string, upMetric int) map[string]any {
-	return map[string]any{"command": "true", "group": group, "interval": 1, "rise": 1, "fall": 1, "debounce": true, "up-metric": upMetric}
+// hcProbe is one always-up probe config in the group "hc-dns", announcing upMetric.
+func hcProbe(upMetric int) map[string]any {
+	return map[string]any{"command": "true", "group": "hc-dns", "interval": 1, "rise": 1, "fall": 1, "debounce": true, "up-metric": upMetric}
 }
 
 // TestHealthcheckApplyDoesNotWaitForProbeExit proves AC-16 and R-8: a reload
@@ -140,7 +141,7 @@ func TestHealthcheckApplyDoesNotWaitForProbeExit(t *testing.T) {
 	defer stopAll(t, mgr, h)
 	tx := newHealthcheckConfigTx(mgr)
 
-	if err := tx.Configure(hcSections(t, map[string]any{"dns": hcProbe("hc-dns", 100)})); err != nil {
+	if err := tx.Configure(hcSections(t, map[string]any{"dns": hcProbe(100)})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	waitFor(t, "the first announce", func() bool { return len(h.snapshot()) == 1 })
@@ -181,17 +182,17 @@ func TestHealthcheckChangedProbeWaitsForOldExit(t *testing.T) {
 	}{
 		{
 			name: "same name",
-			next: map[string]any{"dns": hcProbe("hc-dns", 200)},
+			next: map[string]any{"dns": hcProbe(200)},
 			want: []string{cmdAnnounce + " hc-dns med 100", cmdWithdraw + " hc-dns", cmdAnnounce + " hc-dns med 200"},
 		},
 		{
 			name: "other name same group",
-			next: map[string]any{"web": hcProbe("hc-dns", 200)},
+			next: map[string]any{"web": hcProbe(200)},
 			want: []string{cmdAnnounce + " hc-dns med 100", cmdWithdraw + " hc-dns", cmdAnnounce + " hc-dns med 200"},
 		},
 		{
 			name:     "rollback restarts the previous probe after the canceled waiter",
-			next:     map[string]any{"dns": withIP(hcProbe("hc-dns", 200), "192.0.2.2/32")},
+			next:     map[string]any{"dns": withIP(hcProbe(200), "192.0.2.2/32")},
 			rollback: true,
 			want:     []string{cmdAnnounce + " hc-dns med 100", cmdWithdraw + " hc-dns", cmdAnnounce + " hc-dns med 100"},
 		},
@@ -204,7 +205,7 @@ func TestHealthcheckChangedProbeWaitsForOldExit(t *testing.T) {
 			defer stopAll(t, mgr, h)
 			tx := newHealthcheckConfigTx(mgr)
 
-			first := map[string]any{"dns": withIP(hcProbe("hc-dns", 100), "192.0.2.1/32")}
+			first := map[string]any{"dns": withIP(hcProbe(100), "192.0.2.1/32")}
 			if err := tx.Configure(hcSections(t, first)); err != nil {
 				t.Fatalf("configure: %v", err)
 			}

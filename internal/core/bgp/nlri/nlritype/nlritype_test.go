@@ -256,9 +256,10 @@ func TestGetReturnsOnlyRuledFamilies(t *testing.T) {
 var mupFamily = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMUP}
 
 // mupISD frames an IPv4 Interwork Segment Discovery NLRI (draft-ietf-bess-mup-safi
-// Section 3.1.1): architecture 1, route type 1, RD 0:0, the prefix, then trailing octets.
-func mupISD(prefixBits byte, prefix []byte, trailing ...byte) []byte {
-	body := append(make([]byte, 8), prefixBits)
+// Section 3.1.1): architecture 1, route type 1, RD 0:0, the prefix length (every octet of
+// prefix counted, so the length always matches the octets), the prefix, then trailing octets.
+func mupISD(prefix []byte, trailing ...byte) []byte {
+	body := append(make([]byte, 8), byte(len(prefix)*8))
 	body = append(append(body, prefix...), trailing...)
 	return append([]byte{1, 0, 1, byte(len(body))}, body...)
 }
@@ -272,8 +273,8 @@ func withdrawAll([]byte, bool) Verdict { return Withdraw }
 // PREVENTS: a malformed route staying installed, or a withdrawal that names no route being
 // relayed.
 func TestRetainSplitsWithdrawnFromUnkeyable(t *testing.T) {
-	keyable := mupISD(24, []byte{10, 0, 0})
-	unkeyableISD := mupISD(24, []byte{10, 0, 1}, 0xff) // one octet past the prefix
+	keyable := mupISD([]byte{10, 0, 0})
+	unkeyableISD := mupISD([]byte{10, 0, 1}, 0xff) // one octet past the prefix
 	pathID := []byte{0, 0, 0, 7}
 	data := append(append(append([]byte{}, pathID...), keyable...), append(append([]byte{}, pathID...), unkeyableISD...)...)
 
@@ -297,7 +298,7 @@ func TestRetainSplitsWithdrawnFromUnkeyable(t *testing.T) {
 // PREVENTS: the withdrawal of a malformed route, which an upstream speaker relays after
 // its own treat-as-withdraw, being dropped so the route stays installed downstream.
 func TestRetainKeepsWithdrawVerdictInAWithdrawal(t *testing.T) {
-	data := mupISD(24, []byte{10, 0, 1}, 0xff)
+	data := mupISD([]byte{10, 0, 1}, 0xff)
 	r, err := Retain(withdrawAll, mupFamily, data, false, false, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -311,7 +312,7 @@ func TestRetainKeepsWithdrawVerdictInAWithdrawal(t *testing.T) {
 // PREVENTS: the key check that decides withdraw against discard costing an allocation per
 // malformed NLRI a peer sends. (Splitting the section allocates, as it did before.)
 func TestRetainVerdictAllocatesNothing(t *testing.T) {
-	one := mupISD(24, []byte{10, 0, 0})
+	one := mupISD([]byte{10, 0, 0})
 	var scratch [nlrisplit.PrefixKeyScratchSize]byte
 	key := nlrisplit.GetPrefixKey(mupFamily)
 	if n := testing.AllocsPerRun(100, func() {

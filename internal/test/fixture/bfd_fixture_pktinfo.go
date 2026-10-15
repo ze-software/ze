@@ -81,7 +81,7 @@ func bfdFirstPacketFor(ctx context.Context, plugin *sdk.Plugin, network, peer, l
 	stop := make(chan struct{})
 	defer close(stop)
 	sendErr := make(chan error, 1)
-	go bfdInjectFirstPackets(network, peer, local, discr, stop, sendErr) //nolint:goroutine-lifecycle // per-fixture lifecycle, stopped by the defer above
+	go bfdInjectFirstPackets(network, peer, local, discr, stop, sendErr) // goroutine-lifecycle: per-fixture lifecycle, stopped by the defer above
 
 	deadline := time.Now().Add(bfdPktinfoSendWindow)
 	for time.Now().Before(deadline) {

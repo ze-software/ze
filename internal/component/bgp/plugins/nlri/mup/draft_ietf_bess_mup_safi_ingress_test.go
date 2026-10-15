@@ -81,12 +81,11 @@ func TestMUPDefinedRouteTypesSurviveIngress(t *testing.T) {
 		w := addrOctets(fam.AFI)
 		rd := make([]byte, 8)
 		addr := func() []byte { return make([]byte, w) }
-		cat := func(parts ...[]byte) []byte { return concatNLRI(parts...) }
 		section := concatNLRI(
-			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPISD), cat(rd, []byte{byte(w * 8)}, addr())...),
-			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPDSD), cat(rd, addr())...),
-			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT1ST), cat(rd, []byte{byte(w * 8)}, addr(), []byte{0, 0, 0, 1, 9, 32, 192, 0, 2, 1})...),
-			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT2ST), cat(rd, []byte{byte(w*8 + 32)}, addr(), []byte{1, 2, 3, 4})...),
+			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPISD), concatNLRI(rd, []byte{byte(w * 8)}, addr())...),
+			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPDSD), concatNLRI(rd, addr())...),
+			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT1ST), concatNLRI(rd, []byte{byte(w * 8)}, addr(), []byte{0, 0, 0, 1, 9, 32, 192, 0, 2, 1})...),
+			mupWireNLRI(byte(MUPArch3GPP5G), uint16(MUPT2ST), concatNLRI(rd, []byte{byte(w*8 + 32)}, addr(), []byte{1, 2, 3, 4})...),
 		)
 		kept, dropped := retainMUP(t, fam, section)
 		assert.Zero(t, dropped, "%s: no defined route type is ignored", fam)

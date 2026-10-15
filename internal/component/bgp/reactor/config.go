@@ -694,7 +694,7 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	// report success with an empty peer set, which ApplyConfigDiff reconciles
 	// by tearing every session down (ai/rules/evidence.md: a zero that reads
 	// as a valid answer).
-	peerSection, ok := bgpTree["peer"]
+	peerSection, ok := bgpTree[configListNamePeer]
 	if !ok {
 		return nil, nil
 	}

@@ -576,7 +576,7 @@ func (h *updateDelayHold) stoppingLocked() bool {
 // than a second liveness test here that would disagree with it.
 func runHeldInitialUpdates(peers []*Peer) {
 	for _, p := range peers {
-		go p.sendInitialRoutes() //nolint:goroutine-lifecycle // per-session lifecycle, not per-event
+		go p.sendInitialRoutes() // goroutine-lifecycle: per-session lifecycle, not per-event
 	}
 }
 
@@ -642,7 +642,7 @@ func (p *Peer) startInitialRoutes() {
 	if r != nil && r.updateDelay.holdInitialUpdate(p) {
 		return
 	}
-	go p.sendInitialRoutes() //nolint:goroutine-lifecycle // per-session lifecycle, not per-event
+	go p.sendInitialRoutes() // goroutine-lifecycle: per-session lifecycle, not per-event
 }
 
 // updateDelayPeerDown tells the startup convergence hold this peer has left

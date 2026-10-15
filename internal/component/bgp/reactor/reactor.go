@@ -933,6 +933,11 @@ func (r *Reactor) ReconcilePeersWithJournal(bgpTree map[string]any, j registry.C
 	return a.reconcilePeersJournaled(loaded.peers, loaded.globals, loaded.groups, "apply config diff", j)
 }
 
+// eventKeyPeer is the JSON key that carries the peer address in the payload of
+// the (bgp, congested), (bgp, resumed) and (bgp, update-notification) events.
+// It is not configListNamePeer: that names a config tree level, this a payload field.
+const eventKeyPeer = "peer"
+
 // emitCongestionEventBus emits a (bgp, congested) or (bgp, resumed) event
 // depending on eventType. eventType MUST be bgpevents.EventCongested or
 // bgpevents.EventResumed. No-op if no EventBus.
@@ -940,7 +945,7 @@ func (r *Reactor) emitCongestionEventBus(peerAddr, eventType string) {
 	if r.eventBus == nil {
 		return
 	}
-	data, err := json.Marshal(map[string]string{"peer": peerAddr})
+	data, err := json.Marshal(map[string]string{eventKeyPeer: peerAddr})
 	if err != nil {
 		return
 	}
@@ -958,8 +963,8 @@ func (r *Reactor) emitUpdateNotificationEvent(peerAddr, direction string) {
 		return
 	}
 	data, err := json.Marshal(map[string]string{
-		"peer":      peerAddr,
-		"direction": direction,
+		eventKeyPeer: peerAddr,
+		"direction":  direction,
 	})
 	if err != nil {
 		return

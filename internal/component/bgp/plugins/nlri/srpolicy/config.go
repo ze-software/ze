@@ -254,7 +254,7 @@ type srpSegmentList struct {
 // MPLS label bounds for SR Policy origination.
 const (
 	// mplsLabelMax is the largest 20-bit label value. RFC 3032 Section 2.1: "This
-	// 20-bit field carries the actual value of the Label."
+	// 20-bit field carries the actual value of the Label.".
 	mplsLabelMax = 1<<20 - 1
 	// bindingSIDLabelMin is the smallest Binding SID label outside the reserved range.
 	bindingSIDLabelMin = 16

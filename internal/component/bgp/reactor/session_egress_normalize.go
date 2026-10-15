@@ -112,7 +112,7 @@ func normalizeTransmittedUpdate(body []byte) int {
 // confirmed against the kept prefix, so the answer is exact either way.
 //
 // RFC 8092 Section 3: "Duplicate BGP Large Community values MUST NOT be
-// transmitted."
+// transmitted.".
 func compactLargeCommunities(value []byte) int {
 	count := len(value) / largeCommunityOctets
 	filtered := count > largeCommunityPairScanMax

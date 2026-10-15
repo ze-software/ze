@@ -1,3 +1,5 @@
+//go:build ze_bgp
+
 // Design: docs/architecture/testing/interop.md -- inter-AS source and flooded-LSA evidence.
 // Related: check_ospf_bgpls.go -- the collector checks the resulting BGP-LS inventory.
 // FRR: https://github.com/FRRouting/frr/blob/frr-10.3.1/ospfd/ospf_vty.c

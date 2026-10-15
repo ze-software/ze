@@ -36,7 +36,7 @@ func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
 	mgr := newHeldManager(h, &mockIPManager{})
 	defer stopAll(t, mgr, h)
 	tx := newHealthcheckConfigTx(mgr)
-	probes := map[string]any{"dns": hcProbe("hc-dns", 100)}
+	probes := map[string]any{"dns": hcProbe(100)}
 
 	if err := tx.Configure(withOtherPeer(t, hcSections(t, probes), "first")); err != nil {
 		t.Fatalf("configure: %v", err)

@@ -618,7 +618,7 @@ func (p *Peer) runOnce() error {
 	p.receivePublication.Store(publication)
 
 	// Long-lived delivery worker (channel + worker pattern, not per-event).
-	go func() { //nolint:goroutine-lifecycle // channel worker pattern: reads from p.deliverChan
+	go func() { // goroutine-lifecycle: channel worker pattern: reads from p.deliverChan
 		defer close(deliveryDone)
 		// Recovery exits the loop — remaining buffered items are dropped.
 		// This is intentional: a panic indicates a bug, and the session will

@@ -38,7 +38,7 @@ import (
 
 // bgpVersion is the BGP version the fabricated Loc-RIB OPEN carries.
 //
-// RFC 4271 Section 4.2: "Version: ... The current BGP version number is 4."
+// RFC 4271 Section 4.2: "Version: ... The current BGP version number is 4.".
 const bgpVersion uint8 = 4
 
 // locRIBTableName is the VRF/Table Name ze reports for its one Loc-RIB.

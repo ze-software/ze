@@ -200,7 +200,7 @@ func bfdFirstPacketLinkLocalScenario(ctx context.Context, plugin *sdk.Plugin) er
 	}()
 	for _, end := range ends {
 		writers.Add(1)
-		go end.inject(stop, writeErr, &writers) //nolint:goroutine-lifecycle // one writer per link for the run, stopped and waited for by the defer above
+		go end.inject(stop, writeErr, &writers) // goroutine-lifecycle: one writer per link for the run, stopped and waited for by the defer above
 	}
 
 	if err := bfdLinkLocalAwaitSelection(ctx, plugin, ends, writeErr); err != nil {
