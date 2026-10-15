@@ -22,13 +22,20 @@
 # is proven in Go by TestConfigTxUnchangedSubtreeIsNoop
 # (as112/config_tx_unchanged_test.go).
 
-# The client asks over DNS over TLS on the leased port. as112 serves cleartext
-# DNS on port 53 only (as112Port), which an unprivileged host cannot bind:
-# Linux refuses every port below 1024 and Darwin refuses 127.0.0.1:53. The
-# cleartext listeners fail and are logged, and the DoT listener on loopback
-# answers from the same snapshot (answerQuery). With no cert-file, Ze serves
-# an ephemeral self-signed certificate.
+# The client asks over DNS over TLS on the leased port. With no cert-file, Ze
+# serves an ephemeral self-signed certificate.
+#
+# needs-linux, net-bind: as112 serves cleartext DNS on port 53 only
+# (as112Port, RFC 7534), and a reload binds every listener or none (R-13,
+# dnsserver.BindStrict): a reload whose port 53 listeners cannot be bound is
+# refused, so the test needs a host that can bind port 53 (CAP_NET_BIND_SERVICE)
+# and the anycast addresses (IP_FREEBIND, Linux). An unprivileged host refuses
+# port 53 (Linux below 1024, Darwin on 127.0.0.1 and ::1), so there the reload
+# is correctly refused and this test is skipped. It binds 127.0.0.1:53, as the
+# `le test dns` stub does, so it shares that stub's exclusive group.
 
+option=needs-linux:caps=net-bind
+option=exclusive:group=dns-stub-port-53
 option=env:var=ze.log.as112:value=info
 
 stdin=ze-bgp:terminator=EOF_CONF

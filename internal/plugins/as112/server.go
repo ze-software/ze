@@ -250,9 +250,9 @@ func (s *as112Server) apply(enabled bool, endpoints []dnsserver.Endpoint) error 
 // any DoT (RFC 7858) / DoH (RFC 8484) listeners on the same addresses sharing
 // the tls cert material. A pure host-data change is a no-op; a listener-set or
 // certificate change stops and rebinds (dnsserver's listener-signature check).
-func (s *as112Server) applyConfig(cfg as112Config) error {
+func (s *as112Server) applyConfig(cfg as112Config, policy dnsserver.BindPolicy) error {
 	plain := serverEndpoints(cfg.AddressFamily)
-	return s.mgr.ApplyWithSecure(cfg.Enabled, plain, cfg.Secure, loggerPtr.Load())
+	return s.mgr.ApplyWithSecure(cfg.Enabled, plain, cfg.Secure, policy, loggerPtr.Load())
 }
 
 func (s *as112Server) stopAll() { s.mgr.Stop() }

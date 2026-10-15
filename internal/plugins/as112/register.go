@@ -252,7 +252,7 @@ func runAS112Plugin(conn net.Conn) int {
 	defer unsubReplay()
 
 	inst := &as112Installer{prod: prod, mgr: mgr, log: log}
-	registerAS112ConfigTx(p, sdk.NewConfigTx(as112Config{}, parseAS112Sections, inst.install))
+	registerAS112ConfigTx(p, sdk.NewConfigTx(as112Config{}, parseAS112Sections, inst.install), inst)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()

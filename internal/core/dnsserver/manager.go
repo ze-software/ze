@@ -99,6 +99,12 @@ type Manager struct {
 	// goroutine.
 	selfSigned *tls.Config
 
+	// running and runningEnabled are the listener set of the last completed
+	// apply, which a strict apply that fails binds again. Written only by the
+	// Apply-calling goroutine.
+	running        Listeners
+	runningEnabled bool
+
 	mu         sync.Mutex
 	applied    string
 	generation int
@@ -141,6 +147,9 @@ func endpointSig(enabled bool, endpoints []Endpoint) string {
 // reconcile, or an operator re-commit, including reverting straight back to
 // a previously-good endpoint set after an intervening failed Apply) has to
 // actually retry the bind, not silently no-op with zero listeners up.
+//
+// Apply binds leniently (BindLenient); a reload goes through ApplyWithSecure,
+// which names its policy.
 func (m *Manager) Apply(enabled bool, endpoints []Endpoint) error {
 	return m.applyListeners(enabled, Listeners{Plain: endpoints})
 }
@@ -155,6 +164,13 @@ func (m *Manager) setApplied(sig string) {
 	m.mu.Lock()
 	m.applied = sig
 	m.mu.Unlock()
+}
+
+// setRunning records a completed apply: its signature, and the listener set a
+// later strict apply that fails binds again.
+func (m *Manager) setRunning(sig string, enabled bool, l Listeners) {
+	m.running, m.runningEnabled = l, enabled
+	m.setApplied(sig)
 }
 
 // bind opens a UDP and a TCP listener on ep (best-effort: the caller logs and

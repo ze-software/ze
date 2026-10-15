@@ -127,7 +127,7 @@ func runGeoDNSPlugin(conn net.Conn) int {
 	mgr := newServerManager(log)
 
 	inst := &geodnsInstaller{mgr: mgr, log: log}
-	registerGeoDNSConfigTx(p, sdk.NewConfigTx(geodnsConfig{}, parseGeoDNSSections, inst.install))
+	registerGeoDNSConfigTx(p, sdk.NewConfigTx(geodnsConfig{}, parseGeoDNSSections, inst.install), inst)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()

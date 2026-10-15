@@ -81,6 +81,23 @@ fixed by invalidating `applied` rather than leaving it:
 Both bugs were found while implementing as112 and both live in shared code, so
 geodns inherited the fixes.
 
+## Boot binds leniently, a reload binds all or nothing
+
+`ApplyWithSecure` takes a `BindPolicy` from its caller. `BindLenient` is the
+boot (Stage 2) policy: a listener that cannot be bound, or DoT and DoH TLS
+material that cannot be loaded, is logged and the rest serve; the apply fails
+only when nothing bound. `BindStrict` is the reload policy: a TLS load failure
+refuses before any listener stops, and the first listener that cannot be bound
+stops what this apply bound, binds the previous apply's listeners again
+(leniently) and returns an error naming the endpoint and the fix. The plugin's
+installer then puts its previous snapshot back, so the commit fails and the
+running config keeps serving. `Apply`, the cleartext-only primitive, binds
+leniently.
+
+<!-- source: internal/core/dnsserver/secure.go -- BindPolicy, reconcile, bindListeners, ApplyWithSecure -->
+<!-- source: internal/plugins/as112/config_tx.go -- as112Installer.install, configureAtBoot -->
+<!-- source: internal/plugins/geodns/config_tx.go -- geodnsInstaller.install, configureAtBoot -->
+
 ## Freebind
 
 `Options.Freebind` is off by default. The Linux build sets `IP_FREEBIND` with

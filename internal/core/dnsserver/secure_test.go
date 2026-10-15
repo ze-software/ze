@@ -301,7 +301,7 @@ func TestApplyWithSecureSelfSigned(t *testing.T) {
 	mgr := New(testLogger(), echoHandler("10.0.0.5"), Options{})
 	plain := []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: plainPort}}
 	sc := SecureConfig{DoTEnabled: true, DoTPort: dotPort, DoHPath: DefaultDoHPath}
-	if err := mgr.ApplyWithSecure(true, plain, sc, testLogger()); err != nil {
+	if err := mgr.ApplyWithSecure(true, plain, sc, BindLenient, testLogger()); err != nil {
 		t.Fatalf("ApplyWithSecure: %v", err)
 	}
 	t.Cleanup(mgr.Stop)
@@ -333,7 +333,7 @@ func TestApplyWithSecureSelfSigned(t *testing.T) {
 	}
 
 	// Second identical apply: cert must not be regenerated (churn guard).
-	if err := mgr.ApplyWithSecure(true, plain, sc, testLogger()); err != nil {
+	if err := mgr.ApplyWithSecure(true, plain, sc, BindLenient, testLogger()); err != nil {
 		t.Fatalf("ApplyWithSecure (2nd): %v", err)
 	}
 	if mgr.selfSigned != first {

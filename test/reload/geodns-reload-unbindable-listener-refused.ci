@@ -1,0 +1,62 @@
+# Test: a reload that moves geodns onto a listener address the host does not
+#       hold is refused, and geodns keeps the config it ran.
+# Initial config: geodns serves zone a.example. on 127.0.0.1:$PORT.
+# After SIGHUP:   the listener is 192.0.2.1:$PORT (TEST-NET-1, RFC 5737, never
+#                 a local address) and zone b.example. is added.
+# Expected: geodns's apply cannot bind the listener, binds the running
+#           listener again, puts the running snapshot back and returns an
+#           error naming the endpoint and the fix, so the reload fails and
+#           rolls back. No "config applied" line for the two-zone config.
+#
+# VALIDATES: spec-plugin-reload-applies-or-refuses R-13 for geodns
+#            (dnsserver.BindStrict on a reload, BindLenient at boot).
+# PREVENTS: the commit that succeeded while geodns was not listening (the
+#           listener failure was logged and install returned nil).
+#
+# DISCRIMINATION: with the install binding leniently on a reload, the bind
+# failure is logged, install returns nil and logs "config applied" with
+# zones=2, which the reject below refuses, and the "reload refused"
+# expectation fails. geodns binds without IP_FREEBIND, so 192.0.2.1 fails on
+# every platform and this runs everywhere. That the running listener keeps
+# answering is proven in Go by TestInstallReloadToUnbindableListenerIsRefused
+# (geodns/config_tx_strict_test.go).
+
+option=env:var=ze.log.geodns:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+	geodns {
+		enabled true
+		listener v4 {
+			ip 127.0.0.1
+			port $PORT
+		}
+		zone a.example.
+		nameserver 192.0.2.53
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+service {
+	geodns {
+		enabled true
+		listener v4 {
+			ip 192.0.2.1
+			port $PORT
+		}
+		zone a.example.
+		zone b.example.
+		nameserver 192.0.2.53
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=reload error:then=stop
+expect=stderr:pattern=geodns: config applied.*zones=1
+expect=stderr:pattern=reload refused, cannot listen on 192\.0\.2\.1:
+expect=stderr:contains=change the listener, then commit again
+reject=stderr:pattern=geodns: config applied.*zones=2
+reject=stderr:pattern=panic

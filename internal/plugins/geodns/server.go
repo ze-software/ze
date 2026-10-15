@@ -381,17 +381,23 @@ func newServerManager(log *slog.Logger) *geodnsServer {
 	})}
 }
 
-// apply reconciles the bound listeners with cfg: the cleartext UDP+TCP listener
+// apply reconciles the listeners with cfg under dnsserver.BindLenient, the
+// boot policy; the installer goes through reconcile, which names its policy.
+func (s *geodnsServer) apply(cfg geodnsConfig) error {
+	return s.reconcile(cfg, dnsserver.BindLenient)
+}
+
+// reconcile reconciles the bound listeners with cfg: the cleartext UDP+TCP listener
 // set plus any DoT (RFC 7858) / DoH (RFC 8484) listeners on the same IPs sharing
 // the tls cert material. A pure host-data change is a no-op (answerQuery reads
 // the new snapshot via loadState); a listener-set or certificate change stops
 // and rebinds (dnsserver's listener-signature check).
-func (s *geodnsServer) apply(cfg geodnsConfig) error {
+func (s *geodnsServer) reconcile(cfg geodnsConfig, policy dnsserver.BindPolicy) error {
 	plain := make([]dnsserver.Endpoint, len(cfg.Listeners))
 	for i, l := range cfg.Listeners {
 		plain[i] = dnsserver.Endpoint{IP: l.IP, Port: l.Port}
 	}
-	return s.mgr.ApplyWithSecure(cfg.Enabled, plain, cfg.Secure, loggerPtr.Load())
+	return s.mgr.ApplyWithSecure(cfg.Enabled, plain, cfg.Secure, policy, loggerPtr.Load())
 }
 
 func (s *geodnsServer) stopAll() { s.mgr.Stop() }
