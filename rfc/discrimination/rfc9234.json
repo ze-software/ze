@@ -181,7 +181,7 @@
       "claim-sha": "fb4f2aa127b94801",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
-      "producer-sha": "8dffc1871d61f213",
+      "producer-sha": "8158b7c74b9e32ef",
       "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -192,7 +192,7 @@
       "claim-sha": "2bfbc41ecc07b255",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
-      "producer-sha": "8dffc1871d61f213",
+      "producer-sha": "8158b7c74b9e32ef",
       "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -203,7 +203,7 @@
       "claim-sha": "38de6da7dfe55d3c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
-      "producer-sha": "8dffc1871d61f213",
+      "producer-sha": "8158b7c74b9e32ef",
       "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
