@@ -379,6 +379,8 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 						registration := sdk.Registration{FailurePolicy: rpc.FailureFatal}
 						if scenario.outerRejected {
 							registration.WantsConfig = []string{root}
+							// It reads its root at configure only and applies no reload.
+							p.DeclareAppliesNothing("test producer: reads its root at configure only")
 						}
 						return run(p, registration)
 					},

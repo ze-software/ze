@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -119,11 +120,14 @@ func (p *Plugin) initCallbackDefaults() {
 		callbackConfigure: func(params json.RawMessage) (json.RawMessage, error) {
 			return nil, p.handleConfigure(params)
 		},
-		// Config: accept when no handler registered.
-		callbackConfigVerify: marshalStatusOK,
-		// A plugin with no apply handler still accepts an apply, and the gate
-		// records it so a rollback handler registered alone is still reached.
-		callbackConfigApply: p.configApplyCallback(nil),
+		// Config verify: a plugin that can apply a change accepts it when it
+		// registered no verify handler, and one that cannot is refused here,
+		// before any participant applies.
+		callbackConfigVerify: p.configVerifyCallback(acceptConfigSections),
+		// Config apply: refused until OnConfigApply or DeclareAppliesNothing
+		// replaces it. Verify already refused such a plugin, so this answers
+		// only an engine that skipped verify, and it never answers OK.
+		callbackConfigApply: p.refuseConfigApply,
 		callbackConfigRollback: func(json.RawMessage) (json.RawMessage, error) {
 			p.configTx.rollbackOwed()
 			return nil, nil
@@ -450,14 +454,36 @@ func answerFailureMessage(status string, reason []byte) string {
 
 // OnConfigVerify sets the handler for config verification requests (reload pipeline).
 // The handler receives the full candidate config sections and returns nil to accept
-// or an error to reject. If no handler is registered, config-verify returns OK (no-op).
+// or an error to reject. If no handler is registered, config-verify accepts.
+// Either way a plugin that registered neither OnConfigApply nor
+// DeclareAppliesNothing is refused before the handler runs.
 func (p *Plugin) OnConfigVerify(fn ConfigVerifyHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.callbacks[callbackConfigVerify] = func(params json.RawMessage) (json.RawMessage, error) {
+	p.callbacks[callbackConfigVerify] = p.configVerifyCallback(fn)
+}
+
+// acceptConfigSections is the verify of a plugin that registered none: every
+// candidate is accepted.
+func acceptConfigSections([]ConfigSection) error { return nil }
+
+// configVerifyCallback wraps a verify handler. It refuses first when the
+// plugin has no way to apply a change (refuseWithoutApply).
+func (p *Plugin) configVerifyCallback(fn ConfigVerifyHandler) callbackHandler {
+	return func(params json.RawMessage) (json.RawMessage, error) {
 		var input rpc.ConfigVerifyInput
 		if err := json.Unmarshal(params, &input); err != nil {
-			return marshalStatusError(fmt.Sprintf("unmarshal config-verify: %v", err))
+			return marshalStatusError("unmarshal config-verify: " + err.Error())
+		}
+		p.mu.Lock()
+		applies := p.configApplyRegistered
+		p.mu.Unlock()
+		if !applies {
+			roots := make([]string, 0, len(input.Sections))
+			for i := range input.Sections {
+				roots = append(roots, input.Sections[i].Root)
+			}
+			return marshalStatusError(p.refuseWithoutApply(roots))
 		}
 		if err := fn(input.Sections); err != nil {
 			return marshalStatusError(err.Error())
@@ -466,9 +492,50 @@ func (p *Plugin) OnConfigVerify(fn ConfigVerifyHandler) {
 	}
 }
 
+// refuseConfigApply is the config-apply of a plugin that registered neither
+// OnConfigApply nor DeclareAppliesNothing. It refuses, so no code path answers
+// an apply OK without a handler the plugin registered, and it opens no
+// rollback.
+func (p *Plugin) refuseConfigApply(params json.RawMessage) (json.RawMessage, error) {
+	var input rpc.ConfigApplyInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return marshalStatusError("unmarshal config-apply: " + err.Error())
+	}
+	return marshalStatusError(p.refuseWithoutApply(diffSectionRoots(input.Sections)))
+}
+
+// refuseWithoutApply is the refusal of a change to roots for a plugin that
+// registered neither OnConfigApply nor DeclareAppliesNothing: what is refused,
+// why, and the restart that delivers the change at startup instead.
+func (p *Plugin) refuseWithoutApply(roots []string) string {
+	var message textbuf.Buffer
+	message.Str("plugin ").Str(p.name).Str(" cannot apply a change to ")
+	for i, root := range roots {
+		if i > 0 {
+			message.Str(", ")
+		}
+		message.Str(root)
+	}
+	message.Str(" while ze runs: it registered no config apply handler and does not declare").
+		Str(" that it applies nothing, so it would accept the change and keep running the old config\n").
+		Str(RestartSteps())
+	return message.String()
+}
+
+// diffSectionRoots answers the root of each section of a config-apply.
+func diffSectionRoots(sections []ConfigDiffSection) []string {
+	roots := make([]string, 0, len(sections))
+	for i := range sections {
+		roots = append(roots, sections[i].Root)
+	}
+	return roots
+}
+
 // OnConfigApply sets the handler for config apply requests (reload pipeline).
 // The handler receives diff sections describing what changed and returns nil to accept
-// or an error to reject. If no handler is registered, config-apply returns OK (no-op).
+// or an error to reject. fn MUST NOT be nil. A plugin that declares WantsConfig
+// MUST register this or DeclareAppliesNothing: without either, every reload
+// that reaches it is refused at config-verify.
 //
 // A handler that returns an error MUST first undo whatever it partly applied:
 // the transaction's rollback does not reach a plugin whose own apply failed
@@ -477,9 +544,13 @@ func (p *Plugin) OnConfigVerify(fn ConfigVerifyHandler) {
 // handler runs after every accepted apply, and that set belongs to a
 // transaction that already committed.
 func (p *Plugin) OnConfigApply(fn ConfigApplyHandler) {
+	if fn == nil {
+		panic("BUG: OnConfigApply needs a handler; a plugin that applies nothing calls DeclareAppliesNothing")
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackConfigApply] = p.configApplyCallback(fn)
+	p.configApplyRegistered = true
 }
 
 // DeclareAppliesNothing states that this plugin consumes its config roots and
@@ -497,27 +568,23 @@ func (p *Plugin) DeclareAppliesNothing(reason string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackConfigApply] = p.configApplyCallback(func(sections []ConfigDiffSection) error {
-		roots := make([]string, 0, len(sections))
-		for i := range sections {
-			roots = append(roots, sections[i].Root)
-		}
-		slog.Debug("config apply: plugin applies nothing", "plugin", p.name, "roots", roots, "reason", reason)
+		slog.Debug("config apply: plugin applies nothing", "plugin", p.name, "roots", diffSectionRoots(sections), "reason", reason)
 		return nil
 	})
+	p.configApplyRegistered = true
 }
 
-// configApplyCallback wraps a section apply handler, nil for none, and opens
-// the rollback gate when the apply is accepted.
+// configApplyCallback wraps a section apply handler and opens the rollback
+// gate when the apply is accepted. fn MUST NOT be nil: a plugin without one
+// keeps refuseConfigApply.
 func (p *Plugin) configApplyCallback(fn ConfigApplyHandler) callbackHandler {
 	return func(params json.RawMessage) (json.RawMessage, error) {
 		var input rpc.ConfigApplyInput
 		if err := json.Unmarshal(params, &input); err != nil {
-			return marshalStatusError(fmt.Sprintf("unmarshal config-apply: %v", err))
+			return marshalStatusError("unmarshal config-apply: " + err.Error())
 		}
-		if fn != nil {
-			if err := fn(input.Sections); err != nil {
-				return marshalStatusError(err.Error())
-			}
+		if err := fn(input.Sections); err != nil {
+			return marshalStatusError(err.Error())
 		}
 		p.configTx.applied()
 		return marshalStatusOK(nil)

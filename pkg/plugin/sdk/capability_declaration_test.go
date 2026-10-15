@@ -90,6 +90,7 @@ var startupDeclaration = CapabilityDeclaration{
 func startedPlugin(t *testing.T) *Plugin {
 	t.Helper()
 	p, _ := newTestPair(t)
+	p.DeclareAppliesNothing("reads only capability leaves")
 	p.DeclareCapabilitiesFrom(declarationExtractor, softverLeaves)
 	p.composeCapabilityVerify()
 	if err := p.handleStartupConfigure(configureParams(t, startupDeclaration)); err != nil {
@@ -279,6 +280,7 @@ func TestDeclareCapabilitiesFromOwnVerifyAnswersFirst(t *testing.T) {
 	errOwn := errors.New("own refusal")
 	for _, ownFirst := range []bool{true, false} {
 		p, _ := newTestPair(t)
+		p.DeclareAppliesNothing("reads only capability leaves")
 		own := func([]ConfigSection) error { return errOwn }
 		if ownFirst {
 			p.OnConfigVerify(own)
@@ -305,6 +307,7 @@ func TestDeclareCapabilitiesFromOwnVerifyAnswersFirst(t *testing.T) {
 // shape: an extractor that ignores the sections always accepts.
 func TestDeclareCapabilitiesFromConstantExtractor(t *testing.T) {
 	p, _ := newTestPair(t)
+	p.DeclareAppliesNothing("reads only capability leaves")
 	constant := CapabilityDeclaration{Capabilities: []CapabilityDecl{{Code: 2}}}
 	p.DeclareCapabilitiesFrom(func([]ConfigSection) (CapabilityDeclaration, error) {
 		return constant, nil

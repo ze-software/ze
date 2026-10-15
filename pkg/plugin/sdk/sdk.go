@@ -71,6 +71,13 @@ type Plugin struct {
 	// committed nor rolled back (config_tx_gate.go).
 	configTx configTxGate
 
+	// configApplyRegistered is the guard behind the config-verify refusal: it
+	// is set by OnConfigApply and by DeclareAppliesNothing, and while it is
+	// false a reload that reaches this plugin is refused at verify, because
+	// the plugin would accept the change and keep running the old config.
+	// Guarded by mu.
+	configApplyRegistered bool
+
 	// Startup-only callbacks (stages 2, 4, post-startup). Not in the map
 	// because they run during the sequential startup protocol, not the event loop.
 	onConfigure     ConfigureHandler

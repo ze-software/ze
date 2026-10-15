@@ -604,3 +604,79 @@ func TestExecuteCommandRecordResult(t *testing.T) {
 		})
 	}
 }
+
+// decodeConfigAnswer reads a config-verify or config-apply answer.
+func decodeConfigAnswer(t *testing.T, answer json.RawMessage) rpc.ConfigVerifyOutput {
+	t.Helper()
+	var output rpc.ConfigVerifyOutput
+	require.NoError(t, json.Unmarshal(answer, &output), "decode answer %s", answer)
+	return output
+}
+
+// TestConfigApplyWithoutHandlerIsRefused proves AC-10 and AC-12: a plugin that
+// registered neither an apply handler nor DeclareAppliesNothing is refused at
+// config-verify, whether or not it registered a verify handler, and the
+// refusal names the plugin, the changed root and the restart routes; its
+// config-apply never answers OK and opens no rollback; once it registers
+// either form, the same verify is accepted. Method: call the callbacks the
+// engine dispatches to directly, with a bgp section.
+func TestConfigApplyWithoutHandlerIsRefused(t *testing.T) {
+	t.Parallel()
+
+	verifyInput := json.RawMessage(`{"sections":[{"root":"bgp","data":"{}"}]}`)
+	applyInput := json.RawMessage(`{"sections":[{"root":"bgp","added":"{}"}]}`)
+	assertRefused := func(t *testing.T, p *Plugin, answer json.RawMessage) {
+		t.Helper()
+		output := decodeConfigAnswer(t, answer)
+		require.Equal(t, rpc.StatusError, output.Status, "answer %s", answer)
+		for _, want := range []string{
+			"plugin " + p.name, "bgp", "registered no config apply handler",
+			"under systemd: systemctl restart ze", "on the ze appliance: request reboot",
+		} {
+			assert.Contains(t, output.Error, want)
+		}
+		assert.NotContains(t, output.Error, "ze signal restart")
+	}
+
+	t.Run("default verify refuses", func(t *testing.T) {
+		t.Parallel()
+		p, _ := newTestPair(t)
+		answer, err := p.callbacks[callbackConfigVerify](verifyInput)
+		require.NoError(t, err)
+		assertRefused(t, p, answer)
+	})
+	t.Run("a verify handler alone is refused", func(t *testing.T) {
+		t.Parallel()
+		p, _ := newTestPair(t)
+		verified := false
+		p.OnConfigVerify(func([]ConfigSection) error { verified = true; return nil })
+		answer, err := p.callbacks[callbackConfigVerify](verifyInput)
+		require.NoError(t, err)
+		assertRefused(t, p, answer)
+		assert.False(t, verified, "the verify handler ran for a plugin that cannot apply")
+	})
+	t.Run("apply never answers OK", func(t *testing.T) {
+		t.Parallel()
+		p, _ := newTestPair(t)
+		answer, err := p.callbacks[callbackConfigApply](applyInput)
+		require.NoError(t, err)
+		assertRefused(t, p, answer)
+		assert.False(t, p.configTx.rollbackOwed(), "a refused apply opened the rollback gate")
+	})
+	t.Run("an apply handler is accepted", func(t *testing.T) {
+		t.Parallel()
+		p, _ := newTestPair(t)
+		p.OnConfigApply(func([]ConfigDiffSection) error { return nil })
+		answer, err := p.callbacks[callbackConfigVerify](verifyInput)
+		require.NoError(t, err)
+		assert.Equal(t, rpc.StatusOK, decodeConfigAnswer(t, answer).Status, "answer %s", answer)
+	})
+	t.Run("the declaration is accepted", func(t *testing.T) {
+		t.Parallel()
+		p, _ := newTestPair(t)
+		p.DeclareAppliesNothing("reads no leaf")
+		answer, err := p.callbacks[callbackConfigVerify](verifyInput)
+		require.NoError(t, err)
+		assert.Equal(t, rpc.StatusOK, decodeConfigAnswer(t, answer).Status, "answer %s", answer)
+	})
+}

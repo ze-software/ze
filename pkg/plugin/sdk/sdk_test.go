@@ -641,6 +641,7 @@ func TestSDKDispatchConfigVerify(t *testing.T) {
 	t.Parallel()
 
 	p, engine := newTestPair(t)
+	p.OnConfigApply(func([]ConfigDiffSection) error { return nil })
 
 	verifyReceived := make(chan []ConfigSection, 1)
 	p.OnConfigVerify(func(sections []ConfigSection) error {
@@ -837,6 +838,7 @@ func TestSDKConfigVerifyReject(t *testing.T) {
 	t.Parallel()
 
 	p, engine := newTestPair(t)
+	p.OnConfigApply(func([]ConfigDiffSection) error { return nil })
 
 	p.OnConfigVerify(func(sections []ConfigSection) error {
 		return fmt.Errorf("invalid config: missing router-id")
@@ -939,13 +941,16 @@ func TestSDKConfigApplyReject(t *testing.T) {
 
 // TestSDKConfigVerifyNoHandler verifies graceful no-op when no config-verify handler is set.
 //
-// VALIDATES: config-verify with no handler returns OK (not error).
-// PREVENTS: Plugins without config handling crashing on config-verify.
+// VALIDATES: config-verify with no verify handler returns OK (not error) for
+// a plugin that registered an apply handler.
+// PREVENTS: Plugins whose apply needs no verify crashing on config-verify.
 func TestSDKConfigVerifyNoHandler(t *testing.T) {
 	t.Parallel()
 
 	p, engine := newTestPair(t)
-	// No OnConfigVerify registered
+	// No OnConfigVerify registered; the apply handler is what makes the
+	// plugin accept a change (TestConfigApplyWithoutHandlerIsRefused).
+	p.OnConfigApply(func([]ConfigDiffSection) error { return nil })
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -986,10 +991,12 @@ func TestSDKConfigVerifyNoHandler(t *testing.T) {
 	}
 }
 
-// TestSDKConfigApplyNoHandler verifies graceful no-op when no config-apply handler is set.
+// TestSDKConfigApplyNoHandler verifies, through the engine's RPC, that a
+// config-apply reaching a plugin with no apply handler is refused.
 //
-// VALIDATES: config-apply with no handler returns OK (not error).
-// PREVENTS: Plugins without config handling crashing on config-apply.
+// VALIDATES: AC-12: config-apply with no handler answers status "error" in
+// the result, never OK, and the plugin keeps running.
+// PREVENTS: A plugin accepting a change it never applies.
 func TestSDKConfigApplyNoHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1006,20 +1013,22 @@ func TestSDKConfigApplyNoHandler(t *testing.T) {
 
 	completeStartup(t, ctx, engine)
 
-	// Send config-apply — no handler should still get OK
+	// Send config-apply: with no handler it is refused in the result status.
 	applyInput := struct {
 		Sections []ConfigDiffSection `json:"sections"`
 	}{Sections: []ConfigDiffSection{{Root: "bgp", Added: `{}`}}}
 
 	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
-	require.NoError(t, err, "no-handler config-apply should succeed, not error")
+	require.NoError(t, err, "the refusal should be in the result status, not an RPC error")
 
 	// CallRPC returns the result payload directly
 	var result struct {
 		Status string `json:"status"`
+		Error  string `json:"error"`
 	}
 	require.NoError(t, json.Unmarshal(raw, &result))
-	assert.Equal(t, "ok", result.Status)
+	assert.Equal(t, "error", result.Status)
+	assert.Contains(t, result.Error, "registered no config apply handler")
 
 	// Shutdown
 	byeInput := struct {
@@ -2452,6 +2461,7 @@ func TestOnConfigRollbackCallback(t *testing.T) {
 	t.Parallel()
 
 	p, engine := newTestPair(t)
+	p.OnConfigApply(func([]ConfigDiffSection) error { return nil })
 
 	rollbackCalled := make(chan string, 1)
 	p.OnConfigRollback(func(txID string) error {
