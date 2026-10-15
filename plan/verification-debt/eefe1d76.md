@@ -7,4 +7,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-10-15 | eefe1d76 | journal: iface monitor stops on one netlink receive error | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-12T20:25:54Z) | open |
+| 2026-10-15 | eefe1d76 | journal: iface monitor stops on one netlink receive error (+1 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-12T20:25:54Z) | open |
