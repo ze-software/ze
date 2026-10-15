@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-14",
+  "audited": "2026-10-15",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -176,15 +176,16 @@
       "verdict": "partial"
     },
     "RFC9252-3.4-1": {
-      "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 9252 Section 7: 'The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute.' The earlier wrong action is fixed and tested: TestRFC9252ServiceTLVOverrunTreatAsWithdraw asserts treat-as-withdraw of code 40 for a type 5 or 6 TLV overrunning the attribute on IPv4 VPN and IPv6 unicast, with a type 1 and unknown control staying attribute-discard; TestRFC7606PrefixSIDFramingErrorAfterServiceTLV and TestRFC9252SIDInformationStrayOctetsTreatAsWithdraw cover a framing error after a Service TLV and stray Sub-Sub-TLV octets; the earlier trailing-byte and SID Information under 21 units stand; prefixsid-malformed-receive.ci frame (b2) shows the relay withdrawing the route on an overrun. Still unasserted: Section 7's first case, 'The TLV Length is less than 1.' validateSRv6ServiceTLV refuses a value with no RESERVED octet, but no tagged unit feeds a zero-length Service TLV, so breaking that check stays green.",
+      "note": "Re-judged 2026-10-15 (subagent, after ea9bb0a1de). RFC 9252 Section 7: \"The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute.\" and its first malformation case \"The TLV Length is less than 1.\" The one gap the 2026-10-14 weak verdict named is closed: TestRFC9252ZeroLengthServiceTLVTreatAsWithdraw feeds a type 5 and a type 6 Service TLV of length 0 on IPv4 VPN, IPv6 unicast and IPv4/IPv6 labeled unicast (with a conforming Label-Index so RFC 8669 has nothing to refuse) and asserts exactly RFC7606ActionTreatAsWithdraw, AttrCode 40 and an RFC 9252 Section 7 description; the same TLV of length 1 (RESERVED alone) answers RFC7606ActionNone, so the input isolates the length rule. rfc/discrimination/rfc9252.json holds a verified negative revert record for this unit (committed in ea9bb0a1de): validateSRv6ServiceTLV body replaced by a panic turns it red. That whole-function break proves only that the unit reaches the producer. That it discriminates the length-below-1 rule is reasoned, not observed: removing just the RESERVED-octet check would leave value[1:] slicing an empty value, a panic that turns the length-0 subtests red. The other cases stand as judged on 2026-10-14: overrun of attribute 40 (TestRFC9252ServiceTLVOverrunTreatAsWithdraw), Sub-TLV trailing bytes, SID Information under 21 octets, stray Sub-Sub-TLV octets, framing error after a Service TLV, and the prefixsid-malformed-receive.ci relay withdrawal; positive TestValidatePrefixSIDAttr_Valid accepts a well-formed TLV with no action.",
       "requirement_sha": "ea6bba09fa831885",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go::TestValidatePrefixSIDAttr_Valid": "0aa8e78db18e49c6",
         "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_SIDInfoTooShort": "0aa8e78db18e49c6",
         "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_TrailingBytes": "0aa8e78db18e49c6",
-        "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC7606PrefixSIDFramingErrorAfterServiceTLV": "6e4d1edd4793c36c",
-        "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252SIDInformationStrayOctetsTreatAsWithdraw": "6e4d1edd4793c36c",
-        "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252ServiceTLVOverrunTreatAsWithdraw": "6e4d1edd4793c36c",
+        "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC7606PrefixSIDFramingErrorAfterServiceTLV": "e5706566cb3524e5",
+        "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252SIDInformationStrayOctetsTreatAsWithdraw": "e5706566cb3524e5",
+        "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252ServiceTLVOverrunTreatAsWithdraw": "e5706566cb3524e5",
+        "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252ZeroLengthServiceTLVTreatAsWithdraw": "e5706566cb3524e5",
         "test/plugin/prefixsid-malformed-receive.ci": "88d6a95ab28704cc"
       },
       "units": {
@@ -194,9 +195,10 @@
         "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC7606PrefixSIDFramingErrorAfterServiceTLV": "3355b56e612903a5",
         "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252SIDInformationStrayOctetsTreatAsWithdraw": "35fecbda7478f618",
         "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252ServiceTLVOverrunTreatAsWithdraw": "da5a4cea8ed88b5f",
+        "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252ZeroLengthServiceTLVTreatAsWithdraw": "d8643689d13911e5",
         "test/plugin/prefixsid-malformed-receive.ci": "88d6a95ab28704cc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9252-5-1": {
       "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 9252 Section 7: 'The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix.' The earlier findings are answered: isSRv6Ineligible now calls ExtractSRv6SIDFull and srv6SIDValidForFamily, so an invalid SID Structure or a transposition wider than the label field excludes the path. Negatives: TestIsSRv6Ineligible_InvalidSIDStructure (sum 200) and TestSRv6TranspositionWiderThanLabelFieldIsIneligible (24 bits into 20) feed a received VPNv4 UPDATE and assert candidateAdmitted, the gate checkRouteBestChange applies, refuses the stored path; srv6-invalid-sid-ineligible.ci asserts through the daemon that only the valid path of three has a best path. Positives: TestSRv6TranspositionAtLabelWidthIsEligible (exactly 20 bits) is admitted with its SID reconstructed, and TestIsSRv6Ineligible_ValidSID. TestIsSRv6Ineligible_InvalidSID is a structurally malformed Sub-TLV (treat-as-withdraw upstream) and is supplementary.",

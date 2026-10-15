@@ -1,54 +1,57 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-15",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7858-3.1-1": {
-      "note": "Re-judged 2026-09-30. Clause 2 now discriminates: TestDefaultSecureConfig compares the default DoT port with the literal 853 (no longer DefaultDoTPort against itself) and a config enabling tls without listen-port parses to 853; clause 1 stays TestDoTListener (listen, accept, answer). Record: DefaultSecureConfig revert observed red. {single-polarity} holds: a listen-and-accept mandate has no refusal path. Edit to a HEAD test adds assertions only (approval D-15).",
+      "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Re-judged 2026-09-30. Clause 2 now discriminates: TestDefaultSecureConfig compares the default DoT port with the literal 853 (no longer DefaultDoTPort against itself) and a config enabling tls without listen-port parses to 853; clause 1 stays TestDoTListener (listen, accept, answer). Record: DefaultSecureConfig revert observed red. {single-polarity} holds: a listen-and-accept mandate has no refusal path. Edit to a HEAD test adds assertions only (approval D-15).",
       "requirement_sha": "7e27afd1b47d3da4",
       "tests": {
-        "internal/core/dnsserver/secure_test.go::TestDefaultSecureConfig": "fee669cd1008693b",
-        "internal/core/dnsserver/secure_test.go::TestDoTListener": "fee669cd1008693b"
+        "internal/core/dnsserver/secure_test.go::TestDefaultSecureConfig": "8772da30b26b9efc",
+        "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc"
       },
       "units": {
         "internal/core/dnsserver/secure_test.go::TestDefaultSecureConfig": "994c902b60d99365",
-        "internal/core/dnsserver/secure_test.go::TestDoTListener": "b36af85f8477fe36"
+        "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1"
       },
       "verdict": "enforced"
     },
     "RFC7858-3.1-5": {
-      "note": "Forbidden: a server that accepts cleartext DNS as the first data exchange instead of a TLS handshake. TestDoTRefusesCleartext sends a length-prefixed cleartext query over raw TCP and fails at t.Fatalf(\"server answered a cleartext DNS query on the DoT port\") when a DNS reply with the query's Id comes back. Positive: TestDoTListener completes the handshake with a verifying tcp-tls client and asserts the answer. Server role only; the client half is the querying resolver's.",
+      "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Forbidden: a server that accepts cleartext DNS as the first data exchange instead of a TLS handshake. TestDoTRefusesCleartext sends a length-prefixed cleartext query over raw TCP and fails at t.Fatalf(\"server answered a cleartext DNS query on the DoT port\") when a DNS reply with the query's Id comes back. Positive: TestDoTListener completes the handshake with a verifying tcp-tls client and asserts the answer. Server role only; the client half is the querying resolver's.",
       "requirement_sha": "2612398f112ea6ac",
       "tests": {
-        "internal/core/dnsserver/secure_test.go::TestDoTListener": "fee669cd1008693b",
-        "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "fee669cd1008693b"
+        "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc",
+        "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "8772da30b26b9efc"
       },
       "units": {
-        "internal/core/dnsserver/secure_test.go::TestDoTListener": "b36af85f8477fe36",
+        "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1",
         "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "57372c3b27a38923"
       },
       "verdict": "enforced"
     },
     "RFC7858-3.1-8": {
-      "note": "Forbidden: a DNS server responding to a cleartext DNS message on its DoT port, including after the TLS handshake fails. TestDoTRefusesCleartext sends a cleartext query whose bytes fail the TLS handshake and fails at t.Fatalf(\"server answered a cleartext DNS query on the DoT port\") on any unpackable reply with the matching Id. Positive: TestDoTListener asserts the TLS-wrapped query on the same kind of port is answered with the expected A record.",
+      "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Forbidden: a DNS server responding to a cleartext DNS message on its DoT port, including after the TLS handshake fails. TestDoTRefusesCleartext sends a cleartext query whose bytes fail the TLS handshake and fails at t.Fatalf(\"server answered a cleartext DNS query on the DoT port\") on any unpackable reply with the matching Id. Positive: TestDoTListener asserts the TLS-wrapped query on the same kind of port is answered with the expected A record.",
       "requirement_sha": "edba80c2bc5727c9",
       "tests": {
-        "internal/core/dnsserver/secure_test.go::TestDoTListener": "fee669cd1008693b",
-        "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "fee669cd1008693b"
+        "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc",
+        "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "8772da30b26b9efc"
       },
       "units": {
-        "internal/core/dnsserver/secure_test.go::TestDoTListener": "b36af85f8477fe36",
+        "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1",
         "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "57372c3b27a38923"
       },
       "verdict": "enforced"
     },
     "RFC7858-3.3-1": {
-      "note": "Single-polarity positive (row marker). Forbidden: a server response on the TLS session that does not carry the RFC 1035 4.2.2 two-octet length prefix. TestDoTListener uses the miekg tcp-tls client, which reads a two-octet length and then the message; an unprefixed response would be mis-framed and fail at t.Fatalf(\"DoT exchange\") or the answer-count / A-record assertions. The server's reading of prefixed requests is exercised by the same exchange.",
+      "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Single-polarity positive (row marker). Forbidden: a server response on the TLS session that does not carry the RFC 1035 4.2.2 two-octet length prefix. TestDoTListener uses the miekg tcp-tls client, which reads a two-octet length and then the message; an unprefixed response would be mis-framed and fail at t.Fatalf(\"DoT exchange\") or the answer-count / A-record assertions. The server's reading of prefixed requests is exercised by the same exchange.",
       "requirement_sha": "2302da2f8a58fb37",
       "tests": {
-        "internal/core/dnsserver/secure_test.go::TestDoTListener": "fee669cd1008693b"
+        "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc"
       },
       "units": {
-        "internal/core/dnsserver/secure_test.go::TestDoTListener": "b36af85f8477fe36"
+        "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1"
       },
       "verdict": "enforced"
     },
@@ -57,7 +60,7 @@
       "requirement_sha": "0a2559b977d30137",
       "tests": {
         "internal/core/dnsserver/rfc7858_idle_close_test.go::TestRFC7858ServerIdleCloseLeavesTheServerServing": "0b12e5fee2cec8ac",
-        "internal/core/dnsserver/secure_test.go::TestDoTRobustToIdleConnectionClose": "fee669cd1008693b"
+        "internal/core/dnsserver/secure_test.go::TestDoTRobustToIdleConnectionClose": "8772da30b26b9efc"
       },
       "units": {
         "internal/core/dnsserver/rfc7858_idle_close_test.go::TestRFC7858ServerIdleCloseLeavesTheServerServing": "e4b102266aa5a8f9",
@@ -66,18 +69,18 @@
       "verdict": "enforced"
     },
     "RFC7858-8-1": {
-      "note": "Re-judged 2026-09-30. Beyond the HEAD TLS 1.2 floor: TestRFC7858DoTNegotiatesOnlyBCP195Suites drives the DoT listener built from selfcert.NewTLSConfig (the production constructor) with a hand-built TLS 1.2 ClientHello (internal/test/tlsprobe), ECDSA and RSA certs: ECDHE AES-128-GCM selected with null compression and renegotiation_info, also after every forbidden suite; each NULL/RC4/export/DES/3DES/static-RSA/static-ECDH/DHE suite alone never selected; DEFLATE alone refused. The good suite in the same hello shape is the control, so refusals are about the suite. Records: NewTLSConfig revert both polarities; an overlay adding RC4/3DES/static RSA turned the negative red for 7 suites. Not asserted: RFC 9325 SHOULD-level items outside negotiation (session tickets, EMS).",
+      "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Re-judged 2026-09-30. Beyond the HEAD TLS 1.2 floor: TestRFC7858DoTNegotiatesOnlyBCP195Suites drives the DoT listener built from selfcert.NewTLSConfig (the production constructor) with a hand-built TLS 1.2 ClientHello (internal/test/tlsprobe), ECDSA and RSA certs: ECDHE AES-128-GCM selected with null compression and renegotiation_info, also after every forbidden suite; each NULL/RC4/export/DES/3DES/static-RSA/static-ECDH/DHE suite alone never selected; DEFLATE alone refused. The good suite in the same hello shape is the control, so refusals are about the suite. Records: NewTLSConfig revert both polarities; an overlay adding RC4/3DES/static RSA turned the negative red for 7 suites. Not asserted: RFC 9325 SHOULD-level items outside negotiation (session tickets, EMS).",
       "requirement_sha": "a8f8b228063a852c",
       "tests": {
-        "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites": "000a81e868573e73",
-        "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites#2": "000a81e868573e73",
-        "internal/core/dnsserver/secure_test.go::TestDoTListener": "fee669cd1008693b",
-        "internal/core/dnsserver/secure_test.go::TestDoTRejectsBelowTLS12": "fee669cd1008693b"
+        "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites": "8973d8f1c7cb0822",
+        "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites#2": "8973d8f1c7cb0822",
+        "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc",
+        "internal/core/dnsserver/secure_test.go::TestDoTRejectsBelowTLS12": "8772da30b26b9efc"
       },
       "units": {
-        "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites": "c060e1509c04912d",
-        "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites#2": "c060e1509c04912d",
-        "internal/core/dnsserver/secure_test.go::TestDoTListener": "b36af85f8477fe36",
+        "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites": "6ae1e42e10651c0b",
+        "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites#2": "6ae1e42e10651c0b",
+        "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1",
         "internal/core/dnsserver/secure_test.go::TestDoTRejectsBelowTLS12": "f87863d102e2f107"
       },
       "verdict": "enforced"

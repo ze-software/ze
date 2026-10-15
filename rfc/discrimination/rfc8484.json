@@ -38,7 +38,7 @@
       "rid": "RFC8484-6-2",
       "polarity": "positive",
       "unit": "internal/core/dnsserver/secure_test.go::TestDoHListener",
-      "unit-sha": "ce92e353a0a033c7",
+      "unit-sha": "9ed7fba64acb58cc",
       "claim-sha": "595dad210354646c",
       "route": "revert",
       "producer": "internal/core/dnsserver/secure.go::dohRequestBody",
