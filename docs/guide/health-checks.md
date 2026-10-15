@@ -206,7 +206,7 @@ registration, then handle the `doctor-check` callback at runtime.
 Declaration (in `sdk.Registration`):
 
 ```go
-p.Run(ctx, sdk.Registration{
+p.Run(ctx, &sdk.Registration{
     DoctorChecks: []rpc.DoctorCheckDecl{{
         Name:         "my-cache-reachable",
         Phase:        rpc.DoctorPhasePostConfig,

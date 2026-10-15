@@ -63,7 +63,7 @@ func TestEventHandler(t *testing.T) {
 
     errCh := make(chan error, 1)
     go func() {
-        errCh <- p.Run(ctx, sdk.Registration{})
+        errCh <- p.Run(ctx, &sdk.Registration{})
     }()
 
     // Complete the 5-stage startup from the engine side
@@ -171,7 +171,7 @@ func TestCommandHandler(t *testing.T) {
 
     errCh := make(chan error, 1)
     go func() {
-        errCh <- p.Run(ctx, sdk.Registration{
+        errCh <- p.Run(ctx, &sdk.Registration{
             Commands: []sdk.CommandDecl{
                 {Name: "show-status", ShortHelp: "Show health status"},
             },
@@ -245,7 +245,7 @@ func TestConfigHandler(t *testing.T) {
 
     errCh := make(chan error, 1)
     go func() {
-        errCh <- p.Run(ctx, sdk.Registration{
+        errCh <- p.Run(ctx, &sdk.Registration{
             WantsConfig: []string{"bgp"},
         })
     }()
@@ -302,7 +302,7 @@ func TestCommandDispatch(t *testing.T) {
             ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
             defer cancel()
 
-            go func() { _ = p.Run(ctx, sdk.Registration{}) }()
+            go func() { _ = p.Run(ctx, &sdk.Registration{}) }()
             completeStartup(t, ctx, engineMux)
 
             cmdInput := struct {

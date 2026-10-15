@@ -415,8 +415,8 @@ arguments and returns the exit code:
 ```go
 // declaration is what this plugin provides. It is a pure value: no file, no
 // socket, no goroutine.
-func declaration() sdk.Registration {
-    return sdk.Registration{
+func declaration() *sdk.Registration {
+    return &sdk.Registration{
         Commands: []sdk.CommandDecl{{Name: "acme-monitor status", ShortHelp: "Show monitor status"}},
     }
 }
@@ -440,7 +440,7 @@ func start() int {
 }
 ```
 
-The declaration is the same `sdk.Registration` value you pass to `Plugin.Run`,
+The declaration is the same `*sdk.Registration` you pass to `Plugin.Run`,
 so query mode reads nothing new and adds no second list to keep in step.
 <!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->
 

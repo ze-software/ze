@@ -12,7 +12,7 @@ Schemas are declared via the `Schema` field of `sdk.Registration`, which is pass
 ```go
 p := sdk.NewWithConn("my-plugin", conn)
 
-p.Run(ctx, sdk.Registration{
+p.Run(ctx, &sdk.Registration{
     Schema: &sdk.SchemaDecl{
         Module:    "ze-my-plugin",
         Namespace: "urn:ze:my-plugin",
@@ -308,7 +308,7 @@ func main() {
     ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
     defer cancel()
 
-    if err := p.Run(ctx, sdk.Registration{
+    if err := p.Run(ctx, &sdk.Registration{
         Schema: &sdk.SchemaDecl{
             Module:    "acme-monitor",
             Namespace: "urn:acme:monitor",

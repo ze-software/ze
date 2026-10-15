@@ -34,7 +34,7 @@ A plugin declares itself as a cache consumer during Stage 1 registration:
 SDK usage:
 
 ```go
-p.Run(ctx, sdk.Registration{
+p.Run(ctx, &sdk.Registration{
     CacheConsumer: true,
 })
 ```

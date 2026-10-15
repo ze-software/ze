@@ -48,7 +48,7 @@ func main() {
 
 	// Run the 5-stage startup protocol and enter the event loop.
 	// Returns nil on clean shutdown (bye received).
-	if err := p.Run(context.Background(), sdk.Registration{
+	if err := p.Run(context.Background(), &sdk.Registration{
 		Families: []sdk.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -203,7 +203,7 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 | Type | Purpose |
 |------|---------|
 | `sdk.Plugin` | Main plugin struct, created via `NewFromEnv` or `NewWithConn` |
-| `sdk.Registration` | Stage 1 declaration (= `rpc.DeclareRegistrationInput`) |
+| `sdk.Registration` | Stage 1 declaration (= `rpc.DeclareRegistrationInput`), passed to `Run` and `RunOrDeclare` by pointer. `Run` copies it at entry and refuses `nil` |
 | `sdk.FamilyDecl` | Address family declaration (`Name` + `Mode`) |
 | `sdk.CommandDecl` | Command declaration (`Name` + `ShortHelp` + `Description` + `Args`). `ShortHelp` is the one-line summary every listing prints. `Description` is the explanation only the command's own help page prints |
 | `sdk.SchemaDecl` | YANG schema declaration (`Module` + `YANGText` + `Handlers`) |
@@ -308,7 +308,7 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (str
 p.SetStartupSubscriptions([]string{"update"}, nil, "")
 
 // Run the plugin.
-err = p.Run(context.Background(), sdk.Registration{
+err = p.Run(context.Background(), &sdk.Registration{
     Families: []sdk.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
     Commands: []sdk.CommandDecl{{Name: "my-plugin status", ShortHelp: "Show status"}},
     Schema:   &sdk.SchemaDecl{Module: "my-plugin", YANGText: myYANG, Handlers: []string{"my-prefix"}},

@@ -32,7 +32,7 @@ p.OnEncodeNLRI(func(family string, args []string) (string, error) { ... })
 p.OnDecodeNLRI(func(family string, hex string) (any, error) { ... })
 p.OnDecodeCapability(func(code uint8, hex string) (any, error) { ... })
 
-p.Run(ctx, sdk.Registration{...})
+p.Run(ctx, &sdk.Registration{...})
 ```
 
 ## Handler Reference

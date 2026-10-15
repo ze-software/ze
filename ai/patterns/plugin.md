@@ -132,7 +132,7 @@ func Run<Name>Plugin(conn net.Conn) int {
     })
 
     ctx := context.Background()
-    if err := p.Run(ctx, sdk.Registration{
+    if err := p.Run(ctx, &sdk.Registration{
         WantsConfig: []string{"bgp"},
     }); err != nil {
         logger().Error("plugin failed", "error", err)
