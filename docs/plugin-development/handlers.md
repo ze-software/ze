@@ -274,6 +274,19 @@ plugin <name> cannot apply a change to <roots> while ze runs: it registered no c
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- configVerifyCallback, refuseConfigApply, refuseWithoutApply -->
 
+Two consequences follow for a third-party plugin that registers only
+`OnConfigure`:
+
+- A plugin that declares a shared root, such as `WantsConfig: []string{"bgp"}`,
+  takes part in every reload that changes anything under that root, so it
+  refuses every edit there, including one to a leaf it never reads. Register
+  `OnConfigApply` (or `sdk.NewConfigTx(...).Register(p)`) when it reads a leaf
+  a reload can change, or `DeclareAppliesNothing` when it reads none.
+- Removing the plugin's root is refused too. The engine still sends the plugin
+  a `config-verify` for a root the candidate no longer holds, with the section
+  data `{}`, and the SDK refuses it like any other change.
+<!-- source: internal/component/plugin/server/reload_compensation.go -- reloadConfigSections -->
+
 ### OnValidateOpen
 
 Called when the engine receives an OPEN message and wants the plugin to validate

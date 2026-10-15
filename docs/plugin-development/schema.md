@@ -225,7 +225,12 @@ Ze validates that referenced values exist.
 
 ## Example: Complete Plugin with Schema
 
-A complete example showing YANG schema registration with the SDK:
+A complete example showing YANG schema registration with the SDK. The plugin
+reads leaves of its root, so it registers a config transaction: Stage 2
+installs the parsed config, and a reload verifies, applies and, when the commit
+fails, rolls back the same value. A plugin that declares `WantsConfig` and
+registers only `OnConfigure` refuses every reload that changes its root (see
+`handlers.md`, "A plugin with no apply handler").
 
 ```go
 package main
@@ -233,9 +238,12 @@ package main
 import (
     "context"
     _ "embed"
+    "encoding/json"
+    "fmt"
     "log"
     "os"
     "os/signal"
+    "sync"
 
     "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -243,18 +251,54 @@ import (
 //go:embed acme-monitor.yang
 var acmeMonitorYANG string
 
+// monitorConfig is the part of the acme-monitor container the plugin acts on.
+type monitorConfig struct {
+    Endpoint string      `json:"endpoint"`
+    Interval json.Number `json:"interval"`
+}
+
+// parseMonitor reads the plugin's config from one delivery. It changes no
+// state, because a refused verify and a CLI validate run it too.
+func parseMonitor(sections []sdk.ConfigSection) (monitorConfig, bool, error) {
+    for _, s := range sections {
+        if s.Root != "acme-monitor" {
+            continue
+        }
+        var data struct {
+            Monitor monitorConfig `json:"acme-monitor"`
+        }
+        if err := json.Unmarshal([]byte(s.Data), &data); err != nil {
+            return monitorConfig{}, true, fmt.Errorf("acme-monitor: %w", err)
+        }
+        return data.Monitor, true, nil
+    }
+    return monitorConfig{}, false, nil
+}
+
+// monitor holds the running config the poller reads.
+type monitor struct {
+    mu  sync.Mutex
+    cfg monitorConfig
+}
+
+// install makes cfg the running config. A failed install must leave the
+// running config as it was.
+func (m *monitor) install(cfg monitorConfig) error {
+    m.mu.Lock()
+    defer m.mu.Unlock()
+    m.cfg = cfg
+    log.Printf("monitoring %s every %ss", cfg.Endpoint, cfg.Interval)
+    return nil
+}
+
 func main() {
     p, err := sdk.NewFromEnv("acme-monitor")
     if err != nil {
         log.Fatal(err)
     }
 
-    p.OnConfigure(func(sections []sdk.ConfigSection) error {
-        for _, s := range sections {
-            log.Printf("config root=%s data=%s", s.Root, s.Data)
-        }
-        return nil
-    })
+    m := &monitor{}
+    sdk.NewConfigTx(monitorConfig{}, parseMonitor, m.install).Register(p)
 
     p.OnEvent(func(event string) error {
         log.Printf("event: %s", event)
@@ -278,7 +322,8 @@ func main() {
 }
 ```
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv, Run -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnEvent -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- NewConfigTx, ConfigTx.Register, ConfigParser, ConfigInstaller -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl, ConfigSection -->
 
 ### Example YANG Schema
