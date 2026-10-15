@@ -97,6 +97,9 @@ type remoteRoleState struct {
 // configs dropped its learned role on every commit, related or not, and every
 // route to it was then withdrawn as role "unknown" until its session bounced:
 // an established peer sends no second OPEN.
+//
+// The other path is forgetRemovedPeer, the filterapi removal hook, which runs
+// only in-process; this commit-time prune also covers an external role plugin.
 func pruneLearnedRoles() {
 	filterMu.Lock()
 	defer filterMu.Unlock()
@@ -156,6 +159,9 @@ func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 // OPEN of that peer wrote) and the peer's address, which keys a role an OPEN
 // stored under the address itself. The reactor may hold its own lock, so this
 // takes filterMu only. Safe for concurrent use.
+//
+// The hook runs only when the plugin is in-process; pruneLearnedRoles, at
+// commit, is the path that also covers an external role plugin.
 func forgetRemovedPeer(peer filterapi.PeerFilterInfo) {
 	filterMu.Lock()
 	defer filterMu.Unlock()

@@ -271,7 +271,10 @@ clear the engine's copy, which nothing writes. That split predates the hook and
 is outside it.
 
 A configured peer a commit removes is still handled by `pruneLearnedRoles` at
-config-committed. One entry is left behind:
+config-committed. The prune runs in whichever process holds the plugin, so it is
+the path that clears the role an external `bgp-role` recorded; the hook covers
+the in-engine plugin, and every removal path besides a commit. One entry is
+left behind:
 
 | Case | What is left |
 |------|--------------|
