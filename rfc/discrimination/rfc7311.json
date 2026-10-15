@@ -438,7 +438,7 @@
       "claim-sha": "d65cce7b2e637479",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::reselectAIGPRoutes",
-      "producer-sha": "d5dc726b25783f47",
+      "producer-sha": "086518b87374d8fb",
       "break": "body of reselectAIGPRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,7 +449,7 @@
       "claim-sha": "ebf483f8f4a79a25",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::reselectAIGPRoutes",
-      "producer-sha": "d5dc726b25783f47",
+      "producer-sha": "086518b87374d8fb",
       "break": "body of reselectAIGPRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
