@@ -4,6 +4,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -12,8 +13,8 @@
       "note": "Re-read 2026-09-27. Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases.",
       "requirement_sha": "edc718f92035419f",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt": "904daa30c09ce18e",
-        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero": "904daa30c09ce18e"
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt": "70e97cb3744c3532",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero": "70e97cb3744c3532"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt": "99410a2dd5338591",
@@ -25,8 +26,8 @@
       "note": "Re-read 2026-09-27. Forbidden: O not matching the RIB conveyed on Route Monitoring or Route Mirroring. TestRFC8671OFlagSetOnAdjRIBOutMessages fails if either message for a sent UPDATE lacks O; TestRFC8671OFlagClearOnAdjRIBInMessages fails if either for a received UPDATE carries it. Both read off the collector pipe after handleStructuredEvent.",
       "requirement_sha": "f3eb27903e98a7df",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagClearOnAdjRIBInMessages": "904daa30c09ce18e",
-        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagSetOnAdjRIBOutMessages": "904daa30c09ce18e"
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagClearOnAdjRIBInMessages": "70e97cb3744c3532",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagSetOnAdjRIBOutMessages": "70e97cb3744c3532"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagClearOnAdjRIBInMessages": "d825067b222ff85f",
@@ -49,9 +50,9 @@
       "note": "Re-read 2026-09-27. Forbidden: a behaviour-altering change (the RFC's i.e.: filtering, table names) without a Peer Down/Peer Up per peer. Filtering: TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession fails unless each of two peers gets exactly one Peer Down then one Peer Up after a route-monitoring-policy change through the engine reload rail. Table names: the Loc-RIB table name is the constant locRIBTableName, so no change can occur. Negatives: TestRFC8671UnrelatedBGPChangeBouncesNothing, TestRFC8671RemovingEveryCollectorBouncesTheSession. Not asserted: that other behavior leaves (route-mirroring, loc-rib) also bounce.",
       "requirement_sha": "185f8cbb8c34166b",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession": "904daa30c09ce18e",
-        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671RemovingEveryCollectorBouncesTheSession": "904daa30c09ce18e",
-        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671UnrelatedBGPChangeBouncesNothing": "904daa30c09ce18e"
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession": "70e97cb3744c3532",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671RemovingEveryCollectorBouncesTheSession": "70e97cb3744c3532",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671UnrelatedBGPChangeBouncesNothing": "70e97cb3744c3532"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession": "4c68d1d9d70417f6",
