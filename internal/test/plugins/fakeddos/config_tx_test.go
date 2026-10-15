@@ -24,6 +24,8 @@ func fakeSection(enabled string) []sdk.ConfigSection {
 // VALIDATES: spec-plugin-reload-applies-or-refuses row 32, AC-1 to AC-4.
 // PREVENTS: the fixture ignoring a reload once Phase 5 refuses a participant
 // with no apply handler.
+// MUTATION: drop in.stop() from the disabled branch of injector.install and
+// the rollback check fails.
 // Not parallel: eventBusPtr is package state.
 func TestConfigTxReloadStartsAndStopsTheInjector(t *testing.T) {
 	bus := newCountingBus()
@@ -57,10 +59,21 @@ func TestConfigTxReloadStartsAndStopsTheInjector(t *testing.T) {
 	if detected.Load() == 0 {
 		t.Fatal("the started injector emitted no attack-detected event")
 	}
+	// Wrap the cancel so the rollback is proved to stop the scenario, not
+	// only to forget its handle.
+	cancel := inj.stop
+	var stopped bool
+	inj.stop = func() {
+		stopped = true
+		cancel()
+	}
 	if err := tx.Rollback(); err != nil {
 		t.Fatalf("rollback: %v", err)
 	}
+	if !stopped {
+		t.Fatal("rollback did not cancel the injector")
+	}
 	if inj.stop != nil {
-		t.Fatal("rollback left the injector running")
+		t.Fatal("rollback left the injector's stop handle set")
 	}
 }
