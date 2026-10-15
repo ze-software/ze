@@ -2801,7 +2801,7 @@ and a later change to the curated table cannot alter what that config does.
 |---------|--------|---------|
 | `show bgp healthcheck` | read-only | One row for each probe: its name, its group and its state |
 | `show bgp healthcheck <name>` | read-only | One row, with the ten fields of that probe |
-| `clear bgp healthcheck <name>` | write | Withdraw route, reset FSM to INIT, re-check once the withdraw is done. The reply can return before the withdraw has run. Error if DISABLED. <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow, handleReset --> |
+| `clear bgp healthcheck <name>` | write | Withdraw route, reset FSM to INIT, and re-check once the old probe's exit has finished: its withdraw command returned, whether it succeeded, failed or timed out after 5 s, and its IPs were removed. A withdraw that failed or timed out leaves the route announced while the probe re-checks. The reply can return before the withdraw has run. Error if DISABLED. <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow, handleReset --> |
 
 Both spellings answer a row set, so `| count`, `| first` and `| match` act on
 either. The two answers carry different field sets on purpose. Each row

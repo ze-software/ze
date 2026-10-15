@@ -18,12 +18,19 @@
 # What B asserts, on the whole frame (hex), never on one NLRI in it:
 # - seq=3 is U2 alone carrying 65000:2: the next UPDATE sent after the reload
 #   carries the edited tag (AC-1, export side).
-# - seq=4 is U3 alone, so nothing else reached B since seq=2. A re-send of U1,
-#   which a re-advertising reload would queue when the reload is processed,
-#   before A is even told to send U2, either arrives as its own UPDATE and
-#   takes seq=3 or seq=4, or is packed with U2 or U3 (ze packs NLRIs that share
-#   their attributes into one UPDATE, which is legal); both change a frame.
-#   An `announced=` check would pass the packed form, so the frames are exact.
+# - seq=4 is U3 alone. A re-send of U1 that reaches B before U3, as its own
+#   UPDATE or packed with U2 or U3 (ze packs NLRIs that share their attributes
+#   into one UPDATE, which is legal), changes the seq=3 or the seq=4 frame. An
+#   `announced=` check would pass the packed form, so the frames are exact.
+#   When a re-advertising reload would queue its re-send is not known: no such
+#   reload exists, so "before U3" is an assumption about it, not an observation.
+# NOT CAUGHT: a re-send of U1 that reaches B after U3. After its last
+#   expectation the peer checks only its reject= rules, and a reject= pattern
+#   is matched against the frame bytes (optionally scoped to the announced or
+#   withdrawn NLRI) with no attribute= qualifier (internal/test/peer/reject.go),
+#   so no rule can refuse "10.0.0.0/24 carrying 65000:2" without also refusing
+#   the legitimate U1 at seq=2. spec-bgp-export-policy-reload-readvertise
+#   records the tooling need.
 # Frame of U2 at B: ORIGIN IGP, AS_PATH [65000 65001], NEXT_HOP 1.1.1.1,
 # COMMUNITY 65000:2 (extended-length flag set), NLRI 10.0.1.0/24; U3 the same
 # with 10.0.2.0/24.
@@ -37,10 +44,12 @@
 #
 # DISCRIMINATION: the tag half: with newCommunityConfigTx().Register(p)
 # replaced by p.OnConfigure(newCommunityConfigTx().Configure), U2 reaches B with
-# 65000:1 and seq=3 fails. The no-re-send half: in a draft copy where A sends U1 again
-# after the reload, ze forwards it to B tagged 65000:2 (the frame a re-send
-# would be); sent before U2 or between U2 and U3, it fails seq=3 (packed with
-# U2 into one UPDATE, observed) or seq=4.
+# 65000:1 and seq=3 fails. The no-re-send half: in two draft copies where A
+# sends U1 again after the reload, ze forwards it to B tagged 65000:2 (the frame
+# a re-send would be). Sent before U2 in one draft and between U2 and U3 in the
+# other, both failed at seq=3, because ze packed the second U1 with U2 into one
+# UPDATE (observed). No draft was observed failing at seq=4, so the seq=4 frame
+# check has no recorded red.
 #
 # U1: ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1, NLRI 10.0.0.0/24
 # U2: U1 with NLRI 10.0.1.0/24

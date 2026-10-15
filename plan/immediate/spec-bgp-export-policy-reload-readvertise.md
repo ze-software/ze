@@ -154,6 +154,7 @@ it is `plan/immediate/spec-bgp-filtered-route-storage.md` AC-3.
 
 ## Known Limitations
 - to be filled at design
+- Test-tooling need (recorded 2026-10-15 from the review of `test/reload/bgp-filter-export-reload-next-update-only.ci`): that test catches a re-send of U1 only when it reaches B before its end barrier U3. ze-peer checks only `reject=` rules after its last expectation, and a `reject=` pattern matches frame bytes, optionally scoped to the announced or withdrawn NLRI (`internal/test/peer/reject.go`, `ParseRejectRule`), with no `attribute=` qualifier, so no rule can refuse "NLRI 10.0.0.0/24 carrying COMMUNITY 65000:2" without also refusing the legitimate U1 at seq=2. When this spec flips that test, its re-advertisement assertion needs either an NLRI-plus-attribute reject qualifier or a reject that arms only after a given expectation; until then a late re-send is not caught.
 
 ## Checklist
 
