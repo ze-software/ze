@@ -48,7 +48,7 @@ See also: `/ze-commit` (commit without verification), `/ze-precommit-verify` (st
    Do not run `git log` just to imitate style unless the user explicitly asks.
 6. **Generate commit script:** Use `./le commit create`; it is the sole staging
    and commit preparation route and owns the session ID, message file,
-   executable script, ignored-path checks, and `git commit -F`:
+   executable script, ignored-path checks, and the commit itself:
 
 ```bash
 ./le commit create \

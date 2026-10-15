@@ -66,14 +66,15 @@ func renderBlock(block commitBlock, scriptPath string) string {
 	if block.ReviewCheck != "" {
 		lines = append(lines, "# critical-review gate re-check", block.ReviewCheck)
 	}
+	lines = append(lines, renderPublish(block, scriptPath))
+	if len(block.Paths) != 0 {
+		lines = append(lines, renderDriftNote(block.Paths))
+	}
 	// The message is deleted once git holds it. A message file is what holds
 	// its tag (nextTag), so a landed commit that kept it would never free the
 	// letter, and a session would run out after 26 commits. `set -e` keeps a
 	// failed commit's message, whose script is still runnable.
-	lines = append(lines,
-		renderPrivateIndex(block, scriptPath),
-		`GIT_INDEX_FILE="$_ze_index" git commit -F `+shellQuote(block.MessagePath),
-		`rm -f `+shellQuote(block.MessagePath))
+	lines = append(lines, `rm -f "$_ze_message"`)
 	if len(block.Removed) != 0 {
 		lines = append(lines, renderWorkingTreeRemoval(block.Removed))
 	}
@@ -88,8 +89,8 @@ func renderBlock(block commitBlock, scriptPath string) string {
 }
 
 // renderApprovalPrune emits the step that drops the used RFC approval rows
-// from the session file. It sits after `git commit` under `set -e`, so it
-// runs only once git holds the trailers: a row removed before that would be
+// from the session file. It sits after the publish under `set -e`, so it
+// runs only once the branch holds the trailers: a row removed before that would be
 // an approval lost with nothing to show for it. `grep -v` answers 1 when no
 // line is left to print, which is not a failure here.
 func renderApprovalPrune(block commitBlock) string {
@@ -107,16 +108,128 @@ func renderApprovalPrune(block commitBlock) string {
 	return page.String()
 }
 
-// renderPrivateIndex emits the staging half of a block: an index of this
-// block's own, seeded from HEAD when the script RUNS and filled with the blob
-// each path held when `./le commit create` read it.
+// publishAttemptsMax bounds how many times a block builds its commit again on
+// a HEAD that moved while it was being built. One attempt is a handful of git
+// calls; a HEAD that a peer moves this many times in a row inside that span is
+// a storm that another attempt would not outlast.
+const publishAttemptsMax = 5
+
+// renderPublish emits the commit half of a block: it reads the parent ONCE,
+// builds the tree and the commit on that parent, checks the commit changes
+// only the paths the block names, and moves the branch with a compare-and-swap
+// against that same parent.
+//
+// `git commit` cannot be used for this. It reads HEAD again for the parent, so
+// a peer's commit that lands between the seeding of the private index and the
+// commit becomes the parent of a tree that never held the peer's work, and
+// every path this block does not name is silently reverted. 450f9f1ee0 and
+// d621be6677 did that to the commit before each of them on 2026-10-14
+// (plan/journal/concurrent-session-corruption.md).
+//
+// When the swap is refused, a peer moved HEAD, and the block builds again on
+// the new HEAD, up to publishAttemptsMax times. It refuses instead when the
+// peer's commit changed a path this block names: building on it would write
+// content prepared before that change over it.
+//
+// `git commit-tree` ignores commit.gpgSign (measured with git 2.56 on
+// 2026-10-15), so the script reads that setting and passes `-S` itself, which
+// signs with user.signingKey exactly as `git commit` does. The message goes
+// through `git stripspace`, the cleanup `git commit -F` applies. No git hook
+// runs, and none is installed in this checkout.
+func renderPublish(block commitBlock, scriptPath string) string {
+	all := append(append([]string{}, block.Paths...), block.Removed...)
+	quoted := quotePaths(all)
+	notPublished := notPublishedLine(block)
+	lines := []string{
+		`_ze_index="$PWD"/` + shellQuote(indexFileFor(scriptPath)),
+		`_ze_message=` + shellQuote(block.MessagePath),
+		`_ze_sign=`,
+		`if [ "$(git config --type=bool --get commit.gpgsign || true)" = true ]; then _ze_sign=1; fi`,
+		`_ze_parent=`,
+		`_ze_attempt=1`,
+		`while :; do`,
+		`_ze_seen=$_ze_parent`,
+		`_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`,
+		`if [ -n "$_ze_seen" ]; then`,
+		`  _ze_peer=$(git --literal-pathspecs -c core.quotePath=false diff-tree -r --no-renames --name-only "$_ze_seen" "$_ze_parent" -- ` + quoted + `)`,
+		renderRefusal(`  `, `-n "$_ze_peer"`, notPublished,
+			`echo "A commit that landed while it was being built changed paths it carries:"`,
+			`printf '%s\n' "$_ze_peer"`,
+			`echo "Building on that commit would write content prepared before the change over it."`,
+			`echo "Read the change with: git log -p $_ze_seen..$_ze_parent -- <path>"`,
+			`echo "then fold it into your copy and prepare the commit again with ./le commit create."`),
+		`fi`,
+		`rm -f "$_ze_index"`,
+		`GIT_INDEX_FILE="$_ze_index" git read-tree "$_ze_parent"`,
+	}
+	lines = append(lines, renderPrivateIndex(block))
+	var strayFilter textbuf.Buffer
+	strayFilter.Str("grep -v -x -F")
+	for _, path := range all {
+		strayFilter.Str(" -e ").Str(shellQuote(path))
+	}
+	lines = append(lines,
+		`_ze_tree=$(GIT_INDEX_FILE="$_ze_index" git write-tree)`,
+		`_ze_commit=$(git stripspace < "$_ze_message" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree")`,
+		`_ze_changed=$(git diff-tree -r -z --no-renames --name-only "$_ze_parent" "$_ze_commit" | tr '\0' '\n')`,
+		renderRefusal(``, `-z "$_ze_changed"`, notPublished,
+			`echo "HEAD already holds the prepared content of every path it names, so it has nothing to commit."`,
+			`echo "Drop this block, or prepare the commit again from your working tree with ./le commit create."`),
+		// The names are read NUL-terminated because git C-quotes a path holding
+		// a double quote or a backslash, and a quoted name would never match the
+		// name the block declares.
+		// The guard that makes the parent read once a property of the result
+		// rather than of the code above it: whatever went wrong while the tree
+		// was built, a commit that changes a path this block does not name
+		// reverts or adds work nobody asked it to carry, and it never lands.
+		`_ze_stray=$(printf '%s\n' "$_ze_changed" | `+strayFilter.String()+` || [ "$?" -eq 1 ])`,
+		renderRefusal(``, `-n "$_ze_stray"`, notPublished,
+			`echo "Its tree changes paths the commit does not name, against its parent $_ze_parent:"`,
+			`printf '%s\n' "$_ze_stray"`,
+			`echo "Publishing it would revert or add work this commit does not own. This is a defect in the"`,
+			`echo "generated script: report it with this script's path, then prepare the commit again with ./le commit create."`),
+		// HEAD is a symbolic ref to the branch, so update-ref moves the branch,
+		// and only if it still names the parent this commit was built on.
+		`if git update-ref -m `+shellQuote("commit: "+commentSafe(block.Subject))+` HEAD "$_ze_commit" "$_ze_parent"; then break; fi`,
+		renderRefusal(``, `"$_ze_attempt" -ge `+strconv.Itoa(publishAttemptsMax), notPublished,
+			`echo "HEAD moved under it `+strconv.Itoa(publishAttemptsMax)+` times in a row while other commits landed."`,
+			`echo "Run this script again once the other sessions' commits have landed."`),
+		`_ze_attempt=$((_ze_attempt + 1))`,
+		`echo "NOTE: HEAD moved while commit `+block.Tag+` was being published; building it again on the new HEAD." >&2`,
+		`done`,
+		`git -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit"`)
+	return strings.Join(lines, "\n")
+}
+
+// notPublishedLine is the first line of every refusal before the branch moves.
+func notPublishedLine(block commitBlock) string {
+	return "ERROR: commit " + block.Tag + " (" + commentSafe(block.Subject) + ") was not published, and HEAD is unchanged by it."
+}
+
+// renderRefusal emits one of renderPublish's refusals: when the test holds,
+// say that the commit was not published, run each statement with its output
+// on stderr, and stop the script. Every refusal comes before the branch moves,
+// so each one leaves HEAD as the peers left it and the message file in place.
+func renderRefusal(indent, test, notPublished string, said ...string) string {
+	lines := make([]string, 0, len(said)+4)
+	lines = append(lines, indent+"if [ "+test+" ]; then", indent+"  echo "+shellQuote(notPublished)+" >&2")
+	for _, statement := range said {
+		lines = append(lines, indent+"  "+statement+" >&2")
+	}
+	lines = append(lines, indent+"  exit 1", indent+"fi")
+	return strings.Join(lines, "\n")
+}
+
+// renderPrivateIndex emits the staging half of a block, inside the publish
+// loop: the index of this block's own, already seeded from the parent the loop
+// read, filled with the blob each path held when `./le commit create` read it.
 //
 // The shared index is never written before the commit, which is what makes the
 // commit's POPULATION exactly the paths the block names. A concurrent session's
-// staged file is not in this index, so it cannot ride along, and no window
-// exists between the staging and the commit for one to appear in. Seeding from
-// HEAD at run time is what keeps a peer's commit made in the meantime: the tree
-// this block writes is that HEAD plus its own paths.
+// staged file is not in this index, so it cannot ride along. Seeding from the
+// parent the publish swaps against is what keeps a peer's commit: the tree this
+// block writes is that parent plus its own paths, and renderPublish refuses to
+// move the branch unless the branch still names that parent.
 //
 // The commit's CONTENT is the snapshot rather than the working tree, so an edit
 // that lands after preparation is left where it is, for whoever wrote it to
@@ -124,30 +237,51 @@ func renderApprovalPrune(block commitBlock) string {
 // `plan/journal/concurrent-session-corruption.md` are one session's unfinished
 // sentence published under another session's message, and `git add` reading the
 // working tree is how every one of them happened.
-func renderPrivateIndex(block commitBlock, scriptPath string) string {
-	lines := []string{
-		`_ze_index="$PWD"/` + shellQuote(indexFileFor(scriptPath)),
-		`rm -f "$_ze_index"`,
-		`GIT_INDEX_FILE="$_ze_index" git read-tree HEAD`,
-	}
+func renderPrivateIndex(block commitBlock) string {
+	lines := make([]string, 0, len(block.IndexEntries)+4)
 	if len(block.IndexEntries) != 0 {
 		lines = append(lines,
 			`GIT_INDEX_FILE="$_ze_index" git update-index --index-info <<'`+indexInfoDelimiter+`'`)
 		lines = append(lines, block.IndexEntries...)
 		lines = append(lines, indexInfoDelimiter)
+		lines = append(lines, renderLostBlobs(block)...)
 	}
 	if len(block.Removed) != 0 {
-		// The entries HEAD holds for the removed paths, captured while the
+		// The entries the parent holds for the removed paths, captured while the
 		// private index still carries them: renderWorkingTreeRemoval compares
 		// the working-tree copies against exactly these lines.
 		lines = append(lines,
 			`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- `+quotePaths(block.Removed)+`)`,
 			`GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- `+quotePaths(block.Removed))
 	}
-	if len(block.Paths) != 0 {
-		lines = append(lines, renderDriftNote(block.Paths))
-	}
 	return strings.Join(lines, "\n")
+}
+
+// renderLostBlobs emits the refusal for a snapshot blob that is gone from the
+// object store, naming every such path.
+//
+// The blobs are unreferenced until the commit lands, so `git gc --prune=now`
+// between preparation and the run collects them. `update-index --index-info`
+// accepts an entry whose object is missing, and `git write-tree` then stops at
+// the first one it meets in tree order, which is often a path the author did
+// not write, such as the verification-debt shard under plan/.
+func renderLostBlobs(block commitBlock) []string {
+	lines := make([]string, 0, len(block.IndexEntries)+3)
+	lines = append(lines, `_ze_lost=$(git cat-file --batch-check='%(objectname)' <<'`+indexInfoDelimiter+`' | sed -n 's/ missing$//p'`)
+	for _, entry := range block.IndexEntries {
+		fields := strings.Fields(entry)
+		if len(fields) > 1 {
+			lines = append(lines, fields[1])
+		}
+	}
+	lines = append(lines, indexInfoDelimiter, `)`,
+		renderRefusal(``, `-n "$_ze_lost"`,
+			notPublishedLine(block),
+			`echo "The content prepared for these paths is gone from the object store, collected by a git gc:"`,
+			`GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- `+quotePaths(block.Paths)+
+				` | grep -F "$_ze_lost" | while read -r _ze_mode _ze_object _ze_stage _ze_path; do echo "invalid object $_ze_mode $_ze_object for '$_ze_path'"; done`,
+			`echo "The working tree still holds each file. Prepare the commit again with ./le commit create."`))
+	return lines
 }
 
 // renderDriftNote emits the report that a named path no longer holds the
@@ -239,9 +373,9 @@ func renderSharedIndexRepair(block commitBlock, scriptPath string) string {
 		`      fi`,
 		`      ;;`,
 		`  esac`,
-		// The commit is named by the line `git commit` printed above, never by
-		// HEAD: a peer's commit can have landed while this step waited.
-		`  echo "ERROR: the commit above landed, but the shared index could not be pointed at it." >&2`,
+		// The commit is named by $_ze_commit, the one this block published,
+		// never by HEAD: a peer's commit can have landed while this step waited.
+		`  echo "ERROR: commit $_ze_commit landed, but the shared index could not be pointed at it." >&2`,
 		`  echo "git said: $_ze_said" >&2`,
 		`  echo "These paths read as staged changes in every session until the repair runs:" >&2`,
 		`  printf '%s\n' ` + quotePaths(stale) + ` >&2`,
@@ -258,8 +392,8 @@ func renderSharedIndexRepair(block commitBlock, scriptPath string) string {
 // renderWorkingTreeRemoval emits the deletion of each removed path's
 // working-tree copy, for the copies git provably holds and no others.
 //
-// It runs AFTER `git commit` under `set -e`, so it is reached only once the
-// commit exists, and the content it deletes is then one `git show` away. A
+// It runs AFTER the publish under `set -e`, so it is reached only once the
+// commit is on the branch, and the content it deletes is then one `git show` away. A
 // deletion before the commit would remove content that only a blob hash in
 // this script names.
 //

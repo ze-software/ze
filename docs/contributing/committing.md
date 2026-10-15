@@ -157,26 +157,47 @@ them. One commit block holds, in order:
 1. A `# Commit <tag>: <subject>` comment and a `# ze-commit-block:` marker
    naming the tag and every path.
 2. The critical-review gate re-check, when the commit closes a spec.
-3. `git read-tree HEAD` into `<script-path-without-.sh>.index`, the private
-   index this block commits from.
+3. The parent, read ONCE: `_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`,
+   then `git read-tree "$_ze_parent"` into `<script-path-without-.sh>.index`,
+   the private index this block commits from. Steps 3 to 6 are one loop, and
+   step 6 is what sends it round again.
 4. `git update-index --index-info` with one `git ls-files -s` line per path,
    written by `snapshotIndexEntries` when `create` ran. The line names the blob,
-   so the content is fixed at preparation time.
+   so the content is fixed at preparation time. A blob a `git gc --prune` has
+   collected since is refused here, naming every path whose content is gone.
 5. For any `remove` paths, their `git ls-files -s` lines captured from the
    private index into `_ze_removed`, then `git update-index --force-remove`.
-   The captured lines are the entries HEAD holds, mode included, and step 8
-   compares against them.
-6. A drift note. It stages the working tree into a throwaway index and reports
-   any named path whose content, mode, or existence moved since preparation. It
-   never refuses: the commit is already safe, and the difference is still in the
-   working tree. `git update-index --refresh` looks like the tool for this and
-   is not, twice over: it rewrites the entry it reports, and it refreshes the
-   whole index rather than the pathspec.
-7. `git commit -F <message-file>` against the private index, then the message
-   file is deleted. Git holds the message now, and the file is what holds the
-   block's tag: an automatic tag is taken while any message carries it, so a
-   kept file would never free its letter and a session would run out after 26
-   commits. `set -e` keeps a failed commit's message, whose script still runs.
+   The captured lines are the entries the parent holds, mode included, and step
+   8 compares against them.
+6. The publish (`renderPublish`). `git write-tree`, then `git commit-tree -p
+   "$_ze_parent"` with the message passed through `git stripspace`, the cleanup
+   `git commit -F` applies. `git commit` is not used, because it reads HEAD a
+   second time for the parent: a peer's commit landing between the two reads
+   became the parent of a tree that never held the peer's work, and every path
+   the block did not name was silently reverted (450f9f1ee0 and d621be6677 on
+   2026-10-14). `git commit-tree` ignores `commit.gpgSign`, so the script reads
+   it and passes `-S`, which signs with `user.signingKey` as `git commit` does.
+   No git hook runs; none is installed. The commit is then checked against its
+   parent: it MUST change at least one path, and no path the block does not
+   name, or the script refuses with HEAD untouched. Last, `git update-ref -m
+   "commit: <subject>" HEAD <commit> <parent>` moves the branch only if it still
+   names that parent. When a peer moved it, the block goes round again on the
+   new HEAD, up to 5 times, unless the peer's commit changed a path this block
+   names: then it refuses, names the paths, and asks for a fresh `create`,
+   because building on it would write content prepared before the change over
+   it. Every refusal opens `ERROR: commit <tag> (<subject>) was not published`.
+   The landed commit is printed as `[<short-sha>] <subject>` with its stat.
+7. A drift note, then the message file is deleted. The note stages the working
+   tree into a throwaway index and reports any named path whose content, mode,
+   or existence moved since preparation. It never refuses: the commit is safe,
+   and the difference is still in the working tree. `git update-index
+   --refresh` looks like the tool for this and is not, twice over: it rewrites
+   the entry it reports, and it refreshes the whole index rather than the
+   pathspec. Git holds the message once the commit lands, and the file is what
+   holds the block's tag: an automatic tag is taken while any message carries
+   it, so a kept file would never free its letter and a session would run out
+   after 26 commits. `set -e` keeps a failed commit's message, whose script
+   still runs.
 8. For a block with `remove` paths, the working-tree deletion
    (`renderWorkingTreeRemoval`). Each removed path's copy is staged into a
    throwaway index, and the copy is deleted only when its entry line is one of
@@ -185,7 +206,7 @@ them. One commit block holds, in order:
    file replaced by one, or a submodule)
    each leave the path in place and print `NOTE: kept <path>: ...` on stderr,
    because that content is in no commit and somebody has to decide about it. A path already absent is
-   skipped in silence. The step runs after `git commit` under `set -e`, so a
+   skipped in silence. The step runs after the publish under `set -e`, so a
    failed commit deletes nothing, and a deleted copy is always one `git show`
    away. A spec closure therefore leaves no file behind: commit A carries the
    spec's final content with `file`, and commit B's `remove` finds the copy
@@ -199,10 +220,10 @@ them. One commit block holds, in order:
    process: while git refuses over a `.git/index.lock` that a peer holds, it
    retries once a second for up to 30 seconds. Any other failure, or a lock
    still held after that, stops the script with the commit landed and prints
-   `ERROR: the commit above landed, but the shared index could not be pointed
-   at it.`, the paths left stale, and the exact commands to run from the checkout
+   `ERROR: commit <sha> landed, but the shared index could not be pointed at
+   it.`, the paths left stale, and the exact commands to run from the checkout
    once the lock is released. A later block in the same script has not run.
-<!-- source: internal/le/commit/script.go -- renderPrivateIndex, renderWorkingTreeRemoval, renderSharedIndexRepair, indexLockWaitSecondsMax -->
+<!-- source: internal/le/commit/script.go -- renderPublish, renderPrivateIndex, renderLostBlobs, publishAttemptsMax, renderWorkingTreeRemoval, renderSharedIndexRepair, indexLockWaitSecondsMax -->
 
 The script opens with `set -euo pipefail` and a `cd` to the checkout it was
 PREPARED for, named as an absolute path, so a failed step stops it and a script

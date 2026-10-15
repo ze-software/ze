@@ -229,12 +229,16 @@ func TestGeneratedBlockQuotesPathsAndCommitsFromItsOwnIndex(t *testing.T) {
 	script := renderBlock(block, "tmp/commit-owner.sh")
 	for _, want := range []string{
 		`_ze_index="$PWD"/'tmp/commit-owner.index'`,
-		`GIT_INDEX_FILE="$_ze_index" git read-tree HEAD`,
+		`_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')`,
+		`GIT_INDEX_FILE="$_ze_index" git read-tree "$_ze_parent"`,
 		"git update-index --index-info <<'ZE_INDEX_INFO'",
 		"100644 " + strings.Repeat("0", 40) + " 0\tplain.txt",
 		"'space name.txt'", `'quote'"'"'s.txt'`,
 		`git update-index --force-remove -- 'old name.txt'`,
-		`GIT_INDEX_FILE="$_ze_index" git commit -F 'tmp/message name.txt'`,
+		`_ze_message='tmp/message name.txt'`,
+		`_ze_tree=$(GIT_INDEX_FILE="$_ze_index" git write-tree)`,
+		`git stripspace < "$_ze_message" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree"`,
+		`git update-ref -m 'commit: quote fixture' HEAD "$_ze_commit" "$_ze_parent"`,
 		"git ls-tree HEAD -- 'plain.txt' 'space name.txt' 'quote'\"'\"'s.txt' | git update-index --index-info",
 	} {
 		if !strings.Contains(script, want) {
@@ -1209,7 +1213,7 @@ func TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit(t *testing.T) {
 	order := []string{
 		`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- ` + quoted + `)`,
 		`GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- ` + quoted,
-		`git commit -F `,
+		`git update-ref -m `,
 		`_ze_gone=(` + quoted + `)`,
 		`rm -f -- "$_ze_path"`,
 		`until _ze_said=$({ git update-index --force-remove -- ` + quoted,

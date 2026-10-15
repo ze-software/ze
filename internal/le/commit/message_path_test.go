@@ -20,7 +20,7 @@ func scriptMessagePath(t *testing.T, root, script string) string {
 	}
 	var found []string
 	for line := range strings.SplitSeq(string(content), "\n") {
-		_, path, isCommit := strings.Cut(strings.TrimSpace(line), "git commit -F ")
+		_, path, isCommit := strings.Cut(strings.TrimSpace(line), "_ze_message=")
 		if !isCommit {
 			continue
 		}
@@ -47,7 +47,7 @@ func scriptMessagePath(t *testing.T, root, script string) string {
 // VALIDATES: two prepared commits under one tag in one session name two
 // different message files, and the first one's content survives the second
 // create (AC-1 of spec-commit-message-file-carries-its-own-suffix).
-// Each script's own `git commit -F` line names its message, while session and
+// Each script's own `_ze_message=` line names its message, while session and
 // tag are identical for both, so the script is the one source the message path
 // is derived from (AC-2).
 // PREVENTS: a prepared commit being made under another commit's subject and

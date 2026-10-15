@@ -480,7 +480,7 @@ func targetScript(root, session, tag string, options *Options) (string, string, 
 		if err != nil {
 			return "", "", fmt.Errorf("script does not exist: %s", relative)
 		}
-		if !strings.Contains(string(content), "git commit -F ") {
+		if !strings.Contains(string(content), scriptMarker) {
 			return "", "", fmt.Errorf("script is not a generated commit script: %s", relative)
 		}
 		if !options.Append && !options.Replace {
@@ -497,7 +497,7 @@ func targetScript(root, session, tag string, options *Options) (string, string, 
 		candidates := matches[:0]
 		for _, match := range matches {
 			content, readErr := os.ReadFile(match) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
-			if readErr == nil && strings.Contains(string(content), "git commit -F ") {
+			if readErr == nil && strings.Contains(string(content), scriptMarker) {
 				candidates = append(candidates, match)
 			}
 		}
