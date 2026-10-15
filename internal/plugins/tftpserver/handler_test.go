@@ -2,6 +2,7 @@ package tftpserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"net"
 	"os"
@@ -60,7 +61,7 @@ func TestTFTPReadRequestLogged(t *testing.T) {
 	var buf syncBuf
 	log := slogutil.LoggerWithOutput("tftpserver", "info", &buf)
 	sem := make(chan struct{}, 4)
-	go serve(conn, rootDir, sem, log)
+	go serve(context.Background(), conn, rootDir, sem, log)
 
 	srvAddr, ok := conn.LocalAddr().(*net.UDPAddr)
 	if !ok {
@@ -320,7 +321,7 @@ func startTestTFTPServer(t *testing.T, rootDir string, maxTransfers int) *net.UD
 	sem := make(chan struct{}, maxTransfers)
 	log := slogutil.DiscardLogger()
 
-	go serve(conn, rootDir, sem, log)
+	go serve(context.Background(), conn, rootDir, sem, log)
 
 	addr, ok := conn.LocalAddr().(*net.UDPAddr)
 	if !ok {

@@ -4,10 +4,15 @@ package tftpserver
 
 import (
 	"bytes"
+	"encoding/binary"
+	"errors"
 	"log/slog"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -27,16 +32,35 @@ func tftpSections(root, description string) []sdk.ConfigSection {
 // to.
 func newTestTFTPConfigTx(t *testing.T) (*sdk.ConfigTx[tftpConfig], *tftpServer, *bytes.Buffer) {
 	t.Helper()
+	tx, srv, buf, _ := newTestTFTPConfigTxRefusing(t)
+	return tx, srv, buf
+}
+
+// newTestTFTPConfigTxRefusing is newTestTFTPConfigTx, and also answers the
+// set of device names whose bind the stub refuses, which a test fills to
+// model an interface that does not exist.
+func newTestTFTPConfigTxRefusing(t *testing.T) (*sdk.ConfigTx[tftpConfig], *tftpServer, *bytes.Buffer, map[string]bool) {
+	t.Helper()
 	orig := tftpListen
 	t.Cleanup(func() { tftpListen = orig })
-	tftpListen = func(string) (*net.UDPConn, error) {
+	refused := map[string]bool{}
+	tftpListen = func(device string) (*net.UDPConn, error) {
+		if refused[device] {
+			return nil, errors.New("no such device")
+		}
 		return net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
 	}
 
 	var buf bytes.Buffer
 	srv := &tftpServer{log: slog.New(slog.NewTextHandler(&buf, nil))}
-	t.Cleanup(srv.closeListeners)
-	return sdk.NewConfigTx(tftpConfig{}, parseTFTPSections, srv.install), srv, &buf
+	t.Cleanup(srv.stop)
+	return sdk.NewConfigTx(tftpConfig{}, parseTFTPSections, srv.install), srv, &buf, refused
+}
+
+// tftpSectionsOn is tftpSections serving root on iface.
+func tftpSectionsOn(iface, root string) []sdk.ConfigSection {
+	return []sdk.ConfigSection{{Root: configRootService, Data: `{"service":{"tftp-server":{"enabled":"true",` +
+		`"listen-interface":["` + iface + `"],"root-directory":"` + root + `","max-transfers":"4"}}}`}}
 }
 
 // TestConfigTxAppliesReloadedRootDirectory proves AC-1 to AC-4 for tftpserver:
@@ -124,5 +148,115 @@ func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
 		if len(srv.listeners) != 1 || srv.listeners[0] != listener {
 			t.Fatalf("%s of an edit outside tftp-server rebound the listener", step.name)
 		}
+	}
+}
+
+// TestConfigTxUnbindableInterfaceFailsApply proves R-13 for tftpserver: an
+// apply whose listen-interface cannot be bound returns an error naming the
+// interface and the fix, so the transaction rolls back, and the server binds
+// the config it ran again.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-13 for tftpserver.
+// PREVENTS: a commit that succeeds while the TFTP server serves nothing.
+// MUTATION: log the bind failure and return nil, and the error check fails.
+func TestConfigTxUnbindableInterfaceFailsApply(t *testing.T) {
+	tx, srv, _, refused := newTestTFTPConfigTxRefusing(t)
+	refused["eth9"] = true
+	if err := tx.Configure(tftpSectionsOn("eth0", "/srv/a")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if err := tx.Verify(tftpSectionsOn("eth9", "/srv/a")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	err := tx.Apply()
+	if err == nil {
+		t.Fatal("apply onto an interface that cannot be bound succeeded")
+	}
+	for _, want := range []string{`"eth9"`, "listen-interface"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("apply error %q does not name %s", err, want)
+		}
+	}
+	if len(srv.listeners) != 1 {
+		t.Fatalf("a failed apply left %d listeners, want the 1 it ran", len(srv.listeners))
+	}
+}
+
+// TestConfigTxRollbackThatCannotRebindFails proves the CodeBroken path of
+// R-13 is reachable for tftpserver: a rollback whose replaced config can no
+// longer be bound returns an error, so the orchestrator restarts the plugin.
+// VALIDATES: spec-plugin-reload-applies-or-refuses R-13, AC-4.
+// PREVENTS: a rollback acked while the TFTP server serves nothing.
+func TestConfigTxRollbackThatCannotRebindFails(t *testing.T) {
+	tx, _, _, refused := newTestTFTPConfigTxRefusing(t)
+	if err := tx.Configure(tftpSectionsOn("eth0", "/srv/a")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	if err := tx.Verify(tftpSectionsOn("eth1", "/srv/a")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if err := tx.Apply(); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	refused["eth0"] = true
+	if err := tx.Rollback(); err == nil {
+		t.Fatal("rollback onto an interface that cannot be bound succeeded")
+	}
+}
+
+// TestConfigTxReloadCutsTransferInFlight proves spec row 25 for tftpserver: a
+// transfer running when a changed config is applied is cut, so no file is
+// served from a root directory the operator replaced.
+// Method: a client reads block 1 of a three-block file, the root directory
+// is changed and applied, then the client acknowledges block 1; with the
+// transfer cut, block 2 never comes.
+// VALIDATES: spec-plugin-reload-applies-or-refuses row 25 (cut on change).
+// PREVENTS: a transfer finishing from the old root after a reload.
+// MUTATION: drop the context.AfterFunc in handleRRQ and block 2 arrives.
+func TestConfigTxReloadCutsTransferInFlight(t *testing.T) {
+	tx, srv, _ := newTestTFTPConfigTx(t)
+	rootA, rootB := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(rootA, "boot.bin"), make([]byte, 3*512-1), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	if err := tx.Configure(tftpSectionsOn("eth0", rootA)); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	server, ok := srv.listeners[0].LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("listener address is %T", srv.listeners[0].LocalAddr())
+	}
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("client: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	rrq := append([]byte{0, byte(opRRQ)}, []byte("boot.bin\x00octet\x00")...)
+	if _, err := client.WriteToUDP(rrq, server); err != nil {
+		t.Fatalf("send RRQ: %v", err)
+	}
+	buf := make([]byte, 600)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("deadline: %v", err)
+	}
+	n, transfer, err := client.ReadFromUDP(buf)
+	if err != nil || n < 4 || binary.BigEndian.Uint16(buf[2:4]) != 1 {
+		t.Fatalf("block 1 not received: n=%d err=%v", n, err)
+	}
+
+	if err := tx.Verify(tftpSectionsOn("eth0", rootB)); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if err := tx.Apply(); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if _, err := client.WriteToUDP([]byte{0, byte(opACK), 0, 1}, transfer); err != nil {
+		t.Fatalf("send ACK 1: %v", err)
+	}
+	if err := client.SetReadDeadline(time.Now().Add(500 * time.Millisecond)); err != nil {
+		t.Fatalf("deadline: %v", err)
+	}
+	n, _, err = client.ReadFromUDP(buf)
+	if err == nil && n >= 4 && binary.BigEndian.Uint16(buf[2:4]) == 2 {
+		t.Fatal("the transfer from the replaced root directory went on after the reload")
 	}
 }

@@ -38,12 +38,24 @@ A reload that changes nothing under `service tftp-server` leaves the server
 alone: `sdk.ConfigTx` finds the parsed config equal to the running one and
 installs nothing. A reload that changes it closes the listeners and binds them
 again with a new transfer semaphore, and logs `tftpserver: config applied`. A
-request that arrives during the swap is lost and the client retransmits it. A
-transfer already running is not cut: it holds its own socket and its slot in
-the replaced semaphore, so it finishes under the config it started with, from
-the old root directory. Until it finishes, the running transfers can exceed
-the new `max-transfers` by the number still in flight.
-<!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install -->
+request that arrives during the swap is lost and the client retransmits it.
+Every transfer runs under the generation of the config that started it. Once
+the new listeners serve, the replaced generation is cancelled, which closes
+the socket of every transfer still in flight: the transfer is cut, and the
+client fetches the file again under the new config. No file is served from a
+root directory the operator replaced, and `max-transfers` holds at once. A
+reload that sets `enabled false` stops serving the same way.
+
+A reload binds every `listen-interface` or none. When one cannot be bound, the
+apply binds the replaced config's listeners again under the replaced
+generation, so its transfers go on, and returns an error naming the interface
+and the fix, so the commit fails and rolls back. When the replaced listeners
+cannot be bound either, the error says the server is not serving; a rollback
+that answers so is reported broken and the engine restarts the plugin. The
+boot configure is not strict: it logs `listen failed` for an interface and
+serves on the others, or logs `no interfaces bound` when none binds.
+<!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install, tftpServer.restore, bindTFTP -->
+<!-- source: internal/plugins/tftpserver/handler.go -- handleRRQ -->
 
 ## Traps
 

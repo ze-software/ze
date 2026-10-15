@@ -23,6 +23,7 @@ package tftpserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"net"
@@ -157,7 +158,7 @@ func TestListenTFTPLoopbackRoundTrip(t *testing.T) {
 	want := makeTestFile(t, dir, "boot.bin", 1100) // 1100 bytes -> 3 blocks (512+512+76)
 
 	sem := make(chan struct{}, 4)
-	go serve(conn, dir, sem, slogutil.DiscardLogger())
+	go serve(context.Background(), conn, dir, sem, slogutil.DiscardLogger())
 
 	srv := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 69}
 	got, err := tftpFetch(t, srv, "boot.bin")
@@ -185,7 +186,7 @@ func TestListenTFTPDeviceFilter(t *testing.T) {
 	makeTestFile(t, dir, "boot.bin", 64)
 
 	sem := make(chan struct{}, 4)
-	go serve(conn, dir, sem, slogutil.DiscardLogger())
+	go serve(context.Background(), conn, dir, sem, slogutil.DiscardLogger())
 
 	srv := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 69}
 	if got, err := tftpFetch(t, srv, "boot.bin"); err == nil {
@@ -214,7 +215,7 @@ func TestTFTPServerBindsViaResolveWithoutBackend(t *testing.T) {
 	want := makeTestFile(t, dir, "boot.bin", 600)
 
 	sem := make(chan struct{}, 4)
-	go serve(conn, dir, sem, slogutil.DiscardLogger())
+	go serve(context.Background(), conn, dir, sem, slogutil.DiscardLogger())
 
 	srv := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 69}
 	got, err := tftpFetch(t, srv, "boot.bin")

@@ -36,7 +36,7 @@ cmd=background:seq=1:exec=ze -:stdin=ze-tftp
 # the expect below still asserts the full phrase. The exit-code expectation is
 # gone because awaitDaemonStderr owns the wait arm in runner_exec.go, so it could
 # never fire. Every stderr assertion is unchanged.
-# Producer: tftpserver/register.go, "tftpserver: no interfaces bound; server
+# Producer: tftpserver/config_tx.go bindTFTP, "tftpserver: no interfaces bound; server
 # not serving".
 await=stderr:contains=no interfaces bound
 expect=stderr:contains=no interfaces bound

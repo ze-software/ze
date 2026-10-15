@@ -19,13 +19,21 @@
 # exist, so on Linux the bind fails and is logged; the reload asserts the
 # install, not the socket.
 
+# skip-os linux: a reload binds every listen-interface or fails (R-13), and an
+# unprivileged Linux host cannot bind port 69, so there the reload is refused.
+# Darwin ignores the interface name and binds port 69 on every address, which
+# an unprivileged user may. The strict bind and the cut transfer are proven in
+# Go by TestConfigTxUnbindableInterfaceFailsApply and
+# TestConfigTxReloadCutsTransferInFlight (tftpserver/config_tx_test.go).
+
+option=skip-os:value=linux
 option=env:var=ze.log.tftpserver:value=info
 
 stdin=ze-bgp:terminator=EOF_CONF
 service {
 	tftp-server {
 		enabled true
-		listen-interface ze-no-such-iface0
+		listen-interface lo
 		root-directory /srv/ze-tftp-a
 		max-transfers 10
 	}
@@ -36,7 +44,7 @@ tmpfs=config2.conf:terminator=EOF_CONF2
 service {
 	tftp-server {
 		enabled true
-		listen-interface ze-no-such-iface0
+		listen-interface lo
 		root-directory /srv/ze-tftp-b
 		max-transfers 10
 	}

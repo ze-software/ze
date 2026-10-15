@@ -359,7 +359,7 @@ Every leaf of rows 1 to 13 and 20 to 26 is applied live; refusals are listed exp
 | 21 | routingtable | apply live | `SetRegistry` with the previous kept for rollback; R-9 tested |
 | 22, 23 | as112, geodns | apply live | the existing configure path, run from apply only when the parsed candidate differs (R-2); `reloadTotal` now counts real reloads |
 | 24 | dhcpserver | apply live per Q3 | restart only when the dhcp subtree changed (R-2) |
-| 25, 26 | tftpserver, imageserver | apply live | restart only when their subtree changed. imageserver: a download in flight is cut (`http.Server.Close`), documented. tftpserver: a transfer in flight is NOT cut (found at implementation, 008dbd7f7d): it runs on its own socket with its old semaphore slot and finishes under the config it started with, so it can exceed a lowered `max-transfers` meanwhile; documented in `tftp-server.md` |
+| 25, 26 | tftpserver, imageserver | apply live | restart only when their subtree changed. imageserver: a download in flight is cut (`http.Server.Close`), documented. tftpserver: a transfer in flight is cut on a change: each transfer runs under its config's generation, cancelled once the new listeners serve, which closes its socket (`TestConfigTxReloadCutsTransferInFlight`, red before the fix); documented in `tftp-server.md`. dhcp, tftp, image: a reload binds every `listen-interface` or fails and binds the replaced config again (R-13); Stage 2 stays lenient |
 | 27 | exabgp bridgeplugin | refuse at verify every non-capability change under `exabgp` while running (Q4) | needs-restart error naming the leaf path |
 | 29, 30 | connected, kernel | read no config | keep `WantsConfig`, explicit declaration (Q6 = g2) |
 | 31 | exabgp external `main_sdk.go` | capability-only | Phase 4 |

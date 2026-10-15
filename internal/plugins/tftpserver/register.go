@@ -58,7 +58,9 @@ func runTFTPServerPlugin(conn net.Conn) int {
 	defer closeLogged(p, log, "plugin conn")
 
 	srv := &tftpServer{log: log}
-	sdk.NewConfigTx(tftpConfig{}, parseTFTPSections, srv.install).Register(p)
+	tx := sdk.NewConfigTx(tftpConfig{}, parseTFTPSections, srv.install)
+	tx.Register(p)
+	p.OnConfigure(func(sections []sdk.ConfigSection) error { return srv.configureAtBoot(tx, sections) })
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -68,11 +70,11 @@ func runTFTPServerPlugin(conn net.Conn) int {
 		ApplyBudget:  5,
 	}); err != nil {
 		log.Error("tftpserver plugin failed", "error", err)
-		srv.closeListeners()
+		srv.stop()
 		return 1
 	}
 
-	srv.closeListeners()
+	srv.stop()
 	log.Info("tftpserver plugin stopped")
 	return 0
 }
