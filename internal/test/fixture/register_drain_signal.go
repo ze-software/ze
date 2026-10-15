@@ -103,14 +103,22 @@ func drainSignaler(ctx context.Context, args []string) error {
 // loop would leave unanswered.
 const drainShowCommand = "show drain-show status"
 
-// drainShow proves the event loop keeps serving while its drain is held
-// (AC-23). From inside its drain handler it dispatches two commands, each of
-// which MUST be answered within drainShowBound: `show bgp`, the BGP summary,
-// which the engine answers (`show bgp summary` was retired and answers
-// "unknown command", plugin_fixture_15_show.go), and drainShowCommand, which
-// the engine routes back to this plugin's event loop. An SDK that ran the
-// handler on the loop answers the second only after the drain, so it fails.
-func drainShow(ctx context.Context, _ []string) error {
+// drainShow proves management and the event loop keep serving while its
+// drain is held (AC-23). Its argument is the daemon's SSH port. Once SSH
+// answers, it stops the daemon with SIGTERM itself, so the drain cannot start
+// before the SSH server is up. From inside its drain handler it sends three
+// commands, each of which MUST be answered within drainShowBound: `show bgp`,
+// the BGP summary, over SSH as an operator types it; `show bgp` again through
+// the plugin's own dispatch (`show bgp summary` was retired and answers
+// "unknown command", plugin_fixture_15_show.go); and drainShowCommand, which
+// the engine routes back to this plugin's event loop. A stop that shut or
+// blocked the SSH dispatcher before the drain fails the first. An SDK that ran
+// the handler on the loop answers the third only after the drain, so it fails.
+func drainShow(ctx context.Context, args []string) error {
+	if len(args) != 1 {
+		return errors.New("usage: plugin/drain-show <ssh-port>")
+	}
+	creds := sshclient.Credentials{Host: addrLoopback, Port: args[0], Username: "admin", Auth: "testpass"}
 	plugin, err := newObserver("drain-show")
 	if err != nil {
 		return err
@@ -124,12 +132,19 @@ func drainShow(ctx context.Context, _ []string) error {
 		return statusDone, map[string]any{"draining": true}, nil
 	})
 	answered := fakedrain.ResponderWith(plugin, func() {
+		if drainShowAnswersSSH(creds, "show bgp") {
+			fakedrain.Log("drain-fixture: show bgp over SSH answered during the drain")
+		}
 		if drainShowAnswers(plugin, "show bgp") {
 			fakedrain.Log("drain-fixture: show bgp answered during the drain")
 		}
 		if drainShowAnswers(plugin, drainShowCommand) {
 			fakedrain.Log("drain-fixture: plugin command answered during the drain")
 		}
+	})
+	plugin.OnAllPluginsReady(func() error {
+		go signalDaemonAfterSSH(ctx, creds)
+		return nil
 	})
 	registration := sdk.Registration{
 		DrainBudget: fakedrain.Budget,
@@ -161,6 +176,67 @@ func drainShowAnswers(plugin *sdk.Plugin, command string) bool {
 		return false
 	}
 	return true
+}
+
+// sshAnswer is one SSH exec's result, handed from execSSHAnswer to its waiter.
+type sshAnswer struct {
+	output string
+	err    error
+}
+
+// drainShowAnswersSSH sends one command over SSH during the drain and answers
+// true when it succeeded within drainShowBound. The exec runs on its own
+// goroutine so a dispatcher that blocks for the whole drain is reported at the
+// bound, with a FAIL line the .ci rejects, rather than holding the handler.
+func drainShowAnswersSSH(creds sshclient.Credentials, command string) bool {
+	result := make(chan sshAnswer, 1)
+	start := time.Now()
+	go execSSHAnswer(creds, command, result)
+	select {
+	case answer := <-result:
+		if answer.err != nil {
+			fakedrain.Log("drain-fixture: FAIL " + command + " over SSH during the drain: " + answer.err.Error())
+			return false
+		}
+		if strings.TrimSpace(answer.output) == "" {
+			fakedrain.Log("drain-fixture: FAIL " + command + " over SSH during the drain answered nothing")
+			return false
+		}
+		return true
+	case <-time.After(drainShowBound):
+		fakedrain.Log("drain-fixture: FAIL " + command + " over SSH not answered within " +
+			drainShowBound.String() + " during the drain (waited " +
+			time.Since(start).Round(time.Millisecond).String() + ")")
+		return false
+	}
+}
+
+// execSSHAnswer runs one SSH exec and sends its result. The channel has room
+// for the one result, so the send never blocks after the waiter gave up; the
+// goroutine ends when the exec does.
+func execSSHAnswer(creds sshclient.Credentials, command string, result chan<- sshAnswer) {
+	output, err := sshclient.ExecCommand(creds, command)
+	result <- sshAnswer{output: output, err: err}
+}
+
+// signalDaemonAfterSSH waits until the daemon's SSH server answers and the
+// .ci peer's session has had drainRequesterSettle to come up, then sends the
+// daemon SIGTERM once. One goroutine for the fixture's one stop.
+func signalDaemonAfterSSH(ctx context.Context, creds sshclient.Credentials) {
+	if _, err := waitSSHCommandExtra3(ctx, creds, "show version"); err != nil {
+		fakedrain.Log("drain-fixture: FAIL SSH never answered before the stop: " + err.Error())
+		return
+	}
+	time.Sleep(drainRequesterSettle)
+	pid, err := daemonPID()
+	if err == nil {
+		err = syscall.Kill(pid, syscall.SIGTERM)
+	}
+	if err != nil {
+		fakedrain.Log("drain-fixture: FAIL could not signal the daemon: " + err.Error())
+		return
+	}
+	fakedrain.Log("drain-fixture: SSH answered, sent SIGTERM")
 }
 
 // drainExitsMarker counts drain-exits generations in the test directory.
@@ -259,10 +335,14 @@ func drainSSHRestart(ctx context.Context, args []string) error {
 	}
 	creds := sshclient.Credentials{Host: addrLoopback, Port: args[0], Username: "admin", Auth: "testpass"}
 	if _, err := waitSSHCommandExtra3(ctx, creds, "show version"); err != nil {
+		fakedrain.Log("drain-fixture: FAIL SSH never answered, so restart was not sent: " + err.Error())
 		return err
 	}
 	time.Sleep(drainRequesterSettle)
 	output, err := sshclient.ExecCommand(creds, "restart")
 	fakedrain.Log("drain-fixture: sent restart output=" + strings.TrimSpace(output) + " error=" + errorText(err))
+	if err != nil {
+		fakedrain.Log("drain-fixture: FAIL SSH restart: " + err.Error())
+	}
 	return err
 }

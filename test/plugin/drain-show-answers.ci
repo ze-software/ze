@@ -1,30 +1,51 @@
-# Test: a show command is answered while the plugin's drain is held
-# Exercises: SIGTERM -> runStopDrain (cmd/ze/hub/drain.go) -> the SDK drain
-#            worker (pkg/plugin/sdk/sdk_drain.go), which runs the handler off
-#            the event loop; the handler dispatches `show bgp`, the BGP summary,
-#            and the plugin's own `show drain-show status`, which only the
-#            plugin's event loop answers.
-# VALIDATES: spec-daemon-drain-before-stop AC-23: the BGP summary (`show bgp`)
-#            and a command the draining plugin serves are each answered within
-#            1 s during the drain, and the drain is still answered and the
-#            daemon exits 0.
-# PREVENTS:  a drain handler blocking the plugin's event loop, so a command
-#            routed to the plugin during the drain waits for the drain to end.
+# Test: show commands are answered over SSH and by the plugin while its drain is held
+# Exercises: SIGTERM (sent by the fixture once SSH answers) -> runStopDrain
+#            (cmd/ze/hub/drain.go) -> the SDK drain worker
+#            (pkg/plugin/sdk/sdk_drain.go), which runs the handler off the
+#            event loop. The handler sends `show bgp`, the BGP summary, over
+#            SSH (the SSH exec executor, cmd/ze/hub/service_ssh.go), then
+#            `show bgp` and the plugin's own `show drain-show status`, which
+#            only the plugin's event loop answers, through the plugin.
+# VALIDATES: spec-daemon-drain-before-stop AC-23: an operator's SSH `show bgp`,
+#            the same summary through the plugin, and a command the draining
+#            plugin serves are each answered within 1 s during the drain, and
+#            the drain is still answered and the daemon exits 0. The drain held
+#            is the fixture's own (1 s); the BGP drain arrives in phase 4.
+# PREVENTS:  management shut or blocked during the drain, so an operator's SSH
+#            `show` waits for the drain to end; and a drain handler blocking
+#            the plugin's event loop, so a command routed to the plugin during
+#            the drain waits for the drain to end.
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
 
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-
-action=sigterm:conn=1:seq=2
 EOF_PEER
 
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 plugin {
 	external drain-show {
-		run "le test fixture plugin/drain-show"
+		run "le test fixture plugin/drain-show $PORT2"
 		encoder json
+	}
+}
+
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
 	}
 }
 bgp {
@@ -61,7 +82,9 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze start ze-bgp.conf:timeout=20s
 expect=exit:code=0
+expect=stderr:contains=drain-fixture: SSH answered, sent SIGTERM
 expect=stderr:contains=drain-fixture: drain received kind=stop
+expect=stderr:contains=drain-fixture: show bgp over SSH answered during the drain
 expect=stderr:contains=drain-fixture: show bgp answered during the drain
 expect=stderr:contains=drain-fixture: plugin command answered during the drain
 expect=stderr:contains=drain-fixture: drain answered
