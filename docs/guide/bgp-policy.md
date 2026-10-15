@@ -240,7 +240,7 @@ changes a `blackhole` container takes effect on the next UPDATE of the route;
 it does not re-judge what a peer already holds.
 
 <!-- source: internal/component/bgp/plugins/filter_community/blackhole.go -- blackholeReadvertiseRefused -->
-<!-- source: internal/component/bgp/plugins/filter_community/filter_community.go -- egressFilter, configTx -->
+<!-- source: internal/component/bgp/plugins/filter_community/filter_community.go -- egressFilter, newCommunityConfigTx, installCommunityConfig -->
 <!-- source: internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang -- community-filter-fields -->
 <!-- source: internal/component/bgp/plugins/filter_community/filter.go -- applyIngressFilter, applyRelationTag -->
 <!-- source: internal/component/bgp/plugins/filter_community/scrub.go -- scrubOwnGACommunities -->

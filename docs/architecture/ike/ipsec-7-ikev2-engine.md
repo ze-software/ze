@@ -253,15 +253,18 @@ is a protocol violation, and answering OK would report the commit landed while
 the engine kept the configuration it was already running.
 
 The engine registered no `OnConfigApply` at all until
-spec-fixit-ipsec-peer-reload-ignored. The SDK answers a config-apply with OK when
-no handler is registered, so every reload verified the operator's edit, reported
-success, and applied nothing: `reconcilePeers` was reachable from startup and
-from operator `clear` alone.
+spec-fixit-ipsec-peer-reload-ignored. The SDK then answered a config-apply with
+OK when no handler was registered, so every reload verified the operator's edit,
+reported success, and applied nothing: `reconcilePeers` was reachable from
+startup and from operator `clear` alone. The SDK no longer allows that: a plugin
+that wants config and registered neither `OnConfigApply` nor
+`DeclareAppliesNothing` has every reload refused at config-verify, its default
+config-apply answers an error, and `OnConfigApply(nil)` panics.
 
 <!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal, IKEGroup.Equal, ESPGroup.Equal, IPsecConfig.Changed -->
 <!-- source: internal/component/ike/engine/apply.go -- ikeEngineState, applyConfig, rebindListeners, stopAllPeers, reloadPool -->
 <!-- source: internal/component/ike/engine/register.go -- applyPhase, ikeConfigStaging, unbindablePeers, peersNeedInterfaceAddress -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply, DeclareAppliesNothing, configVerifyCallback, refuseConfigApply -->
 <!-- source: internal/component/ike/engine/rekey.go -- proposeChildTSPayloads -->
 
 **PSK AUTH comparison is constant time.** A byte-at-a-time comparison leaks
