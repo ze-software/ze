@@ -81,7 +81,7 @@
     {
       "rid": "RFC5881-3-2",
       "polarity": "positive",
-      "unit": "internal/component/bfd/engine/link_local_first_packet_test.go::TestFirstPacketSelectsALinkLocalPeer",
+      "unit": "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestFirstPacketSelectsALinkLocalPeer",
       "unit-sha": "144be2366e84270e",
       "claim-sha": "03a8ceeb7bd4762d",
       "route": "mutant",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC5881-3-2",
       "polarity": "positive",
-      "unit": "internal/component/bfd/engine/link_local_first_packet_test.go::TestFirstPacketTakesTheLinkFromTheZone",
+      "unit": "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestFirstPacketTakesTheLinkFromTheZone",
       "unit-sha": "ab440c2aed0e8016",
       "claim-sha": "786b2ef42af7d1dd",
       "route": "mutant",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC5881-3-2",
       "polarity": "positive",
-      "unit": "internal/component/bfd/engine/link_local_first_packet_test.go::TestTwoLinkLocalSessionsStayApart",
+      "unit": "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestTwoLinkLocalSessionsStayApart",
       "unit-sha": "553191fa735c1e81",
       "claim-sha": "dde8b86341820804",
       "route": "mutant",

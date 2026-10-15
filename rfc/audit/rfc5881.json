@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-15",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -45,17 +45,23 @@
       "verdict": "enforced"
     },
     "RFC5881-3-2": {
-      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a73 \"any BFD packet from the remote machine with a zero value of Your Discriminator MUST be associated with the session bound to the remote system, interface, and protocol\". TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol varies interface and protocol independently of the remote: same IPv4 peer on loop and loop2 plus an IPv6 session on loop2; a YD=0 packet from the IPv4 peer on loop2 is associated with (peer, loop2, IPv4) only, the loop session and the v6 session keep RemoteDiscr 0. Remote-address arm kept (FirstPacketMatchesByTuple, FirstPacketWrongSourceDropped). The protocol arm follows from the address family in the byKey key, so its negative cannot diverge from the remote-address one; accepted. Revert records on loop.go::handleInbound observed red (+/-).",
+      "note": "Judge 2026-10-15 (rejudge, three link-local positives added). \u00a73 \"any BFD packet from the remote machine with a zero value of Your Discriminator MUST be associated with the session bound to the remote system, interface, and protocol\". Unchanged since the 2026-09-30 verdict: TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol (+/-) varies interface and protocol against one remote, TestRFC5881FirstPacketMatchesByTuple (+) and TestRFC5881FirstPacketWrongSourceDropped (-) the remote address; revert records on loop.go::handleInbound. Added: rfc5881_link_local_first_packet_test.go, the same association for an IPv6 link-local remote whose packet source carries the kernel's zone while the configured peer has none. TestFirstPacketSelectsALinkLocalPeer asserts the exact RemoteDiscriminator on the session bound to fe80::1 on eth0; TestFirstPacketTakesTheLinkFromTheZone (transport reports no ingress interface, the zone names the link) and TestTwoLinkLocalSessionsStayApart (one address on two links) each assert the exact value on the session bound to the packet's link and zero on the session bound to the same remote on the other link. Each input is a conforming YD=0 first packet and nothing else in handleInbound's first-packet path can reject it, so the buffer isolates the rule. Tagged positive only: one packet reaches at most one byKey entry, so no keying break makes one packet set both sessions and the other-link assertion cannot fire alone. Mutant records (reconcileZone, zone != \"\" -> false, the peer keeps its zone) observed all three red.",
       "requirement_sha": "cd25a5a7c476ea90",
       "tests": {
         "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol": "78e0044248c8ea5a",
         "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol#2": "78e0044248c8ea5a",
+        "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestFirstPacketSelectsALinkLocalPeer": "5d7039728150f285",
+        "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestFirstPacketTakesTheLinkFromTheZone": "5d7039728150f285",
+        "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestTwoLinkLocalSessionsStayApart": "5d7039728150f285",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "c8bf3135e7e74ea3",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped": "c8bf3135e7e74ea3"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol": "bf5f17b5d99fcf44",
         "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol#2": "bf5f17b5d99fcf44",
+        "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestFirstPacketSelectsALinkLocalPeer": "ac26a4338b9a6a2f",
+        "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestFirstPacketTakesTheLinkFromTheZone": "05aeb19a30a28991",
+        "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestTwoLinkLocalSessionsStayApart": "4b81db757fc9d120",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "8d9ee703f1e56ddb",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped": "b77f28c4e5257d51"
       },

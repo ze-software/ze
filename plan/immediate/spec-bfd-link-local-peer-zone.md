@@ -135,7 +135,7 @@ Read at the producer for this design. Digests:
 | `internal/component/bfd/api/session_identity.go` | ~200 | `Canonical` derives interface and local for single-hop only when exactly one link holds a prefix containing the peer; a link-local peer on a multi-link box is left as written |
 | `internal/component/bfd/config.go` | ~700 | `parseSingleHopSession` accepts any `netip.ParseAddr` form for `peer` and `local`, zone included, and does not require `interface` for any peer |
 | `internal/component/bfd/engine/snapshot.go` | - | `SessionDetail(peer)` returns the first session in map order whose `key.Peer` string matches |
-| `internal/component/bfd/engine/link_local_first_packet_test.go` | 105 | `TestFirstPacketSelectsALinkLocalPeer`, `TestFirstPacketTakesTheLinkFromTheZone`, `TestTwoLinkLocalSessionsStayApart`: hand-built `Inbound`, no kernel, no RFC tag |
+| `internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go` | 105 | `TestFirstPacketSelectsALinkLocalPeer`, `TestFirstPacketTakesTheLinkFromTheZone`, `TestTwoLinkLocalSessionsStayApart`: hand-built `Inbound`, no kernel, no RFC tag |
 | `internal/component/bfd/transport/udp_zone_test.go` | 72 | `TestSendKeepsTheZoneForALinkLocalPeer`: asserts `destination`'s `Zone`, no write, no RFC tag |
 
 What this leaves, by path:
@@ -301,7 +301,7 @@ What an operator sees change beyond the two BFD lists, under Q-3 (a):
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestFirstPacketSelectsALinkLocalPeer` | `internal/component/bfd/engine/link_local_first_packet_test.go` (exists; the skeleton named `rfc5881_test.go`) | AC-1; gains tag `RFC5881-3-2 positive` (AC-10) | exists, tag added; record by the gomu mutant `zone != ""` -> `false` in `reconcileZone`, red observed 2026-10-15 |
+| `TestFirstPacketSelectsALinkLocalPeer` | `internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go` (exists; the skeleton named `rfc5881_test.go`) | AC-1; gains tag `RFC5881-3-2 positive` (AC-10) | exists, tag added; record by the gomu mutant `zone != ""` -> `false` in `reconcileZone`, red observed 2026-10-15 |
 | `TestTwoLinkLocalSessionsStayApart` | same file (exists) | AC-2; gains tag `RFC5881-3-2 positive` (the eth0 packet is associated with the eth0 session; see the tagged-test table for why not `negative`) | exists, tag added; record by the gomu mutant `zone != ""` -> `false` in `reconcileZone`, red observed 2026-10-15 |
 | `TestFirstPacketTakesTheLinkFromTheZone` | same file (exists) | AC-2, transport reports no ingress interface; gains tag `RFC5881-3-2 positive` | exists, tag added; record by the gomu mutant `zone != ""` -> `false` in `reconcileZone`, red observed 2026-10-15 |
 | `TestSendKeepsTheZoneForALinkLocalPeer` | `internal/component/bfd/transport/udp_zone_test.go` (exists; the skeleton named `udp_test.go`) | AC-3 at `destination`; no tag (RFC 4007 has no summary, and RFC5881-6-1 is already carried by the pin tests) | exists |
@@ -327,7 +327,7 @@ What an operator sees change beyond the two BFD lists, under Q-3 (a):
 
 | Test | File | Change | Discrimination owed |
 |------|------|--------|---------------------|
-| `TestFirstPacketSelectsALinkLocalPeer` | `internal/component/bfd/engine/link_local_first_packet_test.go` | tag ADDED: `RFC5881-3-2 positive` | new record, break `reconcileZone` → identity |
+| `TestFirstPacketSelectsALinkLocalPeer` | `internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go` | tag ADDED: `RFC5881-3-2 positive` | new record, break `reconcileZone` → identity |
 | `TestFirstPacketTakesTheLinkFromTheZone` | same | tag ADDED: `RFC5881-3-2 positive` | new record, same break |
 | `TestTwoLinkLocalSessionsStayApart` | same | tag ADDED: `RFC5881-3-2 positive` | new record, break `reconcileZone` → identity (the eth0 session is not selected, the first assertion fires). Not `negative`: the second assertion (the eth0 packet did not reach the eth1 session) is reached only once the first passes, and `handleInbound` gives one packet to at most one `byKey` entry while the two sessions are two machines under two `api.Key` values (`Interface` is part of it). No break in `firstPacketKey`, `reconcileZone`, `without` or `keyRelaxations` makes one packet set both machines; the only break that does merges the two sessions in `api.Key`, outside the keying code. So the negative clause cannot be exercised here and the tag claims the positive clause only |
 | none other | - | No existing tagged test is edited. The existing RFC5881-3-2 units (`engine/rfc5881_test.go`, `engine/rfc5881_first_packet_binding_test.go`), the RFC5882-4.4-1 units in `api/rfc5882_session_identity_test.go` (which use `fe80::` link tables) and the RFC5881-6-2 units in `transport/rfc5881_subnet_exemption_test.go` (which exempt `fe80::2`) are unaffected: `Canonical`, `reconcileZone`, `Send` and `egressLink.reaches` do not change, and the refusal lives in `parseSingleHopSession`, which no record names | none |
@@ -420,7 +420,7 @@ uses, and reads FRR `show bfd peer <Ze's address> interface eth0 json` and Ze
 ## Files to Modify
 - `internal/component/bfd/config.go` - `parseSingleHopSession`: refuse a link-local `peer` without `interface`, and a zone on `peer` or `local` (AC-5, AC-7), with the RFC comments below
 - `internal/component/bfd/yang/ze-bfd-conf.yang` - `single-hop-session` `peer` and `interface` descriptions state the requirement and the refusal
-- `internal/component/bfd/engine/link_local_first_packet_test.go` - add the three `RFC requirement:` tags (AC-10)
+- `internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go` - add the three `RFC requirement:` tags (AC-10)
 - `internal/test/fixture/register_bfd_linux.go` (new; the design named `register_bfd.go`) - registers `bfd/bfd-first-packet-link-local` and its `-setup` and `-teardown` fixtures. They build veths with netlink and write frames with AF_PACKET, which only Linux has, so they register from a `_linux.go` file as the VRRP AF_PACKET fixtures do (`routing_fixture_linux.go`)
 - `internal/le/interoplab/bgp/prepare.go` - `renderScenario` reports which link-local placeholders it rendered and renders `@FRR_LINK_LOCAL@`; `prepareScenario` assigns each rendered placeholder's address to its owner's `eth0` (Ze and FRR); the `rfc2545Scenario` constant and its name comparison are deleted; the address builder takes a host number (Scenario contract)
 - `internal/le/interoplab/bgp/check_rfc.go` - the `bgp-rfc2545-linklocal-nexthop-frr` checker calls the renamed address builder with Ze's host
