@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-10",
+  "audited": "2026-10-15",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -41,15 +41,31 @@
       "verdict": "enforced"
     },
     "RFC3948-2.1-2": {
-      "note": "Forbidden behaviour: UDP-encapsulated ESP whose source or destination port differs from the ports IKE traffic uses, which is the NAT-translated case (Section 5.2 shows IKE reaching the server as <Y,4500>). TestChildSANATTEncapPorts asserts both encap ports equal the constant transport.NATTPort (4500), which is what the code does, not what the RFC says: installChildSA (child.go) takes the peer's real IKE port only on the MOBIKE path (udpRemotePort) and otherwise falls back to 4500, so a peer whose IKE arrives from a translated port Y gets ESP on 4500 and the test stays green. The {single-polarity} marker's claim that no path produces a non-4500 port is also false for the MOBIKE path.",
+      "note": "Re-judged 2026-10-15 after b457ba88cf (Child SA encap ports come from the IKE SA) replaced the test this verdict found wrong and added seven tagged units. RFC 3948 Section 2.1: \"the Source Port and Destination Port MUST be the same as that used by IKE traffic,\". Producer: childEncapPorts (create_child.go) answers remote = the peer's authenticated IKE endpoint port and local = the bound NAT-T socket port (MOBIKE: its local path), refuses with errChildEncapPort when no endpoint exists, and installChildSA no longer defaults to 4500. Positive: TestChildSANATTEncapPorts and TestRFC3948ChildSAFollowsANATMappedPeerPort500 assert exact (sport, dport) on both installed states with the peer on 14500 (or a NAT-mapped 500) and the local socket on a kernel-picked port, so the 4500 constant cannot pass; TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort and TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort drive handleAuthRequest and the EAP exchange through handleInbound from source port 14500 and assert the installed pair; TestRFC3948RebindMigratesTunnelChildSAs, TestRFC3948RebindRekeysWithoutAMigrator and TestRFC3948RebindRekeysTransportChildSA assert the migrated or rekeyed states carry the moved IKE port. Negative: TestRFC3948ChildSARefusesEncapWithoutAnIKEPort asserts errChildEncapPort naming the peer and zero installed states (with and without MOBIKE, and a rekey that leaves only the old pair); TestRFC3948RebindNotRunWithoutAnAdoptedMove asserts the ports do not change without an adopted move. Both source and destination port are asserted in both directions, so the whole sentence is covered. Proven at the dataplane.SAParams boundary through mockDP; the kernel read-back (rfc3948_encap_port_integration_linux_test.go) is untagged and has not run. The engine tests ran green 2026-10-15 (./le job run, -run 'TestRFC3948|TestChildSANATTEncapPorts'). No discrimination record exists for these units yet.",
       "requirement_sha": "34792a4c5764f8b4",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "02ddf9e8a20bddfb"
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "eedc520e478ae909",
+        "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ChildSAFollowsANATMappedPeerPort500": "1df6462cca9e7df2",
+        "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ChildSARefusesEncapWithoutAnIKEPort": "1df6462cca9e7df2",
+        "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort": "1df6462cca9e7df2",
+        "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort": "1df6462cca9e7df2",
+        "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs": "44a9bd5b9f96b86b",
+        "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove": "44a9bd5b9f96b86b",
+        "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA": "44a9bd5b9f96b86b",
+        "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator": "44a9bd5b9f96b86b"
       },
       "units": {
-        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "955a46be9071a360"
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "a5b55eb59ce83dee",
+        "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ChildSAFollowsANATMappedPeerPort500": "0601a10b4abd86b1",
+        "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ChildSARefusesEncapWithoutAnIKEPort": "24d9ceaee3071c67",
+        "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort": "103f8cc8533cd7fd",
+        "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort": "5e57e1ce1c95b5b3",
+        "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs": "069bb89bf4551154",
+        "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove": "e155ce15bdcefbc1",
+        "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA": "4fcfabf0fb3e0054",
+        "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator": "cb485d16fd423766"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC3948-2.3-1": {
       "note": "Rejudged 2026-09-30 (transport judge). Producer: UDPTransport.Run (transport/udp.go) drops every datagram shorter than the 28-octet IKE header, so a one-octet 0xFF keepalive never reaches Recv; the engine's IsNATKeepalive continue in dispatchNATTInbound is a second layer the transport makes unreachable and is not separately proven. Positive TestRFC3948KeepaliveAheadOfIKEIsIgnored: keepalive then an IKE datagram on one NAT-T socket, the first delivered packet is the IKE datagram byte for byte (ignored and the receive path unaffected). Negative TestRFC3948KeepaliveIsNotHandedOn: a lone keepalive never reaches Recv in 200ms (the non-compliant receiver hands it on). Removing the n<28 floor would turn both red (the keepalive is delivered first / at all); both carry observed-red revert records on udp.go::Run. TestIsNATKeepalive (+/-) proves the classification only and is supplementary.",

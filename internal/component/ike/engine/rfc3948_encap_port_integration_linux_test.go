@@ -5,6 +5,8 @@
 // PREVENTS: a unit test over SAParams agreeing with a model of the backend rather than
 // with the kernel; the state read back over netlink is what decides where ESP goes.
 //
+// RFC naming: untagged -- the kernel read-back for RFC3948-2.1-2 (spec-ike-eap-rfc-defects AC-1); it carries no tag until a root guest run has observed it and recorded its discrimination.
+//
 // Needs root for the network namespace (delNetns skips without CLONE_NEWNET) and runs
 // in its own process (delOwnProcess), as the sibling Child SA policy probe does.
 
