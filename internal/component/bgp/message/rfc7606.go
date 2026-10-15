@@ -60,6 +60,11 @@ type RFC7606ValidationResult struct {
 	Reason         uint8          // Discard reason code (draft-mangin-idr-attr-tombstone-00 Section 4.4)
 	Description    string         // Human-readable error description for the strongest error
 	DiscardEntries []DiscardEntry // Attributes to discard with reason codes when Action is AttributeDiscard
+	// DiscardDescriptions[i] says why DiscardEntries[i] is discarded. Description names
+	// only the first error of the strongest action, so an UPDATE that discards two
+	// attributes would otherwise reach the operator as one: RFC 8669 Section 6 asks for
+	// an error for each attribute discarded. AddDiscard keeps the two slices in step.
+	DiscardDescriptions []string
 	// Notification carries the specific RFC 4271 error when session reset
 	// requires more than Malformed Attribute List with an empty Data field.
 	Notification *Notification
@@ -113,6 +118,16 @@ type RFC7606ValidationResult struct {
 	// one in a result the caller acts on.
 	MPReachNLRI   MPNLRILocation
 	MPUnreachNLRI MPNLRILocation
+}
+
+// AddDiscard records one more attribute to discard and why, keeping
+// DiscardEntries and DiscardDescriptions in step. A caller that raises the
+// verdict after the walk (a session policy such as RFC 8669 Section 4's EBGP
+// boundary) MUST record through it, never by appending to DiscardEntries alone.
+// Not safe for concurrent use.
+func (r *RFC7606ValidationResult) AddDiscard(entry DiscardEntry, description string) {
+	r.DiscardEntries = append(r.DiscardEntries, entry)
+	r.DiscardDescriptions = append(r.DiscardDescriptions, description)
 }
 
 // Attribute type codes per RFC 4271.
@@ -255,6 +270,7 @@ func ValidateUpdateRFC7606AddPath(
 	var strongestCode uint8
 	var strongestDesc string
 	var discardEntries []DiscardEntry
+	var discardDescriptions []string
 
 	// RFC 7606 Section 3.g: byte ranges of later (keep-first) occurrences of a
 	// duplicated non-MP attribute, recorded so the enforcement layer can strip them.
@@ -329,6 +345,7 @@ func ValidateUpdateRFC7606AddPath(
 	recordError := func(r *RFC7606ValidationResult) {
 		if r.Action == RFC7606ActionAttributeDiscard {
 			discardEntries = append(discardEntries, DiscardEntry{Code: r.AttrCode, Reason: r.Reason})
+			discardDescriptions = append(discardDescriptions, r.Description)
 		}
 		if r.Action > strongest {
 			strongest = r.Action
@@ -591,18 +608,19 @@ func ValidateUpdateRFC7606AddPath(
 	}
 
 	return &RFC7606ValidationResult{
-		Action:             strongest,
-		AttrCode:           strongestCode,
-		Description:        strongestDesc,
-		DiscardEntries:     discardEntries,
-		DuplicateRanges:    duplicateRanges,
-		PrefixSIDPresent:   sawPrefixSID,
-		TunnelEncapPresent: seenCodes[attribute.AttrTunnelEncap],
-		ASPath:             asPath,
-		AS4Present:         seenCodes[attribute.AttrAS4Path] || seenCodes[attribute.AttrAS4Aggregator],
-		MPReachNLRI:        mpReachNLRI,
-		MPUnreachNLRI:      mpUnreachNLRI,
-		HasReachableNLRI:   hasReachableNLRI,
+		Action:              strongest,
+		AttrCode:            strongestCode,
+		Description:         strongestDesc,
+		DiscardEntries:      discardEntries,
+		DiscardDescriptions: discardDescriptions,
+		DuplicateRanges:     duplicateRanges,
+		PrefixSIDPresent:    sawPrefixSID,
+		TunnelEncapPresent:  seenCodes[attribute.AttrTunnelEncap],
+		ASPath:              asPath,
+		AS4Present:          seenCodes[attribute.AttrAS4Path] || seenCodes[attribute.AttrAS4Aggregator],
+		MPReachNLRI:         mpReachNLRI,
+		MPUnreachNLRI:       mpUnreachNLRI,
+		HasReachableNLRI:    hasReachableNLRI,
 	}
 }
 

@@ -242,13 +242,19 @@ At the default log level, every RFC 7606 action other than session reset
 (attribute discard, treat-as-withdraw, an NLRI syntax error, a late attribute
 error) logs one ERROR record, `BGP UPDATE from peer failed validation, part of
 it was dropped`, with `peer`, `event`, `attr`, `attr-name`, `description` and a
-`next-step`. ERROR, not WARN, because RFC 8669 Section 4.1 asks for "an error"
+`next-step`. An attribute discard logs one record for each attribute it
+removes, each with that attribute's own reason, because RFC 8669 Section 6 asks
+for an error "when discarding an attribute": the validator carries a
+description beside every discard entry, and a session policy that adds a
+discard after the walk (the RFC 8669 Section 4 EBGP boundary, a disabled AIGP)
+records its reason the same way. ERROR, not WARN, because RFC 8669 Section 4.1 asks for "an error"
 on an invalid Prefix-SID beside "a warning" on a conflicting one. The record is
 rate-limited per peer and per attribute code to one a second; the next record
 of that code carries `suppressed`, the count it replaced, and a suppressed call
 allocates nothing. A session reset logs `RFC 7606 session-reset` at WARN.
 
-<!-- source: internal/component/bgp/reactor/session_rfc7606_errlog.go -- logRFC7606Error -->
+<!-- source: internal/component/bgp/reactor/session_rfc7606_errlog.go -- logRFC7606Error, logRFC7606Discards -->
+<!-- source: internal/component/bgp/message/rfc7606.go -- RFC7606ValidationResult.AddDiscard -->
 <!-- source: internal/component/bgp/reactor/log_window.go -- logWindow.allow -->
 
 With `ze.log.bgp.reactor.session=debug`, RFC 7606 error records include

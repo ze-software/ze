@@ -175,10 +175,11 @@ func (s *Session) validateRFC7606Attrs(pathAttrs []byte, hasNLRI bool) *message.
 	// treated exactly as if it were an unrecognized non-transitive attribute."
 	if !s.settings.AIGPEnabled() {
 		if _, _, _, present := attribute.AttrFind(pathAttrs, attribute.AttrAIGP); present {
+			const aigpDisabled = "RFC 7311 Section 3.3: AIGP disabled on this session"
 			if result.Action < message.RFC7606ActionAttributeDiscard {
 				result.Action = message.RFC7606ActionAttributeDiscard
 				result.AttrCode = uint8(attribute.AttrAIGP)
-				result.Description = "RFC 7311 Section 3.3: AIGP disabled on this session"
+				result.Description = aigpDisabled
 			}
 			if result.Action == message.RFC7606ActionAttributeDiscard {
 				recorded := false
@@ -189,9 +190,9 @@ func (s *Session) validateRFC7606Attrs(pathAttrs []byte, hasNLRI bool) *message.
 					}
 				}
 				if !recorded {
-					result.DiscardEntries = append(result.DiscardEntries, message.DiscardEntry{
+					result.AddDiscard(message.DiscardEntry{
 						Code: uint8(attribute.AttrAIGP), Reason: message.DiscardReasonEBGPInvalid,
-					})
+					}, aigpDisabled)
 				}
 			}
 		}
@@ -203,13 +204,18 @@ func (s *Session) validateRFC7606Attrs(pathAttrs []byte, hasNLRI bool) *message.
 	if !isIBGP && !s.settings.AcceptSRv6PrefixSID {
 		if result.PrefixSIDPresent {
 			entry := message.DiscardEntry{Code: uint8(attribute.AttrPrefixSID), Reason: message.DiscardReasonEBGPInvalid}
+			const outsideSRDomain = "RFC 8669 Section 4: PrefixSID from EBGP discarded (not configured to accept)"
 			if result.Action < message.RFC7606ActionAttributeDiscard {
 				result.Action = message.RFC7606ActionAttributeDiscard
 				result.AttrCode = uint8(attribute.AttrPrefixSID)
-				result.Description = "RFC 8669 Section 4: PrefixSID from EBGP discarded (not configured to accept)"
+				result.Description = outsideSRDomain
 			}
 			if result.Action == message.RFC7606ActionAttributeDiscard {
-				result.DiscardEntries = append(result.DiscardEntries, entry)
+				// RFC 8669 Section 4: "A BGP speaker SHOULD log an error for further
+				// analysis when discarding an attribute." The description travels with
+				// the entry, so applyRFC7606 logs this discard even when an earlier
+				// one (an AIGP, an ATOMIC_AGGREGATE) took result.AttrCode.
+				result.AddDiscard(entry, outsideSRDomain)
 			}
 		}
 	}

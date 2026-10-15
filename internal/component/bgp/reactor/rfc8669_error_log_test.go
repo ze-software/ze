@@ -6,7 +6,6 @@
 package reactor
 
 import (
-	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -18,12 +17,14 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // defaultSessionLogLevel is the level slogutil.Logger gives a subsystem with no
-// ze.log setting. A test that asks what an operator sees by default captures at
-// this level, never at Debug.
-const defaultSessionLogLevel = slog.LevelWarn
+// ze.log setting, read from slogutil so a change there moves these tests too. A
+// test that asks what an operator sees by default captures at this level, never
+// at Debug.
+const defaultSessionLogLevel = slogutil.DefaultLevel
 
 // rfc7606ErrorLines returns the ERROR records of the RFC 7606 error log that
 // carry every one of fields.
@@ -87,6 +88,59 @@ func TestRFC8669PrefixSIDDiscardLoggedAtDefaultLevel(t *testing.T) {
 	}
 }
 
+// atomicAggregateLength1 is an ATOMIC_AGGREGATE (code 6) one octet long. RFC 7606
+// Section 7.6 makes Ze discard it, so it puts a second discard in the UPDATE.
+const atomicAggregateLength1 = "40060100"
+
+// TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth discards a Prefix-SID in the
+// same UPDATE as a malformed ATOMIC_AGGREGATE and reads the log at the default
+// level. Method: the real receive entry, on an internal session with a TLV
+// overrun (the ATOMIC_AGGREGATE before and after code 40, so each code is the
+// first discard once) and on an EBGP session outside the SR domain (the
+// boundary discard is recorded after the walk's own). Each must give one ERROR
+// record naming attr=40 and one naming attr=6.
+// RFC 8669 Section 6: "When discarding an attribute, a BGP speaker SHOULD log an error for further analysis."
+// PREVENTS: the audit finding of 2026-10-15, where one record named only the
+// first discarded code and the Prefix-SID discard reached the operator at Debug.
+// MUTATION: log only result.AttrCode in the attribute-discard branch of
+// Session.applyRFC7606; a case loses its attr=40 or its attr=6 record.
+func TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth(t *testing.T) {
+	clean := labelIndexTLV("86690604")
+	overrun := rfc8669PrefixSIDAttr(clean[:len(clean)-2], false)
+	receive := map[string]func(t *testing.T) (message.RFC7606Action, error){
+		"IBGP TLV overrun, ATOMIC_AGGREGATE after": func(t *testing.T) (message.RFC7606Action, error) {
+			_, _, action, err := rfc8669DuplicateReceive(t, safiLabeled, overrun, atomicAggregateLength1, false)
+			return action, err
+		},
+		"IBGP TLV overrun, ATOMIC_AGGREGATE before": func(t *testing.T) (message.RFC7606Action, error) {
+			_, _, action, err := rfc8669DuplicateReceive(t, safiLabeled, atomicAggregateLength1+overrun, "", false)
+			return action, err
+		},
+		"EBGP boundary": func(t *testing.T) (message.RFC7606Action, error) {
+			attrs := append(rfc8669PrefixSIDAttrs(), 0x40, 0x06, 0x01, 0x00)
+			_, action, err := rfc8669EBGPSession(false).enforceRFC7606(
+				wireu.NewWireUpdate(makeUpdateBody(nil, attrs, []byte{24, 10, 0, 0}), 0))
+			return action, err
+		},
+	}
+	for name, run := range receive {
+		t.Run(name, func(t *testing.T) {
+			// No parallel execution: captureSessionLog swaps a process-global logger.
+			log := captureSessionLog(t, defaultSessionLogLevel)
+			action, err := run(t)
+			require.NoError(t, err)
+			require.Equal(t, message.RFC7606ActionAttributeDiscard, action)
+
+			sid := rfc7606ErrorLines(log.String(), " attr=40 ", " event=attribute-discard ")
+			require.Lenf(t, sid, 1, "the Prefix-SID discard; captured:\n%s", log.String())
+			assert.Contains(t, sid[0], "RFC 8669")
+			atomic := rfc7606ErrorLines(log.String(), " attr=6 ", " event=attribute-discard ")
+			require.Lenf(t, atomic, 1, "the ATOMIC_AGGREGATE discard; captured:\n%s", log.String())
+			assert.NotContains(t, atomic[0], "RFC 8669", "each record carries its own attribute's reason")
+		})
+	}
+}
+
 // TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel receives an "invalid"
 // Prefix-SID, a labeled-unicast one whose only TLV is an Originator SRGB, so it
 // carries no Label-Index. Method: the real receive entry at the default level,
@@ -132,9 +186,13 @@ func TestRFC8669EBGPBoundaryDiscardLoggedAtDefaultLevel(t *testing.T) {
 // well-formed Label-Index at the default level: nothing is discarded, so no
 // error is logged.
 // RFC 8669 Section 6: "When discarding an attribute, a BGP speaker SHOULD log an error for further analysis."
+// RFC 8669 Section 4.1: "In the case of an "invalid" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. A BGP speaker SHOULD log an error for further analysis."
 // MUTATION: call Session.logRFC7606Error from the ActionNone branch of
-// Session.applyRFC7606; this control must fail. Untagged: the RFC8669-6-4
-// negative is carried by TestRFC8669CleanPrefixSIDNoDiscardDiagnostic.
+// Session.applyRFC7606, or make the validator read this Label-Index as
+// malformed; an ERROR record appears for an UPDATE that discarded nothing.
+//
+// RFC requirement: RFC8669-6-4 negative -- a well-formed Label-Index Prefix-SID on IPv4 labeled unicast is not discarded (ActionNone) and emits, at the default session log level, no ERROR record naming attribute 40.
+// RFC requirement: RFC8669-4.1-15 negative -- a valid Prefix-SID (a Label-Index TLV on IPv4 labeled unicast) is kept with ActionNone and emits, at the default session log level, no ERROR record naming attribute 40.
 func TestRFC8669CleanPrefixSIDNoErrorLog(t *testing.T) {
 	log := captureSessionLog(t, defaultSessionLogLevel)
 	_, _, action, err := rfc8669DuplicateReceive(t, safiLabeled,
@@ -142,6 +200,24 @@ func TestRFC8669CleanPrefixSIDNoErrorLog(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, message.RFC7606ActionNone, action)
 	assert.Empty(t, rfc7606ErrorLines(log.String(), " attr=40 "))
+}
+
+// TestRFC8669EBGPAcceptedPrefixSIDNoErrorLog pairs the EBGP boundary discard
+// with its exception: an EBGP peer configured to accept the Prefix-SID keeps it,
+// so nothing is discarded and nothing is logged at the default level.
+// RFC 8669 Section 4: "A BGP speaker receiving a BGP Prefix-SID attribute from an External BGP (EBGP) neighbor residing outside the boundaries of the SR domain MUST discard the attribute unless it is configured to accept the attribute from the EBGP neighbor.  A BGP speaker SHOULD log an error for further analysis when discarding an attribute."
+// MUTATION: ignore AcceptSRv6PrefixSID in Session.validateRFC7606Attrs; the
+// attribute is discarded and an ERROR record names attribute 40.
+//
+// RFC requirement: RFC8669-4-2 negative -- a Prefix-SID from an EBGP peer configured to accept it is kept (ActionNone) and emits, at the default session log level, no ERROR record naming attribute 40.
+func TestRFC8669EBGPAcceptedPrefixSIDNoErrorLog(t *testing.T) {
+	log := captureSessionLog(t, defaultSessionLogLevel)
+	s := rfc8669EBGPSession(true)
+	body := makeUpdateBody(nil, rfc8669PrefixSIDAttrs(), []byte{24, 10, 0, 0})
+	_, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+	require.NoError(t, err)
+	require.Equal(t, message.RFC7606ActionNone, action)
+	assert.Emptyf(t, rfc7606ErrorLines(log.String(), " attr=40 "), "captured:\n%s", log.String())
 }
 
 // TestRFC7606TreatAsWithdrawLoggedAtDefaultLevel: a malformed ORIGIN withdraws

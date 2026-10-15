@@ -9,6 +9,7 @@ package reactor
 import (
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -36,9 +37,11 @@ type rfc7606ErrorLog struct {
 
 // logRFC7606Error logs, at Error level, that this peer's UPDATE was malformed
 // and what Ze did about it (event: attribute-discard, treat-as-withdraw,
-// nlri-syntax). The caller MUST call it once for each RFC 7606 action other
-// than session reset, which rfc7606ResetNotification logs at Warn. The Debug
-// diagnostics (rfc7606Diagnostics) still carry the NLRI and the whole UPDATE.
+// nlri-syntax). The caller MUST call it once for each treat-as-withdraw or
+// nlri-syntax verdict, and once for each discarded attribute of an
+// attribute-discard verdict, which logRFC7606Discards does. A session reset is
+// logged at Warn by rfc7606ResetNotification instead. The Debug diagnostics
+// (rfc7606Diagnostics) still carry the NLRI and the whole UPDATE.
 //
 // RFC 7606 Section 6: "At a minimum, such facilities must include logging an
 // error listing the NLRI involved and containing the entire malformed UPDATE
@@ -74,4 +77,43 @@ func (s *Session) logRFC7606Error(event string, attrCode uint8, description stri
 		"description", description,
 		"suppressed", suppressed,
 		"next-step", rfc7606ErrorNextStep)
+}
+
+// logRFC7606Discards logs one Error record for each distinct attribute an
+// attribute-discard verdict removes, with the reason that attribute's own check
+// gave. One record per verdict named only result.AttrCode, the first discard the
+// walk met, so a Prefix-SID discarded beside a malformed ATOMIC_AGGREGATE or a
+// refused AIGP reached the operator only at Debug.
+//
+// RFC 8669 Section 6: "When discarding an attribute, a BGP speaker SHOULD log an
+// error for further analysis."
+//
+// A code listed twice (a Prefix-SID both malformed and refused at the EBGP
+// boundary) logs once, with its first reason: the second record would only be
+// counted as suppressed by the same per-code window. The caller MUST pass an
+// attribute-discard verdict.
+func (s *Session) logRFC7606Discards(result *message.RFC7606ValidationResult) {
+	if len(result.DiscardEntries) == 0 {
+		panic("BUG: attribute-discard verdict names no attribute")
+	}
+	if len(result.DiscardDescriptions) != len(result.DiscardEntries) {
+		panic("BUG: RFC 7606 discard entries and descriptions out of step")
+	}
+	for i, entry := range result.DiscardEntries {
+		if discardCodeListed(result.DiscardEntries[:i], entry.Code) {
+			continue
+		}
+		s.logRFC7606Error(message.RFC7606ActionAttributeDiscard.String(), entry.Code, result.DiscardDescriptions[i])
+	}
+}
+
+// discardCodeListed reports whether entries already names code. The list is at
+// most one entry per attribute in the UPDATE, so a linear scan allocates nothing.
+func discardCodeListed(entries []message.DiscardEntry, code uint8) bool {
+	for _, entry := range entries {
+		if entry.Code == code {
+			return true
+		}
+	}
+	return false
 }

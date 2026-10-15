@@ -194,6 +194,11 @@ func getSpecialEnv(key string) string {
 	return env.Get(tb.Str("ze.log.").Str(key).String())
 }
 
+// DefaultLevel is the level a subsystem logger gets when no ze.log setting
+// names one: warnings and errors reach the operator, Info and Debug do not.
+// A test that asks what an operator sees by default captures at this level.
+const DefaultLevel = slog.LevelWarn
+
 // Logger returns a logger for an engine subsystem.
 // Each subsystem gets its own logger instance to allow independent enable/disable.
 // Uses hierarchical env var lookup: ze.log.<subsystem> → ze.log.<parent> → ze.log
@@ -203,8 +208,7 @@ func getSpecialEnv(key string) string {
 // that names no level gets a discard logger and no registration.
 func Logger(subsystem string) *slog.Logger {
 	registerSubsystem(subsystem)
-	// Default to WARN level - show warnings and errors
-	lvl := slog.LevelWarn
+	lvl := DefaultLevel
 	if v := getLogEnv(subsystem); v != "" {
 		parsed, ok := parseLevel(v)
 		if !ok {
@@ -238,8 +242,7 @@ func PluginLogger(subsystem, cliLevel string) *slog.Logger {
 	// Fall back to hierarchical env var lookup
 	v := getLogEnv(subsystem)
 	if v == "" {
-		// Default to WARN level - show warnings and errors
-		handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn})
+		handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: DefaultLevel})
 		return slog.New(handler).With("subsystem", subsystem)
 	}
 	lvl, ok := parseLevel(v)

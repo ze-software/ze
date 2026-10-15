@@ -291,6 +291,17 @@
     },
     {
       "rid": "RFC8669-4-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669EBGPAcceptedPrefixSIDNoErrorLog",
+      "unit-sha": "b0322eb5efec58d3",
+      "claim-sha": "9a12a1ed7179659b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606Attrs",
+      "producer-sha": "5f9fb277b671f4d4",
+      "break": "body of validateRFC7606Attrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-4-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669EBGPBoundaryDiscardLoggedAtDefaultLevel",
       "unit-sha": "baea7eba684c9974",
@@ -321,6 +332,17 @@
       "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
       "producer-sha": "00a49549792e5674",
       "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-4.1-15",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669CleanPrefixSIDNoErrorLog",
+      "unit-sha": "359e26c296111fc4",
+      "claim-sha": "081b25265afeffcd",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDValue",
+      "producer-sha": "65bfdeb7db074a4d",
+      "break": "body of validatePrefixSIDValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8669-4.1-15",
@@ -465,7 +487,7 @@
       "claim-sha": "d55b64c84e90113b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "27b17ed02c34e63b",
+      "producer-sha": "e743de877e969826",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -476,8 +498,19 @@
       "claim-sha": "431ca2345b117459",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-      "producer-sha": "27b17ed02c34e63b",
+      "producer-sha": "e743de877e969826",
       "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8669-6-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669CleanPrefixSIDNoErrorLog",
+      "unit-sha": "359e26c296111fc4",
+      "claim-sha": "3a14dc99c97c7251",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDValue",
+      "producer-sha": "65bfdeb7db074a4d",
+      "break": "body of validatePrefixSIDValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8669-6-4",
