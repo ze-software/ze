@@ -276,15 +276,9 @@ func (r *Reactor) removePeer(addr netip.Addr, subcode uint8) error {
 	if err != nil {
 		return err
 	}
-	// The Cease is written after r.mu is released (peerStop).
+	// The Cease is written after r.mu is released (peerStop). The filters were
+	// told inside doRemovePeer, before this can block.
 	stop.run()
-	// Free what the filters keep for this peer before the removal returns, so
-	// a peer created again under the same name meets none of it. The state
-	// event below cannot do this: it reaches only the processes the peer
-	// attaches (PeerScopedProcs), and a filter's plugin is attached to none.
-	if removed != nil {
-		notifyFiltersPeerRemoved(removed.Address, removed.Name, removed.GroupName)
-	}
 	// Notify plugins the peer was removed, AFTER releasing r.mu: plugin event
 	// delivery may block, so it must not run under the reactor lock. Emitted
 	// unconditionally here (not via the FSM teardown, which only fires for
@@ -307,16 +301,21 @@ func (r *Reactor) removePeer(addr netip.Addr, subcode uint8) error {
 
 // notifyFiltersPeerRemoved tells every registered filter that the peer left
 // the peer table (filterapi.NotifyPeerRemoved). Every path that deletes a peer
-// from r.peers MUST call it: removePeer, removeDynamicPeer and the undo of a
-// reload's add. It MAY run with r.mu held; the hooks MUST NOT call back into
-// the reactor.
+// from r.peers MUST call it, in the critical section that deletes it and so
+// before the peer's Cease is sent: doRemovePeer (delete bgp peer, and the
+// restart behind a peer edit), removeDynamicPeer, the reload's removal of a
+// dropped, restarted or replaced peer (reconcilePeersJournaled), and the undo
+// of a reload's add. AddPeer's rollback of a peer it never started is the one
+// deletion without it: that peer validated no OPEN, so the filters hold nothing
+// for it. It runs with r.mu held; the hooks MUST NOT call back into the reactor.
 func notifyFiltersPeerRemoved(address netip.Addr, name, group string) {
 	filterapi.NotifyPeerRemoved(filterapi.PeerFilterInfo{Address: address, Name: name, GroupName: group})
 }
 
-// doRemovePeer performs the locked peer-removal work and returns the removed
-// peer's identity so RemovePeer can notify plugins after releasing r.mu, and the
-// stop that sends its Cease, which the caller MUST run after releasing r.mu.
+// doRemovePeer performs the locked peer-removal work, including telling the
+// filters (notifyFiltersPeerRemoved), and returns the removed peer's identity so
+// RemovePeer can notify plugins after releasing r.mu, and the stop that sends
+// its Cease, which the caller MUST run after releasing r.mu.
 func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo, peerStop, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -373,6 +372,15 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 
 	delete(r.peers, key)
 	r.peerGeneration.Add(1)
+
+	// Free what the filters keep for this peer in the same critical section
+	// that deletes it, so before the Cease runs. The Cease can block on a full
+	// send buffer (stopWithCease, peer.go); a hook that ran after it would
+	// delete the fresh state of a peer created again at this address, and
+	// whose OPEN arrived, while the Cease was still blocked. The state event
+	// RemovePeer emits cannot do this job: it reaches only the processes the
+	// peer attaches (PeerScopedProcs), and a filter's plugin is attached to none.
+	notifyFiltersPeerRemoved(settings.Address, settings.Name, settings.GroupName)
 
 	// Update Prometheus metrics if configured.
 	if r.rmetrics != nil {

@@ -242,9 +242,14 @@ so it reaches only a process the peer's `attach process` block names, and
 nothing attaches `bgp-role` (a created peer has no block at all). Instead the
 `bgp-role` filter registration carries a `PeerRemoved` hook
 (`filterapi.Filter.PeerRemoved`), and every reactor path that takes a peer out
-of its peer table calls `filterapi.NotifyPeerRemoved` for it: `delete bgp peer`
-(and the restart a reload makes of a changed peer), the removal of a dynamic
-group's member, and the undo of a reload's add when that commit rolls back.
+of its peer table calls `filterapi.NotifyPeerRemoved` for it, in the critical
+section that removes the peer and before the peer's Cease is sent: `delete bgp
+peer` (and the restart behind a peer edit), the removal of a dynamic group's
+member, a reload's removal of a peer the new configuration drops, restarts, or
+replaces (a dynamic member whose address the configuration now names as a peer
+of its own), and the undo of a reload's add when that commit rolls back.
+`AddPeer`'s rollback of a peer it never started is the one deletion that skips
+it, because that peer validated no OPEN.
 `forgetRemovedPeer` deletes the role under the key the peer's name maps to and
 under its address, and logs `learned role dropped: peer removed` with the role
 it held.
@@ -252,9 +257,18 @@ it held.
 The hook runs synchronously inside the removal, so `delete bgp peer` returns
 only after the role is gone, and a peer created again under the same name, whose
 OPEN can only come later, meets nothing. A session-down clear could not give
-that order (see above). The hook may run with the reactor lock held,
-so it takes `filterMu` only. The learned role lives in the engine process,
-beside the OTC filters that read it, which is where the hook runs.
+that order (see above). Running it before the Cease matters too: the Cease
+can block on a full send buffer, and a hook that ran after it would delete the
+role of a peer created again at the address whose OPEN arrived meanwhile. The
+hook runs with the reactor lock held, so it takes `filterMu` only.
+
+The hook runs in the engine process, beside the OTC filters that read the
+learned role. That is where the role lives when `bgp-role` runs in-engine
+(`RunEngine`), the normal case. `bgp-role` can also run as an external process
+(`CLIHandler` passes the same `RunRolePlugin`): its validate-open handler then
+records the role in that process, while the filters and this hook read and
+clear the engine's copy, which nothing writes. That split predates the hook and
+is outside it.
 
 A configured peer a commit removes is still handled by `pruneLearnedRoles` at
 config-committed. One entry is left behind:
@@ -271,7 +285,9 @@ establish) would read it.
 <!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordNoRemoteRole, remoteRoleRecorded, filterKeyLocked, learnedRolePeerConfiguredLocked, forgetRemovedPeer -->
 <!-- source: internal/component/bgp/filterapi/filterapi.go -- Filter.PeerRemoved, NotifyPeerRemoved -->
 <!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent, deliverPeerState -->
-<!-- source: internal/component/bgp/reactor/reactor_peers.go -- removePeer, notifyFiltersPeerRemoved -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer, notifyFiltersPeerRemoved -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- reconcilePeersJournaled -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- RunEngine, CLIHandler -->
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- removeDynamicPeer -->
 <!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs -->
 

@@ -620,9 +620,9 @@ type Filter struct {
 	// peer-scoped state event reaches only attached processes, and a filter's
 	// plugin is attached to none. It runs synchronously inside the removal,
 	// so the removal returns only after the state is gone and a peer created
-	// again under the same name meets none of it. It MAY run with the reactor
-	// lock held, so it MUST NOT call back into the reactor or block. Nil =
-	// no per-peer state.
+	// again under the same name meets none of it. It runs with the reactor
+	// lock held, before the removed peer's Cease is sent, so it MUST NOT call
+	// back into the reactor or block. Nil = no per-peer state.
 	PeerRemoved func(PeerFilterInfo)
 }
 
@@ -695,8 +695,11 @@ func Register(f Filter) error {
 
 // NotifyPeerRemoved tells every registered filter that the reactor removed
 // peer (Filter.PeerRemoved). The reactor MUST call it on every path that takes
-// a peer out of its peer table, before that path returns. Safe for concurrent
-// use; registration MUST finish before peers start.
+// a peer out of its peer table, in the critical section that removes the peer
+// and so before the peer's Cease is sent: delete bgp peer and the restart
+// behind a peer edit, a dynamic member's removal, a reload's removal of a
+// dropped, restarted or replaced peer, and the undo of a reload's add. Safe
+// for concurrent use; registration MUST finish before peers start.
 func NotifyPeerRemoved(peer PeerFilterInfo) {
 	mu.RLock()
 	defer mu.RUnlock()

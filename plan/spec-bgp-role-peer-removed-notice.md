@@ -62,8 +62,8 @@ keeps for it, through registration, before the removal returns.
 
 ### Transformation Path
 
-`removePeer` -> `doRemovePeer` (peer leaves `r.peers`) ->
-`filterapi.NotifyPeerRemoved(PeerFilterInfo{Address, Name, GroupName})` ->
+`removePeer` -> `doRemovePeer` (peer leaves `r.peers`; in the same critical
+section, before the Cease runs) -> `filterapi.NotifyPeerRemoved(PeerFilterInfo{Address, Name, GroupName})` ->
 each registered `Filter.PeerRemoved` -> bgp-role deletes the learned role under
 the peer's name key and its address key.
 
@@ -75,22 +75,32 @@ No plugin protocol change: nothing crosses the plugin RPC boundary.
 ### Integration Points
 
 `filterapi.Filter` gains `PeerRemoved func(PeerFilterInfo)`. Every path that
-takes a peer out of `r.peers` calls `notifyFilterPeerRemoved`: `doRemovePeer`,
-`removeDynamicPeer`, and the add-undo of a rolled-back reload.
+takes a peer out of `r.peers` calls `notifyFiltersPeerRemoved`, under `r.mu`
+and before the peer's Cease is sent: `doRemovePeer`, `removeDynamicPeer`, the
+reload's remove step (`reconcilePeersJournaled`: a dropped, restarted or
+replaced peer, including a dynamic member replaced by a configured peer at its
+address), and the add-undo of a rolled-back reload. `AddPeer`'s rollback of a
+peer it never started is exempt: it validated no OPEN.
+-> Decision: the hook runs before the Cease, not after. The Cease can block on a
+full send buffer, and a hook run after it deletes the role of a peer created
+again at the address whose OPEN arrived during the block (review of 4368fbc99c).
 
 ### Architectural Verification
 
 - Registration, no central list: the reactor walks what `filterapi.Register`
   holds and names no plugin.
 - The state freed lives where the hook runs: the learned role is read only by
-  the OTC filters, which run in the engine process.
+  the OTC filters, which run in the engine process. True when `bgp-role` runs
+  in-engine (`RunEngine`); run external (`CLIHandler`), its validate-open writes
+  the role in its own process and the engine copy stays empty. That split
+  predates this spec and is outside it (`docs/architecture/meta/role.md`).
 
 ## Key Design Decisions
 
 | Decision | Chosen | Rejected, and why |
 |----------|--------|-------------------|
 | Carrier | a `PeerRemoved` hook on `filterapi.Filter` | Widening the state event to unattached processes: changes delivery for every plugin and the external protocol, arrives on the delivery loop and so races validate-open; `unbindProcesses` also sends `removed` for a detach of a live peer, so a role clear keyed on it would drop a live peer's role |
-| Ordering | synchronous, inside the removal, before `delete bgp peer` returns | An asynchronous notice can land after a re-created peer's OPEN and delete its new role |
+| Ordering | synchronous, inside the removal's critical section, before the Cease and before `delete bgp peer` returns | An asynchronous notice can land after a re-created peer's OPEN and delete its new role |
 | Keys cleared | the peer's name (through `filterKeyLocked`) and its address | A name-only clear misses a role stored by address |
 
 Main-thread decision recorded: the hook is a field of the existing filter
@@ -111,7 +121,7 @@ registration, not a new event type. No external plugin protocol changes.
 
 ## Blast Radius
 
-`filterapi` (new field, new function), reactor removal paths (three call
+`filterapi` (new field, new function), reactor removal paths (four call
 sites), bgp-role (one handler). No wire change.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -129,7 +139,7 @@ cleanups in `docs/architecture/core-design.md`.
 |----|-----------|
 | AC-1 | `delete bgp peer` of a created peer whose OPEN carried a Role removes that role from bgp-role before the command returns, and bgp-role logs the drop with the previous role |
 | AC-2 | A peer re-created at the same address, whose OPEN carries no Role, is not reported as having withdrawn the previous peer's role, and its role resolves to the configured complement |
-| AC-3 | The reactor calls every registered `PeerRemoved` hook for a peer removed by `RemovePeer`, by dynamic-peer removal, and by the undo of a reload's add, with the peer's address, name and group |
+| AC-3 | The reactor calls every registered `PeerRemoved` hook for a peer removed by `RemovePeer`, by dynamic-peer removal, by a reload's remove step, and by the undo of a reload's add, with the peer's address, name and group, under `r.mu` and before the Cease is sent |
 | AC-4 | A filter registered with only a `PeerRemoved` hook is accepted by `filterapi.Register` |
 
 ## End-to-End User Stories
@@ -147,6 +157,10 @@ sends no Role: Ze treats it as the new peer it is.
 | `TestNotifyPeerRemovedCallsEveryHook` | `internal/component/bgp/filterapi/filterapi_test.go` | AC-3, AC-4 |
 | `TestRemovePeerNotifiesFilters` | `internal/component/bgp/reactor/peer_removed_test.go` | AC-3 |
 | `TestRemoveDynamicPeerNotifiesFilters` | `internal/component/bgp/reactor/peer_removed_test.go` | AC-3 |
+| `TestDoRemovePeerNotifiesFiltersBeforeCease` | `internal/component/bgp/reactor/peer_removed_test.go` | AC-3 (ordering) |
+| `TestReloadRemoveNotifiesFilters` | `internal/component/bgp/reactor/peer_removed_test.go` | AC-3 |
+| `TestReloadReplacedDynamicPeerNotifiesFilters` | `internal/component/bgp/reactor/peer_removed_test.go` | AC-3 |
+| `TestReloadAddUndoNotifiesFilters` | `internal/component/bgp/reactor/peer_removed_test.go` | AC-3 |
 | `TestPeerRemovedClearsLearnedRole` | `internal/component/bgp/plugins/role/role_removed_test.go` | AC-1, AC-2 |
 
 ### Boundary Tests (numeric inputs)
@@ -184,7 +198,7 @@ the change frees engine-side state.
 
 1. Unit tests first, red.
 2. `filterapi`: `PeerRemoved` field, `NotifyPeerRemoved`.
-3. Reactor: one helper, called on the three removal paths.
+3. Reactor: one helper, called on the four removal paths, under `r.mu` before the Cease.
 4. bgp-role: handler clearing name and address keys, with a log of the drop.
 5. Functional test, red with the reactor call removed, green restored.
 6. Docs and the journal row.

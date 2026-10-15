@@ -1241,6 +1241,12 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 						peer.health.stop()
 					}
 					delete(r.peers, peerKey)
+					// The filters forget the peer here, under r.mu and before
+					// the deferred Cease, as every removal path does
+					// (notifyFiltersPeerRemoved). Without it a dynamic member
+					// replaced by a configured peer at its address left its
+					// learned role under the member's name.
+					notifyFiltersPeerRemoved(oldSettings.Address, oldSettings.Name, oldSettings.GroupName)
 					reactorLogger().Debug(label+": removed peer", "peer", peerKey)
 				}
 				return nil
