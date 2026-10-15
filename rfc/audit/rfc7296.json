@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-12",
+  "audited": "2026-10-15",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -331,40 +331,40 @@
       "verdict": "enforced"
     },
     "RFC7296-2.21.4-2": {
-      "note": "INVALID_IKE_SPI answer copies SPIs, Message ID and exchange type with Response flag, per request; answered over the arrival socket framing; .ci covers arrival socket",
+      "note": "Re-judged 2026-10-15 after 1ae1c731bd moved the three reject=stderr:pattern= lines of ipsec-error-notify-no-loop.ci under the daemon cmd line; under the new harness a stderr reject is a whole-run log check, so no assertion reads less, and expect=exit and the probe's pass line still bind the fixture. RFC 7296 Section 2.21.4: 'If a response is sent, the response MUST be sent to the IP address and port from where it came with the same IKE SPIs and the Message ID copied.' tunnelIPsecErrorNotify reads the answer on the socket that sent the request and fails unless both SPIs, exchange type 37, the Response flag and Message ID 7 are copied; the ordering marker with a different initiator SPI must draw an answer carrying that SPI and Message ID 11, so the copy is per request. TestNtfOutOfSAAnswersWithInvalidIKESPI and TestNtfOutOfSAAnswerCarriesTheSocketFraming pin the same fields and the arrival socket framing at unit level.",
       "requirement_sha": "43bc91a35bea0d27",
       "tests": {
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming": "46d06959b3cb4475",
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming#2": "46d06959b3cb4475",
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
-        "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
-        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
+        "test/ipsec/ipsec-error-notify-no-loop.ci": "623bc86b2e72ee5e",
+        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "623bc86b2e72ee5e"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming": "e44152a2c3d1b0ca",
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming#2": "e44152a2c3d1b0ca",
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "a331953769e2ca3e",
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "a331953769e2ca3e",
-        "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
-        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
+        "test/ipsec/ipsec-error-notify-no-loop.ci": "623bc86b2e72ee5e",
+        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "623bc86b2e72ee5e"
       },
       "verdict": "enforced"
     },
     "RFC7296-2.21.4-4": {
-      "note": "Re-judged 2026-10-11 by an independent judge; row widened to its subject, kept clause 'MUST contain an INVALID_IKE_SPI Notify payload' (RFC 7296 2.21.4). TestNtfOutOfSAAnswersWithInvalidIKESPI parses the emitted answer and requires exactly one payload, a Notify of type INVALID_IKE_SPI with an empty SPI and no data, so a wrong type, a missing Notify or an extra payload fails; ipsec-error-notify-no-loop.ci asserts the same through the real UDP path. The negatives (an IKE_SA_INIT to an unknown SPI draws nothing) are controls on the emitter's guard rather than violating inputs. No discrimination record.",
+      "note": "Re-judged 2026-10-15 after 1ae1c731bd moved the .ci's stderr rejects under the daemon cmd line (whole-run scope, no assertion weakened). RFC 7296 Section 2.21.4: 'The response MUST NOT be cryptographically protected and MUST contain an INVALID_IKE_SPI Notify payload.' TestNtfOutOfSAAnswersWithInvalidIKESPI parses the answer and requires exactly one payload, a Notify of type INVALID_IKE_SPI with an empty SPI and no data, so a wrong type, a missing Notify, an extra payload or an SK payload fails; the fixture behind ipsec-error-notify-no-loop.ci requires the body after the header to be one 4-octet Notify of type 4 (INVALID_IKE_SPI) with next payload 0 through the real UDP path. The negatives (an IKE_SA_INIT to an unknown SPI draws nothing) are controls on the emitter's guard rather than violating inputs. No discrimination record.",
       "requirement_sha": "caa14f78e936e131",
       "tests": {
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
-        "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
-        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
+        "test/ipsec/ipsec-error-notify-no-loop.ci": "623bc86b2e72ee5e",
+        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "623bc86b2e72ee5e"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "a331953769e2ca3e",
         "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "a331953769e2ca3e",
-        "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
-        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
+        "test/ipsec/ipsec-error-notify-no-loop.ci": "623bc86b2e72ee5e",
+        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "623bc86b2e72ee5e"
       },
       "verdict": "enforced"
     },
@@ -398,10 +398,10 @@
     },
     "RFC7296-2.21.4-8": {
       "code": {
-        "internal/component/ike/engine/inbound.go::handleOwnedInbound": "40c10c173575f7f6",
+        "internal/component/ike/engine/inbound.go::handleOwnedInbound": "ad10c68c320fd7e8",
         "internal/component/ike/engine/notify_error.go::answerOutOfSA": "7779929ee7fef0de"
       },
-      "note": "Independent source rejudgment against complete RFC 7296 Section 2.21.4: \u2018A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA.\u2019 The existing gap remains applicable at SHOULD level. Read internal/component/ike/engine/inbound.go::handleOwnedInbound in full: a cached-id message without SK returns after countErrorNotifySuppressed(\"unprotected-retransmit\"); outer parse failures and unauthenticated invalid-message-id cases also return without initiating a protected exchange. Its post-classification decrypt refuses an unprotected INVALID_IKE_SPI. Read notify_error.go::answerOutOfSA and sendInvalidIKESPI, and both plain-IKE/NAT-T unknown-SA dispatch branches in register.go: after SPI lookup fails and SA_INIT handling declines, the dispatcher calls answerOutOfSA and continues; this emits only the permitted unprotected INVALID_IKE_SPI response and performs no address-based existing-SA lookup or protected INFORMATIONAL initiation. The authenticated invalid-message-id path is a different Section 2.3 condition, not evidence for this suspicious-message obligation. No tests tag this gap row. The enum edit only adds a default panic to the classification switch; msgid.go::classifyInbound returns exactly inboundInvalid, inboundNewRequest, inboundRetransmit or inboundResponse, all explicitly handled. The pre-existing absence of the recommended notification remains; no new runtime observation, feature implementation or record renewal is claimed.",
+      "note": "Re-judged 2026-10-15 after 4fecbbd82a changed handleOwnedInbound: the only edit calls rebindChildSAs (rebind.go) when an AUTHENTICATED message moves the peer endpoint, migrating Child SAs or owing a rekey; it sends no Notify. RFC 7296 Section 2.21.4: 'A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA.' handleOwnedInbound still returns after countErrorNotifySuppressed on outer-parse-unauthenticated, unprotected-retransmit, replay-rate-limited and invalid-msgid-unauthenticated without starting a protected exchange, and answerOutOfSA (notify_error.go) still emits only the unprotected INVALID_IKE_SPI response to an unknown SPI with no address-based existing-SA lookup. The SHOULD stays unmet and the {gap} annotation matches the code. No tests tag this row.",
       "requirement_sha": "353610cc278b34ce",
       "verdict": "unimplemented"
     },
@@ -468,17 +468,16 @@
       "verdict": "enforced"
     },
     "RFC7296-2.23-2": {
-      "note": "Re-judged 2026-10-01 under R46: judged on its positive. TestChildSANATTEncapPorts: with NATDetected, createFirstChildSA installs both the inbound and the outbound ESP SA with UDPEncap on 4500/4500, so Ze uses UDP encapsulation for ESP once a NAT is detected. No receive-side refusal is legitimate: plain ESP must still be accepted (RFC7296-2.23-10, AcceptBothESPForms), so the no-NAT antecedent guard TestChildSANoNATNoEncap stays supplementary (BFD 6.1-3 precedent). Rekeyed SAs: newRekeyedChild copies NATDetected and UDPEncap from the old child, and the untagged TestRekeyKeepsBothESPFormAcceptance (rekey_test.go) asserts UDPEncap on both rekeyed SAs under NAT; that proof sits outside this verdict's fingerprint (traceability gap, not a proof gap). Both tagged units hold observed-red revert records on installChildSA.",
+      "note": "Re-judged 2026-10-15 after b457ba88cf rewrote TestChildSANATTEncapPorts. RFC 7296 Section 2.23: 'However, if a NAT is detected, both devices MUST use UDP encapsulation for ESP.' With NATDetected and the IKE SA floated to its NAT-T socket, the test runs createFirstChildSA and requires exactly two installed states, inbound and outbound, each with UDPEncap true, so a NAT-detected Child SA installed without UDP encapsulation on either direction fails. The rewrite added port assertions (the IKE SA's ports, both fixtures off 4500) that serve RFC 3948 Section 2.1 and do not weaken the UDPEncap assertion. No receive-side refusal is legitimate (RFC7296-2.23-10 requires plain ESP to stay accepted), so TestChildSANoNATNoEncap stays a supplementary no-NAT guard. Rekey still carries NATDetected and UDPEncap from the old child (rekey.go newRekeyedChild), asserted by the untagged TestRekeyKeepsBothESPFormAcceptance outside this fingerprint.",
       "requirement_sha": "bb6afe31983215b2",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "02ddf9e8a20bddfb",
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "eedc520e478ae909",
         "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "e032382b6fba7977"
       },
       "units": {
-        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "955a46be9071a360",
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "a5b55eb59ce83dee",
         "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "7a3ddc4e6dceae10"
       },
-      "upgrade_reason": "No tagged unit changed; the earlier weak verdict rested on the missing genuine negative, which R46 (2026-09-30) rules out as illegitimate (it would breach 2.23-10). The earlier note's 'rekeyed ESP SA under NAT is not asserted' was wrong: TestRekeyKeepsBothESPFormAcceptance asserts it, untagged.",
       "verdict": "enforced"
     },
     "RFC7296-2.23-3": {
