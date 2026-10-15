@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | `plan/immediate/spec-bgp-open-session-rfc-defects.md` (D2, Q1 = b) for Phase 4 only: the capability-only plugins' explicit declaration lands after its capability extractor |
-| Phase | 5/6 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-10-15 |
 
@@ -86,8 +86,8 @@ reload"), and `test/reload/bgp-dynamic-filter-swap-live.ci` asserts it.
 | Row | Closed by |
 |-----|-----------|
 | `plan/journal/unwired-feature.md`, 2026-10-14, `runFilterCommunity` registers only `OnConfigure` | Phase 2 (filter_community) |
-| `plan/journal/unwired-feature.md`, 2026-08-24, fixit-ipsec-peer-reload-ignored, residual "nothing yet detects the next plugin that declares `WantsConfig` and registers no apply handler" | Phase 5 (SDK refusal) |
-| `plan/journal/comment-describes-superseded-behaviour.md`, 2026-10-14, `plugin-relationships.md` section 7 participation rows wrong | Phase 6 doc edit: this spec changes every row's reload answer, so the table is re-derived from the registrations in the same change (`ai/rules/documentation.md`) |
+| `plan/journal/unwired-feature.md`, 2026-08-24, fixit-ipsec-peer-reload-ignored, residual "nothing yet detects the next plugin that declares `WantsConfig` and registers no apply handler" | Phase 5 (SDK refusal). Row marked fixed in Phase 6, citing 23104ccc4b |
+| `plan/journal/comment-describes-superseded-behaviour.md`, 2026-10-14, `plugin-relationships.md` section 7 participation rows wrong | Phase 6 doc edit: this spec changes every row's reload answer, so the table is re-derived from the registrations in the same change (`ai/rules/documentation.md`). Done in Phase 6: section 7 states who participates (`WantsConfig` joined with `ConfigReads`), the three answers (helper, own handlers, applies nothing) and the SDK refusal, and lists every BGP plugin with its answer; sections 2 (capability plugins "mediated by the reactor") and 5 ("no plugin reads another root") were false too and are corrected. Row marked fixed |
 | `plan/journal/check-mode-mutates-the-tree.md`, 2026-10-14, `verifyCoSConfig` clears and refills the live `coreCos` registry | Phase 3 (cos, Q2): verify parses into a candidate, apply installs, rollback restores |
 | `plan/journal/silent-fall-through.md`, 2026-10-14, iface `applyConfig` keeps an existing VLAN's old QoS maps (create error swallowed, `UpdateVLANQoSMap` never called) | Phase 3 (iface, AC-18): `UpdateVLANQoSMap` with a journal undo when the resolved maps differ |
 | `plan/journal/silent-fall-through.md`, 2026-10-14 (design review r3, B-1), `Backend.UpdateVLANQoSMap` merges instead of replacing on netlink and no-ops on an empty VPP egress map, so the cos RADIUS `dynamicHandler` leaves stale entries | Phase 3 (iface backends, AC-18b): both backends full-replace |
@@ -615,6 +615,7 @@ Documents that only `<!-- source: -->` mention a changed file (advisory, from `.
 | 2026-10-15 | implementation, phase 5 | The SDK refuses a reload for a plugin that wants config and registered neither `OnConfigApply` nor `DeclareAppliesNothing` (23104ccc4b): `configVerifyCallback` refuses first through `refuseWithoutApply`, naming the plugin, the roots and `RestartSteps()`; the default apply is `refuseConfigApply` (error, no rollback gate); the nil branch of `configApplyCallback` is deleted and `OnConfigApply(nil)` panics. `TestConfigApplyWithoutHandlerIsRefused` red before the code; `plugin-without-apply-refused` red under an `le` built with the HEAD SDK, green with the normal one. SDK tests that modelled a plugin with no declaration now declare one. R-1 rescan empty. Pages: `process-protocol.md`, `plugin-development/{protocol,README,testing,handlers}.md`, `transaction-protocol.md`. Journal rows: 31 `plugin/server` tests red at HEAD with the HEAD SDK (`registry-contamination.md`, pre-existing), `TestUnionTimeout` race flake (`test-mutates-a-running-subject.md`). Owed (main thread): `./le test functional gating` (whole reload suite), `./le test unit all`, `./le verify worktree`, full lint; `config-apply-ordering-mixed-rollback` in the guest over the Phase 5 SDK |
 | 2026-10-15 | owner answers | Review ISSUE-4 / Q-c: owner chose (b), keep the routing-table registry for a future reader (policy routing, VRFs); recorded on per-plugin row 21 and in Key Design Decisions. The owner approved the RFC 1350 TFTP test change (81cd922cf3; debt discharged in 01890226bb). The boot-lenient / reload-strict `listen-interface` decision (R-13) is not answered: still owner to confirm |
 | 2026-10-15 | owner answers | Question 13, answer "a": the boot-lenient / reload-strict `listen-interface` decision (R-13) is confirmed by the owner 2026-10-15. DHCP, TFTP and the image server keep Stage 2 lenient (an unbindable `listen-interface` logs an error and ze runs on); a reload stays strict. Recorded on per-plugin row 25 and in Key Design Decisions |
+| 2026-10-15 | implementation, phase 6 | `plugin-relationships.md` section 7 re-derived from the registrations (every non-test package declaring `WantsConfig:` classified by its answer: `sdk.NewConfigTx`, `OnConfigApply`, `DeclareAppliesNothing`, the bridge's `registerReloadHandlers`; none without one); sections 2 and 5 corrected, both stated the reactor mediates sub-plugin config and that no plugin reads another root. Journal rows closed: `comment-describes-superseded-behaviour.md` (section 7) and the `unwired-feature.md` 2026-08-24 residual (23104ccc4b). Phase 6 is documentation only: no code, no red owed |
 
 ## Checklist
 

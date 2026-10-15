@@ -225,13 +225,16 @@ These declare BGP capabilities injected into OPEN messages.
 | bgp-hostname | `bgp/plugins/hostname/` | draft | 73 | bgp |
 | bgp-softver | `bgp/plugins/softver/` | draft | 75 | bgp |
 
-Capability plugins declare `ConfigRoots: ["bgp"]` in their registration but do not
-need direct config change notifications. The BGP reactor mediates config for them:
-it parses capability settings from the BGP tree into `PeerSettings.RawCapabilityConfig`
-and passes them to plugins during startup (`OnConfigure`). On config reload, changed
-peers are torn down and re-created by `reconcilePeers`, which triggers fresh capability
-negotiation with updated settings. The reactor handles the config change lifecycle
-on behalf of all capability plugins.
+Capability plugins declare `ConfigRoots: ["bgp"]` and `WantsConfig: ["bgp"]`, so
+each takes part in every transaction that changes `bgp` (section 7). They read
+their capability settings at startup (`OnConfigure`) and declare them through
+`DeclareCapabilitiesFrom`, which refuses at config-verify a reload that changes,
+adds or removes a declared capability, because a capability already sent in an
+OPEN cannot change while the session runs. bgp-gr, bgp-hostname, bgp-llnh,
+bgp-softver read nothing else, so they declare that they apply nothing;
+bgp-role also applies `strict`, `export` and its name map live. bgp-route-refresh
+reads no leaf (the engine advertises route-refresh) and also declares that it
+applies nothing.
 
 ### Filter Plugins
 
@@ -346,17 +349,20 @@ OS kernel -> iface-netlink (monitor)
 
 | Config Root | Owner | Read By (WantsConfig) | Notes |
 |-------------|-------|-----------------------|-------|
-| `bgp` | bgp | - | BGP reactor mediates config for all sub-plugins via reconcilePeers |
-| `interface` | interface | - | BGP reads address changes via bus events, not WantsConfig |
+| `bgp` | bgp | every BGP sub-plugin with `WantsConfig: ["bgp"]` (section 7), the external exabgp plugin | each reader parses its own subtree; peers are reconciled by the reactor |
+| `interface` | interface | static | BGP reads address changes via bus events, not WantsConfig |
 | `rib` | rib | - | |
 | `fib.kernel` | fib-kernel | - | |
 | `fib.p4` | fib-p4 | - | |
 
-Currently no plugin uses `WantsConfig` to read another plugin's config. All
-cross-plugin config dependencies are mediated by the owning plugin (BGP reactor
-for capability plugins) or by bus events (interface for BGP). The `WantsConfig`
-mechanism exists for future plugins that need direct access to another root's
-config diffs during transactions (e.g., a DHCP plugin reading interface config).
+Several plugins read a root another plugin owns, either through the SDK
+`Registration.WantsConfig` or through the registry's `ConfigReads`, and each
+such read makes them a participant in every transaction that changes that root
+(section 7). Examples: `interface` reads `class-of-service` to resolve unit QoS
+profiles against the candidate; `static` reads `routing-table`, `bfd` and
+`interface`; `bgp` and `ospf` read `bfd`; `bgp-rpki` reads `pki`; `bgp-bmp`
+reads `environment` and `system`. To list them, grep `ConfigReads:` and
+`WantsConfig:` in the non-test Go files.
 
 ---
 
@@ -428,27 +434,54 @@ startup dependencies in the `Dependencies` field.
 Based on the [Config Transaction Protocol](../config/transaction-protocol.md),
 this is which plugins participate in config transactions and why.
 
-| Plugin | Participates | Reason |
-|--------|-------------|--------|
-| bgp | Yes (owner) | Owns `bgp` root, applies peer changes |
-| interface | Yes (owner) | Owns `interface` root, creates/removes interfaces |
-| rib | Yes (owner) | Owns `rib` root, applies admin distance config |
-| fib-kernel | Yes (owner) | Owns `fib.kernel` root |
-| fib-p4 | Yes (owner) | Owns `fib.p4` root |
-| bgp-gr | No | Config mediated by BGP reactor via reconcilePeers |
-| bgp-route-refresh | No | Config mediated by BGP reactor |
-| bgp-role | No | Config mediated by BGP reactor |
-| bgp-llnh | No | Config mediated by BGP reactor |
-| bgp-hostname | No | Config mediated by BGP reactor |
-| bgp-softver | No | Config mediated by BGP reactor |
-| bgp-filter-community | No | Config mediated by BGP reactor |
-| bgp-watchdog | No | Config mediated by BGP reactor |
-| bgp-healthcheck | No | Config mediated by BGP reactor |
-| bgp-rpki | No | Config mediated by BGP reactor |
-| iface-dhcp | Planned (reader) | Will use `WantsConfig: ["interface"]` to start/stop DHCP clients on interface changes. Not yet wired. |
-| bgp-adj-rib-in | No | No config roots, no WantsConfig |
-| bgp-rib | No | `ConfigRoots: ["bgp"]` auto-loads it; no WantsConfig |
-| bgp-aigp | No | No config roots, no WantsConfig |
-| bgp-rs | Yes (reader) | `ConfigRoots: ["bgp"]` auto-loads it and `WantsConfig: ["bgp"]` makes it a participant in every reload that changes `bgp`. Its verify/apply/rollback (`rs/config_tx.go`) take `route-server { worker-queue-size }` into the worker pool for workers created afterwards; the `ze.bgp.route-server.worker-queue-size` env var still wins |
-| bgp-rpki-decorator | No | No config roots, no WantsConfig |
+**Who participates.** A plugin is a participant in a transaction when a root it
+wants changed. The roots it wants are its SDK `Registration.WantsConfig` joined
+with its registry `ConfigReads` (`joinConfigReads`, `server/startup.go`). There
+is no subtree granularity: every plugin that wants `bgp` takes part in every
+`bgp` edit, and every plugin that wants `service` in every `service` edit, so
+each one compares its parsed candidate with what it runs and does nothing when
+they are equal. `ConfigRoots` alone autoloads a plugin and does not make it a
+participant.
+
+**How a participant answers.** Every participant registers one of three
+answers. A participant with none is refused by the SDK at config-verify, naming
+the plugin and the changed roots, with the restart steps
+(`refuseWithoutApply`, `pkg/plugin/sdk/sdk_callbacks.go`); a reload never
+reports success for a plugin that kept its old config.
+
+| Answer | Registered by | Meaning |
+|--------|---------------|---------|
+| Transaction helper | `sdk.NewConfigTx(...).Register(p)` (`pkg/plugin/sdk/config_tx.go`) | verify parses into a candidate, apply installs it and keeps the previous, rollback reinstalls the previous; an unchanged candidate installs nothing |
+| Own handlers | `OnConfigVerify`, `OnConfigApply`, `OnConfigRollback` | the plugin holds its own verify-to-apply state; a verify may refuse a change it cannot take while running |
+| Applies nothing | `DeclareAppliesNothing(reason)` | the plugin reads no leaf it could re-apply (its config is only a capability declaration, or its root is an empty container); the reload is accepted and a debug line names the reason |
+
+**The BGP plugins.** The table re-derives the rows from the registrations
+(2026-10-15). It is a copy: the source is each plugin's `sdk.Registration` and
+its `run*` function, and no check compares the two, so re-derive it when a
+plugin's registration changes.
+
+| Plugin | Participates | Answer |
+|--------|--------------|--------|
+| bgp | Yes (owner of `bgp`; reads `bfd`) | own handlers, applies peer changes |
+| bgp-filter-aspath, -aspath-length, -community, -community-match, -family, -irr, -modify, -path-asn, -prefix, -remove-private-as | Yes (`bgp`) | transaction helper: the next UPDATE filtered after the reload uses the new definitions; stored and advertised routes are not re-evaluated |
+| bgp-healthcheck | Yes (`bgp`) | transaction helper: reconciles the probe set without waiting for stopped probes |
+| bgp-rib | Yes (`bgp`) | transaction helper: `maximum-paths`, `relax-as-path`, blackhole rules (reselects stored routes), AS notation |
+| bgp-role | Yes (`bgp`) | transaction helper for `strict`, `export` and the name map; prunes learned roles at commit (`OnConfigCommitted`); a role value change is refused by the capability comparison |
+| bgp-rs | Yes (`bgp`) | transaction helper: `route-server { worker-queue-size }` for workers created afterwards; the `ze.bgp.route-server.worker-queue-size` env var still wins |
+| bgp-watchdog | Yes (`bgp`) | own handlers: merges pools, keeps announce state, withdraws removed announced entries |
+| bgp-rpki | Yes (`bgp`; reads `pki`) | own handlers |
+| bgp-bmp | Yes (`bgp`, `environment`, `system`) | own handlers |
+| bgp-epe, bgp-ls-export | Yes (own root) | own handlers |
+| bgp-gr, bgp-hostname, bgp-llnh, bgp-softver | Yes (`bgp`) | applies nothing: their config is a capability declaration, and a change to it is refused by `DeclareCapabilitiesFrom` |
+| bgp-route-refresh | Yes (`bgp`) | applies nothing: reads no leaf; the engine advertises route-refresh |
+| bgp-adj-rib-in, bgp-aigp, bgp-capa, bgp-rr, bgp-rpki-decorator, redistribute-orchestrator | No | no `WantsConfig`, no `ConfigReads` |
+| iface-dhcp | No | no config root, no `WantsConfig`: the `interface` plugin creates its DHCP clients through the factory iface-dhcp registers (`iface.SetDHCPClientFactory`) |
 | All NLRI plugins | No | Pure codec, no config involvement |
+
+Outside BGP, every plugin that wants a root registers own handlers, except
+these: `class-of-service` (cos), `routing-table`, and the `service` plugins
+dhcp-server, tftp-server, image-server, as112 and geodns use the transaction
+helper; connected and kernel apply nothing (empty containers); the exabgp
+bridge refuses at verify every non-capability change under `exabgp` while it
+runs, and the external exabgp plugin applies nothing. What each plugin's reload
+does for the operator is in [Config Reload](../../guide/config-reload.md).
